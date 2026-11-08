@@ -35,6 +35,13 @@ on:
       - 'tools/page-i18n.mjs'
       - 'tools/lang-pages.mjs'
       - 'tools/site-chrome.mjs'
+      # Imported by the builders: build-i18n -> home-bake, build-seo ->
+      # page-meta -> home-i18n, build-seo -> trial-covers. Pinned by
+      # server/test/site-deploy-inputs.test.mjs.
+      - 'tools/home-bake.mjs'
+      - 'tools/home-i18n.mjs'
+      - 'tools/page-meta.mjs'
+      - 'tools/trial-covers.mjs'
       - 'tools/build-seo.mjs'
       - 'tools/stamp-release.mjs'
       - 'tools/build-releases.mjs'

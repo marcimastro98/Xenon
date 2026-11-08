@@ -1,11 +1,11 @@
 {
   "it": {
     "deck.h1": "Il Deck",
-    "deck.lede": "Il Deck è una griglia di tasti che aggiungi a una pagina della dashboard di Xenon. Un tocco può aprire un'app, mandare una scorciatoia da tastiera, cambiare scena in OBS o mettere in muto Discord, e un tasto può illuminarsi per mostrare lo stato di quello che comanda.",
+    "deck.lede": "Il Deck è una griglia di tasti che aggiungi a una pagina di Xenon. Un tocco può aprire un'app, mandare una scorciatoia da tastiera, cambiare scena in OBS o mettere in muto Discord, e un tasto può illuminarsi per mostrare lo stato di quello che comanda.",
     "deck.lede2": "Fa un lavoro simile a quello di uno Stream Deck, su uno schermo che hai già: uno Xeneon Edge, un monitor libero, un tablet o un telefono.",
     "deck.updated": "Ultimo aggiornamento: 27 settembre 2026",
-    "deck.shot.alt": "Il widget Deck con dodici tasti: scene di OBS, registrazione, microfono, Discord, Spotify, riproduzione, uno screenshot e le luci",
-    "deck.shot.cap": "Un profilo per lo streaming con dodici tasti. Il tasto Playing è acceso perché la musica sta suonando.",
+    "deck.shot.alt": "Il widget Deck con dodici tasti in un profilo da gioco: salva replay, screenshot, muto microfono, Spotify, overlay, segna, Discord, luci, chiedi a Bit, registra, volume e blocca il PC",
+    "deck.shot.cap": "Un profilo da gioco con dodici tasti per replay, screenshot, microfono e overlay.",
     "deck.jump.actions": "Azioni",
     "deck.jump.steps": "Tasti in più passaggi",
     "deck.jump.state": "Tasti che mostrano uno stato",
@@ -32,7 +32,7 @@
     "deck.act.vm": "<strong>Voicemeeter.</strong> Metti in muto una strip o regolane il gain, mandala a un bus (i pulsanti A1, A2, B1), metti in muto un bus o regolane il gain, premi uno dei tuoi pulsanti macro, o imposta qualsiasi parametro per nome.",
     "deck.act.wl": "<strong>Wave Link.</strong> Regola o metti in muto il volume di un ingresso, di un'uscita o di un mix. Con Wave Link 2 un tasto può anche cambiare il monitoraggio; con Wave Link 3 può attivare e disattivare gli effetti e scegliere il dispositivo di uscita.",
     "deck.act.ha": "<strong>Home Assistant.</strong> Accendi o spegni un dispositivo, regola una luce, comanda un lettore multimediale, una tapparella, il clima, una ventola, un aspirapolvere, una serratura o un allarme, attiva una scena, esegui uno script, premi un pulsante o chiama qualsiasi servizio.",
-    "deck.act.light": "<strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.",
+    "deck.act.light": "<strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo, colora una sola ventola, striscia o pompa, o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.",
     "deck.act.window": "<strong>Finestre.</strong> Sposta la finestra che stavi usando sul monitor successivo o precedente, agganciala alla metà sinistra o destra, ingrandiscila, riducila a icona o centrala.",
     "deck.act.ai": "<strong>Bit e Claude Code.</strong> Manda un prompt all'AI, avvia una sessione vocale o apri la chat. Avvia una richiesta a Claude Code in uno dei tuoi progetti, o ferma quella in corso. Il tasto non concede permessi: quando Claude Code chiede di eseguire un comando, la richiesta arriva sullo schermo e sei tu ad approvarla.",
     "deck.act.more": "<strong>Altro.</strong> Chiama o manda SMS tramite un telefono abbinato via Bluetooth, chiudi una sessione remota o blocca l'accesso remoto, e usa i tasti aggiunti dai widget della community che hai installato, ognuno solo dopo che l'hai consentito.",

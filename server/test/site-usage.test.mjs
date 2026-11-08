@@ -163,6 +163,7 @@ test('every site id is one the hub accepts', { skip: !existsSync(HUB_FEATURES) &
   const hub = await import(pathToFileURL(HUB_FEATURES).href);
   const list = /const SITE_FEATURES = \[([^\]]+)\]/.exec(SOURCE)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
   const sections = /const HOME_SECTIONS = \[([^\]]+)\]/.exec(SOURCE)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
-  const site = [...list, ...sections.map((x) => 'home.' + x)].sort();
-  assert.deepEqual(site, [...hub.USAGE_FEATURES.site].sort());
+  // The hub may know more than the site sends: pages still cached in a browser send old ids.
+  const site = [...list, ...sections.map((x) => 'home.' + x)];
+  assert.deepEqual(site.filter((id) => !hub.USAGE_FEATURES.site.includes(id)), []);
 });

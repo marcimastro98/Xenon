@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows, Linux, Mac",
     "fo.jump.afterburner": "À côté d’Afterburner",
     "fo.jump.faq": "Questions fréquentes",
-    "fo.img.alt": "La tuile Performances en jeu de Xenon : 143 FPS, 1 % low 112, 0,1 % low 96, temps de trame 7,1 ms, un graphique des dernières images avec un pic, CPU 21 %, GPU 19 %, GPU à 48 °C",
+    "fo.img.alt": "La tuile Performances en jeu de Xenon : 143 FPS, 1 % low 112, 0,1 % low 96, temps de trame 7,1 ms, un graphique des dernières images avec deux pics, CPU 48 %, GPU 61 %, GPU à 60 °C",
     "fo.h.lows": "Ce que disent les 1 % low et 0,1 % low",
     "fo.lows.p1": "La fréquence d’images moyenne cache les moments désagréables. Xenon prend aussi le 1 % des images les plus lentes et donne leur moyenne sous forme de fréquence d’images : c’est le <strong>1 % low</strong>. Le <strong>0,1 % low</strong> fait de même avec l’image la plus lente sur mille.",
     "fo.lows.p2": "Sur l’image ci-dessus, le jeu tourne en moyenne à 143 FPS, le 1 % low est à 112 et le 0,1 % low à 96. Les trois chiffres sont proches, donc le jeu paraît fluide. Quand la moyenne est élevée et que les lows sont bien plus bas, le jeu saccade alors que le compteur de FPS semble correct.",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "L’overlay FPS est-il gratuit ?",
     "fo.faq.price.a": "Oui. La tuile Performances en jeu, les parties jouées, le benchmark et les causes des saccades font partie de l’application gratuite, sans compte. Les supporters reçoivent les drops mensuels du catalogue, pas de fonctionnalités en plus.",
     "fo.cta.h": "Télécharger Xenon",
-    "fo.cta.p": "Gratuit, sans compte. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href=\"/download.html\">page de téléchargement</a>. Pour avoir les widgets, les enregistrements et le Replay instantané sur le même écran, lisez <a href=\"/single-screen.html\">Xenon sur un seul écran</a>."
+    "fo.cta.p": "Gratuit, sans compte. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href=\"/download.html\">page de téléchargement</a>. Pour avoir les widgets, les enregistrements et le Replay instantané sur le même écran, lisez <a href=\"/single-screen.html\">Xenon sur un seul écran</a>.",
+    "fo.pic.alt": "L'overlay des performances en jeu : FPS, lows 1 % et 0,1 %, temps d'image, un graphique des dernières images et charge du CPU et du GPU"
   }
 }

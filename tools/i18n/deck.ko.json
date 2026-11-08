@@ -1,11 +1,11 @@
 {
   "ko": {
     "deck.h1": "Deck",
-    "deck.lede": "Deck은 Xenon 대시보드 페이지에 추가하는 키 그리드입니다. 탭 한 번으로 앱을 열고, 키보드 단축키를 보내고, OBS 장면을 바꾸고, Discord를 음소거할 수 있습니다. 키에 불이 들어와 제어하는 대상의 상태를 보여 줄 수도 있습니다.",
+    "deck.lede": "Deck은 Xenon 페이지에 추가하는 키 그리드입니다. 탭 한 번으로 앱을 열고, 키보드 단축키를 보내고, OBS 장면을 바꾸고, Discord를 음소거할 수 있습니다. 키에 불이 들어와 제어하는 대상의 상태를 보여 줄 수도 있습니다.",
     "deck.lede2": "Stream Deck과 비슷한 일을 이미 가지고 있는 화면에서 합니다. Xeneon Edge, 남는 모니터, 태블릿, 휴대폰 모두 됩니다.",
     "deck.updated": "마지막 업데이트: 2026년 9월 27일",
-    "deck.shot.alt": "키 12개가 있는 Deck 위젯: OBS 장면, 녹화, 마이크, Discord, Spotify, 재생, 스크린샷, 조명",
-    "deck.shot.cap": "키 12개로 된 스트리밍 프로필. 음악이 재생 중이라 Playing 키에 불이 들어와 있습니다.",
+    "deck.shot.alt": "게임 프로필의 키 12개가 있는 Deck 위젯: 리플레이 저장, 스크린샷, 마이크 음소거, Spotify, 오버레이, 표시, Discord, 조명, Bit에게 묻기, 녹화, 볼륨, PC 잠금",
+    "deck.shot.cap": "리플레이, 스크린샷, 마이크, 오버레이용 키 12개로 된 게임 프로필.",
     "deck.jump.actions": "액션",
     "deck.jump.steps": "여러 단계를 실행하는 키",
     "deck.jump.state": "상태를 보여 주는 키",
@@ -32,7 +32,7 @@
     "deck.act.vm": "<strong>Voicemeeter.</strong> 스트립을 음소거하거나 게인을 설정하고, 버스로 보내고(A1, A2, B1 버튼), 버스를 음소거하거나 게인을 설정하고, 매크로 버튼 하나를 누르거나, 이름이 있는 아무 파라미터나 설정합니다.",
     "deck.act.wl": "<strong>Wave Link.</strong> 입력, 출력, 믹스의 볼륨을 설정하거나 음소거합니다. Wave Link 2에서는 모니터링 전환도 할 수 있고, Wave Link 3에서는 효과 켜고 끄기와 출력 장치 선택도 할 수 있습니다.",
     "deck.act.ha": "<strong>Home Assistant.</strong> 기기 켜고 끄기, 조명 설정, 미디어 플레이어, 커버, 공조, 팬, 청소기, 잠금장치, 경보 제어, 장면 활성화, 스크립트 실행, 버튼 누르기, 또는 아무 서비스 호출.",
-    "deck.act.light": "<strong>조명.</strong> 조명을 켜거나 끄고, 색이나 효과를 설정하고, 장치 하나를 바꾸거나, 자동 제어로 되돌립니다. Razer Chroma 장치와 SignalRGB 효과는 전용 키가 있습니다.",
+    "deck.act.light": "<strong>조명.</strong> 조명을 켜거나 끄고, 색이나 효과를 설정하고, 장치 하나를 바꾸고, 팬이나 스트립, 펌프 하나만 색을 입히거나, 자동 제어로 되돌립니다. Razer Chroma 장치와 SignalRGB 효과는 전용 키가 있습니다.",
     "deck.act.window": "<strong>창.</strong> 사용하던 창을 다음 또는 이전 모니터로 옮기고, 왼쪽이나 오른쪽 절반에 맞추고, 최대화, 최소화하거나 가운데로 옮깁니다.",
     "deck.act.ai": "<strong>Bit과 Claude Code.</strong> AI에 프롬프트를 보내고, 음성 세션을 시작하거나 채팅을 엽니다. 내 프로젝트 하나에서 Claude Code 요청을 시작하거나, 실행 중인 요청을 멈춥니다. 키가 권한을 주지는 않습니다. Claude Code가 명령 실행을 요청하면 그 요청이 화면에 나타나고, 승인은 사용자가 합니다.",
     "deck.act.more": "<strong>그 밖에.</strong> 블루투스로 페어링한 휴대폰으로 전화를 걸거나 문자를 보내고, 원격 세션을 끝내거나 원격 접속을 차단하고, 설치한 커뮤니티 위젯이 추가한 키를 씁니다. 이런 키는 하나하나 먼저 사용자가 허용해야 합니다.",

@@ -16,7 +16,7 @@
     "tab.how.p2": "What you see is the real dashboard, not a remote: the same tiles, the same theme and the same pages as on a monitor, laid out again for the tablet's shape. Touch targets are sized for fingers.",
     "tab.h.setup": "Setting it up",
     "tab.setup.1": "On the PC, download <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a>, run it, and press <strong>Complete setup</strong> when the app asks. This happens once.",
-    "tab.setup.2": "Open Settings → <strong>Remote Control</strong> → <strong>Phone access</strong>, turn on <strong>Allow access from other devices</strong> and press <strong>Add device</strong>. The PC shows a QR code.",
+    "tab.setup.2": "Open Settings → <strong>Phone</strong> → <strong>Phone access</strong>, turn on <strong>Allow access from other devices</strong> and press <strong>Add device</strong>. The PC shows a QR code.",
     "tab.setup.3": "Point the tablet's camera at the code. The dashboard opens in its browser. Add it to the home screen if you want it full-screen.",
     "tab.setup.4": "If the PC has no spare monitor at all, tell Xenon at first launch to show nothing on the PC: the tablet becomes the only screen.",
     "tab.setup.more": "The <a href=\"phone.html\">phone guide</a> has the same steps with screenshots, plus the optional route for reaching the dashboard from outside the house.",
@@ -47,7 +47,8 @@
     "ld.q4": "Can I use a phone instead of a tablet?",
     "ld.a4": "Yes, the same way. The layout reflows for a phone screen.",
     "ld.q5": "Is Xenon free?",
-    "ld.a5": "Yes. No paid version, no account, no ads. The source is on GitHub under a non-commercial licence."
+    "ld.a5": "Yes. No paid version, no account, no ads. The source is on GitHub under a non-commercial licence.",
+    "tab.pic.alt": "The Xenon dashboard on a tablet: music, lyrics, system graphs and a grid of Deck keys"
   },
   "es": {
     "tab.h1": "Usa una tablet o un teléfono antiguo como panel para tu PC",
@@ -66,7 +67,7 @@
     "tab.how.p2": "Lo que ves es el panel de verdad, no un control remoto: los mismos mosaicos, el mismo tema y las mismas páginas que en un monitor, reorganizados para la forma de la tablet. Los controles tienen el tamaño justo para tocarlos con el dedo.",
     "tab.h.setup": "Configuración",
     "tab.setup.1": "En el PC, descarga <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a>, ejecútalo y haz clic en <strong>Complete setup</strong> cuando la app te lo pida. Solo se hace una vez.",
-    "tab.setup.2": "Abre Ajustes → <strong>Remote Control</strong> → <strong>Acceso desde el móvil</strong>, activa <strong>Permitir el acceso desde otros dispositivos</strong> y haz clic en <strong>Añadir dispositivo</strong>. El PC muestra un código QR.",
+    "tab.setup.2": "Abre Ajustes → <strong>Teléfono</strong> → <strong>Acceso desde el móvil</strong>, activa <strong>Permitir el acceso desde otros dispositivos</strong> y haz clic en <strong>Añadir dispositivo</strong>. El PC muestra un código QR.",
     "tab.setup.3": "Apunta la cámara de la tablet al código. El panel se abre en su navegador. Si lo quieres a pantalla completa, añádelo a la pantalla de inicio.",
     "tab.setup.4": "Si el PC no tiene ningún monitor libre, indícale a Xenon en el primer arranque que no muestre nada en el PC: la tablet pasa a ser la única pantalla.",
     "tab.setup.more": "La <a href=\"phone.html\">guía del teléfono</a> tiene los mismos pasos con capturas de pantalla, además de la opción para llegar al panel desde fuera de casa.",
@@ -97,7 +98,8 @@
     "ld.q4": "¿Puedo usar un teléfono en lugar de una tablet?",
     "ld.a4": "Sí, de la misma forma. El diseño se reorganiza para la pantalla de un teléfono.",
     "ld.q5": "¿Xenon es gratis?",
-    "ld.a5": "Sí. Sin versión de pago, sin cuenta y sin anuncios. El código fuente está en GitHub con una licencia no comercial."
+    "ld.a5": "Sí. Sin versión de pago, sin cuenta y sin anuncios. El código fuente está en GitHub con una licencia no comercial.",
+    "tab.pic.alt": "El panel de Xenon en una tableta: música, letras, gráficos del sistema y una cuadrícula de teclas Deck"
   },
   "it": {
     "tab.h1": "Usa un vecchio tablet o telefono come dashboard per il PC",
@@ -116,7 +118,7 @@
     "tab.how.p2": "Quella che vedi è la dashboard vera, non un telecomando: gli stessi tile, lo stesso tema e le stesse pagine che hai su un monitor, ridisposti per la forma del tablet. I controlli sono dimensionati per le dita.",
     "tab.h.setup": "Configurazione",
     "tab.setup.1": "Sul PC scarica <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a>, avvialo e premi <strong>Complete setup</strong> quando l’app te lo chiede. Si fa una volta sola.",
-    "tab.setup.2": "Apri Impostazioni → <strong>Controllo Remoto</strong> → <strong>Accesso dal telefono</strong>, attiva <strong>Consenti l’accesso da altri dispositivi</strong> e premi <strong>Aggiungi dispositivo</strong>. Il PC mostra un codice QR.",
+    "tab.setup.2": "Apri Impostazioni → <strong>Telefono</strong> → <strong>Accesso dal telefono</strong>, attiva <strong>Consenti l’accesso da altri dispositivi</strong> e premi <strong>Aggiungi dispositivo</strong>. Il PC mostra un codice QR.",
     "tab.setup.3": "Inquadra il codice con la fotocamera del tablet. La dashboard si apre nel suo browser. Se la vuoi a schermo intero, aggiungila alla schermata Home.",
     "tab.setup.4": "Se il PC non ha nessun monitor libero, al primo avvio chiedi a Xenon di non mostrare nulla sul PC: il tablet diventa l’unico schermo.",
     "tab.setup.more": "La <a href=\"phone.html\">guida per il telefono</a> ha gli stessi passaggi con gli screenshot, più il percorso facoltativo per raggiungere la dashboard da fuori casa.",
@@ -147,6 +149,7 @@
     "ld.q4": "Posso usare un telefono al posto del tablet?",
     "ld.a4": "Sì, allo stesso modo. Il layout si ridispone per lo schermo di un telefono.",
     "ld.q5": "Xenon è gratis?",
-    "ld.a5": "Sì. Nessuna versione a pagamento, nessun account, nessuna pubblicità. Il codice sorgente è su GitHub con una licenza non commerciale."
+    "ld.a5": "Sì. Nessuna versione a pagamento, nessun account, nessuna pubblicità. Il codice sorgente è su GitHub con una licenza non commerciale.",
+    "tab.pic.alt": "La dashboard di Xenon su un tablet: musica, testi, grafici di sistema e una griglia di tasti Deck"
   }
 }

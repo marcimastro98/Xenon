@@ -36,7 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -56,8 +56,7 @@
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
 <meta name="robots" content="index, follow, max-snippet:-1">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#8AB4F8">
 <link rel="icon" type="image/png" href="images/favicon.png">
 
 <meta property="og:type" content="website">
@@ -66,11 +65,11 @@
 <meta property="og:url" content="https://xenon-app.com/privacy.html">
 <meta property="og:title" content="Xenon privacy policy: what the app and website send">
 <meta property="og:description" content="The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Xenon privacy policy: what the app and website send">
 <meta name="twitter:description" content="The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.">
-<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
 <script type="application/ld+json">
 {
@@ -112,18 +111,17 @@
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="blue">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/privacy.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
@@ -132,7 +130,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
@@ -149,16 +147,36 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/privacy.html" aria-current="page" data-xl="f.privacy">Privacy</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Privacy","item":"https://xenon-app.com/privacy.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="pv.h1">Privacy policy</h1>
-    <p class="lede" data-i18n="pv.lede">
-      The Xenon app runs on your own PC and stores its data there. This website is a separate
-      thing with separate rules. This page keeps the two apart and says what each one sends and stores.
-    </p>
-    <p class="updated" data-i18n="pv.updated">Last updated: 30 October 2026</p>
-
-    <h2 data-i18n="pv.sum.h">Summary</h2>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/privacy.html" aria-current="page" data-xl="f.privacy">Privacy</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Privacy","item":"https://xenon-app.com/privacy.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="pv.h1">Privacy policy</h1>
+        <p class="lede" data-i18n="pv.lede">
+        The Xenon app runs on your own PC and stores its data there. This website is a separate
+        thing with separate rules. This page keeps the two apart and says what each one sends and stores.
+        </p>
+        <p class="updated" data-i18n="pv.updated">Last updated: 6 November 2026</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">On this page</p>
+      <a href="#summary" data-i18n="pv.sum.h">Summary</a>
+      <a href="#controller" data-i18n="pv.who.h">Data controller and contact</a>
+      <a href="#website" data-i18n="pv.site.h">This website (xenon-app.com)</a>
+      <a href="#app" data-i18n="pv.app.h">The Xenon app</a>
+      <a href="#version-ping" data-i18n="pv.ping.h">The version ping</a>
+      <a href="#usage-counts" data-i18n="pv.use.h">Feature counts</a>
+      <a href="#pass-trial" data-i18n="pv.trial.h">The 7-day pass trial</a>
+      <a href="#sparks" data-i18n="pv.sparks.h">Sparks</a>
+      <a href="#rights" data-i18n="pv.rights.h">Your rights</a>
+      <a href="#changes" data-i18n="pv.changes.h">Changes to this page</a>
+    </nav>
+    <div class="wrap">
+    <h2 id="summary" data-i18n="pv.sum.h">Summary</h2>
     <div class="card accent">
       <ul>
         <li data-i18n-html="pv.sum.track"><strong>The Xenon app keeps no account, no profile and no log of what you do.</strong> It has three anonymous counters. One is sent with the update check and describes the install itself: its version, its system and roughly how old it is. One adds 1 to a creation&rsquo;s install count when you install it from the Store. One counts, once a day, how many times each of the app&rsquo;s features ran and how many times it failed. None of them says what you search for, what you type or what you make. <strong>On a new install all three start switched on</strong>, and you can turn each one off in Settings &rarr; General &rarr; Updates; a counter added after you installed Xenon stays off for you until you turn it on. None carries an identifier, so I have nothing to tie them to you or to each other.</li>
@@ -170,15 +188,15 @@
       </ul>
     </div>
 
-    <h2 data-i18n="pv.who.h">Data controller and contact</h2>
+    <h2 id="controller" data-i18n="pv.who.h">Data controller and contact</h2>
     <p data-i18n-html="pv.who.p">
-      Xenon is a personal project by one developer, Marcello Mastroeni, with its source on GitHub under a
+      Xenon is a personal project by one developer, with its source on GitHub under a
       custom non-commercial licence, and I am the data controller for this website. For anything on this page, such as a question, a correction or a request about your data,
-      write to <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> or open an
+      write to <a href="mailto:support@xenon-app.com">support@xenon-app.com</a> or open an
       issue on <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.
     </p>
 
-    <h2 data-i18n="pv.site.h">This website (xenon-app.com)</h2>
+    <h2 id="website" data-i18n="pv.site.h">This website (xenon-app.com)</h2>
     <p data-i18n-html="pv.site.p">
       The site uses <strong>Google Analytics 4</strong> (measurement id <code>G-LQ8Y8WZPQF</code>) to
       understand which pages get read, which downloads get clicked, and where visitors come from. It is
@@ -248,7 +266,7 @@
     <p data-i18n-html="pv.host.p">
       The site is served by <strong>GitHub Pages</strong>, which processes the request and your IP address
       to deliver the page and keeps short-lived security logs. This is technically necessary and happens
-      before any consent decision. The page header also asks the GitHub API for the project's star count,
+      before any consent decision. The home page also asks the GitHub API for the download count,
       once per browser session, so GitHub sees that request too. The site's fonts are served from the site itself (<code>/fonts/</code>),
       so loading them contacts no one else. The one exception is the <a href="/demo/">live demo</a>, which
       runs the app's own dashboard page and loads that page's fonts from <strong>Google Fonts</strong>,
@@ -256,7 +274,7 @@
       (<code>assets.xenon-app.com</code>).
     </p>
 
-    <h2 data-i18n="pv.app.h">The Xenon app</h2>
+    <h2 id="app" data-i18n="pv.app.h">The Xenon app</h2>
     <p data-i18n-html="pv.app.p1">
       The app stores your data on your PC. Settings, notes, tasks, events, decks, AI memory and uploaded backgrounds all live in <code>server/data/</code>. The app does not upload that folder anywhere, and there is no analytics SDK, no crash reporter and no log of what you do in it. The three anonymous counters described below are the only reports the app makes about itself, and none carries an identifier of any kind: what the server keeps is counters, never rows about a machine.
     </p>
@@ -319,8 +337,8 @@
           </tr>
           <tr>
             <td data-i18n-html="pv.t.hub.what">Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
-            <td data-i18n="pv.t.hub.when">When you rate a catalog item, redeem a supporter code, or update something you unlocked</td>
-            <td data-i18n-html="pv.t.hub.why">Your PC keeps a random UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. That UUID never leaves your machine: what is sent is a one-way hash of it, and rating something and redeeming a code use <strong>different</strong> hashes of the same UUID. That is deliberate: with one shared value, a supporter code (which can be linked to a Discord account) and a star rating would sit in the database under the same identifier, and I would be able to see which creations a named supporter rated. With two, there is nothing to match them on. Neither hash is tied to your hardware or your name; delete the file and a new UUID is generated. Updating something you unlocked sends that same hash, the id of the creation and the version you have, and no code: the hub answers only a PC it already knows as an owner.</td>
+            <td data-i18n="pv.t.hub.when">When you install something from the Store (with the anonymous install count on), rate a catalog item, redeem a supporter code, or update something you unlocked</td>
+            <td data-i18n-html="pv.t.hub.why">Your PC keeps a random UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. That UUID never leaves your machine: what is sent is a one-way hash of it, and rating something and redeeming a code use <strong>different</strong> hashes of the same UUID. That is deliberate: with one shared value, a supporter code (which can be linked to a Discord account) and a star rating would sit in the database under the same identifier, and I would be able to see which creations a named supporter rated. With two, there is nothing to match them on. Neither hash is tied to your name; delete the file and a new UUID is generated. Voting adds a third hash, made from your computer's own id instead of the UUID, so reinstalling Xenon gives no second vote. It is sent only with the anonymous install count on. The hub signs one ticket per PC and creation, keeps only a keyed hash of that pair, and stores the vote with nothing that leads back to the ticket or the PC. Updating something you unlocked sends that same hash, the id of the creation and the version you have, and no code: the hub answers only a PC it already knows as an owner.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.sparks.what">Supporter hub<br><span style="color:var(--dim)">(Sparks)</span></td>
@@ -350,7 +368,7 @@
           <tr>
             <td data-i18n-html="pv.t.lyrtr.what">Your AI provider<br><span style="color:var(--dim)">lyrics translation</span></td>
             <td data-i18n="pv.t.lyrtr.when">Only if you turn on Translate lines in the Lyrics widget</td>
-            <td data-i18n="pv.t.lyrtr.why">Sends the lines of the song playing to the AI provider you picked in Settings, Bit assistant, once per song, after 20 seconds of listening. With Ollama nothing leaves the PC. On Gemini's free tier Google may use what it receives to improve its products. Off by default.</td>
+            <td data-i18n="pv.t.lyrtr.why">Sends the lines of the song playing to the AI provider you picked in Settings, Bit, once per song, after 20 seconds of listening. With Ollama nothing leaves the PC. On Gemini's free tier Google may use what it receives to improve its products. Off by default.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.svc.what">Services you connect yourself<br><span style="color:var(--dim)">Spotify, Twitch, YouTube, Discord, Home Assistant, OBS, AI providers, stock/news/football feeds</span></td>
@@ -377,7 +395,7 @@
     </div>
 
     <p data-i18n="pv.ai">
-      Local AI features (Ollama, Whisper) run entirely on your machine. Cloud AI providers do not:
+      Local AI features (Ollama, a local server you run yourself, Whisper) run entirely on your machine. Cloud AI providers do not:
       if you choose Gemini, OpenAI or Anthropic, your prompts go to that provider under their terms.
       Spoken replies work differently: with any provider other than Gemini or OpenAI, which have voices
       of their own, the text being read aloud is sent to Microsoft's online Edge voice service to be
@@ -486,15 +504,16 @@
     <p data-i18n="pv.trial.p1">You can try the supporter pass for 7 days. You ask for it on a page of the supporter hub with your email address and one box, unchecked, for news about new drops. That page uses Cloudflare Turnstile to keep bots out. The code arrives by email, sent through Brevo.</p>
     <p data-i18n="pv.trial.p2">What the hub keeps: your address, a keyed one-way hash of it, the code as a hash, a hash of the install the code was first used on (the same one used for supporter codes), the dates the trial was requested, started and ends, whether you asked for news, and whether that address later became a supporter. It sends you the code, one reminder two days before the end and one email when the trial ends.</p>
     <p data-i18n="pv.trial.p3">What is erased: the address goes 30 days after the trial ends, or 30 days after the request if the code was never used, and the code is deleted at the same time. The hash of the address stays, so the same address cannot start a second trial; it cannot be turned back into the address. If you checked the news box and used the code, the address is kept for that news until you press the unsubscribe link every one of those emails carries, or until you become a supporter, and is then erased like the others.</p>
-    <p data-i18n="pv.trial.p4">On your PC the app keeps the trial code and its end date in trial-pass.json. While the trial runs it asks the hub whether it is still active, sending the code and the install hash. If the address became a supporter, the hub hands your supporter code to that same install once, so the app switches by itself. Widgets and Ambient scenes from the trial are kept locked in the trial-vault folder; at each start the app asks the hub for their keys with the same code and install hash, and keeps the keys in memory only. When the trial ends, what it installed comes off your PC; nothing else of yours is touched.</p>
+    <p data-i18n="pv.trial.p4">On your PC the app keeps the trial code and its end date in trial-pass.json. While the trial runs, and for 30 days after it ends, it asks the hub whether it is still active, sending the code and the install hash. If the address became a supporter in that time, the hub hands your supporter code to that same install once, so the app switches by itself. After that, you paste the code from your email. Widgets and Ambient scenes from the trial are kept locked in the trial-vault folder; at each start the app asks the hub for their keys with the same code and install hash, and keeps the keys in memory only. When the trial ends, what it installed comes off your PC; nothing else of yours is touched.</p>
 
     <h2 id="sparks" data-i18n="pv.sparks.h">Sparks</h2>
-    <p data-i18n="pv.sparks.p1">Sparks are Xenon's credits. Every month of support includes 300, and anyone can buy more as an extra on Buy Me a Coffee. Buy Me a Coffee tells the supporter hub about each purchase: the amount, a reference for it and the email address you paid with. If that address belongs to a supporter, the Sparks go onto their supporter code. If not, the hub makes a Sparks code (XC-…) and emails it to that address once, through Brevo. For a Sparks code the hub keeps a keyed one-way hash of the address, never the address itself, the code as a hash and its first four characters. The email log keeps a masked address.</p>
-    <p data-i18n="pv.sparks.p2">When you buy a Store item with Sparks, the app sends the hub your code, the item and the same install hash used for supporter codes. The hub keeps which code bought which item, at what price and when, and the install hashes it was opened on, at most 3, so it opens again on your other PCs without a second charge.</p>
+    <p data-i18n="pv.sparks.p1">Sparks are Xenon's credits. Every month of support includes 300, and anyone can buy more as an extra on Buy Me a Coffee. Buy Me a Coffee tells the supporter hub about each purchase: the amount, a reference for it and the email address you paid with. If that address belongs to a supporter, the Sparks go onto their supporter code. If not, the hub makes a Sparks code (XC-…) and emails it to that address once, through Brevo. For a Sparks code the hub keeps the address, to deliver the code and your order emails, a keyed one-way hash of it, the code as a hash and its first four characters. The email log keeps a masked address.</p>
+    <p data-i18n="pv.sparks.p2">When you buy a Store item with Sparks, the app sends the hub your code, the item and a hash of your install made only for this. The hub keeps which code bought which item, at what price and when, and the install hashes it was opened on, at most 3, so it opens again on your other PCs without a second charge. It also records that you ticked the box asking for delivery now. It then sends an order email to the address on the code that paid.</p>
     <p data-i18n="pv.sparks.p3">When Bit runs on Sparks, your code opens a session on the hub, and after that only a session token travels, valid for at most 30 days. What you ask Bit, and what Bit makes, goes through the hub to Anthropic, which runs the Claude models, under Anthropic's terms. The hub does not store it: for each answer it keeps the model, the number of tokens, what it cost and the month, to count your Sparks.</p>
     <p data-i18n="pv.sparks.p4">On your PC the Sparks code stays in sparks-code.json in the app's data folder, like the supporter code, and never in the settings that travel to paired devices. If the same PC also has a supporter code, the Sparks are moved onto it once and the Sparks code is forgotten.</p>
+    <p data-i18n="pv.sparks.p5">A new install gets 30 trial Sparks, with no email, the first time you write to Bit. For that one request the app sends the hub the same install hash used for supporter codes, and the hub keeps it so an install gets them only once. The hub also keeps a keyed hash of your network address for 30 days, to limit how many one network can get, and then deletes it. The address itself is not stored. Trial Sparks work for Bit only, end after 7 days and do not move onto a supporter code; after that the app forgets their code.</p>
 
-    <h2 data-i18n="pv.rights.h">Your rights</h2>
+    <h2 id="rights" data-i18n="pv.rights.h">Your rights</h2>
     <p data-i18n-html="pv.rights.p1">
       Under the GDPR you can ask for access to, correction of, or erasure of your personal data, and you
       can object to processing. For this website, the practical routes are: press Reject (or the button
@@ -508,11 +527,12 @@
       <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>.
     </p>
 
-    <h2 data-i18n="pv.changes.h">Changes to this page</h2>
+    <h2 id="changes" data-i18n="pv.changes.h">Changes to this page</h2>
     <p data-i18n="pv.changes.p">
       If the app starts making a network call that is not in the table above, the table is updated in
       the same release and the release notes say so. The date at the top tells you when this page last changed.
     </p>
+    </div>
   </div>
 </main>
 
@@ -520,14 +540,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Free widgets for your PC, on any screen. Windows, with macOS and Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit lives in the Vitals widget and has opinions about your posture.</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/screen-recorder.html" data-xl="f.recorder">Screen recorder</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR. Every other name and logo belongs to its owner.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

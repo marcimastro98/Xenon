@@ -1,6 +1,6 @@
 {
   "ko": {
-    "meta.title": "두 번째 화면에서 보는 OpenAI Codex 요금제 사용량과 승인",
+    "meta.title": "OpenAI Codex 사용량과 승인을 두 번째 화면에서",
     "meta.desc": "OpenAI Codex 요금제 사용량, PC에서 작업 중인 세션과 그 요청을 두 번째 화면이나 휴대폰에서 보고 탭으로 답하세요.",
     "cx.h1": "두 번째 화면에서 쓰는 OpenAI Codex",
     "cx.lede": "Xenon의 Codex 타일은 요금제 사용량 구간, 일별 토큰, PC에서 작업 중인 세션과 그 요청을 허용, 거부, Codex에서 답하기와 함께 보여 줍니다. PC 옆 화면에 둡니다. Xeneon Edge, 모니터, 태블릿 또는 페어링한 휴대폰입니다.",
@@ -22,7 +22,7 @@
     "cx.h.approve": "요청에 답하기",
     "cx.approve.p1": "Codex 세션이 명령 실행이나 파일 변경을 요청하면, 명령 또는 변경되는 파일(삭제는 표시됨)과 함께 <strong>허용</strong>, <strong>거부</strong>, <strong>Codex에서 답하기</strong> 세 버튼이 타일에 나타납니다. 마지막 버튼은 질문을 바로 Codex로 돌려보냅니다. 카드에는 네트워크, 작업 게시, 프로젝트 밖의 파일, 세션보다 넓은 권한, 되돌릴 수 없는 일 등 무엇이 평소와 다른지 적혀 있습니다.",
     "cx.approve.p2": "<code>rm -rf</code>나 파일을 삭제하는 패치처럼 되돌릴 수 없는 요청은 탭이 아니라 버튼을 길게 눌러야 허용됩니다. 25초 동안 답이 없는 요청은 화면 전체를 차지해 다른 페이지에서 놓치지 않게 합니다.",
-    "cx.approve.p3": "대신 승인되는 것은 없습니다. 요청이 타일에서 기다리는 동안 Codex는 자체 확인을 표시하지 않으므로, 90초가 지나거나 Xenon이 닫혀 있으면 요청은 Codex로 돌아가 평소처럼 묻습니다. <strong>설정 → Codex</strong>에서 대기 시간을 바꾸거나 요청을 끌 수 있습니다.",
+    "cx.approve.p3": "대신 승인되는 것은 없습니다. 요청이 타일에서 기다리는 동안 Codex는 자체 확인을 표시하지 않으므로, 90초가 지나거나 Xenon이 닫혀 있으면 요청은 Codex로 돌아가 평소처럼 묻습니다. <strong>설정 → Claude Code 및 Codex</strong>에서 대기 시간을 바꾸거나 요청을 끌 수 있습니다.",
     "cx.approve.phone": "휴대폰에서 답하려면 Xenon과 페어링하세요(베타). 휴대폰에 같은 대시보드와 같은 버튼이 표시됩니다. <a href=\"/phone.html\">휴대폰 페어링 방법</a>.",
     "cx.h.link": "Codex 연결하기",
     "cx.link.1": "<strong>+</strong> 버튼의 <strong>시스템</strong>에서 <strong>Codex</strong> 타일을 추가합니다.",
@@ -62,6 +62,7 @@
     "cx.jump.widgets": "내 위젯",
     "cx.h.widgets": "나만의 위젯 만들기",
     "cx.widgets.p1": "Codex에서 코드를 작성한다면 Xenon 위젯도 만들 수 있습니다. <strong>설정 → 위젯 &amp; 공유 → Claude Code 또는 Codex로 위젯 만들기</strong>에서 <strong>Codex 연결</strong>을 누르세요. Codex이 위젯 SDK를 읽고, 폴더에 위젯을 작성해 대시보드에 설치하고, 발생한 오류와 타일 사진을 확인한 뒤 고칩니다.",
-    "cx.widgets.p2": "처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href=\"/create/#mcp\">작동 방식과 직접 추가하는 방법</a>."
+    "cx.widgets.p2": "처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href=\"/create/#mcp\">작동 방식과 직접 추가하는 방법</a>.",
+    "cx.pic.alt": "Codex 타일: 파일 변경 요청과 응답 버튼, 작업 중인 세션 두 개, 플랜의 5시간과 주간 사용량"
   }
 }

@@ -3,8 +3,8 @@
     "meta.title": "Xenon pour Linux (bêta) : dashboard PC, AppImage, deb, rpm",
     "meta.desc": "Xenon sous Linux (bêta) : AppImage, deb et rpm, premier lancement et un tableau de ce qui marche sous X11 et Wayland, KDE et GNOME.",
     "lx.title": "Xenon sur Linux",
-    "lx.lede": "Xenon est un dashboard gratuit pour tout écran disponible. Sur Linux, il est en beta : le dashboard est identique à celui de Windows, et cette page liste les différences restantes ainsi que les paquets requis.",
-    "lx.updated": "Dernière mise à jour : 26 septembre 2026 · chaque lien pointe vers <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la dernière version</a>",
+    "lx.lede": "Xenon affiche des widgets gratuits pour votre PC sur tous vos écrans. Sur Linux, il est en beta : les widgets sont identiques à ceux de Windows, et cette page liste les différences restantes ainsi que les paquets requis.",
+    "lx.updated": "Dernière mise à jour : 26 septembre 2026. Chaque lien pointe vers <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la dernière version</a>.",
     "lx.jump.get": "Téléchargements",
     "lx.jump.setup": "Premier lancement",
     "lx.jump.works": "Ce qui fonctionne",
@@ -61,6 +61,7 @@
     "ld.q3": "Xenon démarre-t-il automatiquement sur Linux ?",
     "ld.a3": "Oui. Le premier lancement enregistre un service utilisateur systemd, avec un mécanisme de démarrage automatique de secours via XDG en l'absence de gestionnaire d'utilisateur.",
     "ld.q4": "Est-ce que Xenon fonctionne sur Wayland ?",
-    "ld.a4": "La plupart le font. Les widget d'applications ouvertes, le sélecteur d'applications et la vision d'écran de l'IA ont besoin d'une session X11."
+    "ld.a4": "La plupart le font. Les widget d'applications ouvertes, le sélecteur d'applications et la vision d'écran de l'IA ont besoin d'une session X11.",
+    "lx.pic.alt": "Le tableau de bord Xenon : musique, calendrier et graphiques système sur une seule page"
   }
 }

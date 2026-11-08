@@ -4,11 +4,10 @@
     "meta.desc": "Abre el panel de Xenon en el navegador del móvil por tu Wi-Fi, o desde cualquier sitio con Tailscale. Las teclas del Deck actúan en el PC. Sin app que instalar.",
     "ph.title": "Usa tu teléfono como segunda pantalla",
     "ph.beta": "Beta",
-    "ph.lede": "Para usar Xenon necesitas una pantalla que puedas dejar encendida todo el día. Un monitor que te sobre, una tablet vieja, un Xeneon Edge. Eso es lo que frena a la mayoría de la gente, no las funciones. Pero ya tienes una pantalla en el bolsillo. Esta página te enseña a usarla.",
+    "ph.lede": "Tu móvil puede ser una de las pantallas de Xenon. Se abre en el navegador del móvil por tu wifi, sin instalar nada en el móvil. Esta página te enseña cómo.",
     "ph.intro": "Lo que ves en el teléfono no es un control remoto ni una vista previa. Es <strong>tu panel</strong>, con el mismo diseño, los mismos widgets y el mismo tema. Las teclas del Deck se ejecutan de verdad en el PC. Si pausas la música, la música se para. Si cambias un ajuste, cambia en el PC un segundo después. No hay cuenta, ni nube, ni app que instalar, y nada sale de tu red doméstica.",
     "ph.cap.phone": "Teléfono: mosaicos apilados, dock abajo",
     "ph.cap.tab": "Tablet: la cuadrícula completa, tal como la creaste",
-    "ph.cap.note": "Son dibujos del diseño, no capturas reales. Un panel real muestra el calendario, las notas y las rutas de archivos de su dueño, y esta página es pública.",
     "ph.h.what": "Qué funciona y qué no",
     "ph.what.p": "En cuanto vinculas un dispositivo, pasa a ser uno de los tuyos. Hace casi todo lo que hace el panel en el PC. Lo poco que no puede hacer tiene dos motivos: algunas cosas necesitan a una persona sentada delante de ese ordenador, y otras dejarían que un teléfono en malas manos hiciera más de lo que tú preparaste.",
     "ph.can.1": "Todo el panel: sensores, widgets, páginas y temas",
@@ -89,6 +88,8 @@
     "ph.a6": "Es a propósito. Una tablet es lo bastante grande para la cuadrícula real, que es justo la gracia de una tablet, y un iPad está muy por encima del tamaño en el que Xenon cambia de diseño. Si prefieres el diseño apilado en un dispositivo concreto, puedes elegirlo, y Xenon lo recuerda <em>solo en ese dispositivo</em>. Nunca llega al PC y tu diseño guardado nunca se sobrescribe.",
     "ph.h.not": "Lo que esto no hace",
     "ph.not.1": "No hay cuenta de Xenon, ni un servidor nuestro en medio, y nada de tu panel se sube a ningún sitio. En tu propio Wi-Fi la conexión no está cifrada, y por eso la sección de ajustes te dice que la uses en una red de confianza. La forma segura existe justo para resolver eso. Tailscale es una empresa que añadirías porque tú lo eliges, así que se aplican sus propias condiciones de privacidad, y Xenon no toma nada de ella salvo la dirección y el certificado de tu propio equipo.",
-    "ph.not.2": "Todo lo demás que Xenon envía y no envía está en la <a href=\"privacy.html\">página de privacidad</a>."
+    "ph.not.2": "Todo lo demás que Xenon envía y no envía está en la <a href=\"privacy.html\">página de privacidad</a>.",
+    "ph.pic.alt": "El panel de Xenon en un teléfono: música, rendimiento en juego y lecturas del sistema, con un menú abajo",
+    "ph.tab.alt": "El panel de Xenon en una tableta: música, letras, gráficos del sistema y una cuadrícula de teclas Deck"
   }
 }

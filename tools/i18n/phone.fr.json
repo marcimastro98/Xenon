@@ -2,11 +2,10 @@
   "fr": {
     "ph.title": "Utilisez votre téléphone comme écran secondaire",
     "ph.beta": "Beta",
-    "ph.lede": "Pour utiliser Xenon, vous avez besoin d'un écran que vous pouvez laisser allumé toute la journée. Un moniteur de rechange, une vieille tablette, un Xeneon Edge. C'est ce qui freine la plupart des gens, pas les fonctionnalités. Mais vous avez déjà un écran dans votre poche. Cette page vous montre comment l'utiliser.",
+    "ph.lede": "Votre téléphone peut être l'un des écrans de Xenon. Il s'ouvre dans le navigateur du téléphone via votre Wi-Fi, sans rien installer dessus. Cette page vous montre comment faire.",
     "ph.intro": "Ce que vous obtenez sur le téléphone n'est ni une télécommande ni un aperçu. C'est <strong>votre dashboard</strong>, avec la même mise en page, les mêmes widgets et le même thème. Les touches du Deck fonctionnent réellement sur le PC. Si vous mettez la musique en pause, elle s'arrête. Si vous modifiez un paramètre, il change sur le PC une seconde plus tard. Il n'y a pas de compte, pas de cloud et pas d'application à installer, et rien ne quitte votre réseau domestique.",
     "ph.cap.phone": "Téléphone : tuiles empilées, barre d'accès en bas",
     "ph.cap.tab": "Tablette : la grille complète, telle que vous l’avez conçue",
-    "ph.cap.note": "Il s'agit de schémas de la mise en page, et non de captures d'écran réelles. Un véritable dashboard affiche le calendrier, les notes et les chemins d'accès aux fichiers de son propriétaire, et cette page est publique.",
     "ph.h.what": "Ce qui fonctionne et ce qui ne fonctionne pas",
     "ph.what.p": "Une fois un appareil apparié, il devient l’un des vôtres. Il fait presque tout ce que fait le dashboard sur le PC. Le peu qu’il ne peut pas faire a deux raisons : certaines choses demandent une personne assise devant cet ordinateur, d’autres laisseraient un téléphone tombé entre de mauvaises mains faire plus que ce que vous avez préparé vous-même.",
     "ph.can.1": "Tout le dashboard : capteurs, widgets, pages et thèmes",
@@ -42,7 +41,7 @@
     "ph.r2.4": "L'adresse reste la même, même lorsque votre routeur la modifie",
     "ph.two.after": "Vous n'avez pas à choisir pour toujours. La deuxième option ajoute une porte d'accès à côté de la première, elle ne la remplace pas. Si vous utilisez uniquement Xenon à la maison, commencez par la première.",
     "ph.h.home": "À la maison, en trente secondes",
-    "ph.s1.h": "Ouvrez Paramètres, puis Téléphone, sur le PC",
+    "ph.s1.h": "Ouvrez Réglages, puis Téléphone, sur le PC",
     "ph.s1.p": "Tout ce dont vous avez besoin se trouve dans un seul panneau, sous <strong>Accès au téléphone</strong>. Raccourci : la première fois que Xenon s'ouvre, il vous demande sur quel écran vous souhaitez l'afficher : sélectionnez <strong>mon téléphone ou ma tablette</strong> et il vous amènera directement à ce panneau avec ces mêmes étapes ouvertes à l'intérieur. Le bouton <strong>Guide étape par étape</strong> en haut du panneau les rouvre à nouveau chaque fois que vous le souhaitez.",
     "ph.s2.h": "Activer « Autoriser l’accès depuis d’autres appareils »",
     "ph.s2.p": "Il est désactivé jusqu'à ce que vous l'activiez. Tant qu'il est désactivé, Xenon ne répond qu'à cet ordinateur et à rien d'autre. Si quelque chose scanne votre réseau, il reçoit la même réponse qu'une version de Xenon sans cette fonctionnalité donnerait, il n'y a donc aucun moyen de savoir que la fonctionnalité est présente.",
@@ -71,7 +70,7 @@
     "ph.t4.h": "Appairez à nouveau le téléphone sur la nouvelle adresse",
     "ph.t4.p": "Appuyez sur <strong>Ajouter un appareil</strong> et scannez à nouveau. Le navigateur associe l'appairage à l'adresse sur laquelle il a été effectué, de sorte qu'un téléphone appairé sur l'adresse du domicile n'est pas appairé sur l'adresse sécurisée. Après cela, vous n'aurez besoin que de la nouvelle adresse. Elle fonctionne à la maison comme en déplacement.",
     "ph.t5.h": "L'ajouter à l'écran d'accueil",
-    "ph.t5.p": "Dans Safari, appuyez sur Partager puis sur <strong>Ajouter à l'écran d'accueil</strong>. Sur Android, Chrome propose de l'installer. Xenon s'ouvre ensuite avec sa propre icône, en plein écran et sans barre d'adresse. Le microphone fonctionne ici, de sorte que Bit peut écouter via le téléphone au lieu du PC. Les notifications fonctionnent également : dans Paramètres, puis Téléphone, activez-les pour cet appareil et un minuteur qui expire vous parviendra même avec l'application fermée.",
+    "ph.t5.p": "Dans Safari, appuyez sur Partager puis sur <strong>Ajouter à l'écran d'accueil</strong>. Sur Android, Chrome propose de l'installer. Xenon s'ouvre ensuite avec sa propre icône, en plein écran et sans barre d'adresse. Le microphone fonctionne ici, de sorte que Bit peut écouter via le téléphone au lieu du PC. Les notifications fonctionnent également : dans Réglages, puis Téléphone, activez-les pour cet appareil et un minuteur qui expire vous parviendra même avec l'application fermée.",
     "ph.h.trouble": "Si quelque chose ne fonctionne pas",
     "ph.q1": "Le téléphone indique qu'il ne peut pas ouvrir l'adresse",
     "ph.a1": "Dans la plupart des cas, le téléphone n'est pas encore sur votre réseau privé. Ouvrez Tailscale sur le téléphone et vérifiez que l'interrupteur est bien <strong>activé</strong>. L'installation de l'application ne suffit pas. Sur un iPhone, vous pouvez le savoir car <strong>VPN</strong> apparaît dans la barre d'état. Vérifiez également que vous êtes connecté avec le même compte que sur le PC, car deux comptes signifient deux réseaux distincts qui ne peuvent pas se voir.",
@@ -89,6 +88,8 @@
     "ph.not.1": "Il n'existe aucun compte Xenon, aucun de nos serveurs n'intervient en intermédiaire, et rien concernant votre dashboard n'est uploadé nulle part. Sur votre propre Wi-Fi, la connexion n'est pas chiffrée, c'est pourquoi le panneau vous recommande de l'utiliser sur un réseau auquel vous faites confiance. La méthode sécurisée existe précisément pour résoudre ce problème. Tailscale est une entreprise que vous choisissez d'ajouter, ses propres conditions de confidentialité s'appliquent donc à elle, et Xenon n'en retire rien d'autre que l'adresse et le certificat de votre propre machine.",
     "ph.not.2": "Tout ce que Xenon <a href=\"privacy.html\">envoie et n'envoie pas est indiqué sur la page de confidentialité</a>.",
     "meta.title": "Votre téléphone comme panneau de contrôle du PC",
-    "meta.desc": "Ouvrez Xenon dans le navigateur du téléphone via votre Wi-Fi, ou de partout avec Tailscale. Les touches Deck agissent sur le PC. Aucune app à installer."
+    "meta.desc": "Ouvrez Xenon dans le navigateur du téléphone via votre Wi-Fi, ou de partout avec Tailscale. Les touches Deck agissent sur le PC. Aucune app à installer.",
+    "ph.pic.alt": "Le tableau de bord Xenon sur un téléphone : musique, performances en jeu et relevés système, avec un menu en bas",
+    "ph.tab.alt": "Le tableau de bord Xenon sur une tablette : musique, paroles, graphiques système et une grille de touches Deck"
   }
 }

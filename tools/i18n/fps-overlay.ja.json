@@ -1,6 +1,6 @@
 {
   "ja": {
-    "meta.title": "FPS表示フリーソフト｜1% low・0.1% low・フレームタイム",
+    "meta.title": "FPS表示フリーソフト｜1%・0.1% low・フレームタイム",
     "meta.desc": "ゲームの上やサブモニターにFPS、1% low、0.1% low、フレームタイムのグラフを表示。カクつく原因もわかる無料ソフト。Windows用、LinuxはMangoHud対応。",
     "ld.q1": "FPS オーバーレイを使うとアンチチートで BAN されますか？",
     "ld.a1": "Xenon はゲームにコードを注入せず、ゲームのプロセスにフックすることもありません。自分のウィンドウを上に描き、PresentMon でシステムからフレームタイムを読み取るので、アンチチートが検出するものはゲームの中に何もありません。",
@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows、Linux、Mac",
     "fo.jump.afterburner": "Afterburner との比較",
     "fo.jump.faq": "よくある質問",
-    "fo.img.alt": "Xenon のゲームパフォーマンスタイル：143 FPS、1% low 112、0.1% low 96、フレームタイム 7.1 ms、スパイクが 1 つある直近のフレームのグラフ、CPU 21%、GPU 19%、GPU 48°C",
+    "fo.img.alt": "Xenon のゲームパフォーマンスタイル：143 FPS、1% low 112、0.1% low 96、フレームタイム 7.1 ms、スパイクが 2 つある直近のフレームのグラフ、CPU 48%、GPU 61%、GPU 60°C",
     "fo.h.lows": "1% low と 0.1% low でわかること",
     "fo.lows.p1": "平均フレームレートでは、プレイが不快に感じる瞬間が隠れてしまいます。そこで Xenon は、最も遅いフレーム 1% を取り出し、その平均もフレームレートとして示します。これが <strong>1% low</strong> です。<strong>0.1% low</strong> は、1000 フレームのうち最も遅い 1 フレームについて同じことをします。",
     "fo.lows.p2": "上の画像では、ゲームの平均は 143 FPS、1% low は 112、0.1% low は 96 です。3 つの数字が近いので、ゲームはなめらかに感じられます。平均が高くても low が大きく下回っていると、FPS カウンターの数字は問題なさそうでも、ゲームはカクつきます。",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "FPS オーバーレイは無料ですか？",
     "fo.faq.price.a": "はい。ゲームパフォーマンスタイル、プレイしたゲーム、ベンチマーク、カクつきの原因は無料アプリの機能で、アカウントも不要です。サポーターが受け取るのは毎月のカタログのドロップで、追加機能ではありません。",
     "fo.cta.h": "Xenon をダウンロード",
-    "fo.cta.p": "無料、アカウント不要。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>でお使いのシステムを選んでください。ウィジェット、録画、インスタントリプレイを同じ画面で使うには、<a href=\"/single-screen.html\">1画面で使う Xenon</a>をお読みください。"
+    "fo.cta.p": "無料、アカウント不要。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>でお使いのシステムを選んでください。ウィジェット、録画、インスタントリプレイを同じ画面で使うには、<a href=\"/single-screen.html\">1画面で使う Xenon</a>をお読みください。",
+    "fo.pic.alt": "ゲームパフォーマンスのオーバーレイ。FPS、1% と 0.1% の Low 値、フレーム時間、直近のフレームのグラフ、CPU と GPU の負荷"
   }
 }

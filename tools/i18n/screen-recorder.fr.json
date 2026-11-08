@@ -69,6 +69,7 @@
     "sr.faq.price.q": "L’enregistreur d’écran est-il gratuit ?",
     "sr.faq.price.a": "Oui. L’enregistrement, le Replay instantané, les captures d’écran, la galerie et les transcriptions font partie de l’application gratuite, sans compte et sans filigrane.",
     "sr.cta.h": "Télécharger Xenon",
-    "sr.cta.p": "Gratuit, sans compte. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href=\"/download.html\">page de téléchargement</a>. Pour le compteur de FPS par-dessus votre jeu, lisez <a href=\"/fps-overlay.html\">Overlay FPS avec 1 % low et 0,1 % low</a>."
+    "sr.cta.p": "Gratuit, sans compte. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href=\"/download.html\">page de téléchargement</a>. Pour le compteur de FPS par-dessus votre jeu, lisez <a href=\"/fps-overlay.html\">Overlay FPS avec 1 % low et 0,1 % low</a>.",
+    "sr.pic.alt": "Une discussion avec Bit : à la demande d'enregistrer les 42 dernières secondes, Bit répond que le clip est sur le Bureau"
   }
 }

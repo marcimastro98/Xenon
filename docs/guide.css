@@ -6,9 +6,10 @@
    table, a phone mock-up, a row of download cards.
 
    Every one of these pages used to carry its own copy of the same fifty-odd
-   rules, written for the old site: Inter, a monospace date line, section links
-   drawn as pills, rounded cards, 13.5px text. One file now, in the STANZA
-   voice: Sofia Sans, the neutral room, links in ink, and the structure square.
+   rules, written for the old site. One file now, in the home's voice: a flat
+   sheet of the page's subject at the top with the name large, its picture and
+   the Download key on it; then white paper with the text, in one column of about
+   70 characters, and the page's contents beside it on a wide screen.
    ========================================================================== */
 
 :root {
@@ -21,7 +22,7 @@
   --text: var(--bone-0);
   --muted: var(--bone-1);
   --dim: var(--bone-2);
-  --maxw: 800px;
+  --maxw: 780px;
   --radius: var(--r-1);
   /* The Beta chip: the app's own values, measured at 6.9:1 (dark) and 5.5:1 (light). */
   --beta-fg: #FFC44D;
@@ -33,29 +34,30 @@
 :root[data-theme="light"] { --beta-fg: #6B4A00; --beta-bg: #DAD6CD; }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-padding-top: 88px; }
+html { scroll-padding-top: calc(88px + var(--strip-h, 0px)); }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   margin: 0; background: var(--ink); color: var(--text);
   font: 400 18px/1.6 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
-main { padding: clamp(40px, 6vh, 72px) 0 0; }
+.wrap { max-width: var(--maxw); }
+main { padding: 0; }
+
 
 h1 {
   margin: 0 0 18px; color: var(--text);
-  font: 780 clamp(36px, 3.4vw + 12px, 58px)/1.04 var(--display);
-  letter-spacing: -0.016em;
+  font: 800 clamp(42px, 5.2vw, 84px)/.96 var(--display);
+  letter-spacing: -.021em;
 }
 .lede { margin: 0 0 14px; max-width: 62ch; font-size: 20px; line-height: 1.5; color: var(--muted); }
 .lede strong { color: var(--text); font-weight: 650; }
 .updated { margin: 0 0 32px; font-size: 15px; line-height: 1.5; color: var(--muted); }
 
 h2 {
-  margin: 64px 0 12px; color: var(--text);
-  font: 760 clamp(26px, 1.2vw + 18px, 33px)/1.15 var(--display);
-  letter-spacing: -0.012em;
+  margin: 64px 0 14px; color: var(--text);
+  font: 800 clamp(30px, 1.5vw + 20px, 44px)/1.06 var(--display);
+  letter-spacing: -.016em;
   scroll-margin-top: 88px;
 }
 h2 .h2n { display: block; margin-bottom: 6px; font: 600 15px/1.3 var(--sans); letter-spacing: 0; color: var(--muted); }
@@ -70,13 +72,13 @@ code {
   font: 500 .86em/1.4 var(--mono);
   background: var(--g-2); padding: 2px 6px; border-radius: var(--r-1);
   color: var(--text); overflow-wrap: anywhere;
+  /* A long path wraps; each line keeps its own rounded ends. */
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 
-/* Section links under the title: a row of plain links. */
+/* The page's contents: a row of plain links over the text, and a list that stays
+   beside it on a wide screen, marking the section being read. */
 /* Each link is a 44px row, so a finger finds it; the rows sit with no gap. */
-.jump { display: flex; flex-wrap: wrap; gap: 0 22px; margin: 0 0 8px; font-size: 16px; }
-.jump a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-weight: 600; text-decoration-color: var(--line-2); text-underline-offset: .22em; }
-.jump a:hover { text-decoration-color: currentColor; }
 
 /* Questions: rows under a hairline, the + and − set in the text face. */
 details { margin: 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
@@ -95,25 +97,58 @@ details .body { padding: 0 0 18px 26px; }
 details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
 details .body ol { padding-left: 20px; }
 
-/* The home's card: a 1px rule, panel corners, no fill and no shadow. */
-.card { margin: 32px 0; padding: 24px; background: none; border: 1px solid var(--rule); border-radius: var(--r-2); }
+/* A flat panel: no rule and no shadow. The one that closes a page is a piece of its sheet. */
+.card { margin: 32px 0; padding: 24px; background: var(--g-1); border: 0; border-radius: var(--r-2); }
+.card.accent { --focus: var(--sheet-ink); padding: clamp(24px, 3vw, 36px); background: var(--sheet); color: var(--sheet-ink); }
+.card.accent h3 { font: 800 clamp(26px, 1.2vw + 18px, 36px)/1.06 var(--display); color: inherit; }
+.card.accent :is(p, ul, ol, a), .card.accent :is(p, li) strong { color: inherit; }
+.card.accent a { font-weight: 700; }
 .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
-.card h3 { margin: 0 0 8px; }
+.card h2, .card h3 { margin: 0 0 8px; }
+.card h2 { font: 700 20px/1.3 var(--display); letter-spacing: 0; }
 
 .note { margin: 16px 0; font-size: 16px; color: var(--muted); }
 
 /* Download cards (download, mac, linux): the same card, one per file. The
    visitor's own system takes the page's one neutral fill. */
 .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0 16px; }
-.dl a.pick { display: block; padding: 20px 24px; border: 1px solid var(--rule); border-radius: var(--r-2); background: none; text-decoration: none; color: var(--text); }
-.dl a.pick:hover { border-color: var(--rule-2); }
+.dl a.pick { display: block; padding: 20px 24px; border-radius: var(--r-2); background: var(--g-1); text-decoration: none; color: var(--text); }
+.dl a.pick:hover { background: var(--g-2); }
 .dl .os { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 700 19px/1.3 var(--display); }
-.dl .os small, .dl .you { font: 600 13px/1.2 var(--sans); padding: 2px 6px; border: 1px solid var(--rule-2); border-radius: 4px; color: var(--muted); }
+.dl .os small { font: 600 13px/1.2 var(--sans); padding: 2px 6px; border: 1px solid var(--rule-2); border-radius: 4px; color: var(--muted); }
 .dl .file { display: block; margin-top: 8px; font: 600 15px/1.4 var(--sans); color: var(--text); overflow-wrap: anywhere; }
 .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
-.dl a.pick.is-you { background: var(--main); border-color: var(--main); color: var(--main-ink); }
-.dl a.pick.is-you .os, .dl a.pick.is-you .file, .dl a.pick.is-you .req { color: var(--main-ink); }
-.dl a.pick.is-you .you { color: var(--main-ink); border-color: currentColor; }
+
+/* The download page: one column per system, as in the home's Download section.
+   The visitor's column is the dark one and Bit stands on it. */
+.oses { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); gap: 0 12px; margin-top: 56px; }
+.os-col {
+  position: relative; display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; min-width: 0; padding: 24px;
+  border-radius: var(--r-2); background: color-mix(in oklab, var(--sheet-ink) 10%, transparent);
+}
+.os-col.pick { --focus: var(--sheet); background: var(--sheet-ink); color: var(--sheet); }
+.os-col h2 {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; color: inherit;
+  font: 800 clamp(28px, 2.4vw, 36px)/1.05 var(--display); letter-spacing: -.014em;
+}
+.os-col h2 svg { flex: none; width: 26px; height: 26px; }
+.os-col h2 img { flex: none; width: 26px; height: 30px; }
+.os-col p { margin: 0; color: inherit; font-size: 17px; line-height: 1.4; }
+.os-col .beta-pill { margin-left: 0; }
+.os-col .pg-key { width: 100%; margin-top: 6px; padding-inline: 14px; }
+.os-col.pick .pg-key { background: var(--sheet); color: var(--sheet-ink); }
+.os-col.pick .pg-key:hover { background: color-mix(in oklab, var(--sheet) 84%, var(--sheet-ink)); }
+.os-col:not(.pick) .pg-key { background: transparent; box-shadow: inset 0 0 0 2px var(--sheet-ink); color: var(--sheet-ink); }
+.os-col:not(.pick) .pg-key:hover { background: color-mix(in oklab, currentColor 13%, transparent); }
+.os-col .file { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.os-col .store { justify-self: start; align-self: center; line-height: 0; border-radius: 6px; }
+.os-col .store:hover { filter: brightness(1.15); }
+.os-col .store img { display: block; width: auto; height: 44px; }
+.os-col .os-more { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
+.os-col .os-more a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; font-weight: 700; }
+.os-bit { position: absolute; right: 28px; bottom: calc(100% - 1px); width: 44px; height: auto; }
+.os-bit .bb { fill: var(--sheet-ink); }
+.os-bit .bf { fill: var(--sheet); }
 
 /* Tables (the tablewrap scrolls sideways on a phone instead of the page) and
    command blocks. */
@@ -130,9 +165,13 @@ pre code { background: none; padding: 0; font-size: 15px; }
 .shot { margin: 24px 0; max-width: 420px; }
 .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-2); }
 
+
+@media (max-width: 900px) {
+  .oses { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; gap: 12px; }
+  .os-col { grid-row: auto; grid-template-rows: none; }
+  .os-col.pick { order: -1; }
+}
 @media (max-width: 700px) {
   body { font-size: 17px; }
-  .wrap { padding: 0 18px; }
-  .lede { font-size: 18px; }
   .card { padding: 20px; }
 }

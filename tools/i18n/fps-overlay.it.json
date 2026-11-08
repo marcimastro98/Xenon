@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows, Linux, Mac",
     "fo.jump.afterburner": "Accanto ad Afterburner",
     "fo.jump.faq": "Domande frequenti",
-    "fo.img.alt": "Il riquadro Prestazioni in gioco di Xenon: 143 FPS, 1% low 112, 0,1% low 96, tempo per frame 7,1 ms, un grafico degli ultimi frame con un picco, CPU 21%, GPU 19%, GPU a 48°C",
+    "fo.img.alt": "Il riquadro Prestazioni in gioco di Xenon: 143 FPS, 1% low 112, 0,1% low 96, tempo per frame 7,1 ms, un grafico degli ultimi frame con due picchi, CPU 48%, GPU 61%, GPU a 60°C",
     "fo.h.lows": "Cosa ti dicono l’1% low e lo 0,1% low",
     "fo.lows.p1": "Il frame rate medio nasconde i momenti in cui il gioco va male. Xenon prende anche l’1% dei frame più lenti e ne dà la media come frame rate: è l’<strong>1% low</strong>. Lo <strong>0,1% low</strong> fa lo stesso con il frame più lento su mille.",
     "fo.lows.p2": "Nell’immagine qui sopra il gioco fa in media 143 FPS, l’1% low è 112 e lo 0,1% low è 96. I tre numeri sono vicini, quindi il gioco è fluido. Quando la media è alta e i low sono molto più in basso, il gioco scatta anche se il contatore degli FPS sembra a posto.",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "L’overlay FPS è gratis?",
     "fo.faq.price.a": "Sì. Il riquadro Prestazioni in gioco, le partite giocate, il benchmark e le cause degli scatti fanno parte dell’app gratuita, senza account. I supporter ricevono i drop mensili del catalogo, non funzioni in più.",
     "fo.cta.h": "Scarica Xenon",
-    "fo.cta.p": "Gratis, senza account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href=\"/download.html\">pagina dei download</a>. Per avere widget, registrazioni e Instant Replay sullo stesso schermo, leggi <a href=\"/single-screen.html\">Xenon su un solo schermo</a>."
+    "fo.cta.p": "Gratis, senza account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href=\"/download.html\">pagina dei download</a>. Per avere widget, registrazioni e Instant Replay sullo stesso schermo, leggi <a href=\"/single-screen.html\">Xenon su un solo schermo</a>.",
+    "fo.pic.alt": "L'overlay delle prestazioni in gioco: FPS, low 1% e 0,1%, frame time, un grafico degli ultimi frame e carico di CPU e GPU"
   }
 }

@@ -36,7 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -56,8 +56,7 @@
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
 <meta name="robots" content="index, follow, max-snippet:-1">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#8AB4F8">
 <link rel="icon" type="image/png" href="/images/favicon.png">
 
 <meta property="og:type" content="website">
@@ -66,11 +65,11 @@
 <meta property="og:url" content="https://xenon-app.com/zh/privacy.html">
 <meta property="og:title" content="Xenon 隐私政策：应用和网站会发送什么">
 <meta property="og:description" content="Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的匿名计数器以及如何关闭它们，还有 xenon-app.com 和 Xenon Maker 会收集什么。">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Xenon 隐私政策：应用和网站会发送什么">
 <meta name="twitter:description" content="Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的匿名计数器以及如何关闭它们，还有 xenon-app.com 和 Xenon Maker 会收集什么。">
-<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Xenon 隐私政策：应用和网站会发送什么","description":"Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的匿名计数器以及如何关闭它们，还有 xenon-app.com 和 Xenon Maker 会收集什么。","inLanguage": "zh","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
 
@@ -95,18 +94,17 @@
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="blue">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/privacy.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
@@ -115,7 +113,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
@@ -132,13 +130,33 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/privacy.html" aria-current="page" data-xl="f.privacy">隐私</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"隐私","item":"https://xenon-app.com/zh/privacy.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="pv.h1">隐私政策</h1>
-    <p class="lede" data-i18n="pv.lede">Xenon 应用运行在你自己的电脑上，数据也保存在那里。本网站是另一回事，规则也不一样。本页把两者分开来讲，分别说明各自会发送和保存什么。</p>
-    <p class="updated" data-i18n="pv.updated">最后更新：2026年10月30日</p>
-
-    <h2 data-i18n="pv.sum.h">摘要</h2>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/privacy.html" aria-current="page" data-xl="f.privacy">隐私</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"隐私","item":"https://xenon-app.com/zh/privacy.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="pv.h1">隐私政策</h1>
+        <p class="lede" data-i18n="pv.lede">Xenon 应用运行在你自己的电脑上，数据也保存在那里。本网站是另一回事，规则也不一样。本页把两者分开来讲，分别说明各自会发送和保存什么。</p>
+        <p class="updated" data-i18n="pv.updated">最后更新：2026年11月6日</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">本页内容</p>
+      <a href="#summary" data-i18n="pv.sum.h">摘要</a>
+      <a href="#controller" data-i18n="pv.who.h">数据控制者与联系方式</a>
+      <a href="#website" data-i18n="pv.site.h">本网站（xenon-app.com）</a>
+      <a href="#app" data-i18n="pv.app.h">Xenon 应用</a>
+      <a href="#version-ping" data-i18n="pv.ping.h">版本上报</a>
+      <a href="#usage-counts" data-i18n="pv.use.h">功能使用次数</a>
+      <a href="#pass-trial" data-i18n="pv.trial.h">通行证 7 天试用</a>
+      <a href="#sparks" data-i18n="pv.sparks.h">火花</a>
+      <a href="#rights" data-i18n="pv.rights.h">你的权利</a>
+      <a href="#changes" data-i18n="pv.changes.h">本页的变更</a>
+    </nav>
+    <div class="wrap">
+    <h2 id="summary" data-i18n="pv.sum.h">摘要</h2>
     <div class="card accent">
       <ul>
         <li data-i18n-html="pv.sum.track"><strong>Xenon 应用没有账户，不建立个人档案，也不记录你做了什么。</strong>它有三个匿名计数器。一个随更新检查一起发送，描述的是这次安装本身：版本、操作系统，以及大致安装了多久。一个在你从商店安装某个作品时，为该作品的安装数加 1。还有一个每天一次，统计应用的每项功能运行了几次、失败了几次。它们都不会说出你搜索了什么、输入了什么或创作了什么。<strong>新安装时三个都默认开启</strong>，你可以在 设置 &rarr; 通用 &rarr; 更新 中分别关闭；在你安装 Xenon 之后才加入的计数器，在你自己打开之前一直保持关闭。它们都不带标识符，所以我手里没有任何东西能把它们和你、或者彼此联系起来。</li>
@@ -150,10 +168,10 @@
       </ul>
     </div>
 
-    <h2 data-i18n="pv.who.h">数据控制者与联系方式</h2>
-    <p data-i18n-html="pv.who.p">Xenon 是开发者 Marcello Mastroeni 一个人的个人项目，源代码以自定义的非商业许可证放在 GitHub 上。我是本网站的数据控制者。与本页有关的任何事情，比如提问、更正，或者关于你的数据的请求，请写信到 <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a>，或者在 <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a> 上提交 issue。</p>
+    <h2 id="controller" data-i18n="pv.who.h">数据控制者与联系方式</h2>
+    <p data-i18n-html="pv.who.p">Xenon 是开发者一个人的个人项目，源代码以自定义的非商业许可证放在 GitHub 上。我是本网站的数据控制者。与本页有关的任何事情，比如提问、更正，或者关于你的数据的请求，请写信到 <a href="mailto:support@xenon-app.com">support@xenon-app.com</a>，或者在 <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a> 上提交 issue。</p>
 
-    <h2 data-i18n="pv.site.h">本网站（xenon-app.com）</h2>
+    <h2 id="website" data-i18n="pv.site.h">本网站（xenon-app.com）</h2>
     <p data-i18n-html="pv.site.p">本网站使用 <strong>Google Analytics 4</strong>（衡量 ID <code>G-LQ8Y8WZPQF</code>），用来了解哪些页面有人阅读、哪些下载被点击，以及访客从哪里来。这是关于网站的汇总报告。它和你电脑上的那份应用没有关联，我也没有办法把这里的一次访问和你电脑上的某个安装对应起来。</p>
 
     <h3 data-i18n="pv.ga.h">Analytics 会收到什么</h3>
@@ -182,9 +200,9 @@
     <p data-i18n-html="pv.consent.store">你的选择保存在浏览器的本地存储中，键名为 <code>xenon.site.consent</code>。这个值不会离开你的设备。清除浏览器数据就会重置它。</p>
 
     <h3 data-i18n="pv.host.h">托管与字体</h3>
-    <p data-i18n-html="pv.host.p">本网站由 <strong>GitHub Pages</strong> 提供，它会处理请求和你的 IP 地址以送达页面，并保留短期的安全日志。这在技术上是必需的，发生在任何同意选择之前。页面顶部还会向 GitHub API 查询项目的星标数，每个浏览器会话一次，所以 GitHub 也会看到这个请求。网站的字体由网站自己提供（<code>/fonts/</code>），所以加载字体不会联系其他任何人。唯一的例外是<a href="/demo/">在线演示</a>，它运行的是应用自己的仪表盘页面，并从 <strong>Google Fonts</strong> 加载该页面的字体，因此 Google Fonts 会看到这个请求。社区截图由 <strong>Cloudflare R2</strong>（<code>assets.xenon-app.com</code>）提供。</p>
+    <p data-i18n-html="pv.host.p">本网站由 <strong>GitHub Pages</strong> 提供，它会处理请求和你的 IP 地址以送达页面，并保留短期的安全日志。这在技术上是必需的，发生在任何同意选择之前。首页还会向 GitHub API 查询下载次数，每个浏览器会话一次，所以 GitHub 也会看到这个请求。网站的字体由网站自己提供（<code>/fonts/</code>），所以加载字体不会联系其他任何人。唯一的例外是<a href="/demo/">在线演示</a>，它运行的是应用自己的仪表盘页面，并从 <strong>Google Fonts</strong> 加载该页面的字体，因此 Google Fonts 会看到这个请求。社区截图由 <strong>Cloudflare R2</strong>（<code>assets.xenon-app.com</code>）提供。</p>
 
-    <h2 data-i18n="pv.app.h">Xenon 应用</h2>
+    <h2 id="app" data-i18n="pv.app.h">Xenon 应用</h2>
     <p data-i18n-html="pv.app.p1">应用把你的数据保存在你的电脑上。设置、笔记、任务、日程、Deck、AI 记忆和上传的背景都放在 <code>server/data/</code> 里。应用不会把这个文件夹上传到任何地方，里面也没有分析 SDK、崩溃上报，也不记录你做了什么。下面介绍的三个匿名计数器，是应用关于自身所做的仅有的报告，它们都不带任何形式的标识符：服务器保存的只是计数，而不是关于某台机器的记录。</p>
     <p data-i18n-html="pv.app.search">本地文件搜索和磁盘空间小组件都在你的电脑上运行：你的搜索词、文件名、文件夹索引和磁盘扫描结果都在那里计算，而你从搜索中打开过的文件列表（用来让你自己的结果排序更准）也和其他数据一样保存在 <code>server/data/</code> 里。你交给 Bit 的内容是例外。使用云端 AI 服务商时，<strong>智能搜索</strong>（Ctrl+I）会把你输入的句子发送给该服务商；让 AI 查找文件或解释你的磁盘情况时，它据以回答的结果也会发送给该服务商，比如文件名和文件夹大小。<strong>用于 AI 搜索和清理的完整上下文</strong>开关（默认关闭）还会发送你已安装应用的名称、已索引的文件夹、最常用的文件夹，以及你最近从搜索中打开的文件，但从不发送它们的内容。</p>
     <p data-i18n-html="pv.app.calls">应用<em>确实</em>会做的，是为需要联网的功能发起网络请求。下面是这些请求，以及每一项在什么时候发生。</p>
@@ -232,8 +250,8 @@
           </tr>
           <tr>
             <td data-i18n-html="pv.t.hub.what">支持者中心<br><span style="color:var(--dim)">（Cloudflare Worker）</span></td>
-            <td data-i18n="pv.t.hub.when">当你给目录中的内容评分、兑换支持者代码，或更新已解锁的内容时</td>
-            <td data-i18n-html="pv.t.hub.why">你的电脑会保存一个随机 UUID（<code>install-id.json</code>），让一次评分只计一次，一个代码也不能无限次重复使用。这个 UUID 从不离开你的电脑：发送的是它的单向哈希，而且评分和兑换代码使用的是同一个 UUID 的<strong>不同</strong>哈希。这是有意为之：如果共用一个值，支持者代码（它可以关联到某个 Discord 账号）和星级评分就会以同一个标识符存放在数据库里，我就能看到某位有名有姓的支持者给哪些作品评过分。用两个不同的值，就没有任何可以用来匹配它们的东西。两个哈希都不和你的硬件或姓名绑定；删掉这个文件，就会生成一个新的 UUID。更新你已解锁的内容时，同样只发送这个哈希、作品的 ID 和你当前的版本，不发送任何代码；中心只会回应它已经认定为所有者的电脑。</td>
+            <td data-i18n="pv.t.hub.when">当你从商店安装内容(已打开匿名安装统计)、给目录中的内容评分、兑换支持者代码,或更新已解锁的内容时</td>
+            <td data-i18n-html="pv.t.hub.why">你的电脑会保存一个随机 UUID（<code>install-id.json</code>），让一次评分只计一次，一个代码也不能无限次重复使用。这个 UUID 从不离开你的电脑：发送的是它的单向哈希，而且评分和兑换代码使用的是同一个 UUID 的<strong>不同</strong>哈希。这是有意为之：如果共用一个值，支持者代码（它可以关联到某个 Discord 账号）和星级评分就会以同一个标识符存放在数据库里，我就能看到某位有名有姓的支持者给哪些作品评过分。用两个不同的值，就没有任何可以用来匹配它们的东西。两个哈希都不和你的姓名绑定;删掉这个文件,就会生成一个新的 UUID。评分还会用到第三个哈希,它来自你电脑自身的 ID 而不是 UUID,这样重装 Xenon 也不能再评一次。只有打开匿名安装统计时才会发送。中心为每台电脑和每件作品签发一张票据,只保存这一组合的带密钥哈希,评分的存储不带任何能追溯到票据或电脑的信息。更新你已解锁的内容时，同样只发送这个哈希、作品的 ID 和你当前的版本，不发送任何代码；中心只会回应它已经认定为所有者的电脑。</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.sparks.what">支持者中心<br><span style="color:var(--dim)">(火花)</span></td>
@@ -263,7 +281,7 @@
           <tr>
             <td data-i18n-html="pv.t.lyrtr.what">你选择的 AI 提供商<br><span style="color:var(--dim)">歌词翻译</span></td>
             <td data-i18n="pv.t.lyrtr.when">仅在歌词小组件中打开“翻译歌词行”时</td>
-            <td data-i18n="pv.t.lyrtr.why">收听 20 秒后，把正在播放的歌曲的歌词行发送给你在“设置 → Bit 助手”中选择的 AI 提供商，每首歌一次。使用 Ollama 时不会离开电脑。在 Gemini 的免费层级中，Google 可能用收到的内容改进其产品。默认关闭。</td>
+            <td data-i18n="pv.t.lyrtr.why">收听 20 秒后，把正在播放的歌曲的歌词行发送给你在“设置 → Bit”中选择的 AI 提供商，每首歌一次。使用 Ollama 时不会离开电脑。在 Gemini 的免费层级中，Google 可能用收到的内容改进其产品。默认关闭。</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.svc.what">你自己连接的服务<br><span style="color:var(--dim)">Spotify、Twitch、YouTube、Discord、Home Assistant、OBS、AI 服务商、股票/新闻/足球信息源</span></td>
@@ -289,7 +307,7 @@
       </table>
     </div>
 
-    <p data-i18n="pv.ai">本地 AI 功能（Ollama、Whisper）完全在你的电脑上运行。云端 AI 服务商则不然：如果你选择 Gemini、OpenAI 或 Anthropic，你的提示词会按照该服务商的条款发送给它。语音回复的方式有所不同：Gemini 和 OpenAI 有自己的语音，而使用其他任何服务商时，要朗读的文本会被发送到 Microsoft 的在线 Edge 语音服务，转换成语音。用哪个 AI 服务商由你选择，应用也绝不会把提示词发送给你没有选择的云端模型。</p>
+    <p data-i18n="pv.ai">本地 AI 功能（Ollama、你自己运行的本地服务器、Whisper）完全在你的电脑上运行。云端 AI 服务商则不然：如果你选择 Gemini、OpenAI 或 Anthropic，你的提示词会按照该服务商的条款发送给它。语音回复的方式有所不同：Gemini 和 OpenAI 有自己的语音，而使用其他任何服务商时，要朗读的文本会被发送到 Microsoft 的在线 Edge 语音服务，转换成语音。用哪个 AI 服务商由你选择，应用也绝不会把提示词发送给你没有选择的云端模型。</p>
 
     <h2 id="version-ping" data-i18n="pv.ping.h">版本上报</h2>
     <p data-i18n-html="pv.ping.intro">我完全不知道到底有多少人在用 Xenon。下载次数只是噪音，而且与其去猜，我更想知道大家是不是卡在了旧版本上。所以在<strong>设置 → 通用 → 更新</strong>里有一个开关，叫<strong>匿名统计此安装</strong>，它会在应用检查更新时发送几项字段，每天最多一次。完整列表如下：</p>
@@ -335,20 +353,22 @@
     <p data-i18n="pv.trial.p1">你可以试用支持者通行证 7 天。在支持者中心的一个页面上，用你的电子邮箱地址申请，页面上还有一个默认不勾选的复选框，用来接收新掉落内容的消息。该页面使用 Cloudflare Turnstile 阻挡机器人。代码通过 Brevo 以邮件形式发送给你。</p>
     <p data-i18n="pv.trial.p2">中心保存的内容：你的邮箱地址、该地址的带密钥单向哈希、以哈希形式保存的代码、首次使用代码的安装的哈希（与支持者代码使用的相同）、试用的申请日期、开始日期和结束日期、你是否要求接收消息，以及该地址之后是否成为支持者。它会发送代码、结束前两天的一封提醒，以及试用结束时的一封邮件。</p>
     <p data-i18n="pv.trial.p3">会被删除的内容：邮箱地址在试用结束 30 天后删除，如果代码从未使用，则在申请 30 天后删除，代码也会同时删除。地址的哈希会保留，因此同一地址不能开始第二次试用；无法从该哈希还原出地址。如果你勾选了消息复选框并使用了代码，地址会为这些消息保留，直到你点击每封此类邮件中的退订链接，或成为支持者为止，之后会像其他地址一样被删除。</p>
-    <p data-i18n="pv.trial.p4">在你的电脑上，应用会把试用代码和结束日期保存在 trial-pass.json 中。试用期间，它会发送代码和安装的哈希，向中心询问试用是否仍然有效。如果该地址成为了支持者，中心会把你的支持者代码交给同一安装一次，应用会自动切换。试用结束时，试用安装的内容会从你的电脑上移除；你的其他东西都不会被动。试用中的小组件和 Ambient 场景以加密形式保存在 trial-vault 文件夹中；应用每次启动时用同一个代码和安装哈希向中心请求它们的密钥，密钥只保存在内存中。</p>
+    <p data-i18n="pv.trial.p4">在你的电脑上，应用会把试用代码和结束日期保存在 trial-pass.json 中。试用期间以及结束后 30 天内，它会发送代码和安装的哈希，向中心询问试用是否仍然有效。如果该地址在此期间成为了支持者，中心会把你的支持者代码交给同一安装一次，应用会自动切换。此后，请粘贴邮件中的代码。试用结束时，试用安装的内容会从你的电脑上移除；你的其他东西都不会被动。试用中的小组件和 Ambient 场景以加密形式保存在 trial-vault 文件夹中；应用每次启动时用同一个代码和安装哈希向中心请求它们的密钥，密钥只保存在内存中。</p>
 
     <h2 id="sparks" data-i18n="pv.sparks.h">火花</h2>
-    <p data-i18n="pv.sparks.p1">火花是 Xenon 的点数。每个月的支持都包含 300 火花，任何人都可以在 Buy Me a Coffee 上作为附加项目购买更多。每次购买，Buy Me a Coffee 都会把金额、该笔购买的参考编号以及你付款用的电子邮箱地址告诉支持者中心。如果这个地址属于一位支持者，火花会加到其支持者代码上。否则，中心会生成一个火花代码（XC-…），并通过 Brevo 向该地址发送一次。对于火花代码，中心保存的是地址的带密钥单向哈希（从不保存地址本身）、代码的哈希以及代码的前四个字符。邮件记录只保留打码后的地址。</p>
-    <p data-i18n="pv.sparks.p2">当你用火花购买商店里的内容时，应用会把你的代码、该内容以及与支持者代码相同的安装哈希发送给中心。中心会保存哪个代码在什么时间、以什么价格购买了哪项内容，以及打开过它的安装哈希（最多 3 个），这样在你的其他电脑上也能再次打开，而不会重复扣费。</p>
+    <p data-i18n="pv.sparks.p1">火花是 Xenon 的点数。每个月的支持都包含 300 火花，任何人都可以在 Buy Me a Coffee 上作为附加项目购买更多。每次购买，Buy Me a Coffee 都会把金额、该笔购买的参考编号以及你付款用的电子邮箱地址告诉支持者中心。如果这个地址属于一位支持者，火花会加到其支持者代码上。否则，中心会生成一个火花代码（XC-…），并通过 Brevo 向该地址发送一次。对于火花代码，中心保存该地址（用于发送代码和订单邮件）、地址的带密钥单向哈希、代码的哈希以及代码的前四个字符。邮件记录只保留打码后的地址。</p>
+    <p data-i18n="pv.sparks.p2">当你用火花购买商店里的内容时，应用会把你的代码、该内容以及专为此用途生成的安装哈希发送给中心。中心会保存哪个代码在什么时间、以什么价格购买了哪项内容，以及打开过它的安装哈希（最多 3 个），这样在你的其他电脑上也能再次打开，而不会重复扣费。中心还会记录你勾选了要求立即交付的方框。随后，它会向付款代码对应的地址发送订单邮件。</p>
     <p data-i18n="pv.sparks.p3">当 Bit 使用火花运行时，你的代码会在中心开启一个会话，之后只传输一个会话令牌，最长有效 30 天。你向 Bit 提出的内容以及 Bit 创作的内容，会经由中心发送给运行 Claude 模型的 Anthropic，并适用 Anthropic 的条款。中心不会保存这些内容：每次回答只记录模型、令牌数、费用和月份，用来计算你的火花。</p>
     <p data-i18n="pv.sparks.p4">在你的电脑上，火花代码和支持者代码一样保存在应用数据文件夹中的 sparks-code.json 里，绝不会放进同步到已配对设备的设置中。如果同一台电脑上也有支持者代码，火花会被一次性转移到支持者代码上，火花代码随后被删除。</p>
+    <p data-i18n="pv.sparks.p5">新安装在你第一次给 Bit 写消息时，无需邮箱即可获得 30 个试用火花。仅为这一次请求，应用会把与支持者代码相同的安装哈希发送给中心，中心保存它以确保每个安装只能领取一次。中心还会保存你网络地址的带密钥哈希 30 天，用来限制同一网络可领取的数量，之后将其删除。地址本身不会保存。试用火花只能用于 Bit，7 天后结束，也不会转入支持者代码；之后应用会忘记它们的代码。</p>
 
-    <h2 data-i18n="pv.rights.h">你的权利</h2>
+    <h2 id="rights" data-i18n="pv.rights.h">你的权利</h2>
     <p data-i18n-html="pv.rights.p1">根据《通用数据保护条例》（GDPR），你可以要求访问、更正或删除你的个人数据，也可以反对对其进行处理。对于本网站，实际可行的做法是：按“拒绝”（或上面的按钮）来停止 Analytics，使用 Google 的<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">停用浏览器插件</a>，或者清除浏览器数据。对于应用，卸载会停止上面描述的所有请求，删除 <code>server/data/</code> 会移除应用保存的一切，包括安装 UUID。</p>
     <p data-i18n-html="pv.rights.p2">你也有权向监管机构投诉；在意大利，这个机构是 <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>（意大利个人数据保护局）。</p>
 
-    <h2 data-i18n="pv.changes.h">本页的变更</h2>
+    <h2 id="changes" data-i18n="pv.changes.h">本页的变更</h2>
     <p data-i18n="pv.changes.p">如果应用开始发起上表中没有的网络请求，表格会在同一个版本中更新，发布说明里也会写明。页面顶部的日期告诉你本页最后一次修改的时间。</p>
+    </div>
   </div>
 </main>
 
@@ -356,14 +376,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">任何屏幕都能用的免费电脑小组件。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit 住在 Vitals 小组件里，对你的坐姿很有意见。</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/single-screen.html" data-xl="f.onescreen">在一块屏幕上使用 Xenon</a></li><li><a href="/zh/fps-overlay.html" data-xl="f.fps">FPS 叠加层</a></li><li><a href="/zh/screen-recorder.html" data-xl="f.recorder">屏幕录制</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。其他名称和标志归各自所有者所有。</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

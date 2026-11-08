@@ -69,6 +69,7 @@
     "sr.faq.price.q": "画面録画は無料ですか？",
     "sr.faq.price.a": "はい。録画、インスタントリプレイ、スクリーンショット、ギャラリー、文字起こしは無料アプリの機能で、アカウントは不要、透かしも入りません。",
     "sr.cta.h": "Xenon をダウンロード",
-    "sr.cta.p": "無料、アカウント不要。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>でお使いのシステムを選んでください。ゲームの上に FPS カウンターを出すには、<a href=\"/fps-overlay.html\">1% low と 0.1% low を表示する FPS オーバーレイ</a>をお読みください。"
+    "sr.cta.p": "無料、アカウント不要。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>でお使いのシステムを選んでください。ゲームの上に FPS カウンターを出すには、<a href=\"/fps-overlay.html\">1% low と 0.1% low を表示する FPS オーバーレイ</a>をお読みください。",
+    "sr.pic.alt": "Bit とのチャット。直近の42秒の保存を頼むと、Bit がクリップはデスクトップにあると答える"
   }
 }

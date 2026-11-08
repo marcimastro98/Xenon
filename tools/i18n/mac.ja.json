@@ -1,10 +1,10 @@
 {
   "ja": {
-    "meta.title": "Mac版Xenon（ベータ）: サブモニター用ダッシュボード",
+    "meta.title": "Mac版Xenon（ベータ）: Xeneon Edge用ウィジェット",
     "meta.desc": "macOS 11以降のXenon（ベータ）: 余った画面やXeneon Edge用のダッシュボード、必要な権限、初回起動、アンインストール方法。",
     "mac.h1": "macOS 版 Xenon",
     "mac.beta": "ベータ",
-    "mac.lede": "Xenon は、パソコンの横に置いた画面のための無料のタッチダッシュボードです。Mac でも Windows と同じダッシュボードが動きます。このページでは、今 Mac で動くもの、動かないもの、インストールと削除の方法を紹介します。",
+    "mac.lede": "Xenon は、どの画面でも使える無料のウィジェットです。Mac 版はベータです。このページでは、今 Mac で動くもの、動かないもの、インストールと削除の方法を紹介します。",
     "mac.updated": "最終更新: 2026年9月27日",
     "mac.jump.who": "こんな方に",
     "mac.jump.get": "ダウンロード",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "権限",
     "mac.jump.remove": "アンインストール",
-    "mac.shot.alt": "Xeneon Edge の 2560×720 のサイズで表示した Xenon のダッシュボード。音楽、カレンダー、システムの値が横に並んでいる",
-    "mac.shot.cap": "Xeneon Edge の 2560×720 のサイズで表示したダッシュボードです。ブラウザのデモから取り込んだもので、表示されている値は Windows PC のサンプルデータです。Mac では、同じタイルに Mac 自身の値が表示されます。",
     "mac.h.who": "こんな方に",
-    "mac.who.p1": "このページは、セカンドスクリーンに使える画面が余っている Mac ユーザー向けです:",
+    "mac.who.p1": "このページは、次のいずれかの画面でウィジェットを使いたい Mac ユーザー向けです:",
     "mac.who.edge": "<strong>CORSAIR Xeneon Edge。</strong> Xenon はもともと、この画面の 2560×720 の形に合わせて作られました。",
     "mac.who.monitor": "<strong>余っているモニター。</strong> Xenon アプリは、選んだ画面で開きます。",
     "mac.who.tablet": "<strong>タブレットやスマートフォン。</strong> Wi-Fi を通じて端末のブラウザに同じダッシュボードを表示し、端末には何もインストールしません。スマートフォンとタブレットからのアクセスもベータです。<a href=\"/phone.html\">スマートフォンやタブレットのペアリング</a>をご覧ください。",
@@ -82,7 +80,7 @@
     "mac.row.voice": "音声入力と AI の画面認識",
     "mac.st.voice": "動作します。音声には ffmpeg が必要です。",
     "mac.row.wake": "「Hey Bit」音声起動",
-    "mac.st.wake": "ffmpeg と無料のローカル Whisper があれば動作します。Whisper は 設定 の Bit アシスタント から Homebrew でインストールできます。",
+    "mac.st.wake": "ffmpeg と無料のローカル Whisper があれば動作します。Whisper は 設定 の Bit から Homebrew でインストールできます。",
     "mac.row.lights": "ネットワーク上のライティング: WLED、Hue、Nanoleaf、OpenRGB",
     "mac.row.icue": "CORSAIR iCUE のライティング",
     "mac.st.win": "Windows のみ。",
@@ -146,6 +144,9 @@
     "ld.q4": "Mac で Xenon に必要な権限は何ですか？",
     "ld.a4": "ダッシュボードはどの権限がなくても動きます。フルディスクアクセスがあると、検索とディスク容量ウィジェットがホームフォルダーとゴミ箱を見られます。アクセシビリティがあると、Deck キーからキーボードショートカットを送れます。画面収録とマイクは、AI の画面認識と音声のためのものです。",
     "ld.q5": "Mac で Xenon をアンインストールするには？",
-    "ld.a5": "~/Library/Application Support/Xenon にある UNINSTALL.command をダブルクリックし、求められたら REMOVE と入力します。アプリ、ログイン項目、ローカルサーバー、データ、インストールフォルダーが削除されます。"
+    "ld.a5": "~/Library/Application Support/Xenon にある UNINSTALL.command をダブルクリックし、求められたら REMOVE と入力します。アプリ、ログイン項目、ローカルサーバー、データ、インストールフォルダーが削除されます。",
+    "mac.pic.alt": "Xenon のダッシュボード。音楽、カレンダー、システムのグラフを1ページに表示",
+    "mac.pic.cap": "ブラウザのデモのダッシュボードです。表示されている値は Windows PC のサンプルデータで、Mac では同じタイルに Mac 自身の値が表示されます。",
+    "mac.who.desk": "<strong>デスクトップ。</strong>今ある画面にウィジェットを置けます。<a href=\"/single-screen.html\">1画面で使う Xenon</a>をご覧ください。"
   }
 }

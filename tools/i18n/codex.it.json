@@ -1,6 +1,6 @@
 {
   "it": {
-    "meta.title": "Utilizzo del piano OpenAI Codex e approvazioni su un secondo schermo",
+    "meta.title": "OpenAI Codex: utilizzo e approvazioni su un secondo schermo",
     "meta.desc": "Vedi l’utilizzo del tuo piano OpenAI Codex, le sessioni al lavoro sul PC e le loro richieste su un secondo schermo o sul telefono, e rispondi con un tocco.",
     "cx.h1": "OpenAI Codex su un secondo schermo",
     "cx.lede": "Il riquadro Codex di Xenon mostra le finestre di utilizzo del tuo piano, i token al giorno, le sessioni al lavoro sul PC e ogni loro richiesta, con Consenti, Nega e Rispondi in Codex. Sta sullo schermo accanto al PC: uno Xeneon Edge, un monitor, un tablet o un telefono abbinato.",
@@ -22,7 +22,7 @@
     "cx.h.approve": "Rispondere alle richieste",
     "cx.approve.p1": "Quando una sessione di Codex chiede di eseguire un comando o modificare dei file, la richiesta compare nel riquadro con il comando, o i file toccati con le eliminazioni segnate, e tre pulsanti: <strong>Consenti</strong>, <strong>Nega</strong> e <strong>Rispondi in Codex</strong>, che rimanda subito la domanda a Codex. La scheda dice cosa ha di insolito: la rete, pubblicare il tuo lavoro, un file fuori dal progetto, più accesso di quello della sessione o qualcosa che non si può annullare.",
     "cx.approve.p2": "Una richiesta che non si può annullare, come <code>rm -rf</code> o una modifica che elimina un file, si consente tenendo premuto il pulsante, non con un tocco. Una richiesta lasciata per 25 secondi occupa tutto lo schermo, così non resta inosservata su un’altra pagina.",
-    "cx.approve.p3": "Niente viene approvato al posto tuo. Mentre una richiesta aspetta nel riquadro, Codex non mostra la sua, quindi dopo 90 secondi, o se Xenon è chiuso, la richiesta torna a Codex, che la chiede come sempre. <strong>Impostazioni → Codex</strong> cambia l’attesa o disattiva le richieste.",
+    "cx.approve.p3": "Niente viene approvato al posto tuo. Mentre una richiesta aspetta nel riquadro, Codex non mostra la sua, quindi dopo 90 secondi, o se Xenon è chiuso, la richiesta torna a Codex, che la chiede come sempre. <strong>Impostazioni → Claude Code e Codex</strong> cambia l’attesa o disattiva le richieste.",
     "cx.approve.phone": "Per rispondere dal telefono, abbinalo a Xenon (beta). Il telefono mostra la stessa dashboard, con gli stessi pulsanti. <a href=\"/phone.html\">Come abbinare un telefono</a>.",
     "cx.h.link": "Collegare Codex",
     "cx.link.1": "Aggiungi il riquadro <strong>Codex</strong> dal pulsante <strong>+</strong>, sotto <strong>Sistema</strong>.",
@@ -62,6 +62,7 @@
     "cx.jump.widgets": "I tuoi widget",
     "cx.h.widgets": "Creare i tuoi widget",
     "cx.widgets.p1": "Se scrivi codice in Codex, può anche creare widget per Xenon. In <strong>Impostazioni → Widget e condivisione → Crea widget con Claude Code o Codex</strong>, premi <strong>Collega Codex</strong>. Codex legge l'SDK dei widget, scrive il widget in una cartella, lo installa sulla dashboard, legge gli errori che incontra e guarda una foto del suo riquadro, poi lo corregge.",
-    "cx.widgets.p2": "La prima volta la dashboard ti chiede se consentirlo. Non approva mai i permessi di un widget, cambia solo i widget fatti da te e funziona solo dal PC su cui gira Xenon. <a href=\"/create/#mcp\">Come funziona e come aggiungerlo a mano</a>."
+    "cx.widgets.p2": "La prima volta la dashboard ti chiede se consentirlo. Non approva mai i permessi di un widget, cambia solo i widget fatti da te e funziona solo dal PC su cui gira Xenon. <a href=\"/create/#mcp\">Come funziona e come aggiungerlo a mano</a>.",
+    "cx.pic.alt": "Il riquadro Codex: una richiesta di modificare dei file con i pulsanti per rispondere, due sessioni al lavoro e l'utilizzo del piano a 5 ore e settimanale"
   }
 }

@@ -1,7 +1,7 @@
 // The text pages (download, help, privacy, the guides) on the home's system:
-// one card (1px rule, 10px corners, no fill), notes as plain small text, file
-// names in the text face, and the download cards drawn once in guide.css for
-// every page that lists files.
+// one flat card (a step of the paper, 10px corners, no line), notes as plain
+// small text, file names in the text face, and the download cards drawn once in
+// guide.css for every page that lists files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,22 +18,21 @@ const rule = (css, selector) => {
 };
 const ownStyles = (html) => [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
 
-test('a card is the home card: 1px rule, 10px corners, no fill', () => {
+test('a card is flat: a step of the paper, 10px corners, no line', () => {
   const card = rule(guide, '.card');
-  assert.match(card, /border: 1px solid var\(--rule\)/);
+  assert.match(card, /background: var\(--g-1\)/);
+  assert.match(card, /border: 0/);
   assert.match(card, /border-radius: var\(--r-2\)/);
-  assert.match(card, /background: none/);
-  assert.doesNotMatch(guide, /\.card\.accent \{[^}]*background/);
+  assert.match(rule(guide, '.card.accent'), /background: var\(--sheet\)/);
 });
 
-test('the share, submit and status pages draw the same card', () => {
-  for (const [file, sel] of [['get/index.html', '.card'], ['submit/index.html', '.card'], ['submit/index.html', '.status-link'], ['submit/status/index.html', '.st-card']]) {
+test('the submit and status pages draw the same card', () => {
+  for (const [file, sel] of [['submit/index.html', '.card'], ['submit/index.html', '.status-link'], ['submit/status/index.html', '.st-card']]) {
     const r = rule(ownStyles(read(file)), sel);
-    assert.match(r, /border: 1px solid var\(--rule\)/, `${file} ${sel}`);
+    assert.match(r, /background: var\(--g-1\)/, `${file} ${sel}`);
     assert.match(r, /border-radius: var\(--r-2\)/, `${file} ${sel}`);
-    assert.doesNotMatch(r, /background: var/, `${file} ${sel}`);
+    assert.doesNotMatch(r, /border:/, `${file} ${sel}`);
   }
-  assert.match(rule(ownStyles(read('submit/status/index.html')), 'h1'), /margin: 0 0 16px/);
 });
 
 test('a note is plain small text, not a stripe on the side', () => {
@@ -42,7 +41,7 @@ test('a note is plain small text, not a stripe on the side', () => {
 
 test('the download cards live in guide.css, in the text face', () => {
   const pick = rule(guide, '.dl a.pick');
-  assert.match(pick, /border: 1px solid var\(--rule\)/);
+  assert.match(pick, /background: var\(--g-1\)/);
   assert.match(pick, /border-radius: var\(--r-2\)/);
   assert.doesNotMatch(rule(guide, '.dl .file'), /mono/);
   for (const page of ['download.html', 'mac.html', 'linux.html']) {
@@ -52,7 +51,7 @@ test('the download cards live in guide.css, in the text face', () => {
 
 test('the visitor\'s own system is marked without !important', () => {
   const css = ownStyles(read('download.html')) + guide;
-  assert.match(css, /\.dl a\.pick\.is-you \{/);
+  assert.match(css, /\.os-col\.pick \{/);
   assert.doesNotMatch(ownStyles(read('download.html')), /!important/);
 });
 

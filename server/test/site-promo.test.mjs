@@ -136,6 +136,20 @@ test('describe: what it is and who it is for, in the page language, with the one
   assert.equal(unknownKind.what, 'Free in the Xenon catalog.');
 });
 
+test('a banner lands on the item page in English, on the catalog card in any other language', () => {
+  const page = P.validatePromo(promo({ url: 'https://xenon-app.com/catalog/nitrato/' }));
+  assert.equal(P.describe(page, ENTRIES[0], 'en', NOW).href, 'https://xenon-app.com/catalog/nitrato/');
+  const it = P.describe(page, ENTRIES[0], 'it', NOW);
+  assert.equal(it.href, '/catalog/#nitrato');
+  assert.equal(it.external, false);
+  // Anywhere else stays where the hub sent it, in every language.
+  const away = P.describe(P.validatePromo(promo({ url: 'https://discord.gg/abc' })), ENTRIES[0], 'it', NOW);
+  assert.equal(away.href, 'https://discord.gg/abc');
+  assert.equal(away.external, true);
+  const home = P.describe(P.validatePromo(promo({ url: 'https://xenon-app.com/maker/' })), ENTRIES[0], 'it', NOW);
+  assert.equal(home.href, 'https://xenon-app.com/maker/');
+});
+
 test('every language carries every string, and every kind in every language', () => {
   const keys = Object.keys(P.STR.en);
   for (const l of P.LANGS) {
@@ -170,7 +184,7 @@ test('the design rules hold in the stylesheet: no gradient, no shadow, no blur, 
 });
 
 // ── The page half, through a fake DOM ──────────────────────────────────────────────
-function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {}, pageHeight = 3000 } = {}) {
+function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {}, pageHeight = 3000, reserved = false, hang = false } = {}) {
   const docListeners = {};
   const winListeners = {};
   const make = (tag) => ({
@@ -201,7 +215,7 @@ function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path =
   const hasClass = (n, c) => (' ' + n.className + ' ').includes(' ' + c + ' ');
   const byClass = (q) => all().filter((n) => hasClass(n, q.slice(1)));
   const document = {
-    readyState: 'complete', head, body, documentElement: { lang: htmlLang, scrollHeight: pageHeight }, visibilityState: 'visible',
+    readyState: 'complete', head, body, documentElement: { lang: htmlLang, scrollHeight: pageHeight, style: { setProperty() {} }, attrs: reserved ? { 'data-strip': '' } : {}, removeAttribute(k) { delete this.attrs[k]; } }, visibilityState: 'visible',
     createElement: make,
     getElementById: (id) => all().find((n) => n.id === id) || null,
     querySelector: (q) => {
@@ -216,7 +230,7 @@ function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path =
   };
   const storage = (init) => {
     const m = new Map(Object.entries(init));
-    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) };
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
   };
   const local = storage(Object.assign(consent ? { 'xenon.site.consent': consent } : {}, stored));
   const session = storage({});
@@ -239,6 +253,7 @@ function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path =
     setTimeout: (fn) => { timers.push(fn); return timers.length; },
     fetch: async (u) => {
       ctx.fetched.push(u);
+      if (hang) return new Promise(() => {});
       const b = u.includes('site-promo') ? feed : u.includes('catalog') ? catalog : null;
       return { ok: b != null, json: async () => b };
     },
@@ -332,7 +347,7 @@ test('render: on every page, and on a phone it runs along the bottom edge', asyn
   scrollTo(faq, 1100);
   assert.ok(panelOf(faq), 'not only on the home');
 
-  const phone = await run({ wide: false });
+  const phone = await run({ wide: false, feed: { promos: FEED.promos.filter((p) => p.format !== 'strip') } });
   scrollTo(phone, 1100);
   const panel = panelOf(phone);
   assert.ok(phone.hasClass(panel, 'xp-drawer'));
@@ -401,4 +416,183 @@ test('the thanks page shows the newest supporter pack that is open now', () => {
   assert.equal(P.newestDrop([{ id: 'free', addedAt: '2026-10-10' }], NOW), null);
   assert.equal(P.newestDrop(null, NOW), null);
   assert.equal(P.dropShot('notte-stellata'), 'https://assets.xenon-app.com/community/shots/notte-stellata.webp');
+});
+
+// The strip used to land on every page view once two requests had answered, and pushed the whole
+// page down by its height. web.dev, "Optimize Cumulative Layout Shift": a banner at the top must
+// have its room kept in advance. The head of each page keeps the room for a strip seen before, and
+// this draws it from what was remembered, before any request has answered.
+const STRIP = 'xenon.site.strip';
+const STRIP_UNTIL = 'xenon.site.strip.until';
+const stripOf = (dom) => dom.all().find((n) => dom.hasClass(n, 'xp-strip'));
+const remembered = (dom) => ({ [STRIP]: dom.local.getItem(STRIP), [STRIP_UNTIL]: dom.local.getItem(STRIP_UNTIL) });
+const closeOf = (dom) => dom.all().find((n) => n.tagName === 'BUTTON' && dom.hasClass(n, 'xp-x') && n.parent && dom.hasClass(n.parent, 'xp-in'));
+
+test('strip: one ask at a time, so it waits for the cookie choice, and lands on that click', async () => {
+  const dom = await run({ consent: null });
+  assert.equal(stripOf(dom), undefined, 'not beside the cookie box');
+  dom.ctx.document.dispatchEvent(new dom.ctx.CustomEvent('xenon:consent', { detail: { granted: true } }));
+  assert.ok(stripOf(dom), 'in the same moment as the click, so the move follows the visitor\'s own press');
+});
+
+test('strip: the next page draws it from memory before anything has answered', async () => {
+  const first = await run();
+  assert.ok(Number(first.local.getItem(STRIP_UNTIL)) > NOW, 'the head can tell the room is still wanted');
+  const next = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: remembered(first), reserved: true, hang: true });
+  vm.runInNewContext(src, next.ctx);
+  assert.ok(stripOf(next), 'drawn at once');
+  assert.match(stripOf(next).textContent, /Workload River/);
+  assert.equal(next.hd.style.top, '44px');
+  assert.equal('data-strip' in next.ctx.document.documentElement.attrs, false, 'the kept room gives way to the strip itself');
+});
+
+test('strip: the fresh answer leaves the same strip alone, so the loop does not restart', async () => {
+  const first = await run();
+  const next = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: remembered(first) });
+  vm.runInNewContext(src, next.ctx);
+  const drawn = stripOf(next);
+  await settle();
+  assert.equal(stripOf(next), drawn);
+});
+
+test('strip: pulled from the feed, it goes and is forgotten', async () => {
+  const first = await run();
+  const next = await run({ stored: remembered(first), feed: { promos: [] } });
+  assert.equal(stripOf(next), undefined);
+  assert.equal(next.hd.style.top, '');
+  assert.equal(next.local.getItem(STRIP), null);
+  assert.equal(next.local.getItem(STRIP_UNTIL), null);
+});
+
+test('strip: with no answer at all, what was on screen stays', async () => {
+  const first = await run();
+  const next = await run({ stored: remembered(first), feed: null });
+  assert.ok(stripOf(next));
+  assert.ok(next.local.getItem(STRIP));
+});
+
+test('strip: closed, it is forgotten, and no room is kept for it', async () => {
+  const dom = await run();
+  closeOf(dom).on.click();
+  assert.equal(dom.local.getItem(STRIP), null);
+  assert.equal(dom.local.getItem(STRIP_UNTIL), null);
+});
+
+test('strip: closed on another page, or out of date, memory draws nothing', async () => {
+  const first = await run();
+  const saved = remembered(first);
+  const closed = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: { ...saved, 'xenon.site.promo.v1': '{"strip:river-strip":1}' }, reserved: true, hang: true });
+  vm.runInNewContext(src, closed.ctx);
+  assert.equal(stripOf(closed), undefined);
+  assert.equal('data-strip' in closed.ctx.document.documentElement.attrs, false, 'and the room closes');
+
+  const over = JSON.parse(saved[STRIP]);
+  over.promo.activeUntil = '2026-10-19T00:00:00Z';
+  const late = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: { ...saved, [STRIP]: JSON.stringify(over) }, hang: true });
+  vm.runInNewContext(src, late.ctx);
+  assert.equal(stripOf(late), undefined);
+});
+
+test('strip: memory is checked like the feed, a bad value draws nothing', async () => {
+  const first = await run();
+  const saved = remembered(first);
+  const foreign = JSON.parse(saved[STRIP]);
+  foreign.promo.url = 'https://elsewhere.example/';
+  for (const bad of ['{not json', 'null', '[]', '{"promo":{}}', JSON.stringify(foreign)]) {
+    const dom = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: { ...saved, [STRIP]: bad }, hang: true });
+    vm.runInNewContext(src, dom.ctx);
+    assert.equal(stripOf(dom), undefined, bad);
+  }
+});
+
+test('strip: memory waits for the cookie choice too, and a preview keeps nothing', async () => {
+  const first = await run();
+  const asked = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, consent: null, stored: remembered(first), hang: true });
+  vm.runInNewContext(src, asked.ctx);
+  assert.equal(stripOf(asked), undefined);
+
+  const frame = await run({ framed: true, search: '?promo-preview=1', reserved: true });
+  assert.equal(frame.local.getItem(STRIP), null);
+  assert.equal('data-strip' in frame.ctx.document.documentElement.attrs, false);
+});
+
+// The head snippet keeps the room; the same line on every page, and it lets go at load in case
+// promo.js never runs (a blocker, a page without it), so nothing can stay blank at the top.
+test('every page keeps the room for a strip in its head, and the room matches the strip', () => {
+  const root = new URL('../../docs/', import.meta.url);
+  const pages = [];
+  const walk = (dir) => {
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (d.isDirectory()) { if (d.name !== 'demo' && d.name !== 'maker') walk(new URL(d.name + '/', dir)); } else if (d.name.endsWith('.html')) pages.push(new URL(d.name, dir));
+    }
+  };
+  walk(root);
+  const carrying = pages.map((u) => fs.readFileSync(u, 'utf8')).filter((html) => html.includes("localStorage.getItem('xenon.site.theme')"));
+  assert.ok(carrying.length > 150, String(carrying.length));
+  const line = (html) => html.split(/\r?\n/).find((l) => l.includes("localStorage.getItem('xenon.site.theme')"));
+  assert.equal(new Set(carrying.map(line)).size, 1, 'one snippet, word for word');
+  assert.match(line(carrying[0]), /xenon\.site\.strip\.until/);
+  assert.match(line(carrying[0]), /setAttribute\('data-strip',''\)/);
+  assert.match(line(carrying[0]), /addEventListener\('load',function\(\)\{[^}]*removeAttribute\('data-strip'\)/);
+  for (const tool of ['tools/build-seo.mjs', 'tools/build-releases.mjs']) {
+    assert.ok(fs.readFileSync(new URL('../../' + tool, import.meta.url), 'utf8').includes(line(carrying[0])), tool);
+  }
+  const css = fs.readFileSync(new URL('../../docs/site.css', import.meta.url), 'utf8');
+  assert.match(css, /html\[data-strip\] body::before \{ content: ""; display: block; height: 44px; \}/);
+  assert.match(css, /@media \(max-width: 899px\) \{ html\[data-strip\] body::before \{ height: 52px; \} \}/);
+  assert.match(src, /\.xp-strip\{position:sticky;top:0;z-index:31;height:44px/);
+  assert.match(src, /@media \(max-width:899px\)\{\.xp-strip\{height:52px\}/);
+});
+
+test('a picture that does not load takes its box with it', async () => {
+  const feed = { promos: [promo({ id: 'river-strip', entryId: 'river', format: 'strip', slice: { x: 0, y: 0.5, w: 1 }, poster: 'https://assets.xenon-app.com/community/promo/river.webp', video: undefined })] };
+  const dom = await run({ feed });
+  const img = dom.all().find((n) => n.tagName === 'IMG');
+  assert.ok(img, 'the still is drawn');
+  img.on.error();
+  assert.equal(dom.all().some((n) => dom.hasClass(n, 'xp-media')), false, 'no empty box where the picture was');
+});
+
+test('nothing in the check for open things points at markup that is gone', () => {
+  assert.doesNotMatch(src, /\.lb\.open|\[data-lightbox\]/);
+  assert.match(src, /dialog\[open\], #xc-consent:not\(\[hidden\]\)/);
+});
+
+// A card in the corner on a computer: narrower, so it stays in the margin on more screens; the
+// site's panel corner; and the words say what it does, which is not "covers nothing".
+test('the corner card sits on the site\'s corners and does not claim to cover nothing', () => {
+  assert.match(src, /\.xp-corner\{position:fixed;right:24px;bottom:24px;z-index:85;width:300px;[^}]*border-radius:10px;overflow:hidden/);
+  assert.match(src, /\.xp-go\{[^}]*border-radius:6px/);
+  assert.doesNotMatch(src, /covers nothing|over the margin, not the text|rounded surfaces/);
+});
+
+// The cookie box in the site's own hand: a flat sheet that is simply there, both answers side by
+// side at the same weight, the link on the title's line so a phone gives it two rows less.
+test('the cookie box is a flat sheet, with no blur and no entrance', () => {
+  const consent = fs.readFileSync(new URL('../../docs/consent.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(consent, /backdrop-filter|translateY|transition:opacity|requestAnimationFrame/);
+  assert.doesNotMatch(consent, /--bone-|flex-direction:column/);
+  assert.match(consent, /#xc-consent \.xc-row\{display:grid;grid-template-columns:1fr 1fr;gap:10px\}/);
+  assert.match(consent, /border-radius:10px/);
+  assert.match(consent, /seven languages/);
+  // The first stop for a keyboard, not the last one after the whole page.
+  assert.match(consent, /document\.body\.insertBefore\(box, document\.body\.firstChild\)/);
+});
+
+// One ask at a time on a phone: with the strip up, the drawer would take close to 40% of the screen
+// and two packs would be asking at once. It waits and is not used up, so it can still come.
+test('render: on a phone the drawer waits while a strip is up, and comes once the strip is closed', async () => {
+  const phone = await run({ wide: false });
+  scrollTo(phone, 1100);
+  assert.equal(panelOf(phone), undefined, 'not beside the strip');
+  assert.doesNotMatch(String(phone.local.getItem('xenon.site.promo.v1')), /panel:river/, 'waiting does not spend its one showing');
+  closeOf(phone).on.click();
+  scrollTo(phone, 1150);
+  assert.ok(panelOf(phone));
+});
+
+// Guide pages leave 278 px beside the text at 1440 and 320 at 1536: the 300 px card went over the
+// ends of the lines. From 1600 the wide card fits again (348 px).
+test('the corner card narrows so a 1440 window keeps the ends of the lines', () => {
+  assert.match(src, /@media \(max-width:1599px\)\{\.xp-corner\{width:256px;right:16px;bottom:16px\}\.xp-corner \.xp-name\{font-size:30px\}\}/);
 });

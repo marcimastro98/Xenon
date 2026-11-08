@@ -38,7 +38,7 @@
     "edge.install.4": "如果你更喜欢 iCUE：在 iCUE 中添加一个指向 <code>http://127.0.0.1:3030/</code> 的网页小组件，Xenon 就会填满这个面板。",
     "edge.h.honest": "试用前需要了解的事",
     "edge.honest.p1": "有两点需要说明。第一，Windows 安装程序已经签名，所以 Windows 会显示经过验证的发布者，但 SmartScreen 仍可能在一段时间内发出警告，因为 Microsoft 是随时间逐步给予信誉的：点击<strong>更多信息</strong>，再点<strong>仍要运行</strong>。<a href=\"faq.html#warnings\">常见问题介绍了如何自己验证文件</a>。第二，Xenon 以 Windows 为主。macOS 和 Linux 版本已经推出，目前是测试版，而 Edge 专属的部分（保留的触控手势、虚拟第二屏幕、iCUE 灯光）只支持 Windows。",
-    "edge.honest.p2": "它是免费的，没有付费版。如果你最后每天都在用，可以成为支持者，解锁几款额外的主题和小组件，这就是全部的商业模式。",
+    "edge.honest.p2": "免费使用，无需购买许可证。如果你每天都在用，支持者可以解锁更多主题和小组件；Xenon 的点数火花单独出售。",
     "edge.h.faq": "常见问题",
     "edge.faq.icue.q": "Xenon 会取代 iCUE 吗？",
     "edge.faq.icue.a": "不会。iCUE 仍然负责驱动你的 CORSAIR 硬件及其灯光。Xenon 与它并行运行，可以是独立的窗口，也可以放在 iCUE 的一个面板里，还能通过自己的桥接把灯光效果发送给 iCUE。你可以在不打开 iCUE 的情况下在 Edge 上运行 Xenon，但负责配置设备的仍然是 iCUE。",
@@ -49,6 +49,7 @@
     "edge.faq.free.q": "Xenon 免费吗？",
     "edge.faq.free.a": "免费。个人使用免费，源代码以非商业许可证公开在 GitHub 上。支持者还可以解锁应用自带的两个小组件“歌词”和“开发者清理”，以及每月为支持者推出的主题和小组件。",
     "edge.cta.h": "下载 Xenon",
-    "edge.cta.p": "一个安装程序，无需账号，你的设置和文件都保留在你的电脑上。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或者获取 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 和 Linux 版本</a>。有问题请到 <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> 提问。"
+    "edge.cta.p": "一个安装程序，无需账号，你的设置和文件都保留在你的电脑上。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或者获取 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 和 Linux 版本</a>。有问题请到 <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> 提问。",
+    "edge.pic.alt": "Xeneon Edge 宽屏上的 Xenon 仪表盘：音乐、日历和系统图表"
   }
 }

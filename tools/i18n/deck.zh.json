@@ -1,11 +1,11 @@
 {
   "zh": {
     "deck.h1": "Deck",
-    "deck.lede": "Deck 是一组按键，你可以把它添加到 Xenon 仪表盘的页面上。点一下就能打开应用、发送键盘快捷键、切换 OBS 场景或让 Discord 静音，按键还可以亮起，显示它所控制对象的状态。",
+    "deck.lede": "Deck 是一组按键，你可以把它添加到 Xenon 的页面上。点一下就能打开应用、发送键盘快捷键、切换 OBS 场景或让 Discord 静音，按键还可以亮起，显示它所控制对象的状态。",
     "deck.lede2": "它的作用和 Stream Deck 类似，只不过用的是你已经有的屏幕：Xeneon Edge、闲置的显示器、平板或手机。",
     "deck.updated": "最后更新：2026年9月27日",
-    "deck.shot.alt": "有十二个按键的 Deck 小组件：OBS 场景、录制、麦克风、Discord、Spotify、播放、截图和灯光",
-    "deck.shot.cap": "一个有十二个按键的直播配置。播放键亮着，因为正在播放音乐。",
+    "deck.shot.alt": "有十二个按键的 Deck 小组件，游戏配置：保存回放、截图、麦克风静音、Spotify、叠加层、标记、Discord、灯光、询问 Bit、录制、音量和锁定电脑",
+    "deck.shot.cap": "一个有十二个按键的游戏配置，用于回放、截图、麦克风和叠加层。",
     "deck.jump.actions": "动作",
     "deck.jump.steps": "多步按键",
     "deck.jump.state": "显示状态的按键",
@@ -32,7 +32,7 @@
     "deck.act.vm": "<strong>Voicemeeter。</strong>静音某个输入条或设置其增益，把它发送到总线（A1、A2、B1 按钮），静音某条总线或设置其增益，按下你的某个宏按钮，或者设置任何具名参数。",
     "deck.act.wl": "<strong>Wave Link。</strong>设置输入、输出或混音的音量，或者将其静音。在 Wave Link 2 上，按键还可以切换监听；在 Wave Link 3 上，按键可以开关效果并选择输出设备。",
     "deck.act.ha": "<strong>Home Assistant。</strong>切换设备开关，设置灯光，控制媒体播放器、窗帘、温控、风扇、扫地机器人、门锁或警报，激活场景，运行脚本，按下按钮，或者调用任何服务。",
-    "deck.act.light": "<strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。",
+    "deck.act.light": "<strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，为单个风扇、灯带或水泵上色，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。",
     "deck.act.window": "<strong>窗口。</strong>把你刚才在用的窗口移到下一台或上一台显示器，贴靠到左半边或右半边，最大化、最小化或居中。",
     "deck.act.ai": "<strong>Bit 和 Claude Code。</strong>向 AI 发送提示词，开始语音会话或打开聊天。在你的某个项目中发起一个 Claude Code 请求，或者停止正在运行的请求。按键本身不授予任何权限：当 Claude Code 请求运行命令时，请求会显示在屏幕上，由你来批准。",
     "deck.act.more": "<strong>更多。</strong>通过蓝牙配对的手机打电话或发短信，结束远程会话或阻止远程访问，以及使用你安装的社区小组件添加的按键，每一个都要先经过你的允许。",

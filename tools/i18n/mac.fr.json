@@ -1,10 +1,10 @@
 {
   "fr": {
-    "meta.title": "Xenon pour Mac (bêta) : dashboard second écran et widgets",
+    "meta.title": "Xenon pour Mac (bêta) : dashboard et widgets Xeneon Edge",
     "meta.desc": "Xenon sur macOS 11 ou plus récent (bêta) : un dashboard pour un écran en plus ou un Xeneon Edge, les autorisations, le premier lancement, la désinstallation.",
     "mac.h1": "Xenon sur macOS",
     "mac.beta": "Beta",
-    "mac.lede": "Xenon est un dashboard tactile gratuit pour l'écran situé à côté de votre ordinateur. Sur Mac, il exécute le même dashboard que sur Windows. Cette page répertorie ce qui fonctionne actuellement, ce qui ne fonctionne pas, ainsi que les méthodes d'installation et de désinstallation.",
+    "mac.lede": "Xenon affiche des widgets gratuits pour votre ordinateur sur tous vos écrans. Sur Mac, il est en beta : cette page répertorie ce qui fonctionne actuellement, ce qui ne fonctionne pas, ainsi que les méthodes d'installation et de désinstallation.",
     "mac.updated": "Dernière mise à jour : 27 septembre 2026",
     "mac.jump.who": "À qui s'adresse-t-il",
     "mac.jump.get": "Télécharger",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "Autorisations",
     "mac.jump.remove": "Désinstallation",
-    "mac.shot.alt": "Le dashbnoard Xenon dashboard sur le Xeneon Edge, en taille 2560×720, avec la musique, un calendrier et les mesures système côte à côte",
-    "mac.shot.cap": "Le dashboard sur le Xeneon Edge, en taille 2560×720, capturé à partir de la démonstration du navigateur. Ses valeurs sont des données d'exemple pour un PC Windows. Sur un Mac, les mêmes tuiles affichent les propres mesures du Mac.",
     "mac.h.who": "À qui s'adresse ce produit",
-    "mac.who.p1": "Cette page s’adresse aux propriétaires de Mac disposant d’un écran supplémentaire :",
+    "mac.who.p1": "Cette page s’adresse aux propriétaires de Mac qui veulent des widgets sur l'un de ces écrans :",
     "mac.who.edge": "<strong>Un CORSAIR Xeneon Edge.</strong> Xenon a été initialement conçu autour de sa résolution de 2560×720.",
     "mac.who.monitor": "<strong>Un moniteur de rechange.</strong> L'application Xenon s'ouvre sur l'écran de votre choix.",
     "mac.who.tablet": "<strong>Une tablette ou un téléphone.</strong> Il affiche le même dashboard dans son navigateur via votre Wi-Fi, sans rien y installer. L'accès par téléphone et tablette est également en beta. Voir <a href=\"/phone.html\">appairage d'un téléphone ou d'une tablette</a>.",
@@ -82,7 +80,7 @@
     "mac.row.voice": "Saisie vocale et vision d’écran de l’IA",
     "mac.st.voice": "Fonctionne. La voix nécessite ffmpeg.",
     "mac.row.wake": "Commande vocale « Hey Bit »",
-    "mac.st.wake": "Fonctionne avec ffmpeg et Whisper local gratuit, que Paramètres, Assistant Bit installe via Homebrew.",
+    "mac.st.wake": "Fonctionne avec ffmpeg et Whisper local gratuit, que Réglages, Bit installe via Homebrew.",
     "mac.row.lights": "Éclairage réseau : WLED, Hue, Nanoleaf, OpenRGB",
     "mac.row.icue": "CORSAIR éclairage iCUE",
     "mac.st.win": "Uniquement sur Windows.",
@@ -101,7 +99,7 @@
     "mac.row.vdd": "Écran virtuel secondaire, contrôle à distance du PC",
     "mac.works.doctor": "Si une tuile est vide, exécutez <code>npm run doctor</code> dans le dossier d'installation. Il liste ce qui fonctionne, ce que votre matériel n'expose pas et ce qui est défectueux, et il ne modifie rien.",
     "mac.h.edge": "Le Xeneon Edge sur un Mac",
-    "mac.edge.p1": "La première fois que Xenon s'ouvre, il énumère les écrans qu'il détecte. Sélectionnez le Xeneon Edge et le dashboard s'y déplace. Vous pouvez le modifier ultérieurement dans <strong>Réglages, Affichage</strong>.",
+    "mac.edge.p1": "La première fois que Xenon s'ouvre, il énumère les écrans qu'il détecte. Sélectionnez le Xeneon Edge et le dashboard s'y déplace. Vous pouvez le modifier ultérieurement dans <strong>Réglages, Écran</strong>.",
     "mac.edge.p2": "Le tactile fonctionne différemment sur macOS que sur Windows. macOS ne prend pas en charge nativement les écrans tactiles USB, de sorte que des applications comme Touchscreen Gestures transforment chaque contact en clic souris et un appui long en clic droit. Xenon exécute l'action Hold des touches du Deck lors d'un clic droit, ce qui permet à Hold de fonctionner également dans cette configuration.",
     "mac.edge.p3": "Trois éléments restent sur Windows : le toucher sécurisé pour les jeux, qui maintient un jeu au premier plan pendant que vous touchez le Xeneon Edge ; l'éclairage iCUE CORSAIR ; et le second écran virtuel.",
     "mac.h.perms": "Autorisations macOS",
@@ -146,6 +144,9 @@
     "ld.q4": "Quelles autorisations Xenon nécessite-t-il sur un Mac ?",
     "ld.a4": "Le dashboard fonctionne sans aucune autorisation. L'accès complet au disque permet à la recherche et au widget de disque de voir votre dossier personnel et la Corbeille. L'accessibilité permet aux touches du Deck d'envoyer des raccourcis clavier. L'enregistrement de l'écran et le microphone sont destinés à la vision d'écran et à la voix de l'IA.",
     "ld.q5": "Comment désinstaller Xenon sur un Mac ?",
-    "ld.a5": "Double-cliquez sur UNINSTALL.command dans ~/Library/Application Support/Xenon et saisissez REMOVE lorsqu'on vous le demande. Cela supprime l'application, l'élément de connexion, le serveur local, vos données et le dossier d'installation."
+    "ld.a5": "Double-cliquez sur UNINSTALL.command dans ~/Library/Application Support/Xenon et saisissez REMOVE lorsqu'on vous le demande. Cela supprime l'application, l'élément de connexion, le serveur local, vos données et le dossier d'installation.",
+    "mac.pic.alt": "Le tableau de bord Xenon : musique, calendrier et graphiques système sur une seule page",
+    "mac.pic.cap": "Le tableau de bord dans la démo du navigateur. Ses valeurs sont des données d'exemple d'un PC Windows ; sur un Mac, les mêmes tuiles affichent les valeurs du Mac.",
+    "mac.who.desk": "<strong>Votre bureau.</strong> Les widgets restent sur l’écran que vous avez déjà. Voir <a href=\"/single-screen.html\">Xenon sur un seul écran</a>."
   }
 }

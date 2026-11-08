@@ -40,7 +40,7 @@
     '.xt-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:4px 2px;',
     '  font:inherit;font-size:15px;color:var(--bone-1);cursor:pointer;line-height:1.4;min-height:44px;}',
     '.xt-btn:hover{color:var(--bone-0);}',
-    '.xt-caret{font-size:9px;line-height:1;}',
+    '.xt-caret{width:0;height:0;border:4px solid transparent;border-top-color:currentColor;border-bottom:0;}',
     '.xt-menu{position:absolute;top:calc(100% + 10px);right:0;min-width:150px;z-index:80;display:none;',
     '  background:var(--g-0);border:1px solid var(--rule-2);border-radius:var(--r-1);padding:6px;}',
     '.xt-theme.xt-open .xt-menu{display:block;}',
@@ -119,7 +119,6 @@
     var caret = document.createElement('span');
     caret.className = 'xt-caret';
     caret.setAttribute('aria-hidden', 'true');
-    caret.textContent = '▾';
     btn.appendChild(cur);
     btn.appendChild(caret);
 

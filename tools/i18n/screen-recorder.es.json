@@ -69,6 +69,7 @@
     "sr.faq.price.q": "¿El grabador de pantalla es gratis?",
     "sr.faq.price.a": "Sí. La grabación, la Repetición instantánea, las capturas de pantalla, la galería y las transcripciones forman parte de la app gratuita, sin cuenta y sin marca de agua.",
     "sr.cta.h": "Descargar Xenon",
-    "sr.cta.p": "Gratis, sin cuenta. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a>, o elige tu sistema en la <a href=\"/download.html\">página de descargas</a>. Para ver el contador de FPS sobre tu juego, lee <a href=\"/fps-overlay.html\">Overlay de FPS con 1% low y 0,1% low</a>."
+    "sr.cta.p": "Gratis, sin cuenta. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a>, o elige tu sistema en la <a href=\"/download.html\">página de descargas</a>. Para ver el contador de FPS sobre tu juego, lee <a href=\"/fps-overlay.html\">Overlay de FPS con 1% low y 0,1% low</a>.",
+    "sr.pic.alt": "Un chat con Bit: al pedirle que guarde los últimos 42 segundos, Bit dice que el clip está en el Escritorio"
   }
 }

@@ -1,10 +1,10 @@
 {
   "ko": {
-    "meta.title": "Mac용 Xenon(베타): 보조 모니터 대시보드와 위젯",
+    "meta.title": "Mac용 Xenon(베타): Xeneon Edge 위젯",
     "meta.desc": "macOS 11 이상용 Xenon(베타): 남는 화면이나 Xeneon Edge용 대시보드, 필요한 권한, 첫 실행, 제거 방법.",
     "mac.h1": "macOS용 Xenon",
     "mac.beta": "베타",
-    "mac.lede": "Xenon은 컴퓨터 옆 화면을 위한 무료 터치 대시보드입니다. Mac에서도 Windows와 같은 대시보드가 실행됩니다. 이 페이지에는 지금 Mac에서 되는 것과 안 되는 것, 그리고 설치하고 제거하는 방법을 정리했습니다.",
+    "mac.lede": "Xenon은 어떤 화면에서든 쓰는 무료 위젯입니다. Mac에서는 베타입니다. 이 페이지에는 지금 Mac에서 되는 것과 안 되는 것, 그리고 설치하고 제거하는 방법을 정리했습니다.",
     "mac.updated": "마지막 업데이트: 2026년 9월 27일",
     "mac.jump.who": "누구를 위한 것인가",
     "mac.jump.get": "다운로드",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "권한",
     "mac.jump.remove": "제거",
-    "mac.shot.alt": "음악, 캘린더, 시스템 측정값이 나란히 놓인 Xeneon Edge 2560×720 크기의 Xenon 대시보드",
-    "mac.shot.cap": "Xeneon Edge의 2560×720 크기로 띄운 대시보드로, 브라우저 데모에서 캡처했습니다. 표시된 값은 Windows PC의 샘플 데이터입니다. Mac에서는 같은 타일에 그 Mac의 값이 표시됩니다.",
     "mac.h.who": "누구를 위한 것인가",
-    "mac.who.p1": "남는 화면이 하나 있는 Mac 사용자를 위한 페이지입니다.",
+    "mac.who.p1": "다음 화면 중 하나에서 위젯을 쓰고 싶은 Mac 사용자를 위한 페이지입니다.",
     "mac.who.edge": "<strong>CORSAIR Xeneon Edge.</strong> Xenon은 처음에 이 화면의 2560×720 형태에 맞춰 설계되었습니다.",
     "mac.who.monitor": "<strong>남는 모니터.</strong> Xenon 앱은 사용자가 고른 화면에서 열립니다.",
     "mac.who.tablet": "<strong>태블릿이나 휴대폰.</strong> Wi-Fi를 통해 브라우저에 같은 대시보드를 보여 주며, 기기에는 아무것도 설치하지 않습니다. 휴대폰과 태블릿 접속도 베타입니다. <a href=\"/phone.html\">휴대폰이나 태블릿 페어링</a>을 참고하세요.",
@@ -82,7 +80,7 @@
     "mac.row.voice": "음성 입력과 AI의 화면 인식",
     "mac.st.voice": "동작합니다. 음성에는 ffmpeg가 필요합니다.",
     "mac.row.wake": "\"Hey Bit\" 음성 호출",
-    "mac.st.wake": "ffmpeg와 무료 로컬 Whisper가 있으면 동작합니다. Whisper는 설정 → Bit 어시스턴트에서 Homebrew로 설치합니다.",
+    "mac.st.wake": "ffmpeg와 무료 로컬 Whisper가 있으면 동작합니다. Whisper는 설정 → Bit에서 Homebrew로 설치합니다.",
     "mac.row.lights": "네트워크 조명: WLED, Hue, Nanoleaf, OpenRGB",
     "mac.row.icue": "CORSAIR iCUE 조명",
     "mac.st.win": "Windows 전용입니다.",
@@ -146,6 +144,9 @@
     "ld.q4": "Mac에서 Xenon에 필요한 권한은 무엇인가요?",
     "ld.a4": "대시보드는 권한 없이도 실행됩니다. 전체 디스크 접근 권한이 있으면 검색과 디스크 위젯이 홈 폴더와 휴지통을 볼 수 있습니다. 손쉬운 사용 권한이 있으면 Deck 키가 키보드 단축키를 보낼 수 있습니다. 화면 기록과 마이크 권한은 AI의 화면 인식과 음성에 쓰입니다.",
     "ld.q5": "Mac에서 Xenon을 제거하려면 어떻게 하나요?",
-    "ld.a5": "~/Library/Application Support/Xenon에 있는 UNINSTALL.command를 더블 클릭하고, 확인을 요청하면 REMOVE를 입력하세요. 앱, 로그인 항목, 로컬 서버, 데이터, 설치 폴더를 제거합니다."
+    "ld.a5": "~/Library/Application Support/Xenon에 있는 UNINSTALL.command를 더블 클릭하고, 확인을 요청하면 REMOVE를 입력하세요. 앱, 로그인 항목, 로컬 서버, 데이터, 설치 폴더를 제거합니다.",
+    "mac.pic.alt": "Xenon 대시보드: 음악, 캘린더, 시스템 그래프를 한 페이지에 표시",
+    "mac.pic.cap": "브라우저 데모의 대시보드입니다. 표시된 값은 Windows PC의 샘플 데이터이며, Mac에서는 같은 타일에 그 Mac의 값이 표시됩니다.",
+    "mac.who.desk": "<strong>바탕 화면.</strong> 지금 쓰는 화면에 위젯을 둘 수 있습니다. <a href=\"/single-screen.html\">한 화면에서 쓰는 Xenon</a>을 참고하세요."
   }
 }

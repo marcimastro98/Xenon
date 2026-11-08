@@ -24,10 +24,12 @@
     "os.h.widgets": "화면 위의 위젯",
     "os.widgets.p1": "Bit에게 <strong>“날씨를 바탕 화면 오른쪽 위에 띄워 줘”</strong>라고 하면 위젯이 그 자리에 나타납니다. 위젯은 <strong>바탕 화면에</strong> 두어 창 아래에 있다가 바탕 화면을 표시할 때 올라오게 할 수 있고, <strong>모든 것 위에</strong> 두어 앱과 테두리 없는 창 모드의 게임 위에 띄울 수 있고, <strong>앱 옆에</strong> 두어 그 창을 따라다니다가 창을 최소화하면 숨게 할 수도 있습니다.",
     "os.widgets.p2": "위젯 옆을 클릭하면 그 아래에 있는 것이 클릭되고, 위젯을 클릭해도 쓰던 창의 포커스를 빼앗지 않습니다. 대시보드의 모든 타일과 모든 Store 위젯을 화면에 둘 수 있습니다.",
-    "os.widgets.p3": "직접 배치하려면 Bit에게 “위젯 좀 옮길게”라고 하거나 Deck 키 <strong>화면의 위젯 편집</strong>을 누르세요. 끌어서 옮기고, 모서리를 끌어 크기를 바꾸고, 위젯을 다른 위젯 위에 놓으면 탭이 됩니다. 위젯은 업무, 게임 같은 페이지에 나눠 둘 수 있습니다. <strong>게임할 때</strong>로 표시한 페이지는 게임이 실행되는 동안 저절로 나타나고, 페이지가 가상 데스크톱을 따라가게 할 수도 있습니다.",
-    "os.widgets.p4": "대시보드가 전혀 필요 없다면 설정 → 일반 → Xenon 사용 방식에서 <strong>위젯만</strong>을 고르세요. 그러면 앱은 숨겨진 창까지 포함해 대시보드 창을 하나도 두지 않고 메모리도 덜 씁니다. 클립 저장이나 타이머 종료 같은 알림은 화면 오른쪽 위에 나타나고, Bit은 여전히 “Hey Xenon”에 답합니다.",
+    "os.widgets.p3": "직접 배치하려면 Bit에게 “위젯 좀 옮길게”라고 하거나 Deck 키 <strong>화면의 위젯 편집</strong>을 누르세요. 끌어서 옮기고, 위젯을 누르면 선택지가 나옵니다. Xenon 메뉴의 화면 지도에서도 똑같이 할 수 있고 다른 모니터로도 옮길 수 있습니다. 위젯은 업무, 게임 같은 페이지에 나눠 둘 수 있습니다. <strong>게임할 때</strong>로 표시한 페이지는 게임이 실행되는 동안 저절로 나타나고, 페이지가 가상 데스크톱을 따라가게 할 수도 있습니다.",
+    "os.widgets.p3b": "위젯이 규칙을 따르게 할 수도 있습니다. Xenon 메뉴에서 위젯의 <strong>조정</strong>을 열고 <strong>표시 시점</strong>을 고르세요. 게임, 음악, 통화, OBS 방송 중에만, 특정 앱이 앞에 있을 때만, 두 시각 사이에만 등을 고를 수 있습니다. 위젯 페이지도 같은 방식으로 설정할 수 있습니다. 상황이 시작되면 앞으로 나오고, 끝나면 이전 페이지로 돌아갑니다.",
+    "os.widgets.p3c": "위젯마다 자기만의 키 조합을 둘 수도 있습니다. Xenon 메뉴에서 위젯의 <strong>조정</strong>을 열고 <strong>단축키</strong>에서 설정하세요. 누르면 위젯을 표시하거나 숨기고, 길게 누르면 누르고 있는 동안만 보입니다. 카탈로그 위젯은 기능을 키에 넣을 수도 있습니다. 모든 키는 <strong>단축키와 매크로</strong>에 모여 있습니다.",
+    "os.widgets.p4": "대시보드가 전혀 필요 없다면 설정 → 일반 → Xenon 사용 방식에서 <strong>위젯만</strong>을 고르세요. 그러면 앱은 숨겨진 창까지 포함해 대시보드 창을 하나도 두지 않고 메모리도 덜 씁니다. 클립 저장이나 타이머 종료 같은 알림은 화면 오른쪽 위에 나타나고, Bit은 여전히 “Hey Bit”에 답합니다.",
     "os.h.menu": "Xenon 메뉴",
-    "os.menu.p1": "테두리 없는 창 모드의 게임을 포함해 어떤 앱에서든 <strong>Alt+Shift+X</strong>를 누르면 화면 위에 메뉴 하나가 열립니다. 스크린샷, 영역, 녹화, 갤러리, 화면의 위젯과 그 페이지, 게임 위 오버레이, 캡처 옵션, 한곳에 모은 모든 단축키(다른 앱이 이미 쓰는 키는 그 앱 이름 표시), 모양, Xenon 사용 방식이 들어 있습니다.",
+    "os.menu.p1": "테두리 없는 창 모드의 게임을 포함해 어떤 앱에서든 <strong>Alt+Shift+X</strong>를 누르면 화면 위에 메뉴 하나가 열립니다. 스크린샷, 영역, 녹화, 갤러리, 위젯과 각 위젯의 위치, 페이지, 캡처 옵션, 한곳에 모은 모든 단축키(다른 앱이 이미 쓰는 키는 그 앱 이름 표시), 모양, Xenon 사용 방식이 들어 있습니다.",
     "os.menu.p2": "트레이나 Deck 키에서 열거나 Bit에게 부탁해도 됩니다. 컨트롤러에서는 가운데의 작은 버튼 두 개를 잠깐 함께 누르고 있으세요. Xbox 방식 컨트롤러는 보기(View)와 메뉴(Menu), PlayStation 컨트롤러는 만들기(Create)와 옵션(Options)입니다. 방향 패드로 이동하고, A로 누르고, B로 닫습니다.",
     "os.h.perf": "게임 위에 띄우는 게임 성능",
     "os.perf.p1": "<strong>게임 성능</strong> 타일은 지금 하는 게임의 프레임 레이트, 1%와 0.1% 로우, 프레임 타임, 그리고 끊김이 뾰족하게 튀어 보이는 최근 프레임 그래프를 보여 주고, 그 아래에 CPU와 GPU 부하를 표시합니다. Bit에게 “게임 위에 FPS 보여 줘”라고 하면 게임 위에 띄웁니다. Windows에서는 <strong>Ctrl+Shift+F9</strong>로 게임 위의 위젯을 숨겼다가 다시 보이게 합니다.",
@@ -57,6 +59,7 @@
     "os.faq.price.q": "이 기능들은 유료인가요?",
     "os.faq.price.a": "아니요. 화면 위젯, 오버레이, 스크린샷, 녹화, 인스턴트 리플레이, 갤러리는 무료이며 계정이 필요 없습니다.",
     "os.cta.h": "Xenon 다운로드",
-    "os.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요."
+    "os.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요.",
+    "os.pic.alt": "Xenon 위젯이 놓인 바탕 화면: 열린 창 옆에 날씨, 음악, 시스템 그래프"
   }
 }

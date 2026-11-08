@@ -16,7 +16,7 @@
     "tab.how.p2": "Ce que vous voyez est le véritable dashboard, et non un affichage distant : les mêmes tuiles, le même thème et les mêmes pages que sur un moniteur, réagencés pour la forme de la tablette. Les zones tactiles sont dimensionnées pour les doigts.",
     "tab.h.setup": "Configuration",
     "tab.setup.1": "Sur le PC, téléchargez <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a>, exécutez-le et appuyez sur <strong>Terminer l'installation</strong> lorsque l'application vous le demande. Cela ne se produit qu'une seule fois.",
-    "tab.setup.2": "Ouvrez Paramètres → <strong>Télécommande</strong> → <strong>Accès au téléphone</strong>, activez <strong>Autoriser l'accès depuis d'autres appareils</strong> et appuyez sur <strong>Ajouter un appareil</strong>. L'ordinateur affiche un code QR.",
+    "tab.setup.2": "Ouvrez Réglages → <strong>Téléphone</strong> → <strong>Accès au téléphone</strong>, activez <strong>Autoriser l'accès depuis d'autres appareils</strong> et appuyez sur <strong>Ajouter un appareil</strong>. L'ordinateur affiche un code QR.",
     "tab.setup.3": "Pointez l'appareil photo de la tablette vers le code. Le dashboard s'ouvre dans son navigateur. Ajoutez-le à l'écran d'accueil si vous souhaitez l'afficher en plein écran.",
     "tab.setup.4": "Si le PC ne dispose d'aucun moniteur supplémentaire, indiquez à Xenon lors du premier lancement d'afficher rien sur le PC : la tablette devient l'écran unique.",
     "tab.setup.more": "Le <a href=\"phone.html\">guide téléphone</a> comporte les mêmes étapes avec des captures d'écran, ainsi que l'itinéraire facultatif pour accéder au dashboard depuis l'extérieur de la maison.",
@@ -47,6 +47,7 @@
     "ld.q4": "Puis-je utiliser un téléphone au lieu d'une tablette ?",
     "ld.a4": "Oui, de la même manière. La mise en page s’adapte à l’écran d’un téléphone.",
     "ld.q5": "Xenon est-il gratuit ?",
-    "ld.a5": "Oui. Pas de version payante, pas de compte, pas de publicités. Le code source est disponible sur GitHub sous une licence non commerciale."
+    "ld.a5": "Oui. Pas de version payante, pas de compte, pas de publicités. Le code source est disponible sur GitHub sous une licence non commerciale.",
+    "tab.pic.alt": "Le tableau de bord Xenon sur une tablette : musique, paroles, graphiques système et une grille de touches Deck"
   }
 }

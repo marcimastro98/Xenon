@@ -22,7 +22,7 @@
     "cx.h.approve": "Answering requests",
     "cx.approve.p1": "When a Codex session asks to run a command or change files, the request appears on the tile with the command, or the files the change touches with deletes marked, and three buttons: <strong>Allow</strong>, <strong>Deny</strong> and <strong>Answer in Codex</strong>, which puts the question back in Codex at once. The card says what makes the request unusual: the network, publishing your work, a file outside the project, more access than the session has, or something that cannot be undone.",
     "cx.approve.p2": "A request that cannot be undone, such as <code>rm -rf</code> or a patch that deletes a file, is allowed by holding the button, not by a tap. A request left for 25 seconds takes over the whole screen, so it does not sit unseen on another page.",
-    "cx.approve.p3": "Nothing is approved for you. While a request waits on the tile, Codex does not show its own prompt, so after 90 seconds, or if Xenon is closed, the request goes back to Codex, which asks as usual. <strong>Settings → Codex</strong> changes the wait or turns the requests off.",
+    "cx.approve.p3": "Nothing is approved for you. While a request waits on the tile, Codex does not show its own prompt, so after 90 seconds, or if Xenon is closed, the request goes back to Codex, which asks as usual. <strong>Settings → Claude Code and Codex</strong> changes the wait or turns the requests off.",
     "cx.approve.phone": "To answer from your phone, pair it with Xenon (beta). The phone shows the same dashboard, with the same buttons. <a href=\"/phone.html\">How to pair a phone</a>.",
     "cx.h.link": "Connecting Codex",
     "cx.link.1": "Add the <strong>Codex</strong> tile from the <strong>+</strong> button, under <strong>System</strong>.",
@@ -62,6 +62,7 @@
     "cx.jump.widgets": "Your widgets",
     "cx.h.widgets": "Building your own widgets",
     "cx.widgets.p1": "If you write code in Codex, it can also build widgets for Xenon. In <strong>Settings → Widgets &amp; sharing → Build widgets with Claude Code or Codex</strong>, press <strong>Connect Codex</strong>. Codex then reads the Widget SDK, writes the widget in a folder, installs it on your dashboard, reads the errors it hits and looks at a picture of its tile, then fixes it.",
-    "cx.widgets.p2": "The first time, the dashboard asks whether to allow it. It never approves a widget's permissions, only changes widgets you made, and works only from the PC running Xenon. <a href=\"/create/#mcp\">How it works, and how to add it by hand</a>."
+    "cx.widgets.p2": "The first time, the dashboard asks whether to allow it. It never approves a widget's permissions, only changes widgets you made, and works only from the PC running Xenon. <a href=\"/create/#mcp\">How it works, and how to add it by hand</a>.",
+    "cx.pic.alt": "The Codex tile: a request to change files with its answer buttons, two sessions at work, and the plan's 5-hour and weekly usage"
   }
 }

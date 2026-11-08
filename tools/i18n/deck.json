@@ -1,11 +1,11 @@
 {
   "en": {
     "deck.h1": "The Deck",
-    "deck.lede": "The Deck is a grid of keys you add to a Xenon dashboard page. A tap can open an app, send a keyboard shortcut, switch an OBS scene or mute Discord, and a key can light up to show the state of what it controls.",
+    "deck.lede": "The Deck is a grid of keys you add to a Xenon page. A tap can open an app, send a keyboard shortcut, switch an OBS scene or mute Discord, and a key can light up to show the state of what it controls.",
     "deck.lede2": "It does a similar job to a Stream Deck, on a screen you already own: a Xeneon Edge, a spare monitor, a tablet or a phone.",
     "deck.updated": "Last updated: 27 September 2026",
-    "deck.shot.alt": "The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights",
-    "deck.shot.cap": "A streaming profile with twelve keys. The Playing key is lit because music is playing.",
+    "deck.shot.alt": "The Deck widget with twelve keys in a game profile: save replay, screenshot, mute microphone, Spotify, overlay, mark, Discord, lights, Ask Bit, record, volume and lock the PC",
+    "deck.shot.cap": "A game profile with twelve keys for replays, screenshots, the microphone and the overlay.",
     "deck.jump.actions": "Actions",
     "deck.jump.steps": "Multi-step keys",
     "deck.jump.state": "Keys that show a state",
@@ -32,7 +32,7 @@
     "deck.act.vm": "<strong>Voicemeeter.</strong> Mute a strip or set its gain, send it to a bus (the A1, A2, B1 buttons), mute a bus or set its gain, press one of your macro buttons, or set any named parameter.",
     "deck.act.wl": "<strong>Wave Link.</strong> Set or mute the volume of an input, an output or a mix. With Wave Link 2 a key can also switch monitoring; with Wave Link 3 it can turn effects on and off and pick the output device.",
     "deck.act.ha": "<strong>Home Assistant.</strong> Toggle a device, set a light, control a media player, cover, climate, fan, vacuum, lock or alarm, activate a scene, run a script, press a button, or call any service.",
-    "deck.act.light": "<strong>Lighting.</strong> Turn your lights on or off, set a colour or an effect, change one device, or hand them back to automatic. Razer Chroma devices and SignalRGB effects have their own keys.",
+    "deck.act.light": "<strong>Lighting.</strong> Turn your lights on or off, set a colour or an effect, change one device, colour a single fan, strip or pump, or hand them back to automatic. Razer Chroma devices and SignalRGB effects have their own keys.",
     "deck.act.window": "<strong>Windows.</strong> Move the window you were using to the next or previous monitor, snap it to the left or right half, maximize, minimize or center it.",
     "deck.act.ai": "<strong>Bit and Claude Code.</strong> Send the AI a prompt, start a voice session or open the chat. Start a Claude Code request in one of your projects, or stop the one running. The key grants no permissions: when Claude Code asks to run a command, the request comes to the screen for you to approve.",
     "deck.act.more": "<strong>More.</strong> Call or text through a phone paired over Bluetooth, end a remote session or block remote access, and use keys added by community widgets you installed, each one allowed by you first.",

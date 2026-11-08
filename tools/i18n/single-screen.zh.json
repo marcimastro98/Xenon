@@ -24,10 +24,12 @@
     "os.h.widgets": "屏幕上的小组件",
     "os.widgets.p1": "对 Bit 说<strong>“把天气放到桌面右上角”</strong>，小组件就会出现在那里。小组件可以放在<strong>桌面上</strong>，位于窗口下方，显示桌面时浮现出来；可以放在<strong>所有内容上方</strong>，盖在你的应用和无边框窗口的游戏之上；也可以放在<strong>应用旁边</strong>，跟随它的窗口，窗口最小化时一起隐藏。",
     "os.widgets.p2": "点击小组件旁边的位置会落到下面的内容上，点击小组件也不会抢走你正在用的窗口的焦点。仪表盘的每个磁贴和每个 Store 小组件都可以放到屏幕上。",
-    "os.widgets.p3": "想手动摆放，就对 Bit 说“让我挪一下小组件”，或按 Deck 按键<strong>编辑屏幕上的小组件</strong>：拖动来移动，拖动一角来调整大小，把一个小组件放到另一个上面就会变成标签页。小组件可以分在不同页面里，比如工作和游戏：标记为<strong>玩游戏时</strong>的页面会在游戏运行时自动显示，页面也可以跟随某个虚拟桌面。",
-    "os.widgets.p4": "如果你完全不需要仪表盘，就在设置 → 通用 → Xenon 的使用方式中选择<strong>仅小组件</strong>。这样应用不再保留任何仪表盘窗口，连隐藏的也没有，占用的内存也更少。保存了片段、计时器结束这类提醒会出现在屏幕右上角，Bit 依然会回应“Hey Xenon”。",
+    "os.widgets.p3": "想手动摆放，就对 Bit 说“让我挪一下小组件”，或按 Deck 按键<strong>编辑屏幕上的小组件</strong>：拖动来移动，点一下小组件查看选项。Xenon 菜单里的屏幕地图也能这样做，还能拖到另一台显示器。小组件可以分在不同页面里，比如工作和游戏：标记为<strong>玩游戏时</strong>的页面会在游戏运行时自动显示，页面也可以跟随某个虚拟桌面。",
+    "os.widgets.p3b": "小组件也可以按规则显示。在 Xenon 菜单中打开某个小组件的<strong>调整</strong>，选择<strong>何时显示</strong>：只在游戏、音乐、通话或 OBS 直播时，只在某个应用位于最前时，在两个时间之间，等等。小组件页面也可以这样设置：情况开始时切到最前，结束时回到之前的页面。",
+    "os.widgets.p3c": "小组件也可以有自己的快捷键。在 Xenon 菜单中打开某个小组件的<strong>调整</strong>，在<strong>快捷键</strong>中设置：按一下显示或隐藏小组件，或者按住时才显示。目录中的小组件还可以把它的功能放到快捷键上。所有快捷键都列在<strong>快捷键和宏</strong>中。",
+    "os.widgets.p4": "如果你完全不需要仪表盘，就在设置 → 通用 → Xenon 的使用方式中选择<strong>仅小组件</strong>。这样应用不再保留任何仪表盘窗口，连隐藏的也没有，占用的内存也更少。保存了片段、计时器结束这类提醒会出现在屏幕右上角，Bit 依然会回应“Hey Bit”。",
     "os.h.menu": "Xenon 菜单",
-    "os.menu.p1": "在任何应用里按 <strong>Alt+Shift+X</strong>，包括无边框窗口的游戏，屏幕上就会打开一个菜单：截图、区域、录制和图库；屏幕上的小组件及其页面；游戏上的叠加层；捕获选项；所有快捷键集中在一处，并标出哪些已被其他应用占用；外观；以及你如何使用 Xenon。",
+    "os.menu.p1": "在任何应用里按 <strong>Alt+Shift+X</strong>，包括无边框窗口的游戏，屏幕上就会打开一个菜单：截图、区域、录制和图库；小组件、每个小组件的位置及其页面；捕获选项；所有快捷键集中在一处，并标出哪些已被其他应用占用；外观；以及你如何使用 Xenon。",
     "os.menu.p2": "也可以从托盘或 Deck 按键打开，或者让 Bit 打开。用手柄时，同时按住中间的两个小按钮片刻：Xbox 式手柄是视图（View）和菜单（Menu），PlayStation 手柄是创建（Create）和选项（Options）。十字键移动，A 确认，B 关闭。",
     "os.h.perf": "游戏上方的游戏性能",
     "os.perf.p1": "<strong>游戏性能</strong>磁贴显示你正在玩的游戏的帧率、1% 和 0.1% 低帧、帧时间，以及最近帧的曲线，卡顿会显示为尖峰，下方是 CPU 和 GPU 负载。对 Bit 说“在游戏上显示我的 FPS”，就能把它放到游戏上方。在 Windows 上，<strong>Ctrl+Shift+F9</strong> 可以隐藏游戏上方的小组件，再按一次恢复显示。",
@@ -57,6 +59,7 @@
     "os.faq.price.q": "这些功能要花钱吗？",
     "os.faq.price.a": "不要钱。屏幕上的小组件、叠加层、截图、录制、即时回放和图库都是免费的，无需账户。",
     "os.cta.h": "下载 Xenon",
-    "os.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。"
+    "os.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。",
+    "os.pic.alt": "放着 Xenon 小组件的桌面：打开的窗口旁边是天气、音乐和系统图表"
   }
 }

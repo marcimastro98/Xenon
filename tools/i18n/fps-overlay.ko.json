@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows, Linux, Mac",
     "fo.jump.afterburner": "Afterburner와 비교",
     "fo.jump.faq": "자주 묻는 질문",
-    "fo.img.alt": "Xenon의 게임 성능 타일: 143 FPS, 1% 로우 112, 0.1% 로우 96, 프레임 타임 7.1 ms, 스파이크가 하나 있는 최근 프레임 그래프, CPU 21%, GPU 19%, GPU 48°C",
+    "fo.img.alt": "Xenon의 게임 성능 타일: 143 FPS, 1% 로우 112, 0.1% 로우 96, 프레임 타임 7.1 ms, 스파이크가 두 개 있는 최근 프레임 그래프, CPU 48%, GPU 61%, GPU 60°C",
     "fo.h.lows": "1%와 0.1% 로우가 알려 주는 것",
     "fo.lows.p1": "평균 프레임 레이트는 체감이 나쁜 순간을 가립니다. 그래서 Xenon은 가장 느린 1%의 프레임을 따로 모아 그 평균을 프레임 레이트로 보여 줍니다. 이것이 <strong>1% 로우</strong>입니다. <strong>0.1% 로우</strong>는 천 프레임 중 가장 느린 한 프레임으로 같은 계산을 합니다.",
     "fo.lows.p2": "위 그림에서 게임의 평균은 143 FPS, 1% 로우는 112, 0.1% 로우는 96입니다. 세 숫자가 가까우니 게임이 부드럽게 느껴집니다. 평균은 높은데 로우가 훨씬 낮으면, FPS 숫자는 괜찮아 보여도 게임이 끊깁니다.",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "FPS 오버레이는 무료인가요?",
     "fo.faq.price.a": "네. 게임 성능 타일, 플레이한 게임, 벤치마크, 끊김 원인은 무료 앱에 들어 있으며 계정이 필요 없습니다. 후원자가 받는 것은 추가 기능이 아니라 매달 카탈로그에 나오는 새 콘텐츠입니다.",
     "fo.cta.h": "Xenon 다운로드",
-    "fo.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요. 위젯, 녹화, 인스턴트 리플레이를 같은 화면에 두려면 <a href=\"/single-screen.html\">한 화면에서 쓰는 Xenon</a>을 읽어 보세요."
+    "fo.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요. 위젯, 녹화, 인스턴트 리플레이를 같은 화면에 두려면 <a href=\"/single-screen.html\">한 화면에서 쓰는 Xenon</a>을 읽어 보세요.",
+    "fo.pic.alt": "게임 성능 오버레이: FPS, 1%와 0.1% 저점, 프레임 시간, 최근 프레임 그래프, CPU와 GPU 부하"
   }
 }

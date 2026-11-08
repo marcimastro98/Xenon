@@ -65,7 +65,9 @@ test('every scene seeds a layout the app keeps, with tiles that exist', () => {
       assert.ok(indexHtml.includes(`data-dashboard-widget="${id}"`), `${name}: no tile ${id}`);
       if (!w.visible) continue;
       assert.ok(w.x >= 0 && w.w > 0 && w.x + w.w <= 24, `${name}: ${id} outside the 24 columns`);
-      assert.ok(w.y >= 0 && w.h > 0 && w.y + w.h <= 8, `${name}: ${id} below the screen`);
+      // A phone stacks its tiles and scrolls: only a fixed screen ends at the grid's last row.
+      const stacked = scene.viewport && scene.viewport.mobile;
+      assert.ok(w.y >= 0 && w.h > 0 && (stacked || w.y + w.h <= 8), `${name}: ${id} below the screen`);
     }
     for (const id of Object.values(scene.crops || {})) {
       assert.ok(widgets[id] && widgets[id].visible, `${name}: crop of ${id}, which is not on screen`);

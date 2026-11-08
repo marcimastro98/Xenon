@@ -4,8 +4,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-// The assistant is called Bit and its Settings section "Bit assistant", in the
-// app and on the site. The site pages and the dictionaries their language copies
+// The assistant is called Bit, and so is its Settings page, in the app and on
+// the site. The site pages and the dictionaries their language copies
 // are built from must not send people to a "Xenon AI" that no longer exists.
 // The release notes keep the old name: they describe versions already shipped.
 

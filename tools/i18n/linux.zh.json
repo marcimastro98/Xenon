@@ -3,8 +3,8 @@
     "meta.title": "Linux 版 Xenon 测试版：AppImage、deb、rpm",
     "meta.desc": "Linux 版 Xenon（测试版）：AppImage、deb、rpm、首次启动，以及在 X11、Wayland、KDE 和 GNOME 上可用功能的对照表。",
     "lx.title": "Linux 上的 Xenon",
-    "lx.lede": "Xenon 是一款适用于任何闲置屏幕的免费仪表盘。它在 Linux 上是测试版：仪表盘和 Windows 上的一样，本页列出仍有差别的地方以及它需要的软件包。",
-    "lx.updated": "最后更新：2026年9月26日 · 所有链接都指向<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新版本</a>",
+    "lx.lede": "Xenon 是任何屏幕都能用的免费电脑小组件。它在 Linux 上是测试版：小组件和 Windows 上的一样，本页列出仍有差别的地方以及它需要的软件包。",
+    "lx.updated": "最后更新：2026年9月26日。所有链接都指向<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新版本</a>。",
     "lx.jump.get": "下载",
     "lx.jump.setup": "首次启动",
     "lx.jump.works": "哪些功能可用",
@@ -61,6 +61,7 @@
     "ld.q3": "Xenon 在 Linux 上会自动启动吗？",
     "ld.a3": "会。首次启动时会注册一个 systemd 用户服务；如果没有用户级服务管理器，则改用 XDG 自启动。",
     "ld.q4": "Xenon 能在 Wayland 上运行吗？",
-    "ld.a4": "大部分功能可以。“打开的应用”小组件、应用切换器和 AI 查看屏幕的功能需要 X11 会话。"
+    "ld.a4": "大部分功能可以。“打开的应用”小组件、应用切换器和 AI 查看屏幕的功能需要 X11 会话。",
+    "lx.pic.alt": "Xenon 仪表盘：音乐、日历和系统图表都在一个页面上"
   }
 }

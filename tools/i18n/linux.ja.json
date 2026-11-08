@@ -3,8 +3,8 @@
     "meta.title": "Linux版Xenon（ベータ）: AppImage、deb、rpm",
     "meta.desc": "Linux版Xenon（ベータ）: AppImage、deb、rpm、初回起動、X11とWayland、KDEとGNOMEで動く機能の一覧。",
     "lx.title": "Linux 版 Xenon",
-    "lx.lede": "Xenon は、余っている画面のための無料ダッシュボードです。Linux 版はベータで、ダッシュボードは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。",
-    "lx.updated": "最終更新: 2026年9月26日 · すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています",
+    "lx.lede": "Xenon は、どの画面でも使える無料のPCウィジェットです。Linux 版はベータで、ウィジェットは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。",
+    "lx.updated": "最終更新: 2026年9月26日。すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています。",
     "lx.jump.get": "ダウンロード",
     "lx.jump.setup": "初回起動",
     "lx.jump.works": "動く機能",
@@ -61,6 +61,7 @@
     "ld.q3": "Linux で Xenon は自動で起動しますか？",
     "ld.a3": "はい。初回起動時に systemd のユーザーサービスを登録します。ユーザーマネージャーがない環境では、代わりに XDG 自動起動を使います。",
     "ld.q4": "Xenon は Wayland で動きますか？",
-    "ld.a4": "ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。"
+    "ld.a4": "ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。",
+    "lx.pic.alt": "Xenon のダッシュボード。音楽、カレンダー、システムのグラフを1ページに表示"
   }
 }

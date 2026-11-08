@@ -1,6 +1,6 @@
 {
   "ko": {
-    "meta.title": "두 번째 화면용 PC 센서 패널: CPU, GPU 온도, FPS",
+    "meta.title": "두 번째 화면용 PC 센서 패널: CPU·GPU 온도, FPS",
     "meta.desc": "두 번째 화면이나 Xeneon Edge를 위한 무료 PC 센서 패널. CPU와 GPU 온도와 사용률, RAM, 팬, 와트, 핑, 게임 내 FPS, 기록까지 보여 줍니다.",
     "ld.q1": "AIDA64나 HWiNFO가 필요한가요?",
     "ld.a1": "아닙니다. Xenon이 센서를 직접 읽습니다. Windows에서는 LibreHardwareMonitor, nvidia-smi, PresentMon, Linux에서는 커널 자체 센서, macOS에서는 Xenon Helper를 씁니다.",
@@ -13,7 +13,7 @@
     "ld.q5": "macOS와 Linux에서도 동작하나요?",
     "ld.a5": "네, 둘 다 베타입니다. CPU와 GPU 온도, GPU 사용률은 둘 다에서 동작합니다. 팬 속도와 MangoHud를 통한 게임 내 FPS는 Linux에서는 되지만 macOS에서는 안 됩니다. CPU와 GPU 와트는 Windows에서만 읽습니다.",
     "sens.h1": "두 번째 화면용 PC 센서 패널",
-    "sens.lede": "Xenon은 PC 옆 화면을 위한 무료 대시보드입니다. 시스템 타일은 CPU, GPU, RAM, 디스크, 네트워크 측정값을 실시간 그래프로 보여 주고, 게임 속 실제 프레임 레이트도 보여 줍니다. 이 페이지에는 카드마다 무엇을 보여 주는지, Windows, Linux, macOS에서 측정값을 어디서 가져오는지, 무엇을 추가로 설치해야 하는지 정리했습니다.",
+    "sens.lede": "Xenon은 어떤 화면에서든 쓰는 무료 PC 위젯입니다. 시스템 타일은 CPU, GPU, RAM, 디스크, 네트워크 측정값을 실시간 그래프로 보여 주고, 게임 속 실제 프레임 레이트도 보여 줍니다. 이 페이지에는 카드마다 무엇을 보여 주는지, Windows, Linux, macOS에서 측정값을 어디서 가져오는지, 무엇을 추가로 설치해야 하는지 정리했습니다.",
     "sens.updated": "마지막 업데이트: 2026년 9월 27일",
     "sens.jump.system": "시스템 타일",
     "sens.jump.windows": "Windows의 온도",
@@ -22,7 +22,6 @@
     "sens.jump.history": "기록",
     "sens.jump.games": "게임",
     "sens.jump.faq": "질문",
-    "sens.shot.alt": "Xenon 시스템 타일: CPU와 GPU 사용률과 온도, RAM, 디스크 C:, 핑, FPS, 지터, 네트워크 속도. 네트워크를 뺀 모든 카드에 실시간 그래프가 있습니다",
     "sens.shot.cap": "브라우저 데모의 시스템 타일. 샘플 측정값을 보여 줍니다.",
     "sens.h.system": "시스템 타일",
     "sens.system.p1": "타일의 시스템 보기에는 카드가 8개 있습니다. 컴퓨터 상태를 보여 주는 카드 4개와 네트워크 & 게임 아래의 카드 4개입니다. 카드는 숨기고, 순서를 바꾸고, 크기를 조절할 수 있습니다. CORSAIR Xeneon Edge의 2560×720 화면에서는 낮은 높이를 카드끼리 나눠 모두 보이게 하고, 더 높은 화면에서는 공간을 채웁니다.",
@@ -98,7 +97,7 @@
     "sens.energy.p1": "CPU 패키지와 GPU의 실시간 소비 전력(와트). USB로 연결한 CORSAIR HXi나 RMi 파워 서플라이가 있으면, 파워 서플라이가 측정한 PC 전체 소비 전력도 보여 줍니다. 이 값은 파워 서플라이의 출력이며, 벽 콘센트에서 잰 값이 아닙니다.",
     "sens.energy.p2": "태양광 발전량이나 스마트 플러그 같은 Home Assistant 전력 센서를 PC 측정값 옆에 둘 수 있습니다. PC 측정값은 Windows 전용입니다.",
     "sens.h.batteries": "배터리",
-    "sens.batteries.p1": "페어링한 블루투스 기기, 노트북 배터리나 USB로 연결한 UPS(충전 중인지도 표시), 그리고 설정 → 조명의 RGB 브리지가 켜져 있는 동안 iCUE를 통한 CORSAIR 마우스, 키보드, 헤드셋의 충전량. 절전 상태로 들어간 기기는 오래된 숫자에 멈춰 있지 않고 흐리게 사라집니다. Windows 전용.",
+    "sens.batteries.p1": "페어링한 블루투스 기기, 노트북 배터리나 USB로 연결한 UPS(충전 중인지도 표시), 그리고 설정 → 조명의 RGB 브리지가 켜져 있는 동안 iCUE를 통한 CORSAIR 마우스, 키보드, 헤드셋의 충전량. 절전 상태로 들어간 기기는 오래된 숫자에 멈춰 있지 않고 흐리게 사라집니다. USB 동글의 Logitech 마우스와 키보드도 표시되고, Razer 제품은 베타로 표시되며, 충전 중이면 알려 줍니다. Windows. macOS는 블루투스 기기를, Linux는 시스템이 알려 주는 내용을 읽습니다(베타).",
     "sens.h.disk": "디스크 공간",
     "sens.disk.p1": "드라이브를 무엇이 채우고 있는지 스캔 버튼이 아니라 실시간 파일 인덱스로 보여 줍니다. 탭하며 들어가는 지도, 가장 큰 파일, 바이트 단위로 검증한 중복 파일, 그리고 임시 파일과 패키지 캐시처럼 정리해도 안전한 정해진 카테고리 목록이 있습니다. 나머지는 크기만 보여 주고 삭제 버튼이 없습니다.",
     "sens.disk.p2": "정리하면 파일이 휴지통으로 옮겨지므로 되돌릴 수 있습니다. 유일한 예외는 휴지통 비우기이며, 확인하기 전에 그렇다고 알려 줍니다. Windows와 macOS에서는 인덱스가 설치 프로그램이 받아 오는 Xenon Helper에서 실행됩니다. Linux에서는 Xenon이 인덱스를 직접 만듭니다.",
@@ -106,7 +105,7 @@
     "sens.history.p1": "설정 → 성능에서 <strong>센서 기록</strong>을 켜면 시스템 타일에 기록 탭이 생깁니다. 최근 24시간, 7일, 30일 동안의 CPU와 GPU 온도와 사용률, RAM 사용량을 차트로 보여 주며, 차트마다 최신 값과 최고값이 표시됩니다. 기본으로 꺼져 있고 AI가 필요 없습니다.",
     "sens.history.p2": "Xenon은 5분마다 한 번 측정합니다. 시간별 값은 3일, 일별 값은 약 3개월 동안 PC의 파일에 보관합니다. 24시간 보기는 시간별 값을, 7일과 30일 보기는 일별 값을 씁니다.",
     "sens.history.p3": "같은 탭에 PC 사용 시간도 표시됩니다. 기간 동안 가장 많이 쓴 앱, 전체 활동 시간, 그중 게임 시간입니다. 기록을 켜면 에너지 위젯도 최근 24시간의 CPU와 GPU 소비 전력을 차트로 보여 줍니다.",
-    "sens.history.p4": "Guardian은 같은 기록의 AI 쪽 기능으로, 설정 → Bit 어시스턴트에 있는 선택형 고급 AI 기능 중 하나입니다. \"내 PC 상태 어때?\"라고 물으면 기록을 분석합니다. Guardian을 켜면 CPU가 90 °C, GPU가 88 °C, RAM이 95%에 이를 때 알림도 나타나며, 항목마다 30분에 한 번까지만 나타납니다.",
+    "sens.history.p4": "Guardian은 같은 기록의 AI 쪽 기능으로, 설정 → Bit에 있는 선택형 고급 AI 기능 중 하나입니다. \"내 PC 상태 어때?\"라고 물으면 기록을 분석합니다. Guardian을 켜면 CPU가 90 °C, GPU가 88 °C, RAM이 95%에 이를 때 알림도 나타나며, 항목마다 30분에 한 번까지만 나타납니다.",
     "sens.h.games": "게임 모드와 성능 모드",
     "sens.games.p1": "게임 모드는 기본으로 켜져 있습니다. 게임이 전체 화면으로 실행되면 애니메이션 배경과 AI 빛 효과가 멈춰, 대시보드가 게임과 GPU를 두고 경쟁하지 않습니다. 게임에서 나오면 다시 돌아옵니다.",
     "sens.games.p2": "프레임 레이트가 아니라 앞에 있는 창을 봅니다. 제목 표시줄이 없는 전체 화면 창은 게임으로 치고, 최대화한 데스크톱 앱, 대시보드 자체, iCUE는 절대 게임으로 치지 않습니다. Windows에서는 추가 도구도 관리자 권한도 필요 없습니다.",
@@ -114,8 +113,9 @@
     "sens.perf.anim": "대시보드 애니메이션 일시 중지",
     "sens.perf.plan": "Windows를 고성능 전원 관리 옵션으로 전환",
     "sens.perf.boost": "앞에 있는 앱의 우선순위를 AboveNormal(보통 초과)로 높이기",
+    "sens.perf.shield": "무거운 앱이 게임을 방해하지 않게 하기. 게임 중 프로세서가 계속 한계에 가까우면 가장 무거운 앱이 게임이 끝날 때까지 소수의 전용 코어로 옮겨 갑니다",
     "sens.perf.close": "고른 백그라운드 앱 닫기. 강제로 끝내지 않고 닫아 달라고 요청하며, 중요한 Windows 프로세스는 항상 제외합니다.",
-    "sens.games.p4": "복원을 누르면 이전 전원 관리 옵션, 우선순위, 닫은 앱이 되돌아오며, PC를 다시 시작한 뒤에도 됩니다. 전원 관리 옵션과 우선순위 높이기는 Windows 기능입니다.",
+    "sens.games.p4": "복원을 누르면 이전 전원 관리 옵션, 우선순위, 옮겨 간 앱, 닫은 앱이 되돌아오며, PC를 다시 시작한 뒤에도 됩니다. 전원 관리 옵션과 우선순위 높이기는 Windows 기능입니다.",
     "sens.games.p5": "기본으로 켜져 있는 게임 중 무거운 타일 일시 중지 옵션은 게임이 실행 중이거나 최적화가 적용된 동안 브라우저, 두 번째 화면, 카메라 타일의 스트리밍도 멈춥니다.",
     "sens.h.faq": "질문",
     "sens.faq.aida.q": "AIDA64나 HWiNFO가 필요한가요?",
@@ -129,6 +129,7 @@
     "sens.faq.os.q": "macOS와 Linux에서도 동작하나요?",
     "sens.faq.os.a": "네, 둘 다 베타입니다. CPU와 GPU 온도, GPU 사용률은 둘 다에서 동작합니다. 팬 속도와 MangoHud를 통한 게임 내 FPS는 Linux에서는 되지만 macOS에서는 안 됩니다. CPU와 GPU 와트는 Windows에서만 읽습니다.",
     "sens.cta.h": "Xenon 다운로드",
-    "sens.cta.p": "무료이고 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"/download.html\">다운로드 페이지</a>에서 내 시스템을 고르세요. 먼저 둘러보고 싶다면 <a href=\"/demo/\">브라우저에서 데모를 써 보세요</a>."
+    "sens.cta.p": "무료이고 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"/download.html\">다운로드 페이지</a>에서 내 시스템을 고르세요. 먼저 둘러보고 싶다면 <a href=\"/demo/\">브라우저에서 데모를 써 보세요</a>.",
+    "sens.pic.alt": "시스템 타일: CPU, GPU, RAM, 디스크, 핑, 지연 시간, 네트워크의 실시간 그래프"
   }
 }

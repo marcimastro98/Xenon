@@ -69,6 +69,7 @@
     "sr.faq.price.q": "화면 녹화는 무료인가요?",
     "sr.faq.price.a": "네. 녹화, 인스턴트 리플레이, 스크린샷, 갤러리, 받아쓰기는 무료 앱에 들어 있으며, 계정도 워터마크도 없습니다.",
     "sr.cta.h": "Xenon 다운로드",
-    "sr.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요. 게임 위에 FPS를 띄우려면 <a href=\"/fps-overlay.html\">1%·0.1% 로우를 보여 주는 FPS 오버레이</a>를 읽어 보세요."
+    "sr.cta.p": "무료이며 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon 다운로드</a> 또는 <a href=\"/download.html\">다운로드 페이지</a>에서 시스템을 고르세요. 게임 위에 FPS를 띄우려면 <a href=\"/fps-overlay.html\">1%·0.1% 로우를 보여 주는 FPS 오버레이</a>를 읽어 보세요.",
+    "sr.pic.alt": "Bit와의 채팅: 마지막 42초를 저장해 달라고 하자 Bit가 클립이 바탕 화면에 있다고 답합니다"
   }
 }

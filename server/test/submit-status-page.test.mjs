@@ -126,10 +126,9 @@ test('the status page says first how much must and should be fixed, tips left ou
   ]);
   assert.deepEqual(page.summaryLines([{ severity: 'tip' }], it), []);
   assert.deepEqual(page.summaryLines(undefined, it), []);
-  // The summary sits above the list; red and orange are bars, never the text.
+  // The summary sits above the list; the colours are the sheets, and the word says it too.
   assert.match(js, /summaryLines\(list, T\)[\s\S]*var ul = el\('ul', 'st-list'\)/);
-  assert.match(html, /\.st-f\.st-block \{ border-left-color: var\(--danger\); \}/);
-  assert.match(html, /\.st-f\.st-fix \{ border-left-color: var\(--warn\); \}/);
+  assert.match(html, /\.st-f\[data-sheet\] \{ box-shadow: inset 0 0 0 2px var\(--sheet\); \}/);
 });
 
 test('the submit form groups the check by weight under a plain summary, in every language', () => {
@@ -140,7 +139,7 @@ test('the submit form groups the check by weight under a plain summary, in every
   // Heaviest first, the summary only for what holds a submission back.
   assert.match(submit, /\['block', 'warn', 'info'\]\.forEach/);
   assert.match(submit, /\['block', 'warn'\]\.forEach/);
-  assert.match(submit, /\.finding\.block \{ border-left-color: var\(--danger\); \}/);
+  assert.match(submit, /\.finding\[data-sheet\] \{ box-shadow: inset 0 0 0 2px var\(--sheet\); \}/);
   // No shouted badges: the group heading says the weight.
   assert.doesNotMatch(submit, /sev_(block|warn|info)|className = 'sev /);
 });

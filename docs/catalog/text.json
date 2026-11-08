@@ -1,0 +1,104 @@
+{
+  "_note": "Translations of the paid packs' descriptions. \"en\" is the hub text each one was made from: when it no longer matches, the catalog shows the hub text. Managed by tools/catalog-text.mjs.",
+  "entries": {
+    "casa": {
+      "en": "Your Home Assistant devices as wall plates. Tap to switch, drag a dimmer, set volume, power and temperature right on the plate. Compact, comfortable or large keys; thermostats, energy, 24 hour traces, cameras and media. Smoke, a leak, a triggered alarm or an open door also show in the top bar.",
+      "it": "I tuoi dispositivi Home Assistant come placche a muro. Tocchi per accendere, trascini un dimmer, regoli volume, accensione e temperatura direttamente sulla placca. Tasti compatti, comodi o grandi; termostati, energia, andamento delle 24 ore, telecamere e media. Fumo, una perdita d'acqua, un allarme scattato o una porta aperta compaiono anche nella barra in alto.",
+      "es": "Tus dispositivos de Home Assistant como placas de pared. Toca para encender, arrastra un regulador, ajusta volumen, encendido y temperatura en la propia placa. Teclas compactas, cómodas o grandes; termostatos, energía, gráficas de 24 horas, cámaras y multimedia. El humo, una fuga, una alarma activada o una puerta abierta también aparecen en la barra superior.",
+      "fr": "Vos appareils Home Assistant sous forme de plaques murales. Touchez pour allumer, faites glisser un variateur, réglez le volume, l'alimentation et la température directement sur la plaque. Touches compactes, confortables ou grandes ; thermostats, énergie, courbes sur 24 heures, caméras et médias. La fumée, une fuite, une alarme déclenchée ou une porte ouverte s'affichent aussi dans la barre du haut.",
+      "ja": "Home Assistant のデバイスを壁のスイッチプレートとして表示します。タップでオン・オフ、ドラッグで調光、音量や電源、温度もプレート上で操作できます。キーの大きさはコンパクト、標準、大の3種類。サーモスタット、エネルギー、24時間の推移、カメラ、メディアに対応します。煙、水漏れ、作動したアラーム、開いたドアは上部バーにも表示されます。",
+      "ko": "Home Assistant 기기를 벽 플레이트로 보여 줍니다. 탭해서 켜고, 드래그로 밝기를 조절하고, 볼륨과 전원, 온도를 플레이트에서 바로 설정합니다. 키 크기는 작게, 보통, 크게 중에서 고릅니다. 온도 조절기, 에너지, 24시간 기록, 카메라, 미디어를 지원합니다. 연기, 누수, 작동한 경보, 열린 문은 상단 바에도 표시됩니다.",
+      "zh": "把你的 Home Assistant 设备变成墙面面板。点按开关,拖动调光,在面板上直接调节音量、电源和温度。按键有紧凑、舒适和大号三种;支持恒温器、能耗、24 小时曲线、摄像头和媒体。烟雾、漏水、触发的警报或打开的门也会显示在顶部栏。"
+    },
+    "nitrato": {
+      "en": "A crooked 1920 town cut as a woodcut and projected like a silent film. The tint follows your clock, amber by day, blue at night: windows light up, smoke rises, a cat walks the roofs. The Didascalia title card counts down every hour. With a matching Ambient scene. AI-generated woodcut plates.",
+      "it": "Un paese storto del 1920 inciso su legno e proiettato come un film muto. La tinta segue il tuo orologio, ambra di giorno e blu di notte: le finestre si accendono, sale il fumo, un gatto cammina sui tetti. Il cartello Didascalia fa il conto alla rovescia di ogni ora. Con una scena Ambient coordinata. Tavole xilografiche generate con l'AI.",
+      "es": "Un pueblo torcido de 1920 tallado en madera y proyectado como una película muda. El tono sigue tu reloj, ámbar de día y azul de noche: las ventanas se encienden, sube el humo, un gato camina por los tejados. El rótulo Didascalia hace una cuenta atrás cada hora. Con una escena Ambient a juego. Planchas xilográficas generadas con IA.",
+      "fr": "Une ville de guingois de 1920, taillée en gravure sur bois et projetée comme un film muet. La teinte suit votre horloge, ambre le jour, bleue la nuit : les fenêtres s'allument, la fumée monte, un chat marche sur les toits. Le carton Didascalia fait un compte à rebours chaque heure. Avec une scène Ambient assortie. Planches gravées générées par IA.",
+      "ja": "1920年の歪んだ町を木版画で彫り、無声映画のように映し出します。色調は時計に合わせて昼は琥珀色、夜は青に変わり、窓に灯りがともり、煙が上がり、猫が屋根を歩きます。Didascalia の字幕カードは毎時カウントダウンします。おそろいの Ambient シーン付き。木版画は AI で生成しています。",
+      "ko": "1920년의 삐뚤어진 마을을 목판화로 새겨 무성 영화처럼 비춥니다. 색조는 시계를 따라 낮에는 호박색, 밤에는 파란색으로 바뀌고, 창문에 불이 켜지고 연기가 오르며 고양이가 지붕 위를 걷습니다. Didascalia 자막 카드는 매시간 카운트다운합니다. 어울리는 Ambient 장면이 함께 들어 있습니다. 목판화는 AI로 생성했습니다.",
+      "zh": "一座 1920 年的歪斜小镇,刻成木版画,像默片一样放映。色调跟随你的时钟,白天琥珀色,夜晚蓝色:窗户亮起,炊烟升起,一只猫走过屋顶。Didascalia 字幕卡每小时倒计时。附带配套的 Ambient 场景。木版画由 AI 生成。"
+    },
+    "workload-river": {
+      "en": "What is weighing on this PC, and since when. An overview of CPU, memory and each graphics card, then one row per app with its last five minutes in your theme's colour, deeper where it worked harder. One sentence on top says what matters now; tap a row for the detail.",
+      "it": "Cosa pesa su questo PC, e da quando. Una panoramica di CPU, memoria e di ogni scheda grafica, poi una riga per app con i suoi ultimi cinque minuti nel colore del tuo tema, più intenso dove ha lavorato di più. Una frase in alto dice cosa conta adesso; tocca una riga per il dettaglio.",
+      "es": "Qué pesa en este PC, y desde cuándo. Un resumen de CPU, memoria y cada tarjeta gráfica, y luego una fila por aplicación con sus últimos cinco minutos en el color de tu tema, más intenso donde más trabajó. Una frase arriba dice lo que importa ahora; toca una fila para ver el detalle.",
+      "fr": "Ce qui pèse sur ce PC, et depuis quand. Une vue d'ensemble du CPU, de la mémoire et de chaque carte graphique, puis une ligne par application avec ses cinq dernières minutes dans la couleur de votre thème, plus intense là où elle a le plus travaillé. Une phrase en haut dit ce qui compte maintenant ; touchez une ligne pour le détail.",
+      "ja": "この PC に何が負荷をかけていて、いつからなのかを示します。CPU、メモリ、各グラフィックカードの概要に続いて、アプリごとに直近5分間をテーマの色で1行ずつ表示し、負荷が高いところほど濃くなります。上部の1文が今大事なことを伝え、行をタップすると詳細が開きます。",
+      "ko": "이 PC에 무엇이 부담을 주는지, 언제부터인지 보여 줍니다. CPU, 메모리, 각 그래픽 카드의 개요 아래에 앱마다 한 줄씩 최근 5분을 테마 색으로 표시하고, 많이 일한 곳일수록 진하게 나타납니다. 맨 위 한 문장이 지금 중요한 것을 알려 주고, 줄을 탭하면 자세히 볼 수 있습니다.",
+      "zh": "这台 PC 被什么拖累,从什么时候开始。先是 CPU、内存和每张显卡的概览,然后每个应用一行,用你的主题色显示最近五分钟,工作越重颜色越深。顶部一句话说明现在最重要的事;点按一行查看详情。"
+    },
+    "pit-wall": {
+      "en": "A racing cluster drawn the way a current one is: black faces, fine graduations, one bright pointer, no chrome. CPU on a 100-line comb, GPU on a 48-segment bar, RAM on a half-circle capacity gauge, each naming what it measures and keeping a tell-tale on the last minute peak. Behind them, a circuit.",
+      "it": "Un quadro strumenti da corsa disegnato come quelli di oggi: quadranti neri, tacche sottili, una lancetta luminosa, niente cromature. CPU su un pettine da 100 tacche, GPU su una barra a 48 segmenti, RAM su un indicatore a semicerchio, ognuno con il nome di ciò che misura e un segno che tiene il picco dell'ultimo minuto. Dietro, un circuito.",
+      "es": "Un cuadro de instrumentos de carreras dibujado como los de hoy: esferas negras, graduaciones finas, una aguja brillante y nada de cromo. CPU en un peine de 100 líneas, GPU en una barra de 48 segmentos, RAM en un indicador de medio círculo, cada uno con el nombre de lo que mide y una marca del pico del último minuto. Detrás, un circuito.",
+      "fr": "Un tableau de bord de course dessiné comme ceux d'aujourd'hui : cadrans noirs, graduations fines, une aiguille vive, aucun chrome. Le CPU sur un peigne de 100 traits, le GPU sur une barre de 48 segments, la RAM sur une jauge en demi-cercle, chacun nommant ce qu'il mesure et gardant un témoin du pic de la dernière minute. Derrière, un circuit.",
+      "ja": "今のレーシングメーターのように描いたクラスターです。黒い文字盤、細かい目盛り、明るい指針が1本、クロームはありません。CPU は100本の目盛り、GPU は48セグメントのバー、RAM は半円のゲージで示し、それぞれ計測対象の名前と直近1分のピークを残します。背景にはサーキットが広がります。",
+      "ko": "요즘 레이싱 계기판처럼 그린 클러스터입니다. 검은 다이얼, 섬세한 눈금, 밝은 바늘 하나, 크롬은 없습니다. CPU는 100줄 눈금, GPU는 48칸 막대, RAM은 반원 게이지로 표시하며, 각각 측정 대상의 이름과 최근 1분의 최고치를 남깁니다. 뒤에는 서킷이 펼쳐집니다.",
+      "zh": "按现代赛车仪表绘制的仪表组:黑色表盘、精细刻度、一根明亮的指针,没有镀铬。CPU 用 100 格刻度,GPU 用 48 段条,RAM 用半圆容量表,每个都标明所测内容,并保留最近一分钟的峰值标记。背景是一条赛道。"
+    },
+    "atelier-78": {
+      "en": "A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it plays; turn the record to move through the track, flick it sideways to change record, swipe the wheel for volume and tap it to mute. Your album art is the label.",
+      "it": "Un giradischi vero, come widget e come scena Ambient a tutto schermo. Alza il braccio dal disco e la musica si ferma, riappoggialo e riparte; gira il disco per muoverti nel brano, spingilo di lato per cambiare disco, scorri la rotella per il volume e toccala per azzerarlo. La copertina del tuo album è l'etichetta.",
+      "es": "Un tocadiscos que funciona, como widget y como escena Ambient a pantalla completa. Levanta el brazo del disco y la música se para, vuelve a apoyarlo y suena; gira el disco para moverte por la canción, lánzalo de lado para cambiar de disco, desliza la rueda para el volumen y tócala para silenciar. La carátula de tu álbum es la etiqueta.",
+      "fr": "Une vraie platine vinyle, en widget et en scène Ambient plein écran. Levez le bras du disque et la musique s'arrête, reposez-le et elle repart ; tournez le disque pour avancer dans le morceau, poussez-le sur le côté pour changer de disque, faites glisser la molette pour le volume et touchez-la pour couper le son. La pochette de votre album devient l'étiquette.",
+      "ja": "本当に動くターンテーブルを、ウィジェットと全画面の Ambient シーンで。トーンアームをレコードから上げると音楽が止まり、戻すと再生します。レコードを回して曲の中を移動し、横にはじいてレコードを替え、ホイールをスワイプして音量を調整、タップでミュートします。アルバムアートがレーベルになります。",
+      "ko": "실제로 작동하는 턴테이블을 위젯과 전체 화면 Ambient 장면으로 담았습니다. 톤암을 들면 음악이 멈추고 다시 올리면 재생됩니다. 레코드를 돌려 곡 안에서 이동하고, 옆으로 튕겨 레코드를 바꾸고, 휠을 밀어 볼륨을 조절하고 탭해서 음소거합니다. 앨범 아트가 라벨이 됩니다.",
+      "zh": "一台真正能玩的唱机,既是小组件,也是全屏 Ambient 场景。抬起唱臂音乐就停,放回去继续播放;转动唱片在曲目中移动,向旁边拨动换唱片,滑动转轮调音量,点按静音。你的专辑封面就是唱片标签。"
+    },
+    "aracne": {
+      "en": "A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out to its own load, with the spider sitting on the busiest. Plus a scene that hangs you from a line down an avenue, sun setting at the end of it.",
+      "it": "Un pacchetto notturno costruito su una vera tela a raggi, con un widget in cui la tela È l'indicatore: tre spicchi, uno per CPU, GPU e RAM, ognuno tessuto fino al proprio carico, con il ragno fermo sul più impegnato. In più una scena che ti appende a un filo lungo un viale, con il sole che tramonta in fondo.",
+      "es": "Un pack nocturno construido sobre una telaraña orbicular real, con un widget donde la tela ES el indicador: tres cuñas, una para CPU, GPU y RAM, cada una tejida hasta su propia carga, con la araña sobre la más ocupada. Además, una escena que te cuelga de un hilo sobre una avenida, con el sol poniéndose al fondo.",
+      "fr": "Un pack de nuit bâti sur une vraie toile orbiculaire, avec un widget où la toile EST la jauge : trois secteurs, pour le CPU, le GPU et la RAM, chacun tissé jusqu'à sa propre charge, l'araignée posée sur le plus occupé. Et une scène qui vous suspend à un fil au-dessus d'une avenue, le soleil couchant au bout.",
+      "ja": "本物の円網をもとにした夜のパックです。ウィジェットでは網そのものがゲージになります。CPU、GPU、RAM の3つの扇形がそれぞれの負荷まで編まれ、クモは最も忙しいところに止まります。さらに、糸にぶら下がって大通りを見下ろすシーン付きで、その先には夕日が沈みます。",
+      "ko": "실제 둥근 거미줄을 바탕으로 만든 밤의 팩입니다. 위젯에서는 거미줄 자체가 게이지가 됩니다. CPU, GPU, RAM을 맡은 세 조각이 각자의 부하만큼 짜이고, 거미는 가장 바쁜 곳에 앉습니다. 실에 매달려 대로를 내려다보는 장면도 들어 있으며, 그 끝에는 해가 지고 있습니다.",
+      "zh": "以真实圆网为基础的夜间套件,小组件里蛛网本身就是仪表:三个扇区分别对应 CPU、GPU 和 RAM,各自织到当前负载,蜘蛛停在最忙的那个上。另有一个场景,让你悬在一根丝上俯瞰大街,尽头夕阳西下。"
+    },
+    "codex": {
+      "en": "A herbarium you tend. Sow a specimen, let it grow in your real local weather, then hold the press and release inside the ink window. Each plate is engraved from its own seed and given a Latin name. Tap to open the codex full screen, and cross two plates to find new species.",
+      "it": "Un erbario da curare. Semina un esemplare, lascialo crescere con il vero meteo di casa tua, poi tieni premuto il torchio e rilascia dentro la finestra dell'inchiostro. Ogni tavola è incisa dal suo seme e riceve un nome latino. Tocca per aprire il codice a tutto schermo e incrocia due tavole per scoprire nuove specie.",
+      "es": "Un herbario que cuidas tú. Siembra un ejemplar, déjalo crecer con el tiempo real de tu zona y luego mantén pulsada la prensa y suelta dentro de la ventana de tinta. Cada lámina se graba a partir de su propia semilla y recibe un nombre latino. Toca para abrir el códice a pantalla completa y cruza dos láminas para descubrir nuevas especies.",
+      "fr": "Un herbier à entretenir. Semez un spécimen, laissez-le pousser avec la vraie météo de chez vous, puis maintenez la presse et relâchez dans la fenêtre d'encre. Chaque planche est gravée à partir de sa propre graine et reçoit un nom latin. Touchez pour ouvrir le codex en plein écran et croisez deux planches pour découvrir de nouvelles espèces.",
+      "ja": "自分で育てる植物標本集です。標本の種をまき、実際の地元の天気で育て、プレスを長押ししてインクの窓の中で離します。どの図版もその種から刻まれ、ラテン語の名前が付きます。タップすると全画面でコーデックスが開き、2枚の図版を掛け合わせると新種が見つかります。",
+      "ko": "직접 가꾸는 식물 표본집입니다. 표본을 심고 실제 우리 동네 날씨 속에서 키운 뒤, 압착기를 길게 눌렀다가 잉크 창 안에서 놓습니다. 도판마다 자기 씨앗으로 새겨지고 라틴어 이름을 받습니다. 탭하면 코덱스가 전체 화면으로 열리고, 두 도판을 교배하면 새로운 종을 찾을 수 있습니다.",
+      "zh": "一本由你照料的植物标本集。播下一个标本,让它在你当地的真实天气中生长,然后按住压榨机,在墨水窗口内松开。每张图版都由它自己的种子刻成,并得到一个拉丁名。点按可全屏打开图鉴,交叉两张图版可发现新物种。"
+    },
+    "abisso": {
+      "en": "The deep ocean at night: jellyfish and marine snow in the backdrop, a calm Ambient clock, and the Dive widget where CPU load becomes dive depth. Descend from sunlight to the hadal zone, meet the anglerfish under heavy load, and a hydrothermal vent ignites when the CPU runs hot.",
+      "it": "L'oceano profondo di notte: meduse e neve marina sullo sfondo, un orologio Ambient calmo e il widget Dive, dove il carico della CPU diventa profondità. Scendi dalla luce del sole alla zona adale, incontra la rana pescatrice sotto carico pesante, e una sorgente idrotermale si accende quando la CPU scalda.",
+      "es": "El océano profundo de noche: medusas y nieve marina en el fondo, un reloj Ambient tranquilo y el widget Dive, donde la carga de la CPU se convierte en profundidad. Desciende de la luz del sol a la zona hadal, encuéntrate con el rape bajo carga alta, y una fuente hidrotermal se enciende cuando la CPU se calienta.",
+      "fr": "L'océan profond la nuit : méduses et neige marine en fond, une horloge Ambient apaisée et le widget Dive, où la charge du CPU devient profondeur de plongée. Descendez de la lumière du soleil à la zone hadale, croisez la baudroie sous forte charge, et une source hydrothermale s'embrase quand le CPU chauffe.",
+      "ja": "夜の深海です。背景にはクラゲとマリンスノー、静かな Ambient 時計、そして CPU の負荷が潜水深度になる Dive ウィジェット。太陽光の届く層から超深海帯まで潜り、高負荷ではチョウチンアンコウに出会い、CPU が熱くなると熱水噴出孔が燃え上がります。",
+      "ko": "밤의 깊은 바다입니다. 배경에는 해파리와 바다눈이 있고, 차분한 Ambient 시계와 CPU 부하가 잠수 깊이가 되는 Dive 위젯이 있습니다. 햇빛층에서 초심해대까지 내려가고, 부하가 크면 아귀를 만나며, CPU가 뜨거워지면 열수 분출구가 타오릅니다.",
+      "zh": "夜晚的深海:背景里有水母和海雪,一个安静的 Ambient 时钟,还有 Dive 小组件,CPU 负载会变成下潜深度。从阳光层一路下潜到超深渊带,高负载时遇见鮟鱇鱼,CPU 发热时热液喷口会喷发。"
+    },
+    "lakeside": {
+      "en": "A painted mountain lake that follows the real world: the season turns with the calendar and the sun and moon cross the sky at your actual sunrise and sunset. The matching Ambient scene ships as its own entry, Lakeside Scene.",
+      "it": "Un lago di montagna dipinto che segue il mondo reale: la stagione cambia con il calendario, e sole e luna attraversano il cielo all'ora vera di alba e tramonto. La scena Ambient coordinata è una voce a parte, Lakeside Scene.",
+      "es": "Un lago de montaña pintado que sigue el mundo real: la estación cambia con el calendario y el sol y la luna cruzan el cielo a la hora real de tu amanecer y tu atardecer. La escena Ambient a juego es una entrada aparte, Lakeside Scene.",
+      "fr": "Un lac de montagne peint qui suit le monde réel : la saison tourne avec le calendrier, le soleil et la lune traversent le ciel à l'heure réelle de votre lever et de votre coucher du soleil. La scène Ambient assortie est une entrée à part, Lakeside Scene.",
+      "ja": "現実の世界に合わせて変わる、絵画のような山の湖です。季節はカレンダーとともに巡り、太陽と月は実際の日の出と日の入りの時刻に空を渡ります。おそろいの Ambient シーンは別の項目、Lakeside Scene です。",
+      "ko": "현실 세계를 따라가는 그림 같은 산속 호수입니다. 계절은 달력과 함께 바뀌고, 해와 달은 실제 일출과 일몰 시각에 맞춰 하늘을 가로지릅니다. 어울리는 Ambient 장면은 별도 항목인 Lakeside Scene입니다.",
+      "zh": "一座随真实世界变化的手绘山湖:季节随日历更替,太阳和月亮按你当地真实的日出日落时间划过天空。配套的 Ambient 场景是单独的条目 Lakeside Scene。"
+    },
+    "notte-stellata": {
+      "en": "An impasto night sky in the spirit of Van Gogh. The stars and swirls really move, the widget paints CPU, GPU and temperature as brushstrokes, and the Ambient scene shows only the time, the weather and what is playing.",
+      "it": "Un cielo notturno a impasto nello spirito di Van Gogh. Stelle e vortici si muovono davvero, il widget dipinge CPU, GPU e temperatura a pennellate, e la scena Ambient mostra solo l'ora, il meteo e ciò che stai ascoltando.",
+      "es": "Un cielo nocturno empastado al estilo de Van Gogh. Las estrellas y los remolinos se mueven de verdad, el widget pinta CPU, GPU y temperatura a pinceladas, y la escena Ambient muestra solo la hora, el tiempo y lo que suena.",
+      "fr": "Un ciel nocturne en pleine pâte dans l'esprit de Van Gogh. Les étoiles et les tourbillons bougent vraiment, le widget peint le CPU, le GPU et la température à coups de pinceau, et la scène Ambient ne montre que l'heure, la météo et ce qui passe.",
+      "ja": "ゴッホを思わせる厚塗りの夜空です。星と渦は本当に動き、ウィジェットは CPU、GPU、温度を筆の跡で描き、Ambient シーンは時刻、天気、再生中の曲だけを表示します。",
+      "ko": "반 고흐의 정신을 담은 임파스토 밤하늘입니다. 별과 소용돌이가 실제로 움직이고, 위젯은 CPU, GPU, 온도를 붓질로 그리며, Ambient 장면은 시간, 날씨, 재생 중인 곡만 보여 줍니다.",
+      "zh": "带有梵高气质的厚涂夜空。星星和漩涡真的在动,小组件用笔触画出 CPU、GPU 和温度,Ambient 场景只显示时间、天气和正在播放的内容。"
+    },
+    "pow-comic": {
+      "en": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
+      "it": "Un universo a fumetti esclusivo per Xeneon Edge, solo per i sostenitori. Uno skyline vivo, inchiostrato a mano, cambia con il meteo vero e con l'ora del giorno e fa anche da salvaschermo, accanto ai pannelli a fumetti System, Fans, Batteries ed Energy e a un Deck Sidekick disegnato a mano. Sei pezzi, un solo codice.",
+      "es": "Un universo de cómic exclusivo para Xeneon Edge, solo para mecenas. Un skyline vivo entintado a mano cambia con el tiempo real y la hora del día y hace también de salvapantallas, junto a los paneles de cómic System, Fans, Batteries y Energy y un Deck Sidekick dibujado a mano. Seis piezas, un solo código.",
+      "fr": "Un univers de bande dessinée exclusif pour le Xeneon Edge, réservé aux supporters. Une ligne d'horizon vivante encrée à la main change avec la vraie météo et l'heure du jour et sert aussi d'écran de veille, avec les planches BD System, Fans, Batteries et Energy et un Deck Sidekick dessiné à la main. Six pièces, un seul code.",
+      "ja": "Xeneon Edge 向けの、サポーター限定コミックの世界です。手描きのインクで描かれた生きたスカイラインが実際の天気と時間帯で変わり、スクリーンセーバーにもなります。コミック風の System、Fans、Batteries、Energy ボードと手描きの Sidekick Deck 付き。6つのアイテムが1つのコードで手に入ります。",
+      "ko": "Xeneon Edge를 위한 후원자 전용 만화 세계입니다. 손으로 잉크를 입힌 살아 있는 스카이라인이 실제 날씨와 시간대에 따라 바뀌고 화면 보호기로도 쓰입니다. 만화풍 System, Fans, Batteries, Energy 보드와 손으로 그린 Sidekick Deck이 함께 들어 있습니다. 여섯 가지 구성품, 코드 하나.",
+      "zh": "专为 Xeneon Edge 打造的漫画世界,仅限支持者。手绘墨线的鲜活天际线随真实天气和时段变化,也可作屏保,并配有漫画风 System、Fans、Batteries、Energy 面板和手绘 Sidekick Deck。六件内容,一个代码。"
+    }
+  }
+}

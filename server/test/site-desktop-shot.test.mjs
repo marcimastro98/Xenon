@@ -32,5 +32,5 @@ test('the seed places the tiles on one desktop surface and keeps the wallpaper t
   assert.equal(layers.widgets.length, PLAN.length);
   assert.ok(layers.widgets.every((w) => w.kind === 'tile' && w.surface === 'desktop' && w.monitor === 'site'));
   assert.equal(new Set(layers.widgets.map((w) => w.id)).size, PLAN.length);
-  assert.match(seedScript(), /lockWidgets = \{ clock: true, weather: false, media: false, calendar: false \}/);
+  assert.match(seedScript(), /lockWidgets = \{ clock: false, weather: false, media: false, calendar: false \}/);
 });

@@ -1,6 +1,6 @@
 {
   "ja": {
-    "meta.title": "Xeneon Edgeウィジェットと無料ダッシュボード",
+    "meta.title": "Xeneon Edgeウィジェットおすすめ: 無料ダッシュボード",
     "meta.desc": "iCUEがCORSAIR Xeneon Edgeでできることと、Xenonが加えるもの: ウィジェットのページ、マイクと音声の操作、Deckキー。iCUEなしでも使え、アカウント不要。",
     "ld.q1": "Xenon は iCUE の代わりになりますか？",
     "ld.a1": "いいえ。CORSAIR のハードウェアとライティングを動かすのは引き続き iCUE です。Xenon はその横で、独自のウィンドウとして、または iCUE のパネルの中で動き、独自のブリッジを通じて iCUE にライティング効果を送れます。",
@@ -38,7 +38,7 @@
     "edge.install.4": "iCUE を使いたい場合: iCUE で <code>http://127.0.0.1:3030/</code> を指す Web ウィジェットを追加すると、そのパネルに Xenon が表示されます。",
     "edge.h.honest": "試す前に知っておくこと",
     "edge.honest.p1": "注意点が2つあります。1つ目に、Windows のインストーラーには署名があるので Windows には確認済みの発行元が表示されますが、Microsoft は評価を時間をかけて付与するため、しばらくは SmartScreen が警告することがあります。<strong>詳細情報</strong> をクリックし、<strong>実行</strong> を押してください。<a href=\"faq.html#warnings\">ファイルを自分で確認する方法は FAQ で説明しています</a>。2つ目に、Xenon は Windows を中心に作られています。macOS 版と Linux 版もあってベータですが、Edge 向けの部分（専用のタッチジェスチャー、仮想セカンドスクリーン、iCUE のライティング）は Windows のみです。",
-    "edge.honest.p2": "無料で、有料版はありません。毎日使うようになったら、追加のテーマとウィジェットがいくつか使えるサポーター枠があります。ビジネスモデルはそれだけです。",
+    "edge.honest.p2": "無料で使え、購入するライセンスはありません。毎日使うようになったら、サポーターは追加のテーマやウィジェットをアンロックできます。Xenon のクレジットであるスパークは別売りです。",
     "edge.h.faq": "質問",
     "edge.faq.icue.q": "Xenon は iCUE の代わりになりますか？",
     "edge.faq.icue.a": "いいえ。CORSAIR のハードウェアとそのライティングを動かすのは引き続き iCUE です。Xenon はその横で、独自のウィンドウとして、または iCUE のパネルの中で動き、独自のブリッジを通じて iCUE にライティング効果を送れます。iCUE を開かずに Edge で Xenon を動かすこともできますが、デバイスを設定するのはあくまで iCUE です。",
@@ -49,6 +49,7 @@
     "edge.faq.free.q": "Xenon は無料ですか？",
     "edge.faq.free.a": "はい。個人利用は無料で、ソースは非商用ライセンスで GitHub に公開されています。サポーターは、アプリに入っている「歌詞」と「開発者向けクリーンアップ」の2つのウィジェットと、毎月サポーター向けに出るテーマやウィジェットも使えます。",
     "edge.cta.h": "Xenon をダウンロード",
-    "edge.cta.p": "インストーラーは1つ、アカウントは不要で、設定とファイルは PC に残ります。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 版と Linux 版</a>を入手してください。質問は <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> へどうぞ。"
+    "edge.cta.p": "インストーラーは1つ、アカウントは不要で、設定とファイルは PC に残ります。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 版と Linux 版</a>を入手してください。質問は <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> へどうぞ。",
+    "edge.pic.alt": "Xeneon Edge の横長の画面に表示した Xenon のダッシュボード。音楽、カレンダー、システムのグラフ"
   }
 }

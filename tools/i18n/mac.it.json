@@ -1,10 +1,10 @@
 {
   "it": {
-    "meta.title": "Xenon per Mac (Beta): dashboard per secondo schermo e widget",
+    "meta.title": "Xenon per Mac (Beta): dashboard e widget per Xeneon Edge",
     "meta.desc": "Xenon su macOS 11 o successivo (Beta): dashboard per un monitor in più o uno Xeneon Edge, i permessi che chiede, primo avvio e come disinstallarlo.",
     "mac.h1": "Xenon su macOS",
     "mac.beta": "Beta",
-    "mac.lede": "Xenon è una dashboard touch gratuita per lo schermo accanto al computer. Su un Mac gira la stessa dashboard di Windows. Questa pagina elenca cosa funziona oggi, cosa no, e come installarla e rimuoverla.",
+    "mac.lede": "Xenon mette i widget del tuo computer su ogni schermo, gratis. Su un Mac è in beta: questa pagina elenca cosa funziona oggi, cosa no, e come installarlo e rimuoverlo.",
     "mac.updated": "Ultimo aggiornamento: 27 settembre 2026",
     "mac.jump.who": "A chi serve",
     "mac.jump.get": "Download",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "Permessi",
     "mac.jump.remove": "Disinstallazione",
-    "mac.shot.alt": "La dashboard di Xenon nel formato 2560×720 dello Xeneon Edge, con musica, calendario e letture di sistema affiancati",
-    "mac.shot.cap": "La dashboard nel formato 2560×720 dello Xeneon Edge, catturata dalla demo nel browser. Le letture sono dati di esempio di un PC Windows. Su un Mac gli stessi riquadri mostrano le letture del Mac.",
     "mac.h.who": "A chi serve",
-    "mac.who.p1": "Questa pagina è per chi ha un Mac e uno schermo in più da usare:",
+    "mac.who.p1": "Questa pagina è per chi ha un Mac e vuole i widget su uno di questi:",
     "mac.who.edge": "<strong>Un CORSAIR Xeneon Edge.</strong> Xenon è nato attorno al suo formato 2560×720.",
     "mac.who.monitor": "<strong>Un monitor libero.</strong> L'app di Xenon si apre sullo schermo che scegli.",
     "mac.who.tablet": "<strong>Un tablet o un telefono.</strong> Mostra la stessa dashboard nel suo browser tramite il tuo Wi-Fi, senza installarci niente. Anche l'accesso da telefono e tablet è in beta. Vedi <a href=\"/phone.html\">come abbinare un telefono o un tablet</a>.",
@@ -82,7 +80,7 @@
     "mac.row.voice": "Input vocale e visione dello schermo dell'AI",
     "mac.st.voice": "Funziona. La voce richiede ffmpeg.",
     "mac.row.wake": "Attivazione vocale \"Hey Bit\"",
-    "mac.st.wake": "Funziona con ffmpeg e con Whisper, gratuito e in locale, che si installa tramite Homebrew da Impostazioni, Assistente Bit.",
+    "mac.st.wake": "Funziona con ffmpeg e con Whisper, gratuito e in locale, che si installa tramite Homebrew da Impostazioni, Bit.",
     "mac.row.lights": "Illuminazione in rete: WLED, Hue, Nanoleaf, OpenRGB",
     "mac.row.icue": "Illuminazione CORSAIR iCUE",
     "mac.st.win": "Solo su Windows.",
@@ -146,6 +144,9 @@
     "ld.q4": "Di quali permessi ha bisogno Xenon su un Mac?",
     "ld.a4": "La dashboard funziona senza nessuno. L'Accesso completo al disco permette alla ricerca e al widget Spazio disco di vedere la tua cartella utente e il Cestino. Accessibilità permette ai tasti del Deck di inviare scorciatoie da tastiera. Registrazione schermo e Microfono servono alla visione dello schermo e alla voce dell'AI.",
     "ld.q5": "Come si disinstalla Xenon da un Mac?",
-    "ld.a5": "Fai doppio clic su UNINSTALL.command in ~/Library/Application Support/Xenon e scrivi REMOVE quando te lo chiede. Rimuove l'app, l'elemento login, il server locale, i tuoi dati e la cartella di installazione."
+    "ld.a5": "Fai doppio clic su UNINSTALL.command in ~/Library/Application Support/Xenon e scrivi REMOVE quando te lo chiede. Rimuove l'app, l'elemento login, il server locale, i tuoi dati e la cartella di installazione.",
+    "mac.pic.alt": "La dashboard di Xenon: musica, calendario e grafici di sistema su una sola pagina",
+    "mac.pic.cap": "La dashboard nella demo nel browser. Le letture sono dati di esempio di un PC Windows; su un Mac gli stessi riquadri mostrano le letture del Mac.",
+    "mac.who.desk": "<strong>Il tuo desktop.</strong> I widget stanno sullo schermo che hai già. Vedi <a href=\"/single-screen.html\">Xenon su un solo schermo</a>."
   }
 }

@@ -69,6 +69,7 @@
     "sr.faq.price.q": "Is the screen recorder free?",
     "sr.faq.price.a": "Yes. Recording, Instant Replay, screenshots, the gallery and the transcripts are part of the free app, with no account and no watermark.",
     "sr.cta.h": "Download Xenon",
-    "sr.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. For the FPS counter over your game, read <a href=\"/fps-overlay.html\">FPS overlay with 1% and 0.1% lows</a>."
+    "sr.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. For the FPS counter over your game, read <a href=\"/fps-overlay.html\">FPS overlay with 1% and 0.1% lows</a>.",
+    "sr.pic.alt": "A chat with Bit: asked to save the last 42 seconds, Bit says the clip is on the Desktop"
   }
 }

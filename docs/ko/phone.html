@@ -36,15 +36,14 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#B4A0FF">
 <title>휴대폰을 PC 컨트롤 패널로 쓰는 Xenon</title>
 <meta name="description" content="휴대폰 브라우저에서 Wi-Fi로, 또는 Tailscale로 어디서나 Xenon 대시보드를 엽니다. Deck 키는 PC에서 실행됩니다. 앱 설치 필요 없음.">
 <meta name="robots" content="index, follow">
@@ -52,6 +51,12 @@
 <meta property="og:title" content="휴대폰을 PC 컨트롤 패널로 쓰는 Xenon">
 <meta property="og:description" content="휴대폰 브라우저에서 Wi-Fi로, 또는 Tailscale로 어디서나 Xenon 대시보드를 엽니다. Deck 키는 PC에서 실행됩니다. 앱 설치 필요 없음.">
 <meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/phone.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="휴대폰을 PC 컨트롤 패널로 쓰는 Xenon">
+<meta name="twitter:description" content="휴대폰 브라우저에서 Wi-Fi로, 또는 Tailscale로 어디서나 Xenon 대시보드를 엽니다. Deck 키는 PC에서 실행됩니다. 앱 설치 필요 없음.">
 <link rel="canonical" href="https://xenon-app.com/ko/phone.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/phone.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/phone.html">
@@ -72,12 +77,6 @@
   .route.pick { background: var(--g-2); }
   .route .tag { display: block; margin-bottom: 8px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
   /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
-  .beta-pill {
-    display: inline-block; vertical-align: middle; margin-left: 12px;
-    font: 600 15px/1.2 var(--sans); letter-spacing: 0;
-    color: var(--muted); border: 1px solid var(--rule-2);
-    border-radius: 4px; padding: 3px 8px;
-  }
   .route h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
   .route .time { font-size: 15px; color: var(--muted); margin: 0 0 12px; }
   .route ul { margin: 0; padding-left: 20px; font-size: 16px; }
@@ -100,51 +99,9 @@
   .steps h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
   .steps p { margin: 0 0 10px; }
   .steps p:last-child { margin-bottom: 0; }
-  /* ── Device mockups ───────────────────────────────────────────────
-     Drawn in CSS, not photographed. They are an illustration of the
-     LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
-     notes and file paths, and this page is public. */
-  .shots { display: flex; gap: 34px; align-items: flex-end; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
-  /* figure carries a browser default of `margin: 1em 40px`. Left alone it added
-     160px across the pair and pushed the row 9px past the column, which wraps —
-     the two devices are meant to be read side by side. */
-  .shot { text-align: center; margin: 0; max-width: 100%; }
-  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; }
-  .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
-  .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
-  .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
-  .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
-            background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
-            display: flex; flex-direction: column; }
-  .dev-tab .screen { border-radius: 9px; }
-  .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
-         display: flex; align-items: center; gap: 4px; padding: 0 5px; }
-  .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
-  .bar i.a { width: 16px; background: var(--bone-1); }
-  .bar i.b { width: 26px; }
-  .bar i.c { width: 12px; margin-left: auto; }
-  /* phone: one column, tiles of different heights, thumb dock at the bottom */
-  .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
-  .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
-  .stack > div.t1 { height: 46px; }
-  .stack > div.t2 { height: 72px; }
-  .stack > div.t3 { height: 38px; }
-  .stack > div.t4 { height: 58px; }
-  .stack > div.hl { background: var(--g-2); border-color: var(--rule-2); }
-  .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
-          display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
-  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
-  .dock i:first-child { background: var(--bone-1); }
-  /* tablet: the real 24-column grid, kept */
-  .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
-  .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
-  .grid > div.w2 { grid-column: span 2; }
-  .grid > div.w3 { grid-column: span 3; }
-  .grid > div.w4 { grid-column: span 4; }
-  .grid > div.h2 { grid-row: span 2; }
-  .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
   /* ── A reproduction of the settings rows ──────────────────────── */
   .ui { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .card.accent .ui { background: var(--g-0); }
   .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .ui-row:last-child { border-bottom: none; }
   .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
@@ -162,24 +119,22 @@
   .can .k { color: var(--green); }
   .cant .k { color: var(--danger); }
   @media (max-width: 560px) {
-    .shots { gap: 22px; }
     .steps > li { padding-left: 38px; }
   }
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="violet">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/phone.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/phone.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/phone.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/phone.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/phone.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/phone.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/phone.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
@@ -188,7 +143,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
@@ -205,39 +160,37 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/phone.html" aria-current="page" data-xl="f.phone">휴대폰 페어링</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"휴대폰 페어링","item":"https://xenon-app.com/ko/phone.html"}]}</script><!-- /xenon:crumbs -->
-    <h1><span data-i18n="ph.title">휴대폰을 두 번째 화면으로 쓰세요</span><span class="beta-pill" data-i18n="ph.beta">베타</span></h1>
-    <p class="lede" data-i18n="ph.lede">Xenon을 쓰려면 하루 종일 켜 둘 수 있는 화면이 하나 필요합니다. 남는 모니터, 오래된 태블릿, Xeneon Edge 같은 것들이죠. 대부분의 사람이 막히는 지점은 기능이 아니라 여기입니다. 그런데 화면은 이미 주머니 안에 있습니다. 이 페이지는 그 화면을 쓰는 방법입니다.</p>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/phone.html" aria-current="page" data-xl="f.phone">휴대폰 페어링</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"휴대폰 페어링","item":"https://xenon-app.com/ko/phone.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h"><span data-i18n="ph.title">휴대폰을 두 번째 화면으로 쓰세요</span><span class="beta-pill" data-i18n="ph.beta">베타</span></h1>
+        <p class="lede" data-i18n="ph.lede">휴대폰도 Xenon의 화면이 될 수 있습니다. 휴대폰 브라우저에서 Wi-Fi로 열기만 하면 되고, 휴대폰에는 아무것도 설치하지 않습니다. 이 페이지는 그 방법입니다.</p>
+        <div class="pg-act">
+          <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Windows용 다운로드</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">브라우저에서 체험하기</a>
+        </div>
+      </div>
+      <figure class="pg-pic fit"><img src="/images/home/screen-phone.webp" width="320" height="693" fetchpriority="high" decoding="async" alt="휴대폰의 Xenon 대시보드: 음악, 게임 성능, 시스템 수치, 아래쪽 메뉴" data-i18n-alt="ph.pic.alt"><figcaption data-i18n="ph.cap.phone">휴대폰: 타일이 세로로 쌓이고 아래에 독</figcaption></figure>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">이 페이지 내용</p>
+      <a href="#what-works" data-i18n="ph.h.what">되는 것과 안 되는 것</a>
+      <a href="#files" data-i18n="ph.h.xfer">사진과 파일 주고받기</a>
+      <a href="#two-ways" data-i18n="ph.h.two">들어가는 길은 두 가지입니다. 하나를 고르세요.</a>
+      <a href="#at-home" data-i18n="ph.h.home">집에서, 30초 만에</a>
+      <a href="#anywhere" data-i18n="ph.h.away">어디서나, 그리고 앱으로</a>
+      <a href="#trouble" data-i18n="ph.h.trouble">잘 안 될 때</a>
+      <a href="#limits" data-i18n="ph.h.not">이것이 하지 않는 일</a>
+    </nav>
+    <div class="wrap">
     <p data-i18n-html="ph.intro">휴대폰에 나타나는 것은 리모컨도 미리보기도 아닙니다. 레이아웃도 위젯도 테마도 똑같은 <strong>당신의 대시보드</strong>입니다. 덱 키는 실제로 PC에서 실행됩니다. 음악을 멈추면 음악이 멈춥니다. 설정을 바꾸면 1초 뒤 PC에서도 바뀝니다. 계정도 클라우드도 필요 없고 설치할 앱도 없으며, 어떤 것도 집 네트워크 밖으로 나가지 않습니다.</p>
 
-    <div class="shots">
-      <figure class="shot">
-        <div class="dev dev-phone">
-          <div class="screen">
-            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
-            <div class="stack"><div class="t1 hl"></div><div class="t2"></div><div class="t3"></div><div class="t4"></div></div>
-            <div class="dock"><i></i><i></i><i></i><i></i></div>
-          </div>
-        </div>
-        <figcaption data-i18n="ph.cap.phone">휴대폰: 타일이 세로로 쌓이고 아래에 독</figcaption>
-      </figure>
-      <figure class="shot">
-        <div class="dev dev-tab">
-          <div class="screen">
-            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
-            <div class="grid">
-              <div class="w2 h2 hl"></div><div class="w2"></div><div class="w2"></div>
-              <div class="w2"></div><div class="w2"></div><div class="w3"></div><div class="w3"></div>
-            </div>
-          </div>
-        </div>
-        <figcaption data-i18n="ph.cap.tab">태블릿: 직접 만든 그대로의 전체 그리드</figcaption>
-      </figure>
-    </div>
-    <p class="note" data-i18n="ph.cap.note">이건 실제 스크린샷이 아니라 레이아웃을 그린 그림입니다. 진짜 대시보드에는 쓰는 사람의 캘린더와 메모와 파일 경로가 그대로 보이는데, 이 페이지는 공개되어 있으니까요.</p>
+    <figure class="shot"><img src="/images/home/screen-tablet.webp" width="760" height="528" loading="lazy" decoding="async" alt="태블릿의 Xenon 대시보드: 음악, 가사, 시스템 그래프, Deck 키 격자" data-i18n-alt="ph.tab.alt"><figcaption data-i18n="ph.cap.tab">태블릿: 직접 만든 그대로의 전체 그리드</figcaption></figure>
 
-    <h2 data-i18n="ph.h.what">되는 것과 안 되는 것</h2>
+    <h2 id="what-works" data-i18n="ph.h.what">되는 것과 안 되는 것</h2>
     <p data-i18n="ph.what.p">기기를 연결하면 그 기기는 내 기기가 됩니다. PC의 대시보드가 하는 일을 거의 전부 할 수 있습니다. 할 수 없는 몇 가지에는 두 가지 이유가 있습니다. 그 컴퓨터 앞에 사람이 앉아 있어야 하는 일이거나, 휴대폰이 남의 손에 들어갔을 때 내가 직접 만들어 둔 것보다 더 많은 일을 하게 되는 일입니다.</p>
     <div class="yn">
       <div class="can">
@@ -264,11 +217,11 @@
     </div>
     <div class="card"><p data-i18n-html="ph.trade"><strong>시작하기 전에 알아 둘 것이 하나 있습니다.</strong> 연결된 기기는 삭제하기 전까지 계속 PC로 들어오는 통로입니다. 휴대폰을 잃어버렸거나 남에게 넘겼다면 목록에서 지우세요. 기기 목록이 그래서 있습니다. 하나만 지울 수도 있고, 한 번에 전부 지울 수도 있습니다. 지운 기기는 그 자리에서 연결이 끊깁니다. 90일 동안 쓰지 않은 기기는 작동을 멈추고 다시 연결해야 하며, 새 기기가 연결될 때마다 PC에 알림이 뜹니다.</p></div>
 
-    <h2 data-i18n="ph.h.xfer">사진과 파일 주고받기</h2>
+    <h2 id="files" data-i18n="ph.h.xfer">사진과 파일 주고받기</h2>
     <p data-i18n="ph.xfer.p">휴대폰을 연결하면 PC로 파일을 보내고 PC에서 파일을 가져올 수 있습니다. 휴대폰에서 Xenon을 열고 사진 및 동영상 또는 다른 파일을 누른 뒤 원하는 것을 고르면, 컴퓨터의 Download/Xenon에 원래 이름 그대로 도착합니다. 반대 방향도 됩니다. 탐색기나 Finder에서 타일로 파일을 끌어다 놓고 휴대폰에서 내려받으면 됩니다. 다른 누군가의 서버를 거치지 않습니다.</p>
     <div class="card"><p data-i18n-html="ph.xfer.ios"><strong>iPhone에서는 보내려면 Xenon을 열어야 합니다.</strong> iOS는 어떤 웹사이트도 공유 버튼에 나타나게 하지 않으며, 웹 페이지에서 우회할 방법은 없습니다. iPhone에서 내려받은 파일은 카메라 롤이 아니라 파일 앱으로 갑니다. 사진은 길게 눌러 사진에 추가를 선택하세요.</p></div>
 
-    <h2 data-i18n="ph.h.two">들어가는 길은 두 가지입니다. 하나를 고르세요.</h2>
+    <h2 id="two-ways" data-i18n="ph.h.two">들어가는 길은 두 가지입니다. 하나를 고르세요.</h2>
     <div class="routes">
       <div class="route pick">
         <span class="tag" data-i18n="ph.r1.tag">집에서</span>
@@ -294,7 +247,7 @@
     </div>
     <p data-i18n="ph.two.after">한 번 고르면 끝인 것은 아닙니다. 두 번째 길은 첫 번째 옆에 문을 하나 더 내는 것이지 대신하는 것이 아닙니다. 집에서만 쓴다면 첫 번째로 시작하세요.</p>
 
-    <h2 data-i18n="ph.h.home">집에서, 30초 만에</h2>
+    <h2 id="at-home" data-i18n="ph.h.home">집에서, 30초 만에</h2>
     <ol class="steps">
       <li>
         <h3 data-i18n="ph.s1.h">PC에서 설정, 그리고 휴대폰을 엽니다</h3>
@@ -321,7 +274,7 @@
     </ol>
     <p class="note" data-i18n="ph.home.note">두 기기가 같은 Wi-Fi에 있어야 합니다. 공유기에 클라이언트 격리가 켜져 있거나 게스트 네트워크를 쓰고 있으면, 같은 Wi-Fi에 있어도 서로 보이지 않습니다.</p>
 
-    <h2 data-i18n="ph.h.away">어디서나, 그리고 앱으로</h2>
+    <h2 id="anywhere" data-i18n="ph.h.away">어디서나, 그리고 앱으로</h2>
     <p data-i18n="ph.away.1">일반 HTTP에서는 브라우저가 여러 기능을 아예 내주지 않고, 디자인으로 되돌릴 방법이 없습니다. 앱으로 설치할 수 없고, 마이크를 쓸 수 없고, 알림도 받을 수 없습니다. 두 번째 길이 있는 진짜 이유가 이것입니다. 거리 때문이 아닙니다.</p>
     <p data-i18n-html="ph.away.2">이를 위해 Xenon은 <a href="https://tailscale.com" rel="noopener">Tailscale</a>을 씁니다. PC와 휴대폰이 나만의 작은 사설 네트워크에 들어가고, 대시보드는 진짜 인증서와 바뀌지 않는 주소를 받습니다. 그리고 <strong>공유기 포트는 하나도 열리지 않습니다</strong>. 이 주소는 공개 DNS에 없어서 밖에서는 찾을 것 자체가 없습니다.</p>
 
@@ -361,7 +314,7 @@
       </li>
     </ol>
 
-    <h2 data-i18n="ph.h.trouble">잘 안 될 때</h2>
+    <h2 id="trouble" data-i18n="ph.h.trouble">잘 안 될 때</h2>
     <details>
       <summary data-i18n="ph.q1">휴대폰이 주소를 열지 못한다고 합니다</summary>
       <div class="body"><p data-i18n-html="ph.a1">거의 항상 휴대폰이 아직 사설 네트워크에 들어오지 않은 경우입니다. 휴대폰에서 Tailscale을 열고 스위치가 정말 <strong>켜져</strong> 있는지 확인하세요. 앱을 설치한 것만으로는 부족합니다. iPhone은 켜져 있으면 상태 표시줄에 <strong>VPN</strong>이 나옵니다. PC와 같은 계정으로 로그인했는지도 확인하세요. 계정이 다르면 네트워크가 둘이라 서로 보이지 않습니다.</p></div>
@@ -387,11 +340,12 @@
       <div class="body"><p data-i18n-html="ph.a6">일부러 그렇게 했습니다. 태블릿은 원래 그리드를 그대로 띄울 만큼 크고, 그게 태블릿을 쓰는 이유이기도 합니다. iPad는 Xenon이 레이아웃을 바꾸는 기준보다 훨씬 큽니다. 특정 기기에서 쌓인 레이아웃이 더 좋다면 직접 고를 수 있고, Xenon은 그 선택을 <em>그 기기에서만</em> 기억합니다. PC로는 전달되지 않고, 저장해 둔 레이아웃도 덮어쓰지 않습니다.</p></div>
     </details>
 
-    <h2 data-i18n="ph.h.not">이것이 하지 않는 일</h2>
+    <h2 id="limits" data-i18n="ph.h.not">이것이 하지 않는 일</h2>
     <p data-i18n="ph.not.1">Xenon 계정도 없고, 중간에 낀 우리 서버도 없으며, 대시보드의 어떤 것도 어디로 올라가지 않습니다. 내 Wi-Fi에서 쓰는 연결은 암호화되지 않습니다. 패널이 믿을 수 있는 네트워크에서 쓰라고 하는 이유이고, 안전한 길은 바로 그 점을 해결하려고 있습니다. Tailscale은 당신이 선택해서 추가하는 외부 회사이므로 그쪽의 개인정보 약관이 적용되고, Xenon은 거기서 내 컴퓨터의 주소와 인증서 외에는 아무것도 가져오지 않습니다.</p>
     <p data-i18n-html="ph.not.2">Xenon이 무엇을 보내고 무엇을 보내지 않는지, 나머지는 <a href="/ko/privacy.html">개인정보 페이지</a>에 있습니다.</p>
 
     <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
+    </div>
   </div>
 </main>
 
@@ -399,14 +353,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">어떤 화면에서든 쓰는 무료 PC 위젯. Windows용이며 macOS와 Linux는 베타입니다.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit는 Vitals 위젯에 살면서 자세에 대해 한마디씩 합니다.</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다. 그 밖의 이름과 로고는 각 소유자의 것입니다.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows、Linux、Mac",
     "fo.jump.afterburner": "与 Afterburner 对比",
     "fo.jump.faq": "常见问题",
-    "fo.img.alt": "Xenon 的游戏性能磁贴：143 FPS，1% 低帧 112，0.1% 低帧 96，帧时间 7.1 ms，最近帧的曲线上有一个尖峰，CPU 21%，GPU 19%，GPU 48°C",
+    "fo.img.alt": "Xenon 的游戏性能磁贴：143 FPS，1% 低帧 112，0.1% 低帧 96，帧时间 7.1 ms，最近帧的曲线上有两个尖峰，CPU 48%，GPU 61%，GPU 60°C",
     "fo.h.lows": "1% 和 0.1% 低帧说明了什么",
     "fo.lows.p1": "平均帧率会掩盖那些体验很差的时刻。所以 Xenon 还会取最慢的 1% 帧，把它们的平均值换算成帧率，这就是<strong>1% 低帧</strong>。<strong>0.1% 低帧</strong>的算法相同，取的是每一千帧里最慢的那一帧。",
     "fo.lows.p2": "上图中游戏平均 143 FPS，1% 低帧是 112，0.1% 低帧是 96。三个数字很接近，所以游戏感觉流畅。如果平均值很高而低帧远低于它，即使 FPS 数字看起来没问题，游戏也会卡顿。",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "FPS 叠加层免费吗？",
     "fo.faq.price.a": "免费。游戏性能磁贴、玩过的游戏、基准测试和卡顿原因都包含在免费应用里，无需账户。支持者每月获得的是目录里的新内容，而不是额外功能。",
     "fo.cta.h": "下载 Xenon",
-    "fo.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。想把小组件、录制和即时回放放在同一块屏幕上，请看<a href=\"/single-screen.html\">一块屏幕上的 Xenon</a>。"
+    "fo.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。想把小组件、录制和即时回放放在同一块屏幕上，请看<a href=\"/single-screen.html\">一块屏幕上的 Xenon</a>。",
+    "fo.pic.alt": "游戏性能叠加层：FPS、1% 和 0.1% 低帧、帧时间、最近帧的图表，以及 CPU 和 GPU 负载"
   }
 }

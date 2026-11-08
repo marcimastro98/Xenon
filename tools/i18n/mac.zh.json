@@ -1,10 +1,10 @@
 {
   "zh": {
-    "meta.title": "Mac 版 Xenon（测试版）：副屏仪表盘与小组件",
+    "meta.title": "Mac 版 Xenon（测试版）：Xeneon Edge 小组件",
     "meta.desc": "macOS 11 及以上的 Xenon（测试版）：用于闲置屏幕或 Xeneon Edge 的仪表盘，所需权限、首次启动和卸载方法。",
     "mac.h1": "macOS 上的 Xenon",
     "mac.beta": "测试版",
-    "mac.lede": "Xenon 是一款免费的触控仪表盘，用于电脑旁边的那块屏幕。在 Mac 上，它运行的是和 Windows 上相同的仪表盘。本页列出目前在 Mac 上哪些功能可用、哪些不可用，以及如何安装和卸载。",
+    "mac.lede": "Xenon 是任何屏幕都能用的免费小组件。它在 Mac 上是测试版。本页列出目前在 Mac 上哪些功能可用、哪些不可用，以及如何安装和卸载。",
     "mac.updated": "最后更新：2026年9月27日",
     "mac.jump.who": "适合谁",
     "mac.jump.get": "下载",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "权限",
     "mac.jump.remove": "卸载",
-    "mac.shot.alt": "Xenon 仪表盘，按 Xeneon Edge 的 2560×720 尺寸显示，音乐、日历和系统读数并排排列",
-    "mac.shot.cap": "仪表盘按 Xeneon Edge 的 2560×720 尺寸显示，截自浏览器演示。其中的读数是一台 Windows 电脑的示例数据。在 Mac 上，同样的磁贴显示的是 Mac 自己的读数。",
     "mac.h.who": "适合谁",
-    "mac.who.p1": "本页写给手边有一块闲置屏幕的 Mac 用户：",
+    "mac.who.p1": "本页写给想在以下任一屏幕上使用小组件的 Mac 用户：",
     "mac.who.edge": "<strong>CORSAIR Xeneon Edge。</strong>Xenon 最初就是围绕它 2560×720 的形状设计的。",
     "mac.who.monitor": "<strong>闲置的显示器。</strong>Xenon 应用会在你选择的屏幕上打开。",
     "mac.who.tablet": "<strong>平板或手机。</strong>它通过你的 Wi-Fi 在自带的浏览器中显示同一个仪表盘，设备上无需安装任何东西。手机和平板访问同样是测试版。参见<a href=\"/phone.html\">配对手机或平板</a>。",
@@ -82,7 +80,7 @@
     "mac.row.voice": "语音输入和 AI 查看屏幕",
     "mac.st.voice": "可用。语音需要 ffmpeg。",
     "mac.row.wake": "“Hey Bit”语音唤醒",
-    "mac.st.wake": "装有 ffmpeg 和免费的本地 Whisper 时可用。Whisper 可以在“设置”>“Bit 助手”中通过 Homebrew 安装。",
+    "mac.st.wake": "装有 ffmpeg 和免费的本地 Whisper 时可用。Whisper 可以在“设置”>“Bit”中通过 Homebrew 安装。",
     "mac.row.lights": "网络灯光：WLED、Hue、Nanoleaf、OpenRGB",
     "mac.row.icue": "CORSAIR iCUE 灯光",
     "mac.st.win": "仅限 Windows。",
@@ -146,6 +144,9 @@
     "ld.q4": "Xenon 在 Mac 上需要哪些权限？",
     "ld.a4": "仪表盘不需要任何权限就能运行。完全磁盘访问权限让搜索和磁盘空间小组件能看到你的用户文件夹和废纸篓。辅助功能让 Deck 按键能发送键盘快捷键。屏幕录制和麦克风用于 AI 查看屏幕和语音。",
     "ld.q5": "如何在 Mac 上卸载 Xenon？",
-    "ld.a5": "双击 ~/Library/Application Support/Xenon 中的 UNINSTALL.command，并在提示时输入 REMOVE。它会移除应用、登录项、本地服务器、你的数据和安装文件夹。"
+    "ld.a5": "双击 ~/Library/Application Support/Xenon 中的 UNINSTALL.command，并在提示时输入 REMOVE。它会移除应用、登录项、本地服务器、你的数据和安装文件夹。",
+    "mac.pic.alt": "Xenon 仪表盘：音乐、日历和系统图表都在一个页面上",
+    "mac.pic.cap": "浏览器演示中的仪表盘。其中的读数是一台 Windows 电脑的示例数据；在 Mac 上，同样的磁贴显示 Mac 自己的读数。",
+    "mac.who.desk": "<strong>你的桌面。</strong>小组件就放在你现有的屏幕上。参见<a href=\"/single-screen.html\">一块屏幕上的 Xenon</a>。"
   }
 }

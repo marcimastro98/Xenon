@@ -69,6 +69,7 @@
     "sr.faq.price.q": "这个录屏软件免费吗？",
     "sr.faq.price.a": "免费。录制、即时回放、截图、图库和文字稿都包含在免费应用里，无需账户，也没有水印。",
     "sr.cta.h": "下载 Xenon",
-    "sr.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。想在游戏上方显示 FPS，请看<a href=\"/fps-overlay.html\">显示 1% 和 0.1% 低帧的 FPS 叠加层</a>。"
+    "sr.cta.p": "免费，无需账户。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或在<a href=\"/download.html\">下载页面</a>选择你的系统。想在游戏上方显示 FPS，请看<a href=\"/fps-overlay.html\">显示 1% 和 0.1% 低帧的 FPS 叠加层</a>。",
+    "sr.pic.alt": "与 Bit 的聊天：要求保存最后 42 秒后，Bit 说片段已在桌面上"
   }
 }

@@ -36,7 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -44,15 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#B4A0FF">
 <title>Xenon 常见问题：屏幕、游戏、价格与隐私</title>
-<meta name="description" content="Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 起的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。">
+<meta name="description" content="Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <meta property="og:title" content="Xenon 常见问题：屏幕、游戏、价格与隐私">
-<meta property="og:description" content="Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 起的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。">
+<meta property="og:description" content="Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。">
 <meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/zh/faq.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon 常见问题：屏幕、游戏、价格与隐私">
+<meta name="twitter:description" content="Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。">
 <link rel="canonical" href="https://xenon-app.com/zh/faq.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/faq.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/faq.html">
@@ -68,18 +73,17 @@
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="violet">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/faq.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/faq.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/faq.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/faq.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/faq.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/faq.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/faq.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
@@ -88,7 +92,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
@@ -105,83 +109,128 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/faq.html" aria-current="page" data-xl="f.faq">帮助和常见问题</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"帮助和常见问题","item":"https://xenon-app.com/zh/faq.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="f.h1">常见问题</h1>
-    <p class="lede" data-i18n="f.lede">最常被问到的问题和简短的回答。没有找到你的问题，就到 Discord 上问。</p>
-    <p class="updated" data-i18n="f.updated">最后更新：2026年10月30日</p>
-
-    <nav class="jump">
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/faq.html" aria-current="page" data-xl="f.faq">帮助和常见问题</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"帮助和常见问题","item":"https://xenon-app.com/zh/faq.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="f.h1">常见问题</h1>
+        <p class="lede" data-i18n="f.lede">最常被问到的问题和简短的回答。没有找到你的问题，就到 Discord 上问。</p>
+        <p class="updated" data-i18n="f.updated">最后更新：2026年11月6日</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">本页内容</p>
       <a href="#start" data-i18n="f.s1">关于 Xenon</a>
+      <a href="#price" data-i18n="f.sp">价格与支持者</a>
       <a href="#using" data-i18n="f.s2">使用</a>
       <a href="#warnings" data-i18n="f.s3">出现问题时</a>
       <a href="#privacy" data-i18n="f.s4">隐私与帮助</a>
     </nav>
-
+    <div class="wrap">
     <h2 id="start"><span data-i18n="f.s1">关于 Xenon</span></h2>
 
     <details>
       <summary data-i18n="f.q.what">Xenon 是什么？</summary>
-      <div class="body" data-i18n-html="f.a.what"><p>一款免费的仪表盘，放在电脑旁边的屏幕上。它显示系统信息（CPU、GPU、温度、网络）、正在播放的音乐、日历、天气和笔记，还有 Deck：点一下就能打开应用、控制音乐或在电脑上执行快捷操作的按键。你可以用小组件和主题自由搭配。支持 Windows，macOS 和 Linux 为测试版。</p></div>
+      <div class="body" data-i18n-html="f.a.what"><p>一款免费应用，把电脑的小组件放到任何屏幕上：温度和负载、FPS、音乐、日历、天气和笔记，可以放在桌面、游戏上方、闲置显示器、平板或手机上。它还有 Deck（在电脑上执行操作的触控按键）、带即时回放的屏幕录制、可以对话的助手 Bit，以及主题和小组件商店。它在 Windows 上运行，macOS 和 Linux 为测试版。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.edge">需要 Xeneon Edge 或 CORSAIR 电脑吗？</summary>
-      <div class="body" data-i18n-html="f.a.edge"><p>不需要。Xenon 是围绕 CORSAIR Xeneon Edge 设计的，但它能在任何电脑上运行，不需要 CORSAIR 的硬件或软件。只有当你想把仪表盘放进 iCUE 小组件，或要控制 CORSAIR 的 RGB 设备时，才用得到 iCUE。</p></div>
+      <div class="body" data-i18n-html="f.a.edge"><p>不需要。Xenon 起步于 CORSAIR Xeneon Edge，但它能在任何电脑上运行，不需要 CORSAIR 的硬件或软件。在 Edge 上，有没有 iCUE 都能用：只有想在 iCUE 小组件里显示 Xenon，或控制 CORSAIR RGB 设备时才需要 iCUE。详情见 <a href='/zh/xeneon-edge-widgets.html'>Xeneon Edge 指南</a>。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.screen">可以用哪块屏幕？</summary>
-      <div class="body" data-i18n-html="f.a.screen"><p>只要电脑能在上面显示窗口的屏幕都可以：一台闲置显示器、一块触摸屏，或主屏幕上的一个窗口。应用第一次运行时会问你要在哪块屏幕上打开。平板或手机也可以，通过你自己的 Wi-Fi 连接：显示的是你真正的仪表盘，布局、小组件和主题都一样，按键也真的在电脑上执行。具体做法见<a href='/zh/phone.html'>手机指南</a>和<a href='/zh/tablet-dashboard.html'>平板指南</a>。</p></div>
+      <div class="body" data-i18n-html="f.a.screen"><p>你现有的屏幕就行。只有一台显示器时，小组件放在桌面或游戏上方，每个的位置由你决定。闲置显示器或触摸屏可以放下整页小组件：应用首次运行时会询问使用哪块屏幕。平板或手机也可以，目前为测试版，通过你自己的 Wi-Fi 连接：显示相同的布局、小组件和主题，按键真的在电脑上执行。做法见<a href='/zh/single-screen.html'>单屏指南</a>、<a href='/zh/phone.html'>手机指南</a>和<a href='/zh/tablet-dashboard.html'>平板指南</a>。</p></div>
     </details>
 
     <details id="mac-linux">
       <summary data-i18n="f.q.os">能在 Mac 和 Linux 上用吗？</summary>
-      <div class="body" data-i18n-html="f.a.os"><p>可以，目前为测试版：除了 Windows 10 和 11，还支持 macOS 11 或更高版本（Apple Silicon 和 Intel 共用一个下载）以及 64 位 Linux。三个系统上的仪表盘、小组件和商店都一样。macOS 和 Linux 上还缺少一些传感器和系统操作，没有数据的磁贴会直接说明，而不是一直加载。各系统能用什么，见 <a href='/zh/mac.html'>Mac</a> 和 <a href='/zh/linux.html'>Linux</a> 页面。</p><p><strong>在 Mac 上首次启动：</strong>应用尚未经过公证，所以 macOS 会阻止第一次启动。在 macOS 15 及更高版本中，打开<strong>系统设置 &rarr; 隐私与安全性</strong>，滚动到底部，点击<strong>仍要打开</strong>。在 macOS 11 到 14 中，右键点击应用，选择<strong>打开</strong>，再点一次<strong>打开</strong>。每个版本只需一次。</p></div>
+      <div class="body" data-i18n-html="f.a.os"><p>可以，目前为测试版：macOS 11 或更高版本（Apple Silicon 和 Intel 同一个下载）和 64 位 Linux，此外还有 Windows 10 和 11。小组件和商店在三个系统上都一样。macOS 和 Linux 上还缺少一些传感器和系统操作，系统上没有数据的小组件会直接说明，而不是一直加载。<a href='/zh/mac.html'>Mac</a> 和 <a href='/zh/linux.html'>Linux</a> 页面列出了可用的功能。</p><p><strong>在 Mac 上首次启动：</strong>应用尚未经过公证，所以 macOS 会阻止第一次启动。在 macOS 15 及更高版本中，打开<strong>系统设置 &rarr; 隐私与安全性</strong>，滚动到底部，点击<strong>仍要打开</strong>。在 macOS 11 到 14 中，右键点击应用，选择<strong>打开</strong>，再点一次<strong>打开</strong>。每个版本只需一次。</p></div>
     </details>
+
+    <h2 id="price"><span data-i18n="f.sp">价格与支持者</span></h2>
 
     <details>
       <summary data-i18n="f.q.free">免费吗？支持者能得到什么？</summary>
-      <div class="body" data-i18n-html="f.a.free"><p>应用免费，没有广告，也不需要账号。在 <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>Buy Me a Coffee</a> 上的支持者可以获得<a href='/catalog/'>目录</a>里的每月新品、Lyrics 和 Developer cleanup 两个小组件、Discord 身份组，以及 Hall of Supporters 上的位置。价格为每月 5 USD 或每年 50 USD，也可以一次性支付 5 USD 起，每 5 USD 算一个月。兑换码通过邮件发送，在<strong>设置 &rarr; 支持 Xenon</strong> 中输入。每种方案每月还附带 300 火花，也就是 Xenon 的点数。</p><p>支持者通行证每台电脑可免费试用 7 天，仅一次：它会解锁支持者专属内容和 Lyrics。限量内容，以及部分刚发布几周的新内容，仅限支持者。支持结束后，Lyrics 和 Developer cleanup 仍然保持解锁。支持满一年，还会根据你的配色或照片为你制作一个专属主题，并署上你的名字发布。</p></div>
+      <div class="body" data-i18n-html="f.a.free"><p>应用免费，没有广告，也不需要账号。在 <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>Buy Me a Coffee</a> 上的支持者可以获得<a href='/catalog/'>目录</a>里的每月新内容、“歌词”和“开发者清理”两个小组件、Maker 导出、Discord 身份组，以及 Hall of Supporters 上的位置。价格为每月 5 USD 或每年 50 USD，也可以一次性支付：5 USD 一个月，25 USD 五个月，50 USD 十二个月。低于 5 USD 的付款只算打赏：不解锁任何内容，也没有火花。兑换码通过邮件发送，在<strong>设置 &rarr; 支持 Xenon</strong> 中输入。每种方案每月还附带 300 火花，也就是 Xenon 的点数。未用完的不会结转。</p><p>支持结束后，你解锁的内容及其更新、购买的火花都会保留，“歌词”和“开发者清理”仍然保持解锁。Maker 导出和每月火花不再提供。支持满一年，还会根据你的配色或照片为你制作一个专属主题，并署上你的名字发布。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.trial">可以先试用支持者通行证吗？</summary>
+      <div class="body" data-i18n-html="f.a.trial"><p>可以：<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=zh' target='_blank' rel='noopener'>用你的邮箱地址申请</a>，代码会通过邮件发送。每台电脑可免费试用 7 天，仅一次，无需银行卡，它会解锁支持者内容和“歌词”。火花和“开发者清理”不包含在试用中，新内容通常在上线 30 天后加入试用，限量内容需要单独的代码。试用结束后，试用过的内容会从电脑上移除，之前的主题会恢复，小组件仍在原位。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sparks">火花是什么？</summary>
-      <div class="body" data-i18n-html="f.a.sparks"><p>火花是 Xenon 的点数，1 火花等于 1 美分。在不使用自己 API 密钥时使用助手，以及购买商店里以火花出售的内容，都会用到它。每个月的支持都包含 300 火花，每月初重置。购买更多火花不需要成为支持者：它们在 <a href='https://www.buymeacoffee.com/marcimastro98/extras' target='_blank' rel='noopener'>Buy Me a Coffee 的附加项目</a>中，500 火花 5 USD，1050 火花 10 USD，2200 火花 20 USD，购买的火花永不过期。如果你不是支持者，第一次购买时会通过邮件收到一个火花代码（XC-…），把它填在和支持者代码相同的输入框里。</p><p>用火花购买的内容永久归你，包含更新，最多可在 3 台电脑上使用，重新安装不再收费。限量版从不以火花出售。</p></div>
+      <div class="body" data-i18n-html="f.a.sparks"><p>火花是 Xenon 的点数，1 火花等于 1 美分。在不使用自己 API 密钥时使用 Bit，以及购买商店里以火花出售的内容，都会用到它。每个月的支持都包含 300 火花，优先使用，每月初重置，不会结转。购买更多火花不需要成为支持者：从 Xenon 5.0.0 起，套餐在商店的“火花”中，500 火花 5 USD，1050 火花 10 USD，2200 火花 20 USD，购买的火花永不过期。如果你不是支持者，第一次购买时会通过邮件收到一个火花代码（XC-…），把它填在和支持者代码相同的输入框里。</p><p>用火花购买的内容最多可在 3 台电脑上使用，包含发布的所有更新，重新安装不再收费。限量版从不以火花出售。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.refund">可以退款吗？</summary>
+      <div class="body" data-i18n-html="f.a.refund"><p>卖家是 Xenon，款项由 Buy Me a Coffee 收取。付款后 14 天内，你可以申请退还会员付款或火花套餐：发邮件至 <a href='mailto:support@xenon-app.com'>support@xenon-app.com</a>，退款会通过 Buy Me a Coffee 完成。退款后，套餐和用这些火花购买的内容都会被移除。已在 Bit 上花掉的火花会从余额中扣除，在下一个套餐之前余额可能低于零。</p><p>用火花购买的商店内容会立即交付。购买前你需要勾选方框提出这一要求，交付开始后撤回权即告结束。</p></div>
     </details>
 
     <h2 id="using"><span data-i18n="f.s2">使用</span></h2>
 
     <details>
       <summary data-i18n="f.q.games">会拖慢游戏吗？</summary>
-      <div class="body" data-i18n-html="f.a.games"><p>它的设计就是不拖慢。游戏运行时，游戏模式会淡出动态背景并暂停动画效果，最耗资源的磁贴（浏览器和第二屏幕的画面流）也会停下，直到你玩完。这类实时磁贴和 Home Assistant 只在显示在屏幕上时才保持连接。</p><p>在 Windows 上，游戏中触摸应用里的仪表盘是安全的：光标会立刻回到游戏所在的显示器，点击也不会抢走游戏的焦点。</p></div>
+      <div class="body" data-i18n-html="f.a.games"><p>它的设计目标就是不拖慢游戏。游戏运行时，游戏模式会淡出动态背景并暂停动画效果，最重的小组件（Browser 和 Second screen 的串流）会停止，直到你结束游戏。磁盘扫描等 Xenon 自身的后台任务也会暂缓。这类实时小组件和 Home Assistant 只有在屏幕上显示时才保持连接。</p><p>在 Windows 上，游戏中触碰另一块屏幕上的 Xenon 是安全的：光标会立刻回到游戏所在的显示器，触碰也不会抢走游戏的焦点。</p></div>
     </details>
 
     <details>
-      <summary data-i18n="f.q.add">怎么添加小组件和主题？</summary>
-      <div class="body" data-i18n-html="f.a.add"><p>在仪表盘上点 <strong>+</strong> 即可添加内置磁贴。想要更多，打开<strong>设置 &rarr; 商店</strong>：社区制作的主题、背景、小组件、氛围场景和合集，应用前都会先预览，一点即可安装。也可以在本站的<a href='/catalog/'>目录</a>里浏览同样的内容。</p></div>
+      <summary data-i18n="f.q.cheat">反作弊会标记它或让我被封号吗？</summary>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon 从不向游戏注入代码，也从不挂钩游戏进程。它在上方绘制自己的窗口，通过 PresentMon 从系统读取帧时间，所以游戏内部没有任何东西可供反作弊标记。</p><p>唯一工作在驱动层的部分是读取温度的 PawnIO，它也在游戏之外运行。FACEIT 的反作弊曾拦截 2.1.0 之前的 PawnIO 版本：如果它提到 <code>PawnIO.sys</code>，请运行 <code>winget upgrade namazso.PawnIO</code> 或重新运行 Xenon 安装程序。并非所有反作弊都测试过，如果有哪个报错，请在 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上说明。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">能显示温度和游戏帧率吗？</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>可以。在 Windows 上，安装程序会设置温度读取（需要允许一次管理员提示），PresentMon 能显示正在运行的游戏的真实帧率，全屏游戏也可以；如果没装，在<strong>设置 &rarr; 游戏模式</strong>里一键安装。在 macOS 上，温度和 GPU 负载来自 <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）。在 Linux 上，游戏帧率需要 MangoHud，并通过它启动游戏。</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>可以。在 Windows 上，安装程序会设置温度读取（需要确认一次管理员提示），PresentMon 提供运行中游戏的真实帧率，包括全屏游戏；如果缺少，<strong>设置 &rarr; 性能 &rarr; 游戏模式</strong>可以安装它。<a href='/zh/fps-overlay.html'>FPS 叠加层</a>在无边框全屏或窗口模式的游戏上方显示。macOS 上的温度和 GPU 负载来自 <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）。Linux 上的游戏内 FPS 需要 MangoHud，并通过它启动游戏。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.replay">可以录制我的游戏吗？</summary>
+      <div class="body" data-i18n-html="f.a.replay"><p>可以。即时回放会保留最近几分钟，让你在精彩时刻发生后再保存；录制功能可以录整个屏幕或一个窗口。它还能截图和读取屏幕上的文字。所有内容都保存在你的电脑上，不上传任何东西，也不需要账号。在 Windows 上免费，macOS 和 Linux 为测试版。做法见<a href='/zh/screen-recorder.html'>录屏指南</a>。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.bit">Bit 是什么？我需要 API 密钥吗？</summary>
+      <div class="body" data-i18n-html="f.a.bit"><p>Bit 是 Xenon 内置的助手。你可以打字，或说“Hey Bit”，它会回答、在电脑上执行操作，并和你一起做小组件。开始时不需要密钥：新安装在发送第一条消息时获得 30 试用火花，仅限 Bit 使用，有效期 7 天，无需银行卡和邮箱。之后你可以购买火花，或使用自己的 Gemini、OpenAI 或 Anthropic 密钥、通过 Ollama 或 OpenAI 兼容服务器运行的本地模型，或用你自己的订阅使用 Claude Code 和 Codex。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.deck">它能代替 Stream Deck 吗？</summary>
+      <div class="body" data-i18n-html="f.a.deck"><p>它能在你已有的屏幕上做类似的事：Xeneon Edge、闲置显示器、平板或手机都行。一个按键可以打开应用、发送快捷键、切换 OBS 场景、静音 Discord 或运行 Streamer.bot 动作，还可以亮起来显示所控制对象的状态。它不使用 Stream Deck 硬件或其插件。所有动作见 <a href='/zh/deck.html'>Deck 指南</a>。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.add">怎么添加小组件和主题？</summary>
+      <div class="body" data-i18n-html="f.a.add"><p>按页面上的 <strong>+</strong> 添加内置小组件。要把小组件放到桌面或游戏上方，按 <strong>Alt+Shift+X</strong> 打开 Xenon 菜单，或让 Bit 帮你。想要更多，打开<strong>设置 &rarr; 商店</strong>：主题、背景、小组件、环境场景和合集，应用前都能预览，一键安装。同样的内容也可以在本站的<a href='/catalog/'>目录</a>中浏览。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.make">我能自己做小组件或主题吗？</summary>
+      <div class="body" data-i18n-html="f.a.make"><p>可以，不用写代码。测试版 <a href='/maker/'>Maker</a> 在浏览器里制作小组件和主题，Bit 可以在那里或在应用里和你一起做。Maker 的所有功能都可以免费试用；保留项目和安装你的作品仅限支持者。如果你写代码，<a href='/create/'>创作指南</a>介绍了 Widget SDK。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.connect">支持 Spotify、Home Assistant 和 RGB 灯光吗？</summary>
-      <div class="body" data-i18n-html="f.a.connect"><p>支持，每一项都是可选的，连接之前都是关闭的。</p><ul><li><strong>Spotify：</strong>正在播放的内容会显示在媒体磁贴里。在设置中关联账号后，可以拖动进度、收藏、随机播放和播放列表，也能在 Deck 上操作（控制播放需要 Spotify Premium）。</li><li><strong>Home Assistant：</strong>在<strong>设置 &rarr; 智能家居</strong>中填入地址和长期访问令牌进行连接，然后就能用磁贴或 Deck 按键控制灯光、传感器和场景。</li><li><strong>RGB：</strong>CORSAIR 设备通过 iCUE 控制，WLED、OpenRGB、Philips Hue、Nanoleaf、Govee、LIFX 和 Yeelight 通过局域网控制，在 Windows 上还能通过 USB 控制技嘉和 AORUS 主板。</li></ul></div>
+      <div class="body" data-i18n-html="f.a.connect"><p>可以，每一项都是可选的，连接之前保持关闭。</p><ul><li><strong>Spotify：</strong>你播放的内容会显示在“播放”小组件中。在设置中关联账号后，可以拖动进度、点赞、随机播放和使用歌单，也能在 Deck 上操作（播放控制需要 Spotify Premium）。</li><li><strong>Home Assistant：</strong>在<strong>设置 &rarr; 智能家居</strong>中用你的地址和长期访问令牌连接，然后从小组件或 Deck 按键控制灯光、传感器和场景。</li><li><strong>RGB：</strong>通过 iCUE 连接 CORSAIR 设备，通过网络连接 WLED、OpenRGB、Philips Hue、Nanoleaf、Govee、LIFX 和 Yeelight，在 Windows 上通过 USB 连接 GIGABYTE 和 AORUS 主板。</li></ul></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.backup">能保存布局或搬到另一台电脑吗？</summary>
-      <div class="body" data-i18n-html="f.a.backup"><p>可以。<strong>设置 &rarr; 备份 &rarr; 导出备份</strong> 会把布局、Deck、日历、任务、计时器、笔记、设置和自定义背景保存到一个文件里。在另一台电脑上用<strong>导入备份</strong>就能全部恢复。API 密钥和密码永远不会写进文件，所以各项集成会请你重新连接；社区小组件会列出来，方便你用它们的代码重新安装。</p></div>
+      <div class="body" data-i18n-html="f.a.backup"><p>可以。<strong>设置 &rarr; 通用 &rarr; 备份 &rarr; 导出备份</strong>会把布局、Deck、日历、任务、计时器、笔记、设置、Bit 的记忆和自定义背景保存到一个文件。在另一台电脑上，<strong>导入备份</strong>会恢复全部内容。密码、令牌和 API 密钥绝不会写入文件，所以集成需要重新连接；社区小组件会列出来，方便用代码重新安装。文件中包含私密日历链接和 Deck webhook，请妥善保管。</p></div>
     </details>
 
     <h2 id="warnings"><span data-i18n="f.s3">出现问题时</span></h2>
 
     <details>
       <summary data-i18n="f.q.virus">Windows 说 Xenon 是病毒，安全吗？</summary>
-      <div class="body" data-i18n-html="f.a.virus"><p>这是误报。Windows 安装程序从 4.11.9 版起就带有签名，但微软对新文件的信任需要时间积累，所以刚发布的版本仍可能被 Defender、SmartScreen 或浏览器警告。你可以自己检查文件：每个版本都附带签名的 <code>SHA256SUMS</code> 列表，<a href='/zh/download.html'>下载页面</a>上有用来比对的那条命令。也可以从 <a href='https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0' target='_blank' rel='noopener'>Microsoft Store</a> 安装 Xenon。</p><ul><li><strong>被 Defender 删除了：</strong>打开<strong>Windows 安全中心 &rarr; 病毒和威胁防护 &rarr; 保护历史记录</strong>，选中 Xenon 的条目，选择<strong>还原</strong>。然后把 <code>%LOCALAPPDATA%\Xenon</code> 和 <code>%LOCALAPPDATA%\Programs\Xenon</code> 加到<strong>排除项</strong>里。</li><li><strong>浏览器拦截了下载：</strong>按 <code>Ctrl+J</code> 打开下载列表，选择<strong>保留</strong>。</li><li><strong>无法启动，也没有任何提示：</strong>在 Windows 11 上通常是<strong>Windows 安全中心 &rarr; 应用和浏览器控制</strong>里的智能应用控制。先在开启状态下试试最新版本：一旦关闭，不重置电脑就无法再打开。</li></ul><p>只有对从官方 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases 页面</a>下载并核对过哈希的文件，才可以忽略警告。</p></div>
+      <div class="body" data-i18n-html="f.a.virus"><p>这是误报。Windows 安装程序从 4.11.9 版起就带有签名，但微软对新文件的信任需要时间积累，所以刚发布的版本仍可能被 Defender、SmartScreen 或浏览器警告。你可以自己检查文件：每个版本都附带签名的 <code>SHA256SUMS</code> 列表，<a href='/zh/download.html'>下载页面</a>上有用来比对的那条命令。也可以从 <a href='https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0' target='_blank' rel='noopener'>Microsoft Store</a> 安装 Xenon。</p><ul><li><strong>被 Defender 删除了：</strong>打开<strong>Windows 安全中心 &rarr; 病毒和威胁防护 &rarr; 保护历史记录</strong>，选中 Xenon 的条目，选择<strong>还原</strong>。然后把 <code>%LOCALAPPDATA%\Xenon</code> 和 <code>%LOCALAPPDATA%\Programs\Xenon</code> 加到<strong>排除项</strong>里。</li><li><strong>浏览器拦截了下载：</strong>按 <code>Ctrl+J</code> 打开下载列表，选择<strong>保留</strong>。</li><li><strong>无法启动，也没有任何提示：</strong>在 Windows 11 上通常是<strong>Windows 安全中心 &rarr; 应用和浏览器控制</strong>里的智能应用控制。先在开启状态下试试最新版本：已更新的 Windows 之后可以重新打开，较旧的 Windows 则要重置或重装电脑后才能打开。</li></ul><p>只有对从官方 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases 页面</a>下载并核对过哈希的文件，才可以忽略警告。</p></div>
     </details>
 
     <details>
@@ -191,25 +240,26 @@
 
     <details>
       <summary data-i18n="f.q.temp">看不到 CPU 温度</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>在 Windows 上，重新运行安装程序并允许管理员提示：读取温度需要 LibreHardwareMonitor 和 PawnIO，它们包含驱动级组件，这就是提示的用途。拒绝的话其他功能照常可用，只是没有温度。在 macOS 上，安装 <code>macmon</code>。有些笔记本和主板根本不提供传感器，这时磁贴会直接说明，而不是显示编造的数字。</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>在 Windows 上，重新运行安装程序并接受管理员提示：读取温度需要 LibreHardwareMonitor 和 PawnIO，它们包含驱动层组件，这就是提示的用途。拒绝的话其他功能都正常，只是没有温度。在 macOS 上，请安装 <code>macmon</code>。有些笔记本和主板完全不提供传感器，这时小组件会直接说明，而不是显示编造的数字。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.update">怎么更新或卸载？</summary>
-      <div class="body" data-i18n-html="f.a.update"><p>Xenon 会自动更新：有新版本时仪表盘会提示你，点一下就下载，安装前先校验签名，出了问题会自动恢复到上一个版本。你的设置、布局和笔记都会保留。</p><p>要卸载，在 Windows 上运行 <code>UNINSTALL.bat</code>，在 macOS 上运行 <code>UNINSTALL.command</code>，在 Linux 上运行 <code>./UNINSTALL.sh</code>。它会删除应用、开机启动项和你的数据；想保留设置、布局和笔记，Windows 上加 <code>-KeepData</code>，其他系统加 <code>--keep-data</code>。</p></div>
+      <div class="body" data-i18n-html="f.a.update"><p>Xenon 会自动更新：有新版本时会询问你，点一下就下载，安装前先校验签名，出了问题会恢复上一个版本。你的设置、布局和笔记都会保留。</p><p>在 Windows 上卸载，打开<strong>设置 &rarr; 应用 &rarr; 已安装的应用</strong>，找到 Xenon 并点击<strong>卸载</strong>。在 macOS 上，双击 <code>~/Library/Application Support/Xenon</code> 中的 <code>UNINSTALL.command</code>；在 Linux 上，在 Xenon 文件夹中运行 <code>./UNINSTALL.sh</code>。两者都会删除应用、启动项和你的数据；要保留设置、布局和笔记，请运行 <code>UNINSTALL.sh --keep-data</code>。</p></div>
     </details>
 
     <h2 id="privacy"><span data-i18n="f.s4">隐私与帮助</span></h2>
 
     <details>
       <summary data-i18n="f.q.data">会把我的数据发到别处吗？需要账号吗？</summary>
-      <div class="body" data-i18n-html="f.a.data"><p>你的设置、笔记、任务、日程、Deck 和文件索引都留在你的电脑上。应用里没有分析 SDK、没有崩溃自动上报，也没有行为追踪。它只在少数情况下联网：检查更新，以及你自己开启的服务，比如天气或 Spotify。<a href='/zh/privacy.html'>隐私页面</a>列出了它可能发出的每一个请求以及发送的内容。</p><p>没有 Xenon 账号。你唯一需要输入的是支持者兑换码，各项集成使用它们自己的登录。</p></div>
+      <div class="body" data-i18n-html="f.a.data"><p>你的设置、笔记、任务、事件、Deck 和文件索引都留在电脑上，应用不记录你的操作。它有三个匿名计数器，没有任何标识符：随更新检查发送的版本、系统和安装的大致时长；从商店安装作品时在其安装数上加 1；以及每天一次统计每个功能运行和失败的次数。它们都不包含你搜索、输入或制作的内容。新安装时默认开启，你可以在<strong>设置 &rarr; 通用 &rarr; 更新</strong>中逐个关闭。</p><p>应用还会联网检查更新、获取一小段公告列表，以及使用你自己开启的服务，比如天气或 Spotify。你问 Bit 的内容会发送到你选择的 AI 服务；使用本地模型时不会离开电脑。<a href='/zh/privacy.html'>隐私页面</a>列出了它可能发出的每个请求及其内容。</p><p>Xenon 没有账号。只有在支持 Xenon、购买火花或申请试用（需要邮箱地址）时才需要输入代码，集成使用各自的登录。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.help">去哪里求助？</summary>
-      <div class="body" data-i18n-html="f.a.help"><p>到 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上提问最快，反复出现的问题会加到这个页面上。能复现的错误，请开一个 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a>，写明你的系统、做了什么以及发生了什么。</p><p>个人使用免费，包括在你工作用的电脑上。出售 Xenon 或把它放进商业产品，需要事先获得书面许可：<a href='mailto:marcellomastroeni4@gmail.com'>给我发邮件</a>。</p></div>
+      <div class="body" data-i18n-html="f.a.help"><p>到 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上提问最快，反复出现的问题会加到这个页面上。能复现的错误，请开一个 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a>，写明你的系统、做了什么以及发生了什么。</p><p>个人使用免费，包括在你工作用的电脑上。出售 Xenon 或将其放入商业产品需要事先获得书面许可：请写信至 <a href='mailto:support@xenon-app.com'>support@xenon-app.com</a>。</p></div>
     </details>
+    </div>
   </div>
 </main>
 
@@ -217,14 +267,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">任何屏幕都能用的免费电脑小组件。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit 住在 Vitals 小组件里，对你的坐姿很有意见。</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/single-screen.html" data-xl="f.onescreen">在一块屏幕上使用 Xenon</a></li><li><a href="/zh/fps-overlay.html" data-xl="f.fps">FPS 叠加层</a></li><li><a href="/zh/screen-recorder.html" data-xl="f.recorder">屏幕录制</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。其他名称和标志归各自所有者所有。</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

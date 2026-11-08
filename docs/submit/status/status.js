@@ -20,6 +20,8 @@
   var STRINGS = {
     en: {
       title: 'Your submission', loading: 'Loading…',
+      fb_title: 'What people said', fb_votes: 'Votes: {n}', fb_avg: 'Average: {n} of 5', fb_low: 'Why the low votes',
+      why_breaks: 'It breaks', why_slow: 'It is slow', why_dislike: 'I do not like it', why_useless: 'I do not need it',
       bad_link: 'This link does not open a submission. Check that you copied all of it.',
       offline: 'The review server did not answer. Try again in a minute.',
       retry: 'Try again', rate: 'Too many requests from this network. Try again later.',
@@ -44,6 +46,8 @@
     },
     it: {
       title: 'La tua proposta', loading: 'Caricamento…',
+      fb_title: 'Cosa dice la gente', fb_votes: 'Voti: {n}', fb_avg: 'Media: {n} su 5', fb_low: 'Perché i voti bassi',
+      why_breaks: 'Si rompe', why_slow: 'È lento', why_dislike: 'Non mi piace', why_useless: 'Non mi serve',
       bad_link: 'Questo link non apre nessuna proposta. Controlla di averlo copiato tutto.',
       offline: 'Il server della revisione non ha risposto. Riprova tra un minuto.',
       retry: 'Riprova', rate: 'Troppe richieste da questa rete. Riprova più tardi.',
@@ -68,6 +72,8 @@
     },
     es: {
       title: 'Tu envío', loading: 'Cargando…',
+      fb_title: 'Lo que dice la gente', fb_votes: 'Votos: {n}', fb_avg: 'Media: {n} de 5', fb_low: 'Por qué los votos bajos',
+      why_breaks: 'Se rompe', why_slow: 'Va lento', why_dislike: 'No me gusta', why_useless: 'No lo necesito',
       bad_link: 'Este enlace no abre ningún envío. Comprueba que lo copiaste completo.',
       offline: 'El servidor de revisión no respondió. Inténtalo de nuevo en un minuto.',
       retry: 'Reintentar', rate: 'Demasiadas solicitudes desde esta red. Inténtalo más tarde.',
@@ -92,6 +98,8 @@
     },
     fr: {
       title: 'Votre proposition', loading: 'Chargement…',
+      fb_title: 'Ce que disent les gens', fb_votes: 'Votes : {n}', fb_avg: 'Moyenne : {n} sur 5', fb_low: 'Pourquoi les notes basses',
+      why_breaks: 'Ça plante', why_slow: 'C\'est lent', why_dislike: 'Je n\'aime pas', why_useless: 'Je n\'en ai pas besoin',
       bad_link: 'Ce lien n’ouvre aucune proposition. Vérifiez que vous l’avez copié en entier.',
       offline: 'Le serveur de revue n’a pas répondu. Réessayez dans une minute.',
       retry: 'Réessayer', rate: 'Trop de requêtes depuis ce réseau. Réessayez plus tard.',
@@ -116,6 +124,8 @@
     },
     ko: {
       title: '내 제출물', loading: '불러오는 중…',
+      fb_title: '사용자 의견', fb_votes: '투표: {n}', fb_avg: '평균: 5점 중 {n}점', fb_low: '낮은 점수의 이유',
+      why_breaks: '고장 나요', why_slow: '느려요', why_dislike: '마음에 안 들어요', why_useless: '필요 없어요',
       bad_link: '이 링크로는 제출물을 열 수 없습니다. 링크 전체를 복사했는지 확인하세요.',
       offline: '검토 서버가 응답하지 않았습니다. 잠시 후 다시 시도하세요.',
       retry: '다시 시도', rate: '이 네트워크의 요청이 너무 많습니다. 나중에 다시 시도하세요.',
@@ -140,6 +150,8 @@
     },
     ja: {
       title: 'あなたの投稿', loading: '読み込み中…',
+      fb_title: 'みんなの声', fb_votes: '投票: {n}', fb_avg: '平均: 5点中{n}点', fb_low: '低評価の理由',
+      why_breaks: '動かなくなる', why_slow: '重い', why_dislike: '好みじゃない', why_useless: '必要ない',
       bad_link: 'このリンクでは投稿を開けません。リンク全体をコピーしたか確認してください。',
       offline: 'レビューサーバーが応答しませんでした。少し待ってからもう一度お試しください。',
       retry: '再試行', rate: 'このネットワークからのリクエストが多すぎます。後でもう一度お試しください。',
@@ -164,6 +176,8 @@
     },
     zh: {
       title: '你的投稿', loading: '加载中…',
+      fb_title: '大家的反馈', fb_votes: '投票:{n}', fb_avg: '平均:{n} 分,满分 5 分', fb_low: '低分原因',
+      why_breaks: '会出错', why_slow: '太慢', why_dislike: '不喜欢', why_useless: '用不上',
       bad_link: '这个链接打不开任何投稿。请确认复制了完整链接。',
       offline: '审核服务器没有响应。请一分钟后再试。',
       retry: '重试', rate: '来自此网络的请求过多。请稍后再试。',
@@ -244,6 +258,17 @@
   function T(key) { return (STRINGS[lang] || {})[key] || STRINGS.en[key] || key; }
 
   var root = document.getElementById('st-root');
+  var sheet = {
+    name: document.getElementById('pg-h'),
+    state: document.getElementById('st-state'),
+    meta: document.getElementById('st-meta'),
+    act: document.getElementById('st-act'),
+    bar: document.querySelector('meta[name="theme-color"]'),
+  };
+  // The sheet says where things stand before a word is read. Anything that is
+  // not a state of the submission (a bad link, no answer) is orange.
+  var SEVERITY_SHEET = { block: 'red', fix: 'orange' };
+  var TONE = { loading: 'violet', s_pending: 'violet', s_fix: 'orange', s_free: 'green', s_sellable: 'green', s_approved: 'green', s_rejected: 'red' };
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -254,6 +279,7 @@
 
   function finding(f) {
     var box = el('li', 'st-f st-' + f.severity);
+    if (SEVERITY_SHEET[f.severity]) box.setAttribute('data-sheet', SEVERITY_SHEET[f.severity]);
     box.append(el('p', 'st-f-head', f.what));
     var meta = el('p', 'st-f-meta');
     meta.append(el('span', 'st-sev', T('sev_' + f.severity)), document.createTextNode(', ' + T('eff_' + f.effort)));
@@ -283,7 +309,11 @@
     if (!list.length) { wrap.append(el('p', 'st-muted', T('none'))); return wrap; }
     // What the list adds up to comes first, so the weight is seen before the detail.
     var sum = el('div', 'st-sum');
-    summaryLines(list, T).forEach(function (l) { sum.append(el('p', 'st-' + l.severity, l.text)); });
+    summaryLines(list, T).forEach(function (l) {
+      var line = el('p', null, l.text);
+      line.setAttribute('data-sheet', SEVERITY_SHEET[l.severity]);
+      sum.append(line);
+    });
     if (sum.childNodes.length) wrap.append(sum);
     var ul = el('ul', 'st-list');
     list.forEach(function (f, i) {
@@ -293,7 +323,7 @@
     });
     wrap.append(ul);
     if (list.length > FIRST_FINDINGS) {
-      var more = el('button', 'st-btn', T('show_all') + ' (' + list.length + ')');
+      var more = el('button', 'st-more', T('show_all') + ' (' + list.length + ')');
       more.type = 'button';
       more.addEventListener('click', function () {
         ul.querySelectorAll('li[hidden]').forEach(function (li) { li.hidden = false; });
@@ -353,26 +383,49 @@
     return wrap;
   }
 
+  function paintSheet(name, key, meta) {
+    sheet.name.textContent = name;
+    sheet.state.textContent = T(key);
+    sheet.meta.textContent = meta || '';
+    sheet.act.replaceChildren();
+    document.body.setAttribute('data-sheet', TONE[key] || 'orange');
+    sheet.bar.content = getComputedStyle(document.body).getPropertyValue('--sheet').trim();
+  }
+
+  // Totals only: nobody's vote is ever shown as theirs.
+  function feedbackCard(fb) {
+    var card = el('section', 'st-card');
+    card.append(el('h2', null, T('fb_title')), el('p', null, T('fb_votes').replace('{n}', fb.votes)));
+    if (fb.avg !== null) card.append(el('p', null, T('fb_avg').replace('{n}', fb.avg)));
+    var why = ['breaks', 'slow', 'dislike', 'useless'].filter(function (k) { return fb.reasons[k]; });
+    if (why.length) {
+      card.append(el('h2', null, T('fb_low')));
+      var ul = el('ul', 'st-good');
+      why.forEach(function (k) { ul.append(el('li', null, T('why_' + k) + ': ' + fb.reasons[k])); });
+      card.append(ul);
+    }
+    return card;
+  }
+
   function render(sub) {
     root.replaceChildren();
-    var h1 = el('h1', null, sub.name || T('title'));
     var when = sub.submittedAt ? new Date(sub.submittedAt * 1000).toLocaleDateString(lang) : '';
-    var sub1 = el('p', 'st-muted', [sub.kind, sub.version ? 'v' + sub.version : '', when ? T('submitted') + ' ' + when : '',
+    paintSheet(sub.name || T('title'), statusKey(sub), [sub.kind, sub.version ? 'v' + sub.version : '', when ? T('submitted') + ' ' + when : '',
       sub.priority && sub.status === 'pending' ? T('priority') : '']
       .filter(Boolean).join(', '));
-    root.append(h1, sub1);
-
-    var state = el('section', 'st-card st-state st-' + sub.status);
-    state.append(el('p', 'st-state-line', T(statusKey(sub))));
     if (sub.status === 'approved' && sub.entryId) {
-      var a = el('a', 'st-btn', T('open_entry'));
+      var a = el('a', 'pg-key', T('open_entry'));
       a.href = '/catalog/' + encodeURIComponent(sub.entryId) + '/';
-      state.append(a);
+      sheet.act.append(a);
     }
-    if (sub.note) state.append(el('h2', null, T('note')), el('p', 'st-note', sub.note));
     var r = sub.report;
-    if (r && r.summary) state.append(el('p', null, r.summary));
-    root.append(state);
+    if (sub.note || (r && r.summary)) {
+      var about = el('section', 'st-card');
+      if (sub.note) about.append(el('h2', null, T('note')), el('p', 'st-note', sub.note));
+      if (r && r.summary) about.append(el('p', null, r.summary));
+      root.append(about);
+    }
+    if (sub.feedback && sub.feedback.votes) root.append(feedbackCard(sub.feedback));
     if (!r) return;
 
     if (r.positives && r.positives.length) {
@@ -394,12 +447,13 @@
   }
 
   function message(key, withRetry) {
-    root.replaceChildren(el('h1', null, T('title')), el('p', 'st-card st-state', T(key)));
+    root.replaceChildren();
+    paintSheet(T('title'), key);
     if (withRetry) {
-      var b = el('button', 'st-btn', T('retry'));
+      var b = el('button', 'pg-key', T('retry'));
       b.type = 'button';
       b.addEventListener('click', load);
-      root.append(b);
+      sheet.act.append(b);
     }
   }
 

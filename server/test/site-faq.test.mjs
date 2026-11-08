@@ -15,7 +15,23 @@ for (const f of ['faq.json', 'faq.es.json', 'faq.fr.json']) {
   for (const [l, t] of Object.entries(JSON.parse(readFileSync(join(root, 'tools', 'i18n', f), 'utf8')))) dict[l] = { ...dict[l], ...t };
 }
 const LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
-const QUESTIONS = ['what', 'edge', 'screen', 'os', 'free', 'sparks', 'games', 'add', 'sensors', 'connect', 'backup', 'virus', 'closes', 'temp', 'update', 'data', 'help'];
+const QUESTIONS = [
+  'what', 'edge', 'screen', 'os',
+  'free', 'trial', 'sparks', 'refund',
+  'games', 'cheat', 'sensors', 'replay', 'bit', 'deck', 'add', 'make', 'connect', 'backup',
+  'virus', 'closes', 'temp', 'update',
+  'data', 'help',
+];
+// The app and the home use these names; the FAQ must not fall back to the English widget names.
+const STALE_WORDS = {
+  en: /dashboard(?!\.html)|\btiles?\b/i,
+  it: /dashboard(?!\.html)|riquadr|\bsupporter\b|\bdrop\b|\bLyrics\b|Developer cleanup/,
+  es: /dashboard(?!\.html)|\bmosaicos?\b|\bsupporter\b|\bdrops?\b|\bLyrics\b|Developer cleanup/,
+  fr: /tableau de bord|\btuiles?\b|\bdrops?\b|\bLyrics\b|Developer cleanup/,
+  ja: /ダッシュボード|タイル|ドロップ|Lyrics|Developer cleanup/,
+  ko: /대시보드|타일|서포터|드롭|Lyrics|Developer cleanup/,
+  zh: /仪表盘|磁贴|Lyrics|Developer cleanup/,
+};
 
 test('the page asks the agreed questions, in order', () => {
   const keys = [...html.matchAll(/<summary data-i18n="f\.q\.([a-z]+)">/g)].map((m) => m[1]);
@@ -25,6 +41,49 @@ test('the page asks the agreed questions, in order', () => {
 test('the anchors other pages link to still exist', () => {
   assert.match(html, /id="warnings"/);
   assert.match(html, /<details id="mac-linux">\s*<summary data-i18n="f\.q\.os">/);
+});
+
+test('the jump links reach all five sections', () => {
+  for (const id of ['start', 'price', 'using', 'warnings', 'privacy']) {
+    assert.match(html, new RegExp(`<a href="#${id}"`), `no link to #${id}`);
+    assert.match(html, new RegExp(`<h2 id="${id}">`), `no section #${id}`);
+  }
+});
+
+test('every language says what Xenon is today, in the words of the app', () => {
+  for (const l of LANGS) {
+    for (const [k, v] of Object.entries(dict[l])) {
+      if (k.startsWith('meta.')) continue;
+      const text = v.replace(/https?:[^'"\s]+/g, '').replace(/Hall of Supporters/g, '');
+      assert.doesNotMatch(text, STALE_WORDS[l], `${l} ${k}`);
+    }
+  }
+});
+
+test('the privacy answer owns up to the counters and the trial email', () => {
+  const data = dict.en['f.a.data'];
+  assert.match(data, /three anonymous counters/);
+  assert.match(data, /Settings &rarr; General &rarr; Updates/);
+  assert.match(data, /ask for the trial, which needs an email address/);
+  assert.doesNotMatch(data, /no analytics|behavioural tracking|only thing you ever enter/i);
+});
+
+test('uninstalling names the place Windows really shows it', () => {
+  assert.match(dict.en['f.a.update'], /Settings &rarr; Apps &rarr; Installed apps/);
+  assert.match(dict.en['f.a.update'], /--keep-data/);
+});
+
+test('the trial link keeps the reader in their language', () => {
+  assert.doesNotMatch(dict.en['f.a.trial'], /\?lang=/);
+  for (const l of LANGS.filter((x) => x !== 'en')) assert.match(dict[l]['f.a.trial'], new RegExp(`/trial\\?lang=${l}'`), l);
+});
+
+test('the anti-cheat answer names the driver and the way out in every language', () => {
+  for (const l of LANGS) {
+    assert.match(dict[l]['f.a.cheat'], /<code>PawnIO\.sys<\/code>/, l);
+    assert.match(dict[l]['f.a.cheat'], /<code>winget upgrade namazso\.PawnIO<\/code>/, l);
+    assert.match(dict[l]['f.a.cheat'], /2\.1\.0/, l);
+  }
 });
 
 test('every question and answer is in all 7 languages, with no leftover keys', () => {

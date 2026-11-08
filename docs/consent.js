@@ -15,7 +15,7 @@
 //
 // Self-contained on purpose: the site's i18n dictionary lives inside index.html
 // only, and this script also runs on /get, /catalog, /create and /submit. It
-// carries its own strings for the site's six languages and follows the page's
+// carries its own strings for the site's seven languages and follows the page's
 // own language (<html lang>), then the one the site persists under
 // `xenon.site.lang`, then the browser's.
 (function () {
@@ -131,35 +131,36 @@
   }
 
   var STYLE = [
-    '#xc-consent{position:fixed;left:16px;right:16px;bottom:16px;z-index:9000;',
-    'max-width:520px;margin:0 auto;padding:20px 22px;border-radius:var(--r-1);',
-    'background:var(--g-1);backdrop-filter:blur(14px);',
-    '-webkit-backdrop-filter:blur(14px);border:1px solid var(--rule);',
-    'color:var(--bone-0);',
-    "font-family:var(--sans),system-ui,-apple-system,sans-serif;",
-    'opacity:0;transform:translateY(14px);',
-    'transition:opacity .45s var(--ease-out),transform .45s var(--ease-out)}',
-    '#xc-consent.in{opacity:1;transform:none}',
-    '#xc-consent h2{margin:0 0 8px;font-size:15px;font-weight:650;letter-spacing:-0.01em}',
-    '#xc-consent p{margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--bone-1)}',
-    '#xc-consent .xc-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}',
-    '#xc-consent button{flex:1 1 0;min-width:120px;min-height:44px;padding:11px 18px;',
-    "border-radius:6px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;",
-    'border:1px solid transparent;transition:background .2s,border-color .2s,color .2s}',
-    '#xc-consent .xc-yes{background:var(--g-2);border-color:var(--rule-2);color:var(--bone-0)}',
-    '#xc-consent .xc-yes:hover{background:var(--g-3);border-color:var(--bone-1)}',
-    '#xc-consent .xc-no{background:var(--g-2);border-color:var(--rule-2);color:var(--bone-0)}',
-    '#xc-consent .xc-no:hover{background:var(--g-3);border-color:var(--bone-1)}',
-    '#xc-consent a{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--bone-2);',
+    '#xc-consent{position:fixed;left:18px;right:18px;bottom:16px;z-index:9000;',
+    'max-width:520px;padding:6px 20px 20px;border-radius:10px;',
+    'background:var(--g-1);border:1px solid var(--rule-2);color:var(--text);',
+    "font-family:var(--sans),system-ui,-apple-system,sans-serif}",
+    // The page starts at the header's edge, in a column of 1440, so the box does too. A percentage
+    // and not 100vw: a page with a scrollbar is centred in what the bar leaves.
+    '@media (min-width:701px){#xc-consent{left:32px;bottom:32px;margin-left:max(0px,calc(50% - 720px))}}',
+    '#xc-consent .xc-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:16px}',
+    '#xc-consent h2{margin:0;padding:8px 0 2px;font-size:17px;line-height:1.3;font-weight:700}',
+    '#xc-consent a{padding:12px 0;font-size:14px;line-height:20px;color:var(--muted);',
     'text-decoration:underline;text-underline-offset:3px}',
-    '#xc-consent a:hover{color:var(--bone-0)}',
-    '@media (max-width:520px){#xc-consent .xc-row{flex-direction:column}',
-    '#xc-consent button{width:100%;flex:none}}',
-    '@media (prefers-reduced-motion:reduce){#xc-consent{transition:none}}',
+    '#xc-consent a:hover{color:var(--text)}',
+    '#xc-consent p{margin:0 0 14px;font-size:15px;line-height:1.45;color:var(--muted)}',
+    '#xc-consent .xc-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
+    '#xc-consent button{min-height:48px;padding:0 16px;border-radius:6px;font-family:inherit;',
+    'font-size:16px;font-weight:600;line-height:1.1;cursor:pointer}',
+    '#xc-consent .xc-yes{background:none;border:1.5px solid var(--rule-2);color:var(--text)}',
+    '#xc-consent .xc-yes:hover{border-color:var(--text)}',
+    '#xc-consent .xc-no{background:none;border:1.5px solid var(--rule-2);color:var(--text)}',
+    '#xc-consent .xc-no:hover{border-color:var(--text)}',
   ].join('');
 
-  function render() {
-    if (document.getElementById('xc-consent')) return;
+  // `from` is what held the keyboard when a visitor asked for the box again: the box is first in
+  // the page and they may be far below it, so it takes the focus and gives it back afterwards.
+  function render(from) {
+    var open = document.getElementById('xc-consent');
+    if (open) {
+      if (from) open.focus();
+      return;
+    }
 
     // Injected once per page, not once per render — the privacy page can call
     // xenonConsentReset() repeatedly, and re-appending would stack dead <style>
@@ -176,6 +177,10 @@
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-live', 'polite');
     box.setAttribute('aria-label', t('title'));
+    box.tabIndex = -1;
+
+    var top = document.createElement('div');
+    top.className = 'xc-top';
 
     var h = document.createElement('h2');
     h.textContent = t('title');
@@ -205,15 +210,11 @@
     function close(granted) {
       pushConsent(granted);
       remember(granted ? 'granted' : 'denied');
-      // Drop the id before the fade-out, not after: while the old banner is
-      // still animating out, a reset would otherwise find it by id and
-      // early-return, leaving the user staring at a button that did nothing.
-      box.removeAttribute('id');
-      box.classList.remove('in');
+      box.remove();
+      if (from && from.isConnected) from.focus();
       // Anything waiting for the choice (the promo banners in promo.js) can start now, instead of
       // polling for it or opening on top of this box.
       try { document.dispatchEvent(new CustomEvent('xenon:consent', { detail: { granted: !!granted } })); } catch (e) { /* old engines */ }
-      setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 450);
     }
 
     no.addEventListener('click', function () { close(false); });
@@ -221,11 +222,15 @@
 
     row.appendChild(no);
     row.appendChild(yes);
-    box.appendChild(h);
+    top.appendChild(h);
+    top.appendChild(link);
+    box.appendChild(top);
     box.appendChild(p);
     box.appendChild(row);
-    box.appendChild(link);
-    document.body.appendChild(box);
+    // First in the page: the box is fixed, so this only decides the keyboard's order, where it
+    // would otherwise be the last stop after the whole page.
+    document.body.insertBefore(box, document.body.firstChild);
+    if (from) box.focus();
 
     // Re-translate live if the visitor switches language while it is open.
     document.addEventListener('xenon:lang', function () {
@@ -235,10 +240,6 @@
       no.textContent = t('reject');
       yes.textContent = t('accept');
       link.textContent = t('more');
-    });
-
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () { box.classList.add('in'); });
     });
   }
 
@@ -263,6 +264,6 @@
   // Lets the privacy page offer a "change your choice" affordance.
   window.xenonConsentReset = function () {
     try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(MAKER_SEEN_KEY); } catch (e) { /* private mode */ }
-    render();
+    render(document.activeElement);
   };
 })();

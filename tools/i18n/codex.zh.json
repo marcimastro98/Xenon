@@ -22,7 +22,7 @@
     "cx.h.approve": "回应请求",
     "cx.approve.p1": "当 Codex 会话要运行命令或修改文件时，请求会显示在磁贴上，附带命令，或改动涉及的文件（删除会被标出），以及三个按钮：<strong>允许</strong>、<strong>拒绝</strong>和<strong>在 Codex 中回答</strong>，后者会立即把问题交回 Codex。卡片会说明请求的特别之处：网络、发布你的工作、项目之外的文件、超出会话的权限，或无法撤销的操作。",
     "cx.approve.p2": "无法撤销的请求，例如 <code>rm -rf</code> 或删除文件的补丁，需要长按按钮才能允许，而不是点按。25 秒未回应的请求会占满整个屏幕，避免在其他页面上被忽略。",
-    "cx.approve.p3": "不会替你批准任何请求。请求在磁贴上等待时，Codex 不会显示它自己的提示，因此 90 秒后或 Xenon 关闭时，请求会交回 Codex，照常询问。在<strong>设置 → Codex</strong>中可以更改等待时间或关闭请求。",
+    "cx.approve.p3": "不会替你批准任何请求。请求在磁贴上等待时，Codex 不会显示它自己的提示，因此 90 秒后或 Xenon 关闭时，请求会交回 Codex，照常询问。在<strong>设置 → Claude Code 和 Codex</strong>中可以更改等待时间或关闭请求。",
     "cx.approve.phone": "要在手机上回应，请将手机与 Xenon 配对（Beta）。手机会显示同样的仪表盘和同样的按钮。<a href=\"/phone.html\">如何配对手机</a>。",
     "cx.h.link": "连接 Codex",
     "cx.link.1": "通过 <strong>+</strong> 按钮在<strong>系统</strong>下添加 <strong>Codex</strong> 磁贴。",
@@ -62,6 +62,7 @@
     "cx.jump.widgets": "你的小组件",
     "cx.h.widgets": "制作你自己的小组件",
     "cx.widgets.p1": "如果你在 Codex 中写代码，它也能为 Xenon 制作小组件。在<strong>设置 → 小组件与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Codex</strong>。Codex 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
-    "cx.widgets.p2": "第一次使用时，仪表板会询问是否允许。它绝不会批准小组件的权限，只修改你自己做的小组件，并且只能在运行 Xenon 的电脑上使用。<a href=\"/create/#mcp\">工作原理及手动添加方法</a>。"
+    "cx.widgets.p2": "第一次使用时，仪表板会询问是否允许。它绝不会批准小组件的权限，只修改你自己做的小组件，并且只能在运行 Xenon 的电脑上使用。<a href=\"/create/#mcp\">工作原理及手动添加方法</a>。",
+    "cx.pic.alt": "Codex 磁贴：一条修改文件的请求及其回复按钮、两个正在工作的会话，以及套餐的 5 小时和每周用量"
   }
 }

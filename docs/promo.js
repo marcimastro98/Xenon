@@ -14,14 +14,17 @@
 // of its own, so each banner carries the pack's own PAPER and INK (the hub row's `look`, taken by
 // the launch kit from the pack's art direction and the loop's first frame). What pulls the eye is
 // the product, large and moving. Deliberately absent, because each reads as template output:
-// kickers above the name, chips, icons beside words, glows, gradients, bounce, rounded surfaces.
+// kickers above the name, chips, icons beside words, glows, gradients, bounce.
 //
 // House rules, each one there for a reason:
 //   - Urgency comes from data only. "N days left" appears when the ENTRY really ends within 14
 //     days, never otherwise (fake countdowns are what the Dutch regulator fined Epic for in 2024).
 //   - The language is the PAGE's (<html lang>), never the browser's: an English page is English.
-//   - Nothing overlays the page before the cookie choice is made, and nothing opens over another
-//     dialog, a lightbox or a deep link.
+//   - Nothing draws before the cookie choice is made (one ask at a time), and nothing opens over
+//     another dialog, a lightbox or a deep link.
+//   - The strip never pushes the page after it has been read: the head of each page keeps its room
+//     for a strip seen before, and the strip comes back from memory into that room (web.dev,
+//     "Optimize Cumulative Layout Shift"). On a first visit it lands on the cookie click.
 //   - A moving loop has a pause (WCAG 2.2.2): the picture itself is the button.
 //   - Every string from the feed goes through textContent.
 //
@@ -65,7 +68,7 @@
     it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', preview: 'Anteprima, non pubblicato' },
     es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', preview: 'Vista previa, sin publicar' },
     ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', preview: 'プレビュー（未公開）' },
-    ko: { supK: 'Xenon 서포터를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 서포터 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', preview: '미리보기, 게시되지 않음' },
+    ko: { supK: 'Xenon 후원자를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 후원자 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', preview: '미리보기, 게시되지 않음' },
     zh: { supK: '为 Xenon 支持者准备的{k}。', freeK: 'Xenon 目录中的免费{k}。', sup: '为 Xenon 支持者准备。', free: 'Xenon 目录中免费。', unlock: '解锁', get: '获取', see: '查看 {name}', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止。', left: '还剩 {n} 天。', last: '最后一天。', preview: '预览，未发布' },
   };
   const tr = (l, k) => { const d = STR[l] || STR.en; return d[k] != null ? d[k] : STR.en[k]; };
@@ -200,6 +203,39 @@
     return out;
   }
 
+  // The facts a banner reads from a catalog entry and nothing else: what the hub's preview sends
+  // and what the strip remembers both pass through here.
+  function slimEntry(r) {
+    if (!r || typeof r !== 'object' || !ID_RE.test(String(r.id || ''))) return null;
+    return {
+      id: r.id, kind: typeof r.kind === 'string' ? r.kind : '', name: str(r.name, CAP.title),
+      locked: r.locked === true, supportersOnly: r.supportersOnly === true,
+      active: r.active === true || r.active === false ? r.active : undefined,
+      activeUntil: isDate(r.activeUntil) ? r.activeUntil : '',
+    };
+  }
+
+  const stripMemo = (pick) => ({ promo: pick.promo, entry: slimEntry(pick.entry) });
+
+  // The strip remembered from an earlier page, through the same checks as the feed.
+  function stripFromMemory(json, now) {
+    let raw = null;
+    try { raw = JSON.parse(json); } catch (e) { return null; }
+    if (!raw || typeof raw !== 'object') return null;
+    const promo = validatePromo(raw.promo);
+    const entry = slimEntry(raw.entry);
+    if (!promo || promo.format !== 'strip' || !entry || entry.id !== promo.entryId) return null;
+    return isLive(promo, now) && entryOpen(entry, now) ? { promo, entry } : null;
+  }
+
+  // Until when a page should keep the strip's room: the first of its end, its pack's end and a
+  // week, so someone who comes back much later gets the feed's word, not an old memory.
+  const MEMORY_MS = 7 * 86400000;
+  function stripUntil(pick, now) {
+    const ends = [pick.promo.activeUntil, pick.entry.active === true ? '' : pick.entry.activeUntil];
+    return Math.min(now + MEMORY_MS, ...ends.filter(Boolean).map(Date.parse));
+  }
+
   // When the pack really stops being available: the entry's activeUntil, if it is still ahead.
   // `active: true` resurfaces an entry past its dates, so its date ends nothing.
   function endOf(entry, now) {
@@ -234,6 +270,13 @@
   }
 
   // Everything a banner says, in one language, at one instant. Plain strings only.
+  // Where a banner lands. Item pages are in English only, so a visitor reading another
+  // language goes to the card in the catalog, which speaks theirs.
+  function landing(p, lang) {
+    const own = /^https:\/\/(www\.)?xenon-app\.com\/catalog\/[^/]+\/?$/.test(p.url || '');
+    return p.url && (lang === 'en' || !own) ? p.url : '/catalog/#' + p.entryId;
+  }
+
   function describe(p, entry, lang, now) {
     const tx = textFor(p, lang);
     const name = tx.title || str(entry && entry.name, CAP.title) || p.entryId;
@@ -257,7 +300,7 @@
       line: tx.line,
       cta: tx.cta || tr(lang, 'see').replace('{name}', name),
       go: tr(lang, sup ? 'unlock' : 'get'),
-      href: p.url || '/catalog/#' + p.entryId,
+      href: landing(p, lang),
       external: !!p.url && !/^https:\/\/(www\.)?xenon-app\.com\//.test(p.url),
       video: p.video || '',
       poster: p.poster || '',
@@ -318,7 +361,7 @@
   // Something the visitor asked for is on screen: a deep link, an open dialog, the lightbox.
   function screenBusy() {
     if (location.hash && location.hash.length > 1) return true;
-    return !!document.querySelector('dialog[open], #xc-consent:not([hidden]), .lb.open, [data-lightbox].open');
+    return !!document.querySelector('dialog[open], #xc-consent:not([hidden])');
   }
 
   const STYLE = [
@@ -366,8 +409,8 @@
     '.xp-strip .xp-cta{color:var(--ink);font:700 15px/1 var(--xp-t);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;white-space:nowrap}',
     '.xp-strip .xp-x{position:absolute;top:0;right:4px;font-size:22px}',
     '@media (max-width:899px){.xp-strip{height:52px}.xp-strip .xp-in{gap:12px;padding-right:48px}.xp-strip .xp-line,.xp-strip .xp-media{display:none}.xp-strip .xp-id{flex:1 1 auto;display:grid;gap:3px}.xp-strip .xp-name{font-size:17px;overflow:hidden;text-overflow:ellipsis}.xp-strip .xp-id .xp-what{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.xp-strip .xp-x{top:4px}}',
-    // Panel, computer: a card of the same paper in the bottom corner, over the margin, not the text.
-    '.xp-corner{position:fixed;right:24px;bottom:24px;z-index:85;width:340px;border:1px solid var(--ink)}',
+    // Panel, computer: a card of the same paper in the bottom corner, on the site's panel corners.
+    '.xp-corner{position:fixed;right:24px;bottom:24px;z-index:85;width:300px;border:1px solid var(--ink);border-radius:10px;overflow:hidden}',
     '.xp-corner .xp-media{aspect-ratio:16/7;border-bottom:1px solid var(--ink)}',
     '.xp-corner .xp-body{position:relative;padding:18px 18px 20px}',
     '.xp-corner .xp-name{font-size:34px;padding-right:32px}',
@@ -375,6 +418,8 @@
     '.xp-corner .xp-what{margin-top:8px}',
     '.xp-corner .xp-go{width:100%;margin-top:16px}',
     '.xp-corner .xp-x{position:absolute;top:8px;right:4px}',
+    // Beside a guide's text: 278 px free at 1440, 320 at 1536, 348 from 1600.
+    '@media (max-width:1599px){.xp-corner{width:256px;right:16px;bottom:16px}.xp-corner .xp-name{font-size:30px}}',
     '.xp-mark{position:absolute;left:0;top:0;padding:6px 8px;background:var(--ink);color:var(--paper);font:600 12px/1 var(--xp-t)}',
   ].join('');
 
@@ -415,7 +460,6 @@
 
   // The picture. The loop when there is one and the visitor has not asked for less motion, the
   // still otherwise. The picture itself is the pause button, and the loop only runs while seen.
-  let observers = [];
   function media(f, l, slice) {
     const box = el('button', 'xp-media');
     box.type = 'button';
@@ -424,6 +468,7 @@
       const img = el('img');
       img.alt = '';
       img.decoding = 'async';
+      img.addEventListener('error', () => box.remove(), { once: true });
       img.src = f.poster;
       if (slice) Object.assign(img.style, slice);
       box.appendChild(img);
@@ -445,9 +490,12 @@
     v.addEventListener('error', () => { v.remove(); still(); box.disabled = true; }, { once: true });
     box.appendChild(v);
     if (!inView) {
-      const io = new IntersectionObserver((es) => { inView = es[es.length - 1].isIntersecting; sync(); }, { threshold: 0.2 });
+      const io = new IntersectionObserver((es) => {
+        if (!box.isConnected) { io.disconnect(); return; }
+        inView = es[es.length - 1].isIntersecting;
+        sync();
+      }, { threshold: 0.2 });
       io.observe(box);
-      observers.push(io);
     }
     sync();
     return box;
@@ -456,20 +504,43 @@
   // ── Strip ───────────────────────────────────────────────────────────────────────
   // Headers that stick to the top: the home's and the shared one every other page carries.
   const HEADERS = ['#hd', '#xh'];
+  const STRIP_KEY = 'xenon.site.strip';
+  const STRIP_UNTIL_KEY = 'xenon.site.strip.until';   // read by the line in each page's head
   function offsetHeaders(px) {
     HEADERS.forEach((q) => {
       const h = document.querySelector(q);
       if (!h) return;
       h.style.top = px ? px + 'px' : '';
     });
+    // Anchors and sticky side lists sit below the strip too.
+    document.documentElement.style.setProperty('--strip-h', (px || 0) + 'px');
   }
+  function rememberStrip(pick) {
+    if (PREVIEW) return;
+    try {
+      localStorage.setItem(STRIP_KEY, JSON.stringify(stripMemo(pick)));
+      localStorage.setItem(STRIP_UNTIL_KEY, String(stripUntil(pick, Date.now())));
+    } catch (e) { /* private mode: the strip arrives with the feed, as on a first visit */ }
+  }
+  function forgetStrip() {
+    if (PREVIEW) return;
+    try { localStorage.removeItem(STRIP_KEY); localStorage.removeItem(STRIP_UNTIL_KEY); } catch (e) { /* private mode */ }
+  }
+  // The strip on screen, as what it was drawn from: a fresh answer that says the same leaves it
+  // alone, so the loop does not restart on every page.
+  let stripDrawn = '';
   function renderStrip(pick, l) {
+    const live = pick && !dismissed('strip', pick.promo.id) ? pick : null;
+    if (live) rememberStrip(live); else forgetStrip();
+    const drawing = live ? l + JSON.stringify(stripMemo(live)) : '';
+    if (drawing === stripDrawn) return;
+    stripDrawn = drawing;
     const old = document.querySelector('.xp-strip');
     if (old) old.remove();
     offsetHeaders(0);
-    if (!pick || dismissed('strip', pick.promo.id)) return;
-    const p = pick.promo;
-    const f = describe(p, pick.entry, l, Date.now());
+    if (!live) return;
+    const p = live.promo;
+    const f = describe(p, live.entry, l, Date.now());
     const s = dress(el('div', 'xp xp-strip'), p);
     s.setAttribute('role', 'region');
     s.setAttribute('aria-label', f.name);
@@ -482,20 +553,34 @@
     inner.appendChild(el('span', 'xp-line', f.line));
     const wide = mq('(min-width: 900px)');
     inner.appendChild(link(f, 'xp-cta', wide ? f.cta : f.go, 'strip', p.id));
-    inner.appendChild(closer('', l, () => { dismiss('strip', p.id); s.remove(); offsetHeaders(0); }));
+    inner.appendChild(closer('', l, () => { dismiss('strip', p.id); forgetStrip(); stripDrawn = ''; s.remove(); offsetHeaders(0); }));
     s.appendChild(inner);
     if (PREVIEW) s.appendChild(el('span', 'xp-mark', tr(l, 'preview')));
     document.body.insertBefore(s, document.body.firstChild);
     offsetHeaders(s.getBoundingClientRect().height);
+  }
+  // A strip seen on an earlier page comes back at once, into the room the head kept for it.
+  function drawRemembered() {
+    if (!consentDecided()) return;
+    let pick = null;
+    try {
+      if (Number(localStorage.getItem(STRIP_UNTIL_KEY)) > Date.now()) pick = stripFromMemory(localStorage.getItem(STRIP_KEY), Date.now());
+    } catch (e) { /* private mode */ }
+    if (!pick || dismissed('strip', pick.promo.id)) return;
+    css();
+    renderStrip(pick, lang());
   }
 
   // ── Panel ───────────────────────────────────────────────────────────────────────
   // The month's drop, once per drop and only to someone already reading. It waits until half the
   // page has gone by (NN/g, "Popups: 10 Problematic Trends", 2019: a box on arrival is the one people
   // hate most; Google Search Central treats a box covering the page a search result opened as
-  // intrusive), covers nothing (a corner card on a computer, the bottom edge on a phone, never a
-  // modal), and is remembered as soon as it shows, so it never comes back for that drop (Wikimedia
-  // banner tests: one ask, then quiet). The hub's "spotlight" and "corner" both land here; spotlight wins.
+  // intrusive), stays small (a corner card on a computer, the bottom edge on a phone, never a modal;
+  // under about 1440 px the card can touch the end of the text until it is closed), and is remembered
+  // as soon as it shows, so it never comes back for that drop (Wikimedia banner tests: one ask, then
+  // quiet). A phone has room for one ask: beside the strip the drawer would take close to 40% of the
+  // screen, so it waits, unspent, until the strip is closed. The hub's "spotlight" and "corner" both
+  // land here; spotlight wins.
   const HALF = 0.5;
   function halfRead() {
     const max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
@@ -509,6 +594,7 @@
   const onControl = (e) => !!(e && e.target && e.target.closest
     && e.target.closest('a, button, input, select, textarea, label, [role="button"]'));
   const justActed = () => Date.now() - lastControl < CONTROL_QUIET_MS;
+  const crowded = () => !desktop() && !!document.querySelector('.xp-strip');
   let controlWatch = false;
 
   function buildPanel(pick, l) {
@@ -562,7 +648,7 @@
     }
     whenConsented(() => {
       panelWatch = () => {
-        if (!halfRead() || document.visibilityState === 'hidden' || screenBusy() || justActed()) return;
+        if (!halfRead() || document.visibilityState === 'hidden' || screenBusy() || crowded() || justActed()) return;
         document.removeEventListener('scroll', panelWatch, true);
         panelWatch = null;
         dismiss('panel', drop);
@@ -573,22 +659,23 @@
   }
 
   function render(picks, opts) {
-    observers.forEach((o) => o.disconnect());
-    observers = [];
     const l = lang();
     const any = picks.spotlight || picks.strip || picks.corner;
     if (any) css();
-    renderStrip(picks.strip, l);
+    whenConsented(() => renderStrip(picks.strip, l));
     renderPanel(picks.spotlight || picks.corner, l, !!(opts && opts.force));
   }
 
   async function load() {
     const get = (u) => fetch(u, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const promos = normalizeFeed(await get('/community/site-promo.json'));
+    const feed = await get('/community/site-promo.json');
+    if (!feed) return;   // no answer says nothing: what is on screen stays
+    const promos = normalizeFeed(feed);
     // Most of the time nothing is scheduled: then the catalog is not worth a request of its own.
-    if (!promos.some((p) => isLive(p, Date.now()))) return;
+    if (!promos.some((p) => isLive(p, Date.now()))) { renderStrip(null, lang()); return; }
     const cat = await get('/community/catalog.json');
-    const entries = cat && Array.isArray(cat.entries) ? cat.entries : [];
+    if (!cat) return;
+    const entries = Array.isArray(cat.entries) ? cat.entries : [];
     render(pickPerFormat(promos, entries, Date.now()));
   }
 
@@ -602,13 +689,7 @@
       const d = ev.data;
       if (!d || d.type !== 'xenon-promo-preview') return;
       const p = validatePromo(d.promo);
-      const r = d.entry && typeof d.entry === 'object' && ID_RE.test(String(d.entry.id || '')) ? d.entry : null;
-      const e = r ? {
-        id: r.id, kind: typeof r.kind === 'string' ? r.kind : '', name: str(r.name, CAP.title),
-        locked: r.locked === true, supportersOnly: r.supportersOnly === true,
-        active: r.active === true || r.active === false ? r.active : undefined,
-        activeUntil: isDate(r.activeUntil) ? r.activeUntil : '',
-      } : null;
+      const e = slimEntry(d.entry);
       PREVIEW_LANG = LANGS.indexOf(d.lang) !== -1 ? d.lang : null;
       const picks = { spotlight: null, strip: null, corner: null };
       if (p && e) picks[p.format] = { promo: p, entry: e };
@@ -618,11 +699,14 @@
   }
 
   function boot() {
-    if (/[?&]promo-preview=1(?:&|$)/.test(location.search || '') && window.parent !== window) { previewMode(); return; }
+    const preview = /[?&]promo-preview=1(?:&|$)/.test(location.search || '') && window.parent !== window;
     // Never inside a frame (the home's live demo, the catalog's layout preview), and never on the
     // demo, which is the dashboard itself.
-    if (window.parent !== window || /(?:^|[#&])sf-preview=/.test(location.hash || '') || /^\/([a-z]{2}\/)?demo\//.test(location.pathname || '')) return;
-    load().catch(() => {});
+    const live = !preview && !(window.parent !== window || /(?:^|[#&])sf-preview=/.test(location.hash || '') || /^\/([a-z]{2}\/)?demo\//.test(location.pathname || ''));
+    if (live) drawRemembered();
+    document.documentElement.removeAttribute('data-strip');   // the kept room gives way to the strip itself
+    if (preview) previewMode();
+    else if (live) load().catch(() => {});
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

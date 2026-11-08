@@ -36,7 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -44,15 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#B4A0FF">
 <title>Domande su Xenon: schermi, giochi, prezzo, privacy, avvisi</title>
-<meta name="description" content="Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori da 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.">
+<meta name="description" content="Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori per 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <meta property="og:title" content="Domande su Xenon: schermi, giochi, prezzo, privacy, avvisi">
-<meta property="og:description" content="Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori da 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.">
+<meta property="og:description" content="Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori per 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.">
 <meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/it/faq.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Domande su Xenon: schermi, giochi, prezzo, privacy, avvisi">
+<meta name="twitter:description" content="Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori per 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.">
 <link rel="canonical" href="https://xenon-app.com/it/faq.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/faq.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/faq.html">
@@ -68,18 +73,17 @@
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="violet">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/faq.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/faq.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/faq.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/faq.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/faq.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/faq.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/faq.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
@@ -88,7 +92,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
@@ -105,83 +109,128 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/faq.html" aria-current="page" data-xl="f.faq">Aiuto e domande</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Aiuto e domande","item":"https://xenon-app.com/it/faq.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="f.h1">Domande frequenti</h1>
-    <p class="lede" data-i18n="f.lede">Le domande che arrivano più spesso, con risposte brevi. Se la tua non c’è, chiedi sul Discord.</p>
-    <p class="updated" data-i18n="f.updated">Ultimo aggiornamento: 30 ottobre 2026</p>
-
-    <nav class="jump">
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/faq.html" aria-current="page" data-xl="f.faq">Aiuto e domande</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Aiuto e domande","item":"https://xenon-app.com/it/faq.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="f.h1">Domande frequenti</h1>
+        <p class="lede" data-i18n="f.lede">Le domande che arrivano più spesso, con risposte brevi. Se la tua non c’è, chiedi sul Discord.</p>
+        <p class="updated" data-i18n="f.updated">Ultimo aggiornamento: 6 novembre 2026</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">In questa pagina</p>
       <a href="#start" data-i18n="f.s1">Cos’è Xenon</a>
+      <a href="#price" data-i18n="f.sp">Prezzo e sostenitori</a>
       <a href="#using" data-i18n="f.s2">Usarlo</a>
       <a href="#warnings" data-i18n="f.s3">Quando qualcosa non va</a>
       <a href="#privacy" data-i18n="f.s4">Privacy e aiuto</a>
     </nav>
-
+    <div class="wrap">
     <h2 id="start"><span data-i18n="f.s1">Cos’è Xenon</span></h2>
 
     <details>
       <summary data-i18n="f.q.what">Cos’è Xenon?</summary>
-      <div class="body" data-i18n-html="f.a.what"><p>Una dashboard gratuita per lo schermo accanto al PC. Mostra il sistema (CPU, GPU, temperature, rete), cosa stai ascoltando, il calendario, il meteo e le note, e ha il Deck: tasti da toccare per aprire app, controllare la musica o lanciare scorciatoie sul PC. La componi con widget e temi. Funziona su Windows, con macOS e Linux in beta.</p></div>
+      <div class="body" data-i18n-html="f.a.what"><p>Un’app gratuita che mette i widget del tuo PC su qualsiasi schermo: temperature e carico, FPS, musica, calendario, meteo e note, sul desktop, sopra i giochi, su un monitor in più, su un tablet o su un telefono. Ha anche il Deck, tasti touch che fanno cose sul PC, un registratore dello schermo con Instant Replay, Bit, un assistente con cui puoi parlare, e uno Store di temi e widget. Funziona su Windows, con macOS e Linux in beta.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.edge">Mi serve uno Xeneon Edge o un PC CORSAIR?</summary>
-      <div class="body" data-i18n-html="f.a.edge"><p>No. Xenon è nato attorno al CORSAIR Xeneon Edge, ma funziona su qualsiasi PC e non richiede hardware o software CORSAIR. iCUE serve solo se vuoi la dashboard dentro un widget di iCUE, o per comandare i dispositivi RGB CORSAIR.</p></div>
+      <div class="body" data-i18n-html="f.a.edge"><p>No. Xenon è nato sul CORSAIR Xeneon Edge, ma funziona su qualsiasi PC e non richiede hardware o software CORSAIR. Su un Edge funziona con o senza iCUE: iCUE serve solo per mostrare Xenon dentro un widget iCUE o per comandare i dispositivi RGB CORSAIR. La <a href='/it/xeneon-edge-widgets.html'>guida allo Xeneon Edge</a> spiega i dettagli.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.screen">Che schermo posso usare?</summary>
-      <div class="body" data-i18n-html="f.a.screen"><p>Qualsiasi schermo su cui il PC può mostrare una finestra: un monitor in più, un touchscreen o una finestra sullo schermo principale. La prima volta l’app chiede su quale schermo aprirsi. Funzionano anche un tablet o un telefono, sulla tua rete Wi-Fi: mostrano la tua vera dashboard, con lo stesso layout, gli stessi widget e lo stesso tema, e i tasti agiscono davvero sul PC. La <a href='/it/phone.html'>guida al telefono</a> e la <a href='/it/tablet-dashboard.html'>guida al tablet</a> spiegano come.</p></div>
+      <div class="body" data-i18n-html="f.a.screen"><p>Quello che hai. Con un solo monitor i widget stanno sul desktop o sopra un gioco, e scegli tu dove mettere ciascuno. Un monitor in più o un touchscreen può tenere pagine intere di widget: l’app chiede quale schermo usare la prima volta che parte. Va bene anche un tablet o un telefono, in beta, sulla tua rete Wi-Fi: mostra lo stesso layout, gli stessi widget e lo stesso tema, e i suoi tasti agiscono davvero sul PC. La <a href='/it/single-screen.html'>guida a uno schermo</a>, la <a href='/it/phone.html'>guida al telefono</a> e la <a href='/it/tablet-dashboard.html'>guida al tablet</a> mostrano come.</p></div>
     </details>
 
     <details id="mac-linux">
       <summary data-i18n="f.q.os">Funziona su Mac e Linux?</summary>
-      <div class="body" data-i18n-html="f.a.os"><p>Sì, in beta: macOS 11 o successivo (un solo download per Apple Silicon e Intel) e Linux a 64 bit, oltre a Windows 10 e 11. Dashboard, widget e Store sono gli stessi su tutti e tre. Su macOS e Linux mancano ancora alcuni sensori e alcune azioni di sistema, e un riquadro senza dati sul tuo sistema lo dice invece di restare in caricamento. Le pagine <a href='/it/mac.html'>Mac</a> e <a href='/it/linux.html'>Linux</a> elencano cosa funziona.</p><p><strong>Primo avvio su Mac:</strong> l’app non è ancora notarizzata, quindi macOS la blocca la prima volta. Da macOS 15 in poi apri <strong>Impostazioni di Sistema &rarr; Privacy e sicurezza</strong>, scorri in fondo e clicca <strong>Apri comunque</strong>. Da macOS 11 a 14, fai clic destro sull’app, scegli <strong>Apri</strong> e poi di nuovo <strong>Apri</strong>. Va fatto una volta per versione.</p></div>
+      <div class="body" data-i18n-html="f.a.os"><p>Sì, in beta: macOS 11 o successivi (un solo download per Apple Silicon e Intel) e Linux a 64 bit, accanto a Windows 10 e 11. I widget e lo Store sono gli stessi su tutti e tre. Su macOS e Linux mancano ancora alcuni sensori e azioni di sistema, e un widget senza dati sul tuo sistema lo dice invece di restare a caricare. Le pagine <a href='/it/mac.html'>Mac</a> e <a href='/it/linux.html'>Linux</a> elencano cosa funziona.</p><p><strong>Primo avvio su Mac:</strong> l’app non è ancora notarizzata, quindi macOS la blocca la prima volta. Da macOS 15 in poi apri <strong>Impostazioni di Sistema &rarr; Privacy e sicurezza</strong>, scorri in fondo e clicca <strong>Apri comunque</strong>. Da macOS 11 a 14, fai clic destro sull’app, scegli <strong>Apri</strong> e poi di nuovo <strong>Apri</strong>. Va fatto una volta per versione.</p></div>
+    </details>
+
+    <h2 id="price"><span data-i18n="f.sp">Prezzo e sostenitori</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.free">È gratis? Cosa ricevono i sostenitori?</summary>
+      <div class="body" data-i18n-html="f.a.free"><p>L’app è gratis, senza pubblicità e senza account. I sostenitori su <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>Buy Me a Coffee</a> ricevono le uscite di ogni mese del <a href='/catalog/'>catalogo</a>, i widget Testi delle canzoni e Pulizia sviluppatore, l’esportazione da Maker, un ruolo sul Discord e un posto nella Hall of Supporters. Costa 5 USD al mese o 50 USD all’anno, oppure una volta sola: 5 USD per un mese, 25 USD per cinque mesi, 50 USD per dodici mesi. Un pagamento sotto i 5 USD è una semplice mancia: non apre nulla e non dà Scintille. Il codice arriva per email e va in <strong>Impostazioni &rarr; Sostieni Xenon</strong>. Ogni piano porta anche 300 Scintille al mese, i crediti di Xenon. Quelle non usate non passano al mese dopo.</p><p>Quando il sostegno finisce tieni ciò che hai sbloccato, i suoi aggiornamenti e le Scintille comprate, e Testi delle canzoni e Pulizia sviluppatore restano sbloccati. Perdi l’esportazione da Maker e le Scintille mensili. Un anno di sostegno ti dà anche un tema fatto per te dalla tua palette o da una foto, pubblicato con il tuo nome.</p></div>
     </details>
 
     <details>
-      <summary data-i18n="f.q.free">È gratis? Cosa ricevono i supporter?</summary>
-      <div class="body" data-i18n-html="f.a.free"><p>L’app è gratis, senza pubblicità e senza account. I supporter su <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>Buy Me a Coffee</a> ricevono i drop mensili del <a href='/catalog/'>catalogo</a>, i widget Lyrics e Developer cleanup, un ruolo sul Discord e un posto nella Hall of Supporters. Costa 5 USD al mese o 50 USD all’anno, oppure un importo una tantum da 5 USD, dove ogni 5 USD vale un mese. Il codice arriva per email e va in <strong>Impostazioni &rarr; Sostieni Xenon</strong>. Ogni piano porta anche 300 Scintille al mese, i crediti di Xenon.</p><p>Puoi provare il pass dei supporter gratis per 7 giorni, una volta per PC: apre i drop dei supporter e Lyrics. I drop limitati, e alcuni nuovi nelle prime settimane, restano solo per i supporter. Lyrics e Developer cleanup restano sbloccati anche quando il sostegno finisce. Un anno di sostegno ti dà anche un tema fatto per te dalla tua palette o da una foto, pubblicato con il tuo nome.</p></div>
+      <summary data-i18n="f.q.trial">Posso provare il pass dei sostenitori prima di pagare?</summary>
+      <div class="body" data-i18n-html="f.a.trial"><p>Sì: <a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=it' target='_blank' rel='noopener'>chiedilo con il tuo indirizzo email</a> e il codice arriva per email. È gratis per 7 giorni, una volta per PC, senza carta, e apre le uscite dei sostenitori e Testi delle canzoni. Le Scintille e Pulizia sviluppatore non fanno parte della prova, le uscite nuove di solito entrano dopo i primi 30 giorni, e quelle limitate hanno un codice tutto loro. Quando la prova finisce, ciò che hai provato viene tolto dal PC, torna il tema di prima e i widget restano al loro posto.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sparks">Cosa sono le Scintille?</summary>
-      <div class="body" data-i18n-html="f.a.sparks"><p>Le Scintille sono i crediti di Xenon: 1 Scintilla vale 1 centesimo di dollaro USA. Le spendi per l’assistente quando lo usi senza una tua chiave API, e per gli elementi dello Store venduti in Scintille. Ogni mese di sostegno ne include 300, che ripartono all’inizio di ogni mese. Per comprarne altre non serve essere supporter: sono tra gli <a href='https://www.buymeacoffee.com/marcimastro98/extras' target='_blank' rel='noopener'>extra su Buy Me a Coffee</a>, 500 Scintille per 5 USD, 1050 per 10 USD o 2200 per 20 USD, e quelle comprate non scadono mai. Se non sei supporter, con il primo pacchetto ti arriva per email un codice Scintille (XC-…): va nella stessa casella del codice supporter.</p><p>Un elemento comprato con le Scintille è tuo per sempre, aggiornamenti compresi, su massimo 3 PC, e reinstallarlo non costa nulla. Le edizioni limitate non si vendono mai in Scintille.</p></div>
+      <div class="body" data-i18n-html="f.a.sparks"><p>Le Scintille sono i crediti di Xenon: 1 Scintilla vale 1 centesimo di dollaro USA. Le spendi per Bit quando lo usi senza una tua chiave API, e per gli elementi dello Store venduti in Scintille. Ogni mese di sostegno ne include 300, spese per prime, che ripartono all’inizio di ogni mese e non passano al mese dopo. Per comprarne altre non serve essere sostenitore: da Xenon 5.0.0 i pacchetti sono nello Store, alla voce Scintille, 500 Scintille per 5 USD, 1050 per 10 USD o 2200 per 20 USD, e quelle comprate non scadono mai. Se non sei sostenitore, con il primo pacchetto ti arriva per email un codice Scintille (XC-…): va nella stessa casella del codice sostenitore.</p><p>Un elemento comprato con le Scintille è tuo su massimo 3 PC, con tutti gli aggiornamenti pubblicati, e reinstallarlo non costa nulla. Le edizioni limitate non si vendono mai in Scintille.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.refund">Posso avere un rimborso?</summary>
+      <div class="body" data-i18n-html="f.a.refund"><p>Il venditore è Xenon; Buy Me a Coffee incassa il pagamento. Entro 14 giorni dal pagamento puoi farti rimborsare un pagamento dell’abbonamento o un pacchetto di Scintille: scrivi a <a href='mailto:support@xenon-app.com'>support@xenon-app.com</a> e il rimborso arriva tramite Buy Me a Coffee. Il rimborso toglie il pacchetto e ciò che hai comprato con quelle Scintille. Le Scintille già spese con Bit restano a tuo carico: il saldo può scendere sotto zero fino al prossimo pacchetto.</p><p>Un elemento dello Store comprato con le Scintille viene consegnato subito. Prima di comprare spunti una casella in cui lo chiedi, e il diritto di recesso finisce quando la consegna inizia.</p></div>
     </details>
 
     <h2 id="using"><span data-i18n="f.s2">Usarlo</span></h2>
 
     <details>
       <summary data-i18n="f.q.games">Rallenta i giochi?</summary>
-      <div class="body" data-i18n-html="f.a.games"><p>È fatto apposta per non farlo. Mentre un gioco è aperto, la Modalità gioco sfuma lo sfondo animato e mette in pausa gli effetti animati, e i riquadri più pesanti, lo streaming di Browser e Secondo schermo, si fermano finché non hai finito. I riquadri dal vivo come questi e Home Assistant restano collegati solo mentre sono sullo schermo.</p><p>Su Windows, toccare la dashboard nell’app durante una partita è sicuro: il cursore torna subito sul monitor del gioco e il tocco non toglie il focus al gioco.</p></div>
+      <div class="body" data-i18n-html="f.a.games"><p>È fatto per non rallentarli. Mentre un gioco è in esecuzione, la Modalità gioco fa sparire lo sfondo animato e mette in pausa gli effetti animati, e i widget più pesanti, i flussi di Browser e Second screen, si fermano finché non finisci. Anche il lavoro in background di Xenon, come la scansione dei dischi, resta in attesa. I widget dal vivo come quelli e Home Assistant restano collegati solo mentre sono sullo schermo.</p><p>Su Windows toccare Xenon su un altro schermo durante la partita è sicuro: il cursore torna subito sul monitor del gioco e il tocco non toglie il focus al gioco.</p></div>
     </details>
 
     <details>
-      <summary data-i18n="f.q.add">Come aggiungo widget e temi?</summary>
-      <div class="body" data-i18n-html="f.a.add"><p>Tocca <strong>+</strong> sulla dashboard per aggiungere un riquadro incluso. Per avere di più, apri <strong>Impostazioni &rarr; Store</strong>: temi, sfondi, widget, scene ambient e pacchetti fatti dalla community, ognuno con un’anteprima prima di applicare qualcosa, installati con un tocco. Le stesse cose si sfogliano nel <a href='/catalog/'>catalogo</a> di questo sito.</p></div>
+      <summary data-i18n="f.q.cheat">L’anti-cheat può segnalarlo o farmi bannare?</summary>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon non inietta mai codice in un gioco e non si aggancia mai al suo processo. Disegna le sue finestre sopra il gioco e legge i tempi dei fotogrammi dal sistema con PresentMon, quindi dentro il gioco non c’è nulla che un anti-cheat possa segnalare.</p><p>L’unica parte che lavora a livello di driver è PawnIO, che legge le temperature e resta fuori dal gioco. L’anti-cheat di FACEIT ha bloccato le versioni di PawnIO precedenti alla 2.1.0: se nomina <code>PawnIO.sys</code>, esegui <code>winget upgrade namazso.PawnIO</code> oppure di nuovo l’installer di Xenon. Non tutti gli anti-cheat sono stati provati: se uno si lamenta, dillo sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">Mostra le temperature e gli FPS nei giochi?</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>Sì. Su Windows l’installer prepara la lettura delle temperature (serve accettare una volta la richiesta di amministratore), e PresentMon dà il vero frame rate del gioco aperto, anche a schermo intero; se manca, lo installa <strong>Impostazioni &rarr; Modalità gioco</strong>. Su macOS temperature e carico della GPU arrivano da <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). Su Linux gli FPS nei giochi richiedono MangoHud, avviando il gioco tramite MangoHud.</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>Sì. Su Windows l’installer prepara la lettura delle temperature (serve una volta il prompt da amministratore), e PresentMon dà il vero frame rate del gioco in esecuzione, anche a schermo intero; <strong>Impostazioni &rarr; Prestazioni &rarr; Modalità gioco</strong> lo installa se manca. L’<a href='/it/fps-overlay.html'>overlay FPS</a> lo mostra sopra il gioco, a schermo intero senza bordi o in finestra. Su macOS temperature e carico GPU arrivano da <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). Su Linux gli FPS in gioco richiedono MangoHud, con il gioco avviato tramite esso.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.replay">Può registrare i miei giochi?</summary>
+      <div class="body" data-i18n-html="f.a.replay"><p>Sì. Instant Replay tiene gli ultimi minuti, così salvi un momento dopo che è successo, e il registratore riprende lo schermo o una finestra. Fa anche screenshot e legge il testo sullo schermo. Tutto resta salvato sul tuo PC, non si carica nulla e non serve un account. È gratis su Windows, e in beta su macOS e Linux. La <a href='/it/screen-recorder.html'>guida al registratore</a> mostra come.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.bit">Cos’è Bit? Mi serve una chiave API?</summary>
+      <div class="body" data-i18n-html="f.a.bit"><p>Bit è l’assistente dentro Xenon. Gli scrivi o dici «Hey Bit», e risponde, agisce sul PC e crea widget con te. Per iniziare non serve una chiave: una nuova installazione riceve 30 Scintille di prova al primo messaggio, solo per Bit, valide 7 giorni, senza carta e senza email. Dopo puoi comprare Scintille, oppure usare una tua chiave per Gemini, OpenAI o Anthropic, un modello locale con Ollama o un server compatibile con OpenAI, o Claude Code e Codex con il tuo abbonamento.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.deck">Può sostituire uno Stream Deck?</summary>
+      <div class="body" data-i18n-html="f.a.deck"><p>Fa un lavoro simile su uno schermo che hai già: uno Xeneon Edge, un monitor in più, un tablet o un telefono. Un tasto può aprire un’app, mandare una scorciatoia, cambiare scena in OBS, silenziare Discord o lanciare un’azione di Streamer.bot, e può illuminarsi per mostrare lo stato di ciò che comanda. Non usa l’hardware Stream Deck né i suoi plugin. La <a href='/it/deck.html'>guida al Deck</a> elenca ogni azione.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.add">Come aggiungo widget e temi?</summary>
+      <div class="body" data-i18n-html="f.a.add"><p>Premi <strong>+</strong> su una pagina per aggiungere un widget integrato. Per mettere un widget sul desktop o sopra un gioco, premi <strong>Alt+Shift+X</strong> per aprire il menu di Xenon, oppure chiedilo a Bit. Per averne altri apri <strong>Impostazioni &rarr; Store</strong>: temi, sfondi, widget, scene ambient e pacchetti, ciascuno con un’anteprima prima di applicare qualsiasi cosa, installati con un tocco. Le stesse cose si sfogliano nel <a href='/catalog/'>catalogo</a> di questo sito.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.make">Posso creare un widget o un tema mio?</summary>
+      <div class="body" data-i18n-html="f.a.make"><p>Sì, senza scrivere codice. <a href='/maker/'>Maker</a>, in beta, crea widget e temi nel browser, e Bit li costruisce con te lì o nell’app. Provare tutto in Maker è gratis; tenere i progetti e installare ciò che crei è per i sostenitori. Se scrivi codice, la <a href='/create/'>guida per creare</a> spiega il Widget SDK.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.connect">Funziona con Spotify, Home Assistant e le luci RGB?</summary>
-      <div class="body" data-i18n-html="f.a.connect"><p>Sì, ognuno è facoltativo e resta spento finché non lo colleghi.</p><ul><li><strong>Spotify:</strong> quello che ascolti compare nel riquadro Media. Collega l’account nelle Impostazioni per avere avanzamento, mi piace, riproduzione casuale e playlist, anche dal Deck (il controllo della riproduzione richiede Spotify Premium).</li><li><strong>Home Assistant:</strong> collegalo in <strong>Impostazioni &rarr; Smart Home</strong> con il tuo indirizzo e un token di lunga durata, poi comanda luci, sensori e scene da un riquadro o da un tasto del Deck.</li><li><strong>RGB:</strong> i dispositivi CORSAIR tramite iCUE, più WLED, OpenRGB, Philips Hue, Nanoleaf, Govee, LIFX e Yeelight in rete, e su Windows le schede madri GIGABYTE e AORUS via USB.</li></ul></div>
+      <div class="body" data-i18n-html="f.a.connect"><p>Sì, ognuno facoltativo e spento finché non lo colleghi.</p><ul><li><strong>Spotify:</strong> quello che ascolti appare nel widget Riproduzione. Collega il tuo account nelle Impostazioni per avere avanzamento, mi piace, shuffle e playlist, anche dal Deck (il controllo della riproduzione richiede Spotify Premium).</li><li><strong>Home Assistant:</strong> collegalo in <strong>Impostazioni &rarr; Smart Home</strong> con il tuo indirizzo e un token di lunga durata, poi controlla luci, sensori e scene da un widget o da un tasto del Deck.</li><li><strong>RGB:</strong> i dispositivi CORSAIR tramite iCUE, più WLED, OpenRGB, Philips Hue, Nanoleaf, Govee, LIFX e Yeelight sulla tua rete, e le schede madri GIGABYTE e AORUS via USB su Windows.</li></ul></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.backup">Posso salvare il layout o spostarlo su un altro PC?</summary>
-      <div class="body" data-i18n-html="f.a.backup"><p>Sì. <strong>Impostazioni &rarr; Backup &rarr; Esporta backup</strong> salva un unico file con layout, Deck, calendario, attività, timer, note, impostazioni e sfondo personalizzato. Sull’altro PC, <strong>Importa backup</strong> rimette tutto a posto. Chiavi API e password non finiscono mai nel file, quindi le integrazioni ti chiedono di ricollegarle, e i widget della community vengono elencati così puoi reinstallarli dai loro codici.</p></div>
+      <div class="body" data-i18n-html="f.a.backup"><p>Sì. <strong>Impostazioni &rarr; Generale &rarr; Backup &rarr; Esporta backup</strong> salva un unico file con layout, Deck, calendario, attività, timer, note, impostazioni, memoria di Bit e sfondo personalizzato. Sull’altro PC, <strong>Importa backup</strong> rimette tutto a posto. Password, token e chiavi API non finiscono mai nel file, quindi le integrazioni ti chiedono di ricollegarti, e i widget della community sono elencati per reinstallarli dai loro codici. Contiene però i link privati del calendario e i webhook del Deck: tieni il file per te.</p></div>
     </details>
 
     <h2 id="warnings"><span data-i18n="f.s3">Quando qualcosa non va</span></h2>
 
     <details>
       <summary data-i18n="f.q.virus">Windows dice che Xenon è un virus. È sicuro?</summary>
-      <div class="body" data-i18n-html="f.a.virus"><p>È un falso positivo. L’installer per Windows è firmato dalla versione 4.11.9, ma Microsoft concede fiducia a un file nuovo col tempo, quindi Defender, SmartScreen o il browser possono ancora avvisare su una release appena uscita. Puoi controllare il file da solo: ogni release ha un elenco <code>SHA256SUMS</code> firmato, e la <a href='/it/download.html'>pagina download</a> mostra l’unico comando per confrontarlo. Puoi anche installare Xenon dal <a href='https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0' target='_blank' rel='noopener'>Microsoft Store</a>.</p><ul><li><strong>Defender l’ha rimosso:</strong> apri <strong>Sicurezza di Windows &rarr; Protezione da virus e minacce &rarr; Cronologia protezione</strong>, scegli la voce di Xenon e poi <strong>Ripristina</strong>. Poi aggiungi <code>%LOCALAPPDATA%\Xenon</code> e <code>%LOCALAPPDATA%\Programs\Xenon</code> nelle <strong>Esclusioni</strong>.</li><li><strong>Il browser blocca il download:</strong> apri l’elenco dei download con <code>Ctrl+J</code> e scegli <strong>Mantieni</strong>.</li><li><strong>Non si avvia e nessuno ha segnalato nulla:</strong> su Windows 11 di solito è Smart App Control, in <strong>Sicurezza di Windows &rarr; Controllo app e browser</strong>. Prova prima l’ultima release lasciandolo acceso: una volta spento, Windows non ti lascia riaccenderlo senza reimpostare il PC.</li></ul><p>Ignora un avviso solo per un file preso dalla <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>pagina Releases</a> ufficiale e di cui hai controllato l’hash.</p></div>
+      <div class="body" data-i18n-html="f.a.virus"><p>È un falso positivo. L’installer per Windows è firmato dalla versione 4.11.9, ma Microsoft concede fiducia a un file nuovo col tempo, quindi Defender, SmartScreen o il browser possono ancora avvisare su una release appena uscita. Puoi controllare il file da solo: ogni release ha un elenco <code>SHA256SUMS</code> firmato, e la <a href='/it/download.html'>pagina download</a> mostra l’unico comando per confrontarlo. Puoi anche installare Xenon dal <a href='https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0' target='_blank' rel='noopener'>Microsoft Store</a>.</p><ul><li><strong>Defender l’ha rimosso:</strong> apri <strong>Sicurezza di Windows &rarr; Protezione da virus e minacce &rarr; Cronologia protezione</strong>, scegli la voce di Xenon e poi <strong>Ripristina</strong>. Poi aggiungi <code>%LOCALAPPDATA%\Xenon</code> e <code>%LOCALAPPDATA%\Programs\Xenon</code> nelle <strong>Esclusioni</strong>.</li><li><strong>Il browser blocca il download:</strong> apri l’elenco dei download con <code>Ctrl+J</code> e scegli <strong>Mantieni</strong>.</li><li><strong>Non si avvia e nessuno ha segnalato nulla:</strong> su Windows 11 di solito è Smart App Control, in <strong>Sicurezza di Windows &rarr; Controllo app e browser</strong>. Prova prima l’ultima release lasciandolo acceso: un Windows aggiornato ti lascia riaccenderlo dopo, ma su uno più vecchio resta spento finché non reimposti o reinstalli il PC.</li></ul><p>Ignora un avviso solo per un file preso dalla <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>pagina Releases</a> ufficiale e di cui hai controllato l’hash.</p></div>
     </details>
 
     <details>
@@ -191,25 +240,26 @@
 
     <details>
       <summary data-i18n="f.q.temp">Non vedo la temperatura della CPU</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>Su Windows, avvia di nuovo l’installer e accetta la richiesta di amministratore: leggere le temperature richiede LibreHardwareMonitor e PawnIO, che hanno una parte a livello di driver, ed è a questo che serve la richiesta. Se la rifiuti tutto il resto funziona lo stesso, solo senza temperature. Su macOS installa <code>macmon</code>. Alcuni portatili e schede madri non espongono nessun sensore: in quel caso il riquadro lo dice invece di mostrare un numero inventato.</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>Su Windows esegui di nuovo l’installer e accetta il prompt da amministratore: leggere le temperature richiede LibreHardwareMonitor e PawnIO, che includono una parte a livello di driver, ed è a questo che serve il prompt. Se rifiuti tutto il resto funziona lo stesso, solo senza temperature. Su macOS installa <code>macmon</code>. Alcuni portatili e alcune schede non espongono alcun sensore; il widget allora lo dice invece di mostrare un numero inventato.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.update">Come lo aggiorno o lo disinstallo?</summary>
-      <div class="body" data-i18n-html="f.a.update"><p>Xenon si aggiorna da solo: quando esce una release la dashboard te lo chiede, un tocco la scarica, ne controlla la firma prima di installarla e rimette la versione precedente se qualcosa va storto. Impostazioni, layout e note restano.</p><p>Per disinstallarlo, esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux. Rimuove l’app, l’avvio automatico e i tuoi dati; aggiungi <code>-KeepData</code> su Windows o <code>--keep-data</code> sugli altri per tenere impostazioni, layout e note.</p></div>
+      <div class="body" data-i18n-html="f.a.update"><p>Xenon si aggiorna da solo: quando esce una versione te lo chiede, un tocco la scarica, ne controlla la firma prima di installarla e rimette la versione precedente se qualcosa va storto. Impostazioni, layout e note restano.</p><p>Per disinstallarlo su Windows apri <strong>Impostazioni &rarr; App &rarr; App installate</strong>, cerca Xenon e premi <strong>Disinstalla</strong>. Su macOS fai doppio clic su <code>UNINSTALL.command</code> in <code>~/Library/Application Support/Xenon</code>, e su Linux esegui <code>./UNINSTALL.sh</code> dalla cartella di Xenon. Entrambi tolgono l’app, l’avvio automatico e i tuoi dati; per tenere impostazioni, layout e note esegui <code>UNINSTALL.sh --keep-data</code>.</p></div>
     </details>
 
     <h2 id="privacy"><span data-i18n="f.s4">Privacy e aiuto</span></h2>
 
     <details>
       <summary data-i18n="f.q.data">Manda i miei dati da qualche parte? Serve un account?</summary>
-      <div class="body" data-i18n-html="f.a.data"><p>Impostazioni, note, attività, eventi, Deck e indice dei file restano sul tuo PC. Nell’app non c’è nessun SDK di analisi, nessun invio automatico dei crash e nessun tracciamento del comportamento. Per alcune cose va online: per controllare gli aggiornamenti e per i servizi che attivi tu, come il meteo o Spotify. La <a href='/it/privacy.html'>pagina privacy</a> elenca ogni chiamata che può fare e cosa invia.</p><p>Non esiste un account Xenon. L’unica cosa che inserisci è un codice supporter, e le integrazioni usano i loro login.</p></div>
+      <div class="body" data-i18n-html="f.a.data"><p>Impostazioni, note, attività, eventi, Deck e indice dei file restano sul tuo PC, e l’app non tiene un registro di ciò che fai. Ha tre contatori anonimi, senza alcun identificatore: versione, sistema ed età approssimativa dell’installazione, inviati con il controllo degli aggiornamenti; 1 aggiunto al conteggio di una creazione quando la installi dallo Store; e una volta al giorno quante volte ogni funzione è partita e ha fallito. Nessuno dice cosa cerchi, scrivi o crei. In una nuova installazione partono attivi, e puoi spegnerli uno per uno in <strong>Impostazioni &rarr; Generale &rarr; Aggiornamenti</strong>.</p><p>L’app va online anche per controllare gli aggiornamenti e scaricare una breve lista di annunci, e per i servizi che attivi tu, come il meteo o Spotify. Quello che chiedi a Bit va al servizio di IA che hai scelto; con un modello locale resta sul tuo PC. La <a href='/it/privacy.html'>pagina sulla privacy</a> elenca ogni chiamata possibile e cosa invia.</p><p>Non esiste un account Xenon. Inserisci un codice solo se sostieni Xenon, compri Scintille o chiedi la prova, che vuole un indirizzo email, e le integrazioni usano i loro accessi.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.help">Dove trovo aiuto?</summary>
-      <div class="body" data-i18n-html="f.a.help"><p>Chiedi sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: è il modo più veloce, e le domande che tornano spesso finiscono in questa pagina. Per un bug che riesci a ripetere, apri una <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue su GitHub</a> con il tuo sistema, cosa hai fatto e cosa è successo.</p><p>L’uso personale è gratis, anche sul PC con cui lavori. Vendere Xenon o includerlo in un prodotto commerciale richiede prima un permesso scritto: <a href='mailto:marcellomastroeni4@gmail.com'>scrivimi</a>.</p></div>
+      <div class="body" data-i18n-html="f.a.help"><p>Chiedi sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: è il modo più veloce, e le domande che tornano spesso finiscono in questa pagina. Per un bug che riesci a ripetere, apri una <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue su GitHub</a> con il tuo sistema, cosa hai fatto e cosa è successo.</p><p>L’uso personale è gratis, anche sul PC con cui lavori. Vendere Xenon o includerlo in un prodotto commerciale richiede prima un permesso scritto: scrivi a <a href='mailto:support@xenon-app.com'>support@xenon-app.com</a>.</p></div>
     </details>
+    </div>
   </div>
 </main>
 
@@ -217,14 +267,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Widget gratis per il tuo PC, su ogni schermo. Windows, con macOS e Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit vive nel widget Vitals e ha opinioni sulla tua postura.</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR. Ogni altro nome e logo appartiene al suo proprietario.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

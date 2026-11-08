@@ -9,7 +9,7 @@
     "ld.q3": "¿Por qué no aparece el overlay sobre mi juego?",
     "ld.a3": "Lo más probable es que el juego esté en pantalla completa exclusiva, donde ninguna otra ventana puede mostrarse encima. Cámbialo a ventana sin bordes o a pantalla completa en ventana en sus ajustes de pantalla. El mosaico y un mensaje que aparece una sola vez te avisan cuando pasa.",
     "ld.q4": "¿El overlay de FPS es gratis?",
-    "ld.a4": "Sí. El mosaico Rendimiento en juego, las partidas jugadas, el benchmark y las causas de los tirones forman parte de la app gratuita, sin cuenta. Los supporters reciben los drops mensuales del catálogo, no funciones extra.",
+    "ld.a4": "Sí. El mosaico Rendimiento en juego, las partidas jugadas, el benchmark y las causas de los tirones forman parte de la app gratuita, sin cuenta. Los mecenas reciben los drops mensuales del catálogo, no funciones extra.",
     "fo.h1": "Overlay de FPS con 1% low y 0,1% low",
     "fo.lede": "El mosaico Rendimiento en juego de Xenon muestra los FPS del juego al que juegas, su 1% low y su 0,1% low, el tiempo de fotograma y un gráfico de los últimos fotogramas, con la carga de la CPU y la GPU y la temperatura de la GPU. Puede ir sobre el juego, en una segunda pantalla o en tu teléfono. Gratis, sin cuenta.",
     "fo.updated": "Última actualización: 31 de octubre de 2026",
@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows, Linux, Mac",
     "fo.jump.afterburner": "Junto a Afterburner",
     "fo.jump.faq": "Preguntas frecuentes",
-    "fo.img.alt": "El mosaico Rendimiento en juego de Xenon: 143 FPS, 1% low 112, 0,1% low 96, tiempo de fotograma 7,1 ms, un gráfico de los últimos fotogramas con un pico, CPU 21%, GPU 19%, GPU a 48°C",
+    "fo.img.alt": "El mosaico Rendimiento en juego de Xenon: 143 FPS, 1% low 112, 0,1% low 96, tiempo de fotograma 7,1 ms, un gráfico de los últimos fotogramas con dos picos, CPU 48%, GPU 61%, GPU a 60°C",
     "fo.h.lows": "Lo que te dicen el 1% low y el 0,1% low",
     "fo.lows.p1": "La media de FPS esconde los momentos en los que el juego va mal. Xenon también toma el 1% de fotogramas más lentos y da su media como FPS: ese es el <strong>1% low</strong>. El <strong>0,1% low</strong> hace lo mismo con el fotograma más lento de cada mil.",
     "fo.lows.p2": "En la imagen de arriba el juego va a 143 FPS de media, el 1% low es 112 y el 0,1% low es 96. Los tres números están cerca, así que el juego va fluido. Cuando la media es alta y los low quedan muy por debajo, el juego da tirones aunque el contador de FPS parezca estar bien.",
@@ -66,8 +66,9 @@
     "fo.faq.fullscreen.q": "¿Por qué no aparece el overlay sobre mi juego?",
     "fo.faq.fullscreen.a": "Lo más probable es que el juego esté en pantalla completa exclusiva, donde ninguna otra ventana puede mostrarse encima. Cámbialo a ventana sin bordes o a pantalla completa en ventana en sus ajustes de pantalla. El mosaico y un mensaje que aparece una sola vez te avisan cuando pasa.",
     "fo.faq.price.q": "¿El overlay de FPS es gratis?",
-    "fo.faq.price.a": "Sí. El mosaico Rendimiento en juego, las partidas jugadas, el benchmark y las causas de los tirones forman parte de la app gratuita, sin cuenta. Los supporters reciben los drops mensuales del catálogo, no funciones extra.",
+    "fo.faq.price.a": "Sí. El mosaico Rendimiento en juego, las partidas jugadas, el benchmark y las causas de los tirones forman parte de la app gratuita, sin cuenta. Los mecenas reciben los drops mensuales del catálogo, no funciones extra.",
     "fo.cta.h": "Descargar Xenon",
-    "fo.cta.p": "Gratis, sin cuenta. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a>, o elige tu sistema en la <a href=\"/download.html\">página de descargas</a>. Para tener widgets, grabaciones y la Repetición instantánea en la misma pantalla, lee <a href=\"/single-screen.html\">Xenon en una sola pantalla</a>."
+    "fo.cta.p": "Gratis, sin cuenta. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a>, o elige tu sistema en la <a href=\"/download.html\">página de descargas</a>. Para tener widgets, grabaciones y la Repetición instantánea en la misma pantalla, lee <a href=\"/single-screen.html\">Xenon en una sola pantalla</a>.",
+    "fo.pic.alt": "La superposición de rendimiento en juego: FPS, mínimos del 1% y del 0,1%, tiempo de fotograma, un gráfico de los últimos fotogramas y carga de CPU y GPU"
   }
 }

@@ -15,6 +15,8 @@ import { headerHtml, footerHtml, crumbsHtml, guidesHtml } from './site-chrome.mj
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://xenon-app.com';
 const KEEP = 12;                       // versions written out in full
+// Bit on the edge of the sheet, as on the other pages with no picture to show.
+const BIT = '<svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -68,7 +70,7 @@ function dateText(iso) {
 
 function render(versions) {
   const shown = versions.slice(0, KEEP);
-  const toc = shown.map((v) => `<li><a href="#v${esc(v.version)}">${esc(v.version)}</a> <span>${dateText(v.date)}</span></li>`).join('');
+  const toc = shown.map((v) => `<a href="#v${esc(v.version)}">${esc(v.version)}<span>${dateText(v.date)}</span></a>`).join('');
   const body = shown.map((v) => {
     const secs = v.sections.map((s) => {
       const items = s.items.map((it) => {
@@ -99,8 +101,7 @@ function render(versions) {
 <title>Xenon releases: what changed in each version</title>
 <meta name="description" content="${esc(desc)}">
 <meta name="robots" content="index, follow">
-<meta name="theme-color" content="#E4E4E4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#232323" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFD75E">
 <link rel="canonical" href="${SITE}/releases.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Xenon releases">
@@ -110,59 +111,60 @@ function render(versions) {
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 <style>
-  body { margin: 0; background: var(--g-0); color: var(--bone-0); font: 400 18px/1.6 var(--sans); }
-  .rel-main { max-width: 1440px; margin: 0 auto; padding: clamp(40px, 7vh, 88px) 32px 64px; display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; }
-  .rel-main > * { grid-column: 1 / span 8; }
-  .rel-main h1 { margin: 0; font: 780 clamp(36px, 3.4vw + 10px, 60px)/1.02 var(--display); letter-spacing: -0.016em; }
-  .rel-lede a, .rel-main p a { color: var(--bone-0); text-underline-offset: .18em; }
-  .rel-lede { margin: 16px 0 0; font-size: 19px; line-height: 1.5; color: var(--bone-1); max-width: 60ch; }
-  .rel-toc { list-style: none; margin: 28px 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 16px; }
-  .rel-toc a { font-weight: 700; color: var(--bone-0); }
-  .rel-toc span { color: var(--bone-1); margin-left: 4px; }
-  .rel { margin-top: clamp(44px, 5vw, 64px); }
-  .rel h2 { margin: 0; font: 760 clamp(28px, 1.2vw + 18px, 36px)/1.1 var(--display); letter-spacing: -0.012em; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  .rel h2 time { font: 600 16px/1 var(--sans); color: var(--bone-1); letter-spacing: 0; }
-  .rel h3 { margin: 22px 0 8px; font: 700 18px/1.3 var(--sans); color: var(--bone-1); }
-  .rel-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-  /* The whole row opens an entry: the summary carries the row's padding. */
-  .rel-items > li { padding: 0; border-top: 1px solid var(--g-2); }
-  .rel-items summary { padding: 10px 0; cursor: pointer; font-weight: 650; list-style: none; display: flex; gap: 10px; align-items: baseline; }
-  .rel-items details[open] { padding-bottom: 10px; }
-  .rel-items summary::-webkit-details-marker { display: none; }
-  .rel-items summary::before { content: '+'; flex: 0 0 auto; width: 14px; color: var(--bone-1); font-weight: 700; }
-  .rel-items details[open] summary::before { content: '−'; }
-  .rel-items details > :not(summary) { margin-left: 24px; }
-  .rel-items > li.rel-one { padding: 10px 0 10px 24px; font-weight: 650; }
-  .rel-items summary:hover { text-decoration: underline; text-underline-offset: .18em; }
-  .rel-items details p { margin: 10px 0 0; color: var(--bone-1); font-size: 17px; max-width: 70ch; }
-  .rel-items details ul { margin: 8px 0 0; color: var(--bone-1); font-size: 17px; }
-  .rel-items code { font: 500 .9em/1 var(--mono); }
+  /* A version is a heading; each change is a row that opens, as on the help page. */
+  .rel { margin-top: clamp(48px, 5vw, 72px); scroll-margin-top: 88px; }
+  .rel:first-child { margin-top: 0; }
+  .rel h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px; margin: 0; }
+  .rel h2 time { font: 600 16px/1 var(--sans); color: var(--muted); letter-spacing: 0; }
+  .rel h3 { margin: 24px 0 6px; font: 700 18px/1.3 var(--sans); color: var(--muted); }
   /* Changelog notes carry long paths and identifiers; they wrap instead of
      widening the page on a phone. */
-  .rel-items { overflow-wrap: anywhere; }
-  .rel-older { margin-top: 48px; font-size: 17px; }
-  .rel-older a { font-weight: 700; color: var(--bone-0); }
-  @media (max-width: 900px) { .rel-main { padding: 36px 18px 48px; display: block; } }
+  .rel-items { margin: 0; padding: 0; list-style: none; overflow-wrap: anywhere; }
+  .rel-items > li { margin: 0; border-top: 1px solid var(--line); }
+  .rel-items details { border: 0; }
+  .rel-items details > summary { padding: 12px 0; font-size: 17px; }
+  .rel-items details[open] { padding-bottom: 12px; }
+  .rel-items details > :not(summary) { max-width: 70ch; margin-left: 26px; font-size: 17px; }
+  .rel-items details > p { margin-bottom: 10px; }
+  .rel-items > li.rel-one { padding: 12px 0 12px 26px; color: var(--text); font-size: 17px; font-weight: 650; line-height: 1.4; }
+  .rel-older { margin-top: 48px; }
+  .jump a span { display: none; }
+  @media (min-width: 1181px) { .jump a span { display: inline; margin-left: 10px; font-weight: 400; } }
 </style>
 <script src="/theme.js" defer></script>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="yellow">
 
 ${headerHtml({ lang: false })}
 
-<main class="rel-main">
-  ${crumbsHtml('releases.html')}
-  <h1>Releases</h1>
-  <p class="rel-lede">What changed in each version of Xenon, newest first. The app updates itself; every release and its checksums are also on <a href="https://github.com/marcimastro98/Xenon/releases">GitHub</a>.</p>
-  <ul class="rel-toc">${toc}</ul>
+<main>
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w">
+    <div class="pg-copy">
+      ${crumbsHtml('releases.html')}
+      <h1 id="pg-h">Releases</h1>
+      <p class="lede">What changed in each version of Xenon, newest first. The app updates itself; every release and its checksums are also on <a href="https://github.com/marcimastro98/Xenon/releases">GitHub</a>.</p>
+    </div>
+    ${BIT}
+  </div>
+</section>
+<div class="pg-body">
+  <nav class="jump" aria-labelledby="jump-h">
+    <p id="jump-h">Versions</p>
+    ${toc}
+  </nav>
+  <div class="wrap">
 ${body}
-  <p class="rel-older">Older versions, back to the first: <a href="https://github.com/marcimastro98/Xenon/blob/main/CHANGELOG.md">the full changelog on GitHub</a>.</p>
-  ${guidesHtml('releases.html')}
+    <p class="rel-older">Older versions, back to the first: <a href="https://github.com/marcimastro98/Xenon/blob/main/CHANGELOG.md">the full changelog on GitHub</a>.</p>
+    ${guidesHtml('releases.html')}
+  </div>
+</div>
 </main>
 
 ${footerHtml()}

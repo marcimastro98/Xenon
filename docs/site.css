@@ -40,30 +40,30 @@
    is the counter-example that keeps this honest: it ships a flat #151515.)
    A pure grey tends to read as "no decision was made". Ours carries a cool
    cast, which is what a panel actually looks like with the backlight off.
+   In light the room is plain white: the colour of these pages is on the flat
+   sheet at their top, and white paper lets it stand (brand-tokens.js SITE).
    ========================================================================== */
 
 :root {
   /* Ground. Four steps, cool cast, never chroma 0. */
-  --g-0: #232323;   /* page: the STANZA room, R = G = B so it tints no screen */
-  --g-1: #2C2C2C;   /* raised surface */
-  --g-2: #333333;   /* surface above that */
-  --g-3: #3C3C3C;   /* the highest a surface goes */
+  --g-0: #0E1113;   /* page */
+  --g-1: #171B1E;   /* raised surface */
+  --g-2: #22272B;   /* surface above that */
+  --g-3: #2C3236;   /* the highest a surface goes */
 
   /* Rules. Hairlines carry the structure now that the glows are gone, so there
-     are two: one that recedes and one that answers a hover. --rule sits at
-     2.1:1 against --g-0, which is visible on a decent panel and does not
-     disappear on a bad laptop the way rgba(255,255,255,0.08) did. */
-  --rule:   #464646;
-  --rule-2: #5C5C5C;
+     are two: one that recedes and one that answers a hover. */
+  --rule:   #2A3034;
+  --rule-2: #3C444A;
 
   /* Text. Three steps, and the third is the one that mattered: the old --dim
      (#66736c) sat at 4.04:1 on #070808, i.e. below the 4.5:1 floor, on the
      supporting line of most cards on the site. --bone-2 holds 4.5:1 on every
-     surface up to --g-3. These greys are the one brand set
-     (packages/core/src/brand-tokens.js), shared with the Maker and the emails. */
-  --bone-0: #EDEDED;
-  --bone-1: #BDBDBD;
-  --bone-2: #A6A6A6;
+     surface up to --g-3. These are the site's paper set
+     (packages/core/src/brand-tokens.js SITE), the same on the home. */
+  --bone-0: #F2F4F5;
+  --bone-1: #B5BCC2;
+  --bone-2: #98A0A7;
 
   /* Radii: the brand's 4/6/10 (brand-tokens.js RADIUS). People prefer curved
      contours to sharp ones (Bar & Neta 2006), and three steps keep a tag, a
@@ -170,12 +170,12 @@
   --main-ink: #0B2412;
   --main-text: #6EE787;
 
-  /* Two third-party marks, for the same reason: they NAME a service. A grey
-     Discord glyph is just a glyph, and the GitHub star is the one thing in that
-     button worth looking at. Both are the brands' own values, pulled down only
-     as far as this ground needs. */
+  /* A third-party mark, for the same reason: it NAMES a service, and a grey
+     Discord glyph is just a glyph. The brand's own value, pulled down only as
+     far as this ground needs. */
   --discord: #5865F2;
-  --gh-star: #F0B429;
+  /* The star beside a supporter's name in the catalog. */
+  --supporter-star: #FFC933;
 
   /* The hairline several pages draw with instead of --rule. */
   --edge: rgba(240, 243, 241, 0.09);
@@ -208,17 +208,16 @@
    The light values are not lightened dark ones; they were measured. --bone-2
    is tuned against --g-1 rather than --g-0, because grey supporting text
    almost always lands on a raised surface rather than on the page, and the
-   three identifying inks are pulled down until they clear 4.5:1 there too:
-   the GitHub star at #F0B429 sits at 1.58:1 on paper, which is invisible.
+   three identifying inks are pulled down until they clear 4.5:1 there too.
    ────────────────────────────────────────────────────────────────────────── */
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --g-0: #E4E4E4;  --g-1: #EFEFEF;  --g-2: #D8D8D8;  --g-3: #CBCBCB;
-    --bone-0: #141414;  --bone-1: #444444;  --bone-2: #545454;
-    --rule: #C4C4C4;  --rule-2: #A3A3A3;
+    --g-0: #FFFFFF;  --g-1: #F2F3F4;  --g-2: #E6E8EA;  --g-3: #DADDE0;
+    --bone-0: #0F1214;  --bone-1: #4A5056;  --bone-2: #5A6167;
+    --rule: #DADDE0;  --rule-2: #B5BAC0;
     --edge: rgba(9, 11, 13, 0.14);
-    --gh-star: #9A6A00;
+    --supporter-star: #F2B100;
     --warn:    #843C0A;
     --main: #1F8040;  --main-hover: #1A6E37;  --main-ink: #FFFFFF;  --main-text: #145E2C;
     --discord: #4550C6;
@@ -228,11 +227,11 @@
 }
 
 :root[data-theme="light"] {
-  --g-0: #E4E4E4;  --g-1: #EFEFEF;  --g-2: #D8D8D8;  --g-3: #CBCBCB;
-  --bone-0: #141414;  --bone-1: #444444;  --bone-2: #545454;
-  --rule: #C4C4C4;  --rule-2: #A3A3A3;
+  --g-0: #FFFFFF;  --g-1: #F2F3F4;  --g-2: #E6E8EA;  --g-3: #DADDE0;
+  --bone-0: #0F1214;  --bone-1: #4A5056;  --bone-2: #5A6167;
+  --rule: #DADDE0;  --rule-2: #B5BAC0;
   --edge: rgba(9, 11, 13, 0.14);
-  --gh-star: #9A6A00;
+  --supporter-star: #F2B100;
   --warn:    #843C0A;
   --main: #1F8040;  --main-hover: #1A6E37;  --main-ink: #FFFFFF;  --main-text: #145E2C;
   --discord: #4550C6;
@@ -399,11 +398,16 @@ a:hover, button:hover, .card:hover { transform: none; }
    every surface here, including inside the demo frame, and :focus-visible keeps
    it off the mouse. */
 :focus-visible {
-  outline: 2px solid var(--bone-0);
+  outline: 2px solid var(--focus, var(--bone-0));
   outline-offset: 2px;
   border-radius: var(--r-1);
 }
 :focus:not(:focus-visible) { outline: none; }
+
+/* The room for a strip seen on an earlier page (docs/promo.js), kept by the line in each page's
+   head until the strip is drawn into it, so the page does not jump when it arrives. */
+html[data-strip] body::before { content: ""; display: block; height: 44px; }
+@media (max-width: 899px) { html[data-strip] body::before { height: 52px; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -539,8 +543,8 @@ a:hover, button:hover, .card:hover { transform: none; }
    Discord and GitHub marks, the language where the page has translations, and
    one lit Download key, the product's own Deck key. Namespaced (.xh / .xf) so
    no page's own classes can reach it, and ahead of any page rule by specificity. */
-.xh { position: sticky; top: 0; z-index: 30; background: var(--g-0); transition: background-color .2s; font-family: var(--sans); }
-.xh.scrolled { background: var(--g-2); }
+.xh { position: sticky; top: 0; z-index: 30; background: var(--g-0); transition: background-color .25s; font-family: var(--sans); }
+.xh.scrolled, .xh.off { background: var(--g-0); box-shadow: 0 1px 0 var(--rule); }
 .xh .xh-w { max-width: 1440px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 36px; height: 64px; }
 /* The logo (tools/brand): Bit at 2px a pixel stands on the baseline of "xenon",
    two of his pixels away, and the letters' x-height is half his height
@@ -548,11 +552,35 @@ a:hover, button:hover, .card:hover { transform: none; }
    which is what puts his feet on the line. The face is named outright: the
    wordmark does not change typeface on the CJK pages. */
 .xh-brand { display: inline-flex; align-items: baseline; gap: 4px; text-decoration: none; color: var(--bone-0); font: 800 22.6px/1 'Sofia Sans Semi Condensed', 'Sofia SC Fallback', 'Sofia Sans', system-ui, sans-serif; letter-spacing: -0.015em; }
-.xh-mark { width: 16px; height: 22px; flex: none; background: url('/images/brand/bit.svg') 0 0 / 100% 100% no-repeat; }
-:root[data-theme="light"] .xh-mark { background-image: url('/images/brand/bit-light.svg'); }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .xh-mark { background-image: url('/images/brand/bit-light.svg'); }
-}
+.mark-i { display: block; flex: none; width: 16px; height: 22px; }
+.mark-i .bb { fill: var(--main); }
+.mark-i .bf { fill: var(--g-0); }
+.xf .mark-i .bf { fill: var(--g-1); }
+
+/* The sheet of a page, by its subject: flat paper and its ink, the pairs the home
+   wears for the same things. The bar stands on it until it has gone by (chrome.js). */
+[data-sheet="green"]   { --sheet: #6EE787; --sheet-ink: #0B2412; }
+[data-sheet="violet"]  { --sheet: #B4A0FF; --sheet-ink: #1A1238; }
+[data-sheet="yellow"]  { --sheet: #FFD75E; --sheet-ink: #2A2200; }
+[data-sheet="orange"]  { --sheet: #FFA657; --sheet-ink: #2A1400; }
+[data-sheet="red"]     { --sheet: #FF5A5F; --sheet-ink: #2A0608; }
+[data-sheet="sky"]     { --sheet: #4FB3F6; --sheet-ink: #06263A; }
+[data-sheet="blue"]    { --sheet: #8AB4F8; --sheet-ink: #0A1F40; }
+[data-sheet="mint"]    { --sheet: #BFE3D3; --sheet-ink: #06302D; }
+[data-sheet="claude"]  { --sheet: #D97757; --sheet-ink: #2A120A; }
+[data-sheet="openai"]  { --sheet: #10A37F; --sheet-ink: #04231B; }
+[data-sheet="blurple"] { --sheet: #5865F2; --sheet-ink: #FFFFFF; }
+[data-sheet="apple"]   { --sheet: #0071E3; --sheet-ink: #FFFFFF; }
+[data-sheet="tux"]     { --sheet: #F5C518; --sheet-ink: #14122B; }
+[data-sheet="dark"]    { --sheet: #302E31; --sheet-ink: #FFFFFF; }
+[data-sheet] .xh:not(.off) { background: var(--sheet); box-shadow: none; }
+[data-sheet] .xh:not(.off) > .xh-w { --focus: var(--sheet-ink); }
+[data-sheet] .xh:not(.off) > .xh-w :is(.xh-brand, .xh-nav a, .xh-mk, .xh-mk:hover, .xh-menu, .xh-lang > summary, .lang-btn) { color: var(--sheet-ink); }
+[data-sheet] .xh:not(.off) > .xh-w :is(.xh-mk, .xh-menu, .xh-lang > summary, .lang-btn):hover { background: color-mix(in oklab, currentColor 13%, transparent); }
+[data-sheet] .xh:not(.off) > .xh-w .xh-beta { color: inherit; border-color: currentColor; }
+[data-sheet] .xh:not(.off) > .xh-w .xh-dl { --main: var(--sheet-ink); --main-ink: var(--sheet); --main-hover: color-mix(in oklab, var(--sheet-ink) 84%, var(--sheet)); --bar-word: var(--sheet-ink); }
+[data-sheet] .xh:not(.off) > .xh-w .mark-i .bb { fill: var(--sheet-ink); }
+[data-sheet] .xh:not(.off) > .xh-w .mark-i .bf { fill: var(--sheet); }
 /* guide.css spaces every li; the bar and the footer keep their own rhythm. */
 .xh li, .xf li { margin: 0; }
 .xh .xh-nav ul { list-style: none; display: flex; align-items: center; gap: 26px; margin: 0; padding: 0; }
@@ -567,18 +595,51 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xh-marks { display: flex; align-items: center; gap: 4px; }
 .xh-mk { display: inline-flex; align-items: center; gap: 6px; min-width: 40px; min-height: 40px; justify-content: center; padding: 0 6px; color: var(--bone-1); text-decoration: none; border-radius: 10px; }
 .xh-mk svg { width: 19px; height: 19px; }
+/* The numbers beside the marks (counts.js): they keep their width so the marks do not
+   move when they land, and give way before the bar runs out of room. */
+.xh-n { min-width: 2.2ch; font: 600 15px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.xh-n-long { min-width: 4.4ch; }
+.xh-mk svg.xh-down { width: 13px; height: 13px; margin-right: -3px; }
+@media (max-width: 1320px) { .xh-n, .xh-mk svg.xh-down { display: none; } }
 .xh-mk:hover { color: var(--bone-0); background: var(--g-2); }
 .xh-mk.dc:hover { color: #5865F2; }
-.xh-mk.cup:hover { color: #B5821F; }
-.xh-stars { font: 600 14.5px/1 var(--sans); color: var(--bone-1); font-variant-numeric: tabular-nums; }
-.xh-star { color: #D69A17; margin-right: 2px; }
 .xh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .xh .lang { position: relative; }
 .xh .lang-btn { font: 600 16px/1 var(--sans); color: var(--bone-0); background: none; border: 0; padding: 10px 4px; cursor: pointer; min-height: 40px; }
-.xh .lang-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); min-width: 170px; padding: 6px; background: var(--g-2); box-shadow: 0 16px 40px -18px rgba(0,0,0,.45); z-index: 40; border: 0; border-radius: 0; }
+.xh .lang-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; }
 .xh .lang.open .lang-menu { display: grid; }
-.xh .lang-menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; font: 500 15.5px/1.2 var(--sans); color: var(--bone-0); background: none; border: 0; cursor: pointer; border-radius: 0; }
-.xh .lang-menu button:hover, .xh .lang-menu button.on { background: var(--g-3); }
+/* Every list that opens on the site (language, sort): a flat sheet of the paper it
+   drops from, with that paper's ink for words and edge, drawn like the keys beside it.
+   Corners 10 and 6 (brand-tokens.js), one hover tone, and the picked row said by its
+   weight and a tick, never by a colour alone (WCAG 1.4.1). */
+.xh, .hd, .xsel { --menu-paper: var(--g-0); --menu-ink: var(--bone-0); --menu-edge: var(--rule-2); }
+[data-sheet] .xh:not(.off), .hd:not(.off), .xsel { --menu-paper: var(--sheet, var(--g-0)); --menu-ink: var(--sheet-ink, var(--bone-0)); --menu-edge: var(--sheet-ink, var(--rule-2)); }
+.xh .lang-menu, .xh .xh-lang ul, .lang ul, .xsel-menu {
+  --focus: var(--menu-ink);
+  min-width: 180px; margin: 0; padding: 5px; box-sizing: border-box; list-style: none;
+  border: 1.5px solid var(--menu-edge); border-radius: 10px; box-shadow: none;
+  background: var(--menu-paper); color: var(--menu-ink);
+}
+.xh .lang-menu button, .xh .xh-lang a, .lang li a, .xsel-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: 100%; min-height: 40px; padding: 0 11px; box-sizing: border-box;
+  border: 0; border-radius: 6px; background: none; color: inherit;
+  font-family: inherit; font-size: 16px; font-weight: 500; line-height: 1.2;
+  text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.xh .lang-menu button:hover, .xh .xh-lang a:hover, .lang li a:hover, .xsel-opt:hover, .xsel-opt:focus-visible {
+  background: color-mix(in oklab, currentColor 13%, transparent);
+}
+.xh .lang-menu button.on, .xh .xh-lang a[aria-current], .lang li a[aria-current], .xsel-opt.on { font-weight: 700; }
+.xh .lang-menu button.on::after, .xh .xh-lang a[aria-current]::after, .lang li a[aria-current]::after, .xsel-opt.on::after {
+  content: ""; flex: none; width: 12px; height: 6px; margin: -3px 2px 0 0;
+  border: solid currentColor; border-width: 0 0 2px 2px; transform: rotate(-45deg);
+}
+/* The code beside each language says what the bar already says. */
+.xh .xh-lang a span, .lang li a span { display: none; }
+.xh .lang.open .lang-menu, .xh .xh-lang[open] ul, .lang[open] ul, .xsel.open .xsel-menu { animation: menu-in .14s ease-out; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .xh .lang.open .lang-menu, .xh .xh-lang[open] ul, .lang[open] ul, .xsel.open .xsel-menu { animation: none; } }
 /* The language menu on pages published in several languages: links to the
    copies (tools/lang-pages.mjs), the current one marked. */
 .xh .xh-lang { position: relative; border: 0; background: none; padding: 0; margin: 0; border-radius: 0; box-shadow: none; }
@@ -586,12 +647,9 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xh .xh-lang > summary { list-style: none; cursor: pointer; border: 0; background: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 6px; font: 600 16px/1 var(--sans); color: var(--bone-0); border-radius: 10px; }
 .xh .xh-lang > summary::-webkit-details-marker { display: none; }
 .xh .xh-lang > summary:hover { background: var(--g-2); }
-.xh .xh-lang ul { position: absolute; right: 0; top: calc(100% + 6px); list-style: none; margin: 0; padding: 6px; min-width: 180px; background: var(--g-2); box-shadow: 0 16px 40px -18px rgba(0,0,0,.45); z-index: 40; }
-.xh .xh-lang a { display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; min-height: 40px; box-sizing: border-box; font: 500 15.5px/1.2 var(--sans); color: var(--bone-0); text-decoration: none; }
-.xh .xh-lang a span { color: var(--bone-1); font-weight: 600; }
-.xh .xh-lang a:hover, .xh .xh-lang a[aria-current] { background: var(--g-3); }
+.xh .xh-lang ul { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; }
 /* On touch the language key and its rows reach 44 px (Apple HIG), as the other link lists. */
-@media (pointer: coarse) { .xh .xh-lang > summary { min-height: 44px; min-width: 44px; justify-content: center; } .xh .xh-lang a { min-height: 44px; align-items: center; } }
+@media (pointer: coarse) { .xh .xh-lang > summary { min-height: 44px; min-width: 44px; justify-content: center; } .xh .xh-lang a { min-height: 44px; align-items: center; } .xh .lang-btn { min-height: 44px; min-width: 44px; } }
 .xh-hint { display: block; max-width: 1440px; margin: 0 auto; padding: 10px 32px; font: 600 15px/1.4 var(--sans); color: var(--bone-0); text-decoration: underline; text-underline-offset: .2em; }
 @media (max-width: 700px) { .xh-hint { padding: 10px 18px; } }
 
@@ -613,7 +671,8 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xc a, .xg a { display: inline-flex; align-items: center; min-height: 24px; }
 @media (pointer: coarse) {
   .xc ol { margin-bottom: 8px; row-gap: 0; }
-  .xc a, .xg a { min-height: 44px; }
+  .xc a, .xg a { min-height: 44px; min-width: 44px; }
+  .xh-brand { padding-block: 8px; }
   .xg li { padding: 0; }
 }
 /* The main action: Bit's green, the one coloured fill (brand-tokens.js). */
@@ -626,6 +685,10 @@ a:hover, button:hover, .card:hover { transform: none; }
 }
 .xh-dl:hover { background: var(--main-hover); border-color: var(--main-hover); color: var(--main-ink); }
 .xh-dl:active { transform: translateY(2px) scale(.985); }
+/* A page's own key is the main action while it is in view: this one stays a plain word in
+   the same box until the key has gone by (docs/chrome.js), so nothing moves when it fills. */
+body:is([data-own-key], :has(.pg-key)) .xh-dl:not(.lit) { background: none; border-color: transparent; color: var(--bar-word, var(--bone-0)); }
+body:is([data-own-key], :has(.pg-key)) .xh-dl:not(.lit):hover { background: color-mix(in oklab, currentColor 13%, transparent); }
 /* The phone and tablet menu: an icon in the bar, a sheet over the page. The
    sheet is fixed to the viewport, not to the header, because on a phone the
    header is not sticky: opening the menu from a page that had scrolled a little
@@ -699,10 +762,13 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 }
 @media (forced-colors: active) { .xh-dl, .xh-key { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; } }
 
-.xf { margin-top: 96px; padding: 56px 0 72px; background: var(--g-2); color: var(--bone-1); font-family: var(--sans); border: 0; }
+.xf { margin-top: 96px; padding: 56px 0 72px; background: var(--g-1); color: var(--bone-1); font-family: var(--sans); border: 0; }
 .xf .xf-w { max-width: 1440px; margin: 0 auto; padding: 0 32px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px 24px; }
 .xf-brand { grid-column: 1 / span 4; display: grid; gap: 14px; align-content: start; }
+.xf-brand .xh-brand { justify-self: start; }
 .xf-brand p { margin: 0; font-size: 15.5px; line-height: 1.5; max-width: 42ch; color: var(--bone-1); }
+.xf-bit { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--bone-1); }
+.xf-bit img { width: 36px; height: 36px; image-rendering: pixelated; }
 .xf-col { grid-column: span 2; }
 .xf-col h2 { font: 700 16px/1.3 var(--sans); margin: 0 0 12px; color: var(--bone-0); letter-spacing: 0; }
 .xf-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 15.5px; }
@@ -714,3 +780,94 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 .xf-bottom { grid-column: 1 / -1; padding-top: 24px; font-size: 15px; color: var(--bone-1); }
 @media (max-width: 1180px) { .xf-brand { grid-column: 1 / -1; } .xf-col { grid-column: span 4; } }
 @media (max-width: 700px) { .xf .xf-w { padding: 0 18px; } .xf-col { grid-column: span 6; } }
+
+/* ==========================================================================
+   The sheet
+   ========================================================================== */
+/* The sheet at the top of a page: the bar above it wears the same colour, so the
+   two read as one piece of paper (docs/site.css has the pairs, chrome.js lifts the
+   bar off it). The name is the largest thing, as on the home's sections. */
+.pg { --focus: var(--sheet-ink); background: var(--sheet); color: var(--sheet-ink); }
+.pg-w {
+  max-width: 1440px; margin: 0 auto; padding: clamp(10px, 1.6vw, 22px) 32px clamp(40px, 5vw, 72px);
+  display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 10fr); gap: 28px clamp(32px, 5vw, 80px); align-items: center;
+}
+.pg-w.wide { grid-template-columns: minmax(0, 1fr); }
+.pg-copy { min-width: 0; }
+/* .pg-title: the same name on a page that swaps it after an action, so a crawler
+   still reads one h1. */
+.pg h1, .pg .pg-title {
+  margin: 0; color: inherit; text-wrap: balance;
+  font: 800 clamp(42px, 5.2vw, 84px)/.96 var(--display); letter-spacing: -.021em;
+}
+/* Japanese breaks anywhere by default: on a title that splits a word in two. */
+:lang(ja) .pg :is(h1, .pg-title) { word-break: auto-phrase; }
+.pg .lede { margin: 16px 0 0; max-width: 56ch; color: inherit; font-size: clamp(19px, 1.5vw, 22px); line-height: 1.38; font-weight: 500; }
+.pg .lede strong { color: inherit; }
+.pg .updated { margin: 16px 0 0; color: inherit; font-size: 15px; line-height: 1.5; }
+.pg a { color: inherit; }
+.pg .xc ol, .pg .xc a, .pg .xc a:hover, .pg .xc li + li::before { color: inherit; }
+.beta-pill {
+  display: inline-block; vertical-align: middle; margin-left: 12px; padding: 3px 8px; border: 1px solid currentColor; border-radius: 4px;
+  color: inherit; font: 600 15px/1.2 var(--sans); letter-spacing: 0;
+}
+.pg .xh-hint { max-width: none; margin: 0; padding: 0 0 14px; color: inherit; }
+.pg-act { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 24px; }
+.pg-key, .pg-alt {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 26px; border: 0; border-radius: 6px;
+  cursor: pointer; text-decoration: none; font: 700 19px/1.1 var(--display); letter-spacing: .004em;
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), background-color .15s;
+}
+.pg .pg-key { background: var(--sheet-ink); color: var(--sheet); }
+.pg .pg-key:hover { background: color-mix(in oklab, var(--sheet-ink) 84%, var(--sheet)); }
+/* The system the key downloads for, as on the home: the visitor's, which chrome.js names
+   on <html>, or the one the page is about. */
+.pg-key:is([data-dl], [data-for])::before {
+  content: ""; flex: none; width: 19px; height: 19px; margin-right: 12px; background: currentColor;
+  -webkit-mask: url(/images/os/windows.svg) center / contain no-repeat;
+  mask: url(/images/os/windows.svg) center / contain no-repeat;
+}
+html[data-os="macos"] .pg-key[data-dl]::before, .pg-key[data-for="macos"]::before { -webkit-mask-image: url(/images/os/mac.svg); mask-image: url(/images/os/mac.svg); }
+html[data-os="linux"] .pg-key[data-dl]::before, .pg-key[data-for="linux"]::before { -webkit-mask-image: url(/images/os/linux.svg); mask-image: url(/images/os/linux.svg); }
+html[data-os="none"] .pg-key[data-dl]::before { content: none; }
+.pg-alt { border: 1.5px solid currentColor; }
+.pg-alt:hover { background: color-mix(in oklab, currentColor 13%, transparent); }
+.pg-key:active, .pg-alt:active { transform: translateY(2px) scale(.985); }
+.pg-pic { margin: 0; min-width: 0; }
+.pg-pic img { display: block; width: 100%; height: auto; border-radius: var(--r-2); }
+.pg-pic.fit img { width: auto; max-width: 100%; max-height: min(66vh, 560px); margin-inline: auto; }
+.pg-pic figcaption { margin-top: 10px; font-size: 15px; line-height: 1.4; }
+/* With no picture of the product to show, Bit stands on the edge of the sheet. */
+.pg-bit { justify-self: end; align-self: end; display: block; width: clamp(120px, 15vw, 208px); height: auto; margin-bottom: calc(-1 * clamp(40px, 5vw, 72px)); }
+.pg-bit .bb { fill: var(--sheet-ink); }
+.pg-bit .bf { fill: var(--sheet); }
+@media (max-width: 900px) {
+  .pg-w { grid-template-columns: minmax(0, 1fr); }
+  .pg-pic.fit img { max-height: 460px; }
+}
+@media (max-width: 700px) {
+  .pg-w { padding-inline: 18px; }
+  .pg-act { display: grid; }
+  .pg-bit { width: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .pg-key, .pg-alt { transition: none; } .pg-key:active, .pg-alt:active { transform: none; } }
+@media (forced-colors: active) { .pg-key { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; } }
+
+/* Under the sheet: the text stays on the bar's line, never centred under a sheet
+   that starts there. On a wide screen the list of sections stands beside it. */
+.pg-body { max-width: 1440px; margin: 0 auto; padding: clamp(36px, 4.5vw, 64px) 32px 0; }
+.pg-body > .wrap > :first-child { margin-top: 0; }
+.jump { display: flex; flex-wrap: wrap; gap: 0 22px; margin: 0 0 28px; font-size: 16px; max-width: var(--maxw, 780px); }
+.jump > p { flex: 0 0 100%; margin: 0 0 2px; font: 700 16px/1.3 var(--sans); color: var(--bone-0); }
+.jump a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--bone-0); font-weight: 600; text-decoration-color: var(--rule-2); text-underline-offset: .22em; }
+.jump a:hover { text-decoration-color: currentColor; }
+@media (min-width: 1181px) {
+  .pg-body:has(> .jump) { display: grid; grid-template-columns: 264px minmax(0, var(--maxw, 780px)); column-gap: clamp(56px, 6vw, 96px); align-items: start; }
+  .pg-body > .jump { position: sticky; top: calc(96px + var(--strip-h, 0px)); display: grid; gap: 0; margin: 0; max-height: calc(100vh - 116px - var(--strip-h, 0px)); overflow-y: auto; }
+  .pg-body > .jump > p { margin-bottom: 8px; }
+  .pg-body > .jump a { min-height: 36px; padding: 6px 0; font-weight: 500; line-height: 1.3; color: var(--bone-1); text-decoration: none; }
+  .pg-body > .jump a:hover { color: var(--bone-0); text-decoration: underline; text-decoration-color: currentColor; }
+  .pg-body > .jump a[aria-current] { color: var(--bone-0); font-weight: 700; }
+}
+@media (min-width: 1181px) and (pointer: coarse) { .pg-body > .jump a { min-height: 44px; } }
+@media (max-width: 700px) { .pg-body { padding-inline: 18px; } }

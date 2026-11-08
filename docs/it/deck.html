@@ -36,7 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -44,8 +44,7 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#6EE787">
 <title>Xenon Deck: alternativa gratis a Stream Deck sul telefono</title>
 <meta name="description" content="Tasti macro touch su telefono, tablet o secondo schermo che agiscono sul PC: app, scorciatoie, scene OBS, muto Discord, webhook, macro in più passi. Gratis.">
 <meta name="robots" content="index, follow">
@@ -72,26 +71,19 @@
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
-<style>
-  /* ── Screenshot ───────────────────────────────────────────────── */
-  figure.shot { margin: 8px 0 30px; }
-  figure.shot img { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
-  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
-</style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="green">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
     <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/deck.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/deck.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/deck.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/deck.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/deck.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/deck.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/deck.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
@@ -100,7 +92,7 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
     <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
@@ -117,19 +109,27 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/deck.html" aria-current="page" data-xl="f.deck">Tasti del Deck</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Tasti del Deck","item":"https://xenon-app.com/it/deck.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="deck.h1">Il Deck</h1>
-    <p class="lede" data-i18n="deck.lede">Il Deck è una griglia di tasti che aggiungi a una pagina della dashboard di Xenon. Un tocco può aprire un'app, mandare una scorciatoia da tastiera, cambiare scena in OBS o mettere in muto Discord, e un tasto può illuminarsi per mostrare lo stato di quello che comanda.</p>
-    <p class="lede" data-i18n="deck.lede2">Fa un lavoro simile a quello di uno Stream Deck, su uno schermo che hai già: uno Xeneon Edge, un monitor libero, un tablet o un telefono.</p>
-    <p class="updated" data-i18n="deck.updated">Ultimo aggiornamento: 27 settembre 2026</p>
-
-    <figure class="shot">
-      <img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="Il widget Deck con dodici tasti: scene di OBS, registrazione, microfono, Discord, Spotify, riproduzione, uno screenshot e le luci" data-i18n-alt="deck.shot.alt">
-      <figcaption data-i18n="deck.shot.cap">Un profilo per lo streaming con dodici tasti. Il tasto Playing è acceso perché la musica sta suonando.</figcaption>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/deck.html" aria-current="page" data-xl="f.deck">Tasti del Deck</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Tasti del Deck","item":"https://xenon-app.com/it/deck.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="deck.h1">Il Deck</h1>
+        <p class="lede" data-i18n="deck.lede">Il Deck è una griglia di tasti che aggiungi a una pagina di Xenon. Un tocco può aprire un'app, mandare una scorciatoia da tastiera, cambiare scena in OBS o mettere in muto Discord, e un tasto può illuminarsi per mostrare lo stato di quello che comanda.</p>
+        <div class="pg-act">
+          <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Scarica per Windows</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">Provalo nel browser</a>
+        </div>
+        <p class="updated" data-i18n="deck.updated">Ultimo aggiornamento: 27 settembre 2026</p>
+      </div>
+      <figure class="pg-pic">
+      <img fetchpriority="high" src="/images/home/w-deck.webp" width="1400" height="1048" decoding="async" alt="Il widget Deck con dodici tasti in un profilo da gioco: salva replay, screenshot, muto microfono, Spotify, overlay, segna, Discord, luci, chiedi a Bit, registra, volume e blocca il PC" data-i18n-alt="deck.shot.alt">
+      <figcaption data-i18n="deck.shot.cap">Un profilo da gioco con dodici tasti per replay, screenshot, microfono e overlay.</figcaption>
     </figure>
-
-    <nav class="jump">
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">In questa pagina</p>
       <a href="#actions" data-i18n="deck.jump.actions">Azioni</a>
       <a href="#steps" data-i18n="deck.jump.steps">Tasti in più passaggi</a>
       <a href="#behave" data-i18n="deck.jump.behave">Come risponde un tasto</a>
@@ -141,6 +141,8 @@
       <a href="#share" data-i18n="deck.jump.share">Condivisione</a>
       <a href="#faq" data-i18n="deck.jump.faq">Domande</a>
     </nav>
+    <div class="wrap">
+    <p class="lede" data-i18n="deck.lede2">Fa un lavoro simile a quello di uno Stream Deck, su uno schermo che hai già: uno Xeneon Edge, un monitor libero, un tablet o un telefono.</p>
 
     <h2 id="actions" data-i18n="deck.h.actions">Azioni</h2>
     <p data-i18n="deck.actions.p1">L'editor dei tasti divide le azioni in categorie. Prima che parta, un'azione che agisce sul PC viene confrontata dal server di Xenon con l'elenco delle azioni consentite. Un tasto che fallisce lampeggia di rosso, e quando il PC segnala un errore, un breve messaggio dice quale.</p>
@@ -160,7 +162,7 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Metti in muto una strip o regolane il gain, mandala a un bus (i pulsanti A1, A2, B1), metti in muto un bus o regolane il gain, premi uno dei tuoi pulsanti macro, o imposta qualsiasi parametro per nome.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Regola o metti in muto il volume di un ingresso, di un'uscita o di un mix. Con Wave Link 2 un tasto può anche cambiare il monitoraggio; con Wave Link 3 può attivare e disattivare gli effetti e scegliere il dispositivo di uscita.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Accendi o spegni un dispositivo, regola una luce, comanda un lettore multimediale, una tapparella, il clima, una ventola, un aspirapolvere, una serratura o un allarme, attiva una scena, esegui uno script, premi un pulsante o chiama qualsiasi servizio.</li>
-      <li data-i18n-html="deck.act.light"><strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.</li>
+      <li data-i18n-html="deck.act.light"><strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo, colora una sola ventola, striscia o pompa, o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.</li>
       <li data-i18n-html="deck.act.window"><strong>Finestre.</strong> Sposta la finestra che stavi usando sul monitor successivo o precedente, agganciala alla metà sinistra o destra, ingrandiscila, riducila a icona o centrala.</li>
       <li data-i18n-html="deck.act.ai"><strong>Bit e Claude Code.</strong> Manda un prompt all'AI, avvia una sessione vocale o apri la chat. Avvia una richiesta a Claude Code in uno dei tuoi progetti, o ferma quella in corso. Il tasto non concede permessi: quando Claude Code chiede di eseguire un comando, la richiesta arriva sullo schermo e sei tu ad approvarla.</li>
       <li data-i18n-html="deck.act.more"><strong>Altro.</strong> Chiama o manda SMS tramite un telefono abbinato via Bluetooth, chiudi una sessione remota o blocca l'accesso remoto, e usa i tasti aggiunti dai widget della community che hai installato, ognuno solo dopo che l'hai consentito.</li>
@@ -252,6 +254,7 @@
       <p data-i18n-html="deck.cta.demo">Per dare prima un'occhiata, apri la <a href="/demo/">demo nel browser</a>. Lì l'editor del Deck funziona, ma un tasto non può agire su un PC, perché dietro la pagina non c'è nessun PC.</p>
     </div>
     <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+    </div>
   </div>
 </main>
 
@@ -259,14 +262,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
-      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Widget gratis per il tuo PC, su ogni schermo. Windows, con macOS e Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit vive nel widget Vitals e ha opinioni sulla tua postura.</span></div>
     </div>
     <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR. Ogni altro nome e logo appartiene al suo proprietario.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

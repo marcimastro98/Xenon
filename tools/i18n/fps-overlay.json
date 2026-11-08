@@ -20,7 +20,7 @@
     "fo.jump.systems": "Windows, Linux, Mac",
     "fo.jump.afterburner": "Next to Afterburner",
     "fo.jump.faq": "Common questions",
-    "fo.img.alt": "The Game performance tile in Xenon: 143 FPS, 1% low 112, 0.1% low 96, frame time 7.1 ms, a graph of the latest frames with one spike, CPU 21%, GPU 19%, GPU at 48°C",
+    "fo.img.alt": "The Game performance tile in Xenon: 143 FPS, 1% low 112, 0.1% low 96, frame time 7.1 ms, a graph of the latest frames with two spikes, CPU 48%, GPU 61%, GPU at 60°C",
     "fo.h.lows": "What 1% and 0.1% lows tell you",
     "fo.lows.p1": "The average frame rate hides the moments that feel bad. Xenon also takes the slowest 1% of frames and gives their average as a frame rate: that is the <strong>1% low</strong>. The <strong>0.1% low</strong> does the same with the slowest frame in a thousand.",
     "fo.lows.p2": "In the picture above the game averages 143 FPS, the 1% low is 112 and the 0.1% low is 96. The three numbers are close, so the game feels smooth. When the average is high and the lows are far below it, the game stutters even though the FPS counter looks fine.",
@@ -68,6 +68,7 @@
     "fo.faq.price.q": "Is the FPS overlay free?",
     "fo.faq.price.a": "Yes. The Game performance tile, the games played, the benchmark and the stutter causes are part of the free app, with no account. Supporters get monthly catalog drops, not extra features.",
     "fo.cta.h": "Download Xenon",
-    "fo.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. To put widgets, recordings and Instant Replay on the same screen, read <a href=\"/single-screen.html\">Xenon on one screen</a>."
+    "fo.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. To put widgets, recordings and Instant Replay on the same screen, read <a href=\"/single-screen.html\">Xenon on one screen</a>.",
+    "fo.pic.alt": "The game performance overlay: FPS, 1% and 0.1% lows, frame time, a graph of the latest frames, and CPU and GPU load"
   }
 }

@@ -119,7 +119,7 @@
   // minute after the first count. Like the download beacon, a failure is
   // invisible to the page.
   const USAGE_URL = 'https://xenon-supporter-hub.xenonedge.workers.dev/usage';
-  const HOME_SECTIONS = ['screens', 'widgets', 'games', 'work', 'bit', 'catalog', 'support', 'faq', 'install'];
+  const HOME_SECTIONS = ['screens', 'widgets', 'games', 'bit', 'catalog', 'support', 'faq', 'install'];
   const SITE_FEATURES = ['demo.click', 'demo.open', 'maker.click', 'catalog.entry', 'support.click', 'download.click']
     .concat(HOME_SECTIONS.map(function (s) { return 'home.' + s; }));
   const USAGE_FLUSH_MS = 60000;

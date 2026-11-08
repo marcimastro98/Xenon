@@ -18,7 +18,7 @@
     "tab.how.p2": "你看到的是真正的仪表盘，不是遥控器：和显示器上一样的磁贴、一样的主题、一样的页面，并按平板的形状重新排列。触控目标的大小适合手指操作。",
     "tab.h.setup": "设置方法",
     "tab.setup.1": "在电脑上下载 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a> 并运行，应用提示时点击 <strong>Complete setup</strong>（完成设置）。这只需要做一次。",
-    "tab.setup.2": "打开“设置”→ <strong>远程控制</strong> → <strong>手机访问</strong>，开启<strong>允许其他设备访问</strong>，然后点击<strong>添加设备</strong>。电脑上会显示一个二维码。",
+    "tab.setup.2": "打开“设置”→ <strong>手机</strong> → <strong>手机访问</strong>，开启<strong>允许其他设备访问</strong>，然后点击<strong>添加设备</strong>。电脑上会显示一个二维码。",
     "tab.setup.3": "用平板的相机对准这个二维码。仪表盘会在它的浏览器中打开。如果想全屏显示，可以把它添加到主屏幕。",
     "tab.setup.4": "如果电脑完全没有闲置的显示器，可以在首次启动时告诉 Xenon 不在电脑上显示任何内容：平板就成了唯一的屏幕。",
     "tab.setup.more": "<a href=\"phone.html\">手机指南</a>里有同样的步骤和截图，还介绍了从家外访问仪表盘的可选方式。",
@@ -47,6 +47,7 @@
     "ld.q4": "可以用手机代替平板吗？",
     "ld.a4": "可以，方法一样。布局会针对手机屏幕重新排列。",
     "ld.q5": "Xenon 免费吗？",
-    "ld.a5": "免费。没有付费版，无需账号，没有广告。源代码以非商业许可证托管在 GitHub 上。"
+    "ld.a5": "免费。没有付费版，无需账号，没有广告。源代码以非商业许可证托管在 GitHub 上。",
+    "tab.pic.alt": "平板上的 Xenon 仪表盘：音乐、歌词、系统图表和一组 Deck 按键"
   }
 }

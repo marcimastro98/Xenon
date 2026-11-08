@@ -1,10 +1,10 @@
 {
   "es": {
-    "meta.title": "Xenon para Mac (beta): panel para segunda pantalla y widgets",
+    "meta.title": "Xenon para Mac (beta): panel y widgets para Xeneon Edge",
     "meta.desc": "Xenon en macOS 11 o posterior (beta): un panel para una pantalla extra o un Xeneon Edge, los permisos que pide, primer inicio y cómo desinstalarlo.",
     "mac.h1": "Xenon en macOS",
     "mac.beta": "Beta",
-    "mac.lede": "Xenon es un panel táctil gratuito para la pantalla que tienes junto al ordenador. En un Mac funciona el mismo panel que en Windows. Esta página explica qué funciona ahí hoy, qué no, y cómo instalarlo y desinstalarlo.",
+    "mac.lede": "Xenon pone widgets gratis para tu ordenador en cualquier pantalla. En un Mac está en beta: esta página explica qué funciona ahí hoy, qué no, y cómo instalarlo y desinstalarlo.",
     "mac.updated": "Última actualización: 27 de septiembre de 2026",
     "mac.jump.who": "Para quién es",
     "mac.jump.get": "Descarga",
@@ -13,10 +13,8 @@
     "mac.jump.edge": "Xeneon Edge",
     "mac.jump.perms": "Permisos",
     "mac.jump.remove": "Desinstalar",
-    "mac.shot.alt": "El panel de Xenon al tamaño del Xeneon Edge, 2560×720, con música, un calendario y lecturas del sistema uno al lado del otro",
-    "mac.shot.cap": "El panel al tamaño del Xeneon Edge, 2560×720, capturado de la demo en el navegador. Sus lecturas son datos de ejemplo de un PC con Windows. En un Mac, los mismos mosaicos muestran las lecturas del propio Mac.",
     "mac.h.who": "Para quién es",
-    "mac.who.p1": "Esta página es para quien tiene un Mac y una segunda pantalla libre:",
+    "mac.who.p1": "Esta página es para quien tiene un Mac y quiere widgets en cualquiera de estos:",
     "mac.who.edge": "<strong>Un CORSAIR Xeneon Edge.</strong> Xenon se diseñó primero para su formato de 2560×720.",
     "mac.who.monitor": "<strong>Un monitor que te sobra.</strong> La app de Xenon se abre en la pantalla que elijas.",
     "mac.who.tablet": "<strong>Una tablet o un teléfono.</strong> Muestra el mismo panel en su navegador a través de tu Wi-Fi, sin instalar nada en él. El acceso desde teléfono y tablet también está en beta. Consulta <a href=\"/phone.html\">cómo vincular un teléfono o una tablet</a>.",
@@ -82,7 +80,7 @@
     "mac.row.voice": "Entrada de voz y visión de pantalla de la IA",
     "mac.st.voice": "Funciona. La voz necesita ffmpeg.",
     "mac.row.wake": "Activación por voz «Hey Bit»",
-    "mac.st.wake": "Funciona con ffmpeg y Whisper, gratuito y local, que se instala con Homebrew desde Ajustes, Asistente Bit.",
+    "mac.st.wake": "Funciona con ffmpeg y Whisper, gratuito y local, que se instala con Homebrew desde Ajustes, Bit.",
     "mac.row.lights": "Iluminación en red: WLED, Hue, Nanoleaf, OpenRGB",
     "mac.row.icue": "Iluminación CORSAIR iCUE",
     "mac.st.win": "Solo en Windows.",
@@ -146,6 +144,9 @@
     "ld.q4": "¿Qué permisos necesita Xenon en un Mac?",
     "ld.a4": "El panel funciona sin ninguno. Acceso total al disco permite que la búsqueda y el widget Espacio en disco vean tu carpeta de usuario y la Papelera. Accesibilidad permite que las teclas del Deck envíen atajos de teclado. Grabación de pantalla y Micrófono son para la visión de pantalla y la voz de la IA.",
     "ld.q5": "¿Cómo desinstalo Xenon en un Mac?",
-    "ld.a5": "Haz doble clic en UNINSTALL.command, en ~/Library/Application Support/Xenon, y escribe REMOVE cuando te lo pida. Elimina la app, el ítem de inicio de sesión, el servidor local, tus datos y la carpeta de instalación."
+    "ld.a5": "Haz doble clic en UNINSTALL.command, en ~/Library/Application Support/Xenon, y escribe REMOVE cuando te lo pida. Elimina la app, el ítem de inicio de sesión, el servidor local, tus datos y la carpeta de instalación.",
+    "mac.pic.alt": "El panel de Xenon: música, calendario y gráficos del sistema en una sola página",
+    "mac.pic.cap": "El panel en la demo del navegador. Sus lecturas son datos de ejemplo de un PC con Windows; en un Mac, los mismos mosaicos muestran las lecturas del Mac.",
+    "mac.who.desk": "<strong>Tu escritorio.</strong> Los widgets se quedan en la pantalla que ya tienes. Consulta <a href=\"/single-screen.html\">Xenon en una sola pantalla</a>."
   }
 }
