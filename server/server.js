@@ -3983,7 +3983,7 @@ function readSoundVolumeRows() {
     // as latin1, "Kopfhörer" became "KopfhÃ¶rer" and switching to it did nothing
     // (issue #145).
     execFile(SVV, [...svvText.UTF8_EXPORT, '/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
-      if (err) return reject(err);
+      if (err) { fs.unlink(csv, () => {}); return reject(err); }
       setTimeout(async () => {
         try {
           const raw = svvText.decodeCsv(await fs.promises.readFile(csv));
