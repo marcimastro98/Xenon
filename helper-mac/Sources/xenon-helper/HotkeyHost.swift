@@ -7,10 +7,14 @@ import Carbon.HIToolbox
 // The contract is HotkeyHost.cs's. Combos are addressed by their POSITION in
 // the list, which is the server's binding table: index 0 is the Spotlight
 // shortcut and the rest are whatever else it wanted bound (the dashboard page
-// shortcuts). server.js reads exactly three events:
-//   {"event":"ready","registered":[0,2]}                 these indices are ours
+// shortcuts). server.js reads these events:
+//   {"event":"ready","registered":[0,2],"release":true}  these indices are ours
 //   {"event":"hotkey","index":0}                         index 0 was pressed
+//   {"event":"release","index":0}                        …and let go (0.7.0+)
 //   {"event":"error","error":"hotkey_taken","index":1}   somebody else owns it
+// The window server reports the release of a hot key on its own
+// (kEventHotKeyReleased), so a widget shown while its keys are held needs no
+// watching of the keyboard here.
 //
 // RegisterEventHotKey rather than a CGEventTap on purpose. A tap would see
 // every keystroke on the machine and needs the Accessibility grant to do it;
@@ -92,18 +96,21 @@ enum HotkeyHost {
 
     static func run(_ args: [String]) {
         let combos = Array((args.isEmpty ? ["alt+space"] : args).prefix(maxCombos))
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
-                                      eventKind: UInt32(kEventHotKeyPressed))
+        var eventTypes = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
+        ]
         // The handler is a C function pointer, so the closure may capture
         // nothing. An unqualified `firedIndex` inside a static method is
         // `self.firedIndex` and captures the metatype, which Swift refuses here;
         // naming the type keeps it a plain static call.
         let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
             if let index = HotkeyHost.firedIndex(event) {
-                emit(.obj([("event", .s("hotkey")), ("index", .i(index))]))
+                let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
+                emit(.obj([("event", .s(released ? "release" : "hotkey")), ("index", .i(index))]))
             }
             return noErr
-        }, 1, &eventType, nil, &handlerRef)
+        }, eventTypes.count, &eventTypes, nil, &handlerRef)
         if installed != noErr { emitError("handler_failed"); return }
 
         // A combo somebody else owns is reported against its own index and
@@ -132,7 +139,7 @@ enum HotkeyHost {
             registered.append(.i(i))
         }
         if registered.isEmpty { exit(1) }
-        emit(.obj([("event", .s("ready")), ("registered", .arr(registered))]))
+        emit(.obj([("event", .s("ready")), ("registered", .arr(registered)), ("release", .b(true))]))
         // Stdin EOF = the parent is gone or is retiring us. server.js's
         // _stopHotkeyListener closes stdin FIRST and only escalates to a kill
         // after a 2s grace — the C# twin exits on that close, and without this

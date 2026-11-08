@@ -316,6 +316,12 @@ internal static class IndexHost
     private static long[][] RootKinds = Array.Empty<long[]>();
     private static volatile bool Ready;
     private static volatile bool Cancelled;
+    // While a game runs the walk, the watcher drain and the repairs stand still:
+    // they are the only work here that can take a core. Requests keep being
+    // answered from what the index holds, and the watchers keep recording into
+    // their bounded queue, whose overflow already means a repair later.
+    private static volatile bool Held;
+    private const int HeldPollMs = 500;
 
     // Roots as given (normalized, a drive keeps its trailing '\'), the same
     // without the trailing separator (what paths are matched against), and
@@ -420,6 +426,7 @@ internal static class IndexHost
             // debounced and rate-limited, and sweeps instead of emptying.
             while (!Cancelled)
             {
+                WaitWhileHeld();
                 var due = TakeDueRoot();
                 if (due != null) RepairRoot(due);
                 else Thread.Sleep(1000);
@@ -1056,8 +1063,20 @@ internal static class IndexHost
             case "top": return OpTop(req);
             case "dupes": return OpDupes(req);
             case "stats": return OpStats();
+            case "hold": return OpHold(req);
             default: throw new Exception("unknown op");
         }
+    }
+
+    private static Dictionary<string, object?> OpHold(System.Text.Json.JsonElement req)
+    {
+        Held = req.TryGetProperty("on", out var on) && on.ValueKind == System.Text.Json.JsonValueKind.True;
+        return new Dictionary<string, object?> { ["held"] = Held };
+    }
+
+    private static void WaitWhileHeld()
+    {
+        while (Held && !Cancelled) Thread.Sleep(HeldPollMs);
     }
 
     private static string? Str(System.Text.Json.JsonElement req, string name)
@@ -1621,6 +1640,7 @@ internal static class IndexHost
             {
                 ["ready"] = Ready,
                 ["building"] = !Ready,
+                ["held"] = Held,
                 ["files"] = (long)(Entries.Count - Tombstones),
                 ["dirs"] = (long)DirNodes.Count,
                 ["bytes"] = TotalBytes,
@@ -1697,6 +1717,7 @@ internal static class IndexHost
         catch { return false; }
         foreach (var fi in files)
         {
+            WaitWhileHeld();
             if (Cancelled) return false;
             long len, mt;
             string? dir;
@@ -1983,6 +2004,7 @@ internal static class IndexHost
 
         while (!Cancelled)
         {
+            WaitWhileHeld();
             touched.Clear(); adds.Clear(); fileDeletes.Clear(); subtreeDeletes.Clear(); dirWalks.Clear();
             lock (PendingGate)
             {

@@ -28,7 +28,15 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Built ahead of time and not compressed, by measure (7 Nov 2026). Trimming
+         strips the precompiled code out of the framework, so without ReadyToRun the
+         exe compiles itself at every start, in each of its processes. Compression
+         makes each process unpack the assemblies into private memory, where an
+         uncompressed exe is mapped once and shared. A one-shot start went from 156
+         to 47 ms of CPU, five serve modes together from 54 to 43 MB private, and a
+         full index walk got no slower. The exe grows from 12 to 26 MB. Compression
+         on top of ReadyToRun came out at 86 MB private: keep them apart. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
     <!-- Trimming keeps the exe and its memory footprint small. Safe because
          JSON output is hand-rolled (JsonOut — reflection-based serialization
          throws in trimmed builds) and the WinRT projections are trim-aware.
@@ -121,8 +129,17 @@
                   version and staleFiles, stats gains version; names are matched
                   accent-folded ("citta" finds "Citta" with an accent). query refines the last query's matches while a word is typed, scans on several cores, and answers folders (dirs) and words held by a folder above the file (pathTerms, pt).
                   Version-gated: the disk widget's capacity bar and its cache
-                  key read the new fields. -->
-    <Version>0.15.0</Version>
+                  key read the new fields;
+         0.16.0 = index-serve takes `hold`: while a game runs its walk, drain and
+                  repairs stand still and requests keep being answered; stats
+                  gains held. An older host refuses the op and is left alone.
+                  notifications-serve reads a new pause in ms from stdin, one line;
+                  an older host discards the line and keeps its pace.
+                  hotkey-serve reports a key let go (`release`, and
+                  release:true in ready), for a widget shown while its keys are
+                  held; an older host never does and the server shows it for a
+                  few seconds per press instead. -->
+    <Version>0.16.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 
