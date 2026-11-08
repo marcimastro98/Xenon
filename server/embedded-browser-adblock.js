@@ -17,6 +17,7 @@ const path = require('path');
 const https = require('https');
 const { execFile } = require('child_process');
 const { checkPinnedSha256 } = require('./pinned-hash');
+const { armDeadline } = require('./net-guard');
 
 // The exact uBOL build Xenon installs, and the SHA-256 of its Edge zip. The
 // extension is loaded into the Browser tile with access to every page the user
@@ -62,6 +63,10 @@ function extensionDir(dataDir) {
 
 function isInstalled(dataDir) { return !!extensionDir(dataDir); }
 
+// The 180 s socket timeout below only fires on a quiet connection; a server
+// trickling bytes would hold the install (and its single-flight promise) open
+// forever. Ten minutes covers the pinned zip on a slow link.
+const DOWNLOAD_DEADLINE_MS = 10 * 60 * 1000;
 // HTTPS GET → file, following the CDN redirects GitHub release assets use.
 function _downloadToFile(url, destPath, _redirects = 0) {
   return new Promise((resolve, reject) => {
@@ -81,6 +86,7 @@ function _downloadToFile(url, destPath, _redirects = 0) {
     });
     req.on('error', reject);
     req.setTimeout(180000, () => { req.destroy(); reject(new Error('download timed out: ' + url)); });
+    armDeadline(req, DOWNLOAD_DEADLINE_MS);
   });
 }
 

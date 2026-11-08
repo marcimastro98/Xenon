@@ -31,12 +31,17 @@
 // Pure parts are exported for unit tests (server/test/community-messages.test.mjs).
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 
 // Same origin as the catalog, and fixed for the same reason: a user-configurable
 // message source would be a stranger's text rendered on the dashboard.
 const MESSAGES_URL = 'https://xenon-app.com/community/messages.json';
 
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 512 * 1024;      // a text feed; anything larger is a mistake
 const MESSAGES_TTL_MS = 30 * 60 * 1000;
 const REFRESH_MIN_INTERVAL_MS = 60 * 1000;
@@ -52,7 +57,8 @@ const LANG_RE = /^[a-z]{2}$/;
 
 // How loudly a message may present itself. `toast` is the default on purpose:
 // a channel whose default is a modal becomes a channel nobody wants installed.
-const LEVELS = new Set(['toast', 'modal', 'banner']);
+const LEVELS = new Set(['toast', 'modal']);
+const WHERE = new Set(['corner', 'stage']);
 
 // What the call-to-action may do. `store` opens the Store on `entryId` through
 // the normal import boundary; `url` opens an external link; `dismiss` just closes.
@@ -247,7 +253,10 @@ function normalizeMessage(raw) {
   const id = cleanStr(raw.id, 61);
   if (!MESSAGE_ID_RE.test(id)) return null;
 
-  const level = cleanStr(raw.level, 10);
+  // Where it appears, as the console says it: `corner` or `stage`. `level` is what
+  // 4.11 and older read from the same feed, so the hub keeps writing both.
+  const where = WHERE.has(raw.where) ? raw.where : 'corner';
+  const level = cleanStr(raw.level, 10) || (where === 'stage' ? 'modal' : 'toast');
   if (!LEVELS.has(level)) return null;
 
   // A message with no title has nothing to show; body is optional (a one-line
@@ -264,9 +273,9 @@ function normalizeMessage(raw) {
   const msg = {
     id,
     level,
+    where,
     title,
     body: cleanStr(raw.body, 600),
-    kicker: cleanStr(raw.kicker, 24),
   };
   if (MESSAGE_ID_RE.test(entryId)) msg.entryId = entryId;
   if (match) msg.match = match;
@@ -361,6 +370,7 @@ function fetchText(url, validators, _hops = 0) {
     catch (e) { return reject(e); }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    armDeadline(req, FETCH_DEADLINE_MS);
 
     function onResponse(res) {
       if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }
@@ -442,6 +452,7 @@ module.exports = {
   normalizeMatch,
   normalizeAction,
   normalizeMedia,
+  normalizePoll,
   filterVisibleMessages,
   cacheIsFresh,
   MESSAGES_URL,

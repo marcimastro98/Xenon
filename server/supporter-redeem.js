@@ -16,6 +16,7 @@ const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('./atomic-write.js');
+const { armDeadline } = require('./net-guard');
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable
 // (a settings field would be attack/typo surface with no user benefit).
@@ -45,6 +46,9 @@ const UPDATE_ERRORS = new Set(['bad_request', 'bad_entry', 'not_owner', 'rate_li
 // at 2 MB; the JSON around it is small, so 3 MB is the ceiling and anything bigger
 // is a broken or hostile answer, not a bundle.
 const MAX_UPDATE_RESPONSE_BYTES = 3 * 1024 * 1024;
+// Up to 3 MB on a slow link takes far longer than a small JSON answer: the idle
+// timeout stays short, the whole-request cap (twice this) leaves a minute.
+const UPDATE_TIMEOUT_MS = 30000;
 const MAX_BUNDLE_CHARS = 2 * 1024 * 1024 + 4096;
 const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
 // A key version names which of the entry's keys a file was sealed with (see the
@@ -109,6 +113,7 @@ async function getInstallId(dataDir) {
 // vote and burn a fresh device slot on their next redeem.
 const SCOPE_RATINGS = 'ratings';
 const SCOPE_DEVICES = 'activations';
+const SCOPE_WELCOME = 'welcome';
 const _scopedCache = new Map();
 
 async function getScopedId(dataDir, scope) {
@@ -186,6 +191,20 @@ async function saveTypedCode(dataDir, code) {
 let _trialPass = null;
 function useTrialPass(trialPass) { _trialPass = trialPass || null; }
 
+// An unlock that works also carries the entry's rating ticket (rating-votes.js):
+// a locked entry has no other way to one. Never allowed to cost the unlock.
+let _ratingVotes = null;
+function useRatingVotes(votes) { _ratingVotes = votes || null; }
+async function withRatingId(payload) {
+  if (!_ratingVotes) return payload;
+  const ratingId = await _ratingVotes.ratingId().catch(() => '');
+  return ratingId ? { ...payload, ratingId } : payload;
+}
+async function keepRatingTicket(entryId, out) {
+  if (!_ratingVotes || !out || typeof out.ratingTicket !== 'string') return;
+  await _ratingVotes.addTicket(entryId, out.ratingTicket, out.ratingTicketAt).catch(() => {});
+}
+
 // ── Outbound POST ────────────────────────────────────────────────────────────
 let _transport = postJson; // swappable for tests
 
@@ -212,6 +231,10 @@ function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES, timeoutMs = FETCH_TI
     }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', () => resolve({ ok: false, error: 'network' }));
+    // `timeout` is an idle timeout only; a hub that trickles bytes would hold
+    // the POST open forever. Cap the whole request at twice the idle timeout
+    // the caller chose (a credits turn waits minutes on the model).
+    armDeadline(req, timeoutMs * 2);
     req.end(payload);
 
     function onResponse(res) {
@@ -262,9 +285,10 @@ async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial
   const payload = { entryId: id, code: canon, scopedId };
   const keyVersion = cleanKv(kv);
   if (keyVersion) payload.kv = keyVersion;
-  try { out = await _transport(HUB_BASE + '/redeem', payload); }
+  try { out = await _transport(HUB_BASE + '/redeem', await withRatingId(payload)); }
   catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek) {
+    await keepRatingTicket(id, out);
     // Remember it only once it has been proven to work, and only when the user
     // typed it: a pass that came FROM disk has nothing to learn.
     const saved = !fromSaved && await saveCode(dataDir, canon);
@@ -334,7 +358,7 @@ async function update({ entryId, have, kv, dataDir }) {
   const keyVersion = cleanKv(kv);
   if (keyVersion) payload.kv = keyVersion;
   let out;
-  try { out = await _transport(HUB_BASE + '/update', payload, MAX_UPDATE_RESPONSE_BYTES); }
+  try { out = await _transport(HUB_BASE + '/update', payload, MAX_UPDATE_RESPONSE_BYTES, UPDATE_TIMEOUT_MS); }
   catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && out.upToDate === true) return { ok: true, upToDate: true };
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek
@@ -357,6 +381,9 @@ module.exports = {
   redeem,
   update,
   hubPost,
+  useRatingVotes,
+  withRatingId,
+  keepRatingTicket,
   useTrialPass,
   savedStatus,
   readSavedCode,
@@ -366,6 +393,7 @@ module.exports = {
   getScopedId,
   SCOPE_RATINGS,
   SCOPE_DEVICES,
+  SCOPE_WELCOME,
   HUB_BASE,
   _setTransport(fn) { _transport = fn || postJson; },
   _resetInstallIdCache() { _installId = null; _scopedCache.clear(); },

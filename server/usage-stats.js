@@ -28,9 +28,14 @@ const path = require('path');
 const fsp = require('fs').promises;
 const { writeFileAtomic } = require('./atomic-write');
 const { HUB_BASE } = require('./supporter-redeem');
+const { armDeadline } = require('./net-guard');
 
 const STATE_BASENAME = 'usage-stats.json';
 const FETCH_TIMEOUT_MS = 6000;
+// `timeout` is an idle timeout only; a hub that trickles bytes would hold the
+// request, and the single-flight read waiting on it, open forever. This bounds
+// the whole request (net-guard.armDeadline).
+const FETCH_DEADLINE_MS = 15000;
 const SAVE_DELAY_MS = 30 * 1000;
 // The hub's own limits (feature-usage.js): a bigger batch is refused whole.
 const MAX_EVENTS = 64;
@@ -242,6 +247,7 @@ function postBatch(url, body) {
     }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', () => resolve({ ok: false }));
+    armDeadline(req, FETCH_DEADLINE_MS);
     req.end(payload);
   });
 }
