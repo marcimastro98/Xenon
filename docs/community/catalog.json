@@ -302,8 +302,7 @@
       "name": "TGK Monitor — Performance Metrics",
       "author": "The.GothamKnight",
       "authorSupporter": true,
-      "perfWarning": true,
-      "description": "Real-time CPU, GPU, memory, clocks, temperatures, fans and FPS monitoring.\nNo setup required. Uses Xenon native system data and follows Xenon temperature units.\nUses your current Xenon theme by default and can be customized like other widgets.\nFPS appears when a foreground game/application is detect",
+      "description": "Real-time CPU, GPU, memory, clocks, temperatures, fans and FPS monitoring. Color customization for sensors and gauges. Uses your current Xenon theme by default and can be customized like other widgets. FPS appears when a foreground game/application is detected.",
       "category": "system",
       "tags": [
         "performance",
@@ -312,7 +311,8 @@
         "fps",
         "on-screen"
       ],
-      "version": "1.0.0",
+      "version": "1.1.0",
+      "changelog": "Added color customization for Sensors and gauges, persistent settings and reset default.\nPreselection of Intel blue, AMD red, Nvidia green.",
       "pkgId": "tgk-monitor",
       "appVersionMin": "4.1.8",
       "preview": {
@@ -320,10 +320,10 @@
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
+      "shots": 3,
       "addedAt": "2026-09-16",
-      "codeFile": true,
-      "updatedAt": "2026-11-04"
+      "updatedAt": "2026-11-08",
+      "codeFile": true
     },
     {
       "id": "tgk-steam-launcher-battery",
