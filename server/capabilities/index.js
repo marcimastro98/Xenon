@@ -42,6 +42,7 @@ const layers = require('./layers.js');
 const layerKey = require('./layer-key.js');
 const layerPages = require('./layer-pages.js');
 const layerAnchor = require('./layer-anchor.js');
+const layerCaptures = require('./layer-captures.js');
 const aiGlow = require('./ai-glow.js');
 const usageMode = require('./usage-mode.js');
 const xenonMenu = require('./xenon-menu.js');
@@ -155,6 +156,8 @@ function createCapabilities(deps) {
       xenonMenu: xenonMenu.available(d.menu),
       // A controller can open the Xenon menu (View + Menu held, layers/pad.rs).
       menuPad: !!(d.layersHost && typeof d.layersHost.pads === 'function' && d.layersHost.pads()),
+      // The shell can keep widget windows out of screenshots and recordings.
+      layersCaptures: layerCaptures.available(d.layersHost),
       scene: desktopScene.available(d.layersHost),
       widgetPages: layerPages.hasPages(d.layers),
       gameCompanion: !!d.companion,
@@ -237,6 +240,7 @@ function createCapabilities(deps) {
       }
       case 'layersToggle': return layers.toggle(layerDeps(), action);
       case 'layersShortcut': return layers.shortcut(layerDeps(), action);
+      case 'layersCaptures': return layerCaptures.run(layerDeps(), action);
       case 'layerWidgetKey': return widgetKey.setWidgetKey(stepDeps(), action);
       case 'layerAnchor': return layerAnchor.run({ ...stepDeps(), windows: d.windows }, action);
       case 'layerPage': return layerPages.switchPage(layerDeps(), action);

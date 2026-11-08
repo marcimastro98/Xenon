@@ -205,7 +205,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           layers: true, scene: caps().scene === true, draw: caps().draw === true, menu: caps().menu === true, anchor: caps().anchor === true,
-          desks: caps().desks === true, pad: caps().pad === true, monitors,
+          desks: caps().desks === true, pad: caps().pad === true, hide: caps().outOfCaptures === true, monitors,
         }),
       });
     } catch (e) {

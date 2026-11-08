@@ -71,11 +71,24 @@ function folderRows(st, p) {
   return rows.length ? [heading('folders', 'xmenu_folders'), ...rows] : [];
 }
 
+// Whether the screen widgets show in captures, only where the shell can keep them out.
+// Where it has widgets but cannot (Linux: no capture tool leaves one window out),
+// the row says they always show instead of offering a choice that does nothing.
+function widgetsRow(st, p) {
+  if (!p.layersCaptures) {
+    return p.layers ? [{ kind: 'status', id: 'captureWidgets', label: k('xmenu_capture_widgets'), value: k('xmenu_capture_widgets_always'), sub: k('xmenu_sub_capture_widgets_always'), tone: 'off' }] : [];
+  }
+  const on = st.layers && st.layers.excludeFromCapture === false;
+  const set = (mode) => ({ type: 'layersCaptures', mode });
+  return [toggleRow('captureWidgets', k('xmenu_capture_widgets'), on, set('on'), set('off'), k(on ? 'xmenu_sub_capture_widgets_on' : 'xmenu_sub_capture_widgets_off'))];
+}
+
 function captureSection(st) {
   const p = st.probes || {};
   if (!p.capture && !p.captureVideo) return [{ kind: 'status', id: 'noCapture', label: k('xmenu_sec_capture'), value: k('xmenu_needs_engine') }];
   const c = st.capture || {};
   const rows = [{ kind: 'button', id: 'gallery', label: k('xmenu_gallery'), sub: k('xmenu_sub_gallery'), action: k('xmenu_open'), act: open('gallery'), primary: true, closes: true }];
+  rows.push(...widgetsRow(st, p));
   if (p.captureVideo) rows.push(...recordRows(c, p));
   if (p.captureReplay) rows.push(...replayRows(c));
   rows.push(...folderRows(st, p));

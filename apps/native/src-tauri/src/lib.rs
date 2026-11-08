@@ -2066,6 +2066,13 @@ pub fn run() {
                 // Holding View + Menu on a controller opens the Xenon menu
                 // (layers/pad.rs).
                 "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),
+                // Widget windows can be kept out of screenshots and recordings
+                // (`set_content_protected`: WDA_EXCLUDEFROMCAPTURE on Windows,
+                // sharingType none on macOS, where Xenon's capture engine also
+                // leaves those windows out by name, since ScreenCaptureKit on
+                // macOS 15 may not), so "show them in captures" is a real choice.
+                // Linux has no such flag.
+                "outOfCaptures": layers_why.is_none() && cfg!(any(windows, target_os = "macos")),
                 // Linux stacks the wallpaper under the windows, not behind
                 // the icons a desktop may draw (layers/linux.rs).
                 "wallpaperBehindIcons": !cfg!(target_os = "linux"),

@@ -20,6 +20,7 @@ use objc2_core_video::CVPixelBuffer;
 use objc2_foundation::{NSArray, NSError};
 
 use super::ffi::{self, Sent};
+use super::no_share;
 use crate::proto::Fail;
 
 const PATH: &CStr = c"/System/Library/Frameworks/ScreenCaptureKit.framework/ScreenCaptureKit";
@@ -142,7 +143,7 @@ pub struct Spec {
 }
 
 /// The system's list of displays and windows, asked fresh each time.
-fn content() -> Result<Retained<AnyObject>, Fail> {
+pub(super) fn content() -> Result<Retained<AnyObject>, Fail> {
     let class = AnyClass::get(c"SCShareableContent").ok_or(Fail::code("unsupported"))?;
     let answer = ffi::wait_for(CONTENT_WAIT, |tx| {
         let done = RcBlock::new(move |content: *mut AnyObject, error: *mut NSError| {
@@ -183,6 +184,22 @@ fn find(content: &AnyObject, window: bool, id: u32) -> Option<Retained<AnyObject
     })
 }
 
+/// The content's windows whose numbers are in `ids` (sorted).
+fn windows_named(content: &AnyObject, ids: &[u32]) -> Retained<NSArray<AnyObject>> {
+    if ids.is_empty() {
+        return NSArray::new();
+    }
+    let all: Retained<NSArray<AnyObject>> = unsafe { msg_send![content, windows] };
+    let named: Vec<Retained<AnyObject>> = all
+        .iter()
+        .filter(|w| {
+            let id: u32 = unsafe { msg_send![&**w, windowID] };
+            ids.binary_search(&id).is_ok()
+        })
+        .collect();
+    NSArray::from_retained_slice(&named)
+}
+
 /// A window's frame in points, top-left origin (CoreGraphics), when it is on screen.
 pub fn window_frame(window: u32) -> Option<CGRect> {
     let content = content().ok()?;
@@ -190,15 +207,17 @@ pub fn window_frame(window: u32) -> Option<CGRect> {
     Some(unsafe { msg_send![&*w, frame] })
 }
 
-fn filter(content: &AnyObject, target: Target) -> Result<Retained<AnyObject>, Fail> {
+/// What a stream or a picture takes. A whole display leaves out the windows
+/// `hide` names (no_share.rs) that the content lists.
+pub(super) fn filter(content: &AnyObject, target: Target, hide: &[u32]) -> Result<Retained<AnyObject>, Fail> {
     let class = AnyClass::get(c"SCContentFilter").ok_or(Fail::code("unsupported"))?;
     let new: Allocated<AnyObject> = unsafe { msg_send![class, alloc] };
     match target {
         Target::Display(id) => {
             let display = find(content, false, id)
                 .ok_or(Fail::code("no_monitor"))?;
-            let none = NSArray::<AnyObject>::new();
-            Ok(unsafe { msg_send![new, initWithDisplay: &*display, excludingWindows: &*none] })
+            let left_out = windows_named(content, hide);
+            Ok(unsafe { msg_send![new, initWithDisplay: &*display, excludingWindows: &*left_out] })
         }
         Target::Window(id) => {
             let window = find(content, true, id)
@@ -240,12 +259,18 @@ pub struct Stream {
     _output: Retained<Output>,
     _queue: DispatchRetained<DispatchQueue>,
     running: bool,
+    /// Keeps the windows that ask not to be captured out (a whole display only).
+    keeper: Option<no_share::Keeper>,
 }
 
 impl Stream {
     pub fn start(spec: &Spec, sink: SinkRef) -> Result<Stream, Fail> {
         let content = content()?;
-        let filter = filter(&content, spec.target)?;
+        let hide = match spec.target {
+            Target::Display(_) => no_share::windows(),
+            Target::Window(_) => Vec::new(),
+        };
+        let filter = filter(&content, spec.target, &hide)?;
         let config = configuration(spec)?;
         let class = AnyClass::get(c"SCStream").ok_or(Fail::code("unsupported"))?;
         let output: Allocated<Output> = unsafe { msg_send![output_class(), alloc] };
@@ -271,15 +296,21 @@ impl Stream {
             Some(Some(e)) => return Err(start_failure(&e)),
             None => return Err(Fail::new("capture_failed", "start timed out")),
         }
+        let keeper = match spec.target {
+            Target::Display(id) => no_share::Keeper::start(&stream, id, hide),
+            Target::Window(_) => None,
+        };
         Ok(Stream {
             stream,
             _output: output,
             _queue: queue,
             running: true,
+            keeper,
         })
     }
 
     pub fn stop(&mut self) {
+        self.keeper = None;
         if std::mem::take(&mut self.running) {
             let _ = call_with_error(&self.stream, STOP_WAIT, false);
         }

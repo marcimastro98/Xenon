@@ -398,6 +398,21 @@ test('controller: the host says a pad opens the menu only with a menu to open', 
   assert.equal(host.pads(), false, 'a quiet shell stops counting');
 });
 
+test('captures: the host says widgets can be kept out of captures only from a shell that draws layers', () => {
+  let t = 1000;
+  const host = createLayersHost({ now: () => t });
+  assert.equal(host.hides(), false, 'no report yet');
+  host.accept({ layers: true, hide: true, monitors: [] });
+  assert.equal(host.hides(), true);
+  host.accept({ layers: false, hide: true, monitors: [] });
+  assert.equal(host.hides(), false, 'no layers, nothing to keep out');
+  host.accept({ layers: true, hide: 'yes', monitors: [] });
+  assert.equal(host.hides(), false, 'only a real true counts');
+  host.accept({ layers: true, hide: true, monitors: [] });
+  t += REPORT_TTL_MS;
+  assert.equal(host.hides(), false, 'a quiet shell stops counting');
+});
+
 test('desktops: a page keeps a number from 1 to 9, one page per desktop, and the way back only when it makes sense', () => {
   const pages = [{ id: 'lp_aaaa0001', name: 'A' }, { id: 'lp_aaaa0002', name: 'B', desktop: 2 }, { id: 'lp_aaaa0003', name: 'C', desktop: 2 }, { id: 'lp_aaaa0004', name: 'D', desktop: 10 }];
   const n = L.normalize({ enabled: true, widgets: [], pages, page: 'lp_aaaa0002', deskBack: 'lp_aaaa0001' });

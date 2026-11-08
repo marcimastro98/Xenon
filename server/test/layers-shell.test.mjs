@@ -267,7 +267,7 @@ test('the report names the screens the shell sees, and repeats with a self-heali
   await Promise.resolve();
   assert.equal(b.posts.length, 1);
   assert.equal(b.posts[0].url, 'http://127.0.0.1:3030/layers/host');
-  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true, name: '' }, { key: '\\\\.\\DISPLAY2', primary: false, name: '' }] });
+  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, hide: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true, name: '' }, { key: '\\\\.\\DISPLAY2', primary: false, name: '' }] });
   b.shell.sync();
   b.flush();
   b.intervals[0]();
@@ -298,6 +298,34 @@ test('the report says when the shell can follow an app, and only a real true cou
   await Promise.resolve();
   assert.equal(yes.posts[0].body.anchor, true);
   assert.equal(odd.posts[0].body.anchor, false);
+});
+
+test('the report says when the shell can keep widgets out of captures, and only a real true counts', async () => {
+  const yes = boot({ caps: { layers: true, outOfCaptures: true, displays: [{ id: 'D1', primary: true }] }, layers: { enabled: true, widgets: [W()] } });
+  const odd = boot({ caps: { layers: true, outOfCaptures: 1, displays: [{ id: 'D1', primary: true }] }, layers: { enabled: true, widgets: [W()] } });
+  await Promise.resolve();
+  assert.equal(yes.posts[0].body.hide, true);
+  assert.equal(odd.posts[0].body.hide, false);
+});
+
+test('the shell offers widgets in captures only where it can keep them out: Windows and macOS, with layers', () => {
+  const shell = read('../../apps/native/src-tauri/src/lib.rs');
+  // Linux has no such flag.
+  assert.ok(shell.includes('"outOfCaptures": layers_why.is_none() && cfg!(any(windows, target_os = "macos")),'));
+});
+
+test('macOS: the capture engine leaves the windows that ask not to be captured out by itself', () => {
+  // ScreenCaptureKit on macOS 15 may show them, so a whole display names them in
+  // its filter, keeps the list current while it runs, and a full-screen picture
+  // goes through the same filter.
+  const sck = read('../../apps/capture/src/mac/sck.rs');
+  assert.ok(sck.includes('Target::Display(_) => no_share::windows()'));
+  assert.ok(sck.includes('excludingWindows: &*left_out'));
+  assert.ok(sck.includes('Target::Display(id) => no_share::Keeper::start(&stream, id, hide)'));
+  const shot = read('../../apps/capture/src/mac/kit_shot.rs');
+  assert.ok(shot.includes('sck::filter(&content, Target::Display(display), &no_share::windows())'));
+  const mac = read('../../apps/capture/src/mac/mod.rs');
+  assert.ok(mac.includes('let ran = if shot_by_kit(kit_display, cursor, &part)'));
 });
 
 test('wiring: the main page syncs at the end of every layout apply, after layer-host', () => {

@@ -39,8 +39,11 @@ mod export;
 mod ffi;
 mod frame;
 mod image;
+mod kit_shot;
 mod media;
 mod mic;
+mod no_share;
+mod no_share_plan;
 mod reader;
 mod record;
 mod replay;
@@ -650,6 +653,7 @@ fn pick_monitor<'a>(
 /// One picture to `path` (through `path.part`); None when the user left the
 /// area picker without picking.
 fn take(req: &Value, front: &tools::Front, cursor: bool, path: &str) -> Result<Option<Shot>, Fail> {
+    let mut kit_display = None;
     let (aim, monitor, deadline) = match req
         .get("target")
         .and_then(Value::as_str)
@@ -664,6 +668,7 @@ fn take(req: &Value, front: &tools::Front, cursor: bool, path: &str) -> Result<O
         "screen" => {
             let list = monitors();
             let m = pick_monitor(&list, req, front)?;
+            kit_display = Some(m.display).filter(|&d| d != 0);
             (Aim::Display(m.index), Some(m.index), SHOT_DEADLINE)
         }
         "region" => (Aim::Pick, None, PICK_DEADLINE),
@@ -671,12 +676,11 @@ fn take(req: &Value, front: &tools::Front, cursor: bool, path: &str) -> Result<O
     };
     let part = format!("{path}.part");
     let _ = std::fs::remove_file(&part);
-    let ran = run::run(
-        run::SCREENCAPTURE,
-        &tools::screenshot_args(&aim, cursor, &part),
-        None,
-        deadline,
-    );
+    let ran = if shot_by_kit(kit_display, cursor, &part) {
+        None
+    } else {
+        run::run(run::SCREENCAPTURE, &tools::screenshot_args(&aim, cursor, &part), None, deadline)
+    };
     let head = std::fs::read(&part)
         .ok()
         .map(|b| b[..b.len().min(32)].to_vec());
@@ -697,6 +701,16 @@ fn take(req: &Value, front: &tools::Front, cursor: bool, path: &str) -> Result<O
         height,
         monitor,
     }))
+}
+
+/// A whole display through ScreenCaptureKit where it can, so the widgets kept
+/// out of captures stay out of the picture too (kit_shot.rs); false sends it
+/// to screencapture.
+fn shot_by_kit(display: Option<u32>, cursor: bool, part: &str) -> bool {
+    match display.filter(|_| kit_shot::available()) {
+        Some(d) => kit_shot::display(d, cursor, std::path::Path::new(part)).is_ok(),
+        None => false,
+    }
 }
 
 /// The ruler: an area picked with the screenshot's own picker (the space bar

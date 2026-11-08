@@ -494,6 +494,29 @@ test('the page row renames and deletes the page on show, and only with a second 
   assert.equal(row(one, 'widgets', 'pageEdit'), undefined);
 });
 
+test('"Capture": widgets in captures only where the shell can keep them out, wired to its capability', () => {
+  assert.equal(row(Menu.compose(full({ probes: { ...full().probes, layers: false } })), 'capture', 'captureWidgets'), undefined, 'no widgets on the screen, no row');
+  // Widgets but no way to keep them out (Linux): said, never a switch that does nothing.
+  const always = row(Menu.compose(full({ probes: { ...full().probes, layers: true, layersCaptures: false } })), 'capture', 'captureWidgets');
+  assert.equal(always.kind, 'status');
+  assert.deepEqual(always.value, { key: 'xmenu_capture_widgets_always' });
+  assert.deepEqual(always.sub, { key: 'xmenu_sub_capture_widgets_always' });
+  assert.equal(always.acts, undefined);
+  const probes = { ...full().probes, layers: true, layersCaptures: true };
+  const off = row(Menu.compose(full({ probes })), 'capture', 'captureWidgets');
+  assert.equal(off.kind, 'toggle');
+  assert.equal(off.on, false, 'kept out by default');
+  assert.deepEqual(off.sub, { key: 'xmenu_sub_capture_widgets_off' });
+  assert.deepEqual(off.acts.on, { run: { type: 'layersCaptures', mode: 'on' } });
+  assert.deepEqual(off.acts.off, { run: { type: 'layersCaptures', mode: 'off' } });
+  assert.ok(validateAction(off.acts.on.run));
+  const on = row(Menu.compose(full({ probes, layers: { ...full().layers, excludeFromCapture: false } })), 'capture', 'captureWidgets');
+  assert.equal(on.on, true);
+  assert.deepEqual(on.sub, { key: 'xmenu_sub_capture_widgets_on' });
+  const keys = ['xmenu_capture_widgets', 'xmenu_sub_capture_widgets_on', 'xmenu_sub_capture_widgets_off', 'xmenu_capture_widgets_always', 'xmenu_sub_capture_widgets_always', 'deck_act_layersCaptures'];
+  for (const lang of LANGS) for (const key of keys) assert.ok(dict[lang][key], lang + '.' + key);
+});
+
 test('"Keys": the controller row only where the shell reads one, wired to its capability', () => {
   assert.equal(section(Menu.compose(full()), 'keys').rows.some((r) => r.id === 'menuPad'), false);
   const out = Menu.compose(full({ probes: { ...full().probes, menuPad: true } }));

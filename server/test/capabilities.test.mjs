@@ -322,6 +322,24 @@ test('the controller chord: on, off, toggle, and nothing else', async () => {
   assert.equal(L.state.layers.menuKey, 'alt+shift+x', 'the keyboard shortcut is untouched');
 });
 
+test('widgets in captures: on, off, toggle, only where the shell can keep them out', async () => {
+  const L = fakeLayers();
+  const run = runner(L, shell({ hides: () => true }));
+  assert.equal(run.probes().layersCaptures, true);
+  assert.deepEqual(await run.run({ type: 'layersCaptures', mode: 'on' }), { ok: true, shown: true });
+  assert.equal(L.state.layers.excludeFromCapture, false);
+  assert.deepEqual(await run.run({ type: 'layersCaptures', mode: 'toggle' }), { ok: true, shown: false });
+  assert.equal(L.state.layers.excludeFromCapture, true);
+  assert.deepEqual(await run.run({ type: 'layersCaptures' }), { ok: true, shown: true }, 'no mode = toggle');
+  const writes = L.state.writes;
+  assert.equal((await run.run({ type: 'layersCaptures', mode: 'maybe' })).error, 'bad_mode');
+  assert.equal(L.state.writes, writes);
+  const elsewhere = runner(fakeLayers(), shell());
+  assert.equal(elsewhere.probes().layersCaptures, false, 'a shell that cannot keep windows out offers nothing');
+  assert.deepEqual(await elsewhere.run({ type: 'layersCaptures', mode: 'on' }), { ok: false, error: 'unavailable' });
+  assert.deepEqual(aiAction('show_widgets_in_captures', { mode: 'on', junk: 1 }), { type: 'layersCaptures', mode: 'on' });
+});
+
 test('edit mode brings back a hidden surface, so every widget can be moved', async () => {
   const L = fakeLayers();
   let on = false;

@@ -49,9 +49,11 @@ function createLayersHost({ now = Date.now } = {}) {
     // `anchor`: a widget can follow another app's window (capabilities/layer-anchor.js).
     // `desks`: it says which virtual desktop is shown, so a page can be tied to one.
     // `pad`: holding View + Menu on a controller opens the Xenon menu (layers/pad.rs).
+    // `hide`: it can keep widget windows out of screenshots and recordings, so showing
+    // them there is a real choice (capabilities/layer-captures.js).
     const layers = src.layers === true;
     report = {
-      layers, scene: layers && src.scene === true, draw: layers && src.draw === true, menu: layers && src.menu === true, anchor: layers && src.anchor === true, desks: layers && src.desks === true, pad: layers && src.menu === true && src.pad === true, monitors, at: now(),
+      layers, scene: layers && src.scene === true, draw: layers && src.draw === true, menu: layers && src.menu === true, anchor: layers && src.anchor === true, desks: layers && src.desks === true, pad: layers && src.menu === true && src.pad === true, hide: layers && src.hide === true, monitors, at: now(),
     };
     return { ok: true, layers: report.layers, monitors: monitors.length };
   }
@@ -95,6 +97,11 @@ function createLayersHost({ now = Date.now } = {}) {
     return !!(r && r.pad);
   }
 
+  function hides() {
+    const r = fresh();
+    return !!(r && r.hide);
+  }
+
   // The first screen that is not the main one, or '' when there is none.
   function secondMonitor() {
     const r = fresh();
@@ -117,7 +124,7 @@ function createLayersHost({ now = Date.now } = {}) {
     return desks() && desk ? { ...desk } : null;
   }
 
-  return { accept, available, scenes, draws, menus, anchors, desks, pads, setDesk, shownDesk, secondMonitor, monitors };
+  return { accept, available, scenes, draws, menus, anchors, desks, pads, hides, setDesk, shownDesk, secondMonitor, monitors };
 }
 
 module.exports = { createLayersHost, REPORT_TTL_MS };

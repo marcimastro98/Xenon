@@ -987,6 +987,20 @@ const CAPABILITIES = [
       },
     },
   },
+  // Whether the screen widgets show in screenshots, videos and Instant Replay
+  // (capabilities/layer-captures.js). Off by default; a streamer turns it on.
+  {
+    type: 'layersCaptures', group: 'xenon', hidden: true, labelKey: 'deck_act_layersCaptures',
+    params: [{ name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'layersCaptures',
+      ai: {
+        name: 'show_widgets_in_captures',
+        description: 'Choose whether the widgets placed on the screen (on the desktop and in the overlay, such as the FPS one) show in screenshots, videos, Instant Replay and other apps that capture the screen, such as a streaming app. Off by default: captures show only what is under them. on shows them, off keeps them out. The Xenon menu and pop-ups never show; drawings on the screen and the Ambient scene always do. The screenshots, videos and Instant Replay of Xenon itself always follow it; on macOS another app that captures the screen may still show them. Not on Linux, where no capture tool can leave one window out, so widgets always show there. Returns "shown". Use it for "I want my FPS widget in my stream", "show my widgets in recordings", "keep the widgets out of my screenshots".',
+        params: { mode: 'toggle (default), on or off' },
+      },
+    },
+  },
   // A key of the person's own that shows or hides one placed widget (its whole box
   // of tabs): pressed to switch it, or held to see it (capabilities/widget-key.js).
   {

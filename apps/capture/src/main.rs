@@ -67,6 +67,10 @@ mod mac_bubble_nv12;
 #[allow(dead_code)]
 #[path = "mac/steps_plan.rs"]
 mod mac_steps_plan;
+#[cfg(all(test, not(target_os = "macos")))]
+#[allow(dead_code)]
+#[path = "mac/no_share_plan.rs"]
+mod mac_no_share_plan;
 // The same for the Linux ones.
 #[cfg(all(test, not(target_os = "linux")))]
 #[allow(dead_code)]
