@@ -80,7 +80,12 @@ const SDK_API_VERSION = 1;
 // target `lightDevice` / `lightPart`. A pulled snapshot, no colours per LED.
 // `sensors` is every hardware sensor by name (an AIO's liquid, a VRM, each fan),
 // the catalog behind Settings → Sensor sources. Read only while granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals']);
+// `netPath` is how the way to the internet is doing, stretch by stretch: this
+// PC's link, the router, the provider's first hop, the internet. Numbers only,
+// never an address. Pulled; its echoes stop 10 s after the last read (net-path/).
+// `energy` is what this PC drew, in Wh per hour (72 h) and per day (90 days),
+// from the sensor history (sensor-history/energy.js). Pulled, numbers only.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every

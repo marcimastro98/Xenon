@@ -180,6 +180,8 @@
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
     network: ['cw_stream_network', 'Network adapters and how much each one is moving'],
+    netPath: ['cw_stream_netpath', 'How your connection is doing, from the router to the internet'],
+    energy: ['cw_stream_energy', 'How much energy this PC used, hour by hour and day by day'],
     diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
     devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
@@ -296,6 +298,55 @@
         ok: true,
         docker: src(d.docker), ollama: src(d.ollama), vscode: src(d.vscode), vhdx: src(d.vhdx),
         reclaimable: Number(d.reclaimable) || 0,
+      };
+    } }),
+    // How the way to the internet is doing, stretch by stretch (server/net-path/):
+    // the link, the router, the provider's first hop, the internet. The first read
+    // starts one echo a second per stretch and they stop 10 s after the last, so
+    // only a granted widget on screen keeps them going. Rebuilt field by field:
+    // whatever else the server may add never reaches a widget.
+    netPath: Object.freeze({ ttl: 1000, load: async () => {
+      const d = await api('/api/net-path');
+      if (!d || typeof d !== 'object' || d.ok !== true) {
+        return { ok: false, error: d && (d.error === 'not_granted' || d.error === 'unavailable') ? d.error : 'failed' };
+      }
+      const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+      const stretch = (s) => (s && typeof s === 'object' ? {
+        now: num(s.now), ms: num(s.ms), min: num(s.min), jitter: num(s.jitter),
+        loss: num(s.loss), lossNow: num(s.lossNow), n: num(s.n) || 0,
+      } : null);
+      const t = d.traffic && typeof d.traffic === 'object' ? d.traffic : null;
+      return {
+        ok: true,
+        link: ['wifi', 'wired', 'mobile', 'vpn'].includes(d.link) ? d.link : null,
+        linkMbps: num(d.linkMbps), signal: num(d.signal), dbm: num(d.dbm),
+        router: stretch(d.router), provider: stretch(d.provider), internet: stretch(d.internet),
+        traffic: t ? { downBps: num(t.downBps), upBps: num(t.upBps) } : null,
+      };
+    } }),
+    // What this PC drew, from the sensor history (server/sensor-history/):
+    // Wh per hour for 72 h and per day for 90 days, by source (cpu, gpu and
+    // psu, the power supply's own figure for the whole PC) with the seconds
+    // each covers, and the last reading in W. It changes once per sample, so a
+    // long TTL. Rebuilt field by field.
+    energy: Object.freeze({ ttl: 60000, load: async () => {
+      const d = await api('/api/energy');
+      if (!d || typeof d !== 'object' || d.ok !== true) {
+        return { ok: false, error: d && (d.error === 'not_granted' || d.error === 'unavailable') ? d.error : 'failed' };
+      }
+      const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+      const KEY = /^\d{4}-\d{2}-\d{2}(T\d{2})?$/;
+      const points = (list) => (Array.isArray(list) ? list : [])
+        .filter((p) => p && typeof p.t === 'string' && KEY.test(p.t))
+        .map((p) => ({ t: p.t, cpu: num(p.cpu), gpu: num(p.gpu), psu: num(p.psu), covered: num(p.covered) || 0 }));
+      const n = d.now && typeof d.now === 'object' ? d.now : null;
+      return {
+        ok: true,
+        enabled: d.enabled === true,
+        sampleMinutes: num(d.sampleMinutes),
+        now: n ? { cpu: num(n.cpu), gpu: num(n.gpu), psu: num(n.psu), at: typeof n.at === 'string' ? n.at.slice(0, 30) : null } : null,
+        hours: points(d.hours),
+        days: points(d.days),
       };
     } }),
     network: Object.freeze({ ttl: 1500, load: async () => {

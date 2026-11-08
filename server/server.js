@@ -370,6 +370,7 @@ const slideshowFolder = require('./slideshow-folder');          // the slideshow
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
+const featureRoutes = require('./feature-routes.js');           // the routes added since this file stopped growing
 const { createFeatureUnlock } = require('./feature-unlock');
 const { createTrialPass } = require('./trial-pass');
 const { createTrialVault } = require('./trial-vault');
@@ -17643,6 +17644,10 @@ const handleRequest = async (req, res) => {
     try   { json({ ok: true, ...(await devClean.summary()) }); }
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
+  } else if (featureRoutes.has(req.method, reqPath)) {
+    // A route that lives in its feature's routes.js (feature-routes.js).
+    await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian });
+
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
     // PresentMon is reported only so Settings can offer the optional FPS-readout
@@ -27589,6 +27594,7 @@ function _gracefulShutdown() {
   _calendarReminders.stop();
   deckShortcutRunner.stop();
   mcpDev.close();
+  featureRoutes.stop();
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename. A game session
