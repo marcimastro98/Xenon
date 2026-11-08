@@ -46,31 +46,34 @@ const DISCORD_MESSAGE_TYPE_CALL = 3;
 // listed too and win over the hits (see NOT_RINGING).
 const RING_PHRASES = [
   // en
-  'incoming call', 'incoming video call', 'incoming audio call',
+  'incoming call', 'incoming video call', 'incoming audio call', 'incoming voice call',
   'is calling you', 'is calling', 'calling you', 'wants to talk',
   // it
-  'chiamata in arrivo', 'videochiamata in arrivo', 'ti sta chiamando',
+  'chiamata in arrivo', 'chiamata vocale in arrivo', 'videochiamata in arrivo', 'ti sta chiamando',
   'sta chiamando', 'ti chiama',
   // es
   'llamada entrante', 'videollamada entrante', 'te esta llamando',
   'esta llamando', 'llamada de video entrante',
   // fr
-  'appel entrant', 'appel video entrant', 'vous appelle', 't appelle',
+  'appel entrant', 'appel vocal entrant', 'appel video entrant', 'vous appelle', 't appelle',
   // de
-  'eingehender anruf', 'eingehender videoanruf', 'ruft dich an', 'ruft an',
+  'eingehender anruf', 'eingehender sprachanruf', 'eingehender videoanruf', 'ruft dich an', 'ruft an',
   // pt
   'chamada recebida', 'chamada a receber', 'esta a ligar', 'esta ligando',
-  'videochamada recebida',
+  'videochamada recebida', 'recebendo chamada', 'a receber chamada', 'a receber videochamada',
+  'chamada de video recebida',
   // nl
-  'inkomende oproep', 'inkomend videogesprek', 'belt je', 'belt u',
+  'inkomende oproep', 'inkomende spraakoproep', 'inkomende video oproep', 'inkomend videogesprek', 'belt je', 'belt u',
   // ru
-  'входящий вызов', 'входящий звонок', 'звонит вам', 'вам звонит',
+  'входящий вызов', 'входящий звонок', 'входящий голосовой звонок', 'входящий видеозвонок', 'звонит вам', 'вам звонит',
   // ja
   '着信', '通話の呼び出し', 'から電話',
   // ko
-  '수신 전화', '전화가 왔습니다', '통화 요청', '전화 왔어요',
+  '수신 전화', '전화가 왔습니다', '통화 요청', '전화 왔어요', '통화 수신',
   // zh
   '来电', '呼叫你', '视频通话邀请', '正在呼叫',
+  // pl
+  'przychodzące połączenie',
 ];
 
 // Phrases that mean the call is OVER or never connected. Checked first: a
@@ -107,7 +110,7 @@ const NOT_RINGING = [
 // accept shortcut — Teams has one key for audio and a different one for video.
 const VIDEO_PHRASES = [
   'video call', 'video', 'videochiamata', 'videollamada', 'videoanruf',
-  'videochamada', 'videogesprek', 'видеозвонок', 'ビデオ通話', '영상 통화', '视频通话',
+  'videochamada', 'videogesprek', 'wideo', 'видеозвонок', 'ビデオ通話', '영상 통화', '视频通话', '视频来电',
 ];
 
 // ── The apps we ship a default entry for ────────────────────────────────────
@@ -166,6 +169,11 @@ const DEFAULT_APPS = Object.freeze([
     id: 'whatsapp',
     name: 'WhatsApp',
     match: Object.freeze(['whatsapp']),
+  }),
+  Object.freeze({
+    id: 'signal',
+    name: 'Signal',
+    match: Object.freeze(['signal']),
   }),
   Object.freeze({
     id: 'slack',

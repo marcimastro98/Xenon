@@ -99,7 +99,7 @@ function makeDom() {
     addEventListener() {},
   };
   window.window = window;
-  return { window, document, body, freezeLog };
+  return { window, document, body, freezeLog, posts: [] };
 }
 
 function loadModule() {
@@ -114,7 +114,7 @@ function loadModule() {
       if (text != null) n.textContent = text;
       return n;
     },
-    apiJson: async () => ({ ok: true }),
+    apiJson: async (_path, init) => { dom.posts.push(JSON.parse(init.body)); return { ok: true }; },
     hubSettings: { calls: { enabled: true, sound: false } },
     t: (k) => k,
     setInterval: () => 0,
@@ -251,8 +251,63 @@ test('an app icon is rendered as an image only when its scheme is allowed', () =
   for (const icon of refused) {
     const dom = loadModule();
     dom.CallModal.onCalls({ calls: [CALL({ icon })] });
-    const ico = dom.body.querySelector('.call-app-ico');
-    assert.equal(ico.children.length, 0, icon + ' must not become an <img> src');
-    assert.ok(ico.innerHTML.includes('svg'), icon + ' should fall back to the glyph');
+    assert.equal(dom.body.querySelector('.call-app-ico'), null, icon + ' must not become an <img> src');
+    assert.equal(dom.body.querySelector('.call-app').children.length, 1, 'the app name stays, on its own');
   }
+});
+
+test('no picture leaves the name alone: an empty box reads as a broken card', () => {
+  const dom = loadModule();
+  dom.CallModal.onCalls({ calls: [CALL({ icon: '' })] });
+  assert.equal(dom.body.querySelector('.call-app-ico'), null);
+});
+
+test('Decline sits left of Answer, where phones put them', () => {
+  const dom = loadModule();
+  dom.CallModal.onCalls({ calls: [CALL({ caps: { answer: true, decline: true } })] });
+  const keys = dom.body.querySelector('.call-actions').children.map((key) => key.className);
+  assert.ok(keys[0].includes('call-btn--decline'), keys.join());
+  assert.ok(keys[1].includes('call-btn--answer'), keys.join());
+});
+
+function holdKeyboard(dom) {
+  const held = [];
+  dom.window.DialogFocus = {
+    hold(root, opts) {
+      const entry = { root, ...opts };
+      held.push(entry);
+      return () => held.splice(held.indexOf(entry), 1);
+    },
+  };
+  return held;
+}
+
+test('the keyboard lands on the window, never on a key: a stray Enter must not answer', () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  dom.CallModal.onCalls({ calls: [CALL({ id: 'c2' })] });
+  assert.equal(held.length, 1, 'a repaint holds nothing more');
+  assert.equal(held[0].root, dom.body.querySelector('.call-overlay'));
+  assert.equal(held[0].start, undefined);
+  assert.equal(held[0].root.tabIndex, -1);
+});
+
+test('Esc is Dismiss: the card goes and the keyboard comes back', async () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  held[0].onEsc();
+  await new Promise((done) => setImmediate(done));
+  assert.deepEqual(dom.posts, [{ id: 'c1', action: 'dismiss' }]);
+  assert.equal(dom.body.querySelector('.call-overlay'), null);
+  assert.equal(held.length, 0);
+});
+
+test('a ring that ends by itself gives the keyboard back too', () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  dom.CallModal.onCalls({ calls: [] });
+  assert.equal(held.length, 0, 'a window removed without letting go holds Tab and Esc for good');
 });

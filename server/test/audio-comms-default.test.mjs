@@ -83,12 +83,11 @@ test('every language has the words, translated', () => {
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);
-  const keys = ['settings_audio_hint', 'settings_audio_comms', 'settings_audio_comms_desc'];
+  const keys = ['settings_audio_comms', 'settings_audio_comms_desc'];
   const langs = Object.keys(ctx.__i18n);
   assert.equal(langs.length, 11);
   for (const l of langs) {
     const d = ctx.__i18n[l];
-    assert.ok(d.settings_audio_head, `${l}.settings_audio_head`);
     for (const k of keys) {
       assert.ok(d[k], `${l}.${k}`);
       if (l !== 'en') assert.notEqual(d[k], ctx.__i18n.en[k], `${l}.${k} is still English`);

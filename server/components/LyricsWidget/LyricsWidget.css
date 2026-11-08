@@ -120,6 +120,9 @@
 .lyw-step:disabled { opacity: 0.4; cursor: default; transform: none; }
 
 .lyw-offset-val {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 4.2em;
   min-height: 36px;
   padding: 0 4px;
@@ -324,7 +327,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 12px;
 }
 
-.lyo-title { margin: 0; font-size: 15px; font-weight: 760; }
+.lyo-title { margin: 0; font-size: 16px; font-weight: 800; }
 
 .lyo-body {
   display: flex;
@@ -333,7 +336,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 12px;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .lyo-row {
@@ -345,11 +348,18 @@ body.lyw-has-stage .shell { z-index: 70; }
 
 .lyo-row.is-static { align-items: center; justify-content: space-between; cursor: default; }
 
-.lyo-check { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+/* Weighted over the global checkbox: its faint border is lost on a tile's glass. */
+.lyo-row .lyo-check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  border-color: color-mix(in srgb, var(--text), transparent 52%);
+}
 
 .lyo-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
-.lyo-label { font-size: 13px; font-weight: 700; }
-.lyo-hint { color: var(--muted-text); font-size: 11.5px; line-height: 1.4; }
+.lyo-label { font-size: 14px; font-weight: 700; }
+.lyo-hint { color: var(--muted-text); font-size: 12.5px; line-height: 1.4; }
 
 .lyo-cost {
   display: flex;
@@ -357,7 +367,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 6px;
   margin-left: 30px;
   color: var(--muted-text);
-  font-size: 11.5px;
+  font-size: 12.5px;
   line-height: 1.45;
 }
 
@@ -369,19 +379,22 @@ body.lyw-has-stage .shell { z-index: 70; }
 .lyo-link { color: var(--accent); font-weight: 680; text-underline-offset: 3px; }
 .lyrics-panel.has-cover .lyo-link { color: var(--text); }
 
-.lyo-usage { margin-left: 30px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: pre-line; }
+.lyo-usage { margin-left: 30px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: pre-line; }
 .lyo-usage:empty { display: none; }
+
+.lyo-row .lyw-step { width: 44px; height: 44px; }
+.lyo-row .lyw-offset-val { min-height: 44px; }
 
 .lyo-select {
   flex: none;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--floating-ui-border);
   border-radius: var(--radius-control);
   background: var(--floating-ui-bg);
   color: inherit;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 @container (max-height: 180px) {
@@ -397,7 +410,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 10px;
   min-height: 100%;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .lyw-badge {

@@ -1,5 +1,7 @@
 'use strict';
 
+const { AI_LANG_NAMES } = require('./ai/prompt-language.js');
+
 // ── Lyrics translation: prompt and reply ─────────────────────────────────────
 // Pure helpers, no I/O. The supporter Lyrics widget can show, under each line,
 // a translation into the dashboard language and a Latin-letter reading for
@@ -12,10 +14,9 @@ const MAX_UNIQUE_LINES = 300;
 const MAX_INPUT_CHARS = 12000;
 const MAX_OUT_CHARS = 400;
 
-const LANG_NAMES = Object.freeze({
-  it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Simplified Chinese',
-  es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch',
-});
+// The app's language names, with the script spelled out for Chinese: a
+// translation has to pick one, a chat reply does not.
+const LANG_NAMES = Object.freeze({ ...AI_LANG_NAMES, zh: 'Simplified Chinese' });
 
 // Kana, Hangul (syllables and jamo) and CJK ideographs: the scripts a reader
 // may not be able to sound out.

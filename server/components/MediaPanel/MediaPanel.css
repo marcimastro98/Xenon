@@ -59,6 +59,8 @@
 .bit-chat-face { width: 30px; height: 28px; flex: none; display: grid; place-items: end center; }
 .bit-chat-face .xbit { width: 30px; height: auto; display: block; }
 .bit-chat-name { font-size: 15px; font-weight: 600; margin-right: auto; }
+/* The face says the name. The word stays for screen readers, and shows if the face could not mount. */
+.bit-chat-face:not(:empty) + .bit-chat-name { width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .bit-chat-btn {
   width: 44px; height: 44px;
   flex: none;
@@ -221,17 +223,21 @@
 .bit-starter-words small { font-size: 12px; color: var(--muted-text); }
 .bit-starter:hover { background: var(--hover-bg); }
 .bit-starter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* A short tile keeps the starters and drops Bit and the line, so the welcome
-   starts at the top instead of showing a cut-off Bit. The log is sized by its
-   flex parent, so size containment cannot collapse it. */
-[data-chatf="pane"] .ai-chat { container: bitlog / size; }
-@container bitlog (max-height: 340px) {
-  .bit-welcome { margin: 0 auto; padding-top: 4px; }
-  .bit-welcome-face, .bit-welcome-line { display: none; }
-}
-@container bitlog (max-height: 200px) {
-  .bit-welcome-title { display: none; }
-}
+/* A short log never scrolls: js/bit-welcome.js names the parts its room
+   leaves out, Bit's face first (the chat head already shows Bit), then the
+   line, the hello and the starters from the last. */
+[data-welcome-fit~="face"] .bit-welcome-face,
+[data-welcome-fit~="line"] .bit-welcome-line,
+[data-welcome-fit~="title"] .bit-welcome-title,
+[data-welcome-fit~="starter3"] .bit-starter:nth-child(n+3),
+[data-welcome-fit~="starter2"] .bit-starter:nth-child(n+2),
+[data-welcome-fit~="welcome"] .bit-welcome { display: none; }
+[data-welcome-fit~="line"] .bit-welcome-title { margin-bottom: 6px; }
+/* Without the hello the starters sit close to the edges. */
+[data-welcome-fit~="title"] .bit-welcome { padding-block: 4px; }
+/* An empty chat has no status to show, so its line goes to the welcome. In a
+   talk the line stays, so the thinking dots never move the messages. */
+[data-chatf="pane"]:has([data-bit-welcome]) .ai-status:empty { display: none; }
 
 /* The phone's full-screen chat (js/bit-chat-full.js): under Settings and the
    Store (220), so Ricarica and "Uso una chiave Gemini" open on top of it. */
@@ -386,6 +392,10 @@ body.bit-sheet-open { overflow: hidden; }
   width: min(34cqw, 44cqh, 170px);
   border-radius: var(--radius);
   background: #101516;
+  /* Sized to the border box: a repeating picture sized to the padding box wrapped
+     its bottom row into the border, a bright line along the top of the cover. */
+  background-repeat: no-repeat;
+  background-origin: border-box;
   border: 1px solid rgba(255,255,255,0.08);
   overflow: hidden;
   display: grid;
@@ -624,6 +634,10 @@ body.bit-sheet-open { overflow: hidden; }
   text-overflow: ellipsis;
 }
 
+/* Nothing playing: the hint is a sentence, so it wraps, and the picture needs no caption. */
+.media-panel.is-empty .media-artist { white-space: normal; }
+.media-panel.is-empty .ph-label { display: none; }
+
 .media-actions {
   display: flex;
   align-items: center;
@@ -758,7 +772,7 @@ body.bit-sheet-open { overflow: hidden; }
   min-width: 0;
   height: 5px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.14);
+  background: var(--media-track, rgba(255,255,255,0.14));
   outline: none;
   cursor: pointer;
 }
@@ -814,9 +828,9 @@ body.bit-sheet-open { overflow: hidden; }
 }
 .msp-range::-webkit-slider-runnable-track {
   height: 5px; border-radius: 999px;
-  background: linear-gradient(to right, var(--msp-green) 0 var(--msp-fill), rgba(255,255,255,0.14) var(--msp-fill) 100%);
+  background: linear-gradient(to right, var(--msp-green) 0 var(--msp-fill), var(--media-track, rgba(255,255,255,0.14)) var(--msp-fill) 100%);
 }
-.msp-range::-moz-range-track { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.14); }
+.msp-range::-moz-range-track { height: 5px; border-radius: 999px; background: var(--media-track, rgba(255,255,255,0.14)); }
 .msp-range::-moz-range-progress { height: 5px; border-radius: 999px; background: var(--msp-green); }
 .msp-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 13px; height: 13px; margin-top: -4px;
@@ -1066,6 +1080,18 @@ body.bit-sheet-open { overflow: hidden; }
   .media-panel .control-btn.primary svg { width: 20px; height: 20px; }
 }
 
+/* Four keys beside the words need more width than this: they left the title one letter. Under
+   the words they fit, and a tile too short for that gives the cover up instead. */
+@container mediatile (min-height: 150px) and (max-height: 300px) and (min-width: 430px) and (max-width: 639px) {
+  .media-panel .media-content { grid-template-columns: minmax(0, 1fr); }
+  .media-panel .media-actions { grid-column: 1; grid-row: 4; justify-self: start; margin-top: 6px; }
+  .media-panel .media-title { -webkit-line-clamp: 1; }
+}
+@container mediatile (max-height: 149px) and (min-width: 430px) and (max-width: 639px) {
+  .media-panel .media-art { display: none; }
+  .media-panel .media-pane-play:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ── Width: start removing ────────────────────────────────────────────────── */
 
 /* Too narrow for the strip AND too short to stack: the provider chip goes, then
@@ -1084,6 +1110,12 @@ body.bit-sheet-open { overflow: hidden; }
   .media-panel .media-pane-play:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
   .media-panel .media-art { display: none; }
   .media-panel .media-title { font-size: 21px; -webkit-line-clamp: 2; }
+}
+
+/* Liquid Glass on a phone: with this much height a small cover still fits beside the text. */
+@container mediatile (min-width: 290px) and (max-width: 330px) and (min-height: 150px) {
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) { grid-template-columns: auto minmax(0, 1fr); }
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { display: block; width: 96px; }
 }
 
 @container mediatile (max-width: 240px) {
@@ -1194,11 +1226,11 @@ body.bit-sheet-open { overflow: hidden; }
    On a vertical screen the media tile is a full-width band taller than it is
    wide, and the side-by-side layout leaves a 170px cover floating in the middle
    of it. Like a phone's now-playing view, the cover goes on top, large, and
-   the text and transport sit under it. Only on the vertical layout
-   (html.is-portrait, js/phone-view.js), so a landscape tile looks as before;
-   lyrics mode keeps its own arrangement. */
+   the text and transport sit under it. On the vertical layout (html.is-portrait,
+   js/phone-view.js) and on Liquid Glass, so a landscape tile in the Classic look
+   stays as it was; lyrics mode keeps its own arrangement. */
 @container mediatile (orientation: portrait) and (min-height: 400px) and (min-width: 300px) {
-  .is-portrait .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
     justify-items: center;
@@ -1206,8 +1238,13 @@ body.bit-sheet-open { overflow: hidden; }
   }
   /* max-width: the old viewport steps in breakpoints.css cap the cover for
      narrow windows, and a vertical Edge is a narrow window. */
-  .is-portrait .media-panel:not(.lyrics-open) .media-art { width: min(64cqw, 44cqh, 360px); max-width: none; }
-  .is-portrait .media-panel:not(.lyrics-open) .media-content { width: 100%; align-items: center; text-align: center; }
-  .is-portrait .media-panel:not(.lyrics-open) .media-app-row { justify-content: center; }
-  .is-portrait .media-panel:not(.lyrics-open) .msp { width: 100%; margin-inline: auto; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-art { width: min(64cqw, 44cqh, 360px); max-width: none; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-content { width: 100%; align-items: center; text-align: center; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-app-row { justify-content: center; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .msp { width: 100%; margin-inline: auto; }
+}
+
+/* Liquid Glass, a wide tile with height to spare: the cover carries it, as on a tall one. */
+@container mediatile (orientation: landscape) and (min-width: 560px) and (min-height: 400px) {
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(40cqw, 60cqh, 340px); max-width: none; }
 }

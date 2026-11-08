@@ -44,6 +44,12 @@
   const coverOf = new WeakMap();   // panel → the cover it shows
   const instances = new Map();   // mount → { view, unsubscribe, offsetRow, offsetVal, minus, plus }
 
+  // The options sheet goes with whatever stood in the mount: its mark hides all the rest.
+  function fill(mount, ...nodes) {
+    mount.classList.remove('has-options');
+    mount.replaceChildren(...nodes);
+  }
+
   function el(tag, cls, text) {
     const node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -82,7 +88,12 @@
     trial_used: ['trial_err_used', 'Questo PC ha già usato la sua prova gratuita.'],
   };
 
+  // The grid renders in bursts while the page starts, and until the first answer each render
+  // would send its own question.
+  let stateLoading = false;
   async function loadState() {
+    if (stateLoading) return;
+    stateLoading = true;
     const out = await api('/api/features/lyrics');
     applyStatus(out);
     // During the trial too: a supporter trying the tile keeps it with one tap.
@@ -90,6 +101,7 @@
       const s = await api('/api/community/supporter');
       codeSaved = !!(s && s.saved);
     }
+    stateLoading = false;
     renderWidgets();
   }
 
@@ -113,9 +125,11 @@
   }
 
   // The pass trial starts on the hub's page (email + code); the code then goes
-  // in "Ho già un codice" here or in any Store unlock.
+  // in "Ho già un codice" here or in any Store unlock. A widget on the screen
+  // has no TrialPass (its page never loads that file), so it opens the page itself.
   function startTrial() {
     if (window.TrialPass) window.TrialPass.openTry();
+    else window.open(window.Xenon.constants.trialUrl(uiLangCode()), '_blank', 'noopener,noreferrer');
   }
 
   async function unlock() {
@@ -150,7 +164,8 @@
     const out = await api('/api/community/supporter/save', { code });
     if (!out || !out.ok) {
       unlocking = false;
-      unlockError = out && out.error === 'bad_code'
+      if (out && out.error === 'remote_denied') unlockError = tr('settings_supporter_save_pc_only', 'The code can only be saved on the PC');
+      else unlockError = out && out.error === 'bad_code'
         ? tr('devclean_code_format', 'Il codice ha la forma XS-XXXX-XXXX-XXXX. Controllalo nell’email che hai ricevuto.')
         : tr('devclean_unlock_network', 'Non riesco a contattare il server dei sostenitori.');
       renderAll();
@@ -373,7 +388,7 @@
     const keepUnlock = btn('lyw-trial-unlock', tr('devclean_unlock', 'Sblocca con il pass'), () => { void unlock(); });
     trialRow.append(trialText, keep, keepUnlock);
     const body = el('div', 'lyw-body');
-    mount.replaceChildren(head, trialRow, trStat, body);
+    fill(mount, head, trialRow, trStat, body);
     mount.dataset.lywReady = '1';
 
     const inst = { lang: uiLangCode(), title, sub, cover, transport, playPath: playBtn.path, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, keep, keepUnlock, view: window.LyricsView.create(body) };
@@ -476,7 +491,7 @@
     document.querySelectorAll('.lyrics-widget-mount').forEach((mount) => {
       if (!unlocked) {
         release(mount);
-        mount.replaceChildren(unlocked === null ? el('p', 'lyw-note', tr('devclean_loading', 'Carico…')) : renderPitch());
+        fill(mount, unlocked === null ? el('p', 'lyw-note', tr('devclean_loading', 'Carico…')) : renderPitch());
         return;
       }
       // The buttons carry their labels from when they were built: a language

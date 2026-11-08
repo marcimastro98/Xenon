@@ -11,9 +11,8 @@
       at. This one is the reason the freeze was taken — stopping it would leave a
       still picture of a phone call.
 
-   2. The buttons are laid out so the destructive one is never where the thumb
-      lands by reflex. Answer is the wide one, Decline sits apart from it, and on
-      a 390px phone they stack rather than shrinking below the touch floor.
+   2. Decline on the left, Answer on the right, where phones put them, and Answer
+      is the wide one: a reflex lands on the key that picks up.
    ───────────────────────────────────────────────────────────────────────────── */
 
 .call-overlay {
@@ -24,6 +23,7 @@
   backdrop-filter: blur(14px);
   animation: call-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
+.call-overlay:focus { outline: none; }
 
 .call-card {
   position: relative;
@@ -37,9 +37,7 @@
   overflow: hidden;
   text-align: center;
   color: var(--text);
-  background:
-    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb), 0.20), transparent 62%),
-    rgba(18, 21, 24, 0.97);
+  background: rgba(18, 21, 24, 0.97);
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.62),
     0 0 0 1px rgba(255, 255, 255, 0.09) inset;
@@ -55,7 +53,7 @@
 .call-life-fill {
   height: 100%; width: 100%;
   transform-origin: left center;
-  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #ffffff));
+  background: var(--accent);
   animation: call-drain linear forwards;
 }
 
@@ -63,24 +61,18 @@
 
 .call-app {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 13px 6px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 12px; font-weight: 650; letter-spacing: 0.02em;
+  font-size: 13px; font-weight: 650;
   color: var(--muted-text);
 }
 .call-app-ico {
   width: 20px; height: 20px; flex: none;
   border-radius: 6px; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.09);
 }
-.call-app-ico svg { width: 13px; height: 13px; }
 /* The size has to be on the IMAGE. `object-fit` on the span above did nothing —
    it only applies to replaced elements — and with no width on the img itself a
    real app icon rendered at its natural size: Phone Link's 256px logo burst out
-   of the pill and sat across the middle of the card. `min-width: 0` because a
+   of its box and sat across the middle of the card. `min-width: 0` because a
    flex item will not shrink below its intrinsic size without it. */
 .call-app-ico img {
   display: block;
@@ -93,7 +85,7 @@
   width: 116px; height: 116px; flex: none;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 34%, transparent), rgba(255, 255, 255, 0.06));
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
   font-size: 42px; font-weight: 700; letter-spacing: -0.02em;
   will-change: transform;
@@ -196,8 +188,10 @@
 }
 
 .call-dismiss {
-  border: 0; background: none; padding: 6px 10px;
-  color: var(--dim-text); font: inherit; font-size: 12.5px; font-weight: 600;
+  /* The 44px target stays; the margins take back the air inside it. */
+  margin: -8px 0 -10px;
+  border: 0; background: none; min-height: 44px; padding: 0 16px;
+  color: var(--dim-text); font: inherit; font-size: 13px; font-weight: 600;
   cursor: pointer; border-radius: 9px;
 }
 .call-dismiss:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
@@ -217,13 +211,6 @@
 @media (max-width: 460px) {
   .call-card { padding: 24px 18px 18px; gap: 15px; border-radius: 22px; }
   .call-avatar { width: 92px; height: 92px; font-size: 34px; }
-  /* Stacking beats shrinking: this is the worst possible screen to mis-tap on,
-     and a decision button squeezed under the 44px touch floor is exactly how
-     that happens. Answer and Decline each take the full width; the two minor
-     actions stay side by side, where a mis-tap costs nothing. */
-  .call-actions { flex-wrap: wrap; }
-  .call-actions .call-btn { flex: 1 0 100%; flex-direction: row; gap: 9px; min-height: 54px; }
-  .call-actions--minor .call-btn { flex: 1 1 0; min-height: 46px; justify-content: center; }
 }
 
 /* Genuinely short windows: a phone held sideways, a small browser window on a

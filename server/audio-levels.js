@@ -16,6 +16,7 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { lowerPriority } = require('./child-priority');
 
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 
@@ -117,6 +118,7 @@ function start() {
     scheduleRestart(startedAt);
     return;
   }
+  lowerPriority(_proc.pid);
   _proc.stdout.on('data', (d) => onData(d.toString('utf8')));
   _proc.stderr.on('data', () => { /* diagnostics only */ });
   _proc.on('error', () => { _proc = null; scheduleRestart(startedAt); });

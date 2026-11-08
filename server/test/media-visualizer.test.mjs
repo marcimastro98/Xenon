@@ -138,15 +138,15 @@ test('the settings row and its strings ship in every language', () => {
   assert.match(read('index.html'), /onclick="updateMediaVisualizer\('minimal'\)"/);
   assert.match(read('js', 'settings.js'), /function updateMediaVisualizer\(/);
   const i18n = read('js', 'i18n.js');
-  for (const k of ['settings_media_viz_head', 'settings_media_viz_head_hint', 'settings_media_viz_off', 'settings_media_viz_minimal', 'settings_media_viz_wave', 'settings_media_viz_note']) {
+  for (const k of ['settings_media_viz_head', 'settings_media_viz_off', 'settings_media_viz_minimal', 'settings_media_viz_wave', 'settings_media_viz_note']) {
     const n = (i18n.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;
     assert.equal(n, 11, `${k} is defined ${n} times, expected 11`);
   }
-  // The row has to say both things: that it changes nothing about the tile, and
-  // that it needs the helper — rather than offering a dead switch.
+  // The row has to say both things: where it shows, and that it needs the helper,
+  // rather than offering a dead switch.
   const itNote = /settings_media_viz_note: '((?:[^'\\]|\\.)*)'/.exec(i18n);
   assert.ok(itNote, 'the Italian note is missing');
-  assert.match(itNote[1], /Non cambia nulla del riquadro/);
+  assert.match(itNote[1], /sotto il riquadro/);
   assert.match(itNote[1], /Xenon Helper/);
 });
 

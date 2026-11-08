@@ -42,6 +42,11 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   display: none;
 }
 
+/* The box around a fader is for the Liquid mixer (LiquidMixer.css), which sets it
+   upright. Everywhere else it has no box and the slider keeps its place in the row:
+   the Deck's mixer (deck-popup.html) loads this file too. */
+.mix-fader { display: contents; }
+
 /* The card's own row and slider never give way: when the tab runs out of
    height it is the app list (which scrolls) that shrinks, not the volume. */
 .system-audio-pane .vol-header,

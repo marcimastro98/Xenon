@@ -1,0 +1,544 @@
+/* The mixer on the Liquid look: the Volume and Microphone tabs of the System tile, and
+   the Audio and Microphone widgets they become when taken out of it. Every sound is a
+   channel, as on a mixing desk and in Sonar or Wave Link: its level, a fader wide enough
+   for a finger, its name, its mute key. A tab or widget with room for it stands the
+   channels up as strips; a short or narrow one (a strip of the Edge, a phone, a desktop
+   widget) lays them down as thick bars with the same parts. The level is the fill alone,
+   with no handle, like the volume in Apple's Control Center. Off Liquid the wrappers
+   (.mix-fader, .mic-mixer, .mic-key) have no box and nothing here applies. The fader's
+   colours (--mix-*) are in liquid-tiles.css: the Playback widget's volume uses them too. */
+
+/* The Microphone tab sizes itself like the Volume tab (AudioSection.css) and shares its
+   container name, so one query below serves both. Where the tile grows with its content
+   (a phone, a desktop widget) a size container would count that content as zero height:
+   there the tab takes its natural height and keeps the bars, as the Volume tab does. */
+:root[data-style="liquid"] body:not([data-panel]) .system-mic-pane:not([hidden]) {
+  container: syspane / size;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  /* No inset of its own, as the Volume tab: both tabs line up with the tab bar. */
+  padding: 0;
+  overflow: hidden auto;
+  text-align: start;
+}
+:root[data-style="liquid"].is-stacked body:not([data-panel]) .system-mic-pane:not([hidden]) { container: none; }
+:root[data-style="liquid"] body:not([data-panel]) .layer-slot .system-mic-pane:not([hidden]) { container: none; flex: 1 0 auto; }
+/* The Volume tab scrolls what does not fit, as the Microphone tab does. Short but narrow,
+   the device rows beside the volume (AudioSection.css) left the bars too thin for their
+   words: there they stay under it, every part at its height, and the tab scrolls. */
+:root[data-style="liquid"] body:not([data-panel]) .system-audio-pane:not([hidden]) { overflow: hidden auto; }
+@container syspane (max-height: 210px) and (max-width: 479.98px) {
+  :root[data-style="liquid"] .system-audio-pane .audio-block { flex-direction: column; align-self: flex-start; gap: 12px; }
+  :root[data-style="liquid"] .system-audio-pane :is(.volume-wrap, .vol-hidden-hint) { flex: 0 0 auto; }
+  :root[data-style="liquid"] .system-audio-pane .device-section {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+/* The same mixer as a widget of its own, once Audio or Microphone is taken out of the
+   System tile: the tile is the tab. Its box always has a height of its own (a grid cell,
+   a phone's band, a desktop widget's window), so it is the size container everywhere,
+   under the tab's name: the round layout's own queries (micpanel) stop applying. The
+   inset is the System tile's, the one the tab sits in. */
+:root[data-style="liquid"] :is(.audio-panel, .mic-panel) {
+  container: syspane / size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 16px;
+  overflow: hidden auto;
+  text-align: start;
+}
+/* The inner frame was drawn around the round button. */
+:root[data-style="liquid"] .mic-panel::before { display: none; }
+/* The device rows under the volume, as on the tab (AudioSection.css). As bars every
+   part keeps its height and the tile scrolls what does not fit, so a phone's short band
+   never squeezes the app list to a sliver; as strips the faders share the height (below).
+   Beside the volume when the tile is short and wide, as on a strip of the Edge. */
+:root[data-style="liquid"] .audio-panel .audio-block:not([hidden], [data-audio-hidden="true"]) {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 12px;
+}
+:root[data-style="liquid"] .audio-panel .volume-wrap { flex: 1 0 auto; }
+:root[data-style="liquid"] .audio-panel .device-section {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@container syspane (max-height: 210px) and (min-width: 480px) {
+  :root[data-style="liquid"] .audio-panel .audio-block:not([hidden], [data-audio-hidden="true"]) {
+    flex-direction: row;
+    flex-shrink: 1;
+    align-items: stretch;
+    gap: 10px;
+    min-height: 0;
+  }
+  :root[data-style="liquid"] .audio-panel :is(.volume-wrap, .vol-hidden-hint) { flex: 1 1 auto; min-width: 0; }
+  :root[data-style="liquid"] .audio-panel .device-section {
+    flex: 0 0 clamp(170px, 26%, 300px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  :root[data-style="liquid"] .audio-panel .device-row { flex: 1 1 0; min-height: 0; padding: 6px 10px; }
+}
+
+/* ── Bars: the layout wherever the strips below do not fit ── */
+
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .mix-fader {
+  display: block;
+  position: relative;
+  min-width: 0;
+}
+/* volume.js paints the fill up to the level with --slider-fill and the rest with
+   --slider-track, so the colours are set here and the level stays the script's. */
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .mix-fader > input {
+  --slider-track: var(--mix-track);
+  --slider-fill: var(--mix-fill);
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--mix-edge);
+  touch-action: pan-y;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .mix-fader > input:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.8);
+  /* Inside the fader: the tab and the app list scroll, so a ring outside would be cut. */
+  outline-offset: -2px;
+}
+/* A thumb with no paint: the whole fader takes the finger and the fill shows the level. */
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .mix-fader > input::-webkit-slider-thumb {
+  width: 2px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .mix-fader > input::-moz-range-thumb {
+  width: 2px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The device's volume: one bar, its mute key at the end of the row like every app's.
+   No well around the mixer: its channels are the content of the tab, as on the
+   Microphone tab, and the device rows under them keep theirs. */
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: none;
+  align-content: start;
+  gap: 14px 8px;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .vol-header { display: contents; }
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap > .mix-fader { grid-area: 1 / 1; }
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap :is(.vol-title, .vol-value) {
+  grid-area: 1 / 1;
+  align-self: center;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  pointer-events: none;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap .vol-title { justify-self: start; margin-left: 14px; font-weight: 600; }
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap .vol-value { justify-self: end; margin-right: 14px; font-weight: 700; }
+
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap .vol-mute-btn,
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row .app-mix-mute {
+  grid-area: 1 / 2;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--lg-key);
+  color: var(--text);
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap .vol-mute-btn svg,
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row .app-mix-mute svg { width: 18px; height: 18px; }
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap .vol-mute-btn.speaker-muted,
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row .app-mix-mute.active {
+  background: var(--mix-off);
+  color: var(--text);
+}
+
+/* The apps: a bar each, side by side when the tab is wide and short. */
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .speaker-apps:not([hidden]),
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-apps:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  align-content: start;
+  gap: 8px 16px;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .speaker-apps:not([hidden]) {
+  grid-area: 2 / 1 / 3 / -1;
+  min-height: 0;
+  overflow-y: auto;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 0 8px;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row > :is(.mix-fader, .app-mix-icon, .app-mix-name, .app-mix-vol) { grid-area: 1 / 1; }
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row > :is(.app-mix-icon, .app-mix-name, .app-mix-vol) {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row > .app-mix-icon {
+  justify-self: start;
+  margin-left: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+/* A letter stands for an app with no icon: a dark chip reads on the fill and off it. */
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-icon-letter {
+  border-color: transparent;
+  background: rgba(10, 12, 20, 0.42);
+  color: #fff;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row > .app-mix-name {
+  justify-self: start;
+  max-width: calc(100% - 104px);
+  margin-left: 44px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+:root[data-style="liquid"] :is(.system-audio-pane, .system-mic-pane, .audio-panel, .mic-panel) .app-mix-row > .app-mix-vol {
+  justify-self: end;
+  min-width: 0;
+  margin-right: 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Microphone: the key that turns it on and off says so in words, then the input, then
+   the apps that hear it. The rings and the glow around the old round button go. */
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 8px;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-key {
+  display: grid;
+  position: relative;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-key > :is(.btn-wrap, .mic-head) { grid-area: 1 / 1; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) :is(.ring, .ring2, .glow) { display: none; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .btn-wrap {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--mix-on);
+  box-shadow: inset 0 0 0 1px var(--mix-edge);
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn.muted { background: var(--mix-off); box-shadow: inset 0 0 0 1px var(--mix-edge); }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn:hover { transform: none; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn:active { transform: scale(0.98); }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn svg,
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-btn.muted svg {
+  width: 24px;
+  height: 24px;
+  fill: var(--text);
+  filter: none;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-head {
+  align-self: center;
+  justify-self: start;
+  align-items: flex-start;
+  gap: 2px;
+  width: auto;
+  max-width: calc(100% - 72px);
+  margin-left: 56px;
+  text-align: start;
+  z-index: 2;
+  pointer-events: none;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .status-label,
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .status-label.muted {
+  min-height: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-context {
+  width: 100%;
+  color: var(--muted-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The input volume: drawn by the track's pseudo-elements, set by the invisible range on
+   top of it (MicPanel.css). The light theme paints that track with !important. The
+   panel's own named area would put the row in a column of its own. */
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol {
+  grid-area: auto / 1 / auto / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  width: auto;
+  height: auto;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol > * { grid-area: 1 / 1; order: 0; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol-track {
+  width: 100%;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+}
+/* The range on top has no paint of its own: the keyboard ring goes on the track. */
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol-track:has(> .mic-vol-slider:focus-visible) {
+  outline: 2px solid rgba(var(--accent-rgb), 0.8);
+  outline-offset: -2px;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol .mic-vol-track::before {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+  border-radius: 12px;
+  background: linear-gradient(to right, var(--mix-fill) 0%, var(--mix-fill) var(--mic-level), var(--mix-track) var(--mic-level), var(--mix-track) 100%) !important;
+  box-shadow: inset 0 0 0 1px var(--mix-edge);
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol .mic-vol-track.muted::before { opacity: 0.38; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol .mic-vol-track::after { display: none; }
+/* The range lies along the bar. The widget's own stands upright for its round layout. */
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol-slider {
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  touch-action: pan-y;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) :is(.mic-vol-label, .mic-vol-value) {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  pointer-events: none;
+}
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol-label { justify-self: start; margin-left: 14px; font-weight: 600; }
+:root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-vol-value { justify-self: end; margin-right: 14px; font-weight: 700; text-align: end; }
+
+/* ── Strips: a tab at least 480 x 300 with room for every channel ──
+   Master first, a line, then the apps, centred in the tab; each fader no taller than
+   340px. Subgrid rows keep every level, fader, name and key on one line across strips.
+   The strips never scroll sideways: a finger on a fader moves the level, so a hidden
+   channel could not be reached, and the page itself swipes sideways. When they would
+   spill, fit-row.js gives the mixer data-fit="1" and it keeps the bars above. */
+@container syspane (min-width: 480px) and (min-height: 300px) {
+  :root[data-style="liquid"] .audio-panel .audio-block:has(> .volume-wrap:not([data-fit="1"])),
+  :root[data-style="liquid"] .audio-panel .volume-wrap:not([data-fit="1"]) { flex-shrink: 1; min-height: 0; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) {
+    --strip: clamp(84px, 9cqw, 140px);
+    grid-template-columns: var(--strip) 1px minmax(0, max-content);
+    grid-template-rows: auto minmax(120px, 340px) auto auto;
+    justify-content: center;
+    align-content: center;
+    gap: 10px;
+    padding: 8px 0;
+  }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) .vol-value { grid-area: 1 / 1; justify-self: center; margin: 0; font-size: 16px; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) > .mix-fader { grid-area: 2 / 1; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) .vol-title { grid-area: 3 / 1; justify-self: center; max-width: 100%; margin: 0; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) .vol-mute-btn { grid-area: 4 / 1; justify-self: center; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]):has(> .speaker-apps:not([hidden]))::after {
+    content: '';
+    grid-area: 1 / 2 / -1 / 3;
+    margin-block: 4px;
+    background: var(--lg-sep);
+  }
+
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) {
+    --strip: clamp(104px, 11cqw, 140px);
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-block: 0;
+    grid-template-columns: minmax(150px, 210px) var(--strip) 1px minmax(0, max-content);
+    grid-template-rows: auto minmax(120px, 340px) auto auto;
+    justify-content: center;
+    align-content: center;
+    gap: 10px;
+    padding: 4px 2px 2px;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]):has(> .mic-apps:not([hidden]))::after {
+    content: '';
+    grid-area: 1 / 3 / -1 / 4;
+    margin-block: 4px;
+    background: var(--lg-sep);
+  }
+
+  /* The mic key: a square with the icon over the words. */
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-key {
+    grid-area: 1 / 1 / -1 / 2;
+    align-self: center;
+    aspect-ratio: 1;
+    margin-right: 16px;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .btn-wrap { height: 100%; }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-btn {
+    justify-content: center;
+    padding: 0 0 56px;
+    border-radius: 24px;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-btn svg,
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-btn.muted svg { width: 44px; height: 44px; }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-btn:active { transform: scale(0.96); }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-head {
+    align-self: end;
+    justify-self: stretch;
+    align-items: center;
+    max-width: none;
+    margin: 0;
+    padding: 0 14px 24px;
+    text-align: center;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .status-label { font-size: 16px; }
+
+  /* The input fader stands in the second column; the key above is its mute. */
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol { display: contents; }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol-value { grid-area: 1 / 2; justify-self: center; margin: 0; font-size: 16px; }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol-track {
+    grid-area: 2 / 2;
+    justify-self: center;
+    width: 60px;
+    height: 100%;
+    border-radius: 20px;
+    container-type: size;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol .mic-vol-track::before {
+    border-radius: 20px;
+    background: linear-gradient(to top, var(--mix-fill) 0%, var(--mix-fill) var(--mic-level), var(--mix-track) var(--mic-level), var(--mix-track) 100%) !important;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol-slider {
+    width: 100cqh;
+    height: 100cqw;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    touch-action: none;
+  }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-vol-label {
+    grid-area: 3 / 2;
+    align-self: start;
+    justify-self: center;
+    max-width: 100%;
+    margin: 0;
+    line-height: 1.2;
+    text-align: center;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* The apps of either tab: one strip each, flowing to the right. */
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) > .speaker-apps:not([hidden]) { grid-area: 1 / 3 / -1 / 4; }
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-apps:not([hidden]) { grid-area: 1 / 4 / -1 / 5; }
+  :root[data-style="liquid"] :is(.system-audio-pane, .audio-panel) .volume-wrap:not([data-fit="1"]) > .speaker-apps:not([hidden]),
+  :root[data-style="liquid"] :is(.system-mic-pane, .mic-panel) .mic-mixer:not([data-fit="1"]) .mic-apps:not([hidden]) {
+    grid-template-rows: subgrid;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: var(--strip);
+    gap: 10px;
+    min-height: 0;
+    overflow: auto hidden;
+    scrollbar-width: thin;
+  }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row {
+    grid-row: 1 / -1;
+    grid-template-rows: subgrid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 10px 0;
+  }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row > .app-mix-vol { grid-area: 1 / 1; justify-self: center; margin: 0; font-size: 16px; }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row > .mix-fader { grid-area: 2 / 1; }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row > .app-mix-icon {
+    grid-area: 2 / 1;
+    align-self: end;
+    justify-self: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 0 12px;
+    border-radius: 8px;
+  }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row > .app-mix-name {
+    grid-area: 3 / 1;
+    justify-self: center;
+    max-width: 100%;
+    margin: 0;
+    text-align: center;
+  }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .app-mix-row > .app-mix-mute { grid-area: 4 / 1; justify-self: center; }
+
+  /* Each fader: a box as tall as its row, the range inside it turned upright, so the
+     fill volume.js paints from the left runs from the bottom. */
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .mix-fader {
+    justify-self: center;
+    width: 60px;
+    height: 100%;
+    min-height: 0;
+    container-type: size;
+  }
+  :root[data-style="liquid"] :is(:is(.system-audio-pane, .audio-panel) .volume-wrap, :is(.system-mic-pane, .mic-panel) .mic-mixer):not([data-fit="1"]) .mix-fader > input {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100cqh;
+    height: 100cqw;
+    border-radius: 20px;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    touch-action: none;
+  }
+}

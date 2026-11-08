@@ -122,7 +122,7 @@
 /* Lyrics without timings: a plain list the user scrolls by hand. */
 .lyv-viewport.is-plain {
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   touch-action: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--text), transparent 76%) transparent;
@@ -229,12 +229,12 @@
    watched, not touched, and "no input for a minute" is how they are read; the
    same reason the ticker is exempt (#72). A glide is one composited transform
    every few seconds. */
-body.overlay-frozen .lyv-track, body.game-mode .lyv-track, body.low-power-gpu .lyv-track,
-body.overlay-frozen .lyv-line, body.game-mode .lyv-line, body.low-power-gpu .lyv-line,
-body.overlay-frozen .lyv-dot, body.game-mode .lyv-dot, body.low-power-gpu .lyv-dot { transition: none; }
+body.overlay-frozen .lyv-track, body.game-mode .lyv-track, body.perf-mode .lyv-track, body.low-power-gpu .lyv-track,
+body.overlay-frozen .lyv-line, body.game-mode .lyv-line, body.perf-mode .lyv-line, body.low-power-gpu .lyv-line,
+body.overlay-frozen .lyv-dot, body.game-mode .lyv-dot, body.perf-mode .lyv-dot, body.low-power-gpu .lyv-dot { transition: none; }
 
 /* !important outranks a script animation already running when the freeze lands. */
-body.overlay-frozen .lyv-w, body.game-mode .lyv-w, body.low-power-gpu .lyv-w { opacity: 1 !important; }
+body.overlay-frozen .lyv-w, body.game-mode .lyv-w, body.perf-mode .lyv-w, body.low-power-gpu .lyv-w { opacity: 1 !important; }
 
 /* Reduced motion: no glide (words switch on instead of fading, in the script). */
 @media (prefers-reduced-motion: reduce) {

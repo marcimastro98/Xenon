@@ -148,7 +148,7 @@ function buildAppMixerRow(app) {
     <div class="app-mix-row${muteClass}" data-app-id="${escHtml(app.id)}" data-app-proc="${escHtml(app.proc || '')}">
       ${iconHtml}
       <span class="app-mix-name" title="${safeName}">${safeName}</span>
-      <input class="app-mix-slider" type="range" min="0" max="100" value="${volume}" style="background:${bg}">
+      <div class="mix-fader"><input class="app-mix-slider" type="range" min="0" max="100" value="${volume}" style="background:${bg}"></div>
       <span class="app-mix-vol">${volume}%</span>
       <button class="app-mix-mute${app.muted ? ' active' : ''}" type="button" title="Mute">
         ${app.muted ? APP_MIX_SVG_MUTED : APP_MIX_SVG_ON}
@@ -166,6 +166,10 @@ function renderAppMixerRows(host, apps) {
     const src = apps[i] ? safeImageDataUri(apps[i].icon) : '';
     if (img && src) img.src = src;
   });
+  // The Liquid mixer stands its channels up only while all of them fit (LiquidMixer.css).
+  // An app that opens or closes may not resize the list's box, so it is measured now.
+  const fitRow = host.closest('[data-fit-levels]');
+  if (fitRow && window.FitRow) window.FitRow.watch(fitRow);
 }
 
 // Both the speaker and mic mixers post to the same per-app endpoints, so a
@@ -316,7 +320,8 @@ function audioSurfaceOnScreen() {
   const vh = window.innerHeight;
   // The "audio unavailable" notice counts too: it is what the panel shows while the
   // read is failing, and only a read that keeps being tried can take it away again.
-  const surfaces = document.querySelectorAll('.volume-wrap, .mic-panel, [data-volf="vol-error"]');
+  // The Microphone tab of the System tile holds the mic's content in its own pane.
+  const surfaces = document.querySelectorAll('.volume-wrap, .mic-panel, .system-mic-pane, [data-volf="vol-error"]');
   for (const el of surfaces) {
     if (!el.getClientRects().length) continue;
     const r = el.getBoundingClientRect();

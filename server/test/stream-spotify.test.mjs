@@ -52,21 +52,21 @@ test('exchangeCode persists tokens + login and never leaks them in status()', as
   const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([
       { match: '/api/token', json: { access_token: 'AT', refresh_token: 'RT', expires_in: 3600 } },
-      { match: '/me', json: { id: 'u1', display_name: 'Marci' } },
+      { match: '/me', json: { id: 'u1', display_name: 'Alex' } },
     ]) });
   const r = p.buildAuthUrl('http://127.0.0.1:3030/stream/spotify/callback');
   const ex = await p.exchangeCode('CODE', r.state);
   assert.equal(ex.ok, true);
-  assert.equal(ex.login, 'Marci');
+  assert.equal(ex.login, 'Alex');
   const stt = await p.status();
-  assert.deepEqual(stt, { connected: true, login: 'Marci', configured: true });
+  assert.deepEqual(stt, { connected: true, login: 'Alex', configured: true });
   assert.equal('accessToken' in stt, false);
   assert.equal(await p.getAccessToken(), 'AT');
 });
 
 test('getAccessToken refreshes when expired and keeps the stored refresh token', async () => {
   const file = tmpTokens();
-  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'Marci', userId: 'u1' } }));
+  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'Alex', userId: 'u1' } }));
   const calls = [];
   const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([{ match: '/api/token', calls, json: { access_token: 'NEW', expires_in: 3600 } }]) });
@@ -450,8 +450,8 @@ test('playWhenReady waits for this computer and transfers there, not to the acti
 test('playWhenReady on a Mac: a computer that was not listed before counts as this one', async () => {
   const calls = [];
   const laptop = dev('old', 'Work laptop', 'Computer');
-  const p = readyProvider([[laptop], [laptop, dev('mac', "Marcello's MacBook Pro", 'Computer')]], calls);
-  assert.deepEqual(await p.playWhenReady('marcellos-macbook-pro.local', new Set(['old'])), { ok: true });
+  const p = readyProvider([[laptop], [laptop, dev('mac', "Alex's MacBook Pro", 'Computer')]], calls);
+  assert.deepEqual(await p.playWhenReady('alexs-macbook-pro.local', new Set(['old'])), { ok: true });
   const transfer = calls.find((c) => c.init && c.init.method === 'PUT' && c.url.endsWith('/me/player'));
   assert.deepEqual(JSON.parse(transfer.init.body).device_ids, ['mac']);
 });

@@ -13,7 +13,7 @@
     openai: 'https://developers.openai.com/api/docs/pricing',
     anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
   };
-  const PROVIDER_NAMES = { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', ollama: 'Ollama', claudecode: 'Claude Code', codex: 'Codex' };
+  const PROVIDER_NAMES = { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', ollama: 'Ollama', claudecode: 'Claude Code', codex: 'Codex', get localapi() { return tr('ai_provider_localapi', 'Local server'); } };
   // Claude Code and Codex run on the user's subscription: no money per song,
   // but the plan's usage limits.
   const PLANS = { claudecode: 'Claude', codex: 'ChatGPT' };
@@ -111,6 +111,7 @@
     // far bigger than "about two thousand": the plan paragraph below says it.
     if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Bit provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
     if (provider === 'ollama') box.appendChild(el('p', '', tr('lyrics_opt_cost_ollama', 'With Ollama it is free and stays on this PC.')));
+    else if (provider === 'localapi') box.appendChild(el('p', '', tr('lyrics_opt_cost_localapi', 'With your local server it is free and stays on this PC.')));
     else if (provider === 'xenon') {
       box.appendChild(el('p', '', tr('lyrics_opt_cost_xenon', 'With Bit on Sparks, translation runs on Haiku, the smallest model, and is paid in Sparks. When your Sparks run out it stops, and starts again as soon as you have more.')));
       estimateLine = el('p', 'lyo-estimate', '');
@@ -211,6 +212,7 @@
 
   function open(mount, onClose) {
     close(mount);
+    const back = document.activeElement;
     modelLine = null;
     estimateLine = null;
     planLine = null;
@@ -223,8 +225,21 @@
     head.appendChild(el('h3', 'lyo-title', tr('lyrics_opt_title', 'Lyrics options')));
     const done = el('button', 'lyw-btn is-accent', tr('lyrics_opt_done', 'Done'));
     done.type = 'button';
-    done.addEventListener('click', () => { close(mount); if (onClose) onClose(); });
+    const finish = () => {
+      close(mount);
+      if (back && back.isConnected) back.focus({ focusVisible: false });
+      if (onClose) onClose();
+    };
+    done.addEventListener('click', finish);
     head.appendChild(done);
+    // A tap on its empty space keeps the keyboard here, so Esc still answers. Not a blocking
+    // window: the page around the tile stays in use, so Tab walks on.
+    sheet.tabIndex = -1;
+    sheet.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();   // over Stage mode the first Esc closes only this
+      finish();
+    });
 
     const body = el('div', 'lyo-body');
     body.appendChild(toggleRow(tr('lyrics_opt_translate', 'Translate lines'),
@@ -246,7 +261,7 @@
     mount.appendChild(sheet);
     mount.classList.add('has-options');
     void refreshUsage();
-    done.focus();
+    done.focus({ focusVisible: false });
   }
 
   function close(mount) {
