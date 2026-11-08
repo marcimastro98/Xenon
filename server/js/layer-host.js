@@ -432,8 +432,18 @@
   // Words with nothing to press also let clicks through (data-layer-through): the
   // window still draws them, and what lies under them stays usable.
   function clicksThrough(slot) {
+    if (editing) return false;
     const fit = fitNode(slot);
-    return !!fit && fit.hasAttribute('data-layer-through');
+    return fit ? fit.hasAttribute('data-layer-through') : storeWidgetThrough(slot);
+  }
+
+  // A Store widget can ask for the same (the SDK `layer` message, js/custom-widget.js
+  // marks its frame). Not in a tab group, whose tabs must stay pressable, and not
+  // while it is open at full size, whose ✕ must be.
+  function storeWidgetThrough(slot) {
+    if (tabsOf.get(slot)) return false;
+    const frame = slot.querySelector('.cw-frame[data-layer-through]');
+    return !!frame && !frame.closest('.cw-expanded');
   }
 
   const rectText = (r, dpr) => [r.left, r.top, r.width, r.height].map(v => Math.round(v * dpr)).join(',');

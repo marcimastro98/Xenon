@@ -2043,6 +2043,7 @@
       window.addEventListener('xenon:page-change', expandPageHandler);
     }
     postExpandState(entry, true);
+    layerRectsChanged();
     return true;
   }
 
@@ -2060,6 +2061,7 @@
     if (expandEscHandler) { document.removeEventListener('keydown', expandEscHandler); expandEscHandler = null; }
     if (expandPageHandler) { window.removeEventListener('xenon:page-change', expandPageHandler); expandPageHandler = null; }
     postExpandState(entry, false);
+    layerRectsChanged();
   }
 
   // Called from paint(): the frame can disappear under us (widget swapped,
@@ -2101,7 +2103,34 @@
     // nothing to check, so the other gates above carry it.
     const ua = navigator.userActivation;
     if (ua && ua.isActive === false) { reply(false, 'no_gesture'); return; }
-    if (!expandWidget(entry)) { reply(false, 'unavailable'); return; }
+    if (anchoredLayer() || !expandWidget(entry)) { reply(false, 'unavailable'); return; }
+    reply(true);
+  }
+
+  // A layer window is cut to its widgets' boxes and lets the mouse past the rest
+  // (js/layer-host.js): a widget opened at full size, or one that lets clicks
+  // through, changes that cut.
+  function layerRectsChanged() {
+    const host = window.LayerHost;
+    if (host && host.active) host.refreshRects();
+  }
+  // An anchored window is the widget itself, beside an app: it has no bigger
+  // screen to open into.
+  const anchoredLayer = () => !!(window.LayerHost && window.LayerHost.active && window.LayerHost.surface === 'anchor');
+
+  // ── Clicks through a layer window (`layer` message, v5.0.0) ──────────────
+  // A widget on the desktop, over everything or beside an app may let clicks pass
+  // through its box to what lies under it, and take them back: a counter over a
+  // game asks for it while the game runs. No grant: it can only give clicks away
+  // from itself, it stays drawn, and edit mode makes every box take clicks again.
+  // A tab group and a tile open at full size keep taking them (layer-host.js).
+  function onBridgeLayer(entry, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (ok, error) => post(entry, { type: 'layer_result', id: reqId, ok, error });
+    if (typeof msg.through !== 'boolean') { reply(false, 'bad_request'); return; }
+    if (entry.service || entry.ambient || !window.LayerHost || !window.LayerHost.active) { reply(false, 'not_in_layer'); return; }
+    entry.frame.toggleAttribute('data-layer-through', msg.through);
+    layerRectsChanged();
     reply(true);
   }
 
@@ -2277,6 +2306,11 @@
     const grant = grantsFor(entry.pkgId);
     if (d.type === 'hello') {
       entry.ready = true;
+      // A widget that starts again takes clicks until it asks otherwise.
+      if (entry.frame.hasAttribute('data-layer-through')) {
+        entry.frame.removeAttribute('data-layer-through');
+        layerRectsChanged();
+      }
       const placement = placementOf(entry);
       entry.placementKey = placementKey(placement);
       post(entry, {
@@ -2314,7 +2348,7 @@
         accent: grant.accent,
         // Whether it may ask to cover the dashboard — it has to know so it can
         // decide whether to draw an "expand" affordance at all.
-        expand: grant.expand && !entry.service && !entry.ambient,
+        expand: grant.expand && !entry.service && !entry.ambient && !anchoredLayer(),
         // Which frame this is. A `background: true` package runs BOTH a hidden
         // service frame and any mounted tile, and until now nothing told them
         // apart — so a package with side effects had to guess which copy of
@@ -2382,6 +2416,8 @@
       if (entry.ready) onBridgeTopbarButton(entry, grant, d);
     } else if (d.type === 'expand') {
       if (entry.ready) onBridgeExpand(entry, grant, d);
+    } else if (d.type === 'layer') {
+      if (entry.ready) onBridgeLayer(entry, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
     } else if (d.type === 'ai') {

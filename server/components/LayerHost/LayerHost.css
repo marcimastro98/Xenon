@@ -103,6 +103,18 @@ html[data-layer-lite] .deck-edit {
   position: relative;
 }
 
+/* A Store widget open at full size (the SDK `expand`, js/custom-widget.js) fills
+   the window: the box grows with it, so the window is cut to all of it and takes
+   every click, and it covers the other widgets at full opacity. */
+.layer-slot:has(.cw-wrap.cw-expanded) {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  z-index: 1;
+}
+
 /* A widget can be smaller than any dashboard tile. The System tile shares its height
    out among the cards, which on a 320x240 widget left each one 33px for 60px of words
    and cut the numbers. Here a card keeps the height its words need, spare height is

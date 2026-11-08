@@ -800,3 +800,65 @@ test('stress: switching pages 100 times never leaks a slot or an atom', () => {
   assert.equal(document.querySelectorAll('[data-dashboard-widget="weather"]').length, 1);
   assert.equal(document.querySelectorAll('[data-dashboard-widget="media"]').length, 1);
 });
+
+// The SDK `layer` message (js/custom-widget.js) marks the widget's frame.
+function storeWidgetOnOverlay(layers) {
+  const b = editBoot('?layer=overlay:', layers, { shell: true });
+  b.host.place();
+  const slot = slotsOf(b.document)[0];
+  slot.getBoundingClientRect = () => ({ left: 10, top: 20, width: 200, height: 100 });
+  const wrap = b.document.createElement('div');
+  wrap.className = 'cw-wrap';
+  const frame = b.document.createElement('iframe');
+  frame.className = 'cw-frame';
+  wrap.appendChild(frame);
+  slot.querySelector('[data-dashboard-instance="lw_sdkw0001"]').appendChild(wrap);
+  return { ...b, slot, wrap, frame };
+}
+const SDK_ON_OVERLAY = W({ id: 'lw_sdkw0001', kind: 'sdk', pkg: 'alibi', widget: undefined, surface: 'overlay' });
+const TAKES = 'xenon-app:layer-rects?d=' + encodeURIComponent('15,30,300,150');
+const PASSES = 'xenon-app:layer-rects?d=&t=' + encodeURIComponent('15,30,300,150');
+
+test('a Store widget that asks lets clicks through its box, and takes them back', () => {
+  const { host, frame, signals, flush } = storeWidgetOnOverlay({ enabled: true, widgets: [SDK_ON_OVERLAY] });
+  flush();
+  assert.equal(signals.at(-1), TAKES, 'it takes clicks until it asks');
+  frame.setAttribute('data-layer-through', '');
+  host.refreshRects(); flush();
+  assert.equal(signals.at(-1), PASSES, 'still drawn, but the mouse goes to what is under it');
+  frame.removeAttribute('data-layer-through');
+  host.refreshRects(); flush();
+  assert.equal(signals.at(-1), TAKES);
+});
+
+test('open at full size or being edited, a Store widget that lets clicks through takes them again', () => {
+  const { host, frame, wrap, signals, flush } = storeWidgetOnOverlay({ enabled: true, widgets: [SDK_ON_OVERLAY] });
+  frame.setAttribute('data-layer-through', '');
+  flush();
+  assert.equal(signals.at(-1), PASSES);
+  wrap.classList.add('cw-expanded');
+  host.refreshRects(); flush();
+  assert.equal(signals.at(-1), TAKES, 'its ✕ must be pressable');
+  wrap.classList.remove('cw-expanded');
+  host.refreshRects(); flush();
+  assert.equal(signals.at(-1), PASSES);
+  const es = fakeStream();
+  host.listen(es);
+  es.emit('layers-edit', { on: true });
+  flush();
+  assert.equal(signals.at(-1), TAKES + '&edit=1', 'every box can be moved');
+  es.emit('layers-edit', { on: false });
+  flush();
+  assert.equal(signals.at(-1), PASSES);
+});
+
+test('in a tab group a Store widget never lets clicks through, so the tabs can be pressed', () => {
+  const layers = { enabled: true, widgets: [
+    W({ ...SDK_ON_OVERLAY, group: 'lt_grp00001', active: true }),
+    W({ id: 'lw_aaaa0002', widget: 'media', surface: 'overlay', group: 'lt_grp00001' }),
+  ] };
+  const { frame, signals, flush } = storeWidgetOnOverlay(layers);
+  frame.setAttribute('data-layer-through', '');
+  flush();
+  assert.equal(signals.at(-1), TAKES);
+});
