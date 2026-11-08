@@ -88,7 +88,7 @@ test('the page has each mark once, and the route composes it for the surface it 
   assert.equal(HTML.split('<html lang="en" data-layer-lite>').length, 2);
   const s = read('../server.js');
   assert.match(s, /const tiles = LayersModel\.liteTilesFor\(_serverHubSettings\.layers, layerKey\);/);
-  assert.match(s, /res\.end\(LayerPage\.compose\(lite, tiles, dashboard\)\);/);
+  assert.match(s, /await sendPage\(LayerPage\.compose\(lite, tiles, dashboard\)\);/);
 });
 
 test('the Media tile comes cut from the dashboard, with its lyrics and waveform but not the topbar', () => {
@@ -101,6 +101,11 @@ test('the Media tile comes cut from the dashboard, with its lyrics and waveform 
   // Each module before the code that drives it.
   assert.ok(page.indexOf('src="js/lyrics-core.js"') < page.indexOf('src="js/media-lyrics.js"'));
   assert.ok(page.indexOf('src="js/media-viz.js"') < page.indexOf('src="js/layer-lite-tiles.js"'));
+  // The Liquid player: its look, its progress line and the note of an empty cover.
+  assert.ok(page.includes('href="components/MediaPanel/LiquidPlayer.css"'));
+  assert.ok(page.indexOf('src="js/media.js"') < page.indexOf('src="js/media-progress.js"'));
+  assert.match(page, /data-mf="media-progress-range"/);
+  assert.match(page, /<svg class="ph-note"/);
 });
 
 test('the Game performance tile comes cut from the dashboard, sharing system.js with the System tile', () => {

@@ -159,6 +159,9 @@ test('"show when gaming" follows full status payloads only', async () => {
   assert.ok(b.document.body.classList.contains('game-running'));
   es.emit('status', { muted: true });
   assert.ok(b.document.body.classList.contains('game-running'), 'a partial payload is not "game ended"');
+  // Found on his PC: a click outside the game took a "while gaming" widget away.
+  es.emit('status', { gaming: false, gameRunning: true });
+  assert.ok(b.document.body.classList.contains('game-running'), 'a game out of focus still runs');
   es.emit('status', { gaming: false, gameRunning: false });
   assert.ok(!b.document.body.classList.contains('game-running'));
 });
@@ -180,8 +183,8 @@ test('every stream the dashboard relays to widgets is relayed here', () => {
 test('the page loads only what a Store widget needs, in order', () => {
   const html = read('../layer-lite.html');
   assert.match(html, /<html lang="en" data-layer-lite>/);
-  const order = ['shared/src/constants.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-palette.js',
-    'js/theme-tokens.js', 'js/layer-tiles.js', 'js/layers-model.js', 'js/native-bridge.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/layer-pin.js', 'js/layer-host.js', 'js/layer-lite-tiles.js', 'js/tile-play.js', 'js/layer-lite.js'];
+  const order = ['js/skin-fonts.js', 'shared/src/constants.js', 'js/live-stream.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-palette.js',
+    'js/theme-tokens.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/layer-drag.js', 'js/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/layer-pin.js', 'js/layer-key.js', 'js/layer-host.js', 'js/layer-lite-tiles.js', 'js/tile-play.js', 'js/layer-lite.js'];
   const at = order.map((src) => html.indexOf('src="' + src + '"'));
   assert.ok(at.every((i) => i > 0), 'a script is missing');
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'scripts out of order');
@@ -193,7 +196,7 @@ test('the page loads only what a Store widget needs, in order', () => {
 test('a layer window never runs background frames: the dashboard already does', () => {
   const cw = read('../js/custom-widget.js');
   const fn = cw.slice(cw.indexOf('function syncServiceFrames() {'));
-  assert.match(fn.slice(0, 900), /const layerSurface = !!\(window\.LayerHost && window\.LayerHost\.active\);\n[\s\S]{0,300}\n    if \(sdk\(\)\.enabled === true && !layerSurface\) \{/);
+  assert.match(fn.slice(0, 900), /const layerSurface = !!\(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\);\n[\s\S]{0,300}\n    if \(sdk\(\)\.enabled === true && !layerSurface\) \{/);
 });
 
 test('served with the weather tile, it builds that tile and runs its fetch; without it, neither', async () => {

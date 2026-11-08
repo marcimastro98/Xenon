@@ -25,9 +25,16 @@ test('a placed tile keeps its shape and fills the defaults', () => {
   assert.deepEqual(n.widgets[0], { id: 'lw_abcd1234', kind: 'tile', widget: 'weather', surface: 'desktop', monitor: '', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.3 }, opacity: 1, show: 'always' });
 });
 
+test('a 48 px button keeps its size on a 4K screen', () => {
+  const rect = { x: 0.5, y: 0.5, w: 48 / 3840, h: 48 / 2160 };
+  const r = L.normalize({ widgets: [W({ rect })] }).widgets[0].rect;
+  assert.equal(Math.round(r.w * 3840), 48);
+  assert.equal(Math.round(r.h * 2160), 48);
+});
+
 test('a rectangle never leaves the screen and never collapses', () => {
   const r = L.normalize({ widgets: [W({ rect: { x: 0.95, y: -3, w: 0.5, h: 0 } })] }).widgets[0].rect;
-  assert.equal(r.w, 0.5); assert.equal(r.h, 0.02);
+  assert.equal(r.w, 0.5); assert.equal(r.h, 0.005);
   assert.equal(r.x, 0.5, 'pushed back so the right edge stays on screen');
   assert.equal(r.y, 0);
   const big = L.normalize({ widgets: [W({ rect: { x: 0, y: 0, w: 9, h: 9 } })] }).widgets[0].rect;
@@ -49,7 +56,16 @@ test('an anchored widget without an app to follow falls back to the desktop', ()
   assert.equal(L.normalize({ widgets: [W({ surface: 'anchor', anchor: { app: 'C:\\x\\krita.exe' } })] }).widgets[0].surface, 'desktop', 'a path is not an app name');
   const a = L.normalize({ widgets: [W({ surface: 'anchor', anchor: { app: 'krita.exe', corner: 'zz', dx: 1e9, w: 5 } })] }).widgets[0];
   assert.equal(a.surface, 'anchor');
-  assert.deepEqual(a.anchor, { app: 'krita.exe', title: '', corner: 'tr', dx: 4000, dy: 16, w: 80, h: 240 });
+  assert.deepEqual(a.anchor, { app: 'krita.exe', title: '', corner: 'tr', dx: 4000, dy: 64, w: 80, h: 240 });
+});
+
+test('a widget may drop its panel: only a real yes is kept, and tabs follow their box', () => {
+  assert.equal(L.normalize({ widgets: [W({ bare: true })] }).widgets[0].bare, true);
+  for (const junk of [false, 'true', 1, null]) assert.equal('bare' in L.normalize({ widgets: [W({ bare: junk })] }).widgets[0], false);
+  const g = 'lt_saved001';
+  const tabs = (lead) => L.normalize({ enabled: true, widgets: [W({ id: id(1), group: g, bare: lead }), W({ id: id(2), group: g, bare: !lead })] }).widgets;
+  assert.deepEqual(tabs(true).map((w) => w.bare), [true, true]);
+  assert.deepEqual(tabs(false).map((w) => 'bare' in w), [false, false]);
 });
 
 test('opacity, show rule, screens and monitor key are bounded', () => {
@@ -124,7 +140,7 @@ test('stress: any input normalizes to a valid, stable shape', () => {
     assert.ok(n.widgets.length <= L.MAX_WIDGETS);
     for (const w of n.widgets) {
       const { x, y, w: rw, h } = w.rect;
-      assert.ok(x >= 0 && y >= 0 && rw >= 0.02 && h >= 0.02 && x + rw <= 1.0001 && y + h <= 1.0001, JSON.stringify(w.rect));
+      assert.ok(x >= 0 && y >= 0 && rw >= 0.005 && h >= 0.005 && x + rw <= 1.0001 && y + h <= 1.0001, JSON.stringify(w.rect));
       assert.ok(L.SURFACES.includes(w.surface));
       if (w.surface === 'anchor') assert.ok(w.anchor && w.anchor.app);
     }
@@ -241,6 +257,71 @@ test('saved groups are settled: lone, anchored, other-surface and extra members 
   assert.equal(L.boxes(n).length, 5);
 });
 
+test('leaving tabs gives a widget back its size, look, place and rule', () => {
+  const music = { any: [{ c: 'music' }] };
+  const start = L.normalize({ widgets: [
+    W({ id: id(1), surface: 'overlay', show: 'gaming', bare: true, rect: { x: 0.8, y: 0, w: 0.09, h: 0.14 } }),
+    W({ id: id(2), surface: 'desktop', when: music, opacity: 0.6, rect: { x: 0.1, y: 0.5, w: 0.3, h: 0.4 } }),
+  ] });
+  const joined = L.groupWidgets(start, id(1), id(2), () => 0.5).layers;
+  const tab = joined.widgets.find((w) => w.id === id(2));
+  assert.equal(tab.show, 'gaming');
+  assert.equal(tab.rect.w, 0.09);
+  const out = L.ungroupWidget(joined, id(2)).widget;
+  assert.deepEqual([out.rect.w, out.rect.h], [0.3, 0.4]);
+  assert.equal(out.surface, 'desktop');
+  assert.equal(out.opacity, 0.6);
+  assert.equal(out.show, 'always');
+  assert.deepEqual(out.when, music);
+  assert.equal(out.bare, undefined);
+  assert.equal(out.own, undefined);
+  assert.equal(out.group, undefined);
+});
+
+test('the box falling apart gives the last tab back its own too', () => {
+  const start = L.normalize({ widgets: [
+    W({ id: id(1), bare: true, rect: { x: 0, y: 0, w: 0.1, h: 0.1 } }),
+    W({ id: id(2), rect: { x: 0.5, y: 0.5, w: 0.3, h: 0.3 } }),
+  ] });
+  const joined = L.groupWidgets(start, id(1), id(2), () => 0.5).layers;
+  const left = L.normalize({ ...joined, widgets: joined.widgets.filter((w) => w.id !== id(1)) }).widgets[0];
+  assert.deepEqual([left.rect.w, left.rect.h], [0.3, 0.3]);
+  assert.equal(left.bare, undefined);
+  assert.equal(left.own, undefined);
+});
+
+test('going from one box to another keeps what it was at the very start', () => {
+  const start = L.normalize({ widgets: [
+    W({ id: id(1), rect: { x: 0, y: 0, w: 0.1, h: 0.1 } }),
+    W({ id: id(2), rect: { x: 0.2, y: 0, w: 0.15, h: 0.15 } }),
+    W({ id: id(3), rect: { x: 0.5, y: 0.5, w: 0.3, h: 0.3 } }),
+    W({ id: id(4), rect: { x: 0.5, y: 0, w: 0.12, h: 0.12 } }),
+  ] });
+  const one = L.groupWidgets(start, id(1), id(3), () => 0.5).layers;
+  const two = L.groupWidgets(L.groupWidgets(one, id(2), id(4), () => 0.6).layers, id(2), id(3), () => 0.7).layers;
+  const out = L.ungroupWidget(two, id(3)).widget;
+  assert.deepEqual([out.rect.w, out.rect.h], [0.3, 0.3]);
+});
+
+test('a box saved before this change leaves as it always did', () => {
+  const saved = L.normalize({ widgets: [
+    W({ id: id(1), group: 'lt_old00001', rect: { x: 0, y: 0, w: 0.2, h: 0.2 } }),
+    W({ id: id(2), group: 'lt_old00001', rect: { x: 0, y: 0, w: 0.2, h: 0.2 } }),
+  ] });
+  const out = L.ungroupWidget(saved, id(2)).widget;
+  assert.deepEqual([out.rect.w, out.rect.h], [0.2, 0.2]);
+});
+
+test('a broken saved own is cleaned, never trusted', () => {
+  const list = L.normalize({ widgets: [W({ id: id(1), group: 'lt_old00001' }), W({ id: id(2), group: 'lt_old00001', own: { w: 9, h: 'x', surface: 'nope', opacity: 7, show: 'nope', when: 3 } })] }).widgets;
+  const own = list[1].own;
+  assert.equal(own.w, 1);
+  assert.equal(own.surface, 'desktop');
+  assert.equal(own.opacity, 1);
+  assert.equal(own.show, 'always');
+  assert.equal(own.when, undefined);
+});
+
 test('removing a tab of two leaves a plain widget; any removal keeps groups valid', () => {
   let cur = L.normalize({ enabled: true, widgets: [W({ id: id(1) }), W({ id: id(2), widget: 'media' })] });
   cur = L.groupWidgets(cur, id(1), id(2)).layers;
@@ -326,4 +407,133 @@ test('desktops: a page keeps a number from 1 to 9, one page per desktop, and the
   assert.equal(L.normalize({ ...n, page: 'lp_aaaa0001' }).deskBack, undefined, 'nor the page shown');
   assert.equal(L.normalize({ ...n, deskBack: 'lp_zzzz9999' }).deskBack, undefined, 'nor a page that is gone');
   assert.equal(L.MAX_DESKTOP, 9);
+});
+
+test('an uninstalled package leaves the screen, and a tile with the same name stays', () => {
+  const tile = L.addWidget(L.normalize(null), { widget: 'weather' });
+  const both = L.addWidget(tile.layers, { kind: 'sdk', pkg: 'weather' });
+  assert.equal(both.layers.widgets.length, 2);
+  const r = L.removePackage(both.layers, 'weather');
+  assert.equal(r.removed, 1);
+  assert.deepEqual(r.layers.widgets.map((w) => w.kind), ['tile']);
+  assert.deepEqual(L.removePackage(r.layers, 'weather'), { error: 'not_found' });
+});
+
+test('the server takes a package off the screen when it is uninstalled', () => {
+  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const route = src.slice(src.indexOf("req.method === 'DELETE' && reqPath.startsWith('/sdk/widget/')")).slice(0, 1200);
+  assert.ok(route.includes('updateLayersSetting((cur) => LayersModel.removePackage(cur, id))'));
+});
+
+test('placeBox: a box changes place and screen as one, and a hidden place shows again', () => {
+  const a = W({ id: 'lw_aaaa0001' });
+  const b = W({ id: 'lw_bbbb0002', widget: 'media' });
+  const lone = W({ id: 'lw_cccc0003', widget: 'clock', rect: { x: 0.7, y: 0.7, w: 0.2, h: 0.2 } });
+  const start = L.normalize({ enabled: false, hidden: ['overlay'], widgets: [a, b, lone] });
+  const cur = L.groupWidgets(start, a.id, b.id).layers;
+  const res = L.placeBox(cur, 'lw_bbbb0002', { surface: 'overlay', monitor: 'B' });
+  assert.deepEqual(res.layers.widgets.map((w) => [w.id, w.surface, w.monitor]), [
+    ['lw_aaaa0001', 'overlay', 'B'], ['lw_bbbb0002', 'overlay', 'B'], ['lw_cccc0003', 'desktop', ''],
+  ]);
+  assert.equal(res.layers.enabled, true);
+  assert.deepEqual(res.layers.hidden, []);
+  assert.equal(res.widget.id, 'lw_bbbb0002');
+  assert.deepEqual(L.placeBox(cur, 'lw_cccc0003', { surface: 'overlay' }).widget.rect, lone.rect, 'it keeps its place on the screen');
+  assert.equal(L.placeBox(cur, 'lw_cccc0003', { monitor: 'B' }).widget.surface, 'desktop');
+});
+
+test('placeBox: refuses what it cannot do', () => {
+  const cur = L.normalize({ widgets: [W()] });
+  assert.equal(L.placeBox(cur, 'lw_gone0000', { surface: 'overlay' }).error, 'not_found');
+  assert.equal(L.placeBox(cur, W().id, { surface: 'anchor' }).error, 'bad_surface');
+});
+
+test('placeBox: a widget leaving an app needs a place, drops the app and takes the middle', () => {
+  const on = W({ surface: 'anchor', anchor: { app: 'Excel', title: '' } });
+  const cur = L.normalize({ widgets: [on] });
+  assert.equal(L.placeBox(cur, on.id, { monitor: 'B' }).error, 'attached');
+  const res = L.placeBox(cur, on.id, { surface: 'desktop' }).widget;
+  assert.equal(res.surface, 'desktop');
+  assert.equal(res.anchor, undefined);
+  assert.equal(res.monitor, '');
+  assert.deepEqual(res.rect, L.rectFor('center', 'medium'));
+});
+
+test('edgeOf: the four corners are against two edges, the middle against none', () => {
+  for (const [p, h, v] of [['top-left', 'left', 'top'], ['top-right', 'right', 'top'], ['bottom-left', 'left', 'bottom'], ['bottom-right', 'right', 'bottom']]) {
+    for (const size of Object.keys(L.SIZES)) assert.deepEqual({ ...L.edgeOf(L.rectFor(p, size)) }, { h, v }, p + ' ' + size);
+  }
+  assert.deepEqual({ ...L.edgeOf({ x: 0.3, y: 0.3, w: 0.2, h: 0.2 }) }, { h: '', v: '' });
+});
+
+test('one widget can be hidden and keep its place: only a real yes is kept, tabs follow their box', () => {
+  assert.equal(L.normalize({ widgets: [W({ off: true })] }).widgets[0].off, true);
+  for (const junk of [false, 'true', 1, null]) assert.equal('off' in L.normalize({ widgets: [W({ off: junk })] }).widgets[0], false);
+  const g = 'lt_saved002';
+  const tabs = (lead) => L.normalize({ enabled: true, widgets: [W({ id: id(1), group: g, off: lead }), W({ id: id(2), group: g, off: !lead })] }).widgets;
+  assert.deepEqual(tabs(true).map((w) => w.off), [true, true]);
+  assert.deepEqual(tabs(false).map((w) => 'off' in w), [false, false]);
+});
+
+test('a hidden widget is not drawn, and its neighbours and its window stay', () => {
+  const cur = L.normalize({ enabled: true, widgets: [W({ id: id(1), off: true }), W({ id: id(2) })] });
+  assert.deepEqual(L.shownFor(cur, 'desktop:').map((w) => w.id), [id(2)]);
+  assert.deepEqual(L.surfaceKeys(cur), ['desktop:'], 'the window stays, so showing it again is instant');
+});
+
+// A corner already taken: Music used to sit on top of Performance.
+test('a named place that is taken puts the box beside what is there', () => {
+  const add = (layers, widget, position, extra) => L.addWidget(layers, { kind: 'tile', widget, surface: 'overlay', position, size: 'small', ...extra }).layers;
+  const rectOf = (layers, widget) => L.normalize(layers).widgets.find((w) => w.widget === widget).rect;
+  const gap = (a, b) => b.y - (a.y + a.h);
+
+  let l = add(add(L.normalize({}), 'perf', 'top-right'), 'media', 'top-right');
+  const perf = rectOf(l, 'perf');
+  const media = rectOf(l, 'media');
+  assert.equal(media.x, perf.x, 'same column');
+  assert.ok(gap(perf, media) > 0, 'below it, with room between');
+
+  l = add(add(L.normalize({}), 'perf', 'bottom-left'), 'media', 'bottom-left');
+  assert.ok(gap(rectOf(l, 'media'), rectOf(l, 'perf')) > 0, 'from a bottom corner it goes up');
+
+  const other = add(add(L.normalize({}), 'perf', 'top-right'), 'media', 'top-right', { monitor: 'B' });
+  assert.deepEqual(rectOf(other, 'media'), rectOf(other, 'perf'), 'another screen is not in the way');
+
+  const taken = { x: 0.1, y: 0.02, w: 0.8, h: 0.96 };
+  const full = add(L.normalize({}), 'perf', 'top-right', { rect: taken });
+  const asked = L.rectAt('top-right', 0.2, 0.2);
+  assert.deepEqual(L.clearSpot(full, asked, {}), asked, 'no room: where it was asked');
+});
+
+test('a widget key keeps a combo and its hold mode, and drops anything else', () => {
+  const one = (key) => L.normalize({ widgets: [W({ key })] }).widgets[0].key;
+  assert.deepEqual(one({ combo: 'CTRL+SHIFT+W' }), { combo: 'ctrl+shift+w' });
+  assert.deepEqual(one({ combo: 'ctrl+alt+1', hold: true }), { combo: 'ctrl+alt+1', hold: true });
+  assert.deepEqual(one({ combo: 'ctrl+alt+1', hold: 'yes' }), { combo: 'ctrl+alt+1' }, 'only true holds');
+  for (const bad of [{ combo: 'off' }, { combo: 'w' }, { combo: 'ctrl+<script>' }, 'ctrl+shift+w', null]) {
+    assert.equal(one(bad), undefined, JSON.stringify(bad));
+  }
+});
+
+test('a box has one key: its first tab\'s, and a tab leaving gets its own back', () => {
+  const start = L.normalize({ widgets: [
+    W({ id: id(1), key: { combo: 'ctrl+shift+1', hold: true }, rect: { x: 0, y: 0, w: 0.1, h: 0.1 } }),
+    W({ id: id(2), key: { combo: 'ctrl+shift+2' }, rect: { x: 0.5, y: 0.5, w: 0.3, h: 0.3 } }),
+  ] });
+  const joined = L.groupWidgets(start, id(1), id(2), () => 0.5).layers;
+  assert.deepEqual(joined.widgets.map((w) => w.key), [{ combo: 'ctrl+shift+1', hold: true }, { combo: 'ctrl+shift+1', hold: true }]);
+  const out = L.ungroupWidget(joined, id(2)).widget;
+  assert.deepEqual(out.key, { combo: 'ctrl+shift+2' });
+});
+
+test('setBoxKey sets or clears the key of every tab of a box', () => {
+  const start = L.normalize({ widgets: [W({ id: id(1) }), W({ id: id(2) }), W({ id: id(3) })] });
+  const joined = L.groupWidgets(start, id(1), id(2), () => 0.5).layers;
+  const set = L.setBoxKey(joined, id(2), { combo: 'alt+shift+w', hold: true });
+  assert.deepEqual(set.widget.key, { combo: 'alt+shift+w', hold: true });
+  assert.deepEqual(set.layers.widgets.filter((w) => w.key).map((w) => w.id), [id(1), id(2)], 'the other widget is untouched');
+  const cleared = L.setBoxKey(set.layers, id(1), null);
+  assert.ok(cleared.layers.widgets.every((w) => !w.key));
+  assert.equal(L.setBoxKey(joined, id(9), { combo: 'alt+shift+w' }).error, 'not_found');
+  assert.equal(L.setBoxKey(joined, id(1), { combo: 'w' }).error, 'bad_key');
 });

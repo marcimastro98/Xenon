@@ -39,13 +39,17 @@ const copyCapture = require('./copy-capture.js');
 const bugReport = require('./bug-report.js');
 const gameCompanion = require('./game-companion.js');
 const layers = require('./layers.js');
+const layerKey = require('./layer-key.js');
 const layerPages = require('./layer-pages.js');
 const layerAnchor = require('./layer-anchor.js');
 const aiGlow = require('./ai-glow.js');
 const usageMode = require('./usage-mode.js');
 const xenonMenu = require('./xenon-menu.js');
+const { refusedOverGame, OVER_EXCLUSIVE_HINT } = require('./over-screen.js');
 const desktopScene = require('./desktop-scene.js');
 const deckShortcut = require('./deck-shortcut.js');
+const functionKey = require('./function-key.js');
+const widgetKey = require('./widget-key.js');
 const power = require('./power.js');
 const notifications = require('./notifications.js');
 
@@ -103,6 +107,9 @@ function createCapabilities(deps) {
       frameStats: perf.frameStatsAvailable(d.fps),
       // The Game performance tile shows CPU/GPU on every OS, frame stats or not.
       perfTile: true,
+      // What a widget's rule can ask on this machine.
+      situationCall: !!(d.situations && d.situations.call()),
+      situationFront: !!(d.situations && d.situations.front()),
       gameSessions: gameSessions.available(d.fps),
       benchmark: benchmark.available(d.fps),
       powerStatus: power.readable(d.power),
@@ -110,11 +117,17 @@ function createCapabilities(deps) {
       notifications: !!d.notifications,
       // Linux engines that found no screenshot tool can still trim and thumb.
       capture: captureCan('screenshot'),
+      // A Linux desktop can shoot the screen with no tool to pick an area.
+      captureRegion: captureCan('region'),
       captureVideo: captureCan('record'),
       // fps, size and quality; the timer pill is its own probe (Windows only).
       captureTuning: captureCan('tuning'),
       captureBadge: captureCan('badge'),
       captureLapse: captureCan('lapse'),
+      // What the Xenon menu offers beside Registra.
+      captureSound: captureCan('sound'),
+      captureMic: captureCan('mic'),
+      captureWebcam: captureCan('webcam'),
       captureReplay: captureCan('replay'),
       captureOcr: captureCan('ocr'),
       captureInspect: captureCan('inspect'),
@@ -135,17 +148,38 @@ function createCapabilities(deps) {
       // A controller can open the Xenon menu (View + Menu held, layers/pad.rs).
       menuPad: !!(d.layersHost && typeof d.layersHost.pads === 'function' && d.layersHost.pads()),
       scene: desktopScene.available(d.layersHost),
+      widgetPages: layerPages.hasPages(d.layers),
       gameCompanion: !!d.companion,
       shortcuts: typeof d.shortcutsAvailable === 'function' ? !!d.shortcutsAvailable() : false,
     };
   }
 
-  const layerDeps = () => ({ host: d.layersHost, layers: d.layers, edit: d.layersEdit, heldBy: d.deck && d.deck.heldBy });
+  const layerDeps = () => ({
+    host: d.layersHost, layers: d.layers, edit: d.layersEdit, heldBy: d.deck && d.deck.heldBy,
+    deck: d.deck && d.deck.configs ? { configs: d.deck.configs, choices: layerKey.choices } : null,
+  });
+
+  // A change to where widgets sit is one step of "Undo", however many writes it takes.
+  const stepDeps = () => {
+    const base = layerDeps();
+    if (!base.layers || !base.edit || !base.edit.step) return base;
+    let taken = false;
+    const update = (change) => base.layers.update((cur) => {
+      const res = change(cur);
+      if (!taken && res && res.layers && !res.error) {
+        taken = true;
+        base.edit.step(cur);
+      }
+      return res;
+    });
+    return { ...base, layers: { ...base.layers, update } };
+  };
 
   async function run(action) {
     const cap = action && BY_TYPE.get(action.type);
     if (!cap) return { ok: false, error: 'unsupported' };
     if (probes()[cap.capability.requires] === false) return { ok: false, error: 'unavailable' };
+    if (refusedOverGame(d, action)) return { ok: false, error: 'over_exclusive', hint: OVER_EXCLUSIVE_HINT };
     switch (action.type) {
       case 'perfStats': return perf.readStats(d.fps);
       case 'stutterWhy': return stutterWhy.run(d);
@@ -180,37 +214,47 @@ function createCapabilities(deps) {
       case 'copyCapture': return copyCapture.run(d, action);
       case 'bugReport': return bugReport.run(d, action);
       case 'gameCompanion': return gameCompanion.open(d);
-      case 'layerPlace': return layers.place(layerDeps(), action);
-      case 'layerRemove': return layers.remove(layerDeps(), action);
-      case 'layerMove': return layers.move(layerDeps(), action);
+      case 'layerPlace': return layers.place(stepDeps(), action);
+      case 'layerKey': return layerKey.place(stepDeps(), action);
+      case 'layerRemove': return layers.remove(stepDeps(), action);
+      case 'layerMove': return layers.move(stepDeps(), action);
       case 'layersEdit': return layers.edit(layerDeps(), action);
-      case 'layerGroup': return layers.group(layerDeps(), action);
+      case 'layersUndo': return layers.undoEdit(layerDeps(), action);
+      case 'layerGroup': return layers.group(stepDeps(), action);
       // `attach`: edit mode offers "Attach to an app" only where the shell follows one;
       // `desks`: "Show on a desktop" for a page, only where the shell says which desktop is shown.
       case 'layerList': {
-        const res = await layers.list(layerDeps());
+        const res = await layers.list(layerDeps(), action);
         return res && res.ok ? { ...res, attach: layerAnchor.available(d.layersHost), desks: layerPages.desks(d.layersHost) } : res;
       }
       case 'layersToggle': return layers.toggle(layerDeps(), action);
       case 'layersShortcut': return layers.shortcut(layerDeps(), action);
-      case 'layerAnchor': return layerAnchor.run({ ...layerDeps(), windows: d.windows }, action);
+      case 'layerWidgetKey': return widgetKey.setWidgetKey(stepDeps(), action);
+      case 'layerAnchor': return layerAnchor.run({ ...stepDeps(), windows: d.windows }, action);
       case 'layerPage': return layerPages.switchPage(layerDeps(), action);
-      case 'layerPageEdit': return layerPages.editPages(layerDeps(), action);
+      case 'layerPageEdit': return layerPages.editPages(stepDeps(), action);
       case 'aiEdgeGlow': return aiGlow.setScreens({ settings: d.settings }, action);
       case 'xenonMenu': return xenonMenu.run(d, action);
+      case 'xenonScreen': return xenonMenu.openScreen(d, action);
       case 'usageMode': return usageMode.setMode({ host: d.layersHost, settings: d.settings }, action);
       case 'desktopWallpaper': return desktopScene.setWallpaper({ host: d.layersHost, settings: d.settings }, action);
       case 'desktopSaver': return desktopScene.setSaver({ host: d.layersHost, settings: d.settings }, action);
+      case 'desktopScene': return desktopScene.setScene({ host: d.layersHost, settings: d.settings }, action);
+      case 'desktopScreens': return desktopScene.setScreens({ host: d.layersHost, settings: d.settings }, action);
       case 'screenAlerts': return usageMode.setScreenAlerts({ host: d.layersHost, settings: d.settings }, action);
       case 'dnd': return notifications.setQuiet(d, action);
       case 'notifications': return notifications.setSwitches(d, action);
       case 'deckShortcut': return deckShortcut.setShortcut({ deck: d.deck }, action);
+      case 'functionKey': return functionKey.setKey({ deck: d.deck }, action);
+      case 'widgetHandlerKey': return widgetKey.setHandlerKey({ deck: d.deck, heldBy: d.deck && d.deck.heldBy, sdkHandlers: d.sdkHandlers }, action);
       case 'deckShortcutList': return deckShortcut.listShortcuts({ deck: d.deck });
       default: return { ok: false, error: 'unsupported' };
     }
   }
 
-  return { probes, run };
+  const seedKeys = () => functionKey.seedKeys({ deck: d.deck, probes });
+
+  return { probes, run, seedKeys };
 }
 
 module.exports = { createCapabilities, aiFunctions, aiAction };

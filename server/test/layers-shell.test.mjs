@@ -23,7 +23,8 @@ function boot({ search = '', native = true, caps = { layers: true, displays: [{ 
   const intervals = [];
   const signals = [];
   const posts = [];
-  const location = { search };
+  const replaced = [];
+  const location = { search, replace: (u) => replaced.push(u) };
   Object.defineProperty(location, 'href', { set: (v) => signals.push(v), get: () => '' });
   // A `load` listener is never called: in the shell another signal may have
   // cancelled the event, and the sync must not depend on it.
@@ -56,8 +57,52 @@ function boot({ search = '', native = true, caps = { layers: true, displays: [{ 
     assert.match(s, /^xenon-app:layers-sync\?d=/);
     return JSON.parse(decodeURIComponent(s.slice('xenon-app:layers-sync?d='.length)));
   });
-  return { shell: window.LayersShell, ctx, flush, finishLoading, sent, signals, posts, intervals };
+  return { shell: window.LayersShell, ctx, flush, finishLoading, sent, signals, posts, intervals, replaced };
 }
+
+test('a visit from "widgets only" stays until the mode changes, then the window is a normal dashboard', () => {
+  const layers = { enabled: true, widgets: [W()] };
+  const visit = boot({ search: '?shell=main&full=1', layers, settings: { usageMode: 'widgets' } });
+  visit.shell.sync();
+  visit.flush();
+  assert.deepEqual(visit.replaced, [], 'the user asked for this dashboard');
+  visit.ctx.hubSettings.usageMode = 'both';
+  visit.shell.sync();
+  assert.deepEqual(visit.replaced, ['/?shell=main']);
+
+  const early = boot({ search: '?shell=main&full=1', layers, settings: { usageMode: '' } });
+  early.shell.sync();
+  assert.deepEqual(early.replaced, [], 'the defaults read empty before the settings arrive');
+
+  const plain = boot({ search: '?shell=main', layers, settings: { usageMode: 'widgets' } });
+  plain.shell.sync();
+  assert.deepEqual(plain.replaced, ['/?shell=main'], 'the dashboard without a visit gives way to the driver');
+});
+
+test('a stale local copy of the settings never bounces the dashboard: only the server decides', () => {
+  // "Both" chosen after a visit: this browser's copy still says "widgets", and
+  // leaving on it reloaded the page before the server could answer, forever.
+  const layers = { enabled: true, widgets: [W()] };
+  const stale = boot({ search: '?shell=main', layers, settings: { usageMode: 'widgets' } });
+  stale.ctx._hubHydratedFromServer = false;
+  stale.shell.sync();
+  assert.deepEqual(stale.replaced, [], 'nothing moves before the server answered');
+  stale.ctx._hubHydratedFromServer = true;
+  stale.ctx.hubSettings.usageMode = 'both';
+  stale.shell.sync();
+  assert.deepEqual(stale.replaced, []);
+  stale.ctx.hubSettings.usageMode = 'widgets';
+  stale.shell.sync();
+  assert.deepEqual(stale.replaced, ['/?shell=main'], 'a real switch still goes to the driver');
+});
+
+test('the picture of an attached app stays out of the spec, which travels in an address', () => {
+  const icon = 'data:image/png;base64,AAAA';
+  const { shell } = boot();
+  const spec = shell.specFor({ enabled: true, widgets: [W({ id: 'lw_aaaa0009', widget: 'notes', surface: 'anchor', anchor: { app: 'Spotify', corner: 'tr', icon } })] });
+  assert.equal(spec.surfaces[0].anchor.app, 'Spotify');
+  assert.ok(!JSON.stringify(spec).includes('base64'));
+});
 
 test('one window per layer per monitor, and one per anchored widget', () => {
   const { shell } = boot();
@@ -91,6 +136,15 @@ test('"widgets only": the driver page opens the alerts window first, unless the 
 
 test('the alerts window is never pushed out by a full set of widgets', () => {
   const widgets = Array.from({ length: 24 }, (_, i) => W({ id: 'lw_b' + String(i).padStart(7, '0'), surface: 'anchor', anchor: { app: 'a.exe' } }));
+  const shellForMenu = boot().shell;
+  assert.equal(shellForMenu.specFor({ enabled: true, widgets: [] }, { menu: true }).capturing, undefined);
+  assert.equal(shellForMenu.specFor({ enabled: true, widgets: [] }, { menu: true, capturing: true }).capturing, true, 'the menu stays out of a recording');
+  const overGame = shellForMenu.specFor({ enabled: true, widgets: [] }, { menu: true, top: true, front: 2 });
+  assert.equal(overGame.top, true, 'a game keeps the menu on top of it');
+  assert.equal(overGame.front, 2);
+  const noMenu = shellForMenu.specFor({ enabled: true, widgets: [] }, { top: true, front: 2 });
+  assert.equal(noMenu.top, undefined, 'with no menu open a game changes nothing in the spec');
+  assert.equal(noMenu.front, undefined);
   const spec = boot().shell.specFor({ enabled: true, widgets }, { alerts: true });
   assert.equal(spec.surfaces[0].key, 'alerts:');
   assert.equal(spec.surfaces.length, 25);
@@ -195,18 +249,47 @@ test('a display push with the same screens sends nothing: the shell pushes after
   assert.equal(b.signals.length, 3, 'the dashboard moved: re-sent');
 });
 
+test('the report carries where each screen stands, for the map', async () => {
+  const b = boot({ caps: { layers: true, displays: [{ id: 'D1', primary: true, name: 'A', width: 100, height: 50, x: -100, y: 20 }] }, layers: { enabled: true, widgets: [W()] } });
+  await Promise.resolve();
+  assert.equal(b.posts[0].body.monitors[0].x, -100);
+  assert.equal(b.posts[0].body.monitors[0].y, 20);
+});
+
+test('the report carries the model and the size of each screen, for the menu to name it', async () => {
+  const b = boot({ caps: { layers: true, displays: [{ id: 'D1', primary: true, name: 'DELL U2720Q', width: 2560, height: 1440 }] }, layers: { enabled: true, widgets: [W()] } });
+  await Promise.resolve();
+  assert.deepEqual(b.posts[0].body.monitors, [{ key: 'D1', primary: true, name: 'DELL U2720Q', width: 2560, height: 1440 }]);
+});
+
 test('the report names the screens the shell sees, and repeats with a self-healing sync', async () => {
   const b = boot({ layers: { enabled: true, widgets: [W()] } });
   await Promise.resolve();
   assert.equal(b.posts.length, 1);
   assert.equal(b.posts[0].url, 'http://127.0.0.1:3030/layers/host');
-  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true }, { key: '\\\\.\\DISPLAY2', primary: false }] });
+  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true, name: '' }, { key: '\\\\.\\DISPLAY2', primary: false, name: '' }] });
   b.shell.sync();
   b.flush();
   b.intervals[0]();
   b.flush();
   assert.equal(b.posts.length, 2);
   assert.equal(b.signals.length, 2, 'the periodic pass re-sends even when nothing changed');
+});
+
+test('a restarted server hears from the shell as soon as the stream is back, not at the next report', async () => {
+  const b = boot({ layers: { enabled: true, widgets: [W()] } });
+  await Promise.resolve();
+  const reports = b.posts.length;
+  b.shell.onStream();
+  b.flush();
+  assert.equal(b.posts.length, reports + 1, 'the menu key is armed again by this report');
+});
+
+test('the first connection of the stream adds nothing: the page has not started yet', async () => {
+  const b = boot({ layers: { enabled: true, widgets: [W()] }, readyState: 'loading' });
+  b.shell.onStream();
+  await Promise.resolve();
+  assert.equal(b.posts.length, 0);
 });
 
 test('the report says when the shell can follow an app, and only a real true counts', async () => {
@@ -383,7 +466,7 @@ test('wiring: the dashboard and the driver pass the vitals popup on, and the ale
   assert.match(read('../js/main.js'), /addEventListener\('vitals_nag'[\s\S]{0,160}LayersShell\.onVitalsPopup/);
   assert.match(read('../js/shell-driver.js'), /addEventListener\('vitals_nag', onVitalsNag\)/);
   const alerts = read('../js/screen-alerts.js');
-  assert.match(alerts, /ALWAYS = Object\.freeze\(\{ vitals_nag: vitalsPopup \}\)/);
+  assert.match(alerts, /ALWAYS = Object\.freeze\(\{ vitals_nag: vitalsPopup,/);
   assert.match(alerts, /if \(!always && !routine\(\)\) return;/);
   assert.match(read('../screen-alerts.html'), /js\/usage-mode\.js[\s\S]*js\/screen-alerts\.js/);
 });

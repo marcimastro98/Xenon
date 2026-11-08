@@ -12,27 +12,19 @@
   if (!window.XenonMenuView) return;
   let scrim = null;
   let view = null;
-  let opener = null;
+  let letGo = null;
   let unpad = null;
   let refreshTimer = 0;
   const REFRESH_DELAY_MS = 250;
 
   function openVerb(verb) {
     const [what, cat] = String(verb || '').split(':');
-    if (what === 'bit') {
-      if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
-      else if (typeof window.openAiPanel === 'function') window.openAiPanel();
-      return;
-    }
     if (what === 'dashboard' || !window.DashboardOpen) return;
-    window.DashboardOpen.run(what === 'settings' ? { open: 'settings', cat } : { open: what });
+    window.DashboardOpen.run(what === 'macro' ? { open: what, id: cat } : what === 'settings' ? { open: what, cat } : { open: what, kind: cat });
   }
 
-  function onKey(e) {
-    if (e.key !== 'Escape' || !view || view.recording()) return;
-    e.preventDefault();
-    e.stopPropagation();
-    close();
+  function stepBack() {
+    if (view && !view.stepBack()) close();
   }
 
   function build() {
@@ -43,7 +35,9 @@
     frame.className = 'xm-frame';
     frame.setAttribute('role', 'dialog');
     frame.setAttribute('aria-modal', 'true');
+    frame.tabIndex = -1;
     const root = document.createElement('div');
+    root.id = 'xm-root';
     frame.appendChild(root);
     scrim.appendChild(frame);
     scrim.addEventListener('pointerdown', (e) => { if (!frame.contains(e.target)) close(); });
@@ -53,9 +47,9 @@
 
   function open(section) {
     if (view) { view.show(section); return; }
-    opener = document.activeElement;
     const root = build();
-    scrim.querySelector('.xm-frame').setAttribute('aria-label', t('xmenu_title'));
+    const frame = scrim.querySelector('.xm-frame');
+    frame.setAttribute('aria-label', t('xmenu_title'));
     view = XenonMenuView.create(root, {
       // The dashboard's own SSE tells it what changed (xenon-menu-changed):
       // no second connection.
@@ -66,24 +60,23 @@
     if (section) view.show(section);
     if (window.MenuGamepad) unpad = MenuGamepad.forMenu(window, root, view, close);
     scrim.hidden = false;
-    document.addEventListener('keydown', onKey, true);
+    letGo = window.DialogFocus.hold(frame, { onEsc: stepBack, leavesEsc: () => !!view && view.holdsEsc() });
     view.load().then(() => {
       const first = root.querySelector('.xm-nav-btn[aria-current="true"]');
-      if (first && scrim && !scrim.hidden) first.focus();
+      if (first && scrim && !scrim.hidden) first.focus({ focusVisible: false });
     });
   }
 
   function close() {
     if (!view) return;
-    document.removeEventListener('keydown', onKey, true);
+    letGo();
+    letGo = null;
     if (unpad) unpad();
     unpad = null;
     view.destroy();
     view = null;
     if (scrim) scrim.remove();
     scrim = null;
-    if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
-    opener = null;
   }
 
   window.addEventListener('xenon-menu-changed', () => {

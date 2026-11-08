@@ -53,16 +53,22 @@ function readCombo(raw) {
   return owner ? { error: 'reserved', owner } : { combo };
 }
 
+// The combination to use, or the answer that refuses it.
+function checkCombo(d, raw) {
+  const read = readCombo(raw);
+  if (read.error === 'bad_shortcut') {
+    return { refused: { ok: false, error: 'bad_shortcut', rule: 'two of ctrl, alt, shift, win plus a letter or digit, or one of them plus F1-F12' } };
+  }
+  if (read.error) return { refused: { ok: false, error: 'reserved', owner: read.owner } };
+  const others = typeof d.deck.takenByOthers === 'function' ? d.deck.takenByOthers() : [];
+  if (read.combo && others.includes(read.combo)) return { refused: { ok: false, error: 'in_use', by: 'page or search shortcut' } };
+  return { combo: read.combo };
+}
+
 async function setShortcut(d, action) {
   if (!d.deck || typeof d.deck.update !== 'function') return { ok: false, error: 'unavailable' };
-  const read = readCombo(action.shortcut);
-  if (read.error === 'bad_shortcut') {
-    return { ok: false, error: 'bad_shortcut', rule: 'two of ctrl, alt, shift, win plus a letter or digit, or one of them plus F1-F12' };
-  }
-  if (read.error) return { ok: false, error: 'reserved', owner: read.owner };
-  const combo = read.combo;
-  const others = typeof d.deck.takenByOthers === 'function' ? d.deck.takenByOthers() : [];
-  if (combo && others.includes(combo)) return { ok: false, error: 'in_use', by: 'page or search shortcut' };
+  const { combo, refused } = checkCombo(d, action.shortcut);
+  if (refused) return refused;
   return d.deck.update((configs) => {
     // The Xenon menu names the key by its id (titles can repeat); voice by title.
     const { keys, hits } = action.keyId ? findById(configs, action.keyId) : findByTitle(configs, action.key);
@@ -89,4 +95,4 @@ function listShortcuts(d) {
   return { ok: true, shortcuts: list.map((s) => ({ key: s.title, shortcut: S.formatShortcut(s.combo), state: s.state })) };
 }
 
-module.exports = { setShortcut, listShortcuts, findByTitle, readCombo };
+module.exports = { setShortcut, listShortcuts, findByTitle, findById, allKeys, label, readCombo, checkCombo };

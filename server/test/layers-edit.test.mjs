@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createLayersEdit, IDLE_MS } = require('../layers-edit.js');
+const { createLayersEdit, IDLE_MS, MAX_STEPS } = require('../layers-edit.js');
 
 function harness() {
   const sent = [];
@@ -79,4 +79,14 @@ test('what was kept when it went on comes back once when it goes off, by hand or
   edit.keep(['desktop']);
   timers.at(-1)();
   assert.deepEqual(ended.at(-1), ['desktop'], 'the idle timer gives it back too');
+});
+
+test('steps come back newest first, keep a limit, and can be forgotten', () => {
+  const { edit } = harness();
+  assert.equal(edit.back(), null);
+  for (let i = 0; i < MAX_STEPS + 5; i++) edit.step(i);
+  assert.equal(edit.back(), MAX_STEPS + 4);
+  assert.equal(edit.back(), MAX_STEPS + 3);
+  edit.forget();
+  assert.equal(edit.back(), null);
 });

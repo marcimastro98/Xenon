@@ -159,7 +159,7 @@
   // so B is its only way out); otherwise the menu closes.
   function back(view, onBack) {
     if (view.recording()) view.cancelRecording();
-    else onBack();
+    else if (!(view.stepBack && view.stepBack())) onBack();
   }
 
   // The Xenon menu's own wiring (both places): B as above, LB/RB change

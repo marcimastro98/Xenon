@@ -176,7 +176,10 @@ function createCopyAtom(widget, copyId) {
       const d = JSON.parse(e.data);
       // Only a full payload says whether a game runs (see main.js); a partial one
       // would read as "game ended" and flip every "show when" slot.
-      if (d && (d.gaming != null || d.gameRunning != null)) document.body.classList.toggle('game-running', !!d.gaming);
+      // A game out of focus still runs, as on the dashboard (main.js).
+      if (d && (d.gaming != null || d.gameRunning != null)) {
+        document.body.classList.toggle('game-running', d.gameRunning != null ? !!d.gameRunning : !!d.gaming);
+      }
     } catch (err) { /* keep the last state */ }
   }
 

@@ -6,16 +6,17 @@
 // asked for in the same sync as the widget layers (js/layers-shell.js); this
 // decides which ones exist right now. Pure, so the rules are tested alone.
 //
-// Screens: like Bit's edge glow on `auto` (js/ai-edge-glow.js), every screen
-// but the one the dashboard is on, which has its own Ambient; all of them when
-// there is no dashboard ("widgets only") or it is the only screen.
+// Screens: the ones the person chose (`ambientMode.screens`). With none chosen,
+// or none of them plugged in, like Bit's edge glow on `auto` (js/ai-edge-glow.js):
+// every screen but the one the dashboard is on, which has its own Ambient; all of
+// them when there is no dashboard ("widgets only") or it is the only screen.
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.ScreenSceneModel = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const SAVER_MINUTES = Object.freeze([0, 5, 10, 15, 30, 60]);
-  const KINDS = Object.freeze(['wallpaper', 'saver']);
+  const KINDS = Object.freeze(['wallpaper', 'saver', 'preview']);
   // The same printable rule as the shell's key check (layers/spec.rs).
   const MONITOR_RE = /^[\x20-\x7e]{0,64}$/;
 
@@ -25,13 +26,16 @@
       on: a.enabled !== false,
       wallpaper: a.wallpaper === true,
       saverMinutes: SAVER_MINUTES.includes(Number(a.saverMinutes)) ? Number(a.saverMinutes) : 0,
+      screens: Array.isArray(a.screens) ? a.screens.map(String) : [],
     };
   }
 
-  function screensFor(displays, active, noDashboard) {
+  function screensFor(displays, active, noDashboard, chosen) {
     const ids = (Array.isArray(displays) ? displays : [])
       .map((d) => String((d && d.id) || ''))
       .filter((id) => id && MONITOR_RE.test(id));
+    const picked = ids.filter((id) => (chosen || []).includes(id));
+    if (picked.length) return picked;
     if (noDashboard) return ids;
     const others = ids.filter((id) => id !== active);
     return others.length ? others : ids;
@@ -51,7 +55,7 @@
     const c = ctx || {};
     const cfg = settingsOf(c.settings);
     if (!cfg.on) return [];
-    const screens = screensFor(c.displays, String(c.active || ''), !!c.noDashboard);
+    const screens = screensFor(c.displays, String(c.active || ''), !!c.noDashboard, cfg.screens);
     const out = [];
     const gaming = !!(c.status && c.status.gaming);
     if (cfg.wallpaper && !gaming) for (const id of screens) out.push({ key: 'wallpaper:' + id, kind: 'wallpaper', monitor: id });

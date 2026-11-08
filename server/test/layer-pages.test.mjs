@@ -285,3 +285,82 @@ test('server.js: the shell tells the desktop through a checked, PC-only route', 
   assert.match(SERVER, /current > 64 \|\| !Number\.isInteger\(count\)/);
   assert.match(SERVER, /layersHost\.setDesk\(current, count\);\n {6}_deskPageSync\(current\);/);
 });
+
+// ── Pages with a situation ───────────────────────────────────────────────────
+const music = { any: [{ c: 'music' }] };
+const withRule = () => {
+  const two = twoPages();
+  return P.setPageWhen(P.setActivePage(two, 'Page 1').layers, 'Games', music).layers;
+};
+const pageNamed = (layers, name) => layers.pages.find((p) => p.name === name || P.pageLabel(layers, p) === name);
+
+test('a page with a situation comes forward when it starts and gives back the page before', () => {
+  const start = withRule();
+  assert.equal(pageNamed(start, 'Games').when.any[0].c, 'music');
+  assert.equal(P.whenPageSwitch(start, { music: false }), null, 'nothing is on, nothing changes');
+  const on = P.whenPageSwitch(start, { music: true });
+  assert.equal(on.page, pageNamed(start, 'Games').id);
+  assert.equal(on.whenBack, pageNamed(start, 'Page 1').id);
+  assert.equal(P.whenPageSwitch(on, { music: true }), null, 'already in front');
+  const off = P.whenPageSwitch(on, { music: false });
+  assert.equal(off.page, pageNamed(start, 'Page 1').id);
+  assert.equal(off.whenBack, undefined);
+});
+
+test('a page the person chose by hand is not taken back when the situation ends', () => {
+  const start = withRule();
+  assert.equal(P.whenPageSwitch(start, { music: false }), null);
+  const games = P.setActivePage(start, 'Games').layers;
+  assert.equal(P.whenPageSwitch(games, { music: false }), null, 'no page to go back to');
+});
+
+test('while a game holds the games page, the situation waits', () => {
+  const start = withRule();
+  const layers = { ...start, resume: pageNamed(start, 'Games').id };
+  assert.equal(P.whenPageSwitch(layers, { music: true }), null);
+});
+
+test('a game alone is the games page; taking the rule away clears it', () => {
+  const two = twoPages();
+  const game = P.setPageWhen(two, 'Games', { any: [{ c: 'game' }] }).layers;
+  assert.equal(pageNamed(game, 'Games').gaming, true);
+  assert.equal(pageNamed(game, 'Games').when, undefined);
+  const none = P.setPageWhen(game, 'Games', null).layers;
+  assert.ok(!pageNamed(none, 'Games').gaming);
+  const other = P.setPageWhen(game, 'Games', music).layers;
+  assert.ok(!pageNamed(other, 'Games').gaming, 'a new situation replaces the game');
+  assert.equal(pageNamed(other, 'Games').when.any[0].c, 'music');
+});
+
+test('a page cannot hide itself, and an unknown page is said', () => {
+  const two = twoPages();
+  assert.equal(P.setPageWhen(two, 'Games', { hide: true, any: [{ c: 'music' }] }).error, 'bad_when');
+  assert.equal(P.setPageWhen(two, 'Nope', music).error, 'unknown_page');
+});
+
+test('the list of pages names a rule only where there is one', () => {
+  const rows = P.describePages(withRule());
+  assert.equal('when' in rows[0], false);
+  assert.equal(rows[1].when, 'music');
+});
+
+test('the sync writes only on a real switch, on the stored value, never two at once', async () => {
+  let stored = withRule();
+  let writes = 0;
+  const sync = P.createWhenPageSync({
+    current: () => stored,
+    update: async (edit) => { writes += 1; stored = edit(stored).layers; },
+  });
+  sync({ music: false });
+  await new Promise((done) => setImmediate(done));
+  assert.equal(writes, 0);
+  sync({ music: true });
+  sync({ music: true });
+  await new Promise((done) => setImmediate(done));
+  assert.equal(writes, 1);
+  assert.equal(stored.page, pageNamed(stored, 'Games').id);
+  stored = P.setActivePage(stored, 'Page 1').layers;
+  sync({ music: true });
+  await new Promise((done) => setImmediate(done));
+  assert.equal(writes, 1, 'the person went elsewhere during the song: it does not pull them back');
+});

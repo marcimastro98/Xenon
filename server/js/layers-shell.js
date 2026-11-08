@@ -16,7 +16,8 @@
   const REPORT_MS = 4 * 60 * 1000; // well inside the server's 10 minute window
   const SIGNAL_DELAY_MS = 300;
   const search = String((window.location && window.location.search) || '');
-  const isLayerPage = /[?&]layer=/.test(search);
+  // A sheet (js/sheet-page.js) is the menu's window: only the main page syncs.
+  const isLayerPage = /[?&](layer=|panel=sheet(&|$))/.test(search);
 
   const caps = () => window.__XENON_NATIVE_CAPS__ || {};
   const supported = () => !isLayerPage && window.__XENON_NATIVE__ === true && caps().layers === true;
@@ -85,6 +86,8 @@
   // `screen_menu`): the shell's /menu page, while the server says it is open.
   const MENU_SURFACE = Object.freeze({ key: 'menu:', kind: 'menu', monitor: '' });
   let menuOpen = false;
+  let menuCapturing = false;
+  let menuFront = 0;
   const menuWanted = () => menuOpen && caps().menu === true;
 
   // What the shell needs per window: its key, its behaviour, and for an
@@ -93,18 +96,24 @@
   // `scenes`: the wallpaper and screensaver windows, after the widgets.
   // `draw`: the drawing sheet, first of all: the user just asked for it.
   // `menu`: the Xenon menu, before even that: the user just pressed its key.
+  // `capturing`: Xenon was recording when the menu opened, so the menu stays out
+  // of that video; otherwise it can be photographed like any window.
+  // `top`: a game is on, so the menu stays on top of it; else it is an ordinary window.
+  // `front`: counts the asks to bring the open menu forward (server/screen-menu.js).
   // `desks`: some page is tied to a virtual desktop, so the shell says which
   // one is shown (LayersShell.onDesk); nothing watches desktops otherwise.
   // `pad`: the shell reads a game controller, whose two small middle buttons held
   // (View + Menu, Create + Options) open the Xenon menu (layers/pad.rs); off with
   // `layers.menuPad` false.
   function specFor(layers, opts) {
+    // The app's picture stays here: the spec travels in an address.
+    const forShell = ({ icon: _picture, ...anchor }) => anchor;
     const LM = window.LayersModel;
     const cur = LM.normalize(layers);
     const surfaces = LM.surfaceKeys(cur).map((key) => {
       const w = LM.widgetsFor(cur, key)[0];
       const s = { key, kind: w.surface };
-      if (w.surface === 'anchor') s.anchor = w.anchor;
+      if (w.surface === 'anchor') s.anchor = forShell(w.anchor);
       else s.monitor = w.monitor || '';
       return s;
     });
@@ -115,6 +124,9 @@
     const spec = { exclude: cur.excludeFromCapture, surfaces };
     if (opts && opts.desks && cur.pages.some((p) => p.desktop)) spec.desks = true;
     if (opts && opts.pad && cur.menuPad) spec.pad = true;
+    if (opts && opts.capturing) spec.capturing = true;
+    if (opts && opts.menu && opts.top) spec.top = true;
+    if (opts && opts.menu && opts.front) spec.front = opts.front;
     return spec;
   }
 
@@ -148,11 +160,22 @@
   // self-heal). A layout with no layers sends nothing until it had some.
   // The user switched this PC to "widgets only" (js/usage-mode.js): the app's
   // own window trades the dashboard for the small driver page, which keeps the
-  // sync going. Not after the tray's "Show Xenon" (`full=1`): that was asked for.
+  // sync going. Not during a visit (`full=1`: the menu or the tray asked for the
+  // dashboard). A visit that sees the mode change away from "widgets only" is over:
+  // without `full=1` the shell places the window as a normal dashboard. It takes a
+  // change seen here, because the defaults read '' before the settings arrive.
+  // Only the server's copy decides: the local one can be from before the switch,
+  // and leaving on it reloads the page before the server answers, for ever.
+  let sawWidgets = false;
   function followUsageMode(s) {
-    if (!window.UsageMode || !window.UsageMode.widgetsOnly(s.usageMode)) return false;
+    if (!window.UsageMode) return false;
+    if (typeof _hubHydratedFromServer !== 'undefined' && !_hubHydratedFromServer) return false;
+    const widgets = window.UsageMode.widgetsOnly(s.usageMode);
     const q = new URLSearchParams(search);
-    if (q.get('shell') !== 'main' || q.get('full') === '1') return false;
+    const visit = q.get('full') === '1';
+    const leave = q.get('shell') === 'main' && (visit ? sawWidgets && !widgets : widgets);
+    sawWidgets = sawWidgets || widgets;
+    if (!leave) return false;
     try { window.location.replace('/?shell=main'); } catch (e) { return false; }
     return true;
   }
@@ -163,7 +186,7 @@
     const s = typeof hubSettings === 'object' && hubSettings ? hubSettings : {};
     if (followUsageMode(s)) return;
     const spec = specFor(s.layers, {
-      alerts: alertsWanted(s), scenes: sceneSurfaces(s), draw: drawWanted(), menu: menuWanted(), desks: caps().desks === true,
+      alerts: alertsWanted(s), scenes: sceneSurfaces(s), draw: drawWanted(), menu: menuWanted(), capturing: menuCapturing, top: !!(status && status.gaming), front: menuFront, desks: caps().desks === true,
       pad: caps().pad === true && caps().menu === true,
     });
     const json = JSON.stringify(spec);
@@ -174,7 +197,7 @@
 
   async function report() {
     const monitors = (Array.isArray(caps().displays) ? caps().displays : [])
-      .map((d) => ({ key: String((d && d.id) || ''), primary: !!(d && d.primary === true) }))
+      .map((d) => ({ key: String((d && d.id) || ''), primary: !!(d && d.primary === true), name: (d && d.name) || '', width: d && d.width, height: d && d.height, x: d && d.x, y: d && d.y }))
       .filter((m) => m.key);
     try {
       await fetch(SERVER + '/layers/host', {
@@ -208,8 +231,11 @@
 
   function onMenu(d) {
     const next = !!(d && d.open === true);
-    if (next === menuOpen) return;
+    const front = next && Number.isInteger(d.front) ? d.front : 0;
+    if (next === menuOpen && front === menuFront) return;
     menuOpen = next;
+    menuFront = front;
+    menuCapturing = next && d.capturing === true;
     sync(false);
   }
 
@@ -290,6 +316,9 @@
     onDraw: (d) => { if (supported()) onDraw(d); },
     // SSE `screen_menu`: the Xenon menu opened or closed.
     onMenu: (d) => { if (supported()) onMenu(d); },
+    // The stream (re)connected. A restarted server knows nothing of this shell
+    // until it hears the report, and the menu key stays dead until then.
+    onStream: () => { if (reportTimer) { report(); sync(true); resendDesk(); } },
     // SSE `vitals_nag`: Bit's popup on this PC ({ text, mood, until }).
     onVitalsPopup: (d) => { if (supported()) onVitalsPopup(d); },
     // The shell: the virtual desktop shown changed ({ current, count }).

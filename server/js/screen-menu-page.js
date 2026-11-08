@@ -1,24 +1,29 @@
 'use strict';
 
-// The Xenon menu over the main screen (menu.html). The native shell opens this
-// page in a window over everything while the server says the menu is open
-// (server/screen-menu.js, the `menu:` surface of js/layers-shell.js) and gives
-// it the keyboard. The menu itself is js/xenon-menu.js, the same one the
-// dashboard shows as a panel. This page only themes it, closes it (Esc, a click
-// outside, the window losing focus) and turns the verbs that lead elsewhere
-// into `xenon-app:` signals the shell accepts from this window only
-// (layers::spec::dashboard_page).
+// The Xenon menu in its own window (menu.html). The native shell opens this page
+// in a window with a title bar, on top only of a game, while the server says the menu is
+// open (server/screen-menu.js, the `menu:` surface of js/layers-shell.js) and
+// gives it the keyboard. The menu itself is js/xenon-menu.js, the same one the
+// dashboard shows as a panel. This page only themes it, closes it on Esc (the X
+// is the window's own, layers/menu_window.rs) and sends the verbs that lead
+// elsewhere on their way: Settings, the Store, Scintille and the gallery open in
+// this same window (a sheet, js/sheet-page.js, which comes back here), the
+// dashboard through an `xenon-app:` signal the shell accepts from this window
+// only (layers::spec::dashboard_page). It stays when another window takes the
+// focus: the user works in the app under it, and the system's own screenshot
+// tool does. A one-shot function steps the window aside, so that the picture it
+// takes is clear of it, and the window comes back with what happened on a line.
 
 (function () {
   if (!window.XenonMenuView) return;
-  const BLUR_GRACE_MS = 800;       // the shell gives the focus just after the load
   const SETTINGS_TIMEOUT_MS = 3000;
+  const SECTION_KEY = 'xenon.menuSection';
 
-  const scrim = document.getElementById('xm-scrim');
-  const frame = scrim.querySelector('.xm-frame');
+  const frame = document.querySelector('.xm-frame');
   const root = document.getElementById('xm-root');
-  const shownAt = Date.now();
   let closing = false;
+  let stepped = false;   // out of the picture while a one-shot function runs
+  let staying = false;   // a result's button turned this window into another screen
   let view = null;
 
   // ── Theme and language, as the other layer pages apply them ──
@@ -71,33 +76,90 @@
     }
   }
 
-  // Verbs that lead out of the menu. The menu closed itself already (rows that
-  // lead elsewhere `close` first); Bit wakes through the server, which also
-  // closes the menu.
+  const signal = (name) => {
+    try { window.location.href = (window.__xenonSignal || String)('xenon-app:' + name); } catch (e) { /* not in the shell */ }
+  };
+
+  // Verbs that lead out of the menu.
   function openVerb(verb) {
-    if (verb === 'bit') {
-      fetch(SERVER + '/screen-menu', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bit: true }),
-      }).catch(() => {});
+    const [what, arg] = String(verb || '').split(':');
+    if (toSheet(what === 'macro' ? { open: what, id: arg } : { open: what, cat: arg, kind: arg }) || what !== 'dashboard') return;
+    signal('open-dashboard?open=dashboard');
+  }
+
+  // This window becomes that screen, and comes back to this section.
+  function toSheet(req) {
+    const address = DashboardOpen.sheetAddress(req);
+    if (!address) return false;
+    try { sessionStorage.setItem(SECTION_KEY, view ? view.section() : ''); } catch (e) { /* comes back on the first section */ }
+    window.location.href = address;
+    return true;
+  }
+
+  // A row that closes the menu. Closing takes this window away, so nothing can
+  // wait here: a signal goes first, and an action goes to the server, which runs
+  // it once the menu is off the screen (a screenshot must not catch it).
+  function leave(act, row) {
+    if (closing || stepped) return;
+    if (row && row.returns && act.run) { stepAside(act.run); return; }
+    if (act.open) {
+      openVerb(act.open);
+      if (!DashboardOpen.sheetAddress({ open: String(act.open).split(':')[0] })) close();
       return;
     }
-    const [what, cat] = String(verb || '').split(':');
-    if (!['gallery', 'dashboard', 'settings'].includes(what)) return;
-    const q = 'open=' + encodeURIComponent(what) + (what === 'settings' && cat ? '&cat=' + encodeURIComponent(cat) : '');
-    try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?' + q); } catch (e) { /* not in the shell */ }
+    closing = true;
+    fetch(SERVER + '/screen-menu', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: false, run: act.run }),
+    }).catch(() => { closing = false; });
+  }
+
+  // The window hides before the action runs: the server waits for that, and says
+  // when to come back (`aside` gone from SSE screen_menu).
+  function stepAside(run) {
+    stepped = true;
+    signal('menu-aside');
+    fetch(SERVER + '/screen-menu', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aside: true, run }),
+    }).catch(comeBack);
+  }
+
+  function comeBack() {
+    stepped = false;
+    signal('menu-back');
+  }
+
+  // The cards this menu would otherwise leave to the screen, said here instead.
+  // Pressing a button leaves too: a folder opened now would land under this window.
+  function sayResults() {
+    window.XenonToast = {
+      show: (card) => { view.showResult(card); return 1; },
+      dismiss: () => view.showResult(null),
+    };
+    window.CaptureGallery = { open: ({ id }) => { staying = true; toSheet({ open: 'gallery', id }); } };
+  }
+
+  function onResultAction(a) {
+    staying = false;
+    if (typeof a.onClick === 'function') a.onClick();
+    if (!staying) close();
+  }
+
+  function onEvent(name, d) {
+    if (name === 'screen_menu' && d && d.open === true && d.sheet) toSheet(d.sheet);
+    // Stepped aside it comes back to the screen it left, not to the top of a section.
+    else if (name === 'screen_menu' && d && d.open === true && d.section && !stepped) view.show(d.section);
+    if (name === 'screen_menu' && stepped && d && d.open === true && !d.aside) comeBack();
+    if (name === 'settings') readSettings().then(applySettings);
+    if (name === 'capture') CaptureToast.onCapture(d);
+    if (name === 'capture_marker') CaptureToast.onMarker(d);
+    if (name === 'stutter_why') view.showResult(AlertToasts.stutterWhy(d, { t }));
+    if (name === 'xenon_menu_failed') view.showError(d.error);
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || (view && view.recording())) return;
+    if (e.key !== 'Escape' || (view && view.holdsEsc())) return;
     e.preventDefault();
-    close();
-  });
-  scrim.addEventListener('pointerdown', (e) => {
-    if (!frame.contains(e.target)) close();
-  });
-  // Clicking another window leaves the menu: it closes, like the system's own.
-  window.addEventListener('blur', () => {
-    if (Date.now() - shownAt > BLUR_GRACE_MS) close();
+    if (!(view && view.stepBack())) close();
   });
 
   async function start() {
@@ -105,22 +167,32 @@
       readSettings(),
       fetch(SERVER + '/screen-menu', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
+    // A tile's Set up button opened this window for that screen. Coming back from
+    // one (`?back=1`), it is done, and the section it left from comes back.
+    const back = /[?&]back=1/.test(window.location.search);
+    if (!back && state && state.sheet && toSheet(state.sheet)) return;
     applySettings(hs);
     translateFrame();
     view = XenonMenuView.create(root, {
       place: 'screen', server: SERVER, t, live: true,
       onClose: close,
       onOpen: openVerb,
-      onEvent: (name, d) => {
-        if (name === 'screen_menu' && d && d.open === true && d.section) view.show(d.section);
-        if (name === 'settings') readSettings().then(applySettings);
-      },
+      leave,
+      // The shell opens a link in the browser and lets it come above this window;
+      // run on the server, the page would open behind a menu that stays on top.
+      openLink: window.__xenonSignal ? (url) => { window.location.href = url; } : undefined,
+      onResultAction,
+      onEvent,
     });
-    if (state && state.section) view.show(state.section);
+    sayResults();
+    let left = '';
+    try { left = back ? sessionStorage.getItem(SECTION_KEY) || '' : ''; } catch (e) { /* the server's section */ }
+    if (left || (state && state.section)) view.show(left || state.section);
     if (window.MenuGamepad) MenuGamepad.forMenu(window, root, view, close);
     await view.load();
-    const first = root.querySelector('.xm-nav-btn[aria-current="true"]');
-    if (first) first.focus();
+    // Like a launcher: the window opens ready to type a function's name.
+    const find = root.querySelector('.xm-find');
+    if (find) find.focus();
   }
 
   start();

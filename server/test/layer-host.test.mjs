@@ -102,6 +102,27 @@ test('only the tiles placed on this surface move into slots, at their rectangle'
   assert.equal(slots[0].dataset.show, 'always');
 });
 
+test('a widget without its panel is marked on its slot, and the mark comes off', () => {
+  const widgets = (bare) => ({ enabled: true, widgets: [W({ bare })] });
+  const { host, document, atom, ctx } = boot('?layer=desktop:', widgets(true));
+  atom('weather');
+  host.place();
+  assert.equal(slotsOf(document)[0].dataset.bare, 'true');
+  ctx.hubSettings.layers = widgets(false);
+  host.place();
+  assert.equal(slotsOf(document)[0].dataset.bare, undefined);
+});
+
+test('only a single Store widget may be as small as a button', () => {
+  const { host, document, atom, ctx } = boot('?layer=desktop:', { enabled: true, widgets: [W({ id: 'lw_sdkw0001', kind: 'sdk', pkg: 'keyring', widget: undefined })] });
+  atom('weather');
+  host.place();
+  assert.equal(slotsOf(document)[0].dataset.small, 'true');
+  ctx.hubSettings.layers = { enabled: true, widgets: [W()] };
+  host.place();
+  assert.equal(slotsOf(document)[0].dataset.small, undefined, 'a built-in tile keeps the minimum');
+});
+
 test('the primary tile is used, never a duplicated copy of it', () => {
   const { host, document, atom } = boot('?layer=desktop:', { enabled: true, widgets: [W()] });
   const copy = atom('weather', 'weather-2');
@@ -193,6 +214,30 @@ test('stress: 24 placements across surfaces, applied 50 times, never leak slots'
   }
 });
 
+test('words with nothing to press are reported apart: drawn, but clicks go through', () => {
+  const layers = { enabled: true, widgets: [W({ surface: 'overlay' }), W({ id: 'lw_aaaa0002', widget: 'media', surface: 'overlay' })] };
+  const { host, document, atom, signals, flush } = boot('?layer=overlay:', layers, { shell: true });
+  atom('weather'); atom('media');
+  host.place();
+  const [a, b] = slotsOf(document);
+  const words = { getBoundingClientRect: () => ({ left: 100, top: 100, width: 50, height: 20 }), hasAttribute: (n) => n === 'data-layer-through' };
+  a.querySelector = () => words;
+  a.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
+  b.getBoundingClientRect = () => ({ left: 10, top: 20, width: 200, height: 100 });
+  flush();
+  assert.equal(signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('15,30,300,150') + '&t=' + encodeURIComponent('144,144,87,42'));
+});
+
+test('a box put against the edges says so, one dragged elsewhere does not', () => {
+  const layers = { enabled: true, widgets: [W({ surface: 'overlay', rect: { x: 0.78, y: 0.02, w: 0.2, h: 0.3 } }), W({ id: 'lw_aaaa0002', widget: 'media', surface: 'overlay', rect: { x: 0.3, y: 0.4, w: 0.2, h: 0.2 } })] };
+  const { host, document, atom } = boot('?layer=overlay:', layers);
+  atom('weather'); atom('media');
+  host.place();
+  const [a, b] = slotsOf(document);
+  assert.deepEqual([a.dataset.edgeH, a.dataset.edgeV], ['right', 'top']);
+  assert.deepEqual([b.dataset.edgeH, b.dataset.edgeV], ['', '']);
+});
+
 test('inside the shell, the page reports where its tiles are, in device pixels', () => {
   const layers = { enabled: true, widgets: [W(), W({ id: 'lw_aaaa0002', widget: 'media' })] };
   const { host, document, atom, signals, flush, ctx } = boot('?layer=desktop:', layers, { shell: true });
@@ -244,7 +289,7 @@ test('custom widgets read a layer assignment before the saved one, and the page 
   const cw = read('../js/custom-widget.js');
   assert.match(cw, /if \(layerAssign\.has\(instId\)\) return layerAssign\.get\(instId\);/);
   // A layer window mounts its slots only, never the hidden dashboard pages.
-  assert.match(cw, /const scope = window\.LayerHost && window\.LayerHost\.active \? '\.layer-slot' : '\.pager-page, \.layer-slot';/);
+  assert.match(cw, /const layerOnly = \(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\);\n\s+const scope = layerOnly \? '\.layer-slot' : '\.pager-page, \.layer-slot';/);
   assert.match(cw, /\.filter\(n => n\.closest\(scope\)\)/);
   assert.match(cw, /setLayerAssign,/);
   const html = read('../index.html');
@@ -259,6 +304,22 @@ test('on a small or portrait screen a tile keeps a usable size and stays on scre
   assert.match(css, /left: clamp\(0px, var\(--layer-x, 0%\), 100% - var\(--layer-box-w\)\);/);
   assert.match(css, /top: clamp\(0px, var\(--layer-y, 0%\), 100% - var\(--layer-box-h\)\);/);
   assert.match(css, /html\[data-layer\] body > :not\(#layer-root\):not\(#picker-overlay\):not\(\[data-layer-sheet\]\) \{\n  display: none !important;/);
+});
+
+// A 320x240 widget gave each System card 33px for 60px of words, and the panel could
+// not scroll, so the numbers were cut with nothing to say so.
+test('the System tile on a small widget scrolls instead of cutting its numbers', () => {
+  const css = read('../components/LayerHost/LayerHost.css');
+  const rule = (sel) => css.slice(css.indexOf(sel + ' {')).split('}')[0];
+  assert.match(rule('body:not([data-panel]) .layer-slot .side-panel'), /overflow: hidden auto;/);
+  assert.match(rule('body:not([data-panel]) .layer-slot .side-panel .system-block'), /flex: 1 0 auto;/);
+  const grid = rule('body:not([data-panel]) .layer-slot .side-panel .system-grid');
+  assert.match(grid, /flex: 1 0 auto;/);
+  assert.ok(grid.includes('grid-auto-rows: minmax(min-content, 1fr);'));
+  assert.match(grid, /overflow: visible;/);
+  assert.ok(grid.includes('repeat(auto-fit, minmax(max(96px, calc(50% - 4px)), 1fr))'), 'never more than two columns');
+  assert.match(rule('.layer-slot .system-tabs[data-fit="3"] .sys-tab'), /flex: 1 1 0;/);
+  assert.match(rule('body:not([data-panel]) .layer-slot .system-audio-pane:not([hidden])'), /container: none;/, 'the Volume tab stays stacked');
 });
 
 test('the device picker opens over the tile that was pressed, not over the screen', () => {
@@ -529,6 +590,58 @@ function fakeStream() {
   return { on, addEventListener: (type, fn) => { (on[type] ||= []).push(fn); }, emit: (type, data) => (on[type] || []).forEach(fn => fn({ data: JSON.stringify(data) })) };
 }
 
+test('a widget whose situation is not on leaves the screen, without leaving the page', () => {
+  const { host, atom, document } = boot('?layer=desktop:', { enabled: true, widgets: [W()] });
+  atom('weather');
+  host.place();
+  const es = fakeStream();
+  host.listen(es);
+  const slot = slotsOf(document)[0];
+  const id = W().id;
+  assert.equal(slot.hasAttribute('data-when-off'), false);
+  es.emit('status', { whenOff: [id] });
+  assert.equal(slot.hasAttribute('data-when-off'), true);
+  host.place();
+  assert.equal(slotsOf(document)[0].hasAttribute('data-when-off'), true, 'a new placing keeps it');
+  es.emit('status', { whenOff: [] });
+  assert.equal(slotsOf(document)[0].hasAttribute('data-when-off'), false);
+  es.emit('status', { other: 1 });
+  assert.equal(slotsOf(document)[0].hasAttribute('data-when-off'), false, 'a status without the list changes nothing');
+});
+
+test('the widget open in the menu shows whatever its rule says, even from another page', () => {
+  const pages = [{ id: 'lp_work0001', name: 'Work' }, { id: 'lp_game0001', name: 'Games' }];
+  const other = W({ id: 'lw_other1', page: 'lp_game0001' });
+  const { host, atom, document } = boot('?layer=desktop:', { enabled: true, page: 'lp_work0001', pages, widgets: [W({ page: 'lp_work0001' }), other] });
+  atom('weather');
+  host.place();
+  const es = fakeStream();
+  host.listen(es);
+  const id = W().id;
+  assert.equal(slotsOf(document).length, 1);
+  es.emit('layers-peek', { id });
+  assert.equal(slotsOf(document)[0].hasAttribute('data-peek'), true);
+  es.emit('layers-peek', { id: null });
+  assert.equal(slotsOf(document)[0].hasAttribute('data-peek'), false);
+  es.emit('layers-peek', { id: 'lw_other1' });
+  assert.equal(slotsOf(document).length, 2, 'from another page it gets a place while it lasts');
+  assert.equal(slotsOf(document).filter(s => s.hasAttribute('data-peek')).length, 1);
+  es.emit('layers-peek', { id: null });
+  assert.equal(slotsOf(document).length, 1);
+});
+
+test('a widget turned off stays off, open in the menu or not', () => {
+  const off = { ...W(), id: 'lw_off1', off: true };
+  const { host, atom, document } = boot('?layer=desktop:', { enabled: true, widgets: [W(), off] });
+  atom('weather');
+  host.place();
+  const es = fakeStream();
+  host.listen(es);
+  es.emit('layers-peek', { id: 'lw_off1' });
+  assert.equal(slotsOf(document).length, 1);
+  assert.equal(slotsOf(document)[0].hasAttribute('data-peek'), false);
+});
+
 function editBoot(search, layers, opts) {
   const b = boot(search, layers, opts);
   b.document.head = b.document.createElement('head');
@@ -567,8 +680,8 @@ test('edit mode loads its script only when turned on, then hands it the boxes an
   assert.equal(editor.started.length, 2);
 });
 
-test('while editing the window reports its whole root and the mode; after, its tiles again', () => {
-  const { host, atom, document, signals, flush, loadEditor } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] }, { shell: true });
+test('while editing the window reports its widgets and the mode, and all of itself during a drag', () => {
+  const { host, atom, document, signals, flush, loadEditor, editor } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] }, { shell: true });
   atom('weather');
   host.place();
   const slot = slotsOf(document)[0];
@@ -580,7 +693,13 @@ test('while editing the window reports its whole root and the mode; after, its t
   es.emit('layers-edit', { on: true });
   loadEditor();
   flush();
+  assert.equal(signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('15,30,300,150') + '&edit=1', 'the window under it can be reached');
+  editor.started[0].wholeWindow(true);
+  flush();
   assert.equal(signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('0,0,1500,750') + '&edit=1');
+  editor.started[0].wholeWindow(false);
+  flush();
+  assert.equal(signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('15,30,300,150') + '&edit=1');
   es.emit('layers-edit', { on: false });
   flush();
   assert.equal(signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('15,30,300,150'));
@@ -664,6 +783,10 @@ test('only the page shown is drawn; switching parks its tiles and releases its S
   host.place();
   assert.equal(weather.parentNode, slotsOf(document)[0]);
   assert.equal(assigned.at(-1).size, 0);
+});
+
+test('a box says which side it leans on, and one in the middle says so', () => {
+  assert.match(SRC, /slot\.dataset\.h = Math\.abs\(middle - 0\.5\) < 0\.01 \? 'middle' : middle > 0\.5 \? 'right' : 'left';/);
 });
 
 test('stress: switching pages 100 times never leaks a slot or an atom', () => {

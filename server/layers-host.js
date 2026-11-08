@@ -9,6 +9,23 @@
 const REPORT_TTL_MS = 10 * 60 * 1000;
 const MAX_MONITORS = 8;
 const KEY_RE = /^[\x20-\x7e]{1,64}$/;
+const MAX_SCREEN_NAME = 48;
+const MAX_SCREEN_SIDE = 16384;
+const MAX_SCREEN_PLACE = 8 * MAX_SCREEN_SIDE;
+
+// The monitor's model name, size and place on the desktop, so the menu can say which
+// screen is which and draw them as they stand. None is needed: a shell that sends none
+// falls back to a number, and screens with no place go in a row. A place can be negative.
+function screenFacts(m) {
+  const name = typeof m.name === 'string' ? m.name.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, MAX_SCREEN_NAME) : '';
+  const side = (v) => Number.isInteger(v) && v > 0 && v <= MAX_SCREEN_SIDE;
+  const place = (v) => Number.isInteger(v) && Math.abs(v) <= MAX_SCREEN_PLACE;
+  return {
+    ...(name ? { name } : {}),
+    ...(side(m.width) && side(m.height) ? { width: m.width, height: m.height } : {}),
+    ...(place(m.x) && place(m.y) ? { x: m.x, y: m.y } : {}),
+  };
+}
 
 function createLayersHost({ now = Date.now } = {}) {
   let report = null;
@@ -24,7 +41,7 @@ function createLayersHost({ now = Date.now } = {}) {
       if (monitors.length >= MAX_MONITORS) break;
       const key = String(m && m.key || '');
       if (!KEY_RE.test(key) || monitors.some(x => x.key === key)) continue;
-      monitors.push({ key, primary: m.primary === true });
+      monitors.push({ key, primary: m.primary === true, ...screenFacts(m) });
     }
     // `scene`: it can draw the animated wallpaper and the screensaver.
     // `draw`: it can open the drawing sheet (screen-draw-shell.js).

@@ -79,3 +79,14 @@ test('the scene page fetches only what its scene draws', () => {
   assert.deepEqual(names(M.readingsFor(canvas)), ['calendar', 'network', 'notes']);
   assert.deepEqual(names(M.readingsFor(null)), []);
 });
+
+test('the chosen screens win, the dashboard one included; none plugged in falls back', () => {
+  const on = (screens) => ({ settings: amb({ wallpaper: true, screens }), displays: DISPLAYS, active: 'A' });
+  assert.deepEqual(keys(on(['B'])), ['wallpaper:B']);
+  assert.deepEqual(keys(on(['A', 'C'])), ['wallpaper:A', 'wallpaper:C']);
+  assert.deepEqual(keys(on(['gone', 'C'])), ['wallpaper:C']);
+  assert.deepEqual(keys(on(['gone'])), ['wallpaper:B', 'wallpaper:C']);
+  assert.deepEqual(keys(on([])), ['wallpaper:B', 'wallpaper:C']);
+  const saver = { settings: amb({ saverMinutes: 5, screens: ['A'] }), displays: DISPLAYS, active: 'A', status: { idleSec: 999 } };
+  assert.deepEqual(keys(saver), ['saver:A']);
+});

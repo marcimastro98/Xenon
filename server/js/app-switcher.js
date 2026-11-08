@@ -479,6 +479,3 @@ async function focusOrLaunchFavorite(key) {
   // The app takes a moment to open a window — refresh so its running state updates.
   setTimeout(() => loadAppWindows(false), 1400);
 }
-
-// Back-compat alias (older call sites): focus-or-launch by favorite key.
-function focusFavoriteWindow(key) { return focusOrLaunchFavorite(key); }

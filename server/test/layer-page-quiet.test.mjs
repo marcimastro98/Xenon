@@ -20,6 +20,12 @@ function ctxAt(search, extra = {}) {
   return ctx;
 }
 
+test('no startup card rises in a layer or the menu window, whichever module asks', () => {
+  const src = read('../js/settings.js');
+  const gate = src.slice(src.indexOf('function whenStartupCardsReady'));
+  assert.ok(gate.slice(0, gate.indexOf('_hubHydratedFromServer')).includes(GUARD));
+});
+
 test('isLayerPage reads the layer key from the URL', () => {
   assert.equal(vm.runInContext('isLayerPage()', ctxAt('?layer=desktop:')), true);
   assert.equal(vm.runInContext('isLayerPage()', ctxAt('?x=1&layer=anchor:lw_abcd')), true);
@@ -54,21 +60,22 @@ test('the ambient voice never starts in a layer window', () => {
   assert.equal(typeof boot('').onGuardianAlert, 'function');
 });
 
-test('toasts, announcements, the tour and update notices stay on the main dashboard', () => {
+test('toasts, announcements and update notices stay on the main dashboard', () => {
   const at = (file, anchor) => {
     const src = read('../js/' + file);
     const i = src.indexOf(anchor);
     assert.ok(i >= 0, file + ': ' + anchor);
     return src.slice(i, i + 400);
   };
-  assert.ok(at('toast.js', '  function show(opts) {').includes('if (' + GUARD + ') return 0;'));
+  // A sheet is one screen somebody is using: its toasts answer them.
+  assert.ok(at('toast.js', '  function show(opts) {').includes('if (' + GUARD + ' && !isSheetPage()) return 0;'));
   assert.ok(at('update.js', '  async function boot() {').includes('if (' + GUARD + ') return;'));
-  assert.ok(at('onboarding.js', '  function maybeStart() {').includes('if (' + GUARD + ') return;'));
   assert.ok(at('support-appeal.js', '  function init() {').includes('if (' + GUARD + ') return;'));
-  // The guard sits before the first look, so no check is ever scheduled.
+  // The guard sits before the first look, so no check is ever scheduled. The alerts
+  // window is the one page without a dashboard that looks: Bit's card lives there too.
   for (const [file, look] of [['hub-messages.js', 'checkDaily()'], ['catalog-drop.js', 'checkOnStart()']]) {
     const src = read('../js/' + file);
-    const g = src.lastIndexOf('if (' + GUARD + ') return;');
+    const g = src.lastIndexOf("if (window.BitMessages && window.BitMessages.surface !== 'screen' && " + GUARD + ') return;');
     assert.ok(g > 0 && g < src.indexOf('const look = () => { try { ' + look), file);
   }
 });

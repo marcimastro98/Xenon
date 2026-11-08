@@ -98,7 +98,8 @@ test('an AI call becomes its Deck action, with only catalog params', () => {
 
 test('server.js offers the generated functions and runs calls through deckRegistry', () => {
   assert.match(SERVER, /\.\.\.capabilities\.aiFunctions\(capabilityRunner\.probes\(\)\)/);
-  assert.match(SERVER, /fnResult = await deckRegistry\.run\(capabilities\.aiAction\(fnName, fnArgs\)\)/);
+  assert.match(SERVER, /fnResult = await runAction\(capabilities\.aiAction\(fnName, fnArgs\)\)/);
+  assert.match(SERVER, /const runAction = async \(action\) => \{[\s\S]{0,300}: deckRegistry\.run\(action\);/);
   assert.match(SERVER, /runCapability: \(action\) => capabilityRunner\.run\(action\)/);
   assert.match(SERVER, /\.\.\.capabilityRunner\.probes\(\) \} \}\);/);
 });
@@ -155,6 +156,7 @@ test('the runner refuses anything that is not a capability', async () => {
 
 // ── Layers ───────────────────────────────────────────────────────────────────
 
+const { createLayersEdit } = require('../layers-edit.js');
 const LayersModel = require('../js/layers-model.js');
 
 // A settings store in memory with the same contract as server.js
@@ -229,6 +231,17 @@ test('"on my other monitor" needs one, and uses its key', async () => {
   const ok = await runner(L).run({ type: 'layerPlace', widget: 'media', screen: 'second' });
   assert.equal(ok.placed.screen, 'other');
   assert.equal(L.state.layers.widgets[0].monitor, 'DISPLAY2');
+});
+
+test('edit mode asks for the pictures; the list Bit reads stays without addresses', async () => {
+  const L = fakeLayers();
+  L.shots = async () => ({ 'wall-plate': 'https://assets.example/wall.webp' });
+  const run = runner(L);
+  assert.equal((await run.run({ type: 'layerList' })).pictures, undefined);
+  assert.equal(validateAction({ type: 'layerList', pictures: 'yes' }).pictures, 'yes', 'the field survives the check every action goes through');
+  const { pictures } = await run.run({ type: 'layerList', pictures: 'yes' });
+  assert.equal(pictures.weather, 'assets/tile-previews/weather.webp');
+  assert.equal(pictures['Wall Plate'], 'https://assets.example/wall.webp');
 });
 
 test('list, remove by name and the show/hide switch', async () => {
@@ -338,8 +351,8 @@ test('the 25th widget is refused without writing', async () => {
 });
 
 test('server.js gives the runner the shell report, the settings lock and the real widget list', () => {
-  assert.match(SERVER, /settings: \{\n\s+setAiEdgeGlow: \(mode\) => updateAiEdgeGlowSetting\(mode\),\n\s+setUsageMode: \(mode\) => updateUsageModeSetting\(mode\),\n\s+setScreenAlerts: \(on\) => updateScreenAlertsSetting\(on\),\n\s+setDesktopScene: \(patch\) => updateDesktopSceneSetting\(patch\),\n\s+\},/);
-  assert.match(SERVER, /layersHost,\n\s+layersEdit,\n\s+drawShell,\n\s+\/\/ Open windows.*\n\s+windows: \(\) => runWindowsTool\(\['list'\], 8000\),\n\s+menu: screenMenu,\n\s+settings: \{\n(?:.*\n){4}\s+\},\n\s+layers: \{\n\s+get: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n\s+update: \(edit\) => updateLayersSetting\(edit\),/);
+  assert.match(SERVER, /settings: \{\n\s+setAiEdgeGlow: \(mode\) => updateAiEdgeGlowSetting\(mode\),\n\s+setUsageMode: \(mode\) => updateUsageModeSetting\(mode\),\n\s+setScreenAlerts: \(on\) => updateScreenAlertsSetting\(on\),\n\s+setDesktopScene: \(patch\) => updateDesktopSceneSetting\(patch\),\n\s+desktopScenes: async [^\n]+\n\s+\},/);
+  assert.match(SERVER, /layersHost,\n\s+layersEdit,\n\s+drawShell,\n\s+\/\/ Open windows.*\n\s+windows: \(\) => runWindowsTool\(\['list'\], 8000\),\n\s+menu: screenMenu,\n\s+settings: \{\n(?:.*\n){5}\s+\},\n\s+layers: \{\n\s+get: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n\s+update: \(edit\) => updateLayersSetting\(edit\),/);
   assert.match(SERVER, /tiles: DASHBOARD_WIDGET_IDS\.filter\(id => !LAYER_TILE_EXCLUDED\.has\(id\)\)/);
 });
 
@@ -395,6 +408,23 @@ test('"move the weather bottom left, bigger": position and size by name, or kept
   assert.equal(r.x, LayersModel.rectFor('bottom-left', 'small').x, 'the place is kept');
 });
 
+test('a placed widget changes place and screen, and its tabs go with it', async () => {
+  const L = fakeLayers();
+  const run = runner(L);
+  await run.run({ type: 'layerPlace', widget: 'weather' });
+  await run.run({ type: 'layerPlace', widget: 'media' });
+  await run.run({ type: 'layerGroup', widget: 'media', with: 'weather' });
+  const id = L.state.layers.widgets.find((w) => w.widget === 'media').id;
+  const over = await run.run({ type: 'layerMove', target: id, surface: 'overlay' });
+  assert.equal(over.ok, true, 'by the id the menu sends, on a tab that is not the first');
+  assert.deepEqual(L.state.layers.widgets.map((w) => w.surface), ['overlay', 'overlay']);
+  await run.run({ type: 'layerMove', target: id, monitor: 'DISPLAY2' });
+  assert.deepEqual(L.state.layers.widgets.map((w) => w.monitor), ['DISPLAY2', 'DISPLAY2']);
+  await run.run({ type: 'layerMove', target: id, screen: 'main' });
+  assert.deepEqual(L.state.layers.widgets.map((w) => w.monitor), ['', '']);
+  assert.equal((await run.run({ type: 'layerMove', target: id, surface: 'anchor' })).error, 'nothing_to_change', 'an app is asked for by name, never through a move');
+});
+
 test('an exact rectangle from edit mode lands clamped on screen, and a group moves through its lead', async () => {
   const L = fakeLayers();
   const run = runner(L);
@@ -421,8 +451,18 @@ test('a move names what is wrong and writes nothing', async () => {
   assert.equal(L.state.writes, writes);
 });
 
-test('edit mode switches through the runtime state and writes no setting', async () => {
+test('with no widgets, moving or showing them says so instead of doing nothing', async () => {
   const L = fakeLayers();
+  let on = false;
+  const run = createCapabilities({ layers: L, layersHost: shell(), layersEdit: { get: () => on, set: (v) => (on = v) } });
+  assert.deepEqual(await run.run({ type: 'layersEdit', mode: 'toggle' }), { ok: false, error: 'no_widgets' });
+  assert.equal(on, false, 'edit mode with nothing on screen could never be ended');
+  assert.deepEqual(await run.run({ type: 'layersToggle', mode: 'toggle' }), { ok: false, error: 'no_widgets' });
+  assert.deepEqual(await run.run({ type: 'layersEdit', mode: 'off' }), { ok: true, editing: false }, 'ending is always allowed');
+});
+
+test('edit mode switches through the runtime state and writes no setting', async () => {
+  const L = fakeLayers(LayersModel.normalize(placedOne()));
   let on = false;
   const edit = { get: () => on, set: (v) => (on = v) };
   const run = createCapabilities({ layers: L, layersHost: shell(), layersEdit: edit });
@@ -433,8 +473,53 @@ test('edit mode switches through the runtime state and writes no setting', async
   assert.equal((await runner(L).run({ type: 'layersEdit', mode: 'on' })).error, 'unavailable', 'no state, no pretending');
 });
 
+test('Put it back restores the widgets edit mode started from, and only during edit mode', async () => {
+  const start = LayersModel.normalize(placedOne());
+  const L = fakeLayers(start);
+  let on = false;
+  let before = null;
+  let touched = 0;
+  const edit = { get: () => on, set: (v) => (on = v), remember: (v) => (before = v), earlier: () => before, forget() {}, touch: () => touched++ };
+  const run = createCapabilities({ layers: L, layersHost: shell(), layersEdit: edit });
+  assert.equal((await run.run({ type: 'layersUndo' })).error, 'nothing_to_undo', 'not while edit mode is off');
+  await run.run({ type: 'layersEdit', mode: 'on' });
+  await L.update((cur) => ({ layers: { ...cur, hidden: ['overlay'] } }));
+  assert.deepEqual(await run.run({ type: 'layersUndo' }), { ok: true, editing: true });
+  assert.deepEqual(L.get().hidden, start.hidden);
+  assert.equal(touched, 1, 'undoing counts as an edit for the idle timer');
+});
+
+test('Undo takes one change back at a time, however many writes it took, made anywhere', async () => {
+  const W = (id, x) => ({ id, kind: 'tile', widget: 'weather', surface: 'overlay', rect: { x, y: 0, w: 0.2, h: 0.2 } });
+  const L = fakeLayers(LayersModel.normalize({ widgets: [W('lw_st000001', 0.1)] }));
+  const edit = createLayersEdit();
+  const run = createCapabilities({ layers: L, layersHost: shell(), layersEdit: edit });
+  const x = () => L.get().widgets[0].rect.x;
+  await run.run({ type: 'layerMove', target: 'lw_st000001', rect: '0.3,0,0.2,0.2' });
+  await run.run({ type: 'layerMove', target: 'lw_st000001', rect: '0.5,0,0.2,0.2' });
+  assert.equal(x(), 0.5);
+  assert.equal((await run.run({ type: 'layersUndo', mode: 'step' })).ok, true, 'edit mode is not needed');
+  assert.equal(x(), 0.3);
+  await run.run({ type: 'layersUndo', mode: 'step' });
+  assert.equal(x(), 0.1);
+  assert.equal((await run.run({ type: 'layersUndo', mode: 'step' })).error, 'nothing_to_undo');
+  edit.stop();
+});
+
+test('"Put it back" empties the steps: they led to a state that is gone', async () => {
+  const L = fakeLayers(LayersModel.normalize({ widgets: [{ id: 'lw_st000002', kind: 'tile', widget: 'weather', surface: 'overlay', rect: { x: 0.1, y: 0, w: 0.2, h: 0.2 } }] }));
+  const edit = createLayersEdit();
+  const run = createCapabilities({ layers: L, layersHost: shell(), layersEdit: edit });
+  await run.run({ type: 'layersEdit', mode: 'on' });
+  await run.run({ type: 'layerMove', target: 'lw_st000002', rect: '0.3,0,0.2,0.2' });
+  await run.run({ type: 'layersUndo' });
+  assert.equal(L.get().widgets[0].rect.x, 0.1);
+  assert.equal((await run.run({ type: 'layersUndo', mode: 'step' })).error, 'nothing_to_undo');
+  edit.set(false);
+});
+
 test('edit mode shows the hidden surfaces and keeps them for the end; already on keeps nothing new', async () => {
-  const L = fakeLayers(LayersModel.normalize({ hidden: ['overlay'] }));
+  const L = fakeLayers(LayersModel.normalize({ ...placedOne(), hidden: ['overlay'] }));
   let on = false;
   const kept = [];
   const edit = { get: () => on, set: (v) => (on = v), keep: (v) => kept.push(v) };
@@ -450,7 +535,7 @@ test('the AI never sees the exact-rectangle param: it is for edit mode only', ()
   const fns = aiFunctions({ layers: true });
   const move = fns.find(f => f.name === 'move_layer_widget');
   assert.ok(move);
-  assert.deepEqual(Object.keys(move.parameters.properties).sort(), ['opacity', 'page', 'position', 'show', 'size', 'target'], 'see-through and when it shows by voice, never the exact box');
+  assert.deepEqual(Object.keys(move.parameters.properties).sort(), ['bare', 'opacity', 'page', 'position', 'screen', 'show', 'size', 'surface', 'target', 'visible', 'when'], 'where it sits, see-through and when it shows by voice, never the exact box');
   const act = aiAction('move_layer_widget', { target: 'weather', position: 'top', rect: '0,0,1,1' });
   assert.equal(act.rect, undefined);
 });
@@ -459,7 +544,7 @@ test('server.js wires edit mode: read-only GET, the SSE event, kept open by edit
   assert.match(SERVER, /require\('\.\/layers-edit'\)\.createLayersEdit\(\{\s*broadcast: \(on\) => broadcastSSE\('layers-edit', \{ on \}\),/);
   // The hidden surfaces come back hidden only if the user chose nothing meanwhile.
   assert.match(SERVER, /onEnd: \(hidden\) => \{\s*updateLayersSetting\(\(cur\) => \{\s*const now = LayersModel\.normalize\(cur\);\s*if \(now\.hidden\.length\) return \{ error: 'unchanged' \};/);
-  assert.match(SERVER, /'\/layers\/edit'[\s\S]{0,300}json\(\{ on: layersEdit\.get\(\) \}\)/);
+  assert.match(SERVER, /'\/layers\/edit'[\s\S]{0,300}json\(\{ on: layersEdit\.get\(\), peek: layersPeek\.get\(\) \}\)/);
   assert.match(SERVER, /function updateLayersSetting[\s\S]{0,600}layersEdit\.touch\(\)/);
   assert.match(SERVER, /function _gracefulShutdown\(\) \{[\s\S]{0,1500}layersEdit\.stop\(\)/);
 });
@@ -582,12 +667,54 @@ test('"show my Games page on desktop 2": only where the shell says which desktop
 test('the AI gets both page tools with the Deck-only bits hidden; the switch is a Deck key, the edit is not', () => {
   const fns = aiFunctions({ layers: true });
   assert.deepEqual(Object.keys(fns.find(f => f.name === 'switch_widget_page').parameters.properties), ['page']);
-  assert.deepEqual(Object.keys(fns.find(f => f.name === 'manage_widget_pages').parameters.properties).sort(), ['desktop', 'mode', 'name', 'page']);
+  assert.deepEqual(Object.keys(fns.find(f => f.name === 'manage_widget_pages').parameters.properties).sort(), ['desktop', 'mode', 'name', 'page', 'when']);
   assert.match(fns.find(f => f.name === 'manage_widget_pages').description, /removes the page AND the widgets on it/);
   assert.ok(Object.keys(fns.find(f => f.name === 'place_widget').parameters.properties).includes('page'));
   assert.equal(CAPABILITIES.find(c => c.type === 'layerPage').hidden, undefined);
   assert.equal(CAPABILITIES.find(c => c.type === 'layerPageEdit').hidden, true);
   assert.equal(aiFunctions({ layers: false }).some(f => /widget_page/.test(f.name)), false);
+});
+
+test('a move can take a widget out of its panel and put it back, on its box', async () => {
+  const L = fakeLayers();
+  const run = runner(L);
+  await run.run({ type: 'layerPlace', widget: 'weather' });
+  await run.run({ type: 'layerPlace', widget: 'media' });
+  await run.run({ type: 'layerGroup', widget: 'media', with: 'weather' });
+  const rect = L.state.layers.widgets[0].rect;
+  const res = await run.run({ type: 'layerMove', target: 'media', bare: 'on' });
+  assert.equal(res.ok, true);
+  assert.equal(res.widget.bare, true, 'Bit can say so');
+  assert.deepEqual(L.state.layers.widgets.map((w) => w.bare), [true, true]);
+  assert.deepEqual(L.state.layers.widgets[0].rect, rect, 'the place is kept');
+  await run.run({ type: 'layerMove', target: 'weather', opacity: '60' });
+  assert.equal(L.state.layers.widgets[0].bare, true, 'another change leaves it');
+  await run.run({ type: 'layerMove', target: 'weather', bare: 'off' });
+  assert.equal('bare' in L.state.layers.widgets[0], false);
+  const writes = L.state.writes;
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', bare: 'keep' })).error, 'nothing_to_change');
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', bare: 'maybe' })).error, 'nothing_to_change');
+  assert.equal(L.state.writes, writes);
+});
+
+test('a move can hide one widget and show it again, in its place', async () => {
+  const L = fakeLayers();
+  const run = runner(L);
+  await run.run({ type: 'layerPlace', widget: 'weather' });
+  await run.run({ type: 'layerPlace', widget: 'media' });
+  const rect = L.state.layers.widgets[0].rect;
+  const res = await run.run({ type: 'layerMove', target: 'weather', visible: 'off' });
+  assert.equal(res.ok, true);
+  assert.equal(res.widget.hidden, true, 'Bit can say so');
+  assert.equal(L.state.layers.widgets[0].off, true);
+  assert.equal('off' in L.state.layers.widgets[1], false, 'only that one');
+  assert.deepEqual(L.state.layers.widgets[0].rect, rect, 'the place is kept');
+  await run.run({ type: 'layerMove', target: 'weather', visible: 'on' });
+  assert.equal('off' in L.state.layers.widgets[0], false);
+  const writes = L.state.writes;
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', visible: 'keep' })).error, 'nothing_to_change');
+  assert.equal((await run.run({ type: 'layerMove', target: 'weather', visible: 'maybe' })).error, 'nothing_to_change');
+  assert.equal(L.state.writes, writes);
 });
 
 test('a move can change only how see-through a widget is, kept on its box', async () => {
@@ -634,4 +761,31 @@ test('every capture capability requires a probe that exists', () => {
   const needs = CAPABILITIES.map(c => [c.type, c.capability.requires]).filter(([, r]) => /^capture/.test(r || ''));
   assert.ok(needs.length >= 15, 'the capture capabilities are all seen');
   for (const [type, r] of needs) assert.ok(r in probes, `${type}: ${r}`);
+});
+
+test('"show the music widget only while I listen", by voice or by a Deck key', async () => {
+  const L = fakeLayers(placedOne());
+  const caps = runner(L);
+  const id = 'lw_pg000001';
+  assert.equal((await caps.run({ type: 'layerMove', target: id, when: 'music, app:obs64' })).ok, true);
+  assert.deepEqual(L.state.layers.widgets[0].when, { any: [{ c: 'music' }, { c: 'app', app: 'obs64' }] });
+  assert.equal((await caps.run({ type: 'layerList' })).placed[0].when, 'music,app:obs64');
+  assert.equal((await caps.run({ type: 'layerMove', target: id, when: 'hide:call' })).ok, true);
+  assert.equal(L.state.layers.widgets[0].when.hide, true);
+  assert.equal((await caps.run({ type: 'layerMove', target: id, when: 'gaming mode' })).error, 'bad_when', 'a typo never hides a widget');
+  assert.equal(L.state.layers.widgets[0].when.hide, true);
+  assert.equal((await caps.run({ type: 'layerMove', target: id, when: 'always' })).ok, true);
+  assert.equal(L.state.layers.widgets[0].when, undefined);
+  assert.equal(L.state.layers.widgets[0].show, 'always');
+});
+
+test('"bring the Music page forward when I listen", and a rule that is not a situation', async () => {
+  const L = fakeLayers(placedOne());
+  const caps = runner(L);
+  await caps.run({ type: 'layerPageEdit', mode: 'create', name: 'Music' });
+  const res = await caps.run({ type: 'layerPageEdit', mode: 'when', page: 'music', when: 'music' });
+  assert.equal(res.ok, true);
+  assert.equal(res.pages[1].when, 'music');
+  assert.equal((await caps.run({ type: 'layerPageEdit', mode: 'when', page: 'music', when: 'nonsense' })).error, 'bad_when');
+  assert.equal((await caps.run({ type: 'layerPageEdit', mode: 'when', page: 'music', when: 'always' })).pages[1].when, undefined);
 });

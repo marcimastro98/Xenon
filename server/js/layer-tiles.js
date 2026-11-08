@@ -31,14 +31,15 @@
   const SYSTEM = {
     css: ['components/SystemPanel/SystemPanel.css', 'components/DashboardLayout/DashboardLayout.css',
       'components/AudioSection/AudioSection.css', 'components/MicPanel/MicPanel.css',
-      'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css'],
-    js: ['js/fit-row.js', 'js/spark-path.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
-      'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/guardian-history.js'],
+      'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css',
+      'components/AudioSection/LiquidMixer.css'],
+    js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
+      'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/DayModal/DayModal.css',
-      'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css'],
-    js: ['js/custom-select.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
+      'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
+    js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
 
   const TILES = {
@@ -51,13 +52,13 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css'], js: ['js/system.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherTile/WeatherTile.css', 'styles/liquid-sheets.css'], js: ['js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
-      css: ['components/MediaPanel/MediaPanel.css', 'components/LyricsView/LyricsView.css'],
-      js: ['js/album-theme.js', 'js/media.js', 'js/media-spotify.js', 'js/lyrics-core.js', 'js/lyrics-view.js',
-        'js/media-lyrics.js', 'js/media-viz.js'],
+      css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/LiquidPlayer.css', 'components/LyricsView/LyricsView.css'],
+      js: ['js/album-theme.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
+        'js/lyrics-view.js', 'js/media-lyrics.js', 'js/media-viz.js'],
       markup: ['media'],
     },
     // The Game performance tile; system.js for the GPU temperature in the user's unit,
@@ -67,11 +68,12 @@
       js: ['js/system.js', 'js/alert-toasts.js', 'js/perf-hud.js', 'js/perf-widget.js'],
       markup: ['perf'],
       global: 'PerfWidget',
-      streams: { perf: 'onPerf', system: 'onSystem' },
+      streams: { perf: 'onPerf', system: 'onSystem', perf_net: 'onNet' },
     },
     battery: tile('battery', 'BatteryWidget', ['js/battery-widget.js'], { battery: 'onSSE' }),
     fans: tile('fans', 'FansWidget', ['js/sensor-access.js', 'js/fans-widget.js'], { system: 'onSSE' }),
-    power: tile('power', 'PowerWidget', ['js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'], { system: 'onSSE', homeassistant: 'onHaSSE' }),
+    power: tile('power', 'PowerWidget', ['js/spark-path.js', 'js/history-chart.js', 'js/guardian-history.js', 'js/sensor-access.js', 'js/power-widget.js'],
+      { system: 'onSSE', homeassistant: 'onHaSSE' }, null, ['components/GuardianHistory/GuardianHistory.css']),
     stocks: tile('stocks', 'StockWidget', ['js/stock-widget.js'], { stocks: 'onSSE' }, 'StockWidget'),
     football: tile('football', 'FootballWidget', ['js/tile-tab-memory.js', 'js/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/news-widget.js'], { news: 'onSSE' }),
@@ -85,21 +87,22 @@
     youtubelive: tile('youtubelive', 'YouTubeLiveWidget', ['js/youtubelive-widget.js'], {}),
     twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}),
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}),
-    claude: tile('claude', 'ClaudeWidget', ['js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
+    claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
       'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget.js'], { claude: 'onSSE' },
-      'ClaudeWidget', ['components/CustomSelect/CustomSelect.css']),
-    openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/codex-widget.js'], { codex: 'onSSE' }),
+      'ClaudeWidget', ['components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),
+    openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget.js'], { codex: 'onSSE' },
+      'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),
     chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/approval-keys.js', 'js/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
     transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }),
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
-    search: tile('search', 'SearchWidget', ['js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css']),
-    disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
-      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/XenonLoader/XenonLoader.css']),
+    search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css']),
+    disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
+      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean'),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
       'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsView/LyricsView.css']),
-    smarthome: tile('smarthome', 'SmartHome', ['js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home.js'],
-      { homeassistant: 'onSSE' }, 'SmartHomePanel'),
+    smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home.js'],
+      { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
     lighting: tile('lighting', 'LightingWidget', ['js/lighting-widget.js'], {}),
     unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
@@ -119,7 +122,7 @@
     // (deck-editor.js is not here). deck.js draws it by itself; js/deck-feed.js
     // gives it the stream (layer-lite-tiles.js attaches it).
     deck: {
-      css: ['components/DeckPanel/DeckPanel.css'],
+      css: ['components/CustomSelect/CustomSelect.css', 'components/DeckPanel/DeckPanel.css'],
       js: ['js/custom-select.js', 'js/spark-path.js', 'js/deck-shortcuts.js', 'js/deck-model.js', 'js/vitals-core.js', 'js/deck-store.js',
         'js/deck-icons.js', 'js/capability-catalog.js', 'js/deck-actions.js', 'js/deck-error-text.js', 'js/decor-bg.js', 'js/deck.js',
         'js/deck-feed.js'],

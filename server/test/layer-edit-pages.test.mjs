@@ -10,6 +10,8 @@ import { makeDom } from './mini-dom.mjs';
 
 const require = createRequire(import.meta.url);
 const LayersModel = require('../js/layers-model.js');
+const LayerDrag = require('../js/layer-drag.js');
+const LayerSee = require('../js/layer-see.js');
 const { createCapabilities } = require('../capabilities/index.js');
 const EDIT = readFileSync(new URL('../js/layer-edit.js', import.meta.url), 'utf8');
 const PAGES = readFileSync(new URL('../js/layer-edit-pages.js', import.meta.url), 'utf8');
@@ -24,6 +26,8 @@ function boot({ surface = 'desktop', layers = { enabled: true, widgets: [W('lw_p
   document.body.appendChild(root);
   const ctx = { window: {}, document, Math, Array, WeakMap, Set, JSON, String, hubSettings: { layers } };
   ctx.window.LayersModel = LayersModel;
+  ctx.window.LayerDrag = LayerDrag;
+  ctx.window.LayerSee = LayerSee;
   vm.createContext(ctx);
   const runs = [];
   // The server side for real: the capability runner over these layers.
@@ -39,7 +43,7 @@ function boot({ surface = 'desktop', layers = { enabled: true, widgets: [W('lw_p
   };
   const caps = createCapabilities({ layers: store, layersHost: host });
   const api = {
-    root: () => root, surface, monitor: '', boxes: () => [], place() {},
+    root: () => root, surface, monitor: '', boxes: () => [], place() {}, lean() {}, refreshRects() {}, wholeWindow() {},
     run: async (action) => {
       runs.push({ ...action });
       const res = await caps.run(action);
@@ -70,7 +74,7 @@ const strip = (b) => b.root.querySelector('.layer-page-strip');
 test('without pages the bar offers one "New page" button, between the hint and Add', () => {
   const b = boot();
   const bar = b.root.querySelector('.layer-edit-bar');
-  assert.deepEqual(bar.children.map((n) => n.className), ['layer-edit-hint', 'layer-page-strip', 'layer-edit-add', 'layer-edit-done']);
+  assert.deepEqual(bar.children.map((n) => n.className), ['layer-edit-hint', 'layer-page-strip', 'layer-edit-add', 'layer-edit-undo layer-edit-step', 'layer-edit-undo', 'layer-edit-done']);
   assert.equal(b.chips().length, 0);
   assert.equal(strip(b).querySelector('.layer-page-new').textContent, 'New page');
 });

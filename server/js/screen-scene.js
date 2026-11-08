@@ -30,6 +30,8 @@ function closeSettings() { /* no settings panel here */ }
   const KEY = new URLSearchParams(window.location.search).get('key') || '';
   if (!window.ScreenSceneModel || !ScreenSceneModel.isSceneKey(KEY)) return;
   const KIND = KEY.slice(0, KEY.indexOf(':'));
+  // The menu's preview (js/xenon-menu-scene-view.js) names the scene it shows.
+  const PREVIEW_SCENE = KIND === 'preview' ? new URLSearchParams(window.location.search).get('scene') : null;
   const IN_SHELL = window.__XENON_LAYER_SHELL__ === true;
 
   const SETTINGS_RETRY_MS = 5000;
@@ -57,7 +59,10 @@ function closeSettings() { /* no settings panel here */ }
   }
 
   // ── The scene ──────────────────────────────────────────────────
-  const ambient = () => (hubSettings && hubSettings.ambientMode) || {};
+  function ambient() {
+    const cfg = (hubSettings && hubSettings.ambientMode) || {};
+    return PREVIEW_SCENE ? { ...cfg, sceneId: PREVIEW_SCENE } : cfg;
+  }
   function sdkEnabled() {
     const sdk = hubSettings.sdkWidgets || {};
     return !!sdk.enabled && hubSettings.safeMode !== true;
@@ -71,10 +76,10 @@ function closeSettings() { /* no settings panel here */ }
     const cfg = ambient();
     const id = typeof cfg.sceneId === 'string' ? cfg.sceneId : 'builtin';
     let packages = [];
-    if (id !== 'builtin' && !id.startsWith('canvas:') && window.CustomWidget) {
+    if (id !== 'builtin' && !id.startsWith('canvas:') && !id.startsWith('theme:') && window.CustomWidget) {
       try { packages = (await CustomWidget.getPackages(false)).packages || []; } catch (e) { packages = []; }
     }
-    const scene = resolveAmbientScene(cfg, packages, sdkEnabled() && !suspended(id), hubSettings.ambientScenes);
+    const scene = resolveAmbientScene(cfg, packages, sdkEnabled() && !suspended(id), hubSettings.ambientScenes, hubSettings.customThemes);
     // Never a permission prompt on a wallpaper or a screensaver: an ungranted
     // Store scene shows the built-in one, as the dashboard's idle start does.
     if (scene.pkg && !CustomWidget.packageGranted(scene.pkg)) return { builtin: true, fallback: 'ungranted' };
@@ -83,6 +88,10 @@ function closeSettings() { /* no settings panel here */ }
 
   function sceneSig(scene) {
     if (scene.canvas) return 'canvas:' + JSON.stringify(scene.scene);
+    if (scene.theme) {
+      const bg = scene.theme.bgCustom;
+      return 'theme:' + scene.theme.id + '/' + bg.code.length + '/' + bg.fps + '/' + Object.keys(bg.assets || {}).length;
+    }
     if (scene.pkg) return 'pkg:' + scene.pkg.id + '@' + (scene.pkg.version || '') + '/' + scene.pkg.entry;
     return 'builtin';
   }
@@ -90,6 +99,7 @@ function closeSettings() { /* no settings panel here */ }
   function unmount() {
     if (typeof closeWidgetLockScreen === 'function') closeWidgetLockScreen();
     if (window.AmbientCanvas) AmbientCanvas.unmount();
+    if (window.CustomBg) CustomBg.apply(null);
     const host = document.getElementById('ambient-scene-frame-host');
     if (host && host.firstChild) {
       CustomWidget.unregisterAmbientFrame();
@@ -119,7 +129,16 @@ function closeSettings() { /* no settings panel here */ }
     return true;
   }
 
+  // The dashboard's own sandboxed runner (js/custom-bg.js): no network, no page access.
+  function mountTheme(theme) {
+    if (!window.CustomBg) return false;
+    const bg = theme.bgCustom;
+    CustomBg.apply(bg.code, bg.assets, bg.fps, hubSettings.bgGuard !== false);
+    return true;
+  }
+
   function mount(scene) {
+    if (scene.theme && mountTheme(scene.theme)) return;
     if (scene.canvas && AmbientCanvas.mount(scene.scene, {})) return;
     if (scene.pkg && mountFrame(scene.pkg)) return;
     openWidgetLockScreen();
@@ -241,6 +260,6 @@ function closeSettings() { /* no settings panel here */ }
   // Shell signals wait for the load event (a navigation sent before it cancels it).
   XenonNative.afterLoad(() => { loaded = true; });
   if (KIND === 'saver') armSaver();
-  else watchBattery();
+  else if (KIND === 'wallpaper') watchBattery();
   boot();
 })();

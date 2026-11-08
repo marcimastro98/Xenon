@@ -20,6 +20,7 @@ const SERVER = readFileSync(join(ROOT, 'server.js'), 'utf8');
 const DeckShortcuts = createRequire(import.meta.url)('../js/deck-shortcuts.js');
 const LayersModel = createRequire(import.meta.url)('../js/layers-model.js');
 const CaptureSettings = createRequire(import.meta.url)('../capture-settings.js');
+const { createWidgetKeys } = createRequire(import.meta.url)('../widget-keys.js');
 const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
 const CS = readFileSync(join(ROOT, '..', 'helper', 'HotkeyHost.cs'), 'utf8');
 const SWIFT = readFileSync(join(ROOT, '..', 'helper-mac', 'Sources', 'xenon-helper', 'HotkeyHost.swift'), 'utf8');
@@ -105,9 +106,10 @@ function loadBindings(settings, deckConfigs, engine = true, menuShell = false) {
   const deck = DeckShortcuts.collectShortcuts(deckConfigs || {});
   const captureOptions = () => CaptureSettings.normalizeCaptureSettings(settings && settings.capture);
   const host = { available: () => engine, has: (f) => engine && f === 'replay' };
+  const widgetKeys = createWidgetKeys({ layers: () => settings && settings.layers });
   // eslint-disable-next-line no-new-func
-  return new Function('_serverHubSettings', 'DeckShortcuts', '_deckShortcuts', 'LayersModel', 'captureOptions', '_captureHost', 'screenMenu',
-    `const MAX_HOTKEY_BINDINGS = 16;\n${m[0]}\n${o[0]}\n${r[0]}\n${mk[0]}; return _hotkeyBindings();`)(settings, DeckShortcuts, deck, LayersModel, captureOptions, host, screenMenu);
+  return new Function('_serverHubSettings', 'DeckShortcuts', '_deckShortcuts', 'LayersModel', 'captureOptions', '_captureHost', 'screenMenu', '_widgetKeys',
+    `const MAX_HOTKEY_BINDINGS = 16;\n${m[0]}\n${o[0]}\n${r[0]}\n${mk[0]}; return _hotkeyBindings();`)(settings, DeckShortcuts, deck, LayersModel, captureOptions, host, screenMenu, widgetKeys);
 }
 
 // Layers with one widget on the given surface.
@@ -137,7 +139,8 @@ test('the overlay shortcut toggles the overlay alone, and a layers edit re-arms 
   assert.match(SERVER, /binding\.slot === 'overlay'\) capabilityRunner\.run\(\{ type: 'layersToggle', mode: 'toggle', surface: 'overlay' \}\)/);
   assert.match(SERVER, /b\.slot === 'overlay' \? 'Xenon overlay'/);
   const upd = SERVER.slice(SERVER.indexOf('async function updateLayersSetting'));
-  assert.match(upd.slice(0, 1200), /if \(_overlayHotkey\(\) \+ '\|' \+ _menuHotkey\(\) !== keys\) \{ try \{ refreshHotkeyListener\(\); \}/);
+  assert.match(upd.slice(0, 1200), /if \(_layerHotkeys\(\) !== keys\) \{ try \{ refreshHotkeyListener\(\); \}/);
+  assert.match(SERVER, /function _layerHotkeys\(\) \{\n  return \[_overlayHotkey\(\), _menuHotkey\(\), \.\.\._widgetKeys\.bindings\(\)/, 'a widget key set or moved re-arms the table too');
 });
 
 test('the Xenon menu shortcut is held only with a shell that draws the menu, and goes last', () => {
@@ -147,7 +150,7 @@ test('the Xenon menu shortcut is held only with a shell that draws the menu, and
   assert.deepEqual(loadBindings({ layers: { menuKey: 'ctrl+alt+m' } }, null, true, true), [{ slot: 'menu', combo: 'ctrl+alt+m' }]);
   // A Deck key on the same combo wins.
   assert.deepEqual(loadBindings({}, deckWith('alt+shift+x'), true, true).map((b) => b.slot), ['deck-0']);
-  assert.match(SERVER, /binding\.slot === 'menu'\) screenMenu\.toggle\(\)/);
+  assert.match(SERVER, /binding\.slot === 'menu'\) \{ if \(screenMenu\.get\(\)\.open \|\| !saysOverExclusive\(\)\) screenMenu\.toggle\(\); \}/);
   assert.match(SERVER, /b\.slot === 'menu' \? 'Xenon menu'/, 'named on the desktop, never "Xenon page NaN"');
 });
 
@@ -176,6 +179,26 @@ test('a Deck shortcut never takes a combo a page already holds, nor a slot past 
   const plan = DeckShortcuts.planBindings(out.filter((b) => !b.keyId), DeckShortcuts.collectShortcuts(
     deckWith('ctrl+alt+shift+0', 'ctrl+shift+f9', 'ctrl+shift+f10')).list, 16);
   assert.deepEqual(plan.refused, { k0: 'clash', k2: 'full' });
+});
+
+test('widget keys come after the Deck ones, before the ready-made shortcuts, never on a taken combo', () => {
+  const widgets = [
+    { id: 'lw_wkey0001', kind: 'tile', widget: 'perf', surface: 'overlay', key: { combo: 'ctrl+shift+1' } },
+    { id: 'lw_wkey0002', kind: 'tile', widget: 'clock', surface: 'desktop', key: { combo: 'ctrl+alt+shift+k', hold: true } },
+  ];
+  const out = loadBindings({ layers: { enabled: true, widgets } }, deckWith('ctrl+alt+shift+k'), true, true);
+  assert.deepEqual(out.map((b) => b.slot), ['deck-0', 'widget-lw_wkey0001', 'overlay', 'menu'], 'the Deck key keeps its combo');
+  assert.equal(out[1].widgetId, 'lw_wkey0001');
+  assert.match(SERVER, /else if \(binding\.widgetId\) _widgetKeys\.press\(binding\.widgetId\)/);
+  assert.match(SERVER, /b\.widgetId \? 'Xenon widget '/, 'named on the desktop as a widget, not a page');
+});
+
+test('the helper\'s release reaches a held widget, and a helper gone lets go of it', () => {
+  assert.match(SERVER, /ev\.event === 'release'\) \{\n\s+try \{ routeHotkeyRelease\(at\); \}/);
+  assert.match(SERVER, /_widgetKeys\.setRelease\(ev\.release === true\)/);
+  const exit = SERVER.slice(SERVER.indexOf("proc.on('exit', () => {\n    if (_hotkey.proc !== proc) return;"));
+  assert.match(exit.slice(0, 200), /_widgetKeys\.setRelease\(false\)/);
+  assert.match(SERVER, /const whenOff = \[\.\.\.new Set\(\[\.\.\._situations\.hidden\(\), \.\.\._widgetKeys\.hidden\(\)\]\)\]/);
 });
 
 test('the Linux entries for Deck shortcuts get their own name', () => {
@@ -247,6 +270,12 @@ test('both helpers report which combo fired, and survive one being taken', () =>
     // silently disabling every shortcut after it.
     assert.match(src, /continue/, `${name}: a taken combo still aborts the rest`);
   }
+  // A key let go is reported too, and `ready` says so (a widget shown while held).
+  assert.match(CS, /Emit\("release", null, index\)/);
+  assert.match(CS, /\["release"\] = true/);
+  assert.match(CS, /RELEASE_MAX_MS/, 'a watcher never polls forever');
+  assert.match(SWIFT, /kEventHotKeyReleased/);
+  assert.match(SWIFT, /\("release", \.b\(true\)\)/);
   // Only when NONE registered does the host give up — the single-combo case.
   assert.match(CS, /if \(registered\.Count == 0\) return 1;/);
   assert.match(SWIFT, /if registered\.isEmpty \{ exit\(1\) \}/);

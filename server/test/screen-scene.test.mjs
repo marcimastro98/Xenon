@@ -50,7 +50,7 @@ test('a missing overlay is left out, and a "$" in the markup stays as written', 
 });
 
 test('the route serves it uncached on this PC only', () => {
-  assert.match(read('../server.js'), /reqPath === '\/scene' && req\.method === 'GET'[\s\S]{0,600}'scene\.html'[\s\S]{0,300}'no-store'[\s\S]{0,80}scenePage\.compose/);
+  assert.match(read('../server.js'), /reqPath === '\/scene' && req\.method === 'GET'[\s\S]{0,600}'scene\.html'[\s\S]{0,300}await sendPage\(scenePage\.compose\(/);
   assert.equal(remotePathAllowed('/scene', 'GET'), false);
 });
 
@@ -436,4 +436,24 @@ test('the canvas Network element writes the rate and its unit, never an object',
   const fmt = vm.runInContext('(' + fmtSrc + ')', ctx);
   assert.equal(fmt(1250000), '10.0 Mbps');
   assert.equal(fmt(undefined), '--');
+});
+
+test('a saved theme with an animated background can be the scene', () => {
+  const themes = [
+    { id: 'ct_a1', name: 'Lakeside', bgCustom: { enabled: true, code: 'function draw(){}', fps: 30 } },
+    { id: 'ct_b2', name: 'Plain', bgCustom: { enabled: false, code: '' } },
+  ];
+  const scene = resolveAmbientScene({ sceneId: 'theme:ct_a1' }, [], true, [], themes);
+  assert.equal(scene.theme.name, 'Lakeside');
+  assert.deepEqual(resolveAmbientScene({ sceneId: 'theme:ct_b2' }, [], true, [], themes), { builtin: true, fallback: 'missing' });
+  assert.deepEqual(resolveAmbientScene({ sceneId: 'theme:gone' }, [], true, [], themes), { builtin: true, fallback: 'missing' });
+  // The dashboard's idle screen passes no themes: it keeps the built-in scene.
+  assert.deepEqual(resolveAmbientScene({ sceneId: 'theme:ct_a1' }, [], true, []), { builtin: true, fallback: 'missing' });
+});
+
+test('the scene page loads the sandboxed background runner and stops it on a change', () => {
+  assert.match(read('../scene.html'), /js\/ambient-resolve\.js[\s\S]*js\/custom-bg\.js[\s\S]*js\/screen-scene\.js/);
+  const page = read('../js/screen-scene.js');
+  assert.match(page, /hubSettings\.ambientScenes, hubSettings\.customThemes/);
+  assert.match(page, /CustomBg\.apply\(null\)/);
 });

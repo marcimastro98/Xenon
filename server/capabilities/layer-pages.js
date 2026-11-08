@@ -3,6 +3,8 @@
 // Games page", "show it when I play", "show Work on desktop 2". The edits are server/layer-pages.js;
 // deps are the same as capabilities/layers.js ({ layers: { get, update } }).
 const P = require('../layer-pages.js');
+const { normalize } = require('../js/layers-model.js');
+const LayerWhen = require('../js/layer-when.js');
 
 const failed = (res) => ({ ok: false, error: (res && res.error) || 'failed', ...(res && res.choices ? { choices: res.choices } : {}) });
 
@@ -19,11 +21,13 @@ const EDITS = {
   gaming: (cur, a) => P.setGamingPage(cur, a.page, true),
   notGaming: (cur, a) => P.setGamingPage(cur, a.page, false),
   desktop: (cur, a) => P.setDesktopPage(cur, a.page, a.desktop == null || a.desktop === '' ? 0 : a.desktop),
+  when: (cur, a) => P.setPageWhen(cur, a.page, LayerWhen.parse(a.when)),
 };
 
 async function editPages(d, action) {
   const editFn = EDITS[action.mode];
   if (!editFn) return { ok: false, error: 'bad_mode' };
+  if (action.mode === 'when' && LayerWhen.parse(action.when) === undefined) return { ok: false, error: 'bad_when' };
   // A page tied to a desktop only where the shell says which desktop is shown.
   // Untying (desktop 0) always works, so a page tied on another computer can be freed.
   const tying = action.mode === 'desktop' && Number(action.desktop || 0) !== 0;
@@ -46,4 +50,7 @@ function desks(host) {
   return shown || { current: 0, count: 0 };
 }
 
-module.exports = { switchPage, editPages, desks };
+// Whether there is another page to go to: the menu's "next page" waits for one.
+const hasPages = (layers) => !!(layers && typeof layers.get === 'function') && normalize(layers.get()).pages.length > 1;
+
+module.exports = { switchPage, editPages, desks, hasPages };

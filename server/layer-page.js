@@ -55,8 +55,10 @@ function compose(html, tiles, dashboardHtml = '') {
     markup.push(...els);
     return true;
   });
-  const css = [...new Set(names.flatMap((n) => LayerTiles.lite(n).css || []))].map((href) => `<link rel="stylesheet" href="${href}">`);
-  const js = [...new Set(names.flatMap((n) => LayerTiles.lite(n).js || []))].map((src) => `<script src="${src}"></script>`);
+  // The page already carries what a widget's own questions need, and some tiles list it too.
+  const missing = (path) => !html.includes(`"${path}"`);
+  const css = [...new Set(names.flatMap((n) => LayerTiles.lite(n).css || []))].filter(missing).map((href) => `<link rel="stylesheet" href="${href}">`);
+  const js = [...new Set(names.flatMap((n) => LayerTiles.lite(n).js || []))].filter(missing).map((src) => `<script src="${src}"></script>`);
   return html
     .replace(HTML_TAG, `<html lang="en" data-layer-lite data-layer-tiles="${names.join(' ')}">`)
     .replace(STYLES_MARK, css.join('\n'))

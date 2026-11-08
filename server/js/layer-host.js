@@ -36,10 +36,14 @@
   // Edit mode (server layers-edit.js, SSE `layers-edit`): the window takes every
   // click and js/layer-edit.js, loaded on first use, draws the handles.
   let editing = false;
+  let wholeWindow = false;   // a widget is being dragged: the window takes every click
   let editScript = null;
   let shownBoxes = [];   // [{ key, slot, box, shown }] from the last place()
+  let whenOff = new Set();   // ids the server says a rule hides now
+  let peek = null;   // the widget whose screen is open in the menu: it shows, rule or not
   // A slot that moves, resizes or is hidden by its "show when" rule.
   const observer = SHELL && typeof ResizeObserver === 'function' ? new ResizeObserver(() => scheduleRects()) : null;
+  const FIT_EDGE_PX = 4;
 
   const storedLayers = () => (typeof hubSettings === 'object' && hubSettings ? hubSettings.layers : null);
   // Every widget on this window, on any page, and the ones on the page shown.
@@ -49,7 +53,12 @@
   }
   function placed() {
     const cur = window.LayersModel.normalize(storedLayers());
-    return cur.enabled ? window.LayersModel.shownFor(cur, KEY) : [];
+    if (!cur.enabled) return [];
+    const shown = window.LayersModel.shownFor(cur, KEY);
+    // On another page it has no slot yet. Turned off or hidden stays as the user chose.
+    const away = peek && !cur.hidden.includes(SURFACE) && !shown.some(w => w.id === peek)
+      ? window.LayersModel.widgetsFor(cur, KEY).filter(w => w.id === peek && !w.off) : [];
+    return shown.concat(away);
   }
 
   // Tiles placed here must be visible in the layout the dashboard applies, or
@@ -146,6 +155,11 @@
       if (pin) storeAtoms.add(pin);
       return pin;
     }
+    if (w.kind === 'tile' && w.widget === window.LayersModel.KEY) {
+      const key = window.LayerKey ? window.LayerKey.atom(w) : null;
+      if (key) storeAtoms.add(key);
+      return key;
+    }
     if (w.kind === 'tile') {
       const own = w.instance
         ? document.querySelector('[data-dashboard-instance="' + w.instance + '"]')
@@ -182,9 +196,28 @@
     slot.style.setProperty('--layer-y', (r.y * 100) + '%');
     slot.style.setProperty('--layer-w', (r.w * 100) + '%');
     slot.style.setProperty('--layer-h', (r.h * 100) + '%');
+    slot.style.setProperty('--layer-wn', String(r.w));
+    const share = window.LayersModel.shareOf(r);
+    slot.style.setProperty('--layer-px', String(share.x));
+    slot.style.setProperty('--layer-py', String(share.y));
     slot.style.setProperty('--layer-opacity', String(w.opacity));
     slot.dataset.show = w.show;
+    if (w.bare) slot.dataset.bare = 'true'; else delete slot.dataset.bare;
+    // A Store widget draws its own layout, so a single button may stay that small.
+    if (w.kind === 'sdk' && !w.group) slot.dataset.small = 'true'; else delete slot.dataset.small;
+    lean(slot, r);
     return slot;
+  }
+
+  // The corner it leans on, for a tile that grows from there, and the screen edge it
+  // was put against, for one that sits flush (PerfWidget.css).
+  function lean(slot, r) {
+    const middle = r.x + r.w / 2;
+    slot.dataset.h = Math.abs(middle - 0.5) < 0.01 ? 'middle' : middle > 0.5 ? 'right' : 'left';
+    slot.dataset.v = r.y + r.h / 2 > 0.5 ? 'bottom' : 'top';
+    const edge = window.LayersModel.edgeOf(r);
+    slot.dataset.edgeH = edge.h;
+    slot.dataset.edgeV = edge.v;
   }
 
   // Runs as the last step of every applyDashboardLayout(), which has just put
@@ -301,6 +334,32 @@
     return Array.from((tabs ? tabs.body : slot).children).filter(n => !n.classList.contains('layer-edit-frame'));
   }
 
+  // A slot hidden by its rule leaves the clickable region by itself (rectsNow).
+  function applyWhen() {
+    for (const { slot, box } of shownBoxes) {
+      if (whenOff.has(box.lead.id)) slot.setAttribute('data-when-off', '');
+      else slot.removeAttribute('data-when-off');
+      if (box.members.some(w => w.id === peek)) slot.setAttribute('data-peek', '');
+      else slot.removeAttribute('data-peek');
+    }
+    scheduleRects();
+  }
+
+  function readWhenOff(e) {
+    let ids;
+    try { ids = JSON.parse(e.data).whenOff; } catch (err) { return; }
+    if (!Array.isArray(ids) || ids.join() === [...whenOff].join()) return;
+    whenOff = new Set(ids);
+    applyWhen();
+  }
+
+  function setPeek(id) {
+    const next = typeof id === 'string' ? id : null;
+    if (next === peek) return;
+    peek = next;
+    place();
+  }
+
   function place() {
     if (reloadIfWrongPage()) return;
     ensureRoot();
@@ -341,7 +400,7 @@
       slot.remove();
       slots.delete(key);
     }
-    scheduleRects();
+    applyWhen();
     if (editing && window.LayerEdit) window.LayerEdit.refresh();
     if (window.CustomWidget && typeof window.CustomWidget.setLayerAssign === 'function') {
       window.CustomWidget.setLayerAssign(sdk);
@@ -357,31 +416,65 @@
   // pixels of this window; re-sent when a slot moves, resizes or hides. A signal
   // during the initial load would abort it, so the first one waits for it to end
   // (`XenonNative.afterLoad`: the `load` event itself may never come).
+  // A tile that is only words marks them (data-layer-fit): the window is cut to
+  // those, with room for their dark edge, instead of to the whole box.
+  function fitNode(slot) {
+    return !editing && slot.querySelector ? slot.querySelector(':scope > [data-dashboard-widget] [data-layer-fit]') : null;
+  }
+
+  function slotBox(slot) {
+    const fit = fitNode(slot);
+    const r = fit ? fit.getBoundingClientRect() : null;
+    if (!r || r.width < 1 || r.height < 1) return slot.getBoundingClientRect();
+    return { left: r.left - FIT_EDGE_PX, top: r.top - FIT_EDGE_PX, width: r.width + 2 * FIT_EDGE_PX, height: r.height + 2 * FIT_EDGE_PX };
+  }
+
+  // Words with nothing to press also let clicks through (data-layer-through): the
+  // window still draws them, and what lies under them stays usable.
+  function clicksThrough(slot) {
+    const fit = fitNode(slot);
+    return !!fit && fit.hasAttribute('data-layer-through');
+  }
+
+  const rectText = (r, dpr) => [r.left, r.top, r.width, r.height].map(v => Math.round(v * dpr)).join(',');
+
+  // Editing: the widgets and what edit mode draws around them, so the desktop window
+  // and the one over everything can each be reached where they share a screen (a whole
+  // window took every click and left the other's widgets out of reach). The whole
+  // window only during a drag, which goes anywhere on it. An anchored window is its
+  // widget and stays as it is.
+  function editCut() {
+    if (wholeWindow) return [root];
+    return [...slots.values(), ...root.querySelectorAll('[data-layer-edit-chrome]')];
+  }
+
+  // Two lists: what takes clicks, and what is only drawn.
   function rectsNow() {
     const dpr = window.devicePixelRatio || 1;
     const out = [];
-    // Editing: the whole window, so a widget can be dragged anywhere on it. An
-    // anchored window is its widget and stays as it is.
-    const cut = editing && SURFACE !== 'anchor' && root ? [root] : slots.values();
+    const through = [];
+    const cut = editing && SURFACE !== 'anchor' && root ? editCut() : slots.values();
     for (const slot of cut) {
-      const r = slot.getBoundingClientRect();
+      const r = slotBox(slot);
       if (r.width < 1 || r.height < 1) continue;
-      out.push([r.left, r.top, r.width, r.height].map(v => Math.round(v * dpr)).join(','));
+      (clicksThrough(slot) ? through : out).push(rectText(r, dpr));
     }
     for (const sheet of sheets) {
       if (!sheet.isConnected) { sheets.delete(sheet); continue; }
       const r = sheet.getBoundingClientRect();
       if (r.width < 1 || r.height < 1) continue;
-      out.push([r.left, r.top, r.width, r.height].map(v => Math.round(v * dpr)).join(','));
+      out.push(rectText(r, dpr));
     }
-    return out.join(';');
+    return { solid: out.join(';'), through: through.join(';') };
   }
 
   function sendRects() {
     rectTimer = null;
     // Every layer window reports the mode too: the shell lifts the desktop
     // windows over the others while it is on (layers/win32.rs).
-    const signal = 'xenon-app:layer-rects?d=' + encodeURIComponent(rectsNow()) + (editing ? '&edit=1' : '');
+    const rects = rectsNow();
+    const signal = 'xenon-app:layer-rects?d=' + encodeURIComponent(rects.solid)
+      + (rects.through ? '&t=' + encodeURIComponent(rects.through) : '') + (editing ? '&edit=1' : '');
     if (signal === lastRects) return;
     lastRects = signal;
     try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
@@ -408,6 +501,9 @@
     monitor: SURFACE === 'anchor' ? '' : KEY.slice(KEY.indexOf(':') + 1),
     boxes: () => shownBoxes.slice(),
     place,
+    lean,
+    refreshRects: scheduleRects,
+    wholeWindow: (on) => { wholeWindow = on === true; scheduleRects(); },
     run: async (action) => {
       try {
         const r = await fetch('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
@@ -425,6 +521,7 @@
     const next = on === true;
     if (next === editing) return;
     editing = next;
+    wholeWindow = false;
     if (editing && !window.LayerEdit && !editScript) {
       editScript = document.createElement('script');
       editScript.src = 'js/layer-edit.js';
@@ -443,6 +540,7 @@
       const r = await fetch('/layers/edit');
       const d = await r.json();
       setEditing(!!(d && d.on));
+      setPeek(d && d.peek);
     } catch (e) { /* keep the mode we have */ }
   }
 
@@ -452,12 +550,22 @@
     es.addEventListener('layers-edit', (e) => {
       try { setEditing(!!JSON.parse(e.data).on); } catch (err) { /* keep the mode we have */ }
     });
+    es.addEventListener('layers-peek', (e) => {
+      try { setPeek(JSON.parse(e.data).id); } catch (err) { /* keep what shows */ }
+    });
     es.addEventListener('open', readEditing);
+    es.addEventListener('status', readWhenOff);
+    // A Deck key placed on the screen shows what the key looks like now.
+    es.addEventListener('deck', () => { if (window.LayerKey) window.LayerKey.refreshAll(); });
   }
 
   window.LayerHost = Object.freeze({
     active: true, key: KEY, surface: SURFACE, lite: LITE, place, forceVisible, listen,
     // For a widget that moves its own box (js/layer-pin.js).
     editing: () => editing, refreshRects: scheduleRects,
+    // For a sheet opened after a wait, past the watch of a press (js/layer-key.js).
+    showSheet: markSheet,
+    // For a tile whose words change size inside its box (js/perf-widget.js).
+    fitTo: (node) => { if (observer) observer.observe(node); },
   });
 })();

@@ -8,19 +8,6 @@ function renderTabSwitcher() {
   });
 }
 
-function toggleTabSwitcher(forceOpen) {
-  const bd = document.getElementById('tab-switcher');
-  if (!bd) return;
-  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : bd.hidden;
-  bd.hidden = !shouldOpen;
-  if (shouldOpen) {
-    closeAppSwitcher();
-    renderTabSwitcher();
-    const active = bd.querySelector('.tab-card.active') || bd.querySelector('.tab-card');
-    setTimeout(() => { if (active) active.focus(); }, 0);
-  }
-}
-
 function closeTabSwitcher() {
   const bd = document.getElementById('tab-switcher');
   if (bd) bd.hidden = true;

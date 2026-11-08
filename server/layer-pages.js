@@ -4,6 +4,7 @@
 // function here takes the stored layers and returns a new object, never
 // touching its input. The server runs them under the settings lock.
 const L = require('./js/layers-model.js');
+const When = require('./js/layer-when.js');
 
 const pageId = (random) => 'lp_' + L.newId(random).slice(3);
 const cleanName = (raw) => String(raw == null ? '' : raw).replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, L.PAGE_NAME_MAX);
@@ -158,11 +159,53 @@ function deskPageSwitch(layers, current) {
   return L.normalize({ ...rest, page: deskBack });
 }
 
+// The page whose situation holds now, or null: the first one in the list, so the
+// answer never depends on which situation started first.
+function whenPageFor(layers, facts) {
+  return L.normalize(layers).pages.find((p) => p.when && When.shows(p.when, facts)) || null;
+}
+
+// A page with a situation comes forward when it starts, and the page shown before
+// comes back when it ends. Same rules as a desktop's page; the games page wins while
+// a game runs. Null when nothing changes.
+function whenPageSwitch(layers, facts) {
+  const cur = L.normalize(layers);
+  if (cur.resume) return null;
+  const shown = cur.pages.find((p) => p.id === cur.page);
+  const match = whenPageFor(cur, facts);
+  if (match) {
+    if (shown && match.id === shown.id) return null;
+    const back = shown && !shown.when ? shown.id : cur.whenBack;
+    return L.normalize({ ...cur, page: match.id, whenBack: back });
+  }
+  if (!shown || !shown.when || !cur.whenBack) return null;
+  const { whenBack, ...rest } = cur;
+  return L.normalize({ ...rest, page: whenBack });
+}
+
+// The page's situation, or null to take it away. A game alone is the games page.
+function setPageWhen(layers, ref, when) {
+  const cur = L.normalize(layers);
+  const page = findPage(cur, ref);
+  if (!page) return { error: cur.pages.length ? 'unknown_page' : 'no_pages', choices: choices(cur) };
+  if (when && when.hide) return { error: 'bad_when' };
+  const pages = cur.pages.map((p) => {
+    if (p.id !== page.id) return p;
+    const { when: old, ...rest } = p;
+    return when && !When.toShow(when) ? { ...rest, when } : rest;
+  });
+  const next = L.normalize({ ...cur, pages });
+  const gaming = When.toShow(when) === 'gaming';
+  if (gaming || page.gaming) return setGamingPage(next, page.id, gaming);
+  return { layers: next, label: pageLabel(cur, page) };
+}
+
 // The pages as the AI and the list read them.
 function describePages(layers) {
   const cur = L.normalize(layers);
   return cur.pages.map((p, i) => ({
     name: pageLabel(cur, p), index: i + 1, active: p.id === cur.page, gaming: !!p.gaming, desktop: p.desktop || 0,
+    ...(p.when ? { when: When.format(p.when) } : {}),
   }));
 }
 
@@ -221,7 +264,32 @@ function createDeskPageSync({ current, update, warn = () => {} }) {
   };
 }
 
+// The situation pages on the status tick. A switch only when the matching page
+// changes, so a person who walks away from it mid-situation is left alone.
+function createWhenPageSync({ current, update, warn = () => {} }) {
+  let busy = false;
+  let last;
+  return function sync(facts) {
+    if (busy) return;
+    const layers = current();
+    if (!layers || !Array.isArray(layers.pages) || layers.pages.length < 2) return;
+    const match = whenPageFor(layers, facts);
+    const id = match ? match.id : '';
+    if (id === last) return;
+    if (!whenPageSwitch(layers, facts)) { last = id; return; }
+    busy = true;
+    Promise.resolve()
+      .then(() => update((stored) => {
+        const next = whenPageSwitch(stored, facts);
+        return next ? { layers: next } : { error: 'unchanged' };
+      }))
+      .then(() => { last = id; })
+      .catch(() => warn('layers: the page of a situation could not be switched'))
+      .finally(() => { busy = false; });
+  };
+}
+
 module.exports = {
-  addPage, renamePage, removePage, setActivePage, setGamingPage, setDesktopPage, moveToPage, gamePageSwitch,
-  deskPageSwitch, findPage, pageLabel, describePages, createGamePageSync, createDeskPageSync,
+  addPage, renamePage, removePage, setActivePage, setGamingPage, setDesktopPage, setPageWhen, moveToPage, gamePageSwitch,
+  deskPageSwitch, whenPageSwitch, findPage, pageLabel, describePages, createGamePageSync, createDeskPageSync, createWhenPageSync,
 };
