@@ -13,6 +13,10 @@
   const CHOICE_LINE = /^\s*\[\[([^\[\]\n]{1,170})\]\]\s*$/;
   const CHOICE_ANYWHERE = /\[\[([^\[\]\n|]{1,60})(?:\|[^\[\]\n]{0,110})?\]\]/g;
 
+  // A model sometimes writes several on one line ("[[Yes]] [[No]]"): a line made
+  // only of choices counts as many.
+  const CHOICE_ROW = /^\s*(?:\[\[[^\[\]\n]{1,170}\]\]\s*){2,}$/;
+
   function choiceOf(line) {
     const m = CHOICE_LINE.exec(line);
     if (!m) return null;
@@ -20,6 +24,15 @@
     const answer = label.trim();
     if (answer.length > MAX_CHOICE_CHARS) return null;
     return { answer, note: rest.join('|').trim().slice(0, MAX_NOTE_CHARS) };
+  }
+
+  function choicesOf(line) {
+    if (!CHOICE_ROW.test(line)) {
+      const one = choiceOf(line);
+      return one ? [one] : null;
+    }
+    const all = (line.match(/\[\[[^\[\]\n]{1,170}\]\]/g) || []).map(choiceOf);
+    return all.every(Boolean) ? all : null;
   }
 
   // { text, choices }: the trailing choice lines come off the text, with `notes`
@@ -31,9 +44,9 @@
     let end = lines.length;
     while (end > 0 && !lines[end - 1].trim()) end--;
     while (end > 0) {
-      const c = choiceOf(lines[end - 1]);
+      const c = choicesOf(lines[end - 1]);
       if (!c) break;
-      found.unshift(c);
+      found.unshift(...c);
       end--;
     }
     if (!found.length || found.length > MAX_CHOICES) return { text: String(text || ''), choices: [] };

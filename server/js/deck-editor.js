@@ -528,7 +528,7 @@
     const paint = () => b.setAttribute('aria-checked', on ? 'true' : 'false');
     b.addEventListener('click', () => { on = !on; paint(); if (onChange) onChange(on); });
     paint();
-    return { el: b, get: () => on };
+    return { el: b, get: () => on, set: (v) => { on = !!v; paint(); } };
   }
 
   // A labelled sub-row inside a section.
@@ -1671,12 +1671,24 @@
     }
     // The key's effective state binding: an explicit global binding wins, else the
     // action-derived one. Used by the LED "follows state" default and on save.
-    function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || detectKeyState(); }
+    // A key whose action has a state of its own (Instant Replay on, mic muted...) follows it
+    // unless the user turned that off in State: then it has one face and never lights.
+    let followAuto = !(existing && existing.unlit === true);
+    function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || (followAuto ? detectKeyState() : null); }
 
     // What lights this key, in words, at the top of the On tab: the part that
     // used to be guesswork (a lit colour set, and no state that ever lights it).
     const stateSum = document.createElement('div'); stateSum.className = 'deck-ed-statesum';
     paneState.appendChild(stateSum);
+    // Shown only when the action brings a state: its words say which one.
+    const followRow = switchRow('deck_state_sum_follows', followAuto, (on) => { followAuto = on; updateStateSummary(); refreshLedDurDefault(); schedulePreview(); });
+    // Its words are rebuilt with the source name, so the i18n pass must not reset them.
+    followRow.el.querySelector('.deck-ed-switchtxt').removeAttribute('data-i18n');
+    followRow.el.classList.add('deck-ed-follow');
+    paneState.appendChild(followRow.el);
+    // The same choice under the preview, where the two faces are seen.
+    const faceCountBtn = document.createElement('button'); faceCountBtn.type = 'button'; faceCountBtn.className = 'deck-ed-btn deck-ed-facecount';
+    faceCountBtn.addEventListener('click', () => { followAuto = !followAuto; followRow.set(followAuto); updateStateSummary(); refreshLedDurDefault(); schedulePreview(); });
     const STATE_SOURCE_ACTION = {
       micMuted: 'micMute', speakerMuted: 'volume', outputDevice: 'audioDevice', obsRecording: 'obsRecord',
       obsStreaming: 'obsStream', obsScene: 'obsScene', obsInputMuted: 'obsMute', remoteActive: 'remoteBlock',
@@ -1699,8 +1711,18 @@
       if (mode === 'cycle') text = t(ownSum);
       else if (st) text = t('deck_state_sum_follows') + ' ' + stateSourceText(st);
       else if (ownSum) text = t(ownSum);
+      const auto = mode !== 'cycle' && !manualSbState() && !manualSdkState() && !manualScriptState() ? detectKeyState() : null;
+      followRow.el.style.display = auto ? '' : 'none';
+      if (auto) followRow.el.querySelector('.deck-ed-switchtxt').textContent = t('deck_state_sum_follows') + ' ' + stateSourceText(auto);
+      // One face is a choice, not a warning.
+      const single = auto && !followAuto && !ownSum;
+      if (single) text = t('deck_state_sum_single');
+      faceCountBtn.style.display = auto && !ownSum ? '' : 'none';
+      faceCountBtn.textContent = t(followAuto ? 'deck_face_one' : 'deck_face_two');
       stateSum.textContent = text;
-      stateSum.classList.toggle('is-idle', !st && !ownSum);
+      // The switch already says what it follows; the line under it would repeat it.
+      stateSum.style.display = auto && followAuto ? 'none' : '';
+      stateSum.classList.toggle('is-idle', !st && !ownSum && !single);
       faceNever.style.display = (!st && !ownSum) ? '' : 'none';
     }
     // A switch: each tap turns the key on or off, the off tap with its own action.
@@ -2066,6 +2088,7 @@
       { group: 'timer', labelKey: 'deck_cat_timer' },
       { group: 'vitals', labelKey: 'deck_cat_vitals' },
       { group: 'capture', labelKey: 'deck_cat_capture' },
+      { group: 'screen', labelKey: 'deck_cat_screen' },
       { group: 'perf', labelKey: 'deck_cat_perf' },
       { group: 'phone', labelKey: 'deck_cat_phone' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
@@ -2250,7 +2273,7 @@
       stream: ACTION_ICONS.ytBroadcast, streamerbot: ACTION_ICONS.sbDoAction, discord: ACTION_ICONS.discordDeafen,
       spotify: ACTION_ICONS.spotifyPlay, homeassistant: ACTION_ICONS.haToggle, chroma: ACTION_ICONS.chromaColor,
       wavelink: ACTION_ICONS.wlInputVolume, voicemeeter: ACTION_ICONS.vmStripGain, lighting: ACTION_ICONS.lightColor,
-      perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot,
+      perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot, screen: ACTION_ICONS.screenMeasure,
       remote: ACTION_ICONS.remoteScreenCycle, sdk: ACTION_ICONS.sdkMacro, ai: ACTION_ICONS.ai, claude: ACTION_ICONS.claudeAsk,
     };
     const RECENT_ICON = _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
@@ -3557,7 +3580,8 @@
         if (confirmVal) key.confirm = true;
         shortcut.collect(key);
         if (dimOffVal) key.dimOff = true;
-        if (Object.keys(ss).length) key.stateStyle = ss;
+        if (!followAuto && detectKeyState() && !key.state) key.unlit = true;
+        if (Object.keys(ss).length && !key.unlit) key.stateStyle = ss;
         // Live value badge (timer countdown / SDK state text) on the face.
         if (liveSource) {
           key.live = Object.assign({ source: liveSource }, liveName ? { name: liveName } : {});
@@ -3628,6 +3652,7 @@
     previewStage.appendChild(previewCap);
     previewPanel.appendChild(previewCaption);
     previewPanel.appendChild(previewStage);
+    previewPanel.appendChild(faceCountBtn);
 
     let previewRaf = 0;
     function updatePreview() {

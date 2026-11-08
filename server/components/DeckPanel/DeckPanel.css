@@ -1872,6 +1872,10 @@ body.low-power-gpu .deck-key.is-on .deck-key-onfx { animation: none; }
   font-size: 14px; line-height: 1.4; background: var(--ded-well);
 }
 .deck-ed-statesum.is-idle { color: var(--color-warn, #f5b14c); }
+/* Follow the state the action brings, or keep one face: set apart from the fields under it. */
+.deck-ed-follow { margin-bottom: 12px; }
+/* Under the preview: one look or off and on, the same choice as in State. */
+.deck-ed-facecount { margin-top: 10px; width: 100%; }
 
 /* On/off rows (switch, confirm, ring, dim). */
 .deck-ed-switches { display: flex; flex-direction: column; gap: 2px; }

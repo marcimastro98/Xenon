@@ -48,6 +48,15 @@ test('every visible action belongs to a category the picker lists', () => {
   assert.deepEqual(da.ACTION_CATALOG.filter((a) => !a.hidden && !groups.has(a.group)).map((a) => a.type), []);
 });
 
+test('the on-screen tools sit in their own group, apart from what records the screen', () => {
+  const of = (group) => da.ACTION_CATALOG.filter((a) => a.group === group && !a.hidden).map((a) => a.type);
+  assert.deepEqual(of('screen').sort(), ['screenColor', 'screenCover', 'screenDraw', 'screenMeasure', 'screenPin', 'screenText']);
+  for (const t of ['screenshot', 'record', 'replay']) assert.ok(of('capture').includes(t), t);
+  assert.equal(CATEGORY_GROUPS.indexOf('screen'), CATEGORY_GROUPS.indexOf('capture') + 1);
+  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  assert.equal(i18n.match(/\bdeck_cat_screen: "[^"]+",/g).length, i18n.match(/\bdeck_cat_capture: "[^"]+",/g).length);
+});
+
 test('the picker turns on search, collapsible groups and its texts', () => {
   const at = EDITOR.indexOf('function actionSelect(value) {');
   const fn = EDITOR.slice(at, EDITOR.indexOf('\n    }\n', at));

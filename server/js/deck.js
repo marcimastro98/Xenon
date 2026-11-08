@@ -3943,6 +3943,33 @@
     for (const f of AI_LOOK_FIELDS) if (look && typeof look[f] === 'boolean') patch[f] = look[f];
     return Object.keys(patch).length ? patch : null;
   }
+  // "Add a key to my Deck": each key takes the next free slot of the profile in use
+  // (a new page when it is full); its grid, its look and its other keys stay as they are.
+  // A name from the Deck's own icon library draws in the Deck's look; anything
+  // else is taken as an emoji.
+  function aiIcon(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return null;
+    if (window.DeckIcons && window.DeckIcons.has(v)) return { type: 'builtin', value: v };
+    return { type: 'emoji', value: v.slice(0, 8) };
+  }
+
+  function addAiKeysToCurrent(instanceId, keys) {
+    const M = window.DeckModel;
+    let cfg = durableConfig(instanceId);
+    let spot = null;
+    for (const key of keys) {
+      spot = M.firstFreeSlot(cfg);
+      cfg = M.setKeyAt(spot.config, spot.nav, spot.slot, key);
+    }
+    saveConfig(instanceId, cfg);
+    const state = navOf(instanceId);
+    state.path = []; state.pageIndex = spot.nav.pageIndex;
+    renderAll();
+    const prof = cfg.profiles.find((p) => p.id === spot.nav.profileId);
+    if (prof) showDeckToast('✦ ' + prof.name);
+    return true;
+  }
   function applyAiDeck(spec) {
     const refusedTypes = new Set();
     const A = window.DeckActions;
@@ -3952,7 +3979,8 @@
     for (const k of (Array.isArray(spec.keys) ? spec.keys.slice(0, 32) : [])) {
       if (!k || typeof k !== 'object') continue;
       const key = { kind: k.kind === 'slider' ? 'slider' : 'action', title: String(k.title || '').slice(0, 40) };
-      if (k.icon) key.icon = { type: 'emoji', value: String(k.icon).slice(0, 8) };
+      const icon = aiIcon(k.icon);
+      if (icon) key.icon = icon;
       if (k.color) key.bg = String(k.color).slice(0, 9);
       if (key.kind === 'slider') {
         if (!k.slider || typeof k.slider !== 'object') continue;
@@ -3981,12 +4009,15 @@
         key.triggers = trig;
         if (k.state && typeof k.state === 'object') key.state = k.state;
         if (k.live && typeof k.live === 'object') key.live = k.live;
-        if (k.stateStyle && typeof k.stateStyle === 'object') key.stateStyle = k.stateStyle;
+        if (k.stateStyle && typeof k.stateStyle === 'object') key.stateStyle = Object.assign({}, k.stateStyle, { icon: aiIcon(k.stateStyle.icon) || undefined });
+        if (k.unlit === true) key.unlit = true;
       }
       keys.push(key);
     }
     let applied = false;
-    if (keys.length) {
+    if (keys.length && spec.addTo === 'current') {
+      applied = addAiKeysToCurrent((typeof spec.instance === 'string' && spec.instance) || 'deck', keys);
+    } else if (keys.length) {
       applied = applyGenesisDeck({
         instanceId: (typeof spec.instance === 'string' && spec.instance) || 'deck',
         profile: String(spec.profileName || 'AI Deck').slice(0, 40),

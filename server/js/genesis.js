@@ -308,6 +308,12 @@
   // Build a ready-to-use Deck profile from the model's genesis_setup_deck args.
   // Every key is mapped through DECK_ACTION_MAP and validated by DeckActions;
   // Deck.applyGenesisDeck then re-normalizes the whole config before saving.
+  // A name from the Deck's icon library, else an emoji (a star when none).
+  function genesisIcon(v) {
+    if (window.DeckIcons && window.DeckIcons.has(v)) return { type: 'builtin', value: v };
+    return { type: 'emoji', value: v.slice(0, 8) || '⭐' };
+  }
+
   function setupDeck(args) {
     if (!window.Deck || typeof window.Deck.applyGenesisDeck !== 'function') return false;
     const list = Array.isArray(args && args.keys) ? args.keys.slice(0, 32) : [];
@@ -322,7 +328,7 @@
       const key = {
         kind: 'action',
         title: String(k.title || '').trim().slice(0, 40),
-        icon: { type: 'emoji', value: String(k.icon || '').trim().slice(0, 8) || '⭐' },
+        icon: genesisIcon(String(k.icon || '').trim()),
         press: 'glow',
         triggers: { tap: valid },
       };

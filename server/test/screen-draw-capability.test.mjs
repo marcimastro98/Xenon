@@ -58,7 +58,7 @@ test('engine errors are known codes or "failed"; no engine is "unavailable"', as
 
 test('the catalog entry, the runner, the AI function and the SDK category line up', async () => {
   const c = CAPABILITIES.find(x => x.type === 'screenDraw');
-  assert.equal(c.group, 'capture');
+  assert.equal(c.group, 'screen');
   assert.equal(c.capability.risk, 'safe');
   assert.equal(c.capability.requires, 'captureDraw');
   assert.deepEqual(c.params.find(p => p.name === 'mode').options, draw.MODES.slice());

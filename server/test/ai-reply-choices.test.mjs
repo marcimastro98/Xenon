@@ -121,3 +121,18 @@ test('the question card loads on every surface, says its words in all 11 languag
   }
   assert.match(read('../server.js'), /\[\[answer \| what it means\]\]/);
 });
+
+test('several choices on one last line are buttons too', () => {
+  const r = C.split('Vuoi un profilo nuovo?\n\n[[Crea profilo Replay]] [[Lo aggiungo io a mano]]');
+  assert.deepEqual(r.choices, ['Crea profilo Replay', 'Lo aggiungo io a mano']);
+  assert.equal(r.text, 'Vuoi un profilo nuovo?');
+  // Mixed with other words the line stays text.
+  const mixed = C.split('Scegli [[A]] oppure [[B]]');
+  assert.deepEqual(mixed.choices, []);
+  // More than the limit across one line are not buttons.
+  assert.deepEqual(C.split('Quale?\n[[1]] [[2]] [[3]] [[4]] [[5]]').choices, []);
+});
+
+test('a row of choices is spoken as a list, without brackets', () => {
+  assert.equal(C.spoken('Quale?\n[[Uno]] [[Due]]'), 'Quale? Uno, Due.');
+});

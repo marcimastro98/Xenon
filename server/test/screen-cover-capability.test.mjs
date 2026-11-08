@@ -70,7 +70,7 @@ test('engine errors pass through by name; anything else is "failed"', async () =
 
 test('the catalog entry, the runner and the AI function line up', async () => {
   const entry = CAPABILITIES.find(c => c.type === 'screenCover');
-  assert.equal(entry.group, 'capture');
+  assert.equal(entry.group, 'screen');
   assert.equal(entry.capability.risk, 'sensitive');
   assert.equal(entry.capability.requires, 'captureCover');
   assert.equal(entry.capability.sdk, undefined, 'not a widget action: a widget would start OCR over the user\'s pictures');

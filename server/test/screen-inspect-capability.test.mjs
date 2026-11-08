@@ -99,7 +99,7 @@ test('the catalog entries, the runner and the AI functions line up', async () =>
   const color = CAPABILITIES.find(c => c.type === 'screenColor');
   const measure = CAPABILITIES.find(c => c.type === 'screenMeasure');
   for (const c of [color, measure]) {
-    assert.equal(c.group, 'capture');
+    assert.equal(c.group, 'screen');
     assert.equal(c.capability.risk, 'sensitive');
   }
   assert.equal(color.capability.requires, 'captureInspect');

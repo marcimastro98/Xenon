@@ -241,6 +241,7 @@ function normalizeKeyBehavior(raw, key) {
     delete key.state;
     delete key.stateStyle;
     delete key.dimOff;
+    delete key.unlit;
   }
 }
 
@@ -367,6 +368,9 @@ function normalizeKey(raw, cols, rows) {
     }
     // Dim the face while the key is off, so the lit one stands out in a row.
     if (raw.dimOff === true) key.dimOff = true;
+    // The user chose one face over the state its action brings (Instant Replay on...):
+    // remembered so the editor does not bring that state back on the next open.
+    if (raw.unlit === true && !key.state) key.unlit = true;
     normalizeKeyBehavior(raw, key);
     // Optional live value shown ON the key face (a ticking timer countdown, an
     // SDK widget's published state text) — rendered via textContent, never markup.

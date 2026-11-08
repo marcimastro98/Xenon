@@ -255,7 +255,7 @@ const CAPABILITIES = [
   // Text from the screen (OCR): read on this PC and put on the clipboard,
   // nothing saved. 'sensitive' like a screenshot: it reads what is on screen.
   {
-    type: 'screenText', group: 'capture', labelKey: 'deck_act_screenText',
+    type: 'screenText', group: 'screen', labelKey: 'deck_act_screenText',
     params: [
       { name: 'target', kind: 'select', options: ['region', 'window', 'screen'] },
     ],
@@ -272,7 +272,7 @@ const CAPABILITIES = [
   // A screenshot pinned over everything (capabilities/screen-pin.js): a layer
   // widget showing the picture, moved by dragging it, sized with the wheel.
   {
-    type: 'screenPin', group: 'capture', labelKey: 'deck_act_screenPin',
+    type: 'screenPin', group: 'screen', labelKey: 'deck_act_screenPin',
     params: [
       { name: 'source', kind: 'select', options: ['region', 'last'], labelKey: 'deck_param_screenPin_source' },
       // Its own words: the layer toggle's 'Over the game' would be wrong for a pin.
@@ -293,7 +293,7 @@ const CAPABILITIES = [
   // IBANs and long numbers the PC's own OCR finds are painted black in a new
   // copy; the original stays. What comes back is a count, never the text.
   {
-    type: 'screenCover', group: 'capture', labelKey: 'deck_act_screenCover',
+    type: 'screenCover', group: 'screen', labelKey: 'deck_act_screenCover',
     params: [
       { name: 'id', kind: 'hidden', maxLen: 16, optional: true },
     ],
@@ -312,7 +312,7 @@ const CAPABILITIES = [
   // the size goes on the clipboard. 'sensitive' because the picker shows the
   // screen; what comes back is one colour or two numbers, never a picture.
   {
-    type: 'screenColor', group: 'capture', labelKey: 'deck_act_screenColor',
+    type: 'screenColor', group: 'screen', labelKey: 'deck_act_screenColor',
     params: [
       { name: 'format', kind: 'select', options: ['hex', 'rgb', 'hsl'], labelKey: 'deck_param_screenColor_format' },
     ],
@@ -326,7 +326,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'screenMeasure', group: 'capture', labelKey: 'deck_act_screenMeasure',
+    type: 'screenMeasure', group: 'screen', labelKey: 'deck_act_screenMeasure',
     params: [],
     capability: {
       domain: 'capture', risk: 'sensitive', requires: 'captureMeasure',
@@ -342,7 +342,7 @@ const CAPABILITIES = [
   // over the monitor under the pointer, strokes in screenshots and recordings,
   // the bar never. 'safe': it shows the user's own strokes and reads nothing.
   {
-    type: 'screenDraw', group: 'capture', labelKey: 'deck_act_screenDraw',
+    type: 'screenDraw', group: 'screen', labelKey: 'deck_act_screenDraw',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] },
     ],
