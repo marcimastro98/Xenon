@@ -20,6 +20,9 @@ $OutputEncoding = $utf8NoBom
 #    unpaired-in-practice for a year still reports Status=OK and a year-old
 #    percent, which would show as a live reading. Absent property => keep (not
 #    every device reports it); only an explicit False means "not here now".
+#    The node with the battery is not always the one that knows: a connected
+#    headset's "Hands-Free AG" node says False while its own Bluetooth node says
+#    True. So any node of the device saying True wins, matched by name.
 #
 # Devices behind a proprietary 2.4GHz dongle (Logitech Unifying/Lightspeed and
 # most custom-keyboard receivers) expose NO battery to Windows at all - their
@@ -35,6 +38,8 @@ $profileSuffix = '\s+(Hands-Free (AG|HF)|Stereo|AVRCP Transport|Avrcp Transport)
 
 $devices = @()
 $seen = @{}
+$readings = @()
+$connectedNames = @{}
 try {
   $entities = @(Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction Stop)
   foreach ($dev in $entities) {
@@ -51,27 +56,48 @@ try {
         if ($prop.KeyName -eq $batteryKey) { $raw = $prop.Data }
         elseif ($prop.KeyName -eq $connectedKey) { $connected = $prop.Data }
       }
+      $name = ($name -replace $profileSuffix, '').Trim()
+      if (-not $name) { continue }
+      if ($name.Length -gt 64) { $name = $name.Substring(0, 64) }
+      $key = $name.ToLowerInvariant()
+      # Two headphones of one model share a name: the address in a node's id tells them
+      # apart. Not every node has it (HID ones do not), and it stays inside the server.
+      $unit = ''
+      if (([string]$dev.DeviceID) -match '(?:DEV_|[&_])([0-9A-Fa-f]{12})(?:[\\_&]|$)') { $unit = $Matches[1].ToUpperInvariant() }
+      $who = "$key|$unit"
+      if ($connected -is [bool] -and $connected) {
+        $connectedNames[$who] = $true
+        $connectedNames[$key] = $true
+      }
       if ($null -eq $raw) { continue }
-      if ($connected -is [bool] -and -not $connected) { continue }
 
       $percent = 0
       if (-not [int]::TryParse(([string]$raw), [ref]$percent)) { continue }
       if ($percent -lt 0 -or $percent -gt 100) { continue }
 
-      $name = ($name -replace $profileSuffix, '').Trim()
-      if (-not $name) { continue }
-      if ($name.Length -gt 64) { $name = $name.Substring(0, 64) }
-
-      # One entry per device: a single peripheral owns several PnP nodes (audio
-      # profile, HID service, transport) that mirror the same battery.
-      $key = $name.ToLowerInvariant()
-      if ($seen.ContainsKey($key)) { continue }
-      $seen[$key] = $true
-
-      $devices += [pscustomobject]@{ name = $name; percent = $percent }
+      $gone = $connected -is [bool] -and -not $connected
+      $readings += [pscustomobject]@{ key = $key; who = $who; unit = $unit; name = $name; percent = $percent; gone = $gone }
     } catch { }
   }
 } catch { }
+
+# Nodes with an address first, so one without it can tell it mirrors a device already listed.
+$withAddress = @($readings | Where-Object { $_.unit })
+$withoutAddress = @($readings | Where-Object { -not $_.unit })
+foreach ($reading in ($withAddress + $withoutAddress)) {
+  # A node that says connected and has no address could be either twin, so it speaks for both.
+  $here = $connectedNames.ContainsKey($reading.who) -or $connectedNames.ContainsKey("$($reading.key)|") -or (-not $reading.unit -and $connectedNames.ContainsKey($reading.key))
+  if ($reading.gone -and -not $here) { continue }
+
+  # One entry per device: a single peripheral owns several PnP nodes (audio
+  # profile, HID service, transport) that mirror the same battery.
+  if ($seen.ContainsKey($reading.who)) { continue }
+  if (-not $reading.unit -and $seen.ContainsKey($reading.key)) { continue }
+  $seen[$reading.who] = $true
+  $seen[$reading.key] = $true
+
+  $devices += [pscustomobject]@{ name = $reading.name; percent = $reading.percent; unit = $reading.unit }
+}
 
 # System battery packs (laptops) and USB-connected UPS units: Win32_Battery is
 # the one source here that also knows the charging state. A desktop tower with

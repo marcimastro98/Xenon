@@ -45,50 +45,59 @@
 
 .device-chevron { color: var(--dim-text); font-size: 18px; font-weight: 800; flex-shrink: 0; }
 
+/* A window like the others in the middle of the screen; on a phone it comes up
+   under the thumb. */
 .picker-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease;
+  /* Closed it stays in the page: hidden, so Tab cannot walk into its rows. */
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0s linear 0.22s;
 }
 
-.picker-overlay.open { opacity: 1; pointer-events: all; }
+.picker-overlay.open { opacity: 1; pointer-events: all; visibility: visible; transition: opacity 0.22s ease; }
 .picker-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.72); }
 
 .picker-panel {
   position: relative;
-  width: min(520px, calc(100vw - 26px));
-  margin: 0 auto 13px;
-  max-height: 70vh;
+  box-sizing: border-box;
+  width: min(480px, 100%);
+  max-height: 100%;
   overflow: auto;
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--surface);
-  padding: 16px;
-  transform: translateY(105%);
+  padding: 20px;
+  outline: none;
+  transform: translateY(14px);
   transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.picker-overlay.open .picker-panel { transform: translateY(0); }
+.picker-overlay.open .picker-panel { transform: none; }
 
 .picker-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.picker-title { color: var(--text); font-size: 14.5px; font-weight: 850; }
+.picker-title { min-width: 0; color: var(--text); font-size: 20px; font-weight: 800; }
 
 .picker-close {
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--control-bg);
@@ -101,28 +110,45 @@
 .picker-close svg { width: 15px; height: 15px; fill: currentColor; }
 
 .picker-item {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 60px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 4px;
+  padding: 10px 12px;
+  border: 0;
   border-bottom: 1px solid var(--divider);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .picker-item:last-child { border-bottom: none; }
 .picker-item-text { flex: 1; min-width: 0; }
-.picker-item-name { color: var(--text); font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.picker-item-label { margin-top: 3px; color: var(--dim-text); font-size: 12.5px; font-weight: 700; }
+.picker-item-name { color: var(--text); font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-item-label { margin-top: 3px; color: var(--dim-text); font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.picker-check {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
+/* The one in use carries a check, the others nothing. */
+.picker-check { position: relative; width: 20px; height: 20px; flex-shrink: 0; }
+
+.picker-check.checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 13px;
+  height: 7px;
+  border-left: 2.5px solid var(--accent-ink, var(--accent));
+  border-bottom: 2.5px solid var(--accent-ink, var(--accent));
+  transform: rotate(-45deg);
 }
 
-.picker-check.checked { border-color: var(--green); background: var(--green); }
-.picker-check.checked::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--on-accent); }
+.picker-empty { padding: 12px 4px; color: var(--muted-text); font-size: 15px; }
+
+@media (max-width: 560px) {
+  .picker-overlay { justify-content: flex-end; padding: 12px; }
+  .picker-panel { transform: translateY(105%); }
+}

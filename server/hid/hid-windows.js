@@ -16,6 +16,7 @@ const OPEN_EXISTING = 3;
 const INVALID_HANDLE = -1;
 const HIDP_STATUS_SUCCESS = 0x00110000;
 const DETAIL_BUF_BYTES = 1024;
+const PRODUCT_NAME_BYTES = 254;   // the USB limit for a string descriptor
 
 let api = null;
 
@@ -44,6 +45,7 @@ function load() {
     getPreparsed: hid.func('bool __stdcall HidD_GetPreparsedData(intptr, _Out_ void **)'),
     freePreparsed: hid.func('bool __stdcall HidD_FreePreparsedData(void *)'),
     getCaps: hid.func('uint32 __stdcall HidP_GetCaps(void *, _Out_ XHIDP_CAPS *)'),
+    getProduct: hid.func('bool __stdcall HidD_GetProductString(intptr, _Inout_ uint8_t *, uint32)'),
     setFeature: hid.func('bool __stdcall HidD_SetFeature(intptr, uint8_t *, uint32)'),
     getFeature: hid.func('bool __stdcall HidD_GetFeature(intptr, _Inout_ uint8_t *, uint32)'),
   };
@@ -72,6 +74,13 @@ async function interfacePaths(a) {
   return paths;
 }
 
+// The name the device gives itself, '' when it gives none.
+async function productName(a, handle) {
+  const buf = Buffer.alloc(PRODUCT_NAME_BYTES);
+  if (!(await call(a.getProduct, handle, buf, PRODUCT_NAME_BYTES))) return '';
+  return buf.toString('utf16le').replace(/\0.*$/s, '').trim();
+}
+
 // What one interface is, read without asking for read/write access.
 async function describe(a, path) {
   const handle = await call(a.createFile, path, 0, FILE_SHARE_READ_WRITE, null, OPEN_EXISTING, 0, null);
@@ -79,7 +88,10 @@ async function describe(a, path) {
   try {
     const attrs = {};
     if (!(await call(a.getAttributes, handle, attrs))) return null;
-    const out = { path, vendorId: attrs.VendorID, productId: attrs.ProductID, usagePage: 0, usage: 0, featureLength: 0 };
+    const out = {
+      path, vendorId: attrs.VendorID, productId: attrs.ProductID, usagePage: 0, usage: 0,
+      featureLength: 0, inputLength: 0, outputLength: 0, product: await productName(a, handle),
+    };
     const pre = [null];
     if (await call(a.getPreparsed, handle, pre)) {
       const caps = {};
@@ -88,6 +100,8 @@ async function describe(a, path) {
           out.usagePage = caps.UsagePage;
           out.usage = caps.Usage;
           out.featureLength = caps.FeatureReportByteLength;
+          out.inputLength = caps.InputReportByteLength;
+          out.outputLength = caps.OutputReportByteLength;
         }
       } finally {
         await call(a.freePreparsed, pre[0]).catch(() => {});
@@ -99,21 +113,42 @@ async function describe(a, path) {
   }
 }
 
-// filter: { vendorId, productIds?, usagePage? } → matching interfaces.
+// How a vendor id reads in a device path: USB, Bluetooth, Bluetooth LE.
+const pathMarks = (vendorId) => {
+  const vid = vendorId.toString(16).padStart(4, '0');
+  return ['vid_' + vid, 'vid&0001' + vid, 'vid&0002' + vid, 'vid&02' + vid];
+};
+
+// filter: { vendorId | vendorIds, productIds?, usagePage? } → matching interfaces.
 async function list(filter) {
   const a = load();
-  const vid = filter.vendorId.toString(16).padStart(4, '0');
-  // Paths carry vid_xxxx: skip opening every other HID device on the PC.
-  const paths = (await interfacePaths(a)).filter(p => p.toLowerCase().includes('vid_' + vid));
+  const vendorIds = filter.vendorIds || [filter.vendorId];
+  const marks = vendorIds.flatMap(pathMarks);
+  // Paths carry the vendor id: skip opening every other HID device on the PC.
+  const paths = (await interfacePaths(a)).filter((p) => {
+    const lower = p.toLowerCase();
+    return marks.some((mark) => lower.includes(mark));
+  });
   const out = [];
   for (const p of paths) {
     const d = await describe(a, p).catch(() => null);
-    if (!d || d.vendorId !== filter.vendorId) continue;
+    if (!d || !vendorIds.includes(d.vendorId)) continue;
     if (filter.productIds && !filter.productIds.includes(d.productId)) continue;
     if (filter.usagePage != null && d.usagePage !== filter.usagePage) continue;
     out.push(d);
   }
   return out;
+}
+
+// Every interface on the PC, for a reader that goes by what a device declares.
+async function listAll() {
+  const a = load();
+  const found = [];
+  for (const p of await interfacePaths(a)) {
+    const d = await describe(a, p).catch(() => null);
+    if (d) found.push(d);
+  }
+  return found;
 }
 
 async function open(info) {
@@ -148,4 +183,4 @@ async function open(info) {
   };
 }
 
-module.exports = { list, open };
+module.exports = { list, listAll, open };

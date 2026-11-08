@@ -25,6 +25,12 @@ function parseHidId(uevent) {
   return { vendorId: parseInt(m[1], 16) & 0xFFFF, productId: parseInt(m[2], 16) & 0xFFFF };
 }
 
+// The name the device gives itself, what the battery list shows; some give none.
+function parseHidName(uevent) {
+  const m = /^HID_NAME=(.*\S)\s*$/m.exec(String(uevent == null ? '' : uevent));
+  return m ? m[1] : '';
+}
+
 function itemValue(bytes, start, size) {
   let value = 0;
   for (let k = size - 1; k >= 0; k--) value = value * 256 + bytes[start + k];
@@ -71,4 +77,4 @@ function featureRequest(nr, len) {
 const setFeatureRequest = (len) => featureRequest(HIDIOCSFEATURE, len);
 const getFeatureRequest = (len) => featureRequest(HIDIOCGFEATURE, len);
 
-module.exports = { parseHidId, topCollections, setFeatureRequest, getFeatureRequest };
+module.exports = { parseHidId, parseHidName, topCollections, setFeatureRequest, getFeatureRequest };

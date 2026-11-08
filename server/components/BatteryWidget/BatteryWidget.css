@@ -3,7 +3,7 @@
    green ≥50, amber 20–49, red <20. */
 
 .battery-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
-.batw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; }
+.batw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; container: batw / inline-size; }
 
 .batw-head { display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; }
 .batw-title { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
@@ -11,6 +11,7 @@
 
 .batw-list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 6px; }
 .batw-state { opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.batw-access { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px; }
 .batw-state-hint { font-size: 11.5px; opacity: 0.75; max-width: 280px; line-height: 1.4; }
 
 .batw-row { --batw-band: 74, 222, 128;
@@ -32,6 +33,15 @@
 .batw-name { font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .batw-src { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6;
   padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.08); }
+.batw-seen { font-size: 10.5px; opacity: 0.65; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Too narrow for both: the name is what tells the devices apart. */
+@container batw (max-width: 220px) {
+  .batw-src, .batw-glyph { display: none; }
+  /* Whole, or "PRO X 2 (2)" and the age of a reading lose the part that matters. */
+  .batw-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+  .batw-seen { white-space: normal; }
+}
+.batw-row.is-silent .batw-glyph, .batw-row.is-silent .batw-bar, .batw-row.is-silent .batw-val { opacity: 0.5; }
 .batw-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; }
 .batw-bar-fill { height: 100%; border-radius: 999px; background: rgba(var(--batw-band), 0.85); transition: width 0.6s ease; }
 

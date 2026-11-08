@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseHidId, topCollections, setFeatureRequest, getFeatureRequest } = require('../hid/hidraw-format.js');
+const { parseHidId, parseHidName, topCollections, setFeatureRequest, getFeatureRequest } = require('../hid/hidraw-format.js');
 const { createHidLinux } = require('../hid/hid-linux.js');
 const { boundedCall } = require('../hid/bounded-call.js');
 const P = require('../lighting-native/fusion2-protocol.js');
@@ -100,7 +100,7 @@ test('listing finds the chips over sysfs and leaves everything else out', async 
     notanode: { uevent: uevent(0x048D, 0x5711), descriptor: FUSION_DESCRIPTOR },
   });
   const found = await createHidLinux({ sysDir }).list(FILTER);
-  assert.deepEqual(found, [{ path: '/dev/hidraw3', vendorId: 0x048D, productId: 0x5711, usagePage: 0xFF89, usage: 0xCC, featureLength: 64 }]);
+  assert.deepEqual(found, [{ path: '/dev/hidraw3', vendorId: 0x048D, productId: 0x5711, usagePage: 0xFF89, usage: 0xCC, featureLength: 64, product: '' }]);
 });
 
 test('every chip the driver knows is listed, the same way', async (t) => {
@@ -191,4 +191,10 @@ test('a USB call that never returns frees the caller', async (t) => {
   const stuck = boundedCall({ async: () => {} });
   t.mock.timers.tick(2000);
   await assert.rejects(stuck, /HID call timed out/);
+});
+
+test('the name a device gives itself, and none when it gives none', () => {
+  assert.equal(parseHidName('HID_ID=0003:00003151:00004011\nHID_NAME=Akko 2.4G Wireless Keyboard\nHID_PHYS=usb\n'), 'Akko 2.4G Wireless Keyboard');
+  assert.equal(parseHidName('HID_ID=0003:00003151:00004011\nHID_NAME=\n'), '');
+  assert.equal(parseHidName(null), '');
 });

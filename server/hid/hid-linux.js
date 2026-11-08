@@ -9,7 +9,7 @@
 const fsp = require('fs/promises');
 const path = require('path');
 const { boundedCall: call } = require('./bounded-call');
-const { parseHidId, topCollections, setFeatureRequest, getFeatureRequest } = require('./hidraw-format');
+const { parseHidId, parseHidName, topCollections, setFeatureRequest, getFeatureRequest } = require('./hidraw-format');
 
 const SYS_HIDRAW = '/sys/class/hidraw';
 const NODE_NAME = /^hidraw\d+$/;
@@ -28,13 +28,15 @@ function createHidLinux({ sysDir = SYS_HIDRAW, openNode = (p) => fsp.open(p, 'r+
   // One entry per top-level collection, like hid-windows.js, all on the same node.
   async function describe(name, filter) {
     const dir = path.join(sysDir, name, 'device');
-    const id = parseHidId(await fsp.readFile(path.join(dir, 'uevent'), 'utf8'));
-    if (!id || id.vendorId !== filter.vendorId) return [];
+    const uevent = await fsp.readFile(path.join(dir, 'uevent'), 'utf8');
+    const id = parseHidId(uevent);
+    const vendorIds = filter.vendorIds || [filter.vendorId];
+    if (!id || !vendorIds.includes(id.vendorId)) return [];
     if (filter.productIds && !filter.productIds.includes(id.productId)) return [];
     const descriptor = await fsp.readFile(path.join(dir, 'report_descriptor'));
     return topCollections(descriptor)
       .filter(c => filter.usagePage == null || c.usagePage === filter.usagePage)
-      .map(c => ({ path: '/dev/' + name, ...id, ...c, featureLength: REPORT_BYTES }));
+      .map(c => ({ path: '/dev/' + name, ...id, ...c, featureLength: REPORT_BYTES, product: parseHidName(uevent) }));
   }
 
   async function list(filter) {
