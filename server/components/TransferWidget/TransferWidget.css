@@ -800,6 +800,32 @@
   .xfer-sheet .xfer-undo-btn { min-height: 40px; }
 }
 
+/* Pulled down by its bar (transfer-widget.js armPull): the sheet follows the finger and
+   springs back when let go short. The grabber says the bar can be pulled. */
+@media (max-width: 699.98px) {
+  .xfer-sheet {
+    position: relative;
+    transform: translateY(var(--xfer-pull, 0px));
+    transition: transform .24s var(--ease-out, ease-out);
+  }
+  .xfer-sheet.is-pulled { transition: none; }
+  .xfer-sheet::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 36px;
+    height: 5px;
+    margin-left: -18px;
+    border-radius: 3px;
+    background: var(--line);
+  }
+  .xfer-sheet-bar { touch-action: none; }
+}
+@media (max-width: 699.98px) and (prefers-reduced-motion: reduce) {
+  .xfer-sheet { transition: none; }
+}
+
 @media (min-width: 700px) {
   .xfer-sheet-backdrop { align-items: center; padding: 20px; }
   .xfer-sheet {

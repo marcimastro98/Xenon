@@ -730,8 +730,48 @@
     keys.append(keys.querySelector('.xfer-btn-primary'));
     foot.append(keys);
     sheet._letGo = window.DialogFocus.hold(panel, { onEsc: stepBack });
+    armPull(panel, bar);
     markHistory();
     if (!seeded) refresh();
+  }
+
+  // Pulled down by its title bar, the sheet goes, as a phone's own sheets do. Only where it
+  // stands on the bottom edge (the CSS breakpoint): the centred dialog has no edge to go to.
+  const PULL_CLOSE_SHARE = 0.25;   // of the sheet's height
+  const PULL_FLICK = 0.5;          // px per ms: a quick flick closes from a short pull
+  const PULL_FLICK_MIN = 24;       // px: a tap that jitters is not a flick
+  const PULL_FLICK_FRESH = 100;    // ms: a finger that stopped before lifting threw nothing
+  function armPull(panel, bar) {
+    let pull = null;
+    bar.addEventListener('pointerdown', (e) => {
+      if ((e.button != null && e.button !== 0) || e.target.closest('button')) return;
+      if (!window.matchMedia || !window.matchMedia('(max-width: 699.98px)').matches) return;
+      pull = { y: e.clientY, dy: 0, at: Date.now(), speed: 0 };
+      panel.classList.add('is-pulled');
+      try { bar.setPointerCapture(e.pointerId); } catch { /* older engine */ }
+    });
+    bar.addEventListener('pointermove', (e) => {
+      if (!pull) return;
+      const dy = Math.max(0, e.clientY - pull.y);
+      const now = Date.now();
+      pull.speed = (dy - pull.dy) / Math.max(1, now - pull.at);
+      pull.dy = dy;
+      pull.at = now;
+      panel.style.setProperty('--xfer-pull', dy + 'px');
+    });
+    const letGo = (canClose) => {
+      if (!pull) return;
+      const { dy } = pull;
+      const speed = Date.now() - pull.at > PULL_FLICK_FRESH ? 0 : pull.speed;
+      pull = null;
+      panel.classList.remove('is-pulled');
+      const tall = panel.getBoundingClientRect().height || 400;
+      if (canClose && (dy > tall * PULL_CLOSE_SHARE || (dy > PULL_FLICK_MIN && speed > PULL_FLICK))) { closeSheet(); return; }
+      panel.style.removeProperty('--xfer-pull');
+    };
+    bar.addEventListener('pointerup', () => letGo(true));
+    // The system took the finger (a scroll, a call): the sheet goes back, never away.
+    bar.addEventListener('pointercancel', () => letGo(false));
   }
 
   // fromHistory: the phone's Back already popped our entry.

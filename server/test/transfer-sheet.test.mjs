@@ -5,6 +5,7 @@
 //  3. A sheet that goes lets go of the keyboard and gives the focus back.
 //  4. One main key, last, as on every sheet. The tile keeps its own order.
 //  5. A row's age is written in the app's language.
+//  6. On a phone the sheet goes when pulled down by its bar, and comes back when let go short.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,7 +33,7 @@ function fakeHistory(fire) {
   };
 }
 
-function rig({ lang = 'en' } = {}) {
+function rig({ lang = 'en', wide = false } = {}) {
   const { document, mkEl } = makeDom();
   const window = {};
   const keys = windowKeys(window);
@@ -47,8 +48,12 @@ function rig({ lang = 'en' } = {}) {
   window.ambientFreeze = (_token, on) => freezes.push(on);
   document.readyState = 'complete';
   document.documentElement.lang = lang;
+  // The sheet stands on the bottom edge below 700px, as the CSS says.
+  window.matchMedia = (q) => ({ matches: q === '(max-width: 699.98px)' && !wide });
+  const clock = { t: null };
+  class ClockDate extends Date { static now() { return clock.t ?? super.now(); } }
   const box = {
-    window, document, history, Intl, Date,
+    window, document, history, Intl, Date: ClockDate,
     navigator: { userAgent: 'Android' },
     setTimeout: () => 0,
     clearTimeout: () => {},
@@ -72,7 +77,7 @@ function rig({ lang = 'en' } = {}) {
   const panel = () => document.querySelector('.xfer-sheet');
   const help = () => panel().querySelector('.xfer-help');
   const helpKey = () => panel().querySelector('.xfer-sheet-bar .xfer-help-btn');
-  return { document, window, history, keys, freezes, widget, press, sheet, panel, help, helpKey, mkEl };
+  return { document, window, history, keys, freezes, widget, press, sheet, panel, help, helpKey, mkEl, clock };
 }
 
 test('Esc closes the help first and the sheet after it', () => {
@@ -248,4 +253,98 @@ test('every skin finds the same sheet', () => {
   assert.match(LIQUID, /\.xfer-sheet-backdrop/);
   assert.match(read('../styles/theme-contract.css'), /\.xfer-sheet\b/);
   assert.match(read('../styles/themes-comic.css'), /\.xfer-sheet\b/);
+});
+
+// A finger on the bar: down at y 100, then each [dy, ms] step, then up (or cancelled).
+function pull(r, steps, { on, end = 'pointerup' } = {}) {
+  r.clock.t ??= 1_000_000;
+  const bar = r.panel().querySelector('.xfer-sheet-bar');
+  const fire = (type, ev) => (bar._handlers[type] || []).forEach((fn) => fn({ button: 0, pointerId: 1, target: on || bar, ...ev }));
+  fire('pointerdown', { clientY: 100 });
+  for (const [dy, ms] of steps) { r.clock.t += ms; fire('pointermove', { clientY: 100 + dy }); }
+  fire(end, {});
+}
+
+test('pulled far enough down its bar, the sheet goes and gives the history step back', () => {
+  const r = rig();
+  r.widget.openSheet();
+  r.panel()._rect.height = 600;
+  pull(r, [[60, 100], [120, 100], [170, 100]]);
+  assert.equal(r.sheet(), null);
+  assert.equal(r.history.length, 1, 'the same way out as the X');
+});
+
+test('let go short, the sheet springs back', () => {
+  const r = rig();
+  r.widget.openSheet();
+  r.panel()._rect.height = 600;
+  pull(r, [[40, 100], [80, 100]]);
+  assert.ok(r.sheet());
+  assert.equal(r.panel().style.getPropertyValue('--xfer-pull'), '', 'back where it was');
+  assert.equal(r.panel().classList.contains('is-pulled'), false, 'the spring is on again');
+});
+
+test('a quick flick closes from a short pull, a jitter does not', () => {
+  const r = rig();
+  r.widget.openSheet();
+  r.panel()._rect.height = 600;
+  pull(r, [[20, 16], [70, 16]]);
+  assert.equal(r.sheet(), null);
+
+  const q = rig();
+  q.widget.openSheet();
+  q.panel()._rect.height = 600;
+  pull(q, [[12, 8]]);
+  assert.ok(q.sheet(), 'twelve pixels is a tap that moved');
+
+  // Quick down, then held still before lifting: put back, not thrown.
+  const h = rig();
+  h.widget.openSheet();
+  h.panel()._rect.height = 600;
+  const bar = h.panel().querySelector('.xfer-sheet-bar');
+  const fire = (type, ev) => bar._handlers[type].forEach((fn) => fn({ button: 0, pointerId: 1, target: bar, ...ev }));
+  h.clock.t = 1_000_000;
+  fire('pointerdown', { clientY: 100 });
+  h.clock.t += 16; fire('pointermove', { clientY: 170 });
+  h.clock.t += 400; fire('pointerup', {});
+  assert.ok(h.sheet(), 'a finger that stopped threw nothing');
+});
+
+test('the sheet follows the finger down, never up', () => {
+  const r = rig();
+  r.widget.openSheet();
+  const bar = r.panel().querySelector('.xfer-sheet-bar');
+  const fire = (type, y) => bar._handlers[type].forEach((fn) => fn({ button: 0, pointerId: 1, target: bar, clientY: y }));
+  fire('pointerdown', 100);
+  fire('pointermove', 150);
+  assert.equal(r.panel().style.getPropertyValue('--xfer-pull'), '50px');
+  assert.ok(r.panel().classList.contains('is-pulled'), 'no spring while the finger holds it');
+  fire('pointermove', 40);
+  assert.equal(r.panel().style.getPropertyValue('--xfer-pull'), '0px');
+});
+
+test('a cancelled pull brings the sheet back, the keys on the bar stay keys, a wide screen has no pull', () => {
+  const r = rig();
+  r.widget.openSheet();
+  r.panel()._rect.height = 600;
+  pull(r, [[300, 100]], { end: 'pointercancel' });
+  assert.ok(r.sheet(), 'the system took the finger: never away');
+
+  pull(r, [[300, 100]], { on: r.helpKey() });
+  assert.ok(r.sheet(), 'a press on the ? is the ?');
+
+  const w = rig({ wide: true });
+  w.widget.openSheet();
+  w.panel()._rect.height = 600;
+  pull(w, [[300, 100]]);
+  assert.ok(w.sheet(), 'the centred dialog has no edge to go to');
+});
+
+test('the pull, the grabber and the spring live only where the sheet stands on the edge', () => {
+  const block = CSS.slice(CSS.indexOf('Pulled down by its bar'), CSS.indexOf('@media (min-width: 700px)'));
+  assert.match(block, /@media \(max-width: 699\.98px\) \{[\s\S]*translateY\(var\(--xfer-pull, 0px\)\)/);
+  assert.match(block, /\.xfer-sheet\.is-pulled \{ transition: none; \}/);
+  assert.match(block, /\.xfer-sheet-bar \{ touch-action: none; \}/, 'the page must not scroll under the pull');
+  assert.match(block, /prefers-reduced-motion: reduce\) \{\s*\.xfer-sheet \{ transition: none; \}/);
+  assert.match(SRC, /matchMedia\('\(max-width: 699\.98px\)'\)/, 'JS and CSS use one breakpoint');
 });
