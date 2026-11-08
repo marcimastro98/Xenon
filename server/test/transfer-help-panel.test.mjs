@@ -55,8 +55,8 @@ test('it covers the zone instead of pushing it out of the tile', () => {
   assert.match(block, /inset: 0/);
   assert.match(block, /overflow-y: auto/, 'a long panel scrolls inside itself');
   // Opaque, or the file list reads straight through the instructions.
-  assert.match(block, /background-color: var\(--panel/);
-  const zone = CSS.slice(CSS.indexOf('.xfer-zone {'));
+  assert.match(block, /background-color: rgb\(var\(--panel-rgb\)\)/);
+  const zone = CSS.slice(CSS.indexOf('\n.xfer-zone {'));
   assert.match(zone.slice(0, zone.indexOf('}') + 1), /position: relative/);
 });
 

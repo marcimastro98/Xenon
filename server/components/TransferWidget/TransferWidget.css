@@ -10,7 +10,15 @@
   height: 100%;
   min-height: 0;
   gap: 8px;
+  /* The panel has no padding of its own (global.css), so without one the title and
+     the usage sat 1px from the tile's edge. The News tile sets the same. */
+  padding: 14px 16px;
+  box-sizing: border-box;
 }
+
+/* The zone's edge (its padding and border, which light up under a dragged file)
+   sits outside the column, so the files line up with the title. */
+.transfer-panel .xfer-zone { margin-inline: -5px; }
 
 /* center, not baseline. Baseline puts the title at the TOP of the row and lets
    the tallest item set the row's height — so the ? button, which is taller than
@@ -80,7 +88,7 @@
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: rgb(var(--accent-rgb));
 }
 
@@ -139,7 +147,9 @@
    is on screen at a time and closing gives back exactly what was there.
 
    Opaque, for the same reason the dragged Borsa row is: a translucent panel
-   with a file list showing through it is two screens at once. */
+   with a file list showing through it is two screens at once. So the tile's own
+   colour without its alpha: --panel is see-through whenever Panel opacity is
+   below 100%, and Liquid Glass is. */
 .xfer-help {
   position: absolute;
   inset: 0;
@@ -151,7 +161,7 @@
   padding: 11px 12px;
   border-radius: 12px;
   border: 1px solid var(--panel-border, rgba(255, 255, 255, .09));
-  background-color: var(--panel, #111314);
+  background-color: rgb(var(--panel-rgb));
   background-image: linear-gradient(rgba(255, 255, 255, .04), rgba(255, 255, 255, .04));
   font-size: 12px;
   line-height: 1.45;
@@ -162,18 +172,16 @@
 .xfer-help-sec { display: flex; flex-direction: column; gap: 5px; }
 
 .xfer-help-head {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  opacity: .62;
+  font-size: 12.5px;
+  font-weight: 700;
+  opacity: .85;
 }
 
 /* Numbered because they are steps in an order, not a list of facts: the
    pairing has to happen before the phone can send anything. */
 .xfer-help-steps {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 2em;            /* room for the number in a wide font too */
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -273,7 +281,9 @@
 
 /* With a list above it the panel is an invitation, not an announcement: the
    glyph goes and the hint shrinks to one quiet line, leaving the buttons. */
-.xfer-drop.is-compact { min-height: 0; }
+/* Never shorter than its line and keys: on a short tile it shrank with the list, and
+   its keys slid up over the files. The list gives up the room and scrolls instead. */
+.xfer-drop.is-compact { min-height: 0; flex-shrink: 0; }
 .xfer-drop.is-compact .xfer-drop-glyph { display: none; }
 .xfer-drop.is-compact .xfer-drop-inner { gap: 8px; }
 .xfer-drop.is-compact .xfer-drop-text { font-size: 11.5px; opacity: .85; }
@@ -436,8 +446,9 @@
   display: grid;
   place-items: center;
   /* The ring is the panel colour, so the badge reads as sitting ON the
-     thumbnail rather than overlapping it. */
-  box-shadow: 0 0 0 2px var(--panel, #14161a);
+     thumbnail rather than overlapping it. Opaque, or the picture shows
+     through the ring on a see-through tile. */
+  box-shadow: 0 0 0 2px rgb(var(--panel-rgb));
 }
 
 .xfer-dir svg { width: 9px; height: 9px; stroke-width: 3; }
@@ -560,25 +571,39 @@
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(0, 0, 0, .55);
-  backdrop-filter: blur(10px);
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
 }
 
+/* A percentage, not vh: a phone's vh counts the browser bar, so 88vh could start above
+   the visible page. The backdrop is exactly the visible page. */
 .xfer-sheet {
   width: min(560px, 100%);
-  max-height: min(88vh, 720px);
+  max-height: min(88%, 720px);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
-  border-radius: 18px 18px 0 0;
-  background: var(--panel, #14161a);
-  border: 1px solid var(--panel-border, rgba(255, 255, 255, .12));
+  gap: 14px;
+  padding: 16px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--radius-modal, 20px) var(--radius-modal, 20px) 0 0;
+  background: var(--panel-solid, #14171c);
+  color: var(--text);
+  border: 1px solid var(--line);
   border-bottom: 0;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, .45);
+}
+
+.xfer-sheet:focus { outline: none; }
+
+.xfer-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .xfer-sheet .transfer-widget-mount {
@@ -586,7 +611,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -598,104 +623,219 @@
    never had them — so inside a sheet that half of the panel would be the same
    text twice on one screen. One source, shown once. */
 .xfer-sheet .xfer-help-note { display: none; }
-.xfer-sheet-title { flex: 1 1 auto; min-width: 0; }
 
+/* The X lines up with the keys under it, not its 40px box. */
 .xfer-sheet-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
+  margin-right: -10px;
 }
 
-.xfer-sheet-title { font-size: 15px; font-weight: 600; }
-.xfer-sheet-bar .xfer-icon.xfer-help-btn { margin-right: 0; }
+.xfer-sheet-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* One size at full strength: the tile dims its keys so the files lead, here there are
+   few and a finger has to find them. */
+.xfer-sheet .xfer-icon,
+.xfer-sheet .xfer-icon.xfer-help-btn {
+  width: 40px;
+  height: 40px;
+  margin-right: 0;
+  border-radius: var(--radius-control, 10px);
+  color: var(--muted-text);
+  opacity: 1;
+  transform: none;
+}
+
+.xfer-sheet .xfer-icon svg,
+.xfer-sheet .xfer-icon.xfer-help-btn svg { width: 20px; height: 20px; }
+.xfer-sheet .xfer-row:hover .xfer-icon { opacity: 1; }
+.xfer-sheet .xfer-icon:hover { background: var(--hover-bg); color: var(--text); }
+.xfer-sheet .xfer-help-btn.is-on { background: var(--control-bg); color: var(--text); }
+:root .xfer-sheet .xfer-row .xfer-icon-primary { color: var(--text); }
+
+.xfer-sheet .xfer-btn:focus-visible,
+.xfer-sheet .xfer-icon:focus-visible {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: 2px;
+}
+
+/* The whole sheet is the place files come in, so the box inside it goes: on a phone
+   there is nothing to drag anyway. What stays is the line, and only while it has
+   something to say. */
+.xfer-sheet .xfer-zone { padding: 0; gap: 10px; border: 0; }
+
+.xfer-sheet .xfer-drop {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.xfer-sheet .xfer-drop-inner { max-width: none; align-items: flex-start; text-align: left; }
+.xfer-sheet .xfer-drop-glyph { display: none; }
+.xfer-sheet .transfer-widget-mount:not([data-xfer-preparing]) .xfer-drop.is-compact { display: none; }
+
+.xfer-sheet .xfer-drop-text,
+.xfer-sheet .xfer-drop.is-compact .xfer-drop-text {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--muted-text);
+  opacity: 1;
+}
+
+.xfer-sheet .xfer-row,
+.xfer-sheet .xfer-row:hover,
+.xfer-sheet .xfer-row.is-pending {
+  gap: 12px;
+  padding: 6px 0;
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+}
+
+.xfer-sheet .xfer-thumb { width: 48px; height: 48px; border-radius: var(--radius-control, 10px); }
+.xfer-sheet .xfer-name { font-size: 15px; font-weight: 600; }
+.xfer-sheet .xfer-meta { font-size: 13px; color: var(--muted-text); }
+.xfer-sheet .xfer-meta.xfer-bad { color: var(--color-danger); }
+.xfer-sheet .xfer-row-acts { gap: 2px; }
+.xfer-sheet .xfer-btn-retry { min-height: 40px; padding: 0 14px; font-size: 14px; }
+.xfer-sheet .xfer-note { padding: 0; font-size: 13px; color: var(--muted-text); }
+
+.xfer-sheet .xfer-undo {
+  padding: 4px 4px 4px 12px;
+  border: 0;
+  border-radius: var(--radius-control, 10px);
+  background: var(--control-bg);
+  font-size: 14px;
+}
+
+.xfer-sheet .xfer-undo-btn {
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: var(--radius-control, 10px);
+  background: var(--hover-bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Over the zone the panel would be as small as an empty list, so here it takes the
+   zone's place and the sheet grows to hold it. */
+.xfer-sheet .xfer-zone:has(> .xfer-help:not([hidden])) > :not(.xfer-help) { display: none; }
+
+.xfer-sheet .xfer-help {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.xfer-sheet .xfer-help-head { font-size: 15px; opacity: 1; }
+.xfer-sheet .xfer-help-where { color: var(--muted-text); opacity: 1; }
 
 .xfer-notes {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 2px;
-  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, .08));
 }
 
 /* Each of these is a boundary stated where it would otherwise be discovered,
    so they are readable rather than fine print. */
 .xfer-note-line {
   margin: 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  opacity: .7;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted-text);
+}
+
+.xfer-sheet-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* Weighted past the tile's keys on every skin: here one is the main key, the other
+   quiet, and they say what they do without a picture. */
+:root .xfer-sheet .xfer-sheet-foot .xfer-btn {
+  min-height: 48px;
+  padding: 6px 14px;
+  border-color: transparent;
+  border-radius: var(--radius-control, 10px);
+  background: var(--control-bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+:root .xfer-sheet .xfer-sheet-foot .xfer-btn:hover { background: var(--hover-bg); }
+
+:root .xfer-sheet .xfer-sheet-foot .xfer-btn-primary,
+:root .xfer-sheet .xfer-sheet-foot .xfer-btn-primary:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.xfer-sheet-foot .xfer-btn-ic { display: none; }
+
+@media (max-width: 760px), (any-pointer: coarse) {
+  .xfer-sheet .xfer-icon,
+  .xfer-sheet .xfer-icon.xfer-help-btn { width: 44px; height: 44px; }
+  .xfer-sheet-bar { margin-right: -12px; }
+  .xfer-sheet .xfer-btn-retry { min-height: 44px; }
+  .xfer-sheet .xfer-undo-btn { min-height: 40px; }
 }
 
 @media (min-width: 700px) {
-  .xfer-sheet-backdrop { align-items: center; }
-  .xfer-sheet { border-radius: 18px; border-bottom: 1px solid var(--panel-border, rgba(255, 255, 255, .12)); }
+  .xfer-sheet-backdrop { align-items: center; padding: 20px; }
+  .xfer-sheet {
+    gap: 16px;
+    padding: 22px 22px 18px;
+    border-radius: var(--radius-modal, 20px);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+  }
+  .xfer-sheet-foot .xfer-actions { justify-content: flex-end; }
+  :root .xfer-sheet .xfer-sheet-foot .xfer-btn { flex: 0 1 auto; min-width: 140px; min-height: 44px; }
+}
+
+/* A phone on its side has no height for a list above the notes: they scroll together,
+   and only the title and the keys stay. */
+@media (max-height: 520px) {
+  .xfer-sheet { max-height: 96%; gap: 10px; padding-top: 10px; }
+  .xfer-sheet-body { overflow-y: auto; }
+  .xfer-sheet .transfer-widget-mount,
+  .xfer-sheet .xfer-zone { flex: none; }
+  .xfer-sheet .xfer-list,
+  .xfer-sheet .xfer-help { overflow: visible; }
+  .xfer-sheet-foot { padding-top: 10px; }
 }
 
 /* Nothing paints under a frosted overlay. */
 body.overlay-frozen .xfer-bar-fill { transition: none; }
 
 /* ── Settings → Controllo Remoto ─────────────────────────────────────────── */
-/* This block mounts directly under the paired-device list and borrows its
-   markup: .ra-page for the column, .ra-toggle-row for every switch, .ra-btn
-   for every button. Only what has no counterpart there is styled here (the
-   folder field and its status line), so the two panels cannot drift into
-   looking like two different products in one scroll.
-
-   The separator sits on the wrapper, but the padding does NOT: .ra-page brings
-   its own, plus the 560px column that keeps the text from running the full
-   width of a 4K settings pane. */
-
-#settings-transfer {
-  margin-top: 18px;
-  padding-top: 4px;
-  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, .08));
-}
-
-.xfer-page { gap: 10px; }
-
-.xfer-set-group { display: flex; flex-direction: column; gap: 8px; }
-
-.xfer-set-field { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
-
-/* A real path: monospace because the difference between two of them is often
-   one character, and full-width because it can be long and must never push the
-   panel sideways. */
-.xfer-set-input {
-  width: 100%;
-  min-height: 40px;
-  padding: 0 11px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-  font: 0.78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
-
-/* The folder chosen with the system dialog: the same path, read-only, wrapping
-   anywhere so a long one goes onto a second line instead of sideways. */
-.xfer-set-path {
-  font: 0.78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  overflow-wrap: anywhere;
-  color: var(--text-muted, rgba(255, 255, 255, 0.7));
-}
-
-.xfer-set-input:focus {
-  outline: none;
-  border-color: rgba(var(--accent-rgb), 0.55);
-}
-
-.xfer-set-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-/* Reserves its line whether or not there is a message, so confirming a save
-   does not nudge everything below it down. */
-.xfer-set-status {
-  font-size: 0.76rem;
-  line-height: 1.4;
-  min-height: 1.1em;
-  color: var(--text-muted, rgba(255, 255, 255, 0.55));
-}
-.xfer-set-status.is-ok { color: var(--accent, #1ed760); }
-.xfer-set-status.is-bad { color: #ff6b6b; }
-
-.xfer-set-foot { margin-top: 2px; }
+/* Settings → Phone: the folder rows. Everything else comes from SettingsPage.css. */
+#settings-overlay .xfer-set-field { flex-wrap: wrap; }
+.xfer-set-path { overflow-wrap: anywhere; }
+.xfer-set-input { flex: 1 0 100%; }
+#settings-overlay .xfer-set-input { width: 100%; font-size: 14px; }
+.xfer-set-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.xfer-set-status { flex: 1 0 100%; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+.xfer-set-status:empty { display: none; }
+.xfer-set-status.is-ok { color: var(--color-success); }
+.xfer-set-status.is-bad { color: var(--cst-danger); }
