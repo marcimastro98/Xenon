@@ -143,7 +143,7 @@ export const GUIDES = [
   ['xenon-exe.html', 'f.exe'],
 ];
 // Pages with a breadcrumb that are not guides.
-const CRUMB_ONLY = { 'download.html': 'f.download', 'faq.html': 'f.faq', 'privacy.html': 'f.privacy', 'releases.html': 'f.releases' };
+const CRUMB_ONLY = { 'download.html': 'f.download', 'faq.html': 'f.faq', 'pawnio.html': 'f.pawnio', 'privacy.html': 'f.privacy', 'releases.html': 'f.releases' };
 
 let labelCache = null;
 export function chromeLabels() {
@@ -205,6 +205,7 @@ const PAGES = [
   { file: 'docs/tablet-dashboard.html', lang: false },
   { file: 'docs/xeneon-edge-widgets.html', lang: false },
   { file: 'docs/xenon-exe.html', lang: false },
+  { file: 'docs/pawnio.html', lang: false },
   { file: 'docs/mac.html', lang: false },
   { file: 'docs/widgets.html', lang: false },
   { file: 'docs/deck.html', lang: false },

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#FFA657">
+<title>PawnIO란? CPU 온도를 읽는 드라이버</title>
+<meta name="description" content="PawnIO는 namazso가 만든 서명된 Windows 드라이버로, WinRing0 대신 쓰입니다. 하는 일, Xenon이 설치하는 이유, 제거 방법.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="PawnIO란? CPU 온도를 읽는 드라이버">
+<meta property="og:description" content="PawnIO는 namazso가 만든 서명된 Windows 드라이버로, WinRing0 대신 쓰입니다. 하는 일, Xenon이 설치하는 이유, 제거 방법.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/pawnio.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PawnIO란? CPU 온도를 읽는 드라이버">
+<meta name="twitter:description" content="PawnIO는 namazso가 만든 서명된 Windows 드라이버로, WinRing0 대신 쓰입니다. 하는 일, Xenon이 설치하는 이유, 제거 방법.">
+<link rel="canonical" href="https://xenon-app.com/ko/pawnio.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"PawnIO는 바이러스인가요?","acceptedAnswer":{"@type":"Answer","text":"아닙니다. 알려진 개발자가 서명한 드라이버이고, 소스 코드가 공개되어 있으며, LibreHardwareMonitor와 Fan Control 같은 앱이 설치합니다. 커널 드라이버라서 시스템에 깊이 접근할 수 있고, 그래서 서명된 모듈만 실행합니다."}},{"@type":"Question","name":"PawnIO가 필요한가요?","acceptedAnswer":{"@type":"Answer","text":"그것을 쓰는 앱에서 온도를 보고 싶을 때만 필요합니다. Xenon은 PawnIO 없이도 작동하며, 온도 값만 빠집니다."}},{"@type":"Question","name":"PawnIO는 누가 만드나요?","acceptedAnswer":{"@type":"Answer","text":"독립 개발자 namazso입니다. Xenon, CORSAIR, Microsoft가 만든 것이 아닙니다."}}]}</script>
+
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body data-sheet="orange">
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/pawnio.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/pawnio.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/pawnio.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/pawnio.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/pawnio.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/pawnio.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/pawnio.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">메뉴</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/pawnio.html" aria-current="page" data-xl="f.pawnio">PawnIO란?</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"PawnIO란?","item":"https://xenon-app.com/ko/pawnio.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="pio.h1">PawnIO</h1>
+        <p class="lede" data-i18n="pio.lede">드라이버 목록, 설치 확인 창, 안티치트 메시지에서 PawnIO를 봤다면, 이 페이지에서 그것이 무엇인지, 어떤 앱이 쓰는지, Xenon이 무엇에 쓰는지 알려 드립니다.</p>
+        <p class="updated" data-i18n="pio.updated">마지막 업데이트: 2026년 11월 8일</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">이 페이지 내용</p>
+      <a href="#what" data-i18n="pio.jump.what">PawnIO란</a>
+      <a href="#winring0" data-i18n="pio.jump.winring0">PawnIO와 WinRing0</a>
+      <a href="#xenon" data-i18n="pio.jump.xenon">Xenon이 설치하는 이유</a>
+      <a href="#anticheat" data-i18n="pio.jump.anticheat">안티치트</a>
+      <a href="#remove" data-i18n="pio.jump.remove">제거하기</a>
+      <a href="#faq" data-i18n="pio.jump.faq">질문</a>
+    </nav>
+    <div class="wrap">
+    <h2 id="what" data-i18n="pio.h.what">PawnIO란</h2>
+    <p data-i18n-html="pio.what.p1"><strong>PawnIO는 개발자 namazso가 만든 Windows용 서명된 커널 드라이버입니다.</strong> CPU 온도, 메인보드의 팬 칩, 메모리 센서를 읽으려면 일반 프로그램이 건드릴 수 없는 하드웨어 레지스터와 통신해야 합니다. 그래서 모니터링 앱에는 이 일을 대신 해 줄 작은 드라이버가 필요합니다.</p>
+    <p data-i18n-html="pio.what.p2">PawnIO의 차이점은 통과시키는 것이 아주 적다는 점입니다. 아무 프로그램에나 포트와 레지스터에 대한 직접 접근을 주는 대신, Pawn 언어로 작성된 작은 모듈을 실행하고, 각 모듈은 작성된 목적의 작업만 노출합니다. 또한 관리자의 키로 서명된 모듈만 불러옵니다. 소스 코드는 <a href="https://pawnio.eu/" rel="noopener">pawnio.eu</a>에 공개되어 있습니다.</p>
+
+    <h2 id="winring0" data-i18n="pio.h.winring0">PawnIO와 WinRing0</h2>
+    <p data-i18n-html="pio.winring0.p1">오랫동안 대부분의 하드웨어 모니터는 WinRing0를 썼습니다. PC의 어떤 프로그램에든 하드웨어 포트와 레지스터에 대한 직접 접근을 주는 오래된 드라이버입니다. 바로 그게 문제입니다. 악성 프로그램도 같은 문으로 들어올 수 있으니까요. Microsoft Defender는 이제 이를 <code>HackTool:Win32/Winring0</code>로 탐지해 격리하며, 그래서 많은 팬·센서 앱에서 갑자기 경고가 뜨기 시작했습니다.</p>
+    <p data-i18n="pio.winring0.p2">LibreHardwareMonitor, Fan Control, OpenRGB 등이 PawnIO로 옮겨 갔습니다. Xenon은 WinRing0를 함께 배포한 적이 없습니다.</p>
+
+    <h2 id="xenon" data-i18n="pio.h.xenon">Xenon이 PawnIO를 설치하는 이유</h2>
+    <p data-i18n-html="pio.xenon.p1">Windows에서 Xenon은 LibreHardwareMonitor를 통해 CPU와 디스크 온도를 읽고, LibreHardwareMonitor는 센서에 닿기 위해 PawnIO가 필요합니다. Xenon 설치 프로그램은 Microsoft의 패키지 관리자 winget에서 <code>namazso.PawnIO</code> 패키지로 PawnIO를 받기 때문에, 파일은 저희가 아니라 개발자에게서 직접 옵니다.</p>
+    <p data-i18n="pio.xenon.p2">드라이버를 설치하려면 관리자 확인이 필요합니다. 거절해도 Xenon은 작동하며, 온도만 표시되지 않습니다. PC에 이미 오래된 PawnIO가 있으면 설치 프로그램이 업데이트합니다. 오래된 버전에서는 CPU 값 일부가 비어 있기 때문입니다.</p>
+    <p data-i18n-html="pio.xenon.p3">macOS와 Linux에는 PawnIO가 없습니다. Mac에서는 <code>macmon</code>으로, Linux에서는 커널 자체의 센서로 온도를 읽습니다.</p>
+
+    <h2 id="anticheat" data-i18n="pio.h.anticheat">PawnIO와 안티치트</h2>
+    <p data-i18n-html="pio.anticheat.p1">PawnIO는 게임 밖에 있으며 게임의 메모리를 읽지 않습니다. 그래도 FACEIT 안티치트는 2.1.0 이전의 PawnIO를 차단했습니다. <code>PawnIO.sys</code>가 언급되면 <code>winget upgrade namazso.PawnIO</code>로 드라이버를 업데이트하거나 Xenon 설치 프로그램을 다시 실행하세요. 모든 안티치트를 시험해 본 것은 아닙니다. 문제가 생기면 <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>에 알려 주세요.</p>
+
+    <h2 id="remove" data-i18n="pio.h.remove">PawnIO 제거 방법</h2>
+    <p data-i18n-html="pio.remove.p1">Xenon을 제거할 때 PawnIO를 지우기 전에 물어보며, 기본값은 남겨 두는 것입니다. PC의 다른 모니터링 앱이 쓰고 있을 수 있기 때문입니다. 직접 지우려면 <code>winget uninstall namazso.PawnIO</code>를 실행하세요. PawnIO로 온도를 읽던 앱은 다시 설치할 때까지 온도를 표시하지 않습니다.</p>
+
+    <h2 id="faq" data-i18n="pio.h.faq">질문</h2>
+    <details><summary data-i18n="pio.faq.virus.q">PawnIO는 바이러스인가요?</summary><div class="body"><p data-i18n="pio.faq.virus.a">아닙니다. 알려진 개발자가 서명한 드라이버이고, 소스 코드가 공개되어 있으며, LibreHardwareMonitor와 Fan Control 같은 앱이 설치합니다. 커널 드라이버라서 시스템에 깊이 접근할 수 있고, 그래서 서명된 모듈만 실행합니다.</p></div></details>
+    <details><summary data-i18n="pio.faq.need.q">PawnIO가 필요한가요?</summary><div class="body"><p data-i18n="pio.faq.need.a">그것을 쓰는 앱에서 온도를 보고 싶을 때만 필요합니다. Xenon은 PawnIO 없이도 작동하며, 온도 값만 빠집니다.</p></div></details>
+    <details><summary data-i18n="pio.faq.who.q">PawnIO는 누가 만드나요?</summary><div class="body"><p data-i18n="pio.faq.who.a">독립 개발자 namazso입니다. Xenon, CORSAIR, Microsoft가 만든 것이 아닙니다.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="pio.card.h">대시보드 Xenon</h3>
+      <p data-i18n-html="pio.card.p">Xenon은 남는 모니터, 태블릿, 휴대폰, CORSAIR Xeneon Edge를 PC용 터치 제어판으로 바꿔 줍니다. 위젯 중에는 실시간 온도도 있습니다. 무료이고 계정이 필요 없습니다. <a href="/ko/">무엇을 하는지 보기</a> 또는 <a href="/ko/xenon-exe.html">Xenon이 Windows에서 실행하는 것</a>을 읽어 보세요.</p>
+    </div>
+    <!-- xenon:guides --><!-- /xenon:guides -->
+    </div>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">어떤 화면에서든 쓰는 무료 PC 위젯. Windows용이며 macOS와 Linux는 베타입니다.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit는 Vitals 위젯에 살면서 자세에 대해 한마디씩 합니다.</span></div>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다. 그 밖의 이름과 로고는 각 소유자의 것입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+</body>
+</html>

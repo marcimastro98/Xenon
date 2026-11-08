@@ -35,6 +35,7 @@ export const LANG_PAGES = [
   { page: 'single-screen.html', langs: ALL, dict: 'single-screen' },
   { page: 'fps-overlay.html', langs: ALL, dict: 'fps-overlay' },
   { page: 'screen-recorder.html', langs: ALL, dict: 'screen-recorder' },
+  { page: 'pawnio.html', langs: ALL, dict: 'pawnio' },
 ];
 
 // Every language a page is published in, English first.

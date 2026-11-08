@@ -185,6 +185,19 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://xenon-app.com/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://xenon-app.com/download.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html"/>
@@ -1794,6 +1807,84 @@
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/screen-recorder.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/screen-recorder.html"/>
     <lastmod>2026-11-04T08:58:11+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/fr/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/es/pawnio.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/pawnio.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/pawnio.html"/>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

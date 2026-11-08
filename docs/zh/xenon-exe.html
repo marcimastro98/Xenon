@@ -158,7 +158,7 @@
     <p data-i18n-html="exe.list.where">它们位于你的用户配置文件下的两个文件夹中，从不放在 Windows 系统目录里：<code>%LOCALAPPDATA%\Xenon</code> 和 <code>%LOCALAPPDATA%\Programs\Xenon</code>。一个按登录触发的计划任务会在你登录时以你自己的账户启动引擎。如果你在安装时接受了管理员提示，这个任务会以提升的权限运行，这样它才能读取温度；没有任何东西作为 Windows 服务安装。</p>
     <p data-i18n="exe.list.tools">此外还有 Xenon 为特定功能运行的工具，每个都来自各自的开发者，而不是本项目，并且只在需要它的功能开启时才运行：</p>
     <ul>
-      <li data-i18n-html="exe.tool.lhm"><strong>LibreHardwareMonitor</strong> 和 <strong>PawnIO</strong> 通过 winget 安装，用于读取 CPU 和磁盘温度。PawnIO 是一个已签名的内核驱动，用来取代 WinRing0，后者是大多数旧式硬件监控软件被误报的根源。Xenon 从未附带过 WinRing0，将来也不会。</li>
+      <li data-i18n-html="exe.tool.lhm"><strong>LibreHardwareMonitor</strong> 和 <strong><a href="/zh/pawnio.html">PawnIO</a></strong> 通过 winget 安装，用于读取 CPU 和磁盘温度。PawnIO 是一个已签名的内核驱动，用来取代 WinRing0，后者是大多数旧式硬件监控软件被误报的根源。Xenon 从未附带过 WinRing0，将来也不会。</li>
       <li data-i18n-html="exe.tool.presentmon"><strong>PresentMon</strong> 是 Intel 的帧时间工具，下载到 Xenon 自己的文件夹中，用于游戏内的真实帧率计数器。</li>
       <li data-i18n-html="exe.tool.ffmpeg"><strong>FFmpeg</strong> 用于语音输入和语音回复；<strong>Ollama</strong> 只在你把助手切换到免费的本地服务时才需要。安装程序不会下载这两者；需要时你可以在“设置”中安装。</li>
       <li data-i18n-html="exe.tool.sunshine"><strong>Sunshine</strong> 和 <strong>Tailscale</strong>，只在你开启远程控制电脑时才会用到。</li>

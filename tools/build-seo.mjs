@@ -893,6 +893,9 @@ const STATIC_ROUTES = [
   // people who found an unfamiliar process and want a straight answer, which the
   // home page is the wrong shape to give them.
   { loc: '/xenon-exe.html', file: 'docs/xenon-exe.html', priority: '0.7', changefreq: 'monthly' },
+  // The driver Xenon installs for temperatures: people meet the name in an
+  // installer prompt, a driver list or an anti-cheat message and search it.
+  { loc: '/pawnio.html', file: 'docs/pawnio.html', priority: '0.6', changefreq: 'monthly' },
   // "xenon download" and "xenon linux": 74 impressions in Search Console and
   // no clicks, because the home page's title carried neither word.
   { loc: '/download.html', file: 'docs/download.html', priority: '0.9', changefreq: 'weekly' },

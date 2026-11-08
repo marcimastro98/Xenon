@@ -24,7 +24,7 @@
     "exe.row.node": "대시보드 엔진입니다. Xenon은 로컬 웹 앱이므로, 이를 제공하는 것은 <code>127.0.0.1:3030</code>에서 대기하는 평범한 Node.js입니다. 이 주소에는 이 PC만 접근할 수 있습니다. 설정에서 휴대폰에서 접속을 켜면 로컬 네트워크에서도 대기하므로, 페어링한 휴대폰과 태블릿이 접속할 수 있습니다.",
     "exe.list.where": "파일은 Windows 자체가 아니라 사용자 프로필 아래의 두 폴더, <code>%LOCALAPPDATA%\\Xenon</code>과 <code>%LOCALAPPDATA%\\Programs\\Xenon</code>에 있습니다. 로그온할 때 실행되는 예약 작업이 사용자 본인의 계정으로 엔진을 시작합니다. 설치할 때 관리자 권한 요청을 수락했다면 이 작업은 관리자 권한으로 실행되며, 그래서 온도를 읽을 수 있습니다. Windows 서비스로 설치되는 것은 없습니다.",
     "exe.list.tools": "그 밖에 Xenon이 특정 기능을 위해 실행하는 도구들이 있습니다. 모두 이 프로젝트가 아니라 각자의 개발자가 만든 것이며, 그 도구가 필요한 기능이 켜져 있을 때만 실행됩니다.",
-    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong>와 <strong>PawnIO</strong>는 winget으로 설치되며 CPU와 디스크 온도를 읽습니다. PawnIO는 서명된 커널 드라이버로, 예전 하드웨어 모니터링 도구에서 나온 오탐 대부분의 원인이던 드라이버 WinRing0를 대체합니다. Xenon은 WinRing0를 배포한 적이 없고 앞으로도 배포하지 않습니다.",
+    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong>와 <strong><a href=\"pawnio.html\">PawnIO</a></strong>는 winget으로 설치되며 CPU와 디스크 온도를 읽습니다. PawnIO는 서명된 커널 드라이버로, 예전 하드웨어 모니터링 도구에서 나온 오탐 대부분의 원인이던 드라이버 WinRing0를 대체합니다. Xenon은 WinRing0를 배포한 적이 없고 앞으로도 배포하지 않습니다.",
     "exe.tool.presentmon": "<strong>PresentMon</strong>은 Intel의 프레임 타임 도구로, 실제 게임 내 FPS 카운터를 위해 Xenon 자체 폴더에 내려받습니다.",
     "exe.tool.ffmpeg": "음성 입력과 음성 답변을 위한 <strong>FFmpeg</strong>, 그리고 어시스턴트를 무료 로컬 제공자로 바꿀 때만 쓰는 <strong>Ollama</strong>. 설치 프로그램은 둘 다 내려받지 않으며, 원할 때 설정에서 설치합니다.",
     "exe.tool.sunshine": "<strong>Sunshine</strong>과 <strong>Tailscale</strong>은 원격 PC 제어를 켰을 때만 쓰입니다.",
