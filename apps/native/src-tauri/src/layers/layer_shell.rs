@@ -114,7 +114,7 @@ fn band(kind: Kind, editing: bool) -> c_int {
 /// (-1); the widget layers keep clear of the panels (0), like the work area on
 /// the other systems.
 fn exclusive_zone(kind: Kind) -> c_int {
-    if matches!(kind, Kind::Wallpaper | Kind::Saver | Kind::Draw | Kind::Menu) {
+    if matches!(kind, Kind::Wallpaper | Kind::Saver | Kind::Draw) {
         -1
     } else {
         0
@@ -176,7 +176,7 @@ pub fn place_glow(w: &gtk::Window, monitor: Option<&gtk::gdk::Monitor>) {
 }
 
 fn takes_keys(kind: Kind) -> bool {
-    matches!(kind, Kind::Saver | Kind::Draw | Kind::Menu)
+    matches!(kind, Kind::Saver | Kind::Draw)
 }
 
 #[cfg(test)]
@@ -204,8 +204,7 @@ mod tests {
 
     #[test]
     fn only_the_screensaver_and_the_drawing_sheet_take_the_keyboard() {
-        assert!(takes_keys(Kind::Saver) && takes_keys(Kind::Draw) && takes_keys(Kind::Menu));
-        assert_eq!(exclusive_zone(Kind::Menu), -1);
+        assert!(takes_keys(Kind::Saver) && takes_keys(Kind::Draw));
         assert!(!takes_keys(Kind::Overlay) && !takes_keys(Kind::Desktop) && !takes_keys(Kind::Wallpaper));
     }
 }

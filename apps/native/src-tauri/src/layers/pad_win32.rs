@@ -3,7 +3,8 @@
 //! answers whatever window has the focus, so the hold works over a game.
 //! xinput1_4 ships with Windows 8 and later; it is opened at run time. Asking an
 //! empty slot is slow, so the four slots are looked at every few seconds and only
-//! the connected ones read. PlayStation pads are read beside it (pad_winmm.rs).
+//! the connected ones read. PlayStation pads are read in a process of their own
+//! (pad_sony.rs).
 #![cfg(target_os = "windows")]
 
 use std::sync::OnceLock;
@@ -11,6 +12,7 @@ use tauri::AppHandle;
 
 use super::ffi::{GetProcAddress, GetTickCount64, LoadLibraryW};
 use super::pad::{self, Hold, LOOK_EVERY, READ_EVERY};
+use super::pad_sony::Reader;
 use super::pad_winmm;
 
 const SLOTS: u32 = 4;
@@ -69,18 +71,18 @@ pub fn run(app: AppHandle, gen: u32) {
     let xinput = get_state();
     let mut hold = Hold::default();
     let mut slots: Vec<u32> = Vec::new();
-    let mut sony: Vec<u32> = Vec::new();
+    let mut sony = Reader::default();
     let mut looked: u64 = 0;
     while pad::live(gen) {
         // SAFETY: no arguments.
         let now = unsafe { GetTickCount64() };
-        let none = slots.is_empty() && sony.is_empty();
+        let none = slots.is_empty() && !sony.running();
         if none || now.saturating_sub(looked) >= LOOK_EVERY.as_millis() as u64 {
             slots = xinput.map_or_else(Vec::new, |f| (0..SLOTS).filter(|&s| read(f, s).is_some()).collect());
-            sony = pad_winmm::look();
+            sony.look(now);
             looked = now;
         }
-        let mut down = pad_winmm::chord(&mut sony);
+        let mut down = sony.held();
         if let Some(f) = xinput {
             slots.retain(|&s| match read(f, s) {
                 Some(b) => {
@@ -93,6 +95,6 @@ pub fn run(app: AppHandle, gen: u32) {
         if hold.step(down, now) {
             pad::fire(&app);
         }
-        std::thread::sleep(if slots.is_empty() && sony.is_empty() { LOOK_EVERY } else { READ_EVERY });
+        std::thread::sleep(if slots.is_empty() && !sony.running() { LOOK_EVERY } else { READ_EVERY });
     }
 }

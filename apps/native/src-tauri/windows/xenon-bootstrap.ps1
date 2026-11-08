@@ -368,7 +368,7 @@ $tmp = Join-Path $env:TEMP 'xenon-bootstrap'
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
 # Windows PowerShell 5.1's Remove-Item -Recurse fails on a path holding an 8.3
-# short name ("An object at the specified path C:\Users\MRC777~1.ELE does not
+# short name ("An object at the specified path C:\Users\MARIO~1.ROS does not
 # exist"), and %TEMP% is one whenever the user name has a dot or is long. The
 # extract folder a run left behind then stopped every later run before the
 # install, with no sensors, PresentMon or startup task ever set up. .NET's

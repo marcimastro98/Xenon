@@ -11,8 +11,13 @@ mod focus_guard;
 #[cfg(windows)]
 mod gpu;
 mod layers;
+#[cfg(windows)]
+pub use layers::{pad_reader, PAD_READER_ARG};
+#[cfg(windows)]
+mod login_task;
 mod memory_level;
 mod monitor;
+mod monitor_names;
 mod nav_policy;
 #[cfg(desktop)]
 mod page_load;
@@ -209,12 +214,19 @@ pub(crate) fn display_state_js(state: &serde_json::Value) -> String {
 #[cfg(desktop)]
 pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
     use tauri_plugin_autostart::ManagerExt;
+    // A development build leaves the login entries alone: one run from the build
+    // folder would point the PC at an unoptimized shell at every sign-in.
+    if cfg!(debug_assertions) {
+        return;
+    }
     // macOS is the exception and not a compromise: there the login item starts
     // the APP, and the app is what spawns the backend so it inherits Full Disk
     // Access (see spawn_backend_nudge). Not launching it would either leave the
     // backend down or hand it a far smaller view of the disk.
     let want = prefs::load(app).shows_on_this_pc() || cfg!(target_os = "macos");
     let manager = app.autolaunch();
+    #[cfg(windows)]
+    login_task::sync(want);
     if want {
         // Idempotent, and it REWRITES the entry — which is what migrates an
         // existing registration onto the new `--autostart` argument.
@@ -1289,19 +1301,52 @@ fn run_in_terminal(script: &std::path::Path) -> bool {
         let Ok(mut child) = command.args(*prefix).arg("bash").arg(script).spawn() else {
             continue;
         };
-        // ~1.5s: long enough for a loader error to land, short enough that the
-        // splash's own setup button is still responsive behind it.
-        for _ in 0..15 {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            match child.try_wait() {
-                Ok(Some(status)) if !status.success() => break,
-                Ok(Some(_)) | Ok(None) => return true,
-                Err(_) => return true,
-            }
+        let failed = terminal_failed(|| match child.try_wait() {
+            Ok(None) => None,
+            Ok(Some(status)) => Some(status.success()),
+            Err(_) => Some(true),
+        });
+        if !failed {
+            return true;
         }
-        // Fell out of the loop: it exited non-zero. Nothing was shown — next.
+        // It exited non-zero. Nothing was shown, so the next one is tried.
     }
     false
+}
+
+/// Whether a terminal died with an error in its first ~1.5s: long enough for a
+/// loader error to land, short enough that the splash's own setup button is still
+/// responsive behind it. `poll` is `None` while it runs, `Some(clean)` once gone.
+#[cfg(target_os = "linux")]
+fn terminal_failed(mut poll: impl FnMut() -> Option<bool>) -> bool {
+    for _ in 0..15 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        if let Some(clean) = poll() {
+            return !clean;
+        }
+    }
+    false
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod terminal_tests {
+    use super::terminal_failed;
+
+    #[test]
+    fn a_terminal_that_dies_after_the_first_look_has_failed() {
+        let mut looks = 0;
+        assert!(terminal_failed(|| {
+            looks += 1;
+            (looks == 5).then_some(false)
+        }));
+        assert_eq!(looks, 5);
+    }
+
+    #[test]
+    fn a_clean_exit_or_a_running_terminal_counts_as_opened() {
+        assert!(!terminal_failed(|| Some(true)));
+        assert!(!terminal_failed(|| None));
+    }
 }
 
 /// A `Command` for a HOST binary, with the AppImage's environment stripped back
@@ -1831,12 +1876,25 @@ pub fn run() {
                 // URL alone says which one loaded, so the window hides before the
                 // driver paints and comes back when the dashboard loads. Only the
                 // main webview's loads count: this hook also fires for every
-                // widget-layer window, whose page is `/` too.
-                if is_dashboard && _webview.label() == "main" {
+                // widget-layer window, whose page is `/` too. Nor does the splash:
+                // it is not the dashboard leaving the driver.
+                if is_dashboard
+                    && _webview.label() == "main"
+                    && nav_policy::is_backend_page(_payload.url(), monitor::backend_port())
+                {
                     if let Some(win) = _webview.app_handle().get_webview_window("main") {
-                        if monitor::set_driver(&win, _payload.url().path() == monitor::DRIVER_PATH) {
+                        let url = _payload.url();
+                        let full = url.query_pairs().any(|(k, v)| k == "full" && v == "1");
+                        let on_driver = url.path() == monitor::DRIVER_PATH;
+                        if monitor::set_driver(&win, on_driver, full) {
                             let app = _webview.app_handle().clone();
                             std::thread::spawn(move || layers::driver_left(&app));
+                        }
+                        // Not on `Started`: that one still has the address before
+                        // the server's redirect to the driver.
+                        if !started && monitor::opened_to_nothing(on_driver) {
+                            let app = _webview.app_handle().clone();
+                            std::thread::spawn(move || monitor::show_now(&app));
                         }
                         // A window that starts hidden (phone mode, a login
                         // start) never passed through `hide_window`.
@@ -1925,6 +1983,9 @@ pub fn run() {
             let autostarted = std::env::args().any(|a| a == "--autostart");
             // "Widgets only" last time: a login start shows no splash either.
             monitor::seed_driver(&display_prefs);
+            if !autostarted {
+                monitor::started_by_hand();
+            }
             let start_hidden =
                 (!display_prefs.shows_on_this_pc() || display_prefs.widgets_only) && autostarted;
             // A deliberate launch in phone mode must SHOW the window: nothing is
@@ -1952,76 +2013,78 @@ pub fn run() {
             let layers_why = layers::linux::probe();
             #[cfg(not(target_os = "linux"))]
             let layers_why: Option<&str> = None;
+            let caps = serde_json::json!({
+                "shellVersion": app.package_info().version.to_string(),
+                "updateEvents": true,
+                "shellSelfUpdate": shell_self_update(),
+                "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
+                "displayPicker": true,
+                // "Sign in to Twitch" in the Twitch tile (xenon-app:twitch-login).
+                // Windows only: WebKit blocks the third-party cookie the
+                // player embed would need, so elsewhere it could not work.
+                "twitchLogin": cfg!(windows),
+                // The interface scale as WKWebView page zoom (xenon-zoom:set).
+                // macOS only: there the dashboard's CSS `zoom` reaches into
+                // the sandboxed widget frames without shrinking their
+                // viewport, so SDK widgets came out enlarged, blurry and
+                // cropped (Discord, Oct 2026). WebView2 keeps the CSS path:
+                // it resets native zoom on every cancelled signal navigation.
+                "nativePageZoom": cfg!(target_os = "macos"),
+                // The monitor list, injected BEFORE the page loads. It used
+                // to arrive only with the first `push_display_state`, after
+                // the dashboard had loaded — so the first-run screen picker
+                // opened with no screens on it and, if that push never
+                // landed, stayed that way: a question about which screen to
+                // use, asked without offering one. The snapshot has no
+                // `display.active` (no window exists yet); that half still
+                // comes with the push.
+                "displays": monitor::display_list_json(app.handle()),
+                "phoneMode": !display_prefs.shows_on_this_pc(),
+                // Widget layers on the desktop and in the overlay
+                // (xenon-app:layers-sync): Windows, macOS and Linux on X11.
+                // Anchoring to an app is Windows only (`draws` per backend).
+                "layers": layers_why.is_none(),
+                "layersWhy": layers_why,
+                // Xenon AI's edge glow on other screens (xenon-app:ai-glow):
+                // native windows wherever layer windows can be drawn, so
+                // on Linux not on GNOME Wayland or X11 without a compositor.
+                "aiGlow": layers_why.is_none(),
+                // The Ambient scene as animated wallpaper and screensaver
+                // (layers/scene.rs), in the same layers-sync, where layer
+                // windows can be drawn at all.
+                "scene": layers_why.is_none() && layers::draws_scene(),
+                // "Draw on screen" as a layer window (draw.html, the
+                // `draw:` surface) where the capture engine has no sheet.
+                "draw": layers_why.is_none() && layers::draws_sheet(),
+                // The Xenon menu over the main screen (menu.html, the
+                // `menu:` surface) and its global shortcut.
+                "menu": layers_why.is_none() && layers::draws_menu(),
+                // A widget that follows one app's window (`anchor:` surfaces).
+                "anchor": layers_why.is_none() && layers::draws_anchor(),
+                // It says which virtual desktop is shown (layers/desks.rs).
+                "desks": layers_why.is_none() && layers::desks::supported(),
+                // Holding View + Menu on a controller opens the Xenon menu
+                // (layers/pad.rs).
+                "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),
+                // Linux stacks the wallpaper under the windows, not behind
+                // the icons a desktop may draw (layers/linux.rs).
+                "wallpaperBehindIcons": !cfg!(target_os = "linux"),
+                // The see-through window (see_through.rs, xenon-app:see-through-*).
+                // `seeThroughOn`: this window was built transparent, so the
+                // dashboard paints no backdrop of its own. `seeThroughWanted`:
+                // the user's switch. `seeThroughReady`: it could be built
+                // transparent here; when not, `seeThroughWhy` says why
+                // ("gpu" on Windows, "compositor" on Linux).
+                "seeThrough": cfg!(any(windows, target_os = "macos", target_os = "linux")),
+                "seeThroughOn": see_through.on,
+                "seeThroughWhy": see_through.why,
+                "seeThroughWanted": display_prefs.see_through,
+                "seeThroughReady": see_through.ready,
+                "splashLang": display_prefs.language.clone().unwrap_or_default(),
+            });
+            layers::set_menu_caps(&caps);
             let caps_js = format!(
-                "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
-                serde_json::json!({
-                    "shellVersion": app.package_info().version.to_string(),
-                    "updateEvents": true,
-                    "shellSelfUpdate": shell_self_update(),
-                    "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
-                    "displayPicker": true,
-                    // "Sign in to Twitch" in the Twitch tile (xenon-app:twitch-login).
-                    // Windows only: WebKit blocks the third-party cookie the
-                    // player embed would need, so elsewhere it could not work.
-                    "twitchLogin": cfg!(windows),
-                    // The interface scale as WKWebView page zoom (xenon-zoom:set).
-                    // macOS only: there the dashboard's CSS `zoom` reaches into
-                    // the sandboxed widget frames without shrinking their
-                    // viewport, so SDK widgets came out enlarged, blurry and
-                    // cropped (Discord, Oct 2026). WebView2 keeps the CSS path:
-                    // it resets native zoom on every cancelled signal navigation.
-                    "nativePageZoom": cfg!(target_os = "macos"),
-                    // The monitor list, injected BEFORE the page loads. It used
-                    // to arrive only with the first `push_display_state`, after
-                    // the dashboard had loaded — so the first-run screen picker
-                    // opened with no screens on it and, if that push never
-                    // landed, stayed that way: a question about which screen to
-                    // use, asked without offering one. The snapshot has no
-                    // `display.active` (no window exists yet); that half still
-                    // comes with the push.
-                    "displays": monitor::display_list_json(app.handle()),
-                    "phoneMode": !display_prefs.shows_on_this_pc(),
-                    // Widget layers on the desktop and in the overlay
-                    // (xenon-app:layers-sync): Windows, macOS and Linux on X11.
-                    // Anchoring to an app is Windows only (`draws` per backend).
-                    "layers": layers_why.is_none(),
-                    "layersWhy": layers_why,
-                    // Xenon AI's edge glow on other screens (xenon-app:ai-glow):
-                    // native windows wherever layer windows can be drawn, so
-                    // on Linux not on GNOME Wayland or X11 without a compositor.
-                    "aiGlow": layers_why.is_none(),
-                    // The Ambient scene as animated wallpaper and screensaver
-                    // (layers/scene.rs), in the same layers-sync, where layer
-                    // windows can be drawn at all.
-                    "scene": layers_why.is_none() && layers::draws_scene(),
-                    // "Draw on screen" as a layer window (draw.html, the
-                    // `draw:` surface) where the capture engine has no sheet.
-                    "draw": layers_why.is_none() && layers::draws_sheet(),
-                    // The Xenon menu over the main screen (menu.html, the
-                    // `menu:` surface) and its global shortcut.
-                    "menu": layers_why.is_none() && layers::draws_menu(),
-                    // A widget that follows one app's window (`anchor:` surfaces).
-                    "anchor": layers_why.is_none() && layers::draws_anchor(),
-                    // It says which virtual desktop is shown (layers/desks.rs).
-                    "desks": layers_why.is_none() && layers::desks::supported(),
-                    // Holding View + Menu on a controller opens the Xenon menu
-                    // (layers/pad.rs).
-                    "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),
-                    // Linux stacks the wallpaper under the windows, not behind
-                    // the icons a desktop may draw (layers/linux.rs).
-                    "wallpaperBehindIcons": !cfg!(target_os = "linux"),
-                    // The see-through window (see_through.rs, xenon-app:see-through-*).
-                    // `seeThroughOn`: this window was built transparent, so the
-                    // dashboard paints no backdrop of its own. `seeThroughWanted`:
-                    // the user's switch. `seeThroughReady`: it could be built
-                    // transparent here; when not, `seeThroughWhy` says why
-                    // ("gpu" on Windows, "compositor" on Linux).
-                    "seeThrough": cfg!(any(windows, target_os = "macos", target_os = "linux")),
-                    "seeThroughOn": see_through.on,
-                    "seeThroughWhy": see_through.why,
-                    "seeThroughWanted": display_prefs.see_through,
-                    "seeThroughReady": see_through.ready,
-                })
+                "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{caps});}}catch(e){{}}"
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
             // Whether the splash may offer "Complete setup" at all: release
@@ -2190,6 +2253,14 @@ pub fn run() {
                             "spotlight-open" => {
                                 let h = nav_handle.clone();
                                 std::thread::spawn(move || spotlight_window::open(&h));
+                            }
+                            // The language the splash speaks at the next launch.
+                            "splash-language" => {
+                                let code = url.query_pairs().find(|(k, _)| k == "l")
+                                    .and_then(|(_, v)| prefs::clean_language(&v));
+                                if let Some(code) = code {
+                                    prefs::update(&nav_handle, |p| p.language = Some(code));
+                                }
                             }
                             // The Twitch tile's "Sign in to Twitch": twitch.tv's own
                             // sign-in page in this profile, so the player embed
@@ -2497,6 +2568,17 @@ pub fn run() {
                     }
                 });
             }
+
+            // The X of a dashboard visited from "widgets only" ends the visit: the
+            // widgets stay and the app must not quit with them on the screen.
+            let visited = window.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if monitor::end_visit(&visited) {
+                        api.prevent_close();
+                    }
+                }
+            });
 
             // WebKit renders the page in its own process; when that one dies the
             // window keeps its last frame, every timer in the page stops, and the

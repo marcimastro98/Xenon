@@ -145,14 +145,22 @@ pub(super) fn find(handle: isize) -> Option<gtk::Window> {
 }
 
 fn configure(w: &gtk::Window, e: &Entry) {
+    // A window with a title bar on every desktop: a layer surface has none.
+    if e.kind == Kind::Menu {
+        w.input_shape_combine_region(None);
+        // An ordinary window unless a game is on.
+        w.set_keep_above(super::menu_window::stays_on_top());
+        w.set_accept_focus(true);
+        return;
+    }
     if layer_shell() {
         let monitor = e.area.and_then(|[x, y, width, height]| w.display().monitor_at_point(x + width / 2, y + height / 2));
         layer_shell::place(w, e.kind, EDITING.load(Ordering::Relaxed), monitor.as_ref());
         match e.kind {
             Kind::Wallpaper => show_wallpaper(w, e),
             // Every input is the screensaver's (any key or move ends it), or
-            // the drawing sheet's, or the menu's.
-            Kind::Saver | Kind::Draw | Kind::Menu => {
+            // the drawing sheet's.
+            Kind::Saver | Kind::Draw => {
                 w.input_shape_combine_region(None);
                 w.show();
             }
@@ -162,7 +170,7 @@ fn configure(w: &gtk::Window, e: &Entry) {
     }
     match e.kind {
         Kind::Wallpaper => wallpaper(w, e),
-        Kind::Saver | Kind::Draw | Kind::Menu => take_all(w),
+        Kind::Saver | Kind::Draw => take_all(w),
         Kind::Anchor => anchored(w),
         _ => widgets(w, e.kind),
     }
@@ -265,6 +273,9 @@ fn cut(w: &gtk::Window, rects: &[[i32; 4]]) {
 }
 
 /// Apply a sync: forget windows that are gone, set up new ones.
+/// No saver or menu here takes the focus away from an app (see macos.rs, win32.rs).
+pub fn forget_return_focus() {}
+
 pub fn apply(plans: Vec<Plan>) {
     STATE.with(|cell| {
         let Ok(mut st) = cell.try_borrow_mut() else {
@@ -276,6 +287,9 @@ pub fn apply(plans: Vec<Plan>) {
             let Some(w) = find(p.handle) else {
                 continue;
             };
+            // Takes the keyboard when it opens, never again: the user may be
+            // in the app under it by the next sync.
+            let menu_opened = p.kind == Kind::Menu && !old.iter().any(|e| e.handle == p.handle);
             let mut e = match old.iter().position(|e| e.handle == p.handle) {
                 Some(i) => old.swap_remove(i),
                 None => {
@@ -293,6 +307,9 @@ pub fn apply(plans: Vec<Plan>) {
                 anchored.push((p.handle, a));
             }
             configure(&w, &e);
+            if menu_opened {
+                w.present();
+            }
             st.entries.push(e);
         }
         st.pending.retain(|(h, _)| find(*h).is_some());
@@ -374,8 +391,9 @@ fn fullscreen_monitor() -> Option<gtk::gdk::Monitor> {
 
 /// The page's tile rectangles, and whether the widgets are being edited
 /// (`None` from the alerts window, which has no say in it). Main thread: the
-/// navigation hooks run there.
-pub fn set_region(handle: isize, rects: Vec<[i32; 4]>, editing: Option<bool>) {
+/// navigation hooks run there. The input shape is all they cut here, the drawing
+/// stays whole, so words that clicks go through need nothing.
+pub fn set_region(handle: isize, rects: Vec<[i32; 4]>, _through: Vec<[i32; 4]>, editing: Option<bool>) {
     STATE.with(|cell| {
         let Ok(mut st) = cell.try_borrow_mut() else {
             return;

@@ -22,6 +22,15 @@ fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
 
+/// The wallpaper window is gone: Explorer keeps showing its last frame until
+/// the desktop is drawn again, so a scene turned off stayed on screen. Lively
+/// does the same (WinDesktopCore.cs). A null path keeps the user's own picture.
+pub fn repaint_desktop() {
+    const SPI_SETDESKWALLPAPER: u32 = 0x14;
+    const SPIF_UPDATEINIFILE: u32 = 1;
+    unsafe { SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, std::ptr::null_mut(), SPIF_UPDATEINIFILE) };
+}
+
 fn find(parent: isize, after: isize, class: &str) -> isize {
     let c = wide(class);
     unsafe { FindWindowExW(parent, after, c.as_ptr(), std::ptr::null()) }
@@ -149,9 +158,43 @@ pub fn take_focus(h: isize) -> bool {
     unsafe { SetForegroundWindow(h) != 0 }
 }
 
-/// Give the focus back to the window that had it before the screensaver.
+/// Bring the menu forward over the app in use. The user asked for it, but the key
+/// reached the helper and not this process, so Windows refuses the foreground and
+/// Esc and the arrows would stay in that app. Sharing the input of the window in
+/// front lifts the refusal: Windows Terminal summons its window the same way.
+pub fn force_focus(h: isize) {
+    unsafe {
+        SetForegroundWindow(h);
+        let front = GetForegroundWindow();
+        if front == h {
+            return;
+        }
+        let theirs = GetWindowThreadProcessId(front, std::ptr::null_mut());
+        let ours = GetCurrentThreadId();
+        let joined = theirs != 0 && theirs != ours && AttachThreadInput(ours, theirs, 1) != 0;
+        SetForegroundWindow(h);
+        if joined {
+            AttachThreadInput(ours, theirs, 0);
+        }
+    }
+}
+
+/// Whether the focus is still Xenon's to hand back: another app in front means the
+/// user went there (the system's screenshot tool, Alt+Tab) and it stays there.
+fn focus_is_ours(front_pid: u32, own_pid: u32) -> bool {
+    front_pid == 0 || front_pid == own_pid
+}
+
+/// Give the focus back to the window that had it before the screensaver or the
+/// menu. Never to a hidden one: Windows would take it, and the keyboard would
+/// reach nothing. Read here and not from the foreground hook: its event for the
+/// app the user went to can arrive after the close, or not at all.
 pub fn give_back(prev: isize) {
-    if prev != 0 && unsafe { IsWindow(prev) } != 0 {
+    let front = pid_of(unsafe { GetForegroundWindow() });
+    if !focus_is_ours(front, unsafe { GetCurrentProcessId() }) {
+        return;
+    }
+    if prev != 0 && unsafe { IsWindow(prev) != 0 && IsWindowVisible(prev) != 0 } {
         unsafe { SetForegroundWindow(prev) };
     }
 }
@@ -159,6 +202,13 @@ pub fn give_back(prev: isize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_focus_stays_with_the_app_the_user_went_to() {
+        assert!(focus_is_ours(7, 7), "the menu was in front");
+        assert!(focus_is_ours(0, 7), "nothing in front while the window closes");
+        assert!(!focus_is_ours(9, 7));
+    }
 
     #[test]
     fn only_a_window_over_the_whole_monitor_is_full_screen() {

@@ -104,9 +104,15 @@ pub const WS_EX_NOACTIVATE: isize = 0x0800_0000;
 pub const WS_EX_TOPMOST: u32 = 0x0000_0008;
 pub const WS_EX_TRANSPARENT: u32 = 0x0000_0020;
 pub const WS_EX_TOOLWINDOW: u32 = 0x0000_0080;
+pub const WS_EX_APPWINDOW: u32 = 0x0004_0000;
 pub const WS_EX_LAYERED: u32 = 0x0008_0000;
 pub const WS_POPUP: u32 = 0x8000_0000;
 pub const WM_NCHITTEST: u32 = 0x0084;
+pub const WM_NCPAINT: u32 = 0x0085;
+pub const WM_NCACTIVATE: u32 = 0x0086;
+/// Undocumented: the system's own paint of the caption and of the frame.
+pub const WM_NCUAHDRAWCAPTION: u32 = 0x00AE;
+pub const WM_NCUAHDRAWFRAME: u32 = 0x00AF;
 pub const WM_TIMER: u32 = 0x0113;
 pub const HTTRANSPARENT: isize = -1;
 pub const ULW_ALPHA: u32 = 2;
@@ -114,8 +120,10 @@ pub const AC_SRC_ALPHA: u8 = 1;
 pub const WDA_EXCLUDEFROMCAPTURE: u32 = 0x11;
 pub const WM_WINDOWPOSCHANGING: u32 = 0x0046;
 pub const WM_NCDESTROY: u32 = 0x0082;
+pub const WM_DPICHANGED: u32 = 0x02E0;
 pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
 pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
+pub const EVENT_OBJECT_SHOW: u32 = 0x8002;
 pub const EVENT_OBJECT_HIDE: u32 = 0x8003;
 pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
 pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
@@ -125,19 +133,46 @@ pub const RGN_OR: i32 = 2;
 pub const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
 pub const DWMWA_EXTENDED_FRAME_BOUNDS: u32 = 9;
 pub const DWMWA_CLOAKED: u32 = 14;
+pub const DWMWA_TRANSITIONS_FORCEDISABLED: u32 = 3;
 // The animated wallpaper and the screensaver (scene.rs).
 pub const GWL_STYLE: i32 = -16;
 pub const WS_CHILD: isize = 0x4000_0000;
 pub const WS_TOPLEVEL_BITS: isize = 0x8000_0000 | 0x00C0_0000 | 0x0004_0000; // popup, caption, thick frame
 pub const WS_EX_NOREDIRECTIONBITMAP: isize = 0x0020_0000;
 pub const LWA_ALPHA: u32 = 2;
+pub const VK_LBUTTON: i32 = 1;
+pub const VK_RBUTTON: i32 = 2;
 pub const SM_REMOTESESSION: i32 = 0x1000;
 pub const SMTO_NORMAL: u32 = 0;
 pub const SYSTEM_EXECUTION_STATE: i32 = 16;
 pub const ES_DISPLAY_REQUIRED: u32 = 0x2;
 
+/// RAWINPUTDEVICELIST.
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct RawDeviceListItem {
+    pub device: isize,
+    pub kind: u32,
+}
+
+/// RID_DEVICE_INFO with its HID side: the union is as long as its keyboard side.
+#[repr(C)]
+#[derive(Default)]
+pub struct RawDeviceInfo {
+    pub size: u32,
+    pub kind: u32,
+    pub vendor: u32,
+    pub product: u32,
+    pub version: u32,
+    pub usage_page: u16,
+    pub usage: u16,
+    pub rest: [u32; 2],
+}
+
 #[link(name = "user32")]
 extern "system" {
+    pub fn GetRawInputDeviceList(list: *mut RawDeviceListItem, count: *mut u32, size: u32) -> u32;
+    pub fn GetRawInputDeviceInfoW(device: isize, command: u32, data: *mut core::ffi::c_void, size: *mut u32) -> u32;
     pub fn SetWindowPos(h: isize, after: isize, x: i32, y: i32, cx: i32, cy: i32, f: u32) -> i32;
     pub fn GetWindowRect(h: isize, r: *mut Rect) -> i32;
     pub fn GetWindowLongPtrW(h: isize, i: i32) -> isize;
@@ -170,6 +205,8 @@ extern "system" {
         h: isize, dst: isize, pos: *const Point, size: *const Size, src: isize, src_pos: *const Point,
         key: u32, blend: *const Blend, flags: u32,
     ) -> i32;
+    pub fn GetCursorPos(p: *mut Point) -> i32;
+    pub fn GetAsyncKeyState(key: i32) -> i16;
     pub fn SetTimer(h: isize, id: usize, ms: u32, proc_: isize) -> usize;
     pub fn KillTimer(h: isize, id: usize) -> i32;
     pub fn SetWindowDisplayAffinity(h: isize, affinity: u32) -> i32;
@@ -178,11 +215,13 @@ extern "system" {
     pub fn SetParent(h: isize, parent: isize) -> isize;
     pub fn GetParent(h: isize) -> isize;
     pub fn FindWindowExW(parent: isize, after: isize, class: *const u16, name: *const u16) -> isize;
+    pub fn SystemParametersInfoW(action: u32, param: u32, value: *mut core::ffi::c_void, flags: u32) -> i32;
     pub fn SendMessageTimeoutW(h: isize, m: u32, w: usize, l: isize, f: u32, ms: u32, out: *mut usize) -> isize;
     pub fn MapWindowPoints(from: isize, to: isize, pts: *mut Point, n: u32) -> i32;
     pub fn SetLayeredWindowAttributes(h: isize, key: u32, alpha: u8, flags: u32) -> i32;
     pub fn GetSystemMetrics(i: i32) -> i32;
     pub fn SetForegroundWindow(h: isize) -> i32;
+    pub fn AttachThreadInput(from: u32, to: u32, attach: i32) -> i32;
 }
 
 #[link(name = "powrprof")]
@@ -200,6 +239,7 @@ extern "system" {
 #[link(name = "gdi32")]
 extern "system" {
     pub fn CreateRectRgn(l: i32, t: i32, r: i32, b: i32) -> isize;
+    pub fn CreateRoundRectRgn(l: i32, t: i32, r: i32, b: i32, w: i32, h: i32) -> isize;
     pub fn CombineRgn(dst: isize, a: isize, b: isize, mode: i32) -> i32;
     pub fn DeleteObject(h: isize) -> i32;
     pub fn CreateCompatibleDC(dc: isize) -> isize;
@@ -216,6 +256,7 @@ extern "system" {
     pub fn QueryFullProcessImageNameW(h: isize, flags: u32, buf: *mut u16, len: *mut u32) -> i32;
     pub fn CloseHandle(h: isize) -> i32;
     pub fn GetCurrentProcessId() -> u32;
+    pub fn GetCurrentThreadId() -> u32;
     pub fn GetModuleHandleW(name: *const u16) -> isize;
     pub fn GetTickCount64() -> u64;
     pub fn CreateEventW(attrs: *const core::ffi::c_void, manual: i32, initial: i32, name: *const u16) -> isize;
@@ -239,6 +280,7 @@ extern "system" {
 #[link(name = "dwmapi")]
 extern "system" {
     pub fn DwmGetWindowAttribute(h: isize, attr: u32, out: *mut core::ffi::c_void, size: u32) -> i32;
+    pub fn DwmSetWindowAttribute(h: isize, attr: u32, value: *const core::ffi::c_void, size: u32) -> i32;
 }
 
 #[link(name = "shcore")]

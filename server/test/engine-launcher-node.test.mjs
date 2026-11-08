@@ -27,7 +27,12 @@
 // until someone's dashboard never comes up.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { mkdtempSync, readFileSync as readFileSyncRaw, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -36,6 +41,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const VBS = read('../start-hidden.vbs');
 const INSTALL = read('../install.ps1');
 const UNINSTALL = read('../uninstall.ps1');
+const UPDATE_APPLY = read('../update-apply.ps1');
 const STARTUP_LOG = read('../startup-log.js');
 const CHANGELOG = read('../../CHANGELOG.md');
 
@@ -64,6 +70,90 @@ test('powershell is taken from System32, never from PATH', () => {
   // Missing powershell must not take the start down with it: the port kill is a
   // precaution, starting the engine is the job.
   assert.match(CODE, /If Exists\(ps\) Then/);
+});
+
+test('no PowerShell is started when nothing listens on the port', () => {
+  // About two seconds of every sign-in, before node, for an answer that is
+  // nearly always no. The kill stays for the start that really replaces an engine.
+  const guard = CODE.indexOf('If PortInUse() Then');
+  assert.ok(guard >= 0, 'the launcher no longer asks before starting PowerShell');
+  assert.ok(guard < CODE.indexOf('shell.Run psKill'), 'the kill has moved out from under the check');
+  assert.ok(CODE.indexOf('End Function', CODE.indexOf('Function PortInUse()')) < guard);
+  assert.ok(guard < CODE.indexOf('nodeExe = FindNode()'), 'the kill must come before the start');
+});
+
+// The function itself, run by the real script host against a real socket.
+const portInUse = (port, namespace = 'root\\StandardCimv2') => {
+  const at = CODE.indexOf('Function PortInUse()');
+  const fn = CODE.slice(at, CODE.indexOf('End Function', at) + 'End Function'.length);
+  const dir = mkdtempSync(join(tmpdir(), 'xenon-launcher-'));
+  try {
+    const script = join(dir, 'probe.vbs');
+    const body = fn.replace('LocalPort=3030', 'LocalPort=' + port).replace('root\\StandardCimv2', () => namespace);
+    writeFileSync(script, body + '\r\nWScript.Echo CInt(PortInUse())\r\n');
+    const out = spawnSync('cscript.exe', ['//nologo', script], { encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    return out.stdout.trim();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+test('the port check sees a listener, and sees it gone', { skip: process.platform !== 'win32' }, async () => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+  const open = portInUse(port);
+  await new Promise((resolve) => server.close(resolve));
+  assert.equal(open, '-1', 'a listening port was not seen');
+  assert.equal(portInUse(port), '0', 'a free port read as taken');
+  assert.equal(portInUse(port, 'root\\NoSuchNamespace'), '-1', 'a question WMI cannot answer must count as in use');
+});
+
+// The PowerShell line the launcher really runs, for any port.
+const killCommand = (port) => {
+  const from = CODE.indexOf('"try{"');
+  const lines = CODE.slice(from, CODE.indexOf('"}catch{}"', from) + '"}catch{}"'.length);
+  return [...lines.matchAll(/"([^"]*)"/g)].map((part) => part[1]).join('').replaceAll('3030', String(port));
+};
+
+// What that line would stop on a port. Dry on purpose: Stop-Process is shadowed,
+// so no version of the line, a broken one included, can stop a real process. A
+// real run once took every program connected to the real 3030 with it.
+const wouldStop = (port) => {
+  const line = killCommand(port);
+  assert.doesNotMatch(line, /3030/, 'the line still names the real port');
+  const dry = 'function Stop-Process { param([int[]]$Id, [switch]$Force, $ErrorAction) $Id | ForEach-Object { "stop $_" } }; ' + line;
+  const out = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', dry], { encoding: 'utf8', timeout: 30000 });
+  assert.equal(out.status, 0, out.stderr);
+  return [...new Set((out.stdout.match(/\d+/g) || []).map(Number))].filter(Boolean);
+};
+
+const listener = () => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, ['-e', "require('net').createServer().listen(0, '127.0.0.1', function () { console.log(this.address().port); });"]);
+  child.once('error', reject);
+  child.stdout.once('data', (text) => resolve({ child, port: Number(text) }));
+});
+
+test('the launcher and the updater find the engine without asking for its state', () => {
+  // Windows 11 build 26300: the same listener read Listen, Closed, FinWait1 and
+  // blank within two seconds, so a kill keyed on -State Listen was a coin toss.
+  for (const [name, code] of [['start-hidden.vbs', killCommand(3030)], ['update-apply.ps1', UPDATE_APPLY.match(/function Stop-Server \{[\s\S]*?\n\}/)[0]]]) {
+    assert.match(code, /Get-NetTCPConnection -LocalPort \S+ -RemotePort 0 /, name);
+    assert.doesNotMatch(code, /Get-NetTCPConnection[^\n]*-State/, name);
+  }
+});
+
+test('the kill names what listens on the port and nothing connected to it', { skip: process.platform !== 'win32' }, async () => {
+  const { child, port } = await listener();
+  const client = spawn(process.execPath, ['-e', `require('net').connect(${port}, '127.0.0.1', () => console.log('on')).on('error', () => {}); setInterval(() => {}, 1000);`]);
+  try {
+    await once(client.stdout, 'data');
+    assert.deepEqual(wouldStop(port), [child.pid]);
+  } finally {
+    child.kill();
+    client.kill();
+  }
 });
 
 test('node is resolved to an absolute path and started directly', () => {

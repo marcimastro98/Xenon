@@ -80,7 +80,7 @@ impl Entry {
     /// The Ambient scene or the drawing sheet: the whole monitor, its mouse
     /// fixed by its kind.
     fn scene(&self) -> bool {
-        matches!(self.kind, Kind::Wallpaper | Kind::Saver | Kind::Draw | Kind::Menu)
+        matches!(self.kind, Kind::Wallpaper | Kind::Saver | Kind::Draw)
     }
 }
 
@@ -210,13 +210,20 @@ fn configure(w: &NSWindow, e: &Entry) {
         // covers the widget too.
         Kind::Anchor => NSNormalWindowLevel,
         Kind::Wallpaper => (unsafe { CGWindowLevelForKey(DESKTOP_LEVEL_KEY) }) as isize + 1,
-        Kind::Saver | Kind::Draw | Kind::Menu => NSScreenSaverWindowLevel,
+        Kind::Saver | Kind::Draw => NSScreenSaverWindowLevel,
+        // An ordinary window unless a game is on.
+        Kind::Menu if !super::menu_window::stays_on_top() => NSNormalWindowLevel,
         _ => NSStatusWindowLevel,
     };
     w.setLevel(level);
-    let mut behaviour = NSWindowCollectionBehavior::CanJoinAllSpaces
-        | NSWindowCollectionBehavior::Stationary
-        | NSWindowCollectionBehavior::IgnoresCycle;
+    // The menu is an ordinary window to the system: Exposé and Cmd+` see it.
+    let mut behaviour = if e.kind == Kind::Menu {
+        NSWindowCollectionBehavior::CanJoinAllSpaces
+    } else {
+        NSWindowCollectionBehavior::CanJoinAllSpaces
+            | NSWindowCollectionBehavior::Stationary
+            | NSWindowCollectionBehavior::IgnoresCycle
+    };
     if matches!(e.kind, Kind::Overlay | Kind::Anchor | Kind::Saver | Kind::Draw | Kind::Menu) {
         behaviour |= NSWindowCollectionBehavior::FullScreenAuxiliary;
     }
@@ -250,11 +257,17 @@ fn front_app() -> Option<(Retained<AnyObject>, i32)> {
     (pid != std::process::id() as i32).then_some((app, pid))
 }
 
-/// A screensaver takes the keyboard; the app it took it from gets it back
-/// once the last screensaver is gone.
-fn saver_focus(st: &mut State, all: &NSArray<NSWindow>, mtm: MainThreadMarker) {
-    let saver = st.entries.iter().find(|e| matches!(e.kind, Kind::Saver | Kind::Draw | Kind::Menu)).map(|e| e.handle);
-    match saver.and_then(|h| find(all, h)) {
+/// A screensaver takes the keyboard for as long as it is up, the menu only when
+/// it opens: the user may then click on another app under it, and a later sync
+/// must not pull the keyboard back. The app it was taken from gets it back when
+/// the last one is gone, if the user did not go somewhere else meanwhile.
+fn saver_focus(st: &mut State, all: &NSArray<NSWindow>, mtm: MainThreadMarker, menu_opened: bool) {
+    let saver = st.entries.iter().find(|e| matches!(e.kind, Kind::Saver | Kind::Draw)).map(|e| e.handle);
+    let menu = st.entries.iter().find(|e| e.kind == Kind::Menu).map(|e| e.handle);
+    if saver.is_none() && menu.is_some() && !menu_opened {
+        return;
+    }
+    match saver.or(menu).and_then(|h| find(all, h)) {
         Some(w) if !w.isKeyWindow() => {
             if st.before_saver.is_none() {
                 st.before_saver = front_app().map(|(app, _)| app);
@@ -266,11 +279,19 @@ fn saver_focus(st: &mut State, all: &NSArray<NSWindow>, mtm: MainThreadMarker) {
         }
         Some(_) => {}
         None => {
-            if let Some(app) = st.before_saver.take() {
+            if let Some(app) = st.before_saver.take().filter(|_| front_app().is_none()) {
                 let _: bool = unsafe { msg_send![&*app, activateWithOptions: 0usize] };
             }
         }
     }
+}
+
+pub fn forget_return_focus() {
+    STATE.with(|cell| {
+        if let Ok(mut st) = cell.try_borrow_mut() {
+            st.before_saver = None;
+        }
+    });
 }
 
 /// Apply a sync: forget windows that are gone, set up new ones, re-place all.
@@ -282,7 +303,9 @@ pub fn apply(plans: Vec<Plan>) {
         let Some(all) = windows() else { return };
         let mut old = std::mem::take(&mut st.entries);
         let mut anchored = Vec::new();
+        let mut menu_opened = false;
         for p in plans {
+            menu_opened |= p.kind == Kind::Menu && !old.iter().any(|e| e.handle == p.handle);
             let mut e = match old.iter().position(|e| e.handle == p.handle) {
                 Some(i) => old.swap_remove(i),
                 None => {
@@ -316,7 +339,7 @@ pub fn apply(plans: Vec<Plan>) {
             if st.entries.iter().any(Entry::scene) {
                 observe(mtm);
             }
-            saver_focus(&mut st, &all, mtm);
+            saver_focus(&mut st, &all, mtm, menu_opened);
         }
     });
     watch();
@@ -324,8 +347,9 @@ pub fn apply(plans: Vec<Plan>) {
 
 /// The page's tile rectangles, and whether the widgets are being edited
 /// (`None` from the alerts window, which has no say in it). Main thread: the
-/// navigation hooks run there.
-pub fn set_region(handle: isize, rects: Vec<[i32; 4]>, editing: Option<bool>) {
+/// navigation hooks run there. Rectangles only decide where the mouse goes here,
+/// nothing clips the drawing, so words that clicks go through need nothing.
+pub fn set_region(handle: isize, rects: Vec<[i32; 4]>, _through: Vec<[i32; 4]>, editing: Option<bool>) {
     STATE.with(|cell| {
         let Ok(mut st) = cell.try_borrow_mut() else {
             return;
@@ -359,7 +383,7 @@ fn hit_test(st: &mut State, all: &NSArray<NSWindow>) {
     // A drag that leaves the tile (a slider, a scrollbar) keeps its window
     // until the button is up.
     let held = NSEvent::pressedMouseButtons() != 0;
-    for e in st.entries.iter_mut().filter(|e| !e.scene() && e.kind != Kind::Anchor) {
+    for e in st.entries.iter_mut().filter(|e| !e.scene() && !matches!(e.kind, Kind::Anchor | Kind::Menu)) {
         let Some(w) = find(all, e.handle) else {
             continue;
         };

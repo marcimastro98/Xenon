@@ -48,7 +48,7 @@ test('a window that starts hidden and the search window are covered too', () => 
   assert.match(LIB, /Focused\(true\)[\s\S]{0,200}set_low\(&focused, false\)/, 'focus is the safety net');
   const hide = fnBody(SPOT, 'hide');
   assert.match(hide, /set_low\(&win, true\)/);
-  assert.ok(SPOT.indexOf('set_low(&win, false)') < SPOT.indexOf('win.show()'));
+  assert.ok(SPOT.indexOf('set_low(win, false)') >= 0 && SPOT.indexOf('set_low(win, false)') < SPOT.indexOf('win.show()'));
 });
 
 test('the level is the WebView2 switch, best-effort and Windows only', () => {
@@ -76,7 +76,10 @@ test('a hidden widget layer gives its memory back too', () => {
   const WIN = read(`${SRC}layers/win32.rs`);
   const MOD = read(`${SRC}layers/mod.rs`);
   // win32::show is the one place a layer window changes visibility.
-  assert.match(fnBody(WIN, 'show'), /ShowWindow[\s\S]*super::memory_for\(e\.hwnd, !on \|\| e\.empty\)/);
+  const show = fnBody(WIN, 'show');
+  // Hiding gives the memory back; showing wakes the page first, a head start on the window.
+  assert.match(show, /ShowWindow[\s\S]*if !on \{\s+super::memory_for\(e\.hwnd, true\)/);
+  assert.match(show, /if on \{\s+super::memory_for\(e\.hwnd, e\.empty\)[\s\S]*ShowWindow/);
   const finder = fnBody(MOD, 'memory_for');
   assert.match(finder, /set_low\(&win, low\)/);
   // Never LIVE here: sync can hold it while waiting on the main thread.
@@ -89,5 +92,16 @@ test('a shown window with nothing drawn (the alerts window between cards) is Low
   // Only on a change, and never while hidden: show() owns that case.
   assert.match(region, /if e\.empty == empty \{\n\s+return;/);
   assert.match(region, /IsWindowVisible\(e\.hwnd\)[\s\S]*super::memory_for\(e\.hwnd, empty\)/);
-  assert.match(fnBody(WIN, 'set_region'), /memory_for_region\(e, rects\.is_empty\(\)\)/);
+  assert.match(fnBody(WIN, 'set_region'), /cut_with_rolls\(e\)/);
+  const cut = fnBody(WIN, 'cut_with_rolls');
+  assert.match(cut, /let empty = e\.base\.is_empty\(\) && e\.rolls\.is_empty\(\);/, 'a card rolling shut is not empty');
+  assert.match(cut, /memory_for_region\(e, empty\)/);
+});
+
+test('the first open of the search window is the same reveal as every other', () => {
+  const open = fnBody(SPOT, 'open');
+  assert.match(open, /\.visible\(false\)\n\s+\.focused\(false\)/, 'built hidden: visible, it hid itself on its webview starting up');
+  assert.equal(open.match(/reveal\(app, &win, /g).length, 2, 'both paths show it the same way');
+  assert.ok(open.indexOf('on_window_event') < open.lastIndexOf('reveal(app, &win, '), 'the focus-loss hook is on before it shows');
+  assert.match(open, /shown\.elapsed\(\) < SETTLE \{\n\s+crate::layers::force_focus/, 'its webview starting up takes the focus back, it does not hide it');
 });

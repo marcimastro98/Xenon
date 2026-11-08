@@ -28,6 +28,8 @@
 mod anchor;
 #[cfg(target_os = "macos")]
 mod anchor_macos;
+#[cfg(windows)]
+mod clicks_win32;
 #[cfg(target_os = "linux")]
 mod anchor_x11;
 pub mod desks;
@@ -47,6 +49,12 @@ mod pad_win32;
 #[cfg(windows)]
 mod pad_winmm;
 #[cfg(windows)]
+mod pad_sony;
+#[cfg(windows)]
+pub use pad_sony::READER_ARG as PAD_READER_ARG;
+#[cfg(windows)]
+pub use pad_winmm::serve as pad_reader;
+#[cfg(windows)]
 mod ffi;
 mod glow;
 #[cfg(target_os = "linux")]
@@ -61,6 +69,9 @@ mod layer_shell;
 pub(crate) mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
+mod menu_window;
+#[cfg(any(windows, test))]
+mod roll;
 #[cfg(windows)]
 mod scene;
 mod spec;
@@ -94,6 +105,9 @@ struct Live {
     /// The native window: its HWND, its NSWindow on macOS, its GtkWindow on Linux.
     handle: isize,
     surface: Surface,
+    /// Where the menu's window opened (`menu_window`); nothing for the others.
+    #[cfg(windows)]
+    opened_at: menu_window::Rect,
 }
 
 /// Whether this OS draws the Ambient scene as wallpaper and screensaver: the
@@ -139,9 +153,23 @@ static NEXT_LABEL: AtomicU32 = AtomicU32::new(1);
 /// For the backends' main-thread code, which runs with no handle (`memory_for`,
 /// the macOS cursor watch).
 static APP: OnceLock<AppHandle> = OnceLock::new();
+/// The menu's window opens Settings in place: spec::menu_caps_script.
+static MENU_CAPS: OnceLock<String> = OnceLock::new();
+
+/// Called once, with the main window's capabilities, before any layer exists.
+pub fn set_menu_caps(caps: &serde_json::Value) {
+    let _ = MENU_CAPS.set(spec::menu_caps_script(caps));
+}
 /// A screensaver was ended by the user: none opens again until a sync comes
 /// without one, i.e. the server saw the input and the idle time started over.
 static SAVER_DONE: AtomicBool = AtomicBool::new(false);
+/// The menu stepped aside for a one-shot function: a sync must not bring it back.
+static MENU_ASIDE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(windows)]
+fn menu_aside() -> bool {
+    MENU_ASIDE.load(Ordering::Relaxed)
+}
 
 /// Links and `window.open` to external sites become top-level navigations, so
 /// the hook below hands them to the OS browser instead of opening a webview
@@ -170,6 +198,11 @@ const LAYER_SHIM: &str = r#"(function () {
 /// so js/ai-edge-glow.js may send there. No other native capability: the
 /// window takes no other signal.
 const ALERTS_CAPS: &str = "try { window.__XENON_NATIVE_CAPS__ = Object.assign(window.__XENON_NATIVE_CAPS__ || {}, { aiGlow: true }); } catch (e) {}";
+
+/// Windows cuts what the alerts window shows, so a card closes under the cut
+/// (roll.rs, js/alert-roll.js). Elsewhere the window has real alpha and cards fade.
+#[cfg(windows)]
+const ALERTS_ROLL: &str = "window.__XENON_ROLL_CARDS__ = true;";
 
 fn port() -> u16 {
     std::env::var("XENON_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3030)
@@ -228,8 +261,12 @@ fn saver_held() -> bool {
 }
 
 /// The query value `d` of a signal URL, decoded.
+fn query(url: &tauri::Url, name: &str) -> Option<String> {
+    url.query_pairs().find(|(k, _)| k == name).map(|(_, v)| v.into_owned())
+}
+
 fn payload(url: &tauri::Url) -> Option<String> {
-    url.query_pairs().find(|(k, _)| k == "d").map(|(_, v)| v.into_owned())
+    query(url, "d")
 }
 
 /// `xenon-app:layers-sync` from the main dashboard. Call on a plain thread.
@@ -245,6 +282,11 @@ pub fn sync(app: &AppHandle, url: &tauri::Url) {
     #[cfg(windows)]
     spec.surfaces.retain(|s| s.kind != Kind::Draw);
     allow_savers(&mut spec.surfaces, &live);
+    let staying = live
+        .iter()
+        .filter(|l| l.surface.kind == Kind::Menu && spec.surfaces.iter().any(|s| s.key == l.surface.key))
+        .find_map(|l| app.get_webview_window(&l.label));
+    menu_window::follow(staying.as_ref(), spec.top, spec.front);
     // A Wayland session without layer-shell (GNOME) gets no layer windows:
     // they would sit wherever the compositor puts a normal window. The
     // dashboard already sends none there.
@@ -258,7 +300,14 @@ pub fn sync(app: &AppHandle, url: &tauri::Url) {
         let alive = app.get_webview_window(&l.label).is_some();
         let keep = alive && spec.surfaces.iter().any(|s| s.key == l.surface.key && s.kind == l.surface.kind);
         if !keep {
+            if let Some(win) = app.get_webview_window(&l.label).filter(|_| l.surface.kind == Kind::Menu) {
+                menu_window::remember(app, &win);
+            }
             close(app, &l.label);
+            #[cfg(windows)]
+            if l.surface.kind == Kind::Wallpaper {
+                repaint_desktop_soon();
+            }
         }
         keep
     });
@@ -271,13 +320,7 @@ pub fn sync(app: &AppHandle, url: &tauri::Url) {
     let mut plans = Vec::with_capacity(live.len());
     for l in live.iter() {
         if let Some(win) = app.get_webview_window(&l.label) {
-            // The alerts window and the menu stay out of captures whatever
-            // the setting: Bit looking at the screen must see the game, not
-            // its own card, and a screenshot from the menu must not show it.
-            // A drawing is meant to be seen, in a recording too.
-            let key = &l.surface.key;
-            let own = spec::is_alerts(key) || spec::is_menu(key);
-            let _ = win.set_content_protected((spec.exclude && !spec::is_draw(key)) || own);
+            let _ = win.set_content_protected(spec::out_of_captures(&l.surface.key, &spec));
         }
         plans.push(plan(app, l));
     }
@@ -290,6 +333,33 @@ pub fn sync(app: &AppHandle, url: &tauri::Url) {
             place(app, &win, &l.surface);
         }
     }
+}
+
+/// Bring a window forward over the app in use when the key that asked for it
+/// reached the helper and not this process (scene::force_focus). On macOS and
+/// Linux the window's own `set_focus` is enough.
+pub fn force_focus(app: &AppHandle, win: &tauri::WebviewWindow) {
+    #[cfg(windows)]
+    if let Some(h) = native_handle(win) {
+        let _ = app.run_on_main_thread(move || scene::force_focus(h));
+    }
+    #[cfg(not(windows))]
+    let _ = (app, win);
+}
+
+/// `xenon-app:open-dashboard`: the dashboard, on what spec::dashboard_page allows.
+pub fn open_asked_dashboard(app: &AppHandle, url: &tauri::Url, menu: bool) {
+    let query = |name: &str| url.query_pairs().find(|(k, _)| k == name).map(|(_, v)| v.into_owned());
+    let (open, cat) = (query("open"), query("cat"));
+    if let Some((page, cat)) = spec::dashboard_page(url.path(), open.as_deref(), cat.as_deref(), menu) {
+        crate::monitor::open_dashboard(app, page, cat);
+    }
+}
+
+/// A dashboard is coming up: the window the menu or a saver took the focus from
+/// must not get it back over it.
+pub fn keep_focus_here(app: &AppHandle) {
+    let _ = app.run_on_main_thread(backend::forget_return_focus);
 }
 
 /// The main window left the "widgets only" driver for the dashboard. Only the
@@ -367,9 +437,13 @@ fn paint_glow(app: &AppHandle, state: glow::State, rgb: [u8; 3], still: bool, mo
 /// to the main one.
 #[cfg(windows)]
 fn plan(app: &AppHandle, l: &Live) -> win32::Plan {
-    let whole = matches!(l.surface.kind, Kind::Wallpaper | Kind::Saver | Kind::Menu);
+    let whole = matches!(l.surface.kind, Kind::Wallpaper | Kind::Saver);
     let area = match l.surface.kind {
         Kind::Anchor => ffi::Rect::default(),
+        Kind::Menu => {
+            let [x, y, w, h] = l.opened_at;
+            ffi::Rect { l: x, t: y, r: x + w, b: y + h }
+        }
         _ => crate::monitor::layer_monitor(app, &l.surface.monitor)
             .map(|m| {
                 let (p, s) = if whole {
@@ -412,10 +486,6 @@ fn place(app: &AppHandle, win: &tauri::WebviewWindow, s: &Surface) {
     if linux::layer_shell() {
         return;
     }
-    // An anchored widget sits next to its app, not on a monitor.
-    if s.kind == Kind::Anchor {
-        return;
-    }
     let Some((x, y, width, height)) = logical_rect(app, s) else {
         return;
     };
@@ -423,21 +493,22 @@ fn place(app: &AppHandle, win: &tauri::WebviewWindow, s: &Surface) {
     let _ = win.set_size(tauri::LogicalSize::new(width, height));
     // Full screen on the monitor it was just moved to: over the panels too.
     #[cfg(target_os = "linux")]
-    if matches!(s.kind, Kind::Saver | Kind::Draw | Kind::Menu) {
+    if matches!(s.kind, Kind::Saver | Kind::Draw) {
         let _ = win.set_fullscreen(true);
     }
 }
 
 /// Where a surface goes, in logical units: its monitor's work area, the whole
-/// monitor for the scenes and the drawing sheet.
+/// monitor for the scenes and the drawing sheet. Nowhere for an anchored widget,
+/// which sits next to its app, and for the menu, which the user moves.
 #[cfg(not(windows))]
 fn logical_rect(app: &AppHandle, s: &Surface) -> Option<(f64, f64, f64, f64)> {
-    if s.kind == Kind::Anchor {
+    if matches!(s.kind, Kind::Anchor | Kind::Menu) {
         return None;
     }
     let m = crate::monitor::layer_monitor(app, &s.monitor)?;
     let scale = m.scale_factor();
-    let (pos, size) = if matches!(s.kind, Kind::Wallpaper | Kind::Saver | Kind::Draw | Kind::Menu) {
+    let (pos, size) = if matches!(s.kind, Kind::Wallpaper | Kind::Saver | Kind::Draw) {
         (*m.position(), *m.size())
     } else {
         let area = m.work_area();
@@ -483,6 +554,15 @@ fn native_handle(win: &tauri::WebviewWindow) -> Option<isize> {
     Some(linux::handle_of(&win.gtk_window().ok()?))
 }
 
+/// After the event loop has really taken the window down.
+#[cfg(windows)]
+fn repaint_desktop_soon() {
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        scene::repaint_desktop();
+    });
+}
+
 fn close(app: &AppHandle, label: &str) {
     if let Some(win) = app.get_webview_window(label) {
         let _ = win.destroy();
@@ -507,24 +587,19 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
     let handle = app.clone();
     let own = label.clone();
     let alerts = spec::is_alerts(&s.key);
-    let menu = spec::is_menu(&s.key);
     let kind = s.kind;
     let nonce = crate::nav_policy::new_nonce();
     let nonce_js = crate::nav_policy::nonce_script(&nonce, port());
+    let menu_at = (kind == Kind::Menu).then(|| {
+        MENU_ASIDE.store(false, Ordering::Relaxed);
+        menu_window::forget_lowered();
+        menu_window::opening(app)
+    });
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(layer_url(&s.key)?))
-        .title("Xenon widgets")
-        .decorations(false)
-        .transparent(true)
-        .shadow(false)
-        .background_color(tauri::window::Color(0, 0, 0, 0))
-        .skip_taskbar(true)
-        .resizable(false)
         .focused(false)
         // Built visible and out of sight: win32::apply puts it in place. A
         // window built hidden and shown natively would keep its webview hidden.
         .visible(true)
-        .inner_size(1.0, 1.0)
-        .position(-32000.0, -32000.0)
         .initialization_script(LAYER_SHIM)
         // Its own signal nonce, like the main window (nav_policy.rs): on
         // macOS and Linux this hook also sees navigations from the sandboxed
@@ -533,7 +608,26 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
         // other signal of this window.
         .initialization_script(&nonce_js)
         .on_navigation(move |url| navigate(&handle, &own, alerts, kind, &nonce, url));
+    let builder = match menu_at {
+        Some(at) => menu_window::dress(builder, at),
+        None => builder
+            .title("Xenon widgets")
+            .decorations(false)
+            .transparent(true)
+            .shadow(false)
+            .background_color(tauri::window::Color(0, 0, 0, 0))
+            .skip_taskbar(true)
+            .resizable(false)
+            .inner_size(1.0, 1.0)
+            .position(-32000.0, -32000.0),
+    };
     let builder = if alerts { builder.initialization_script(ALERTS_CAPS) } else { builder };
+    #[cfg(windows)]
+    let builder = if alerts { builder.initialization_script(ALERTS_ROLL) } else { builder };
+    let builder = match MENU_CAPS.get().filter(|_| kind == Kind::Menu) {
+        Some(caps) => builder.initialization_script(caps),
+        None => builder,
+    };
     // Same arguments as the main webview when they share a profile (see
     // `crate::browser_args`); without the GPU pin when they do not.
     #[cfg(windows)]
@@ -546,12 +640,21 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
     match builder.build() {
         Ok(win) => {
             let handle = native_handle(&win)?;
-            // Bit's cards and the menu are Xenon's own, never what the user
-            // captures (and `sync` keeps it so).
-            if alerts || menu {
+            // Bit's cards are Xenon's own, never what the user captures (and
+            // `sync` keeps it so; it also decides for the menu, right after).
+            if alerts {
                 let _ = win.set_content_protected(true);
             }
-            Some(Live { label, handle, surface: s.clone() })
+            if kind == Kind::Menu {
+                menu_window::watch_close(&win);
+            }
+            Some(Live {
+                label,
+                handle,
+                surface: s.clone(),
+                #[cfg(windows)]
+                opened_at: menu_at.map(|at| at.rect).unwrap_or_default(),
+            })
         }
         Err(e) => {
             crate::crash_log::note("layer-window", &format!("failed to open: {e}"));
@@ -580,6 +683,11 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
         "http" | "https" if crate::nav_policy::is_own_page(url, port()) => true,
         "http" | "https" => {
             use tauri_plugin_opener::OpenerExt;
+            if kind == Kind::Menu {
+                if let Some(win) = app.get_webview_window(label) {
+                    menu_window::lower(&win);
+                }
+            }
             let _ = app.opener().open_url(url.as_str(), None::<&str>);
             false
         }
@@ -624,15 +732,34 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
             }
             false
         }
-        // Its update card, or the Xenon menu's gallery, Settings and
-        // dashboard rows: the dashboard, on that screen. Only those windows,
+        // Restart Xenon in Settings, in the menu's window: only the main window
+        // knows how (it stops the backend first), so it is handed on as its own.
+        "xenon-app" if kind == Kind::Menu && url.path() == "restart" => {
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.eval("location.href=(window.__xenonSignal||String)('xenon-app:restart')");
+            }
+            false
+        }
+        // A one-shot function of the menu: out of the picture it takes, then back
+        // with what happened. The server says when (screen-menu.js `aside`).
+        "xenon-app" if kind == Kind::Menu && matches!(url.path(), "menu-aside" | "menu-back") => {
+            let back = url.path() == "menu-back";
+            MENU_ASIDE.store(!back, Ordering::Relaxed);
+            if let Some(win) = app.get_webview_window(label) {
+                if back {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                } else {
+                    let _ = win.hide();
+                }
+            }
+            false
+        }
+        // Its update card and What's New, or the Xenon menu's gallery, Settings
+        // and dashboard rows: the dashboard, on that screen. Only those windows,
         // only those screens (spec::dashboard_page).
         "xenon-app" if alerts || kind == Kind::Menu => {
-            let query = |name: &str| url.query_pairs().find(|(k, _)| k == name).map(|(_, v)| v.into_owned());
-            let (open, cat) = (query("open"), query("cat"));
-            if let Some((page, cat)) = spec::dashboard_page(url.path(), open.as_deref(), cat.as_deref(), kind == Kind::Menu) {
-                crate::monitor::open_dashboard(app, page, cat);
-            }
+            open_asked_dashboard(app, url, kind == Kind::Menu);
             false
         }
         _ => false,
@@ -643,6 +770,13 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
 fn report_rects(app: &AppHandle, label: &str, url: &tauri::Url, editing: Option<bool>) {
     let Some(win) = app.get_webview_window(label) else { return };
     let Some(handle) = native_handle(&win) else { return };
-    let rects = spec::parse_rects(&payload(url).unwrap_or_default());
-    backend::set_region(handle, rects, editing);
+    let rects = |name| spec::parse_rects(&query(url, name).unwrap_or_default());
+    #[cfg(windows)]
+    {
+        let closing = rects("roll");
+        if !closing.is_empty() {
+            backend::roll_away(handle, closing);
+        }
+    }
+    backend::set_region(handle, rects("d"), rects("t"), editing);
 }

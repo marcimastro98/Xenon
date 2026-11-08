@@ -179,7 +179,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 "show" => monitor::show_now(app),
                 "hide" => {
                     if let Some(w) = app.get_webview_window("main") {
-                        monitor::hide_window(&w);
+                        if !monitor::end_visit(&w) {
+                            monitor::hide_window(&w);
+                        }
                     }
                 }
                 "fullscreen" => {

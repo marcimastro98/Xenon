@@ -35,10 +35,14 @@
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use super::ffi::*;
+use super::menu_window;
+use super::roll;
 use super::scene;
 use super::anchor;
+use super::clicks_win32::Clicks;
 use super::spec::{Anchor, Kind};
 
 pub struct Plan {
@@ -62,6 +66,16 @@ struct Entry {
     empty: bool,
     /// Wallpaper: its page asked for a pause (`xenon-app:scene-pause`).
     paused: bool,
+    clicks: Clicks,
+    /// What the page last asked to show, and the cards closing on top of it.
+    base: Vec<[i32; 4]>,
+    rolls: Vec<Roll>,
+}
+
+/// A card closing under the cut (roll.rs).
+struct Roll {
+    rect: [i32; 4],
+    from: Instant,
 }
 
 #[derive(Default)]
@@ -73,12 +87,21 @@ struct State {
     front: isize,
     front_pid: u32,
     front_hook: isize,
+    front_gone_hook: isize,
+    front_mon: Option<Rect>,
     /// Rectangles a page reported before its window joined `entries`.
-    pending: Vec<(isize, Vec<[i32; 4]>)>,
+    pending: Vec<(isize, Reported)>,
     /// The window in front when a screensaver opened, given the focus back
     /// when the last one closes.
     before_saver: isize,
+    /// Running only while a window holds both words and widgets (`watch_cursor`).
+    cursor_timer: usize,
+    /// Running only while a card is closing (`watch_rolls`).
+    roll_timer: usize,
 }
+
+/// What a page reported: rectangles that take the mouse, and words clicks go through.
+type Reported = (Vec<[i32; 4]>, Vec<[i32; 4]>);
 
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
@@ -94,6 +117,11 @@ fn lifted() -> bool {
 }
 
 const POS_ONLY: u32 = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+/// How often the cursor is looked at: the time a click could still land on the
+/// wrong side of a widget's edge.
+const CURSOR_EVERY_MS: u32 = 33;
+/// Asks for every tick Windows can give: a card closing must not stutter.
+const ROLL_EVERY_MS: u32 = 8;
 
 extern "system" fn keep_bottom(h: isize, m: u32, w: usize, l: isize, _: usize, _: usize) -> isize {
     if m == WM_WINDOWPOSCHANGING && !lifted() {
@@ -107,11 +135,77 @@ extern "system" fn keep_bottom(h: isize, m: u32, w: usize, l: isize, _: usize, _
     unsafe { DefSubclassProc(h, m, w, l) }
 }
 
+/// True while tao answers a screen change for a window we size ourselves.
+static RESCALING: AtomicBool = AtomicBool::new(false);
+
+/// These windows are sized for the screen they are going to, and tao then
+/// multiplies that size by the ratio of the two screens: 320 px became 213
+/// going from 150% to 100%, 720 coming back. A window covering a 100% screen
+/// stopped at two thirds of it, so a widget in its right corner sat mid-screen.
+/// tao still hears of the change, only its own move is dropped.
+extern "system" fn keep_size(h: isize, m: u32, w: usize, l: isize, _: usize, _: usize) -> isize {
+    if m == WM_DPICHANGED {
+        RESCALING.store(true, Ordering::Relaxed);
+        let done = unsafe { DefSubclassProc(h, m, w, l) };
+        RESCALING.store(false, Ordering::Relaxed);
+        return done;
+    }
+    if m == WM_WINDOWPOSCHANGING && RESCALING.load(Ordering::Relaxed) {
+        let p = unsafe { &mut *(l as *mut WindowPos) };
+        p.flags = same_place(p.flags);
+    }
+    if m == WM_NCDESTROY {
+        unsafe { RemoveWindowSubclass(h, keep_size, 1) };
+    }
+    unsafe { DefSubclassProc(h, m, w, l) }
+}
+
+fn same_place(flags: u32) -> u32 {
+    flags | SWP_NOMOVE | SWP_NOSIZE
+}
+
+/// What reaches Windows of a message about the frame: None stops it, otherwise
+/// the `lParam` to send on. -1 lets WM_NCACTIVATE work without repainting.
+fn frame_message(m: u32, l: isize) -> Option<isize> {
+    match m {
+        WM_NCPAINT | WM_NCUAHDRAWCAPTION | WM_NCUAHDRAWFRAME => None,
+        WM_NCACTIVATE => Some(-1),
+        _ => Some(l),
+    }
+}
+
+/// tao leaves WS_CAPTION on a window without decorations, and a window with a
+/// region loses the DWM frame: Windows then paints the old title bar across the
+/// top 45 px, and the cut shows it as a light band behind the card. A click was
+/// enough to set it off. Nothing here should ever paint a frame.
+extern "system" fn no_title_bar(h: isize, m: u32, w: usize, l: isize, _: usize, _: usize) -> isize {
+    if m == WM_NCDESTROY {
+        unsafe { RemoveWindowSubclass(h, no_title_bar, 2) };
+    }
+    match frame_message(m, l) {
+        Some(l) => unsafe { DefSubclassProc(h, m, w, l) },
+        None => 0,
+    }
+}
+
 fn set_noactivate(h: isize) {
     let ex = unsafe { GetWindowLongPtrW(h, GWL_EXSTYLE) };
     if ex & WS_EX_NOACTIVATE == 0 {
         unsafe { SetWindowLongPtrW(h, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE) };
     }
+}
+
+/// Chrome, Edge and every Electron app stop painting a window they believe is
+/// covered, and they count a topmost window with an empty or one-rectangle region
+/// as a full cover of its whole rectangle: a page opened under the overlay stayed
+/// blank. A tool window is the one they skip, and it stays out of Alt+Tab too.
+fn floating_style(ex: isize) -> isize {
+    (ex | WS_EX_TOOLWINDOW as isize) & !(WS_EX_APPWINDOW as isize)
+}
+
+fn set_floating(h: isize) {
+    let ex = unsafe { GetWindowLongPtrW(h, GWL_EXSTYLE) };
+    unsafe { SetWindowLongPtrW(h, GWL_EXSTYLE, floating_style(ex)) };
 }
 
 extern "system" fn noactivate_child(h: isize, _: isize) -> i32 {
@@ -125,11 +219,17 @@ fn noactivate_tree(h: isize) {
     unsafe { EnumChildWindows(h, noactivate_child, 0) };
 }
 
-fn cut_region(h: isize, rects: &[[i32; 4]]) {
+fn cut_region(h: isize, rects: &[[i32; 4]], closing: &[[i32; 4]]) {
     unsafe {
         let rgn = CreateRectRgn(0, 0, 0, 0);
         for r in rects {
             let part = CreateRectRgn(r[0], r[1], r[0] + r[2], r[1] + r[3]);
+            CombineRgn(rgn, rgn, part, RGN_OR);
+            DeleteObject(part);
+        }
+        for r in closing {
+            let round = roll::corner(r[3]);
+            let part = CreateRoundRectRgn(r[0], r[1], r[0] + r[2] + 1, r[1] + r[3] + 1, round, round);
             CombineRgn(rgn, rgn, part, RGN_OR);
             DeleteObject(part);
         }
@@ -143,10 +243,22 @@ fn cut_region(h: isize, rects: &[[i32; 4]]) {
 /// A shown window with nothing drawn (empty region) keeps its memory Low too.
 fn show(e: &Entry, on: bool) {
     let visible = unsafe { IsWindowVisible(e.hwnd) } != 0;
-    if visible != on {
-        unsafe { ShowWindow(e.hwnd, if on { SW_SHOWNOACTIVATE } else { SW_HIDE }) };
-        super::memory_for(e.hwnd, !on || e.empty);
+    if visible == on {
+        return;
     }
+    // Waking the page first gives it a head start on the window appearing.
+    if on {
+        super::memory_for(e.hwnd, e.empty);
+    }
+    unsafe { ShowWindow(e.hwnd, if on { SW_SHOWNOACTIVATE } else { SW_HIDE }) };
+    if !on {
+        super::memory_for(e.hwnd, true);
+    }
+}
+
+fn no_transitions(h: isize) {
+    let on: i32 = 1;
+    unsafe { DwmSetWindowAttribute(h, DWMWA_TRANSITIONS_FORCEDISABLED, (&on as *const i32).cast(), 4) };
 }
 
 fn move_to(h: isize, after: isize, r: Rect, flags: u32) {
@@ -163,7 +275,9 @@ pub fn apply(plans: Vec<Plan>) {
         }
         let had_saver = old.iter().any(|e| takes_over(e.kind));
         for p in plans {
-            let mut e = match old.iter().position(|e| e.hwnd == p.hwnd) {
+            let known = old.iter().position(|e| e.hwnd == p.hwnd);
+            let opened = known.is_none();
+            let mut e = match known {
                 Some(i) => old.swap_remove(i),
                 None => first_time(&mut st, &p),
             };
@@ -173,6 +287,16 @@ pub fn apply(plans: Vec<Plan>) {
             }
             e.area = p.area;
             place(&mut e);
+            if opened && e.kind == Kind::Menu {
+                let after = if menu_window::stays_on_top() { HWND_TOPMOST } else { HWND_TOP };
+                move_to(e.hwnd, after, e.area, 0);
+                // Landing on a screen of another scale resized it by that ratio, and
+                // that size would be saved: every opening would come back smaller.
+                move_to(e.hwnd, after, e.area, 0);
+                scene::force_focus(e.hwnd);
+                // It steps aside for a screenshot: a fade would still be in the picture.
+                no_transitions(e.hwnd);
+            }
             st.entries.push(e);
         }
         if had_saver && !st.entries.iter().any(|e| takes_over(e.kind)) {
@@ -181,12 +305,14 @@ pub fn apply(plans: Vec<Plan>) {
         set_foreground_hook(&mut st);
         let front = if st.front == 0 { unsafe { GetForegroundWindow() } } else { st.front };
         watch_front(&mut st, front);
+        watch_cursor(&mut st);
     });
 }
 
 fn first_time(st: &mut State, p: &Plan) -> Entry {
-    let entry = Entry {
+    let mut entry = Entry {
         hwnd: p.hwnd, kind: p.kind, area: p.area, anchor: None, target: 0, hooks: Vec::new(), covered: false, empty: false, paused: false,
+        clicks: Clicks::default(), base: Vec::new(), rolls: Vec::new(),
     };
     // The scenes draw their whole window: no tiles, no region.
     match p.kind {
@@ -199,20 +325,31 @@ fn first_time(st: &mut State, p: &Plan) -> Entry {
         }
         Kind::Saver | Kind::Menu => {
             if !st.entries.iter().any(|e| takes_over(e.kind)) && st.before_saver == 0 {
-                st.before_saver = unsafe { GetForegroundWindow() };
+                let front = unsafe { GetForegroundWindow() };
+                if unsafe { IsWindowVisible(front) } != 0 {
+                    st.before_saver = front;
+                }
+            }
+            if p.kind == Kind::Saver {
+                unsafe { SetWindowSubclass(p.hwnd, keep_size, 1, 0) };
             }
             return entry;
         }
         _ => {}
     }
     noactivate_tree(p.hwnd);
+    set_floating(p.hwnd);
     // Nothing is drawn or clickable until the page says where its tiles are: a
     // monitor-sized window that swallowed clicks would break the desktop.
-    let rects = st.pending.iter().position(|(h, _)| *h == p.hwnd).map(|i| st.pending.swap_remove(i).1);
-    cut_region(p.hwnd, rects.as_deref().unwrap_or(&[]));
+    let (solid, through) = st.pending.iter().position(|(h, _)| *h == p.hwnd).map(|i| st.pending.swap_remove(i).1).unwrap_or_default();
+    entry.base = drawn(&solid, &through);
+    unsafe { SetWindowSubclass(p.hwnd, no_title_bar, 2, 0) };
+    cut_region(p.hwnd, &entry.base, &[]);
+    entry.clicks.report(p.hwnd, solid, &through);
     if p.kind == Kind::Desktop {
         unsafe { SetWindowSubclass(p.hwnd, keep_bottom, 1, 0) };
     }
+    unsafe { SetWindowSubclass(p.hwnd, keep_size, 1, 0) };
     entry
 }
 
@@ -234,9 +371,18 @@ fn place(e: &mut Entry) {
                 scene::attach(e.hwnd);
             }
             scene::place(e.hwnd, e.area);
-            show(e, wallpaper_on(e));
+            settle_wallpaper(e);
         }
-        Kind::Saver | Kind::Menu => {
+        // The menu is placed and takes the focus once, when it opens (`apply`): a
+        // later sync must not move it from where the user dragged it, or pull
+        // the focus back from the app the user went to.
+        Kind::Menu => {
+            if menu_window::stays_on_top() {
+                unsafe { SetWindowPos(e.hwnd, HWND_TOPMOST, 0, 0, 0, 0, POS_ONLY) };
+            }
+            show(e, !super::menu_aside());
+        }
+        Kind::Saver => {
             move_to(e.hwnd, HWND_TOPMOST, e.area, 0);
             show(e, true);
             let ours = unsafe { GetForegroundWindow() } == e.hwnd;
@@ -249,14 +395,51 @@ fn place(e: &mut Entry) {
     }
 }
 
-/// The screensaver and the Xenon menu cover the screen and take the keyboard;
-/// the window they took it from gets it back when the last one closes.
+/// The screensaver and the Xenon menu take the keyboard; the window they took
+/// it from gets it back when the last one closes.
 fn takes_over(kind: Kind) -> bool {
     matches!(kind, Kind::Saver | Kind::Menu)
 }
 
+/// Longer than Windows' window animations, which run about a quarter of a second.
+const COVER_GRACE_MS: u32 = 600;
+
+thread_local! {
+    static COVER_TIMER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 fn wallpaper_on(e: &Entry) -> bool {
-    scene::attached(e.hwnd) && !e.covered && !e.paused && !scene::remote_session()
+    scene::attached(e.hwnd) && !e.paused && !scene::remote_session()
+}
+
+/// Under a window filling its monitor the wallpaper stops, but only once that
+/// window has finished arriving: hidden at once, the picture under it flashed
+/// through the app's opening animation.
+fn settle_wallpaper(e: &Entry) {
+    let on = wallpaper_on(e);
+    if on && e.covered {
+        COVER_TIMER.with(|t| {
+            if t.get() == 0 {
+                t.set(unsafe { SetTimer(0, 0, COVER_GRACE_MS, on_cover_settled as *const () as isize) });
+            }
+        });
+    } else {
+        show(e, on);
+    }
+}
+
+/// Decides again when it fires, so a window closed meanwhile hid nothing.
+extern "system" fn on_cover_settled(_: isize, _: u32, _: usize, _: u32) {
+    COVER_TIMER.with(|t| {
+        unsafe { KillTimer(0, t.get()) };
+        t.set(0);
+    });
+    STATE.with(|cell| {
+        let Ok(st) = cell.try_borrow() else { return };
+        for e in st.entries.iter().filter(|e| e.kind == Kind::Wallpaper && e.covered) {
+            show(e, false);
+        }
+    });
 }
 
 /// `xenon-app:scene-pause` from a wallpaper page: on battery it stops until
@@ -266,28 +449,109 @@ pub fn set_paused(hwnd: isize, paused: bool) {
         let Ok(mut st) = cell.try_borrow_mut() else { return };
         if let Some(e) = st.entries.iter_mut().find(|e| e.hwnd == hwnd && e.kind == Kind::Wallpaper) {
             e.paused = paused;
-            show(e, wallpaper_on(e));
+            settle_wallpaper(e);
         }
     });
 }
 
-/// The page's tile rectangles, device pixels of its own window, and whether
-/// the widgets are being edited (every layer page reports the same mode;
-/// `None` from a page that has no say in it, the on-screen alerts).
-pub fn set_region(hwnd: isize, rects: Vec<[i32; 4]>, editing: Option<bool>) {
+fn drawn(solid: &[[i32; 4]], through: &[[i32; 4]]) -> Vec<[i32; 4]> {
+    [solid, through].concat()
+}
+
+/// The page's tile rectangles, device pixels of its own window, the words on it
+/// that clicks go through, and whether the widgets are being edited (every layer
+/// page reports the same mode; `None` from a page that has no say in it, the
+/// on-screen alerts).
+pub fn set_region(hwnd: isize, solid: Vec<[i32; 4]>, through: Vec<[i32; 4]>, editing: Option<bool>) {
     STATE.with(|cell| {
         let Ok(mut st) = cell.try_borrow_mut() else { return };
         if let Some(e) = st.entries.iter_mut().find(|e| e.hwnd == hwnd) {
+            e.base = drawn(&solid, &through);
             noactivate_tree(hwnd);
-            cut_region(hwnd, &rects);
-            memory_for_region(e, rects.is_empty());
+            cut_with_rolls(e);
+            e.clicks.report(hwnd, solid, &through);
         } else {
             st.pending.retain(|(h, _)| *h != hwnd);
-            st.pending.push((hwnd, rects));
+            st.pending.push((hwnd, (solid, through)));
         }
+        watch_cursor(&mut st);
         let Some(editing) = editing else { return };
         if EDITING.swap(editing, Ordering::Relaxed) != editing {
             set_editing(&mut st, editing);
+        }
+    });
+}
+
+/// What the page shows, plus what is left of each closing card.
+fn cut_with_rolls(e: &mut Entry) {
+    let now = Instant::now();
+    let left = |r: &Roll| roll::rolled(r.rect, now.duration_since(r.from).as_millis() as u64);
+    let closing: Vec<[i32; 4]> = e.rolls.iter().filter_map(left).collect();
+    e.rolls.retain(|r| left(r).is_some());
+    cut_region(e.hwnd, &e.base, &closing);
+    let empty = e.base.is_empty() && e.rolls.is_empty();
+    memory_for_region(e, empty);
+}
+
+/// These rectangles close over the next ones the page reports (`set_region`).
+pub fn roll_away(hwnd: isize, rects: Vec<[i32; 4]>) {
+    STATE.with(|cell| {
+        let Ok(mut st) = cell.try_borrow_mut() else { return };
+        let from = Instant::now();
+        if let Some(e) = st.entries.iter_mut().find(|e| e.hwnd == hwnd) {
+            e.rolls.extend(rects.into_iter().map(|rect| Roll { rect, from }));
+        }
+        watch_rolls(&mut st);
+    });
+}
+
+/// The timer lives only while a card is closing.
+fn watch_rolls(st: &mut State) {
+    let wanted = st.entries.iter().any(|e| !e.rolls.is_empty());
+    if wanted && st.roll_timer == 0 {
+        st.roll_timer = unsafe { SetTimer(0, 0, ROLL_EVERY_MS, on_roll_tick as *const () as isize) };
+    } else if !wanted && st.roll_timer != 0 {
+        unsafe { KillTimer(0, st.roll_timer) };
+        st.roll_timer = 0;
+    }
+}
+
+extern "system" fn on_roll_tick(_: isize, _: u32, _: usize, _: u32) {
+    STATE.with(|cell| {
+        let Ok(mut st) = cell.try_borrow_mut() else { return };
+        for e in st.entries.iter_mut().filter(|e| !e.rolls.is_empty()) {
+            cut_with_rolls(e);
+        }
+        watch_rolls(&mut st);
+    });
+}
+
+/// The timer lives only while some window needs the cursor looked at.
+fn watch_cursor(st: &mut State) {
+    let wanted = st.entries.iter().any(|e| e.clicks.by_cursor());
+    if wanted && st.cursor_timer == 0 {
+        st.cursor_timer = unsafe { SetTimer(0, 0, CURSOR_EVERY_MS, on_cursor_tick as *const () as isize) };
+    } else if !wanted && st.cursor_timer != 0 {
+        unsafe { KillTimer(0, st.cursor_timer) };
+        st.cursor_timer = 0;
+    }
+}
+
+extern "system" fn on_cursor_tick(_: isize, _: u32, _: usize, _: u32) {
+    STATE.with(|cell| {
+        let Ok(mut st) = cell.try_borrow_mut() else { return };
+        // A drag stays with the window it began on, like a slider leaving its
+        // widget or a selection in the game crossing one.
+        let held = unsafe { GetAsyncKeyState(VK_LBUTTON) | GetAsyncKeyState(VK_RBUTTON) } < 0;
+        let mut at = Point { x: 0, y: 0 };
+        if held || unsafe { GetCursorPos(&mut at) } == 0 {
+            return;
+        }
+        for e in st.entries.iter_mut().filter(|e| e.clicks.by_cursor()) {
+            let mut r = Rect::default();
+            if unsafe { GetWindowRect(e.hwnd, &mut r) } != 0 {
+                e.clicks.follow(e.hwnd, at.x - r.l, at.y - r.t);
+            }
         }
     });
 }
@@ -321,6 +585,14 @@ fn set_editing(st: &mut State, editing: bool) {
     }
 }
 
+pub fn forget_return_focus() {
+    STATE.with(|cell| {
+        if let Ok(mut st) = cell.try_borrow_mut() {
+            st.before_saver = 0;
+        }
+    });
+}
+
 fn set_foreground_hook(st: &mut State) {
     if st.entries.is_empty() {
         if st.fg_hook != 0 {
@@ -339,11 +611,18 @@ fn is_desktop(class: &str) -> bool {
     class == "Progman" || class == "WorkerW"
 }
 
+/// A topmost tool window drawn over everything for a moment: the Snipping Tool's
+/// see-through overlay, Alt+Tab. It fills the screen and hides nothing.
+fn passing_overlay(ex: isize) -> bool {
+    let both = (WS_EX_TOPMOST | WS_EX_TOOLWINDOW) as isize;
+    ex & both == both
+}
+
 /// The monitor of the window in front, and whether it fills that monitor
-/// (maximized or full screen). The taskbar, Start and cloaked windows say
-/// nothing about what covers the desktop.
+/// (maximized or full screen). The taskbar, Start, cloaked windows and passing
+/// overlays say nothing about what covers the desktop.
 fn front_on(class: &str, h: isize) -> Option<(Rect, bool)> {
-    if class.starts_with("Shell_") || cloaked(h) {
+    if class.starts_with("Shell_") || cloaked(h) || passing_overlay(unsafe { GetWindowLongPtrW(h, GWL_EXSTYLE) }) {
         return None;
     }
     let mon = monitor_rect_of(h)?;
@@ -360,8 +639,11 @@ fn desk_cover(e: &mut Entry, front: Option<(Rect, bool)>) {
             e.covered = covering;
         }
     }
-    let on = if e.kind == Kind::Wallpaper { wallpaper_on(e) } else { !e.covered };
-    show(e, on);
+    if e.kind == Kind::Wallpaper {
+        settle_wallpaper(e);
+    } else {
+        show(e, !e.covered);
+    }
 }
 
 /// The layers that hide under a window filling their monitor.
@@ -373,6 +655,7 @@ fn hides_when_covered(kind: Kind) -> bool {
 /// hook scoped to its process, re-scoped when the front app changes.
 fn watch_front(st: &mut State, front: isize) {
     st.front = front;
+    st.front_mon = monitor_rect_of(front);
     let wanted = front != 0 && st.entries.iter().any(|e| hides_when_covered(e.kind));
     let pid = if wanted { pid_of(front) } else { 0 };
     if pid == st.front_pid {
@@ -382,12 +665,37 @@ fn watch_front(st: &mut State, front: isize) {
         unsafe { UnhookWinEvent(st.front_hook) };
         st.front_hook = 0;
     }
+    if st.front_gone_hook != 0 {
+        unsafe { UnhookWinEvent(st.front_gone_hook) };
+        st.front_gone_hook = 0;
+    }
     st.front_pid = pid;
     if pid != 0 {
         st.front_hook = unsafe {
             SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, 0, on_front_moved, pid, 0, 0)
         };
+        st.front_gone_hook = unsafe { SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, 0, on_front_gone, pid, 0, 0) };
     }
+}
+
+/// The front window closed or hid. When the focus lands on a Xenon window no
+/// foreground event comes (the hook skips this process), so a layer it covered
+/// would stay hidden: uncover its monitor here.
+extern "system" fn on_front_gone(_: isize, event: u32, h: isize, obj: i32, child: i32, _: u32, _: u32) {
+    if event == EVENT_OBJECT_SHOW || obj != 0 || child != 0 {
+        return;
+    }
+    STATE.with(|cell| {
+        let Ok(mut st) = cell.try_borrow_mut() else { return };
+        if h != st.front || lifted() {
+            return;
+        }
+        let Some(mon) = st.front_mon else { return };
+        for e in st.entries.iter_mut().filter(|e| hides_when_covered(e.kind) && inside(&e.area, &mon)) {
+            e.covered = false;
+            desk_cover(e, None);
+        }
+    });
 }
 
 extern "system" fn on_front_moved(_: isize, _: u32, h: isize, obj: i32, child: i32, _: u32, _: u32) {
@@ -424,13 +732,15 @@ extern "system" fn on_foreground(_: isize, _: u32, fg: isize, _: i32, _: i32, _:
             match e.kind {
                 Kind::Desktop if editing => {}
                 Kind::Desktop => desk_on_foreground(e, desktop, front),
+                // An ordinary window unless a game is on (`menu_window`).
+                Kind::Menu if !menu_window::stays_on_top() => {}
                 Kind::Overlay | Kind::Saver | Kind::Menu => unsafe {
                     SetWindowPos(e.hwnd, HWND_TOPMOST, 0, 0, 0, 0, POS_ONLY);
                 },
                 Kind::Anchor => follow(e, fg),
                 Kind::Wallpaper if desktop => {
                     e.covered = false;
-                    show(e, wallpaper_on(e));
+                    settle_wallpaper(e);
                 }
                 Kind::Wallpaper => desk_cover(e, front),
                 Kind::Draw => {}
@@ -575,5 +885,37 @@ mod tests {
         let mon = Rect { l: 0, t: 0, r: 1920, b: 1080 };
         assert!(inside(&Rect { l: 0, t: 0, r: 1920, b: 1040 }, &mon));
         assert!(!inside(&Rect { l: 1920, t: 0, r: 4480, b: 1440 }, &mon));
+    }
+
+    #[test]
+    fn a_cut_window_never_paints_a_frame() {
+        for m in [WM_NCPAINT, WM_NCUAHDRAWCAPTION, WM_NCUAHDRAWFRAME] {
+            assert_eq!(frame_message(m, 7), None);
+        }
+        assert_eq!(frame_message(WM_NCACTIVATE, 0), Some(-1), "activates, repaints nothing");
+        assert_eq!(frame_message(WM_NCDESTROY, 7), Some(7), "the rest goes through untouched");
+    }
+
+    #[test]
+    fn a_screen_change_leaves_an_anchored_widget_where_it_was_put() {
+        let kept = same_place(SWP_NOZORDER);
+        assert_eq!(kept & (SWP_NOMOVE | SWP_NOSIZE), SWP_NOMOVE | SWP_NOSIZE);
+        assert_ne!(kept & SWP_NOZORDER, 0);
+    }
+
+    #[test]
+    fn a_screenshot_overlay_does_not_count_as_covering_the_desktop() {
+        assert!(passing_overlay(0x0020_0188), "Snipping Tool, sampled on Windows 11");
+        assert!(passing_overlay(0x0020_0088), "Alt+Tab, sampled on Windows 11");
+        assert!(!passing_overlay(0x0020_0100), "a maximized app");
+        assert!(!passing_overlay(0x0000_0008), "a topmost full-screen game");
+    }
+
+    #[test]
+    fn a_layer_is_a_tool_window_so_browsers_under_it_keep_painting() {
+        let ex = floating_style(0x0804_0118);
+        assert_ne!(ex & WS_EX_TOOLWINDOW as isize, 0);
+        assert_eq!(ex & WS_EX_APPWINDOW as isize, 0);
+        assert_ne!(ex & WS_EX_NOACTIVATE, 0);
     }
 }

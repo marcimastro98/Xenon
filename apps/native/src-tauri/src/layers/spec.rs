@@ -31,8 +31,9 @@ pub enum Kind {
     /// The see-through drawing sheet over the whole screen, off Windows
     /// (server/js/screen-draw-page.js); Windows draws with the capture engine.
     Draw,
-    /// The Xenon menu over the whole main screen (server/js/screen-menu-page.js):
-    /// over everything, takes the keyboard, gives it back when it closes.
+    /// The Xenon menu (server/js/screen-menu-page.js): a normal window with a
+    /// title bar, on top only of a game, that the user moves and resizes (menu_window.rs).
+    /// Takes the keyboard when it opens, gives it back when it closes.
     Menu,
 }
 
@@ -95,6 +96,15 @@ pub struct Spec {
     /// Holding View + Menu on a controller opens the Xenon menu (pad.rs).
     #[serde(default)]
     pub pad: bool,
+    /// Xenon was recording when the menu opened (server/screen-menu.js).
+    #[serde(default)]
+    pub capturing: bool,
+    /// A game is on: the menu stays on top of it (menu_window.rs).
+    #[serde(default)]
+    pub top: bool,
+    /// Counts the times the server asked the open menu to come forward.
+    #[serde(default)]
+    pub front: u32,
 }
 
 fn printable(s: &str, max: usize) -> bool {
@@ -136,28 +146,76 @@ pub fn is_menu(key: &str) -> bool {
     key.starts_with("menu:")
 }
 
+/// Whether a window stays out of screenshots and recordings. The alerts window
+/// always: Bit looking at the screen must see the game, not its own card. The
+/// menu only while Xenon records: otherwise it is the user's to photograph. A
+/// drawing is meant to be seen, in a recording too. The setting is for the widgets:
+/// a scene left out would turn the whole desktop black in a screenshot.
+pub fn out_of_captures(key: &str, spec: &Spec) -> bool {
+    if is_menu(key) {
+        return spec.capturing;
+    }
+    is_alerts(key) || (spec.exclude && !is_draw(key) && !is_scene(key))
+}
+
 /// Settings categories the Xenon menu opens (server/xenon-menu.js), the same
 /// list as SETTINGS_CATS in server/js/dashboard-open.js.
-const SETTINGS_CATS: [&str; 10] = [
-    "appearance", "capture", "general", "notifications", "ai", "smarthome", "spotify", "streaming", "unifi",
+const SETTINGS_CATS: [&str; 11] = [
+    "ambient", "appearance", "capture", "general", "notifications", "ai", "smarthome", "spotify", "streaming", "unifi",
     "slideshow",
 ];
 
 /// A dashboard screen a window may ask for, `(open, cat)`: the alerts window's
-/// update card (`xenon-app:open-dashboard?open=update`), the Xenon menu's
-/// gallery, Settings category or plain dashboard (`menu`). Anything else asks
-/// nothing; an unknown category opens Settings as it was.
+/// update card (`xenon-app:open-dashboard?open=update`), the plain dashboard
+/// (that window's card when Bit needs it, and the Xenon menu), the Sparks and the
+/// supporter pass (a sheet of What's New there), the menu's gallery, Store or
+/// Settings category (`menu`). Anything else asks nothing; an unknown category
+/// opens Settings as it was.
 pub fn dashboard_page(path: &str, open: Option<&str>, cat: Option<&str>, menu: bool) -> Option<(&'static str, Option<&'static str>)> {
     if path != "open-dashboard" {
         return None;
     }
     match open {
-        Some("update") if !menu => Some(("update", None)),
+        Some("update") => Some(("update", None)),
         Some("gallery") if menu => Some(("gallery", None)),
-        Some("dashboard") if menu => Some(("dashboard", None)),
+        Some("dashboard") => Some(("dashboard", None)),
+        Some("store") if menu => Some(("store", None)),
+        Some("sparks") => Some(("sparks", None)),
+        Some("supporters") => Some(("supporters", None)),
         Some("settings") if menu => Some(("settings", SETTINGS_CATS.iter().find(|c| Some(**c) == cat).copied())),
         _ => None,
     }
+}
+
+/// What Settings reads about the shell to show the right rows when it opens in
+/// the Xenon menu's window (js/sheet-page.js). Facts only: the switches of the
+/// main window (see-through, display, zoom) stay out, because this window takes
+/// none of their signals.
+const MENU_CAPS: [&str; 12] = [
+    "shellVersion",
+    "shellSelfUpdate",
+    "layers",
+    "layersWhy",
+    "aiGlow",
+    "scene",
+    "wallpaperBehindIcons",
+    "draw",
+    "menu",
+    "anchor",
+    "desks",
+    "pad",
+];
+
+/// The script that gives the menu's window those facts, out of the main window's.
+pub fn menu_caps_script(caps: &serde_json::Value) -> String {
+    let picked: serde_json::Map<String, serde_json::Value> = MENU_CAPS
+        .iter()
+        .filter_map(|k| caps.get(*k).map(|v| ((*k).to_string(), v.clone())))
+        .collect();
+    format!(
+        "try{{window.__XENON_NATIVE__=true;window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
+        serde_json::Value::Object(picked)
+    )
 }
 
 /// A tile's Set up button on a widget on the screen (utils.js
@@ -233,7 +291,7 @@ pub fn parse(json: &str) -> Option<Spec> {
             surfaces.push(s);
         }
     }
-    Some(Spec { exclude: raw.exclude, surfaces, desks: raw.desks, pad: raw.pad })
+    Some(Spec { surfaces, ..raw })
 }
 
 /// A layer page's tile rectangles, in device pixels of its own window:
@@ -271,6 +329,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_menu_can_be_photographed_unless_xenon_records() {
+        let spec = |exclude, capturing| Spec { exclude, capturing, ..Spec::default() };
+        assert!(!out_of_captures("menu:", &spec(true, false)), "the setting is for the widgets");
+        assert!(out_of_captures("menu:", &spec(false, true)));
+        assert!(out_of_captures("alerts:", &spec(false, false)));
+        assert!(!out_of_captures("draw:", &spec(true, false)));
+        assert!(out_of_captures("overlay:1", &spec(true, false)));
+        assert!(!out_of_captures("wallpaper:1", &spec(true, false)), "the desktop stays in a screenshot");
+        assert!(!out_of_captures("saver:1", &spec(true, false)));
+    }
+
+    #[test]
     fn hit_is_inside_a_tile_only() {
         let rects = [[100, 50, 200, 100], [400, 400, 10, 10]];
         assert!(hit(&rects, 100.0, 50.0));
@@ -284,13 +354,47 @@ mod tests {
     }
 
     #[test]
-    fn the_alerts_window_may_open_only_the_update_screen() {
+    fn the_menu_is_an_ordinary_window_unless_the_sync_says_a_game_is_on() {
+        let plain = parse(r#"{"surfaces":[{"key":"menu:","kind":"menu"}]}"#).unwrap();
+        assert_eq!((plain.top, plain.front), (false, 0));
+        let game = parse(r#"{"surfaces":[{"key":"menu:","kind":"menu"}],"top":true,"front":3}"#).unwrap();
+        assert_eq!((game.top, game.front), (true, 3));
+    }
+
+    #[test]
+    fn the_menu_window_gets_the_facts_about_the_shell_and_none_of_its_switches() {
+        let caps = serde_json::json!({
+            "shellVersion": "5.0.0", "layers": true, "layersWhy": null, "scene": false,
+            "seeThrough": true, "seeThroughOn": true, "displayPicker": true,
+            "displays": [{ "id": "x" }], "nativePageZoom": true, "twitchLogin": true,
+        });
+        let js = menu_caps_script(&caps);
+        assert!(js.contains("window.__XENON_NATIVE__=true"));
+        for fact in ["\"shellVersion\":\"5.0.0\"", "\"layers\":true", "\"layersWhy\":null", "\"scene\":false"] {
+            assert!(js.contains(fact), "{fact}");
+        }
+        for switch in ["seeThrough", "displayPicker", "displays", "nativePageZoom", "twitchLogin"] {
+            assert!(!js.contains(switch), "{switch}");
+        }
+    }
+
+    #[test]
+    fn the_menu_window_hands_the_update_screen_on_to_the_dashboard() {
+        assert_eq!(dashboard_page("open-dashboard", Some("update"), None, true), Some(("update", None)));
+    }
+
+    #[test]
+    fn the_alerts_window_may_open_only_its_own_screens() {
         assert_eq!(dashboard_page("open-dashboard", Some("update"), None, false), Some(("update", None)));
+        assert_eq!(dashboard_page("open-dashboard", Some("dashboard"), None, false), Some(("dashboard", None)));
+        assert_eq!(dashboard_page("open-dashboard", Some("sparks"), None, false), Some(("sparks", None)));
+        assert_eq!(dashboard_page("open-dashboard", Some("supporters"), None, false), Some(("supporters", None)));
         for (path, open) in [
             ("open-dashboard", None),
             ("open-dashboard", Some("settings")),
             ("open-dashboard", Some("update ")),
             ("open-dashboard", Some("gallery")),
+            ("open-dashboard", Some("store")),
             ("layer-rects", Some("update")),
         ] {
             assert_eq!(dashboard_page(path, open, None, false), None, "{path} {open:?}");
@@ -302,9 +406,10 @@ mod tests {
         let page = |open, cat| dashboard_page("open-dashboard", open, cat, true);
         assert_eq!(page(Some("gallery"), None), Some(("gallery", None)));
         assert_eq!(page(Some("dashboard"), Some("capture")), Some(("dashboard", None)));
+        assert_eq!(page(Some("store"), None), Some(("store", None)));
+        assert_eq!(page(Some("sparks"), None), Some(("sparks", None)));
         assert_eq!(page(Some("settings"), Some("capture")), Some(("settings", Some("capture"))));
         assert_eq!(page(Some("settings"), Some("../x")), Some(("settings", None)));
-        assert_eq!(page(Some("update"), None), None, "the update screen is the alerts card's");
         assert_eq!(page(Some("chat"), None), None);
         assert_eq!(dashboard_page("ai-glow", Some("gallery"), None, true), None);
     }

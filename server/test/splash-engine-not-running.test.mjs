@@ -20,6 +20,8 @@ const SCRIPT = (() => {
   return scripts[scripts.length - 1][1];
 })();
 
+const WORDS = readFileSync(new URL('../../apps/native/splash/words.js', import.meta.url), 'utf8');
+
 function fakeElement(text = '') {
   const classes = new Set();
   const el = {
@@ -39,11 +41,11 @@ function fakeElement(text = '') {
 
 // Boots the splash with the given shell flags. `answers` decides whether the
 // engine is up; flip it later to bring the engine up mid-run.
-function bootSplash({ flags = {}, setupAvailable = true } = {}) {
+function bootSplash({ flags = {}, setupAvailable = true, language = 'en-US' } = {}) {
   let now = 0;
   const timers = [];
   const els = {
-    status: fakeElement('Starting Xenon…'),
+    status: fakeElement(),
     hint: fakeElement(),
     setup: fakeElement(),
     'setup-title': fakeElement("Xenon isn't finished installing"),
@@ -60,13 +62,13 @@ function bootSplash({ flags = {}, setupAvailable = true } = {}) {
   const window = { __XENON_SETUP_AVAILABLE__: setupAvailable, location, ...flags };
   const context = {
     window,
-    document: { getElementById: (id) => els[id] },
-    navigator: { platform: 'Win32' },
+    document: { getElementById: (id) => els[id], documentElement: {} },
+    navigator: { platform: 'Win32', language },
     Date: { now: () => now },
     setTimeout: (fn, ms) => { timers.push({ at: now + ms, fn }); },
     fetch: () => (state.answers ? Promise.resolve({}) : Promise.reject(new TypeError('refused'))),
   };
-  vm.runInNewContext(SCRIPT, context);
+  vm.runInNewContext(WORDS + SCRIPT, context);
 
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   async function advanceTo(ms) {
@@ -89,7 +91,7 @@ function bootSplash({ flags = {}, setupAvailable = true } = {}) {
     disabled: els['setup-btn'].disabled,
   });
   const click = () => els['setup-btn'].listeners.click();
-  return { window, state, advanceTo, panel, click, now: () => now };
+  return { window, els, state, advanceTo, panel, click, now: () => now };
 }
 
 test('an installed engine that stays silent is never offered an install', async () => {
@@ -183,4 +185,61 @@ test('a build without the bootstrap gives the start back instead of a repair', a
   assert.equal(s.panel().disabled, false);
   s.click();
   assert.equal(s.window.location.href, 'xenon-setup:start');
+});
+
+test('the splash speaks the language the dashboard left, then the system\'s', () => {
+  const said = (opts) => bootSplash(opts).panel().button;
+  assert.equal(said({ flags: { __XENON_NATIVE_CAPS__: { splashLang: 'it' } }, language: 'de-DE' }), 'Completa la configurazione');
+  assert.equal(said({ language: 'it-IT' }), 'Completa la configurazione');
+  assert.equal(said({ flags: { __XENON_NATIVE_CAPS__: { splashLang: '' } }, language: 'fr-FR' }), 'Terminer la configuration');
+  assert.equal(said({ flags: { __XENON_NATIVE_CAPS__: { splashLang: 'xx' } }, language: 'zz' }), 'Complete setup');
+});
+
+test('every language has every word, and the installer slot', () => {
+  const box = { window: {} };
+  vm.runInNewContext(WORDS, box);
+  const all = box.window.SPLASH_WORDS;
+  assert.deepEqual(Object.keys(all).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']);
+  const keys = Object.keys(all.en).sort();
+  for (const [code, words] of Object.entries(all)) {
+    assert.deepEqual(Object.keys(words).sort(), keys, code);
+    assert.match(words.stuck, /\{installer\}/, code);
+    for (const text of Object.values(words)) assert.doesNotMatch(text, /—|–/, code + ': ' + text.slice(0, 50));
+  }
+});
+
+test('the dashboard tells the shell a new language once, and an older shell never', () => {
+  const bridge = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
+  const start = bridge.indexOf('function tellSplashLanguage');
+  const source = bridge.slice(start, bridge.indexOf('// Restart the app', start));
+  const tell = (caps) => {
+    const window = { __XENON_NATIVE_CAPS__: caps, location: { href: '' }, __xenonSignal: (url) => url + '&xn=1' };
+    const sent = [];
+    Object.defineProperty(window.location, 'href', { set: (url) => sent.push(url) });
+    const run = vm.runInNewContext('(' + source + ')', { window, isNative: true, afterLoad: (fn) => fn(), encodeURIComponent });
+    return { run, sent };
+  };
+  const fresh = tell({ splashLang: '' });
+  fresh.run('it');
+  fresh.run('it');
+  assert.deepEqual(fresh.sent, ['xenon-app:splash-language?l=it&xn=1']);
+  const same = tell({ splashLang: 'it' });
+  same.run('it');
+  assert.deepEqual(same.sent, []);
+  const older = tell({});
+  older.run('it');
+  assert.deepEqual(older.sent, []);
+});
+
+test('a normal start says nothing, a slow one says it is waiting', async () => {
+  const fast = bootSplash();
+  fast.state.answers = true;
+  await fast.advanceTo(2000);
+  assert.ok(fast.state.navigatedTo.includes('/?shell=main'));
+  assert.equal(fast.els.status.textContent, '');
+  const slow = bootSplash();
+  await slow.advanceTo(2000);
+  assert.equal(slow.els.status.textContent, '');
+  await slow.advanceTo(4000);
+  assert.equal(slow.els.status.textContent, 'Waiting for Xenon to start…');
 });

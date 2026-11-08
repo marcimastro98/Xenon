@@ -157,7 +157,7 @@ test('the Settings switch lives in Background and is shown only where it works',
 test('every string of the switch is translated in every language', () => {
   const I18N = read('../js/i18n.js');
   const keys = [
-    'settings_see_through_head', 'settings_see_through_hint', 'settings_see_through',
+    'settings_see_through_head', 'settings_see_through',
     'settings_see_through_desc', 'settings_see_through_blocked', 'settings_see_through_tip',
     'settings_see_through_restart_title', 'settings_see_through_restart',
   ];

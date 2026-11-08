@@ -141,27 +141,144 @@ static DRIVER: AtomicBool = AtomicBool::new(false);
 /// The path the server redirects the main window to in "widgets only" mode.
 pub const DRIVER_PATH: &str = "/shell-driver";
 
+/// True while someone in "widgets only" looks at the dashboard (`full=1`: the
+/// menu, the tray, a Deck key). It is a visit, not a change of mode: the dashboard
+/// opens as an ordinary window on the screen the user is on, wherever the saved
+/// placement points (an Edge they do not want it on, say), the mirror in prefs
+/// stays, and closing the window goes back to the driver instead of quitting.
+static VISIT: AtomicBool = AtomicBool::new(false);
+
+/// The user opened Xenon by hand and the main window has not loaded a page yet.
+/// With "widgets only" that page is the driver, which hides the window, and an app
+/// that opens and shows nothing reads as broken: the first load opens the Xenon
+/// menu instead, the same as double-clicking it while it runs.
+static STARTED_BY_HAND: AtomicBool = AtomicBool::new(false);
+
+/// The OS name of the screen the visit opened on.
+static VISIT_SCREEN: Mutex<Option<String>> = Mutex::new(None);
+
 pub fn seed_driver(prefs: &prefs::DisplayPrefs) {
     DRIVER.store(prefs.widgets_only, Ordering::SeqCst);
 }
 
+pub fn started_by_hand() {
+    STARTED_BY_HAND.store(true, Ordering::SeqCst);
+}
+
+/// True once, on the first page of a start by hand, if that page is the driver.
+pub fn opened_to_nothing(on_driver: bool) -> bool {
+    STARTED_BY_HAND.swap(false, Ordering::SeqCst) && on_driver
+}
+
+/// What a page load of the main window changes.
+#[derive(Debug, PartialEq, Eq)]
+struct DriverStep {
+    /// A visit is on after this load.
+    visit: bool,
+    /// The window needs placing.
+    place: bool,
+    /// The mirror in prefs follows the page. Never for a visit.
+    mirror: bool,
+}
+
+fn driver_step(was_driver: bool, on: bool, full: bool, visiting: bool) -> DriverStep {
+    let visit = !on && full && (was_driver || visiting);
+    // The dashboard without `full=1` during a visit: the user changed mode from it.
+    let changed_mode = visiting && !on && !full;
+    DriverStep {
+        visit,
+        place: !on && (was_driver || changed_mode),
+        mirror: changed_mode || (was_driver != on && !visit && !visiting),
+    }
+}
+
 /// The main window loaded a page: the driver hides the window (every time: a
-/// manual launch shows the splash even when the driver was seeded), any other
-/// page (the dashboard, after the user switched back or asked for it from the
-/// tray) gets its normal placement again. The mirror is written on a change.
-/// True when the window just left the driver.
-pub fn set_driver(window: &WebviewWindow, on: bool) -> bool {
+/// manual launch shows the splash even when the driver was seeded). The dashboard
+/// asked for with `full=1` is a visit; any other page (the user switched back)
+/// gets its normal placement again. True when the window just left the driver.
+pub fn set_driver(window: &WebviewWindow, on: bool, full: bool) -> bool {
     let was = DRIVER.swap(on, Ordering::SeqCst);
+    let visiting = VISIT.load(Ordering::SeqCst);
+    let step = driver_step(was, on, full, visiting);
+    if step.visit && !visiting {
+        begin_visit(window);
+    } else if !step.visit {
+        VISIT.store(false, Ordering::SeqCst);
+    }
     if on {
         SHOW_OVERRIDE.store(false, Ordering::SeqCst);
         hide_window(window);
-    } else if was {
-        place_now(window);
+    } else if step.place {
+        let focus = leaving_driver_takes_focus(step.visit, xenon_has_foreground(window));
+        apply_target(window, resolve(window, &placement_cache()), focus);
     }
-    if was != on {
+    if step.mirror {
         prefs::update(window.app_handle(), |p| p.widgets_only = on);
     }
     was && !on
+}
+
+/// A visit is someone asking to look at the dashboard. A change of mode can come
+/// from a Deck key in the middle of a game: then the dashboard comes back on its
+/// screen and the game keeps the keyboard. From Xenon's own menu it comes forward.
+fn leaving_driver_takes_focus(visit: bool, xenon_in_front: bool) -> bool {
+    visit || xenon_in_front
+}
+
+/// First choice that is not the Edge; the Edge only when nothing else is there
+/// (that panel has no windowed form, see `resolve`).
+fn visit_screen<T>(candidates: Vec<T>, is_edge: impl Fn(&T) -> bool) -> Option<T> {
+    let mut edge = None;
+    for candidate in candidates {
+        if !is_edge(&candidate) {
+            return Some(candidate);
+        }
+        edge.get_or_insert(candidate);
+    }
+    edge
+}
+
+/// The screen under the pointer: the one the user just pressed something on.
+pub(crate) fn pointer_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    let w = window.clone();
+    on_main(window.app_handle(), move || {
+        let at = w.cursor_position().ok()?;
+        w.monitor_from_point(at.x, at.y).ok().flatten()
+    })
+    .flatten()
+}
+
+fn begin_visit(window: &WebviewWindow) {
+    let mut candidates: Vec<Monitor> = pointer_monitor(window).into_iter().chain(primary_of(window)).collect();
+    candidates.extend(monitors_of(window).unwrap_or_default());
+    let screen = visit_screen(candidates, is_edge_panel).and_then(|m| m.name().cloned());
+    if let Ok(mut saved) = VISIT_SCREEN.lock() {
+        *saved = screen;
+    }
+    VISIT.store(true, Ordering::SeqCst);
+}
+
+/// The screen of the visit, or the first one if it went away meanwhile.
+fn visit_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    let saved = VISIT_SCREEN.lock().ok().and_then(|s| s.clone());
+    let all = monitors_of(window)?;
+    let found = all.iter().find(|m| m.name() == saved.as_ref()).cloned();
+    found.or_else(|| visit_screen(all, is_edge_panel))
+}
+
+/// Closing the dashboard during a visit: back to the driver, with no page in
+/// between (the window is hidden first, and `DRIVER` keeps the watchdog from
+/// placing it). The driver asks the server again, so a mode that changed still
+/// wins. False when there is no visit, and the caller goes on as usual.
+pub fn end_visit(window: &WebviewWindow) -> bool {
+    if !VISIT.swap(false, Ordering::SeqCst) {
+        return false;
+    }
+    DRIVER.store(true, Ordering::SeqCst);
+    SHOW_OVERRIDE.store(false, Ordering::SeqCst);
+    hide_window(window);
+    load_local(window, DRIVER_PATH);
+    true
 }
 
 /// Mirror of the placement triple, so the watchdog can read the user's choice on
@@ -237,7 +354,7 @@ fn current_of(window: &WebviewWindow) -> Option<Monitor> {
     on_main(window.app_handle(), move || w.current_monitor().ok().flatten()).flatten()
 }
 
-fn app_monitors(app: &AppHandle) -> Vec<Monitor> {
+pub(crate) fn app_monitors(app: &AppHandle) -> Vec<Monitor> {
     let a = app.clone();
     on_main(app, move || a.available_monitors().unwrap_or_default()).unwrap_or_default()
 }
@@ -299,7 +416,7 @@ pub fn set_placement_cache(prefs: &prefs::DisplayPrefs) {
 /// would reveal a window that phone mode, or a missing screen, still wanted
 /// hidden. Every `show()` outside the deliberate tray override goes through here.
 fn may_show() -> bool {
-    if SHOW_OVERRIDE.load(Ordering::SeqCst) {
+    if SHOW_OVERRIDE.load(Ordering::SeqCst) || VISIT.load(Ordering::SeqCst) {
         return true;
     }
     !RDP_HIDDEN.load(Ordering::SeqCst)
@@ -313,6 +430,33 @@ fn show_if_allowed(window: &WebviewWindow) {
     if may_show() {
         show_window(window);
     }
+}
+
+/// Shows the window, leaving the keyboard where it is unless `focus` asks for it.
+/// Windows and macOS do that by themselves; on X11 the window manager hands a
+/// window the focus as it maps, unless the window says not to.
+fn show_for(window: &WebviewWindow, focus: bool) {
+    #[cfg(target_os = "linux")]
+    focus_on_map(window, focus);
+    #[cfg(not(target_os = "linux"))]
+    let _ = focus;
+    show_if_allowed(window);
+    #[cfg(target_os = "linux")]
+    focus_on_map(window, true);
+}
+
+// Queued on the main thread, in order with the show between the two calls.
+#[cfg(target_os = "linux")]
+fn focus_on_map(window: &WebviewWindow, on: bool) {
+    use gtk::prelude::GtkWindowExt;
+    let target = window.clone();
+    let _ = window.run_on_main_thread(move || {
+        // Redundant here, as in `gdk_fullscreen_on`, for check-platform-apis.
+        #[cfg(target_os = "linux")]
+        if let Ok(gtk_win) = target.gtk_window() {
+            gtk_win.set_focus_on_map(on);
+        }
+    });
 }
 
 /// Every hide and show of the main window goes through these two, so a hidden
@@ -495,6 +639,7 @@ fn move_back_quietly(window: &WebviewWindow, monitor: &Monitor) {
     const SWP_NOZORDER: u32 = 0x0004;
     const SWP_NOACTIVATE: u32 = 0x0010;
     const SWP_NOOWNERZORDER: u32 = 0x0200;
+    restore_quietly(window);
     let Ok(hwnd) = window.hwnd() else { return };
     // Physical pixels on both sides: Monitor reports them, and the process is
     // per-monitor DPI aware, which is what SetWindowPos then takes.
@@ -562,6 +707,48 @@ fn window_is_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
     match current_of(window) {
         Some(current) => current.position() == monitor.position(),
         None => false,
+    }
+}
+
+/// Whether the window has been minimized, by anything: Xenon itself never does it.
+fn minimized(window: &WebviewWindow) -> bool {
+    let w = window.clone();
+    on_main(window.app_handle(), move || w.is_minimized().unwrap_or(false)).unwrap_or(false)
+}
+
+/// Whether the kiosk has left its screen: moved off it, or minimized.
+///
+/// A minimized window still answers for the screen it came from, so the origin
+/// alone reads it as in place, and the kiosk has no taskbar button to bring it back
+/// with. Windows 11 minimizes windows when a monitor goes away, its default, and a
+/// KVM switch takes one away. Reported on Discord: the Edge showed the desktop
+/// after every switch until "Automatic" was picked in the tray.
+fn kiosk_off_screen(on_it: bool, minimized: bool) -> bool {
+    !on_it || minimized
+}
+
+/// Bring a minimized window back without taking the foreground from whatever is
+/// in use, a game included. `unminimize` would: it is `SW_RESTORE`, which activates.
+#[cfg(windows)]
+fn restore_quietly(window: &WebviewWindow) {
+    #[link(name = "user32")]
+    extern "system" {
+        fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+    }
+    const SW_SHOWNOACTIVATE: i32 = 4;
+    if !minimized(window) {
+        return;
+    }
+    let Ok(hwnd) = window.hwnd() else { return };
+    unsafe {
+        ShowWindow(hwnd.0 as isize, SW_SHOWNOACTIVATE);
+    }
+}
+
+#[cfg(not(windows))]
+fn restore_quietly(window: &WebviewWindow) {
+    if minimized(window) {
+        let _ = window.unminimize();
     }
 }
 
@@ -655,6 +842,7 @@ fn extent(w: f64, h: f64) -> tauri::Size {
 /// another app.
 fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
     let rect = monitor_rect(edge);
+    restore_quietly(window);
     let _ = window.set_fullscreen(false);
     // Enforce the kiosk chrome: borderless and hidden from the taskbar/Alt-Tab, so
     // that upgrading a windowed session (no Edge → Edge plugged in) becomes a full
@@ -901,7 +1089,7 @@ fn initial_target(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> (Option<Monit
 /// Ordinary, controllable desktop window on the given monitor: a title bar, a
 /// taskbar entry, sized to fit that screen and centred on it. Used off the Edge —
 /// the kiosk chrome would trap the user in a borderless fullscreen with no way out.
-fn place_windowed_on(window: &WebviewWindow, monitor: &Monitor) {
+fn place_windowed_on(window: &WebviewWindow, monitor: &Monitor, focus: bool) {
     let _ = window.set_fullscreen(false);
     let _ = window.set_decorations(true);
     let _ = window.set_skip_taskbar(false);
@@ -910,14 +1098,16 @@ fn place_windowed_on(window: &WebviewWindow, monitor: &Monitor) {
     let rect = monitor_rect(monitor);
     let _ = window.set_position(point(rect.x, rect.y));
     let _ = window.center();
-    let _ = window.set_focus();
+    if focus {
+        let _ = window.set_focus();
+    }
 }
 
 /// Full-screen on the given monitor, but still reachable on an ordinary PC: it
 /// stays in the taskbar / Alt-Tab and a title bar returns if the user leaves
 /// full-screen from the tray. (This is the non-Edge "fullscreen" choice — distinct
 /// from the borderless, taskbar-hidden Edge kiosk in `place_on_edge`.)
-fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor) {
+fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor, focus: bool) {
     let _ = window.set_fullscreen(false);
     let _ = window.set_decorations(true);
     let _ = window.set_skip_taskbar(false);
@@ -930,7 +1120,9 @@ fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor) {
         crate::crash_log::note("display", "the window had not reached its screen after 600 ms; going full screen anyway");
     }
     let _ = window.set_fullscreen(true);
-    let _ = window.set_focus();
+    if focus {
+        let _ = window.set_focus();
+    }
 }
 
 /// The primary monitor, or the first available one if the primary is unknown.
@@ -1248,6 +1440,13 @@ pub enum NoScreen {
 }
 
 fn resolve(window: &WebviewWindow, cache: &PlacementCache) -> Target {
+    if VISIT.load(Ordering::SeqCst) {
+        return match visit_monitor(window) {
+            Some(m) if is_edge_panel(&m) => Target::Kiosk(m),
+            Some(m) => Target::Windowed(m, false),
+            None => Target::Nothing(NoScreen::ChosenMissing),
+        };
+    }
     // The driver page has nothing to show, whatever the placement says.
     if DRIVER.load(Ordering::SeqCst) {
         return Target::Nothing(NoScreen::Phone);
@@ -1285,18 +1484,18 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
     match target {
         Target::Kiosk(m) => {
             NO_SCREEN.store(false, Ordering::SeqCst);
-            show_if_allowed(window);
+            show_for(window, focus);
             place_on_edge(window, &m, focus);
         }
         Target::Windowed(m, true) => {
             NO_SCREEN.store(false, Ordering::SeqCst);
-            show_if_allowed(window);
-            place_fullscreen_on(window, &m);
+            show_for(window, focus);
+            place_fullscreen_on(window, &m, focus);
         }
         Target::Windowed(m, false) => {
             NO_SCREEN.store(false, Ordering::SeqCst);
-            show_if_allowed(window);
-            place_windowed_on(window, &m);
+            show_for(window, focus);
+            place_windowed_on(window, &m, focus);
         }
         Target::Nothing(NoScreen::Phone) => {
             // SHOW_OVERRIDE is what a DELIBERATE launch sets: the user chose
@@ -1317,7 +1516,7 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
                 if let Some(m) = current_of(window)
                     .or_else(|| primary_or_first(window))
                 {
-                    place_windowed_on(window, &m);
+                    place_windowed_on(window, &m, true);
                 }
             }
         }
@@ -1335,7 +1534,7 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
 /// Read by show_desktop.rs, which keeps only such a window above Win+D.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn owns_its_screen(window: &WebviewWindow) -> bool {
-    if HOME_MODE.load(Ordering::SeqCst) || DRIVER.load(Ordering::SeqCst) {
+    if HOME_MODE.load(Ordering::SeqCst) || DRIVER.load(Ordering::SeqCst) || VISIT.load(Ordering::SeqCst) {
         return false;
     }
     matches!(resolve(window, &placement_cache()), Target::Kiosk(_) | Target::Windowed(_, true))
@@ -1425,11 +1624,24 @@ pub fn reveal(app: &AppHandle) {
 /// to see it, not to move house — so the next topology change re-evaluates.
 pub fn show_now(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else { return };
-    // "Widgets only": the window holds the driver, so showing it would show an
-    // empty page. Load the dashboard instead (`full=1` skips the server's
-    // redirect); its page load ends the driver and places the window.
+    crate::layers::keep_focus_here(app);
+    // "Widgets only": the window holds the driver, an empty page, and this person
+    // chose not to have the dashboard, so Xenon opens as its menu. A shell that
+    // cannot draw the menu has only the dashboard to show: `full=1` skips the
+    // server's redirect, and its page load starts the visit and places the window.
     if DRIVER.load(Ordering::SeqCst) {
-        load_dashboard(&window, "");
+        if crate::layers::draws_menu() {
+            let _ = window.eval(crate::tray::OPEN_MENU_JS);
+        } else {
+            load_dashboard(&window, "");
+        }
+        return;
+    }
+    // Already open: leave it where the user put it.
+    if VISIT.load(Ordering::SeqCst) {
+        show_window(&window);
+        let _ = window.unminimize();
+        let _ = window.set_focus();
         return;
     }
     SHOW_OVERRIDE.store(true, Ordering::SeqCst);
@@ -1439,7 +1651,7 @@ pub fn show_now(app: &AppHandle) {
             // Nowhere legitimate to put it: land on the primary, this session only.
             show_window(&window);
             if let Some(m) = primary_or_first(&window) {
-                place_windowed_on(&window, &m);
+                place_windowed_on(&window, &m, true);
             }
         }
         target => apply_target(&window, target, true),
@@ -1456,6 +1668,7 @@ pub fn open_dashboard(app: &AppHandle, page: &'static str, cat: Option<&'static 
     let Some(window) = app.get_webview_window("main") else { return };
     let cat_query = cat.map(|c| format!("&cat={c}")).unwrap_or_default();
     if DRIVER.load(Ordering::SeqCst) {
+        crate::layers::keep_focus_here(app);
         load_dashboard(&window, &format!("&open={page}{cat_query}"));
         return;
     }
@@ -1466,8 +1679,16 @@ pub fn open_dashboard(app: &AppHandle, page: &'static str, cat: Option<&'static 
 
 /// The driver page leaves for the dashboard; its page load ends the driver.
 fn load_dashboard(window: &WebviewWindow, extra: &str) {
-    let port = std::env::var("XENON_PORT").ok().and_then(|p| p.parse::<u16>().ok()).unwrap_or(3030);
-    if let Ok(url) = tauri::Url::parse(&format!("http://127.0.0.1:{port}/?shell=main&full=1{extra}")) {
+    load_local(window, &format!("/?shell=main&full=1{extra}"));
+}
+
+pub fn backend_port() -> u16 {
+    std::env::var("XENON_PORT").ok().and_then(|p| p.parse::<u16>().ok()).unwrap_or(3030)
+}
+
+fn load_local(window: &WebviewWindow, path: &str) {
+    let port = backend_port();
+    if let Ok(url) = tauri::Url::parse(&format!("http://127.0.0.1:{port}{path}")) {
         let _ = window.navigate(url);
     }
 }
@@ -1549,6 +1770,25 @@ fn kiosk_has_foreground(_window: &WebviewWindow) -> bool {
     true
 }
 
+/// True when the foreground belongs to any window of this process, the menu too.
+#[cfg(windows)]
+fn xenon_has_foreground(_window: &WebviewWindow) -> bool {
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetForegroundWindow() -> isize;
+        fn GetWindowThreadProcessId(hwnd: isize, pid: *mut u32) -> u32;
+    }
+    let mut pid = 0u32;
+    unsafe { GetWindowThreadProcessId(GetForegroundWindow(), &mut pid) };
+    pid == std::process::id()
+}
+
+// Elsewhere the windows themselves say who holds the keyboard, on X11, Wayland and macOS.
+#[cfg(not(windows))]
+fn xenon_has_foreground(window: &WebviewWindow) -> bool {
+    window.app_handle().webview_windows().values().any(|w| w.is_focused().unwrap_or(false))
+}
+
 /// Self-heal a stuck "always on top". The only thing that legitimately makes the
 /// kiosk topmost is the round home button (`enter_home`), and `exit_home` clears
 /// it — but nothing clears a `WS_EX_TOPMOST` that arrives any other way (an
@@ -1619,8 +1859,8 @@ fn clear_stuck_topmost(window: &WebviewWindow) {
 /// full-screen while the user is on the desktop.
 pub fn enter_home(window: &WebviewWindow) {
     let cache = placement_cache();
-    // Nothing to collapse when this PC shows nothing.
-    if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) {
+    // Nothing to collapse when this PC shows nothing, and a visit has a title bar.
+    if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) || VISIT.load(Ordering::SeqCst) {
         return;
     }
     HOME_MODE.store(true, Ordering::SeqCst);
@@ -1691,7 +1931,7 @@ pub fn exit_home(window: &WebviewWindow) {
     // ordinary desktop window on the screen it is already on.
     if placement_cache().mode == Placement::Phone {
         if let Some(monitor) = current_of(window) {
-            place_windowed_on(window, &monitor);
+            place_windowed_on(window, &monitor, true);
         }
     } else {
         place_now(window);
@@ -1705,8 +1945,13 @@ pub struct DisplayInfo {
     /// Never empty — see `display_id`. An unnamed output is identified by shape.
     pub id: String,
     pub label: String,
+    /// The model, as a person knows the screen. Empty when the system reports none.
+    pub name: String,
     pub width: u32,
     pub height: u32,
+    /// Where it sits on the desktop, so the menu can draw the screens as they stand.
+    pub x: i32,
+    pub y: i32,
     pub scale: f64,
     pub primary: bool,
     pub edge: bool,
@@ -1760,6 +2005,7 @@ fn describe(monitors: Vec<Monitor>, primary: Option<Monitor>) -> Vec<DisplayInfo
     // same-model monitors on macOS report the same name, and matching on that
     // flagged both of them primary.
     let primary_origin = primary.as_ref().map(|m| *m.position());
+    let models = crate::monitor_names::model_names(&monitors);
     monitors
         .into_iter()
         .enumerate()
@@ -1771,8 +2017,11 @@ fn describe(monitors: Vec<Monitor>, primary: Option<Monitor>) -> Vec<DisplayInfo
             DisplayInfo {
                 id,
                 label: format!("Display {} — {}×{}", i + 1, s.width, s.height),
+                name: crate::monitor_names::display_name(&models[i], edge),
                 width: s.width,
                 height: s.height,
+                x: m.position().x,
+                y: m.position().y,
                 scale: m.scale_factor(),
                 primary,
                 edge,
@@ -1789,8 +2038,8 @@ pub fn display_list_json(app: &AppHandle) -> serde_json::Value {
 
 fn display_json(d: &DisplayInfo) -> serde_json::Value {
     serde_json::json!({
-        "id": d.id, "label": d.label, "width": d.width, "height": d.height,
-        "scale": d.scale, "primary": d.primary, "edge": d.edge,
+        "id": d.id, "label": d.label, "name": d.name, "width": d.width, "height": d.height,
+        "x": d.x, "y": d.y, "scale": d.scale, "primary": d.primary, "edge": d.edge,
     })
 }
 
@@ -1982,9 +2231,10 @@ fn note_repin(window: &WebviewWindow, target: &Monitor, attempts: u32, now: Syst
         .map(|m| format!("{} at {},{}", m.name().map(String::as_str).unwrap_or("?"), m.position().x, m.position().y))
         .unwrap_or_else(|| "unknown screen".to_string());
     let name = target.name().map(String::as_str).unwrap_or("?");
+    let state = if minimized(window) { "minimized on" } else { "on" };
     let mut line = format!(
-        "re-placing the window (attempt {}): it is on {}, its screen is {} {:.0}x{:.0} at {:.0},{:.0}",
-        attempts + 1, from, name, r.w, r.h, r.x, r.y
+        "re-placing the window (attempt {}): it is {} {}, its screen is {} {:.0}x{:.0} at {:.0},{:.0}",
+        attempts + 1, state, from, name, r.w, r.h, r.x, r.y
     );
     if attempts + 1 == MAX_REPIN_ATTEMPTS {
         line.push_str("; last quick attempt, then once a minute");
@@ -2043,7 +2293,7 @@ pub fn start_watchdog(app: AppHandle) {
         // Phone mode: this PC shows nothing, so there is nothing to re-pin and
         // nothing to reveal. Checked BEFORE the RDP branch, whose show() would
         // otherwise put a hidden window back on screen when a remote session ends.
-        if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) {
+        if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) || VISIT.load(Ordering::SeqCst) {
             continue;
         }
 
@@ -2133,7 +2383,10 @@ pub fn start_watchdog(app: AppHandle) {
                     // drifted; the windowed one re-places on a topology change only
                     // (see below). So only those two feed the attempt counter.
                     let chases = is_edge_panel(&target) || cache.fullscreen;
-                    let drifted = chases && !window_is_on(&window, &target);
+                    // Full screen on a chosen screen has a taskbar button, so
+                    // minimizing it is the user's to do and to undo.
+                    let gone = is_edge_panel(&target) && minimized(&window);
+                    let drifted = chases && kiosk_off_screen(window_is_on(&window, &target), gone);
                     if !drifted || topology_changed {
                         repin_attempts = 0;
                     }
@@ -2156,12 +2409,12 @@ pub fn start_watchdog(app: AppHandle) {
                             if is_edge_panel(&target) {
                                 place_on_edge(&window, &target, focus);
                             } else if cache.fullscreen {
-                                place_fullscreen_on(&window, &target);
+                                place_fullscreen_on(&window, &target, true);
                             } else if topology_changed {
                                 // Windowed: only re-place on a real topology change.
                                 // Chasing `window_is_on` here would drag the window
                                 // back every time the user moved it themselves.
-                                place_windowed_on(&window, &target);
+                                place_windowed_on(&window, &target, true);
                             }
                         }
                     }
@@ -2207,7 +2460,7 @@ pub fn start_watchdog(app: AppHandle) {
             // resolution reverting on exit is not itself seen as a change to chase.
             // What stays allowed mid-game is bringing back a window that has left
             // the Edge, by a move that activates nothing (see `repin_action`).
-            let drifted = !window_is_on(&window, &edge);
+            let drifted = kiosk_off_screen(window_is_on(&window, &edge), minimized(&window));
             if !drifted || topology_changed {
                 repin_attempts = 0;
             }
@@ -2241,6 +2494,70 @@ pub fn start_watchdog(app: AppHandle) {
         }
         }
     });
+}
+
+#[cfg(test)]
+mod visit_tests {
+    use super::*;
+
+    fn step(visit: bool, place: bool, mirror: bool) -> DriverStep {
+        DriverStep { visit, place, mirror }
+    }
+
+    #[test]
+    fn a_mode_change_from_a_key_leaves_the_game_in_front() {
+        assert!(!leaving_driver_takes_focus(false, false));
+        assert!(leaving_driver_takes_focus(false, true), "from Xenon's own menu it comes forward");
+        assert!(leaving_driver_takes_focus(true, false), "a visit is asked for");
+    }
+
+    #[test]
+    fn the_dashboard_asked_for_from_the_driver_is_a_visit_and_keeps_the_mode() {
+        assert_eq!(driver_step(true, false, true, false), step(true, true, false));
+    }
+
+    #[test]
+    fn a_start_by_hand_that_lands_on_the_driver_shows_something_once() {
+        assert!(!opened_to_nothing(true), "a login start stays hidden");
+        started_by_hand();
+        assert!(opened_to_nothing(true));
+        assert!(!opened_to_nothing(true), "going back to the driver later stays hidden");
+        started_by_hand();
+        assert!(!opened_to_nothing(false), "the dashboard is already there");
+        assert!(!opened_to_nothing(true), "only the first page counts");
+    }
+
+    #[test]
+    fn a_reload_during_a_visit_leaves_the_window_where_the_user_put_it() {
+        assert_eq!(driver_step(false, false, true, true), step(true, false, false));
+    }
+
+    #[test]
+    fn leaving_a_visit_for_the_driver_changes_nothing_saved() {
+        assert_eq!(driver_step(true, true, false, false), step(false, false, false));
+    }
+
+    #[test]
+    fn changing_mode_during_a_visit_is_a_normal_dashboard_from_then_on() {
+        assert_eq!(driver_step(false, false, false, true), step(false, true, true));
+    }
+
+    #[test]
+    fn without_a_visit_the_driver_works_as_before() {
+        assert_eq!(driver_step(false, true, false, false), step(false, false, true));
+        assert_eq!(driver_step(true, false, false, false), step(false, true, true));
+        assert_eq!(driver_step(false, false, false, false), step(false, false, false));
+        assert_eq!(driver_step(false, false, true, false), step(false, false, false));
+    }
+
+    #[test]
+    fn a_visit_opens_on_the_screen_in_use_and_on_the_edge_only_when_alone() {
+        let edge = |s: &&str| *s == "edge";
+        assert_eq!(visit_screen(vec!["left", "main", "edge"], edge), Some("left"));
+        assert_eq!(visit_screen(vec!["edge", "main", "edge"], edge), Some("main"));
+        assert_eq!(visit_screen(vec!["edge", "edge"], edge), Some("edge"));
+        assert_eq!(visit_screen(Vec::<&str>::new(), edge), None);
+    }
 }
 
 #[cfg(test)]
@@ -2289,6 +2606,13 @@ mod repin_tests {
         // Only while it is off its screen, and never in a game.
         assert_eq!(repin_action(false, false, false, MAX_REPIN_ATTEMPTS, secs(600)), Repin::Nothing);
         assert_eq!(repin_action(true, true, false, MAX_REPIN_ATTEMPTS, secs(600)), Repin::Nothing);
+    }
+
+    #[test]
+    fn a_minimized_kiosk_has_left_its_screen_even_where_its_origin_still_matches() {
+        assert!(kiosk_off_screen(true, true));
+        assert!(kiosk_off_screen(false, false));
+        assert!(!kiosk_off_screen(true, false));
     }
 
     #[test]

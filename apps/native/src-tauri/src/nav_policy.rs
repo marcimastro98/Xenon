@@ -29,6 +29,11 @@ use tauri::Url;
 /// real parameter a signal carries (`d`, `id`, `on`, `z`, `fullscreen`, …).
 const NONCE_KEY: &str = "xn";
 
+/// Where `tauri dev` serves the splash, its default port. Debug builds only: a
+/// shipped shell loads the splash from `tauri.localhost` and must keep treating
+/// every other local service as an outside site.
+const DEV_SERVER_PORT: u16 = 1430;
+
 /// 128 random bits as hex, fresh every launch. A page from a previous launch
 /// (or anything that saw one) holds a nonce that no longer works.
 pub fn new_nonce() -> String {
@@ -51,6 +56,9 @@ fn own_origins(port: u16) -> Vec<String> {
         "http://tauri.localhost".to_string(),
         "https://tauri.localhost".to_string(),
     ];
+    if cfg!(debug_assertions) {
+        v.push(format!("http://127.0.0.1:{DEV_SERVER_PORT}"));
+    }
     for host in ["127.0.0.1", "localhost", "[::1]"] {
         // `location.origin` leaves out the scheme's default port.
         if port == 80 {
@@ -137,12 +145,22 @@ pub fn is_own_page(url: &Url, port: u16) -> bool {
         return false;
     }
     match url.host_str() {
+        Some("127.0.0.1") if cfg!(debug_assertions) && url.port() == Some(DEV_SERVER_PORT) => true,
         Some("127.0.0.1") | Some("localhost") | Some("[::1]") | Some("::1") => {
             url.port_or_known_default() == Some(port)
         }
         Some("tauri.localhost") => url.port().is_none(),
         _ => false,
     }
+}
+
+/// A page the backend served. Narrower than `is_own_page`: the splash is not one,
+/// and it arrives as `tauri://localhost` on macOS and Linux and from the dev
+/// server on 127.0.0.1 in a dev run, so the host alone cannot tell them apart.
+pub fn is_backend_page(url: &Url, port: u16) -> bool {
+    matches!(url.scheme(), "http" | "https")
+        && matches!(url.host_str(), Some("127.0.0.1") | Some("localhost"))
+        && url.port_or_known_default() == Some(port)
 }
 
 /// What may be handed to the OS opener: web links and the two link kinds the
@@ -218,8 +236,17 @@ mod tests {
         assert!(!is_own_page(&u("http://127.0.0.1/"), 3030));
         assert!(!is_own_page(&u("http://localhost:3031/"), 3030));
         assert!(!is_own_page(&u("http://tauri.localhost:9999/"), 3030));
+        assert!(is_backend_page(&u("http://127.0.0.1:3030/shell-driver"), 3030));
+        assert!(is_backend_page(&u("http://localhost:3030/?shell=main"), 3030));
+        assert!(!is_backend_page(&u("tauri://localhost/index.html"), 3030));
+        assert!(!is_backend_page(&u("http://tauri.localhost/index.html"), 3030));
+        assert!(!is_backend_page(&u(&format!("http://127.0.0.1:{DEV_SERVER_PORT}/")), 3030));
         assert!(!is_own_page(&u("https://example.com/"), 3030));
         assert!(!is_own_page(&u("file:///C:/Windows/System32/calc.exe"), 3030));
+        // `tauri dev` serves the splash here: without this the first page went to
+        // the OS browser and the window stayed on about:blank. Tests are debug builds.
+        assert!(is_own_page(&u("http://127.0.0.1:1430/"), 3030));
+        assert!(!is_own_page(&u("http://localhost:1430/"), 3030));
     }
 
     #[test]

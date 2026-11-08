@@ -8,11 +8,17 @@
 //! stick clicks where Create and Options are, and XInput already reads it.
 //! winmm.dll is opened at run time like xinput. Asking an empty id costs about
 //! 0.1 ms, so the 16 ids are looked at every few seconds and only Sony's read.
+//!
+//! The shell only opens the DLL here (`supported`): every joystick call happens in
+//! `serve`, the whole of `--pad-reader`, and pad_sony.rs says why.
 #![cfg(target_os = "windows")]
 
+use std::io::Write;
 use std::sync::OnceLock;
+use std::time::Instant;
 
 use super::ffi::{GetProcAddress, LoadLibraryW};
+use super::pad::{LOOK_EVERY, READ_EVERY};
 
 const IDS: u32 = 16;
 const JOYERR_NOERROR: u32 = 0;
@@ -95,13 +101,13 @@ fn vendor(a: Api, id: u32) -> Option<u16> {
 }
 
 /// The connected PlayStation controllers, by joystick id.
-pub fn look() -> Vec<u32> {
+fn look() -> Vec<u32> {
     let Some(a) = api() else { return Vec::new() };
     (0..IDS).filter(|&id| read(a, id).is_some() && vendor(a, id) == Some(SONY)).collect()
 }
 
 /// Whether one of `ids` holds the chord; drops the ones that went away.
-pub fn chord(ids: &mut Vec<u32>) -> bool {
+fn chord(ids: &mut Vec<u32>) -> bool {
     let Some(a) = api() else {
         ids.clear();
         return false;
@@ -115,6 +121,32 @@ pub fn chord(ids: &mut Vec<u32>) -> bool {
         None => false,
     });
     down
+}
+
+/// The reader process: a line each time the chord changes, until the shell goes.
+pub fn serve() {
+    std::thread::spawn(|| {
+        let _ = std::io::copy(&mut std::io::stdin(), &mut std::io::sink());
+        std::process::exit(0);
+    });
+    let mut out = std::io::stdout();
+    let mut ids = look();
+    let mut looked = Instant::now();
+    let mut held = false;
+    loop {
+        if looked.elapsed() >= LOOK_EVERY {
+            ids = look();
+            looked = Instant::now();
+        }
+        let down = chord(&mut ids);
+        if down != held {
+            held = down;
+            if writeln!(out, "{}", u8::from(down)).and_then(|()| out.flush()).is_err() {
+                return;
+            }
+        }
+        std::thread::sleep(if ids.is_empty() { LOOK_EVERY } else { READ_EVERY });
+    }
 }
 
 #[cfg(test)]
