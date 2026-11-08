@@ -9,8 +9,11 @@ name: Release integrity
 #
 # Run this manually to (re)sign an EXISTING release, e.g. if GitHub ever
 # re-compresses old source archives (the hash would stop matching) or after
-# manually re-attaching an asset. It hashes the source zip plus whichever of
-# xenon-helper.exe / xenon-capture.exe / Xenon-Setup-x64.exe are attached to the release.
+# manually re-attaching an asset, or after a tag moves. It re-hashes the source
+# zip and every other file the release's current SHA256SUMS lists (the macOS
+# and Linux installers too, which people check by hand), and stops rather than
+# drop a line. A release with no SHA256SUMS yet gets the source zip plus
+# whichever of the helper, the capture engines and Xenon-Setup-x64.exe are attached.
 #
 # Consumers verifying against this signed manifest with the pinned key:
 #   - server/self-update.js       (source.zip line, before applying an update)
@@ -54,13 +57,20 @@ jobs:
           curl -fsSL --retry 3 -o source.zip \
             "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.zip"
 
-      - name: Download the attached binaries (whichever exist)
+      - name: Download the files the release already signs
         run: |
-          gh release download "$TAG" --pattern 'xenon-helper.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no helper attached"
-          gh release download "$TAG" --pattern 'xenon-capture.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no capture engine attached"
-          gh release download "$TAG" --pattern 'xenon-capture-macos' --dir . --clobber --repo "${{ github.repository }}" || echo "no macOS capture engine attached"
-          gh release download "$TAG" --pattern 'xenon-capture-linux-x64' --dir . --clobber --repo "${{ github.repository }}" || echo "no Linux capture engine attached"
-          gh release download "$TAG" --pattern 'Xenon-Setup-x64.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no stable-named setup attached"
+          if gh release download "$TAG" --pattern 'SHA256SUMS' --dir previous --clobber --repo "${{ github.repository }}"; then
+            awk 'NF { print $2 }' previous/SHA256SUMS > names.txt
+          else
+            printf '%s\n' source.zip xenon-helper.exe xenon-capture.exe xenon-capture-macos xenon-capture-linux-x64 Xenon-Setup-x64.exe > names.txt
+          fi
+          while read -r name; do
+            case "$name" in
+              source.zip) continue ;;
+              .*|*[!A-Za-z0-9._-]*) echo "FATAL: unexpected file name in SHA256SUMS: $name"; exit 1 ;;
+            esac
+            gh release download "$TAG" --pattern "$name" --dir . --clobber --repo "${{ github.repository }}" || echo "not attached: $name"
+          done < names.txt
 
       - name: Hash and sign
         env:
@@ -74,7 +84,15 @@ jobs:
               console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
               process.exit(1);
             }
-            const files = ["source.zip", "xenon-helper.exe", "xenon-capture.exe", "xenon-capture-macos", "xenon-capture-linux-x64", "Xenon-Setup-x64.exe"].filter((f) => fs.existsSync(f));
+            const names = fs.readFileSync("names.txt", "utf8").split("\n").map((s) => s.trim()).filter(Boolean);
+            if (!names.includes("source.zip")) names.unshift("source.zip");
+            const missing = names.filter((f) => !fs.existsSync(f));
+            if (fs.existsSync("previous/SHA256SUMS") && missing.length) {
+              console.error("FATAL: the current SHA256SUMS lists " + missing.join(", ") + " but it could not be downloaded.");
+              console.error("Re-signing now would drop that line. Re-attach the file and re-run.");
+              process.exit(1);
+            }
+            const files = names.filter((f) => fs.existsSync(f));
             let sums = "";
             for (const f of files) sums += crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex") + "  " + f + "\n";
             fs.writeFileSync("SHA256SUMS", sums);
