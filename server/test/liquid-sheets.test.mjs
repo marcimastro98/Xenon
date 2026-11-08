@@ -103,3 +103,18 @@ test('it loads last of the Liquid sheets, and in the alerts window', () => {
   assert.ok(at('styles/liquid-edit.css') < at('styles/liquid-sheets.css'));
   assert.match(read('../screen-alerts.html'), /styles\/liquid-sheets\.css/);
 });
+
+test('a list that opens over a form is solid, its search box too, and the chosen row is not green', () => {
+  const list = bodyOf(`${SKIN} :is(.cs-panel, .deck-pmenu, .ai-attach-menu)`);
+  assert.match(list, /linear-gradient\(rgb\(var\(--panel-rgb\)\) 0 0\)/);
+  assert.match(list, /backdrop-filter: none/);
+  assert.match(bodyOf(`${SKIN} .cs-search-wrap`), /background: rgb\(var\(--panel-rgb\)\)/);
+  const chosen = bodyOf(`${SKIN} :is(.cs-option.cs-selected, .cs-option.cs-selected.cs-active, .deck-pmenu-row.active)`);
+  assert.match(chosen, /var\(--sheet-well-hover\)/);
+  assert.doesNotMatch(chosen, /accent|--sheet-main/);
+  // Every skin: the search row takes the panel's own fill, never the see-through --panel.
+  const base = read('../components/CustomSelect/CustomSelect.css');
+  const wrap = base.slice(base.indexOf('.cs-search-wrap {'), base.indexOf('}', base.indexOf('.cs-search-wrap {')));
+  assert.match(wrap, /background: inherit;/);
+  assert.doesNotMatch(wrap, /var\(--panel/);
+});

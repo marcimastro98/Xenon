@@ -311,3 +311,27 @@ test('a ring that ends by itself gives the keyboard back too', () => {
   dom.CallModal.onCalls({ calls: [] });
   assert.equal(held.length, 0, 'a window removed without letting go holds Tab and Esc for good');
 });
+
+// The card lying down, for short windows: a phone held sideways. It once hid Close
+// there, and a phone has no Esc, so the card could only be put away by answering,
+// declining or waiting it out. And a small phone (667x375) missed the layout
+// entirely: upright, the card ran past the bottom and Close was cut off.
+test('a phone held sideways keeps Close and the honest line, and small phones lie the card down too', () => {
+  const css = readFileSync(join(HERE, '..', 'components', 'CallModal', 'CallModal.css'), 'utf8');
+  const head = css.match(/@media \(max-height: (\d+)px\) and \(min-width: (\d+)px\) \{/);
+  assert.ok(head, 'the sideways layout is there');
+  assert.ok(Number(head[1]) >= 375 && Number(head[2]) <= 667, 'a 667x375 phone gets it');
+  let depth = 0, end = head.index + head[0].length - 1;
+  for (; end < css.length; end++) {
+    if (css[end] === '{') depth++;
+    else if (css[end] === '}' && --depth === 0) break;
+  }
+  const block = css.slice(head.index, end).replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const rule of block.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (/\.call-(dismiss|note)\b/.test(rule[1])) assert.doesNotMatch(rule[2], /display:\s*none/, rule[1].trim());
+  }
+  assert.match(block, /\.call-dismiss\s*\{[^}]*grid-column:\s*3/, 'Close sits under the keys');
+  // The alerts window widens its frame for the same layout, so it must switch at the same size.
+  const alerts = readFileSync(join(HERE, '..', 'components', 'ScreenAlerts', 'ScreenAlerts.css'), 'utf8');
+  assert.ok(alerts.includes(head[0].slice(0, -2)), 'ScreenAlerts.css uses ' + head[0].slice(0, -2));
+});

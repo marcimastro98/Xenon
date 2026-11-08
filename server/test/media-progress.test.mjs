@@ -251,3 +251,12 @@ test('Spotify\'s lists open on the sheet look, so light Liquid reads dark text o
   assert.match(CSS, /\.msp-item \{[^}]*background: var\(--sheet-well\);/);
   assert.match(CSS, /\.msp-item-dot \{ display: none; \}/);
 });
+
+// The wide tile (tools/island-tabs-check measures it on the demo): the cover starts
+// right under the tabs instead of being centred in what the tile has left over.
+test('a wide tile starts the cover under the tabs and leaves the waveform its strip', () => {
+  const wide = CSS.slice(CSS.indexOf('@container mediatile (orientation: landscape) and (min-width: 560px)'));
+  assert.match(wide, /\.media-pane-play:not\(\[hidden\]\) \{[^}]*align-content: start;/);
+  assert.match(wide, /\.media-panel:not\(\.lyrics-open\) \.media-art \{ width: min\(100cqh, 100cqw - 300px, 560px\); max-width: none; \}/);
+  assert.match(wide, /\.media-panel:not\(\.lyrics-open\):has\(> \.media-viz\) \.media-art \{ width: min\(100cqh - 60px, 100cqw - 300px, 560px\); \}/);
+});

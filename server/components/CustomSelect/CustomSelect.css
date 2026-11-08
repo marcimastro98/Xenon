@@ -192,13 +192,16 @@
 .cs-option.cs-option-disabled .cs-option-ico { color: var(--text-dim, #6b7a75); }
 
 /* Opt-in in-panel search box (data-cs-search) — a sticky filter row for long
-   lists. Themed off the same panel/accent vars as the rest of the dropdown. */
+   lists. It takes the panel's own fill (the shared --panel is see-through, and the
+   rows scrolling under the box read through it) and reaches over the panel's 5px
+   padding, so no row shows above or beside it either. */
 .cs-search-wrap {
   position: sticky;
-  top: 0;
+  top: -5px;
   z-index: 2;
-  padding: 4px 6px 6px;
-  background: var(--panel, #15191a);
+  margin: -5px -5px 4px;
+  padding: 9px 11px 8px;
+  background: inherit;
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 .cs-search-input {

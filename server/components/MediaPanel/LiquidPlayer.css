@@ -363,17 +363,21 @@
 }
 
 /* Wide tile: the cover as tall as the tile allows and the words beside it, the
-   title level with its top and the keys level with its bottom. */
+   title level with its top and the keys level with its bottom. The pair starts at
+   the top: centred, what the tile had left over opened a gap between the tabs and
+   the cover. */
 @container mediatile (orientation: landscape) and (min-width: 560px) and (min-height: 400px) {
   /* Past 640px the bars only get longer, so a very wide tile centres the pair. */
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
     grid-template-columns: auto minmax(0, 640px);
     justify-content: center;
-    align-content: center;
+    align-content: start;
     gap: 30px;
   }
-  /* The words keep at least 300px. */
-  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(58cqw, 100cqh - 110px, 100cqw - 330px, 520px); max-width: none; }
+  /* The words keep 270px: the transport, Spotify's keys and the volume fit there. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(100cqh, 100cqw - 300px, 560px); max-width: none; }
+  /* With the waveform on, the cover leaves it its strip at the bottom. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open):has(> .media-viz) .media-art { width: min(100cqh - 60px, 100cqw - 300px, 560px); }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { align-self: stretch; grid-template-rows: auto 1fr; }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-textblock, .media-actions > .media-lyrics-btn) { align-self: start; }
 }

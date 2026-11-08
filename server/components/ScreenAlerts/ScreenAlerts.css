@@ -78,7 +78,7 @@ html[data-screen-alerts] .call-overlay {
 
 /* Under 460 px of height the card turns into its one-row grid (CallModal.css),
    which needs the width it was drawn for. */
-@media (max-height: 460px) and (min-width: 700px) {
+@media (max-height: 460px) and (min-width: 600px) {
   html[data-screen-alerts] .call-overlay { width: min(780px, calc(100vw - 32px)); }
 }
 

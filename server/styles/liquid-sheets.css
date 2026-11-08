@@ -290,3 +290,31 @@
 :root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app) { border-color: transparent; border-radius: 10px; background: var(--sheet-well); }
 :root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app):hover { background: var(--sheet-well-hover); }
 :root[data-style="liquid"] :is(.perf-sheet-hint, .perf-sheet-apps-head, .perf-sheet-app-title, .perf-sheet-app-mem, .perf-sheet-apps-empty) { color: var(--sheet-muted); opacity: 1; }
+
+/* ── Lists that open over a form ──────────────────────────────────
+   Selects, the Deck's profiles and Bit's attach menu are of the family and solid like
+   the time list: the rows under them must not read through. The chosen row is neutral,
+   green stays for state. */
+:root[data-style="liquid"] :is(.cs-panel, .deck-pmenu, .ai-attach-menu) {
+  border-color: var(--sheet-edge); border-radius: 14px; color: var(--sheet-text);
+  background: var(--sheet-sheen), linear-gradient(rgb(var(--panel-rgb)) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-style="liquid"] .cs-option { color: var(--sheet-muted); }
+:root[data-style="liquid"] :is(.cs-option:hover, .cs-option.cs-active, .cs-group-btn:hover, .cs-group-btn:focus-visible,
+  .deck-pmenu-pick:hover, .ai-attach-item:hover, .ai-attach-item:focus-visible) { background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.cs-option.cs-selected, .cs-option.cs-selected.cs-active, .deck-pmenu-row.active) { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-option.cs-selected::before,
+:root[data-style="liquid"] .deck-pmenu-row.active .deck-pmenu-dot { background: var(--sheet-text); box-shadow: none; }
+:root[data-style="liquid"] :is(.cs-option-ico, .cs-group-ico, .cs-group-open .cs-group-ico, .cs-group, .cs-group-count, .cs-group-chev,
+  .cs-empty, .cs-option-info, .deck-pmenu-head, .deck-pmenu-empty, .deck-pmenu-count) { color: var(--sheet-muted); }
+:root[data-style="liquid"] :is(.cs-group-btn, .deck-pmenu-pick, .ai-attach-item:not([aria-checked="true"])) { color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-option-label .cs-hit { color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-search-wrap { background: rgb(var(--panel-rgb)); border-bottom-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(input.cs-search-input, input.deck-pmenu-input) { border-color: transparent; border-radius: 9px; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(input.cs-search-input, input.deck-pmenu-input):focus { border-color: var(--sheet-main); background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .deck-pmenu-head ~ .deck-pmenu-head { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(.deck-pmenu-tool, .deck-pmenu-count) { border-color: transparent; background: var(--sheet-well); }
+:root[data-style="liquid"] .deck-pmenu-add { border-color: var(--sheet-line); background: none; }
+:root[data-style="liquid"] :is(.deck-pmenu-add, .deck-pmenu-tool:not(:disabled, .danger)):hover { background: var(--sheet-well-hover); }
