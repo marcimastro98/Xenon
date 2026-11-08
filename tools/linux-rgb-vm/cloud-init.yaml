@@ -9,12 +9,15 @@ users:
 package_update: true
 packages:
   - acl
+  - bluez
+  - bluez-test-tools
   - curl
   - dbus
   - jq
   - libglib2.0-bin
   - polkitd
   - sudo
+  - usbip
 write_files:
   - path: /etc/systemd/system/getty@tty1.service.d/autologin.conf
     content: |

@@ -16,12 +16,13 @@ import { PALETTE, iconRgba, iconSvg, lockupSvg, markRgba, markSvg } from './mark
 import { createRequire } from 'node:module';
 
 const sparkEngine = createRequire(import.meta.url)('../../packages/core/src/bit-spark.js');
+const { MODES } = createRequire(import.meta.url)('../../packages/core/src/brand-tokens.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DEFAULT_OUT = path.join(ROOT, 'docs', 'images', 'brand');
 
 export const APP_ICON_SIZES = [16, 32, 48, 64, 128, 256, 512, 1024];
-export const BARE_SIZES = [16, 24, 32, 48]; // Bit without plate: taskbar, tray, small UI
+export const BARE_SIZES = [16, 24, 32, 48]; // Small UI, also in deep green for light backgrounds
 export const ICO_SIZES = [16, 32, 48, 256];
 
 /** Every brand file as { name, bytes }; nothing is written. */
@@ -39,12 +40,15 @@ export function brandFiles() {
   add('spark.svg', sparkEngine.svg({ still: true }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
   for (const size of APP_ICON_SIZES) add(`icon-${size}.png`, encodePng(iconRgba(size)));
   for (const size of BARE_SIZES) {
-    add(`bit-${size}.png`, encodePng(iconRgba(size, { plate: null })));
-    add(`bit-${size}-light.png`, encodePng(iconRgba(size, { plate: null, body: PALETTE.bitDeep })));
+    add(`bit-${size}.png`, encodePng(iconRgba(size)));
+    add(`bit-${size}-light.png`, encodePng(iconRgba(size, { body: PALETTE.bitDeep })));
   }
   // Email cannot show SVG: Bit at 4px a pixel, shown at 16x22 for a sharp 2x.
   add('bit-4x.png', encodePng(markRgba(4)));
-  add('apple-touch-icon.png', encodePng(iconRgba(180, { plate: 'full' })));
+  // On the emails' green sheet. The green is in the picture: a mail app that darkens the sheet on
+  // its own would otherwise leave dark Bit on a dark ground.
+  add('bit-sheet-4x.png', encodePng(markRgba(4, { body: MODES.dark.mainInk, face: MODES.dark.main, ground: MODES.dark.main })));
+  add('apple-touch-icon.png', encodePng(iconRgba(180, { ground: PALETTE.plate })));
   add('favicon.ico', encodeIco(ICO_SIZES.map((size) => ({ size, png: encodePng(iconRgba(size)) }))));
   files.push(...loaderFiles());
   return files;
@@ -80,7 +84,7 @@ export const FIXED_PATHS = Object.freeze({
   'server/assets/favicon.png': () => iconRgba(150),
   'server/public/images/logo/logo-mark.png': () => iconRgba(256),
   // Android draws a notification badge from its alpha only: Bit white, face cut out.
-  'server/public/images/logo/badge.png': () => iconRgba(96, { plate: null, body: '#ffffff', face: null }),
+  'server/public/images/logo/badge.png': () => iconRgba(96, { body: '#ffffff', face: null }),
 });
 
 // Where the app and the native splash load the loader from (tools/brand/loader.mjs).

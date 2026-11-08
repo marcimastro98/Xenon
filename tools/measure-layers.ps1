@@ -37,7 +37,8 @@ public static int[] Layers(uint pid) {
 
 function Find-Shell {
     if ($ProcessId) { return Get-Process -Id $ProcessId }
-    $p = Get-Process -Name 'xenon-native', 'Xenon' -ErrorAction SilentlyContinue | Select-Object -First 1
+    # The largest: the reader of PlayStation controllers has the same name.
+    $p = Get-Process -Name 'xenon-native', 'Xenon' -ErrorAction SilentlyContinue | Sort-Object WorkingSet64 -Descending | Select-Object -First 1
     if (-not $p) { throw 'No Xenon shell is running. Start it, or pass -ProcessId.' }
     $p
 }

@@ -5,7 +5,8 @@
 // - The mark IS Bit: body, open eyes and smile from packages/core, never redrawn.
 // - Bit's real extent is 8x11 cells (grid columns 2..9, rows 0..10).
 // - Small sizes use a whole number of screen pixels per Bit pixel, so they stay sharp.
-// - The plate's corners are cut by one Bit pixel, the way Bit's own corners are.
+// - Bit stands alone, never on a dark square: icons are transparent around him. The
+//   one exception is the Apple touch icon, because iOS paints transparency black.
 // - In the lockup Bit stands on the baseline, his body is ~1.5x the x-height
 //   and two Bit pixels separate him from the word.
 import { createRequire } from 'node:module';
@@ -17,7 +18,7 @@ const WORDMARK = require('./wordmark.json');
 
 const rgbHex = (triplet) => '#' + triplet.split(',').map((v) => Number(v).toString(16).padStart(2, '0')).join('');
 
-// From the one brand set: neutral grey plate and word, Bit in his own green.
+// From the one brand set: neutral grey ground and word, Bit in his own green.
 export const PALETTE = Object.freeze({
   bit: rgbHex(MOOD_RGB.happy), // Bit's "all good" green, on dark backgrounds
   // The same green deepened for light backgrounds: 3:1 down to the site's darkest
@@ -34,12 +35,13 @@ export const MARK_W = 8;
 export const MARK_H = 11;
 const GRID_X = 2; // Bit's body starts at column 2 of his 12-cell grid
 
-// Screen pixels per Bit pixel at each square size. 24 has no plate: Bit fills it.
+// Screen pixels per Bit pixel at each square size: Bit as big as whole pixels allow
+// up to 64, with a tenth of air above that, where the OS shows the icon large.
 // 30..310 and 50 are the Windows tile and Store sizes the Tauri bundle asks for;
 // the odd ones centre Bit to the nearest whole pixel. 96 is the notification badge.
 export const ICON_UNIT = Object.freeze({
-  16: 1, 24: 2, 30: 2, 32: 2, 44: 3, 48: 3, 50: 3, 64: 4, 71: 4, 89: 5, 96: 6, 107: 6,
-  128: 8, 142: 8, 150: 9, 180: 12, 256: 16, 284: 16, 310: 18, 512: 32, 1024: 64,
+  16: 1, 24: 2, 30: 2, 32: 2, 44: 4, 48: 4, 50: 4, 64: 5, 71: 5, 89: 7, 96: 8, 107: 8,
+  128: 10, 142: 11, 150: 12, 180: 14, 256: 20, 284: 23, 310: 25, 512: 41, 1024: 83,
 });
 
 /** Bit's cells cropped to his 8x11 box: [{ x, y, w, h, part }] with part 'body' or 'face'. */
@@ -84,7 +86,7 @@ export function markSvg(o = {}) {
 export function iconLayout(size) {
   const u = ICON_UNIT[size];
   if (!u) throw new Error(`No icon unit for ${size}px; known sizes: ${Object.keys(ICON_UNIT).join(', ')}`);
-  return { u, ox: Math.floor((size - MARK_W * u) / 2), oy: Math.floor((size - MARK_H * u) / 2), cut: u };
+  return { u, ox: Math.floor((size - MARK_W * u) / 2), oy: Math.floor((size - MARK_H * u) / 2) };
 }
 
 const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -92,23 +94,18 @@ const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 /**
  * A square icon as RGBA pixels.
  * @param {number} size
- * @param {{ plate?: 'cut'|'full'|null, body?: string, face?: string|null }} [o]
- *   plate 'cut' (app icon, default), 'full' (Apple touch icon, the OS rounds it) or null (Bit alone);
+ * @param {{ ground?: string, body?: string, face?: string|null }} [o]
+ *   ground fills the square (Apple touch icon only, the OS rounds it), otherwise Bit stands alone;
  *   face null cuts the face out (a notification badge, which the OS draws from the alpha alone).
  */
 export function iconRgba(size, o = {}) {
-  const { u, ox, oy, cut } = iconLayout(size);
-  const plate = o.plate === undefined ? 'cut' : o.plate;
+  const { u, ox, oy } = iconLayout(size);
   const data = new Uint8Array(size * size * 4);
   const fill = (x0, y0, w, h, hex) => {
     const px = hex === null ? [0, 0, 0, 0] : [...hexRgb(hex), 255];
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) data.set(px, (y * size + x) * 4);
   };
-  if (plate === 'full') fill(0, 0, size, size, PALETTE.plate);
-  if (plate === 'cut') {
-    fill(cut, 0, size - 2 * cut, size, PALETTE.plate);
-    fill(0, cut, size, size - 2 * cut, PALETTE.plate);
-  }
+  if (o.ground) fill(0, 0, size, size, o.ground);
   const colors = { body: o.body || PALETTE.bit, face: o.face === null ? null : o.face || PALETTE.face };
   for (const c of markCells()) fill(ox + c.x * u, oy + c.y * u, c.w * u, c.h * u, colors[c.part]);
   return { width: size, height: size, data };
@@ -120,6 +117,10 @@ export function markRgba(unit, o = {}) {
   const height = MARK_H * unit;
   const data = new Uint8Array(width * height * 4);
   const colors = { body: o.body || PALETTE.bit, face: o.face || PALETTE.face };
+  if (o.ground) {
+    const fill = [...hexRgb(o.ground), 255];
+    for (let i = 0; i < width * height; i++) data.set(fill, i * 4);
+  }
   for (const c of markCells()) {
     const px = [...hexRgb(colors[c.part]), 255];
     for (let y = c.y * unit; y < (c.y + c.h) * unit; y++) for (let x = c.x * unit; x < (c.x + c.w) * unit; x++) data.set(px, (y * width + x) * 4);
@@ -127,12 +128,12 @@ export function markRgba(unit, o = {}) {
   return { width, height, data };
 }
 
-/** Square SVG icon (favicon): the same plate and placement as the pixel icons, at 16px. */
+/** Square SVG icon (favicon): Bit as in the pixel icons at 16px, deep green on a light browser. */
 export function iconSvg() {
   const { ox, oy } = iconLayout(16);
-  const plate = `<path d="M1 0h14v1h1v14h-1v1H1v-1H0V1h1z" fill="${PALETTE.plate}"/>`;
+  const light = `<style>@media (prefers-color-scheme:light){[fill="${PALETTE.bit}"]{fill:${PALETTE.bitDeep}}}</style>`;
   const bit = rectsSvg(markCells(), { body: PALETTE.bit, face: PALETTE.face }, 1, ox, oy);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">${plate}${bit}</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">${light}${bit}</svg>\n`;
 }
 
 // Lockup geometry, in Bit cells.

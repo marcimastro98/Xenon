@@ -3,6 +3,7 @@
 # the files of the last run stay in the /cache volume between runs.
 set -euo pipefail
 
+MODE=${1:-rgb}   # rgb, battery for the dongle readers, airpods for BlueZ
 CACHE=/cache
 SHARE=$CACHE/share
 TOOL=/repo/tools/linux-rgb-vm
@@ -97,14 +98,23 @@ chmod -R a+rwX "$SHARE/app/server"   # the server runs as a normal user in the V
 version() { node -p "JSON.parse(require('fs').readFileSync('/repo/node_modules/$1/package.json')).version"; }
 (cd "$SHARE/app" && npm init -y >/dev/null && npm install --omit=dev --no-audit --no-fund --loglevel=error \
   "koffi@$(version koffi)" "ws@$(version ws)" "msedge-tts@$(version msedge-tts)" >/dev/null)
+[ "$MODE" = rgb ] || touch "$SHARE/$MODE-run"
+if [ "$MODE" = airpods ]; then
+  [ -x "$CACHE/bluetooth-tools/btvirt" ] || { log 'building the Bluetooth test tools'; bash "$TOOL/build-bluetooth-tools.sh" "$CACHE/bluetooth-tools"; }
+  cp -r "$CACHE/bluetooth-tools" "$SHARE/bluetooth-tools"
+fi
 make_share_disk "$SHARE"
 
 log 'running the test in the VM'
 qemu-img create -q -f qcow2 -F qcow2 -b "$PREPARED" "$RUN_DISK"
 rm -f "$SERIAL"
-press_key_when_asleep &
+[ "$MODE" = rgb ] && press_key_when_asleep &
 boot "$RUN_DISK" "$SERIAL" "$RUN_MAX_S" -monitor "tcp:127.0.0.1:$MONITOR_PORT,server,nowait" || log "qemu ended with $?"
 read_share_disk
 
-log 'checking what the chip saw'
-node "$TOOL/check-run.mjs" "$SHARE"
+log 'checking what the devices saw'
+case "$MODE" in
+  battery) node "$TOOL/check-battery-run.mjs" "$SHARE" ;;
+  airpods) node "$TOOL/check-airpods-run.mjs" "$SHARE" ;;
+  *) node "$TOOL/check-run.mjs" "$SHARE" ;;
+esac

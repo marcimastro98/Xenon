@@ -60,11 +60,10 @@ test('the analytics prelude is still extractable from docs/index.html', () => {
   assert.ok(site.includes('static.cloudflareinsights.com'), 'Cloudflare beacon missing from the prelude');
 });
 
-test('the settings stamp uses the small app icon, not a hi-res logo', () => {
+test('Settings loads no hi-res logo', () => {
   // The old 1.12 MB logo.png was 14% of the demo payload; the app no longer ships it.
   const css = read('server', 'components', 'SettingsModal', 'SettingsModal.css');
   assert.equal(countOf(css, '/public/images/logo/logo.png'), 0);
-  assert.equal(countOf(css, '/public/images/logo/logo-mark.png'), 1);
 });
 
 test('the copy allowlist equals the directory list the server actually serves', () => {

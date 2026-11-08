@@ -2,7 +2,7 @@
 // page and returns the selector to measure (or null for the whole page).
 // `open` uses the dashboard's globals by their bare names: some are top-level
 // `let`s (hubSettings), which are not properties of window.
-/* global hubSettings, openSettings, XenonCredits, XenonCreditsSettings, CommunityGallery, SparksMail, BitMail,
+/* global hubSettings, openSettings, XenonCredits, XenonCreditsSettings, CommunityGallery, SparksMail, BitMessages,
    setLang, _aiDropWelcome, _aiAppendBubble, updateMediaChatKeyState */
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
@@ -26,7 +26,25 @@ const TRIAL_CATALOG = {
   ],
 };
 
+// The balance where it shows, the Store rail and the Settings head, for each thing it can say.
+const chipInStore = async () => {
+  CommunityGallery.open();
+  await new Promise((r) => setTimeout(r, 900));
+  return '.cst-rail';
+};
+const chipInSettings = async () => {
+  openSettings('ai');
+  await new Promise((r) => setTimeout(r, 900));
+  return '.settings-nav-footer';
+};
+const CHIP_STATES = { buy: { ok: false, error: 'no_code' }, low: BALANCE_LOW, full: BALANCE_FULL, offline: { ok: false, error: 'network' } };
+const chipScenes = Object.fromEntries(Object.entries(CHIP_STATES).flatMap(([state, balance]) => [
+  [`chip-${state}-store`, { routes: { '/api/ai/xenon/balance': balance }, crop: true, open: chipInStore }],
+  [`chip-${state}-settings`, { routes: { '/api/ai/xenon/balance': balance }, crop: true, open: chipInSettings }],
+]));
+
 export const SCENES = {
+  ...chipScenes,
   // Settings → Bit with a low balance: the three packs.
   'sparks-settings': {
     routes: { '/api/ai/xenon/balance': BALANCE_LOW },
@@ -40,28 +58,25 @@ export const SCENES = {
       return '#xai-packs';
     },
   },
-  // The Store's Supporters panel with a saved code: packs under the perks.
+  // The Store's Sparks view.
   'sparks-store': {
     routes: { '/api/ai/xenon/balance': BALANCE_LOW, '/api/community/supporter': { saved: true } },
     open: async () => {
       hubSettings.aiProvider = 'xenon';
       await XenonCredits.refresh(true);
-      CommunityGallery.openSupporters();
+      CommunityGallery.open('__sparks');
       await new Promise((r) => setTimeout(r, 1200));
-      const box = document.querySelector('.cgal-info-sparks');
-      if (box) box.scrollIntoView({ block: 'center' });
-      return '.cgal-info-sparks';
+      return '.sparks-shop';
     },
   },
-  // Bit's mail with the Scintille letter open.
+  // Bit's card about the Scintille.
   'sparks-mail': {
     routes: { '/api/ai/xenon/balance': BALANCE_LOW },
     open: async () => {
       hubSettings.aiProvider = 'xenon';
       await XenonCredits.refresh(true);
-      const l = SparksMail.letterFor(XenonCredits.level(), Date.now());
-      BitMail.open(l && l.id);
-      return '.bitmail';
+      BitMessages.preview(SparksMail.messageFor(XenonCredits.level(), Date.now()));
+      return '.bm-card';
     },
   },
   // Bit's chat in English, drawn by the chat's own renderer with answers written

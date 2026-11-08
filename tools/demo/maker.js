@@ -27,6 +27,18 @@
   // up when used: the app's scripts may load after this one.
   const appChecks = () => (typeof window !== 'undefined' && window.DashboardInstances)
     || (() => { try { return require('../../server/js/dashboard-instances.js'); } catch { return null; } })();
+  const shortcutRules = () => (typeof window !== 'undefined' && window.DeckShortcuts)
+    || (() => { try { return require('../../server/js/deck-shortcuts.js'); } catch { return null; } })();
+
+  // A suggested key combination as normalizeKeySuggestion keeps it: only one
+  // Xenon can register and nothing else owns. The demo shows it, never binds it.
+  function keySuggestion(raw) {
+    const DS = shortcutRules();
+    if (!DS || !raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const combo = DS.normalizeShortcut(typeof raw.combo === 'string' ? raw.combo : '');
+    if (!combo || DS.reservedBy(combo)) return null;
+    return { combo, mode: raw.mode === 'hold' ? 'hold' : 'toggle' };
+  }
 
   const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const list = (v, re) => (Array.isArray(v)
@@ -53,6 +65,7 @@
       ai: m.ai === true, accent: false, expand: false,
       shape: surface === 'tile' && DI ? DI.normalizeTileShape(m.shape) : null,
       icon: DI ? DI.normalizeWidgetIcon(m.icon) : null,
+      key: surface === 'tile' ? keySuggestion(m.key) : null,
       category: CATEGORIES.includes(m.category) ? m.category : null,
       size: surface === 'tile' && TILE_SIZES.includes(m.size) ? m.size : null,
       entry: 'index.html',

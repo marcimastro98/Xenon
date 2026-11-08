@@ -13,6 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DOCS_DIR, startSite } from './serve.mjs';
 import { SCENES, initScript } from './scenes.mjs';
+import { answerRequest, moreDataFor } from './widgets.mjs';
+import { fixtureFor, fixtureScript } from '../tile-previews/fixtures.mjs';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 
 const SETTLE_MS = 3500;
@@ -47,8 +49,18 @@ function measure() {
   return { pageW: document.documentElement.scrollWidth, viewW: innerWidth, belowFrame: Math.max(0, Math.round(bottom - frame)), over, clipped };
 }
 
-async function shoot(browser, base, name, outDir) {
-  const scene = SCENES[name];
+// Everything the scene's tiles bring with them: data, pictures, a first tap.
+function sceneExtras(scene, origin) {
+  const extras = (scene.fixtures || []).flatMap((id) => [fixtureFor(id), moreDataFor(id, Date.now(), origin)]).filter(Boolean);
+  return {
+    extras,
+    served: { files: Object.assign({}, ...extras.map((x) => x.files)), frames: Object.assign({}, ...extras.map((x) => x.frames)) },
+  };
+}
+
+/** Opens a scene on the demo with its data, hands the page to `use`, closes everything.
+ *  `scripts` run in the page after the scene's own. */
+export async function withScene(browser, base, scene, use, scripts = []) {
   const v = scene.viewport;
   const ctx = await browser.newContext({
     viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.scale || 1,
@@ -56,15 +68,26 @@ async function shoot(browser, base, name, outDir) {
   });
   try {
     const origin = new URL(base).origin;
-    await ctx.route('**/*', (r) => (r.request().url().startsWith(origin) ? r.continue() : r.abort()));
-    await ctx.addInitScript({ content: initScript(scene) });
+    const { extras, served } = sceneExtras(scene, origin);
+    await ctx.route('**/*', (r) => answerRequest(r, origin, served));
+    for (const content of [initScript(scene), ...scripts]) await ctx.addInitScript({ content });
+    for (const extra of extras) await ctx.addInitScript({ content: fixtureScript(extra) });
     const page = await ctx.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 200)));
     await page.goto(base + 'demo/', { waitUntil: 'load' });
     await page.waitForTimeout(SETTLE_MS);
+    for (const { stage } of extras) if (stage) await page.evaluate(stage);
     if (scene.open) await page.evaluate(scene.open);
     await page.waitForTimeout(scene.wait || 600);
+    return await use(page, errors);
+  } finally {
+    await ctx.close();
+  }
+}
+
+export function shootScene(browser, base, scene, name, outDir) {
+  return withScene(browser, base, scene, async (page, errors) => {
     const file = path.join(outDir, `${name}.png`);
     await page.screenshot({ path: file });
     const crops = [];
@@ -76,9 +99,7 @@ async function shoot(browser, base, name, outDir) {
       crops.push(cropFile);
     }
     return { scene: name, file, crops, errors, ...(await page.evaluate(measure)) };
-  } finally {
-    await ctx.close();
-  }
+  });
 }
 
 async function main() {
@@ -92,7 +113,7 @@ async function main() {
   const browser = await loadPlaywright().chromium.launch();
   const report = [];
   try {
-    for (const name of names) report.push(await shoot(browser, `http://127.0.0.1:${site.port}/`, name, outDir));
+    for (const name of names) report.push(await shootScene(browser, `http://127.0.0.1:${site.port}/`, SCENES[name], name, outDir));
   } finally {
     await browser.close();
     await site.stop();

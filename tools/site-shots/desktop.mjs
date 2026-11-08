@@ -1,9 +1,10 @@
-// The home page's "widgets on the desktop" picture, headless, on the site's own
-// browser demo (canned English data, nothing from this PC, no Windows wallpaper):
-// the demo's ambient scene with only its clock is the desktop wallpaper Xenon
-// draws, the demo opened as a layer page (?layer=desktop:site) draws the placed
-// widgets on a transparent page, and the two are composed into one WebP.
-// Run: node tools/site-shots/desktop.mjs [--out docs/images/home/desktop-widgets.webp]
+// Widgets on a desktop, headless, on the site's own browser demo (canned English
+// data, nothing from this PC, no Windows wallpaper): the demo's bare ambient scene
+// is the wallpaper, the demo opened as a layer page (?layer=desktop:site) draws the
+// placed widgets on a transparent page, and the two are composed into one WebP.
+// The home's picture is desktop-scene.mjs, built on these shots; the What's New
+// widgets clip takes them apart.
+// Run: node tools/site-shots/desktop.mjs [--out file.webp]
 // Needs docs/demo: node tools/build-demo.mjs
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -20,9 +21,9 @@ export const OUT_SIZE = { width: 1600, height: 900 };
 export const VIEWPORT = { width: 1440, height: 810, scale: 3 };
 const SETTLE_MS = 5000;
 
-// [tile, rect in fractions of the screen]: right of the wallpaper's clock.
+// [tile, rect in fractions of the screen].
 export const PLAN = [
-  ['agenda', { x: 0.405, y: 0.045, w: 0.28, h: 0.5 }],
+  ['agenda', { x: 0.405, y: 0.045, w: 0.28, h: 0.58 }],
   ['media', { x: 0.7, y: 0.045, w: 0.28, h: 0.245 }],
   ['system', { x: 0.7, y: 0.31, w: 0.28, h: 0.6 }],
 ];
@@ -34,19 +35,20 @@ export function desktopLayers(plan = PLAN) {
   };
 }
 
-// The wallpaper scene shows its clock alone: the widgets carry the rest.
+// The wallpaper scene is bare: its clock sits in the middle, under the widgets.
 export function seedScript(plan = PLAN) {
   return `${initScript({ layout: SCENES.monitor.layout })}
 window.__SHOT__.settings.layers = ${JSON.stringify(desktopLayers(plan))};
-window.__SHOT__.settings.lockWidgets = { clock: true, weather: false, media: false, calendar: false };`;
+window.__SHOT__.settings.lockWidgets = { clock: false, weather: false, media: false, calendar: false };`;
 }
 
-async function shot(browser, base, mode, file) {
+export async function shot(browser, base, mode, file, plan = PLAN, extraScript = '') {
   const v = VIEWPORT;
   const ctx = await browser.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.scale, locale: 'en-US', timezoneId: 'Europe/Rome' });
   try {
     await ctx.route('**/*', (r) => (r.request().url().startsWith(base) ? r.continue() : r.abort()));
-    await ctx.addInitScript({ content: seedScript() });
+    await ctx.addInitScript({ content: seedScript(plan) });
+    if (extraScript) await ctx.addInitScript({ content: extraScript });
     const page = await ctx.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 200)));
@@ -59,7 +61,7 @@ async function shot(browser, base, mode, file) {
       await page.waitForTimeout(3000);
     }
     const slots = await page.evaluate(() => document.querySelectorAll('.layer-slot').length);
-    if (mode === 'layer' && slots !== PLAN.length) throw new Error(`layer page drew ${slots} of ${PLAN.length} widgets`);
+    if (mode === 'layer' && slots !== plan.length) throw new Error(`layer page drew ${slots} of ${plan.length} widgets`);
     await page.screenshot({ path: file, omitBackground: mode === 'layer' });
     return errors;
   } finally {

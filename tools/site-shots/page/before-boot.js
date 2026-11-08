@@ -5,6 +5,7 @@
 (function () {
   const shot = window.__SHOT__ || {};
   if (window.__XD__ && shot.settings) Object.assign(window.__XD__.settings, shot.settings);
+  if (window.__XD__ && shot.demo) shot.demo(window.__XD__);
   try {
     localStorage.setItem('xeneonedge.bootLook.v1', '{"off":true}');
     localStorage.setItem('xenon.site.consent', 'denied');

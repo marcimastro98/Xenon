@@ -1,6 +1,30 @@
 /* Static browser demo — the chrome the app itself does not have.
    Everything here lives on <html>, outside the dashboard's own stacking and
-   outside the edge-preview stage that scales <body>. */
+   outside the edge-preview stage that scales <body>.
+   It is the site's, not the app's: the home's flat green sheet with its ink, the
+   site's face and corners, the filled key in ink (docs/site.css). */
+
+@font-face { font-family: 'Sofia Sans'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/fonts/sofiasans-latin.woff2') format('woff2'); }
+
+/* The site's cookie box reads the site's tokens, and this page is the app's: without
+   them it had no paper and its words ran over the tiles. */
+#xc-consent {
+  --g-1: #F2F3F4;
+  --rule-2: #B5BAC0;
+  --text: #0E1113;
+  --muted: #5A6167;
+  --sans: 'Sofia Sans';
+}
+
+#demo-badge,
+#demo-convert {
+  --sheet: #6EE787;
+  --sheet-ink: #0B2412;
+  background: var(--sheet);
+  color: var(--sheet-ink);
+  border-radius: 10px;
+}
 
 #demo-badge {
   position: fixed;
@@ -11,44 +35,37 @@
   align-items: center;
   gap: 14px;
   padding: 6px 6px 6px 16px;
-  border-radius: 12px;
-  border: 1px solid #3d3d3d;
-  background: rgba(35, 35, 35, 0.94);
-  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.6);
-  color: #ededed;
-  font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 600 15px/1 'Sofia Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 #demo-badge.is-embedded { padding: 8px 12px; }
 
-#demo-badge .db-txt { white-space: nowrap; color: #bdbdbd; }
+#demo-badge .db-txt { white-space: nowrap; }
 
 #demo-badge .db-back {
-  color: #ededed;
+  color: inherit;
   white-space: nowrap;
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
+#demo-badge .db-back:hover { text-decoration-thickness: 2px; }
 
-/* The site's Download key: the product's own Deck key, lit in the logo blue. */
+/* The site's Download key on a sheet: filled with the ink, the sheet's green words. */
 #demo-badge .db-cta,
 #demo-convert .dc-go {
-  --lit: #008dff;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
   padding: 0 14px;
-  border-radius: 9px;
-  color: #fff;
+  border-radius: 6px;
+  color: var(--sheet);
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
-  background-color: #104d82;
-  background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
-  border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -3px 0 rgba(0, 0, 0, 0.38);
+  background: var(--sheet-ink);
 }
 #demo-badge .db-cta:hover,
-#demo-convert .dc-go:hover { filter: brightness(1.1); }
+#demo-convert .dc-go:hover { background: color-mix(in oklab, var(--sheet-ink) 84%, var(--sheet)); }
 
 #demo-badge .db-min {
   flex: none;
@@ -56,17 +73,17 @@
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  color: #bdbdbd;
-  font: 700 16px/1 system-ui, sans-serif;
+  color: inherit;
+  font: 700 16px/1 'Sofia Sans', system-ui, sans-serif;
   cursor: pointer;
 }
-#demo-badge .db-min:hover { background: rgba(255, 255, 255, 0.08); color: #ededed; }
+#demo-badge .db-min:hover { background: color-mix(in oklab, currentColor 13%, transparent); }
 #demo-badge a:focus-visible,
 #demo-badge button:focus-visible,
 #demo-convert a:focus-visible,
-#demo-convert button:focus-visible { outline: 2px solid #008dff; outline-offset: 2px; }
+#demo-convert button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 /* Collapsed: still says "this is a demo" at a glance. */
 #demo-badge.is-min { gap: 8px; }
@@ -85,12 +102,7 @@
   z-index: 2147483001;
   width: min(360px, calc(100vw - 32px));
   padding: 16px 18px;
-  border-radius: 12px;
-  border: 1px solid #3d3d3d;
-  background: rgba(35, 35, 35, 0.97);
-  box-shadow: 0 22px 60px -20px rgba(0, 0, 0, 0.7);
-  color: #ededed;
-  font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 500 16px/1.45 'Sofia Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
   animation: dc-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes dc-in { from { opacity: 0; transform: translateY(12px); } }
@@ -101,13 +113,13 @@
 #demo-convert .dc-no {
   padding: 9px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  color: #bdbdbd;
+  color: inherit;
   font: inherit;
   cursor: pointer;
 }
-#demo-convert .dc-no:hover { color: #ededed; text-decoration: underline; }
+#demo-convert .dc-no:hover { text-decoration: underline; }
 
 /* ── Phone: neither piece of demo chrome may sit on the app's own bar ────── */
 /* The dashboard's phone view (server/components/PhoneView.css) puts a thumb dock

@@ -41,6 +41,6 @@ test('scenes are picked by name, an unknown one is an error, none means all', ()
 test('a crop scene is shot as its box, the others as the whole page', () => {
   assert.equal(cropTarget('bit-chat', '.chat-panel'), '.chat-panel');
   assert.equal(cropTarget('bit-chat', undefined), null, 'no box named: whole page');
-  assert.equal(cropTarget('sparks-mail', '.bitmail'), null);
+  assert.equal(cropTarget('sparks-mail', '.bm-card'), null);
   assert.equal(cropTarget('nope', '.x'), null);
 });

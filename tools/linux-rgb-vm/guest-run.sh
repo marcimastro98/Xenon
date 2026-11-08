@@ -9,6 +9,8 @@ S=/mnt/share
 APP=$S/app
 NODE=$S/node/bin/node
 U=xenon
+[ -f "$S/battery-run" ] && exec bash "$APP/tools/linux-rgb-vm/guest-battery.sh"
+[ -f "$S/airpods-run" ] && exec bash "$APP/tools/linux-rgb-vm/guest-airpods.sh"
 USER_ID=$(id -u "$U")
 API=http://127.0.0.1:3030
 SERVER_UP_MAX_S=600

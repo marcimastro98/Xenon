@@ -8,14 +8,15 @@ import { readFileSync } from 'node:fs';
 // Live data the public demo does not carry: a game running with its frame
 // times, a Discord call, a Deck with real keys, synced lyrics for the demo's
 // first track. Serialized into the page, so it must stay self-contained.
-export function richData() {
+// `deckShape`: the grid the Deck's keys are laid out on, as many keys as it holds.
+export function richData(deckShape) {
   const frames = () => Array.from({ length: 120 }, (_, i) => {
-    const wave = 6.9 + Math.sin(i / 7) * 0.35 + (i === 84 ? 2.1 : 0);
-    return Math.round((wave + Math.random() * 0.3) * 100) / 100;
+    const wave = 6.9 + Math.sin(i / 7) * 0.5 + Math.sin(i / 2.3) * 0.35 + (i === 84 ? 3.4 : 0) + (i === 41 ? 1.8 : 0);
+    return Math.round((wave + Math.random() * 0.5) * 100) / 100;
   });
   const perf = () => ({
-    active: true, process: 'Cyberpunk2077.exe',
-    fps: 140 + Math.round(Math.random() * 6), avgFps: 141, low1Fps: 112, low01Fps: 96,
+    active: true, process: 'Skyharbor.exe',
+    fps: 143, avgFps: 141, low1Fps: 112, low01Fps: 96,
     frames: frames(),
   });
   const members = [
@@ -39,7 +40,7 @@ export function richData() {
   });
   const deckKeys = [
     key('k1', 'Save replay', 'record', '#c0392b', 'replay'),
-    key('k2', 'Screenshot', 'camera', '#2d6cdf', 'screenshot'),
+    key('k2', 'Snapshot', 'camera', '#2d6cdf', 'screenshot'),
     key('k3', 'Mute mic', 'micOff', '#3a3a3a', 'micMute', { mode: 'toggle' }),
     key('k4', 'Spotify', 'music', '#1f8040', 'mediaPlayPause'),
     key('k5', 'Overlay', 'gamepad', '#6b4bd8', 'layersToggle'),
@@ -50,12 +51,19 @@ export function richData() {
     key('k10', 'Record', 'video', '#8e2b2b', 'record'),
     key('k11', 'Volume', 'volUp', '#3a3a3a', 'volume', { mode: 'up' }),
     key('k12', 'Lock PC', 'lock', '#3a3a3a', 'lockPc'),
+    key('k13', 'Next track', 'next', '#1f8040', 'mediaNext'),
+    key('k14', 'Night mode', 'moon', '#2d3f7c', 'lightingEffect'),
+    key('k15', 'Captures', 'folder', '#8a6a1f', 'captureGallery'),
+    key('k16', 'Favourites', 'heart', '#a33a6b', 'layersToggle'),
+    key('k17', 'Wi-Fi', 'wifi', '#2d6cdf', 'lockPc'),
+    key('k18', 'Settings', 'settings', '#3a3a3a', 'lockPc'),
   ];
+  const { cols, rows } = Object.assign({ cols: 3, rows: 5 }, deckShape);
   const deck = {
-    version: 1, cols: 3, rows: 4, keySize: 'md', autoFit: false, showMedia: false, capStyle: 'lcd',
-    keyShape: 'rounded', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null,
+    version: 1, cols, rows, keySize: 'md', autoFit: false, showMedia: false, capStyle: 'lcd',
+    keyShape: 'rounded', plate: 'theme', transparency: 0, wellImage: null, mediaStyle: null,
     activeProfile: 'p1', autoSwitch: { enabled: false, revert: 'default', rules: [] },
-    profiles: [{ id: 'p1', name: 'Game', cols: 3, rows: 4, root: { pages: [{ keys: deckKeys }] } }],
+    profiles: [{ id: 'p1', name: 'Game', cols, rows, root: { pages: [{ keys: deckKeys.slice(0, cols * rows) }] } }],
   };
   const words = ['City lights are humming low', 'Every signal starts to glow', 'Run the line until it breaks',
     'Hold the beat for both our sakes', 'Static rain on window glass', 'Let the slow hours pass',
@@ -117,10 +125,17 @@ function layout(widgets, mediaAt) {
 // The Edge's gaming page. The vertical Edge and the phone draw the same layout:
 // the app arranges it for those shapes by itself, as it does for a user.
 const GAME = layout({
-  media: tile(0, 0, 6, 4), chat: tile(0, 0, 6, 4), lyrics: tile(0, 4, 6, 4),
-  perf: tile(6, 0, 5, 8), system: tile(11, 0, 5, 8),
-  discord: tile(16, 0, 4, 4), timer: tile(16, 4, 4, 4), deck: tile(20, 0, 4, 8),
+  media: tile(0, 0, 6, 4), chat: tile(0, 0, 6, 4), weather: tile(0, 4, 6, 4),
+  system: tile(6, 0, 5, 8), youtube: tile(11, 0, 5, 4), perf: tile(11, 4, 5, 4),
+  discord: tile(16, 0, 4, 4), football: tile(16, 4, 4, 4), deck: tile(20, 0, 4, 8),
 }, { x: 0, y: 0, w: 6, h: 4 });
+
+const GAME_FIXTURES = ['weather', 'youtube', 'football'];
+
+// Discord stops at the volumes: the Audio row sits below a four row tile and would
+// show as half a row.
+const NO_AUDIO_ROW = `document.querySelector('.dc-ctl-audio')?.remove();`;
+const GAME_OPEN = `document.querySelector('.yt-v-fill')?.click(); ${NO_AUDIO_ROW}`;
 
 // The vertical Edge: the same tiles without the timer, arranged by hand on the
 // vertical grid (24 columns by 48 rows, js/dashboard-portrait.js), because the
@@ -134,37 +149,53 @@ const VERTICAL = Object.assign(layout({
   portrait: {
     custom: true,
     items: {
-      'media-group': at(0, 0, 24, 7), lyrics: at(0, 7, 24, 9), perf: at(0, 16, 24, 8),
-      system: at(0, 24, 12, 14), deck: at(12, 24, 12, 14), discord: at(0, 38, 24, 10),
+      'media-group': at(0, 0, 24, 7), lyrics: at(0, 7, 24, 8), perf: at(0, 15, 24, 8),
+      system: at(0, 23, 12, 16), deck: at(12, 23, 12, 16), discord: at(0, 39, 24, 9),
     },
   },
 });
 
+// A phone stacks the tiles in reading order, each as tall as its share of the grid.
+const PHONE = layout({
+  media: tile(0, 0, 24, 7), chat: tile(0, 0, 24, 7),
+  deck: tile(0, 7, 24, 6), system: tile(0, 13, 24, 8),
+}, { x: 0, y: 0, w: 24, h: 7 });
+
+// Up to six tiles side by side, each a third of the screen wide: the pictures
+// of the Xenon menu's Add list (tools/tile-previews/shoot.mjs).
+export function tileLayout(tiles) {
+  const widgets = {};
+  tiles.forEach((id, i) => { widgets[id] = tile((i % 3) * 8, Math.floor(i / 3) * 4, 8, 4); });
+  return layout(widgets);
+}
+
 export const SCENES = {
   // `crops`: one more picture per tile, named <scene>-<name>.png, for the
-  // page's sections that show a single widget.
+  // page's sections that show a single widget. `fixtures`: the tiles that need the
+  // invented data of tools/tile-previews and widgets.mjs to look lived in. `settings`:
+  // merged into the demo's seed (a theme, see themes.mjs).
   edge: {
-    viewport: { width: 2560, height: 720, scale: 2 }, layout: GAME,
-    crops: { perf: 'perf', system: 'system', deck: 'deck', discord: 'discord', lyrics: 'lyrics', media: 'media' },
+    viewport: { width: 2560, height: 720, scale: 2 }, layout: GAME, fixtures: GAME_FIXTURES, open: GAME_OPEN,
+    crops: { perf: 'perf', system: 'system', deck: 'deck', discord: 'discord', media: 'media' },
   },
-  'edge-vertical': { viewport: { width: 720, height: 2560, scale: 2 }, layout: VERTICAL },
+  'edge-vertical': { viewport: { width: 720, height: 2560, scale: 2 }, layout: VERTICAL, deck: { cols: 3, rows: 6 } },
   monitor: {
-    viewport: { width: 1920, height: 1080, scale: 2 },
+    viewport: { width: 1920, height: 1080, scale: 2 }, fixtures: ['weather', 'calendar', 'news', 'stocks'],
     layout: layout({
-      media: tile(0, 0, 6, 4), chat: tile(0, 0, 6, 4), lyrics: tile(0, 4, 6, 4),
+      media: tile(0, 0, 6, 4), chat: tile(0, 0, 6, 4), weather: tile(0, 4, 6, 4),
       agenda: tile(6, 0, 7, 8), system: tile(13, 0, 6, 8),
-      notes: tile(19, 0, 5, 4), timer: tile(19, 4, 5, 4),
+      news: tile(19, 0, 5, 4), stocks: tile(19, 4, 5, 4),
     }, { x: 0, y: 0, w: 6, h: 4 }),
-    crops: { agenda: 'agenda', notes: 'notes', timer: 'timer' },
+    crops: { agenda: 'agenda' },
   },
   tablet: {
-    viewport: { width: 1180, height: 820, mobile: true, scale: 2 },
+    viewport: { width: 1180, height: 820, mobile: true, scale: 2 }, deck: { cols: 4, rows: 3 }, open: NO_AUDIO_ROW,
     layout: layout({
       media: tile(0, 0, 8, 4), chat: tile(0, 0, 8, 4), lyrics: tile(0, 4, 8, 4),
-      system: tile(8, 0, 8, 8), deck: tile(16, 0, 8, 8),
+      system: tile(8, 0, 8, 8), deck: tile(16, 0, 8, 4), discord: tile(16, 4, 8, 4),
     }, { x: 0, y: 0, w: 8, h: 4 }),
   },
-  phone: { viewport: { width: 390, height: 844, mobile: true, scale: 2 }, layout: GAME },
+  phone: { viewport: { width: 390, height: 844, mobile: true, scale: 2 }, layout: PHONE, deck: { cols: 4, rows: 2 } },
 };
 
 // The app resets a layout saved under an older schema version, so the seed
@@ -180,8 +211,8 @@ function layoutVersion() {
 // functions, re-run each second) and the scene's layout as plain JSON.
 export function initScript(scene) {
   return `window.__SHOT__ = (function () {
-  const shot = (${feeds.toString()})((${richData.toString()})());
-  shot.settings = { dashboardLayout: ${JSON.stringify(scene.layout)}, dashboardLayoutVersion: ${layoutVersion()} };
+  const shot = (${feeds.toString()})((${richData.toString()})(${JSON.stringify(scene.deck || null)}));
+  shot.settings = { dashboardLayout: ${JSON.stringify(scene.layout)}, dashboardLayoutVersion: ${layoutVersion()}, ...${JSON.stringify(scene.settings || {})} };
   return shot;
 })();`;
 }

@@ -2,12 +2,12 @@
 // Sets app strings in server/js/i18n.js, one value per language, in place.
 //
 // A key can be defined more than once for a language: in the main block
-// (`  it: {`) and again in a later `Object.assign(i18n.it, {...})` block, where
-// the last one wins at runtime. Rewriting copy by hand across 11 languages kept
-// missing one of them, so this rewrites EVERY definition of the key for that
-// language. A key a language does not have yet is added to its main block,
-// after the `...i18n.en,` spread when the block has one (otherwise the English
-// fallback would overwrite it).
+// (`  it: {`) and again in a later `Object.assign(i18n.it, {...})` block or
+// one-line patch, where the last one wins at runtime. Rewriting copy by hand
+// across 11 languages kept missing one of them, so this rewrites EVERY
+// definition of the key for that language. A key a language does not have yet
+// is added to its main block, after the `...i18n.en,` spread when the block has
+// one (otherwise the English fallback would overwrite it).
 //
 // Run:  node tools/i18n-set.mjs <updates.json> [--check]
 //   updates.json = { "key": { "it": "...", "en": "...", ... }, "gone": null }
@@ -20,8 +20,13 @@ import { fileURLToPath } from 'node:url';
 
 const MAIN_BLOCK = /^ {2}([a-z]{2}): \{\s*$/;
 const ASSIGN_BLOCK = /^Object\.assign\(i18n\.([a-z]{2}), \{\s*$/;
+// A short patch opens and closes on one line, and it still wins at runtime.
+const ASSIGN_LINE = /^Object\.assign\(i18n\.([a-z]{2}), \{.*\}\);\s*$/;
+const EMPTY_ASSIGN_LINE = /^Object\.assign\(i18n\.[a-z]{2}, \{\s*\}\);\s*$/;
 
-// Line ranges that belong to each language: [{ lang, start, end, main }].
+// Line ranges that belong to each language: [{ lang, start, end, main, inline }].
+// A block's keys sit between its `start` and `end` lines; an inline patch keeps
+// them on its own `start` line.
 export function languageRegions(lines) {
   const regions = [];
   let open = null;
@@ -29,9 +34,14 @@ export function languageRegions(lines) {
     const line = lines[i];
     const main = MAIN_BLOCK.exec(line);
     const assign = ASSIGN_BLOCK.exec(line);
-    if (main || assign) {
-      if (open) { open.end = i; regions.push(open); }
-      open = { lang: (main || assign)[1], start: i, end: lines.length, main: Boolean(main) };
+    const inline = !main && !assign && ASSIGN_LINE.exec(line);
+    if (main || assign || inline) {
+      if (open) { open.end = i; regions.push(open); open = null; }
+      if (inline) {
+        regions.push({ lang: inline[1], start: i, end: i + 1, main: false, inline: true });
+        continue;
+      }
+      open = { lang: (main || assign)[1], start: i, end: lines.length, main: Boolean(main), inline: false };
       continue;
     }
     if (open && (line === '};' || line === '});')) { open.end = i; regions.push(open); open = null; }
@@ -46,6 +56,11 @@ function keyLine(key) {
   return new RegExp(`^(\\s+)(["']?)${escapeRe(key)}\\2:\\s*(['"])((?:\\\\.|(?!\\3).)*)\\3(,?)\\s*$`);
 }
 
+// A long line can hold many keys, so a definition is found anywhere on the line.
+function keyAnywhere(key) {
+  return new RegExp(`(^|[\\s,{])(["']?)${escapeRe(key)}\\2:\\s*(['"])((?:\\\\.|(?!\\3).)*)\\3`, 'g');
+}
+
 function quote(value, q) {
   if (q === '"') return JSON.stringify(value);
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
@@ -58,11 +73,20 @@ export function setI18nKeys(source, updates) {
   const changes = [];
   for (const [key, perLang] of Object.entries(updates)) {
     const re = keyLine(key);
+    const anywhere = keyAnywhere(key);
     if (perLang === null) {
       for (let i = lines.length - 1; i >= 0; i--) {
-        if (!re.test(lines[i])) continue;
+        if (re.test(lines[i])) {
+          changes.push({ key, lang: '*', line: i + 1, kind: 'remove' });
+          lines.splice(i, 1);
+          continue;
+        }
+        const left = lines[i].replace(new RegExp(`${anywhere.source},?\\s*`, 'g'), '$1');
+        if (left === lines[i]) continue;
         changes.push({ key, lang: '*', line: i + 1, kind: 'remove' });
-        lines.splice(i, 1);
+        // A one-line patch left with no key goes, rather than staying as `{ }`.
+        if (EMPTY_ASSIGN_LINE.test(left)) lines.splice(i, 1);
+        else lines[i] = left.trimEnd();
       }
       continue;
     }
@@ -72,18 +96,22 @@ export function setI18nKeys(source, updates) {
       if (!regions.length) throw new Error(`no block for language "${lang}"`);
       let hits = 0;
       for (const r of regions) {
-        for (let i = r.start + 1; i < r.end; i++) {
-          const m = re.exec(lines[i]);
-          if (!m) continue;
-          const keyQuote = m[2];
-          const next = `${m[1]}${keyQuote}${key}${keyQuote}: ${quote(value, m[3])}${m[5]}`;
+        for (let i = r.inline ? r.start : r.start + 1; i < r.end; i++) {
+          let found = false;
+          const next = lines[i].replace(anywhere, (_match, lead, keyQuote, q) => {
+            found = true;
+            return `${lead}${keyQuote}${key}${keyQuote}: ${quote(value, q)}`;
+          });
+          if (!found) continue;
           if (next !== lines[i]) changes.push({ key, lang, line: i + 1, kind: 'set' });
           lines[i] = next;
           hits++;
         }
       }
       if (hits) continue;
-      const main = regions.find((r) => r.main) || regions[0];
+      // A new key never goes into a one-line patch: it would land outside its braces.
+      const main = regions.find((r) => r.main) || regions.find((r) => !r.inline);
+      if (!main) throw new Error(`${key}.${lang}: no block to add the key to`);
       let at = main.start + 1;
       for (let i = main.start + 1; i < main.end; i++) {
         if (lines[i].trim() === '...i18n.en,') { at = i + 1; break; }
@@ -91,7 +119,8 @@ export function setI18nKeys(source, updates) {
       // Match the block's own key style (the Dutch block quotes its keys).
       const sample = lines.slice(at, main.end).find((l) => /^\s+["']?[a-z0-9_]+["']?:\s*['"]/i.test(l)) || '    k: \'\'';
       const indent = /^(\s+)/.exec(sample)[1];
-      const keyQuote = /^\s+"/.test(sample) ? '"' : '';
+      // A key that is not a plain identifier (remote.pin_placeholder) must be quoted.
+      const keyQuote = /^\s+"/.test(sample) ? '"' : (/^[A-Za-z_$][\w$]*$/.test(key) ? '' : "'");
       const valueQuote = /:\s*"/.test(sample) ? '"' : "'";
       lines.splice(at, 0, `${indent}${keyQuote}${key}${keyQuote}: ${quote(value, valueQuote)},`);
       changes.push({ key, lang, line: at + 1, kind: 'add' });
