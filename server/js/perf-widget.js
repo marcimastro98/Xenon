@@ -1,8 +1,9 @@
 'use strict';
 // Game performance tile: the running game's frame rate, its 1% and 0.1% lows,
-// a graph of the newest frame times, and CPU/GPU load with the GPU temperature.
-// Fed by SSE 'perf' (four times a second, only while a game runs and a tile
-// shows it; seed: GET /perf) and by the 'system' tick for the hardware row.
+// a graph of the newest frame times, and the system readings the person chose
+// (js/perf-hud.js). Fed by SSE 'perf' (four times a second, only while a game runs
+// and a tile shows it; seed: GET /perf), the 'system' tick for the hardware and
+// 'perf_net' for ping and packet loss. Over a game it is text and nothing else.
 // Between games it shows the last one played (server/game-sessions.js, carried
 // by the idle reading as `last`) and how it compares with the time before.
 // While a benchmark records (server/benchmark.js), the head says so, with the time.
@@ -16,11 +17,14 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const GRAPH_W = 120;
   const GRAPH_H = 40;
-  const HUD_PARTS = ['low1', 'low01', 'frame', 'graph', 'hw'];
+  const SILENCE_MS = 3000;  // readings come four times a second
+  const { PERF_HUD_GROUPS, PERF_HUD_SYSTEM, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, statText } = window.PerfHud;
 
   let perf = { active: false };
   let sys = null;
+  let net = null;
   let seeded = false;
+  let silenceTimer = null;
   const built = new WeakMap();   // tile → its element refs
 
   function tiles() {
@@ -33,6 +37,8 @@
   const HINT_LOW1 = ['perf_low1_hint', 'The frame rate of the slowest 1% of frames: the lower it is against the FPS, the more the game stutters.'];
   const HINT_LOW01 = ['perf_low01_hint', 'The frame rate of the slowest 0.1% of frames: the rare, longest hitches.'];
   const HINT_FRAME = ['perf_frametime_hint', 'How long one frame takes on average, in milliseconds. Lower is smoother.'];
+
+  const overGame = () => document.documentElement?.dataset?.layer === 'overlay';
 
   function stat(cls, labelKey, fallback, hint) {
     const box = el('div', 'perfw-stat ' + cls);
@@ -56,7 +62,7 @@
     const lows = el('div', 'perfw-lows');
     const low1 = stat('is-low1', 'perf_low1', '1% low', HINT_LOW1);
     const low01 = stat('is-low01', 'perf_low01', '0.1% low', HINT_LOW01);
-    const frame = stat('is-frame', 'perf_frametime', 'Frame time', HINT_FRAME);
+    const frame = stat('is-frame', 'perf_frame_short', 'Frame', HINT_FRAME);
     lows.append(low1.box, low01.box, frame.box);
     main.append(fps, lows);
 
@@ -66,21 +72,37 @@
     svg.setAttribute('preserveAspectRatio', 'none');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', t('perf_graph', 'Frame times of the latest frames'));
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('vector-effect', 'non-scaling-stroke');
-    svg.appendChild(path);
+    const line = () => {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('vector-effect', 'non-scaling-stroke');
+      return svg.appendChild(p);
+    };
+    // The dark edge keeps the line readable over a bright game, without a filter
+    // that would re-run on each of the four repaints a second.
+    const edge = line();
+    edge.setAttribute('class', 'perfw-graph-edge');
+    const path = line();
 
     const state = el('div', 'perfw-state');
 
     const hw = el('div', 'perfw-hw');
-    const cpu = stat('is-cpu', 'perf_cpu', 'CPU');
-    const gpu = stat('is-gpu', 'perf_gpu', 'GPU');
-    const temp = stat('is-temp', 'perf_gpu_temp', 'GPU temp');
-    hw.append(cpu.box, gpu.box, temp.box);
+    const system = {};
+    for (const part of PERF_HUD_SYSTEM) {
+      const short = PERF_HUD_SHORT[part];
+      system[part] = stat('is-' + part, short, part, short === PERF_HUD_LABELS[part] ? null : [PERF_HUD_LABELS[part], part]);
+      hw.appendChild(system[part].box);
+    }
 
     wrap.append(head, main, svg, state, hw);
     mount.replaceChildren(wrap);
-    const refs = { lang: curLang(), wrap, game, fpsVal, low1, low01, frame, path, state, cpu, gpu, temp };
+    // Over a game the window is cut to the words, and they have nothing to press, so
+    // clicks go through them to whatever lies under (js/layer-host.js).
+    if (overGame()) {
+      wrap.setAttribute('data-layer-fit', '');
+      wrap.setAttribute('data-layer-through', '');
+      window.LayerHost?.fitTo?.(wrap);
+    }
+    const refs = { lang: curLang(), wrap, game, fpsVal, low1, low01, frame, edge, path, state, system };
     built.set(mount, refs);
     return refs;
   }
@@ -102,12 +124,9 @@
     const platform = sys && sys.platform;
     if (platform === 'darwin') return t('perf_mac', 'A Mac cannot measure the frame rate of other apps.');
     if (platform === 'linux') return t('perf_linux', 'Start the game with MangoHud to see its frame rate.');
-    // A game runs but draws no readable frames: say so, not "start a game".
-    if (runningGame()) {
-      return perf.reader === false
-        ? t('perf_no_reader', 'Install PresentMon in Settings to see its frame rate.')
-        : t('perf_unreadable', 'Its frame rate cannot be read right now.');
-    }
+    // A game runs but draws no readable frames. Only a missing reader has a fix
+    // to offer; otherwise the numbers come back by themselves, so nothing is said.
+    if (runningGame()) return perf.reader === false ? t('perf_no_reader', 'Install PresentMon in Settings to see its frame rate.') : '';
     return t('perf_idle', 'Start a game to see its frame rate.');
   }
 
@@ -143,7 +162,7 @@
   }
 
   function lastSession() {
-    const l = perf.active !== true && !runningGame() && perf.last;
+    const l = !overGame() && perf.active !== true && !runningGame() && perf.last;
     return l && typeof l === 'object' && Number(l.avgFps) > 0 ? l : null;
   }
 
@@ -156,21 +175,23 @@
     return window.AlertToasts.stutterLabel(w.reason, perf, { t });
   }
 
-  // What the user chose to show besides the FPS (Settings, Performance;
-  // js/perf-hud.js). `hubSettings` is the page's own copy: the dashboard's, or
-  // the read-only one of a layer page. A class per hidden part, set only when
+  // What the user chose to show (Settings, Performance, or the Overlay section of
+  // the menu; js/perf-hud.js). `hubSettings` is the page's own copy: the dashboard's,
+  // or the read-only one of a layer page. A class per hidden part, set only when
   // the choice changed, so the 4 Hz repaint over a game stays text-only.
   function hudParts() {
-    const raw = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.perfHud : null;
-    return window.PerfHud ? window.PerfHud.normalizePerfHud(raw) : null;
+    return normalizePerfHud(typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.perfHud : null);
   }
 
   function applyHud(r) {
     const parts = hudParts();
-    const key = parts ? JSON.stringify(parts) : '';
+    const key = JSON.stringify(parts);
     if (r.hud === key) return;
     r.hud = key;
-    for (const k of HUD_PARTS) r.wrap.classList.toggle('hud-no-' + k, !!parts && parts[k] === false);
+    for (const k of PERF_HUD_GROUPS.game) r.wrap.classList.toggle('hud-no-' + k, !parts[k]);
+    for (const k of PERF_HUD_SYSTEM) r.system[k].box.classList.toggle('is-off', !parts[k]);
+    r.wrap.classList.toggle('hud-no-hw', !PERF_HUD_SYSTEM.some((k) => parts[k]));
+    r.wrap.classList.toggle('hud-row', parts.layout === 'row');
   }
 
   function paintPerf(r) {
@@ -180,6 +201,7 @@
     const src = on ? perf : (last || {});
     r.wrap.classList.toggle('is-idle', !on && !last);
     r.wrap.classList.toggle('is-last', !!last);
+    r.wrap.classList.toggle('is-nofps', sys?.platform === 'darwin');
     const bench = on && perf.bench && typeof perf.bench === 'object' ? perf.bench : null;
     r.wrap.classList.toggle('is-bench', !!bench);
     r.game.textContent = bench ? benchText(bench)
@@ -194,27 +216,31 @@
       r.frame.box.title = '';
       r.frame.value.textContent = duration(last.durationS);
     } else {
-      r.frame.label.textContent = t('perf_frametime', 'Frame time');
+      r.frame.label.textContent = t('perf_frame_short', 'Frame');
       r.frame.box.title = t(HINT_FRAME[0], HINT_FRAME[1]);
       const avgMs = on && Number(perf.avgFps) > 0 ? 1000 / Number(perf.avgFps) : (on && Number(perf.fps) > 0 ? 1000 / Number(perf.fps) : null);
       r.frame.value.textContent = avgMs == null ? '--' : avgMs.toFixed(1) + ' ms';
     }
-    r.path.setAttribute('d', on ? graphPath(perf.frames) : '');
-    // A stutter's cause first; otherwise say an exclusive full screen hides the overlay.
-    const why = on ? (whyText() || (perf.exclusive === true ? t('excl_line', 'Exclusive full screen: no widgets over it') : '')) : '';
+    const d = on ? graphPath(perf.frames) : '';
+    r.path.setAttribute('d', d);
+    r.edge.setAttribute('d', d);
+    // Over a game the widget is numbers only, never a sentence: the same facts stay on
+    // the dashboard tile, in Bit's answers and in the "Why does it stutter?" toast.
+    // Elsewhere a stutter's cause comes first, then that exclusive full screen hides the overlay.
+    const why = on && !overGame() ? (whyText() || (perf.exclusive === true ? t('excl_line', 'Exclusive full screen: no widgets over it') : '')) : '';
     r.wrap.classList.toggle('is-why', !!why);
-    r.state.textContent = on ? why : (last ? lastText(last) : idleText());
+    r.state.textContent = overGame() ? '' : (on ? why : (last ? lastText(last) : idleText()));
+  }
+
+  function tempText(celsius) {
+    const v = typeof toDisplayHwTemp === 'function' ? toDisplayHwTemp(celsius) : celsius;
+    return num(v) + '°' + (typeof hwTempUnitSuffix === 'function' ? hwTempUnitSuffix() : 'C');
   }
 
   function paintSystem(r) {
-    const s = sys || {};
-    r.cpu.value.textContent = s.cpu == null ? '--' : num(s.cpu) + '%';
-    r.gpu.value.textContent = s.gpu == null ? '--' : num(s.gpu) + '%';
-    const temp = s.gpuTemp == null ? null
-      : (typeof toDisplayHwTemp === 'function' ? toDisplayHwTemp(s.gpuTemp) : Math.round(Number(s.gpuTemp)));
-    const unit = typeof hwTempUnitSuffix === 'function' ? hwTempUnitSuffix() : 'C';
-    r.temp.value.textContent = temp == null ? '--' : num(temp) + '°' + unit;
-    r.temp.box.hidden = temp == null;
+    for (const k of PERF_HUD_SYSTEM) r.system[k].value.textContent = statText(k, sys, net, tempText);
+    // On by default, so a machine with no such sensor gets no dash it never asked for.
+    r.system.gpuTemp.box.hidden = r.system.gpuTemp.value.textContent === '--';
   }
 
   function refsFor(tile) {
@@ -241,16 +267,31 @@
     if (!seeded) seed();
   }
 
+  // The stream ends a game with one message: a page that missed it (server
+  // restart, sleep) would show the last FPS for good, so silence means ask again.
+  function watchForSilence() {
+    clearTimeout(silenceTimer);
+    silenceTimer = perf.active && tiles().length ? setTimeout(seed, SILENCE_MS) : null;
+  }
+
   function onPerf(d) {
     if (!d || typeof d !== 'object') return;
     perf = d;
     tiles().forEach((tile) => { const r = refsFor(tile); if (r) paintPerf(r); });
+    watchForSilence();
   }
 
   function onSystem(d) {
     if (!d || typeof d !== 'object') return;
     sys = d;
     tiles().forEach((tile) => { const r = refsFor(tile); if (r) { paintSystem(r); if (!perf.active) paintPerf(r); } });
+  }
+
+  // Ping and packet loss, sent only while someone chose them (server/perf-net.js).
+  function onNet(d) {
+    if (!d || typeof d !== 'object') return;
+    net = d;
+    tiles().forEach((tile) => { const r = refsFor(tile); if (r) paintSystem(r); });
   }
 
   function revealBenchmark() {
@@ -286,5 +327,5 @@
     if (toast) window.XenonToast.show(toast);
   }
 
-  window.PerfWidget = { renderWidgets, onPerf, onSystem, onBenchmark, onStutterWhy, onExclusiveHint, graphPath };
+  window.PerfWidget = { renderWidgets, onPerf, onSystem, onNet, onBenchmark, onStutterWhy, onExclusiveHint, graphPath };
 })();

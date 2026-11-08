@@ -19,6 +19,8 @@
   let tickTimer = null;
   let fpsTimer = null;
   let analyzing = false;
+  let letGo = null;
+  let hideTimer = null;
 
   function enabled() {
     return typeof aiFeatureEnabled === 'function' && aiFeatureEnabled('gameCompanion');
@@ -118,12 +120,27 @@
     } catch { /* transient — keep last value */ }
   }
 
+  // Nothing paints under the frosted page while the card is up.
+  function freezeBehind(on) {
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('game-companion', on);
+  }
+
+  // Esc and Tab stay with the card. Not on the alerts window, which never takes
+  // the keyboard from the game (js/screen-companion.js).
+  function holdKeys(ov) {
+    if (!window.DialogFocus || window.ScreenCompanion) return;
+    letGo = window.DialogFocus.hold(ov.querySelector('.gc-card'), { onEsc: closeOverlay });
+  }
+
   function openOverlay() {
     if (!enabled()) return;
     const ov = document.getElementById('gc-overlay');
     if (!ov || overlayOpen) return;
     overlayOpen = true;
+    clearTimeout(hideTimer);
     ov.hidden = false;
+    freezeBehind(true);
+    holdKeys(ov);
     requestAnimationFrame(() => ov.classList.add('show'));
     const g = document.getElementById('gc-game');
     if (g) g.textContent = prettyName(proc) || '—';
@@ -150,11 +167,13 @@
   function closeOverlay() {
     const ov = document.getElementById('gc-overlay');
     overlayOpen = false;
+    if (letGo) { letGo(); letGo = null; }
+    freezeBehind(false);
     if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
     if (fpsTimer) { clearInterval(fpsTimer); fpsTimer = null; }
     if (ov && !ov.hidden) {
       ov.classList.remove('show');
-      setTimeout(() => { ov.hidden = true; }, 250);
+      hideTimer = setTimeout(() => { ov.hidden = true; }, 250);
     }
     // If the game exited while the overlay was open, fully reset now so the pill
     // doesn't come back. If it's still running, syncPill restores the pill.
@@ -163,12 +182,14 @@
   }
 
   // Free-form question about the game: same vision request, grounded in the
-  // live screenshot, but answering the user's text instead of the stock tip.
+  // live screenshot, but answering the user's text instead of the stock tip. A
+  // look can cost Sparks, so an empty box starts nothing: the caret goes there.
   function ask() {
     const input = document.getElementById('gc-question');
-    const q = input ? input.value.trim() : '';
-    if (!q) { analyze(); return; }
-    if (input) input.value = '';
+    if (!input) return;
+    const q = input.value.trim();
+    if (!q) { input.focus(); return; }
+    input.value = '';
     analyze(q);
   }
 
@@ -178,16 +199,17 @@
     showBit(state);
   }
 
-  // What a look costs on Sparks, under the buttons and before pressing: the
+  // What a look costs on Sparks, beside the key and before pressing: the
   // hub's charge for the last look, or the price table until one is made. On
   // any other AI there is nothing to pay here, so the line stays hidden.
   function paintCost(sparks) {
     const el = document.getElementById('gc-cost');
-    if (!el) return;
+    const words = document.getElementById('gc-cost-text');
+    if (!el || !words) return;
     const on = Number.isFinite(sparks) && sparks > 0 && !!(window.XenonCredits && XenonCredits.active());
     el.hidden = !on;
     if (!on) return;
-    el.textContent = sparks < 1
+    words.textContent = sparks < 1
       ? t('gc_cost_under')
       : t('gc_cost').replace('{n}', XenonCredits.format(sparks));
   }

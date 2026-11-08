@@ -21,7 +21,7 @@ const gd = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'gamedete
 
 test('our own process is ignored under every renamed-image shape', () => {
   for (const name of [
-    'Xenon', 'xenon-native', 'xenon-helper',
+    'Xenon', 'xenon-native', 'xenon-helper', 'xenon-capture',
     // Renamed while running: the tail differs by which side did the rename.
     'Xenon-native.old-1753', 'xenon-native.exe.old-20260723',
     'Xenon.old-1', 'xenon-helper.old-9',
@@ -33,6 +33,14 @@ test('our own process is ignored under every renamed-image shape', () => {
 test('a real game whose name starts with "xenon" is still detected', () => {
   for (const name of ['Xenonauts', 'Xenon Racer', 'xenon racer 2', 'xenonauts.old-1']) {
     assert.equal(gd.isIgnoredProc(name), false, 'must NOT be ignored: ' + name);
+  }
+});
+
+test('a game overlay in front after a game closes is never taken for the game', () => {
+  // As FC 27 closed, the NVIDIA app's overlay took the foreground full-screen and stayed
+  // "the game" until a reboot: it never exits, and the running game follows its PID.
+  for (const name of ['nvidia overlay', 'NVIDIA Share', 'gamebar', 'gamebarftserver']) {
+    assert.equal(gd.isIgnoredProc(name), true, 'must be ignored: ' + name);
   }
 });
 

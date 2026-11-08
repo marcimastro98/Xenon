@@ -5,7 +5,7 @@
 // deps (injected):
 //   perfHud  { get() → parts, set(change) → Promise<parts> (writes under the settings lock) }
 
-const { PERF_HUD_PARTS } = require('../js/perf-hud.js');
+const { PERF_HUD_PARTS, PERF_HUD_LAYOUTS } = require('../js/perf-hud.js');
 
 // "show"/"hide" per part; "keep", a missing or an unknown value changes nothing.
 function changeFrom(action) {
@@ -14,6 +14,7 @@ function changeFrom(action) {
     if (action[k] === 'show') change[k] = true;
     else if (action[k] === 'hide') change[k] = false;
   }
+  if (PERF_HUD_LAYOUTS.includes(action.layout)) change.layout = action.layout;
   return change;
 }
 

@@ -22,6 +22,9 @@ const MAX_FRAMES = 2000000;
 // A run that has drawn no frame by then never will (a launcher, a paused
 // game the capture does not see): it ends instead of running for MAX_MS.
 const FIRST_FRAMES_MS = 5000;
+// A closing game stalls while it tears down: one 559 ms frame measured on a real
+// exit made a steady 240 fps read as a 1% low of 50. That is not play.
+const CLOSING_TAIL_MS = 1000;
 
 const round1 = v => (v == null ? null : Math.round(v * 10) / 10);
 const pad = n => String(n).padStart(2, '0');
@@ -31,6 +34,13 @@ const pad = n => String(n).padStart(2, '0');
 function safeName(game) {
   const s = String(game || '').replace(/\.exe$/i, '').replace(/[^\w.-]+/g, '_').replace(/^[._]+/, '').slice(0, 60);
   return s || 'game';
+}
+
+// The frames left once the last `tailMs` of the run are taken off.
+function withoutTail(frames, tailMs) {
+  let end = frames.length;
+  for (let ms = 0; end > 0 && ms < tailMs; end -= 1) ms += frames[end - 1];
+  return frames.slice(0, end);
 }
 
 function fileNameFor(game, startMs) {
@@ -132,6 +142,7 @@ function createBenchmark({
     if (run.ending) return run.ending;
     const r = run;
     timers.clearInterval(r.timer);
+    if (reason === 'game_ended') r.frames = withoutTail(r.frames, CLOSING_TAIL_MS);
     r.ending = (async () => {
       const end = now();
       const hist = createFrameHistogram();

@@ -25,6 +25,9 @@ test('the card brings the dashboard\'s own files, in the dashboard\'s order', ()
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
   assert.equal(ScreenCompanion.SCRIPTS.at(-1), 'js/game-companion.js');
   assert.ok(!ScreenCompanion.SCRIPTS.includes('js/ai.js'), 'the card never pulls in the chat');
+  for (const f of ['shared/src/bit-spark.js', 'js/xenon-credits.js']) {
+    assert.ok(ScreenCompanion.SCRIPTS.includes(f), 'a look on Sparks says its price here too: ' + f);
+  }
   assert.equal(ScreenCompanion.IDLE_RELOAD_MS, 60000);
 });
 
@@ -49,9 +52,10 @@ function el(tag, cls = '') {
     tagName: tag, className: cls, children: [], listeners: {}, hidden: false, innerHTML: '', textContent: '',
     appendChild(c) { node.children.push(c); c.parent = node; return c; },
     addEventListener(type, fn) { node.listeners[type] = fn; },
-    replaceWith(n) {
+    remove() { node.parent.children.splice(node.parent.children.indexOf(node), 1); },
+    before(n) {
       const kids = node.parent.children;
-      kids[kids.indexOf(node)] = n;
+      kids.splice(kids.indexOf(node), 0, n);
       n.parent = node.parent;
     },
     querySelector(sel) {
@@ -105,6 +109,7 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
     body,
     head: { appendChild: (l) => { added.push(l.href); queueMicrotask(() => l.onload()); } },
     createElement: (tag) => el(tag),
+    querySelector: () => null,
     getElementById(id) {
       if (id === 'gc-overlay') return overlay;
       if (!markup) return null;
@@ -118,8 +123,8 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
               const ov = frag.appendChild(el('div', 'gc-overlay'));
               ov.hidden = true;
               const card = ov.appendChild(el('div', 'gc-card'));
-              card.appendChild(el('button', 'gc-analyze'));
               card.appendChild(el('div', 'gc-ask'));
+              card.appendChild(el('div', 'gc-keys')).appendChild(el('button', 'gc-analyze'));
               return frag;
             },
           },
@@ -176,8 +181,8 @@ test('the typed question gives way to "Ask out loud", which hands over to Bit', 
   const voice = card.querySelector('.gc-ask-voice');
   assert.ok(voice);
   assert.equal(voice.tagName, 'button');
-  assert.match(voice.className, /\bgc-analyze\b/, 'looks like the card\'s own button');
-  assert.equal(voice.children[0].textContent, 'Chiedi a voce');
+  assert.equal(voice.parent.children.at(-1).className, 'gc-analyze', 'the quiet key on the left, the main one last');
+  assert.equal(voice.textContent, 'Chiedi a voce');
   await voice.listeners.click();
   await new Promise((r) => setImmediate(r));
   assert.equal(b.overlay().hidden, true, 'the card makes room for Bit');
@@ -224,7 +229,7 @@ test('without the card in the page, or when it will not show, nothing breaks', a
 test('the alerts window routes the event and counts the card as clickable', () => {
   const src = read('../js/screen-alerts.js');
   assert.match(src, /game_companion: \(d\) => \{ if \(window\.ScreenCompanion\) window\.ScreenCompanion\.open\(d\); \}/);
-  assert.match(src, /const CARDS = '[^']*\.gc-overlay:not\(\[hidden\]\) > \.gc-card'/);
+  assert.match(src, /const CARDS = '[^']*\.gc-overlay:not\(\[hidden\]\) > \.gc-card[,']/);
   const css = read('../components/ScreenAlerts/ScreenAlerts.css');
   assert.match(css, /\.gc-overlay[^{]*\{[^}]*pointer-events: none/);
   assert.match(css, /\.gc-card[^{]*\{[^}]*pointer-events: auto/);
@@ -235,6 +240,6 @@ test('the alerts window routes the event and counts the card as clickable', () =
 // it whatever the user's exclude setting says.
 test('the alerts window stays out of screenshots, so Bit never sees its own card', () => {
   const mod = read('../../apps/native/src-tauri/src/layers/mod.rs');
-  assert.match(mod, /if alerts \|\| menu \{\s*let _ = win\.set_content_protected\(true\);/);
-  assert.match(mod, /let own = spec::is_alerts\(key\) \|\| spec::is_menu\(key\);\s*let _ = win\.set_content_protected\(\(spec\.exclude && !spec::is_draw\(key\)\) \|\| own\);/);
+  assert.match(mod, /if alerts \{\s*let _ = win\.set_content_protected\(true\);/);
+  assert.match(mod, /win\.set_content_protected\(spec::out_of_captures\(&l\.surface\.key, &spec\)\)/);
 });

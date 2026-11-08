@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createGameSessions, normalizeSession, compareSessions, MAX_SESSIONS, MIN_SESSION_MS } = require('../game-sessions.js');
+const { createGameSessions, normalizeSession, compareSessions, widgetSnapshot, MAX_SESSIONS, MIN_SESSION_MS } = require('../game-sessions.js');
 
 const MIN = 60 * 1000;
 
@@ -37,14 +37,16 @@ function rig({ enabled = true } = {}) {
   const writes = [];
   const flags = { enabled };
   const fps = fakeFps();
+  const logs = [];
   const gs = createGameSessions({
     fps, file,
     writeFileAtomic: async (f, body) => { writes.push(body); writeFileSync(f, body); },
     now: () => clock.t,
     enabled: () => flags.enabled,
     onEnd: (s) => ended.push(s),
+    log: (line) => logs.push(line),
   });
-  return { gs, fps, clock, ended, writes, file, dir, flags };
+  return { gs, fps, clock, ended, writes, file, dir, flags, logs };
 }
 
 const tenMs = n => new Array(n).fill(10);
@@ -89,6 +91,30 @@ test('a launcher blip or a game with no frame rate is not kept', async () => {
   gs.tick({ running: false });
   assert.equal(ended.length, 0, 'no frames at all (macOS has no frame rate)');
   assert.equal(gs.list().length, 0);
+});
+
+test('a game left out of the list says why in the log, once a minute at most', () => {
+  const { gs, fps, clock, logs } = rig();
+  gs.tick({ running: true, game: 'launcher' });
+  clock.t += 5000;
+  gs.tick({ running: false });
+  assert.deepEqual(logs, [], 'a few seconds are not worth a line');
+
+  gs.tick({ running: true, game: 'fc27' });
+  clock.t += 10 * MIN;
+  gs.tick({ running: false });
+  assert.deepEqual(logs, ['[game-sessions] fc27: 600 s not kept, no frame rate was read']);
+
+  gs.tick({ running: true, game: 'fc27' });
+  fps.state.queue.push(tenMs(500));
+  clock.t += 45 * 1000;
+  gs.tick({ running: false });
+  assert.equal(logs.length, 1, 'a game ending again within the minute adds nothing');
+
+  gs.tick({ running: true, game: 'fc27' });
+  clock.t += 90 * 1000;
+  gs.tick({ running: false });
+  assert.equal(logs[1], '[game-sessions] fc27: 90 s not kept, shorter than 2 min');
 });
 
 test('switching game closes the first session and opens the next', () => {
@@ -201,4 +227,72 @@ test('shutdown keeps a long enough session in progress', async () => {
   gs.tick({ running: true, game: 'g' });
   await gs.flush();
   assert.equal(JSON.parse(readFileSync(file, 'utf8')).sessions.length, 1);
+});
+
+const ON = { active: true, moved: 0 };
+const OFF = { active: false, moved: 0 };
+
+function playedGame(ticks) {
+  const r = rig();
+  ticks.forEach((perf) => {
+    r.fps.state.queue.push(tenMs(300));
+    r.clock.t += MIN;
+    r.gs.tick({ running: true, game: 'g', perf });
+  });
+  r.gs.tick({ running: false });
+  return r.ended[0];
+}
+
+test('a game played in a Performance session says so, with the apps it moved', () => {
+  const s = playedGame([ON, { active: true, moved: 3 }, { active: true, moved: 1 }, ON]);
+  assert.equal(s.perfMode, true);
+  assert.equal(s.appsMoved, 3, 'the most at any moment: a moved app that closes still counted');
+});
+
+test('a session that covers only the end of a game does not take the credit', () => {
+  assert.ok(!playedGame([OFF, OFF, OFF, ON]).perfMode);
+  assert.ok(!playedGame([OFF, OFF, ON, ON]).perfMode, 'half is not most');
+  assert.ok(playedGame([OFF, ON, ON, ON]).perfMode);
+});
+
+test('a game with no session has no tag at all', () => {
+  const s = playedGame([OFF, OFF, OFF]);
+  assert.ok(!('perfMode' in s) || s.perfMode === false);
+  const r = rig();
+  r.fps.state.queue.push(tenMs(300));
+  r.gs.tick({ running: true, game: 'g' });
+  r.clock.t += 4 * MIN;
+  r.gs.tick({ running: true, game: 'g' });
+  r.gs.tick({ running: false });
+  assert.deepEqual(r.gs.list().map((x) => ('perfMode' in x)), [false], 'the old shape, on disk too');
+});
+
+test('the tag comes back from the file, and a bad one does not', async () => {
+  const r = rig();
+  const base = { game: 'g', end: 10, avgFps: 60 };
+  writeFileSync(r.file, JSON.stringify({ sessions: [
+    { ...base, start: 1, perfMode: true, appsMoved: 3 },
+    { ...base, start: 2, perfMode: true, appsMoved: 5000 },
+    { ...base, start: 3, perfMode: true, appsMoved: 'x' },
+    { ...base, start: 4, perfMode: 'yes', appsMoved: 3 },
+  ] }));
+  await r.gs.load();
+  const tags = r.gs.list().sort((a, b) => a.start - b.start).map((s) => [s.perfMode, s.appsMoved]);
+  assert.deepEqual(tags, [[true, 3], [true, 99], [true, 0], [undefined, undefined]]);
+});
+
+test('the widget stream does not carry the tag', () => {
+  const r = rig();
+  r.fps.state.queue.push(tenMs(300));
+  r.gs.tick({ running: true, game: 'g', perf: { active: true, moved: 2 } });
+  r.clock.t += 4 * MIN;
+  r.gs.tick({ running: true, game: 'g', perf: { active: true, moved: 2 } });
+  r.gs.tick({ running: false });
+  assert.equal(r.gs.list()[0].perfMode, true);
+  const stream = widgetSnapshot(r.gs, { enabled: true });
+  assert.ok(stream.sessions.length > 0);
+  for (const session of stream.sessions) {
+    assert.ok(!('perfMode' in session));
+    assert.ok(!('appsMoved' in session));
+  }
 });

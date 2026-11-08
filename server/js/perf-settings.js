@@ -12,6 +12,19 @@
 // the normalizers, the settings toggles, and the trigger-app editor.
 const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting'];
 
+// Built-in trigger apps per activity (bare process names, lowercase). Gaming is
+// primarily detected full-screen server-side; this list is for windowed titles
+// the user adds. The user can extend or trim each list from Settings. OBS is
+// `obs` on macOS and Linux, Zoom `zoom.us` and the new Teams `msteams` on macOS.
+const PERF_DEFAULT_APPS = Object.freeze({
+  gaming: [],
+  coding: ['code', 'code-insiders', 'cursor', 'devenv', 'idea64', 'pycharm64', 'webstorm64', 'rider64', 'clion64', 'goland64', 'rubymine64', 'phpstorm64', 'datagrip64', 'rustrover64', 'studio64', 'sublime_text', 'atom', 'nvim', 'vim'],
+  writing: ['winword', 'notepad', 'notepad++', 'obsidian', 'onenote', 'wps', 'wpsoffice', 'soffice', 'swriter', 'typora', 'scrivener', 'joplin'],
+  streaming: ['obs64', 'obs32', 'obs', 'streamlabs obs', 'xsplit.core', 'vmix64', 'vmix'],
+  creating: ['photoshop', 'illustrator', 'afterfx', 'adobe premiere pro', 'blender', 'resolve', 'unity', 'unrealeditor', 'cinema 4d', 'krita', 'gimp', 'figma', 'lightroom', 'capcut'],
+  meeting: ['teams', 'ms-teams', 'msteams', 'zoom', 'zoom.us', 'webex', 'skype'],
+});
+
 // Performance Mode (opt-in, off by default). Broader than gameMode: a
 // user-triggered / suggested profile that pauses dashboard animations and
 // applies reversible system tweaks (power plan) with confirmation. See
@@ -42,13 +55,14 @@ const PERF_DEFAULTS = Object.freeze({
   appChoices: Object.freeze({}),
   // runtime: what was actually applied this session (the sheet lets the user
   // pick per-run, so this can differ from `opts`). Drives restore + perf-mode.
-  applied: Object.freeze({ pauseAnimations: false, powerPlan: 'none', boostedProc: '' }),
+  applied: Object.freeze({ pauseAnimations: false, powerPlan: 'none', boostedProc: '', shield: false }),
   opts: Object.freeze({
     pauseAnimations: true, // pause dashboard animations + background FX (reversible)
     powerPlan: 'high',     // 'none' | 'high' | 'ultimate' — Windows power scheme to apply
     manageApps: false,     // offer to close chosen background apps (opt-in, high-touch)
     priorityBoost: false,  // nudge the active app's process priority up (reversible)
     pauseStreams: true,    // pause heavy live tiles (Browser, future second screen) while gaming/optimizing
+    shield: true,          // Core Shield: busy apps move off the game's cores when the PC runs out of them
   }),
   // User customization of the per-activity trigger app lists, relative to the
   // built-in defaults: `add` extends, `remove` drops a default. Process names,
@@ -99,6 +113,7 @@ function normalizePerformance(value) {
       pauseAnimations: ap.pauseAnimations === true,
       powerPlan: appliedPlan,
       boostedProc: (typeof ap.boostedProc === 'string' && /^[\w.+\- ]{1,60}$/.test(ap.boostedProc)) ? ap.boostedProc : '',
+      shield: ap.shield === true,
     },
     opts: {
       pauseAnimations: o.pauseAnimations !== false,
@@ -106,6 +121,7 @@ function normalizePerformance(value) {
       manageApps: o.manageApps === true,
       priorityBoost: o.priorityBoost === true,
       pauseStreams: o.pauseStreams !== false,
+      shield: o.shield !== false,
     },
     activityApps: normalizeActivityApps(v.activityApps),
   };
@@ -138,6 +154,16 @@ function normalizeActivityApps(value) {
   return out;
 }
 
+// Effective trigger list for an activity: defaults minus the user's removals,
+// plus the user's additions. `perf` is an already normalized block.
+function perfActivityApps(perf, activity) {
+  const cfg = (perf.activityApps || {})[activity] || { add: [], remove: [] };
+  const removed = new Set(cfg.remove);
+  const set = new Set((PERF_DEFAULT_APPS[activity] || []).filter(n => !removed.has(n)));
+  for (const n of cfg.add) set.add(n);
+  return [...set];
+}
+
 // Per-app keep/close counters (learning from the sheet choices). Keys are bare
 // lowercase process names; counts are small bounded ints; the map is capped.
 function normalizePerfAppChoices(value) {
@@ -158,5 +184,5 @@ function normalizePerfAppChoices(value) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { PERF_ACTIVITIES, PERF_DEFAULTS, normalizePerformance, normalizeActivityApps, normalizePerfAppChoices };
+  module.exports = { PERF_ACTIVITIES, PERF_DEFAULTS, PERF_DEFAULT_APPS, normalizePerformance, normalizeActivityApps, normalizePerfAppChoices, perfActivityApps };
 }

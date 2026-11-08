@@ -55,6 +55,9 @@ function setSystemTab(name, options = {}) {
   // The "Optimize performance" button is contextual to the Sistema view.
   const optBtn = document.getElementById('sys-optimize-btn');
   if (optBtn) optBtn.hidden = (name !== 'main');
+  // The History range takes its place while History is open.
+  const rangeCtl = document.getElementById('sys-history-range');
+  if (rangeCtl) rangeCtl.hidden = (name !== 'history');
   if (audio) audio.hidden = (name !== 'volume');
   if (micPane) micPane.hidden = (name !== 'mic');
   if (histPane) histPane.hidden = (name !== 'history');
@@ -106,6 +109,10 @@ function applyNetworkInto(root, data) {
   const latFill = sf(root, 'net-latency-fill');
   if (latVal) latVal.textContent = (lat == null ? '--' : lat);
   if (latFill) setFill(latFill, lat == null ? 0 : 100 - (lat * 5));
+
+  // A log scale: 1 Mbps and 1 Gbps both fit, and setFill() clamps at 100.
+  const downFill = sf(root, 'net-down-fill');
+  if (downFill) setFill(downFill, Math.log10(1 + (Number(data.downloadBps) || 0)) * 10);
 
   const dn = formatBandwidth(data.downloadBps);
   const up = formatBandwidth(data.uploadBps);

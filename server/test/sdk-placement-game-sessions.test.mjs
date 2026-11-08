@@ -83,7 +83,7 @@ test('a change is pushed once, an unchanged pass sends nothing', () => {
 
 test('init carries placement and every settings pass checks it', () => {
   assert.match(BRIDGE, /const placement = placementOf\(entry\);\n      entry\.placementKey = placementKey\(placement\);/);
-  assert.match(BRIDGE, /\n        placement,\n      \}\);/);
+  assert.match(BRIDGE, /\n        placement,\n[^}]*remote: [^\n]*\n      \}\);/);
   const rt = BRIDGE.slice(BRIDGE.indexOf('function refreshTheme()'));
   assert.match(rt.slice(0, rt.indexOf('\n  }')), /postPlacement\(entry\)/);
 });

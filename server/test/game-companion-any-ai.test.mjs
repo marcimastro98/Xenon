@@ -43,7 +43,7 @@ test('the user AI helper passes the picture to every provider, and a plan progra
   assert.match(fn, /if \(image\) \{ const e = new Error\('this AI cannot see pictures'\); e\.code = 'no_vision'; throw e; \}/, 'Claude Code / Codex');
   assert.match(fn, /onUsage, image,\n/, 'ChatGPT / Claude key');
   assert.match(fn, /aiXenon\.oneShot\(\{[^}]*onUsage, image \}\)/, 'Sparks');
-  assert.equal((fn.match(/_geminiOneShot\(apiKey, parts,/g) || []).length, 2, 'Gemini, both tries');
+  assert.match(fn, /_geminiOneShot\(apiKey, parts, system, maxTokens, opts\)/, 'Gemini');
 });
 
 test('the vision check names an AI that cannot see before any screenshot', () => {
@@ -98,7 +98,7 @@ test('the card says what a look costs before pressing, and what the last one cos
   let reply = { text: 'Vai a destra.', sparks: 2.5 };
   const ctx = {
     document: { getElementById: el, addEventListener() {}, createElement: () => el('x') },
-    requestAnimationFrame() {}, setInterval: () => 1, clearInterval() {}, setTimeout() {},
+    requestAnimationFrame() {}, setInterval: () => 1, clearInterval() {}, setTimeout() {}, clearTimeout() {},
     t: (k) => k, aiFeatureEnabled: () => true, _aiHasKey: () => true, SERVER: '', lang: 'it',
     fetch: async (url) => ({
       ok: true,
@@ -112,9 +112,9 @@ test('the card says what a look costs before pressing, and what the last one cos
   ctx.GameCompanion.openOverlay();
   await new Promise((r) => setImmediate(r));
   assert.equal(els['gc-cost'].hidden, false);
-  assert.equal(els['gc-cost'].textContent, 'gc_cost_under', 'less than one Spark is said so');
+  assert.equal(els['gc-cost-text'].textContent, 'gc_cost_under', 'less than one Spark is said so');
   await ctx.GameCompanion.analyze();
-  assert.equal(els['gc-cost'].textContent, 'gc_cost', 'the charge of this look');
+  assert.equal(els['gc-cost-text'].textContent, 'gc_cost', 'the charge of this look');
   assert.equal(refreshed, 1, 'the balance chip catches up');
   // Bit on the user's own key: nothing to pay here, the line goes away.
   ctx.XenonCredits.active = () => false;

@@ -67,7 +67,7 @@
     meta.className = 'gamesess-meta';
     const bits = [when(r.start), duration(r.durationS)];
     if (r.low1Fps != null) bits.push(t('perf_low1', '1% low') + ' ' + r.low1Fps);
-    meta.textContent = bits.filter(Boolean).join(' · ');
+    meta.textContent = bits.filter(Boolean).join(', ');
     li.append(head, meta);
     const d = deltaText(r.delta);
     if (d) {
@@ -93,6 +93,8 @@
     list.textContent = '';
     for (const r of rows) list.appendChild(rowEl(r));
     list.hidden = rows.length === 0;
+    const actions = document.getElementById('settings-gamesess-actions');
+    if (actions) actions.hidden = rows.length === 0;
     if (empty) {
       empty.hidden = rows.length > 0;
       empty.textContent = data.enabled === false

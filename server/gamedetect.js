@@ -50,6 +50,11 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // hint path below flags them as a "game"; they are content-creation apps
 // (classified as 'streaming' by the dashboard), never a game, so they are
 // excluded outright in every window state.
+// The game overlays (NVIDIA Overlay from the NVIDIA app, NVIDIA Share from
+// GeForce Experience, the Xbox Game Bar's GameBar and GameBarFTServer) keep a
+// full-screen window above everything, and when a game closes the foreground
+// can land on it. They live as long as the session, so one moment in front held
+// "a game is running" through the PID check below until the next reboot.
 // Distinctive names match as a substring; short, collision-prone ones
 // (cmd/wt/hyper/steam, and xenon — real games like Xenonauts/Xenon Racer)
 // are matched exactly so they are not swallowed.
@@ -67,7 +72,7 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // probe reads them exactly as it reads a game. `foot`, `kitty` and `konsole`
 // are matched exactly for the same reason `cmd` and `wt` are — they are short
 // enough to swallow a real game's name as a substring.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|nvidia overlay|nvidia share|gamebar|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper|-capture)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed

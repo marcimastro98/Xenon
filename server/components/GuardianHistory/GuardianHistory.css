@@ -1,80 +1,277 @@
-/* Sensor-history charts (guardian-history.js): SVG sparkline trends for the
-   hardware-health data collected server-side, rendered inside the System tile's
-   History tab. Dense and glanceable. */
-.guardian-range { display: inline-flex; gap: 3px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 3px; }
+/* Sensor history (guardian-history.js + history-chart.js): the System tile's History
+   tab and the Power widget's consumption history. One chart per unit (temperature,
+   load, power) with the parts that share it on one axis, and the screen time beside
+   them. The lines stretch with the box; every word is HTML, so text never stretches. */
+
+/* One colour per part, the same in every chart (validated for colour blindness and
+   contrast on both appearances with the dataviz palette check). The ring is the gap
+   an end dot keeps from the line under it. */
+:root {
+  --hist-cpu: #4593ec;
+  --hist-gpu: #e36a35;
+  --hist-ram: #22ac7d;
+  --hist-ring: rgba(14, 16, 24, 0.85);
+  --hist-track: rgba(255, 255, 255, 0.08);
+}
+:root[data-appearance="light"] {
+  --hist-cpu: #2a78d6;
+  --hist-gpu: #eb6834;
+  --hist-ram: #1baf7a;
+  --hist-ring: rgba(255, 255, 255, 0.92);
+  --hist-track: rgba(24, 26, 44, 0.08);
+}
+[data-part="cpu"] { --part-color: var(--hist-cpu); }
+[data-part="gpu"] { --part-color: var(--hist-gpu); }
+[data-part="ram"] { --part-color: var(--hist-ram); }
+
+/* The range sits in the tab bar while History is open (network.js), drawn like the tabs. */
+.guardian-range {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+}
+/* `display: inline-flex` outranks the UA `[hidden]` rule. */
+.guardian-range[hidden] { display: none; }
 .guardian-range-btn {
-  border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit;
-  font-weight: 600; font-size: 0.85em; padding: 6px 12px; min-height: 32px; border-radius: 8px;
-  transition: background 0.15s ease;
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 10px;
+  min-height: 28px;
+  background: transparent;
+  color: var(--dim-text, var(--muted-text));
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.guardian-range-btn:hover { background: rgba(var(--accent-rgb), 0.14); }
-.guardian-range-btn.active { background: rgba(var(--accent-rgb), 0.32); }
+.guardian-range-btn:hover:not(.active) { color: var(--text); }
+.guardian-range-btn.active { background: rgba(var(--accent-rgb), 0.14); color: var(--accent); }
+.guardian-range-btn:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
 
-.guardian-note { opacity: 0.7; font-size: 0.92em; line-height: 1.5; padding: 24px 8px; text-align: center; }
+.guardian-note { color: var(--muted-text); font-size: 13px; line-height: 1.5; padding: 24px 8px; text-align: center; }
+.guardian-foot { flex: 0 0 auto; color: var(--muted-text); font-size: 12px; text-align: center; }
 
-.guardian-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 520px) { .guardian-charts { grid-template-columns: 1fr; } }
-
+/* ── One chart ── */
 .guardian-chart {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  container: histchart / inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 14px 10px;
   border-radius: 12px;
-  padding: 10px 12px 6px;
+  background: var(--card-surface, rgba(255, 255, 255, 0.035));
+  color: var(--text);
 }
-.guardian-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
-.guardian-chart-label { font-size: 0.84em; font-weight: 600; opacity: 0.92; }
-.guardian-chart-stat { font-size: 0.76em; opacity: 0.6; white-space: nowrap; }
-.guardian-chart-empty { font-size: 0.78em; opacity: 0.5; padding: 18px 0; text-align: center; }
+.guardian-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.guardian-chart-label { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.guardian-chart-when { flex: 0 0 auto; color: var(--muted-text); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.guardian-chart-when[hidden] { display: none; }
+.guardian-chart-empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+  color: var(--muted-text);
+  font-size: 12px;
+  text-align: center;
+}
 
-/* The metric's colour lives on the SVG as `color`, not on the stroke, because
-   the area fade is a <linearGradient> and a gradient stop takes its colour from
-   `currentColor` — there is no way to hand it one from CSS otherwise. Stroke and
-   fade then cannot drift apart: they are the same declaration. */
-.guardian-svg { width: 100%; height: 84px; display: block; color: rgba(var(--accent-rgb), 0.95); }
-.guardian-svg-cpu { color: #5cc8ff; }
-.guardian-svg-gpu { color: #ff9d57; }
-.guardian-svg-ram { color: #a78bfa; }
-.guardian-line { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
-/* Decoration under the curve, not a second series: it fades out downward and
-   never crosses the line. `fill` comes from the gradient set on the element. */
-.guardian-area { stroke: none; }
-.guardian-tick { font-size: 8px; fill: rgba(255, 255, 255, 0.4); }
+/* Legend: the part's colour on a short stroke, its name, the latest value, the peak. */
+.guardian-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 4px 0 10px;
+  color: var(--muted-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.guardian-key { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.guardian-swatch { align-self: center; width: 12px; height: 3px; border-radius: 2px; background: var(--part-color); }
+.guardian-key-value { color: var(--text); font-size: 13px; font-weight: 650; }
 
-.guardian-foot { margin-top: 14px; font-size: 0.74em; opacity: 0.5; text-align: center; }
+/* Plot: lines and dots in the area, values of the grid lines on the right, times below. */
+.guardian-plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 88px auto;
+  column-gap: 8px;
+  row-gap: 5px;
+  /* The top value is centred on its line and stands half above it. */
+  padding-top: 6px;
+  min-height: 0;
+}
+.guardian-area {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: pan-y;
+  outline: none;
+}
+.guardian-area:focus-visible { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.6); }
+.guardian-lines { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.guardian-grid { stroke: currentColor; stroke-opacity: 0.12; stroke-width: 1; }
+.guardian-line { fill: none; stroke: var(--part-color); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.guardian-wash { fill: var(--part-color); fill-opacity: 0.14; stroke: none; }
+.guardian-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--part-color);
+  box-shadow: 0 0 0 2px var(--hist-ring);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.guardian-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: currentColor;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.guardian-cross[hidden] { display: none; }
 
-/* Sensor-history tab inside the System tile — reuses the .guardian-chart* / .guardian-svg
-   / .guardian-range classes above; these rules only re-home the layout so the charts
-   sit in the tile. */
-/* `display: flex` here would override the `hidden` attribute's UA `display: none`
-   (author rules win over the UA sheet), leaving the pane always visible and its
-   charts bleeding into the Sistema tab — so restore hiding explicitly. */
+/* The grid values are evenly spaced from the bottom line to the top one, so the
+   column spaces them itself and takes the width of the longest; each is centred
+   on its line by a box of no height. */
+.guardian-yaxis {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  min-height: 0;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.guardian-ytick { display: flex; align-items: center; justify-content: flex-end; height: 0; white-space: nowrap; }
+.guardian-xaxis {
+  position: relative;
+  height: 14px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.guardian-xtick { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; line-height: 14px; }
+.guardian-xtick[data-edge="start"] { transform: none; }
+.guardian-xtick[data-edge="end"] { transform: translateX(-100%); }
+@container histchart (max-width: 360px) {
+  .guardian-xtick[data-rank="2"] { display: none; }
+}
+@container histchart (max-width: 210px) {
+  .guardian-xtick[data-rank="1"] { display: none; }
+}
+
+/* ── Screen time ── */
+.screentime {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--card-surface, rgba(255, 255, 255, 0.035));
+  color: var(--text);
+}
+.screentime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.screentime-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screentime-games { flex: 0 0 auto; color: var(--muted-text); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.screentime-total { margin-top: 2px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.screentime-empty { padding: 12px 0; color: var(--muted-text); font-size: 12px; }
+.screentime-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.screentime-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.screentime-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.screentime-name > span { overflow: hidden; text-overflow: ellipsis; }
+.screentime-game {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--muted-text);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.screentime-time { color: var(--muted-text); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.screentime-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--hist-track); overflow: hidden; }
+.screentime-fill { display: block; height: 100%; border-radius: 3px; background: rgba(var(--accent-rgb), 0.85); }
+
+/* ── The History tab of the System tile ── */
+/* `display: flex` would override the `hidden` attribute's UA `display: none`. */
 .system-history-pane[hidden] { display: none !important; }
-.system-history-pane { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
-.sys-history-head { display: flex; justify-content: flex-end; flex: 0 0 auto; }
-.sys-history-body { padding: 2px 0 0; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
-/* Tighter two-up charts for the tile; collapse to one column when narrow. */
-.sys-history-body .guardian-charts { gap: 10px; }
-@media (max-width: 380px) { .sys-history-body .guardian-charts { grid-template-columns: 1fr; } }
-.sys-history-body .guardian-foot { margin-top: 10px; }
-
-/* PC Screen Time — top foreground apps for the active range as a bar list. */
-.screentime { margin-top: 16px; }
-.screentime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.screentime-title { font-size: 0.86em; font-weight: 600; opacity: 0.92; }
-.screentime-total { font-size: 0.78em; opacity: 0.62; white-space: nowrap; }
-.screentime-empty { font-size: 0.78em; opacity: 0.5; padding: 12px 0; text-align: center; }
-
-.screentime-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.screentime-row { display: grid; grid-template-columns: minmax(84px, 34%) 1fr auto; align-items: center; gap: 10px; }
-.screentime-name {
-  font-size: 0.8em; font-weight: 500; opacity: 0.92; text-transform: capitalize;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.system-history-pane { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.sys-history-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-top: 2px;
 }
-.screentime-badge { margin-left: 4px; font-size: 0.9em; }
-.screentime-bar { height: 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
-.screentime-fill {
-  display: block; height: 100%; border-radius: 6px;
-  background: rgba(var(--accent-rgb), 0.7);
+.guardian-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+
+/* The tab measures itself to choose a layout that fills the tile. Where the tile
+   grows with its content (a phone, a desktop widget) a size container would count
+   that content as zero height: there the panels keep their natural height, one
+   under the other, as they do whenever the tile is too small to share. */
+body:not([data-panel]) .sys-history-body { container: histpane / size; }
+:root.is-stacked body:not([data-panel]) .sys-history-body,
+body:not([data-panel]) .layer-slot .sys-history-body { container: none; }
+
+/* Any layout below: the panels share the tile's height and nothing scrolls. A screen
+   time list longer than its panel drops whole rows (they wrap into a column the panel
+   cuts off) instead of showing half a row. */
+@container histpane ((min-width: 560px) and (min-height: 360px)) or ((orientation: portrait) and (min-height: 600px)) or ((min-width: 880px) and (min-height: 190px)) {
+  .guardian-panels { flex: 1 1 auto; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+  .guardian-chart, .screentime { overflow: hidden; }
+  .guardian-plot { flex: 1 1 0; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+  .screentime-list { flex: 1 1 0; min-height: 0; flex-wrap: wrap; column-gap: 40px; overflow: hidden; }
+  .screentime-row { width: 100%; }
 }
-.screentime-row.is-game .screentime-fill { background: rgba(255, 157, 87, 0.8); }
-.screentime-time { font-size: 0.76em; opacity: 0.7; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Room for two columns: two charts above, the third and the screen time below; with
+   no power readings the screen time takes the whole right column. */
+@container histpane (min-width: 560px) and (min-height: 360px) {
+  .guardian-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guardian-panels[data-count="3"] > .screentime { grid-column: 2; grid-row: 1 / span 2; }
+}
+/* Tall and narrow (a side column of a big monitor): one under the other, so every
+   chart keeps the width a line over time needs. */
+@container histpane (orientation: portrait) and (min-height: 600px) {
+  .guardian-panels { grid-template-columns: minmax(0, 1fr); }
+  .guardian-panels[data-count="3"] > .screentime { grid-column: auto; grid-row: auto; }
+}
+/* Wide and short (a strip): side by side in one row. */
+@container histpane (min-width: 880px) and (min-height: 190px) and (max-height: 359.98px) {
+  .guardian-panels { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .guardian-panels[data-count="3"] > .screentime { grid-column: auto; grid-row: auto; }
+  .screentime-total { font-size: 18px; }
+}

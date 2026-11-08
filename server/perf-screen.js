@@ -19,6 +19,7 @@ const { PERF_ACTIVITIES, normalizePerformance } = require('./js/perf-settings.js
 const CHOICES = Object.freeze(['optimize', 'ignore', 'never', 'restore']);
 const NOTE_KEYS = Object.freeze(['perf_status_optimized', 'perf_status_failed', 'perf_status_restored', 'perf_auto_on', 'perf_auto_off']);
 const FREED_MAX = 16;   // "1.5 GB", "800 MB"
+const MOVED_MAX = 99;   // apps Core Shield moved in a session, for the closing note
 
 // A `perf_screen` event as it may go out, or null when the body is not one.
 function screenEvent(body) {
@@ -32,7 +33,8 @@ function screenEvent(body) {
     if (!NOTE_KEYS.includes(n.key)) return null;
     const activity = PERF_ACTIVITIES.includes(n.activity) ? n.activity : '';
     const freed = typeof n.freed === 'string' && /^~?[\d.,]+ (MB|GB)$/.test(n.freed) && n.freed.length <= FREED_MAX ? n.freed : '';
-    return { kind: 'toast', tone: b.tone === 'error' ? 'error' : 'ok', note: { key: n.key, activity, freed } };
+    const moved = Number.isInteger(n.moved) && n.moved > 0 && n.moved <= MOVED_MAX ? n.moved : 0;
+    return { kind: 'toast', tone: b.tone === 'error' ? 'error' : 'ok', note: { key: n.key, activity, freed, moved } };
   }
   if (b.kind === 'answer') {
     return CHOICES.includes(b.choice) ? { kind: 'answer', choice: b.choice } : null;

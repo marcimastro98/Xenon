@@ -116,7 +116,7 @@
       const d = parse(e);
       // Only a full payload says whether a game runs (see main.js).
       if (!d || !win.PerfMode || (d.gaming == null && d.gameRunning == null)) return;
-      win.PerfMode.onStatus(d.activity, d.process, d.gameRunning === true);
+      win.PerfMode.onStatus(d.activity, d.process, d.gameRunning === true, d.gameProcess);
     }
 
     function onObs(e) {

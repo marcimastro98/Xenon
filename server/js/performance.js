@@ -3,7 +3,7 @@
 // Performance Mode controller (Phases 1–4 + customization).
 //
 // Reads hubSettings.performance (settings.js), applies and reverts REVERSIBLE
-// optimizations, drives the activity-aware auto-suggest banner, and shows a
+// optimizations, asks on Bit's card when an activity starts, and shows a
 // confirmation sheet where the user picks exactly what to optimize before
 // anything touches the system.
 //
@@ -31,42 +31,23 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 (function () {
-  let _bannerEl = null;
+  let _closeBanner = null;
   let _sheetEl = null;
+  let _sheetLetGo = null;
   let _suppressBanner = false; // "don't ask again" for this page session
-  let _snoozedActivities = new Set(); // activities snoozed via "Ignore" until a settings change
+  let _snoozedActivities = new Set(); // already asked: not again until the game closes or a settings change
   let _lastActivity = 'other'; // last foreground activity we reacted to (transition tracking)
   let _reevaluate = true;      // weigh the next activity even if it did not change (load, refresh())
   let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
   let _lastServerActivity = 'other'; // last raw status payload, so onObs can re-classify
   let _lastProcess = '';
   let _gameRunning = false;    // server-side PID liveness: false = the game truly exited
+  let _gameProcess = '';       // the running game's bare process name, from the server
   let _obsStreaming = false;   // live OBS streaming/recording flag (via the obs SSE event)
   let _autoRestoreTimer = null; // pending auto-restore once an auto session's activity ends
   let _sheetWindows = [];      // windows listed on the open sheet (for choice learning)
   let _sheetStats = null;      // process stats snapshot behind the open sheet (for impact)
   let _sheetMeta = { by: 'manual' }; // how the open sheet was triggered: manual, or auto (then it auto-restores)
-
-  // Built-in trigger apps per activity (bare process names, lowercase). Gaming is
-  // primarily detected full-screen server-side; this list is for windowed titles
-  // the user adds. The user can extend or trim each list from Settings.
-  const DEFAULT_ACTIVITY_APPS = {
-    gaming: [],
-    coding: ['code', 'code-insiders', 'cursor', 'devenv', 'idea64', 'pycharm64', 'webstorm64', 'rider64', 'clion64', 'goland64', 'rubymine64', 'phpstorm64', 'datagrip64', 'rustrover64', 'studio64', 'sublime_text', 'atom', 'nvim', 'vim'],
-    writing: ['winword', 'notepad', 'notepad++', 'obsidian', 'onenote', 'wps', 'wpsoffice', 'soffice', 'swriter', 'typora', 'scrivener', 'joplin'],
-    streaming: ['obs64', 'obs32', 'streamlabs obs', 'xsplit.core', 'vmix64', 'vmix'],
-    creating: ['photoshop', 'illustrator', 'afterfx', 'adobe premiere pro', 'blender', 'resolve', 'unity', 'unrealeditor', 'cinema 4d', 'krita', 'gimp', 'figma', 'lightroom', 'capcut'],
-    meeting: ['teams', 'ms-teams', 'zoom', 'webex', 'skype'],
-  };
-
-  const PERF_BANNER_KEYS = {
-    gaming: 'perf_banner_msg',
-    coding: 'perf_banner_msg_coding',
-    writing: 'perf_banner_msg_writing',
-    streaming: 'perf_banner_msg_streaming',
-    creating: 'perf_banner_msg_creating',
-    meeting: 'perf_banner_msg_meeting',
-  };
 
   // Conservative no-AI preselection: per activity, only categories that are
   // never the activity itself, and only when the app actually costs real RAM.
@@ -117,17 +98,11 @@
 
   // ── Activity classification (defaults + user customization) ───────
   function defaultApps(activity) {
-    return (DEFAULT_ACTIVITY_APPS[activity] || []).slice();
+    return (PERF_DEFAULT_APPS[activity] || []).slice();
   }
 
-  // Effective trigger list for an activity: defaults minus the user's removals,
-  // plus the user's additions.
   function effectiveApps(activity) {
-    const cfg = (currentPerf().activityApps || {})[activity] || { add: [], remove: [] };
-    const removed = new Set(cfg.remove);
-    const set = new Set(defaultApps(activity).filter(n => !removed.has(n)));
-    for (const n of cfg.add) set.add(n);
-    return [...set];
+    return perfActivityApps(currentPerf(), activity);
   }
 
   // Map a foreground process (+ the server's full-screen verdict) to an activity,
@@ -194,6 +169,12 @@
     });
   }
 
+  // The power plan, process priority and the background app list exist only on
+  // Windows. Anything else would only come back as a failure. XenonPlatform is ''
+  // until the server has said.
+  const windowsLevers = () => !window.XenonPlatform || window.XenonPlatform === 'win32';
+  const closesApps = (p) => p.opts.manageApps && windowsLevers();
+
   // ── Server helpers ────────────────────────────────────────────────
   async function powerPlan(method, value) {
     const opts = { method };
@@ -217,7 +198,7 @@
   function aiAvailable(p) {
     if (!p.useAi || !hubSettings) return false;
     const provider = hubSettings.aiProvider;
-    if (provider === 'ollama') return true;
+    if (provider === 'ollama' || provider === 'localapi') return true;
     if (provider === 'claudecode' || provider === 'codex' || provider === 'xenon') return true;
     if (provider === 'openai') return !!hubSettings.openaiApiKeySet;
     if (provider === 'anthropic') return !!hubSettings.anthropicApiKeySet;
@@ -248,8 +229,31 @@
     } catch { return null; }
   }
 
+  // What Core Shield can do on this PC and what it did this session. It runs on the
+  // server, which sees the game and the busy apps. Null when the server did not say.
+  async function fetchShield() {
+    try {
+      const res = await fetch(SERVER + '/api/performance/shield');
+      const d = await res.json();
+      return d && d.ok ? d : null;
+    } catch { return null; }
+  }
+
   function _procKey(name) {
     return String(name || '').toLowerCase().trim().replace(/\.exe$/, '');
+  }
+
+  // The game while one runs: the last activity app may be the editor someone Alt-Tabbed to.
+  const _boostTarget = () => (_gameRunning && _gameProcess) || _lastActivityProcess;
+
+  // The tweaks that need no choice, for a session with no sheet: what the user saved.
+  function savedEffective(p) {
+    return {
+      pauseAnimations: p.opts.pauseAnimations,
+      powerPlan: p.opts.powerPlan,
+      priorityBoost: p.opts.priorityBoost && !!_boostTarget(),
+      shield: p.opts.shield,
+    };
   }
 
   function _fmtMB(mb) {
@@ -310,7 +314,7 @@
           activity,
           apps: appNames,
           opts: p.opts,
-          provider: ['ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'].includes(hubSettings.aiProvider) ? hubSettings.aiProvider : 'gemini',
+          provider: ['ollama', 'localapi', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'].includes(hubSettings.aiProvider) ? hubSettings.aiProvider : 'gemini',
           key: String(hubSettings.geminiApiKey || ''),
           model: hubSettings.ollamaModel,
           ollamaUrl: hubSettings.ollamaUrl,
@@ -329,25 +333,28 @@
     const eff = effective || { pauseAnimations: false, powerPlan: 'none' };
     const by = (meta && meta.by) === 'auto' ? 'auto' : 'manual';
     let ok = true;
-    let appliedPlan = 'none';
+    const applied = { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none', shield: !!eff.shield };
 
-    if (eff.powerPlan && eff.powerPlan !== 'none') {
+    if (eff.powerPlan && eff.powerPlan !== 'none' && windowsLevers()) {
       try {
         const cur = await powerPlan('GET');
         const saved = (cur && cur.ok && cur.guid) ? cur.guid : '';
         const set = await powerPlan('POST', eff.powerPlan);
-        if (set && set.ok) { appliedPlan = eff.powerPlan; persist({ active: true, savedPowerPlan: saved, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: appliedPlan } }); }
-        else { ok = false; persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } }); }
-      } catch { ok = false; persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } }); }
+        // A plan that was already on has nothing to go back to.
+        if (set && set.ok) persist({ active: true, savedPowerPlan: set.unchanged ? '' : saved, applied: { ...applied, powerPlan: eff.powerPlan } });
+        else { ok = false; persist({ active: true, applied }); }
+      } catch { ok = false; persist({ active: true, applied }); }
     } else {
-      persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } });
+      persist({ active: true, applied });
     }
 
-    // Reversible priority nudge for the detected activity app.
-    if (eff.priorityBoost && _lastActivityProcess) {
+    // Reversible priority nudge for the detected activity app. An app that refuses
+    // (anti-cheat, elevated) is within its rights, and the session is still for it.
+    const target = _boostTarget();
+    if (eff.priorityBoost && target && windowsLevers()) {
       try {
-        const r = await perfAction({ type: 'setPriority', name: _lastActivityProcess, level: 'high' });
-        if (r && r.ok) persist({ applied: { boostedProc: _lastActivityProcess } });
+        const r = await perfAction({ type: 'setPriority', name: target, level: 'high' });
+        if (r && (r.ok || r.error === 'denied')) persist({ applied: { boostedProc: target } });
         else ok = false;
       } catch { ok = false; }
     }
@@ -395,6 +402,9 @@
   async function restore(meta) {
     _cancelAutoRestore();
     const p = currentPerf();
+    // Asked first: the server forgets the session's apps when the session ends.
+    const shield = p.applied.shield ? await fetchShield() : null;
+    const moved = shield && Array.isArray(shield.moved) ? shield.moved.length : 0;
     if (p.savedPowerPlan) {
       try { await powerPlan('POST', p.savedPowerPlan); } catch { /* best effort */ }
     }
@@ -404,23 +414,17 @@
     for (const a of p.closedApps) {
       try { await perfAction({ type: 'launchApp', path: a.path }); } catch { /* ignore */ }
     }
-    persist({ active: false, activatedBy: '', autoActivity: '', savedPowerPlan: '', closedApps: [], applied: { pauseAnimations: false, powerPlan: 'none', boostedProc: '' } });
+    persist({ active: false, activatedBy: '', autoActivity: '', savedPowerPlan: '', closedApps: [], applied: { pauseAnimations: false, powerPlan: 'none', boostedProc: '', shield: false } });
     applyState();
     if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
     if (typeof setSettingsStatus === 'function') setSettingsStatus('perf_status_restored', 'ok');
-    _perfNote({ key: meta && meta.auto ? 'perf_auto_off' : 'perf_status_restored' }, 'ok');
+    _perfNote({ key: meta && meta.auto ? 'perf_auto_off' : 'perf_status_restored', moved }, 'ok');
   }
 
   // ── Auto mode: apply on activity start, restore when it ends ──────
   async function _autoApply(activity) {
-    const p = currentPerf();
     // Safe, reversible tweaks only — closing apps always goes through the sheet.
-    const effective = {
-      pauseAnimations: p.opts.pauseAnimations,
-      powerPlan: p.opts.powerPlan,
-      priorityBoost: p.opts.priorityBoost && !!_lastActivityProcess,
-    };
-    await applyOptimizations(effective, [], { by: 'auto', activity });
+    await applyOptimizations(savedEffective(currentPerf()), [], { by: 'auto', activity });
   }
 
   function _scheduleAutoRestore(delayMs = AUTO_RESTORE_DELAY_MS) {
@@ -479,20 +483,15 @@
   // power plan and drop the priority boost UNDER A LIVE GAME, announcing that it
   // had finished. A ranking is not a process list.
   //
-  // perf-priority.ps1 already looks a process up with Get-Process and answers
-  // `not_found` when it is not there, which is an exact answer. Re-asserting the
-  // SAME level the session applied ('high' → AboveNormal) is a no-op on a live
-  // process, so the action the session already used stands in as the query
-  // without a new endpoint and without changing anything.
+  // `isRunning` looks the name up in the whole process table, which is an exact
+  // answer, changes nothing and starts no process.
   //
-  // Three-valued on purpose. `null` is NOBODY ANSWERED — off Windows the script
-  // cannot run at all — and must never be read as the app being gone.
+  // Three-valued on purpose. `null` is NOBODY ANSWERED, when the table cannot be
+  // read, and must never be read as the app being gone.
   async function _boostedAlive(name) {
     let r = null;
-    try { r = await perfAction({ type: 'setPriority', name, level: 'high' }); } catch { return null; }
-    if (r && r.ok) return true;
-    if (r && r.error === 'not_found') return false;
-    return null;
+    try { r = await perfAction({ type: 'isRunning', name }); } catch { return null; }
+    return r && r.ok ? !!r.running : null;
   }
 
   async function _checkStale(isRecheck) {
@@ -518,9 +517,9 @@
   // Started and stopped from applyState(), which already runs on every settings
   // change and after restore() — so the watch exists only while there is a
   // session with an app to outlive, and stops the moment there is not. Slow on
-  // purpose: each probe is a PowerShell spawn, the game-death signal in
-  // onStatus() catches the common case immediately, and this only has to catch
-  // a session that was already stale when the dashboard opened.
+  // purpose: the game-death signal in onStatus() catches the common case
+  // immediately, and this only has to catch a session that was already stale when
+  // the dashboard opened.
   function _syncStaleWatch() {
     const p = currentPerf();
     const want = !!(p.active && p.applied && p.applied.boostedProc);
@@ -599,24 +598,42 @@
     card.setAttribute('aria-modal', 'true');
     overlay.appendChild(card);
 
+    const head = document.createElement('div');
+    head.className = 'perf-sheet-head';
+    const bit = document.createElement('div');
+    bit.className = 'perf-sheet-bit';
+    if (window.BitApp) bit.innerHTML = window.BitApp.icon('idle');   // static, trusted markup
+    const words = document.createElement('div');
     const title = document.createElement('h3');
     title.className = 'perf-sheet-title';
     title.textContent = tr('perf_sheet_title', 'Performance optimization');
-    card.appendChild(title);
+    const hint = document.createElement('p');
+    hint.className = 'perf-sheet-hint';
+    hint.textContent = tr('perf_sheet_restore_hint', 'You can undo everything from Settings → Performance.');
+    words.append(title, hint);
+    head.append(bit, words);
+    card.setAttribute('aria-label', title.textContent);
+    card.appendChild(head);
 
+    // What Bit planned, when it planned something.
     const intro = document.createElement('p');
     intro.className = 'perf-sheet-intro';
-    intro.textContent = tr('perf_sheet_intro', 'Choose what to optimize (everything is reversible):');
+    intro.hidden = true;
     card.appendChild(intro);
 
     // Per-run optimization toggles (pre-set from the saved options).
     const opts = document.createElement('div');
     opts.className = 'perf-sheet-opts';
-    opts.appendChild(_optRow('pauseAnimations', tr('perf_act_pauseanim', 'Pause animations and animated backgrounds'), tr('perf_act_pauseanim_tag', 'Dashboard')));
-    opts.appendChild(_optRow('powerPlan', tr('perf_act_powerplan', 'High-performance power plan'), tr('perf_act_powerplan_tag', 'System · reversible')));
-    const prio = _optRow('priorityBoost', tr('perf_act_priority', 'Boost the active app’s priority'), tr('perf_act_powerplan_tag', 'System · reversible'));
-    prio.classList.add('perf-sheet-opt-priority');
-    opts.appendChild(prio);
+    opts.appendChild(_optRow('pauseAnimations', tr('perf_act_pauseanim', 'Pause animations and animated backgrounds')));
+    if (windowsLevers()) {
+      opts.appendChild(_optRow('powerPlan', tr('perf_act_powerplan', 'High-performance power plan')));
+      const prio = _optRow('priorityBoost', tr('perf_act_priority', 'Boost the active app’s priority'));
+      prio.classList.add('perf-sheet-opt-priority');
+      opts.appendChild(prio);
+    }
+    const shield = _optRow('shield', tr('perf_act_shield', "Keep busy apps out of the game's way"));
+    shield.classList.add('perf-sheet-opt-shield');
+    opts.appendChild(shield);
     card.appendChild(opts);
 
     // Background-apps picker (populated lazily when the option is on).
@@ -631,11 +648,6 @@
     appsWrap.appendChild(appsHead);
     appsWrap.appendChild(appsList);
     card.appendChild(appsWrap);
-
-    const hint = document.createElement('p');
-    hint.className = 'perf-sheet-hint';
-    hint.textContent = tr('perf_sheet_restore_hint', 'You can undo everything from Settings → Performance.');
-    card.appendChild(hint);
 
     const actions = document.createElement('div');
     actions.className = 'perf-sheet-actions';
@@ -663,7 +675,7 @@
     return overlay;
   }
 
-  function _optRow(opt, label, tag) {
+  function _optRow(opt, label) {
     const row = document.createElement('label');
     row.className = 'perf-sheet-opt';
     const cb = document.createElement('input');
@@ -672,16 +684,25 @@
     const name = document.createElement('span');
     name.className = 'perf-sheet-opt-label';
     name.textContent = label;
-    const t2 = document.createElement('span');
-    t2.className = 'perf-sheet-item-tag';
-    t2.textContent = tag;
     row.appendChild(cb);
     row.appendChild(name);
-    row.appendChild(t2);
     return row;
   }
 
-  function closeSheet() { if (_sheetEl) _sheetEl.hidden = true; }
+  function openSheet() {
+    if (_sheetLetGo) return;
+    _sheetEl.hidden = false;
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('perf-sheet', true);
+    _sheetLetGo = window.DialogFocus.hold(_sheetEl, { start: _sheetEl.querySelector('.perf-btn-primary'), onEsc: dismissSheet });
+  }
+
+  function closeSheet() {
+    if (!_sheetEl || _sheetEl.hidden) return;
+    _sheetEl.hidden = true;
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('perf-sheet', false);
+    _sheetLetGo();
+    _sheetLetGo = null;
+  }
 
   // Dismissing an auto-opened sheet (Cancel / click-outside) means "not now" for
   // this activity: snooze it for the session so re-focusing the same app/game
@@ -700,9 +721,12 @@
     const pp = _sheetEl && _sheetEl.querySelector('[data-opt="powerPlan"]');
     const prioRow = _sheetEl && _sheetEl.querySelector('.perf-sheet-opt-priority');
     const prioCb = _sheetEl && _sheetEl.querySelector('[data-opt="priorityBoost"]');
+    const shieldRow = _sheetEl && _sheetEl.querySelector('.perf-sheet-opt-shield');
+    const shieldCb = _sheetEl && _sheetEl.querySelector('[data-opt="shield"]');
     const powerPlan = (pp && pp.checked) ? (p.opts.powerPlan !== 'none' ? p.opts.powerPlan : 'high') : 'none';
     const priorityBoost = !!(prioCb && prioCb.checked && prioRow && !prioRow.hidden);
-    return { pauseAnimations: !!(pa && pa.checked), powerPlan, priorityBoost };
+    const shield = !!(shieldCb && shieldCb.checked && shieldRow && !shieldRow.hidden);
+    return { pauseAnimations: !!(pa && pa.checked), powerPlan, priorityBoost, shield };
   }
 
   function collectSelectedApps() {
@@ -746,6 +770,7 @@
       ttl.textContent = w.title || '';
       label.appendChild(cb);
       label.appendChild(name);
+      label.appendChild(ttl);
       const s = stats && stats.byProc[proc];
       if (s && s.memMB >= 50) {
         const mem = document.createElement('span');
@@ -753,7 +778,6 @@
         mem.textContent = _fmtMB(s.memMB);
         label.appendChild(mem);
       }
-      label.appendChild(ttl);
       li.appendChild(label);
       appsList.appendChild(li);
     }
@@ -771,11 +795,7 @@
     if (surface()) {
       const p = currentPerf();
       if (p.active) return;
-      await applyOptimizations({
-        pauseAnimations: p.opts.pauseAnimations,
-        powerPlan: p.opts.powerPlan,
-        priorityBoost: p.opts.priorityBoost && !!_lastActivityProcess,
-      }, [], _sheetMeta);
+      await applyOptimizations(savedEffective(p), [], _sheetMeta);
       return;
     }
     // Loading state on the System-panel button while we fetch apps + ask the AI
@@ -791,15 +811,16 @@
 
   async function _runOptimize() {
     const p = currentPerf();
-    const [windows, stats] = await Promise.all([
-      p.opts.manageApps ? fetchWindows() : Promise.resolve([]),
-      p.opts.manageApps ? fetchStats() : Promise.resolve(null),
+    const [windows, stats, shield] = await Promise.all([
+      closesApps(p) ? fetchWindows() : Promise.resolve([]),
+      closesApps(p) ? fetchStats() : Promise.resolve(null),
+      fetchShield(),
     ]);
     _sheetWindows = windows;
     _sheetStats = stats;
     let plan = null;
     let activity = 'other';
-    if (p.opts.manageApps && windows.length) {
+    if (closesApps(p) && windows.length) {
       activity = await fetchActivity();
       if (aiAvailable(p)) {
         if (typeof setSettingsStatus === 'function') setSettingsStatus('perf_status_planning', 'ok');
@@ -818,21 +839,24 @@
     // row only when an activity app has been detected this session.
     const prioRow = _sheetEl.querySelector('.perf-sheet-opt-priority');
     const prioCb = _sheetEl.querySelector('[data-opt="priorityBoost"]');
-    if (prioRow) prioRow.hidden = !_lastActivityProcess;
-    if (prioCb) prioCb.checked = p.opts.priorityBoost && !!_lastActivityProcess;
+    if (prioRow) prioRow.hidden = !_boostTarget();
+    if (prioCb) prioCb.checked = p.opts.priorityBoost && !!_boostTarget();
+    // Core Shield needs enough cores and the OS tool for it, so the server says.
+    const canShield = !!(shield && shield.available);
+    const shieldRow = _sheetEl.querySelector('.perf-sheet-opt-shield');
+    const shieldCb = _sheetEl.querySelector('[data-opt="shield"]');
+    if (shieldRow) shieldRow.hidden = !canShield;
+    if (shieldCb) shieldCb.checked = p.opts.shield && canShield;
 
     const intro = _sheetEl.querySelector('.perf-sheet-intro');
-    if (intro) {
-      intro.textContent = (plan && plan.explanation)
-        ? ('✦ ' + plan.explanation)
-        : tr('perf_sheet_intro', 'Choose what to optimize (everything is reversible):');
-      intro.classList.toggle('perf-sheet-ai', !!(plan && plan.explanation));
-    }
+    intro.textContent = (plan && plan.explanation) || '';
+    intro.hidden = !intro.textContent;
 
     const appsWrap = _sheetEl.querySelector('.perf-sheet-apps');
     const appsList = _sheetEl.querySelector('.perf-sheet-apps-list');
-    if (p.opts.manageApps) {
+    if (closesApps(p)) {
       appsWrap.hidden = false;
+      appsWrap.querySelector('.perf-sheet-apps-head').hidden = !windows.length;
       // AI picks when available; otherwise the conservative measured preselect.
       const preselect = (plan && Array.isArray(plan.closeApps) && plan.closeApps.length)
         ? plan.closeApps
@@ -844,48 +868,12 @@
     }
 
     if (typeof setSettingsStatus === 'function') setSettingsStatus('', 'ok');
-    _sheetEl.hidden = false;
+    openSheet();
   }
 
-  // ── Auto-suggest banner ──────────────────────────────────────────
-  function buildBanner() {
-    const el = document.createElement('div');
-    el.className = 'perf-banner';
-    el.setAttribute('role', 'status');
-    el.hidden = true;
-
-    const msg = document.createElement('span');
-    msg.className = 'perf-banner-msg';
-    msg.textContent = tr('perf_banner_msg', 'Optimize performance?');
-    el.appendChild(msg);
-
-    const mkBtn = (cls, label, onClick) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'perf-btn ' + cls;
-      b.textContent = label;
-      b.addEventListener('click', onClick);
-      return b;
-    };
-    // One group, so on a narrow screen the buttons drop below the message
-    // together instead of one at a time.
-    const actions = document.createElement('span');
-    actions.className = 'perf-banner-actions';
-    actions.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => answer('optimize')));
-    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => answer('ignore')));
-    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => answer('never')));
-    el.appendChild(actions);
-
-    document.body.appendChild(el);
-    return el;
-  }
-
-  function _bannerMessageFor(activity) {
-    return tr(PERF_BANNER_KEYS[activity] || 'perf_banner_msg', 'Optimize performance?');
-  }
-
-  // The answer to a suggestion: the banner's buttons, the card's on the alerts
-  // window (driver-perf.js), and Bit when it runs there. 'restore' ends a session.
+  // ── Auto-suggest ─────────────────────────────────────────────────
+  // The answer to a suggestion: the keys of Bit's card, here or in the alerts window
+  // (driver-perf.js), and Bit when it runs there. 'restore' ends a session.
   function answer(choice) {
     if (choice === 'optimize') { hideBanner(); return optimize(); }
     if (choice === 'restore') { hideBanner(); return currentPerf().active ? restore() : undefined; }
@@ -903,43 +891,29 @@
   function showBanner(activity) {
     const s = surface();
     if (s) { _suggesting = true; s.suggest(activity); return; }
-    if (!_bannerEl) _bannerEl = buildBanner();
-    const msg = _bannerEl.querySelector('.perf-banner-msg');
-    if (msg) msg.textContent = _bannerMessageFor(activity);
-    _bannerEl.hidden = false;
-    requestAnimationFrame(() => requestAnimationFrame(() => _bannerEl.classList.add('visible')));
+    hideBanner();
+    const parts = window.AlertToasts.perfPrompt(activity, { t: tr }, answer);
+    if (parts) _closeBanner = window.XenonBitCard.ask(parts, { bit: window.XenonReleaseNotes.bit });
   }
 
   function hideBanner() {
     const s = surface();
     if (s) { if (_suggesting) { _suggesting = false; s.hide(); } return; }
-    if (!_bannerEl) return;
-    _bannerEl.classList.remove('visible');
-    setTimeout(() => { if (_bannerEl) _bannerEl.hidden = true; }, 350);
+    if (!_closeBanner) return;
+    _closeBanner();
+    _closeBanner = null;
   }
 
-  // Brief completion toast (visible anywhere, not just in the Settings modal) so
-  // the user clearly sees that an optimize/restore finished. `note` is
-  // { key, activity, freed }; the alerts window words it the same way
-  // (AlertToasts.perfNoteText).
+  // The notice that an optimize or restore finished, the same one the alerts window
+  // shows. `note` is { key, activity, freed, moved }.
   function _perfNote(note, kind) {
     const s = surface();
     if (s) { s.toast(note, kind); return; }
-    _perfToastText(window.AlertToasts ? window.AlertToasts.perfNoteText(note, { t: tr }) : tr(note.key, ''), kind);
-  }
-
-  function _perfToastText(text, kind) {
-    const el = document.createElement('div');
-    el.className = 'perf-toast' + (kind === 'error' ? ' error' : '');
-    el.setAttribute('role', 'status');
-    el.textContent = text;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
-    setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, 2600);
+    window.XenonToast.show(window.AlertToasts.perfNote(note, kind, { t: tr }));
   }
 
   // React to a (classified) activity transition. In 'suggest' mode this shows
-  // the banner; in 'auto' mode it applies the safe tweaks directly, or opens the
+  // the question; in 'auto' mode it applies the safe tweaks directly, or opens the
   // confirmation sheet when app-closing is enabled (a real choice to make). Auto
   // sessions also retire themselves: when their activity ends (and no other
   // enabled one took over), everything is restored after a grace period.
@@ -975,21 +949,25 @@
       // closing is enabled there's a real choice to make (which apps, plus the
       // AI plan when configured), so surface the confirmation sheet instead —
       // still tagged 'auto' so it restores itself when the activity ends.
-      if (p.opts.manageApps) optimize({ by: 'auto', activity: a });
+      if (closesApps(p)) optimize({ by: 'auto', activity: a });
       else _autoApply(a);
       return;
     }
     if (!p.autoSuggest) return;
+    // One question per game: Alt-Tab out and back is the same game, whatever
+    // became of the card (answered, closed, timed out).
+    _snoozedActivities.add(a);
     showBanner(a);
   }
 
   // Preferred entry: classify the live status (activity + foreground process)
   // through the user's custom lists, then react.
-  function onStatus(serverActivity, process, gameRunning) {
+  function onStatus(serverActivity, process, gameRunning, gameProcess) {
     _lastServerActivity = serverActivity;
     _lastProcess = process;
     const wasGameRunning = _gameRunning;
     if (typeof gameRunning === 'boolean') _gameRunning = gameRunning;
+    _gameProcess = _procKey(gameProcess);
     const a = classify(process, serverActivity);
     const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
     if (a !== 'other' && p) _lastActivityProcess = p; // remember the app to boost
@@ -998,7 +976,7 @@
     // auto-restore can stop waiting out the Alt-Tab grace, and a session that
     // was started FOR that app — including a manual one, which has no other way
     // to end — starts counting its way out.
-    if (wasGameRunning && !_gameRunning) { _expediteAutoRestore(); _checkStale(false); }
+    if (wasGameRunning && !_gameRunning) { _snoozedActivities.delete('gaming'); _expediteAutoRestore(); _checkStale(false); }
     // A game or opted-in activity between two idle ticks still counts as busy.
     if (_idleTimer && _busyNow(currentPerf())) _idleSince = 0;
   }

@@ -74,7 +74,92 @@ test('a 3 s gap at 1000 FPS loses no frame; the live stats window stays 2000 fra
     assert.equal(next.frames.length, 3000);
     assert.equal(fpsmon.getFrameStats().count, 2000);
   } finally {
-    fpsmon.stopFpsMonitor();
+    fpsmon.pauseFpsMonitor();   // not stop: the tests below need the monitor
+    Object.defineProperty(process, 'platform', realPlatform);
+  }
+});
+
+// The whole path: a game under a widget. The main session sends a few composed
+// rows with huge gaps, the second session sends every frame, and the reading has
+// to be the second one's, on the present side, with nothing counted twice.
+test('a composed game is read from the session that sees all its frames', () => {
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  try {
+    fpsmon.setTrackedGame(() => ({ pid: 7777, name: 'biggame' }));
+    fpsmon.resumeFpsMonitor();
+    const main = presentMons()[presentMons().length - 1];
+    const before = presentMons().length;
+    main.stdout.emit('data', Buffer.from('Application,ProcessID,PresentMode,msBetweenPresents,msBetweenDisplayChange\n'));
+    main.stdout.emit('data', Buffer.from('biggame.exe,7777,Composed: Flip,120.0,120.0\n'.repeat(3)));
+    assert.equal(fpsmon.getCurrentFps(), 8, 'the sparse reading, before the second session answers');
+
+    assert.equal(presentMons().length, before + 1, 'one second session');
+    const game = presentMons()[before];
+    const at = game.args.indexOf('-process_id');
+    assert.deepEqual(game.args.slice(at, at + 2), ['-process_id', '7777']);
+    assert.ok(game.args.includes('-no_track_display'), 'the display tracking is what loses the rows');
+    assert.ok(game.args.includes('-terminate_on_proc_exit'));
+    assert.equal(game.args[game.args.indexOf('-session_name') + 1], 'XenonFpsGame', 'never the main session');
+
+    game.stdout.emit('data', Buffer.from('Application,ProcessID,msBetweenPresents\n'));
+    game.stdout.emit('data', Buffer.from('biggame.exe,7777,4.0\n'.repeat(500)));
+    assert.equal(fpsmon.getCurrentFps(), 250);
+    const stats = fpsmon.getFrameStats();
+    assert.equal(stats.side, 'present');
+    assert.ok(stats.low1Fps > 200, `the sparse rows must not read as stutter, got ${stats.low1Fps}`);
+
+    // Rows the main session still sends are not counted on top.
+    const { mark } = fpsmon.getFramesSince(null, 'biggame');
+    main.stdout.emit('data', Buffer.from('biggame.exe,7777,Composed: Flip,120.0,120.0\n'));
+    assert.equal(fpsmon.getFramesSince(mark, 'biggame').frames.length, 0);
+    game.stdout.emit('data', Buffer.from('biggame.exe,7777,4.0\n'.repeat(10)));
+    assert.equal(fpsmon.getFramesSince(mark, 'biggame').frames.length, 10);
+
+    fpsmon.pauseFpsMonitor();
+    assert.equal(game.killed, true, 'it goes with the main session');
+    assert.ok(spawned.some((p) => /logman/i.test(p.exe) && p.args.includes('XenonFpsGame')), 'its trace is stopped too');
+  } finally {
+    fpsmon.setTrackedGame(null);
+    fpsmon.pauseFpsMonitor();
+    Object.defineProperty(process, 'platform', realPlatform);
+  }
+});
+
+test('a game on a flip mode needs no second session', () => {
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  try {
+    fpsmon.setTrackedGame(() => ({ pid: 8888, name: 'flipgame' }));
+    fpsmon.resumeFpsMonitor();
+    const main = presentMons()[presentMons().length - 1];
+    const before = presentMons().length;
+    main.stdout.emit('data', Buffer.from('Application,ProcessID,PresentMode,msBetweenPresents,msBetweenDisplayChange\n'));
+    main.stdout.emit('data', Buffer.from('flipgame.exe,8888,Hardware Composed: Independent Flip,4.0,4.0\n'.repeat(5)));
+    main.stdout.emit('data', Buffer.from('notepad.exe,9999,Composed: Flip,16.0,16.0\n'.repeat(5)));
+    assert.equal(presentMons().length, before, 'neither the game nor a desktop app');
+  } finally {
+    fpsmon.setTrackedGame(null);
+    fpsmon.pauseFpsMonitor();
+    Object.defineProperty(process, 'platform', realPlatform);
+  }
+});
+
+test('the main PresentMon ending writes why to server.log', () => {
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  const warned = [];
+  const realWarn = console.warn;
+  console.warn = (line) => { warned.push(String(line)); };
+  try {
+    fpsmon.resumeFpsMonitor();
+    const p = presentMons()[presentMons().length - 1];
+    // Rows came, so this end is news: the log stays quiet through retries.
+    p.stdout.emit('data', Buffer.from('Application,ProcessID,msBetweenPresents\nsomegame.exe,4343,4.0\n'));
+    p.stderr.emit('data', Buffer.from('error: failed to start trace session (error=1450).\n'));
+    p.emit('close', 6, null);
+    const line = 'fps: PresentMon ended after 0 s (code 6, error: failed to start trace session (error=1450).), starting it again';
+    assert.ok(warned.includes(line), warned.join('\n'));
+  } finally {
+    console.warn = realWarn;
+    fpsmon.pauseFpsMonitor();
     Object.defineProperty(process, 'platform', realPlatform);
   }
 });

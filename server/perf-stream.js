@@ -9,7 +9,7 @@
 // session played, which is what the tile shows between games. With a benchmark
 // runner (deps.bench), a live reading says when a run is going and for how long.
 // With deps.game, an idle reading names a game that runs but whose frames
-// cannot be read, so the tile says that instead of "start a game"; `reader:
+// cannot be read, so the tile names it instead of saying "start a game"; `reader:
 // false` adds that the frame reader is not installed.
 
 const INTERVAL_MS = 250;

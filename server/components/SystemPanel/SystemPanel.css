@@ -430,6 +430,7 @@
    renderStatSpark in js/utils.js), which is one ordinary stroke raster instead of
    an offscreen surface plus a blur pass. Do not put a filter back on either path.
    `stroke-opacity`, not `opacity`: opacity would force its own compositing group. */
+.stat-spark-area { display: none; stroke: none; transition: d 0.6s ease; }
 .stat-spark-glow,
 .stat-spark-line {
   fill: none;
@@ -447,6 +448,7 @@
   stroke-width: 2;
 }
 @media (prefers-reduced-motion: reduce) {
+  .stat-spark-area,
   .stat-spark-glow,
   .stat-spark-line { transition: none; }
 }
@@ -455,10 +457,10 @@
    ambient-idle WAAPI sweep never sees it and it kept re-rasterising both strokes
    at display rate even with the dashboard untouched, under overlays, and in game
    mode. Snap to the new value in those states; the data still updates. */
-body.overlay-frozen .stat-spark-glow, body.overlay-frozen .stat-spark-line,
-body.ambient-idle .stat-spark-glow, body.ambient-idle .stat-spark-line,
-body.game-mode .stat-spark-glow, body.game-mode .stat-spark-line,
-body.low-power-gpu .stat-spark-glow, body.low-power-gpu .stat-spark-line { transition: none; }
+body.overlay-frozen .stat-spark-area, body.overlay-frozen .stat-spark-glow, body.overlay-frozen .stat-spark-line,
+body.ambient-idle .stat-spark-area, body.ambient-idle .stat-spark-glow, body.ambient-idle .stat-spark-line,
+body.game-mode .stat-spark-area, body.game-mode .stat-spark-glow, body.game-mode .stat-spark-line,
+body.low-power-gpu .stat-spark-area, body.low-power-gpu .stat-spark-glow, body.low-power-gpu .stat-spark-line { transition: none; }
 
 .stat-head-temp {
   padding: 1px 6px 2px;

@@ -12,6 +12,7 @@ const { isAllowedAppPath } = require('./registry.js');
 //   launchApp(path)->Promise<{ok,error}>           Linux launcher (.desktop/binary),
 //   fileExists(path)->bool,
 //   setPriority(name, level)->Promise<{ok,...}>     reversible priority nudge,
+//   isRunning(name)->Promise<{ok,running}>          exact process lookup, changes nothing,
 //   platform: override for the extension gate (tests)
 // }
 function createPerfRegistry(deps) {
@@ -46,9 +47,14 @@ function createPerfRegistry(deps) {
         }
         case 'setPriority': {
           if (typeof d.setPriority !== 'function') return { ok: false, error: 'unavailable' };
-          // The helper refuses OS-critical processes and only uses AboveNormal.
+          // It refuses OS-critical processes and only uses AboveNormal.
           const r = await d.setPriority(action.name, action.level);
           return r && typeof r === 'object' ? r : { ok: false, error: 'priority_failed' };
+        }
+        case 'isRunning': {
+          if (typeof d.isRunning !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.isRunning(action.name);
+          return r && typeof r === 'object' ? r : { ok: false, error: 'lookup_failed' };
         }
         default: return { ok: false, error: 'unsupported' };
       }

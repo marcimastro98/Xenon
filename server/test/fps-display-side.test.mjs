@@ -215,3 +215,19 @@ test('the SDK reference documents both, and which one to draw', () => {
   assert.match(doc, /displayFps/);
   assert.match(doc, /Draw `fps` unless you specifically want the\n  difference/);
 });
+
+// With a window of ours above it, or the game out of focus, Windows composes the
+// game like any desktop app. Those rows were all dropped, so a game Xenon had
+// already found read no frame rate at all (FC 27, 5 Nov 2026).
+test('a composed present counts only for the game already being tracked', () => {
+  const cols = parseHeader(['Application', 'ProcessID', 'PresentMode', 'MsBetweenPresents']);
+  const row = (app, pid) => [app, pid, 'Composed: Flip', '16.6'];
+  const game = { pid: 42, name: 'fc27' };
+  assert.equal(rowValues(cols, row('fc27.exe', '42'), game).present, 16.6, 'by pid and name');
+  assert.equal(rowValues(cols, row('fc27.exe', '77'), game).present, 16.6, 'by name: a second process of the game');
+  assert.equal(rowValues(cols, row('<error>', '42'), game).pid, '42', 'by pid: a protected process hides its name');
+  assert.equal(rowValues(cols, row('notes.exe', '77'), game), null, 'any other app stays out');
+  assert.equal(rowValues(cols, row('fc27.exe', '42')), null, 'no game tracked: composed rows stay out');
+  assert.equal(rowValues(cols, row('fc27.exe', '42'), { pid: 0, name: '' }), null, 'a game that closed');
+  assert.equal(rowValues(cols, row('chrome.exe', '42'), game), null, 'an ignored process, whatever its pid');
+});

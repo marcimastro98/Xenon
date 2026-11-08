@@ -14,13 +14,18 @@ import { makeDom, settle } from './mini-dom.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, '..', 'js', 'perf-widget.js'), 'utf8');
 const LABELS = {
-  perf_idle: 'Start a game', perf_unreadable: 'Cannot be read', perf_no_reader: 'Install PresentMon', perf_mac: 'Mac cannot', perf_linux: 'Use MangoHud', layout_widget_perf: 'Game performance',
+  perf_idle: 'Start a game', perf_no_reader: 'Install PresentMon', perf_mac: 'Mac cannot', perf_linux: 'Use MangoHud', layout_widget_perf: 'Game performance',
   perf_last_more: 'Last game, {n} FPS more', perf_last_less: 'Last game, {n} FPS less',
   perf_last_same: 'Last game, same', perf_last: 'Last game', perf_duration: 'Duration',
-  perf_dur_hm: '{h} h {m} min', perf_dur_m: '{m} min', perf_frametime: 'Frame time',
+  perf_dur_hm: '{h} h {m} min', perf_dur_m: '{m} min', perf_frametime: 'Frame time', perf_frame_short: 'Frame',
   perf_bench: 'Benchmark {t}', deck_act_benchmark: 'Benchmark', bench_running: 'Running', bench_saved: 'Saved',
   bench_saved_msg: '{avg} avg, low {low}', bench_show: 'Show', bench_too_short: 'Too short', bench_no_frames: 'No frames', bench_failed: 'Failed',
 };
+
+test('in a row the readings keep their size and grow from the corner the box leans on', () => {
+  const CSS = readFileSync(join(HERE, '..', 'components', 'PerfWidget', 'PerfWidget.css'), 'utf8');
+  assert.match(CSS, /\.perfw-wrap\.hud-row \{ flex-flow: row wrap/, 'too many readings go to a second line, never off the edge');
+});
 
 const LIVE = { active: true, process: 'Cyberpunk2077.exe', fps: 143.6, avgFps: 125, low1Fps: 88.2, low01Fps: null, frames: [7, 8, 30, 7] };
 
@@ -39,11 +44,16 @@ function mount({ seed = { active: false }, where = 'pager-page', layer = false }
   const calls = [];
   const posts = [];
   const toasts = [];
+  const timers = new Map();
+  let timerId = 0;
   const sandbox = {
     document,
+    setTimeout: (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; },
+    clearTimeout: (id) => timers.delete(id),
     isLayerPage: () => layer,
     XenonToast: { show: (o) => toasts.push(o) },
     AlertToasts: createRequire(import.meta.url)('../js/alert-toasts.js'),
+    PerfHud: createRequire(import.meta.url)('../js/perf-hud.js'),
     makeEl: (tag, cls, text) => {
       const n = document.createElement(tag);
       if (cls) n.className = cls;
@@ -64,7 +74,7 @@ function mount({ seed = { active: false }, where = 'pager-page', layer = false }
   vm.createContext(sandbox);
   vm.runInContext(SRC, sandbox, { filename: 'perf-widget.js' });
   const q = (sel) => host.querySelector(sel);
-  return { ...dom, sandbox, tile, host, calls, posts, toasts, q, W: sandbox.PerfWidget };
+  return { ...dom, sandbox, tile, host, calls, posts, toasts, timers, q, seed: (v) => { seed = v; }, W: sandbox.PerfWidget };
 }
 
 test('without a game it dims and says why, in this platform\'s words', async () => {
@@ -108,10 +118,10 @@ test('the hardware row uses the user\'s temperature unit and hides a missing rea
   m.W.onSystem({ cpu: 41.4, gpu: 97.6, gpuTemp: 70 });
   assert.equal(m.q('.is-cpu .perfw-stat-val').textContent, '41%');
   assert.equal(m.q('.is-gpu .perfw-stat-val').textContent, '98%');
-  assert.equal(m.q('.is-temp .perfw-stat-val').textContent, '158°F');
+  assert.equal(m.q('.is-gpuTemp .perfw-stat-val').textContent, '158°F');
   m.W.onSystem({ cpu: null, gpu: null, gpuTemp: null });
   assert.equal(m.q('.is-cpu .perfw-stat-val').textContent, '--');
-  assert.equal(m.q('.is-temp').hidden, true);
+  assert.equal(m.q('.is-gpuTemp').hidden, true);
 });
 
 test('a game name is text, never markup', () => {
@@ -183,7 +193,7 @@ test('between games it shows the last one and how it compares', async () => {
 
   m.W.onPerf(LIVE);
   assert.ok(!wrap.classList.contains('is-last'), 'a running game wins over the last one');
-  assert.equal(m.q('.is-frame .perfw-stat-label').textContent, 'Frame time');
+  assert.equal(m.q('.is-frame .perfw-stat-label').textContent, 'Frame');
   m.W.onPerf({ active: false, last: { game: 'x', avgFps: 0 } });
   assert.ok(wrap.classList.contains('is-idle'), 'junk is no last game');
 });
@@ -297,7 +307,7 @@ test('a game that runs but cannot be read is named, never "start a game"', () =>
   const wrap = m.q('.perfw-wrap');
   assert.ok(wrap.classList.contains('is-idle'));
   assert.equal(m.q('.perfw-game').textContent, 'Tabletop Simulator');
-  assert.equal(m.q('.perfw-state').textContent, 'Cannot be read');
+  assert.equal(m.q('.perfw-state').textContent, '', 'nothing to do about it, so nothing is said');
   assert.equal(m.q('.perfw-fps b').textContent, '--');
   m.W.onPerf({ active: false, game: 'Tabletop Simulator.exe', reader: false });
   assert.equal(m.q('.perfw-state').textContent, 'Install PresentMon');
@@ -338,4 +348,81 @@ test('the exclusive full screen hint is one toast, on the dashboard only', () =>
   assert.equal(layer.toasts.length, 0);
   m.W.onExclusiveHint(null);
   assert.equal(m.toasts.length, 1);
+});
+
+test('over a game the FPS row waits empty, and a Mac drops it', async () => {
+  const m = mount({ layer: true });
+  m.W.renderWidgets();
+  await settle();
+  const wrap = () => m.q('.perfw-wrap').classList;
+  assert.equal(wrap().contains('is-idle'), true);
+  m.W.onSystem({ platform: 'darwin' });
+  assert.equal(wrap().contains('is-nofps'), true, 'a Mac cannot read other apps\' frames');
+  m.W.onSystem({ platform: 'linux' });
+  assert.equal(wrap().contains('is-nofps'), false);
+});
+
+test('over a game no sentence ever shows, whatever the reading says', async () => {
+  const m = mount({ layer: true });
+  m.document.documentElement.dataset = { layer: 'overlay' };
+  m.W.renderWidgets();
+  await settle();
+  const said = () => m.q('.perfw-state').textContent;
+  const wrap = () => m.q('.perfw-wrap').classList;
+  const silent = (what) => {
+    assert.equal(said(), '', what);
+    assert.equal(wrap().contains('is-why'), false, what);
+    assert.equal(wrap().contains('is-said'), false, what);
+  };
+  silent('no game');
+  m.W.onPerf({ ...LIVE, why: { verdict: 'stutter', reason: 'ram_full' } });
+  silent('a stutter cause');
+  m.W.onPerf({ ...LIVE, exclusive: true });
+  silent('exclusive full screen');
+  m.W.onPerf({ active: false, game: 'Cyberpunk2077.exe', reader: false });
+  silent('no frame reader');
+  m.W.onSystem({ platform: 'linux' });
+  silent('Linux');
+  m.W.onSystem({ platform: 'darwin' });
+  silent('a Mac');
+});
+
+test('the readings sit on one line when the person asks for it', async () => {
+  const m = mount({ layer: true });
+  m.sandbox.hubSettings = { perfHud: { layout: 'row' } };
+  m.W.renderWidgets();
+  await settle();
+  m.W.applySettings?.();
+  m.W.onPerf(LIVE);
+  assert.equal(m.q('.perfw-wrap').classList.contains('hud-row'), true);
+});
+
+test('a live reading nobody refreshes is asked again, so a lost stream never leaves old FPS on screen', async () => {
+  const m = mount({ seed: LIVE });
+  m.W.renderWidgets();
+  await settle();
+  assert.equal(m.q('.perfw-fps b').textContent, '144');
+  assert.equal(m.timers.size, 1, 'one watch, not one per reading');
+  m.W.onPerf(LIVE);
+  assert.equal(m.timers.size, 1);
+  m.seed({ active: false });
+  [...m.timers.values()][0].fn();
+  await settle();
+  assert.equal(m.calls.length, 2);
+  assert.ok(m.q('.perfw-wrap').classList.contains('is-idle'));
+  assert.equal(m.q('.perfw-fps b').textContent, '--');
+  assert.equal([...m.timers.values()].length, 0, 'nothing runs once idle');
+});
+
+test('words put against an edge sit a fixed distance from it, and never while editing', () => {
+  const CSS = readFileSync(join(HERE, '..', 'components', 'PerfWidget', 'PerfWidget.css'), 'utf8');
+  assert.ok(CSS.includes(':not([data-layer-editing]) .layer-slot[data-edge-h="right"]:has(> [data-dashboard-widget] .perfw-wrap) { left: calc(100% - var(--hud-edge)); --hud-tx: -100%; }'));
+});
+
+test('the box of the words is the words, placed by their share of the screen', () => {
+  const CSS = readFileSync(join(HERE, '..', 'components', 'PerfWidget', 'PerfWidget.css'), 'utf8');
+  const rule = /\.layer-slot:has\(> \[data-dashboard-widget\] \.perfw-wrap\) \{[^}]*\}/.exec(CSS)[0];
+  assert.match(rule, /left: calc\(var\(--layer-px, 0\) \* 100%\)/);
+  assert.match(rule, /width: max-content/);
+  assert.match(rule, /translate: var\(--hud-tx\) var\(--hud-ty\)/);
 });

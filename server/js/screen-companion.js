@@ -20,11 +20,9 @@
   // index.html's order; the same files Bit loads are loaded once (screen-bit.js).
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
-    'js/bit-app.js', 'js/game-companion.js',
+    'shared/src/bit-spark.js', 'js/xenon-credits.js', 'js/bit-app.js', 'js/game-companion.js',
   ]);
   const IDLE_RELOAD_MS = 60 * 1000;
-  const MIC_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/>'
-    + '<path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 
   let loading = null;
   let idleTimer = null;
@@ -47,19 +45,19 @@
     if (window.ScreenBit) window.ScreenBit.wake();
   }
 
-  // The question box needs a keyboard this window does not get.
+  // The question box needs a keyboard this window does not get: a quiet key
+  // beside the card's main one asks out loud instead.
   function voiceInsteadOfTyping(card) {
     const ask = card.querySelector('.gc-ask');
-    if (!ask) return;
+    const main = card.querySelector('.gc-analyze');
+    if (!ask || !main) return;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'gc-analyze gc-ask-voice';
-    btn.innerHTML = MIC_ICON;
-    const label = document.createElement('span');
-    label.textContent = typeof t === 'function' ? t('gc_ask_voice') : 'Ask out loud';
-    btn.appendChild(label);
+    btn.className = 'gc-ask-voice';
+    btn.textContent = typeof t === 'function' ? t('gc_ask_voice') : 'Ask out loud';
     btn.addEventListener('click', askByVoice);
-    ask.replaceWith(btn);
+    ask.remove();
+    main.before(btn);
   }
 
   function load() {

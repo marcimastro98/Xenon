@@ -44,9 +44,13 @@ test('only known perf_screen events go out, rebuilt from their fields', () => {
   assert.equal(ev({ kind: 'prompt', activity: 'hacking' }), null);
   assert.equal(ev({ kind: 'prompt' }), null);
   assert.deepEqual(ev({ kind: 'toast', tone: 'weird', note: { key: 'perf_auto_on', activity: 'coding', freed: '1.5 GB', x: 2 } }),
-    { kind: 'toast', tone: 'ok', note: { key: 'perf_auto_on', activity: 'coding', freed: '1.5 GB' } });
+    { kind: 'toast', tone: 'ok', note: { key: 'perf_auto_on', activity: 'coding', freed: '1.5 GB', moved: 0 } });
   assert.deepEqual(ev({ kind: 'toast', tone: 'error', note: { key: 'perf_status_failed', freed: '<img>' } }),
-    { kind: 'toast', tone: 'error', note: { key: 'perf_status_failed', activity: '', freed: '' } });
+    { kind: 'toast', tone: 'error', note: { key: 'perf_status_failed', activity: '', freed: '', moved: 0 } });
+  const moved = (value) => ev({ kind: 'toast', note: { key: 'perf_auto_off', moved: value } }).note.moved;
+  assert.equal(moved(3), 3, 'how many apps moved aside reaches the toast');
+  assert.equal(moved(99), 99);
+  for (const junk of [100, 0, -1, 1.5, '3', null, undefined]) assert.equal(moved(junk), 0, String(junk));
   assert.equal(ev({ kind: 'toast', note: { key: 'settings_title' } }), null, 'any other string key is refused');
   for (const choice of perfScreen.CHOICES) assert.deepEqual(ev({ kind: 'answer', choice }), { kind: 'answer', choice });
   for (const junk of [null, 'x', [], {}, { kind: 'answer', choice: 'reboot' }, { kind: 'eval' }]) {
@@ -61,6 +65,13 @@ test('the driver saves the performance block only, normalized', () => {
   assert.deepEqual(p.closedApps, [], 'only .exe/.lnk come back');
   assert.ok(!('language' in p));
   for (const junk of [null, {}, { performance: 'x' }, { performance: [] }]) assert.equal(perfScreen.stateFrom(junk), null);
+});
+
+test('a phone may read which apps moved, as it may read the app list, and nothing can write', () => {
+  assert.equal(remotePathAllowed('/api/performance/shield', 'GET'), true);
+  const server = read('../server.js');
+  assert.match(server, /reqPath === '\/api\/performance\/shield' && req\.method === 'GET'/);
+  assert.doesNotMatch(server, /reqPath === '\/api\/performance\/shield' && req\.method === 'POST'/);
 });
 
 test('both routes: this PC only, CSRF-guarded, one narrow locked writer', () => {
@@ -82,7 +93,7 @@ test('Bit on the screen optimizes through the driver instead of saying it needs 
   assert.equal(aiSurface.clientActionRefusal('optimize_performance', 'screen'), null);
   assert.equal(aiSurface.clientActionRefusal('change_theme', 'screen').error, 'needs_dashboard');
   const server = read('../server.js');
-  assert.match(server, /const perfChoice = aiSurface\.screenPerfChoice\(fnName, surface\);\n {4}if \(perfChoice\) \{\n {6}broadcastSSE\('perf_screen', perfScreen\.screenEvent\(\{ kind: 'answer', choice: perfChoice \}\)\);/);
+  assert.match(server, /const perfChoice = aiSurface\.screenPerfChoice\(fnName, surface, widgetsOnly\);\n {4}if \(perfChoice\) \{\n {6}broadcastSSE\('perf_screen', perfScreen\.screenEvent\(\{ kind: 'answer', choice: perfChoice \}\)\);/);
 });
 
 // ── the cards ────────────────────────────────────────────────────────────────
@@ -95,28 +106,31 @@ const en = (() => {
 })();
 const ctxEn = { t: (k) => en[k] || k };
 
-test('the suggestion card says what the banner says, and its buttons answer it', () => {
+test('the suggestion is one question, and its keys answer it', () => {
   const answers = [];
-  const card = AlertToasts.perfPrompt('coding', ctxEn, (c) => answers.push(c));
-  assert.equal(card.title, en.perf_banner_msg_coding);
-  assert.equal(card.important, true, 'it is asked as a game starts, when routine cards are held');
-  assert.ok(card.duration > 0, 'it goes away by itself');
-  assert.deepEqual(card.actions.map((a) => a.label), [en.perf_banner_optimize, en.perf_banner_never]);
-  assert.equal(card.actions[0].primary, true);
-  card.actions.forEach((a) => a.onClick());
-  assert.deepEqual(answers, ['optimize', 'never']);
+  const parts = AlertToasts.perfPrompt('coding', ctxEn, (c) => answers.push(c));
+  assert.equal(parts.title, en.perf_banner_msg_coding);
+  assert.deepEqual([parts.off.label, parts.quiet.label, parts.go.label], [en.perf_banner_never, en.perf_banner_ignore, en.perf_banner_optimize]);
+  [parts.off, parts.quiet, parts.go].forEach((key) => key.run());
+  assert.deepEqual(answers, ['never', 'ignore', 'optimize']);
   assert.equal(AlertToasts.perfPrompt('other', ctxEn, () => {}), null);
-  // The same per-activity keys as the dashboard's banner.
-  const perf = read('../js/performance.js');
-  for (const [act, key] of Object.entries(AlertToasts.PERF_PROMPT_KEYS)) {
-    assert.ok(perf.includes(`${act}: '${key}'`), act);
-    assert.ok(en[key], key);
-  }
+  for (const key of Object.values(AlertToasts.PERF_PROMPT_KEYS)) assert.ok(en[key], key);
 });
 
-test('the result card words a note like the dashboard toast', () => {
-  const text = AlertToasts.perfNoteText({ key: 'perf_auto_on', activity: 'gaming', freed: '1.2 GB' }, ctxEn);
-  assert.equal(text, en.perf_auto_on.replace('{a}', en.settings_perf_act_gaming) + ' · ' + en.perf_freed_ram.replace('{x}', '1.2 GB'));
+test('both surfaces ask through the same card', () => {
+  assert.match(read('../js/performance.js'), /XenonBitCard\.ask\(parts, \{ bit: window\.XenonReleaseNotes\.bit \}\)/);
+  assert.match(read('../js/screen-alerts.js'), /XenonBitCard\.ask\(parts, \{\s+bit: window\.XenonReleaseNotes\.bit,\s+lasts: \{ ms: PERF_PROMPT_MS, over: closePerfPrompt \},/);
+});
+
+test('both surfaces tell the result with the same toast', () => {
+  assert.match(read('../js/performance.js'), /XenonToast\.show\(window\.AlertToasts\.perfNote\(note, kind, \{ t: tr \}\)\)/);
+  const note = AlertToasts.perfNote({ key: 'perf_auto_on', activity: 'gaming', freed: '1.2 GB' }, 'ok', ctxEn);
+  assert.equal(note.title, en.perf_auto_on.replace('{a}', en.settings_perf_act_gaming));
+  assert.equal(note.message, en.perf_freed_ram.replace('{x}', '1.2 GB'), 'what was freed is its own line');
+  assert.equal(note.important, true, 'the result of a tap is not held back by do not disturb');
+  assert.equal(AlertToasts.perfNote({ key: 'perf_status_restored' }, 'ok', ctxEn).message, '');
+  assert.equal(AlertToasts.perfNote({ key: 'perf_auto_off', moved: 2 }, 'ok', ctxEn).message, en.perf_shield_moved.replace('{n}', '2'));
+  assert.equal(AlertToasts.perfNote({ key: 'perf_auto_off', moved: 2, freed: '1 GB' }, 'ok', ctxEn).message.includes('1 GB'), true, 'memory freed goes first');
   assert.equal(AlertToasts.perfNoteText({ key: 'perf_auto_off' }, ctxEn), en.perf_auto_off);
   assert.equal(AlertToasts.perfNoteText({ key: 'nope' }, ctxEn), en.perf_status_optimized);
   assert.equal(AlertToasts.perfNote({ key: 'perf_status_failed' }, 'error', ctxEn).type, 'error');
@@ -129,7 +143,8 @@ test('the result card words a note like the dashboard toast', () => {
 test('the alerts window shows perf_screen events and posts the answers', () => {
   const src = read('../js/screen-alerts.js');
   assert.match(src, /perf_screen: perfScreen,/);
-  assert.match(src, /if \(d\.activity\) perfPromptId = show\(AlertToasts\.perfPrompt\(d\.activity, ctx\(\), answerPerf\)\);/);
+  assert.match(src, /if \(d\.activity\) askPerf\(d\.activity\);/);
+  assert.match(src, /AlertToasts\.perfPrompt\(activity, ctx\(\), answerPerf\)/);
   assert.match(src, /show\(AlertToasts\.perfNote\(d\.note, d\.tone, ctx\(\)\)\);/);
   assert.match(src, /fetch\(SERVER \+ '\/api\/performance\/screen', \{[\s\S]{0,140}JSON\.stringify\(\{ kind: 'answer', choice \}\)/);
 });
@@ -268,6 +283,26 @@ test('"Don\'t ask again" is saved, and the card goes when the game loses the foc
   p.emit('status', { gaming: true, gameRunning: true, activity: 'gaming', process: 'game2.exe' });
   await p.settle();
   assert.deepEqual(p.posts, [], 'not asked again');
+});
+
+test('one question per game: losing and regaining the focus does not ask again', async () => {
+  const p = page(ON);
+  p.perf.sync(p.hub());
+  await p.settle();
+  const game = (focus) => p.emit('status', { gaming: focus, gameRunning: true, activity: focus ? 'gaming' : 'other', process: focus ? 'game.exe' : 'explorer.exe' });
+  game(true);
+  game(false);
+  game(true);
+  game(false);
+  game(true);
+  await p.settle();
+  assert.deepEqual(p.posts.map((x) => x.body), [{ kind: 'prompt', activity: 'gaming' }, { kind: 'prompt', activity: '' }]);
+  p.posts.length = 0;
+  // Closed for real: the next game is a new question.
+  p.emit('status', { gaming: false, gameRunning: false, activity: 'other', process: 'explorer.exe' });
+  p.emit('status', { gaming: true, gameRunning: true, activity: 'gaming', process: 'game2.exe' });
+  await p.settle();
+  assert.deepEqual(p.posts.map((x) => x.body), [{ kind: 'prompt', activity: 'gaming' }]);
 });
 
 test('a settings change starts the suggestion over, and the card on screen goes with it', async () => {

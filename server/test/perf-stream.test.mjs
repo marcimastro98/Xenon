@@ -98,13 +98,15 @@ test('nobody listening or nothing showing it: no reading is even taken', (t) => 
 test('server.js gates the stream, seeds GET /perf and stops it on shutdown', () => {
   const s = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
   assert.match(s, /_perfStream\.setGaming\(st\.gaming && perfWanted\(\)\)/);
-  // A tile on a hidden surface (overlay shortcut) wants no feed.
-  assert.match(s, /function perfWanted\(\) \{[\s\S]{0,400}w\.widget === 'perf' && !layers\.hidden\.includes\(w\.surface\)/);
+  // A tile hidden on its own, or on a hidden surface (overlay shortcut), wants no feed.
+  assert.match(s, /function perfWanted\(\) \{[\s\S]{0,400}w\.widget === 'perf' && !w\.off && !layers\.hidden\.includes\(w\.surface\)/);
   // A Store widget granted the `perf` stream keeps it running too.
   assert.match(s, /function perfWanted\(\) \{[\s\S]{0,600}return sdkStreamGranted\('perf'\);\n\}/);
   assert.match(s, /if \(sseClients\.size === 0\) \{\n\s+_perfStream\.setGaming\(false\);[\s\S]{0,400}?\n\s+return;\n\s+\}/);
   // The session log is fed by the same tick, before the payload is built.
-  assert.match(s, /_gameSessions\.tick\(\{ running: st\.gameRunning, game: st\.gameProcess \}\)/);
+  assert.match(s, /_gameSessions\.tick\(gameSessionFacts\(st\.gameRunning, st\.gameProcess\)\)/);
+  // ...and each game remembers whether a session ran and how many apps moved.
+  assert.match(s, /function gameSessionFacts\(running, game\) \{\n\s+return \{ running, game, perf: \{ active: _serverHubSettings\?\.performance\?\.active === true, moved: perfSession\.shield\.movedCount\(\) \} \};/);
   assert.match(s, /reqPath === '\/perf' && req\.method === 'GET'\) \{[\s\S]{0,120}json\(_perfStream\.snapshot\(\)\)/);
   const shutdown = s.slice(s.indexOf('function _gracefulShutdown'));
   assert.match(shutdown.slice(0, 6000), /_perfStream\.stop\(\);/);

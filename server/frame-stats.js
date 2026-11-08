@@ -74,6 +74,8 @@ function createFrameRing(capacity) {
       total++;
     },
     size: () => size,
+    // Forgets the frames, not the count: a reader by mark keeps its place.
+    clear() { next = 0; size = 0; },
     // Values ever pushed: a reader that remembers this can take only what is
     // new since its last look, even after the ring has wrapped.
     total: () => total,

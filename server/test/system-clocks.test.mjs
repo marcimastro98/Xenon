@@ -18,7 +18,7 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 test('the system payload carries all four readings', () => {
   const src = read('server/server.js');
-  const start = src.indexOf('async function getSystemInfo()');
+  const start = src.indexOf('async function getSystemInfo(');
   assert.ok(start > 0, 'getSystemInfo moved');
   const body = src.slice(start, src.indexOf('\n}\n', start));
   for (const key of ['cpuClockMHz:', 'gpuClockMHz:', 'vramClockMHz:', 'fps:']) {

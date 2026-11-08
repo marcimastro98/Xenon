@@ -67,3 +67,16 @@ test('fpsmon: only "Hardware: Legacy" presents are exclusive full screen', () =>
   const noMode = parseHeader(['Application', 'ProcessID', 'MsBetweenPresents']);
   assert.equal(rowValues(noMode, ['game.exe', '42', '8.3']).exclusive, false);
 });
+
+// Without admin rights PresentMon cannot read the name of a system process, and
+// the window manager itself presents as "Hardware: Legacy Flip": a false hint,
+// titled "<error>", with no exclusive game anywhere.
+test('a process with no readable name counts only as the tracked game, under its name', () => {
+  const cols = parseHeader(['Application', 'ProcessID', 'PresentMode', 'msBetweenPresents']);
+  const row = ['<error>', '42', 'Hardware: Legacy Flip', '83.0'];
+  assert.equal(rowValues(cols, row), null);
+  assert.equal(rowValues(cols, row, { pid: 7, name: 'bigrace' }), null, 'another game is in front');
+  const r = rowValues(cols, row, { pid: 42, name: 'bigrace' });
+  assert.equal(r.name, 'bigrace');
+  assert.equal(r.exclusive, true);
+});

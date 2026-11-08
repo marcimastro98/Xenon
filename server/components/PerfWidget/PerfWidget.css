@@ -19,11 +19,13 @@
 .perfw-unit { font-size: 12px; font-weight: 700; color: var(--dim-text); }
 
 .perfw-lows { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.perfw-hw { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.perfw-hw { flex: 0 1 auto; min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .perfw-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.perfw-stat[hidden] { display: none; }
+.perfw-stat[hidden],
+.perfw-stat.is-off { display: none; }
 /* Parts the user turned off (Settings, Performance; js/perf-hud.js). The stats
    that stay take the row between them instead of leaving a gap. */
+.perfw-wrap.hud-no-fps .perfw-fps,
 .perfw-wrap.hud-no-low1 .perfw-stat.is-low1,
 .perfw-wrap.hud-no-low01 .perfw-stat.is-low01,
 .perfw-wrap.hud-no-frame .perfw-stat.is-frame,
@@ -31,7 +33,8 @@
 .perfw-wrap.hud-no-hw .perfw-hw { display: none; }
 /* Without the graph the CPU/GPU row keeps its place at the bottom, as with it. */
 .perfw-wrap.hud-no-graph .perfw-hw { margin-top: auto; }
-.perfw-wrap.hud-no-low1.hud-no-low01.hud-no-frame .perfw-lows { display: none; }
+.perfw-wrap.hud-no-low1.hud-no-low01.hud-no-frame .perfw-lows,
+.perfw-wrap.hud-no-fps.hud-no-low1.hud-no-low01.hud-no-frame .perfw-main { display: none; }
 .perfw-wrap.hud-no-low1 .perfw-lows,
 .perfw-wrap.hud-no-low01 .perfw-lows,
 .perfw-wrap.hud-no-frame .perfw-lows { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
@@ -40,6 +43,7 @@
 
 .perfw-graph { flex: 1 1 auto; width: 100%; min-height: 28px; display: block; overflow: visible; }
 .perfw-graph path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+.perfw-graph .perfw-graph-edge { display: none; }
 
 .perfw-state { display: none; font-size: 13px; color: var(--dim-text); text-align: center; }
 /* Without a game there is nothing to read: the title and one line, no dashes. */
@@ -104,3 +108,135 @@
   .perfw-lows { display: none; }
   .perfw-wrap.is-why .perfw-state { display: none; }
 }
+
+/* Over a game (a small box on a widget layer) the tile is a list, as in the overlays
+   people already know: one reading per line, name left, number right, nothing bigger
+   than it needs to be. The text follows the box, so a 4K screen does not shrink it. */
+@container (max-width: 360px) and (max-height: 320px) {
+  html[data-layer] .perfw-wrap { --hud-text: clamp(12px, 7cqh, 18px); gap: 2px; font-size: var(--hud-text); }
+  html[data-layer] .perfw-wrap:not(.is-idle):not(.is-bench):not(.is-last) .perfw-head { display: none; }
+  html[data-layer] .perfw-title { font-size: var(--hud-text); }
+  html[data-layer] .perfw-game,
+  html[data-layer] .perfw-state { font-size: calc(var(--hud-text) * 0.85); }
+  html[data-layer] .perfw-main { flex-direction: column; align-items: stretch; gap: 2px; }
+  html[data-layer] .perfw-fps { flex-direction: row-reverse; justify-content: space-between; align-items: baseline; }
+  html[data-layer] .perfw-fps b { font-size: calc(var(--hud-text) * 1.35); letter-spacing: 0; }
+  html[data-layer] .perfw-unit { font-size: var(--hud-text); font-weight: 400; }
+  html[data-layer] .perfw-lows,
+  html[data-layer] .perfw-hw { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+  html[data-layer] .perfw-stat { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; }
+  html[data-layer] .perfw-stat-label,
+  html[data-layer] .perfw-stat-val { font-size: var(--hud-text); line-height: 1.25; }
+  html[data-layer] .perfw-stat-val { font-weight: 650; }
+  html[data-layer] .perfw-graph { flex: 0 0 calc(var(--hud-text) * 1.3); min-height: 0; }
+}
+/* The rows a short box cannot hold, from the least read one up. */
+@container (max-width: 360px) and (max-height: 190px) {
+  html[data-layer] .perfw-graph { display: none; }
+}
+@container (max-width: 360px) and (max-height: 150px) {
+  html[data-layer] .perfw-stat.is-low01,
+  html[data-layer] .perfw-stat.is-frame { display: none; }
+}
+@container (max-width: 360px) and (max-height: 110px) {
+  html[data-layer] .perfw-hw { display: none; }
+}
+
+/* Over a game the tile is words and nothing else, like the statistics overlays people
+   know: no panel, one reading per line, white with a dark edge so it stays readable on
+   any scene (white with a black border is the long-tried recipe for text over moving
+   pictures). The colours are fixed, not the theme's: a dark theme's grey would vanish
+   over a dark game, and the Opacity row of the menu then acts on solid text. The box
+   of the layer only sets the size of the words: they take the room they need, from
+   the corner they sit in, and the window is cut to them (data-layer-fit). */
+html[data-layer="overlay"] .perf-panel {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
+}
+html[data-layer="overlay"] .perf-panel::before,
+html[data-layer="overlay"] .perf-panel::after { content: none; }
+html[data-layer="overlay"] .perf-widget-mount { padding: 0; container-type: inline-size; align-items: flex-start; }
+/* The box of the words is the words. Their place comes from the saved rectangle as a share
+   of the room left on the screen (--layer-px, --layer-py: LayersModel.shareOf), the way a
+   percent places a background: every spot on the screen has one rectangle, the corners
+   stay corners, and there is no side to lean on, so nowhere they refuse to stop. */
+html[data-layer="overlay"] .layer-slot:has(> [data-dashboard-widget] .perfw-wrap) {
+  --hud-tx: calc(var(--layer-px, 0) * -100%);
+  --hud-ty: calc(var(--layer-py, 0) * -100%);
+  left: calc(var(--layer-px, 0) * 100%);
+  top: calc(var(--layer-py, 0) * 100%);
+  width: max-content;
+  height: max-content;
+  max-width: min(100%, calc(var(--layer-w, 9%) * 5));
+  translate: var(--hud-tx) var(--hud-ty);
+}
+html[data-layer="overlay"] .layer-slot > [data-dashboard-widget] .perf-widget-mount { height: auto; container-type: normal; }
+html[data-layer="overlay"] .perfw-wrap {
+  --text: #fff;
+  --dim-text: #fff;
+  --accent: #fff;
+  width: max-content;
+  height: auto;
+  gap: 2px;
+  font-size: clamp(12px, calc(var(--layer-wn, 0.09) * 5.5vw), 30px);
+  line-height: 1.25;
+  text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 3px rgba(0, 0, 0, 0.8);
+}
+html[data-layer="overlay"] .perfw-wrap:not(.is-bench) .perfw-head { display: none; }
+html[data-layer="overlay"] .perfw-head { padding: 0; }
+html[data-layer="overlay"] .perfw-game { font-size: 1em; }
+html[data-layer="overlay"] .perfw-main { flex-direction: column; align-items: stretch; gap: 2px; }
+html[data-layer="overlay"] .perfw-fps { flex-direction: row-reverse; justify-content: space-between; gap: 1em; }
+html[data-layer="overlay"] .perfw-fps b,
+html[data-layer="overlay"] .perfw-unit,
+html[data-layer="overlay"] .perfw-stat-label,
+html[data-layer="overlay"] .perfw-stat-val { font-size: 1em; line-height: inherit; letter-spacing: 0; }
+html[data-layer="overlay"] .perfw-unit,
+html[data-layer="overlay"] .perfw-stat-label { font-weight: 500; }
+html[data-layer="overlay"] .perfw-fps b,
+html[data-layer="overlay"] .perfw-stat-val { min-width: 5ch; font-weight: 700; text-align: right; }
+html[data-layer="overlay"] .perfw-lows,
+html[data-layer="overlay"] .perfw-hw { display: flex; flex-direction: column; flex: none; gap: 2px; overflow: visible; }
+html[data-layer="overlay"] .perfw-stat { flex-direction: row; justify-content: space-between; gap: 1em; overflow: visible; }
+html[data-layer="overlay"] .perfw-stat-label { overflow: visible; }
+html[data-layer="overlay"] .perfw-graph { flex: none; width: 10em; height: 1.6em; min-height: 0; }
+html[data-layer="overlay"] .perfw-graph .perfw-graph-edge { display: inline; stroke: #000; stroke-width: 3.5; }
+/* Numbers only over a game: no sentence, ever (js/perf-widget.js leaves it empty too). */
+html[data-layer="overlay"] .perfw-wrap .perfw-state { display: none; }
+/* A share of the screen makes a different gap on each side of a wide one (77 px and 43 px
+   at 4K), so words put against an edge sit a fixed distance from it, whatever the screen.
+   Editing shows the box where it is saved: a drag starts from there. */
+html[data-layer="overlay"]:not([data-layer-editing]) .layer-slot:has(> [data-dashboard-widget] .perfw-wrap) { --hud-edge: 16px; }
+html[data-layer="overlay"]:not([data-layer-editing]) .layer-slot[data-edge-h="left"]:has(> [data-dashboard-widget] .perfw-wrap) { left: var(--hud-edge); --hud-tx: 0px; }
+html[data-layer="overlay"]:not([data-layer-editing]) .layer-slot[data-edge-h="right"]:has(> [data-dashboard-widget] .perfw-wrap) { left: calc(100% - var(--hud-edge)); --hud-tx: -100%; }
+html[data-layer="overlay"]:not([data-layer-editing]) .layer-slot[data-edge-v="top"]:has(> [data-dashboard-widget] .perfw-wrap) { top: var(--hud-edge); --hud-ty: 0px; }
+html[data-layer="overlay"]:not([data-layer-editing]) .layer-slot[data-edge-v="bottom"]:has(> [data-dashboard-widget] .perfw-wrap) { top: calc(100% - var(--hud-edge)); --hud-ty: -100%; }
+/* In a right corner everything ends on the same line, against the edge. */
+html[data-layer="overlay"] .layer-slot[data-h="right"] .perfw-wrap { align-items: flex-end; }
+html[data-layer="overlay"] .layer-slot[data-h="right"] .perfw-main,
+html[data-layer="overlay"] .layer-slot[data-h="right"] .perfw-lows,
+html[data-layer="overlay"] .layer-slot[data-h="right"] .perfw-hw { align-self: stretch; }
+/* No game: the FPS row stays, empty, so a person sees where the number will be; the
+   chosen hardware rows say the rest. A Mac cannot read other apps' frames, so there
+   the row would stay empty for good. */
+html[data-layer="overlay"] .perfw-wrap.is-idle:not(.is-nofps):not(.hud-no-fps) .perfw-main { display: flex; }
+html[data-layer="overlay"] .perfw-wrap.is-idle .perfw-lows { display: none; }
+/* On one line, as the NVIDIA overlay offers: same words, same size. Too many readings
+   for the screen go on to a second line rather than off the edge. */
+html[data-layer="overlay"] .perfw-wrap.hud-row { flex-flow: row wrap; align-items: center; gap: 2px 1.2em; max-width: 100%; }
+html[data-layer="overlay"] .layer-slot[data-h="right"] .perfw-wrap.hud-row,
+html[data-layer="overlay"] .layer-slot[data-h="right"] .hud-row .perfw-main,
+html[data-layer="overlay"] .layer-slot[data-h="right"] .hud-row .perfw-lows,
+html[data-layer="overlay"] .layer-slot[data-h="right"] .hud-row .perfw-hw { justify-content: flex-end; align-self: auto; }
+html[data-layer="overlay"] .hud-row .perfw-graph { width: 6em; height: 1.2em; }
+html[data-layer="overlay"] .hud-row .perfw-main,
+html[data-layer="overlay"] .hud-row .perfw-lows,
+html[data-layer="overlay"] .hud-row .perfw-hw { flex-flow: row wrap; align-items: center; gap: 2px 1.2em; }
+html[data-layer="overlay"] .hud-row .perfw-fps,
+html[data-layer="overlay"] .hud-row .perfw-stat { gap: 0.4em; }
+html[data-layer="overlay"] .hud-row .perfw-fps b,
+html[data-layer="overlay"] .hud-row .perfw-stat-val { min-width: 3ch; }

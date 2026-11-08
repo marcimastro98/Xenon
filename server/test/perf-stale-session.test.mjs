@@ -14,10 +14,10 @@
 // sheet, not a process list, and Windows trims a minimised process's working set
 // hard: a minimised game drops off the list while still running. Ending the
 // session then reverts the power plan and drops the priority boost under a LIVE
-// game, with a toast saying it had finished. The oracle is now
-// perf-priority.ps1's own Get-Process lookup, whose `not_found` is an exact
-// answer. Both halves are pinned below, because the wrong oracle passed a test
-// that only checked "absent → end it".
+// game, with a toast saying it had finished. The oracle is now the `isRunning`
+// action: a lookup in the whole process table, with no PowerShell, whose
+// `running: false` is an exact answer. Both halves are pinned below, because the
+// wrong oracle passed a test that only checked "absent → end it".
 //
 // js/performance.js is a browser IIFE with no exports, so the decision is
 // re-implemented here from the source: the test owns the TRUTH TABLE, and the
@@ -27,17 +27,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
+const { createPriority } = createRequire(import.meta.url)('../perf-session/priority.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = fs.readFileSync(path.join(HERE, '..', 'js', 'performance.js'), 'utf8');
-const PS = fs.readFileSync(path.join(HERE, '..', 'perf-priority.ps1'), 'utf8');
 const STATS_PS = fs.readFileSync(path.join(HERE, '..', 'performance.ps1'), 'utf8');
 
-// The probe, modelled: what a setPriority reply means. Mirrors _boostedAlive().
+// The probe, modelled: what an isRunning reply means. Mirrors _boostedAlive().
 function alive(reply) {
-  if (reply && reply.ok) return true;
-  if (reply && reply.error === 'not_found') return false;
-  return null;                                   // nobody answered
+  return reply && reply.ok ? !!reply.running : null;   // null: nobody answered
 }
 
 // The decision, modelled. Mirrors _checkStale(): a first `false` only schedules
@@ -53,8 +52,8 @@ function decide(replies) {
   return seen.length ? 'recheck-pending' : 'keep';
 }
 
-const GONE = { ok: false, error: 'not_found' };
-const RUNNING = { ok: true, count: 1 };
+const GONE = { ok: true, running: false };
+const RUNNING = { ok: true, running: true };
 
 test('a session ends after the app it was started for is gone', () => {
   assert.equal(decide([RUNNING, GONE, GONE]), 'restore');
@@ -67,33 +66,32 @@ test('one absence is not enough — an app that is restarting keeps its session'
 });
 
 test('a reply that is not an answer never ends a session', () => {
-  // Off Windows the script cannot run at all; `unavailable`, a thrown fetch and
-  // a malformed body all arrive here. Reading any of them as "the app is gone"
-  // would end every session on every non-Windows machine.
+  // A table nobody could read, a thrown fetch and a malformed body all arrive here.
+  // Reading any of them as "the app is gone" would end every session on any PC
+  // whose table cannot be read.
   for (const r of [null, undefined, {}, { ok: false }, { ok: false, error: 'unavailable' },
-    { ok: false, error: 'protected' }, { ok: false, error: 'priority_failed' }]) {
+    { ok: false, error: 'lookup_failed' }, { ok: false, running: false }]) {
     assert.equal(alive(r), null, JSON.stringify(r));
     assert.equal(decide([r, r, r]), 'keep', JSON.stringify(r));
   }
 });
 
-test('only an explicit not_found counts as gone', () => {
+test('only an explicit running: false counts as gone', () => {
   assert.equal(alive(GONE), false);
   assert.equal(alive(RUNNING), true);
-  // ok:false with a count is the script saying it found the process but could
-  // not change it — still running.
-  assert.equal(alive({ ok: false, count: 0 }), null);
 });
 
 // ── the oracle itself has to keep being an oracle ────────────────────────────
 
-test('perf-priority.ps1 really answers not_found from a process lookup', () => {
-  assert.match(PS, /Get-Process -Name \$n/, 'it looks the process up by name');
-  assert.match(PS, /if \(-not \$procs\) \{ Write-Output '\{"ok":false,"error":"not_found"\}'/,
-    'and says not_found when there is none');
-  // The probe re-asserts the level the session already applied, so it has to be
-  // a no-op on a live process rather than a change.
-  assert.match(PS, /if \(\$level -eq 'high'\)/, "'high' is a level it accepts");
+test('the lookup reads the whole table and changes nothing', async () => {
+  const levels = [];
+  const rows = Array.from({ length: 500 }, (_, i) => ({ pid: i + 10, name: 'p' + i, startedAt: 1 }));
+  const system = { getPriority: () => 0, setPriority: (pid, level) => levels.push([pid, level]) };
+  const priority = createPriority({ table: { read: async () => rows }, system });
+  // The last row of a table no ranking would reach: a minimised game is in it.
+  assert.deepEqual(await priority.isRunning('p499'), { ok: true, running: true });
+  assert.deepEqual(await priority.isRunning('gone'), { ok: true, running: false });
+  assert.deepEqual(levels, [], 'asking is not touching');
 });
 
 test('performance.ps1 stats is still a ranking, which is why it is not the oracle', () => {
@@ -105,7 +103,8 @@ test('performance.ps1 stats is still a ranking, which is why it is not the oracl
 
 test('performance.js implements this the way the table above models it', () => {
   assert.match(SRC, /_boostedAlive/, 'the probe exists');
-  assert.match(SRC, /error === 'not_found'/, 'and keys on the exact answer');
+  assert.match(SRC, /type: 'isRunning', name/, 'it asks the table');
+  assert.match(SRC, /r && r\.ok \? !!r\.running : null/, 'and keys on the exact answer');
   assert.match(SRC, /_syncStaleWatch\(\);/, 'the watch is started from applyState()');
   assert.match(SRC, /_staleRecheck = setTimeout/, 'a first absence only schedules a recheck');
   assert.match(SRC, /restore\(\{ auto: true \}\)/, 'ending it goes through the normal restore, which toasts');

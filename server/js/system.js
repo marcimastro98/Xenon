@@ -1,5 +1,9 @@
 'use strict';
 
+// The server's first answer after a start: its slow readings are still out, so a
+// missing detail says nothing yet about the machine.
+let systemAnswerPartial = false;
+
 // Scoped field lookup within one System instance root.
 function sf(root, name) { return root.querySelector('[data-sf="' + name + '"]'); }
 
@@ -45,7 +49,7 @@ function renderDiskInto(root, disk) {
     // label, and it is what people expect to see under a drive.
     const parts = [disk.label || disk.model, disk.fileSystem, disk.driveType]
       .map(p => String(p || '').trim()).filter(Boolean);
-    detail.textContent = parts.length ? parts.join(' - ') : t('disk_detail_unavailable');
+    detail.textContent = parts.length ? parts.join(' - ') : (systemAnswerPartial ? '--' : t('disk_detail_unavailable'));
   }
   if (fill) setFill(fill, disk.percent);
 }
@@ -94,7 +98,7 @@ function applySystemInto(root, data) {
   fillEl('ram-fill', ram);
   set('ram-sub', data.memory ? formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total) : '--');
   const ramDetail = data.ramDetail || {};
-  set('ram-detail', ramDetail.detail || data.ramName || t('ram_detail_unavailable'));
+  set('ram-detail', ramDetail.detail || data.ramName || (systemAnswerPartial ? '--' : t('ram_detail_unavailable')));
   set('ram-name', ramDetail.moduleName || '');
 
   // The GPU card shows either load % or VRAM % (tap the ⇄ toggle). VRAM only
@@ -140,6 +144,9 @@ function applySystemInto(root, data) {
 }
 
 function applySystem(data) {
+  // The two answers can cross on the way in: a full one is never replaced by a partial.
+  if (data.partial && lastSystemData && !lastSystemData.partial) return;
+  systemAnswerPartial = !!data.partial;
   lastSystemData = data;
   if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
     window.DashboardGrid.forEachInstance('system', root => applySystemInto(root, data));
@@ -229,6 +236,12 @@ function weatherStaleFallback() {
   return { ...lastGoodWeather, stale: true };
 }
 
+// Pages that load this file for the System tile have no Weather tile or window to feed.
+function refreshWeatherTile() {
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
+}
+
 function applyWeather(data) {
   if (data && data.ok && !data.stale) lastGoodWeather = data;
   weatherData = data || null;
@@ -238,7 +251,7 @@ function applyWeather(data) {
   // later frame; widgets only ever see server-built objects (ok:false included).
   if (window.CustomWidget && weatherData) CustomWidget.onData('weather', weatherData);
   const pill = $('weather-pill');
-  if (!pill) { renderWeatherTile(); return; }
+  if (!pill) { refreshWeatherTile(); return; }
 
   if (!data || !data.ok) {
     pill.classList.add('offline');
@@ -246,8 +259,7 @@ function applyWeather(data) {
     $('weather-place').textContent = t('weather_unavailable');
     pill.title = [t('weather_unavailable'), weatherErrorLabel(data)].join(' · ');
     applyWeatherPillState(null);
-    renderWeatherDetails();
-    renderWeatherTile();
+    refreshWeatherTile();
     return;
   }
 
@@ -258,8 +270,7 @@ function applyWeather(data) {
   const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '']
     .filter(Boolean);
   pill.title = parts.length ? parts.join(' · ') : t('weather_title');
-  renderWeatherDetails();
-  renderWeatherTile();
+  refreshWeatherTile();
 }
 
 function weatherDisplayValue(value, suffix = '') {
@@ -293,12 +304,6 @@ function displayVisibility(km) {
   const v = Number(km);
   if (!Number.isFinite(v)) return '--';
   return weatherIsImperial() ? `${(v * 0.621371).toFixed(1)} mi` : `${km} km`;
-}
-
-function formatWeatherDate(dateValue) {
-  const date = new Date(`${dateValue}T12:00:00`);
-  if (!Number.isFinite(date.getTime())) return dateValue || '--';
-  return date.toLocaleDateString(i18n[lang].locale, { weekday: 'short', day: 'numeric' });
 }
 
 function formatWeatherUpdated(timestamp) {
@@ -403,54 +408,6 @@ function applyWeatherPillState(data) {
   setWeatherStateClass($('weather-pill-icon'), state);
 }
 
-// The animated sky/celestial/cloud/rain span stack used by the modal hero, so
-// the standalone tile shares its exact look and motion (see WeatherModal.css).
-const WEATHER_VIZ_SPANS = Object.freeze([
-  'weather-viz-sky', 'weather-viz-celestial',
-  'weather-viz-ring weather-viz-ring-a', 'weather-viz-ring weather-viz-ring-b',
-  'weather-viz-cloud weather-viz-cloud-a', 'weather-viz-cloud weather-viz-cloud-b',
-  'weather-viz-rain weather-viz-rain-a', 'weather-viz-rain weather-viz-rain-b', 'weather-viz-rain weather-viz-rain-c',
-  'weather-viz-bolt',
-  'weather-viz-snow weather-viz-snow-a', 'weather-viz-snow weather-viz-snow-b',
-  'weather-viz-fog',
-]);
-function buildWeatherHeroVisual(state, night) {
-  const vis = document.createElement('div');
-  vis.className = 'weather-hero-visual';
-  vis.setAttribute('aria-hidden', 'true');
-  setWeatherStateClass(vis, state);
-  vis.classList.toggle('is-night', !!night);
-  WEATHER_VIZ_SPANS.forEach(cls => {
-    const s = document.createElement('span');
-    s.className = cls;
-    vis.appendChild(s);
-  });
-  return vis;
-}
-
-function createWeatherHeroChip(valueText, labelKey) {
-  const span = document.createElement('span');
-  const b = document.createElement('b');
-  b.textContent = valueText;
-  const em = document.createElement('em');
-  em.setAttribute('data-i18n', labelKey);
-  em.textContent = t(labelKey);
-  span.append(b, em);
-  return span;
-}
-
-// Which extra sections the tile should show, from the (normalized) settings.
-function weatherTileSections() {
-  const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
-  const src = w.tile && typeof w.tile === 'object' ? w.tile : {};
-  return {
-    compact: src.hero === 'compact',
-    metrics: src.metrics !== false,
-    hourly: src.hourly !== false,
-    forecast: src.forecast !== false,
-  };
-}
-
 // How many days the "next days" forecast should render (1–7). The server returns
 // up to 7 days; the client trims to the user's preference. Providers that expose
 // fewer (wttr.in = 3) simply show what's available.
@@ -470,277 +427,6 @@ function weatherFieldEnabled(id) {
   return fields[id] !== false;
 }
 
-// The hero card (current conditions) — the same markup/classes as the modal hero,
-// so it looks and animates identically. Returns a <button> that opens the modal.
-function buildWeatherHeroCard(data) {
-  const card = document.createElement('button');
-  card.type = 'button';
-  card.className = 'weather-tile-card weather-hero-card';
-  card.addEventListener('click', () => { if (typeof toggleWeatherDetails === 'function') toggleWeatherDetails(); });
-
-  const ok = !!(data && data.ok);
-  const state = ok ? classifyWeatherState(data) : 'state-offline';
-  const night = ok && isWeatherNight(data.sunrise, data.sunset);
-  setWeatherStateClass(card, state);
-  card.classList.toggle('is-night', !!night);
-  card.classList.toggle('weather-tile--stale', ok && !!data.stale);
-  card.title = t('weather_open');
-
-  card.appendChild(buildWeatherHeroVisual(state, night));
-
-  const place = document.createElement('div');
-  place.className = 'weather-hero-place';
-  place.textContent = ok
-    ? ([data.location, data.region, data.country].filter(Boolean).join(', ') || t('weather_local'))
-    : t('weather_unavailable');
-  const temp = document.createElement('div');
-  temp.className = 'weather-hero-temp';
-  temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
-  const cond = document.createElement('div');
-  cond.className = 'weather-hero-condition';
-  cond.textContent = ok ? (data.condition || t('weather_title')) : weatherErrorLabel(data);
-  card.append(place, temp, cond);
-
-  if (ok) {
-    const meta = document.createElement('div');
-    meta.className = 'weather-hero-meta';
-    meta.textContent = formatWeatherUpdated(data.updatedAt);
-    card.appendChild(meta);
-
-    const chips = document.createElement('div');
-    chips.className = 'weather-hero-chips';
-    const chipDefs = [
-      ['feels', data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '--', 'weather_metric_feels'],
-      ['wind', displayWind(data.windKph), 'weather_metric_wind'],
-      ['rain', displayPrecip(data.precipMM), 'weather_metric_rain'],
-    ];
-    chipDefs.forEach(([id, value, key]) => {
-      if (weatherFieldEnabled(id)) chips.appendChild(createWeatherHeroChip(value, key));
-    });
-    if (chips.children.length) card.appendChild(chips);
-  }
-  return card;
-}
-
-// The one-line alternative to the hero card (GitHub #130: "I just want the next
-// hours/days, with a summary of the current temp/feels like"). Icon and
-// temperature, then the condition with feels-like under it (the one number the
-// request named, so it sits with the temperature rather than among the extras),
-// wind and rain quieter on the right, each behind its field toggle. It is still
-// the button that opens the full weather view, and the chevron says so: a
-// one-line strip does not look tappable the way the big card did.
-function buildWeatherCompactBar(data) {
-  const bar = document.createElement('button');
-  bar.type = 'button';
-  bar.className = 'weather-tile-card weather-tile-compact';
-  bar.addEventListener('click', () => { if (typeof toggleWeatherDetails === 'function') toggleWeatherDetails(); });
-
-  const ok = !!(data && data.ok);
-  const state = ok ? classifyWeatherState(data) : 'state-offline';
-  const night = ok && isWeatherNight(data.sunrise, data.sunset);
-  setWeatherStateClass(bar, state);
-  bar.classList.toggle('is-night', !!night);
-  bar.classList.toggle('weather-tile--stale', ok && !!data.stale);
-  const place = ok ? ([data.location, data.region, data.country].filter(Boolean).join(', ') || t('weather_local')) : '';
-  bar.title = place ? `${t('weather_open')} (${place})` : t('weather_open');
-
-  const icon = document.createElement('span');
-  icon.className = 'weather-compact-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  const glyph = document.createElement('span');
-  glyph.className = `weather-mini-icon ${state}`;
-  icon.appendChild(glyph);
-  const temp = document.createElement('span');
-  temp.className = 'weather-compact-temp';
-  temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
-
-  const text = document.createElement('span');
-  text.className = 'weather-compact-text';
-  const cond = document.createElement('span');
-  cond.className = 'weather-compact-condition';
-  cond.textContent = ok ? (data.condition || t('weather_title')) : weatherErrorLabel(data);
-  text.appendChild(cond);
-  if (ok && weatherFieldEnabled('feels')) {
-    const feels = document.createElement('span');
-    feels.className = 'weather-compact-feels';
-    feels.textContent = `${t('weather_metric_feels')} ${data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°` : '--'}`;
-    text.appendChild(feels);
-  }
-  bar.append(icon, temp, text);
-
-  if (ok) {
-    const stats = document.createElement('span');
-    stats.className = 'weather-compact-stats';
-    [
-      ['wind', displayWind(data.windKph), 'weather_metric_wind'],
-      ['rain', displayPrecip(data.precipMM), 'weather_metric_rain'],
-    ].forEach(([id, value, key]) => {
-      if (!weatherFieldEnabled(id)) return;
-      const chip = createWeatherHeroChip(value, key);
-      chip.className = `weather-compact-stat weather-compact-stat--${id}`;
-      stats.appendChild(chip);
-    });
-    if (stats.children.length) bar.appendChild(stats);
-  }
-
-  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  chevron.setAttribute('class', 'weather-compact-chevron');
-  chevron.setAttribute('viewBox', '0 0 16 16');
-  chevron.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M6 3.5 10.5 8 6 12.5');
-  chevron.appendChild(path);
-  bar.appendChild(chevron);
-  return bar;
-}
-
-// The 8 detail metrics as [id, element] pairs, filtered by the per-field
-// visibility setting. Shared by the tile grid and the modal so both honour the
-// same toggles and render identically.
-function weatherMetricCards(data) {
-  return [
-    ['aqi', createWeatherMetric(t('weather_metric_aqi'), weatherDisplayValue(data.aqi), aqiLabel(data.aqi), 'aqi', weatherMetricLevel('aqi', data.aqi))],
-    ['humidity', createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity', weatherMetricLevel('humidity', data.humidity))],
-    ['pm25', createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'), 'PM2.5', 'pm25', weatherMetricLevel('pm25', data.pm25))],
-    ['pm10', createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'), 'PM10', 'pm10', weatherMetricLevel('pm10', data.pm10))],
-    ['no2', createWeatherMetric(t('weather_metric_no2'), weatherDisplayValue(data.no2, ' μg/m³'), 'NO₂', 'no2', weatherMetricLevel('no2', data.no2))],
-    ['pollen', createWeatherMetric(t('weather_metric_pollen'), weatherDisplayValue(data.pollen, ' g/m³'), t('weather_metric_pollen'), 'pollen', weatherMetricLevel('pollen', data.pollen))],
-    ['pressure', createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure')],
-    ['visibility', createWeatherMetric(t('weather_metric_visibility'), displayVisibility(data.visibility), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility))],
-    ['uv', createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv', weatherMetricLevel('uv', data.uv))],
-    ['clouds', createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds')],
-  ].filter(([id]) => weatherFieldEnabled(id)).map(([, el]) => el);
-}
-
-// The detail-metrics grid for the standalone tile — same cards as the modal.
-function buildWeatherMetricsGrid(data) {
-  const grid = document.createElement('div');
-  grid.className = 'weather-metrics';
-  grid.append(...weatherMetricCards(data));
-  return grid;
-}
-
-// A titled section (title + content) for the tile body, matching the modal.
-function buildWeatherTileSection(titleKey, contentEl) {
-  const sec = document.createElement('div');
-  sec.className = 'weather-tile-section';
-  const title = document.createElement('div');
-  title.className = 'weather-section-title';
-  title.setAttribute('data-i18n', titleKey);
-  title.textContent = t(titleKey);
-  sec.append(title, contentEl);
-  return sec;
-}
-
-// Forecast as elegant full-width rows with an iOS-style temperature range bar:
-// [day] [icon] [low°] [=== gradient range ===] [high°]. The bar is scaled to the
-// span across all shown days, so warmer/colder days read at a glance.
-function buildWeatherTileForecast(data) {
-  const days = (Array.isArray(data.forecast) ? data.forecast : []).slice(0, weatherForecastDays());
-  const wrap = document.createElement('div');
-  wrap.className = 'weather-forecast weather-forecast--rows';
-  const mins = days.map(d => Number(d.minC)).filter(Number.isFinite);
-  const maxs = days.map(d => Number(d.maxC)).filter(Number.isFinite);
-  const lo = mins.length ? Math.min(...mins) : 0;
-  const hi = maxs.length ? Math.max(...maxs) : 1;
-  const span = Math.max(1, hi - lo);
-  const pct = (v) => Math.max(0, Math.min(100, ((Number(v) - lo) / span) * 100));
-  days.forEach((day, i) => {
-    const row = document.createElement('div');
-    row.className = 'weather-fc-row';
-    const state = classifyWeatherState(day, WEATHER_DAY_NOON_MIN);
-    row.dataset.weather = weatherStateIcon(state);
-
-    const name = document.createElement('span');
-    name.className = 'weather-fc-day';
-    name.textContent = i === 0 ? t('weather_today') : formatWeatherDate(day.date);
-    const icon = document.createElement('span');
-    icon.className = `weather-mini-icon ${state}`;
-    const minEl = document.createElement('span');
-    minEl.className = 'weather-fc-min';
-    minEl.textContent = weatherDisplayValue(toDisplayTemp(day.minC), '°');
-    const bar = document.createElement('span');
-    bar.className = 'weather-fc-bar';
-    const fill = document.createElement('span');
-    fill.className = 'weather-fc-fill';
-    if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
-      fill.style.left = pct(day.minC) + '%';
-      fill.style.right = (100 - pct(day.maxC)) + '%';
-    }
-    bar.appendChild(fill);
-    const maxEl = document.createElement('span');
-    maxEl.className = 'weather-fc-max';
-    maxEl.textContent = weatherDisplayValue(toDisplayTemp(day.maxC), '°');
-    row.append(name, icon, minEl, bar, maxEl);
-    wrap.appendChild(row);
-  });
-  return wrap;
-}
-
-// Populate the standalone Weather tile: the modal hero card, plus the chosen extra
-// sections (details / hourly / forecast) below it — each reusing the modal's own
-// builders and classes, so the whole thing looks identical, only resizable and
-// scrollable. Section visibility is a per-widget setting (Settings → Weather).
-// Fed from the shared weatherData by applyWeather + the layout pass.
-function renderWeatherTile() {
-  const mounts = document.querySelectorAll('.weather-widget-mount');
-  if (!mounts.length) return;
-  const data = weatherData;
-  const ok = !!(data && data.ok);
-  const sec = weatherTileSections();
-  const state = ok ? classifyWeatherState(data) : 'state-offline';
-  const night = ok && isWeatherNight(data.sunrise, data.sunset);
-  mounts.forEach(mount => {
-    const root = document.createElement('div');
-    root.className = 'weather-tile-root';
-    // Mirror the weather state onto the root so the body carries a faint ambient
-    // tint matching the hero's sky — the whole widget reads as one scene.
-    setWeatherStateClass(root, state);
-    root.classList.toggle('is-night', !!night);
-    root.classList.toggle('weather-tile-root--compact', sec.compact);
-    root.appendChild(sec.compact ? buildWeatherCompactBar(data) : buildWeatherHeroCard(data));
-
-    if (ok) {
-      const body = document.createElement('div');
-      body.className = 'weather-tile-body';
-      if (sec.metrics) {
-        const grid = buildWeatherMetricsGrid(data);
-        // Every metric hidden → skip the section entirely (no bare title).
-        if (grid.children.length) body.appendChild(buildWeatherTileSection('weather_section_details', grid));
-      }
-      if (sec.hourly && Array.isArray(data.hourly) && data.hourly.length) {
-        const h = document.createElement('div');
-        h.className = 'weather-hourly';
-        data.hourly.forEach(hour => h.appendChild(createWeatherHour(hour)));
-        body.appendChild(buildWeatherTileSection('weather_hourly', h));
-      }
-      if (sec.forecast && Array.isArray(data.forecast) && data.forecast.length) {
-        body.appendChild(buildWeatherTileSection('weather_forecast', buildWeatherTileForecast(data)));
-      }
-      if (body.children.length) {
-        root.classList.add('has-body');
-        root.appendChild(body);
-      }
-    }
-    mount.replaceChildren(root);
-  });
-}
-
-function setWeatherModalState(data) {
-  const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
-  setWeatherStateClass(document.querySelector('.weather-panel'), state);
-  setWeatherStateClass($('weather-hero-visual'), state);
-  setWeatherStateClass($('weather-pill'), state);
-  setWeatherStateClass($('weather-pill-icon'), state);
-  // At night the light source behind clouds/rain/etc. must be the moon, not the
-  // sun (the precipitation states don't have their own night variant).
-  const hero = $('weather-hero-visual');
-  if (hero) {
-    const night = !!(data && data.ok && isWeatherNight(data.sunrise, data.sunset));
-    hero.classList.toggle('is-night', night);
-  }
-}
-
 function aqiLabel(aqi) {
   const n = Number(aqi);
   if (!Number.isFinite(n)) return '--';
@@ -757,7 +443,7 @@ function weatherMetricLevel(metric, v) {
   if (v == null || v === '' || !Number.isFinite(Number(v))) return '';
   const n = Number(v);
   switch (metric) {
-    case 'aqi':        return n <= 50 ? 'good' : n <= 100 ? 'moderate' : 'bad';
+    case 'aqi':        return n <= 40 ? 'good' : n <= 60 ? 'moderate' : 'bad';   // the same steps as aqiLabel
     case 'pm25':       return n <= 12 ? 'good' : n <= 35 ? 'moderate' : 'bad';
     case 'pm10':       return n <= 54 ? 'good' : n <= 154 ? 'moderate' : 'bad';
     case 'no2':        return n <= 40 ? 'good' : n <= 100 ? 'moderate' : 'bad';
@@ -769,149 +455,30 @@ function weatherMetricLevel(metric, v) {
   }
 }
 
-function createWeatherMetric(label, value, sub, metric, level) {
-  const card = document.createElement('div');
-  card.className = 'weather-metric' + (level ? ` weather-metric--${level}` : '');
-  if (metric) card.dataset.metric = metric;
-  const labelEl = document.createElement('div');
-  labelEl.className = 'weather-metric-label';
-  labelEl.textContent = label;
-  const valueEl = document.createElement('div');
-  valueEl.className = 'weather-metric-value';
-  valueEl.textContent = value;
-  const subEl = document.createElement('div');
-  subEl.className = 'weather-metric-sub';
-  subEl.textContent = sub || '';
-  card.append(labelEl, valueEl, subEl);
-  return card;
-}
-
-function createWeatherHour(hour) {
-  const card = document.createElement('div');
-  card.className = 'weather-hour';
-  // A clear 22:00 is a moon whatever the time now; the hours carry no sun times
-  // of their own, today's are close enough for tonight and early tomorrow.
-  const sun = (typeof weatherData !== 'undefined' && weatherData) || {};
-  const state = classifyWeatherState({ ...hour, sunrise: hour.sunrise ?? sun.sunrise, sunset: hour.sunset ?? sun.sunset }, parseSunTime(hour.time) ?? undefined);
-  card.dataset.weather = weatherStateIcon(state);
-  const time = document.createElement('div');
-  time.className = 'weather-hour-time';
-  time.textContent = hour.time || '--';
-  const icon = document.createElement('span');
-  icon.className = `weather-mini-icon ${state}`;
-  const temp = document.createElement('div');
-  temp.className = 'weather-hour-temp';
-  temp.textContent = weatherDisplayValue(toDisplayTemp(hour.tempC), '°');
-  card.title = [hour.condition, hour.windKph != null ? displayWind(hour.windKph) : ''].filter(Boolean).join(' · ');
-  card.append(time, icon, temp);
-  // Rain chance isn't available from every provider — show it only when present
-  // instead of a bare "Rain --".
-  if (hour.rain != null) {
-    const rain = document.createElement('div');
-    rain.className = 'weather-hour-rain';
-    rain.textContent = `${t('weather_rain_short')} ${weatherDisplayValue(hour.rain, '%')}`;
-    card.append(rain);
-  }
-  return card;
-}
-
-function createWeatherDay(day) {
-  const card = document.createElement('div');
-  card.className = 'weather-day';
-  const state = classifyWeatherState(day, WEATHER_DAY_NOON_MIN);   // a day is its daytime, never a moon
-  card.dataset.weather = weatherStateIcon(state);
-  const top = document.createElement('div');
-  top.className = 'weather-day-top';
-  const date = document.createElement('span');
-  date.textContent = formatWeatherDate(day.date);
-  const range = document.createElement('span');
-  range.className = 'weather-day-range';
-  range.textContent = `${weatherDisplayValue(toDisplayTemp(day.minC), '°')} / ${weatherDisplayValue(toDisplayTemp(day.maxC), '°')}`;
-  top.append(date, range);
-  const condition = document.createElement('div');
-  condition.className = 'weather-day-condition';
-  condition.textContent = day.condition || '--';
-  const icon = document.createElement('span');
-  icon.className = `weather-mini-icon weather-day-icon ${state}`;
-  card.append(top, icon, condition);
-  // Sunrise/sunset isn't available from every provider — show the row only when
-  // there's at least one real time rather than a bare "Sun -- - --".
-  if (day.sunrise || day.sunset) {
-    const sun = document.createElement('div');
-    sun.className = 'weather-day-sun';
-    sun.textContent = `${t('weather_sun')} ${day.sunrise || '--'} - ${day.sunset || '--'}`;
-    card.append(sun);
-  }
-  return card;
-}
-
-function renderWeatherDetails() {
-  const overlay = $('weather-overlay');
-  if (!overlay || overlay.hidden) return;
-  const data = weatherData;
-  const place = $('weather-modal-place');
-  const temp = $('weather-modal-temp');
-  const condition = $('weather-modal-condition');
-  const updated = $('weather-modal-updated');
-  const heroFeels = $('weather-hero-feels');
-  const heroWind = $('weather-hero-wind');
-  const heroRain = $('weather-hero-rain');
-  const metrics = $('weather-metrics');
-  const hourly = $('weather-hourly');
-  const forecast = $('weather-forecast');
-  if (!place || !temp || !condition || !updated || !metrics || !hourly || !forecast) return;
-
-  if (!data || !data.ok) {
-    setWeatherModalState(null);
-    place.textContent = t('weather_unavailable');
-    temp.textContent = '--°';
-    condition.textContent = weatherErrorLabel(data);
-    updated.textContent = '';
-    if (heroFeels) heroFeels.textContent = '--';
-    if (heroWind) heroWind.textContent = '--';
-    if (heroRain) heroRain.textContent = '--';
-    const explain = createWeatherMetric(t('weather_status'), weatherErrorLabel(data), weatherErrorHint(data));
-    explain.classList.add('weather-metric--explain');
-    metrics.replaceChildren(explain);
-    hourly.replaceChildren();
-    forecast.replaceChildren();
-    return;
-  }
-
-  setWeatherModalState(data);
-  const fullPlace = [data.location, data.region, data.country].filter(Boolean).join(', ');
-  place.textContent = fullPlace || t('weather_local');
-  temp.textContent = `${toDisplayTemp(data.tempC)}°`;
-  condition.textContent = data.condition || t('weather_title');
-  updated.textContent = formatWeatherUpdated(data.updatedAt);
-  if (heroFeels) heroFeels.textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°' + tempUnitSuffix());
-  if (heroWind) heroWind.textContent = displayWind(data.windKph);
-  if (heroRain) heroRain.textContent = displayPrecip(data.precipMM);
-  // Hide a hero chip by hiding its wrapping <span> (the id is on the inner <b>).
-  const setChipVisible = (bEl, id) => { if (bEl && bEl.parentElement) bEl.parentElement.hidden = !weatherFieldEnabled(id); };
-  setChipVisible(heroFeels, 'feels');
-  setChipVisible(heroWind, 'wind');
-  setChipVisible(heroRain, 'rain');
-
-  metrics.replaceChildren(...weatherMetricCards(data));
-
-  hourly.replaceChildren(...(Array.isArray(data.hourly) ? data.hourly : []).map(createWeatherHour));
-  forecast.replaceChildren(...(Array.isArray(data.forecast) ? data.forecast : []).slice(0, weatherForecastDays()).map(createWeatherDay));
-}
+// The window itself is js/weather-window.js. These two doors stay here because every page
+// with this file answers them, also the ones that have no window to open.
+let weatherWindowLetGo = null;
 
 function toggleWeatherDetails() {
   const overlay = $('weather-overlay');
   if (!overlay) return;
-  overlay.hidden = !overlay.hidden;
-  if (!overlay.hidden) {
-    renderWeatherDetails();
-    if (!weatherData) fetchWeather();
+  if (!overlay.hidden) { closeWeatherDetails(); return; }
+  overlay.hidden = false;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('weather', true);
+  if (!weatherData) fetchWeather();
+  renderWeatherDetails();
+  if (window.DialogFocus) {
+    weatherWindowLetGo = window.DialogFocus.hold(overlay.querySelector('.weather-panel'), { onEsc: closeWeatherDetails });
   }
 }
 
 function closeWeatherDetails() {
   const overlay = $('weather-overlay');
-  if (overlay) overlay.hidden = true;
+  if (!overlay || overlay.hidden) return;
+  overlay.hidden = true;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('weather', false);
+  if (weatherWindowLetGo) weatherWindowLetGo();
+  weatherWindowLetGo = null;
 }
 
 async function fetchWeather() {
@@ -937,6 +504,7 @@ async function fetchWeather() {
     if (!res.ok) throw new Error('Weather unavailable');
     applyWeather(await res.json());
   } catch {
+    fetchingWeather = false;   // the window reads it: a failed request is no longer "loading"
     // A request that did not arrive says nothing about the weather, so the last
     // reading is kept and marked stale rather than blanked — the tile stays
     // useful across a hiccup, and the modal shows how old it is. Only when there
@@ -963,6 +531,8 @@ async function fetchSystem() {
     if (!res.ok) throw new Error('System unavailable');
     const data = await res.json();
     applySystem(data);
+    // The answer at boot usually beats the feed's first event: the splash has its data.
+    if (window.BootSplash) window.BootSplash.ready('data');
   } catch { } finally {
     // In a `finally`, and behind a deadline: this is the SSE fallback poller, so
     // one hung request would strand the dashboard on the path that exists

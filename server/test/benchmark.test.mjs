@@ -179,9 +179,35 @@ test('the game closing or changing ends the run and saves it', async () => {
   await r.b.flush();
   assert.equal(r.ended.length, 1);
   assert.equal(r.ended[0].reason, 'game_ended');
-  assert.equal(r.ended[0].frames, 400);
+  assert.equal(r.ended[0].frames, 275, 'all but its last second');
   assert.equal(r.writes.length, 1);
   assert.equal(r.timers.fn, null);
+});
+
+// Measured on a real exit: 5357 frames at 240 fps, and a 559 ms frame in the last
+// second took the 1% low from about 235 to 50.
+test('the last second of a game that closes is not play, and does not count', async () => {
+  const r = rig();
+  r.b.start();
+  r.fps.st.frames.push(...Array(2000).fill(4));
+  r.tick();
+  r.fps.st.frames.push(559, 12.5, 83.3, 145.8, 33.3);
+  r.tick();
+  r.g.name = '';
+  r.tick();
+  await r.b.flush();
+  assert.equal(r.ended[0].reason, 'game_ended');
+  assert.ok(r.ended[0].low1Fps > 200, `got ${r.ended[0].low1Fps}`);
+  assert.ok(!r.writes[0].text.includes('559.000'), 'the file holds the same frames as the numbers');
+});
+
+test('a run stopped by hand keeps every frame, slow ones too', async () => {
+  const r = rig();
+  r.b.start();
+  r.fps.st.frames.push(...Array(2000).fill(4), 559);
+  r.tick();
+  const res = await r.b.stop();
+  assert.equal(res.frames, 2001);
 });
 
 test('too short to mean anything: nothing is written', async () => {

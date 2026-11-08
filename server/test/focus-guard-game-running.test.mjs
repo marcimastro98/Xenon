@@ -115,7 +115,7 @@ test('a widget-layer window is not the kiosk: native-bridge sends it no shell si
 });
 
 test('the Game mode hint says the focus option does not depend on it, in every language', () => {
-  const block = I18N.slice(I18N.indexOf('// Game mode is only the look'));
+  const block = I18N.slice(I18N.indexOf('// Game mode is the look and the background work'));
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     assert.match(block, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{ settings_gamemode_hint: '[^']*Keep games focused[^']*' \\}\\);`), lang);
   }

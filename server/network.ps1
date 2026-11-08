@@ -14,6 +14,8 @@ $OutputEncoding = $utf8NoBom
 # (Win32_PingStatus) e costava piu' di tutto il resto del collector. Questo
 # script gira ogni 3s nel worker mentre il pannello Sistema e' visibile.
 $ping = $null
+$pingSent = 0
+$pingLost = 0
 $latency = $null
 try {
   if (-not $global:XenonPinger) { $global:XenonPinger = New-Object System.Net.NetworkInformation.Ping }
@@ -26,6 +28,8 @@ try {
       }
     } catch { }
   }
+  $pingSent = 3
+  $pingLost = $pingSent - $rtts.Count
   if ($rtts.Count -gt 0) {
     $ping = [int](($rtts | Measure-Object -Average).Average)
     if ($rtts.Count -gt 1) {
@@ -132,6 +136,8 @@ public static class DwmFps {
 @{
   ping       = $ping
   latency    = $latency
+  pingSent   = $pingSent
+  pingLost   = $pingLost
   rxBytes    = $rx
   txBytes    = $tx
   fps        = $fps

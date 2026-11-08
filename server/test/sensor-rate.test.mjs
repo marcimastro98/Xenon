@@ -79,7 +79,7 @@ test('the control offers exactly the three steps, and each says what it costs', 
 test('every string is translated in all eleven languages the app ships', () => {
   const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
   const KEYS = [
-    'settings_sensorrate_title', 'settings_sensorrate_hint',
+    'settings_sensorrate_title',
     'settings_sensorrate_5s', 'settings_sensorrate_2s', 'settings_sensorrate_1s',
     'settings_sensorrate_note_5000', 'settings_sensorrate_note_2000', 'settings_sensorrate_note_1000',
   ];

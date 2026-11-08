@@ -19,6 +19,11 @@ const { createFrameHistogram } = require('./frame-stats');
 const MAX_SESSIONS = 100;
 const MIN_SESSION_MS = 2 * 60 * 1000;
 const MAX_GAME_LEN = 80;
+const MAX_APPS_MOVED = 99;
+// A game left out of the list gets a line in server.log, so a missing match can be
+// explained; a launcher's few seconds are not worth one, nor a game flapping each tick.
+const UNKEPT_LOG_MIN_MS = 30 * 1000;
+const UNKEPT_LOG_EVERY_MS = 60 * 1000;
 
 const round1 = v => Math.round(v * 10) / 10;
 const finite = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -47,6 +52,9 @@ function normalizeSession(raw) {
     gpuAvg: num('gpuAvg'),
     cpuTempMax: num('cpuTempMax'),
     gpuTempMax: num('gpuTempMax'),
+    // Only on the games played in a Performance Mode session: "did it help?" is the
+    // same game with and without.
+    ...(raw.perfMode === true ? { perfMode: true, appsMoved: Math.max(0, Math.min(MAX_APPS_MOVED, Math.floor(finite(raw.appsMoved) || 0))) } : {}),
   };
 }
 
@@ -70,6 +78,7 @@ function compareSessions(sessions, game) {
 // What a widget granted the `gameSessions` stream reads (GET /perf/sessions):
 // the game being played, the latest sessions, and the newest one against the
 // one before it of the same game. Off in Settings = an empty, honest answer.
+// The Performance Mode tag is for Bit and stays out of the stream.
 function widgetSnapshot(store, { enabled = true, limit = 20 } = {}) {
   if (!enabled) return { ok: true, enabled: false, current: null, sessions: [], compare: null };
   const c = store.compare('');
@@ -77,7 +86,7 @@ function widgetSnapshot(store, { enabled = true, limit = 20 } = {}) {
     ok: true,
     enabled: true,
     current: store.current(),
-    sessions: store.list({ limit }),
+    sessions: store.list({ limit }).map(({ perfMode, appsMoved, ...session }) => session),
     compare: c ? {
       game: c.latest.game,
       latestId: c.latest.id,
@@ -89,10 +98,11 @@ function widgetSnapshot(store, { enabled = true, limit = 20 } = {}) {
   };
 }
 
-function createGameSessions({ fps, file, writeFileAtomic, now = Date.now, enabled = () => true, onEnd = () => {} }) {
+function createGameSessions({ fps, file, writeFileAtomic, now = Date.now, enabled = () => true, onEnd = () => {}, log = console.warn }) {
   let sessions = [];
   let open = null;
   let saving = Promise.resolve();
+  let unkeptLoggedAt = -Infinity;
 
   async function load() {
     let raw;
@@ -112,7 +122,7 @@ function createGameSessions({ fps, file, writeFileAtomic, now = Date.now, enable
   function save() {
     const body = JSON.stringify({ version: 1, sessions });
     saving = saving.then(() => writeFileAtomic(file, body)).catch((e) => {
-      console.warn('[game-sessions] save failed:', e && e.message);
+      log('[game-sessions] save failed: ' + (e && e.message));
     });
     return saving;
   }
@@ -120,7 +130,7 @@ function createGameSessions({ fps, file, writeFileAtomic, now = Date.now, enable
   function begin(game) {
     return {
       game, start: now(), hist: createFrameHistogram(), mark: null,
-      rateSum: 0, rateN: 0,
+      rateSum: 0, rateN: 0, ticks: 0, perfTicks: 0, appsMoved: 0,
       cpuSum: 0, cpuN: 0, gpuSum: 0, gpuN: 0, cpuTempMax: null, gpuTempMax: null,
     };
   }
@@ -155,28 +165,49 @@ function createGameSessions({ fps, file, writeFileAtomic, now = Date.now, enable
       gpuAvg: o.gpuN ? o.gpuSum / o.gpuN : null,
       cpuTempMax: o.cpuTempMax,
       gpuTempMax: o.gpuTempMax,
+      // Most of the game, or the comparison would credit a session started at the end.
+      perfMode: o.perfTicks * 2 > o.ticks,
+      appsMoved: o.appsMoved,
     });
+  }
+
+  function noteUnkept(o, end) {
+    const ms = end - o.start;
+    if (ms < UNKEPT_LOG_MIN_MS || end - unkeptLoggedAt < UNKEPT_LOG_EVERY_MS) return;
+    unkeptLoggedAt = end;
+    const why = ms < MIN_SESSION_MS ? 'shorter than ' + MIN_SESSION_MS / 60000 + ' min' : 'no frame rate was read';
+    log(`[game-sessions] ${o.game}: ${Math.round(ms / 1000)} s not kept, ${why}`);
   }
 
   function end() {
     const o = open;
     open = null;
-    const s = o && summarize(o, now());
-    if (!s) return null;
+    if (!o) return null;
+    const at = now();
+    const s = summarize(o, at);
+    if (!s) { noteUnkept(o, at); return null; }
     sessions = [s, ...sessions.filter(x => x.id !== s.id)].slice(0, MAX_SESSIONS);
     save();
     try { onEnd(s); } catch { /* a listener never breaks the record */ }
     return s;
   }
 
+  function notePerfMode(perf) {
+    open.ticks++;
+    if (!perf || !perf.active) return;
+    open.perfTicks++;
+    open.appsMoved = Math.max(open.appsMoved, perf.moved || 0);
+  }
+
   // Called on the status tick (every few seconds and on every game change).
-  function tick({ running, game } = {}) {
+  // perf: { active, moved }, the Performance Mode session right now.
+  function tick({ running, game, perf } = {}) {
     if (!enabled()) { open = null; return; }
     // A running game reported without a name for a tick is still the same game.
     const g = running ? (gameKey(game) || (open ? open.game : '')) : '';
     if (open && open.game !== g) end();
     if (g && !open) open = begin(g);
-    if (open) collect();
+    if (open) { notePerfMode(perf); collect(); }
   }
 
   function onSystem(sys) {
