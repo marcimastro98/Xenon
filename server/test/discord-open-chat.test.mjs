@@ -140,7 +140,8 @@ test('both routes go through the cross-platform launcher', () => {
   assert.doesNotMatch(launch, /powershell\.exe/, 'a PowerShell-only launch does nothing on macOS and Linux');
   const open = server.slice(server.indexOf("reqPath === '/stream/discord/open-chat'"), server.indexOf('// ── Spotify integration'));
   assert.match(open, /readBody\(req, 4096\)/, 'a small body, capped');
-  assert.match(open, /select: \(id\) => discordRpc\.openTextChannel\(id\)/);
+  assert.match(open, /openDiscordChat\(body && body\.channelId\)/);
+  assert.match(server, /const openDiscordChat = [\s\S]{0,200}select: \(id\) => discordRpc\.openTextChannel\(id\)/);
 });
 
 test('the widget offers Reply only where it can act, and says what happened', () => {
@@ -172,4 +173,38 @@ test('the Reply button stays readable on a light theme', () => {
   const light = read('../styles/themes-light.css');
   assert.match(light, /:root\[data-appearance="light"\] \.dc-notif-reply \{ color: #4752c4; \}|\.dc-notif-reply \{ color: #4752c4; \}/);
   assert.match(light, /:root\[data-appearance="light"\] \.dc-notif-title,/);
+});
+
+test('an SDK widget can open a chat, and only as a hidden, granted action', async () => {
+  const { actionSpec, validateAction } = require('../js/deck-actions.js');
+  const reg = require('../actions/registry.js');
+  const sdk = require('../sdk-widgets.js');
+  // A Deck key has no message to take the channel id from.
+  assert.equal(actionSpec('discordOpenChat').hidden, true);
+  assert.ok(sdk.SDK_ACTION_CATEGORIES.discord.includes('discordOpenChat'));
+  assert.match(read('../js/custom-widget.js'), /discord: \[[^\]]*'discordOpenChat'/);
+  assert.equal(validateAction({ type: 'discordOpenChat', channel: '9'.repeat(80) }).channel.length, 25);
+
+  const run = (result) => reg.createRegistry({ discordOpenChat: async () => result })
+    .run({ type: 'discordOpenChat', channel: '42' });
+  assert.deepEqual(await run({ ok: true, selected: true }), { ok: true });
+  // Discord came up, the chat did not: the widget must say so.
+  assert.deepEqual(await run({ ok: true, selected: false }), { ok: false, error: 'chat_not_opened' });
+  assert.deepEqual(await run({ ok: false, error: 'bad_channel' }), { ok: false, error: 'bad_channel' });
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'discordOpenChat', channel: '42' }),
+    { ok: false, error: 'discord_unavailable' });
+});
+
+test('a paired phone is refused the chat, and a widget is told it is on one', () => {
+  // It would open Discord on the PC, out of sight of whoever tapped.
+  assert.doesNotMatch(read('../remote-actions.js'), /discordOpenChat/);
+  assert.match(read('../js/custom-widget.js'), /remote: !!\(window\.RemoteSurface/);
+});
+
+test('the SDK docs teach the chat action to Bit and to widget authors', () => {
+  const doc = read('../../docs/WIDGET_SDK.md');
+  assert.match(doc, /### 5d-bis\. Replying to a message: `discordOpenChat`/);
+  assert.match(doc, /remote: false/);
+  assert.match(doc, /items:\[\{ id, at, title, body, icon, channelId, messageType \}\]/);
+  assert.match(read('../../docs/create/index.html'), /<code>discordOpenChat<\/code>/);
 });

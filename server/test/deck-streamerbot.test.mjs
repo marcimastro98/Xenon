@@ -167,7 +167,7 @@ test('createStreamerbot: an error status rejects with the reported reason', asyn
   c.close();
 });
 
-test('createStreamerbot watch: seeds globals from GetGlobals + reflects GlobalVariable events', async () => {
+test('createStreamerbot watch: seeds globals from GetGlobals + reflects GlobalVariable events', async (t) => {
   let sock;
   class WatchWS {
     constructor() { sock = this; this.l = {}; setTimeout(() => this._emit('message', { data: JSON.stringify({ request: 'Hello' }) }), 0); }
@@ -192,7 +192,12 @@ test('createStreamerbot watch: seeds globals from GetGlobals + reflects GlobalVa
   let changes = 0;
   const activity = [];
   const stop = c.watch(() => { changes++; }, (a) => { activity.push(a); });
-  await new Promise((r) => setTimeout(r, 40));          // let seed + subscribe settle
+  // A failed assert must not leave the watcher reconnecting: it would hold the run open.
+  t.after(() => { stop(); c.close(); });
+  // Let seed + subscribe settle. By condition, not a fixed wait: a busy machine takes longer.
+  for (let i = 0; i < 200 && (c.globalsSnapshot().mode !== 'live' || changes < 1); i++) {
+    await new Promise((r) => setTimeout(r, 10));
+  }
   assert.deepEqual(c.globalsSnapshot(), { toggle: true, mode: 'live' });
   assert.ok(changes >= 1);
   // A live update flips a value; a delete removes it (event.source must be 'Misc').
@@ -207,7 +212,6 @@ test('createStreamerbot watch: seeds globals from GetGlobals + reflects GlobalVa
   assert.equal(activity.length, 1);
   assert.equal(activity[0].type, 'Follow');
   assert.equal(activity[0].user, 'Bob');
-  stop(); c.close();
 });
 
 test('projectActivity extracts user/text/amount defensively across event shapes', () => {

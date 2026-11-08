@@ -231,8 +231,8 @@
     // audio) evenly down the full height instead of clustering them at the top.
     const vols = el('div', 'dc-ctl-group dc-ctl-vols');
     vols.append(
-      volRow('dc-vol-in', 'deck_act_discordInputVol', 'discordInputVol'),
-      volRow('dc-vol-out', 'deck_act_discordOutputVol', 'discordOutputVol'),
+      volRow('dc-vol-in', 'dc_vol_mic', 'discordInputVol'),
+      volRow('dc-vol-out', 'dc_vol_out', 'discordOutputVol'),
     );
     pCtl.appendChild(vols);
     // Audio processing toggles.
@@ -553,7 +553,7 @@
     // thumb locally, and the level is written once, when the finger lifts. The
     // flag also stops the SSE repaint from yanking the thumb out from under it.
     range.addEventListener('pointerdown', () => { dragging = true; });
-    range.addEventListener('input', () => { val.textContent = range.value; row.classList.remove('is-unknown'); });
+    range.addEventListener('input', () => { val.textContent = range.value; paintFill(range); row.classList.remove('is-unknown'); });
     const commit = () => {
       if (!dragging) return;
       dragging = false;
@@ -567,6 +567,12 @@
 
     row.append(mute, range, val);
     return row;
+  }
+
+  // The Liquid fader has no handle: it paints the level from --fill, a share of its range.
+  function paintFill(range) {
+    const share = (Number(range.value) / (Number(range.max) || 100)) * 100;
+    range.style.setProperty('--fill', `${Math.max(0, Math.min(100, share))}%`);
   }
 
   // Values only — called on every paint, including the SSE pushes, so the row
@@ -589,6 +595,7 @@
     const known = m.volume != null;
     row.classList.toggle('is-unknown', !known);
     range.value = String(known ? m.volume : 100);
+    paintFill(range);
     val.textContent = known ? String(m.volume) : '—';
   }
 
@@ -618,9 +625,10 @@
     const nTxt = mount.querySelector('.dc-notice-txt');
     if (nTxt) nTxt.textContent = t('twitch_not_connected', 'Connect in Settings → Streaming');
     const inLbl = mount.querySelector('.dc-vol-in .dc-vol-lbl');
-    if (inLbl) inLbl.textContent = t('deck_act_discordInputVol', '');
+    // Inside the Discord tile the name of the app goes without saying.
+    if (inLbl) inLbl.textContent = t('dc_vol_mic', 'Mic volume');
     const outLbl = mount.querySelector('.dc-vol-out .dc-vol-lbl');
-    if (outLbl) outLbl.textContent = t('deck_act_discordOutputVol', '');
+    if (outLbl) outLbl.textContent = t('dc_vol_out', 'Output volume');
     const audLbl = mount.querySelector('.dc-ctl-audio .dc-sec-label');
     if (audLbl) audLbl.textContent = t('layout_card_audio', 'Audio');
     mount.querySelectorAll('.dc-chip').forEach(chip => {

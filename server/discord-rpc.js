@@ -545,7 +545,15 @@ function createDiscordProvider(deps) {
       timer = setTimeout(() => fail(new Error('discord_timeout')), CMD_TIMEOUT_MS);
       Promise.resolve().then(getAccessToken).then((token) => {
         if (settled) return;
-        if (!token) { fail(new Error('not_connected')); return; }
+        if (!token) {
+          // Creds still stored: the refresh only failed for now, so the watch must
+          // retry. 'not_connected' would stop it with the account still linked.
+          creds().then(
+            (left) => fail(new Error(left.accessToken ? 'discord_closed' : 'not_connected')),
+            () => fail(new Error('not_connected')),
+          );
+          return;
+        }
         _connectPipe().then((s) => {
           if (settled) { try { s.destroy(); } catch { /* ignore */ } return; }
           sock = s;
@@ -585,7 +593,9 @@ function createDiscordProvider(deps) {
     return rawSend(cmd, args || {});
   }
 
-  // Exchange the refresh token for a fresh access token; clear creds on hard fail.
+  // Exchange the refresh token for a fresh access token. Only a revoked or expired
+  // refresh token (invalid_grant) unlinks the account: a 5xx, a rate limit or a bad
+  // client secret must keep the login, or a hiccup forces the user to link again.
   async function refresh() {
     const c = await creds();
     if (!c.refreshToken) return false;
@@ -595,9 +605,9 @@ function createDiscordProvider(deps) {
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) { await clearCreds(); return false; }
-      await persistToken(data);
-      return true;
+      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
+      if (data && String(data.error || '').toLowerCase() === 'invalid_grant') await clearCreds();
+      return false;
     } catch { return false; }   // network blip: keep creds, fail this attempt
   }
   const getAccessToken = makeGetAccessToken(refresh);

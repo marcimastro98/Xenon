@@ -143,6 +143,12 @@
     return (h ? h + ':' : '') + mm + ':' + String(r).padStart(2, '0');
   }
 
+  // The Liquid progress line has no handle: the watched part is painted from --fill.
+  function paintSeekFill(seek) {
+    const share = (Number(seek.value) / (Number(seek.max) || 1000)) * 100;
+    seek.style.setProperty('--fill', `${Math.max(0, Math.min(100, share))}%`);
+  }
+
   // Open a URL where the user can see it: a visible Browser tile first (which
   // re-validates the host), else the PC's default browser through the validated
   // openUrl action. Never window.open — a kiosk surface has nowhere to put a tab.
@@ -454,7 +460,7 @@
     const seek = document.createElement('input');
     seek.type = 'range'; seek.className = 'yt-seek'; seek.min = '0'; seek.max = '1000'; seek.value = '0';
     seek.setAttribute('aria-label', t('youtube_seek', 'Seek'));
-    seek.addEventListener('input', () => { seek.dataset.ytDrag = '1'; });
+    seek.addEventListener('input', () => { seek.dataset.ytDrag = '1'; paintSeekFill(seek); });
     seek.addEventListener('change', () => {
       seek.dataset.ytDrag = '';
       if (player.duration > 0) {
@@ -658,7 +664,7 @@
       const title = card.querySelector('.yt-now-title');
       const sub = card.querySelector('.yt-now-sub');
       title.textContent = v ? (v.title || '') : '';
-      sub.textContent = v ? [v.channel || '', player.queue.length > 1 ? (player.qi + 1) + '/' + player.queue.length : ''].filter(Boolean).join(' · ') : '';
+      setWordParts(sub, v ? [v.channel || '', player.queue.length > 1 ? (player.qi + 1) + '/' + player.queue.length : ''] : []);
 
       const pp = card.querySelector('.yt-playpause');
       setIcon(pp, playing ? 'pause' : 'play', playing ? ICONS.pause : ICONS.play);
@@ -684,6 +690,7 @@
       const dur = player.duration > 0 ? player.duration : (v && v.seconds) || 0;
       seek.disabled = !(dur > 0);
       if (seek.dataset.ytDrag !== '1') seek.value = String(dur > 0 ? Math.round((player.time / dur) * 1000) : 0);
+      paintSeekFill(seek);
       card.querySelector('.yt-time-cur').textContent = fmtTime(player.time);
       card.querySelector('.yt-time-dur').textContent = fmtTime(dur);
 

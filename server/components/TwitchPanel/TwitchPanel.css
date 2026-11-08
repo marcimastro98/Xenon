@@ -42,6 +42,9 @@
   font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
   color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
 }
+.twitch-state { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.twitch-watching { font-size: 0.72rem; font-weight: 700; color: var(--text-dim, #8b91a1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.twitch-watching:empty { display: none; }
 .twitch-status-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #870000; flex: 0 0 auto; }
 .twitch-status-pill.live { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.38); }
 .twitch-status-pill.live .twitch-status-dot { background: #e0245e; }
@@ -208,7 +211,12 @@ body.overlay-frozen .twitch-status-pill.live .twitch-status-dot::after { animati
   font-size: 0.8rem; line-height: 1.4; scrollbar-width: thin;
 }
 .twitch-chat-line { word-break: break-word; }
-.twitch-chat-user { font-weight: 800; color: #a970ff; }
+.twitch-chat-user { font-weight: 800; color: var(--name, #a970ff); }
+/* The colour a viewer chose was picked against Twitch's dark chat. On a light surface
+   it keeps its hue and only loses lightness, as Twitch's own readable colours do. */
+@supports (color: oklch(from red l c h)) {
+  :root[data-appearance="light"] .twitch-chat-user { color: oklch(from var(--name, #a970ff) min(l, 0.5) c h); }
+}
 .twitch-chat-text { color: var(--text, #e7e9ee); opacity: 0.92; }
 .twitch-chat-empty {
   margin: auto; display: flex; flex-direction: column; align-items: center; gap: 8px;

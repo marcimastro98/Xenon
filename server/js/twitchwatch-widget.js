@@ -643,6 +643,9 @@
     chatLines.push(entry);
     if (chatLines.length > CHAT_MAX) chatLines.shift();
     document.querySelectorAll('.tww-chat-log').forEach(log => appendChatLine(log, entry));
+    // The first line ends the wait. Left to the next paint, "Waiting for the first
+    // message" sat above a chat that was already talking.
+    if (chatLines.length === 1) document.querySelectorAll('.tww-chat-note').forEach(n => { n.style.display = 'none'; });
     publishChatSoon();
   }
   // Names, message text and the colour all come from strangers in a public chat.
@@ -653,7 +656,7 @@
     const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     const line = el('div', 'tww-chat-line');
     const u = el('span', 'tww-chat-user', entry.name + ':');
-    if (entry.color) u.style.color = entry.color;
+    if (entry.color) u.style.setProperty('--name', entry.color);
     line.append(u, document.createTextNode(' '));
     const body = el('span', 'tww-chat-text');
     (entry.parts || [{ type: 'text', text: entry.text }]).forEach(p => {
@@ -680,8 +683,11 @@
     if (ch.image) art.style.backgroundImage = 'url("' + encodeURI(ch.image) + '")';
     const meta = el('div', 'tww-row-meta');
     meta.append(el('span', 'tww-row-name', ch.name || ch.login));
-    const sub = [ch.game || '', ch.title || ''].filter(Boolean).join(' · ');
-    if (sub) meta.append(el('span', 'tww-row-sub', sub));
+    if (ch.game || ch.title) {
+      const sub = el('span', 'tww-row-sub');
+      setWordParts(sub, [ch.game || '', ch.title || '']);
+      meta.append(sub);
+    }
     b.append(art, meta);
     const v = fmtViewers(ch.viewers);
     if (v) {
@@ -758,9 +764,7 @@
 
       card.querySelector('.tww-now-title').textContent = ch ? (ch.name || ch.login) : '';
       const v = ch ? fmtViewers(ch.viewers) : '';
-      card.querySelector('.tww-now-sub').textContent = ch
-        ? [ch.game || '', v ? v + ' ' + t('tww_viewers', 'watching') : ''].filter(Boolean).join(' · ')
-        : '';
+      setWordParts(card.querySelector('.tww-now-sub'), ch ? [ch.game || '', v ? v + ' ' + t('tww_viewers', 'watching') : ''] : []);
 
       const exp = card.querySelector('.tww-expand');
       const big = owns && vs.screen;

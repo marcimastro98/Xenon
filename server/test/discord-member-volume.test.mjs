@@ -36,7 +36,7 @@ const inCall = (selfId) => ({ channel: { id: 'c1', name: 'General' }, selfId, me
 test('everyone in the call gets controls', () => {
   const voice = inCall('111');
   const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)(voice);
-  assert.equal(fn({ id: '222', name: 'Forlin' }), true);
+  assert.equal(fn({ id: '222', name: 'Bianca' }), true);
 });
 
 test('your own row is not a button', () => {
@@ -55,7 +55,7 @@ test('nobody gets controls when you are not in a call', () => {
   // accepts these settings for someone in the channel you are in, and answers OK
   // for anyone else — a control that reports success and changes nothing.
   const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)({ channel: null, selfId: '111', members: [] });
-  assert.equal(fn({ id: '222', name: 'Forlin' }), false);
+  assert.equal(fn({ id: '222', name: 'Bianca' }), false);
   assert.match(RPC, /\{ ok: false, error: 'user_not_here' \}/);
 });
 

@@ -1,0 +1,521 @@
+/* The streaming tiles on the Liquid look: Twitch (streaming and watching), YouTube
+   (watching and Live), OBS, Discord and Streamer.bot. The language of the Playback
+   widget (LiquidPlayer.css): what a glance looks for comes first and gets the room (the
+   people in a call, the viewer count, the picture); the state is a word in its colour
+   (Live, Recording, the voice channel), never a dot or a plate; the one action that
+   matters most is the one filled key, in the service's colour, as Apple asks of a Live
+   Activity ("prefer limiting it to a single element", colour for identity); other keys
+   are bare glyphs, keys with words sit on a soft fill, a field holds its own send
+   glyph as Messages does, tabs are words with the open one bright as the tile's tabs,
+   and a fader has no handle (LiquidMixer.css). Cards stay wells (liquid-tiles.css), a
+   card of keys needs no name, and no brand glow or logo watermark sits behind them.
+   Off Liquid nothing here applies. */
+
+/* ── Every streaming tile ──────────────────────────────────────────────────── */
+
+:root[data-style="liquid"] :is(.twitch-wrap, .ytl-wrap, .dc-wrap, .yt-wrap, .tww-wrap, .sbw-wrap) { background: none; }
+:root[data-style="liquid"] :is(.twitch-wrap, .dc-wrap)::after { content: none; }
+:root[data-style="liquid"] :is(.ytl-watermark, .yt-watermark, .tww-watermark) { display: none; }
+
+/* The service by name, in the words' colour: the filled key carries its colour. */
+:root[data-style="liquid"] :is(.obs-logo, .twitch-logo, .ytl-logo, .ytl-logo-sub, .dc-logo, .sbw-title) {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+:root[data-style="liquid"] .ytl-brand { gap: 0.3em; }
+:root[data-style="liquid"] :is(.twitch-channel, .dc-user) { font-size: 15px; font-weight: 500; color: var(--muted-text); }
+
+/* The state is a word in its colour: no plate, no dot. */
+:root[data-style="liquid"] :is(.obs-pill, .twitch-status-pill, .ytl-pill, .dc-pill, .sbw-pill) {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted-text);
+}
+:root[data-style="liquid"] :is(.obs-pill-dot, .twitch-status-dot, .ytl-pill-dot, .dc-pill-dot, .sbw-pill-dot, .ytl-health-dot, .tww-row-dot, .sbw-logo) { display: none; }
+:root[data-style="liquid"] :is(.obs-pills, .twitch-state) { gap: 14px; }
+:root[data-style="liquid"] :is(.obs-pill-live.on, .twitch-status-pill.live, .ytl-pill.live) { color: var(--color-danger); }
+:root[data-style="liquid"] .obs-pill-rec.on { color: var(--color-warn); }
+:root[data-style="liquid"] .dc-pill.in-voice { color: var(--text); }
+:root[data-style="liquid"] .sbw-pill.is-live { color: var(--color-success); }
+:root[data-style="liquid"] .twitch-watching { font-size: 13px; font-weight: 600; color: var(--muted-text); }
+
+/* Not linked yet: a soft key that opens Settings, not a tinted banner. */
+:root[data-style="liquid"] :is(.twitch-notice, .dc-notice, .yt-setup, .ytl-setup, .tww-setup, .sbw-notice) {
+  border-color: transparent;
+  background: var(--lg-key);
+  color: var(--text);
+}
+:root[data-style="liquid"] :is(.twitch-notice, .dc-notice, .yt-setup, .ytl-setup, .tww-setup, .sbw-notice):hover { background: var(--lg-key-hover); }
+/* The watching tiles and YouTube Live take every card off screen until an account is
+   linked, so there the key is the tile's empty state: in the middle, as wide as its
+   words (NN/g, empty states: say what is missing, offer the one action). The cards'
+   column gives up its room while the key is up, and keeps what layout editing shows. */
+:root[data-style="liquid"] :is(.yt-wrap, .tww-wrap, .ytl-wrap):has(> :is(.yt-setup, .tww-setup, .ytl-setup):not([hidden])) > :is(.yt-cards, .tww-cards, .ytl-cards) { flex: 0 1 auto; }
+:root[data-style="liquid"] :is(.yt-setup, .tww-setup, .ytl-setup) {
+  width: auto;
+  max-width: min(100%, 60ch);
+  min-height: 44px;
+  margin: auto;
+  padding: 10px 16px;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+/* Keys with a word: a soft fill, the words' colour. */
+:root[data-style="liquid"] :is(.obs-btn, .twitch-act-btn, .ytl-btn, .ytl-mini, .ytl-priv, .dc-btn, .dc-chip, .yt-blocked-btn) {
+  border-color: transparent;
+  border-radius: 10px;
+  background: var(--lg-key);
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+:root[data-style="liquid"] :is(.obs-btn, .twitch-act-btn, .ytl-btn, .ytl-mini, .ytl-priv, .dc-btn, .dc-chip, .yt-blocked-btn):hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--lg-key-hover);
+}
+:root[data-style="liquid"] :is(.twitch-act-lbl, .obs-btn-lbl, .ytl-btn-lbl) { font-weight: 600; }
+
+/* Bare glyphs: a soft key behind them only under the pointer. */
+:root[data-style="liquid"] :is(.yt-ib, .tww-ib, .ytl-ib, .twitch-chat-toggle, .twitch-field-send, .ytl-chat-send, .tww-chat-go, .yt-search-go, .tww-search-go, .dc-vol-btn, .obs-audio-mute, .dc-mctl-mute) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted-text);
+}
+:root[data-style="liquid"] :is(.yt-ib, .tww-ib, .ytl-ib, .twitch-chat-toggle, .twitch-field-send, .ytl-chat-send, .tww-chat-go, .yt-search-go, .tww-search-go, .dc-vol-btn, .obs-audio-mute, .dc-mctl-mute):hover:not(:disabled) {
+  background: var(--lg-key);
+  color: var(--text);
+}
+
+/* Going live is the one filled key; once live, ending it is a word in red on a soft
+   key, so the most inviting key is never the one that ends the stream. */
+:root[data-style="liquid"] .obs-golive:not(.is-live) { background: var(--accent); color: var(--on-accent); }
+:root[data-style="liquid"] .twitch-golive:not(.is-live) { background: #9146ff; color: #fff; }
+:root[data-style="liquid"] .ytl-go:not(.is-live) { background: #e00000; color: #fff; }
+:root[data-style="liquid"] .obs-golive:not(.is-live):hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, var(--text)); }
+:root[data-style="liquid"] .twitch-golive:not(.is-live):hover:not(:disabled) { background: #a370ff; }
+:root[data-style="liquid"] .ytl-go:not(.is-live):hover:not(:disabled) { background: #f01a1a; }
+:root[data-style="liquid"] :is(.obs-golive.is-live, .twitch-golive.is-live, .ytl-go.is-live, .twitch-mic.is-muted) { color: var(--color-danger); }
+:root[data-style="liquid"] .obs-record.is-rec { color: var(--color-warn); }
+
+/* Did it work: the key says so in colour, not with an outline. */
+:root[data-style="liquid"] :is(.obs-btn, .twitch-act-btn, .obs-scene, .dc-btn, .dc-chan).ok { border-color: transparent; color: var(--color-success); }
+:root[data-style="liquid"] :is(.obs-btn, .twitch-act-btn, .obs-scene, .dc-btn, .dc-chan).err { border-color: transparent; color: var(--color-danger); }
+
+/* A field holds its own send glyph, which lights up once there is something to send.
+   A search field the same, with its magnifier (Apple, Search fields): no filled key
+   beside it. */
+:root[data-style="liquid"] :is(.twitch-field, .ytl-chat-row, .tww-chat-send, .yt-search-row, .tww-search-row) {
+  gap: 0;
+  border-radius: 10px;
+  background: var(--lg-well);
+}
+:root[data-style="liquid"] :is(.twitch-field, .ytl-chat-row, .tww-chat-send, .yt-search-row, .tww-search-row):focus-within { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 0; }
+:root[data-style="liquid"] :is(.twitch-field-input, .ytl-chat-input, .tww-chat-input, .yt-search-input, .tww-search-input) { border: 0; background: transparent; }
+:root[data-style="liquid"] :is(.twitch-field-input, .ytl-chat-input, .tww-chat-input, .yt-search-input, .tww-search-input):focus { outline: none; background: transparent; }
+:root[data-style="liquid"] :is(.tww-chat-input, .yt-search-input, .tww-search-input) { min-height: 40px; padding: 8px 12px; font-size: 14px; }
+:root[data-style="liquid"] :is(.twitch-field-send, .ytl-chat-send, .tww-chat-go, .yt-search-go, .tww-search-go) { align-self: stretch; width: 40px; min-height: 0; border-radius: 0 10px 10px 0; }
+:root[data-style="liquid"] .twitch-field:has(.twitch-field-input:not(:placeholder-shown)) .twitch-field-send,
+:root[data-style="liquid"] .tww-chat-send:has(.tww-chat-input:not(:placeholder-shown)) .tww-chat-go,
+:root[data-style="liquid"] .tww-search-row:has(.tww-search-input:not(:placeholder-shown)) .tww-search-go { color: #a970ff; }
+:root[data-style="liquid"] .ytl-chat-row:has(.ytl-chat-input:not(:placeholder-shown)) .ytl-chat-send,
+:root[data-style="liquid"] .yt-search-row:has(.yt-search-input:not(:placeholder-shown)) .yt-search-go { color: #ff4d4d; }
+:root[data-style="liquid"] :is(.twitch-act-len, .ytl-input) { border-color: transparent; background: var(--lg-well); }
+
+/* A card's name says which part it is; a picture or a row of keys says it on its own. */
+:root[data-style="liquid"] :is(.obs-card--preview > .obs-card-label, .obs-card--controls > .obs-card-label, .twitch-card--actions > .twitch-card-label, .ytl-card--actions > .ytl-card-label) { display: none; }
+
+/* Tabs: words, the open one bright and heavier by a stroke, as the tile's own tabs
+   (liquid-tiles.css), so a tile does not show a second strip of plates. */
+:root[data-style="liquid"] :is(.dc-tabs, .sbw-tabs) { gap: 2px; padding: 0; background: none; }
+:root[data-style="liquid"] :is(.dc-tab, .yt-tab, .tww-tab, .sbw-tab) {
+  min-height: 36px;
+  padding: 8px;
+  border-radius: 6px;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--muted-text) 78%, transparent);
+}
+:root[data-style="liquid"] :is(.dc-tab, .yt-tab, .tww-tab, .sbw-tab):hover:not(.is-active, .is-on) {
+  background: none;
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+}
+:root[data-style="liquid"] :is(.dc-tab.is-active, .yt-tab.is-on, .tww-tab.is-on, .sbw-tab.is-active) {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  -webkit-text-stroke: 0.45px currentColor;
+}
+/* Words where they fit. A narrow column keeps the other tabs as their icons
+   (YouTubeWidget.css, TwitchWatchWidget.css), and the open one stays a word. */
+:root[data-style="liquid"] :is(.yt-tab.is-on .yt-tab-ico, .tww-tab.is-on .tww-tab-ico) { display: none; }
+@container ytlib not (max-width: 380px) { :root[data-style="liquid"] .yt-tab-ico { display: none; } }
+@container twwlib not (max-width: 330px) { :root[data-style="liquid"] .tww-tab-ico { display: none; } }
+
+/* Rows: no tinted hover, the chosen one is the thumb (liquid-tiles.css). */
+:root[data-style="liquid"] :is(.yt-row, .tww-row):hover:not(.is-current) { border-color: transparent; background: var(--lg-key-hover); }
+
+/* What was said and by whom: the name keeps the colour the person chose. */
+:root[data-style="liquid"] :is(.twitch-chat-user, .tww-chat-user) { font-weight: 700; }
+
+/* A line of separate facts (setWordParts in utils.js): space between them, not a dot;
+   the first gives way to the ellipsis last. */
+:root[data-style="liquid"] :is(.yt-now-sub, .tww-now-sub, .ytl-stats) { display: flex; column-gap: 12px; min-width: 0; }
+:root[data-style="liquid"] :is(.yt-now-sub, .tww-now-sub, .ytl-stats) > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root[data-style="liquid"] :is(.yt-now-sub, .tww-now-sub, .ytl-stats) > span + span { flex: 0 0 auto; }
+
+/* ── OBS ──────────────────────────────────────────────────────────────────── */
+
+:root[data-style="liquid"] .obs-scene:not(.is-active) { border-color: transparent; background: none; }
+:root[data-style="liquid"] .obs-scene:not(.is-active):hover:not(:disabled) { background: var(--lg-key); }
+:root[data-style="liquid"] .obs-scene { font-weight: 600; }
+:root[data-style="liquid"] .obs-audio-row.is-muted .obs-audio-mute { background: var(--mix-off); color: var(--text); }
+:root[data-style="liquid"] .obs-audio-pct { font-weight: 700; }
+/* OBS neither set up nor found on this PC: its keys cannot do anything, so they step
+   back instead of offering a bright Go live. */
+:root[data-style="liquid"] .obs-wrap.obs-disconnected .obs-card--controls { opacity: 0.45; pointer-events: none; }
+
+/* Wide and short, as on the Xeneon Edge: the preview keeps about its own shape on the
+   left and the other cards stack beside it, in the order the user gave them, instead
+   of the preview shrinking to a strip above them. */
+:root[data-style="liquid"] .obs-wrap { container: obsw / size; }
+@container obsw (min-aspect-ratio: 12 / 5) and (min-width: 640px) {
+  :root[data-style="liquid"] .obs-cards { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-rows: auto auto auto 1fr; }
+  :root[data-style="liquid"] .obs-card--preview { grid-column: 1; grid-row: 1 / -1; min-height: 0; }
+  :root[data-style="liquid"] .obs-cards > :not(.obs-card--preview) { grid-column: 2; min-height: 0; }
+}
+
+/* ── Twitch ───────────────────────────────────────────────────────────────── */
+
+/* The fields share a row as the card's width allows, so the chat keeps the height. */
+:root[data-style="liquid"] .twitch-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+:root[data-style="liquid"] .twitch-act-grp-lbl { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted-text); }
+
+/* Wide: the chat mode and the ad break follow the keys on their line when they fit. */
+:root[data-style="liquid"] .twitch-card--actions { container: twa / inline-size; }
+@container twa (min-width: 700px) {
+  :root[data-style="liquid"] .twitch-actions { flex-flow: row wrap; justify-content: space-between; align-items: center; gap: 9px 14px; }
+  :root[data-style="liquid"] .twitch-selrow { order: 1; margin-top: 0; }
+  :root[data-style="liquid"] .twitch-fields { order: 2; flex: 1 0 100%; margin-top: 0; }
+}
+
+/* ── Discord ──────────────────────────────────────────────────────────────── */
+
+/* Keys at the top, the people in the middle, the levels at the bottom. The header
+   names the call already, so the list above the faces does not again. */
+:root[data-style="liquid"] .dc-panel--controls { gap: 16px; }
+:root[data-style="liquid"] .dc-call-label { display: none; }
+:root[data-style="liquid"] .dc-btn { min-height: 56px; gap: 6px; }
+:root[data-style="liquid"] .dc-btn-lbl { font-size: 12px; font-weight: 600; letter-spacing: 0; }
+:root[data-style="liquid"] :is(.dc-mute, .dc-deaf).is-on { background: var(--mix-off); color: var(--text); }
+:root[data-style="liquid"] .dc-ptt.is-on { background: var(--lg-thumb); color: var(--text); }
+:root[data-style="liquid"] .dc-leave { color: var(--color-danger); }
+
+/* The people in the call: a face and a name, no plate; speaking is Discord's green
+   ring, their own mute the red glyph after the name. */
+:root[data-style="liquid"] .dc-call { gap: 10px; }
+:root[data-style="liquid"] .dc-members { gap: 6px 18px; }
+:root[data-style="liquid"] .dc-member {
+  gap: 8px;
+  max-width: 180px;
+  padding: 2px 6px 2px 2px;
+  border-color: transparent;
+  border-radius: 22px;
+  background: none;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+:root[data-style="liquid"] .dc-member .dc-av { width: 34px; height: 34px; }
+:root[data-style="liquid"] .dc-member .dc-av-initial { font-size: 14px; }
+:root[data-style="liquid"] .dc-member.is-speaking { border-color: transparent; background: none; color: var(--text); }
+:root[data-style="liquid"] .dc-member.is-adjustable:hover,
+:root[data-style="liquid"] .dc-member.is-open { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .dc-member.is-local-muted { box-shadow: none; }
+:root[data-style="liquid"] .dc-member-state svg { width: 14px; height: 14px; }
+
+/* A tile tall and wide enough gives the faces the room, as Discord's own call view
+   does: large, a name under each, their mute on the corner of the face. A phone's
+   column keeps them small, or the keys and levels would scroll away below them. Only
+   the call's own list: the people under a channel in the Channels tab stay a line. */
+:root[data-style="liquid"] .dc-wrap { container: dcw / size; }
+@container dcw (min-height: 440px) and (min-width: 560px) {
+  :root[data-style="liquid"] .dc-call { --dc-face: clamp(64px, 11cqmin, 104px); flex: 1 1 auto; justify-content: center; }
+  :root[data-style="liquid"] .dc-call-members { justify-content: center; gap: 12px 20px; }
+  :root[data-style="liquid"] .dc-call-members .dc-member { position: relative; flex-direction: column; max-width: calc(var(--dc-face) + 44px); padding: 8px 10px 6px; border-radius: 14px; }
+  :root[data-style="liquid"] .dc-call-members .dc-av { width: var(--dc-face); height: var(--dc-face); }
+  :root[data-style="liquid"] .dc-call-members .dc-av-initial { font-size: calc(var(--dc-face) * 0.375); }
+  :root[data-style="liquid"] .dc-call-members .dc-member.is-speaking .dc-av { box-shadow: 0 0 0 3px #3bd678; }
+  :root[data-style="liquid"] .dc-call-members .dc-member-state { position: absolute; top: calc(var(--dc-face) - 10px); left: calc(50% + var(--dc-face) * 0.22); padding: 3px; border-radius: 50%; background: rgba(14, 15, 22, 0.92); }
+}
+
+/* Wide and short, as on the Xeneon Edge: the two volumes share a line and the audio
+   switches follow their name, so the controls fit without scrolling. */
+@container dcw (min-width: 640px) and (max-height: 439px) {
+  :root[data-style="liquid"] .dc-panel--controls { gap: 12px; }
+  :root[data-style="liquid"] .dc-ctl-vols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
+  :root[data-style="liquid"] .dc-ctl-audio { flex-direction: row; align-items: center; gap: 14px; }
+  :root[data-style="liquid"] .dc-ctl-audio > .dc-chips { flex: 1 1 auto; min-width: 0; }
+}
+
+/* Volumes: the number between two bare glyphs. */
+:root[data-style="liquid"] .dc-vol-lbl { font-size: 13px; font-weight: 600; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-vol-val { font-weight: 700; }
+:root[data-style="liquid"] .dc-vol-btn { width: 36px; height: 36px; border-radius: 10px; }
+
+:root[data-style="liquid"] .dc-chip { padding: 8px 12px; font-size: 13px; }
+:root[data-style="liquid"] :is(.dc-sec-label, .dc-guild) { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-guild { border-color: transparent; background: none; }
+:root[data-style="liquid"] button.dc-guild:hover { background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .dc-chan:not(.is-active) { border-color: transparent; background: none; }
+:root[data-style="liquid"] .dc-chan:not(.is-active):hover:not(:disabled) { background: var(--lg-key); }
+:root[data-style="liquid"] .dc-tab-badge { background: var(--color-danger); }
+:root[data-style="liquid"] .dc-guild-all-btn { padding: 6px 8px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-guild-all-btn:hover { background: var(--lg-key); color: var(--text); }
+
+/* How many: a number after the name, no plate. */
+:root[data-style="liquid"] :is(.dc-guild-count, .dc-chan-count) { min-width: 0; height: auto; padding: 0; border-radius: 0; background: none; font-size: 13px; font-weight: 600; color: var(--muted-text); }
+
+/* Who is in a channel, under its name: a small face and the name, as Discord's own
+   channel list shows them. */
+:root[data-style="liquid"] .dc-chan-members { gap: 4px 14px; padding: 2px 4px 6px 30px; }
+:root[data-style="liquid"] .dc-chan-members .dc-member { gap: 7px; padding: 2px; font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-chan-members .dc-member.is-speaking { color: var(--text); }
+:root[data-style="liquid"] .dc-chan-members .dc-av { width: 24px; height: 24px; }
+:root[data-style="liquid"] .dc-chan-members .dc-av-initial { font-size: 11px; }
+
+/* The soundboard: each sound a soft key with its name, the preview a bare glyph on it;
+   whether it played is said in colour. */
+:root[data-style="liquid"] .dc-sound-hint { padding: 0; border: 0; background: none; font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-sound-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+:root[data-style="liquid"] .dc-sound { min-height: 48px; border: 0; border-radius: 10px; background: var(--lg-key); }
+:root[data-style="liquid"] .dc-sound:hover { background: var(--lg-key-hover); }
+:root[data-style="liquid"] .dc-sound-play { padding-left: 12px; font-size: 14px; font-weight: 600; }
+:root[data-style="liquid"] .dc-sound-play.ok { background: none; color: var(--color-success); }
+:root[data-style="liquid"] .dc-sound-play.err { background: none; color: var(--color-danger); }
+:root[data-style="liquid"] .dc-sound-prev { width: 40px; border: 0; background: none; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-sound-prev:hover { background: none; color: var(--text); }
+
+/* The notification feed, as a list of messages: the face, who and when on a line,
+   what they said under it; no plates. Reply is a word with its glyph, lit under the
+   pointer, so a column of keys does not outshout the messages. */
+:root[data-style="liquid"] .dc-notif-list { gap: 2px; }
+:root[data-style="liquid"] .dc-notif { align-items: center; gap: 12px; padding: 8px 6px 8px 8px; border: 0; border-radius: 12px; background: none; }
+:root[data-style="liquid"] .dc-notif.is-tappable:hover { background: var(--lg-key); }
+:root[data-style="liquid"] .dc-notif-ico { width: 36px; height: 36px; }
+:root[data-style="liquid"] .dc-notif-title { font-size: 14px; font-weight: 700; color: var(--text); }
+:root[data-style="liquid"] .dc-notif-time { font-size: 12px; font-weight: 500; opacity: 1; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-notif-body { margin-top: 2px; font-size: 14px; font-weight: 400; color: color-mix(in srgb, var(--text) 86%, transparent); }
+:root[data-style="liquid"] .dc-notif-reply { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 10px; background: none; font-size: 13px; font-weight: 600; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-notif-reply:is(:hover, :focus-visible) { border: 0; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .dc-notif-reply.ok { color: var(--color-success); }
+:root[data-style="liquid"] .dc-notif-reply.err { color: var(--color-danger); }
+
+/* Nothing to show yet: one quiet line in the middle of the tab, and the way to change
+   that as a soft key under it, not a line stuck in the corner over an empty well. */
+:root[data-style="liquid"] .dc-notif-empty { margin: auto; align-items: center; gap: 12px; padding: 16px; opacity: 1; text-align: center; font-size: 14px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-chan-empty { margin: auto; }
+:root[data-style="liquid"] .dc-sound-grid:has(> .dc-sound-empty) { display: flex; align-items: center; justify-content: center; }
+:root[data-style="liquid"] :is(.dc-sound-empty, .dc-chan-empty) { padding: 16px; opacity: 1; text-align: center; font-size: 14px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .dc-notif-cta { min-height: 40px; padding: 9px 16px; border: 0; border-radius: 10px; background: var(--lg-key); font-size: 14px; font-weight: 600; color: var(--text); }
+:root[data-style="liquid"] .dc-notif-cta:hover { background: var(--lg-key-hover); }
+
+/* Discord is not running: the glyph and the words in the text's colours, the one key
+   to open it in Discord's colour, with no glow under it. */
+:root[data-style="liquid"] .dc-launch-ico { color: var(--muted-text); }
+:root[data-style="liquid"] .dc-launch-msg { font-size: 15px; font-weight: 700; }
+:root[data-style="liquid"] .dc-launch-btn { min-height: 44px; padding: 10px 22px; border: 0; border-radius: 12px; box-shadow: none; font-size: 15px; font-weight: 600; }
+
+/* ── The faders, as in the mixer: the level is the fill, no handle ─────────── */
+
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range) {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 30px;
+  margin: 0;
+  border-radius: 10px;
+  background: linear-gradient(to right, var(--mix-fill) 0 var(--fill, 0%), var(--mix-track) var(--fill, 0%) 100%);
+  box-shadow: inset 0 0 0 1px var(--mix-edge);
+  touch-action: pan-y;
+}
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range)::-webkit-slider-runnable-track { height: 30px; background: transparent; }
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2px;
+  height: 30px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range)::-moz-range-thumb {
+  width: 2px;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range)::-moz-range-progress { background: transparent; }
+:root[data-style="liquid"] :is(.obs-audio-slider, .dc-mctl-range):focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.8); outline-offset: 2px; }
+:root[data-style="liquid"] :is(.obs-audio-row.is-muted .obs-audio-slider, .dc-mctl-row:has(.dc-mctl-mute.on) .dc-mctl-range) { filter: none; opacity: 0.45; }
+
+/* ── Watching: YouTube and Twitch ──────────────────────────────────────────── */
+
+:root[data-style="liquid"] :is(.yt-now-title, .tww-now-title) { font-size: 15px; font-weight: 700; }
+:root[data-style="liquid"] :is(.yt-now-sub, .tww-now-sub) { font-size: 13px; font-weight: 500; color: var(--muted-text); }
+
+/* Play and pause on the one filled key, in YouTube's red; the other keys are glyphs. */
+:root[data-style="liquid"] .yt-playpause { width: 40px; height: 40px; border-radius: 30%; background: #e00000; color: #fff; }
+:root[data-style="liquid"] .yt-playpause:hover:not(:disabled) { background: #f01a1a; color: #fff; }
+:root[data-style="liquid"] :is(.yt-prev, .yt-next) { color: var(--text); }
+:root[data-style="liquid"] :is(.yt-ib, .tww-ib).is-on { background: none; color: var(--text); }
+:root[data-style="liquid"] :is(.yt-ib, .tww-ib).is-on:hover:not(:disabled) { background: var(--lg-key); }
+
+/* The progress line: thin, no handle, the watched part in red. */
+:root[data-style="liquid"] .yt-seek { height: 28px; touch-action: pan-y; }
+:root[data-style="liquid"] .yt-seek::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #e00000 0 var(--fill, 0%), var(--mix-track) var(--fill, 0%) 100%);
+}
+:root[data-style="liquid"] .yt-seek:is(:hover, :active, :focus-visible):not(:disabled)::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; }
+:root[data-style="liquid"] .yt-seek::-webkit-slider-thumb {
+  width: 2px;
+  height: 5px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-style="liquid"] .yt-seek::-moz-range-track { height: 5px; border-radius: 3px; background: var(--mix-track); }
+:root[data-style="liquid"] .yt-seek::-moz-range-progress { height: 5px; border-radius: 3px; background: #e00000; }
+:root[data-style="liquid"] .yt-seek::-moz-range-thumb { width: 2px; height: 5px; border: 0; border-radius: 0; background: transparent; }
+:root[data-style="liquid"] .yt-time { font-size: 12px; font-weight: 600; }
+
+/* A narrow tile, as a phone: bare glyphs can stand closer and give a little of their
+   width, so the keys keep the one row the narrow layout asks for. */
+@container ytw (max-width: 540px) {
+  :root[data-style="liquid"] .yt-bar { column-gap: 2px; }
+  :root[data-style="liquid"] .yt-bar .yt-ib:not(.yt-playpause) { flex: 1 0 28px; max-width: 34px; }
+}
+
+/* The library: the open tab names the tile, as on the tiles' own tabs. The service's
+   name before it read as a second open tab; the player already says which one it is.
+   A channel's game and title take a line each. */
+:root[data-style="liquid"] :is(.yt-logo, .tww-logo) { display: none; }
+:root[data-style="liquid"] :is(.yt-row-name, .tww-row-name) { font-weight: 600; }
+:root[data-style="liquid"] .tww-row-viewers { color: var(--muted-text); font-weight: 600; }
+:root[data-style="liquid"] .yt-row-play { background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .tww-row-sub { display: flex; flex-direction: column; -webkit-line-clamp: none; }
+:root[data-style="liquid"] .tww-row-sub > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A note in the list (nothing here yet, loading, how to search): quiet words in the
+   middle of the list, not a dark plate; a failure keeps the words' own colour. */
+:root[data-style="liquid"] :is(.yt-list-note, .tww-list-note) { justify-self: center; max-width: 40ch; padding: 20px 12px; border: 0; border-radius: 0; background: none; text-align: center; font-size: 14px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] :is(.yt-list-err, .tww-list-err) { color: var(--text); }
+:root[data-style="liquid"] :is(.yt-list, .tww-list):has(> :is(.yt-list-note, .tww-list-note):only-child) { align-content: center; }
+:root[data-style="liquid"] .tww-note-btn { display: block; min-height: 40px; margin: 12px auto 0; padding: 9px 16px; border-radius: 10px; background: var(--lg-key); font-size: 14px; font-weight: 600; color: var(--text); }
+:root[data-style="liquid"] .tww-note-btn:hover { background: var(--lg-key-hover); }
+
+/* Twitch's chat beside the picture: a well like every card; its name and channel in
+   the tile's sizes; the field at its foot holds the emotes and the send glyphs. */
+:root[data-style="liquid"] .tww-card--chat { border-color: transparent; background: var(--lg-well); }
+:root[data-style="liquid"] .tww-chat-title { font-size: 15px; font-weight: 700; }
+:root[data-style="liquid"] .tww-chat-chan { font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .tww-chat-note { font-size: 14px; color: var(--muted-text); }
+:root[data-style="liquid"] .tww-chat-log { gap: 6px; font-size: 14px; line-height: 1.45; }
+:root[data-style="liquid"] .tww-chat-text { opacity: 1; }
+:root[data-style="liquid"] .tww-chat-send .tww-chat-emo { align-self: stretch; width: 36px; height: auto; border-radius: 0; }
+
+/* The two floating panels, the account menu and the emotes: the panel colour, thick
+   enough for sentences, as the notifications are (liquid-chrome.css), but opaque:
+   with no blur inside a tile (invariants: blur only through data-tile-glass) the
+   chat lines behind read through even a 94% panel. A widget window loads no
+   liquid-chrome.css, hence the fallbacks. The chosen account wears a check, not a
+   radio dot. */
+:root[data-style="liquid"] :is(.tww-acct-pop, .tww-emopick.is-open) {
+  border-color: var(--lg-edge, rgba(255, 255, 255, 0.1));
+  border-radius: 14px;
+  background: rgb(var(--panel-rgb));
+  box-shadow: var(--lg-rim, 0 0 #0000), var(--lg-lift, 0 12px 32px rgba(3, 4, 10, 0.32));
+}
+:root[data-style="liquid"] .tww-acct-state { font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .tww-acct-opt { min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+:root[data-style="liquid"] .tww-acct-opt:hover { background: var(--lg-key); }
+:root[data-style="liquid"] .tww-acct-dot { width: 6px; height: 11px; margin: 0 4px 3px; border: solid currentColor; border-width: 0 2px 2px 0; border-radius: 0; transform: rotate(45deg); visibility: hidden; }
+:root[data-style="liquid"] .tww-acct-opt.is-on .tww-acct-dot { border: solid currentColor; border-width: 0 2px 2px 0; visibility: visible; }
+:root[data-style="liquid"] .tww-acct-login { min-height: 44px; border-radius: 10px; background: #9146ff; font-size: 14px; font-weight: 600; }
+:root[data-style="liquid"] .tww-acct-login:hover { background: #a370ff; }
+:root[data-style="liquid"] .tww-emopick-item:hover { background: var(--lg-key); }
+:root[data-style="liquid"] .tww-emopick-note { padding: 8px 6px; opacity: 1; font-size: 14px; color: var(--muted-text); }
+
+/* ── YouTube Live ─────────────────────────────────────────────────────────── */
+
+/* The number first; the health is a word in its colour. */
+:root[data-style="liquid"] .ytl-viewers-num { font-weight: 800; }
+:root[data-style="liquid"] .ytl-stats { font-weight: 500; }
+:root[data-style="liquid"] .ytl-health { gap: 0; margin-top: 4px; opacity: 1; font-size: 13px; font-weight: 600; color: var(--muted-text); }
+:root[data-style="liquid"] .ytl-health-good { color: var(--color-success); }
+:root[data-style="liquid"] .ytl-health-ok { color: var(--color-warn); }
+:root[data-style="liquid"] .ytl-health-bad { color: var(--color-danger); }
+:root[data-style="liquid"] .ytl-priv.is-on { background: var(--lg-thumb); color: var(--text); }
+:root[data-style="liquid"] .ytl-msg-who { font-weight: 700; }
+
+/* Wide: the count fills the column beside the chat as the tile's headline, and the
+   keys sit at the bottom, on the line of the chat field. */
+@container ytlw (min-width: 620px) and (max-height: 760px) {
+  :root[data-style="liquid"] .ytl-cards { grid-template-rows: minmax(0, 1fr) auto; }
+  :root[data-style="liquid"] .ytl-card--info { grid-row: 1; display: flex; flex-direction: column; justify-content: center; }
+  :root[data-style="liquid"] .ytl-card--actions { grid-row: 2; }
+  :root[data-style="liquid"] .ytl-info { gap: 6px; }
+  :root[data-style="liquid"] .ytl-viewers-num { font-size: clamp(2.1rem, 15cqh, 4.6rem); }
+}
+
+/* ── Streamer.bot ─────────────────────────────────────────────────────────── */
+
+/* The feed reads as a list of notifications, as Discord's above: the kind is a glyph
+   in its colour on no square, the name leads, the amount is words rather than a tag
+   and the kind a quiet word, so six events are not six colours of text. The glyph
+   and the time sit on the line of the name, whatever follows it. */
+:root[data-style="liquid"] .sbw-feed { gap: 2px; }
+:root[data-style="liquid"] .sbw-evt { gap: 12px; padding: 8px 6px 8px 8px; border: 0; border-radius: 12px; background: none; }
+:root[data-style="liquid"] .sbw-evt-ico { width: 28px; height: 20px; border-radius: 0; background: none; }
+:root[data-style="liquid"] .sbw-evt-ico svg { width: 20px; height: 20px; }
+:root[data-style="liquid"] .sbw-evt-main { gap: 3px; }
+:root[data-style="liquid"] .sbw-evt-line { gap: 0 8px; line-height: 20px; }
+:root[data-style="liquid"] .sbw-evt-user { font-size: 14px; font-weight: 700; }
+:root[data-style="liquid"] .sbw-evt-type { font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .sbw-evt-amt { padding: 0; border-radius: 0; background: none; font-size: 13px; font-weight: 600; color: var(--text); }
+:root[data-style="liquid"] .sbw-evt-text { font-size: 14px; color: color-mix(in srgb, var(--text) 86%, transparent); }
+:root[data-style="liquid"] .sbw-evt-age { padding-top: 2px; font-size: 12px; font-weight: 500; color: var(--muted-text); }
+
+/* A global is a name and its value, and the value is what a glance looks for: bright,
+   on lines split by a hairline rather than a plate each. */
+:root[data-style="liquid"] .sbw-globals { gap: 0; }
+:root[data-style="liquid"] .sbw-global { min-height: 44px; padding: 10px 8px; border: 0; border-bottom: 1px solid var(--lg-sep); border-radius: 0; background: none; }
+:root[data-style="liquid"] .sbw-global:last-child { border-bottom: 0; }
+:root[data-style="liquid"] .sbw-global-name { font-size: 14px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .sbw-global-val { font-size: 15px; font-weight: 700; color: var(--text); }
+:root[data-style="liquid"] .sbw-empty { padding: 16px; font-size: 14px; font-weight: 500; color: var(--muted-text); }

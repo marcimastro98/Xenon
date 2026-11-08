@@ -22,6 +22,7 @@
   // all: one shown a second time is a nuisance, one that cannot be dismissed for
   // good is the complaint this came from.
   const CARDS = () => (window.XenonStartupCards || null);
+  const DAYS_BEFORE_INVITE = 2;
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   function dismissed() {
@@ -77,17 +78,14 @@
     const join = document.createElement('button');
     join.type = 'button';
     join.className = 'discord-invite-join';
-    join.innerHTML = LOGO;                 // static, trusted markup
-    const joinLabel = document.createElement('span');
-    joinLabel.textContent = t('discord_invite_join', 'Join Discord');
-    join.appendChild(joinLabel);
+    join.textContent = t('discord_invite_join', 'Join Discord');
     join.addEventListener('click', () => { openInvite(); setDismissed(); hideCard(); });
     const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'discord-invite-dismiss';
     dismiss.textContent = t('discord_invite_dismiss', "Don't show again");
     dismiss.addEventListener('click', () => { setDismissed(); hideCard(); });
-    actions.append(join, dismiss);
+    actions.append(dismiss, join);
 
     card.append(head, text, actions);
     document.body.appendChild(card);
@@ -110,6 +108,10 @@
     const c = CARDS();
     const decide = () => {
       if (dismissed()) return;
+      // Not on the first day: someone who just installed has the app to look at,
+      // and an invitation is the first thing they would have to close.
+      const use = c && typeof c.usageHistory === 'function' ? c.usageHistory() : null;
+      if (!use || use.usageDays < DAYS_BEFORE_INVITE) return;
       // A short delay so it doesn't fight the initial dashboard paint / greeting.
       setTimeout(showCard, 1400);
     };

@@ -184,7 +184,7 @@
 
     const head = el('div', 'ytl-head');
     const brand = el('div', 'ytl-brand');
-    brand.append(el('span', 'ytl-logo', 'YouTube'), el('span', 'ytl-logo-sub', 'LIVE'));
+    brand.append(el('span', 'ytl-logo', 'YouTube'), el('span', 'ytl-logo-sub', 'Live'));
     const pill = el('span', 'ytl-pill');
     pill.append(el('span', 'ytl-pill-dot'), el('span', 'ytl-pill-txt'));
     head.append(brand, pill);
@@ -384,7 +384,11 @@
       const bits = [];
       if (bc.totalViews != null) bits.push(bc.totalViews.toLocaleString() + ' ' + t('youtube_views', 'views'));
       if (bc.likes != null) bits.push(bc.likes.toLocaleString() + ' ' + t('youtube_likes', 'likes'));
-      if (bits.length) box.appendChild(el('div', 'ytl-stats', bits.join(' · ')));
+      if (bits.length) {
+        const stats = el('div', 'ytl-stats');
+        setWordParts(stats, bits);
+        box.appendChild(stats);
+      }
     }
     if (bc.title) box.appendChild(buildTitle(bc.title));
     if (bc.health && HEALTH_KEY[bc.health]) {
@@ -508,7 +512,7 @@
       const isLive = live();
       const pill = mount.querySelector('.ytl-pill');
       pill.classList.toggle('live', isLive);
-      mount.querySelector('.ytl-pill-txt').textContent = isLive ? 'LIVE' : t('youtube_offline', 'Offline');
+      mount.querySelector('.ytl-pill-txt').textContent = isLive ? t('stream_live', 'Live') : t('youtube_offline', 'Offline');
       const info = mount.querySelector('.ytl-card--info');
       const editing = document.body.classList.contains('layout-editing');
       info.style.display = (connected !== false || editing) ? '' : 'none';

@@ -81,6 +81,8 @@ function createYouTubeProvider(deps) {
     } catch { return { ok: false, error: 'network' }; }
   }
 
+  // Only a revoked or expired refresh token (invalid_grant) unlinks the account: a
+  // 5xx, a rate limit or a bad client must keep the login, or a hiccup forces a new link.
   async function refresh() {
     const c = await creds();
     if (!c.refreshToken) return false;
@@ -90,9 +92,9 @@ function createYouTubeProvider(deps) {
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) { await clearCreds(); return false; }
-      await persistToken(data);
-      return true;
+      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
+      if (data && String(data.error || '').toLowerCase() === 'invalid_grant') await clearCreds();
+      return false;
     } catch { return false; }
   }
 

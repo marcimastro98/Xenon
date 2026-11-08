@@ -71,13 +71,19 @@
     host.replaceChildren(...PROVIDERS.map((p, i) => buildProviderCard(p, states[i] || {})));
   }
 
+  // A name on the left and its key on the right, like every Settings row.
+  function keyRow(text, key, cls) {
+    const row = el('div', 'settings-row');
+    const line = el('span', 'settings-label-line');
+    line.appendChild(el('span', cls, text));
+    row.append(line, key);
+    return row;
+  }
+
   function buildProviderCard(cfg, st) {
-    const card = el('div', 'streaming-card');
+    const card = el('div', 'settings-section streaming-card');
     card.dataset.provider = cfg.key;
-    const head = el('div', 'streaming-card-head');
-    head.appendChild(el('span', 'streaming-card-title', cfg.name));
-    head.appendChild(el('span', 'streaming-dot' + (st.connected ? ' on' : '')));
-    card.appendChild(head);
+    card.appendChild(el('div', 'settings-section-title', cfg.name));
 
     // A live connection always shows the connected state — never the "enter your
     // Client ID" setup form. The app credentials live in a server-only file and
@@ -87,14 +93,13 @@
     // survives the next restart / token refresh, rather than nagging a working
     // account to reconnect.
     if (st.connected) {
-      card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
+      const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
+      out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
+      card.appendChild(keyRow(t('streaming_connected_as', 'Connected as') + ' ' + (st.login || ''), out, 'streaming-connected'));
       if (!st.configured) {
         card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found: re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm(cfg));
       }
-      const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
-      out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
-      card.appendChild(out);
       if (st.configured) card.appendChild(buildCredActions(cfg));
       if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
       return card;
@@ -103,10 +108,9 @@
       card.appendChild(buildSetupForm(cfg));
       return card;
     }
-    card.appendChild(el('p', 'settings-note', t(cfg.descKey, 'Connect your account to control it from the dashboard.')));
-    const btn = el('button', 'settings-btn primary', t('streaming_connect', 'Connect'));
+    const btn = el('button', 'settings-btn', t('streaming_connect', 'Connect'));
     btn.addEventListener('click', () => startLogin(cfg, card, btn));
-    card.appendChild(btn);
+    card.appendChild(keyRow(t(cfg.descKey, 'Connect your account to control it from the dashboard.'), btn, 'settings-hint'));
     card.appendChild(buildCredActions(cfg));
     if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
     return card;
@@ -186,8 +190,8 @@
   // overwrite them; "Reset" clears them (empty strings, which saveStreamConfig
   // accepts) and drops any token, returning the card to the fresh setup form.
   function buildCredActions(cfg) {
-    const box = el('div', 'streaming-cred-actions');
-    const edit = el('button', 'settings-btn settings-btn-ghost', t('streaming_edit_creds', 'Edit credentials'));
+    const box = el('div', 'settings-row settings-row-keys streaming-cred-actions');
+    const edit = el('button', 'settings-btn', t('streaming_edit_creds', 'Edit credentials'));
     edit.addEventListener('click', () => {
       edit.remove();
       box.parentNode.insertBefore(buildSetupForm(cfg), box);
@@ -212,31 +216,39 @@
   // the card immediately re-renders into the Connect state.
   function buildSetupForm(cfg) {
     const box = el('div', 'streaming-setup');
+    // The steps wait behind a row: three providers' worth of them is a page of text.
     // A setup hint containing newlines is a step list: one <li> per line reads
     // far better than the same steps squeezed into a paragraph (YouTube).
+    const how = el('details', 'settings-expander');
+    const summary = el('summary');
+    summary.appendChild(el('span', null, t('settings_spotify_setup_title', 'How to connect')));
+    how.appendChild(summary);
     const hint = t(cfg.setupKey, 'Register an app and paste its credentials below.');
     if (hint.includes('\n')) {
-      const ol = el('ol', 'settings-note streaming-setup-steps');
+      const ol = el('ol', 'settings-expander-list settings-expander-steps');
       hint.split('\n').forEach(line => { if (line.trim()) ol.appendChild(el('li', null, line.trim())); });
-      box.appendChild(ol);
+      how.appendChild(ol);
     } else {
-      box.appendChild(el('p', 'settings-note', hint));
+      how.appendChild(el('p', 'settings-note settings-expander-note', hint));
     }
-    const link = el('a', 'streaming-setup-link', t('streaming_open_console', 'Open developer console'));
-    link.href = cfg.consoleUrl; link.target = '_blank'; link.rel = 'noopener';
-    box.appendChild(link);
+    box.appendChild(how);
     const inputs = {};
     cfg.fields.forEach(f => {
-      const field = el('label', 'streaming-field');
-      field.appendChild(el('span', 'streaming-field-label', t(f.labelKey, f.key)));
+      const field = el('label', 'settings-row');
+      const name = el('span', 'settings-label-line');
+      name.appendChild(el('span', null, t(f.labelKey, f.key)));
+      field.appendChild(name);
       const inp = document.createElement('input');
-      inp.type = 'text'; inp.className = 'settings-text-input streaming-input';
+      inp.type = 'text'; inp.className = 'settings-text-input';
       inp.spellcheck = false; inp.autocomplete = 'off';
       field.appendChild(inp);
       inputs[f.key] = inp;
       box.appendChild(field);
     });
-    const save = el('button', 'settings-btn primary', t('streaming_save', 'Save'));
+    const keys = el('div', 'settings-row settings-row-keys');
+    const link = el('a', 'settings-btn', t('streaming_open_console', 'Open developer console'));
+    link.href = cfg.consoleUrl; link.target = '_blank'; link.rel = 'noopener';
+    const save = el('button', 'settings-btn', t('streaming_save', 'Save'));
     save.addEventListener('click', async () => {
       const patch = {}; let any = false;
       for (const f of cfg.fields) {
@@ -252,7 +264,8 @@
       await api('/stream/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
       render();   // now configured → Connect button
     });
-    box.appendChild(save);
+    keys.append(save, link);
+    box.appendChild(keys);
     return box;
   }
 
@@ -589,7 +602,11 @@
     brand.append(el('span', 'twitch-logo', 'Twitch'), el('span', 'twitch-channel'));
     const pill = el('span', 'twitch-status-pill');
     pill.append(el('span', 'twitch-status-dot'), el('span', 'twitch-status-text', t('twitch_offline', 'Offline')));
-    head.append(brand, pill);
+    // How many are watching, beside the live word; empty while off air.
+    const watching = el('span', 'twitch-watching');
+    const state = el('div', 'twitch-state');
+    state.append(watching, pill);
+    head.append(brand, state);
     wrap.appendChild(head);
 
     // Shown only when the Twitch *account* isn't linked: the widget's live state,
@@ -638,7 +655,11 @@
       // When the account isn't linked we can't know the live state at all, so say
       // "Not linked" rather than a misleading "Offline" (you can be live via OBS).
       head.querySelector('.twitch-status-text').textContent =
-        !connected ? t('twitch_notlinked', 'Not linked') : (live ? 'LIVE' : t('twitch_offline', 'Offline'));
+        !connected ? t('twitch_notlinked', 'Not linked') : (live ? t('stream_live', 'Live') : t('twitch_offline', 'Offline'));
+      const watching = head.querySelector('.twitch-watching');
+      const viewers = live ? Number(st.viewers) : NaN;
+      watching.textContent = Number.isFinite(viewers) && viewers >= 0
+        ? `${viewers.toLocaleString(document.documentElement.lang || undefined)} ${t('twitch_viewers', 'viewers')}` : '';
       const notice = mount.querySelector('.twitch-notice');
       if (notice) notice.hidden = connected;
 
@@ -747,7 +768,7 @@
     const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     const line = el('div', 'twitch-chat-line');
     const u = el('span', 'twitch-chat-user', entry.name + ':');
-    if (entry.color) u.style.color = entry.color;
+    if (entry.color) u.style.setProperty('--name', entry.color);
     line.append(u, document.createTextNode(' '));
     // Emote codes are drawn as the emote, same as the watching widget: the parser
     // hands back the message already split into text and image parts.

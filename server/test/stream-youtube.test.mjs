@@ -75,7 +75,22 @@ test('getAccessToken refreshes when expired and keeps the stored refresh token',
   assert.equal(stt.connected, true);
 });
 
-test('getAccessToken clears creds when refresh fails', async () => {
+for (const [name, status, json] of [
+  ['a server error', 503, null],
+  ['a rate limit', 429, { error: 'rate_limit_exceeded' }],
+  ['a rejected client', 401, { error: 'invalid_client' }],
+  ['an answer with no token', 200, {}],
+]) {
+  test(`a failed refresh keeps the YouTube link on ${name}`, async () => {
+    const file = tmpTokens();
+    fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, channel: 'C', channelId: 'UC' } }));
+    const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file, fetch: stubFetch([{ match: '/token', status, json }]) });
+    assert.equal(await p.getAccessToken(), '');
+    assert.equal((await p.status()).connected, true);
+  });
+}
+
+test('getAccessToken clears creds when the refresh token is revoked', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, channel: 'C', channelId: 'UC' } }));
   const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file,

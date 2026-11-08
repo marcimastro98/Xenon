@@ -74,7 +74,7 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
    height instead of the channel list being squeezed under the controls. */
 .dc-tabs {
   position: relative; z-index: 1; flex: 0 0 auto;
-  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: auto; gap: 4px;
   padding: 3px; border-radius: 11px; margin-bottom: 2px;
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
 }

@@ -65,10 +65,10 @@ test('parseSoundRef splits guild|sound and tolerates a bare id', () => {
 
 test('normNotification projects a NOTIFICATION_CREATE payload to the client-safe shape', () => {
   assert.deepEqual(dc.normNotification({
-    title: 'marci (#general, Xenon)', body: 'ciao!',
+    title: 'luca (#general, Xenon)', body: 'ciao!',
     icon_url: 'https://cdn.discordapp.com/avatars/1/a.png', channel_id: '199737254929760257',
   }), {
-    title: 'marci (#general, Xenon)', body: 'ciao!',
+    title: 'luca (#general, Xenon)', body: 'ciao!',
     icon: 'https://cdn.discordapp.com/avatars/1/a.png', channelId: '199737254929760257',
     // A plain message notification carries no message object, so there is no
     // type to report. null, not absent: the Calls classifier reads this field
@@ -82,8 +82,8 @@ test('normNotification carries the message TYPE, which is how a ringing call is 
   // anywhere in the product — everything else reads notification wording — so
   // the projection must keep it, and must keep nothing else of the message.
   const n = dc.normNotification({
-    title: 'marci', body: '', channel_id: '199737254929760257',
-    message: { type: 3, id: '9', content: 'private', author: { id: '1', username: 'marci' } },
+    title: 'luca', body: '', channel_id: '199737254929760257',
+    message: { type: 3, id: '9', content: 'private', author: { id: '1', username: 'luca' } },
   });
   assert.equal(n.messageType, 3);
   assert.equal(n.channelId, '199737254929760257', 'the channel is what answering needs');
@@ -350,6 +350,57 @@ test('provider.runAction drives the full handshake + SET over a mocked pipe', as
   assert.ok(sent.some((s) => s[0] === 'GET_VOICE_SETTINGS'));
   assert.deepEqual(sent.find((s) => s[0] === 'SET_VOICE_SETTINGS')[1], { mute: true });
   p.close();
+});
+
+// A provider whose access token has expired, so the next use goes through a refresh.
+function expiredProvider(answer) {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'old', refreshToken: 'r', expiresAt: Date.now() - 1000, username: 'me' } }));
+  return dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    fetch: async () => answer,
+    connect: () => Promise.resolve(fakePipe(() => ({}))),
+  });
+}
+const tokenAnswer = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+for (const [name, answer] of [
+  ['a server error', tokenAnswer(503, null)],
+  ['a rate limit', tokenAnswer(429, { message: 'You are being rate limited.' })],
+  ['a rejected client', tokenAnswer(401, { error: 'invalid_client' })],
+  ['an answer with no token', tokenAnswer(200, {})],
+]) {
+  test(`a failed refresh keeps the Discord link on ${name}`, async () => {
+    const p = expiredProvider(answer);
+    assert.equal((await p.runAction({ type: 'discordMute', mode: 'mute' })).ok, false);
+    assert.equal((await p.status()).connected, true);
+    p.close();
+  });
+}
+
+test('a revoked refresh token unlinks Discord', async () => {
+  const p = expiredProvider(tokenAnswer(400, { error: 'invalid_grant' }));
+  assert.equal((await p.runAction({ type: 'discordMute', mode: 'mute' })).ok, false);
+  assert.equal((await p.status()).connected, false);
+  p.close();
+});
+
+test('the voice watch stays linked through a failed refresh, and retries', async () => {
+  const p = expiredProvider(tokenAnswer(503, null));
+  const seen = [];
+  const stop = p.watchVoice((voice) => seen.push(voice));
+  assert.ok(await waitFor(() => seen.length > 0));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(seen.some((voice) => voice.connected === false), false);
+  stop();
+});
+
+test('the voice watch reports unlinked once the refresh token is revoked', async () => {
+  const p = expiredProvider(tokenAnswer(400, { error: 'invalid_grant' }));
+  const seen = [];
+  const stop = p.watchVoice((voice) => seen.push(voice));
+  assert.ok(await waitFor(() => seen.some((voice) => voice.connected === false)));
+  stop();
 });
 
 test('provider.voiceState reads settings + channel into a client-safe shape', async () => {
@@ -765,14 +816,14 @@ test('watchVoice subscribes NOTIFICATION_CREATE when wanted and delivers project
   });
   const got = [];
   const stop = p.watchVoice(() => {}, (n) => got.push(n));
-  await new Promise((r) => setTimeout(r, 40));
+  for (let i = 0; i < 200 && p.notifStatus() !== 'ok'; i++) await new Promise((r) => setTimeout(r, 10));
   assert.ok(subs.includes('NOTIFICATION_CREATE'));
   assert.equal(p.notifStatus(), 'ok');
   sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'NOTIFICATION_CREATE', data: {
-    title: 'marci', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
+    title: 'luca', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
   } }));
   await new Promise((r) => setTimeout(r, 10));
-  assert.deepEqual(got, [{ title: 'marci', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
+  assert.deepEqual(got, [{ title: 'luca', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
   stop();
   p.close();
 });

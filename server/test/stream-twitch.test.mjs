@@ -93,6 +93,30 @@ test('getAccessToken refreshes when expired, and clears creds if refresh fails',
   assert.equal((await badRefresh.status()).connected, false);
 });
 
+test('a refresh token Twitch answers 401 for unlinks the account', async () => {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ twitch: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'streamer', userId: '42' } }));
+  const p = createTwitchProvider({ clientId: 'cid', tokensFile: file,
+    fetch: stubFetch([{ match: '/oauth2/token', status: 401, json: { message: 'invalid token' } }]) });
+  assert.equal(await p.getAccessToken(), '');
+  assert.equal((await p.status()).connected, false);
+});
+
+for (const [name, status, json] of [
+  ['a server error', 503, null],
+  ['a rate limit', 429, { message: 'Too Many Requests' }],
+  ['a rejected client', 400, { status: 400, message: 'invalid client' }],
+  ['an answer with no token', 200, {}],
+]) {
+  test(`a failed refresh keeps the Twitch link on ${name}`, async () => {
+    const file = tmpTokens();
+    fs.writeFileSync(file, JSON.stringify({ twitch: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'streamer', userId: '42' } }));
+    const p = createTwitchProvider({ clientId: 'cid', tokensFile: file, fetch: stubFetch([{ match: '/oauth2/token', status, json }]) });
+    assert.equal(await p.getAccessToken(), '');
+    assert.equal((await p.status()).connected, true);
+  });
+}
+
 test('helix returns not_connected when there is no token', async () => {
   const p = createTwitchProvider({ clientId: 'cid', tokensFile: tmpTokens(), fetch: async () => { throw new Error('no'); } });
   assert.deepEqual(await p.helix('GET', '/streams'), { ok: false, error: 'not_connected' });

@@ -71,8 +71,8 @@ test('a Wave Link pid is joinable from netstat back to its name', () => {
 // `lsof -nP -iTCP -sTCP:LISTEN` on macOS.
 const LSOF = [
   'COMMAND     PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME',
-  'WaveLink   1204 marce   21u  IPv4 0x9f2a1b3c4d5e6f70      0t0  TCP 127.0.0.1:1824 (LISTEN)',
-  'node      22468 marce   19u  IPv6 0x1122334455667788      0t0  TCP *:3030 (LISTEN)',
+  'WaveLink   1204 alex    21u  IPv4 0x9f2a1b3c4d5e6f70      0t0  TCP 127.0.0.1:1824 (LISTEN)',
+  'node      22468 alex    19u  IPv6 0x1122334455667788      0t0  TCP *:3030 (LISTEN)',
 ].join('\n');
 
 test('lsof rows carry command, pid and address', () => {
