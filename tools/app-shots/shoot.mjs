@@ -3,7 +3,9 @@
 // the end): never the user's Xenon server, never a visible window. Prints one
 // JSON report per shot: page errors, page width, and the elements in the
 // measured box that overflow it. Playwright is borrowed like toast-gallery's.
-// Run: node tools/app-shots/shoot.mjs [scene ...] [--out dir]   (default: every scene, <temp>/xenon-app-shots)
+// Run: node tools/app-shots/shoot.mjs [scene ...] [--out dir] [--gpu]   (default: every scene, <temp>/xenon-app-shots)
+// --gpu draws with the graphics card. Without it Chromium draws in software, and there the
+// glass (backdrop-filter) leaves pictures and icons under it sharp: check glass with --gpu.
 
 import { mkdir } from 'node:fs/promises';
 import os from 'node:os';
@@ -16,7 +18,23 @@ import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 export const VIEWPORTS = [
   { name: 'desk', width: 1440, height: 900 },
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true },
+  // Shot only for scenes that name them in `sizes`: phones held sideways, a big one and a
+  // small one, and a small phone upright.
+  { name: 'phone-side', width: 844, height: 390, isMobile: true, hasTouch: true, extra: true },
+  { name: 'small-side', width: 667, height: 375, isMobile: true, hasTouch: true, extra: true },
+  { name: 'small-phone', width: 360, height: 640, isMobile: true, hasTouch: true, extra: true },
 ];
+
+// The sizes a scene is shot at: the ones it names, or every size that is not an extra.
+export function viewportsFor(scene) {
+  const want = SCENES[scene] && SCENES[scene].sizes;
+  return VIEWPORTS.filter((v) => (want ? want.includes(v.name) : !v.extra));
+}
+
+// Chromium's switches: the graphics card when asked, software drawing otherwise.
+export function launchArgs(args) {
+  return args.includes('--gpu') ? ['--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'] : [];
+}
 
 // Scene names from the command line; unknown names are an error, none means all.
 export function pickScenes(args) {
@@ -70,10 +88,10 @@ async function main() {
   const scenes = pickScenes(args);
   await mkdir(outDir, { recursive: true });
   const app = await startApp(0);
-  const browser = await loadPlaywright().chromium.launch();
+  const browser = await loadPlaywright().chromium.launch({ args: launchArgs(args) });
   const report = [];
   try {
-    for (const scene of scenes) for (const v of VIEWPORTS) report.push(await shoot(browser, `http://127.0.0.1:${app.port}/`, scene, v, outDir));
+    for (const scene of scenes) for (const v of viewportsFor(scene)) report.push(await shoot(browser, `http://127.0.0.1:${app.port}/`, scene, v, outDir));
   } finally {
     await browser.close();
     await app.stop();

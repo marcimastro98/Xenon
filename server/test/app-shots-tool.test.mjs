@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startApp, appFile } from '../../tools/app-shots/serve.mjs';
-import { pickScenes, cropTarget } from '../../tools/app-shots/shoot.mjs';
+import { pickScenes, cropTarget, viewportsFor, launchArgs } from '../../tools/app-shots/shoot.mjs';
 import { SCENES } from '../../tools/app-shots/scenes.mjs';
 
 test('"/" is the dashboard and data/ is never served', () => {
@@ -43,4 +43,17 @@ test('a crop scene is shot as its box, the others as the whole page', () => {
   assert.equal(cropTarget('bit-chat', undefined), null, 'no box named: whole page');
   assert.equal(cropTarget('sparks-mail', '.bm-card'), null);
   assert.equal(cropTarget('nope', '.x'), null);
+});
+
+test('a scene is shot at the computer and the phone, and sideways only when it asks', () => {
+  const names = (scene) => viewportsFor(scene).map((v) => v.name);
+  assert.deepEqual(names('sparks-mail'), ['desk', 'phone']);
+  assert.deepEqual(names('call'), ['desk', 'phone', 'phone-side', 'small-side']);
+  for (const v of viewportsFor('call').slice(2)) assert.ok(v.width > v.height, v.name + ' lies down');
+});
+
+test('--gpu draws with the graphics card, and is not taken for a scene name', () => {
+  assert.deepEqual(launchArgs(['look-card']), []);
+  assert.ok(launchArgs(['look-card', '--gpu']).includes('--enable-gpu'));
+  assert.deepEqual(pickScenes(['look-card', '--gpu']), ['look-card']);
 });
