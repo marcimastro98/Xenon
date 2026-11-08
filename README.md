@@ -231,7 +231,7 @@ Universal build: one download for both Apple Silicon and Intel.
 2. Open it. The first launch has no dashboard behind it yet, so it offers to set one up in a Terminal window you can read and stop. The download is checked against the project's signing key **before** anything is extracted.
 3. Let it finish. Xenon installs itself under `~/Library/Application Support/Xenon`, registers a login agent so it starts with you, and the app window comes alive.
 
-> **"Xenon can't be opened because Apple cannot check it."** Expected for now: the app is not notarized yet (that needs a paid Apple Developer membership, which this project does not have). On **macOS 15 and later** open **System Settings → Privacy & Security**, scroll to the bottom and click **Open Anyway** next to Xenon: Apple removed the old right-click → Open shortcut. On **macOS 11–14** right-click the app → **Open** → **Open** still works. Either way it is once per version.
+> **Notarized since 5.0.** The app is signed with an Apple Developer ID and notarized by Apple, so macOS only asks once whether to open an app downloaded from the internet. If it says instead that it **cannot check** Xenon, that copy is older than 5.0: download the latest .dmg.
 
 <a id="macos-full-disk-access"></a>
 ##### Give Xenon Full Disk Access once
@@ -246,7 +246,9 @@ You give it to **Xenon**, not to Node: the app starts the dashboard itself preci
 
 > **Until 4.11.3 this had to be redone after every update, and now it does not.** macOS ties the permission to the app's code signature. Xenon used to be ad-hoc signed, which gives every build a different identity, so each release silently looked like a different app. The grant stopped applying with no error anywhere, and a permission dialog for the Desktop, Documents, Downloads, Photos and Music came up every time the index ran. Xenon is now signed with its own certificate, which stays the same across releases, so the grant survives updates. **The 4.11.3 update itself resets it one last time**, because that is the release where the identity changes; grant it again there and it holds from then on.
 >
-> If Xenon is listed but the permission is clearly not working, select it, press **−**, and add it again with **+**. That rewrites the entry against the app currently on disk. Xenon now notices this state by itself and says so on the dashboard rather than leaving you to guess. (The certificate is self-signed, so it changes nothing about the warning on first open: that needs Apple notarization, which is [still on the list](#platform-support).)
+> If Xenon is listed but the permission is clearly not working, select it, press **−**, and add it again with **+**. That rewrites the entry against the app currently on disk. Xenon now notices this state by itself and says so on the dashboard rather than leaving you to guess.
+>
+> **The 5.0 update resets it once more.** 5.0 is signed with an Apple Developer ID instead of the project's own certificate, so macOS may ask again for Full Disk Access, Accessibility, Screen Recording and the other permissions you had given. Grant them again once and they hold from then on.
 
 macOS needs **Node.js** and will say so if it is missing. The optional tools below each light up one thing, and Xenon tells you which are absent instead of failing later:
 

@@ -168,7 +168,7 @@
 
     <h2 id="warning" data-i18n="dl.h.warning">Windows and macOS warnings</h2>
     <p data-i18n-html="dl.warn.win">Since version 4.11.9 the Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a detection can still happen. The <a href="faq.html#warnings">FAQ explains each kind of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
-    <p data-i18n-html="dl.warn.mac"><strong>macOS.</strong> The Mac build is beta and not notarized, so macOS refuses the first launch. Open <strong>System Settings, Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong> next to Xenon. On macOS 15 and later the Control-click Open route no longer works.</p>
+    <p data-i18n-html="dl.warn.mac"><strong>macOS.</strong> The Mac build is beta. From 5.0 it is notarized by Apple, so on the first launch macOS only asks once whether to open an app downloaded from the internet: click <strong>Open</strong>. If macOS says it cannot check Xenon, that copy is older than 5.0, so download the latest .dmg.</p>
 
     <h2 id="verify" data-i18n="dl.h.verify">Verifying the download</h2>
     <p data-i18n-html="dl.verify.p1">Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>

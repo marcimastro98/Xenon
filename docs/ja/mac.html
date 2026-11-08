@@ -67,7 +67,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon は Mac で動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータとして macOS 11 以降で動きます。1つのユニバーサル .dmg が Apple シリコンと Intel の両方で動きます。ダッシュボード、ウィジェット、各種連携は Windows と同じで、一部のシステム機能は使えません。"}},{"@type":"Question","name":"Mac で Xeneon Edge を使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。Xenon は初めて開いたときにどの画面を使うか確認するので、Edge を選べます。macOS は USB タッチスクリーンに標準では対応していないため、タッチを使うにはタッチをクリックに変換するアプリが必要です。iCUE のライティングとゲームを邪魔しないタッチは Windows のみです。"}},{"@type":"Question","name":"macOS に Xenon を開けないと表示されるのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"アプリがまだ Apple の公証を受けていないためです。macOS 15 以降では、システム設定のプライバシーとセキュリティを開き、Xenon の横にある「このまま開く」をクリックします。macOS 11 から 14 では、アプリを右クリックして「開く」を選びます。必要なのはバージョンごとに1回だけです。"}},{"@type":"Question","name":"Mac で Xenon に必要な権限は何ですか？","acceptedAnswer":{"@type":"Answer","text":"ダッシュボードはどの権限がなくても動きます。フルディスクアクセスがあると、検索とディスク容量ウィジェットがホームフォルダーとゴミ箱を見られます。アクセシビリティがあると、Deck キーからキーボードショートカットを送れます。画面収録とマイクは、AI の画面認識と音声のためのものです。"}},{"@type":"Question","name":"Mac で Xenon をアンインストールするには？","acceptedAnswer":{"@type":"Answer","text":"~/Library/Application Support/Xenon にある UNINSTALL.command をダブルクリックし、求められたら REMOVE と入力します。アプリ、ログイン項目、ローカルサーバー、データ、インストールフォルダーが削除されます。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon は Mac で動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータとして macOS 11 以降で動きます。1つのユニバーサル .dmg が Apple シリコンと Intel の両方で動きます。ダッシュボード、ウィジェット、各種連携は Windows と同じで、一部のシステム機能は使えません。"}},{"@type":"Question","name":"Mac で Xeneon Edge を使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。Xenon は初めて開いたときにどの画面を使うか確認するので、Edge を選べます。macOS は USB タッチスクリーンに標準では対応していないため、タッチを使うにはタッチをクリックに変換するアプリが必要です。iCUE のライティングとゲームを邪魔しないタッチは Windows のみです。"}},{"@type":"Question","name":"macOS に Xenon を開けないと表示されるのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"4.11.13 までのバージョンは公証を受けていなかったため、macOS が確認できませんでした。5.0 から Xenon は Apple の公証を受けています。初回は、インターネットからダウンロードしたアプリを開くかどうかを macOS が確認するだけなので、「開く」をクリックします。それでも macOS が Xenon を確認できないと表示する場合、そのコピーは 5.0 より前のものなので、最新の .dmg をダウンロードしてください。"}},{"@type":"Question","name":"Mac で Xenon に必要な権限は何ですか？","acceptedAnswer":{"@type":"Answer","text":"ダッシュボードはどの権限がなくても動きます。フルディスクアクセスがあると、検索とディスク容量ウィジェットがホームフォルダーとゴミ箱を見られます。アクセシビリティがあると、Deck キーからキーボードショートカットを送れ、手順の記録がクリックしたボタンの名前を書き留められます。画面収録は、スクリーンショット、録画、インスタントリプレイ、AI の画面認識のためのものです。マイクは音声入力と録画に入れる声のため、カメラは録画の Web カメラバブルのためのものです。入力監視があると、手順の記録がクリックを見られ、Xenon が USB ドングル接続のマウスやキーボードのバッテリーを読み取れます。"}},{"@type":"Question","name":"Mac で Xenon をアンインストールするには？","acceptedAnswer":{"@type":"Answer","text":"~/Library/Application Support/Xenon にある UNINSTALL.command をダブルクリックし、求められたら REMOVE と入力します。アプリ、ログイン項目、ローカルサーバー、データ、インストールフォルダーが削除されます。"}}]}</script>
 
 <style>
   /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
@@ -134,7 +134,7 @@
           <a class="pg-key" data-for="macos" href="#get" data-xl="ctamac">macOS版をダウンロード</a>
           <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">ブラウザで試す</a>
         </div>
-        <p class="updated" data-i18n="mac.updated">最終更新: 2026年9月27日</p>
+        <p class="updated" data-i18n="mac.updated">最終更新: 2026年11月8日</p>
       </div>
       <figure class="pg-pic"><img src="/images/home/monitor.webp" width="1600" height="900" fetchpriority="high" decoding="async" alt="Xenon のダッシュボード。音楽、カレンダー、システムのグラフを1ページに表示" data-i18n-alt="mac.pic.alt"><figcaption data-i18n="mac.pic.cap">ブラウザのデモのダッシュボードです。表示されている値は Windows PC のサンプルデータで、Mac では同じタイルに Mac 自身の値が表示されます。</figcaption></figure>
     </div>
@@ -168,7 +168,7 @@
     </div>
     <ul>
       <li data-i18n-html="mac.req.os"><strong>macOS 11 以降</strong>、Apple シリコンまたは Intel。.dmg はユニバーサルビルドなので、ダウンロードは両方で1つです。</li>
-      <li data-i18n-html="mac.req.node"><strong>Node.js 18.15 以降。</strong> 入っておらず Homebrew がある場合は、セットアップが Homebrew でインストールします。Homebrew もない場合はそこで止まり、nodejs.org からインストールするよう案内します。</li>
+      <li data-i18n-html="mac.req.node"><strong>Node.js 22 以降を推奨します。</strong> Node.js 18 と 20 でも Xenon は動きますが、セキュリティ修正はもう提供されず、Xenon はログに警告を書き込みます。Node.js が入っておらず Homebrew がある場合は、セットアップが Homebrew でインストールします。Homebrew もない場合はそこで止まり、nodejs.org からインストールするよう案内します。</li>
     </ul>
     <p data-i18n="mac.req.opt">ほかは任意です。ツールごとに1つの機能が加わり、入っていないものはインストーラーが名前を挙げて知らせます:</p>
     <ul>
@@ -178,14 +178,14 @@
     </ul>
 
     <h2 id="first" data-i18n="mac.h.first">初回起動</h2>
-    <h3 data-i18n="mac.h.notarized">公証されていないアプリを開く</h3>
-    <p data-i18n="mac.nz.p1">Xenon はまだ Apple の公証（notarize）を受けていません。公証には有料の Apple Developer メンバーシップが必要で、このプロジェクトは加入していません。そのため、初めて Xenon を開くと、macOS はこのアプリを確認できないと表示します。</p>
+    <h3 data-i18n="mac.h.notarized">Xenon を初めて開く</h3>
+    <p data-i18n="mac.nz.p1">バージョン 5.0 から、Xenon は Apple Developer ID で署名され、Apple の公証を受けています。そのため macOS は開く前にアプリを確認できます。</p>
     <ol>
       <li data-i18n-html="mac.nz.1">.dmg を開き、<strong>Xenon</strong> を <strong>アプリケーション</strong> にドラッグしてから開きます。</li>
-      <li data-i18n-html="mac.nz.2">macOS 15 以降で macOS に拒否されたら、<strong>システム設定</strong> を開き、次に <strong>プライバシーとセキュリティ</strong> を開きます。</li>
-      <li data-i18n-html="mac.nz.3">いちばん下までスクロールし、Xenon の横にある <strong>このまま開く</strong> をクリックします。</li>
+      <li data-i18n-html="mac.nz.2">インターネットからダウンロードしたアプリを開くかどうか、macOS が一度だけ確認します。<strong>開く</strong> をクリックします。</li>
     </ol>
-    <p data-i18n-html="mac.nz.p2">macOS 11 から 14 では、代わりにアプリを右クリックして <strong>開く</strong> を選び、もう一度 <strong>開く</strong> を選ぶ方法も使えます。Apple はこの方法を macOS 15 で廃止しました。どちらの場合も、必要なのはバージョンごとに1回だけです。</p>
+    <p data-i18n="mac.nz.p2">macOS が Xenon を確認できないと表示する場合、そのコピーは 5.0 より前のものです。このページから最新の .dmg をダウンロードして、そちらを開いてください。</p>
+    <p data-i18n-html="mac.nz.p3">4.11.13 までのバージョンは、プロジェクト独自の証明書で署名されており、公証は受けていませんでした。5.0 で署名が変わるため、アップデート後に macOS が、フルディスクアクセス、アクセシビリティ、画面収録など、すでに許可した権限をもう一度求めることがあります。<strong>システム設定</strong> の <strong>プライバシーとセキュリティ</strong> で、もう一度許可してください。</p>
 
     <h3 data-i18n="mac.h.setup">ダッシュボードのエンジンのセットアップ</h3>
     <p data-i18n="mac.setup.p1">.dmg はインストーラーを実行できないので、初回起動がその役目を担います。Xenon はダッシュボードのエンジンが見つからないと、内容を読めて途中で止められるターミナルのウィンドウを開きます。そのウィンドウで次のことを行います:</p>
@@ -247,9 +247,11 @@
     <p data-i18n="mac.perms.p">ダッシュボードは、どの権限がなくても動きます。権限ごとに、特定の機能が使えるようになります。</p>
     <ul>
       <li data-i18n-html="mac.perm.fda"><strong>フルディスクアクセス（Xenon に許可）。</strong> 検索とディスク容量ウィジェットが、ホームフォルダー、ゴミ箱、<code>~/Library/Caches</code> の大部分を見られるようになります。許可がない場合、Xenon はデスクトップ、書類、ダウンロードへのアクセスを1つずつ求めるのではなく、ホームフォルダーには立ち入りません。代わりに、正しい設定画面へのボタンが付いたお知らせを1つ表示します。</li>
-      <li data-i18n-html="mac.perm.ax"><strong>アクセシビリティ（Xenon Helper に許可）。</strong> Deck キーから、前面のアプリにキーボードショートカットを送れるようになります。許可するまで、その種類の Deck キーはエディターに表示されません。Xenon は起動時にこの権限を確認するので、許可したら Xenon を終了して開き直してください。</li>
-      <li data-i18n-html="mac.perm.screen"><strong>画面収録。</strong> AI が画面を見るためにスクリーンショットを撮るときに必要です。許可がないと、デスクトップの壁紙しか写りません。</li>
-      <li data-i18n-html="mac.perm.mic"><strong>マイク。</strong> 音声入力と「Hey Bit」音声起動に必要です。許可がないと、Xenon はマイクを見つけられません。</li>
+      <li data-i18n-html="mac.perm.ax"><strong>アクセシビリティ（Xenon Helper と Xenon に許可）。</strong> Xenon Helper に許可すると、Deck キーから前面のアプリにキーボードショートカットを送れるようになります。許可するまで、その種類の Deck キーはエディターに表示されません。Xenon は起動時にこの権限を確認するので、許可したら Xenon を終了して開き直してください。Xenon に許可すると、手順の記録がクリックしたボタンの名前を書き留められます。許可がない場合、各手順は丸で囲んだ場所を示します。</li>
+      <li data-i18n-html="mac.perm.screen"><strong>画面収録。</strong> スクリーンショット、録画、インスタントリプレイ、AI の画面認識に必要です。許可がないと、デスクトップの壁紙しか写りません。</li>
+      <li data-i18n-html="mac.perm.mic"><strong>マイク。</strong> 音声入力、「Hey Bit」音声起動、録画に入れるあなたの声に必要です。許可がないと、Xenon はマイクを見つけられません。</li>
+      <li data-i18n-html="mac.perm.cam"><strong>カメラ。</strong> 録画の Web カメラバブルに必要です。応答するカメラがない場合、録画はカメラなしで続きます。</li>
+      <li data-i18n-html="mac.perm.input"><strong>入力監視。</strong> 手順の記録があなたのクリックを見られるようになり、Xenon が USB ドングル接続のマウスやキーボードのバッテリーを読み取れるようになります。手順の記録は、入力した内容は決して記録せず、入力したことだけを記録します。</li>
       <li data-i18n-html="mac.perm.auto"><strong>オートメーション。</strong> Xenon Helper がない場合だけ関係します。その場合、アプリスイッチャーはスクリプトによる方法に切り替わり、macOS がアプリケーションごとに一度確認します。</li>
     </ul>
     <p data-i18n="mac.fda.h">Xenon にフルディスクアクセスを許可するには:</p>
@@ -258,7 +260,7 @@
       <li data-i18n-html="mac.fda.2"><strong>+</strong> をクリックし、アプリケーションから <strong>Xenon</strong> を選んで、スイッチがオンになっていることを確認します。</li>
       <li data-i18n="mac.fda.3">Xenon を終了して、もう一度開きます。権限は起動時に読み込まれます。</li>
     </ol>
-    <p data-i18n="mac.fda.p">バージョン 4.11.3 から、Xenon はリリースをまたいで変わらない独自の証明書で署名されているので、許可はアップデート後も残ります。Xenon が一覧にあるのに権限が明らかに効いていない場合は、マイナスボタンで削除してから追加し直してください。</p>
+    <p data-i18n="mac.fda.p">バージョン 5.0 から、Xenon はリリースをまたいで変わらない Apple Developer ID で署名されているので、許可はアップデート後も残ります。5.0 へのアップデートのときだけは署名が変わるため、もう一度求められることがあります。Xenon が一覧にあるのに権限が明らかに効いていない場合は、マイナスボタンで削除してから追加し直してください。</p>
 
     <h2 id="remove" data-i18n="mac.h.remove">アンインストール</h2>
     <ol>
@@ -276,8 +278,8 @@
     <h2 id="faq" data-i18n="mac.h.faq">質問</h2>
     <details><summary data-i18n="mac.faq.mac.q">Xenon は Mac で動きますか？</summary><div class="body"><p data-i18n="mac.faq.mac.a">はい、ベータとして macOS 11 以降で動きます。1つのユニバーサル .dmg が Apple シリコンと Intel の両方で動きます。ダッシュボード、ウィジェット、各種連携は Windows と同じで、一部のシステム機能は使えません。</p></div></details>
     <details><summary data-i18n="mac.faq.edge.q">Mac で Xeneon Edge を使えますか？</summary><div class="body"><p data-i18n="mac.faq.edge.a">はい。Xenon は初めて開いたときにどの画面を使うか確認するので、Edge を選べます。macOS は USB タッチスクリーンに標準では対応していないため、タッチを使うにはタッチをクリックに変換するアプリが必要です。iCUE のライティングとゲームを邪魔しないタッチは Windows のみです。</p></div></details>
-    <details><summary data-i18n="mac.faq.open.q">macOS に Xenon を開けないと表示されるのはなぜですか？</summary><div class="body"><p data-i18n="mac.faq.open.a">アプリがまだ Apple の公証を受けていないためです。macOS 15 以降では、システム設定のプライバシーとセキュリティを開き、Xenon の横にある「このまま開く」をクリックします。macOS 11 から 14 では、アプリを右クリックして「開く」を選びます。必要なのはバージョンごとに1回だけです。</p></div></details>
-    <details><summary data-i18n="mac.faq.perm.q">Mac で Xenon に必要な権限は何ですか？</summary><div class="body"><p data-i18n="mac.faq.perm.a">ダッシュボードはどの権限がなくても動きます。フルディスクアクセスがあると、検索とディスク容量ウィジェットがホームフォルダーとゴミ箱を見られます。アクセシビリティがあると、Deck キーからキーボードショートカットを送れます。画面収録とマイクは、AI の画面認識と音声のためのものです。</p></div></details>
+    <details><summary data-i18n="mac.faq.open.q">macOS に Xenon を開けないと表示されるのはなぜですか？</summary><div class="body"><p data-i18n="mac.faq.open.a">4.11.13 までのバージョンは公証を受けていなかったため、macOS が確認できませんでした。5.0 から Xenon は Apple の公証を受けています。初回は、インターネットからダウンロードしたアプリを開くかどうかを macOS が確認するだけなので、「開く」をクリックします。それでも macOS が Xenon を確認できないと表示する場合、そのコピーは 5.0 より前のものなので、最新の .dmg をダウンロードしてください。</p></div></details>
+    <details><summary data-i18n="mac.faq.perm.q">Mac で Xenon に必要な権限は何ですか？</summary><div class="body"><p data-i18n="mac.faq.perm.a">ダッシュボードはどの権限がなくても動きます。フルディスクアクセスがあると、検索とディスク容量ウィジェットがホームフォルダーとゴミ箱を見られます。アクセシビリティがあると、Deck キーからキーボードショートカットを送れ、手順の記録がクリックしたボタンの名前を書き留められます。画面収録は、スクリーンショット、録画、インスタントリプレイ、AI の画面認識のためのものです。マイクは音声入力と録画に入れる声のため、カメラは録画の Web カメラバブルのためのものです。入力監視があると、手順の記録がクリックを見られ、Xenon が USB ドングル接続のマウスやキーボードのバッテリーを読み取れます。</p></div></details>
     <details><summary data-i18n="mac.faq.rm.q">Mac で Xenon をアンインストールするには？</summary><div class="body"><p data-i18n="mac.faq.rm.a">~/Library/Application Support/Xenon にある UNINSTALL.command をダブルクリックし、求められたら REMOVE と入力します。アプリ、ログイン項目、ローカルサーバー、データ、インストールフォルダーが削除されます。</p></div></details>
 
     <div class="card accent">
