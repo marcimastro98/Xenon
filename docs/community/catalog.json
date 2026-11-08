@@ -2,6 +2,31 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "sports",
+      "kind": "widget",
+      "name": "Sports",
+      "author": "halluci293",
+      "description": "Track your favorite teams across 14 major sports leagues (NFL, NBA, MLB, NHL, NCAA, and top global soccer) in one personalized dashboard.\n\n* **Live Scores:** Auto-refreshing updates during active games.\n* **Schedules & Records:** See current standings and upcoming matchups at a glance.\n* **Native Themes:** Fully supports Xenon's Light, Dark, and Retro modes.",
+      "category": "media",
+      "tags": [
+        "sports",
+        "scores",
+        "football",
+        "basketball",
+        "hockey"
+      ],
+      "version": "1.0.0",
+      "pkgId": "sports-espn",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "addedAt": "2026-11-08",
+      "codeFile": true
+    },
+    {
       "id": "meter-reading",
       "kind": "widget",
       "name": "Meter Reading",
