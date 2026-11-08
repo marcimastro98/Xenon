@@ -24,6 +24,10 @@
       item.className = 'tp-item' + (i === selectedVal ? ' selected' : '');
       item.textContent = _pad(i);
       item.dataset.val = i;
+      // The chosen one of each column is the Tab stop: Tab goes hour, then minutes.
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(i === selectedVal));
+      item.tabIndex = i === selectedVal ? 0 : -1;
       item.addEventListener('click', function () {
         onSelect(i);
       });
@@ -73,19 +77,70 @@
     dd.style.top = (placeBelow ? r.bottom + gap : r.top - gap - h) + 'px';
   }
 
+  function _labelTp() {
+    $('tp-hours').setAttribute('aria-label', t('tp_hours'));
+    $('tp-minutes').setAttribute('aria-label', t('deck_param_minutes'));
+  }
+
+  function _focusSelected(colId) {
+    const sel = $(colId).querySelector('.tp-item.selected');
+    if (sel) sel.focus({ preventScroll: true });
+  }
+
   function toggleTimePicker() {
     _tpOpen = !_tpOpen;
     const dd = $('time-picker-dropdown');
     const btn = $('time-picker-btn');
     if (_tpOpen) {
       _rebuild();
+      _labelTp();
       dd.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
       _positionTp();   // measured after .open makes the dropdown displayable
+      _focusSelected('tp-hours');
     } else {
+      const hadFocus = dd.contains(document.activeElement);
       dd.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');
+      if (hadFocus) btn.focus();   // a closed list must not keep the focus
     }
+  }
+
+  // The keyboard inside the list: up and down change the value (and go round), Home and
+  // End jump to the ends, Enter or Space close it on the value shown. Esc is the day
+  // window's: it closes the list first (dayModalEsc).
+  function _tpStep(key, cur, count) {
+    if (key === 'ArrowDown') return (cur + 1) % count;
+    if (key === 'ArrowUp') return (cur - 1 + count) % count;
+    if (key === 'Home') return 0;
+    if (key === 'End') return count - 1;
+    return null;
+  }
+
+  function _onTpKey(e) {
+    const item = e.target.closest && e.target.closest('.tp-item');
+    if (!item) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTimePicker(); return; }
+    const col = item.parentNode;
+    const next = _tpStep(e.key, Number(item.dataset.val), col.children.length);
+    if (next === null) return;
+    e.preventDefault();
+    const colId = col.id;
+    col.children[next].click();   // the same path as a tap
+    _focusSelected(colId);
+  }
+
+  // Tab past the minutes leaves the list: it closes behind the focus.
+  function _onTpFocusOut(e) {
+    const wrap = $('time-picker-wrap');
+    if (!_tpOpen || !e.relatedTarget || wrap.contains(e.relatedTarget)) return;
+    toggleTimePicker();
+  }
+
+  const _tpDropdown = $('time-picker-dropdown');
+  if (_tpDropdown) {
+    _tpDropdown.addEventListener('keydown', _onTpKey);
+    _tpDropdown.addEventListener('focusout', _onTpFocusOut);
   }
 
   // close on outside click

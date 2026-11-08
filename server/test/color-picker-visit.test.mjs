@@ -19,7 +19,9 @@ function events(target) {
 
 function makeNode(document, tag, className = '') {
   const node = events({
-    tag, className, children: [], parent: null, style: {}, title: '', value: '', type: '', tabIndex: 0,
+    tag, className, children: [], parent: null, style: {}, title: '', value: '', type: '', tabIndex: -1, attrs: {},
+    setAttribute(k, v) { node.attrs[k] = String(v); },
+    getAttribute: (k) => (k in node.attrs ? node.attrs[k] : null),
     offsetWidth: 264, offsetHeight: 360, isConnected: true,
     classList: { add() {}, remove() {} },
     appendChild(child) { child.parent = node; node.children.push(child); return child; },
@@ -173,4 +175,75 @@ test('a caller that redraws its row on a pick does not throw the popover into a 
   r.anchor.getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0, bottom: 0 });
   r.window.fire('resize');
   assert.deepEqual([r.pop().style.left, r.pop().style.top], [left, top]);
+});
+
+// The keyboard: the hue strip and the shade square are sliders. A key moves the knob at once,
+// and the colour lands on key up, once, as after a drag.
+const key = (el, k, extra = {}) => {
+  let stopped = false;
+  el.fire('keydown', { key: k, preventDefault() { stopped = true; }, ...extra });
+  return stopped;
+};
+
+test('the hue strip and the shade square take the keyboard, with names', () => {
+  const r = rig();
+  for (const [cls, name] of [['.cp-hue', 'Hue'], ['.cp-sv', 'Saturation and brightness']]) {
+    const el = r.part(cls);
+    assert.equal(el.tabIndex, 0, cls + ' is a Tab stop');
+    assert.equal(el.getAttribute('role'), 'slider');
+    assert.equal(el.getAttribute('aria-label'), name);
+  }
+});
+
+test('an arrow on the hue moves it at once and applies on key up, once', () => {
+  const r = rig({ value: '#ff0000' });
+  const hue = r.part('.cp-hue');
+  assert.equal(hue.getAttribute('aria-valuenow'), '0');
+  assert.equal(key(hue, 'ArrowRight'), true, 'the page must not scroll under the arrow');
+  assert.equal(key(hue, 'ArrowRight'), true);
+  assert.equal(hue.getAttribute('aria-valuenow'), '7', 'two small steps of 3.6 degrees');
+  assert.equal(r.picks.length, 0, 'nothing applied while the key is held');
+  hue.fire('keyup', { key: 'ArrowRight' });
+  assert.equal(r.picks.length, 1);
+  assert.ok(r.pop(), 'the popover stays, as after a drag');
+});
+
+test('on the square, sideways is saturation and up is brightness; Shift is a big step; the ends hold', () => {
+  const r = rig({ value: '#808080' });   // grey: saturation 0, brightness 50
+  const sv = r.part('.cp-sv');
+  const text = () => sv.getAttribute('aria-valuetext');
+  assert.equal(text(), 'Saturation 0%, brightness 50%');
+  key(sv, 'ArrowRight');
+  key(sv, 'ArrowUp', { shiftKey: true });
+  assert.equal(text(), 'Saturation 1%, brightness 60%');
+  key(sv, 'ArrowLeft', { shiftKey: true });
+  assert.equal(text(), 'Saturation 0%, brightness 60%', 'never below zero');
+  key(sv, 'End');
+  key(sv, 'PageDown');
+  assert.equal(text(), 'Saturation 100%, brightness 50%');
+  assert.equal(sv.getAttribute('aria-valuenow'), '50');
+  sv.fire('keyup', { key: 'PageDown' });
+  assert.equal(r.picks.length, 1);
+});
+
+test('Home and End take the hue to its ends', () => {
+  const r = rig({ value: '#00ff00' });
+  const hue = r.part('.cp-hue');
+  key(hue, 'End');
+  assert.equal(hue.getAttribute('aria-valuenow'), '360');
+  key(hue, 'Home');
+  assert.equal(hue.getAttribute('aria-valuenow'), '0');
+  key(hue, 'ArrowUp', { shiftKey: true });
+  assert.equal(hue.getAttribute('aria-valuenow'), '36', 'up and down move a one-line slider too');
+});
+
+test('other keys pass through: Tab still leaves, a letter does nothing', () => {
+  const r = rig();
+  for (const cls of ['.cp-hue', '.cp-sv']) {
+    const el = r.part(cls);
+    assert.equal(key(el, 'Tab'), false);
+    assert.equal(key(el, 'a'), false);
+    el.fire('keyup', { key: 'Tab' });
+  }
+  assert.equal(r.picks.length, 0);
 });

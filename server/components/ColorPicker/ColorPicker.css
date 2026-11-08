@@ -73,6 +73,9 @@
   pointer-events: none;
 }
 .cp-hue-knob { top: 50%; }
+/* Both boxes take the keyboard (arrows move the knob). */
+.cp-sv:focus-visible,
+.cp-hue:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
 
 /* Preview + hex entry row. */
 .cp-row {

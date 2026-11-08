@@ -263,6 +263,9 @@
   background: rgba(var(--accent-rgb),0.22);
   font-weight: 900;
 }
+/* The arrows move the chosen value (calendar.js): the ring says which column has them. */
+.tp-item:focus { outline: none; }
+.tp-item:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
 /* ── End custom time picker ─────────────────────────────────── */
 
 .event-input:focus,

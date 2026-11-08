@@ -67,6 +67,26 @@
     } catch { /* storage blocked/full — recents are a nicety, not a feature */ }
   }
 
+  const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return v === k ? fb : v; };
+
+  // The keyboard moves the knobs too: an arrow is a small step, Shift+arrow a big one,
+  // Home and End the ends. The colour lands on key up, once, as after a drag.
+  const KEY_STEP = 0.01;
+  const KEY_BIG = 0.1;
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  // [dx, dy] for a key on a 0..1 box: x grows to the right, y grows upwards.
+  function keyMove(key, step) {
+    switch (key) {
+      case 'ArrowLeft': return [-step, 0];
+      case 'ArrowRight': return [step, 0];
+      case 'ArrowUp': case 'PageUp': return [0, key === 'PageUp' ? KEY_BIG : step];
+      case 'ArrowDown': case 'PageDown': return [0, key === 'PageDown' ? -KEY_BIG : -step];
+      case 'Home': return [-1, 0];
+      case 'End': return [1, 0];
+      default: return null;
+    }
+  }
+
   let pop = null;          // the open popover element, or null
   let cleanupFns = [];     // listeners to detach on close
 
@@ -169,6 +189,14 @@
       hueKnob.style.left = (h / 360 * 100) + '%';
       hueKnob.style.background = 'hsl(' + Math.round(h) + ', 100%, 50%)';
       preview.style.background = hex;
+      hue.setAttribute('aria-valuemin', '0');
+      hue.setAttribute('aria-valuemax', '360');
+      hue.setAttribute('aria-valuenow', String(Math.round(h)));
+      sv.setAttribute('aria-valuemin', '0');
+      sv.setAttribute('aria-valuemax', '100');
+      sv.setAttribute('aria-valuenow', String(Math.round(v * 100)));
+      sv.setAttribute('aria-valuetext', t('cp_shade_value', 'Saturation {s}%, brightness {v}%')
+        .replace('{s}', String(Math.round(s * 100))).replace('{v}', String(Math.round(v * 100))));
       if (document.activeElement !== hexInput) hexInput.value = hex.toUpperCase();
       hexInput.classList.remove('invalid');
     }
@@ -209,6 +237,23 @@
     }
     drag(sv, (x, y) => { s = x; v = 1 - y; });
     drag(hue, (x) => { h = Math.min(359.9, x * 360); });
+
+    function slider(el, label, onKey) {
+      el.tabIndex = 0;
+      el.setAttribute('role', 'slider');
+      el.setAttribute('aria-label', label);
+      el.addEventListener('keydown', (ev) => {
+        const d = keyMove(ev.key, ev.shiftKey ? KEY_BIG : KEY_STEP);
+        if (!d) return;
+        ev.preventDefault();
+        onKey(d[0], d[1]);
+        paint();
+      });
+      el.addEventListener('keyup', () => commit());   // a key that moved nothing applies nothing
+    }
+    // Hue is one line, so up and down move it too, as on any slider.
+    slider(hue, t('cp_hue', 'Hue'), (dx, dy) => { h = Math.min(359.9, clamp01(h / 360 + dx + dy) * 360); });
+    slider(sv, t('cp_shade', 'Saturation and brightness'), (dx, dy) => { s = clamp01(s + dx); v = clamp01(v + dy); });
 
     hexInput.addEventListener('change', () => {
       let val = hexInput.value.trim();
