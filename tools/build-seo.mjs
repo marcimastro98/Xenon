@@ -918,6 +918,8 @@ const STATIC_ROUTES = [
   { loc: '/single-screen.html', file: 'docs/single-screen.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/fps-overlay.html', file: 'docs/fps-overlay.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/screen-recorder.html', file: 'docs/screen-recorder.html', priority: '0.8', changefreq: 'monthly' },
+  // What is new in 5.0, one sheet per new thing.
+  { loc: '/5.html', file: 'docs/5.html', priority: '0.8', changefreq: 'monthly' },
 ];
 
 // Every page published in several languages lists all of them, each URL

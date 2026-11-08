@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#8AB4F8">
+<title>Xenon 5.0 새 기능: 바탕 화면 위젯, FPS, Bit</title>
+<meta name="description" content="Xenon 5.0은 Liquid Glass 모습, 메인 화면 위젯, FPS와 인스턴트 리플레이, 위젯을 만드는 AI Bit를 제공합니다. 무료이며 계정이 필요 없습니다.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon 5.0 새 기능: 바탕 화면 위젯, FPS, Bit">
+<meta property="og:description" content="Xenon 5.0은 Liquid Glass 모습, 메인 화면 위젯, FPS와 인스턴트 리플레이, 위젯을 만드는 AI Bit를 제공합니다. 무료이며 계정이 필요 없습니다.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/5.html">
+<meta property="og:image" content="https://xenon-app.com/images/v5/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon 5.0 새 기능: 바탕 화면 위젯, FPS, Bit">
+<meta name="twitter:description" content="Xenon 5.0은 Liquid Glass 모습, 메인 화면 위젯, FPS와 인스턴트 리플레이, 위젯을 만드는 AI Bit를 제공합니다. 무료이며 계정이 필요 없습니다.">
+<link rel="canonical" href="https://xenon-app.com/ko/5.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/5.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/5.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/5.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/5.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/5.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/5.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/5.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/5.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Xenon 5.0의 새로운 기능","description":"Xenon 5.0은 Liquid Glass 모습, 메인 화면 위젯, FPS와 인스턴트 리플레이, 위젯을 만드는 AI Bit를 제공합니다. 무료이며 계정이 필요 없습니다.","inLanguage": "ko","about":{"@type":"SoftwareApplication","name":"Xenon","softwareVersion":"5.0.0","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (Beta), Linux (Beta)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}}</script>
+
+<link rel="preload" as="image" href="/images/v5/edge.webp" fetchpriority="high">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── Xenon 5.0: one sheet per new thing, in the colour the app gives it ── */
+  /* The name beside what it brings, then the dashboard as it runs on a 2560 x 720 screen. */
+  .v5-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px clamp(32px, 5vw, 80px); align-items: end; }
+  .v5-head .lede { margin-top: 0; }
+  .pg h1.v5 { font-size: clamp(68px, 9.6vw, 156px); line-height: .86; letter-spacing: -.03em; }
+  /* Room above the screen for the Bit that stands on it. */
+  .v5-edge { position: relative; margin-top: calc(var(--bit-h) - 16px); }
+  .v5-edge video { display: block; width: 100%; height: auto; aspect-ratio: 1920 / 540; border-radius: var(--r-2); background: var(--sheet-ink); }
+  .v5-edge figcaption { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 12px; font-size: 17px; line-height: 1.45; }
+  .v5-edge figcaption span { text-wrap: pretty; }
+  .v5-edge figcaption strong { font-weight: 750; }
+  .v5-edge .pz { flex: none; margin: -10px -10px 0 0; }
+
+  /* Bit: one on each new thing, standing on its picture's top edge in the sheet's
+     colours with that thing's face; a small one in each link of the list. bit.js
+     makes them blink, look and hop, never under reduced motion. */
+  main { --bit-w: clamp(40px, 3.6vw, 52px); --bit-h: calc(var(--bit-w) * 11 / 8); }
+  .v5-bit {
+    position: absolute; right: 24px; bottom: calc(100% - 1px); z-index: 1;
+    width: var(--bit-w); height: auto; overflow: visible;
+    transition: transform .16s cubic-bezier(.2, .8, .2, 1);
+  }
+  .v5-bit .bb, .nx-bit .bb { fill: var(--sheet-ink); }
+  .v5-bit .bf, .nx-bit .bf { fill: var(--sheet); }
+  .v5-bit.hop { transform: translateY(-12px); }
+  .os-bit { transition: transform .16s cubic-bezier(.2, .8, .2, 1); }
+  .os-bit.hop { transform: translateY(-10px); }
+
+  /* The pause key on a moving picture (WCAG 2.2.2), as on the home. It stays hidden
+     where the clip never moves (reduced motion), so its own display must not undo that. */
+  .pz { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+  .pz[hidden] { display: none; }
+  .pz:hover { background: color-mix(in oklab, currentColor 13%, transparent); }
+  .pz svg { width: 18px; height: 18px; }
+  .pz .i-play { display: none; }
+  .pz[aria-pressed="true"] .i-play { display: block; }
+  .pz[aria-pressed="true"] .i-pause { display: none; }
+  .pz.on-pic { position: absolute; right: 10px; top: 10px; background: rgba(8,10,12,.72); color: #fff; --focus: #fff; }
+  .pz.on-pic:hover { background: rgba(8,10,12,.9); }
+
+  /* What is new: each name on its own sheet's colour, so the page below is already in view. */
+  .nx { max-width: 1440px; margin: 0 auto; padding: clamp(48px, 6vw, 88px) 32px; }
+  .nx h2 { margin: 0 0 24px; }
+  .nx-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .nx-list li { margin: 0; }
+  .nx-list a {
+    display: grid; align-content: space-between; justify-items: start; gap: 12px; height: 100%; min-height: 128px;
+    padding: 16px 18px 18px; border-radius: var(--r-2);
+    background: var(--sheet); color: var(--sheet-ink); text-decoration: none;
+    font: 750 clamp(20px, .9vw + 12px, 26px)/1.08 var(--display); letter-spacing: -.008em; text-wrap: balance;
+  }
+  .nx-bit { display: block; width: 26px; height: auto; transition: transform .16s cubic-bezier(.2, .8, .2, 1); }
+  .nx-bit.hop { transform: translateY(-5px); }
+  .nx-list a:hover { background: color-mix(in oklab, var(--sheet) 86%, var(--sheet-ink)); }
+  .nx-list a:focus-visible { outline: 3px solid var(--bone-0); outline-offset: 3px; }
+
+  /* A new thing: the name large, one sentence, its picture. */
+  .nw { --focus: var(--sheet-ink); background: var(--sheet); color: var(--sheet-ink); }
+  .nw-w {
+    max-width: 1440px; margin: 0 auto; padding: clamp(64px, 7vw, 112px) 32px;
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px clamp(32px, 5vw, 80px); align-items: center;
+  }
+  .nw h2 {
+    margin: 0; color: inherit; text-wrap: balance;
+    font: 800 clamp(44px, 5.6vw, 88px)/.95 var(--display); letter-spacing: -.021em;
+  }
+  .nw p { margin: 20px 0 0; max-width: 34ch; color: inherit; font-size: clamp(19px, 1.4vw, 22px); line-height: 1.4; font-weight: 500; }
+  .nw p.go { margin-top: 18px; font-size: 18px; }
+  .nw a { color: inherit; font-weight: 700; display: inline-flex; align-items: center; min-height: 44px; }
+  .nw-pic { position: relative; margin: 0; min-width: 0; }
+  .nw-pic :is(video, img) { display: block; width: 100%; height: auto; border-radius: var(--r-2); background: var(--sheet-ink); }
+  .nw-pic video { aspect-ratio: 960 / 920; }
+  /* A tall picture keeps to the screen's height instead of the column's width, and
+     starts where every other picture starts. */
+  .nw-pic.tall { justify-self: start; }
+  .nw-pic.tall img { width: auto; max-width: 100%; max-height: min(78vh, 680px); }
+
+  /* The rest of the release, on paper. */
+  .rest { max-width: 1440px; margin: 0 auto; padding: clamp(56px, 6vw, 96px) 32px; }
+  .rest-w { max-width: 1040px; }
+  .rest h2 { margin: 0 0 20px; }
+  /* Each line marked by a pixel in one of the sheets' colours, as Bit is drawn. */
+  .rest ul { list-style: none; columns: 2; column-gap: 48px; margin: 0 0 24px; padding: 0; }
+  .rest li { position: relative; break-inside: avoid; padding: 0 0 0 24px; margin: 0 0 10px; color: var(--bone-0); font-size: 19px; line-height: 1.45; }
+  .rest li::before { content: ""; position: absolute; left: 0; top: calc(.725em - 5px); width: 10px; height: 10px; background: var(--dot); }
+  .rest li:nth-child(8n+1) { --dot: #8AB4F8; }
+  .rest li:nth-child(8n+2) { --dot: #B4A0FF; }
+  .rest li:nth-child(8n+3) { --dot: #FFA657; }
+  .rest li:nth-child(8n+4) { --dot: #FF5A5F; }
+  .rest li:nth-child(8n+5) { --dot: #6EE787; }
+  .rest li:nth-child(8n+6) { --dot: #4FB3F6; }
+  .rest li:nth-child(8n+7) { --dot: #FFD75E; }
+  .rest li:nth-child(8n+8) { --dot: #BFE3D3; }
+  .rest p { max-width: 62ch; }
+
+  /* The last sheet: every system's download. It has no bar above it, so it
+     takes the same room as the sheets before it. */
+  .fin .pg-w { padding-block: clamp(64px, 7vw, 112px); }
+  .fin .pg-copy h2 {
+    margin: 0; color: inherit; text-wrap: balance;
+    font: 800 clamp(50px, 7vw, 112px)/.92 var(--display); letter-spacing: -.022em;
+  }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 900px) {
+    .v5-head { grid-template-columns: minmax(0, 1fr); }
+    .nx-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .nx-list a { min-height: 112px; padding: 14px 14px 16px; }
+    .nw-w { grid-template-columns: minmax(0, 1fr); }
+    /* Stacked, the picture sits under the words: Bit needs its height above it. */
+    .nw-pic { margin-top: calc(var(--bit-h) - 20px); }
+    .rest ul { columns: 1; }
+  }
+  @media (max-width: 700px) {
+    .nx, .nw-w, .rest { padding-inline: 18px; }
+    .nw-pic.tall img { max-height: 560px; }
+    /* A phone shows the left of the screen, larger, instead of the whole strip at a
+       size nobody can read: the music, the weather and the sensors. */
+    .v5-edge video { aspect-ratio: 16 / 10; object-fit: cover; object-position: 0 50%; }
+  }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body data-sheet="blue">
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/5.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/5.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/5.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/5.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/5.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/5.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/5.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">메뉴</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w wide">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/5.html" aria-current="page" data-xl="v5">Xenon 5.0</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"Xenon 5.0","item":"https://xenon-app.com/ko/5.html"}]}</script><!-- /xenon:crumbs -->
+        <div class="v5-head">
+          <h1 id="pg-h" class="v5">Xenon 5.0</h1>
+          <div>
+            <p class="lede" data-i18n="v5.lede">새 모습, 이미 있는 화면에 놓는 위젯, 같은 앱 안의 FPS와 인스턴트 리플레이, 그리고 위젯을 대신 만들어 주는 AI Bit.</p>
+            <div class="pg-act">
+              <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="v5_top" data-xl="cta">Windows용 다운로드</a>
+              <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="v5_top" data-xl="try">브라우저에서 체험하기</a>
+            </div>
+            <p class="updated" data-i18n="v5.free">무료이며 계정이 필요 없습니다. Windows 10과 11을 지원하고, macOS와 Linux는 베타입니다.</p>
+          </div>
+        </div>
+      </div>
+      <figure class="pg-pic v5-edge" id="liquid-glass">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 4h2v2H1zM5 4h2v2H5z" data-shut="M1 5h2v1H1zM5 5h2v1H5z"/><path class="bf-mouth" d="M3 7h2v2H3z"/></g></svg>
+        <video src="/images/v5/edge.mp4" poster="/images/v5/edge.webp" width="1920" height="540" muted loop playsinline preload="none" data-loop aria-label="2560 × 720 Xeneon Edge에 띄운 Liquid Glass 모습의 Xenon 대시보드: 음악, 날씨, PC 센서, 동영상, 게임 성능" data-i18n-aria="v5.edge.alt"></video>
+        <figcaption><span data-i18n-html="v5.edge.cap"><strong>Liquid Glass</strong>, 새로운 모습입니다. 업데이트 후에도 이전 모습은 저장되어 있어 한 번만 누르면 돌아갑니다.</span><button class="pz" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="nx" aria-labelledby="nx-h">
+    <h2 id="nx-h" data-i18n="v5.nx.h">5.0의 새로운 기능</h2>
+    <ul class="nx-list">
+      <li><a href="#liquid-glass" data-sheet="blue"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 4h2v2H1zM5 4h2v2H5z" data-shut="M1 5h2v1H1zM5 5h2v1H5z"/><path class="bf-mouth" d="M3 7h2v2H3z"/></g></svg><span>Liquid Glass</span></a></li>
+      <li><a href="#main-screen" data-sheet="violet"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 4h1v2H5z" data-shut="M2 5h1v1H2zM5 5h1v1H5z"/><path class="bf-mouth" d="M2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></g></svg><span data-i18n="v5.main.h">메인 화면의 Xenon</span></a></li>
+      <li><a href="#when" data-sheet="orange"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M3 4h1v2H3zM6 4h1v2H6z" data-shut="M3 5h1v1H3zM6 5h1v1H6z"/><path class="bf-mouth" d="M4 8h2v1H4z"/></g></svg><span data-i18n="v5.when.h">언제 볼지 직접 고르세요</span></a></li>
+      <li><a href="#game" data-sheet="dark"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 4h6v1H1zM1 5h2v1H1zM5 5h2v1H5z"/><path class="bf-mouth" d="M3 8h2v1H3zM5 7h1v1H5z"/></g></svg><span data-i18n="v5.game.h">게임 성능</span></a></li>
+      <li><a href="#capture" data-sheet="red"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 5h2v1H5z" data-shut="M2 5h1v1H2zM5 5h2v1H5z"/><path class="bf-mouth" d="M2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></g></svg><span data-i18n="v5.cap.h">스크린샷, 동영상, 인스턴트 리플레이</span></a></li>
+      <li><a href="#bit" data-sheet="green"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 4h1v2H5z" data-shut="M2 5h1v1H2zM5 5h1v1H5z"/><path class="bf-mouth" d="M2 7h4v1H2zM3 8h2v1H3z"/></g></svg><span data-i18n="v5.bit.h">Xenon의 AI, Bit</span></a></li>
+      <li><a href="#maker" data-sheet="sky"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v1H2zM5 4h1v1H5z"/><path class="bf-mouth" d="M4 8h2v1H4z"/></g></svg><span>Xenon Maker</span></a></li>
+      <li><a href="#pass" data-sheet="yellow"><svg class="nx-bit" data-bit="mini" data-react-eyes="M1 4h2v2H1zM5 4h2v2H5z" data-react-mouth="M3 7h2v2H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z"/><path class="bf-mouth" d="M2 7h4v1H2zM3 8h2v1H3z"/></g></svg><span data-i18n="v5.pass.h">후원자</span></a></li>
+    </ul>
+  </section>
+
+  <section class="nw" id="main-screen" data-sheet="violet" aria-labelledby="h-main">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-main" data-i18n="v5.main.h">메인 화면의 Xenon</h2>
+        <p data-i18n="v5.main.p">두 번째 모니터 없이 바탕 화면이나 어떤 앱 위에든 위젯을 놓습니다.</p>
+        <p class="go"><a href="/ko/widgets.html" data-i18n="v5.main.go">모든 위젯</a></p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 4h1v2H5z" data-shut="M2 5h1v1H2zM5 5h1v1H5z"/><path class="bf-mouth" d="M2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></g></svg>
+        <video src="/images/v5/widgets.mp4" poster="/images/v5/widgets.webp" width="960" height="920" muted loop playsinline preload="none" data-loop aria-label="바탕 화면에 나타나는 캘린더, 음악, 시스템 위젯" data-i18n-aria="v5.main.alt"></video>
+        <button class="pz on-pic" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button>
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="when" data-sheet="orange" aria-labelledby="h-when">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-when" data-i18n="v5.when.h">언제 볼지 직접 고르세요</h2>
+        <p data-i18n="v5.when.p">위젯마다 항상, 바탕 화면, 게임 중, 특정 앱 위 중에서 언제 보일지 고릅니다. 화면 지도에서 드래그하면 다른 모니터로도 옮길 수 있습니다.</p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M3 4h1v2H3zM6 4h1v2H6z" data-shut="M3 5h1v1H3zM6 5h1v1H6z"/><path class="bf-mouth" d="M4 8h2v1H4z"/></g></svg>
+        <video src="/images/v5/map.mp4" poster="/images/v5/map.webp" width="960" height="920" muted loop playsinline preload="none" data-loop aria-label="세 화면의 지도 위로 드래그하는 위젯" data-i18n-aria="v5.when.alt"></video>
+        <button class="pz on-pic" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button>
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="game" data-sheet="dark" aria-labelledby="h-game">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-game" data-i18n="v5.game.h">게임 성능</h2>
+        <p data-i18n="v5.game.p">플레이 중인 게임 위에 FPS, 1% 로우, 프레임 타임을 CPU, GPU, 핑, 패킷 손실과 함께 표시합니다. 로우와 프레임 타임은 Windows에서, FPS는 Linux에서도 볼 수 있습니다.</p>
+        <p class="go"><a href="/ko/fps-overlay.html" data-i18n="v5.game.go">FPS 오버레이</a></p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 4h6v1H1zM1 5h2v1H1zM5 5h2v1H5z"/><path class="bf-mouth" d="M3 8h2v1H3zM5 7h1v1H5z"/></g></svg>
+        <video src="/images/v5/game.mp4" poster="/images/v5/game.webp" width="1280" height="720" muted loop playsinline preload="none" data-loop aria-label="축구 게임 위에 한 줄로 표시한 FPS, CPU, GPU, RAM, 핑, 패킷 손실 (게임은 흐리게 처리)" data-i18n-aria="v5.game.alt"></video>
+        <button class="pz on-pic" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button>
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="capture" data-sheet="red" aria-labelledby="h-capture">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-capture" data-i18n="v5.cap.h">스크린샷, 동영상, 인스턴트 리플레이</h2>
+        <p data-i18n="v5.cap.p">Xenon이 어떤 그래픽 카드에서든 직접 화면을 캡처하고, 방금 플레이한 마지막 몇 초를 저장합니다.</p>
+        <p class="go"><a href="/ko/screen-recorder.html" data-i18n="v5.cap.go">화면 녹화</a></p>
+      </div>
+      <figure class="nw-pic tall">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 5h2v1H5z" data-shut="M2 5h1v1H2zM5 5h2v1H5z"/><path class="bf-mouth" d="M2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></g></svg>
+        <img src="/images/home/bit-chat.webp" width="1074" height="1272" loading="lazy" decoding="async" alt="Bit와의 채팅: 마지막 42초를 저장해 달라고 하자 Bit가 클립이 바탕 화면에 있다고 답합니다" data-i18n-alt="v5.cap.alt">
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="bit" data-sheet="green" aria-labelledby="h-bit">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-bit" data-i18n="v5.bit.h">Xenon의 AI, Bit</h2>
+        <p data-i18n="v5.bit.p">위젯, 테마, 장면을 부탁하면 Bit가 만들어 줍니다. Xenon의 크레딧인 스파크로 작동하므로 API 키가 필요 없습니다.</p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 4h1v2H5z" data-shut="M2 5h1v1H2zM5 5h1v1H5z"/><path class="bf-mouth" d="M2 7h4v1H2zM3 8h2v1H3z"/></g></svg>
+        <img src="/images/v5/bit.webp" width="955" height="608" loading="lazy" decoding="async" alt="Bit와의 채팅: 휴가까지 남은 날을 세는 위젯을 부탁하자 Bit가 화면에 띄웁니다" data-i18n-alt="v5.bit.alt">
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="maker" data-sheet="sky" aria-labelledby="h-maker">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-maker">Xenon Maker</h2>
+        <p data-i18n="v5.maker.p">xenon-app.com에서 코드 없이 위젯, 테마, 장면을 만드세요. 체험은 무료이고, 저장과 내보내기, 설치는 후원자용입니다.</p>
+        <p class="go"><a href="/maker/" data-i18n="v5.maker.go">Xenon Maker 열기</a></p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M2 4h1v1H2zM5 4h1v1H5z"/><path class="bf-mouth" d="M4 8h2v1H4z"/></g></svg>
+        <video src="/images/v5/maker.mp4" poster="/images/v5/maker.webp" width="960" height="920" muted loop playsinline preload="none" data-loop aria-label="다음 일정을 나열하는 위젯을 Xenon Maker에서 편집하는 모습" data-i18n-aria="v5.maker.alt"></video>
+        <button class="pz on-pic" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button>
+      </figure>
+    </div>
+  </section>
+
+  <section class="nw" id="pass" data-sheet="yellow" aria-labelledby="h-pass">
+    <div class="nw-w">
+      <div>
+        <h2 id="h-pass" data-i18n="v5.pass.h">후원자</h2>
+        <p data-i18n="v5.pass.p">월 5 USD로 후원자 팩을 열고 매달 스파크 300개를 받습니다. 팩은 7일 동안 무료로 써 볼 수 있습니다.</p>
+        <p class="go"><a href="/ko/#support" data-i18n="v5.pass.go">후원 방법</a></p>
+      </div>
+      <figure class="nw-pic">
+        <svg class="v5-bit" data-bit="full" data-react-eyes="M1 4h2v2H1zM5 4h2v2H5z" data-react-mouth="M3 7h2v2H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><g class="bf"><path class="bf-eyes" d="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z"/><path class="bf-mouth" d="M2 7h4v1H2zM3 8h2v1H3z"/></g></svg>
+        <video src="/images/v5/supporters.mp4" poster="/images/v5/supporters.webp" width="960" height="920" muted loop playsinline preload="none" data-loop aria-label="후원자 팩 네 가지: 핼러윈 집, 스마트 홈 패널, CPU 게이지, 호수 장면" data-i18n-aria="v5.pass.alt"></video>
+        <button class="pz on-pic" type="button" aria-pressed="false" data-loop-pause hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" data-i18n="v5.pause">동영상 일시 정지</span></button>
+      </figure>
+    </div>
+  </section>
+
+  <section class="rest" aria-labelledby="h-rest">
+    <div class="rest-w">
+      <h2 id="h-rest" data-i18n="v5.rest.h">그 밖의 새로운 기능</h2>
+      <ul>
+        <li data-i18n="v5.rest.1">필요할 때만 나타나는 위젯과 페이지</li>
+        <li data-i18n="v5.rest.2">화면 위의 Deck 키, 그리고 더 많아진 키 종류</li>
+        <li data-i18n="v5.rest.3">무선 마우스, 키보드, 이어버드의 배터리</li>
+        <li data-i18n="v5.rest.4">조명의 팬과 LED를 하나하나 설정</li>
+        <li data-i18n="v5.rest.5">검색창에서 Bit와 채팅</li>
+        <li data-i18n="v5.rest.6">Ambient 장면을 배경화면이나 화면 보호기로</li>
+        <li data-i18n="v5.rest.7">확실하지 않으면 Bit가 물어봅니다</li>
+        <li data-i18n="v5.rest.8">새 스토어와 전체 화면 설정</li>
+      </ul>
+      <p data-i18n-html="v5.rest.p">Mac과 Linux에서는 화면 위 위젯과 캡처가 베타입니다. 버전별 모든 변경 사항은 <a href="/releases.html">릴리스 노트</a>에 있습니다.</p>
+    </div>
+  </section>
+
+  <section class="pg fin" id="download" data-sheet="blue" aria-labelledby="h-dl">
+    <div class="pg-w wide">
+      <div class="pg-copy">
+        <h2 id="h-dl" data-i18n="v5.dl.h">Xenon 5.0 다운로드</h2>
+        <p class="lede" data-i18n="v5.dl.lede">무료이고 계정도 필요 없으며, 설치한 뒤에는 스스로 업데이트됩니다.</p>
+      </div>
+      <div class="oses">
+      <div class="os-col pick" data-os="windows">
+        <svg class="os-bit" id="os-bit" data-bit="full" data-react-eyes="M1 5h1v1H1zM2 4h1v1H2zM5 4h1v1H5zM6 5h1v1H6z" data-react-mouth="M2 7h4v1H2zM3 8h2v1H3z" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true">
+          <path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/>
+          <g class="bf"><path class="bf-eyes" d="M2 4h1v2H2zM5 4h1v2H5z" data-shut="M2 5h1v1H2zM5 5h1v1H5z"/><path class="bf-mouth" d="M2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></g>
+        </svg>
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.2 10.4 4.2v7H3zM11.4 4 21 2.7v8.5h-9.6zM3 12.3h7.4v7L3 18.3zM11.4 12.3H21v8.9l-9.6-1.3z"/></svg>Windows</h2>
+        <p data-i18n="v5.dl.win.req">Windows 10 또는 11, 64비트. 앱을 설치하고 로그인할 때 실행합니다.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="v5_page_win" data-i18n="v5.dl.win.key">Windows용 다운로드</a>
+        <span class="file">Xenon-Setup-x64.exe</span>
+        <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="v5_page"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="Microsoft Store에서 Xenon 받기" data-i18n-alt="v5.dl.store.alt"></a>
+      </div>
+      <div class="os-col" data-os="macos">
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS<span class="beta-pill" data-i18n="v5.dl.beta">베타</span></h2>
+        <p data-i18n="v5.dl.mac.req">macOS 11 이상. Apple 실리콘과 Intel을 파일 하나로 지원합니다.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="v5_page_mac" data-i18n="v5.dl.mac.key">macOS용 다운로드</a>
+        <span class="file">Xenon-macOS-universal.dmg</span>
+        <p class="os-more"><a href="/ko/mac.html" data-i18n="v5.dl.mac.guide">Mac 가이드</a></p>
+      </div>
+      <div class="os-col" data-os="linux">
+        <h2><img src="/images/os/tux.webp" width="76" height="88" alt="">Linux<span class="beta-pill" data-i18n="v5.dl.beta">베타</span></h2>
+        <p data-i18n="v5.dl.linux.req">모든 x86_64 데스크톱. .deb와 .rpm도 있습니다.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="v5_page_linux" data-i18n="v5.dl.linux.key">Linux용 다운로드</a>
+        <span class="file">Xenon-Linux-x86_64.AppImage</span>
+        <p class="os-more"><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="v5_page_linux_deb">.deb</a><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="v5_page_linux_rpm">.rpm</a><a href="/ko/linux.html" data-i18n="v5.dl.linux.guide">Linux 가이드</a></p>
+      </div>
+    </div>
+    </div>
+  </section>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">어떤 화면에서든 쓰는 무료 PC 위젯. Windows용이며 macOS와 Linux는 베타입니다.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit는 Vitals 위젯에 살면서 자세에 대해 한마디씩 합니다.</span></div>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다. 그 밖의 이름과 로고는 각 소유자의 것입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+<script src="/loop-video.js" defer></script>
+<script src="/bit.js" defer></script>
+<script>
+  // As on download.html. The visitor's column turns dark and Bit stands on it. Detection is a
+  // convenience: all three files stay listed and every link works without it.
+  (function () {
+    var lang = (document.documentElement.lang || 'en').slice(0, 2);
+    var badge = document.querySelector('[data-store-badge]');
+    if (badge && ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'].indexOf(lang) >= 0) badge.src = '/images/store/ms-store-' + lang + '.svg';
+    var uad = navigator.userAgentData;
+    var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
+    if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
+    var os = /Win/i.test(p) ? 'windows' : /Mac/i.test(p) ? 'macos' : /Linux|X11/i.test(p) ? 'linux' : null;
+    var col = os && document.querySelector('.os-col[data-os="' + os + '"]');
+    var bit = document.getElementById('os-bit');
+    if (!col || !bit) return;
+    document.querySelector('.os-col.pick').classList.remove('pick');
+    col.classList.add('pick');
+    col.prepend(bit);
+  })();
+</script>
+</body>
+</html>

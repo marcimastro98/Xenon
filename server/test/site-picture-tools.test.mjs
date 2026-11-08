@@ -11,7 +11,7 @@ const { HERO_THEMES } = await import('../../tools/site-shots/themes.mjs');
 const { steamWidget } = await import('../../tools/site-shots/steam-widget.mjs');
 const { bitChat } = await import('../../tools/site-shots/bit-chat.mjs');
 const { CLIP, lyricsFixture } = await import('../../tools/site-shots/lyrics-clip.mjs');
-const { CARD, PICTURE } = await import('../../tools/site-shots/og-card.mjs');
+const { CARD, CARDS, PICTURE, pickCards } = await import('../../tools/site-shots/og-card.mjs');
 
 const docs = (file) => new URL(`../../docs/${file}`, import.meta.url);
 const INVENTED_GAMES = ['Cyberfall', 'Skyharbor', 'Tidewarden', 'Emberline'];
@@ -77,4 +77,21 @@ test('the link card keeps the shape every network crops to, on a picture that ex
   assert.deepEqual(CARD, { width: 1200, height: 630 });
   assert.ok(existsSync(docs(PICTURE.slice(1))));
   assert.ok(existsSync(docs('images/home/og-card.png')));
+});
+
+test('every page with a card of its own points at it, drawn from the page it names', () => {
+  for (const [name, card] of Object.entries(CARDS)) {
+    assert.ok(existsSync(docs(card.picture.slice(1))), `${name}: no ${card.picture}`);
+    assert.ok(existsSync(docs(card.file)), `${name}: no ${card.file}`);
+    const page = readFileSync(docs(card.page === '/' ? 'index.html' : card.page.slice(1)), 'utf8');
+    assert.ok(page.includes(`<meta property="og:image" content="https://xenon-app.com/${card.file}">`), `${name}: the page points at another card`);
+    assert.ok(page.includes(`id="${card.title.slice(1)}"`), `${name}: the page has no ${card.title}`);
+  }
+});
+
+test('the cards come from the command line, and --out writes one only', () => {
+  assert.deepEqual(pickCards([]), Object.keys(CARDS));
+  assert.deepEqual(pickCards(['v5', '--out', 'card.png']), ['v5']);
+  assert.throws(() => pickCards(['--out', 'card.png']), /--out takes one card/);
+  assert.throws(() => pickCards(['v6']), /unknown card: v6/);
 });
