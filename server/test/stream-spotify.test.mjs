@@ -376,16 +376,20 @@ test('search trims the requested bucket and requires a query', async () => {
   assert.deepEqual(await p.search('  '), { ok: false, error: 'no_query' });
 });
 
-test('playSearch plays the top TRACK via uris[] and the top CONTEXT via context_uri', async () => {
+test('playSearch plays the top TRACK inside its album and the top CONTEXT via context_uri', async () => {
+  // A lone track (`uris: [track]`) shows "playing" on Spotify's desktop app
+  // and loads nothing, so the track starts inside its own album.
   const calls = [];
   const pt = loggedIn([
     { match: '/me/player/play', calls, status: 204 },
+    { match: '/tracks/1', json: { uri: 'spotify:track:1', album: { uri: 'spotify:album:A1' } } },
     { match: '/search', json: { tracks: { items: [{ name: 'Song', uri: 'spotify:track:1', artists: [{ name: 'A' }] }] } } },
   ]);
   const r = await pt.playSearch('song', 'track');
   assert.equal(r.ok, true);
   assert.equal(r.playing.uri, 'spotify:track:1');
-  assert.deepEqual(JSON.parse(calls[0].init.body), { uris: ['spotify:track:1'] });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { context_uri: 'spotify:album:A1', offset: { uri: 'spotify:track:1' } });
 
   const calls2 = [];
   const pp = loggedIn([
