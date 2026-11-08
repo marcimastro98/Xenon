@@ -116,13 +116,24 @@ test('an always chip (Settings, the Store head) shows the Sparks whatever answer
   assert.equal(X.chip().hidden, true, 'the chat chip still waits for Bit');
 });
 
-test('with no code on this PC the always chip says Sparks and Buy, and the hub is asked once a minute', async () => {
+test('when the hub does not answer the always chip says Sparks and never asks to buy', async () => {
+  const { X, ctx } = loadCredits({ provider: 'gemini' });
+  ctx.fetch = async () => { throw new Error('offline'); };
+  await X.refresh(true);
+  assert.equal(X.state.status, 'error');
+  const chip = X.chip({ always: true });
+  assert.equal(chip.hidden, false);
+  assert.deepEqual(chip.children.slice(1).map((c) => c.textContent), ['xc_chip_unit']);
+});
+
+test('with no code on this PC the always chip says Buy Sparks, and the hub is asked once a minute', async () => {
   const { X, asked } = loadCredits({ provider: 'gemini', noCode: true });
   await X.refresh(false);
   assert.equal(X.state.status, 'no_code');
   const chip = X.chip({ always: true });
   assert.equal(chip.hidden, false);
-  assert.deepEqual(chip.children.slice(1).map((c) => c.textContent), ['xc_chip_unit', 'xc_chip_topup']);
+  assert.deepEqual(chip.children.slice(1).map((c) => c.textContent), ['xc_chip_buy', 'xc_chip_topup'], 'the full words, and the short form for a narrow header');
+  assert.deepEqual(chip.children.slice(1).map((c) => c.className), ['xc-chip-buy', 'xc-chip-buy-short']);
   assert.equal(chip.attrs['aria-label'], 'xc_chip_title_none');
   assert.equal(chip.dataset.level, undefined);
   await X.refresh(false);
@@ -136,8 +147,7 @@ test('with no code on this PC the always chip says Sparks and Buy, and the hub i
 test('sync reads the balance off Bit when an always chip is on screen', () => {
   const js = read('../js/xenon-credits.js');
   assert.ok(js.includes("if (active() || document.querySelector('[data-xc-always]')) refresh(false);"));
-  assert.ok(read('../index.html').includes('class="xc-chip settings-head-credits" data-xenon-credits data-xc-always hidden'));
-  assert.ok(read('../js/community-gallery.js').includes('controls.appendChild(XenonCredits.chip({ always: true }))'));
+  assert.ok(read('../index.html').includes('class="xc-chip settings-nav-credits" data-xenon-credits data-xc-always hidden'));
 });
 
 test('a supporter with no working assistant is moved to Xenon AI, once', async () => {
@@ -178,12 +188,12 @@ test('Settings → Xenon AI is plain rows: no hero card, no pricing table, no ol
   assert.ok(!/innerHTML/.test(js), 'text goes in as textContent');
 });
 
-test('the Settings header carries the credits chip, in view from every category', () => {
+test('the rows under the Settings pages carry the credits chip, in view from every category', () => {
   const html = read('../index.html');
-  const a = html.indexOf('<div class="settings-head-actions">');
-  const head = html.slice(a, html.indexOf('</div>', a));
-  assert.match(head, /<button type="button" class="xc-chip settings-head-credits" data-xenon-credits data-xc-always hidden><\/button>/);
-  assert.ok(head.indexOf('settings-head-credits') < head.indexOf('settings-store-pill'), 'before the Store pill');
+  const a = html.indexOf('<div class="settings-nav-footer">');
+  const foot = html.slice(a, html.indexOf('</nav>', a));
+  assert.match(foot, /<button type="button" class="xc-chip settings-nav-credits" data-xenon-credits data-xc-always hidden><\/button>/);
+  assert.ok(foot.indexOf('settings-nav-store') < foot.indexOf('settings-nav-credits'), 'under the Store row');
 });
 
 test('live voice is offered only on Gemini, which is what runs it', () => {
@@ -297,7 +307,7 @@ test('every support offer names 300 Scintille a month as Xenon\'s credits, never
 
 test('the offer sits in Settings plans, the catalog perks, the letter, the December note and the trial end', () => {
   const html = read('../index.html');
-  const plans = html.slice(html.indexOf('<div class="support-plans">'), html.indexOf('<section class="support-already">'));
+  const plans = html.slice(html.indexOf('<div class="support-plans">'), html.indexOf('<section class="settings-section support-already">'));
   assert.equal([...plans.matchAll(/<span class="support-plan-sparks"><span data-xspark="offer"><\/span><span data-i18n="support_plan_sparks">/g)].length, 3, 'one line on each of the three plans');
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
   assert.match(gallery, /\['gallery_sup_perk1', 'support_perk_sparks', 'gallery_sup_perk2'/, 'right after the drops');
@@ -391,18 +401,19 @@ test('the chat leads to the Sparks shop when the Scintille run low or out, once 
   assert.equal((ai.match(/if \(_aiOutOfSparks\(e(rr)?\)\) _aiAppendBuyRow\(''\)/g) || []).length, 2, 'the refused turn, live or late');
 });
 
-test('the Supporters panel points a saved supporter at the Sparks tab', () => {
+test('the Store shows Sparks as Xenon\'s credits and sends a buyer to the Sparks tab', () => {
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
-  assert.match(gallery, /if \(supporterSaved && window\.XenonCredits\) body\.appendChild\(sparkPacks\(\)\)/);
-  assert.match(gallery, /el\('button', 'cgal-btn', t\('sparks_shop_open', 'See the packs'\)\)/);
-  assert.match(gallery, /go\.addEventListener\('click', \(\) => openSparks\(\)\)/);
-  assert.deepEqual(gallery.match(/packList\([^)]*\)/g), ["packList('cgal-quick-pack')"], 'beyond the Sparks tab, only the quick tiles draw packs');
+  const band = gallery.slice(gallery.indexOf('function sparksBand('), gallery.indexOf('function askBitBlock('));
+  assert.match(band, /sparks_shop_sub_bit/);
+  assert.match(band, /sparks_shop_open/);
+  assert.match(band, /goView\('__sparks'\)/);
+  assert.equal(gallery.match(/packList\([^)]*\)/g), null, 'packs are drawn in the Sparks view alone');
   const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
-    const v = i18n[l].gallery_sparks_what;
+    const v = i18n[l].sparks_shop_sub_bit;
     assert.equal(typeof v, 'string', `${l} is missing`);
     assert.match(v, /Xenon/, `${l}: ${v}`);
-    assert.doesNotMatch(v, /\bBit\b|—/, `${l}: ${v}`);
+    assert.doesNotMatch(v, /—/, `${l}: ${v}`);
   }
 });
 

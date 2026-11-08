@@ -17,6 +17,8 @@
   const MONTHLY = 300;
   // The monthly membership on Buy Me a Coffee, in US dollars.
   const MEMBER_USD = 5;
+  // Where a refund is asked for: the seller's address, as the privacy page gives it.
+  const SALES_MAIL = 'support@xenon-app.com';
   // A Store entry Sparks open: priced, and not a limited edition (never sold).
   const soldForSparks = (e) => !!e && !e.limited && Number.isInteger(e.sparks) && e.sparks > 0;
 
@@ -86,10 +88,10 @@
       box.appendChild(list);
     }
     const pay = el('p', 'sparks-note');
-    pay.textContent = state && state.email
-      ? t('xai_packs_email').replace('{email}', state.email)
-      : t(owner.any ? 'xai_packs_note' : 'sparks_shop_code_note');
+    pay.textContent = payNote(state, owner);
     box.appendChild(pay);
+    // Who sells and the way back, next to the price. The refund is made on Buy Me a Coffee.
+    box.appendChild(el('p', 'sparks-note', t('sparks_pack_note').replace('{mail}', SALES_MAIL)));
     const status = el('p', 'sparks-note sparks-status');
     status.setAttribute('role', 'status');
     paintStatus(status);
@@ -97,14 +99,21 @@
     return box;
   }
 
+  // The hub matches a pack by the payer's email. With the balance read, the answer
+  // says whether it can; out of reach, what this PC keeps is all there is to go by.
+  function payNote(state, owner) {
+    if (state && state.email) return t('xai_packs_email').replace('{email}', state.email);
+    const read = state && state.status === 'ok';
+    const lands = read ? state.wallet === true && !state.welcomeUntil : owner.any;
+    return t(lands ? 'xai_packs_note' : 'sparks_shop_code_note');
+  }
+
   function paintStatus(node) {
     const p = C() && C().purchase();
     node.hidden = !p;
     if (!p) return;
-    node.classList.toggle('is-warn', p.phase === 'late');
-    node.textContent = p.phase === 'arrived'
-      ? t('xai_buy_arrived').replace('{n}', fmt(p.got))
-      : t(p.phase === 'late' ? 'xai_buy_late' : 'xai_buy_waiting');
+    node.classList.toggle('is-warn', p.key === 'xai_buy_late');
+    node.textContent = t(p.key).replace('{n}', fmt(p.got));
   }
 
   // The supporter membership as one plan: what it costs, what a month brings,
@@ -168,12 +177,17 @@
   }
 
   // Bit answers on Sparks only with Bit as the provider: the button turns that
-  // on first, then opens the chat.
-  function openBit(close) {
+  // on first, then opens the chat. A draft waits in the box, unsent: an answer
+  // spends Sparks, so sending it stays the person's own tap.
+  function openBit(close, draft) {
     if (C() && !C().active()) C().useXenon();
     close();
     if (typeof window.openMediaChat === 'function') window.openMediaChat();
     else if (typeof window.openAiPanel === 'function') window.openAiPanel();
+    const box = draft ? document.getElementById('ai-text-input') : null;
+    if (!box) return;
+    box.value = String(draft).slice(0, box.maxLength > 0 ? box.maxLength : undefined);
+    box.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   // What one widget costs with each model, in one sentence.
@@ -256,5 +270,5 @@
     }
   }
 
-  window.SparksStore = { render, plan, soldForSparks, MAKER_URL };
+  window.SparksStore = { render, plan, soldForSparks, openBit, MAKER_URL, MONTHLY, MEMBER_USD };
 })();

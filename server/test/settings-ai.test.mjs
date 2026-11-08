@@ -20,7 +20,8 @@ test('no setting reads them all as words', () => {
   assert.deepEqual(SettingsAi.plan({}), { read: true });
   assert.deepEqual(SettingsAi.current(SETTINGS), {
     lyrics: 'on', lyrics_translate: 'off', visualizer: 'off', hardware_temp_unit: 'auto',
-    date_format: 'full', pause_when_idle: 'on', startup_logo: 'on', ambient: 'off', ambient_after: '0',
+    date_format: 'full', pause_when_idle: 'on', startup_logo: 'on', battery_ask_devices: 'on', ambient: 'off', ambient_after: '0',
+    announcements: 'on', monthly_drops: 'on',
   });
 });
 

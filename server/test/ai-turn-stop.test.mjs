@@ -132,7 +132,7 @@ test('every way /api/ai answers turns a stop into { stopped }, with what was mad
   const end = server.indexOf("reqPath === '/api/ai/summarize'", start);
   const handler = server.slice(start, end);
   const catches = handler.match(/\} catch \(e\) \{\n\s*if \(aiStoppedReply\(e, json/g) || [];
-  assert.equal(catches.length, 5, 'ollama, CLI, credits, OpenAI/Anthropic and Gemini');
+  assert.equal(catches.length, 6, 'ollama, local server, CLI, credits, OpenAI/Anthropic and Gemini');
   assert.match(handler, /aiStoppedReply\(e, json, \{ credits: Number\.isFinite\(e\.balance\) \? e\.balance : undefined \}\)/);
   assert.match(handler, /tools: AI_FUNCTIONS, signal: aiTurns\.signal\(\),/, 'Claude Code / Codex are cut at once');
 

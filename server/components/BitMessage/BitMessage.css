@@ -1,0 +1,182 @@
+/* What Bit says (js/bit-message-card.js): the card at the top and the stage. Flat paper
+   and ink, the tokens and fonts of components/WhatsNew; on Liquid the card is glass
+   (styles/liquid-sheets.css). */
+
+/* Cards hang under the bar, not over it: the clock goes on saying the time, and no end
+   of the pill peeks out from behind them. */
+@media (min-width: 561px) {
+  :root:not([data-screen-alerts]) body:not(.topbar-hidden) { --card-top: 76px; }
+  :root:not([data-screen-alerts]) body.topbar-minimal:not(.topbar-hidden, .topbar-noisland) { --card-top: 65px; }
+}
+
+/* ── The card ──────────────────────────────────────────────────── */
+.bm-card {
+  position: fixed;
+  top: var(--card-top, 16px);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  z-index: 5300;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - var(--card-top, 16px) - 16px);
+  overflow: hidden auto;
+  background: var(--wn-paper-2);
+  color: var(--wn-text);
+  border: 1px solid var(--wn-rule-2);
+  border-radius: 10px;
+}
+.bm-card.is-open { width: min(520px, calc(100vw - 32px)); }
+.bm-card.is-poll { width: min(480px, calc(100vw - 32px)); }
+/* Folded, it waits in the clock (.clock-bit below). With no clock on screen it keeps the
+   corner: over the dashboard and under every window, or it sits on the close key of
+   Settings. Bit alone, no plate. */
+.bm-card.is-face { left: auto; right: 16px; z-index: 170; margin-inline: 0; width: 60px; height: 57px; overflow: hidden; background: none; border: 0; }
+
+.bm-head { display: flex; align-items: center; gap: 12px; padding: 12px 10px 12px 14px; }
+.bm-head.is-over { align-items: flex-end; padding: 0 18px 0 14px; }
+.bm-head.is-over .bm-bit { margin-top: -26px; }
+.bm-head.is-over .bm-words { padding: 10px 0 2px; }
+.bm-card.is-open .bm-head:not(.is-over),
+.bm-ask .bm-head { padding-bottom: 0; }
+/* The stage around Bit is padding: the negative margin gives it back to the words. */
+.bm-bit { flex: none; width: 76px; height: 72px; margin: -8px -6px; }
+.bm-card.is-face .bm-bit { width: 60px; height: 57px; margin: 0; }
+/* No bar: right in the corner of the screen, the one spot with no words under it. */
+@media (min-width: 561px) {
+  :is(.topbar-noisland, .topbar-hidden) > .bm-card.is-face { top: 0; right: 0; width: 44px; height: 44px; }
+  :is(.topbar-noisland, .topbar-hidden) > .bm-card.is-face .bm-bit { width: 34px; height: 32px; margin: 2px 0 0 8px; }
+}
+.bm-words { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bm-title { font: 800 21px / 1.15 var(--wn-display); }
+.bm-line { margin-top: 2px; font: 400 15px / 1.3 var(--wn-body); color: var(--wn-text-2); }
+
+.bm-media { aspect-ratio: 16 / 9; max-height: 40vh; width: 100%; overflow: hidden; border-radius: 9px 9px 0 0; background: var(--wn-paper-3); }
+.bm-media img, .bm-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
+
+.bm-body { padding: 8px 18px 0; }
+.bm-text { margin: 0; font: 400 16px / 1.4 var(--wn-body); overflow-wrap: anywhere; }
+.bm-perks { margin: 10px 0 0; padding: 0; list-style: none; }
+.bm-perks li { display: flex; align-items: center; gap: 10px; min-height: 32px; font: 400 16px / 1.3 var(--wn-body); }
+.bm-perk-icon { flex: none; display: grid; place-items: center; width: 22px; height: 22px; }
+.bm-perk-icon svg, .bm-perk-icon img, .bm-perk-icon canvas { width: 100%; height: 100%; }
+
+.bm-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; padding: 14px; }
+.bm-off { margin-right: auto; }
+/* A question holds the top centre alone: what else stands there comes back after it. */
+body:has(> .bm-ask) > :is(.bm-card:not(.bm-ask, .is-face), .rn-corner) { display: none; }
+
+.bm-go,
+.bm-quiet,
+.bm-off,
+.bm-x { min-height: 44px; border: 0; border-radius: 6px; cursor: pointer; }
+.bm-go { flex: none; padding: 0 16px; background: var(--wn-main); color: var(--wn-main-ink); font: 700 16px / 1 var(--wn-body); }
+.bm-quiet { padding: 0 14px; background: transparent; color: var(--wn-text); font: 600 16px / 1 var(--wn-body); }
+.bm-off { padding: 0 4px; background: transparent; color: var(--wn-text-2); font: 400 14px / 1.2 var(--wn-body); text-align: left; }
+.bm-x { flex: none; width: 40px; padding: 0; background: transparent; color: var(--wn-text-2); font: 400 24px / 1 var(--wn-body); }
+.bm-quiet:hover, .bm-x:hover { background: var(--wn-paper-3); }
+.bm-off:hover { color: var(--wn-text); }
+
+.bm-answers { display: flex; flex-direction: column; gap: 8px; padding: 0 14px; }
+.bm-answer {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 14px;
+  text-align: left;
+  border: 1px solid var(--wn-rule-2);
+  border-radius: 6px;
+  background: var(--wn-paper-3);
+  color: var(--wn-text);
+  font: 600 16px / 1.2 var(--wn-body);
+  cursor: pointer;
+}
+.bm-answer:hover { background: var(--wn-main); border-color: var(--wn-main); color: var(--wn-main-ink); }
+.bm-card.is-poll .bm-foot { padding: 6px 14px 10px; }
+
+.bm-face { display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+
+/* In the clock, on both bars. First in the row: it is the one thing there that waits. */
+.clock-bit { display: inline-flex; align-items: center; order: -1; }
+.clock-bit[hidden] { display: none; }
+.clock-bit .bm-card.is-face { position: static; width: 34px; height: 32px; }
+.clock-bit .bm-card.is-face .bm-bit { width: 34px; height: 32px; }
+.bm-face:focus-visible { outline: 2px solid var(--wn-main); outline-offset: 1px; border-radius: 8px; }
+.clock-bit .bm-face { animation: bm-face-in 0.34s cubic-bezier(0.22, 1.15, 0.36, 1) backwards; }
+@keyframes bm-face-in { from { opacity: 0; transform: translateY(-6px) scale(0.6); } }
+@media (prefers-reduced-motion: reduce) { .clock-bit .bm-face { animation: none; } }
+
+/* A phone reaches the bottom of the screen, and its top is the status bar. */
+@media (max-width: 560px) {
+  .bm-card { top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; margin-inline: 0; }
+  .bm-card.is-open, .bm-card.is-poll { width: auto; }
+  .bm-card.is-face { left: auto; width: 60px; }
+  .bm-head { flex-wrap: wrap; }
+  .bm-head .bm-words { flex-basis: calc(100% - 80px); }
+  .bm-head .bm-go { margin-left: auto; }
+}
+
+/* ── The stage ─────────────────────────────────────────────────── */
+.bm-stage {
+  --u: min(calc(100vw / 1600), calc(100vh / 900));
+  position: fixed;
+  inset: 0;
+  z-index: 5400;
+  display: flex;
+  flex-direction: column;
+  background: var(--wn-lavender);   /* Bit is yellow: on yellow paper only its eyes were left */
+  color: var(--wn-ink);
+}
+.bm-stage-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); column-gap: calc(64 * var(--u)); }
+.bm-stage-main.is-text { grid-template-columns: minmax(0, 1fr); }
+.bm-stage-left { min-height: 0; display: flex; flex-direction: column; justify-content: space-between; padding: calc(72 * var(--u)) 0 0 calc(96 * var(--u)); }
+/* Words only: they take the page and Bit stands beside them, big enough to hold it. */
+.bm-stage-main.is-text .bm-stage-left { flex-direction: row; align-items: center; gap: calc(64 * var(--u)); padding: 0 calc(96 * var(--u)); }
+.bm-stage-main.is-text .bm-stage-words { flex: 1 1 0; min-width: 0; }
+.bm-stage-main.is-text .bm-stage-text { font-size: max(20px, calc(42 * var(--u))); }
+.bm-stage-main.is-text .bm-stage-bit { width: calc(468 * var(--u)); height: calc(442 * var(--u)); }
+/* A long text scrolls here, on a wide short screen most of all: nothing is cut. */
+.bm-stage-words { flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; scrollbar-width: thin; scrollbar-color: var(--wn-ink) transparent; }
+.bm-stage-title { margin: 0; font: 900 calc(124 * var(--u)) / 0.92 var(--wn-display); }
+.bm-stage-text { margin: calc(24 * var(--u)) 0 0; max-width: 28em; font: 500 max(18px, calc(30 * var(--u))) / 1.3 var(--wn-body); }
+.bm-stage-bit { flex: none; width: calc(288 * var(--u)); height: calc(272 * var(--u)); filter: drop-shadow(calc(8 * var(--u)) calc(8 * var(--u)) 0 var(--wn-ink)); }
+.bm-stage-media {
+  align-self: stretch;
+  min-height: 0;
+  margin-top: calc(72 * var(--u));
+  overflow: hidden;
+  border: 4px solid var(--wn-ink);
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 10px 0 0 0;
+  background: var(--wn-ink);
+}
+.bm-stage-media img, .bm-stage-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 38% center; }
+.bm-stage-band {
+  flex: none;
+  min-height: max(68px, calc(96 * var(--u)));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 calc(40 * var(--u));
+  background: var(--wn-ink);
+}
+.bm-stage-later,
+.bm-stage-go { min-height: max(48px, calc(60 * var(--u))); border: 0; border-radius: 6px; cursor: pointer; }
+.bm-stage-later { padding: 0 16px; background: transparent; color: var(--wn-text-2); font: 600 max(18px, calc(22 * var(--u))) / 1 var(--wn-body); }
+.bm-stage-go { padding: 0 calc(30 * var(--u)); min-width: 120px; background: var(--wn-main); color: var(--wn-ink); font: 800 max(20px, calc(26 * var(--u))) / 1 var(--wn-display); }
+
+/* Portrait or a phone: one column, the words first. */
+@media (max-aspect-ratio: 1 / 1) {
+  .bm-stage { --u: calc(100vw / 800); }
+  .bm-stage-main { display: flex; flex-direction: column; overflow: auto; }
+  .bm-stage-left, .bm-stage-main.is-text .bm-stage-left { flex: none; flex-direction: column; align-items: stretch; padding: 32px 24px 16px; gap: 16px; }
+  .bm-stage-main.is-text .bm-stage-left { flex: 1; justify-content: center; }
+  .bm-stage-main.is-text .bm-stage-words { flex: 0 1 auto; }
+  .bm-stage-title { font-size: clamp(44px, 14vw, 96px); }
+  .bm-stage-bit { width: 136px; height: 128px; }
+  .bm-stage-main.is-text .bm-stage-bit { width: 212px; height: 200px; }
+  .bm-stage-media { flex: none; margin: auto 0 0 24px; aspect-ratio: 16 / 10; }   /* on the band, as on a monitor */
+  .bm-stage-band { padding: 0 16px; }
+  .bm-stage-go { flex: 1; padding: 0 16px; }
+}

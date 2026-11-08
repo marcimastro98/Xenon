@@ -12,7 +12,7 @@
 // Search widget tile. `/spotlight` (the desktop popup the global hotkey opens)
 // reuses this module on its own page.
 //
-// The whole search surface (bar, chips, status, results, AI mode) is built by
+// The whole search surface (bar, chips, status, results, Bit) is built by
 // createSearchUI(), a factory with per-instance state: the overlay holds one
 // instance, and the Search widget tile embeds its own so typing and results
 // live inside the tile (window.Spotlight.createSearchUI). One engine, no
@@ -29,6 +29,7 @@
   const DEBOUNCE_MS = 180;
   const PULL_OPEN_PX = 150;    // drag distance that commits the open (short pulls = just the effect)
   const PULL_START_PX = 16;    // vertical movement before the gesture claims the pointer
+  const CHAT_ICON = 'M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.6 3.7A.9.9 0 0 1 3 20V5a1 1 0 0 1 1-1Z';
 
   // ── tiny formatters ──────────────────────────────────────────────────────
   function fmtSize(n) {
@@ -245,8 +246,7 @@
   // tile (via window.Spotlight.createSearchUI).
   //   opts.host       element receiving .spot-bar + .spot-body
   //   opts.stateHost  element carrying the state classes (spot-expanded,
-  //                   spot-loading, spot-ai, spot-ai-thinking) — the overlay
-  //                   root or the widget's own container
+  //                   spot-loading): the overlay root or the widget's own container
   //   opts.keyHost    element the keydown handler attaches to
   //   opts.withClose  build the × button (overlay only)
   //   opts.onClose    Escape / × (overlay closes; the widget clears)
@@ -255,6 +255,10 @@
   //   opts.showRecent () => boolean: the empty search lists recent files (the
   //                   overlay always; the tile only with its setting on)
   //   opts.preview    show an image preview beside the list (overlay only)
+  //   opts.onChat     (text, send) hands the phrase to Bit's chat: sent with
+  //                   `send`, otherwise left in its field. Answers a sentence
+  //                   when it could not. Adds Bit to the bar, Ctrl+B and the row
+  //                   that asks Bit
   function createSearchUI(opts) {
     const stateHost = opts.stateHost;
     let debTimer = null;
@@ -262,12 +266,6 @@
     let lastResults = [];
     let selIndex = -1;
     let disabled = {};           // chip dimensions the user removed this session
-    // AI mode: the phrase goes to the configured Xenon AI provider ON ENTER
-    // (never per keystroke — that would burn quota on every letter) and comes
-    // back as the same structured filter the offline parser produces.
-    let aiMode = false;
-    let aiRanFor = null;         // last phrase the AI searched; Enter re-runs only on change
-    let aiNotice = '';           // one-shot status line shown with the next results
     const listId = 'spot-list-' + (++rowSeq);
 
     function setExpanded(expanded) {
@@ -295,22 +293,16 @@
     input.className = 'spot-input';
     input.autocomplete = 'off';
     input.spellcheck = false;
-    input.placeholder = t('spot_placeholder', 'Cerca sul PC…');
+    input.placeholder = opts.onChat
+      ? t('spot_placeholder_bit', 'Cerca sul PC o chiedi a Bit…')
+      : t('spot_placeholder', 'Cerca sul PC…');
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('aria-controls', listId);
     input.setAttribute('aria-autocomplete', 'list');
     input.addEventListener('input', () => {
       disabled = {};
-      if (aiMode) {
-        // AI mode searches on Enter only. While editing, keep whatever is on
-        // screen and just remind how to run.
-        aiRanFor = null;
-        if (!input.value.trim()) { renderIdle(); return; }
-        setExpanded(true);
-        statusEl.textContent = t('spot_ai_hint', 'Premi Invio e Bit legge la frase');
-        return;
-      }
+      if (bit && input.value.trim()) bit.typing();
       runSearch();
     });
 
@@ -324,25 +316,20 @@
     filterBtn.appendChild(svgIcon('M3 5h18l-7 8v5l-4 2v-7L3 5Z'));
     filterBtn.addEventListener('click', () => toggleFilters());
 
-    // AI mode toggle: Bit (the sparkle where the engine is missing). Ctrl+I
-    // flips it too.
-    const aiBtn = document.createElement('button');
-    aiBtn.type = 'button';
-    aiBtn.className = 'spot-ai-toggle';
-    aiBtn.title = t('spot_ai_toggle', 'Chiedi a Bit (Ctrl+I)');
-    aiBtn.setAttribute('aria-pressed', 'false');
-    const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    spark.setAttribute('viewBox', '0 0 24 24');
-    spark.setAttribute('aria-hidden', 'true');
-    const sp1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    sp1.setAttribute('d', 'M10 2l2 5.6L17.6 9.6 12 11.6 10 17.2 8 11.6 2.4 9.6 8 7.6 10 2Z');
-    const sp2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    sp2.setAttribute('d', 'M18.5 13l1.2 3.3L23 17.5l-3.3 1.2L18.5 22l-1.2-3.3L14 17.5l3.3-1.2L18.5 13Z');
-    spark.append(sp1, sp2);
-    aiBtn.appendChild(spark);
-    paintAiBit('idle');
-    aiBtn.addEventListener('click', () => setAiMode(!aiMode));
-    bar.append(glass, input, filterBtn, aiBtn);
+    // Bit: a press opens the chat with what is typed, waiting to be sent.
+    let bit = null;
+    bar.append(glass, input, filterBtn);
+    if (opts.onChat) {
+      const bitBtn = document.createElement('button');
+      bitBtn.type = 'button';
+      bitBtn.className = 'spot-bit';
+      bitBtn.title = t('spot_chat', 'Chiedi a Bit (Ctrl+B)');
+      bitBtn.setAttribute('aria-label', bitBtn.title);
+      bit = window.SpotlightBit.create(bitBtn, { onOverlay: !!opts.withClose });
+      bitBtn.addEventListener('mouseenter', () => bit.wave());
+      bitBtn.addEventListener('click', () => openChat());
+      bar.appendChild(bitBtn);
+    }
     if (opts.withClose) {
       const closeBtn = document.createElement('button');
       closeBtn.type = 'button';
@@ -397,8 +384,7 @@
       input.value = (input.value.trim() + ' ' + phrase).trim();
       toggleFilters(false);
       input.focus();
-      if (aiMode) setAiMode(false);
-      else runSearch();
+      runSearch();
     }
 
     const chipsEl = document.createElement('div');
@@ -437,30 +423,26 @@
     opts.host.append(bar, body);
 
     // ── chips render ──
-    function renderChips(chips, fixed) {
+    function renderChips(chips) {
       chipsEl.textContent = '';
       for (const c of chips || []) {
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = 'spot-chip spot-chip-' + c.type + (fixed ? ' spot-chip-fixed' : '');
+        chip.className = 'spot-chip spot-chip-' + c.type;
         const label = document.createElement('span');
         label.textContent = chipLabel(c);
         chip.appendChild(label);
-        if (!fixed) {
-          // Offline-parser chips are removable; AI chips only DISPLAY the
-          // interpretation (rephrasing is the correction path there).
-          const x = document.createElement('span');
-          x.className = 'spot-chip-x';
-          x.textContent = '×';
-          chip.appendChild(x);
-          chip.title = t('spot_chip_remove', 'Non è quello che intendevo');
-          chip.addEventListener('click', () => {
-            // Removing a chip = "that reading was wrong": re-parse with the
-            // dimension disabled, so the word searches as a plain term instead.
-            disabled[c.type] = true;
-            runSearch();
-          });
-        }
+        const x = document.createElement('span');
+        x.className = 'spot-chip-x';
+        x.textContent = '×';
+        chip.appendChild(x);
+        chip.title = t('spot_chip_remove', 'Non è quello che intendevo');
+        chip.addEventListener('click', () => {
+          // Removing a chip = "that reading was wrong": re-parse with the
+          // dimension disabled, so the word searches as a plain term instead.
+          disabled[c.type] = true;
+          runSearch();
+        });
         chipsEl.appendChild(chip);
       }
       chipsEl.hidden = !chipsEl.childElementCount;
@@ -502,7 +484,7 @@
     // ── results ──
     function rowsOf() { return listEl.querySelectorAll('.spot-row'); }
 
-    function setSelected(i) {
+    function setSelected(i, quiet) {
       const rows = rowsOf();
       if (!rows.length) { selIndex = -1; return; }
       selIndex = Math.max(0, Math.min(rows.length - 1, i));
@@ -516,6 +498,7 @@
         if (sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
       }
       showPreview(lastResults[selIndex]);
+      if (!quiet && bit && lastResults[selIndex] && lastResults[selIndex].ask) bit.wave();
     }
 
     function hidePreview() {
@@ -614,6 +597,53 @@
       return row;
     }
 
+    // The last row of every search: the phrase, for Bit. Enter or a tap sends it.
+    function askFace() {
+      const face = document.createElement('span');
+      face.className = 'spot-ask-face';
+      // Engine-drawn markup, no user text in it.
+      const svg = window.BitApp ? BitApp.icon('talk', 'talk') : '';
+      if (svg) face.innerHTML = svg;
+      else face.appendChild(svgIcon(CHAT_ICON, 'spot-icon'));
+      return face;
+    }
+
+    function addAskRow() {
+      const phrase = input.value.trim();
+      if (!opts.onChat || !phrase) return;
+      const row = document.createElement('div');
+      row.className = 'spot-row spot-row-ask';
+      row.id = listId + '-r' + lastResults.length;
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', 'false');
+      row.tabIndex = -1;
+      const mid = document.createElement('div');
+      mid.className = 'spot-row-mid';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'spot-row-name';
+      nameEl.textContent = t('spot_ask', 'Chiedi a Bit');
+      const metaEl = document.createElement('div');
+      metaEl.className = 'spot-row-meta';
+      metaEl.textContent = phrase;
+      mid.append(nameEl, metaEl);
+      row.append(askFace(), mid);
+      lastResults.push({ ask: true });
+      const index = lastResults.length - 1;
+      row.addEventListener('mouseenter', () => { if (selIndex !== index) setSelected(index); });
+      row.addEventListener('click', () => { void askBit(true); });
+      listEl.appendChild(row);
+      input.setAttribute('aria-expanded', 'true');
+      // Alone in the list it is what Enter sends, and a send can spend Sparks: it shows.
+      if (index === 0) setSelected(0, true);
+    }
+
+    function dropAskRow() {
+      const row = listEl.querySelector('.spot-row-ask');
+      if (!row) return;
+      row.remove();
+      lastResults.pop();
+    }
+
     // Rows in labelled groups, in the order they are listed; the keyboard
     // walks them as one list.
     function renderGroups(groups, terms) {
@@ -667,12 +697,6 @@
       } else {
         statusEl.textContent = '';
       }
-      if (aiNotice) {
-        // One-shot notice (e.g. "AI unavailable, standard search") shown WITH
-        // the results it applies to, then cleared.
-        statusEl.textContent = statusEl.textContent ? aiNotice + ' · ' + statusEl.textContent : aiNotice;
-        aiNotice = '';
-      }
       const apps = (out.apps || []).map((a) => ({ id: a.id, name: a.name, app: true }));
       const results = out.results || [];
       renderGroups([
@@ -681,6 +705,12 @@
         ['spot_group_files', 'File', results.filter((r) => r.kind !== 'folder' && !r.content)],
         ['spot_group_content', 'Nel contenuto', results.filter((r) => r.kind !== 'folder' && r.content)],
       ], terms);
+      if (!lastResults.length && out.wds !== 'pending') noneFound();
+      addAskRow();
+    }
+
+    function noneFound() {
+      if (bit) bit.noResults(input.value.trim());
     }
 
     // The catalog's rows that arrived after the answer: added below, never
@@ -690,10 +720,16 @@
       const have = new Set(lastResults.filter((r) => r.path).map((r) => r.path.toLowerCase()));
       const extra = (out.results || []).filter((r) => r.path && !have.has(r.path.toLowerCase()));
       if (!extra.length) {
-        if (!lastResults.length) statusEl.textContent = t('spot_no_results', 'Nessun risultato');
+        if (lastResults.every((r) => r.ask)) {
+          statusEl.textContent = t('spot_no_results', 'Nessun risultato');
+          noneFound();
+        }
         return;
       }
       statusEl.textContent = '';
+      // Bit's row stays last, and keeps the selection if it had it.
+      const askSelected = !!(lastResults[selIndex] && lastResults[selIndex].ask);
+      dropAskRow();
       const head = document.createElement('div');
       head.className = 'spot-group';
       head.setAttribute('role', 'presentation');
@@ -701,88 +737,19 @@
       listEl.appendChild(head);
       for (const r of extra) listEl.appendChild(buildRow(r, terms));
       input.setAttribute('aria-expanded', 'true');
+      addAskRow();
+      if (askSelected) setSelected(lastResults.length - 1);
     }
 
-    // ── AI mode ──
-    // Bit on the toggle: still, in the mood of the moment (it thinks while the
-    // provider reads the phrase). Engine-drawn markup, no user text in it.
-    function paintAiBit(mood) {
-      const svg = window.BitApp ? BitApp.icon(mood, mood) : '';
-      if (!svg) return;
-      aiBtn.innerHTML = svg;
-      aiBtn.classList.add('has-bit');
+    // ── Bit ──
+    async function askBit(send) {
+      const problem = await opts.onChat(input.value.trim(), send);
+      if (problem) { setExpanded(true); statusEl.textContent = problem; return; }
+      if (send) reset();
     }
 
-    function setAiMode(on) {
-      aiMode = !!on;
-      aiRanFor = null;
-      stateHost.classList.toggle('spot-ai', aiMode);
-      stateHost.classList.remove('spot-ai-thinking');
-      aiBtn.classList.toggle('is-on', aiMode);
-      aiBtn.setAttribute('aria-pressed', aiMode ? 'true' : 'false');
-      input.placeholder = aiMode
-        ? t('spot_ai_placeholder', 'Descrivi cosa cerchi…')
-        : t('spot_placeholder', 'Cerca sul PC…');
-      if (aiMode) {
-        // No per-keystroke searches in AI mode: stop whatever is running and
-        // wait for Enter.
-        if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-        if (inflight) { inflight.abort(); inflight = null; }
-        stateHost.classList.remove('spot-loading');
-        if (input.value.trim()) {
-          setExpanded(true);
-          statusEl.textContent = t('spot_ai_hint', 'Premi Invio e Bit legge la frase');
-        }
-      } else if (input.value.trim()) {
-        runSearch();
-      } else {
-        renderIdle();
-      }
-      input.focus();
-    }
-
-    // One phrase → one provider round-trip → the same structured filter the
-    // offline parser produces, executed by the same engine. Any failure
-    // degrades to the offline parse with an honest notice, never a dead end.
-    async function runAiSearch() {
-      const q = input.value.trim();
-      if (!q) return;
-      if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-      if (inflight) inflight.abort();
-      const ctrl = new AbortController();
-      inflight = ctrl;
-      aiRanFor = q;
-      stateHost.classList.add('spot-loading', 'spot-ai-thinking');
-      paintAiBit('think');
-      setExpanded(true);
-      statusEl.textContent = t('spot_ai_thinking', 'Bit legge la frase…');
-      try {
-        const res = await fetch('/search/ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: q.slice(0, 300) }),
-          signal: ctrl.signal,
-        });
-        const out = await res.json().catch(() => ({}));
-        if (ctrl !== inflight) return;
-        if (!out || !out.ok) {
-          aiNotice = t('spot_ai_fallback', 'Bit non risponde: uso la ricerca normale');
-          aiRanFor = null;
-          runSearch();
-          return;
-        }
-        renderChips(out.chips, true);
-        renderResults(out, out.terms || []);
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;
-        statusEl.textContent = t('spot_error', 'Ricerca non disponibile');
-      } finally {
-        if (ctrl === inflight) {
-          inflight = null;
-          stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
-          paintAiBit('idle');
-        }
-      }
+    function openChat() {
+      void bit.press().then(() => askBit(false));
     }
 
     // ── search plumbing ──
@@ -831,8 +798,9 @@
         if (typeof opts.onClose === 'function') opts.onClose();
         return;
       }
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'i' || e.key === 'I')) {
-        e.preventDefault(); setAiMode(!aiMode); return;
+      // Ctrl+I was the old way to ask Bit from here: it still is.
+      if (opts.onChat && e.ctrlKey && !e.shiftKey && !e.altKey && /^[bi]$/i.test(e.key)) {
+        e.preventDefault(); openChat(); return;
       }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(selIndex + 1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(selIndex - 1); return; }
@@ -844,42 +812,42 @@
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        // AI mode: the first Enter on a (new) phrase runs the AI search; with
-        // results already on screen for it, Enter opens the selection.
-        if (aiMode && input.value.trim() && input.value.trim() !== aiRanFor) { runAiSearch(); return; }
         const idx = selIndex >= 0 ? selIndex : 0;
         const r = lastResults[idx];
         const row = rowsOf()[idx];
         if (!r || !row) return;
+        if (r.ask) { void askBit(true); return; }
         // Ctrl+Enter shows it in its folder instead of opening it.
         if (e.ctrlKey && !r.app) act('reveal', r, row);
         else act('open', r, row);
       }
     });
 
+    // Fresh start (overlay open, widget Escape): clears text and pending work.
+    function reset() {
+      disabled = {};
+      input.value = '';
+      if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+      if (inflight) { inflight.abort(); inflight = null; }
+      stateHost.classList.remove('spot-loading');
+      filterMenu.hidden = true;
+      filterBtn.classList.remove('is-on');
+      renderIdle();
+    }
+
     return {
       input,
       focus() { input.focus(); },
-      // Fresh start (overlay open, widget Escape): clears text and pending
-      // work; the AI mode CHOICE persists, like the overlay always did.
-      reset() {
-        disabled = {};
-        aiRanFor = null;
-        input.value = '';
-        if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-        if (inflight) { inflight.abort(); inflight = null; }
-        stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
-        paintAiBit('idle');
-        filterMenu.hidden = true;
-        filterBtn.classList.remove('is-on');
-        renderIdle();
-      },
+      // A line under the bar, for what a host has to tell.
+      say(text) { setExpanded(true); statusEl.textContent = text; },
+      reset,
       setQuery(q) { input.value = q || ''; runSearch(); },
+      greet() { if (bit) bit.greet(); },
       // Stop pending work without touching the DOM (overlay close, tile teardown).
       stop() {
         if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-        // A cut AI read must not leave Bit thinking for the next open.
-        if (inflight) { inflight.abort(); inflight = null; paintAiBit('idle'); }
+        if (inflight) { inflight.abort(); inflight = null; }
+        if (bit) bit.stop();
         recentReq++;
       },
     };
@@ -895,6 +863,41 @@
   // The popup page listens to this to grow/shrink its own window.
   function announceExpand(expanded) {
     try { window.dispatchEvent(new CustomEvent('spotlight-expand', { detail: { expanded } })); } catch {}
+  }
+
+  // A search tile on a widget layer has no chat of its own: the step goes to the
+  // dashboard, or to Bit on the screen, the way a Deck key's does.
+  async function chatFromLayer(text, send) {
+    // Opening has no field to fill from here: the phrase stays on the bar, and its row sends it.
+    const action = send ? { type: 'ai', mode: 'prompt', prompt: text } : { type: 'ai', mode: 'open' };
+    try {
+      const res = await fetch('/deck/client-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const out = await res.json().catch(() => null);
+      if (out && out.ok) return '';
+    } catch { /* said below */ }
+    return t('spot_chat_failed', 'La chat non si è aperta, riprova');
+  }
+
+  function chatOnDashboard(text, send) {
+    close();
+    if (send && typeof window.aiAsk === 'function') { window.aiAsk(text); return; }
+    window.DashboardOpen.run({ open: 'chat' });
+    const field = document.getElementById('ai-text-input');
+    if (!field) return;
+    if (text) { field.value = text; field.dispatchEvent(new Event('input', { bubbles: true })); }
+    field.focus();
+  }
+
+  // The search window has its own chat (spotlight-chat.js). On the dashboard the
+  // overlay gives way to the chat already there, by the way the shell asks for it.
+  function chatHandler() {
+    if (window.SpotlightChat) return (text, send) => window.SpotlightChat.open(text, send);
+    if (typeof isLayerPage === 'function' && isLayerPage()) return chatFromLayer;
+    return window.DashboardOpen ? chatOnDashboard : null;
   }
 
   function build() {
@@ -919,6 +922,7 @@
       // the image preview beside the list.
       showRecent: () => true,
       preview: true,
+      onChat: chatHandler(),
     });
     root.appendChild(shell);
 
@@ -944,8 +948,20 @@
     if (window.ambientFreeze) window.ambientFreeze('spotlight', true);
     ui.reset();
     ui.focus();
+    ui.greet();
     // Start the catalog host now, so the first query does not pay for it.
     fetch('/search?q=').catch(() => {});
+  }
+
+  // A new search in a window that stayed as it was left: no old text, no results.
+  function fresh() {
+    open();
+    ui.reset();
+    ui.focus();
+  }
+
+  function greet() {
+    if (ui) ui.greet();
   }
 
   function openWithQuery(q) {
@@ -957,7 +973,7 @@
     if (!openState || !root) return;
     openState = false;
     ui.stop();
-    root.classList.remove('spot-open', 'spot-pop', 'spot-expanded', 'spot-loading', 'spot-ai-thinking');
+    root.classList.remove('spot-open', 'spot-pop', 'spot-expanded', 'spot-loading');
     root.hidden = true;
     announceExpand(false);
     if (window.ambientFreeze) window.ambientFreeze('spotlight', false);
@@ -1156,10 +1172,13 @@
   else init();
 
   window.Spotlight = {
-    open, openWithQuery, close,
+    open, openWithQuery, close, fresh,
+    say(text) { open(); ui.say(text); },
     toggle() { if (openState) close(); else open(); },
     isOpen() { return openState; },
     createSearchUI,
+    chatHandler,
+    greet,
     _setCloseNav(fn) { onCloseNav = typeof fn === 'function' ? fn : null; },
   };
 })();

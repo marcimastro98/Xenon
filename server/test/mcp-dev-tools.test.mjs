@@ -46,7 +46,7 @@ test('the starter widget passes Xenon\'s own package check', () => {
 });
 
 // Found on the real run: the starter failed its own check_widget with "no
-// color-scheme declared" (the white-tile trap), so every first widget began with
+// color-scheme declared", so every first widget began with
 // a fix item the person never wrote.
 test('the starter widget has nothing to fix in the design check, and follows the theme', () => {
   const P = require('../ai-presets.js');

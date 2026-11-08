@@ -139,6 +139,20 @@ test('a copied tile gets a fresh Bit, and a Bit whose tile left is let go', () =
   assert.equal(BitApp.playerFor(host), null);
 });
 
+test('a Bit mounted on a bar not yet in the page waits for it', () => {
+  const { BitApp } = bootApp();
+  const host = new FakeEl('span');
+  host.isConnected = false;
+  const p = BitApp.mount(host, { mood: 'idle' });
+  assert.equal(host.children.length, 1, 'the face stays in its host');
+  host.isConnected = true;
+  BitApp.sweep();
+  assert.equal(BitApp.playerFor(host), p);
+  host.isConnected = false;
+  BitApp.sweep();
+  assert.equal(BitApp.playerFor(host), null, 'once it was in the page, leaving it lets it go');
+});
+
 test('Bit says a greeting in the dashboard language, never the same twice running', () => {
   const { BitApp } = bootApp();
   const P = require('../../packages/core/src/bit-phrases.js');
@@ -283,9 +297,20 @@ test('Bit as an icon is the still pose cropped to a square around it, sized by C
     for (const r of rects) assert.ok(r.x >= x && r.y >= y && r.x + r.w <= x + w + 1e-9 && r.y + r.h <= y + h + 1e-9, `${clipId}: rect inside`);
     assert.ok(w < ctx.Xenon.bit.STAGE.w, `${clipId}: tighter than the stage`);
     // the still pose, without the floor shadow that would pull the crop off Bit
-    const drawn = (m) => (m.match(/<rect [^>]+>/g) || []).filter((r) => !/height="0.6"/.test(r));
+    const drawn = (m) => (m.match(/<path [^>]+>/g) || []).filter((r) => !/v0.6h/.test(r));
+    assert.ok(drawn(svg).length > 1, `${clipId}: drawn`);
     assert.deepEqual(drawn(svg), drawn(ctx.BitApp.still(clipId, 24, tint)), `${clipId}: same drawing as the still`);
-    assert.doesNotMatch(svg, /height="0.6"/, `${clipId}: no floor shadow`);
+    assert.doesNotMatch(svg, /v0.6h/, `${clipId}: no floor shadow`);
+  }
+  // On whole cells for every pose, so a 24 px icon has its edges on device pixels.
+  for (const id of ctx.Xenon.bit.clips.map((c) => c.id)) {
+    const box = ctx.BitApp.icon(id).match(/viewBox="([^"]+)"/)[1].split(' ').map(Number);
+    assert.ok(box.every(Number.isInteger), `${id}: ${box}`);
+    const clip = ctx.Xenon.bit.clip(id);
+    const c = { ...clip, frames: clip.frames.map((f) => ({ ...f, noShadow: true })) };
+    for (const r of ctx.Xenon.bit.renderFrame(c, ctx.Xenon.bitPlayer.stillIndex(clip), {}).layers.flatMap((l) => l.rects)) {
+      assert.ok(r.x >= box[0] && r.y >= box[1] && r.x + r.w <= box[0] + box[2] + 1e-9 && r.y + r.h <= box[1] + box[3] + 1e-9, `${id}: inside ${box}`);
+    }
   }
   assert.equal(ctx.BitApp.icon('no-such-pose'), '');
 });
@@ -296,7 +321,7 @@ test('Bit as a glyph is one colour with its face cut out, in the icon box', () =
     const svg = ctx.BitApp.glyph(clipId);
     const head = svg.slice(0, svg.indexOf('>'));
     assert.match(head, /fill="currentColor"/, `${clipId}: the button's ink`);
-    assert.match(head, /shape-rendering="crispEdges"/);
+    assert.doesNotMatch(head, /crispEdges/, 'snapped cells make one eye wider than the other');
     assert.equal(head.match(/viewBox="([^"]+)"/)[1], ctx.BitApp.icon(clipId).match(/viewBox="([^"]+)"/)[1], `${clipId}: same box as the icon`);
     // no colour of its own, no rect, mask or id a cloned copy would lose
     assert.doesNotMatch(svg, /<rect|rgb\(|#[0-9a-f]{3,6}|mask|clip-path| id=/i, `${clipId}: plain paths only`);
@@ -336,7 +361,7 @@ test('the top bar launcher is Bit, so the phone dock that copies it is Bit too',
   ctx.queueMicrotask = queueMicrotask;
   vm.runInContext(read('../js/ai-bit-chat.js'), ctx, { filename: 'ai-bit-chat.js' });
   assert.ok(placed, 'the old icon is replaced');
-  assert.match(placed.markup, /^<svg [^>]*shape-rendering="crispEdges"/, 'an engine-drawn Bit');
+  assert.match(placed.markup, /^<svg [^>]*fill="currentColor"/, 'an engine-drawn Bit');
   assert.equal(placed.markup, ctx.BitApp.glyph('idle'), 'the one-colour glyph, not the coloured sprite');
   assert.equal(placed.attrs['aria-hidden'], 'true');
   assert.deepEqual(placed.classList.list, ['topbtn-bit']);
@@ -363,11 +388,6 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   assert.match(gc, /BitApp\.icon\('gaming'\)/);
   const { Xenon } = bootPlayer();
   assert.ok(Xenon.bit.clip('gaming').frames.every((f) => f.ex.includes('controller')));
-  // Spotlight: Bit thinks while the provider reads the phrase, then is back to idle
-  const spot = read('../js/spotlight.js');
-  const run = spot.slice(spot.indexOf('async function runAiSearch('), spot.indexOf('// ── search plumbing'));
-  assert.match(run, /spot-ai-thinking'\);\s*paintAiBit\('think'\)/);
-  assert.match(run, /finally \{[\s\S]*paintAiBit\('idle'\)/);
   // the native Spotlight window loads the engine before spotlight.js
   const page = read('../spotlight.html');
   const at = (f) => page.indexOf(f);
@@ -377,7 +397,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   // the Deck action picker shows Bit for the AI action
   assert.match(read('../js/deck-editor.js'), /ai: \(window\.BitApp && BitApp\.icon\('idle'\)\) \|\| _ai\(/);
   const i18n = read('../js/i18n.js');
-  for (const key of ['spot_ai_toggle', 'spot_ai_hint', 'spot_ai_thinking', 'spot_ai_fallback', 'deck_act_aiEdgeGlow', 'settings_ai_edge_glow_hint']) {
+  for (const key of ['spot_chat', 'spot_ask', 'spot_placeholder_bit', 'deck_act_aiEdgeGlow', 'settings_ai_edge_glow_hint']) {
     const all = strings(i18n, key);
     assert.equal(all.length, 11, key);
     for (const v of all) assert.match(v, /Bit/, `${key}: ${v}`);

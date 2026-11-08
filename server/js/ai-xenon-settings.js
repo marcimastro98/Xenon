@@ -47,6 +47,7 @@
     num.textContent = ok ? fmt(st.balance) : waiting ? '…' : '';
     num.parentElement.hidden = !ok && !waiting;
     note.hidden = false;
+    show('xai-no-code', st.status === 'no_code');
     // What the Sparks are for, in what this balance buys with the tier picked below.
     const C = window.XenonCredits;
     const included = $id('xai-included');
@@ -87,10 +88,8 @@
     const p = window.XenonCredits.purchase();
     status.hidden = !p;
     if (!p) return;
-    status.classList.toggle('settings-note-warn', p.phase === 'late');
-    status.textContent = p.phase === 'arrived'
-      ? t('xai_buy_arrived').replace('{n}', fmt(p.got))
-      : t(p.phase === 'late' ? 'xai_buy_late' : 'xai_buy_waiting');
+    status.classList.toggle('settings-note-warn', p.key === 'xai_buy_late');
+    status.textContent = t(p.key).replace('{n}', fmt(p.got));
   }
 
   async function renderOffer() {

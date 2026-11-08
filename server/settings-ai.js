@@ -16,6 +16,9 @@ const PREFS = Object.freeze({
   date_format: { path: ['clockDateFormat'], values: ['full', 'medium', 'short'], about: 'how the clock writes the date' },
   pause_when_idle: { path: ['idleAnimationPause'], values: ON_OFF, def: true, about: 'pause the background animations while nobody uses the PC' },
   startup_logo: { path: ['bootSplash'], values: ON_OFF, def: true, about: 'the Xenon logo while the dashboard loads' },
+  battery_ask_devices: { path: ['batteryAskDevices'], values: ON_OFF, def: true, about: 'ask mice, keyboards and headsets on a USB dongle for their charge; off shows only what the system knows' },
+  announcements: { path: ['hubMessages'], values: ON_OFF, def: true, about: "Bit's messages with news from Xenon" },
+  monthly_drops: { path: ['monthlyDrops'], values: ON_OFF, def: true, about: "Bit's messages about the month's new creations in the Store" },
   ambient: { path: ['ambientMode', 'enabled'], values: ON_OFF, def: true, about: 'the Ambient scene (full-screen clock, music and weather)' },
   ambient_after: { path: ['ambientMode', 'idleMinutes'], values: ['0', '1', '2', '5', '10', '15', '30'], about: 'minutes without use before the Ambient scene opens by itself; 0 never' },
 });

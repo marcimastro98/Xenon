@@ -37,3 +37,12 @@ test('supportUrl goes through the hub counter with a validated label', () => {
   assert.equal(c.supportUrl('<x>&p=evil'), base + '?s=other');
   assert.equal(c.supportUrl(''), base + '?s=other');
 });
+
+test('the trial page opens in the app language when the hub has it', () => {
+  const base = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
+  assert.equal(c.trialUrl('it'), base + '?lang=it');
+  assert.equal(c.trialUrl('de'), base + '?lang=de', 'the hub falls back by itself');
+  assert.equal(c.trialUrl('zh-CN'), base + '?lang=zh');
+  assert.equal(c.trialUrl(''), base);
+  assert.equal(c.trialUrl('<x>'), base);
+});

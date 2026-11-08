@@ -52,11 +52,11 @@ function matcher(sel) {
 const text = (n) => (n.textContent || '') + n.children.map((c) => (typeof c === 'object' ? text(c) : '')).join('');
 const byClass = (root, cls) => all(root).filter((n) => n.className.split(' ').includes(cls));
 
-function load({ status = 'ok', balance = 376, email = '', supporter = false, wallet = false, active = true, purchase = null } = {}) {
+function load({ status = 'ok', balance = 376, email = '', supporter = false, wallet = false, welcomeUntil, active = true, purchase = null } = {}) {
   const calls = { useXenon: 0, chat: 0, closed: 0, refresh: 0 };
   let onChange = null;
   const credits = {
-    state: { status, balance, email },
+    state: { status, balance, email, wallet, welcomeUntil },
     active: () => active, useXenon: () => { calls.useXenon += 1; }, refresh: () => { calls.refresh += 1; },
     supporterSaved: async () => supporter, sparksCodeSaved: async () => wallet,
     PACKS: [{ credits: 500, usd: 5 }, { credits: 1050, usd: 10 }, { credits: 2200, usd: 20 }],
@@ -123,6 +123,7 @@ test('the tab shows the balance, the packs as big cards and what Sparks are for'
   assert.match(text(byClass(hero, 'sparks-hero-balance')[0]), /^376sparks_shop_yours$/);
   const list = byClass(root, 'xai-pack-list')[0];
   assert.equal(list.cls, 'cgal-btn sparks-pack', 'the Store\'s own buttons, sized by the tab');
+  assert.ok(byClass(byClass(root, 'sparks-packs')[0], 'sparks-note').some((n) => n.textContent === 'sparks_pack_note'), 'who sells and the way back, under the packs');
   const uses = byClass(root, 'sparks-use');
   assert.deepEqual(uses.map((u) => byClass(u, 'sparks-use-title')[0].textContent), ['sparks_use_bit_t', 'sparks_use_store_t', 'sparks_use_maker_t'], 'Bit, then what the Store sells, then the Maker');
   assert.equal(byClass(uses[0], 'sparks-use-value')[0].textContent, 'sparks_use_bit_v', 'the cost line (placeholders are filled from the strings)');
@@ -147,10 +148,12 @@ test('a catalog that fails still paints the packs', async () => {
 test('the pay line names the email when the hub knows it, else says how a code arrives', async () => {
   const note = async (o) => byClass((await paint(o)).root, 'sparks-packs')[0].children
     .filter((n) => n.className.startsWith('sparks-note') && !n.className.includes('sparks-status')).map((n) => n.textContent);
-  assert.deepEqual(await note({ email: 'm•••@gmail.com', supporter: true }), ['xai_packs_email']);
-  assert.deepEqual(await note({ supporter: true }), ['xai_packs_note']);
-  assert.deepEqual(await note({ wallet: true }), ['xai_packs_note']);
-  assert.deepEqual(await note({}), ['sparks_shop_code_note'], 'nothing saved: a code arrives by email');
+  assert.deepEqual(await note({ email: 'm•••@gmail.com', supporter: true }), ['xai_packs_email', 'sparks_pack_note']);
+  assert.deepEqual(await note({ wallet: true }), ['xai_packs_note', 'sparks_pack_note'], 'a code already bought with');
+  assert.deepEqual(await note({ supporter: true, status: 'error' }), ['xai_packs_note', 'sparks_pack_note'], 'the hub is out of reach: the pass still has its email');
+  assert.deepEqual(await note({ supporter: true }), ['sparks_shop_code_note', 'sparks_pack_note'], 'a pass with no address: the hub cannot match the payment');
+  assert.deepEqual(await note({ wallet: true, welcomeUntil: 2_000_000 }), ['sparks_shop_code_note', 'sparks_pack_note'], 'welcome Sparks have no email behind them');
+  assert.deepEqual(await note({}), ['sparks_shop_code_note', 'sparks_pack_note'], 'nothing saved: a code arrives by email');
 });
 
 test('each pack counts widgets with every model, and the most Sparks per dollar is marked', async () => {
@@ -227,22 +230,21 @@ test('a supporter reads the plan as included, with no button to join again', asy
   assert.equal(byClass(box, 'cgal-btn').length, 0, 'someone already in is never asked to join');
 });
 
-test('the Store shelves skip what the spotlight shows, and the Supporters shelf carries the plan', () => {
+test('the Store shelves skip what the spotlight shows, and the membership has its own band', () => {
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
   assert.ok(!gallery.includes('dupIds'), 'no shelf carries spotlight entries again');
   assert.match(gallery, /const notSpot = \(e\) => !spotIds\.has\(e\.id\);/);
   assert.match(gallery, /const items = cap\(shelfLimited\.filter\(notSpot\), b\);/);
-  assert.match(gallery, /items: cap\(sortList\(supporters\.filter\(notSpot\)\), b\)/);
-  assert.match(gallery, /items: cap\(archive\.filter\(notSpot\), b\)/);
-  assert.match(gallery, /plan: window\.SparksStore\.plan\(\{ supporter: supporterSaved, href: supportHref\('store-section'\), icon \}\)/);
-  assert.match(gallery, /if \(opts\.plan\) wrap\.appendChild\(opts\.plan\);/);
+  assert.match(gallery, /cap\(sortList\(supporters\.filter\(notSpot\)\), b\)/);
+  assert.match(gallery, /const items = cap\(archive\.filter\(notSpot\), b\);/);
+  assert.match(gallery, /function supporterBand\(\)/);
 });
 
 test('a purchase or a new balance repaints the open tab; a closed tab stops listening', async () => {
   const p = await paint();
   const status = byClass(p.root, 'sparks-status')[0];
   assert.equal(status.hidden, true, 'nothing bought yet');
-  p.credits.purchase = () => ({ phase: 'late', got: 0 });
+  p.credits.purchase = () => ({ phase: 'late', got: 0, key: 'xai_buy_late' });
   p.credits.state = { status: 'ok', balance: 1426, email: '' };
   p.fire();
   assert.equal(status.hidden, false);
@@ -274,7 +276,8 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
   const html = read('../index.html');
   assert.match(html, /id="xai-shop" onclick="XenonCredits\.openShop\(\)"/);
   assert.match(read('../js/ai-bit-chat.js'), /go\.addEventListener\('click', \(\) => XenonCredits\.openShop\(\)\)/);
-  assert.match(read('../js/sparks-mail.js'), /go\.addEventListener\('click', \(\) => C\.openShop\(\)\)/);
+  assert.match(read('../js/sparks-mail.js'), /action: \{ type: 'sparks'/);
+  assert.match(read('../js/bit-messages.js'), /sparks: \(\) => window\.XenonCredits && window\.XenonCredits\.openShop\(\)/);
   const share = read('../js/preset-share.js');
   assert.match(share, /close\(\);\s*window\.XenonCredits\.openShop\(\);/);
   assert.ok(!/buyMore\.href/.test(share), 'the unlock window no longer jumps to the shop page');
@@ -287,10 +290,10 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
 
 test('the Store has a Sparks tab, opened from anywhere, its files loaded in order', () => {
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
-  assert.match(gallery, /mkTab\('sparks', t\('xai_balance_unit', 'Sparks'\), 'none'\)/);
+  assert.match(gallery, /railRow\('__sparks', t\('xai_balance_unit', 'Sparks'\), mark\)/);
   assert.match(gallery, /filterKind === '__sparks' && window\.SparksStore\) \? 'sparks'/);
-  assert.match(gallery, /if \(activeTab === 'sparks'\) \{[\s\S]*?window\.SparksStore\.render\(body, \{/);
-  assert.match(gallery, /function openSparks\(\) \{\n\s*if \(overlayEl && showTab && showTab\('sparks'\)\) return;\n\s*open\('__sparks'\);/);
+  assert.match(gallery, /if \(activeTab === 'sparks'\) \{[\s\S]*?window\.SparksStore\.render\(viewEl, \{/);
+  assert.match(gallery, /function openSparks\(\) \{\n\s*if \(overlayEl && window\.SparksStore\) \{ goView\('__sparks'\); return; \}\n\s*open\('__sparks'\);/);
   assert.match(gallery, /window\.CommunityGallery = \{[^}]*\bopenSparks\b/);
   const html = read('../index.html');
   const store = html.indexOf('<script src="js/sparks-store.js"></script>');
@@ -310,7 +313,7 @@ test('the tab is laid out for every screen: wraps, no fixed widths, 44px targets
 test('every string of the tab is in all 11 languages, placeholders kept, no dash', () => {
   const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const keys = read('../js/sparks-store.js').match(/'sparks_(?:shop|use|plan)_[a-z_]+'/g).map((k) => k.slice(1, -1));
-  keys.push('gallery_supporters_join', 'sparks_settings_shop', 'sparks_shop_open', 'sparks_buy_more', 'xc_chip_title_none', 'xai_packs_note', 'xai_packs_email', 'xai_buy_toast_msg');
+  keys.push('gallery_supporters_join', 'sparks_settings_shop', 'sparks_shop_open', 'sparks_buy_more', 'xc_chip_buy', 'xc_chip_title_none', 'xai_packs_note', 'xai_packs_email', 'xai_buy_toast_msg');
   const PH = { sparks_use_bit_v: ['{haiku}', '{sonnet}', '{opus}'], sparks_plan_price: ['{usd}'], sparks_plan_sparks: ['{n}'], xai_packs_email: ['{email}'], xai_buy_toast_msg: ['{n}', '{balance}'] };
   for (const l of LANGS) {
     for (const k of new Set(keys)) {
@@ -336,17 +339,33 @@ test('every key the Store and the Sparks tab ask for exists in all 11 languages'
   }
 });
 
-test('the Store browse bar: kinds in one menu, New as a button, the three Sparks packs and nothing else', () => {
+test('the rail replaces the old browse bar: kinds, New, the Sparks view, no packs on Discover', () => {
   const gallery = read('../js/community-gallery.js').replace(/\r\n/g, '\n');
-  assert.match(gallery, /const selKind = document\.createElement\('select'\); selKind\.className = 'cgal-select-el'/);
-  assert.match(gallery, /searchRow\.insertBefore\(kindWrap, sortWrap\)/);
-  assert.match(gallery, /if \(window\.initCustomSelect\) initCustomSelect\(selKind\)/);
-  assert.match(gallery, /o\.setAttribute\('data-cs-icon', ICONS\[iconName\] \|\| ICONS\.widget\)/, 'only the static icon set reaches the menu');
-  assert.match(gallery, /newBtn = el\('button', 'cgal-railbtn is-new'\)/);
-  assert.match(gallery, /if \(window\.XenonCredits\) bar\.appendChild\(quickSparks\(\)\)/);
-  assert.match(gallery, /function quickSparks\(\) \{\n\s*const row = el\('div', 'cgal-quick'\);\n\s*row\.appendChild\(window\.XenonCredits\.packList\('cgal-quick-pack'\)\);\n\s*return row;\n\s*\}/, 'no label, no "what they do" link');
+  assert.match(gallery, /KIND_ORDER\.filter\(\(k\) => has\(\(e\) => e\.kind === k\)\)/, 'only the kinds the catalog has');
+  assert.match(gallery, /railRow\('__new', t\('gallery_new_filter', 'New'\), icon\('new'\), shortCount\(fresh\)\)/);
+  assert.ok(!/selKind|newBtn|quickSparks|cgal-quick/.test(gallery), 'the old bar is gone');
   const css = read('../components/SettingsModal/SettingsModal.css');
-  assert.match(css, /\.cgal-quick \.xai-pack-list \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, 'three even tiles');
-  assert.ok(!/cgal-quick-(label|more)|cgal-feat-(join|saved)/.test(css), 'the old row and shelf pieces are gone');
-  assert.match(css, /\.cgal-railbtn\s*\{[^}]*min-height:\s*44px/);
+  assert.ok(!/cgal-quick|cgal-railbtn|cgal-feat-/.test(css), 'and its rules with it');
+});
+
+test('Ask Bit writes the words in the chat box and never sends them', () => {
+  const code = read('../js/sparks-store.js').replace(/\r\n/g, '\n');
+  const src = code.slice(code.indexOf('function openBit('), code.indexOf('// What one widget costs'));
+  const box = { value: '', maxLength: 500, events: [], dispatchEvent(e) { this.events.push(e.type); } };
+  const calls = [];
+  const sandbox = {
+    C: () => null,
+    window: { openMediaChat() { calls.push('chat'); }, aiAsk() { calls.push('sent'); } },
+    document: { getElementById: (id) => (id === 'ai-text-input' ? box : null) },
+    Event: class { constructor(type) { this.type = type; } },
+  };
+  vm.runInNewContext(src + '\nglobalThis.openBit = openBit;', sandbox);
+  sandbox.openBit(() => calls.push('closed'), 'x'.repeat(600));
+  assert.deepEqual(calls, ['closed', 'chat']);
+  assert.equal(box.value.length, 500);
+  assert.deepEqual(box.events, ['input']);
+  // Without words it only opens the chat.
+  box.value = '';
+  sandbox.openBit(() => {});
+  assert.equal(box.value, '');
 });

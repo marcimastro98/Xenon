@@ -45,6 +45,14 @@
     return row;
   }
 
+  // Trial Sparks say when they end and what they are not for, where the balance is.
+  function welcomeNote() {
+    const until = credits() && credits().state && credits().state.welcomeUntil;
+    if (!until) return [];
+    const date = new Date(until * 1000).toLocaleDateString(typeof lang === 'string' ? lang : undefined, { day: 'numeric', month: 'long' });
+    return [el('p', 'bit-model-note', t('bit_welcome_until').replace('{date}', date))];
+  }
+
   // One row per model: its plain name, and what a widget costs on it.
   function modelOption(m, current) {
     const b = el('button', 'bit-model-opt');
@@ -67,6 +75,7 @@
     S.MODELS.forEach((m) => list.appendChild(modelOption(m, current)));
     panel.replaceChildren(
       topRow(),
+      ...welcomeNote(),
       el('span', 'bit-model-label', t('bit_model_who')),
       list,
       el('p', 'bit-model-note', t('bit_model_ask_cost')),

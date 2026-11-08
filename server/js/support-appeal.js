@@ -62,9 +62,9 @@
 
   function buildHead(a) {
     const head = el('div', 'discord-invite-head');
-    const logo = el('div', 'discord-invite-logo support-ask-logo');
-    logo.innerHTML = a.HEART;            // static, trusted markup
-    const title = el('div', 'discord-invite-title', t('support_appeal_title', 'A note from Marcello, who makes Xenon'));
+    const logo = el('div', 'discord-invite-logo');
+    if (window.BitApp) logo.innerHTML = window.BitApp.icon('idle');   // static, trusted markup
+    const title = el('div', 'discord-invite-title', t('support_appeal_title', 'A note from the maker of Xenon'));
     const close = el('button', 'discord-invite-close');
     close.type = 'button';
     close.setAttribute('aria-label', t('close', 'Close'));
@@ -85,19 +85,16 @@
     return box;
   }
 
-  function buildActions(a) {
-    const actions = el('div', 'discord-invite-actions support-ask-actions');
-    const monthly = el('button', 'discord-invite-join support-ask-monthly');
+  function buildActions() {
+    const actions = el('div', 'discord-invite-actions');
+    const monthly = el('button', 'discord-invite-join support-ask-monthly', t('support_ask_monthly', 'Support monthly'));
     monthly.type = 'button';
-    const heart = el('span', 'support-ask-heart');
-    heart.innerHTML = a.HEART;           // static, trusted markup
-    monthly.append(heart, el('span', null, t('support_ask_monthly', 'Support monthly')));
     monthly.addEventListener('click', () => { open(supportLink('monthly')); remember(); hide(); });
 
     const once = el('button', 'discord-invite-dismiss support-ask-once', t('support_ask_once', 'Just once: $5 or $25'));
     once.type = 'button';
     once.addEventListener('click', () => { open(supportLink('once')); remember(); hide(); });
-    actions.append(monthly, once);
+    actions.append(once, monthly);
     return actions;
   }
 
@@ -116,20 +113,20 @@
   function showCard(goal) {
     const a = ASK();
     if (!a || document.getElementById('support-appeal')) return;
-    const card = el('div', 'discord-invite support-ask support-appeal');   // the ask's shell and palette
+    const card = el('div', 'discord-invite support-ask support-appeal');   // the community card's shell
     card.id = 'support-appeal';
     card.setAttribute('role', 'complementary');
-    card.setAttribute('aria-label', t('support_appeal_title', 'A note from Marcello, who makes Xenon'));
+    card.setAttribute('aria-label', t('support_appeal_title', 'A note from the maker of Xenon'));
 
     const text = el('p', 'discord-invite-text', noteText(goal));
     const C = window.XenonCredits;
-    const sparks = C ? C.offerLine(t('support_sparks_also', "Every month you also get 300 Sparks, Xenon's credits."), 'support-appeal-sparks') : null;
+    const sparks = C ? C.offerLine(t('support_sparks_also', "Every month you also get 300 Sparks, Xenon's credits. Unused ones do not carry over."), 'support-appeal-sparks') : null;
 
     const already = el('button', 'support-ask-already', t('support_ask_already', 'I already support Xenon'));
     already.type = 'button';
     already.addEventListener('click', () => { silence(); hide(); a.thankSupporter(); });
 
-    card.append(buildHead(a), text, ...(sparks ? [sparks] : []), buildGoal(goal), buildActions(a), already);
+    card.append(buildHead(a), text, ...(sparks ? [sparks] : []), buildGoal(goal), buildActions(), already);
     document.body.appendChild(card);
     requestAnimationFrame(() => card.classList.add('is-in'));
   }

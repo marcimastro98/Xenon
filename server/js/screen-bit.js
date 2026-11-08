@@ -21,9 +21,9 @@
   // full-duplex audio path, so on the screen Bit talks turn by turn.
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js',
-    'shared/src/bit-phrases.js', 'shared/src/bit-spark.js',
+    'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
     'js/xenon-credits.js', 'js/ai-turn-wait.js', 'js/bit-app.js', 'js/ai-bit-chat.js',
-    'js/ai-reply-choices.js', 'js/ai.js', 'js/ai-edge-glow.js',
+    'js/ai-reply-choices.js', 'js/ai-ask-card.js', 'js/ai.js', 'js/ai-deck-confirm.js', 'js/ai-edge-glow.js',
   ]);
   const IDLE_RELOAD_MS = 60 * 1000;
 
@@ -48,8 +48,13 @@
     return files.get(key);
   }
 
+  // A page may already carry some of them in its own tags (the search window),
+  // with the version the server puts on them (asset-version.js).
+  const inPage = (src) => !!document.querySelector('script[src="' + src + '"], script[src^="' + src + '?"]');
+
   function addScript(src) {
     return once(src, () => new Promise((resolve, reject) => {
+      if (inPage(src)) { resolve(); return; }
       const s = document.createElement('script');
       s.src = src;
       s.async = false;
@@ -133,5 +138,5 @@
   // so the driver page takes those and opens the dashboard (shell-driver.js).
   const claims = (action) => !!action && action.type === 'ai' && action.mode === 'voice';
 
-  return Object.freeze({ wake, claims, script: addScript, css: addCss, keyCheck, talking, SCRIPTS, CSS, IDLE_RELOAD_MS });
+  return Object.freeze({ load, wake, claims, script: addScript, css: addCss, keyCheck, talking, SCRIPTS, CSS, IDLE_RELOAD_MS });
 });

@@ -114,13 +114,13 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 401) {
-    err = new Error('Claude (Anthropic): the API key is invalid. Check it in Settings → Bit assistant.');
+    err = new Error('Claude (Anthropic): the API key is invalid. Check it in Settings → Bit.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('Claude (Anthropic): too many requests or credit exhausted (rate limit). Check your Anthropic account.');
     err.code = 'rate_limited';
   } else if (status === 404) {
-    err = new Error('Claude (Anthropic): the requested model is not available for your key. Pick another in Settings → Bit assistant.' + (detail ? ' (' + detail + ')' : ''));
+    err = new Error('Claude (Anthropic): the requested model is not available for your key. Pick another in Settings → Bit.' + (detail ? ' (' + detail + ')' : ''));
     err.code = 'model_missing';
   } else {
     err = new Error('Claude (Anthropic): HTTP error ' + status + (detail ? ' — ' + detail : ''));

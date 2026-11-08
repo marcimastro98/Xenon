@@ -136,7 +136,7 @@ test('the count is never invented: no answer, no line', () => {
   assert.match(body(GOAL, 'async function load()'), /catch \{ return null; \}/);
   const render = body(GOAL, 'function render(box, goal)');
   assert.match(render, /if \(!goal \|\| !line\) \{ box\.hidden = true; return; \}/);
-  assert.doesNotMatch(GOAL + APPEAL, /\.innerHTML = (?!a\.(HEART|CLOSE))/, 'text only ever goes in as text');
+  assert.doesNotMatch(GOAL + APPEAL, /\.innerHTML = (?!a\.CLOSE|window\.BitApp\.icon\('idle'\))/, 'text only ever goes in as text');
   assert.match(GOAL, /fetch\('\/api\/community\/support-goal'/, 'asked of this server, never straight of the hub');
 });
 
@@ -202,12 +202,15 @@ test('the count route is local, cached, and a navigation cannot spend it', () =>
   assert.match(csrf.slice(0, csrf.indexOf(']);')), /'\/api\/community\/support-goal'/);
 });
 
-test('it is loaded, styled in its own pink, and every string exists in all eleven languages', () => {
+test('it is loaded, styled like every other card, and every string exists in all eleven languages', () => {
   assert.match(HTML, /<script src="js\/support-goal\.js"><\/script>\n<script src="js\/support-appeal\.js"><\/script>/);
   assert.match(HTML, /components\/SupportGoal\/SupportGoal\.css/);
   assert.match(HTML, /id="settings-support-goal" hidden/, 'the Settings copy starts hidden');
   assert.match(SETTINGS, /XenonSupportGoal\.fill\(\$\('settings-support-goal'\)\)/, 'and is filled when the page opens');
-  assert.match(ASK_CSS, /\.support-appeal \.support-goal \{\n\s*--goal-fill: var\(--sup-pink\);/);
+  assert.match(ASK_CSS, /\.support-appeal \.support-goal \{ --goal-fill: var\(--accent-rgb\);/);
+  assert.doesNotMatch(ASK_CSS.replace(/\/\*[\s\S]*?\*\//g, ''), /gradient|--sup-|box-shadow|@keyframes/, 'an ask that looks like an advert is read as one');
+  assert.doesNotMatch(APPEAL, /HEART|heart/, 'no heart on the keys');
+  assert.match(body(APPEAL, 'function buildActions()'), /actions\.append\(once, monthly\);/, 'the quiet key on the left, the main one closing the row');
   assert.doesNotMatch(GOAL_CSS, /--accent/, 'the bar follows its holder, never the theme accent');
   for (const key of KEYS) {
     const missing = LANGS.filter((l) => !stringsOf(key).has(l));

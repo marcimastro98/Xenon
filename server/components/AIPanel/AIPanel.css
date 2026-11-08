@@ -129,10 +129,16 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 
 .ai-header-title {
   flex: 1;
+  display: flex;
+  align-items: center;
   font-size: 15px;
   font-weight: 600;
   color: rgba(255,255,255,.78);
 }
+/* Bit's face in place of the name (this panel also opens where MediaPanel.css is not loaded). */
+.ai-header-face { width: 30px; height: 28px; flex: none; display: grid; place-items: end center; }
+.ai-header-face .xbit { width: 30px; height: auto; display: block; }
+.ai-header-face:not(:empty) + .ai-header-name { width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .ai-header-actions { display: flex; align-items: center; gap: 6px; }
 
@@ -970,72 +976,97 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 /* ── PC Control confirmation card (consent-gated run_pc_command) ─────── */
 .ai-pc-confirm { position: fixed; z-index: 1200; padding: 16px; overflow-y: auto; }
 .ai-pc-card {
-  max-width: 440px;
+  max-width: 480px;
   width: 100%;
-  gap: 12px;
+  gap: 14px;
+  padding: 22px;
   text-align: left;
-  /* Never exceed the display: the whole card scrolls if content is tall, so the
-     command output and the Chiudi/Consenti buttons are always reachable. */
+  /* Never taller than the display: the command gives way first, so the keys stay on
+     screen, and past that the whole card scrolls. */
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  background: var(--glass-sheen), rgba(var(--oled-bg-rgb), .97);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 70px rgba(0,0,0,.55);
+  color: var(--text);
 }
-.ai-pc-actions {
-  position: sticky;
-  bottom: 0;
-  padding-top: 10px;
-  margin-top: 2px;
-  background: linear-gradient(180deg, rgba(14,16,22,0), rgba(14,16,22,.96) 24%);
-}
-.ai-pc-title { font-size: 1.02rem; font-weight: 700; letter-spacing: .01em; }
-.ai-pc-desc { font-size: .9rem; line-height: 1.5; color: rgba(255,255,255,.72); }
+.ai-pc-card:focus { outline: none; }
+.ai-pc-head { display: flex; align-items: flex-start; gap: 14px; }
+.ai-pc-bit { flex: none; width: 44px; height: 44px; }
+.ai-pc-bit:empty { display: none; }
+.ai-pc-bit svg { display: block; width: 100%; height: 100%; }
+.ai-pc-words { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ai-pc-title { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.ai-pc-desc { font-size: 15px; line-height: 1.4; color: var(--muted-text); }
 .ai-pc-cmd {
+  flex: 0 1 auto;
+  min-height: 64px;
   margin: 0;
   padding: 12px 14px;
   max-height: 220px;
   overflow: auto;
-  background: rgba(0,0,0,.42);
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 12px;
+  background: var(--control-bg);
+  border-radius: 10px;
   font-family: 'Consolas', 'Menlo', monospace;
-  font-size: .82rem;
+  font-size: 14px;
   line-height: 1.5;
-  color: #eef1f6;
+  color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
 }
-.ai-pc-warn {
-  display: flex;
-  gap: 8px;
-  font-size: .8rem;
-  line-height: 1.45;
-  color: #ffcf8a;
+.ai-pc-details {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--control-bg);
+  border-radius: 10px;
 }
-.ai-pc-warn::before { content: '⚠'; }
-.ai-pc-actions { display: flex; gap: 10px; margin-top: 2px; }
+.ai-pc-detail-name { font-size: 15px; font-weight: 700; }
+.ai-pc-detail { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; line-height: 1.4; }
+.ai-pc-detail-key { flex: none; color: var(--muted-text); }
+.ai-pc-detail-value { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.ai-pc-warn {
+  font-size: 14px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-warn) 55%, var(--text));
+}
+.ai-pc-actions {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
 .ai-pc-btn {
-  flex: 1 1 auto;
-  min-height: 46px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1.5px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.05);
-  color: #fff;
-  font-size: .92rem;
-  font-weight: 600;
+  flex: 0 0 auto;
+  min-width: 120px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--control-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background .15s, border-color .15s, transform .1s;
-  will-change: transform;
+  transition: background .15s, transform .1s;
 }
 .ai-pc-btn:active { transform: scale(.97); }
 .ai-pc-btn:disabled { opacity: .55; cursor: default; }
-.ai-pc-run { border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .18); }
-.ai-pc-run:hover:not(:disabled) { background: rgba(var(--accent-rgb), .28); }
-.ai-pc-cancel:hover:not(:disabled) { background: rgba(255,255,255,.10); }
-.ai-pc-result-head { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
+.ai-pc-run { background: var(--accent); color: var(--on-accent); }
+.ai-pc-cancel:hover:not(:disabled) { background: var(--hover-bg); }
+.ai-pc-result { display: flex; flex-direction: column; flex: 0 1 auto; gap: 8px; min-height: 0; }
+.ai-pc-result-head { font-size: 15px; font-weight: 700; }
 .ai-pc-result.ok .ai-pc-result-head { color: var(--color-success); }
 .ai-pc-result.err .ai-pc-result-head { color: var(--color-danger); }
 .ai-pc-out { max-height: 260px; }
+@media (max-width: 560px) {
+  .ai-pc-btn { flex: 1 1 auto; min-width: 0; }
+}
 
 /* ══════════════════════════════════════════════════════════════════
    8 · MARKDOWN  (assistant typography inside the transcript)
@@ -1113,6 +1144,27 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 .ai-choice:hover { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
 .ai-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* ── Bit's question with real alternatives (js/ai-ask-card.js) ── */
+.ai-ask { align-items: stretch; gap: 2px; margin: 0 0 8px 17px; outline: none; }
+.ai-ask-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  width: 100%; min-height: 44px; margin: 0; padding: 8px 10px; cursor: pointer;
+  border: 1px solid transparent; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; line-height: 1.35; text-align: left;
+  color: var(--text);
+}
+.ai-ask-row::before { content: none; }
+.ai-ask-row:hover, .ai-ask-row:focus-visible { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
+.ai-ask-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ai-ask-n { flex: none; width: 14px; font-size: 12px; line-height: 18px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
+.ai-ask-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ai-ask-lbl { overflow-wrap: anywhere; }
+.ai-ask-lbl small { margin-left: 8px; font-size: 11px; color: var(--muted-text); }
+.ai-ask-note { font-size: 12.5px; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere; }
+.ai-ask-own { align-items: center; }
+.ai-ask-leave { align-self: flex-start; margin: 2px 0 0 2px; font-weight: 600; }
+.ai-ask-leave::before { content: none; }
+
 /* ── The way to more Scintille, under a reply that ran them low or out (BitChat.buyRow) ── */
 .ai-buy { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; }
 .ai-buy-line { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted-text); }
@@ -1143,3 +1195,19 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 .ai-undo-btn:disabled { cursor: default; }
 .ai-undo-btn.ai-undo-done { text-decoration: none; opacity: .8; cursor: default; }
 @media (pointer: coarse) { .ai-undo-btn, .ai-retry-btn { min-height: 44px; } }
+
+/* What Bit said on its own (js/bit-told.js): a chat message with a title, and the
+   picture and the button it came with. */
+.ai-told { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.ai-told-media { width: min(320px, 100%); overflow: hidden; border-radius: 6px; }
+.ai-told-media img, .ai-told-media video { display: block; width: 100%; height: auto; }
+.ai-told-title { font-weight: 600; color: var(--text); }
+.ai-told-answer { color: var(--muted-text); }
+.ai-told-go {
+  min-height: 44px; max-width: 100%; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ai-told-go:hover { background: var(--hover-bg, rgba(255,255,255,.06)); }
+.ai-told-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

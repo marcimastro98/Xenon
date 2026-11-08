@@ -101,7 +101,7 @@ test('openSupporterCode opens the sdk pane and focuses the code field', () => {
   const field = {
     hidden: false,
     focus: (o) => calls.push(['focus', o]),
-    closest: (sel) => (sel === '.settings-subcard' ? { scrollIntoView: (o) => calls.push(['scroll', o]) } : null),
+    closest: (sel) => (sel === '.settings-section' ? { scrollIntoView: (o) => calls.push(['scroll', o]) } : null),
   };
   const ctx = { $: (id) => (id === 'settings-supporter-code' ? field : null), settingsSetCategory: (c) => calls.push(['cat', c]) };
   vm.runInNewContext(src + '; openSupporterCode();', ctx);

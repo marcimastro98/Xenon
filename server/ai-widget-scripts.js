@@ -1,6 +1,6 @@
 'use strict';
 
-// The widget sandbox's CSP is `script-src 'self'`: an inline <script> never
+// The widget sandbox's CSP names only its own folder: an inline <script> never
 // runs, so a widget whose code sits inside index.html installs fine and then
 // shows an empty tile. Models write it that way often, so before a package the
 // assistant made is installed or encoded, each inline script becomes a file of

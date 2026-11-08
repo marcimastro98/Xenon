@@ -51,22 +51,19 @@ test('the server stores it, and a stale client save cannot un-dismiss it', () =>
   assert.match(block, /if \(prev\.shareNudgeSeen === true\) incoming\.shareNudgeSeen = true;/);
 });
 
-// Filing a letter interrupts nothing; Bit's note about it waits through a voice
-// session, the lock screen, a game or a scene (bit-mail-core.js quiet()).
-test("it is filed as one letter in Bit's mail, never a card on screen", () => {
-  assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('share-nudge'\)/, 'no corner card any more');
+// Filing interrupts nothing; the card waits through a voice session, the lock
+// screen, a game or a scene (js/bit-messages.js quiet()).
+test("it is filed as one of Bit's messages, never its own card on screen", () => {
+  assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('share-nudge'\)/, 'no card of its own');
   const gate = CARD.slice(CARD.indexOf('async function maybeShow()'));
   const body = gate.slice(0, gate.indexOf('\n  }'));
-  assert.match(body, /window\.BitMail\.post\(\{\s*id: 'share:setup',\s*kind: 'share'/);
-  assert.match(body, /remember\(\);/, 'remembered as it is filed: once means once, read or not');
+  assert.match(body, /M\.file\(\[\{\s*id: 'share:setup',\s*kind: 'share',\s*surface: 'dashboard'/, 'the composer is on the dashboard only');
+  assert.match(body, /action: \{ type: 'share'/, 'its button opens the share card in Settings, not a second composer');
+  assert.match(body, /if \(filed\) remember\(\);/, 'remembered once it is filed: once means once, read or not');
   assert.match(body, /if \(!window\.ShareCard/, 'and never invites without the composer');
-  assert.match(CARD, /window\.BitMail\.register\('share', drawLetter\)/);
-  const draw = CARD.slice(CARD.indexOf('function drawLetter('));
-  assert.match(draw.slice(0, draw.indexOf('\n  }')), /ShareCard\.open\(\{ source: 'setup' \}\)/,
-    'its button opens the share card in Settings, not a second composer');
 });
 
-test('the letter is loaded, and every string exists in all eleven languages', () => {
+test('the message is loaded, and every string exists in all eleven languages', () => {
   assert.match(HTML, /<script src="js\/support-card\.js"><\/script>\n<script src="js\/share-nudge\.js"><\/script>/,
     'loaded right after the supporter ask, which it defers to');
   for (const key of ['share_nudge_title', 'share_nudge_text', 'share_nudge_go']) {

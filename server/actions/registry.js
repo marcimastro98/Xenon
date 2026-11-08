@@ -6,6 +6,7 @@
 const fs = require('fs');
 const { repairMojibake } = require('../svv-text');
 const { validateAction, validateGesture } = require('../js/deck-actions.js');
+const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
@@ -627,13 +628,13 @@ function createRegistry(deps) {
         }
         case 'timerStart': {
           if (!d.timers || typeof d.timers.start !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
+          const named = scopeTimerLabel(rawAction, action.label, d.timers, { grows: true });
+          if (named.error) return { ok: false, error: named.error };
           // Minutes accept a decimal comma too ("1,5"); clamped to 5s–24h.
           const mins = Number(String(action.minutes || '').replace(',', '.'));
           if (!Number.isFinite(mins) || mins <= 0) return { ok: false, error: 'bad_minutes' };
           const secs = Math.min(86400, Math.max(5, Math.round(mins * 60)));
-          const r = await d.timers.start(label, secs);
+          const r = await d.timers.start(named.label, secs);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'timer_failed' } : { ok: true };
         }
         case 'stopwatchStart': {
@@ -642,8 +643,8 @@ function createRegistry(deps) {
           // timerToggle/timerCancel: both address a timer by label and a
           // stopwatch keeps the same clock underneath.
           if (!d.timers || typeof d.timers.stopwatch !== 'function') return { ok: false, error: 'unavailable' };
-          const swLabel = action.label.trim();
-          if (!swLabel) return { ok: false, error: 'empty_label' };
+          const swNamed = scopeTimerLabel(rawAction, action.label, d.timers, { grows: true });
+          if (swNamed.error) return { ok: false, error: swNamed.error };
           // Optional: chime every N minutes on the way up. Absent or unreadable
           // means a silent stopwatch, which is what the key did before this
           // param existed — an unparseable value must not turn a working key
@@ -651,21 +652,21 @@ function createRegistry(deps) {
           const every = Number(String(action.everyMinutes || '').replace(',', '.'));
           const everySecs = Number.isFinite(every) && every > 0
             ? Math.min(86400, Math.max(10, Math.round(every * 60))) : 0;
-          const rw = await d.timers.stopwatch(swLabel, everySecs);
+          const rw = await d.timers.stopwatch(swNamed.label, everySecs);
           return (rw && rw.ok === false) ? { ok: false, error: rw.error || 'timer_failed' } : { ok: true };
         }
         case 'timerToggle': {
           if (!d.timers || typeof d.timers.toggle !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
-          const r = await d.timers.toggle(label);
+          const named = scopeTimerLabel(rawAction, action.label, d.timers);
+          if (named.error) return { ok: false, error: named.error };
+          const r = await d.timers.toggle(named.label);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
         }
         case 'timerCancel': {
           if (!d.timers || typeof d.timers.cancel !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
-          const r = await d.timers.cancel(label);
+          const named = scopeTimerLabel(rawAction, action.label, d.timers);
+          if (named.error) return { ok: false, error: named.error };
+          const r = await d.timers.cancel(named.label);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
         }
         case 'vitalsRefill': {
@@ -837,6 +838,14 @@ function createRegistry(deps) {
           if (typeof d.discord !== 'function') return { ok: false, error: 'discord_unavailable' };
           const r = await d.discord(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'discord_failed' } : { ok: true };
+        }
+        case 'discordOpenChat': {
+          // Its own dep, because it may have to start Discord first. "Discord came
+          // up but the chat did not open" is a failure here: a widget has one
+          // ok to go on, and the chat on screen is what it asked for.
+          if (typeof d.discordOpenChat !== 'function') return { ok: false, error: 'discord_unavailable' };
+          const r = await d.discordOpenChat(action.channel);
+          return r && r.ok && r.selected ? { ok: true } : { ok: false, error: (r && r.error) || 'chat_not_opened' };
         }
         case 'spotifySave':
         case 'spotifyPlaylist':

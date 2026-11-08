@@ -28,7 +28,9 @@ const cleanKv = (v) => (Number.isInteger(v) && v >= 1 && v <= 1000 ? v : null);
 const whole = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
 // What /buy can answer besides success; anything else is 'network'.
 const BUY_ERRORS = new Set(['included', 'not_for_sale', 'no_sparks', 'sold_out', 'revoked', 'limit',
-  'wrong_code', 'bad_code', 'bad_entry', 'bad_request', 'rate_limited', 'busy']);
+  'wrong_code', 'bad_code', 'bad_entry', 'bad_request', 'rate_limited', 'busy', 'consent_required']);
+// The version of the box the buyer ticked (js/preset-share.js); the hub decides if it is current.
+const CONSENT_RE = /^[a-z0-9-]{1,40}$/;
 
 async function readWalletCode(dataDir) {
   try {
@@ -91,25 +93,37 @@ async function mergeIfBoth(dataDir) {
  * the hub has accepted it, like a typed pass.
  * → {ok, cek, name, bought, balance} | {ok:false, error, balance?, price?}
  */
-async function buy({ entryId, code, kv, dataDir }) {
+async function buy({ entryId, code, kv, consent, dataDir }) {
   const id = String(entryId || '');
   const typed = canonCode(code);
   if (!ENTRY_ID_RE.test(id) || (typed && !WALLET_RE.test(typed) && !PASS_RE.test(typed))) {
     return { ok: false, error: 'bad_request' };
   }
   if (!typed) await mergeIfBoth(dataDir);
-  const payer = typed || await supporterRedeem.readSavedCode(dataDir) || await readWalletCode(dataDir);
+  let payer = typed || await supporterRedeem.readSavedCode(dataDir) || await readWalletCode(dataDir);
   if (!payer) return { ok: false, error: 'no_code' };
   let scopedId;
   try { scopedId = await supporterRedeem.getScopedId(dataDir, supporterRedeem.SCOPE_DEVICES); }
   catch { return { ok: false, error: 'network' }; }
-  const payload = { entryId: id, code: payer, scopedId };
+  let payload = { entryId: id, scopedId };
+  if (typeof consent === 'string' && CONSENT_RE.test(consent)) payload.consent = consent;
   const keyVersion = cleanKv(kv);
   if (keyVersion) payload.kv = keyVersion;
+  payload = await supporterRedeem.withRatingId(payload);
   let out;
-  try { out = await supporterRedeem.hubPost('/buy', payload); }
-  catch { return { ok: false, error: 'network' }; }
+  try {
+    out = await supporterRedeem.hubPost('/buy', { ...payload, code: payer });
+    // A remembered pass the hub no longer knows must not hide the Sparks code beside it.
+    if (!typed && out && out.error === 'bad_code' && PASS_RE.test(payer)) {
+      const wallet = await readWalletCode(dataDir);
+      if (wallet) {
+        payer = wallet;
+        out = await supporterRedeem.hubPost('/buy', { ...payload, code: payer });
+      }
+    }
+  } catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek) {
+    await supporterRedeem.keepRatingTicket(id, out);
     if (typed && WALLET_RE.test(typed)) await saveTypedWalletCode(dataDir, typed);
     if (typed && PASS_RE.test(typed)) await supporterRedeem.saveTypedCode(dataDir, typed);
     return {
@@ -118,6 +132,7 @@ async function buy({ entryId, code, kv, dataDir }) {
       name: typeof out.name === 'string' ? out.name.slice(0, 120) : '',
       bought: out.bought === true,
       balance: whole(out.balance),
+      emailed: out.emailed === true,
     };
   }
   const error = out && BUY_ERRORS.has(out.error) ? out.error : 'network';
@@ -131,8 +146,25 @@ async function buy({ entryId, code, kv, dataDir }) {
   return answer;
 }
 
+/**
+ * Has the code this PC remembers already bought `entryId`? Reads only, and any
+ * doubt is a no: the sale stays on screen and the hub still never charges twice.
+ * → {ok, owned} | {ok:false, error}
+ */
+async function owned({ entryId, dataDir }) {
+  const id = String(entryId || '');
+  if (!ENTRY_ID_RE.test(id)) return { ok: false, error: 'bad_request' };
+  const payer = await supporterRedeem.readSavedCode(dataDir) || await readWalletCode(dataDir);
+  if (!payer) return { ok: true, owned: false };
+  let out;
+  try { out = await supporterRedeem.hubPost('/owned', { entryId: id, code: payer }); }
+  catch { return { ok: true, owned: false }; }
+  return { ok: true, owned: !!out && out.ok === true && out.owned === true };
+}
+
 module.exports = {
   buy,
+  owned,
   readWalletCode,
   saveTypedWalletCode,
   forgetWalletCode,

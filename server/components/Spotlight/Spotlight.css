@@ -38,7 +38,7 @@
   pointer-events: none;
   background: radial-gradient(ellipse 78% 62% at 50% 24%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.12) 58%, transparent 92%);
 }
-:root[data-theme="light"] .spotlight::before {
+:root[data-appearance="light"] .spotlight::before {
   background: radial-gradient(ellipse 78% 62% at 50% 24%, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.08) 58%, transparent 92%);
 }
 
@@ -69,7 +69,7 @@
               border-radius 0.28s ease,
               margin-top 0.28s ease;
 }
-:root[data-theme="light"] .spot-shell {
+:root[data-appearance="light"] .spot-shell {
   background: rgba(255, 255, 255, 0.93);
   border-color: rgba(0, 0, 0, 0.1);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -214,98 +214,47 @@ body.game-mode .spot-loading .spot-bar-icon { animation: none; }
   letter-spacing: 0.01em;
   font-family: inherit;
 }
+/* The theme sheets box every text field (themes-light, retro, comic), and they
+   outweigh the rule above. */
+:root .spot-bar .spot-input[type],
+:root .spot-bar .spot-input[type]:focus,
+:root .spot-bar .spot-input[type]:hover {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 .spot-input::selection { background: rgba(var(--accent-rgb), 0.3); }
 .spot-input::placeholder { color: rgba(255, 255, 255, 0.35); }
-:root[data-theme="light"] .spot-input::placeholder { color: rgba(0, 0, 0, 0.35); }
+:root[data-appearance="light"] .spot-input::placeholder { color: rgba(0, 0, 0, 0.35); }
 
-/* ── AI mode ────────────────────────────────────────────────────────────────
-   The bar wears the Xenon AI identity: the same conic accent→cyan→violet
-   light that breathes around the display rim in voice mode (AIPanel.css
-   .ai-siri-ring), here as a thin ring hugging the shell's inner edge. The
-   angle is a registered property because a conic gradient can only animate
-   through a typed custom var (same technique as --ai-angle; duplicated under
-   its own name because the /spotlight popup loads WITHOUT AIPanel.css). */
-@property --spot-ai-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes spot-ai-spin { to { --spot-ai-angle: 360deg; } }
-
-.spot-ai-toggle {
+/* Bit on the bar: a press opens the chat. No plate of its own, the face is the button. */
+.spot-bit {
   flex: 0 0 auto;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  border: 1px solid transparent;
+  width: 44px; height: 44px;
+  margin: 0 -2px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   cursor: pointer;
   display: grid;
   place-items: center;
-  opacity: 0.55;
-  transition: opacity 0.18s ease, background 0.18s ease,
-              border-color 0.18s ease, box-shadow 0.25s ease;
+  transition: background .18s ease, transform .12s ease;
 }
-.spot-ai-toggle svg { width: 19px; height: 19px; fill: rgba(255, 255, 255, 0.75); }
-:root[data-theme="light"] .spot-ai-toggle svg { fill: rgba(0, 0, 0, 0.6); }
-/* Bit keeps its own colours: off is the same Bit, dimmed by the button. */
-.spot-ai-toggle.has-bit svg { width: 22px; height: 22px; }
-.spot-ai-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
-:root[data-theme="light"] .spot-ai-toggle:hover { background: rgba(0, 0, 0, 0.06); }
-.spot-ai-toggle:active { transform: scale(0.94); }
-.spot-ai-toggle.is-on {
-  opacity: 1;
-  background: rgba(var(--accent-rgb), 0.16);
-  border-color: rgba(var(--accent-rgb), 0.45);
-  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.35);
-}
-.spot-ai-toggle.is-on svg,
-:root[data-theme="light"] .spot-ai-toggle.is-on svg {
-  fill: rgb(var(--accent-rgb));
-  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.6));
-}
+.spot-bit-face { width: 100%; height: 100%; display: grid; place-items: center; }
+.spot-bit-face svg { width: 100%; height: 100%; display: block; }
+.spot-bit:hover { background: rgba(255, 255, 255, 0.07); }
+:root[data-appearance="light"] .spot-bit:hover { background: rgba(0, 0, 0, 0.06); }
+.spot-bit:active { transform: scale(0.94); }
+/* Where the engine is missing: the chat icon. */
+.spot-bit.is-plain svg { width: 20px; height: 20px; fill: rgba(255, 255, 255, 0.75); }
+:root[data-appearance="light"] .spot-bit.is-plain svg { fill: rgba(0, 0, 0, 0.6); }
 
-/* The ring: drawn INSIDE the shell (::after + mask ring), so the same rule
-   lights up the dashboard pill and the frameless native window, whatever
-   the radius. Overflow:hidden on the shell keeps it flush with the edge. */
-.spot-ai .spot-shell { position: relative; }
-.spot-ai .spot-shell::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  /* 2px, not thinner: at fractional display scaling a 1.5px ring rounds to
-     different physical widths per side and reads as uneven. */
-  padding: 2px;
-  background: conic-gradient(from var(--spot-ai-angle),
-    rgb(var(--accent-rgb)), #7ad7ff 30%, #b69dff 60%, rgb(var(--accent-rgb)));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0.85;
-  animation: spot-ai-spin 6s linear infinite;
-}
-/* Soft accent bloom around the pill while the mode is armed; brighter and
-   faster while the provider is interpreting. */
-.spot-ai .spot-shell {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5),
-              0 0 34px rgba(var(--accent-rgb), 0.22),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-:root[data-theme="light"] .spot-ai .spot-shell {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25),
-              0 0 34px rgba(var(--accent-rgb), 0.28),
-              inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-.spot-ai.spot-ai-thinking .spot-shell::after { animation-duration: 1.4s; opacity: 1; }
-.spot-ai.spot-ai-thinking .spot-ai-toggle.is-on svg { animation: spot-pulse 0.9s ease-in-out infinite; }
-.spot-ai .spot-input::placeholder { color: rgba(var(--accent-rgb), 0.55); }
-/* Game mode and reduced motion: the ring holds still (static gradient). */
-body.game-mode .spot-ai .spot-shell::after { animation: none; }
-
-/* AI interpretation chips are display-only. */
-.spot-chip.spot-chip-fixed { cursor: default; }
+/* The row that asks Bit: last of the list, Bit in place of a file icon. */
+.spot-row-ask { margin-top: 6px; }
+.spot-ask-face { flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center; }
+.spot-ask-face svg { width: 100%; height: 100%; display: block; }
 
 .spot-close {
   flex: 0 0 auto;
@@ -321,7 +270,7 @@ body.game-mode .spot-ai .spot-shell::after { animation: none; }
   opacity: 0.8;
 }
 .spot-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-:root[data-theme="light"] .spot-close { background: rgba(0, 0, 0, 0.08); }
+:root[data-appearance="light"] .spot-close { background: rgba(0, 0, 0, 0.08); }
 .spot-close:active { transform: scale(0.94); }
 
 /* ── Expandable body ── */
@@ -333,7 +282,7 @@ body.game-mode .spot-ai .spot-shell::after { animation: none; }
   min-height: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-:root[data-theme="light"] .spot-body { border-top-color: rgba(0, 0, 0, 0.08); }
+:root[data-appearance="light"] .spot-body { border-top-color: rgba(0, 0, 0, 0.08); }
 .spot-expanded .spot-body { display: flex; }
 
 /* ── Chips ── */
@@ -386,7 +335,7 @@ body.game-mode .spot-ai .spot-shell::after { animation: none; }
   border: 2px solid transparent;
   background-clip: content-box;
 }
-:root[data-theme="light"] .spot-list::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); background-clip: content-box; }
+:root[data-appearance="light"] .spot-list::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); background-clip: content-box; }
 .spot-row {
   display: flex;
   align-items: center;
@@ -416,7 +365,7 @@ img.spot-icon-app {
 /* Application rows (the launchable tier above file results). */
 .spot-row-app .spot-icon { width: 26px; height: 26px; }
 .spot-icon-appglyph { fill: rgba(var(--accent-rgb), 0.9); }
-:root[data-theme="light"] .spot-icon { fill: rgba(0, 0, 0, 0.6); }
+:root[data-appearance="light"] .spot-icon { fill: rgba(0, 0, 0, 0.6); }
 .spot-icon-image { fill: #4fc3f7; }
 .spot-icon-video { fill: #b388ff; }
 .spot-icon-audio { fill: #69f0ae; }
@@ -464,7 +413,7 @@ img.spot-icon-app {
   width: 16px; height: 16px;
   fill: rgba(255, 255, 255, 0.6);
 }
-:root[data-theme="light"] .spot-row-reveal svg { fill: rgba(0, 0, 0, 0.55); }
+:root[data-appearance="light"] .spot-row-reveal svg { fill: rgba(0, 0, 0, 0.55); }
 .spot-row-reveal:active { transform: scale(0.92); }
 
 /* ── Filters: a button in the bar, a menu of the parser's own words ── */
@@ -481,9 +430,9 @@ img.spot-icon-app {
   transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 .spot-filter-toggle svg { width: 17px; height: 17px; fill: rgba(255, 255, 255, 0.75); }
-:root[data-theme="light"] .spot-filter-toggle svg { fill: rgba(0, 0, 0, 0.6); }
+:root[data-appearance="light"] .spot-filter-toggle svg { fill: rgba(0, 0, 0, 0.6); }
 .spot-filter-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
-:root[data-theme="light"] .spot-filter-toggle:hover { background: rgba(0, 0, 0, 0.06); }
+:root[data-appearance="light"] .spot-filter-toggle:hover { background: rgba(0, 0, 0, 0.06); }
 .spot-filter-toggle:active { transform: scale(0.94); }
 .spot-filter-toggle.is-on { opacity: 1; border-color: rgba(var(--accent-rgb), 0.45); }
 
@@ -515,7 +464,7 @@ img.spot-icon-app {
   font-size: 13px;
   cursor: pointer;
 }
-:root[data-theme="light"] .spot-filter-item { border-color: rgba(0, 0, 0, 0.14); }
+:root[data-appearance="light"] .spot-filter-item { border-color: rgba(0, 0, 0, 0.14); }
 /* The date words are shared with the chips, which read them mid-sentence. */
 .spot-filter-item::first-letter { text-transform: uppercase; }
 .spot-filter-item:hover { background: rgba(var(--accent-rgb), 0.1); border-color: rgba(var(--accent-rgb), 0.45); }
@@ -574,6 +523,5 @@ img.spot-icon-app {
   .spot-shell { transition: none; }
   .spot-drop { display: none; }
   .spot-loading .spot-bar-icon { animation: none; }
-  .spot-ai .spot-shell::after { animation: none; }
-  .spot-ai.spot-ai-thinking .spot-ai-toggle.is-on svg { animation: none; }
+  .spot-bit { transition: none; }
 }

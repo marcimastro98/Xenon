@@ -21,6 +21,7 @@ const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
 const redeem = require('../supporter-redeem.js');
 const X = require('../ai-xenon-credits.js');
+const sparksWallet = require('../sparks-wallet.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const CODE = 'XSABCDEFGHJKLM';
@@ -131,6 +132,19 @@ test('hub refusals become clear codes, with the balance when there is one', asyn
   X._reset();
   hub({ '/ai/session': { ok: false, error: 'bad_code' } });
   await assert.rejects(X.chat({ dataDir: dir, history, systemText: 's', executeTool: noTool }), { code: 'bad_code' });
+});
+
+test('a dead pass does not hide the Sparks code beside it, and is not asked again each round', async () => {
+  const dir = withPass();
+  const calls = hub({
+    '/wallet/merge': { ok: false, error: 'bad_code', which: 'pass' },
+    '/ai/session': (body) => (body.code.startsWith('XC') ? session : { ok: false, error: 'bad_code' }),
+    '/ai/messages': reply([{ type: 'text', text: 'ok' }]),
+  });
+  await sparksWallet.saveTypedWalletCode(dir, 'XC-ABCD-EFGH-JKLM');
+  assert.equal((await X.chat({ dataDir: dir, history, systemText: 's', executeTool: noTool })).text, 'ok');
+  assert.equal((await X.chat({ dataDir: dir, history, systemText: 's', executeTool: noTool })).text, 'ok');
+  assert.equal(calls.filter((c) => c.path === '/ai/session').length, 2, 'the pass once, the code once');
 });
 
 test('a creation is handed to the chosen model; what Haiku asked for never runs', async () => {
@@ -368,7 +382,7 @@ test('the balance is numbers only, and a tier name is the only model accepted', 
   hub({ '/ai/session': session, '/ai/balance': { ok: true, balance: 5, included: 0, topup: 5, monthly: 0, wallet: true } });
   assert.equal((await X.balance(dir)).wallet, true);
   // The email top-ups are matched by comes masked; a whole address never passes.
-  for (const [sent, kept] of [['m•••@gmail.com', 'm•••@gmail.com'], ['marcello@gmail.com', undefined], ['m•••', undefined], [42, undefined]]) {
+  for (const [sent, kept] of [['m•••@gmail.com', 'm•••@gmail.com'], ['mario@example.com', undefined], ['m•••', undefined], [42, undefined]]) {
     hub({ '/ai/session': session, '/ai/balance': { ok: true, balance: 1, included: 1, topup: 0, monthly: 300, email: sent } });
     assert.equal((await X.balance(dir)).email, kept, String(sent));
   }
@@ -397,7 +411,7 @@ test('the server routes the provider, keeps the time out of the system text, and
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
   assert.match(roast, /text = await roastSparks\.spend\(petCfg\.roastSparksCap, async \(\) => \{[\s\S]{0,200}aiXenon\.oneShot\(/);
   assert.equal(roast.split('aiXenon.').length, 2, 'aiXenon only inside the capped spend');
-  for (const route of ["'/api/ai/summarize'", "'/search/ai'", "'/api/disk/advisor'"]) {
+  for (const route of ["'/api/ai/summarize'", "'/api/disk/advisor'"]) {
     const i = S.indexOf('reqPath === ' + route);
     assert.match(S.slice(i, i + 12000), /aiXenon\.oneShot\(/, route);
   }

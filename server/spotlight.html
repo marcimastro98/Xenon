@@ -7,9 +7,15 @@
 <!-- Spotlight popup (main PC): the local file search as its own window, opened
      by the global hotkey (helper hotkey-serve → server spawns Edge app-mode)
      or on demand. Same loopback server, same trust boundary; closing the
-     Spotlight closes the window. The dashboard theme's accent/appearance are
-     applied at boot from /settings so the pill matches the user's look. -->
+     Spotlight closes the window. The dashboard theme is read from /settings on
+     every show, so the bar matches the user's look. Bit's chat opens in the same
+     window, with the dashboard's panel (js/spotlight-chat.js). -->
+<link rel="stylesheet" href="styles/fonts.css">
 <link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="styles/themes-light.css">
+<link rel="stylesheet" href="styles/theme-contract.css">
+<link rel="stylesheet" href="styles/themes-retro.css">
+<link rel="stylesheet" href="styles/themes-comic.css">
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <style>
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -53,22 +59,36 @@
        wallpaper without fighting the DWM corner rounding. */
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   }
-  :root[data-theme="light"] body.spotlight-frameless .spot-shell {
+  :root[data-appearance="light"] body.spotlight-frameless .spot-shell {
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   }
   body.spotlight-frameless .spot-bar { min-height: 62px; padding: 0 20px; }
   body.spotlight-frameless .spot-body { flex: 1; min-height: 0; padding: 0 8px 8px 12px; }
   body.spotlight-frameless .spot-expanded .spot-shell { margin: 0; width: 100%; }
   body.spotlight-frameless .spot-list { max-height: none; flex: 1; min-height: 0; }
-  /* AI-mode ring: the shell here is square (the window IS the pill) but DWM
-     rounds the window corners ~8px — give the ring the same radius so its
-     corners are not clipped away by the rounding, and pull it 1px inside the
-     edge: at fractional display scaling the window's outermost pixel column
-     is partially clipped, which visibly thinned the ring's right side. */
-  body.spotlight-frameless .spot-ai .spot-shell::after { border-radius: 8px; inset: 1px; }
+  /* Bit's chat in this window: the dashboard's panel, filling it with the theme
+     surface. AIPanel.css draws it dark for the dashboard's overlay. */
+  body.spot-chat .spotlight { display: none; }
+  body.spot-chat .ai-overlay { position: fixed; inset: 0; padding: 0; background: rgb(var(--panel-rgb)); }
+  body.spot-chat .ai-panel {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: rgb(var(--panel-rgb));
+    animation: none;
+  }
+  body.spot-chat .ai-panel::before { display: none; }
+  body.spot-chat .ai-header-title { color: var(--text); }
+  body.spot-chat :is(.ai-clear-btn, .ai-header-close) { color: var(--muted-text); background: transparent; }
+  body.spot-chat :is(.ai-clear-btn, .ai-header-close):hover { color: var(--text); background: var(--hover-bg); }
 </style>
 </head>
 <body class="spotlight-popup">
+<template id="screen-bit-markup"><!-- bit markup --></template>
 <script src="js/spark-path.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/state.js"></script>
@@ -78,96 +98,11 @@
 <script src="shared/src/bit.js"></script>
 <script src="shared/src/bit-player.js"></script>
 <script src="js/bit-app.js"></script>
+<script src="js/spotlight-bit.js"></script>
 <script src="js/spotlight.js"></script>
-<script>
-  // Real theme parity: run the SAME palette engine the dashboard runs
-  // (ThemePalette.derive + cssTokens) over the fetched settings, so the pill
-  // here is pixel-for-pixel the dashboard's — accent, panel material, text,
-  // light/dark halves, retro palette included.
-  function applyPopupTheme(s) {
-    try {
-      var TP = window.ThemePalette;
-      if (!TP) return;
-      var tone = s.appearance === 'light' ? 'light'
-        : s.appearance === 'dark' ? 'dark'
-        : (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-      var source = Object.assign({}, s);
-      // Dual-palette theme: overlay the half matching the tone (mirrors
-      // buildThemeSource in settings.js, minus the album-accent live feed).
-      source = TP.applyVariant(source, TP.variantFor(s.paletteVariants, tone));
-      if (s.styleMode === 'retro') {
-        Object.assign(source, {
-          background: '#050510', surface: '#0d0e20', surfaceAlt: '#121328', controlColor: '#181a34',
-          text: '#e8e8dc', mutedText: '#a9a9c0', lineColor: '#4c4c78', accent: '#f5c518',
-        });
-        tone = 'dark';
-      }
-      if (s.styleMode === 'comic' && !source.surface) source.surface = source.background;
-      var palette = TP.derive(source, tone);
-      var root = document.documentElement;
-      var tokens = TP.cssTokens(palette);
-      for (var k in tokens) root.style.setProperty(k, tokens[k]);
-      // A color-scheme on the ROOT makes Chromium paint an OPAQUE canvas
-      // backdrop under a transparent webview (white in light themes, black in
-      // dark) — that WAS the "white bar": every CSS background was transparent
-      // and the canvas showed instead. The frameless window must leave the
-      // root scheme at 'normal'; the popup window is opaque and keeps it.
-      if (!FRAMELESS) root.style.colorScheme = palette.tone;
-      if (palette.tone === 'light') root.setAttribute('data-theme', 'light');
-    } catch (e) { /* defaults from global.css are fine */ }
-  }
-  // Two hosts, one page. FRAMELESS = the native Tauri window (transparent, no
-  // chrome): resize/close travel over the xenon-app: scheme the shell's
-  // on_navigation hook intercepts. Otherwise: Edge app-mode fallback, where the
-  // window shrinks to pill height at boot and grows only while results show
-  // (resizeTo is normally honored for single-entry app windows; if refused,
-  // everything still works at the spawned size).
-  var FRAMELESS = /[?&]frameless=1/.test(location.search);
-  if (FRAMELESS) {
-    document.body.classList.add('spotlight-frameless');
-    document.documentElement.classList.add('spotlight-frameless-host');
-  }
-  var COMPACT_H = 150, EXPANDED_H = 620, canResize = false;
-  function tryCompact() {
-    if (FRAMELESS) return;
-    try {
-      var before = window.outerHeight;
-      window.resizeTo(window.outerWidth, COMPACT_H);
-      setTimeout(function () {
-        canResize = Math.abs(window.outerHeight - COMPACT_H) < 80;
-        if (!canResize && window.outerHeight !== before) window.resizeTo(window.outerWidth, before);
-      }, 100);
-    } catch (e) { /* fixed size is fine */ }
-  }
-  window.addEventListener('spotlight-expand', function (ev) {
-    var expanded = !!(ev.detail && ev.detail.expanded);
-    if (FRAMELESS) {
-      try { window.location.href = (window.__xenonSignal || String)('xenon-app:spotlight-' + (expanded ? 'expand' : 'collapse')); } catch (e) {}
-      return;
-    }
-    if (!canResize) return;
-    try { window.resizeTo(window.outerWidth, expanded ? EXPANDED_H : COMPACT_H); } catch (e) {}
-  });
-  window.addEventListener('DOMContentLoaded', function () {
-    if (!window.Spotlight) return;
-    Spotlight._setCloseNav(function () {
-      if (FRAMELESS) {
-        try { window.location.href = (window.__xenonSignal || String)('xenon-app:spotlight-close'); } catch (e) {}
-        // The shell hides the window; reopen the pill so the NEXT show is live.
-        setTimeout(function () { Spotlight.open(); }, 250);
-        return;
-      }
-      window.close();
-      // If the browser refused the script close (it normally allows it for
-      // single-entry app windows), never strand a dead dark page: reopen.
-      setTimeout(function () { if (!document.hidden) Spotlight.open(); }, 150);
-    });
-    tryCompact();
-    fetch('/settings').then(function (r) { return r.json(); })
-      .then(function (s) { if (s) applyPopupTheme(s); })
-      .catch(function () { /* defaults */ })
-      .finally(function () { Spotlight.open(); });
-  });
-</script>
+<script src="js/theme-tokens.js"></script>
+<script src="js/screen-bit.js"></script>
+<script src="js/spotlight-chat.js"></script>
+<script src="js/spotlight-page.js"></script>
 </body>
 </html>

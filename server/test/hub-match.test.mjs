@@ -49,14 +49,32 @@ test('a message with no match block goes to everyone', () => {
   assert.equal(HubMatch.matches(withMatch(undefined), ctx()), true);
 });
 
+// ── Supporters ─
+test('supporter: true reaches a pass, supporter: false everyone else', () => {
+  assert.equal(HubMatch.matches(withMatch({ supporter: true }), ctx({ supporter: true })), true);
+  assert.equal(HubMatch.matches(withMatch({ supporter: true }), ctx({ supporter: false })), false);
+  assert.equal(HubMatch.matches(withMatch({ supporter: false }), ctx({ supporter: false })), true);
+  assert.equal(HubMatch.matches(withMatch({ supporter: false }), ctx({ supporter: true })), false);
+});
+
+test('a pass that could not be read satisfies neither side', () => {
+  assert.equal(HubMatch.matches(withMatch({ supporter: true }), ctx()), false);
+  assert.equal(HubMatch.matches(withMatch({ supporter: false }), ctx()), false);
+});
+
+test('it holds alongside the other conditions', () => {
+  const both = withMatch({ lang: ['it'], supporter: true });
+  assert.equal(HubMatch.matches(both, ctx({ supporter: true })), true);
+  assert.equal(HubMatch.matches(both, ctx({ supporter: true, lang: 'en' })), false);
+});
+
 // ── The fail-closed rule ───────────────────────────────────────────────────
 // This is the one that matters most. A dashboard that shipped before a
 // condition existed must show the message to NOBODY, not to everybody.
 test('an unknown condition matches nobody', () => {
-  assert.equal(HubMatch.matches(withMatch({ supporter: true }), ctx()), false);
   assert.equal(HubMatch.matches(withMatch({ hasHardware: 'xeneon-edge' }), ctx()), false);
   // Even alongside conditions that DO pass.
-  assert.equal(HubMatch.matches(withMatch({ os: ['win32'], supporter: true }), ctx()), false);
+  assert.equal(HubMatch.matches(withMatch({ os: ['win32'], hasHardware: 'xeneon-edge' }), ctx()), false);
   // A malformed block is not a missing block.
   assert.equal(HubMatch.matches(withMatch([]), ctx()), false);
   assert.equal(HubMatch.matches(withMatch('supporters'), ctx()), false);

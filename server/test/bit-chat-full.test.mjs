@@ -117,7 +117,7 @@ test('a wide screen never moves the pane', () => {
 test('the sheet sits under Settings and the Store, and the script is loaded', () => {
   const css = read('../components/MediaPanel/MediaPanel.css');
   const z = Number((/\.bit-sheet \{[^}]*z-index: (\d+)/.exec(css) || [])[1]);
-  const settingsZ = Number((/\.settings-overlay \{[^}]*z-index: (\d+)/.exec(read('../components/SettingsModal/SettingsModal.css')) || [])[1]);
+  const settingsZ = Number((/\.settings-overlay \{[^}]*z-index: (\d+)/.exec(read('../components/SettingsModal/SettingsPage.css')) || [])[1]);
   assert.ok(z > 0 && z < settingsZ, `sheet ${z} under Settings ${settingsZ}`);
   assert.match(read('../index.html'), /<script src="js\/bit-chat-full\.js"><\/script>/);
 });

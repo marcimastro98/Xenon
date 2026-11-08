@@ -1,19 +1,17 @@
 'use strict';
 
-// ── Bit's mail: a letter when the Scintille run low or out ──────────────────
+// ── A word from Bit when the Scintille run low or out ───────────────────────
 //
 // The chat already offers the packs under the reply that spends the last of
 // them (ai-bit-chat.js buyRow). Sparks also go where the chat is not open: a
 // creation from the Maker, a voice turn, a reply read on another screen. This
-// files one letter in Bit's mail for that, the passive place where news that is
-// not urgent waits to be opened (see bit-mail-core.js for the research). It
-// never opens a window; Bit's one note a day says it arrived.
+// files one of Bit's messages for that (js/bit-messages.js).
 //
 //   * Only on the Scintille provider, with a balance read from the hub.
-//   * One letter per level per month (ids carry the month): the included ones
+//   * One message per level per month (ids carry the month): the included ones
 //     come back on the first, so a new month is a new state worth a word.
-//   * The letter names what Scintille are (Xenon's credits, bought ones never
-//     expire) and carries the same three packs as Settings → Bit.
+//   * It names what Scintille are (Xenon's credits, bought ones never expire)
+//     and leads to the Store's Sparks tab, the one place they are sold.
 (function () {
   const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return (v === k && fb != null) ? fb : v; };
   const LEVELS = ['low', 'empty'];
@@ -26,46 +24,27 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   }
 
-  // The letter for this balance, or null when there is nothing to say.
-  function letterFor(level, at) {
+  // The message for this balance, or null when there is nothing to say.
+  function messageFor(level, at) {
     if (!LEVELS.includes(level)) return null;
-    const title = t(TITLE[level]);
-    return { id: 'sparks:' + level + ':' + month(at), kind: 'sparks', title, note: title, line: t(LINE[level]), data: { level } };
-  }
-
-  // Opening the letter draws this.
-  function drawLetter(letter, node) {
-    const C = window.XenonCredits;
-    const level = letter.data && LEVELS.includes(letter.data.level) ? letter.data.level : 'low';
-    const line = document.createElement('p');
-    line.className = 'bitmail-letter-line';
-    line.textContent = t(LINE[level]);
-    const what = document.createElement('p');
-    what.className = 'bitmail-letter-line';
-    what.textContent = t('sparks_mail_what');
-    node.append(line, what);
-    // The packs are sold in the Store's Sparks tab: the letter leads there.
-    if (!C || typeof C.openShop !== 'function') return;
-    const go = document.createElement('button');
-    go.type = 'button';
-    go.className = 'bitmail-btn bitmail-packs';
-    if (typeof C.offerMark === 'function') go.append(C.offerMark());
-    const label = document.createElement('span');
-    label.textContent = t('sparks_buy_more');
-    go.append(label);
-    go.addEventListener('click', () => C.openShop());
-    node.append(go);
+    return {
+      id: 'sparks:' + level + ':' + month(at),
+      kind: 'sparks',
+      title: t(TITLE[level]),
+      line: t(LINE[level]),
+      body: t(LINE[level]) + ' ' + t('sparks_mail_what'),
+      action: { type: 'sparks', label: t('sparks_buy_more') },
+    };
   }
 
   function check() {
     const C = window.XenonCredits;
-    if (!C || !window.BitMail || !C.active() || C.state.status !== 'ok') return;
-    const l = letterFor(C.level(), Date.now());
-    if (l) window.BitMail.post(l);
+    if (!C || !window.BitMessages || !C.active() || C.state.status !== 'ok') return;
+    const m = messageFor(C.level(), Date.now());
+    if (m) window.BitMessages.file([m]);
   }
 
-  if (window.BitMail) window.BitMail.register('sparks', drawLetter);
   if (window.XenonCredits) window.XenonCredits.onChange(check);
 
-  window.SparksMail = { letterFor, check };
+  window.SparksMail = { messageFor, check };
 })();

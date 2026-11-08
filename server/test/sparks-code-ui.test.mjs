@@ -38,5 +38,5 @@ test('the new lines exist in all 11 languages and the "no code" line names both 
   for (const k of ['settings_sparks_code_saved', 'settings_sparks_code_note', 'xai_offer_title_wallet', 'xai_offer_line_wallet']) {
     assert.equal((i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length, 11, k);
   }
-  assert.match(i18n, /settings_xenon_no_code: "To use Sparks, save your supporter code or your Sparks code in Settings/);
+  assert.match(i18n, /settings_xenon_no_code: ["']To use Sparks, save your supporter code or your Sparks code\./);
 });

@@ -14,7 +14,7 @@
   const REPLY_POSE = { idle: ['idle'], done: ['happy', 'done'], worry: ['worry'] };
 
   const tr = (k) => (typeof t === 'function' ? t(k) : k);
-  const heads = () => document.querySelectorAll('[data-dashboard-widget="chat"] [data-chatf="bit"]');
+  const heads = () => document.querySelectorAll('[data-chatf="bit"]');
 
   // Every chat pane gets its live Bit; a copy made later is picked up on the
   // next sync (mirrorChatCopies calls this).
@@ -164,6 +164,7 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAttachMenu(); });
 
   paintLauncher();
+  mountHeads();
 
   window.BitChat = { mountHeads, setStatus, react, avatarHtml, buyRow, crossedLow, closeAttachMenu, voiceState };
 })();

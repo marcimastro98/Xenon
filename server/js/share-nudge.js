@@ -21,10 +21,8 @@
 //     showing; before that it is a default layout and the card would be
 //     asking a stranger to advertise.
 //   * Never over a voice session, the lock screen, a game or an Ambient scene.
-//     It is a letter in Bit's mail (js/bit-mail.js), filed without a sound or a
-//     window; Bit's one note a day says it arrived, and that note waits while
-//     Xenon is being used for something (bit-mail-core.js quiet()).
-//   * No modal, no corner card, nothing blocked.
+//     It is one of Bit's messages (js/bit-messages.js): a card in the corner that
+//     covers nothing, one a day, and only when Xenon is not being used for something.
 //
 // It is filed before the supporter ask could be: 14 days is under the ask's
 // 30, on purpose. Asking someone to show their setup is a smaller thing than
@@ -44,27 +42,8 @@
     return Math.floor((today - then) / 86400000);
   }
 
-  // Opening the letter draws this; `ctx` is the mail's { close, remove }.
-  function drawLetter(_letter, node, ctx) {
-    const text = document.createElement('p');
-    text.className = 'bitmail-letter-line';
-    text.textContent = t('share_nudge_text',
-      'Most people find Xenon in a photo of someone else\'s desk. One tap makes a share card of your dashboard, with a code that leads back here, ready for Reddit, Discord or wherever you post.');
-    const actions = document.createElement('div');
-    actions.className = 'bitmail-actions';
-    const go = document.createElement('button');
-    go.type = 'button';
-    go.className = 'bitmail-btn is-main';
-    go.textContent = t('share_nudge_go', 'Create the card');
-    go.addEventListener('click', () => {
-      ctx.close();
-      try {
-        if (window.ShareCard && typeof window.ShareCard.open === 'function') window.ShareCard.open({ source: 'setup' });
-      } catch { /* the card composer reports its own failures */ }
-    });
-    actions.appendChild(go);
-    node.append(text, actions);
-  }
+  const inviteText = () => t('share_nudge_text',
+    'Most people find Xenon in a photo of someone else\'s desk. One tap makes a share card of your dashboard, with a code that leads back here, ready for Reddit, Discord or wherever you post.');
 
   function remember() {
     const c = CARDS();
@@ -81,18 +60,20 @@
     if (!use) return;                                   // server copy not in yet
     if (daysSince(use.firstRunDay) < DAYS_SINCE_FIRST_RUN) return;
     if (use.usageDays < DISTINCT_DAYS_USED) return;
-    if (!window.BitMail) return;
-    // Filed once and remembered at once: the letter waits until it is read.
-    window.BitMail.post({
+    const M = window.BitMessages;
+    if (!M) return;
+    // Filed once and remembered at once: the message waits for its turn.
+    const filed = await M.file([{
       id: 'share:setup',
       kind: 'share',
+      surface: 'dashboard',
       title: t('share_nudge_title', 'Show off your setup'),
-      note: t('share_nudge_title', 'Show off your setup'),
-    });
-    remember();
+      line: M.firstLine(inviteText()),
+      body: inviteText(),
+      action: { type: 'share', label: t('share_nudge_go', 'Create the card') },
+    }]);
+    if (filed) remember();
   }
-
-  if (window.BitMail) window.BitMail.register('share', drawLetter);
 
   function init() {
     const c = CARDS();

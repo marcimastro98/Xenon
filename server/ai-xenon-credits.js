@@ -14,6 +14,7 @@
 
 const redeem = require('./supporter-redeem.js');
 const sparksWallet = require('./sparks-wallet.js');
+const welcomeSparks = require('./welcome-sparks.js');
 const aiAnthropic = require('./ai-anthropic.js');
 const aiTurns = require('./ai-turns');
 const startupLog = require('./startup-log');
@@ -59,7 +60,7 @@ const KNOWN_ERRORS = new Set(['no_credits', 'busy', 'rate_limited', 'not_configu
 const sanitizeModel = (v) => (MODELS.includes(v) ? v : DEFAULT_MODEL);
 const sanitizeEffort = (v) => (EFFORTS.includes(v) ? v : DEFAULT_EFFORT);
 
-let _session = null; // { token, exp } in memory only
+let _session = null; // { code, token, exp } in memory only
 let _lastBalance = null;
 let _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let _now = () => Date.now();
@@ -92,14 +93,29 @@ async function hasCode(dataDir) {
 
 async function sessionToken(dataDir) {
   const now = Math.floor(Date.now() / 1000);
-  if (_session && _session.exp - TOKEN_MARGIN_SEC > now) return _session.token;
-  _session = null;
   const code = await savedCode(dataDir);
+  // A session belongs to the code that opened it: a Sparks code typed in while
+  // the trial's is open has to be the one that pays from the next round on.
+  if (_session && code && _session.code === code && _session.exp - TOKEN_MARGIN_SEC > now) return _session.token;
+  _session = null;
   if (!code) throw fail('no_code');
-  const out = await redeem.hubPost('/ai/session', { code }, undefined, SMALL_TIMEOUT_MS);
+  let out = await redeem.hubPost('/ai/session', { code }, undefined, SMALL_TIMEOUT_MS);
+  // A pass the hub no longer knows (replaced, revoked) must not hide the Sparks
+  // code saved beside it. The session stays filed under the saved code, so the
+  // dead pass is not asked again each round.
+  if (out && out.error === 'bad_code') {
+    const wallet = await sparksWallet.readWalletCode(dataDir);
+    if (wallet && wallet !== code) out = await redeem.hubPost('/ai/session', { code: wallet }, undefined, SMALL_TIMEOUT_MS);
+  }
   if (out && out.ok === true && typeof out.token === 'string' && Number.isInteger(out.exp)) {
-    _session = { token: out.token, exp: out.exp };
+    _session = { code, token: out.token, exp: out.exp };
     return out.token;
+  }
+  // The trial Sparks ended: their code will never work again, so this PC is
+  // simply one with no code, and the chat offers the Sparks or a key.
+  if (out && out.error === 'welcome_over') {
+    await sparksWallet.forgetWalletCode(dataDir);
+    throw fail('no_code');
   }
   throw fail(out && KNOWN_ERRORS.has(out.error) ? out.error : 'network');
 }
@@ -232,6 +248,10 @@ async function chat({ dataDir, model, effort, creation, geminiTools, history, sy
     const c = typeof creation === 'function' ? (creation() || {}) : { model, effort };
     return { model: sanitizeModel(c.model), effort: sanitizeEffort(c.effort) };
   };
+  // Only here, never in the background features: the trial's days start when
+  // somebody writes to Bit. Once they have, the helpers on this AI spend from the
+  // same Sparks, as they do from bought ones.
+  if (!await hasCode(dataDir)) await welcomeSparks.claim(dataDir);
   try {
     const result = await aiAnthropic.chat({
       model: sanitizeModel(model), geminiTools, history, systemText, turnNote, executeTool,
@@ -301,7 +321,9 @@ async function designAdvice(dataDir, code) {
 // else is dropped rather than shown.
 const MASKED_EMAIL = /^[^\s@]{0,64}•••@[^\s@]{1,253}$/u;
 
-// {ok, balance, included, topup, monthly, wallet, email?} in whole credits, or {ok:false, error}.
+// {ok, balance, included, topup, monthly, wallet, email?, welcomeUntil?} in whole
+// credits, or {ok:false, error, welcome?}. `welcome`: no code yet, but the first
+// message to Bit will bring the trial Sparks, so the chat stays open for it.
 async function balance(dataDir) {
   try {
     const out = await withSession(dataDir, '/ai/balance', {}, undefined, SMALL_TIMEOUT_MS);
@@ -309,11 +331,14 @@ async function balance(dataDir) {
       rememberBalance(out.balance);
       const email = typeof out.email === 'string' && MASKED_EMAIL.test(out.email) ? { email: out.email } : {};
       // `wallet`: a Sparks code with no pass behind it, so no monthly Sparks to show.
-      return { ok: true, balance: out.balance, included: out.included, topup: out.topup, monthly: out.monthly, wallet: out.wallet === true, ...email };
+      const welcome = Number.isInteger(out.welcomeUntil) ? { welcomeUntil: out.welcomeUntil } : {};
+      return { ...welcome, ok: true, balance: out.balance, included: out.included, topup: out.topup, monthly: out.monthly, wallet: out.wallet === true, ...email };
     }
     return { ok: false, error: out && KNOWN_ERRORS.has(out.error) ? out.error : 'network' };
   } catch (e) {
-    return { ok: false, error: (e && e.code) || 'network' };
+    const error = (e && e.code) || 'network';
+    if (error === 'no_code' && await welcomeSparks.available(dataDir)) return { ok: false, error, welcome: true };
+    return { ok: false, error };
   }
 }
 

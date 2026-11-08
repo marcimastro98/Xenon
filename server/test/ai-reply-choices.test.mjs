@@ -77,3 +77,47 @@ test('the text prompt asks for [[answer]] lines only on a real question', () => 
   const voice = server.slice(server.indexOf('const SYS_VOICE ='), server.indexOf('const SYS_AUDIO ='));
   assert.doesNotMatch(voice, /\[\[/, 'voice never gets the bracket format');
 });
+
+test('a real alternative carries what it means, and the label alone is the answer', () => {
+  const r = C.split('Quale tema intendi?\n[[Quello attuale | Parto da questo]]\n[[Uno dello Store|Dimmi il nome]]\n[[Uno nuovo]]');
+  assert.equal(r.text, 'Quale tema intendi?');
+  assert.deepEqual(r.choices, ['Quello attuale', 'Uno dello Store', 'Uno nuovo']);
+  assert.deepEqual(r.notes, ['Parto da questo', 'Dimmi il nome', '']);
+});
+
+test('plain answers stay plain: no notes, so no question card on a yes or no', () => {
+  assert.equal('notes' in C.split('Lo elimino?\n[[Sì]]\n[[No]]'), false);
+});
+
+test('a label over the limit is no choice, even with a note after it', () => {
+  const long = 'x'.repeat(61);
+  assert.deepEqual(C.split(`Quale?\n[[${long} | nota]]`).choices, []);
+});
+
+test('in voice only the labels are read, never the notes or the bar', () => {
+  assert.equal(C.spoken('Quale?\n[[Analogico | Con le lancette]]\n[[Digitale | A cifre]]'), 'Quale? Analogico, Digitale.');
+  assert.equal(C.spoken('Scrivi [[nome | nota]] qui.'), 'Scrivi nome qui.');
+});
+
+test('the keys of the question card', () => {
+  assert.deepEqual(C.keyAction('2', 3), { pick: 1 });
+  assert.deepEqual(C.keyAction('4', 3), { own: true });
+  assert.equal(C.keyAction('5', 3), null);
+  assert.equal(C.keyAction('0', 3), null);
+  assert.deepEqual(C.keyAction('Escape', 3), { leave: true });
+  assert.deepEqual(C.keyAction('ArrowDown', 3), { move: 1 });
+  assert.deepEqual(C.keyAction('ArrowUp', 3), { move: -1 });
+  assert.deepEqual(C.keyAction('a', 3), { type: true });
+  assert.equal(C.keyAction('Enter', 3), null);
+  assert.equal(C.keyAction('Tab', 3), null);
+});
+
+test('the question card loads on every surface, says its words in all 11 languages, and Bit knows the format', () => {
+  assert.match(read('../index.html'), /<script src="js\/ai-ask-card\.js"><\/script>/);
+  assert.match(read('../js/screen-bit.js'), /'js\/ai-ask-card\.js'/);
+  const i18n = read('../js/i18n.js');
+  for (const key of ['ai_ask_label', 'ai_ask_own', 'ai_ask_leave', 'ai_ask_pick']) {
+    assert.equal(i18n.match(new RegExp(`\\b${key}:`, 'g'))?.length, 11, key);
+  }
+  assert.match(read('../server.js'), /\[\[answer \| what it means\]\]/);
+});

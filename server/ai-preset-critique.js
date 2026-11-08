@@ -20,7 +20,9 @@ const { critiquePage, critiqueScene } = require('./ai-preset-critique-layout.js'
 const { critiqueDeck } = require('./ai-preset-critique-deck.js');
 const { critiqueStoreRules } = require('./ai-preset-critique-store.js');
 const { critiqueTileFit } = require('./ai-preset-critique-fit.js');
+const { critiqueTileSwipe } = require('./ai-preset-critique-swipe.js');
 const { critiqueBgFrame, critiquePackageFrames } = require('./ai-preset-critique-perf.js');
+const { SDK_STREAMS } = require('./sdk-widgets.js');
 
 const MAX_FINDINGS = 20;
 // Code this close to the cap leaves no room for the next edit.
@@ -107,6 +109,12 @@ function textFiles(entry) {
     .map((f) => ({ path: f.path, text: Buffer.from(String(f.data || ''), 'base64').toString('utf8') }));
 }
 
+// A stream's payload sits in msg.data. Models write msg.battery, which is always
+// undefined: the widget installs, passes every other check and stays empty.
+function misreadStreams(text) {
+  return SDK_STREAMS.filter((s) => new RegExp('\\b(?:(?:e|ev|event)\\.data|msg|message)\\.' + escapeRe(s) + '\\b').test(text));
+}
+
 // A stream is "used" when the code names it as a string or a property; a host
 // when its name appears at all. Lenient on purpose: a miss is a real grant the
 // user is asked for with nothing in the code that needs it.
@@ -114,9 +122,19 @@ function critiquePackage(entry) {
   const files = textFiles(entry);
   const text = files.map((f) => f.text).join('\n');
   const out = critiquePackageFrames(files);
+  const misread = misreadStreams(text);
+  for (const stream of misread) {
+    out.push(finding('fix', 'index.html', 'reads the "' + stream + '" stream off the message itself, where it is never set', 'it arrives as {type: "data", stream: "' + stream + '", data}: check msg.stream and read msg.data'));
+  }
   for (const stream of entry.streams || []) {
     const used = new RegExp('[\'"`]' + escapeRe(stream) + '[\'"`]|[.\\s{,]' + escapeRe(stream) + '\\s*[:(]').test(text);
-    if (!used) out.push(finding('fix', 'manifest.streams', 'asks for the "' + stream + '" stream but no file uses it', 'remove it, so the user is not asked for data the widget never reads'));
+    if (!used && !misread.includes(stream)) out.push(finding('fix', 'manifest.streams', 'asks for the "' + stream + '" stream but no file uses it', 'remove it, so the user is not asked for data the widget never reads'));
+  }
+  if (/\bdevices\s*\[\s*0\s*\]/.test(text) && (entry.streams || []).includes('battery')) {
+    out.push(finding('fix', 'index.html', 'takes the first battery device, which is whichever name sorts first: another device can show up here', 'find the device by name, and show nothing when it is missing'));
+  }
+  if (!(entry.streams || []).length && /\btype\s*[!=]==?\s*['"]data['"]/.test(text)) {
+    out.push(finding('fix', 'manifest.streams', 'waits for stream data but asks for no stream, so nothing ever arrives', 'list the streams it reads in manifest.streams'));
   }
   for (const host of entry.hosts || []) {
     if (!text.includes(String(host).replace(/^\*\./, ''))) {
@@ -128,7 +146,7 @@ function critiquePackage(entry) {
       'add :root { color-scheme: dark; } and follow theme.appearance'));
   }
   // A tile is resized and reshaped; a full-screen Ambient scene is not.
-  if (entry.surface !== 'ambient') out.push(...critiqueTileFit(text));
+  if (entry.surface !== 'ambient') out.push(...critiqueTileFit(text), ...critiqueTileSwipe(text));
   out.push(...critiqueStoreRules(entry, text));
   return out;
 }

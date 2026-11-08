@@ -2,7 +2,7 @@
 
 // ── Smooth chart paths (pure) ────────────────────────────────────────────────
 // Both chart surfaces in the dashboard — the stat-card sparklines (js/utils.js)
-// and the sensor-history charts (js/guardian-history.js, also used by the Power
+// and the sensor-history charts (js/history-chart.js, also used by the Power
 // widget) — used to join their samples with straight `L` segments, which reads
 // as a hard zig-zag on the spiky series the sensors actually produce (ping, CPU
 // load, a GPU that idles then spikes).

@@ -19,8 +19,8 @@ const CustomBg = require('./js/custom-bg.js');
 const IconPacks = require('./icon-packs.js');
 
 // Held inside normalizer bodies, not exported (guarded by the reference test).
-const THEME_ENUMS = Object.freeze({ appearance: ['dark', 'light', 'auto'], styleMode: ['glass', 'retro', 'comic'] });
-const BG_STATIC_STYLES = Object.freeze(['none', 'nebulosa', 'prisma', 'halo']);
+const THEME_ENUMS = Object.freeze({ appearance: ['dark', 'light', 'auto'], styleMode: ['liquid', 'glass', 'retro', 'comic'] });
+const BG_STATIC_STYLES = Object.freeze(['none', 'nebulosa', 'prisma', 'halo', 'dusk']);
 const ISLAND_ALIGNS = Object.freeze(['center', 'left', 'right']);
 const SCENE_ALIGNS = Object.freeze(['left', 'center', 'right']);
 const TILE_STYLE_RANGES = Object.freeze({ panelAlpha: [0, 1], radius: [0, 2], glassBlur: [0, 40], glassSaturate: [100, 220], borderStrength: [0, 2], shadowStrength: [0, 2] });

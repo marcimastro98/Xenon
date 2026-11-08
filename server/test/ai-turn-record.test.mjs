@@ -78,9 +78,9 @@ test('every provider path in /api/ai records its tools and returns the record', 
   const start = src.indexOf("reqPath === '/api/ai' && req.method === 'POST'");
   const end = src.indexOf("reqPath === '/api/ai/summarize'", start);
   const route = src.slice(start, end);
-  // ollama, CLI, Sparks, OpenAI/Anthropic, Gemini.
-  assert.equal(route.split('turnRecord.note(fnName, r)').length - 1, 5);
-  assert.equal(route.split('newContent: turnRecord.message(').length - 1, 5);
+  // ollama, local server, CLI, Sparks, OpenAI/Anthropic, Gemini.
+  assert.equal(route.split('turnRecord.note(fnName, r)').length - 1, 6);
+  assert.equal(route.split('newContent: turnRecord.message(').length - 1, 6);
   assert.ok(!/newContent: (result\.newContent|content)\b/.test(route), 'no path returns the bare reply');
   assert.ok(route.includes('aiTurnRecord.SYSTEM_NOTE'), 'the model is told what the line is');
 });

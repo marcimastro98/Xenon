@@ -20,7 +20,7 @@ const { externalizeInlineScripts } = require('./ai-widget-scripts');
 
 // Same cap as create_widget.
 const WIDGET_MAX_FILES = 40;
-const SDK_DISABLED_HINT = 'Ask the user to enable Community widgets in Settings → Widget e condivisione first.';
+const SDK_DISABLED_HINT = 'Ask the user to enable Community widgets in Settings → Widgets & sharing first.';
 const toBase64 = (text) => Buffer.from(String(text), 'utf8').toString('base64');
 
 // {path, content} (text) or {path, data} (base64, e.g. a PNG) → {path, data}.

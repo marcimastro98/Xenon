@@ -24,7 +24,9 @@ test('Bit brings the dashboard\'s own files, in the dashboard\'s order, and no V
   assert.ok(at.every((i) => i > 0), JSON.stringify(at));
   assert.deepEqual(at.slice().sort((a, b) => a - b), at);
   assert.ok(!ScreenBit.SCRIPTS.includes('js/ai-live.js'));
-  assert.equal(ScreenBit.SCRIPTS.at(-2), 'js/ai.js');
+  assert.equal(ScreenBit.SCRIPTS.at(-3), 'js/ai.js');
+  // The chat's confirm cards open here too: a command Bit proposes on the main screen.
+  for (const f of ['js/dialog-focus.js', 'js/ai-deck-confirm.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);
   assert.equal(ScreenBit.IDLE_RELOAD_MS, 60000);
 });
 
@@ -40,7 +42,7 @@ test('the page carries the dashboard\'s voice panel, cut from index.html, or not
 });
 
 // The alerts window with a fake DOM: scripts "load" as soon as they are added.
-function boot({ markup = true, busy = false, failOnce = '' } = {}) {
+function boot({ markup = true, busy = false, failOnce = '', inPage = [] } = {}) {
   let failed = false;
   const added = [];
   const classes = new Set();
@@ -66,6 +68,7 @@ function boot({ markup = true, busy = false, failOnce = '' } = {}) {
     body,
     head: { appendChild: (l) => { added.push(l.href); queueMicrotask(() => l.onload()); } },
     createElement: (tag) => ({ tagName: tag }),
+    querySelector: (sel) => (inPage.some((src) => sel.includes(`"${src}"`)) ? {} : null),
     getElementById: (id) => (id === 'screen-bit-markup' && markup
       ? { content: { firstElementChild: {}, cloneNode: () => ({ tagName: 'fragment' }) } } : null),
   };
@@ -153,4 +156,11 @@ test('of a Deck key\'s client steps, only "talk to Xenon AI" by voice is Bit\'s 
   assert.equal(ScreenBit.claims({ type: 'ai', mode: 'voice' }), true);
   for (const a of [{ type: 'ai', mode: 'prompt', prompt: 'x' }, { type: 'ai', mode: 'open' }, { type: 'ai' },
     { type: 'playSound' }, { type: 'appMixer' }, null, undefined]) assert.equal(ScreenBit.claims(a), false, JSON.stringify(a));
+});
+
+test('a script the page already carries is not added a second time', async () => {
+  const b = boot({ inPage: ['js/bit-app.js'] });
+  await b.api.load();
+  assert.ok(!b.added.includes('js/bit-app.js'));
+  assert.ok(b.added.includes('js/ai.js'));
 });

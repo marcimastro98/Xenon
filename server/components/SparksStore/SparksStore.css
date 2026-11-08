@@ -97,10 +97,6 @@
 .sparks-plan-facts .xspark, .sparks-plan-facts svg { flex: none; width: 18px; height: 18px; }
 .sparks-plan-facts svg { color: var(--muted-text); }
 .sparks-plan-btn { min-height: 48px; padding: 12px 22px; font-size: 0.95rem; white-space: nowrap; justify-content: center; }
-.cgal-feat-block.is-sup .sparks-plan { margin: 0 0 16px; background: rgba(255, 180, 84, 0.06); border-color: rgba(255, 180, 84, 0.34); }
-.cgal-feat-block.is-sup .sparks-plan-facts svg { color: var(--warn, #ffb454); }
-.cgal-feat-block.is-sup .sparks-plan-btn { color: #12100a; background: var(--warn, #ffb454); border-color: transparent; font-weight: 700; }
-.cgal-feat-block.is-sup .sparks-plan-btn:hover { filter: brightness(1.06); }
 @media (max-width: 860px) {
   .sparks-plan { grid-template-columns: 1fr; gap: 12px; }
   .sparks-plan-btn { width: 100%; white-space: normal; }

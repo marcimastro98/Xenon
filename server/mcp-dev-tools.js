@@ -35,8 +35,8 @@ function sourceIssues(files, deps) {
 }
 
 // A first widget that already does the things every widget needs: says hello,
-// reads a stream, fills its tile, follows the theme (a color-scheme that matches
-// the dashboard, or the frame paints a white block) and uses addEventListener
+// reads a stream, fills its tile, follows the theme (a color-scheme: up to 4.11.13
+// a page with none is a white block on the dashboard) and uses addEventListener
 // (inline code never runs in the sandbox).
 function templateFiles({ name, size }) {
   const manifest = {

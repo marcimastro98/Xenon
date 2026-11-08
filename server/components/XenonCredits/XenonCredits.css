@@ -1,38 +1,37 @@
 /* The Scintille chip (js/xenon-credits.js): the balance wherever the
    assistant can spend it (Settings, Store, chat). One look everywhere, so a
-   number seen in the Store is recognised in the chat. */
+   number seen in the Store is recognised in the chat. It wears the surface of
+   the header buttons beside it, so it reads as one of them on any theme: the
+   Scintilla is its only colour, and a low balance says so with the number. */
 .xc-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  min-height: 32px; padding: 0 12px;
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  border-radius: 8px;
-  background: rgba(var(--accent-rgb), 0.12);
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 40px; padding: 0 14px 0 11px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
   color: var(--text);
-  font: inherit; font-size: 12.5px; font-weight: 700;
+  font: inherit; font-size: 13px; font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color .18s ease, background .18s ease;
+  transition: background .15s ease;
 }
 .xc-chip[hidden] { display: none; }
-.xc-chip:hover { border-color: rgba(var(--accent-rgb), 0.7); }
+.xc-chip:hover { background: color-mix(in srgb, currentColor 11%, transparent); }
+.xc-chip:active { transform: translateY(1px); }
 .xc-chip:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
-.xc-chip b { font-weight: 900; font-variant-numeric: tabular-nums; }
-.xc-chip-cta { font-weight: 900; color: rgb(var(--accent-rgb)); }
-.xc-chip[data-level="low"], .xc-chip[data-level="empty"] {
-  border-color: color-mix(in srgb, var(--color-warn), transparent 45%);
-  background: var(--warning-bg);
+.xc-chip b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.xc-chip-word, .xc-chip-name { color: var(--muted-text); }
+/* Buy next to a balance: its own part of the button, so the two never read as
+   one sentence. */
+.xc-chip-cta {
+  margin-inline-start: 3px; padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  line-height: 18px;
 }
-.xc-chip[data-level="low"] .xc-chip-cta, .xc-chip[data-level="empty"] .xc-chip-cta { color: var(--color-warn); }
-@media (pointer: coarse) { .xc-chip { min-height: 40px; } }
+.xc-chip[data-level="low"] b, .xc-chip[data-level="empty"] b { color: var(--color-warn); }
+.xc-chip-buy-short { display: none; }
+@media (pointer: coarse) { .xc-chip { min-height: 44px; } }
 
-
-/* In the Settings header, next to the Store pill and as tall as it. When the
-   header is narrow (a phone, or a small window: the panel is as wide as the
-   window, not the screen) the number alone, so the title keeps its room. */
-.settings-head-credits { min-height: 38px; }
-@container settings-head (max-width: 700px) {
-  .settings-head-credits > span:not(.xc-chip-cta) { display: none; }
-}
 
 /* The Scintilla (shared/src/bit-spark.js): Bit's spark, in crisp pixels. Most
    of the time it rests; every few seconds it twinkles and blinks. The frames

@@ -26,12 +26,12 @@ const GROUPS = Object.freeze({
     tools: ['get_game_performance', 'explain_stutter', 'get_game_session_stats', 'compare_game_sessions', 'manage_game_sessions', 'set_perf_tile', 'run_benchmark', 'set_power_mode', 'get_power_status', 'open_game_companion', 'optimize_performance', 'restore_performance'],
   },
   screen_widgets: {
-    about: 'widgets on the PC screen (on the desktop, over games, attached to an app): place, move, group, edit, show or hide them, their shortcut, their pages',
-    tools: ['place_widget', 'attach_widget_to_app', 'remove_layer_widget', 'move_layer_widget', 'group_layer_widgets', 'list_layer_widgets', 'edit_layer_widgets', 'toggle_layer_widgets', 'set_overlay_shortcut', 'switch_widget_page', 'manage_widget_pages'],
+    about: 'widgets on the PC screen (on the desktop, over games, attached to an app): place, move, group, edit, show or hide them, their shortcuts (one per widget too), their pages',
+    tools: ['place_widget', 'attach_widget_to_app', 'remove_layer_widget', 'move_layer_widget', 'group_layer_widgets', 'list_layer_widgets', 'edit_layer_widgets', 'toggle_layer_widgets', 'set_overlay_shortcut', 'set_widget_key', 'switch_widget_page', 'manage_widget_pages'],
   },
   desktop: {
     about: 'the PC desktop and Xenon around it: wallpaper, screensaver, do not disturb, notifications, screen alerts, keyboard shortcuts, the Xenon menu, usage mode, the voice edge glow',
-    tools: ['set_voice_edge_glow', 'set_usage_mode', 'open_xenon_menu', 'set_desktop_wallpaper', 'set_pc_screensaver', 'set_screen_alerts', 'set_do_not_disturb', 'set_notifications', 'set_key_shortcut', 'list_key_shortcuts'],
+    tools: ['set_voice_edge_glow', 'set_usage_mode', 'open_xenon_menu', 'set_desktop_wallpaper', 'set_pc_screensaver', 'set_screen_alerts', 'set_do_not_disturb', 'set_notifications', 'set_key_shortcut', 'set_widget_function_key', 'list_key_shortcuts'],
   },
   lighting_effects: {
     about: 'RGB effects and animations, lights that react to events, the lighting bridge (a plain colour or lights off need no group)',
@@ -39,7 +39,7 @@ const GROUPS = Object.freeze({
   },
   // deck_action_catalog stays in the core: run_deck_action looks action types up in it.
   create: {
-    about: 'making something new: a widget (or changing one of the user\'s), a theme or style, an animated background, a Deck profile, any other creation as a share code, the model creations use',
+    about: 'making something new: a widget (or changing one of the user\'s), a readout in the top bar or the island, a theme or style, an animated background, a Deck profile, any other creation as a share code, the model creations use',
     tools: ['create_widget', 'my_widgets', 'sdk_reference', 'preset_reference', 'create_preset', 'create_dashboard_style', 'create_animated_background', 'configure_deck', 'set_creation_model'],
   },
 });

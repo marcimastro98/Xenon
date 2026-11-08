@@ -49,7 +49,7 @@
   function mount(host, opts = {}) {
     const id = `bit-floor-${++uid}`;
     const { STAGE } = bit;
-    const svg = el('svg', { viewBox: `${STAGE.x} ${STAGE.y} ${STAGE.w} ${STAGE.h}`, 'shape-rendering': 'crispEdges', class: 'xbit' });
+    const svg = el('svg', { viewBox: `${STAGE.x} ${STAGE.y} ${STAGE.w} ${STAGE.h}`, class: 'xbit' });
     if (opts.label) {
       svg.setAttribute('role', 'img');
       svg.setAttribute('aria-label', opts.label);
@@ -89,10 +89,10 @@
         const g = el('g', {});
         const tr = bit.transformAttr(l.transform);
         if (tr) g.setAttribute('transform', tr);
-        for (const r of l.rects) {
-          const rect = el('rect', { x: r.x, y: r.y, width: r.w, height: r.h, fill: r.fill });
-          if (r.o < 1) rect.setAttribute('opacity', r.o);
-          g.appendChild(rect);
+        for (const p of bit.paths(l.rects)) {
+          const path = el('path', { d: p.d, fill: p.fill });
+          if (p.o < 1) path.setAttribute('opacity', p.o);
+          g.appendChild(path);
         }
         if (!l.clipFloor) return g;
         const wrap = el('g', { 'clip-path': `url(#${id})` });

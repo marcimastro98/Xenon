@@ -110,7 +110,7 @@ test('gallery: opens on this dashboard with the filter; from a layer page it goe
 });
 
 test('the five places: settings list, permission lines in 11 languages, docs', () => {
-  assert.match(SETTINGS, /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'benchmark', 'gallery', 'layers'\]\)/);
+  assert.match(SETTINGS, /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'benchmark', 'gallery', 'layers', 'timers'\]\)/);
   for (const cat of ['benchmark', 'gallery', 'layers']) {
     assert.match(CW, new RegExp(`\\n\\s+${cat}: \\['cw_act_${cat}', `));
     assert.equal((I18N.match(new RegExp(`\\n\\s+cw_act_${cat}: '`, 'g')) || []).length, 11, cat);
@@ -148,5 +148,5 @@ test('an action result carries only counts and yes/no, never text, a colour, a n
   assert.deepEqual(ex('gameCompanion', { ok: true, opened: true, game: 'Elden Ring' }), {}, 'the game stays behind the perf grant');
   assert.deepEqual(ex('screenText', { ok: false, error: 'busy', lines: 2 }), {});
   assert.deepEqual(ex('constructor', { ok: true }), {});
-  assert.match(CW, /error: \(d && d\.error\) \|\| \(d \? undefined : 'offline'\), \.\.\.actionResultExtras\(msg\.action\.type, d\) \}\);/);
+  assert.match(CW, /error: widgetActionError\(d\), \.\.\.actionResultExtras\(msg\.action\.type, d\) \}\);/);
 });

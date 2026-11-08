@@ -33,7 +33,7 @@
   let fetchedAt = 0;
   let askedAt = 0;
   let inflight = null;
-  // {phase: 'waiting'|'arrived'|'late', got, baseline, until, timer} or null.
+  // {phase: 'waiting'|'arrived'|'late', got, baseline, until, timer, byMail} or null.
   let watch = null;
   let autoChecked = false;
   const listeners = new Set();
@@ -77,11 +77,12 @@
       } catch { out = null; }
       if (out && out.ok === true && Number.isFinite(out.balance)) {
         const email = typeof out.email === 'string' ? out.email : '';
-        state = { status: 'ok', balance: out.balance, included: out.included, monthly: out.monthly, topup: out.topup, email };
+        const welcomeUntil = Number.isInteger(out.welcomeUntil) ? out.welcomeUntil : 0;
+        state = { status: 'ok', balance: out.balance, included: out.included, monthly: out.monthly, topup: out.topup, email, welcomeUntil, wallet: out.wallet === true };
         fetchedAt = Date.now();
       } else {
         const noCode = out && (out.error === 'no_code' || out.error === 'bad_code');
-        state = { ...EMPTY, status: noCode ? 'no_code' : 'error' };
+        state = { ...EMPTY, status: noCode ? 'no_code' : 'error', welcome: !!out && out.welcome === true };
       }
       inflight = null;
       emit();
@@ -103,8 +104,27 @@
     if (watch) watch.timer = null;
   }
 
+  // Where a pack paid now lands by itself: on a pass the hub has an email for, or
+  // on a Sparks code already bought with. Anyone else gets a code by email, welcome
+  // Sparks included: that code has no address behind it.
+  const packLandsHere = () => state.status === 'ok' && !state.welcomeUntil && (!!state.email || state.wallet === true);
+
+  // Waiting on a code by email: its Sparks arrive by being pasted, so the code
+  // saved here ends the wait, with no count of what arrived.
+  function checkByMail() {
+    if (packLandsHere()) {
+      if (!watch.byMail) return false;
+      stopTimer();
+      watch = null;
+      return true;
+    }
+    if (state.status === 'ok' || state.status === 'no_code') watch.byMail = true;
+    return false;
+  }
+
   function checkWatch() {
-    if (!watch || watch.phase !== 'waiting' || state.status !== 'ok' || !Number.isFinite(state.topup)) return;
+    if (!watch || watch.phase === 'arrived' || checkByMail()) return;
+    if (watch.phase !== 'waiting' || state.status !== 'ok' || !Number.isFinite(state.topup)) return;
     if (watch.baseline === null || state.topup < watch.baseline) { watch.baseline = state.topup; return; }
     if (state.topup > watch.baseline) {
       watch.got = Math.round(state.topup - watch.baseline);
@@ -142,26 +162,43 @@
     else emit();
   }
 
-  const purchase = () => (watch ? { phase: watch.phase, got: watch.got } : null);
+  function purchaseKey() {
+    if (watch.phase === 'arrived') return 'xai_buy_arrived';
+    if (watch.byMail) return 'xai_buy_mail';
+    return watch.phase === 'late' ? 'xai_buy_late' : 'xai_buy_waiting';
+  }
+
+  const purchase = () => (watch ? { phase: watch.phase, got: watch.got, key: purchaseKey() } : null);
 
   // A turn on credits answers with the balance left; it is the freshest number
   // there is, so it replaces the cached one without another round trip.
   function set(balance) {
     if (!Number.isFinite(balance)) return;
-    state = { ...state, status: 'ok', balance };
+    const firstAnswer = state.welcome === true;
+    state = { ...state, status: 'ok', balance, welcome: false };
     fetchedAt = Date.now();
     emit();
+    // The trial Sparks just arrived with Bit's first answer: read how long they last.
+    if (firstAnswer) refresh(true);
+  }
+
+  // Can Bit answer on this PC? Only a sure no closes the chat: no code, and no
+  // trial Sparks on their way. A failed read leaves it open, the send will say why.
+  function canAnswer() {
+    return state.status !== 'no_code' || state.welcome === true;
   }
 
   function level() {
     if (state.status !== 'ok') return '';
     if (state.balance <= 0) return 'empty';
+    // Trial Sparks start below the line: nobody should read "running low" on day one.
+    if (state.welcomeUntil) return 'ok';
     return state.balance < LOW_CREDITS ? 'low' : 'ok';
   }
 
   // The credits chip. Any element with [data-xenon-credits] is painted by
   // renderChips(), so a copied chat pane or a rebuilt Store keeps working.
-  // opts.always: shown whatever answers in the chat (Settings, the Store head).
+  // opts.always: shown whatever answers in the chat (the Settings head).
   function chip(opts) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -283,7 +320,7 @@
   }
 
   // A chip marked [data-xc-always] shows the Sparks to everyone: the balance
-  // when this PC holds a code, else the word and Buy, the way into the shop.
+  // when this PC holds a code, else "Buy Sparks", the way into the shop.
   // The chat's chip shows only while Bit answers on Sparks.
   function paintChip(b) {
     const always = b.hasAttribute('data-xc-always');
@@ -299,6 +336,7 @@
     const num = document.createElement('b');
     num.textContent = format(state.balance);
     const unit = document.createElement('span');
+    unit.className = 'xc-chip-word';
     unit.textContent = t('xc_chip_unit');
     const parts = [ic, num, unit];
     if (lv === 'low' || lv === 'empty') {
@@ -313,14 +351,19 @@
     b.setAttribute('aria-label', title);
   }
 
+  // No balance to show. With no code the chip is one action, "Buy Sparks"; the
+  // short form takes over where the header is narrow (XenonCredits.css). If the
+  // hub did not answer, the balance may well be there: the word alone, no Buy.
   function paintChipUnknown(b) {
     delete b.dataset.level;
-    const unit = document.createElement('span');
-    unit.textContent = t('xc_chip_unit');
-    const cta = document.createElement('span');
-    cta.className = 'xc-chip-cta';
-    cta.textContent = t('xc_chip_topup');
-    b.replaceChildren(spark(), unit, cta);
+    const label = (className, key) => {
+      const s = document.createElement('span');
+      s.className = className;
+      s.textContent = t(key);
+      return s;
+    };
+    if (state.status === 'error') b.replaceChildren(spark(), label('xc-chip-name', 'xc_chip_unit'));
+    else b.replaceChildren(spark(), label('xc-chip-buy', 'xc_chip_buy'), label('xc-chip-buy-short', 'xc_chip_topup'));
     const title = t('xc_chip_title_none');
     b.title = title;
     b.setAttribute('aria-label', title);
@@ -426,11 +469,13 @@
 
   paintSparks();
   window.addEventListener('load', paintBitIcons);
+  // media.js loads first and owns the chat's notice.
+  onChange(() => { if (typeof followXenonCredits === 'function') followXenonCredits(); });
 
   window.XenonCredits = {
     PACKS, TOPUP_URL, LOW_CREDITS, WIDGET_COST,
     get state() { return state; },
-    active, refresh, recheck, set, sync, chip, spark, offerMark, offerLine, packList, renderChips, level, format, packBonus, model, widgetCost, widgetsFor,
+    canAnswer, active, refresh, recheck, set, sync, chip, spark, offerMark, offerLine, packList, renderChips, level, format, packBonus, model, widgetCost, widgetsFor,
     openCredits, openShop, useXenon, supporterSaved, sparksCodeSaved, autoSelectForSupporter, onChange, watchPurchase, purchase,
   };
 })();

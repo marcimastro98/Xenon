@@ -24,6 +24,21 @@ test('every topic card is well-formed, unique and bounded', () => {
   }
 });
 
+test('dressing one tile is found on its own card', () => {
+  for (const question of ['make my tile a hexagon', 'blur on a tile', 'forma del riquadro']) {
+    const found = ak.lookup(question).results.map((r) => r.topic);
+    assert.ok(found.includes('tile-look'), question + ' -> ' + found.join(', '));
+  }
+  assert.match(ak.TOPICS.find((t) => t.id === 'appearance').body, /tile-look/);
+});
+
+test('Bit can find the Maker and the address it opens', () => {
+  const card = ak.TOPICS.find((t) => t.id === 'xenon-maker');
+  assert.ok(card, 'the Maker has a card');
+  assert.match(card.body, /https:\/\/xenon-app\.com\/maker\//);
+  assert.match(card.body, /openUrl/);
+});
+
 // ---------------------------------------------------------------------------
 // lookup — exact id, natural queries (EN + IT), index fallback
 // ---------------------------------------------------------------------------
@@ -51,6 +66,8 @@ test('lookup: natural questions land on the right card (EN and IT)', () => {
     ['impostazioni non si salvano dopo il refresh', 'troubleshooting'],
     ['hey bit wake word non funziona', 'ai'],
     ['quanti crediti costa un widget con opus', 'ai-credits'],
+    ['posso avere un rimborso', 'purchases-and-refunds'],
+    ['how do I get a refund', 'purchases-and-refunds'],
   ];
   for (const [q, want] of cases) {
     const out = ak.lookup(q);
@@ -106,4 +123,34 @@ test('section parser: headings split, ids sluggified, text attached', () => {
   assert.equal(s[1].id, 'one-two');
   assert.match(s[1].text, /body A/);
   assert.equal(s[2].level, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Who gets what: Bit answers from these cards, so they must hold the real rules.
+// ---------------------------------------------------------------------------
+
+test('the pass trial card says what each kind of user gets', () => {
+  const card = ak.TOPICS.find((t) => t.id === 'pass-trial');
+  assert.match(card.body, /free for 7 days, once per PC and email, no card/);
+  assert.match(card.body, /Not included: Sparks, Developer cleanup, limited drops/);
+  assert.match(card.body, /comes off this PC, the earlier theme returns and tiles keep their place/);
+  assert.match(card.body, /within 30 days of the end converts by itself/);
+  assert.match(card.body, /5 USD for 1 month, 25 USD for 5 months, 50 USD for 12 months/);
+  assert.match(card.body, /Limited drops are not in the pass/);
+  assert.match(card.body, /on 3 PCs, with updates/);
+  assert.match(card.body, /LAPSED SUPPORTER: keeps what was unlocked, its updates and bought Sparks; loses new drops, the monthly Sparks and Maker export/);
+  for (const q of ['cosa ottengo con la prova di 7 giorni', 'what does the trial include', 'sono scaduto cosa perdo']) {
+    assert.ok(ak.lookup(q).results.some((r) => r.topic === 'pass-trial'), q);
+  }
+});
+
+test('the Sparks cards match how Sparks really work', () => {
+  const body = (id) => ak.TOPICS.find((t) => t.id === id).body;
+  assert.match(ak.TOPICS.find((t) => t.id === 'ai-credits').title, /Xenon's credits/);
+  assert.match(body('ai-credits'), /unused ones do not carry over/);
+  assert.match(body('ai-credits'), /Anyone can buy packs in the Store, under Sparks/);
+  assert.doesNotMatch(body('ai-credits'), /through the supporter code|on Buy Me a Coffee|Ricarica/);
+  assert.match(body('welcome-sparks'), /saving one ends them/);
+  assert.match(body('purchases-and-refunds'), /can go below zero until the next pack/);
+  for (const t of ak.TOPICS) assert.doesNotMatch(t.title + t.body, /Bit's credits/, t.id);
 });

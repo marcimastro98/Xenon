@@ -17,7 +17,7 @@ function zIndexOf(css, selector) {
 }
 
 test('the pairing dialog sits above the first-run, tour and update overlays', () => {
-  const pair = zIndexOf(read('../components/CustomWidget/CustomWidget.css'), '.cw-perm-backdrop.cw-perm-backdrop--pair');
+  const pair = zIndexOf(read('../components/AskSheet/AskSheet.css'), '.ask-overlay');
   const others = [
     zIndexOf(read('../components/SurfacePicker/SurfacePicker.css'), '.sp-overlay'),
     zIndexOf(read('../components/Onboarding/Onboarding.css'), '.onb-overlay'),
@@ -26,8 +26,8 @@ test('the pairing dialog sits above the first-run, tour and update overlays', ()
   for (const z of others) assert.ok(pair > z, `pair ${pair} must be above ${z}`);
 });
 
-test('the dashboard builds the pairing dialog with that class', () => {
-  assert.match(read('../js/mcp-dev-client.js'), /el\('div', 'cw-perm-backdrop cw-perm-backdrop--pair'\)/);
+test('the dashboard opens the pairing in that window', () => {
+  assert.match(read('../js/mcp-dev-client.js'), /window\.ApprovalKeys\.question\(\{\n\s*className: 'cw-pair-backdrop'/);
 });
 
 // Found on the real run: on a full page the widget lands on a new page the

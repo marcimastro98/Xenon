@@ -18,11 +18,9 @@
 //   * Never to somebody who already supports the project. If a supporter pass is
 //     saved on this machine, this never appears at all.
 //   * Never over a voice session, the lock screen, a game or an Ambient scene.
-//     It is a letter in Bit's mail (js/bit-mail.js), filed without a sound or a
-//     window; Bit's one note a day says it arrived, and that note waits while
-//     Xenon is being USED for something (bit-mail-core.js quiet()).
-//   * No modal, no corner card, nothing blocked. busyRightNow() stays exported
-//     for the December appeal, which is still a corner card.
+//     It is one of Bit's messages (js/bit-messages.js): a card in the corner that
+//     covers nothing, one a day, and only when Xenon is not being USED for
+//     something. busyRightNow() stays exported for the December appeal.
 //
 // The wording leads with the monthly option on purpose. The existing framing is
 // "buy me a coffee", which is a one-off by its nature; recurring support is what
@@ -51,14 +49,6 @@
   const CARDS = () => (window.XenonStartupCards || null);
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
-  // The viewBox starts at y = 0.25 and not at 0, which is the whole reason this
-  // heart looks centred. The path is symmetric left to right, but its ink runs
-  // from y 3.49 to y 21.0 — its middle is 12.246, not 12 — so a plain
-  // "0 0 24 24" box hangs the heart a quarter of a unit high in whatever holds
-  // it. Shifting the window down by that quarter unit puts the shape's own
-  // middle on the box's middle. If the path is ever redrawn, re-measure with
-  // getBBox() and move this number with it.
-  const HEART = '<svg viewBox="0 0.25 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.6 12c-2.1 4.4-9.6 9-9.6 9z"/></svg>';
   // One glyph per perk. Drawn rather than written because three small objects
   // read as things you get; the same three facts in a grey sentence read as
   // small print, and this card has one job.
@@ -106,13 +96,13 @@
     } catch { return true; }
   }
 
-  // The ask is a letter in Bit's mail (js/bit-mail.js), filed once. Opening it
-  // draws the card's contents here; `ctx` is the mail's { close, remove }.
-  function drawLetter(_letter, node, ctx) {
-    node.appendChild(el('p', 'bitmail-letter-line', t('support_letter_text', 'One person writes it, in their spare time. If it is useful to you, you can support it and get:')));
+  const askText = () => t('support_letter_text', 'One person writes it, in their spare time. If it is useful to you, you can support it and get:');
 
+  // What the opened card adds to the words: the perks, the two ways to give and
+  // the way out for a supporter. Returns the main button, which goes last.
+  function drawAsk(body, foot, close) {
     const perks = document.createElement('ul');
-    perks.className = 'bitmail-perks';
+    perks.className = 'bm-perks';
     [
       ['themes', 'support_perk_themes', 'Exclusive themes and widgets'],
       ['sparks', 'support_perk_sparks', '300 Sparks a month, Xenon\'s credits'],
@@ -120,7 +110,7 @@
       ['name', 'support_perk_name', 'Your name on the site'],
     ].forEach(([icon, key, fb]) => {
       const li = document.createElement('li');
-      const ic = el('span', 'bitmail-perk-icon');
+      const ic = el('span', 'bm-perk-icon');
       // The Scintilla is Bit's own sprite (js/xenon-credits.js), never a stand-in glyph.
       if (icon === 'sparks' && window.XenonCredits) ic.appendChild(window.XenonCredits.offerMark());
       else ic.innerHTML = PERK_ICONS[icon] || '';   // static, trusted markup
@@ -128,28 +118,28 @@
       perks.appendChild(li);
     });
 
-    const actions = el('div', 'bitmail-actions');
-    const monthly = el('button', 'bitmail-btn is-main', t('support_letter_monthly', 'Support with 5 USD a month'));
+    const monthly = el('button', 'bm-go', t('support_letter_monthly', 'Support with 5 USD a month'));
     monthly.type = 'button';
-    monthly.addEventListener('click', () => { open(supportLink('monthly')); ctx.close(); });
-    const once = el('button', 'bitmail-btn', t('support_letter_once', 'Just once: 5 or 25 USD'));
+    monthly.addEventListener('click', () => { open(supportLink('monthly')); close(); });
+    const once = el('button', 'bm-quiet', t('support_letter_once', 'Just once: 5 or 25 USD'));
     once.type = 'button';
-    once.addEventListener('click', () => { open(supportLink('once')); ctx.close(); });
-    actions.append(monthly, once);
+    once.addEventListener('click', () => { open(supportLink('once')); close(); });
 
-    // Quieter: for the supporter this letter should never have reached.
-    const already = el('button', 'bitmail-link', t('support_ask_already', 'I already support Xenon'));
+    // Quieter: for the supporter this message should never have reached.
+    const already = el('button', 'bm-off', t('support_ask_already', 'I already support Xenon'));
     already.type = 'button';
     already.addEventListener('click', () => {
       remember();
       // The thank-you promises they will not be asked again, so the December
       // appeal (js/support-appeal.js) is silenced for good as well.
       silenceAppeal();
-      ctx.remove();
+      close();
       thankSupporter();
     });
 
-    node.append(perks, actions, already);
+    body.append(perks);
+    foot.append(already, once);
+    return monthly;
   }
 
   function el(tag, className, text) {
@@ -198,8 +188,8 @@
 
   // The December appeal is this card's yearly sibling and borrows its parts
   // rather than keeping a second copy of each.
-  window.XenonSupportAsk = { HEART, CLOSE, daysSince, busyRightNow, alreadySupporter, thankSupporter };
-  if (window.BitMail) window.BitMail.register('support', drawLetter);
+  window.XenonSupportAsk = { CLOSE, daysSince, busyRightNow, alreadySupporter, thankSupporter };
+  if (window.BitMessages) window.BitMessages.kind('support', { extra: drawAsk });
 
   async function maybeShow() {
     const c = CARDS();
@@ -214,19 +204,20 @@
     if (daysSince(use.firstRunDay) < DAYS_SINCE_FIRST_RUN) return;
     if (use.usageDays < DISTINCT_DAYS_USED) return;
     if (await alreadySupporter()) return;
-    if (!window.BitMail) return;
+    const M = window.BitMessages;
+    if (!M) return;
 
-    // Filed once, and remembered the moment it is filed: the letter waits in the
-    // box until it is read, so "once" no longer depends on catching a good
-    // moment. Bit's one note a day says it arrived, and only when nothing is
-    // going on (bit-mail-core.js quiet()).
-    window.BitMail.post({
+    // Filed once, and remembered the moment it is filed: the message waits for
+    // its turn, so "once" does not depend on catching a good moment.
+    const filed = await M.file([{
       id: 'support:ask',
       kind: 'support',
+      surface: 'dashboard',
       title: t('support_ask_title', 'Xenon is free, and stays free'),
-      note: t('support_ask_title', 'Xenon is free, and stays free'),
-    });
-    remember();
+      line: M.firstLine(askText()),
+      body: askText(),
+    }]);
+    if (filed) remember();
   }
 
   function init() {

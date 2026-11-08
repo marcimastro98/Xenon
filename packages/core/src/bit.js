@@ -126,6 +126,24 @@
   }
 
   /**
+   * A layer's rects as paths, one per run of the same colour, in paint order.
+   * Bit is painted anti-aliased on purpose: crispEdges snaps every cell on its
+   * own, so at 2.5 device pixels a cell (a 20 px icon at 150%) one eye comes out
+   * 2 px wide and the other 3. One path per colour leaves no seam between cells.
+   * @returns {{d: string, fill: string, o: number}[]}
+   */
+  function paths(rects) {
+    const out = [];
+    for (const r of rects) {
+      const seg = `M${round(r.x)} ${round(r.y)}h${round(r.w)}v${round(r.h)}h${round(-r.w)}z`;
+      const last = out[out.length - 1];
+      if (last && last.fill === r.fill && last.o === r.o) last.d += seg;
+      else out.push({ d: seg, fill: r.fill, o: r.o });
+    }
+    return out;
+  }
+
+  /**
    * One frame as standalone SVG markup, for the export tool and static
    * images. Only numbers and colors from bit-clips.js go in, never user text.
    */
@@ -135,8 +153,8 @@
     const clipId = /^[A-Za-z][\w-]{0,40}$/.test(opts.clipId || '') ? opts.clipId : 'bitfloor';
     const body = layers
       .map((l) => {
-        const rs = l.rects
-          .map((r) => `<rect x="${round(r.x)}" y="${round(r.y)}" width="${round(r.w)}" height="${round(r.h)}" fill="${r.fill}"${r.o < 1 ? ` opacity="${round(r.o)}"` : ''}/>`)
+        const rs = paths(l.rects)
+          .map((p) => `<path d="${p.d}" fill="${p.fill}"${p.o < 1 ? ` opacity="${round(p.o)}"` : ''}/>`)
           .join('');
         const tr = transformAttr(l.transform);
         const g = `<g${tr ? ` transform="${tr}"` : ''}>${rs}</g>`;
@@ -145,7 +163,7 @@
       .join('');
     const bg = opts.background ? `<rect x="${STAGE.x}" y="${STAGE.y}" width="${STAGE.w}" height="${STAGE.h}" fill="${opts.background}"/>` : '';
     return (
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${STAGE.x} ${STAGE.y} ${STAGE.w} ${STAGE.h}" width="${size}" height="${round((size * STAGE.h) / STAGE.w)}" shape-rendering="crispEdges">` +
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${STAGE.x} ${STAGE.y} ${STAGE.w} ${STAGE.h}" width="${size}" height="${round((size * STAGE.h) / STAGE.w)}">` +
       `<defs><clipPath id="${clipId}"><rect x="${STAGE.x}" y="${STAGE.y}" width="${STAGE.w}" height="${FLOOR_Y - STAGE.y}"/></clipPath></defs>` +
       bg +
       body +
@@ -222,6 +240,7 @@
     clip,
     rgb,
     renderFrame,
+    paths,
     frameSvg,
     transformAttr,
     duration,

@@ -16,7 +16,7 @@ const AI_RECENT_KEEP = 16;      // raw turns kept verbatim after a fold (the res
 // Current AI provider config from hub settings (defaults to Gemini).
 function _aiProviderCfg() {
   const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
-  const provider = ['ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
+  const provider = ['ollama', 'localapi', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
   // The model the client advertises. For openai/anthropic and the Claude Code /
   // Codex subscriptions the server reads the model from its own settings, so
   // this is informational there; for ollama it selects the local model.
@@ -24,6 +24,7 @@ function _aiProviderCfg() {
   if (provider === 'openai') model = typeof s.openaiModel === 'string' ? s.openaiModel : 'auto';
   else if (provider === 'anthropic') model = typeof s.anthropicModel === 'string' ? s.anthropicModel : 'auto';
   else if (provider === 'ollama') model = typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto';
+  else if (provider === 'localapi') model = typeof s.localApiModel === 'string' ? s.localApiModel : 'auto';
   else if (provider === 'claudecode') model = typeof s.claudeCodeModel === 'string' ? s.claudeCodeModel : 'default';
   else if (provider === 'codex') model = typeof s.codexModel === 'string' ? s.codexModel : 'default';
   else if (provider === 'xenon') model = typeof s.xenonModel === 'string' ? s.xenonModel : 'sonnet';
@@ -39,7 +40,7 @@ function _aiProviderCfg() {
 function _aiProviderReady() {
   const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
   const p = _aiProviderCfg().provider;
-  if (p === 'ollama') return true;
+  if (p === 'ollama' || p === 'localapi') return true;
   // The program itself knows whether the user is signed in (and the hub whether
   // the pass has credits); the server answers a turn with a clear reason when
   // not, so there is no key to check.
@@ -122,8 +123,27 @@ function _aiFormatXenonError(code) {
   return t(AI_XENON_ERRORS.has(code) ? 'ai_xenon_' + code : 'ai_xenon_failed');
 }
 
+// A server on this PC answers with a reason code (ai-local-server.js), and what
+// it said in its own words goes after ours when there is something to add.
+const AI_LOCAL_SERVER_ERRORS = new Set(['offline', 'bad_key', 'no_model', 'not_compatible', 'context', 'timeout', 'empty', 'failed']);
+function _aiFormatLocalServerError(code, detail) {
+  const text = t('ai_localserver_' + (AI_LOCAL_SERVER_ERRORS.has(code) ? code : 'failed'));
+  return detail ? text + ' ' + detail : text;
+}
+
+// A reply without Xenon's commands reads like any other, and a model will even say
+// it set the timer: the user is told why, once per reason.
+const _aiToolsOffShown = new Set();
+function _aiNoteToolsOff(reason) {
+  if (!['context', 'refused'].includes(reason) || _aiToolsOffShown.has(reason)) return;
+  _aiToolsOffShown.add(reason);
+  _aiAppendBubble('assistant', t('ai_localserver_tools_' + reason));
+}
+
 function _aiFormatApiError(err) {
   const msg = (err && err.message) || String(err || '');
+  if (msg === 'voice_blocked') return t('ai_voice_blocked');
+  if (/^localserver_[a-z_]+$/.test(msg)) return _aiFormatLocalServerError(msg.slice(12), err && err.detail);
   if (/^xenon_[a-z_]+$/.test(msg)) return _aiFormatXenonError(msg.slice(6));
   if (/^cli_(not_installed|not_logged_in|timeout|busy|offline|failed)$/.test(msg)) return _aiFormatCliError(msg, err && err.detail);
   const isKeyError   = /API_KEY|api key|invalid key/i.test(msg);
@@ -243,6 +263,7 @@ function closeAiPanel() {
 }
 
 function aiClearHistory() {
+  if (window.BitTold) BitTold.forget();
   aiConversationHistory = [];
   aiConversationSummary = '';
   aiToolGroups = [];
@@ -316,14 +337,18 @@ document.addEventListener('click', (e) => {
   if (btn && !btn.disabled && !btn.classList.contains('ai-undo-done')) _aiUndo(btn.dataset.undoId);
 });
 
+// What Bit said on its own (js/bit-told.js) does not make a chat a conversation.
+const _aiTalkNodes = (chat) => chat.querySelectorAll(':scope > :not([data-bit-told])');
+
 // An empty chat shows Bit's welcome with three things to ask (js/bit-welcome.js).
 // Nothing to answer with: the chat tile shows its own card (media.js), so the
 // log stays empty here.
 function _aiRenderWelcomeIfEmpty() {
   const chat = $('ai-chat');
-  if (!chat || chat.children.length > 0 || !window.BitWelcome || !_aiProviderReady()) return;
+  if (!chat || _aiTalkNodes(chat).length > 0 || !window.BitWelcome || !_aiProviderReady()) return;
   chat.appendChild(BitWelcome.build());
   if (typeof mirrorChatCopies === 'function') mirrorChatCopies();
+  BitWelcome.fit();
 }
 
 // The welcome belongs to an empty chat: the first message retires it.
@@ -586,6 +611,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
       if (!voiceTurn) {
         const ranActions = Array.isArray(data.clientActions) && data.clientActions.length > 0;
         _aiAppendBubble('assistant', replyText, null, ranActions ? 'done' : 'idle');
+        _aiNoteToolsOff(data.toolsOff);
         if (window.BitChat) {
           if (ranActions) BitChat.react('nod');
           if (BitChat.crossedLow && BitChat.crossedLow(sparksBefore, data.credits)) _aiAppendBuyRow(t('xai_low'));
@@ -663,6 +689,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
       if (_aiVoiceSessionActive) _aiVoiceShowError(msg);
     } else {
       _aiAppendBubble('assistant', msg, null, 'worry');
+      _aiFollowNoCode(e);
       if (_aiOutOfSparks(e)) _aiAppendBuyRow('');
       else if (text && !hasAudio) _aiAppendRetry(text);
       setAiStatus('error');
@@ -741,13 +768,16 @@ function _aiApplyLateAnswer(data, ok) {
   if (!ok) {
     if (made) _aiAppendBubble('assistant', t('ai_partial_done'));
     const err = new Error(data.error || t('ai_http_error'));
+    if (data.detail) err.detail = String(data.detail);
     _aiAppendBubble('assistant', _aiFormatApiError(err));
+    _aiFollowNoCode(err);
     if (_aiOutOfSparks(err)) _aiAppendBuyRow('');
     return;
   }
   if (data.newContent) aiConversationHistory.push(data.newContent);
   else if (data.text) aiConversationHistory.push({ role: 'model', parts: [{ text: data.text }] });
   if (data.text) _aiAppendBubble('assistant', data.text);
+  _aiNoteToolsOff(data.toolsOff);
 }
 
 // The connection dropped mid-turn: keep the wait on screen and take the answer
@@ -791,6 +821,12 @@ function _aiExecuteClientAction(action, args) {
     case 'open_sparks_shop':
       if (window.XenonCredits && typeof XenonCredits.openShop === 'function') XenonCredits.openShop();
       break;
+    case 'open_whats_new':
+      if (window.XenonWhatsNew) XenonWhatsNew.reopen();
+      break;
+    case 'open_store_entry':
+      if (window.CommunityGallery) CommunityGallery.openEntryById(String(args.entryId || ''));
+      break;
     case 'show_lock_screen':   // pre-v4.4 alias — was a TOGGLE, keep that semantic
       if (window.AmbientMode) AmbientMode.toggle();
       break;
@@ -816,6 +852,9 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'customize_appearance':
       if (typeof applyAiAppearance === 'function') applyAiAppearance(args);
+      break;
+    case 'style_tile':
+      if (window.TileDress) window.TileDress.dress(args);
       break;
     case 'create_dashboard_style':
       if (typeof applyAiCreateStyle === 'function') applyAiCreateStyle(args);
@@ -1085,9 +1124,13 @@ function _aiAppendBubble(role, text, imagesToShow, mood) {
     msg.appendChild(copyBtn);
   }
   chat.appendChild(msg);
-  if (offered.choices.length) chat.appendChild(_aiChoicesRow(offered.choices));
+  let asking = null;
+  if (offered.notes && window.AiAskCard) asking = AiAskCard.build(offered.choices, offered.notes);
+  if (asking) chat.appendChild(asking);
+  else if (offered.choices.length) chat.appendChild(_aiChoicesRow(offered.choices));
   requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
   if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // reflect into duplicated chat tiles
+  if (asking) AiAskCard.settle(asking);
 }
 
 // The answers the assistant offered with its question, one tap each. The click
@@ -1116,6 +1159,11 @@ function _aiAppendBuyRow(text) {
 }
 
 const _aiOutOfSparks = (err) => !!(err && err.message === 'xenon_no_credits');
+// No code on this PC (the trial Sparks ended, or never came): the chat turns into
+// the card that offers the Sparks or a key.
+function _aiFollowNoCode(err) {
+  if (err && err.message === 'xenon_no_code' && window.XenonCredits) XenonCredits.refresh(true);
+}
 
 // A turn that failed keeps the question on screen with "Riprova ora" under the
 // error. A tap takes the failed exchange off the chat and the history, then
@@ -1161,7 +1209,7 @@ function _aiClearChoices() {
 function _aiHandleChoiceClick(e) {
   const btn = e.target && e.target.closest && e.target.closest('.ai-choice');
   if (!btn) return;
-  const answer = (btn.textContent || '').trim();
+  const answer = (btn.dataset.answer || btn.textContent || '').trim();
   if (answer) aiSendMessage(answer, false);
 }
 document.addEventListener('click', _aiHandleChoiceClick);
@@ -1375,7 +1423,7 @@ async function _aiStartMediaRecorder() {
         const transcribeRes = await fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey, provider: _aiProviderCfg().provider }),
+          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey, lang: (typeof lang !== 'undefined' && lang) || 'en', provider: _aiProviderCfg().provider }),
         });
         const { text, error } = await transcribeRes.json();
         if (error) throw new Error(error);
@@ -1585,9 +1633,9 @@ async function runAiMicTest() {
     if (d.error) throw new Error(d.error);
     const dev = `${d.device || '?'} · ${Number.isFinite(d.db) ? d.db : '?'} dB`;
     if (d.heard) {
-      _aiSetMicTestResult(`✓ ${t('ai_mictest_heard')} — ${dev}`, 'ok');
+      _aiSetMicTestResult(`✓ ${t('ai_mictest_heard')}: ${dev}`, 'ok');
     } else {
-      _aiSetMicTestResult(`✕ ${t('ai_mictest_notheard')} — ${dev}. ${t('ai_mictest_fix')}`, 'warn');
+      _aiSetMicTestResult(`✕ ${t('ai_mictest_notheard')}: ${dev}. ${t('ai_mictest_fix')}`, 'warn');
     }
   } catch (err) {
     _aiLog(`Mic test error: ${err.message}`);
@@ -1615,15 +1663,6 @@ function _aiPlayCloseChime() {
   fetch('/api/chime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"kind":"close"}' }).catch(() => {});
 }
 
-// True when the user just wants to dismiss the assistant ("stop", "basta"…).
-// Matched only for short utterances so it doesn't trip on a real question that
-// merely contains the word.
-function _aiIsStopCommand(text) {
-  const t = String(text || '').trim().toLowerCase().replace(/[.,!?;:]/g, '');
-  if (!t || t.split(/\s+/).length > 3) return false;
-  return /\b(stop|basta|ferma|fermati|fermo|fermate|esci|chiudi|chiuditi|spegniti|spegni|zitto|taci|quit|exit|close|cancel|cancella|stop xenon|ferma xenon|grazie xenon|grazie basta)\b/.test(t);
-}
-
 // ── Voice mode UI (stylized animated conversation) ──────────────
 function _aiVoiceModeEnter() {
   if (!aiPanelOpen) openAiPanel();
@@ -1647,7 +1686,7 @@ function _aiVoiceState(state) {
   if (!h) return;
   const tap = t('ai_tap_stop');
   h.textContent =
-    state === 'connecting' ? t('ai_connecting').replace(/^[^\p{L}\p{N}]+/u, '') :
+    state === 'connecting' ? t('ai_connecting') :
     state === 'listening' ? t('ai_state_listening') :
     state === 'thinking'  ? t('ai_state_thinking')  + tap :
     state === 'speaking'  ? t('ai_state_speaking')  + tap : '';
@@ -1905,8 +1944,8 @@ function _aiHandleWake() {
 // Called from settings.js when the API key changes
 function onAiKeyUpdated() {
   const chat = $('ai-chat');
-  if (chat && chat.children.length <= 1) {
-    chat.replaceChildren();
+  if (chat && _aiTalkNodes(chat).length <= 1) {
+    _aiTalkNodes(chat).forEach((node) => node.remove());
     _aiRenderWelcomeIfEmpty();
   }
 }
@@ -2159,14 +2198,16 @@ function _aiShowVoiceMonitorPicker(screens) {
 // The server never runs a proposed command until the user approves it here. The
 // command text comes from the server (by nonce) and is shown verbatim via
 // textContent — we only send the nonce back to run or cancel.
+// The card on screen: a newer one takes its place, keyboard included.
+let _aiDropPcCard = null;
+
 function _aiShowPcConfirm(args) {
   const nonce = String(args.nonce || '');
   const command = String(args.command || '');
   const purpose = String(args.description || '');
   if (!nonce || !command) return;
 
-  const existing = document.getElementById('ai-pc-confirm');
-  if (existing) existing.remove();
+  if (_aiDropPcCard) _aiDropPcCard();
 
   // The card is modal: while it's up, Xenon must not be listening. Stop any
   // in-flight follow-up recorder/timer and block the mic from re-opening until
@@ -2181,18 +2222,23 @@ function _aiShowPcConfirm(args) {
 
   const card = document.createElement('div');
   card.className = 'ai-monitor-card ai-pc-card';
+  card.setAttribute('role', 'dialog');
+  card.setAttribute('aria-modal', 'true');
+  card.tabIndex = -1;
 
   const title = document.createElement('div');
   title.className = 'ai-pc-title';
+  title.id = 'ai-pc-confirm-title';
   title.textContent = t('ai_pc_confirm_title') || 'Eseguire questo comando sul PC?';
-  card.appendChild(title);
+  card.setAttribute('aria-labelledby', title.id);
 
+  let desc = null;
   if (purpose) {
-    const desc = document.createElement('div');
+    desc = document.createElement('div');
     desc.className = 'ai-pc-desc';
     desc.textContent = purpose;
-    card.appendChild(desc);
   }
+  card.appendChild(window.AiDeckConfirm.head(title, desc));
 
   const pre = document.createElement('pre');
   pre.className = 'ai-pc-cmd';
@@ -2207,8 +2253,13 @@ function _aiShowPcConfirm(args) {
   const row = document.createElement('div');
   row.className = 'ai-pc-actions';
 
+  let letGo = () => {};
+  let onEsc = () => {};
+  const drop = () => { letGo(); overlay.remove(); };
+  _aiDropPcCard = drop;
   const close = () => {
-    overlay.remove();
+    drop();
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('pc-confirm', false);
     document.body.classList.remove('ai-picker-open');
     _aiPcConfirmOpen = false;
     // Now that the modal is gone, resume the voice session's listening (if any).
@@ -2238,7 +2289,9 @@ function _aiShowPcConfirm(args) {
     } catch (e) {
       _aiRenderPcResult(card, row, { ok: false, errorMessage: String((e && e.message) || e) }, close);
     }
+    onEsc = close;
   });
+  onEsc = () => cancelBtn.click();
 
   row.appendChild(cancelBtn);
   row.appendChild(runBtn);
@@ -2246,6 +2299,8 @@ function _aiShowPcConfirm(args) {
   overlay.appendChild(card);
   document.body.appendChild(overlay);
   document.body.classList.add('ai-picker-open');
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('pc-confirm', true);
+  letGo = window.DialogFocus.hold(card, { onEsc: () => onEsc() });
 }
 
 function _aiRenderPcResult(card, row, data, close) {

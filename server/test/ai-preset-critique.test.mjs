@@ -257,6 +257,23 @@ test('widget: a stream or host the code never uses is a fix', () => {
   assert.deepEqual(used, CLEAN);
 });
 
+test('widget: a stream read off the message itself is a fix, and asking for it stays', () => {
+  const html = SCHEME + '<script>onmessage = (e) => { if (e.data.type === "data") draw(e.data.battery.devices); }</script>';
+  const list = findings(critique('widget', pkg({ streams: ['battery'] }, html)));
+  assert.ok(list.some((f) => /msg.data/.test(f.hint) && /"battery"/.test(f.problem)), 'says where the data really is');
+  assert.ok(!list.some((f) => /no file uses it/.test(f.problem)), 'does not tell the model to drop the stream');
+});
+
+test('widget: falling back to the first battery device is a fix', () => {
+  const html = SCHEME + '<script>onmessage = (e) => { if (e.data.stream === "battery") draw(e.data.data.devices.find(pick) || e.data.data.devices[0]); }</script>';
+  assert.match(find(critique('widget', pkg({ streams: ['battery'] }, html)), /first battery device/).hint, /by name/);
+});
+
+test('widget: listening for stream data while asking for no stream is a fix', () => {
+  const html = SCHEME + '<script>onmessage = (e) => { if (e.data.type !== "data") return; draw(e.data.data); }</script>';
+  assert.match(find(critique('widget', pkg({ streams: [] }, html)), /manifest.streams/).problem, /asks for no stream/);
+});
+
 test('widget: a canvas animation reading pixels back each frame is a performance fix; setup work is not', () => {
   const loop = (body) => SCHEME + '<script>const ctx = c.getContext("2d");\nfunction tick() {\n' + body + '\n  requestAnimationFrame(tick);\n}\nrequestAnimationFrame(tick);\n'
     + 'onmessage = (e) => { if (e.data.type === "visibility") {} };</script>';

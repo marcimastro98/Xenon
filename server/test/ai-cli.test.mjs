@@ -300,7 +300,7 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
   assert.match(body, /json\(\{ text: result\.text, clientActions: result\.clientActions, newContent: turnRecord\.message\(result\.text\) \}\)/);
   assert.match(body, /You have no other tools: no shell, no file access/);
   // web_search runs key-free for them, like the other non-Gemini providers.
-  assert.match(S, /\(provider === 'ollama' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
+  assert.match(S, /\(provider === 'ollama' \|\| provider === 'localapi' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
   // The bridge finds this server: configured once PORT exists (a const used
   // before its line would take the whole server down at start).
   assert.ok(S.indexOf('aiCli.configure({ port: PORT })') > S.indexOf('const PORT = (() => {'));
@@ -313,7 +313,7 @@ test("Bit's automatic lines never spend the subscription; what the user starts m
   assert.match(roast, /\} else if \(aiCli\.isCliProvider\(provider\)\) \{[\s\S]*?text = '';/);
   assert.doesNotMatch(roast, /cliOneShot/);
   assert.match(read('../js/vitals-pet.js'), /if \(\['claudecode', 'codex'\]\.includes\(provider\)\) return bank\(\);/);
-  for (const route of ["'/api/ai/summarize'", "'/search/ai'", "'/api/disk/advisor'"]) {
+  for (const route of ["'/api/ai/summarize'", "'/api/disk/advisor'"]) {
     const at = S.indexOf('reqPath === ' + route);
     assert.ok(at > 0, route);
     assert.match(S.slice(at, at + 12000), /cliOneShot\(provider,/, route + ' uses the subscription when chosen');
@@ -329,11 +329,11 @@ test('lyrics translation and widget questions, the automatic uses of a plan, run
 
 test('voice stays local and free: nothing quietly needs a Gemini key', () => {
   const S = read('../server.js');
-  assert.match(S, /const useLocal = provider === 'ollama' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\);/);
+  assert.match(S, /const useLocal = provider === 'ollama' \|\| provider === 'localapi' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\);/);
   // The voice orb used to send Claude and ChatGPT to Gemini to be transcribed,
   // and failed for anyone without a Gemini key. Now it hears them the way
   // /api/transcribe always did.
-  assert.match(S, /\} else if \(sttProvider === 'ollama' \|\| sttProvider === 'anthropic' \|\| sttProvider === 'xenon' \|\| aiCli\.isCliProvider\(sttProvider\)\) \{/);
+  assert.match(S, /\} else if \(sttProvider === 'ollama' \|\| sttProvider === 'localapi' \|\| sttProvider === 'anthropic' \|\| sttProvider === 'xenon' \|\| aiCli\.isCliProvider\(sttProvider\)\) \{/);
   assert.match(S, /if \(sttProvider === 'openai'\) \{[\s\S]{0,700}aiOpenai\.stt\(\{ apiKey: openaiKey, wavBuffer: wavData/);
   assert.match(S, /aiCli\.isCliProvider\(tProvider\)\) \{/);
   assert.match(S, /aiCli\.isCliProvider\(ttsProvider\)\) \{/);

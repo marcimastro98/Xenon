@@ -28,7 +28,12 @@
 
   function syncHolds() {
     for (const [host, entry] of players) {
-      if (!host.isConnected) { entry.player.destroy(); players.delete(host); continue; }
+      // A host still being built (the search bar joins the page after its button) is not gone.
+      if (!host.isConnected) {
+        if (entry.placed) { entry.player.destroy(); players.delete(host); }
+        continue;
+      }
+      entry.placed = true;
       entry.player.hold(held(entry.hold));
     }
   }
@@ -63,7 +68,7 @@
   /**
    * A live Bit in `host` (emptied first: a cloned tile carries a stale copy).
    * @param {Element} host
-   * @param {{ mood?: string, label?: string, fidgets?: boolean, hold?: string[] }} [opts]
+   * @param {{ mood?: string, label?: string, fidgets?: boolean, calm?: boolean, hold?: string[] }} [opts]
    */
   function mount(host, opts = {}) {
     const X = engine();
@@ -71,7 +76,7 @@
     const known = players.get(host);
     if (known) return known.player;
     host.replaceChildren();
-    const player = X.bitPlayer.mount(host, { mood: opts.mood, label: opts.label, fidgets: opts.fidgets, context: () => context() });
+    const player = X.bitPlayer.mount(host, { mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context() });
     const hold = Array.isArray(opts.hold) ? opts.hold : TILE_HOLD;
     players.set(host, { player, hold });
     player.hold(held(hold));
@@ -106,6 +111,11 @@
       .replace(/ viewBox="[^"]*" width="[^"]*" height="[^"]*"/, ` viewBox="${pose.box}"`);
   }
 
+  /** Bit as an icon inside `host`: a card that shows other text can stay free of markup. */
+  function showIcon(host, clipId, tint) {
+    host.innerHTML = icon(clipId, tint);
+  }
+
   /**
    * Bit as a one-colour glyph (currentColor) with its face cut out, for a
    * button that carries its own fill: it reads on any accent the way the
@@ -122,11 +132,12 @@
       const tr = pose.X.bit.transformAttr(layer.transform);
       return d ? `<path${tr ? ` transform="${tr}"` : ''} d="${d}"/>` : '';
     }).join('');
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${pose.box}" fill="currentColor" shape-rendering="crispEdges">${paths}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${pose.box}" fill="currentColor">${paths}</svg>`;
   }
 
   // The still pose without its floor shadow (it would pull the crop below
-  // Bit's body), and the square around what it draws.
+  // Bit's body), and the square around what it draws. The square sits on whole
+  // cells: a 24 px icon then has its edges on device pixels at 100%, 150%, 200%.
   function iconPose(clipId, tint) {
     const X = engine();
     const base = X && X.bit.clip(clipId);
@@ -141,8 +152,8 @@
         x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h);
       }
     }
-    const side = Math.max(x1 - x0, y1 - y0) + ICON_PAD * 2;
-    const box = [(x0 + x1 - side) / 2, (y0 + y1 - side) / 2, side, side].map((n) => Math.round(n * 100) / 100).join(' ');
+    const side = Math.ceil(Math.max(x1 - x0, y1 - y0) + ICON_PAD * 2);
+    const box = [Math.floor((x0 + x1 - side) / 2), Math.floor((y0 + y1 - side) / 2), side, side].join(' ');
     return { X, clip, index, layers, box };
   }
 
@@ -194,5 +205,5 @@
     return P ? say(P.greetingFor(now.getHours())) : '';
   }
 
-  window.BitApp = { TILE_HOLD, mount, playerFor, still, icon, glyph, say, greeting, context, sweep: syncHolds };
+  window.BitApp = { TILE_HOLD, mount, playerFor, still, icon, showIcon, glyph, say, greeting, context, sweep: syncHolds };
 })();

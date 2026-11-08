@@ -211,3 +211,12 @@ test('lightPart keeps the device its part belongs to', () => {
   assert.deepEqual(a, { type: 'lightPart', device: 'fusion2-5711c000', part: '1', color: '#ff0000' });
   assert.equal(da.validateAction({ type: 'lightPart', device: 'x'.repeat(300), part: 0 }).device.length, 160);
 });
+
+test('an optional select left out stays out, and a wrong value falls to its first option', () => {
+  const left = da.validateAction({ type: 'layerAnchor', widget: 'weather', app: 'Code' });
+  assert.equal('corner' in left, false);
+  assert.equal('size' in left, false);
+  assert.equal('corner' in da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: '' }), false);
+  assert.equal(da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: 'middle' }).corner, 'top-right');
+  assert.equal(da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: 'bottom-left' }).corner, 'bottom-left');
+});

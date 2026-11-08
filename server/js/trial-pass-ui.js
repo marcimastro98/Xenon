@@ -98,16 +98,8 @@
     return out;
   }
 
-  const HUB_TRIAL_URL = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
-  // Pure: the hub's trial page in the app's language. The hub speaks the site's
-  // 7 languages and falls back on its own for the others.
-  function trialPageUrl(code) {
-    const base = String(code || '').toLowerCase().slice(0, 2);
-    return /^[a-z]{2}$/.test(base) ? HUB_TRIAL_URL + '?lang=' + base : HUB_TRIAL_URL;
-  }
-
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems, trialPageUrl };
+    module.exports = { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems };
   }
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -154,7 +146,7 @@
     const c = window.Xenon && window.Xenon.constants;
     return (c && typeof c.supportUrl === 'function') ? c.supportUrl(source) : BMC_MEMBERSHIP;
   }
-  const openTry = () => openLink(trialPageUrl(typeof lang === 'string' ? lang : ''));
+  const openTry = () => openLink(window.Xenon.constants.trialUrl(typeof lang === 'string' ? lang : ''));
   const openSupport = (source) => openLink(supportUrl(source || 'trial-end'));
   function openCodeField() {
     if (typeof window.openSettings === 'function') window.openSettings('sdk');
@@ -281,30 +273,27 @@
         grid.appendChild(li);
       }
       body.appendChild(grid);
-      p('preset-modal-desc', t('trial_end_back', 'They are off this PC now, and your tiles kept their place. Become a supporter and they come back right there, along with every supporter drop.'));
+      p('preset-modal-desc', t('trial_end_back', 'They are off this PC now, your earlier theme is back and your tiles kept their place. Become a supporter and they come back right there, along with the other supporter drops.'));
     } else {
-      p('preset-modal-desc', t('trial_end_none', 'Thanks for trying the supporter pass. Supporters get every supporter drop, Lyrics included.'));
+      p('preset-modal-desc', t('trial_end_none', 'Thanks for trying the supporter pass. Supporters get the supporter drops and Lyrics.'));
     }
-    if (window.XenonCredits) body.appendChild(window.XenonCredits.offerLine(t('support_sparks_also', "Every month you also get 300 Sparks, Xenon's credits."), 'preset-modal-desc'));
-    const keep = el('button', 'settings-btn primary trial-end-keep', items.length
-      ? t('trial_keep', 'Keep them, 5 USD a month')
-      : t('trial_support', 'Become a supporter'));
-    keep.type = 'button';
-    keep.addEventListener('click', () => { openSupport('trial-end'); close(); });
-    body.appendChild(keep);
+    if (window.XenonCredits) body.appendChild(window.XenonCredits.offerLine(t('support_sparks_also', "Every month you also get 300 Sparks, Xenon's credits. Unused ones do not carry over."), 'preset-modal-desc'));
     p('preset-modal-desc trial-end-price', items.length
       ? t('trial_end_cancel', 'On Buy Me a Coffee. You can cancel anytime.')
-      : t('trial_end_price', 'Memberships start at 5 USD a month on Buy Me a Coffee, and you can cancel anytime.'));
-    const links = el('div', 'trial-end-links');
-    const link = (label, onClick) => {
-      const b = el('button', 'trial-end-link', label);
+      : t('trial_end_price', 'The membership is 5 USD a month on Buy Me a Coffee, and you can cancel anytime.'));
+    const keys = el('div', 'preset-modal-actions');
+    const addKey = (cls, label, onClick) => {
+      const b = el('button', cls, label);
       b.type = 'button';
       b.addEventListener('click', onClick);
-      links.appendChild(b);
+      keys.appendChild(b);
     };
-    link(t('trial_have_code', 'I have a code'), () => { close(); openCodeField(); });
-    link(t('trial_not_now', 'Not now'), close);
-    body.appendChild(links);
+    addKey('settings-btn trial-end-code', t('trial_have_code', 'I have a code'), () => { close(); openCodeField(); });
+    addKey('settings-btn', t('trial_not_now', 'Not now'), close);
+    addKey('settings-btn primary', items.length
+      ? t('trial_keep', 'Keep them, 5 USD a month')
+      : t('trial_support', 'Become a supporter'), () => { openSupport('trial-end'); close(); });
+    body.appendChild(keys);
   }
 
   // ── After a conversion ──────────────────────────────────────────────
@@ -336,9 +325,15 @@
       const name = document.createElement('span');
       name.textContent = item.name || item.entryId;
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'settings-btn primary preset-unlock-forget';
+      b.type = 'button'; b.className = 'settings-btn preset-unlock-forget' + (missing.length === 1 ? ' primary' : '');
       b.textContent = t('trial_put_back', 'Put it back');
-      b.addEventListener('click', () => { close(); putBack(item.entryId); });
+      // The Store opens above this card, so the rest of the list is still here
+      // when it closes; only the last row takes the card with it.
+      b.addEventListener('click', () => {
+        line.remove();
+        if (!body.querySelector('.trial-welcome-row')) close();
+        putBack(item.entryId);
+      });
       line.appendChild(name); line.appendChild(b);
       body.appendChild(line);
     }

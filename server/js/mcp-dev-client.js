@@ -21,7 +21,7 @@
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then((r) => r.json()).catch(() => null);
-  const open = new Map();   // pairId → backdrop
+  const open = new Map();   // pairId → its window
   const expiry = new Map(); // pairId → timer that closes it when the server forgets it
 
   function el(tag, cls, text) {
@@ -31,51 +31,41 @@
     return n;
   }
 
-  // The same dialog look as a widget's permissions: a name, what it may do,
-  // what it may not, and two buttons. Closing it any other way is a No.
+  // The same window as a widget's permissions: a name, what it may do, what it may
+  // not, and two keys. Closing it any other way is a No, and nothing holds Allow when
+  // it opens: this can appear while the person is typing somewhere else.
   function showPair(p) {
     if (!p || typeof p.id !== 'string' || open.has(p.id)) return;
-    const bd = el('div', 'cw-perm-backdrop cw-perm-backdrop--pair');
-    const panel = el('div', 'cw-perm');
-    panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-modal', 'true');
-    panel.appendChild(el('div', 'cw-perm-title', tr('mcp_pair_title', 'Let this tool build widgets?')));
-    const who = el('div', 'cw-perm-pkg');
-    who.appendChild(el('span', 'cw-perm-name', String(p.name || 'MCP')));
-    panel.appendChild(who);
-    panel.appendChild(el('div', 'cw-perm-desc', tr('mcp_pair_desc', 'It can read the Widget SDK, install the widgets you make together, put them on this page, and see what goes wrong in them and a picture of their tile.')));
-    panel.appendChild(el('div', 'cw-perm-note', tr('mcp_pair_note', 'It never approves a widget\'s permissions: you still do that here. Allow it only if you just connected it yourself. You can remove it in Settings, Widgets.')));
-    const row = el('div', 'cw-perm-actions-row');
-    const no = el('button', 'cw-btn', tr('cw_cancel', 'Cancel'));
-    no.type = 'button';
-    const yes = el('button', 'cw-btn cw-btn--primary', tr('cw_allow', 'Allow'));
-    yes.type = 'button';
     const decide = (allow) => {
       closePair(p.id);
       post('pair/answer', { id: p.id, allow });
     };
-    no.addEventListener('click', () => decide(false));
-    yes.addEventListener('click', () => decide(true));
-    bd.addEventListener('click', (ev) => { if (ev.target === bd) decide(false); });
-    bd.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') decide(false); });
-    row.append(no, yes);
-    panel.appendChild(row);
-    bd.appendChild(panel);
-    document.body.appendChild(bd);
-    open.set(p.id, bd);
-    // The server forgets an unanswered pairing after a while; the dialog goes too.
+    open.set(p.id, window.ApprovalKeys.question({
+      className: 'cw-pair-backdrop',
+      freeze: 'mcp-pair',
+      small: true,
+      mark: window.ApprovalKeys.hostMark(),
+      title: tr('mcp_pair_title', 'Let this tool build widgets?'),
+      who: String(p.name || 'MCP'),
+      body: [
+        el('div', 'cw-perm-desc', tr('mcp_pair_desc', 'It can read the Widget SDK, install the widgets you make together, put them on this page, and see what goes wrong in them and a picture of their tile.')),
+        el('div', 'cw-perm-note', tr('mcp_pair_note', 'It never approves a widget\'s permissions: you still do that here. Allow it only if you just connected it yourself. You can remove it in Settings, Widgets.')),
+      ],
+      no: { label: tr('cw_cancel', 'Cancel'), press: () => decide(false) },
+      yes: { label: tr('cw_allow', 'Allow'), press: () => decide(true) },
+    }));
+    // The server forgets an unanswered pairing after a while; the window goes too.
     const left = Number(p.expiresInMs);
     if (Number.isFinite(left) && left > 0) expiry.set(p.id, setTimeout(() => closePair(p.id), left));
-    yes.focus();
   }
 
   function closePair(id) {
-    const bd = open.get(id);
-    if (!bd) return;
+    const sheet = open.get(id);
+    if (!sheet) return;
     open.delete(id);
     clearTimeout(expiry.get(id));
     expiry.delete(id);
-    bd.remove();
+    sheet.close();
   }
 
   async function place(q, CW) {

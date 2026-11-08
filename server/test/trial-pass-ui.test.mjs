@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems, trialPageUrl } = require('../js/trial-pass-ui.js');
+const { covers, triedFrom, restoreThemeFor, endedTile, unmarked, endCardItems } = require('../js/trial-pass-ui.js');
 const { normalizeContentInstalls } = require('../js/content-installs.js');
 
 // The dashboard half of the pass trial: which Store entries get the button,
@@ -102,25 +102,29 @@ test('the end card shows a picture of each thing used, from the Store catalog, w
   assert.equal(endCardItems(tried, 'not a list')[0].shots, 0, 'no catalog: names only');
 });
 
-test('the trial page opens in the app language when the hub has it', () => {
-  const base = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
-  assert.equal(trialPageUrl('it'), base + '?lang=it');
-  assert.equal(trialPageUrl('de'), base + '?lang=de', 'the hub falls back by itself');
-  assert.equal(trialPageUrl('zh-CN'), base + '?lang=zh');
-  assert.equal(trialPageUrl(''), base);
-  assert.equal(trialPageUrl('<x>'), base);
-});
-
-test('the end card has one main action, "Keep them", and the other two as quiet links', async () => {
+test('the end card has one main action, "Keep them", last, and the other two as quiet keys', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showEndCard('), src.indexOf('// ── After a conversion'));
   assert.equal((card.match(/settings-btn primary/g) || []).length, 1);
   assert.match(card, /t\('trial_keep', 'Keep them, 5 USD a month'\)/);
-  assert.match(card, /link\(t\('trial_have_code'/);
-  assert.match(card, /link\(t\('trial_not_now'/);
-  const css = readFileSync(new URL('../components/SettingsModal/SettingsModal.css', import.meta.url), 'utf8');
-  assert.match(css, /\.trial-end-link \{[^}]*min-height: 44px/, 'a link is still a full-size touch target');
+  const order = ["t('trial_have_code'", "t('trial_not_now'", "t('trial_keep'"].map((call) => card.indexOf(call));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the main key closes the row');
+  assert.ok(order[0] > card.indexOf('trial-end-price'), 'the price is read before the keys');
+});
+
+test('one thing to put back gets the main key, a list of them does not', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
+  assert.match(card, /missing\.length === 1 \? ' primary' : ''/);
+});
+
+test('putting one thing back leaves the rest of the list on the welcome card', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
+  const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
+  assert.match(card, /line\.remove\(\);\s+if \(!body\.querySelector\('\.trial-welcome-row'\)\) close\(\);\s+putBack\(item\.entryId\);/);
 });
 
 test('nothing in the end card or the tile comes from markup', async () => {
@@ -157,4 +161,11 @@ test('trial content with no trial file comes off; a conversion needs the saved p
   assert.match(src, /status\.state === 'none'\) \{ await tidyOrphans\(\)/);
   assert.match(src, /now\.state !== 'none'\) return;/, 'asked again before taking anything off');
   assert.match(src, /else if \(supporterSaved\) keepAfterConversion\(\)/);
+});
+
+test('a Lyrics widget on the screen opens the trial page by itself: its page has no TrialPass', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/lyrics-widget.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function startTrial()'), src.indexOf('async function unlock()'));
+  assert.match(body, /else window\.open\(window\.Xenon\.constants\.trialUrl\(/, 'a button that does nothing is the bug this guards');
 });

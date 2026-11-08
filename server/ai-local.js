@@ -1,6 +1,8 @@
 'use strict';
 const { psEscape } = require('./ps-quote');
 const { checkPinnedSha256 } = require('./pinned-hash');
+const { createPace } = require('./search-pace');
+const { armDeadline } = require('./net-guard');
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -53,8 +55,9 @@ function voiceForLang(lang) {
 // client. 'ollama' is this module's own local provider; 'openai'/'anthropic' are
 // the cloud ChatGPT/Claude providers handled by ai-openai.js / ai-anthropic.js;
 // 'claudecode'/'codex' are the user's own subscription through the official
-// Claude Code / Codex program (ai-cli.js).
-const AI_PROVIDERS = Object.freeze(['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon']);
+// Claude Code / Codex program (ai-cli.js); 'localapi' is a server the user runs
+// on this PC that speaks the OpenAI API (ai-local-server.js).
+const AI_PROVIDERS = Object.freeze(['gemini', 'ollama', 'localapi', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon']);
 function sanitizeProvider(value) {
   return AI_PROVIDERS.includes(value) && value !== 'gemini' ? value : 'gemini';
 }
@@ -862,7 +865,13 @@ function _ollamaAgentPlistPath() {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `${_OLLAMA_AGENT_LABEL}.plist`);
 }
 
+// Windows (Run key) and macOS (LaunchAgent); on Linux Ollama's own installer sets up the service.
+function ollamaAutostartSupported() {
+  return process.platform === 'win32' || process.platform === 'darwin';
+}
+
 function getOllamaAutostart() {
+  if (!ollamaAutostartSupported()) return Promise.resolve(false);
   if (process.platform === 'darwin') {
     return Promise.resolve(fs.existsSync(_ollamaAgentPlistPath()));
   }
@@ -916,6 +925,7 @@ async function _setOllamaAutostartDarwin(enabled) {
 }
 
 function setOllamaAutostart(enabled) {
+  if (!ollamaAutostartSupported()) return Promise.resolve({ ok: false, error: 'unsupported' });
   if (process.platform === 'darwin') return _setOllamaAutostartDarwin(enabled);
   return new Promise((resolve) => {
     if (enabled) {
@@ -1102,6 +1112,9 @@ function _httpsGetText(url, timeoutMs = 8000, _redirects = 0) {
     });
     req.on('error', reject);
     req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('search request timed out')); });
+    // setTimeout is an idle timeout; a page trickling bytes would hold the
+    // search forever. Cap the whole request too.
+    armDeadline(req, timeoutMs * 2);
   });
 }
 
@@ -1146,6 +1159,12 @@ function _parseDdgHtml(html, limit = 4) {
   return { sources, snippets };
 }
 
+// DuckDuckGo's results page answers 202 with nothing in it to a search too soon after
+// the last one. Measured 4 Nov 2026: 12 s apart all passed, 8 s apart the second
+// failed, and Bit often searches twice in a turn. The instant answers have no such limit.
+const DDG_PAGE_GAP_MS = 12000;
+const ddgPagePace = createPace(DDG_PAGE_GAP_MS);
+
 // Public web search for the local provider. `query` is the model's search query.
 async function localWebSearch(query, timeoutMs = 8000) {
   const q = String(query || '').trim().slice(0, 300);
@@ -1169,6 +1188,9 @@ async function localWebSearch(query, timeoutMs = 8000) {
   } catch { /* fall through to HTML scrape */ }
 
   // 2) HTML SERP scrape — general queries (news, prices, "X today").
+  const wait = ddgPagePace(Date.now());
+  if (wait === null) return { error: 'web search busy' };
+  if (wait) await new Promise(resolve => setTimeout(resolve, wait));
   try {
     const html = await _httpsGetText(`https://html.duckduckgo.com/html/?q=${enc}`, timeoutMs);
     const { sources, snippets } = _parseDdgHtml(html);
@@ -1442,6 +1464,7 @@ module.exports = {
   pullModel,
   findOllamaExe,
   startOllama,
+  ollamaAutostartSupported,
   getOllamaAutostart,
   setOllamaAutostart,
 };

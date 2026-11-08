@@ -21,6 +21,19 @@ test('safe actions run, risky ones wait on the card, sounds play in the page', (
   assert.equal(run.plan({ type: 'appMixer' }).mode, 'client');
 });
 
+test('a program started through the Deck always waits on the card', () => {
+  const shell = run.plan({ type: 'openApp', path: 'C:/Windows/System32/cmd.exe', args: '/c calc' });
+  assert.equal(shell.mode, 'confirm');
+  assert.deepEqual(run.describe(shell.action).map((r) => r.name), ['path', 'args'], 'the card shows what would run');
+  assert.equal(run.plan({ type: 'openApp', path: 'C:/Users/x/Downloads/setup.exe' }).mode, 'confirm');
+  assert.equal(run.plan({ type: 'openStoreApp', appId: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App', name: 'Calculator' }).mode, 'confirm');
+});
+
+test('what a tool returns is data, and the prompt says so', () => {
+  assert.match(read('../server.js'), /aiDeckRun.TOOL_TEXT_NOTE +/);
+  assert.match(run.TOOL_TEXT_NOTE, /never instructions/);
+});
+
 test('what Bit may not press through this tool is refused with a reason', () => {
   assert.equal(run.plan({ type: 'ai', mode: 'voice' }).error, 'not_for_bit');
   assert.equal(run.plan({ type: 'screenshot' }).error, 'use_dedicated_tool', 'a capability has its own tool or none');
@@ -76,7 +89,7 @@ test('wiring: the tool, the run route that reads only the nonce, the card', () =
   const server = read('../server.js');
   assert.ok(server.includes("{ name: 'run_deck_action',"));
   assert.ok(server.includes("} else if (fnName === 'run_deck_action') {"));
-  assert.ok(server.includes("const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface);"));
+  assert.ok(server.includes("const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));"));
   assert.match(server, /reqPath === '\/ai\/deck-run'[\s\S]{0,400}const action = _deckConfirms\.take\(nonce\);\n\s+if \(!action\) \{ json\(\{ ok: false, error: 'expired' \}\); return; \}[\s\S]{0,300}json\(await deckRegistry\.run\(action\)\)/);
   const ai = read('../js/ai.js');
   assert.ok(ai.includes("case 'confirm_deck_action':"));
