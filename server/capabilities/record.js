@@ -27,6 +27,11 @@ async function reveal(c) {
   return { ok: true, shown: true, name: last.name };
 }
 
+// 'chosen' = what the person picked in the Xenon menu. No widget gets here with
+// it (the SDK's limits name the values it may use), so the microphone and the
+// webcam stay the person's own choice.
+const chosen = (value, c, key) => (value === 'chosen' && typeof c.options === 'function' ? c.options()[key] : value);
+
 async function run(d, action) {
   const c = d && d.capture;
   const r = c && typeof c.recorder === 'function' ? c.recorder() : null;
@@ -37,8 +42,10 @@ async function run(d, action) {
   if (mode === 'stop') return r.stop();
   if (r.status().every) return { ok: false, error: 'running' };
   const target = TARGETS.includes(action.target) ? action.target : 'screen';
-  const audio = AUDIO.includes(action.audio) ? action.audio : 'sound';
-  const webcam = WEBCAM.includes(action.webcam) && action.webcam !== 'off' ? action.webcam : '';
+  const wantAudio = chosen(action.audio, c, 'recordAudio');
+  const wantWebcam = chosen(action.webcam, c, 'recordWebcam');
+  const audio = AUDIO.includes(wantAudio) ? wantAudio : 'sound';
+  const webcam = WEBCAM.includes(wantWebcam) && wantWebcam !== 'off' ? wantWebcam : '';
   const opts = { target, audio, ...(webcam ? { webcam } : {}) };
   if (mode === 'start') return r.start(opts);
   return r.toggle(opts);

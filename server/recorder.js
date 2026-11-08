@@ -87,7 +87,9 @@ function createRecorder({
       sound: reply.sound === 'app' || reply.sound === 'system' ? reply.sound : null, mic: reply.mic === true,
       ...(webcam ? { camera: reply.camera === true } : {}),
     };
-    rec = { id: plan.id, file: plan.file, game: g, target, since: now(), info, every, webcam, ending: null };
+    // The engine's pill is the indicator on this screen: the dashboards then show no card.
+    const pill = look.badge && typeof host.has === 'function' && host.has('badge');
+    rec = { id: plan.id, file: plan.file, game: g, target, since: now(), info, every, webcam, pill, ending: null };
     // Asked for but refused (privacy setting, no microphone): the video goes on without it.
     const notes = {};
     if (wanted.mic && !info.mic) notes.noMic = true;
@@ -95,7 +97,7 @@ function createRecorder({
     if (wanted.sound && !info.sound) notes.noSound = true;
     if (webcam && !info.camera) notes.noCamera = true;
     if (where.missing === true) notes.folderMissing = true;
-    tell(onChange, { on: true, since: rec.since, target, ...lapse, ...notes });
+    tell(onChange, { on: true, since: rec.since, target, ...(pill ? { pill } : {}), ...lapse, ...notes });
     return { ok: true, recording: true, target, ...info, ...lapse, ...notes };
   }
 
@@ -183,7 +185,7 @@ function createRecorder({
     stop,
     // A second press while the engine is still opening is not a stop.
     toggle: (opts) => (starting ? Promise.resolve({ ok: true, starting: true }) : rec ? stop() : start(opts)),
-    status: () => (rec ? { on: true, since: rec.since, target: rec.target, ...(rec.every ? { every: rec.every } : {}) } : { on: false }),
+    status: () => (rec ? { on: true, since: rec.since, target: rec.target, ...(rec.pill ? { pill: true } : {}), ...(rec.every ? { every: rec.every } : {}) } : { on: false }),
     // Shutdown: a recording in progress is finished and indexed, not lost.
     flush: () => (rec || starting ? stop() : Promise.resolve(null)),
   };

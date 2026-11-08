@@ -92,6 +92,21 @@ function setup(o = {}) {
   };
 }
 
+// The engine says why a save failed in `detail`, for the log: without it the
+// only trace of a broken clip is the bare code save_failed.
+test('a failed save leaves the engine\'s reason in the log', async () => {
+  const logged = [];
+  const host = fakeHost();
+  const r = createReplay({
+    host, store: fakeStore(), ringDir: 'C:\\ring', mkdir: async () => {}, log: (m) => logged.push(m),
+  });
+  host.emit({ event: 'replay_saved', token: 't', ok: false, error: 'encoder_failed', detail: '0xc00d36c4 not supported' });
+  host.emit({ event: 'replay_saved', token: 't', ok: true, seconds: 3 });
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /^\[replay\] encoder_failed: 0xc00d36c4 not supported$/);
+  assert.ok(r);
+});
+
 test('off by default: nothing starts', async () => {
   const t = setup({ settings: { replay: false } });
   await t.replay.sync();

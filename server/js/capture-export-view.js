@@ -67,27 +67,35 @@
         o.host.append(bar, status, row);
         return;
       }
-      o.host.appendChild(choices(o, '', KINDS, pick.kind, (v) => { pick.kind = v; say(''); paint(); }));
+      o.host.appendChild(choices(o, '', KINDS, pick.kind, (v) => { pick.kind = v; say(''); repaint(); }));
       if (pick.kind === 'vertical') {
-        o.host.appendChild(choices(o, o.tr('capg_exp_keep', 'Keep'), FOCUS, pick.focus, (v) => { pick.focus = v; paint(); }));
+        o.host.appendChild(choices(o, o.tr('capg_exp_keep', 'Keep'), FOCUS, pick.focus, (v) => { pick.focus = v; repaint(); }));
         if (e.webcam) {
           o.host.appendChild(choices(o, o.tr('capg_exp_webcam', 'Webcam on top'),
-            [[true, 'capg_exp_yes', 'Yes'], [false, 'capg_exp_no', 'No']], pick.webcam, (v) => { pick.webcam = v; paint(); }));
+            [[true, 'capg_exp_yes', 'Yes'], [false, 'capg_exp_no', 'No']], pick.webcam, (v) => { pick.webcam = v; repaint(); }));
         }
       }
       if (pick.kind === 'fit') {
         o.host.appendChild(choices(o, o.tr('capg_exp_size', 'Up to'),
-          M.EXPORT_SIZES_MB.map(mb => [mb, '', mb + ' MB']), pick.mb, (v) => { pick.mb = v; paint(); }));
+          M.EXPORT_SIZES_MB.map(mb => [mb, '', mb + ' MB']), pick.mb, (v) => { pick.mb = v; repaint(); }));
       }
       const [text, warn] = note();
       const n = el('div', 'capg-note' + (warn ? ' is-warn' : ''), text);
       const row = el('div', 'capg-trim-row');
-      row.append(button('capg_exp_save', 'Make the copy', 'ui-btn--primary', start), button('capg_cancel', 'Cancel', '', close));
+      row.append(button('capg_cancel', 'Cancel', '', close), button('capg_exp_save', 'Make the copy', 'is-main', start));
       o.host.append(n, status, row);
     }
 
+    // A pick repaints the rows: the keyboard stays on the same key.
+    function repaint() {
+      const at = [...o.host.querySelectorAll('.capg-exp-opt')].indexOf(document.activeElement);
+      paint();
+      const same = o.host.querySelectorAll('.capg-exp-opt')[at];
+      if (same) same.focus();
+    }
+
     function button(key, fb, cls, onClick) {
-      const b = el('button', 'ui-btn ' + (cls || 'ui-btn--secondary'), o.tr(key, fb));
+      const b = el('button', 'capg-key' + (cls ? ' ' + cls : ''), o.tr(key, fb));
       b.type = 'button';
       b.addEventListener('click', onClick);
       return b;

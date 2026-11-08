@@ -272,18 +272,19 @@ test('wired: catalog, AI, SDK capture lists, Deck error text, settings, live toa
   assert.equal(normalizeCaptureSettings({}).autoMarks, true, 'on by default');
   assert.equal(normalizeCaptureSettings({ autoMarks: false }).autoMarks, false);
   assert.match(read('js/main.js'), /addEventListener\('capture_marker'/);
-  assert.match(read('js/screen-alerts.js'), /capture_marker: \(d\) =>/);
+  assert.match(read('js/screen-alerts.js'), /capture_marker: unlessMenu\(\(d\) =>/);
   assert.match(read('index.html'), /id="settings-capture-automarks"/);
 });
 
 test('a recording keeps PresentMon reading with no dashboard connected', () => {
   // It pauses when the last SSE client leaves; without this hold a recording
-  // started from a hotkey or the phone got no stutter markers at all.
+  // started from a hotkey or the phone got no stutter markers at all. The hold
+  // itself is proven in fps-demand.test.mjs; this pins the wiring.
   const s = read('server.js');
-  assert.match(s, /if \(sseClients\.size > 0 \|\| _fpsHeldByCapture\)/);
-  assert.match(s, /function holdFpsForMarkers\(\) \{\s*const hold = captureRunning\(\) && captureOptions\(\)\.autoMarks !== false;/);
+  assert.match(s, /function holdFpsForMarkers\(\) \{\s*_fpsDemand\.capture\(captureRunning\(\) && captureOptions\(\)\.autoMarks !== false\);/);
   const tick = s.slice(s.indexOf('function broadcastStatusNow()'), s.indexOf('const j = JSON.stringify(st);'));
-  assert.match(tick, /holdFpsForMarkers\(\); \} catch \{\}\n\s+if \(sseClients\.size === 0\)/, 'before both branches of the status tick');
+  const beforeSplit = tick.slice(0, tick.indexOf('if (sseClients.size === 0)'));
+  assert.match(beforeSplit, /holdFpsForMarkers\(\); \} catch \{\}/, 'before both branches of the status tick');
 });
 
 test('the gallery shows your marks first when there are too many, then in time order', () => {

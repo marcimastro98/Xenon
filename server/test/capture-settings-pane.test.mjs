@@ -18,7 +18,7 @@ const HTML = readFileSync(path.join(DIR, 'index.html'), 'utf8');
 const TUNING = ['fps', 'height', 'quality'];
 const IDS = ['settings-capture-video-group', 'settings-nav-capture', 'settings-capture-remote', 'settings-capture-grid', 'settings-capture-shots', 'settings-bench-group', 'settings-bug-group', 'settings-capture-fps',
   'settings-capture-height', 'settings-capture-quality', 'settings-capture-maxgb', 'settings-capture-badge', 'settings-capture-limit-hint',
-  'settings-replay-group', 'settings-replay-grid', 'settings-replay-on', 'settings-replay-state', 'settings-replay-disk', 'settings-replay-seconds',
+  'settings-replay-group', 'settings-replay-grid', 'settings-replay-options', 'settings-replay-on', 'settings-replay-state', 'settings-replay-disk', 'settings-replay-seconds',
   'settings-replay-custom', 'settings-replay-minutes', 'settings-replay-when', 'settings-replay-audio', 'settings-capture-why'];
 const KINDS = ['recording', 'screenshot', 'benchmark'];
 const ROWS = [...KINDS, 'bugreport', 'buglogs'];
@@ -195,20 +195,20 @@ test('the markup has one row per folder, each wired to its kind', () => {
   }
   assert.ok(!HTML.includes('settings-capture-pick'), 'the old single folder row is gone');
   assert.ok(!HTML.includes('settings-capture-folders'), 'no shared "Where to save" group');
-  // Each folder lives with what it saves: screenshots in their own group, videos
+  // Each folder lives with what it saves: screenshots with the gallery, videos
   // inside the recording options, benchmarks under Performance.
   const groupOf = (kind) => {
     const at = HTML.indexOf(`data-folder-for="${kind}"`);
     const open = HTML.lastIndexOf('<div class="settings-group"', at);
     return HTML.slice(open, HTML.indexOf('>', open));
   };
-  assert.match(groupOf('screenshot'), /data-settings-cat="capture" id="settings-capture-shots"/);
+  assert.match(groupOf('screenshot'), /data-settings-cat="capture" id="settings-capture-gallery"/);
   assert.match(groupOf('recording'), /data-settings-cat="capture"/);
   assert.ok(HTML.indexOf('data-folder-for="recording"') > HTML.indexOf('id="settings-capture-grid"'), 'video folder inside the recording grid');
   assert.match(groupOf('benchmark'), /data-settings-cat="performance" id="settings-bench-group" data-unavailable="1" hidden/);
   // Each folder group is a top-level card, never nested in the one before it:
   // between the previous group's start and this one every <div> is closed.
-  for (const id of ['settings-capture-shots', 'settings-bench-group']) {
+  for (const id of ['settings-capture-gallery', 'settings-bench-group']) {
     const at = HTML.indexOf(`id="${id}"`);
     const open = HTML.lastIndexOf('<div class="settings-group"', at);
     const prev = Math.max(HTML.lastIndexOf('<div class="settings-group"', open - 1), HTML.lastIndexOf('<div class="settings-group ', open - 1));
@@ -220,6 +220,15 @@ test('the markup has one row per folder, each wired to its kind', () => {
 // ── Instant Replay ────────────────────────────────────────────────────────────
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
+
+test('the replay options are there only while Replay is on', async () => {
+  const off = load({ server: { replay: false } });
+  await off.P.show();
+  assert.equal(off.els['settings-replay-options'].hidden, true);
+  const on = load({ server: { replay: true } });
+  await on.P.show();
+  assert.equal(on.els['settings-replay-options'].hidden, false);
+});
 
 test('the replay rows show the server: switch, length, when, audio, and the disk it takes', async () => {
   const { P, els } = load({ server: {

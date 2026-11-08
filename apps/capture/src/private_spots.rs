@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn emails_are_found_with_their_punctuation_around() {
         assert_eq!(kinds("write to mario.rossi@example.it today"), ["email"]);
-        assert_eq!(kinds("(anna@mail.co.uk),"), ["email"]);
+        assert_eq!(kinds("(anna@example.co.uk),"), ["email"]);
         assert!(kinds("@handle and name@ and a@b and x@y.z1").is_empty());
     }
 

@@ -97,13 +97,13 @@
       follow();
       foot.replaceChildren();
       if (lines.length && o.askBit) {
-        const ask = el('button', 'ui-btn ui-btn--secondary', o.tr('capg_tx_ask_bit', 'Chapters with Bit'));
+        const ask = el('button', 'capg-key', o.tr('capg_tx_ask_bit', 'Chapters with Bit'));
         ask.type = 'button';
         ask.addEventListener('click', () => o.askBit(o.tr('capg_tx_bit_prompt', 'Read the transcript of the video "{name}", write a short summary and split it into chapters, then save them.').replace('{name}', e.name || '')));
         foot.appendChild(ask);
       }
       if (lines.length) {
-        const srt = el('a', 'ui-btn ui-btn--secondary', o.tr('capg_tx_srt', 'Subtitles (.srt)'));
+        const srt = el('a', 'capg-key', o.tr('capg_tx_srt', 'Subtitles (.srt)'));
         srt.href = o.url('/captures/transcript?id=' + encodeURIComponent(e.id) + '&format=srt');
         srt.setAttribute('download', '');
         foot.appendChild(srt);

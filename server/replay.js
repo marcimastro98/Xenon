@@ -63,7 +63,7 @@ function createReplay({
   host, store, options = () => ({}), folder = async () => ({ dir: '' }),
   game = () => '', gaming = () => false, ringDir, mkdir,
   now = Date.now, timers = { setTimeout, clearTimeout }, onChange = () => {}, onSaved = () => {},
-  markers = { between: () => [] },
+  markers = { between: () => [] }, log = console.warn,
 }) {
   let run = null;        // { since, seconds, key, info }
   let error = '';        // why it is not running when it should
@@ -108,7 +108,12 @@ function createReplay({
 
   host.onEvent((ev) => {
     if (!ev || typeof ev.event !== 'string') return;
-    if (ev.event === 'replay_saved') { settleSave(String(ev.token || ''), ev); return; }
+    if (ev.event === 'replay_saved') {
+      // The reply keeps only a code: the engine's reason lives here or nowhere.
+      if (ev.ok === false && ev.detail) log(`[replay] ${ev.error}: ${ev.detail}`);
+      settleSave(String(ev.token || ''), ev);
+      return;
+    }
     if (ev.event !== 'replay_ended' && ev.event !== 'engine_exited') return;
     if (ev.event === 'engine_exited') for (const token of [...saves.keys()]) settleSave(token, { ok: false, error: 'engine_exited' });
     if (!run) return;

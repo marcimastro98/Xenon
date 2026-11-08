@@ -35,6 +35,8 @@ function changeOf(a) {
   if (a.quality && a.quality !== 'keep') c.quality = a.quality;
   if (a.pill && a.pill !== 'keep') c.badge = a.pill === 'show';
   if (a.limit && a.limit !== 'keep') c.maxGB = a.limit === 'none' ? 0 : num(a.limit);
+  if (a.audio && a.audio !== 'keep') c.recordAudio = a.audio;
+  if (a.webcam && a.webcam !== 'keep') c.recordWebcam = a.webcam;
   return c;
 }
 
@@ -46,6 +48,8 @@ function describe(o) {
     quality: o.quality,
     pill: o.badge ? 'show' : 'hide',
     limitGB: o.maxGB ? o.maxGB : 'none',
+    menuAudio: o.recordAudio,
+    menuWebcam: o.recordWebcam,
     folder: nameOf(o.folder, FOR.recordings.fallback),
     screenshotFolder: nameOf(o.shotFolder, FOR.screenshots.fallback),
     benchmarkFolder: nameOf(o.benchFolder, FOR.benchmarks.fallback),

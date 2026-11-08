@@ -148,7 +148,7 @@ test('server.js wires the replay: sync on settings and the status tick, seed, sh
   assert.match(src, /gaming: \(\) => gameDetect\.isGameRunning\(\),/);
   // The ring's folder per OS (user-folders.js replayRingDir: tmp, or ~/.cache on Linux).
   assert.match(src, /ringDir: replayRingDir\(\),/);
-  assert.match(src, /function broadcastStatusNow\(\) \{\n[^\n]*\n[^\n]*\n  try \{ _replay\.sync\(\); \} catch \{\}/);
+  assert.match(src, /function broadcastStatusNow\(\) \{\n(?:[^\n]*\n){1,4}  try \{ _replay\.sync\(\); \} catch \{\}/);
   assert.match(src, /Promise\.all\(\[_recorder\.flush\(\)\.catch\(\(\) => \{\}\), _stepsRecorder\.flush\(\)\.catch\(\(\) => \{\}\), _replay\.flush\(\)\.catch\(\(\) => \{\}\)\]\)\n\s+\.then\(\(\) => _captureHost\.stop\(\)\)/);
   assert.match(src, /event: replay\\ndata:/);
   // The saved clip goes out by id and name: no path.

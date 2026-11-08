@@ -23,7 +23,10 @@
   async function readStatus() {
     try {
       const r = await fetch(base() + '/pages/hotkey-status');
-      return r.ok ? await r.json() : null;
+      const status = r.ok ? await r.json() : null;
+      // This PC's AltGr keys: a Ctrl+Alt letter none of its keyboards types is allowed.
+      if (status && S()) S().useAltGrKeys(status.altGrKeys);
+      return status;
     } catch { return null; }
   }
 
@@ -101,17 +104,32 @@
 
   function swallow(e) { e.preventDefault(); e.stopImmediatePropagation(); }
 
+  const downs = new Set();   // keydowns seen while recording (keyupPress)
+
   function stop() {
     recording = false;
+    downs.clear();
     window.removeEventListener('keydown', onKey, true);
-    window.removeEventListener('keyup', swallow, true);
+    window.removeEventListener('keyup', onKeyUp, true);
   }
 
   function onKey(e) {
     swallow(e);
+    downs.add(String(e.code || ''));
     if (e.key === 'Escape') { stop(); paint(); return; }
     const combo = S().comboFromKeyEvent(e);
     if (!combo) return;   // only modifiers so far, or a key no registrar can name
+    take(combo);
+  }
+
+  // Ctrl+Alt+letter can come as a keyup alone (js/deck-shortcuts.js keyupPress).
+  function onKeyUp(e) {
+    swallow(e);
+    const pressed = S().keyupPress(e, downs);
+    if (pressed) take(pressed);
+  }
+
+  function take(combo) {
     stop();
     const c = S().normalizeShortcut(combo);
     if (c && c === value) { paint(); return; }
@@ -126,7 +144,7 @@
     said = null;
     recording = true;
     window.addEventListener('keydown', onKey, true);
-    window.addEventListener('keyup', swallow, true);
+    window.addEventListener('keyup', onKeyUp, true);
     paint();
   }
 

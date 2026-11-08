@@ -84,8 +84,7 @@ test('release: the Linux engine is built locked on the AppImage image and option
   assert.match(linux, /runs-on: ubuntu-22\.04/);
   // Optional in the sums: a Linux PC without it hides capture, never runs an unverified file.
   assert.match(job(RELEASE, 'publish'), /\["assets\/xenon-capture-linux-x64", "xenon-capture-linux-x64", false\]/);
-  assert.match(INTEGRITY, /--pattern 'xenon-capture-linux-x64'/);
-  assert.match(INTEGRITY, /"xenon-capture-macos", "xenon-capture-linux-x64", "Xenon-Setup-x64\.exe"/);
+  assert.match(INTEGRITY, /printf '%s\\n' [^\n]*\bxenon-capture-linux-x64\b[^\n]* > names\.txt/);
 });
 
 test('release: the engine is built locked and signed on the signing machine', () => {
@@ -107,7 +106,8 @@ test('release: publish waits for the engine and lists it as required in the sign
 });
 
 test('release-integrity: the manual re-sign covers the engine too', () => {
-  assert.match(INTEGRITY, /--pattern 'xenon-capture\.exe'/);
-  assert.match(INTEGRITY, /--pattern 'xenon-capture-macos'/);
-  assert.match(INTEGRITY, /"xenon-capture\.exe", "xenon-capture-macos", "xenon-capture-linux-x64", "Xenon-Setup-x64\.exe"\]/);
+  // A release with SHA256SUMS keeps every line it lists; one without falls back
+  // to this list. Both run for real in release-integrity-workflow.test.mjs.
+  assert.match(INTEGRITY, /printf '%s\\n' source\.zip xenon-helper\.exe xenon-capture\.exe xenon-capture-macos xenon-capture-linux-x64 Xenon-Setup-x64\.exe > names\.txt/);
+  assert.match(INTEGRITY, /gh release download "\$TAG" --pattern "\$name"/);
 });

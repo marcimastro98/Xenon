@@ -196,9 +196,17 @@ impl Backend {
             return Ok(json!({ "cancelled": true }));
         };
         save(path, &shot.image)?;
+        // The area picker copies its own cut; a screen or a window is copied here.
+        let copied = shot.copied
+            || (copy
+                && clipboard::copy_image(&crate::pixels::dib(
+                    shot.image.width,
+                    shot.image.height,
+                    &shot.image.bgr,
+                )));
         Ok(json!({
             "width": shot.image.width, "height": shot.image.height, "hdr": shot.hdr,
-            "monitor": shot.monitor, "exe": exe, "copied": shot.copied,
+            "monitor": shot.monitor, "exe": exe, "copied": copied,
         }))
     }
 

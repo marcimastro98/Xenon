@@ -93,6 +93,22 @@ test('a saved recording names the game, its length, and why it ended by itself',
   assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ url: '/actions/run', body: { type: 'record', mode: 'reveal' } }]);
 });
 
+// The engine's pill at the top of the screen is the indicator and has its own
+// Stop: a card saying the same thing over the game was one thing too many.
+test('with the pill on the screen no card shows, and only a problem is said', () => {
+  const { onRecording, onSteps, shown } = load();
+  onRecording({ on: true, since: 1, pill: true });
+  onSteps({ on: true, count: 0, pill: true });
+  onSteps({ on: true, count: 1, pill: true });
+  assert.equal(shown.length, 0);
+  onRecording({ on: false, reason: 'stopped' });
+  onRecording({ on: true, since: 2, pill: true, noMic: true });
+  assert.equal(shown.length, 1);
+  assert.equal(shown[0].title, 'Microphone not available, recording without it');
+  assert.ok(shown[0].duration > 0, 'a note, not an indicator: it goes by itself');
+  assert.equal(shown[0].actions, undefined);
+});
+
 test('the Recording card shows once, stays, stops the recording, and goes when it ends', () => {
   const { onRecording, shown, calls, dismissed } = load();
   onRecording({ on: true, since: 1 });
@@ -371,4 +387,20 @@ test('computer sound that could not be recorded is said on the Recording card', 
   const { onRecording, shown } = load();
   onRecording({ on: true, since: 1, noSound: true });
   assert.equal(shown[0].message, 'Computer sound not available, recording without it');
+});
+
+test('a screenshot card carries its picture, by id, for the menu to show which screen it took', () => {
+  const { onCapture, shown } = load();
+  onCapture({ kind: 'screenshot', id: 'a b', name: 'x.png' });
+  assert.equal(shown[0].image, '/captures/thumb?id=a%20b');
+  onCapture({ kind: 'screenshot', name: 'x.png' });
+  assert.equal(shown[1].image, undefined);
+});
+
+test('a screenshot card gives its size: with several monitors it tells which one it took', () => {
+  const { onCapture, shown } = load();
+  onCapture({ kind: 'screenshot', id: 'a', width: 3840, height: 2160 });
+  assert.equal(shown[0].message, '3840 × 2160');
+  onCapture({ kind: 'screenshot', id: 'a', width: 3840, height: 2160, folderMissing: true });
+  assert.equal(shown[1].message, 'Your folder is not there, saved in Pictures');
 });

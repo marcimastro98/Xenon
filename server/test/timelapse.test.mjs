@@ -230,3 +230,27 @@ test('the words are in all 11 languages, without em-dashes', () => {
   assert.equal(/\u2014/.test(lines), false);
   for (const l of i18n.split('\n').filter(l => /lapse_on_msg|lapse_span/.test(l))) assert.match(l, /\{n\}|\{span\}.*\{video\}|\{video\}.*\{span\}/, l);
 });
+
+test('cards: a timelapse shorter than a second never reads "in 0:00"', () => {
+  const { C, shown } = toast();
+  C.onCapture({ kind: 'recording', game: '', seconds: 0.2, every: 5, span: 25, reason: 'stopped' });
+  assert.equal(shown[0].message, '0:25');
+});
+
+test('cards: a moment marked in a game is answered, it is the result of a press', () => {
+  const { C, shown } = toast();
+  C.onMarker({ ok: true, at: 22 });
+  assert.equal(shown[0].title, 'Moment marked');
+  assert.equal(shown[0].important, true, 'without it Do not disturb swallows the card during a game');
+});
+
+test('cards: the answers to a press are not swallowed by a game', () => {
+  const { C, shown } = toast();
+  C.onRecording({ on: true, since: 1, target: 'screen', every: 2 });
+  C.onSteps({ on: true });
+  C.onSteps({ on: false, error: 'no_steps' });
+  C.onExport({ from: 'action', kind: 'vertical' });
+  C.onExport({ from: 'action', kind: 'vertical', done: true, error: 'cancelled' });
+  assert.equal(shown.length, 5);
+  for (const card of shown) assert.equal(card.important, true, card.title);
+});

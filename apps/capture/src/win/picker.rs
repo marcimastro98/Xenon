@@ -26,7 +26,9 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
-use windows::Win32::UI::Input::KeyboardAndMouse::{ReleaseCapture, SetCapture, VK_ESCAPE};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    ReleaseCapture, SetCapture, VK_ESCAPE, VK_RETURN,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos,
     GetMessageW, KillTimer, LoadCursorW, PostQuitMessage, RegisterClassExW, SetTimer,
@@ -256,6 +258,14 @@ impl State {
         unsafe { PostQuitMessage(0) };
     }
 
+    /// Enter: the whole screen under the pointer. With windows covering it, no
+    /// click reaches it.
+    fn take_screen(&mut self) {
+        let surface = under_cursor(&self.surfaces);
+        let area = self.surfaces[surface].rect;
+        self.finish(Outcome::Area { surface, area });
+    }
+
     fn handle(&mut self, h: HWND, msg: u32, l: LPARAM) -> Option<LRESULT> {
         let i = self.surface(h)?;
         match msg {
@@ -462,6 +472,20 @@ unsafe extern "system" fn keys(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
             }
             return LRESULT(1); // Esc belongs to the picker while it is open
         }
+        if k.vkCode == VK_RETURN.0 as u32 {
+            let down = matches!(w.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
+            let taken = STATE.with(|s| {
+                let mut guard = s.try_borrow_mut().ok()?;
+                let st = guard.as_mut().filter(|st| st.mode == Mode::Area)?;
+                if down {
+                    st.take_screen();
+                }
+                Some(())
+            });
+            if taken.is_some() {
+                return LRESULT(1);
+            }
+        }
     }
     CallNextHookEx(None, code, w, l)
 }
@@ -520,6 +544,15 @@ fn surface(f: &Frozen) -> Option<Surface> {
         hint: None,
         scale,
     })
+}
+
+/// The surface the pointer is on, the first one if it is on none.
+fn under_cursor(surfaces: &[Surface]) -> usize {
+    let at = cursor();
+    surfaces
+        .iter()
+        .position(|s| s.rect.contains(at.0, at.1))
+        .unwrap_or(0)
 }
 
 /// The font of the hint line and the labels, at surface `s`'s scale.
@@ -616,10 +649,7 @@ fn show(frozen: &[Frozen], stack: Vec<Rect>, hint: &str, mode: Mode) -> Option<S
         return None;
     }
     let at = cursor();
-    let under = surfaces
-        .iter()
-        .position(|s| s.rect.contains(at.0, at.1))
-        .unwrap_or(0);
+    let under = under_cursor(&surfaces);
     let text: Vec<u16> = hint.encode_utf16().collect();
     let font = make_font(&surfaces[under]);
     if let (false, Some(f)) = (text.is_empty(), font) {

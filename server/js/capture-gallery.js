@@ -1,8 +1,9 @@
 'use strict';
 // The gallery of what Xenon captured: screenshots, recordings and Instant
-// Replay clips, newest first, grouped by day, on the Store's overlay. A tap
-// opens the viewer (js/capture-gallery-viewer.js: play, trim, copy, show in
-// the folder, delete; a paired phone plays and downloads).
+// Replay clips, newest first, grouped by day, over the whole screen in the
+// Store's frame: the kinds and the games in the rail, the pictures beside it.
+// A tap opens the viewer (js/capture-gallery-viewer.js: play, trim, copy, show
+// in the folder, delete; a paired phone plays and downloads).
 //
 // The server sends ids and names only (GET /captures); previews and files come
 // by id (/captures/thumb, /captures/file). Opened from the Deck key, Xenon AI
@@ -11,6 +12,12 @@
 (function () {
   const M = window.CaptureGalleryModel;
   const PAGE = 60;
+  const PLACEHOLDERS = 8;
+  const KIND_ROWS = {
+    '': ['capg_filter_all', 'All', 'gallery'],
+    video: ['capg_filter_video', 'Videos', 'video'],
+    screenshot: ['capg_filter_shot', 'Screenshots', 'screenshot'],
+  };
 
   const tr = (k, fb) => {
     const v = typeof window.t === 'function' ? window.t(k) : k;
@@ -59,7 +66,10 @@
   function dayTitle(group) {
     if (group.when === 'today') return tr('capg_today', 'Today');
     if (group.when === 'yesterday') return tr('capg_yesterday', 'Yesterday');
-    try { return new Date(group.at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }); } catch { return group.key; }
+    try {
+      const day = new Date(group.at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+      return day.charAt(0).toLocaleUpperCase() + day.slice(1);
+    } catch { return group.key; }
   }
 
   function tile(e) {
@@ -86,26 +96,40 @@
     return b;
   }
 
-  function status(text, retry) {
+  function key(text, onClick, cls) {
+    const b = el('button', 'capg-key' + (cls ? ' ' + cls : ''), text);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  // A line in the middle of the page, with at most one key under it.
+  function status(text, act) {
     const box = el('div', 'cgal-status capg-status', text);
-    if (retry) {
-      const again = el('button', 'ui-btn ui-btn--secondary', tr('capg_retry', 'Try again'));
-      again.type = 'button';
-      again.addEventListener('click', () => reload());
-      box.appendChild(el('div', 'capg-status-act')).appendChild(again);
-    }
+    if (act) box.appendChild(act);
     return box;
+  }
+
+  function emptyState() {
+    if (g.filter || g.game) return status(tr('capg_empty_filter', 'Nothing here with this filter.'));
+    const text = tr('capg_empty', 'Nothing yet. Screenshots, recordings and replays you save land here.');
+    if (window.__xenonRemote || typeof window.openSettings !== 'function') return status(text);
+    // Settings first: a sheet window leaves as soon as nothing is showing.
+    return status(text, key(tr('capg_open_settings', 'Open settings'), () => { window.openSettings('capture'); close(); }));
+  }
+
+  // The page's shape until the first answer comes.
+  function placeholders() {
+    const grid = el('div', 'capg-grid');
+    grid.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < PLACEHOLDERS; i += 1) grid.appendChild(el('span', 'capg-thumb'));
+    return grid;
   }
 
   function paintGrid() {
     const body = g.body;
     body.replaceChildren();
-    if (!g.entries.length) {
-      body.appendChild(status(g.filter || g.game
-        ? tr('capg_empty_filter', 'Nothing here with this filter.')
-        : tr('capg_empty', 'Nothing yet. Screenshots, recordings and replays you save land here.')));
-      return;
-    }
+    if (!g.entries.length) { body.appendChild(emptyState()); return; }
     for (const group of M.groupByDay(g.entries, Date.now())) {
       const section = el('section', 'capg-day');
       section.appendChild(el('h4', 'capg-day-title', dayTitle(group)));
@@ -114,25 +138,76 @@
       section.appendChild(grid);
       body.appendChild(section);
     }
-    if (g.more) {
-      const more = el('button', 'ui-btn ui-btn--secondary capg-more', tr('capg_more', 'Show more'));
-      more.type = 'button';
-      more.addEventListener('click', loadMore);
-      body.appendChild(more);
-    }
+    if (g.more) body.appendChild(key(tr('capg_more', 'Show more'), loadMore, 'capg-more'));
   }
 
-  function paintHead(r) {
+  function focusTile(id) {
+    const shown = [...g.body.querySelectorAll('.capg-tile')].find(b => b.dataset.id === id);
+    // The browser shows the ring on the picture only when the keys brought the person back.
+    if (shown) shown.focus();
+    else g.modal.focus({ focusVisible: false });
+  }
+
+  function railRow(name, on, pick, iconName, count) {
+    const row = el('button', 'cst-railrow');
+    row.type = 'button';
+    if (iconName) row.appendChild(icon(iconName));
+    row.appendChild(el('span', 'cst-railrow-name', name));
+    if (count != null) row.appendChild(el('b', 'cst-railrow-count', String(count)));
+    row.addEventListener('click', pick);
+    markRow(row, on);
+    return row;
+  }
+
+  function markRow(row, on) {
+    row.classList.toggle('on', on);
+    row.setAttribute('aria-pressed', String(on));
+  }
+
+  function setFilter(f) {
+    if (g.filter === f) return;
+    g.filter = f;
+    [...g.kinds.children].forEach(row => markRow(row, row.dataset.filter === f));
+    reload();
+  }
+
+  function setGame(label) {
+    if (g.game === label) return;
+    g.game = label;
+    [...g.games.children].forEach(row => markRow(row, row.dataset.game === label));
+    reload();
+  }
+
+  function kindRow(f) {
+    const [k, fb, iconName] = KIND_ROWS[f];
+    const row = railRow(tr(k, fb), f === g.filter, () => setFilter(f), iconName);
+    row.dataset.filter = f;
+    return row;
+  }
+
+  function gameRow(label, name, count) {
+    const row = railRow(name, label === g.game, () => setGame(label), '', count);
+    row.dataset.game = label;
+    return row;
+  }
+
+  // A choice of game only when there is one to make. Rows are rebuilt only when
+  // they changed, so one with the focus keeps the keyboard.
+  function paintGames(games) {
+    g.games.hidden = games.length < 2 && !g.game;
+    const shown = games.map(x => x.label + '\n' + x.count).join('\n');
+    if (shown === g.gamesShown) return;
+    g.gamesShown = shown;
+    g.games.replaceChildren(gameRow('', tr('capg_game_all', 'All games')),
+      ...games.map(x => gameRow(x.label, x.label === 'Desktop' ? tr('capg_desktop', 'Desktop') : x.label, x.count)));
+  }
+
+  function paintRail(r) {
     if (r.usedBytes != null && typeof formatBytes === 'function') {
-      g.sub.textContent = tr('capg_sub', 'Screenshots, recordings and replays: {size}').replace('{size}', formatBytes(Number(r.usedBytes) || 0));
+      const used = Number(r.usedBytes) || 0;
+      g.used.textContent = used ? tr('capg_sub', '{size} in all').replace('{size}', formatBytes(used)) : '';
     }
-    if (!Array.isArray(r.games)) return;
-    // A choice of game only when there is one to make.
-    const games = r.games.filter(x => x && typeof x.label === 'string');
-    g.gameSel.hidden = games.length < 2 && !g.game;
-    g.gameSel.replaceChildren(new Option(tr('capg_game_all', 'All games'), ''));
-    games.forEach(x => g.gameSel.appendChild(new Option(x.label === 'Desktop' ? tr('capg_desktop', 'Desktop') : x.label, x.label)));
-    g.gameSel.value = g.game;
+    if (Array.isArray(r.games)) paintGames(r.games.filter(x => x && typeof x.label === 'string'));
   }
 
   async function reload() {
@@ -140,14 +215,17 @@
     const mine = g;
     const r = await fetchPage(0);
     if (g !== mine) return;
-    if (!r || r.ok !== true) { g.body.replaceChildren(status(tr('capg_error', 'The gallery did not load.'), true)); return; }
+    if (!r || r.ok !== true) {
+      g.body.replaceChildren(status(tr('capg_error', 'The gallery did not load.'), key(tr('capg_retry', 'Try again'), () => reload())));
+      return;
+    }
     g.entries = Array.isArray(r.entries) ? r.entries : [];
     g.more = r.more === true;
     g.editable = r.editable === true;
     g.pinnable = r.pinnable === true;
     g.sendable = r.sendable === true;
     g.can = engineCan(r.can);
-    paintHead(r);
+    paintRail(r);
     paintGrid();
     if (g.viewer) g.viewer.sync(g.entries);
   }
@@ -158,38 +236,37 @@
     const mine = g;
     const r = await fetchPage(last.createdAt);
     if (g !== mine || !r || r.ok !== true) return;
-    g.entries = g.entries.concat(Array.isArray(r.entries) ? r.entries : []);
+    const fresh = Array.isArray(r.entries) ? r.entries : [];
+    g.entries = g.entries.concat(fresh);
     g.more = r.more === true;
     const top = g.body.scrollTop;
     paintGrid();
     g.body.scrollTop = top;
+    // The key that was pressed is gone: the keyboard goes on from the first new picture.
+    if (fresh[0]) focusTile(fresh[0].id);
   }
 
-  function filterBar() {
-    const bar = el('div', 'capg-bar');
-    const kinds = el('div', 'capg-filters');
-    kinds.setAttribute('role', 'group');
-    const names = { '': ['capg_filter_all', 'All'], video: ['capg_filter_video', 'Videos'], screenshot: ['capg_filter_shot', 'Screenshots'] };
-    M.FILTERS.forEach((f) => {
-      const b = el('button', 'capg-filter', tr(names[f][0], names[f][1]));
-      b.type = 'button';
-      b.dataset.filter = f;
-      b.setAttribute('aria-pressed', String(f === g.filter));
-      b.addEventListener('click', () => {
-        if (g.filter === f) return;
-        g.filter = f;
-        kinds.querySelectorAll('.capg-filter').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.filter === f)));
-        reload();
-      });
-      kinds.appendChild(b);
-    });
-    const sel = el('select', 'capg-game-select');
-    sel.setAttribute('aria-label', tr('capg_game_all', 'All games'));
-    sel.hidden = true;
-    sel.addEventListener('change', () => { g.game = sel.value; reload(); });
-    g.gameSel = sel;
-    bar.append(kinds, sel);
-    return bar;
+  function rail() {
+    const aside = el('aside', 'cst-rail');
+    aside.appendChild(el('div', 'cst-rail-top')).appendChild(el('h3', 'cst-rail-title', tr('capg_title', 'Gallery')));
+    g.kinds = aside.appendChild(el('nav', 'cst-rail-list'));
+    g.kinds.setAttribute('aria-label', tr('capg_title', 'Gallery'));
+    M.FILTERS.forEach(f => g.kinds.appendChild(kindRow(f)));
+    g.games = aside.appendChild(el('nav', 'cst-rail-list capg-games'));
+    g.games.setAttribute('aria-label', tr('capg_game_all', 'All games'));
+    g.games.hidden = true;
+    g.used = aside.appendChild(el('div', 'capg-rail-used'));
+    return aside;
+  }
+
+  function closeKey() {
+    const x = el('button', 'cst-close');
+    x.type = 'button';
+    x.title = tr('capg_close', 'Close');
+    x.setAttribute('aria-label', x.title);
+    x.appendChild(icon('close'));
+    x.addEventListener('click', close);
+    return x;
   }
 
   // A reply without `can` (an older server) keeps every button, as before.
@@ -215,19 +292,15 @@
       // Bit writes chapters in the chat, which the gallery covers: it closes first.
       askBit: !window.__xenonRemote && typeof window.aiAsk === 'function'
         ? (text) => { close(); window.aiAsk(text); } : null,
-      onClose: () => { if (g) { g.viewer = null; g.overlay.focus(); } },
+      onClose: (shown) => { if (g) { g.viewer = null; focusTile(shown); } },
       onChanged: (focusId, line) => reload().then(() => { if (focusId && g) openViewer(focusId, line); }),
     });
-  }
-
-  function onKey(ev) {
-    if (ev.key === 'Escape' && !ev.defaultPrevented && g && !g.viewer) { ev.preventDefault(); close(); }
   }
 
   function close() {
     if (!g) return;
     if (g.viewer) g.viewer.close();
-    document.removeEventListener('keydown', onKey);
+    g.letGo();
     g.overlay.remove();
     g = null;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('capture-gallery', false);
@@ -237,39 +310,24 @@
   // `opts.filter` starts on '', 'video' or 'screenshot'.
   async function open(opts) {
     const o = opts || {};
-    if (typeof isLayerPage === 'function' && isLayerPage()) return;
+    if (typeof isLayerPage === 'function' && isLayerPage() && !isSheetPage()) return;
     close();
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('capture-gallery', true);
-    const overlay = el('div', 'preset-modal-overlay cgal-overlay capg-overlay');
-    overlay.tabIndex = -1;
-    const modal = el('div', 'preset-modal cgal-modal capg-modal');
+    const overlay = el('div', 'preset-modal-overlay cgal-overlay cst-overlay capg-overlay');
+    const modal = el('div', 'preset-modal cgal-modal cst capg-modal');
+    modal.tabIndex = -1;
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-label', tr('capg_title', 'Gallery'));
-    g = { overlay, modal, entries: [], more: false, editable: false, pinnable: false, can: engineCan(null), viewer: null, game: '', filter: M.FILTERS.includes(o.filter) ? o.filter : '' };
+    g = { overlay, modal, entries: [], more: false, editable: false, pinnable: false, can: engineCan(null), viewer: null, game: '', gamesShown: '', filter: M.FILTERS.includes(o.filter) ? o.filter : '' };
 
-    const head = el('div', 'cgal-topbar');
-    const brand = el('div', 'cgal-brand');
-    brand.appendChild(icon('gallery', 'cgal-brand-mark'));
-    const txt = el('div', 'cgal-brand-txt');
-    txt.appendChild(el('h3', 'cgal-brand-title', tr('capg_title', 'Gallery')));
-    g.sub = txt.appendChild(el('p', 'cgal-brand-sub', tr('capg_sub_plain', 'Screenshots, recordings and replays')));
-    brand.appendChild(txt);
-    const x = el('button', 'cgal-iconbtn');
-    x.type = 'button';
-    x.title = tr('capg_close', 'Close');
-    x.setAttribute('aria-label', x.title);
-    x.appendChild(icon('close'));
-    x.addEventListener('click', close);
-    head.append(brand, x);
-    modal.appendChild(head);
-    modal.appendChild(filterBar());
-    g.body = modal.appendChild(el('div', 'cgal-scroll capg-scroll'));
+    const aside = rail();
+    g.body = el('div', 'cgal-scroll cst-main');
+    g.body.appendChild(placeholders());
+    modal.append(aside, g.body, closeKey());
     overlay.appendChild(modal);
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
-    document.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
-    overlay.focus();
+    g.letGo = window.DialogFocus.hold(modal, { onEsc: close });
     await reload();
     if (o.id && g && g.entries.some(e => e.id === o.id)) openViewer(o.id);
   }

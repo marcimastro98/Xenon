@@ -42,7 +42,7 @@ test('a screenshot of the screen: planned path to the engine, name and size back
   const r = await shot.run(d, {});
   assert.deepEqual(log.plan, { kind: 'screenshot', game: 'game.exe' });
   assert.deepEqual(log.dirs, [path.dirname(FILE)]);
-  assert.deepEqual(log.requests, [{ cmd: 'screenshot', body: { target: 'screen', path: FILE } }]);
+  assert.deepEqual(log.requests, [{ cmd: 'screenshot', body: { target: 'screen', path: FILE, copy: true } }]);
   assert.deepEqual(r, { ok: true, id: 'aaaaaaaaaaaaaaaa', name: path.basename(FILE), game: 'game.exe', width: 1920, height: 1080, hdr: false, copied: false });
   assert.deepEqual(log.opts, [undefined], 'the normal 15 s timeout');
   assert.ok(!JSON.stringify(r).includes('Users'), 'no path in the result');
@@ -76,6 +76,18 @@ test('"window" and "region" are passed through; anything else is the screen', as
     await shot.run(d, { target });
     assert.equal(log.requests[0].body.target, want);
   }
+});
+
+test('every shot is copied like Win+Shift+S, unless the caller had no gesture', async () => {
+  const off = deps();
+  await shot.run(off.d, { clipboard: 'off' });
+  assert.equal(off.log.requests[0].body.copy, false, 'a widget screenshot leaves the clipboard alone');
+  const win = deps();
+  await shot.run(win.d, { target: 'window' });
+  assert.equal(win.log.requests[0].body.copy, true, 'a window is copied too');
+  const area = deps();
+  await shot.run(area.d, { target: 'region', clipboard: 'off' });
+  assert.equal(area.log.requests[0].body.copy, true, 'an area is a gesture: the drag is the user asking');
 });
 
 test('an area: the hint and copy go to the engine, it may wait for the user, the toast knows it was copied', async () => {
@@ -175,7 +187,7 @@ test('server.js wires the engine, the index under DATA_DIR, the SSE without a pa
   const src = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
   assert.match(src, /const CAPTURE_EXE = path\.join\(__dirname, 'capture', process\.platform === 'win32' \? 'xenon-capture\.exe' : 'xenon-capture'\);/);
   assert.match(src, /file: path\.join\(DATA_DIR, 'captures\.json'\)/);
-  assert.match(src, /onSaved: \(e\) => broadcastSSE\('capture', \{\s+kind: e\.kind, id: e\.id, name: e\.name, game: e\.game, copied: e\.copied === true,\s+\.\.\.\(e\.folderMissing === true \? \{ folderMissing: true \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?(?:\.\.\.\(Number\.isInteger\(e\.covered\) && e\.covered > 0 \? \{ covered: e\.covered \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?)?\.\.\.\(e\.kind === 'screenshot' && layersHost\.available\(\) \? \{ pinnable: true \} : \{\}\),\s+\}\)/);
+  assert.match(src, /onSaved: \(e\) => broadcastSSE\('capture', \{\s+kind: e\.kind, id: e\.id, name: e\.name, game: e\.game, copied: e\.copied === true,\s+\.\.\.\(e\.folderMissing === true \? \{ folderMissing: true \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?(?:\.\.\.\(Number\.isInteger\(e\.covered\) && e\.covered > 0 \? \{ covered: e\.covered \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?)?\.\.\.\(e\.kind === 'screenshot' && layersHost\.available\(\) \? \{ pinnable: true \} : \{\}\),\s+\.\.\.\(e\.kind === 'screenshot' && e\.width > 0 && e\.height > 0 \? \{ width: e\.width, height: e\.height \} : \{\}\),\s+\}\)/);
   assert.match(src, /shotFolder: \(\) => _captureFolder\.resolve\(captureOptions\(\)\.shotFolder\)/);
   assert.match(src, /hint: \(\) => LayerI18n\.text\('shot_pick_hint', _serverHubSettings && _serverHubSettings\.language\)/);
   // The engine stops after a recording is finished, then the index is written.

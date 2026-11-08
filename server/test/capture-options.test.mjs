@@ -25,7 +25,7 @@ const REMOTE = readFileSync(path.join(HERE, '..', 'remote-access.js'), 'utf8');
 
 const FOLDER = path.join(os.tmpdir(), 'My Clips');
 // The Instant Replay fields at their defaults.
-const R = { replay: false, replaySeconds: 30, replayWhen: 'gaming', replayAudio: 'sound', replayKey: 'ctrl+shift+f10', replayClips: 'marks' };
+const R = { replay: false, replaySeconds: 30, replayWhen: 'gaming', replayAudio: 'sound', replayKey: 'ctrl+shift+f10', replayClips: 'marks', recordAudio: 'sound', recordWebcam: 'off' };
 
 test('normalize: anything stored comes back valid, the folder kept verbatim', () => {
   assert.deepEqual(CS.normalizeCaptureSettings(undefined), { ...CS.DEFAULTS });
@@ -152,6 +152,22 @@ test('choose checks the folder like a typed one; resolve falls back when it is g
   assert.deepEqual(await throws.resolve(FOLDER), { dir: '', missing: true });
 });
 
+test('what the menu picks for a recording: listed values only, kept when absent', async () => {
+  const stored = CS.normalizeCaptureSettings({ recordAudio: 'sound_mic', recordWebcam: 'tr' });
+  assert.deepEqual([stored.recordAudio, stored.recordWebcam], ['sound_mic', 'tr']);
+  const bad = CS.normalizeCaptureSettings({ recordAudio: 'loud', recordWebcam: 'middle' });
+  assert.deepEqual([bad.recordAudio, bad.recordWebcam], ['sound', 'off']);
+  assert.deepEqual(CS.applyCaptureChange(stored, { recordAudio: 'loud' }).bad, ['recordAudio']);
+  assert.equal(CS.applyCaptureChange(stored, { recordWebcam: 'bl' }).next.recordWebcam, 'bl');
+
+  const set = optDeps();
+  await opts.run(set.d, { audio: 'silent', webcam: 'br' });
+  assert.deepEqual(set.log.set[0].change, { recordAudio: 'silent', recordWebcam: 'br' });
+  const keep = optDeps();
+  await opts.run(keep.d, { audio: 'keep', webcam: 'keep' });
+  assert.deepEqual(keep.log.set, []);
+});
+
 function optDeps({ cur = { ...CS.DEFAULTS }, picked = { ok: true, path: FOLDER } } = {}) {
   const log = { set: [], picks: 0, kinds: [] };
   let now = { ...cur };
@@ -172,7 +188,7 @@ test('voice: "keep" changes nothing, words become settings, only reading with no
   const r0 = await opts.run(read.d, { fps: 'keep', size: 'keep', quality: 'keep', pill: 'keep', limit: 'keep', folder: 'keep' });
   assert.deepEqual(read.log.set, []);
   assert.deepEqual(r0, {
-    ok: true, fps: 60, size: 'native', quality: 'normal', pill: 'show', limitGB: 'none', folder: 'Videos/Xenon (default)',
+    ok: true, fps: 60, size: 'native', quality: 'normal', pill: 'show', limitGB: 'none', menuAudio: 'sound', menuWebcam: 'off', folder: 'Videos/Xenon (default)',
     screenshotFolder: 'Pictures/Xenon (default)', benchmarkFolder: 'Documents/Xenon/Benchmark (default)',
     bugReportFolder: 'Documents/Xenon/Bug reports (default)', bugLogFolder: 'none (no logs are added)',
   });

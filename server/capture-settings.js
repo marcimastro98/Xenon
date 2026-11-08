@@ -28,6 +28,11 @@ const REPLAY_MAX_S = 3600;
 const REPLAY_WHEN = Object.freeze(['gaming', 'always']);
 // As for a recording: the PC's sound, plus the microphone, or none.
 const REPLAY_AUDIO = Object.freeze(['sound', 'sound_mic', 'silent']);
+// What a recording started from the Xenon menu takes: the choice sits beside
+// Registra, so it is made before starting. A Deck key with its own audio keeps it.
+const RECORD_AUDIO = REPLAY_AUDIO;
+// The webcam bubble's corner, as on the Deck key.
+const RECORD_WEBCAM = Object.freeze(['off', 'tl', 'tr', 'bl', 'br']);
 // Clips the replay saves by itself (capture-autoclips.js): around each moment
 // the user marks, around every stutter too, or never.
 const REPLAY_CLIPS = Object.freeze(['marks', 'all', 'off']);
@@ -44,6 +49,7 @@ const FOLDER_KEYS = Object.freeze(Object.values(FOLDERS));
 const DEFAULTS = Object.freeze({
   fps: 60, height: 0, quality: 'normal', badge: true, autoMarks: true, maxGB: 0, folder: '', shotFolder: '', benchFolder: '', bugFolder: '', bugLogs: '',
   replay: false, replaySeconds: 30, replayWhen: 'gaming', replayAudio: 'sound', replayKey: REPLAY_KEY, replayClips: 'marks',
+  recordAudio: 'sound', recordWebcam: 'off',
 });
 
 const folderOf = (v, key) => (typeof v[key] === 'string' ? v[key].slice(0, FOLDER_MAX) : DEFAULTS[key]);
@@ -87,6 +93,8 @@ function normalizeCaptureSettings(value) {
     replayAudio: pick(REPLAY_AUDIO, v.replayAudio, DEFAULTS.replayAudio),
     replayClips: pick(REPLAY_CLIPS, v.replayClips, DEFAULTS.replayClips),
     replayKey: (typeof v.replayKey === 'string' && replayKeyOf(v.replayKey).key) || DEFAULTS.replayKey,
+    recordAudio: pick(RECORD_AUDIO, v.recordAudio, DEFAULTS.recordAudio),
+    recordWebcam: pick(RECORD_WEBCAM, v.recordWebcam, DEFAULTS.recordWebcam),
   };
 }
 
@@ -112,6 +120,8 @@ function applyCaptureChange(current, change) {
   take('replayWhen', REPLAY_WHEN, String);
   take('replayAudio', REPLAY_AUDIO, String);
   take('replayClips', REPLAY_CLIPS, String);
+  take('recordAudio', RECORD_AUDIO, String);
+  take('recordWebcam', RECORD_WEBCAM, String);
   for (const key of ['badge', 'autoMarks', 'replay']) {
     if (c[key] == null) continue;
     if (typeof c[key] === 'boolean') next[key] = c[key];
@@ -151,6 +161,6 @@ function preserveCaptureFolder(incoming, prev) {
 
 module.exports = {
   FPS, HEIGHTS, QUALITIES, LIMITS_GB, DEFAULTS, FOLDERS, FOLDER_KEYS,
-  REPLAY_MIN_S, REPLAY_MAX_S, REPLAY_WHEN, REPLAY_AUDIO, REPLAY_CLIPS, REPLAY_KEY,
+  REPLAY_MIN_S, REPLAY_MAX_S, REPLAY_WHEN, REPLAY_AUDIO, REPLAY_CLIPS, REPLAY_KEY, RECORD_AUDIO, RECORD_WEBCAM,
   replayKeyOf, normalizeCaptureSettings, applyCaptureChange, redactCaptureFolder, preserveCaptureFolder,
 };

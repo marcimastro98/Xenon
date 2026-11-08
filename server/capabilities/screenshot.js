@@ -2,7 +2,8 @@
 // Screenshot capability: save what is on screen (the monitor in use, the
 // window in front, or an area the user picks on the frozen screens) as a PNG
 // in Pictures/Xenon/<game or Desktop> (or the folder the user chose), or
-// show the last one in the file manager. A picked area also goes on the clipboard. The engine (capture-host.js) writes the file;
+// show the last one in the file manager. Every shot also goes on the clipboard, as
+// Win+Shift+S does, unless the caller says `clipboard: 'off'`. The engine (capture-host.js) writes the file;
 // the index (captures.js) keeps its path. The result carries the id and the
 // file name, never the path.
 //
@@ -40,7 +41,7 @@ async function reveal(c) {
   return { ok: true, shown: true, name: last.name };
 }
 
-async function take(c, target) {
+async function take(c, target, copy) {
   const store = c.store();
   const game = (typeof c.game === 'function' && c.game()) || '';
   let where = { dir: '' };
@@ -55,7 +56,7 @@ async function take(c, target) {
   if (region && typeof c.hint === 'function') {
     try { hint = String(await c.hint() || ''); } catch { /* the picker works without its hint line */ }
   }
-  const body = region ? { target, path: plan.file, copy: true, hint } : { target, path: plan.file };
+  const body = region ? { target, path: plan.file, copy: true, hint } : { target, path: plan.file, copy };
   const reply = await c.host.request('screenshot', body, region ? { timeoutMs: REGION_TIMEOUT_MS } : undefined);
   // Esc or the right button: the user changed their mind, nothing went wrong.
   if (reply && reply.ok === true && reply.cancelled === true) return { ok: true, cancelled: true };
@@ -82,8 +83,8 @@ async function run(d, action) {
   // The picker is already on screen, so a second press is answered as done.
   if (pickerLock.held()) return { ok: true, picking: true };
   const target = TARGETS.includes(action.target) ? action.target : 'screen';
-  if (target !== 'region') return take(c, target);
-  return pickerLock.hold(() => take(c, target));
+  if (target !== 'region') return take(c, target, action.clipboard !== 'off');
+  return pickerLock.hold(() => take(c, target, true));
 }
 
 module.exports = { TARGETS, MODES, REGION_TIMEOUT_MS, available, run };

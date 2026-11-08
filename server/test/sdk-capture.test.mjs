@@ -17,6 +17,16 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sdk = require('../sdk-widgets.js');
 const CW = readFileSync(path.join(ROOT, 'js', 'custom-widget.js'), 'utf8');
 
+// What the bridge posts for a widget's action, run as it is written.
+function bridgeRunAction() {
+  const m = CW.match(/function widgetRunAction\(entry, action\) \{[\s\S]*?\n {2}\}/);
+  assert.ok(m, 'widgetRunAction');
+  const box = {};
+  vm.createContext(box);
+  vm.runInContext(`const ACTION_CATEGORIES = { timers: [] };\n${m[0]}\nthis.run = (action) => widgetRunAction({}, action);`, box);
+  return box.run;
+}
+
 // The bridge's own gate, run as it is written: its two tables and actionAllowed.
 function bridgeGate() {
   const grab = (re) => { const m = CW.match(re); assert.ok(m, String(re)); return m[0]; };
@@ -35,6 +45,9 @@ const REFUSED = [
   { type: 'record', audio: 'sound_mic' },
   // A widget never turns the webcam on either.
   { type: 'record', webcam: 'br' },
+  // 'chosen' reads what the person picked, which may be the microphone or the webcam.
+  { type: 'record', audio: 'chosen' },
+  { type: 'record', webcam: 'chosen' },
   { type: 'replay', mode: 'toggle' },
   { type: 'replay', mode: 'on' },
   { type: 'replay', mode: 'reveal' },
@@ -110,4 +123,13 @@ test('the permission line in 11 languages, wired in the dialog; the docs say wha
   assert.match(sec, /never sees one/);
   assert.match(sec, /not_allowed/);
   assert.match(sec, /screenText/);
+});
+
+test('a widget never rewrites the clipboard without a gesture: only a dragged area is copied', () => {
+  const run = bridgeRunAction();
+  assert.equal(run({ type: 'screenshot' }).clipboard, 'off');
+  assert.equal(run({ type: 'screenshot', target: 'window', clipboard: 'on' }).clipboard, 'off', 'a widget cannot ask for it');
+  assert.equal(run({ type: 'screenshot', target: 'region' }).clipboard, undefined);
+  assert.equal(run({ type: 'record' }).clipboard, undefined, 'other actions pass as they are');
+  assert.ok(CW.includes('body: JSON.stringify(widgetRunAction(entry, msg.action))'));
 });

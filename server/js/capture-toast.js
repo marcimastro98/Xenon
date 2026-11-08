@@ -22,6 +22,12 @@
   const quiet = () => !window.XenonToast || (typeof isLayerPage === 'function' && isLayerPage());
 
   // The game names it; the file name would only repeat the game and the time.
+  // The size says which monitor it took, when they differ.
+  function shotNote(d) {
+    if (d.folderMissing === true) return { message: t('shot_folder_missing', 'Your folder is not there, saved in Pictures') };
+    return d.width > 0 && d.height > 0 ? { message: d.width + ' × ' + d.height } : {};
+  }
+
   const kickerOf = (d, key, fallback) => String(d.game || '').replace(/\.exe$/i, '') || t(key, fallback);
 
   function clock(seconds) {
@@ -97,7 +103,9 @@
         kicker: kickerOf(d, 'deck_act_screenshot', 'Screenshot'),
         // A picked area is on the clipboard too: say so, it is what the user pastes next.
         title: d.copied === true ? t('shot_copied', 'Screenshot copied and saved') : t('shot_saved', 'Screenshot saved'),
-        ...(d.folderMissing === true ? { message: t('shot_folder_missing', 'Your folder is not there, saved in Pictures') } : {}),
+        ...shotNote(d),
+        // On the card and on the menu's result line: what it took.
+        ...(d.id ? { image: '/captures/thumb?id=' + encodeURIComponent(d.id) } : {}),
         actions: shotActions(d),
         important: true,
       });
@@ -138,7 +146,11 @@
 
   // A timelapse: how long it watched and how long the video plays.
   function lapseSavedToast(d) {
-    const parts = [t('lapse_span', '{span} in {video}').replace('{span}', clock(d.span)).replace('{video}', clock(d.seconds))];
+    // A video under a second would read "in 0:00", as if nothing had been saved.
+    const span = Number(d.seconds) >= 1
+      ? t('lapse_span', '{span} in {video}').replace('{span}', clock(d.span)).replace('{video}', clock(d.seconds))
+      : clock(d.span);
+    const parts = [span];
     const rest = recordingMessage({ seconds: 0, reason: d.reason, pruned: d.pruned, limitGB: d.limitGB }).split(' · ').slice(1);
     // Only the game above the title: "Timelapse" over "Timelapse saved" says it twice.
     const game = String(d.game || '').replace(/\.exe$/i, '');
@@ -286,11 +298,20 @@
       title: t('marker_added', 'Moment marked'),
       message: Number.isFinite(at) ? clock(at) : '',
       duration: 2500,
+      important: true, // the answer to a press, and a game is where it is pressed
     });
   }
 
-  // One "Recording" card that stays while the recording runs: it is the
-  // indicator, and its Stop is the quickest way out.
+  // Started with the engine's pill on the screen: the pill is the indicator and
+  // has its own Stop, so only something the user must know is said.
+  function pillNote(d) {
+    if (d.seed === true) return;
+    const note = startNotes(d);
+    if (note) window.XenonToast.show({ type: 'warning', title: note, duration: 6000 });
+  }
+
+  // Without a pill (turned off, or an engine that draws none) one "Recording"
+  // card stays while it runs: it is the indicator, and its Stop the way out.
   function onRecording(d) {
     if (!d || typeof d !== 'object' || quiet()) return;
     if (d.on !== true) {
@@ -299,6 +320,7 @@
       if (d.error === 'too_short') window.XenonToast.show({ type: 'error', title: t('rec_too_short', 'Empty recording, not saved') });
       return;
     }
+    if (d.pill === true) { pillNote(d); return; }
     if (recToast) return;
     const lapse = Number(d.every) > 0;
     const notes = [lapse ? t('lapse_on_msg', 'One picture every {n} s, no sound').replace('{n}', String(Math.trunc(Number(d.every)))) : '', startNotes(d)];
@@ -307,26 +329,27 @@
       title: lapse ? t('lapse_on', 'Timelapse running') : t('rec_on', 'Recording'),
       message: notes.filter(Boolean).join(' · '),
       duration: 0,
+      important: true, // the only indicator: a game must not swallow it
       actions: [{ label: t('rec_stop', 'Stop'), primary: true, onClick: () => run({ type: lapse ? 'timelapse' : 'record', mode: 'stop' }) }],
     }) || 0;
   }
 
-  // One "Recording steps" card while the steps recorder runs, with Stop. The
-  // pill on the screen counts; the card only says that clicks are being kept.
+  // One "Recording steps" card with Stop where no pill on the screen says it.
   function onSteps(d) {
     if (!d || typeof d !== 'object' || quiet()) return;
     if (d.on !== true) {
       if (stepsToast) window.XenonToast.dismiss(stepsToast);
       stepsToast = 0;
-      if (d.error === 'no_steps') window.XenonToast.show({ type: 'info', title: t('steps_none', 'No clicks, nothing saved') });
+      if (d.error === 'no_steps') window.XenonToast.show({ type: 'info', title: t('steps_none', 'No clicks, nothing saved'), important: true });
       else if (d.error) window.XenonToast.show({ type: 'error', title: t('steps_failed', 'The steps could not be saved') });
       return;
     }
-    if (stepsToast) return;
+    if (stepsToast || d.pill === true) return;
     stepsToast = window.XenonToast.show({
       type: 'info',
       title: t('steps_on', 'Recording steps'),
       message: t('steps_on_msg', 'Every click is a step. What you type is not recorded.'),
+      important: true,
       duration: 0,
       actions: [{ label: t('rec_stop', 'Stop'), primary: true, onClick: () => run({ type: 'steps', mode: 'stop' }) }],
     }) || 0;
@@ -350,6 +373,7 @@
         title: t('capg_exp_making', 'Making the copy'),
         message: t(kk, kf),
         duration: 0,
+        important: true,
         actions: [{ label: t('capg_exp_stop', 'Stop'), primary: true, onClick: () => apiJson('/captures/export-cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) }],
       }) || 0;
       return;
@@ -369,7 +393,7 @@
         important: true,
       });
     } else if (d.error === 'cancelled') {
-      window.XenonToast.show({ type: 'info', title: t('capg_exp_stopped', 'Stopped, no file was made') });
+      window.XenonToast.show({ type: 'info', title: t('capg_exp_stopped', 'Stopped, no file was made'), important: true });
     } else {
       const [ek, ef] = M ? M.exportErrorText(d.error) : ['capg_err_failed', 'That did not work, try again'];
       window.XenonToast.show({ type: 'error', title: t('capg_exp_failed', 'The copy could not be made'), message: t(ek, ef) });

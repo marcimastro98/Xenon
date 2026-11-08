@@ -50,6 +50,8 @@ function createStepsRecorder({
     .catch(() => {});
 
   const tell = (fn, value) => { try { fn(value); } catch { /* a listener never breaks a recording */ } };
+  // The engine's pill counts the steps on the screen; without one (macOS, Linux) the card does.
+  const pill = () => (typeof host.has === 'function' && host.has('badge') ? { pill: true } : {});
 
   host.onEvent((ev) => {
     if (!ev || typeof ev.event !== 'string') return;
@@ -63,7 +65,7 @@ function createStepsRecorder({
       const step = StepsDoc.normalizeStep(ev);
       if (!step || run.steps.some(s => s.n === step.n)) return;
       run.steps.push(step);
-      tell(onChange, { on: true, count: run.steps.length });
+      tell(onChange, { on: true, count: run.steps.length, ...pill() });
     } else if (ev.event === 'step_double') {
       const step = run.steps.find(s => s.n === Number(ev.n));
       if (step) step.double = true;
@@ -85,7 +87,7 @@ function createStepsRecorder({
       return { ok: false, error: PASS_THROUGH.has(code) ? code : 'failed' };
     }
     run = { dir, name, since, steps: [], ending: null };
-    tell(onChange, { on: true, count: 0 });
+    tell(onChange, { on: true, count: 0, ...pill() });
     return { ok: true, recording: true };
   }
 
@@ -184,7 +186,7 @@ function createStepsRecorder({
     start,
     stop,
     toggle: () => (starting ? Promise.resolve({ ok: true, starting: true }) : run ? stop() : start()),
-    status: () => (run ? { on: true, count: run.steps.length, since: run.since } : { on: false }),
+    status: () => (run ? { on: true, count: run.steps.length, ...pill(), since: run.since } : { on: false }),
     open: openLast,
     reveal: revealLast,
     // Shutdown: the steps so far become a document, not lost.

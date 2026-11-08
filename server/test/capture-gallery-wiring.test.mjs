@@ -58,15 +58,11 @@ test('server.js: delete and trim tell the screens; the voice opens it through ga
   assert.match(server, /openGallery: \(o\) => broadcastSSE\('gallery_open', o\)/);
 });
 
-// Found by the 390 / 1440 probe: a long game name widened the select past the
-// dialog, "Try again" was 33 px tall, and the arrows stayed over the video
-// while trimming (where the arrow keys move the handles).
-test('CaptureGallery.css and the viewer: narrow select, 44 px retry, no arrows while trimming', () => {
+// Found by the 390 / 1440 probe: "Try again" was 33 px tall, and the arrows stayed
+// over the video while trimming (where the arrow keys move the handles).
+test('CaptureGallery.css and the viewer: 44 px keys, no arrows while trimming', () => {
   const css = read('components/CaptureGallery/CaptureGallery.css');
-  const narrow = css.slice(css.indexOf('@media (max-width: 560px)'));
-  assert.match(narrow, /\.capg-game-select \{[^}]*width: 100%;[^}]*max-width: 100%;/);
-  assert.match(css, /\.capg-game-select \{[^}]*min-width: 0;/);
-  assert.match(css, /\.capg-status-act \.ui-btn \{ min-height: 44px; \}/);
+  assert.match(css, /\.capg-key \{[^}]*min-height: 44px;/);
   assert.match(css, /\.capg-nav:disabled, \.capg-viewer\.is-trimming \.capg-nav \{ visibility: hidden; \}/);
   const viewer = read('js/capture-gallery-viewer.js');
   assert.match(viewer, /actions\.classList\.add\('is-trim'\);\n\s+root\.classList\.add\('is-trimming'\);/);
@@ -82,7 +78,7 @@ test('the viewer pins a picture by id where the server says it can; delete unpin
   const viewer = read('js/capture-gallery-viewer.js');
   // A GIF is neither a video nor a picture the server pins or edits.
   assert.match(viewer, /if \(o\.pinnable && e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('shot_pin', 'Pin'\), '', pin\)\);/);
-  assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), '', edit\)\);/);
+  assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), 'is-main', edit\)\);/);
   assert.equal(require('../js/capture-gallery-model.js').errorText('not_picture')[0], 'deck_err_not_a_picture');
   assert.match(viewer, /post\(o\.url, '\/actions\/run', \{ type: 'screenPin', id: current\(\)\.id \}\)/);
   const server = read('server.js');

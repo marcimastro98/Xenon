@@ -172,6 +172,8 @@
     current = o;
     const replayOn = $id('settings-replay-on');
     if (replayOn) replayOn.checked = o.replay === true;
+    const replayOptions = $id('settings-replay-options');
+    if (replayOptions) replayOptions.hidden = o.replay !== true;
     renderReplayLength(o);
     renderReplayDisk(o);
     renderReplayState(o.replayState);

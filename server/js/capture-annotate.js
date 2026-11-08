@@ -50,13 +50,14 @@
     let disarm = 0;
 
     const root = el('div', 'cann');
+    root.tabIndex = -1;
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', tr('capg_edit', 'Edit'));
     const top = el('div', 'cann-top');
     const back = iconBtn('back', tr('capg_back', 'Back to the gallery'), tryClose);
     const title = el('div', 'cann-title', tr('capg_edit', 'Edit'));
     const undo = iconBtn('undo', tr('cann_undo', 'Undo'), doUndo);
-    const save = el('button', 'ui-btn ui-btn--primary cann-save', tr('cann_save', 'Save copy'));
+    const save = el('button', 'capg-key is-main cann-save', tr('cann_save', 'Save copy'));
     save.type = 'button';
     save.addEventListener('click', doSave);
     top.append(back, title, undo, save);
@@ -90,7 +91,7 @@
       return b;
     });
     swatches.append(...colorBtns);
-    const find = el('button', 'ui-btn ui-btn--secondary cann-find', tr('cann_find', 'Find private data'));
+    const find = el('button', 'capg-key cann-find', tr('cann_find', 'Find private data'));
     find.type = 'button';
     find.addEventListener('click', doFind);
     const lower = el('div', 'cann-lower');
@@ -246,7 +247,6 @@
       typing = { input, p };
       input.addEventListener('keydown', (k) => {
         if (k.key === 'Enter') { k.preventDefault(); commitText(); }
-        if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); dropText(); }
       });
       input.addEventListener('blur', () => { if (typing && typing.input === input) commitText(); });
       stage.appendChild(input);
@@ -340,14 +340,13 @@
       disarm = setTimeout(() => { root.classList.remove('is-armed'); tell(''); }, DISCARD_ARM_MS);
     }
 
+    function onEsc() {
+      if (!typing) { tryClose(); return; }
+      dropText();
+      root.focus({ focusVisible: false });
+    }
+
     function onKey(ev) {
-      if (ev.key === 'Escape') {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (typing) dropText();
-        else tryClose();
-        return;
-      }
       if (typing) return;
       if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && ev.key.toLowerCase() === 'z') {
         ev.preventDefault();
@@ -362,12 +361,13 @@
       document.removeEventListener('keydown', onKey, true);
       resize.disconnect();
       picture.removeAttribute('src');
+      letGo();
       root.remove();
     }
 
     document.addEventListener('keydown', onKey, true);
     paintTools();
-    back.focus();
+    const letGo = window.DialogFocus.hold(root, { onEsc });
     return { close: () => { finish(); o.onClose(); }, busy: () => pending || !saved };
   }
 

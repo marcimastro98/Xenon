@@ -127,9 +127,9 @@ test('every tool paints; save() asks for a PNG of the picture\'s own size', () =
 test('the viewer loads the editor only when Edit is pressed, pictures only', () => {
   const viewer = readFileSync(new URL('../js/capture-gallery-viewer.js', import.meta.url), 'utf8');
   // Screenshots only: a GIF copy is a picture too, but the editor saves a PNG.
-  assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), '', edit\)\);/);
+  assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), 'is-main', edit\)\);/);
   assert.match(viewer, /'js\/capture-annotate-model\.js', 'js\/capture-annotate\.js'/);
-  assert.match(viewer, /if \(editor\) return; \/\/ the editor has its own keys/);
+  assert.match(viewer, /if \(editor \|\| trim \|\| exporting\) return; \/\/ they have their own keys/);
   const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.doesNotMatch(index, /capture-annotate/, 'not in the page until used');
 });

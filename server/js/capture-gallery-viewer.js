@@ -1,6 +1,7 @@
 'use strict';
 // The gallery's viewer (js/capture-gallery.js opens it over its grid): one
-// capture full size, ←/→ through the list, Esc back to the grid.
+// capture full size, ←/→ through the list, Space plays or pauses, Esc back to
+// the grid.
 //   PC:    Trim (videos), Edit (pictures: js/capture-annotate.js, loaded on
 //          first use), Copy (the file, as Explorer copies it), Show in folder,
 //          Delete (a second tap confirms).
@@ -67,6 +68,8 @@
     return editorLoad;
   }
   const STEP_S = 0.1;
+  // What answers Space by itself when it has the focus.
+  const TAKES_SPACE = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'SUMMARY', 'VIDEO']);
 
   function iconBtn(name, label, onClick) {
     const b = el('button', 'cgal-iconbtn');
@@ -81,7 +84,7 @@
   }
 
   function btn(text, cls, onClick) {
-    const b = el('button', 'ui-btn ' + (cls || 'ui-btn--secondary'), text);
+    const b = el('button', 'capg-key' + (cls ? ' ' + cls : ''), text);
     b.type = 'button';
     b.addEventListener('click', onClick);
     return b;
@@ -93,7 +96,7 @@
 
   // opts: host (the gallery's modal), entries, id, editable, remote,
   // can {export, cover, speech} (what this PC's engine does),
-  // kindLabel(e), timeOf(ms), url(path), onClose(), onChanged(focusId),
+  // kindLabel(e), timeOf(ms), url(path), onClose(shownId), onChanged(focusId),
   // askBit(text) or null (Bit's chat is not on this screen), note (a line to
   // show once, as "Copy ready").
   function open(opts) {
@@ -109,6 +112,7 @@
     let exporting = null; // the export sheet while it is open
 
     const root = el('div', 'capg-viewer');
+    root.tabIndex = -1;
     const top = el('div', 'capg-vtop');
     const title = el('div', 'capg-vtitle');
     const name = el('div', 'capg-vname');
@@ -144,6 +148,7 @@
       }
       const v = el('video', 'capg-media');
       v.controls = true;
+      v.tabIndex = 0;
       v.playsInline = true;
       v.preload = 'metadata';
       v.src = o.url('/captures/file?id=' + encodeURIComponent(e.id));
@@ -205,11 +210,12 @@
 
     function paintActions() {
       const e = current();
+      if (!e) return;
       actions.replaceChildren();
       actions.classList.remove('is-trim');
       root.classList.remove('is-trimming');
       if (o.remote) {
-        const dl = el('a', 'ui-btn ui-btn--primary', tr('capg_download', 'Download'));
+        const dl = el('a', 'capg-key is-main', tr('capg_download', 'Download'));
         dl.href = o.url('/captures/file?id=' + encodeURIComponent(e.id) + '&dl=1');
         dl.setAttribute('download', e.name || '');
         actions.appendChild(dl);
@@ -228,20 +234,20 @@
         return;
       }
       if (M.isVideo(e)) {
-        if (can.trim) actions.appendChild(btn(tr('capg_trim', 'Trim'), 'ui-btn--primary', startTrim));
+        if (can.trim) actions.appendChild(btn(tr('capg_trim', 'Trim'), 'is-main', startTrim));
         if (can.trim && e.clips > 0) actions.appendChild(btn(tr('capg_clips', 'Clips from marks'), '', makeClips));
         if (can.export) actions.appendChild(btn(tr('capg_exp_button', 'Export'), '', startExport));
         if (can.speech || e.transcript) actions.appendChild(wordsButton());
       }
+      if (e.kind === 'screenshot') actions.appendChild(btn(tr('capg_edit', 'Edit'), 'is-main', edit));
       // Over every window, like a sticky picture (capabilities/screen-pin.js).
       // Only a still picture: the server refuses a GIF (not_a_picture).
       if (o.pinnable && e.kind === 'screenshot') actions.appendChild(btn(tr('shot_pin', 'Pin'), '', pin));
-      if (e.kind === 'screenshot') actions.appendChild(btn(tr('capg_edit', 'Edit'), '', edit));
       if (can.copy) actions.appendChild(btn(tr('capg_copy', 'Copy'), '', () => act('/captures/copy', () => tell(tr('capg_copied', 'Copied: paste it into a chat, a mail or a folder')))));
       // Into the file transfer's list for the paired phone (capture-send.js).
       if (o.sendable) actions.appendChild(btn(tr('capg_send', 'To phone'), '', () => act('/captures/send', () => tell(tr('capg_sent', 'Sent: it is on your phone in File transfer')), M.sendErrorText)));
       actions.appendChild(btn(tr('capg_show', 'Show in folder'), '', () => act('/captures/reveal', () => tell(tr('capg_shown', 'Opened its folder on the PC')))));
-      const del = btn(tr('capg_delete', 'Delete'), 'ui-btn--secondary capg-del', () => {
+      const del = btn(tr('capg_delete', 'Delete'), 'capg-del', () => {
         if (!del.classList.contains('is-armed')) {
           del.classList.add('is-armed');
           del.textContent = tr('capg_delete_confirm', 'Tap again to delete');
@@ -298,7 +304,7 @@
         host: actions, entry: e, url: o.url, tr, M,
         post: (path, body) => post(o.url, path, body),
         onDone: (id, note) => o.onChanged(id, note),
-        onClose: () => { exporting = null; paintActions(); },
+        onClose: () => { exporting = null; paintActions(); root.focus({ focusVisible: false }); },
       });
     }
 
@@ -321,7 +327,7 @@
         host: root, entry: e, url: o.url, tr, errorText: M.errorText,
         canFind: can.cover,
         onSaved: (entry) => { editor = null; o.onChanged(entry.id); },
-        onClose: () => { editor = null; top.querySelector('button').focus(); },
+        onClose: () => { editor = null; },
       });
     }
 
@@ -395,8 +401,8 @@
       const times = el('div', 'capg-times');
       const note = el('div', 'capg-note', tr('capg_trim_note', 'The copy may start up to 1 s before the point you chose. The original stays.'));
       const row = el('div', 'capg-trim-row');
-      const save = btn(tr('capg_trim_save', 'Save trimmed copy'), 'ui-btn--primary', saveTrim);
-      row.append(save, btn(tr('capg_cancel', 'Cancel'), '', () => { trim = null; tell(''); paintActions(); }));
+      const save = btn(tr('capg_trim_save', 'Save trimmed copy'), 'is-main', saveTrim);
+      row.append(btn(tr('capg_cancel', 'Cancel'), '', cancelTrim), save);
       actions.append(bar, times, note, row);
 
       function timeAt(clientX) {
@@ -440,6 +446,13 @@
       hs.focus();
     }
 
+    function cancelTrim() {
+      trim = null;
+      tell('');
+      paintActions();
+      root.focus({ focusVisible: false });
+    }
+
     async function saveTrim() {
       if (!trim || pending) return;
       pending = true;
@@ -465,19 +478,26 @@
       paint();
     }
 
+    // One step back: the sheet or the trim first, then the grid.
+    function onEsc() {
+      if (exporting) exporting.close();
+      else if (trim) cancelTrim();
+      else close();
+    }
+
+    function playOrPause() {
+      const v = stage.querySelector('video');
+      if (!v) return;
+      if (v.paused) v.play().catch(() => { /* the user presses play */ });
+      else v.pause();
+    }
+
     function onKey(ev) {
-      if (editor) return; // the editor has its own keys
-      if (ev.key === 'Escape') {
-        // Back to the grid only: the gallery's own Escape must not see it.
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (exporting) exporting.close();
-        else if (trim) { trim = null; tell(''); paintActions(); } else close();
-        return;
-      }
-      // Arrows belong to the video's controls and the handles when they have focus.
+      if (editor || trim || exporting) return; // they have their own keys
       const tag = (document.activeElement && document.activeElement.tagName) || '';
-      if (trim || exporting || tag === 'VIDEO' || tag === 'SELECT' || tag === 'INPUT') return;
+      if (ev.key === ' ' && !TAKES_SPACE.has(tag)) { ev.preventDefault(); playOrPause(); return; }
+      // Arrows belong to the video's controls when they have focus.
+      if (tag === 'VIDEO' || tag === 'SELECT' || tag === 'INPUT') return;
       if (ev.key === 'ArrowLeft') { ev.preventDefault(); go(-1); }
       if (ev.key === 'ArrowRight') { ev.preventDefault(); go(1); }
     }
@@ -491,8 +511,10 @@
       document.removeEventListener('keydown', onKey, true);
       const v = stage.querySelector('video');
       if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+      const e = current();
+      letGo();
       root.remove();
-      o.onClose();
+      o.onClose(e ? e.id : '');
     }
 
     // The list changed under the viewer (another device deleted or trimmed).
@@ -507,9 +529,9 @@
     }
 
     document.addEventListener('keydown', onKey, true);
+    const letGo = window.DialogFocus.hold(root, { onEsc });
     paint();
     if (o.note) tell(o.note);
-    top.querySelector('button').focus();
     // SSE `transcript`: progress and the end of a transcription.
     const onTranscript = (ev) => { if (words) words.onState(ev); };
     // SSE `capture_export`: progress and the end of a copy.

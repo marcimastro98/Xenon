@@ -11,14 +11,18 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createRecorder, FPS, START_TIMEOUT_MS } = require('../recorder.js');
 const { createCapabilities } = require('../capabilities/index.js');
+const { createRegistry } = require('../actions/registry.js');
+const { validateAction } = require('../js/deck-actions.js');
+const { CAPABILITIES } = require('../js/capability-catalog.js');
 
-function fakeHost({ startReply = { ok: true, width: 2560, height: 720, fps: 60, hdr: false, sound: 'system' } } = {}) {
+function fakeHost({ startReply = { ok: true, width: 2560, height: 720, fps: 60, hdr: false, sound: 'system' }, pill = false } = {}) {
   const listeners = new Set();
   const requests = [];
   const waiting = [];
   return {
     requests,
     available: () => true,
+    has: (feature) => feature === 'badge' && pill,
     onEvent: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
     emit: (ev) => { for (const fn of listeners) fn(ev); },
     // A request waits for `answer()` when `hold` is set.
@@ -69,6 +73,19 @@ function setup(opts = {}) {
   });
   return { host, store, rec, changes, saved, dirs, advance: (ms) => { clock += ms; } };
 }
+
+test('the pill is said only where the engine draws one and the user keeps it', async () => {
+  const drawn = setup({ pill: true });
+  await drawn.rec.start({ target: 'screen' });
+  assert.equal(drawn.changes[0].pill, true);
+  assert.equal(drawn.rec.status().pill, true, 'a page that connects later shows no card either');
+  const off = setup({ pill: true, options: () => ({ badge: false }) });
+  await off.rec.start({ target: 'screen' });
+  assert.equal(off.changes[0].pill, undefined);
+  const none = setup();
+  await none.rec.start({ target: 'screen' });
+  assert.equal(none.changes[0].pill, undefined);
+});
 
 test('start asks the engine for an MP4 at 60 fps and tells the dashboards', async () => {
   const { host, rec, changes, dirs } = setup({ game: 'Game.exe' });
@@ -262,6 +279,42 @@ test('record capability: modes, audio, reveal of the last recording, unavailable
   assert.deepEqual(revealed, ['C:\\V\\r.mp4']);
   const off = createCapabilities({ capture: { host: { available: () => false } } });
   assert.deepEqual(await off.run({ type: 'record' }), { ok: false, error: 'unavailable' });
+});
+
+test('record "chosen": what the menu picked reaches the engine; nothing picked, nothing extra', async () => {
+  const started = async (options) => {
+    const { host, rec } = setup();
+    const caps = createCapabilities({ capture: { host: { available: () => true }, store: () => ({}), recorder: () => rec, options } });
+    await caps.run({ type: 'record', target: 'screen', audio: 'chosen', webcam: 'chosen', mode: 'toggle' });
+    await caps.run({ type: 'record', mode: 'stop' });
+    return host.requests.find((q) => q.cmd === 'record_start').body;
+  };
+  const silent = await started(() => ({ recordAudio: 'silent', recordWebcam: 'off' }));
+  assert.deepEqual([silent.sound, silent.mic, silent.webcam || ''], [false, false, '']);
+  const mic = await started(() => ({ recordAudio: 'sound_mic', recordWebcam: 'off' }));
+  assert.deepEqual([mic.sound, mic.mic], [true, true]);
+  const corner = await started(() => ({ recordAudio: 'silent', recordWebcam: 'tl' }));
+  assert.equal(corner.webcam, 'tl');
+  const noReader = await started(undefined);
+  assert.deepEqual([noReader.sound, noReader.mic, noReader.webcam || ''], [true, false, ''], 'the usual sound, never the microphone');
+});
+
+// The way a press really goes: the shared validator first, then the capability.
+test('record "chosen" survives the action registry, and nobody is offered it', async () => {
+  const { host, rec } = setup();
+  const caps = createCapabilities({ capture: { host: { available: () => true }, store: () => ({}), recorder: () => rec, options: () => ({ recordAudio: 'silent', recordWebcam: 'off' }) } });
+  const reg = createRegistry({ runCapability: (action) => caps.run(action) });
+  await reg.run({ type: 'record', target: 'screen', audio: 'chosen', webcam: 'chosen', mode: 'toggle' });
+  await reg.run({ type: 'record', mode: 'stop' });
+  const body = host.requests.find((q) => q.cmd === 'record_start').body;
+  assert.deepEqual([body.sound, body.mic], [false, false]);
+
+  const kept = validateAction({ type: 'record', audio: 'chosen', webcam: 'chosen' });
+  assert.deepEqual([kept.audio, kept.webcam], ['chosen', 'chosen']);
+  const other = validateAction({ type: 'record', audio: 'loud', webcam: 'left' });
+  assert.deepEqual([other.audio, other.webcam], ['sound', 'off'], 'anything else still falls back');
+  const record = CAPABILITIES.find((entry) => entry.type === 'record');
+  for (const param of record.params) assert.ok(!(param.options || []).includes('chosen'), 'not in the Deck editor or the AI list: ' + param.name);
 });
 
 // Recording options (capture-settings.js): read at every start, sent to the engine.

@@ -24,6 +24,12 @@ pub fn copy(owner: HWND, dib: &[u8]) -> bool {
     put_on(owner, CF_DIB.0 as u32, dib)
 }
 
+/// The same with a hidden window of its own as the owner, for a shot with no
+/// picker window around.
+pub fn copy_image(dib: &[u8]) -> bool {
+    with_own_window(CF_DIB.0 as u32, dib)
+}
+
 /// The files at `paths` (absolute), as Explorer copies them. Uses a hidden
 /// window of its own as the owner, gone once the data is handed over.
 pub fn copy_files(paths: &[String]) -> bool {
