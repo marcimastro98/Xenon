@@ -33,4 +33,20 @@ function nodeSecurityStatus(version = process.version) {
   return v[0] > 26 ? 'ok' : 'outdated';
 }
 
-module.exports = { nodeSecurityStatus, MIN, LOWEST_SUPPORTED_MAJOR };
+// How to get a patched Node on this OS: the Windows installer upgrades it itself;
+// on a Mac or Linux the user's own Node runs Xenon, so the log names their way.
+const HOW_TO_UPDATE = {
+  win32: 'run the Xenon installer again, or winget upgrade OpenJS.NodeJS.LTS',
+  darwin: 'brew upgrade node, or the installer from nodejs.org',
+};
+
+/** The startup warning for this Node, or '' when it is patched. */
+function nodeWarning(version = process.version, platform = process.platform) {
+  const status = nodeSecurityStatus(version);
+  if (status === 'ok') return '';
+  const how = HOW_TO_UPDATE[platform] || 'your package manager or nodejs.org';
+  const what = status === 'outdated' ? 'missing current security fixes' : 'no longer supported';
+  return `[node] Node.js ${version} is ${what}: update it to the latest LTS (${how}).`;
+}
+
+module.exports = { nodeSecurityStatus, nodeWarning, MIN, LOWEST_SUPPORTED_MAJOR };

@@ -564,10 +564,7 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 
 // Node.js without current security fixes (node-version.js): said once at
 // startup, where the log and the bug report see it. The installer upgrades it.
-try {
-  const nodeSec = require('./node-version').nodeSecurityStatus();
-  if (nodeSec !== 'ok') console.warn(`[node] Node.js ${process.version} is ${nodeSec === 'outdated' ? 'missing current security fixes' : 'no longer supported'}: update it to the latest LTS (run the Xenon installer again, or winget upgrade OpenJS.NodeJS.LTS).`);
-} catch { /* never block startup on this */ }
+try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
