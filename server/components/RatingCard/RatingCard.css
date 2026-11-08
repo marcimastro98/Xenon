@@ -1,0 +1,106 @@
+/* The vote on a Store entry (js/rating-card.js). In Bit's card it is the same flat
+   sheet on every theme; on the Store page the control takes the page's colours. */
+
+.rc-voter {
+  --rc-off: var(--text-dim, #8b91a0);
+  --rc-on: var(--warn, #ffb454);
+  --rc-text: inherit;
+  --rc-text-2: var(--text-dim, #8b91a0);
+  --rc-rule: var(--border, rgba(127, 127, 127, 0.4));
+  --rc-hover: var(--surface-2, rgba(127, 127, 127, 0.14));
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.rc-card .rc-voter {
+  --rc-off: var(--wn-text-2);
+  --rc-on: var(--wn-yellow);
+  --rc-text: var(--wn-text);
+  --rc-text-2: var(--wn-text-2);
+  --rc-rule: var(--wn-rule-2);
+  --rc-hover: var(--wn-paper-3);
+  padding-right: 6px;
+}
+.rc-voter.is-sending { opacity: 0.6; pointer-events: none; }
+
+.rc-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 8px 14px 14px;
+  font-family: var(--wn-body);
+}
+.rc-top { display: grid; grid-template-columns: 84px minmax(0, 1fr) 44px; gap: 12px; align-items: center; }
+.rc-top.is-bare { grid-template-columns: minmax(0, 1fr) 44px; }
+.rc-top img { display: block; width: 84px; height: 56px; object-fit: cover; object-position: left top; border-radius: 6px; }
+.rc-words { min-width: 0; overflow-wrap: anywhere; }
+.rc-name { font: 800 21px / 1.15 var(--wn-display); }
+.rc-line { margin-top: 2px; font-size: 15px; line-height: 1.3; color: var(--wn-text-2); }
+.rc-x {
+  width: 44px;
+  height: 44px;
+  align-self: start;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--wn-text-2);
+  cursor: pointer;
+}
+.rc-x:hover { background: var(--wn-paper-3); color: var(--wn-text); }
+.rc-x svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.rc-stars, .rc-given { display: flex; gap: 2px; margin-left: -4px; }
+.rc-star {
+  width: 52px;
+  height: 48px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--rc-off, inherit);
+  cursor: pointer;
+}
+.rc-star svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.rc-star.on { color: var(--rc-on, var(--warn, #ffb454)); }
+.rc-star.on svg { fill: currentColor; }
+.rc-given { margin-left: 0; --rc-off: var(--text-dim, #8b91a0); }
+.rc-given .rc-star { width: 26px; height: 26px; cursor: default; }
+.rc-given .rc-star svg { width: 22px; height: 22px; }
+
+.rc-extra { display: grid; gap: 10px; min-width: 0; }
+.rc-extra:empty { display: none; }
+.rc-why { display: grid; gap: 8px; }
+.rc-why-ask { font-size: 17px; color: var(--rc-text); }
+.rc-why-ask span { color: var(--rc-text-2); }
+.rc-why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rc-why-key, .rc-undo {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--rc-rule);
+  border-radius: 6px;
+  background: none;
+  color: var(--rc-text);
+  font: 600 16px / 1.15 inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rc-why-key:hover, .rc-undo:hover { background: var(--rc-hover); }
+.rc-why-key[aria-pressed="true"] { background: var(--rc-on); border-color: var(--rc-on); color: #141414; }
+.rc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
+.rc-left { margin: 0; font-size: 17px; color: var(--rc-text-2); font-variant-numeric: tabular-nums; }
+.rc-undo { flex: none; padding: 0 16px; }
+
+.rc-done { padding: 4px 6px 2px 0; font: 800 24px / 1.15 var(--wn-display); overflow-wrap: anywhere; }
+.rc-done small { display: block; margin-top: 3px; font: 400 17px / 1.3 var(--wn-body); color: var(--wn-text-2); }
+
+/* The Store page. */
+.cgal-rate-say { margin: 0; font-size: 0.85rem; color: var(--text-dim, #8b91a0); }
+.cgal-rate-score { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 420px) {
+  .rc-star { width: 44px; }
+  .rc-star svg { width: 32px; height: 32px; }
+}
