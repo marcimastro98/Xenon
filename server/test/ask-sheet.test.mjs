@@ -397,3 +397,18 @@ test('the sheet is the theme\'s own, with no dark box of its own', () => {
   assert.match(sheet, /prefers-reduced-motion/);
   assert.doesNotMatch(sheet, /backdrop-filter/);   // the base stays cheap: the blur is Liquid's, and it has its slow paths
 });
+
+// The hold key shares the sheet's last row with Deny: about 134 px of text on a 360 px
+// phone. Measured with the real CSS, Russian, Spanish and Dutch took three lines at
+// 28-32 characters; at 25 and under every language takes two at most.
+test('the hold-to-allow label fits two lines of a phone key in every language', () => {
+  const box = {
+    window: {}, document: { documentElement: {}, querySelectorAll: () => [], addEventListener() {} },
+    localStorage: { getItem: () => null, setItem() {} }, navigator: { language: 'en' },
+  };
+  vm.runInNewContext(read('../js/i18n.js') + '\n;this.__i18n = i18n;', box);
+  const long = Object.entries(box.__i18n)
+    .map(([lang, s]) => [lang, s.claude_hold_allow])
+    .filter(([, text]) => typeof text === 'string' && text.length > 25);
+  assert.deepEqual(long, []);
+});

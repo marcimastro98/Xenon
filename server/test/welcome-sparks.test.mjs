@@ -277,7 +277,7 @@ test('every language has the strings, and no line mentions a Chat tab any more',
   const src = read('../js/i18n.js');
   assert.equal(src.split(/\bbit_welcome_until"?:/).length - 1, 11);
   assert.equal(src.split('{date}').length - 1 >= 11, true);
-  const bodies = src.split('\n').filter((l) => /onb_chat_body"?:/.test(l));
+  const bodies = src.split('\n').filter((l) => /onb_ai_body"?:/.test(l));
   assert.equal(bodies.length, 11);
   bodies.forEach((l) => assert.ok(!/Chat tab|scheda Chat|Chat-Tab|pestaña Chat|onglet Chat|separador Chat|tabblad Chat/.test(l), l));
 });

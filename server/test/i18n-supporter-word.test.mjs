@@ -44,7 +44,8 @@ for (const [lang, other] of Object.entries(OTHER_WORDS)) {
 test('the three doors to the plan say the same thing in each language', () => {
   const all = strings();
   for (const lang of ['es', 'fr', 'de', 'pt', 'ko', 'ru']) {
-    assert.equal(all[lang].trial_support, all[lang].gallery_supporters_join.replace('Tornar-me', 'Torne-se'), lang);
+    // The Store button speaks in the first person; the others address the reader as tu (pt-PT).
+    assert.equal(all[lang].trial_support, all[lang].gallery_supporters_join.replace('Tornar-me', 'Torna-te'), lang);
     assert.equal(all[lang].trial_support, all[lang].devclean_join, lang);
   }
 });
