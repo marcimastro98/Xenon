@@ -17,6 +17,8 @@ Temperatures, FPS, music, calendar and touch keys on your desktop, over your gam
 
 <p align="center"><a href="https://xenon-app.com/demo/">Try it in your browser</a> with nothing to install, look through the <a href="https://xenon-app.com/catalog/">catalog</a>, or come and say hello on <a href="https://discord.gg/MBVrw9kZyg">Discord</a>.</p>
 
+<p align="center">New in 5.0: <a href="https://xenon-app.com/5.html">a new look, widgets on your main screen, and Bit</a>.</p>
+
 ![Xenon widgets on a Windows desktop: clock, weather, calendar, music and system readings over the wallpaper](docs/images/home/desktop-widgets.webp)
 
 Download the installer, run it, and press **Complete setup** when the app asks. If Windows warns you about the file, [this explains why and how to check it yourself](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus).
@@ -375,6 +377,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | 1% lows, benchmark, "why does it stutter?" | ✅ | No  | No  |
 | Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | No  | ✅ ⁶ |
+| Tapping a notification opens its app | ✅ | No  | ✅ ⁶ |
 | Incoming-call card (ring + silence + open the app) | ✅ | Discord only ¹⁸ | ✅ ⁶ |
 | Answering a call from the dashboard | ✅ | Discord only ¹⁹ | ✅ ²⁰ |
 | Living Index, PC search, disk cleanup | ✅ | ✅ ²¹ | ✅ ¹⁰ |

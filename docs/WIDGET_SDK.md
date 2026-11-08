@@ -406,8 +406,9 @@ than the manifest requested):
   actions: ['media'],                 // granted action categories
   // Granted boolean capabilities you have to know about because YOU decide
   // whether to use them. See "Clipboard", "Dashboard accent", "Filling the
-  // screen", "Asking the AI". `expand` is false in a service or ambient frame whatever the grant
-  // says, so you can use it directly to decide whether to draw the affordance.
+  // screen", "Asking the AI". `expand` is false in a service or ambient frame, and in a
+  // widget attached beside an app (v5.0.0), whatever the grant says, so you can use it
+  // directly to decide whether to draw the affordance.
   clipboard: false, accent: true, expand: true, ai: false,
   // Which frame you are. A package declaring `background: true` runs a hidden
   // service frame AND any mounted tile — the same code, twice. Use this to keep
@@ -446,6 +447,8 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
 - `lighting` — `{ ok, enabled, devices:[{ id, name, maker, mode, parts:[{ index, kind, leds, name? }] }] }`: **the user's lights by name** and what each one shows (`mode`, the same values `lightDevice` takes). `parts` lists, in map order, each fan, the pump, each strip or RAM stick of a device Xenon knows the layout of (`kind`: `fan`, `pump`, `block`, `strip`, `dram`, `zone`, `header` for a motherboard output the user has not set up yet, `pos` for a keyboard); `index` is what `lightPart` takes. Lights with no layout (a WLED strip, a Hue bulb) come with `parts: []`. No colours per LED. A **pull** stream: send a `refresh` for it when your widget opens and after you change something
 - `devStorage` — `{ ok, docker, ollama, vscode, vhdx, reclaimable }`: how much space developer tools hold and how much could be freed, **numbers only**. See *Developer storage* below. A **pull** stream
+- `netPath` (v5.0.0) — `{ ok, link, linkMbps, signal, dbm, router, provider, internet, traffic }`: **how the way to the internet is doing, stretch by stretch**: delay, jitter and loss to the router, to the provider's first hop and to the internet, with the Wi-Fi signal and this PC's traffic. Numbers only, never an address. See *The way to the internet* below. A **pull** stream
+- `energy` (v5.0.0) — `{ ok, enabled, sampleMinutes, now, hours:[…], days:[…] }`: **how much energy this PC used**, in Wh per hour (72 h) and per day (90 days), from the sensor history, with the source of each figure. Numbers only. See *Energy, hour by hour and day by day* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -964,6 +967,101 @@ take on this machine. `streams: ["devStorage"]`.
   a timer. The server answers `{ ok: false, error: 'not_granted' }` while no
   installed package holds the grant.
 
+### 3b-quinquies. The way to the internet, stretch by stretch: `netPath` (v5.0.0)
+
+When a game lags, the useful question is *where*: this PC's Wi-Fi, the router,
+the provider, or the internet past it. `streams: ["netPath"]` times each stretch
+on its own, from this PC, about once a second.
+
+```js
+{
+  ok: true,
+  link: 'wifi',        // 'wifi' | 'wired' | 'mobile' | 'vpn' | null: the interface the internet goes out on
+  linkMbps: 866,       // its link speed, or null
+  signal: 78,          // Wi-Fi level 0-100, the scale the OS shows; null off Wi-Fi or where the OS hides it
+  dbm: -61,            // the same in dBm, or null
+  router:   { now: 2.1, ms: 2.4, min: 1.1, jitter: 0.6, loss: 0, lossNow: 0, n: 30 },
+  provider: { now: 9.2, ms: 9.8, min: 8.2, jitter: 1.1, loss: 0, lossNow: 0, n: 15 },
+  internet: { now: 14.3, ms: 15.1, min: 12.9, jitter: 1.9, loss: 3.3, lossNow: 0, n: 30 },
+  traffic: { downBps: 1250000, upBps: 81000 },  // this PC's bytes per second on that interface, or null
+}
+```
+
+- **Each stretch is the round trip from this PC to that point**, in
+  milliseconds, over its newest 30 echoes: `now` is the median of the newest
+  answers (one late echo does not move it), `ms` the median of the window,
+  `min` the best, `jitter` the mean change between answers in a row, `loss`
+  the percentage lost over the window and `lossNow` over the newest 10 echoes,
+  so a burst shows at once. `n` is how many echoes the window holds.
+- **`null` means "not measurable here", never 0.** A whole stretch is `null`
+  when it cannot be timed on this network: behind a VPN only `internet` means
+  anything (the hops are the tunnel's); some routers and provider hops never
+  answer; and the provider's hop is looked for in the background, so it arrives
+  a few seconds after the first read. A number inside is `null` until there is
+  an answer. `Number(null)` is `0`: guard with `v != null`, or a hop that
+  cannot be timed draws as a perfect one.
+- **Blame a stretch only when the trouble carries through.** A router or a
+  provider hop may answer its own echoes late, or not at all, while it forwards
+  traffic perfectly: what `internet` shows is what a game feels. A stretch is
+  the cause when its delay or loss shows again in every stretch after it.
+- **Numbers only.** No address of the PC, the router or the provider is in it,
+  and no network name.
+- **A pull stream with a cost.** Send `{ xenonSdk: 1, type: 'refresh', id,
+  stream: 'netPath' }` about once a second while `visibility` says you are
+  seen (900ms floor; the reading is cached 1s). The first refresh starts the
+  echoes and everything stops 10 s after the last one, so with no granted widget
+  on screen nothing runs. The first answers may carry `router` alone; the rest
+  fill in over the next seconds. The server answers `{ ok: false, error:
+  'not_granted' }` while no installed package holds the grant and `{ ok: false,
+  error: 'unavailable' }` where it cannot measure.
+- **What it sends, per platform.** Echoes go to the router, to the provider's
+  first hop (timed the way traceroute does: an echo toward the internet that
+  expires there) and to 1.1.1.1, or 8.8.8.8 on a network where 1.1.1.1 never
+  answers. On Windows they are the system's own echoes and no process starts.
+  On Linux and macOS a `ping` runs for the router and one for the internet
+  while you read, and the provider's hop is timed with `tracepath` (Linux) or
+  `traceroute` (macOS) every 2 s; where that tool is missing, it is `null`.
+  `linkMbps` is `null` on macOS and on Wi-Fi under Linux; `signal` is `null`
+  on macOS.
+
+### 3b-sexies. Energy, hour by hour and day by day: `energy` (v5.0.0)
+
+`streams: ["energy"]` gives what this PC drew, from the sensor history the
+user turns on in Settings, Performance. It is the data for a kWh or cost
+widget: the history keeps counting while no widget is on screen, so the day's
+total is right even if the widget was closed for hours.
+
+```js
+{
+  ok: true,
+  enabled: true,          // the sensor history is on; false: nothing new is recorded
+  sampleMinutes: 5,       // how often it reads (1, 2, 5, 10 or 15)
+  now: { cpu: 41.2, gpu: 18.5, psu: 96.0, at: '2026-11-08T17:05:00.000Z' }, // W, last reading, or null
+  hours: [ { t: '2026-11-08T17', cpu: 3.4, gpu: 1.6, psu: 8.1, covered: 300 }, … ], // 72 h
+  days:  [ { t: '2026-11-08', cpu: 210.5, gpu: 96.1, psu: 512.0, covered: 36000 }, … ], // 90 days
+}
+```
+
+- **Wh per source.** `cpu` and `gpu` are the processor package and the
+  graphics card: only part of the PC. `psu` is what a power supply that reports
+  itself (Corsair HXi/RMi and similar) delivers: the whole PC, past the socket's
+  losses. `null` means that source never read in the bucket. For a total, take
+  `psu` when it is there, else `cpu + gpu`, and **say which one you show**:
+  never call CPU + GPU the PC's consumption.
+- **`covered`** is the seconds of the bucket the history saw. A day the PC was
+  off half of, or one with the history off, covers less; show it rather than
+  scaling up.
+- **`t`** is the local day (`YYYY-MM-DD`) or hour (`YYYY-MM-DDTHH`) of the PC,
+  oldest first. Months are the days that share `YYYY-MM`.
+- **The price is yours to ask.** Keep the price per kWh in `storage`; the
+  stream has no money in it.
+- **When it is empty.** With `enabled: false` and no days, the history was
+  never on: say so and point at Settings, Performance, Sensor history. The
+  server answers `{ ok: false, error: 'not_granted' }` while no installed
+  package holds the grant.
+- **Pull it rarely.** It changes once per sample: a `refresh` every minute is
+  plenty (the reading is cached 60 s).
+
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
 Six more numbers ride the `system` payload, so `streams: ["system"]` is the
@@ -1420,17 +1518,22 @@ action: {
 }
 ```
 
-Without it, playing a track by its own URI replaces whatever was playing with a
-queue of exactly one song: the track plays and then everything stops. With it,
-the same tap means *play this playlist, starting here*, and the rest of the list
-follows — which is what Spotify's own clients do. There is no separate offset:
-the track in `uri` is where the context starts.
+Without it, Xenon plays the track inside its own album, starting at that track
+(since 5.0.0), and the rest of that album follows. Spotify's desktop app shows a
+lone track as playing and then loads nothing, so a track is never sent on its
+own unless its album cannot be read or refuses it. Before 5.0.0 a track played
+this way was a queue of exactly one song: it played and then everything
+stopped. With `contextUri`, the same tap means *play this playlist, starting
+here*, and the rest of the list follows, which is what Spotify's own clients
+do. There is no separate offset: the track in `uri` is where the context starts.
 
 `contextUri` takes an `album` or `playlist` URI and is used only when `uri` is a
-track. Anything else — an artist URI (Spotify cannot start an artist at a chosen
-song), a malformed URI, a `uri` that is not a track — falls back to playing the
-named track on its own rather than playing a *different* song than the one that
-was tapped. So it is always safe to send.
+track. Anything else (an artist URI, since Spotify cannot start an artist at a
+chosen song, a malformed URI, a `uri` that is not a track) is ignored, and the
+named track plays as it would with no `contextUri`, rather than a *different*
+song than the one that was tapped. A context that refuses the track (a song
+added with "add to queue" belongs to no playlist) falls back the same way. So
+it is always safe to send.
 
 **Why two grants.** Reading is the `spotify` **stream**; controlling playback is
 the `spotify` **action** category, and they are asked for separately on purpose.
@@ -2043,7 +2146,8 @@ another app's window. `init` says which, and a change is pushed:
   dashboard. Leave out anything that says "open it on the dashboard" then.
 
 Use it for layout, not for permission: over a game, keep to the essentials and
-leave the middle of the screen alone. No grant is needed, it says nothing about
+leave the middle of the screen alone, and let the clicks reach the game with
+[`layer`](#4e-bis-letting-clicks-through--layer-widget--host-v500). No grant is needed, it says nothing about
 the user, and you cannot move yourself: where a widget goes is the user's
 choice. On an older Xenon the field is missing: treat that as
 `{ where: 'dashboard', dashboard: true }`.
@@ -2148,8 +2252,50 @@ Rules the host enforces, and why:
 - **You are not reloaded.** The tile is expanded in place, so your page keeps
   running with everything it held in memory, both ways.
 
+Off the dashboard (v5.0.0): on the desktop or over everything, the widget fills
+the screen its window covers and takes every click there until it closes. Those
+windows never take the keyboard, so Escape does nothing: the ✕ is the way out. A
+widget attached beside an app is its own small window and has nowhere bigger to
+go: `init.expand` is `false` there, and a request gets `unavailable`.
+
 Errors: `not_allowed` (not granted, or a service/ambient frame), `no_gesture`,
 `not_visible`, `busy`, `unavailable`.
+
+### 4e-bis. Letting clicks through — `layer` (widget → host) (v5.0.0)
+
+On the desktop, over everything or beside an app (`placement.where` is
+`'desktop'`, `'overlay'` or `'anchor'`), your widget can let the mouse pass
+through its box to whatever is under it, and take it back. It is still drawn;
+only the clicks go past. Over a game that is the difference between a counter
+the player can forget about and one that eats the shot they fire at that corner.
+
+```js
+parent.postMessage({ xenonSdk: 1, type: 'layer', id: 1, through: true }, '*');
+// → { xenonSdk: 1, type: 'layer_result', id: 1, ok: true }
+//   { xenonSdk: 1, type: 'layer_result', id: 1, ok: false, error: 'not_in_layer' }
+
+// Take the clicks back, for instance when the game has ended:
+parent.postMessage({ xenonSdk: 1, type: 'layer', through: false }, '*');
+```
+
+No grant is needed: a widget can only give clicks away from itself, never take
+them from another window. What the user keeps, whatever you ask:
+
+- **Edit mode** makes every box take clicks again, so the user can always move,
+  resize or remove you.
+- **A tab group** keeps taking clicks, so its tabs can still be pressed.
+- **Open at full size** ([`expand`](#4e-filling-the-screen--expand-widget--host-v411)),
+  your box takes clicks, so the ✕ can be pressed.
+- **A widget that starts again** (a reload, an update) takes clicks until it asks
+  again.
+
+So nothing that can only be pressed should sit in a box that lets clicks
+through. Ask for it while it is useful (a game is running) and give it back when
+it is not, so the user can tap you again.
+
+Errors: `bad_request` (`through` is not `true` or `false`), `not_in_layer`
+(on a dashboard page, or from a service or ambient frame). On a Xenon older than
+5.0.0 nothing answers: treat silence as "not available".
 
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
@@ -2556,6 +2702,48 @@ Listed to the user as "Start and stop a benchmark of your game (the file stays
 on this PC)", "Open the gallery of your screenshots and clips (it never sees
 them)" and "Show or hide your widgets on the screen, switch their pages, open drawing on the screen, the Xenon menu and Game Companion".
 
+### 5c-quinquies. Game mode, Performance Mode and the sensor history: `performance` (v5.0.0)
+
+The switches a game overlay or a system tile wants on a button. One line in
+the permission dialog.
+
+```js
+// Game mode: Xenon pauses its animated effects while a game runs
+action: { type: 'gameMode', mode: 'toggle' }            // 'toggle' | 'on' | 'off'
+// { ok: true, gameMode: true }
+
+// Performance Mode: busy apps moved aside for the game, like the Deck key
+action: { type: 'perfMode', mode: 'toggle' }            // 'toggle' | 'on' | 'off'
+// { ok: true } ; { ok: false, error: 'no_dashboard' | 'bad_mode' }
+
+// "Not a game": the app in front is never treated as a game again
+action: { type: 'gameIgnore', mode: 'current' }
+// { ok: true, added: true } ; { ok: false, error: 'no_game' | 'list_full' }
+
+// Sensor history: on, off, or how often it samples (minutes)
+action: { type: 'sensorHistory', mode: 'on', every: '1' }  // mode: 'toggle' | 'on' | 'off' | 'interval'; every: '1' | '2' | '5' | '10' | '15'
+// { ok: true, enabled: true, everyMin: 1 } ; { ok: false, error: 'bad_every' }
+```
+
+```json
+{ "actions": ["performance"] }
+```
+
+- **Not a game: only the app in front.** A widget may add the app the user is
+  looking at, never name one: `mode: 'add'`, `'remove'`, `'list'` and any `name`
+  are refused with `not_allowed`. Your widget gets back `added` and nothing
+  else, not the app's name and not the list. The user edits the list in
+  Settings, Performance.
+- **Performance Mode runs on a dashboard.** `no_dashboard` means no dashboard
+  is open to run it: say so on your button.
+- **Sensor history stays on the PC.** Turning it on starts the local record
+  behind the System tile's History tab; the readings themselves reach a widget
+  only through the `system` and `sensors` streams, behind their own permission.
+- All four are allowed in manifest Deck macros, with the same limits.
+
+Listed to the user as "Switch game mode, Performance Mode and the sensor
+history, and tell Xenon the app in front is not a game".
+
 ### 5d. Turning one person up or down: `discordUserVol` (v4.11)
 
 Two actions in the `discord` category act on ONE member of the voice channel the
@@ -2762,7 +2950,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -2782,6 +2970,7 @@ the user granted, and every action is re-validated server-side.
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
 | `pages` | `dashboardPage` |
+| `performance` | `gameMode`, `perfMode`, `gameIgnore`, `sensorHistory` |
 | `soundboard` | `playSound`, `soundStopAll` |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyPlayUri`, `spotifyDevice` |
 | `steam` | `launchSteamGame` |
