@@ -2,6 +2,37 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "car-stereo-scene",
+      "kind": "ambient",
+      "name": "Joyride Scene",
+      "author": "marcimastro98",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "trial": "now",
+      "description": "Joyride as a fullscreen Ambient scene. It opens by itself when the screen goes idle, with your real song on the tape, your hour on the display and the reels turning while music plays. It shares its six presets with the Joyride page.",
+      "category": "media",
+      "tags": [
+        "ambient",
+        "music",
+        "car",
+        "cassette",
+        "clock"
+      ],
+      "version": "1.0.0",
+      "pkgId": "car-stereo-scene",
+      "appVersionMin": "5.0.0",
+      "preview": {
+        "accent": "#ffb24a",
+        "bg": "#101012",
+        "text": "#e6e3dc"
+      },
+      "shots": 2,
+      "activeFrom": "2026-11-19T00:00:00+01:00",
+      "addedAt": "2026-11-08",
+      "codeFile": true
+    },
+    {
       "id": "car-stereo",
       "kind": "bundle",
       "name": "Joyride",
