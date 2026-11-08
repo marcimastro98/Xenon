@@ -2,6 +2,35 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "meter-reading",
+      "kind": "widget",
+      "name": "Meter Reading",
+      "author": "Xenon",
+      "supportersOnly": true,
+      "locked": true,
+      "description": "An electricity meter for this PC, drawn like a real one.\n\n- **kWh today, yesterday, in 24 hours and this month.** Tap to step through them.\n- **What it costs** at the price per kWh you set.\n- **Whole PC, CPU+GPU, CPU or GPU:** pick what it counts, from what your PC reports.\n- **The month report:** tap the bars for every day, the average, the highest day, an estimate for the month and last month.\n- **A red light** blinks once per watt-hour, 1000 times per kWh like a real meter.\n- **By the clock:** today's kWh or cost in the top bar.\n\nNeeds Xenon 5.0 and the sensor history (Settings, Performance), which counts even while the meter is not on screen. Hours the PC was off are not counted.",
+      "category": "system",
+      "tags": [
+        "energy",
+        "power",
+        "kwh",
+        "cost",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "pkgId": "meter-reading",
+      "appVersionMin": "5.0.0",
+      "preview": {
+        "accent": "#d4372b",
+        "bg": "#b4bfa4",
+        "text": "#1d281d"
+      },
+      "shots": 5,
+      "active": false,
+      "addedAt": "2026-11-08",
+      "codeFile": true
+    },
+    {
       "id": "car-stereo-scene",
       "kind": "ambient",
       "name": "Joyride Scene",
