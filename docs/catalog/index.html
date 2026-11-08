@@ -506,7 +506,7 @@
   /* ── Sections ── */
   /* Shelves need air: at 30px the page read as one run of cards. */
   .kblock { margin-top: clamp(56px, 6vw, 88px); }
-  #content > .kblock:first-child { margin-top: clamp(32px, 4vw, 56px); }
+  #content > .kblock:first-child, #content > .grid:first-child { margin-top: clamp(32px, 4vw, 56px); }
   .khead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
   .khead .kl { display: flex; align-items: baseline; gap: 12px; }
   .khead :is(h2, h3), .lim-head h2, .sp-head h2 { font: 800 clamp(28px, 1.5vw + 18px, 40px)/1.06 var(--display); letter-spacing: -.016em; }
@@ -970,6 +970,12 @@
   .dt-note a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; white-space: nowrap; }
   .dt-note a:hover { text-decoration-thickness: 2px; }
   .dt-note img { display: inline-block; width: 16px; height: 16px; vertical-align: -2px; margin-right: 4px; image-rendering: pixelated; }
+  .dt-plan-h { font-weight: 700; }
+  .dt-perks { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+  .dt-perks li { position: relative; padding-left: 20px; }
+  /* A tick in the key's green: these are what the green key buys. */
+  .dt-perks li::before { content: ''; position: absolute; left: 2px; top: .38em; width: 9px; height: 5px; border: solid var(--main-text); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+  .dt-say > .dt-note + .dt-note { margin-top: 8px; }
   .dt-keys { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
   .dt-keys > * { flex: 0 1 auto; min-height: 48px; padding: 0 20px; }
   .dt-keys .cat-copy, .dt-keys .dt-support { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: var(--main); color: var(--main-ink);
@@ -1208,7 +1214,7 @@ const I18N = {
     'sup.register': 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at:',
     'sup.codeinfo': 'Your personal code is one-time, works on up to 3 of your devices, and whatever you unlock stays yours forever.',
     'sp.h': 'Sparks', 'sp.sub': 'Xenon\'s credits. Ask Bit in words for a widget, a theme or a page, and Bit builds it with Sparks.', 'sp.store': 'Some widgets, themes and packs here are bought with Sparks too.', 'sp.cost': 'A widget costs about {haiku} Sparks with Haiku, {sonnet} with Sonnet, {opus} with Opus.', 'sp.n': 'Sparks', 'sp.bonus': '+{n} free', 'sp.best': 'Best value', 'sp.widgets': '{n} widgets', 'sp.never': 'Sparks you buy never expire. Pay on Buy Me a Coffee: your code arrives by email.', 'plan.name': 'Supporter membership', 'plan.price': '{usd} USD a month', 'plan.sparks': '{n} Sparks every month', 'plan.packs': 'A new supporter pack every month', 'plan.keep': 'What you unlock stays yours',
-    'dt.plan': '{usd} USD a month. {spark}{n} Sparks and a new pack every month, and what you unlock stays yours.',
+    'dt.plan': 'As a supporter, {usd} USD a month:', 'dt.perk.sparks': '{spark}{n} Sparks every month', 'dt.perk.pack': 'A new pack every month', 'dt.perk.keep': 'What you unlock stays yours',
     'dt.trial': 'Or {a}try it free for 7 days{/a}, once per PC, with no card.', 'plan.trial': '{a}Try the supporter drops free for 7 days{/a}, once per PC, with no card.',
     'dt.free': 'Free. Copy the code, then paste it in Xenon: Settings → Widgets & sharing → Import.', 'dt.get': 'Download Xenon', 'dt.close': 'Close', 'dt.pics': 'Pictures', 'dt.pic': 'Picture {n}', 'dt.zoom': 'See picture {n} large', 'dt.prev': 'Previous picture', 'dt.next': 'Next picture',
     'card.unlock': 'Unlock with a code', 'card.loadmore': 'Show more ({n})',
@@ -1290,7 +1296,7 @@ const I18N = {
     'sup.register': 'Votre code personnel vous sera envoyé par e-mail juste après votre soutien. Vous ne l’avez pas reçu ? Contactez-nous sur Discord ou à l’adresse suivante :',
     'sup.codeinfo': 'Votre code personnel est à usage unique, fonctionne sur jusqu\'à 3 de vos appareils et tout ce que vous débloquez vous appartient pour toujours.',
     'sp.h': 'Étincelles', 'sp.sub': 'Les crédits de Xenon. Demandez à Bit, avec des mots, un widget, un thème ou une page : Bit le construit avec des Étincelles.', 'sp.store': 'Certains widgets, thèmes et packs d’ici s’achètent aussi avec des Étincelles.', 'sp.cost': 'Un widget coûte environ {haiku} Étincelles avec Haiku, {sonnet} avec Sonnet, {opus} avec Opus.', 'sp.n': 'Étincelles', 'sp.bonus': '+{n} offertes', 'sp.best': 'Le plus avantageux', 'sp.widgets': '{n} widgets', 'sp.never': 'Les Étincelles achetées n’expirent jamais. Payez sur Buy Me a Coffee : votre code arrive par e-mail.', 'plan.name': 'Abonnement supporter', 'plan.price': '{usd} USD par mois', 'plan.sparks': '{n} Étincelles chaque mois', 'plan.packs': 'Un nouveau pack supporter chaque mois', 'plan.keep': 'Ce que vous débloquez reste à vous',
-    'dt.plan': '{usd} USD par mois. {spark}{n} Étincelles et un nouveau pack chaque mois, et ce que vous débloquez reste à vous.',
+    'dt.plan': 'En tant que supporter, {usd} USD par mois :', 'dt.perk.sparks': '{spark}{n} Étincelles chaque mois', 'dt.perk.pack': 'Un nouveau pack chaque mois', 'dt.perk.keep': 'Ce que vous débloquez reste à vous',
     'dt.trial': 'Ou {a}essayez gratuitement pendant 7 jours{/a}, une fois par PC, sans carte.', 'plan.trial': '{a}Essayez les sorties des supporters gratuitement pendant 7 jours{/a}, une fois par PC, sans carte.',
     'dt.free': 'Gratuit. Copiez le code, puis collez-le dans Xenon : Paramètres → Widgets & partage → Importer.', 'dt.get': 'Télécharger Xenon', 'dt.close': 'Fermer', 'dt.pics': 'Images', 'dt.pic': 'Image {n}', 'dt.zoom': 'Agrandir l’image {n}', 'dt.prev': 'Image précédente', 'dt.next': 'Image suivante',
     'card.unlock': 'Déverrouiller avec un code',
@@ -1333,7 +1339,7 @@ const I18N = {
     'sup.register': 'Il tuo codice personale arriva via email subito dopo la donazione. Non è arrivato? Scrivici su Discord o a:',
     'sup.codeinfo': 'Il tuo codice personale è monouso, vale su un massimo di 3 tuoi dispositivi e ciò che sblocchi resta tuo per sempre.',
     'sp.h': 'Scintille', 'sp.sub': 'I crediti di Xenon. Chiedi a Bit a parole un widget, un tema o una pagina: Bit lo costruisce con le Scintille.', 'sp.store': 'Alcuni widget, temi e pacchetti qui si comprano anche con le Scintille.', 'sp.cost': 'Un widget costa circa {haiku} Scintille con Haiku, {sonnet} con Sonnet, {opus} con Opus.', 'sp.n': 'Scintille', 'sp.bonus': '+{n} in omaggio', 'sp.best': 'Il più conveniente', 'sp.widgets': '{n} widget', 'sp.never': 'Le Scintille comprate non scadono mai. Paghi su Buy Me a Coffee: il tuo codice arriva via email.', 'plan.name': 'Abbonamento sostenitore', 'plan.price': '{usd} USD al mese', 'plan.sparks': '{n} Scintille ogni mese', 'plan.packs': 'Un pacchetto nuovo per i sostenitori ogni mese', 'plan.keep': 'Quello che sblocchi resta tuo',
-    'dt.plan': '{usd} USD al mese. {spark}{n} Scintille e un pacchetto nuovo ogni mese, e quello che sblocchi resta tuo.',
+    'dt.plan': 'Da sostenitore, {usd} USD al mese:', 'dt.perk.sparks': '{spark}{n} Scintille ogni mese', 'dt.perk.pack': 'Un pacchetto nuovo ogni mese', 'dt.perk.keep': 'Quello che sblocchi resta tuo',
     'dt.trial': 'Oppure {a}prova gratis per 7 giorni{/a}, una volta per PC, senza carta.', 'plan.trial': '{a}Prova le uscite dei sostenitori gratis per 7 giorni{/a}, una volta per PC, senza carta.',
     'dt.free': 'Gratis. Copia il codice e incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'dt.get': 'Scarica Xenon', 'dt.close': 'Chiudi', 'dt.pics': 'Immagini', 'dt.pic': 'Immagine {n}', 'dt.zoom': 'Ingrandisci l’immagine {n}', 'dt.prev': 'Immagine precedente', 'dt.next': 'Immagine successiva',
     'card.unlock': 'Sblocca con un codice', 'card.loadmore': 'Mostra altri ({n})',
@@ -1374,7 +1380,7 @@ const I18N = {
     'sup.register': 'Tu código personal llega por email justo después de tu aportación. ¿No te ha llegado? Escríbenos en Discord o a:',
     'sup.codeinfo': 'Tu código personal es de un solo uso, funciona en hasta 3 de tus dispositivos y lo que desbloquees es tuyo para siempre.',
     'sp.h': 'Chispas', 'sp.sub': 'Los créditos de Xenon. Pide a Bit con palabras un widget, un tema o una página: Bit lo construye con Chispas.', 'sp.store': 'Algunos widgets, temas y packs de aquí también se compran con Chispas.', 'sp.cost': 'Un widget cuesta unas {haiku} Chispas con Haiku, {sonnet} con Sonnet y {opus} con Opus.', 'sp.n': 'Chispas', 'sp.bonus': '+{n} de regalo', 'sp.best': 'El más conveniente', 'sp.widgets': '{n} widgets', 'sp.never': 'Las Chispas compradas no caducan nunca. Paga en Buy Me a Coffee: tu código llega por email.', 'plan.name': 'Membresía de mecenas', 'plan.price': '{usd} USD al mes', 'plan.sparks': '{n} Chispas cada mes', 'plan.packs': 'Un paquete nuevo para mecenas cada mes', 'plan.keep': 'Lo que desbloqueas sigue siendo tuyo',
-    'dt.plan': '{usd} USD al mes. {spark}{n} Chispas y un paquete nuevo cada mes, y lo que desbloqueas sigue siendo tuyo.',
+    'dt.plan': 'Como mecenas, {usd} USD al mes:', 'dt.perk.sparks': '{spark}{n} Chispas cada mes', 'dt.perk.pack': 'Un paquete nuevo cada mes', 'dt.perk.keep': 'Lo que desbloqueas sigue siendo tuyo',
     'dt.trial': 'O {a}prueba gratis durante 7 días{/a}, una vez por PC, sin tarjeta.', 'plan.trial': '{a}Prueba las novedades para quienes apoyan gratis durante 7 días{/a}, una vez por PC, sin tarjeta.',
     'dt.free': 'Gratis. Copia el código y pégalo en Xenon: Ajustes → Widgets y compartir → Importar.', 'dt.get': 'Descargar Xenon', 'dt.close': 'Cerrar', 'dt.pics': 'Imágenes', 'dt.pic': 'Imagen {n}', 'dt.zoom': 'Ampliar la imagen {n}', 'dt.prev': 'Imagen anterior', 'dt.next': 'Imagen siguiente',
     'card.unlock': 'Desbloquear con un código', 'card.loadmore': 'Ver más ({n})',
@@ -1415,7 +1421,7 @@ const I18N = {
     'sup.register': '후원 직후 개인 코드가 이메일로 전송됩니다. 받지 못하셨나요? Discord 또는 다음 주소로 연락하세요:',
     'sup.codeinfo': '개인 코드는 1인 전용이며 최대 3대의 기기에서 사용할 수 있고, 잠금 해제한 항목은 영원히 당신의 것입니다.',
     'sp.h': '스파크', 'sp.sub': 'Xenon의 크레딧입니다. Bit에게 위젯, 테마, 페이지를 말로 요청하면 Bit가 스파크로 만들어 줍니다.', 'sp.store': '여기 있는 일부 위젯, 테마, 팩도 스파크로 살 수 있습니다.', 'sp.cost': '위젯 하나에 Haiku는 약 {haiku}, Sonnet은 {sonnet}, Opus는 {opus} 스파크가 듭니다.', 'sp.n': '스파크', 'sp.bonus': '+{n} 무료', 'sp.best': '가장 알뜰한 선택', 'sp.widgets': '위젯 {n}개', 'sp.never': '구매한 스파크는 만료되지 않습니다. Buy Me a Coffee에서 결제하면 코드가 이메일로 옵니다.', 'plan.name': '후원자 멤버십', 'plan.price': '월 {usd} USD', 'plan.sparks': '매달 스파크 {n}개', 'plan.packs': '매달 새로운 후원자 팩', 'plan.keep': '잠금 해제한 것은 계속 당신의 것입니다',
-    'dt.plan': '월 {usd} USD. 매달 {spark}스파크 {n}개와 새 팩을 받고, 잠금 해제한 것은 계속 당신의 것입니다.',
+    'dt.plan': '후원자는 월 {usd} USD:', 'dt.perk.sparks': '매달 {spark}스파크 {n}개', 'dt.perk.pack': '매달 새 팩', 'dt.perk.keep': '잠금 해제한 것은 계속 당신의 것',
     'dt.trial': '{a}7일 동안 무료로 써 볼{/a} 수도 있습니다. PC당 한 번, 카드는 필요 없습니다.', 'plan.trial': '{a}후원자 팩을 7일 동안 무료로 써 보세요{/a}. PC당 한 번, 카드는 필요 없습니다.',
     'dt.free': '무료. 코드를 복사해 Xenon에 붙여넣으세요: 설정 → 위젯 및 공유 → 가져오기.', 'dt.get': 'Xenon 다운로드', 'dt.close': '닫기', 'dt.pics': '이미지', 'dt.pic': '이미지 {n}', 'dt.zoom': '이미지 {n} 크게 보기', 'dt.prev': '이전 이미지', 'dt.next': '다음 이미지',
     'card.unlock': '코드로 잠금 해제', 'card.loadmore': '더 보기 ({n})',
@@ -1456,7 +1462,7 @@ const I18N = {
     'sup.register': '支援後すぐに個人コードがメールで届きます。届かない場合は、Discordまたは次のアドレスまでご連絡ください:',
     'sup.codeinfo': '個人コードは一人専用で、最大3台のデバイスで利用でき、解除したものは永久にあなたのものです。',
     'sp.h': 'スパーク', 'sp.sub': 'Xenon のクレジットです。ウィジェット、テーマ、ページを Bit に言葉で頼めば、Bit がスパークで作ります。', 'sp.store': 'ここにある一部のウィジェット、テーマ、パックもスパークで買えます。', 'sp.cost': 'ウィジェット 1 個は Haiku で約 {haiku}、Sonnet で {sonnet}、Opus で {opus} スパークです。', 'sp.n': 'スパーク', 'sp.bonus': '+{n} おまけ', 'sp.best': 'いちばんお得', 'sp.widgets': 'ウィジェット {n} 個', 'sp.never': '買ったスパークに期限はありません。Buy Me a Coffee で支払うと、コードがメールで届きます。', 'plan.name': 'サポーター メンバーシップ', 'plan.price': '月 {usd} USD', 'plan.sparks': '毎月 {n} スパーク', 'plan.packs': '毎月新しいサポーター パック', 'plan.keep': 'アンロックしたものはずっとあなたのもの',
-    'dt.plan': '月 {usd} USD。毎月 {spark}{n} スパークと新しいパックが届き、アンロックしたものはずっとあなたのものです。',
+    'dt.plan': 'サポーターは月 {usd} USD：', 'dt.perk.sparks': '毎月 {spark}{n} スパーク', 'dt.perk.pack': '毎月新しいパック', 'dt.perk.keep': 'アンロックしたものはずっとあなたのもの',
     'dt.trial': '{a}7 日間無料で試す{/a}こともできます。PC ごとに 1 回、カードは不要です。', 'plan.trial': '{a}サポーターの配布を 7 日間無料で試す{/a}。PC ごとに 1 回、カードは不要です。',
     'dt.free': '無料。コードをコピーして Xenon に貼り付けます: 設定 → ウィジェットと共有 → インポート。', 'dt.get': 'Xenon をダウンロード', 'dt.close': '閉じる', 'dt.pics': '画像', 'dt.pic': '画像 {n}', 'dt.zoom': '画像 {n} を拡大', 'dt.prev': '前の画像', 'dt.next': '次の画像',
     'card.unlock': 'コードでアンロック', 'card.loadmore': 'もっと見る ({n})',
@@ -1497,7 +1503,7 @@ const I18N = {
     'sup.register': '支持后你的专属代码会立即通过电子邮件发送。没有收到？请在 Discord 或以下邮箱联系我们：',
     'sup.codeinfo': '专属代码一人一码，最多可在 3 台设备上使用，解锁的内容永久属于你。',
     'sp.h': '火花', 'sp.sub': 'Xenon 的积分。用文字向 Bit 要一个小组件、主题或页面，Bit 用火花把它做出来。', 'sp.store': '这里的部分小组件、主题和资源包也可用火花购买。', 'sp.cost': '一个小组件：Haiku 约 {haiku} 火花，Sonnet {sonnet}，Opus {opus}。', 'sp.n': '火花', 'sp.bonus': '赠送 {n}', 'sp.best': '最划算', 'sp.widgets': '{n} 个小组件', 'sp.never': '购买的火花永不过期。在 Buy Me a Coffee 付款，代码会通过邮件发给你。', 'plan.name': '支持者会员', 'plan.price': '每月 {usd} USD', 'plan.sparks': '每月 {n} 火花', 'plan.packs': '每月一个新的支持者资源包', 'plan.keep': '你解锁的内容永久归你',
-    'dt.plan': '每月 {usd} USD。每月 {spark}{n} 火花和一个新资源包，你解锁的内容永久归你。',
+    'dt.plan': '支持者每月 {usd} USD：', 'dt.perk.sparks': '每月 {spark}{n} 火花', 'dt.perk.pack': '每月一个新资源包', 'dt.perk.keep': '你解锁的内容永久归你',
     'dt.trial': '也可以{a}免费试用 7 天{/a}，每台电脑一次，无需银行卡。', 'plan.trial': '{a}免费试用支持者内容 7 天{/a}，每台电脑一次，无需银行卡。',
     'dt.free': '免费。复制代码并粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'dt.get': '下载 Xenon', 'dt.close': '关闭', 'dt.pics': '图片', 'dt.pic': '图片 {n}', 'dt.zoom': '放大图片 {n}', 'dt.prev': '上一张图片', 'dt.next': '下一张图片',
     'card.unlock': '用代码解锁', 'card.loadmore': '显示更多 ({n})',
@@ -2228,14 +2234,22 @@ function applyLang(lang) {
     return info;
   }
 
-  // What getting it takes, in one line beside the keys: people hesitate over a cost
-  // they cannot see, and the join key leaves the site.
+  // What getting it takes, beside the keys: people hesitate over a cost they cannot
+  // see, and the join key leaves the site. The price heads what it buys, as a list,
+  // so it reads as perks and not as one long sentence.
   function planNote() {
-    const note = el('p', 'dt-note');
-    String(T('dt.plan')).replace('{usd}', MEMBER_USD).replace('{n}', SPARKS_MONTHLY).split('{spark}').forEach((part, i) => {
-      if (i) note.appendChild(sparkImg());
-      note.appendChild(document.createTextNode(part));
+    const note = el('div', 'dt-note dt-plan');
+    note.appendChild(el('p', 'dt-plan-h', String(T('dt.plan')).replace('{usd}', MEMBER_USD)));
+    const perks = el('ul', 'dt-perks');
+    ['dt.perk.sparks', 'dt.perk.pack', 'dt.perk.keep'].forEach((key) => {
+      const li = el('li');
+      String(T(key)).replace('{n}', SPARKS_MONTHLY).split('{spark}').forEach((part, i) => {
+        if (i) li.appendChild(sparkImg());
+        li.appendChild(document.createTextNode(part));
+      });
+      perks.appendChild(li);
     });
+    note.appendChild(perks);
     return note;
   }
   // May the 7-day trial open this entry? Mirror of the app's trial-pass-ui.js covers();

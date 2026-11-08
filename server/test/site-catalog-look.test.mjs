@@ -91,6 +91,12 @@ test('a featured picture keeps its own shape, and in a rail it leads in the grid
   assert.doesNotMatch(rules('.rail-arw'), /transform/);
 });
 
+test('a filtered list keeps the gap under the sheet that every shelf has', () => {
+  // flatView puts the grid first in #content: without its own rule the cards touched the sheet.
+  assert.match(page, /frag\.appendChild\(gridOf\(list\.slice\(0, shown\)\)\)/);
+  assert.match(rules('#content > .kblock:first-child, #content > .grid:first-child'), /margin-top: clamp\(32px, 4vw, 56px\)/);
+});
+
 test('a card reached by a link clears the header and the strip', () => {
   for (const card of ['.cat-card', '.drop-card', '.spot-card']) {
     assert.match(rules(card), /scroll-margin-top: calc\(90px \+ var\(--strip-h, 0px\)\)/, card);
@@ -202,12 +208,17 @@ test('the way to get an entry sits outside the scroll, with one filled key', () 
   assert.ok(page.indexOf("keys.appendChild(join)") < page.indexOf("keys.appendChild(btn)"), 'join leads a locked entry');
 });
 
-test('a locked entry says what the plan costs beside its key, in every language', () => {
-  const lines = page.match(/'dt\.plan': '[^\n]*?'(?=,\n)/g);
-  assert.equal(lines.length, 7);
-  for (const line of lines) {
-    for (const part of ['{usd}', 'USD', '{spark}', '{n}']) assert.ok(line.includes(part), line);
-  }
+test('a locked entry says what the plan costs beside its key, then what it buys as a list, in every language', () => {
+  const value = (key) => [...page.matchAll(new RegExp(`'${key.replace(/\./g, '\\.')}': '((?:[^'\\\\]|\\\\.)*)'`, 'g'))].map((m) => m[1]);
+  const heads = value('dt.plan');
+  assert.equal(heads.length, 7);
+  for (const head of heads) assert.ok(head.includes('{usd}') && head.includes('USD'), head);
+  for (const key of ['dt.perk.sparks', 'dt.perk.pack', 'dt.perk.keep']) assert.equal(value(key).length, 7, key);
+  for (const sparks of value('dt.perk.sparks')) assert.ok(sparks.includes('{spark}') && sparks.includes('{n}'), sparks);
+  // A sentence of three perks read as small print: a list with a tick in the key's green does not.
+  assert.match(page, /el\('ul', 'dt-perks'\)/);
+  assert.match(rules('.dt-perks li::before'), /var\(--main-text\)/);
+  assert.match(rules('.dt-plan-h'), /font-weight: 700/);
   assert.equal(page.match(/'dt\.free': /g).length, 7);
   assert.match(page, /join\.setAttribute\('data-track-location', 'catalog_detail'\)/);
 });
