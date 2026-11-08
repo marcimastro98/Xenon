@@ -833,6 +833,9 @@
     }
     // Open the live per-app volume mixer overlay (touch faders) — a browser-side UI.
     if (action.type === 'appMixer') { openDeckMixer(); return true; }
+    // Performance Mode on this PC's dashboard; a phone or a widget layer sends it
+    // through the server, where this PC's dashboard (or the driver page) claims it.
+    if (action.type === 'perfMode' && window.PerfMode && !window.__xenonRemote && !(typeof isLayerPage === 'function' && isLayerPage())) { window.PerfMode.quick(action.mode); return true; }
     // The gallery opens on the screen whose key was pressed (a phone too).
     if (action.type === 'gallery' && window.CaptureGallery) {
       window.CaptureGallery.open({ filter: action.filter === 'all' ? '' : action.filter });

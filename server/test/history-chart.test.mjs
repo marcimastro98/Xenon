@@ -354,3 +354,30 @@ test('no emoji, no "A · B" strings, and untrusted names go in as text', () => {
     assert.doesNotMatch(src, /\p{Extended_Pictographic}/u);
   }
 });
+
+// ── The 6h range: single samples at the interval chosen in Settings ──
+
+test('single samples carry their minutes on the axis', () => {
+  const spec = { title: 'Load', unit: '%', pct: true, parts: [{ key: 'cpu', part: 'cpu' }] };
+  const { dom, HC } = rig({ clockFormat: '24', locale: 'en-US' });
+  const points = ['2026-11-07T13:05', '2026-11-07T13:06', '2026-11-07T13:07'].map((t) => bucket(t));
+  const ticks = byClass(dom, HC.build(spec, points, fallback), 'guardian-xtick').map((n) => n.textContent);
+  assert.deepEqual(ticks, ['13:05', '13:06', '13:07']);
+  assert.match(HC.whenText('2026-11-07T13:06'), /13:06/);
+  // Hourly buckets stay bare hours.
+  assert.match(HC.tickText(hour(13)), /^13$/);
+});
+
+test('the 6h range draws the recent samples, and its screen time is today\'s', async () => {
+  const recent = ['2026-11-07T13:05', '2026-11-07T13:06'].map((t) => ({ ...bucket(t), cpu: m(77) }));
+  const { dom, window, body } = rig({ data: history([bucket(hour(1)), bucket(hour(2))], { recent }) });
+  window.mountSystemHistory();
+  await settle();
+  window.setGuardianRange('6h');
+  const values = byClass(dom, body, 'guardian-key-value').map((n) => n.textContent);
+  assert.ok(values.includes('77%'), values.join(' | '));
+  assert.ok(byClass(dom, body, 'guardian-app-row').length > 0 || body.textContent.includes('FC27'), 'today\'s apps beside the 6h charts');
+  assert.match(INDEX, /id="sys-history-range"[\s\S]*?data-range="6h"[\s\S]*?data-range="24h"/);
+  assert.doesNotMatch(INDEX, /onclick="setGuardianRange/, 'the buttons are wired in guardian-history.js');
+  assert.match(HISTORY_SRC, /group\.addEventListener\('click'/);
+});

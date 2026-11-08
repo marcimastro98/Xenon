@@ -56,6 +56,7 @@
     benchmark: ['benchmark'],
     gallery: ['gallery'],
     layers: ['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion'],
+    performance: ['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'],
   };
   // Fields a widget may set on those types (server/sdk-widgets.js
   // SDK_ACTION_LIMITS): a capture START only, never 'reveal', replay on/off or
@@ -69,6 +70,7 @@
     benchmark: { mode: ['toggle', 'start', 'stop'] },
     gallery: { filter: ['all', 'video', 'screenshot'], id: [] },
     stopwatchStart: { everyMinutes: [] },
+    gameIgnore: { mode: ['current'], name: [] },
   };
   // What a widget learns back from an action besides ok/error (WIDGET_SDK §5c):
   // counts and yes/no, never a text, a colour, a size, a file, a name or an id.
@@ -80,6 +82,9 @@
     screenMeasure: { cancelled: 'boolean', picking: 'boolean' },
     screenDraw: { drawing: 'boolean' },
     xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['now', 'widgets', 'overlay', 'capture', 'keys', 'look', 'mode'] },
+    gameMode: { gameMode: 'boolean' },
+    sensorHistory: { enabled: 'boolean', everyMin: 'number' },
+    gameIgnore: { added: 'flag' },
   };
   function actionResultExtras(type, res) {
     const fields = Object.hasOwn(ACTION_RESULT_FIELDS, type) ? ACTION_RESULT_FIELDS[type] : null;
@@ -243,6 +248,7 @@
     benchmark: ['cw_act_benchmark', 'Start and stop a benchmark of your game (the file stays on this PC)'],
     gallery: ['cw_act_gallery', 'Open the gallery of your screenshots and clips (it never sees them)'],
     layers: ['cw_act_layers', 'Show or hide your widgets on the screen and switch their pages'],
+    performance: ['cw_act_performance', 'Switch game mode, Performance Mode and the sensor history, and tell Xenon the app in front is not a game'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit

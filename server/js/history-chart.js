@@ -94,13 +94,17 @@
     return (typeof i18n === 'object' && typeof lang === 'string' && i18n[lang] && i18n[lang].locale) || undefined;
   }
 
-  // 'YYYY-MM-DDTHH' or 'YYYY-MM-DD' to a Date, in local time like the keys.
+  // 'YYYY-MM-DDTHH:MM' (single samples), 'YYYY-MM-DDTHH' or 'YYYY-MM-DD' to a
+  // Date, in local time like the keys.
   function bucketDate(t) {
-    const [day, hour] = String(t || '').split('T');
+    const [day, time] = String(t || '').split('T');
     const [y, m, d] = day.split('-').map(Number);
     if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d, hour ? Number(hour) : 0);
+    const [hh, mm] = String(time || '').split(':').map(Number);
+    return new Date(y, m - 1, d, hh || 0, mm || 0);
   }
+
+  const hasMinutes = (t) => /T\d{2}:\d{2}$/.test(String(t || ''));
 
   // The hour in the user's clock (Settings → Time format, through utils.js
   // plainHourParts): bare on the axis ("17", "5 PM"), with its minutes where it
@@ -124,7 +128,8 @@
     const date = bucketDate(t);
     if (!date) return String(t || '');
     if (!String(t).includes('T')) return dayText(date);
-    return withDay ? `${dayText(date)}, ${hourText(date)}` : hourText(date);
+    const time = hourText(date, hasMinutes(t));
+    return withDay ? `${dayText(date)}, ${time}` : time;
   }
 
   // The moment a crosshair stands on, in full enough words to place it.

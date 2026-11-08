@@ -99,6 +99,10 @@
     // The Game Companion key while the opt-in switch is off (capabilities/game-companion.js).
     companion_off: ['deck_err_companion_off', 'Game Companion is off: turn it on in Settings, Bit, Advanced AI features'],
     screen_alerts_off: ['deck_err_screen_alerts_off', 'on-screen alerts are off: turn them on in Settings, Notifications'],
+    // The not-a-game list (capabilities/game-mode.js).
+    bad_app_name: ['deck_err_bad_app_name', 'the app name on this key is not a program name'],
+    bad_every: ['deck_err_bad_every', 'choose how often to sample: 1, 2, 5, 10 or 15 minutes'],
+    list_full: ['deck_err_game_ignore_full', 'the Not games list is full: remove an app in Settings, Performance'],
     // Voicemeeter. Every one of these is something the person holding the
     // machine can fix — install it, start it, pick a strip their edition has —
     // which is the bar this map sets. The opaque ones (read/write refused by

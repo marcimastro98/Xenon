@@ -132,10 +132,24 @@
       load().then(() => win.PerfMode.answer(d.choice)).catch(() => { /* nothing ran, nothing to undo */ });
     }
 
+    // A Performance Mode key pressed anywhere (a Deck, a shortcut, a widget)
+    // with no dashboard open: this page claims the step, as a dashboard would
+    // (main.js), and runs it. The first claim wins on the server.
+    function onDeckStep(e) {
+      const d = parse(e);
+      const action = d && d.action;
+      if (!action || action.type !== 'perfMode' || !d.nonce) return;
+      Promise.resolve(post('/deck/shortcut-claim', { nonce: d.nonce }))
+        .then((r) => (r && r.ok ? r.json() : null))
+        .then((r) => (r && r.ok ? load().then(() => win.PerfMode.quick(action.mode)) : null))
+        .catch(() => { /* a dashboard took it, or nobody: the server says so */ });
+    }
+
     function listen(es) {
       es.addEventListener('status', onStatus);
       es.addEventListener('obs', onObs);
       es.addEventListener('perf_screen', onScreen);
+      es.addEventListener('deck_shortcut', onDeckStep);
     }
 
     return Object.freeze({ sync, listen, merge, load, loaded: () => !!win.PerfMode });

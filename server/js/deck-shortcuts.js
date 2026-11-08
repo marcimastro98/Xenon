@@ -28,9 +28,9 @@ const RESERVED = Object.freeze({
 });
 
 // Steps that only a dashboard can perform (a sound the browser plays, the AI
-// chat, the mixer overlay). The server hands these to one dashboard on this PC;
+// chat, the mixer overlay, Performance Mode's session). The server hands these to one dashboard on this PC;
 // everything else runs on the server like a key press does.
-const CLIENT_ACTIONS = Object.freeze(['playSound', 'soundStopAll', 'ai', 'appMixer']);
+const CLIENT_ACTIONS = Object.freeze(['playSound', 'soundStopAll', 'ai', 'appMixer', 'perfMode']);
 
 // How many keys may hold a shortcut: the helpers register at most 16 combos in
 // all, and the Spotlight and page shortcuts take theirs first.

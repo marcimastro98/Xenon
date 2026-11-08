@@ -110,7 +110,7 @@ test('gallery: opens on this dashboard with the filter; from a layer page it goe
 });
 
 test('the five places: settings list, permission lines in 11 languages, docs', () => {
-  assert.match(SETTINGS, /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'benchmark', 'gallery', 'layers', 'timers'\]\)/);
+  assert.match(SETTINGS, /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'benchmark', 'gallery', 'layers', 'timers'(?:, '[a-zA-Z]+')*\]\)/);
   for (const cat of ['benchmark', 'gallery', 'layers']) {
     assert.match(CW, new RegExp(`\\n\\s+${cat}: \\['cw_act_${cat}', `));
     assert.equal((I18N.match(new RegExp(`\\n\\s+cw_act_${cat}: '`, 'g')) || []).length, 11, cat);

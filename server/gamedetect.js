@@ -65,6 +65,11 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // kiosk window tripped game mode against itself, pinning Xenon to the Companion
 // pill until the next restart. Both shapes appear depending on which side did
 // the rename, so `.exe` may sit before the tail.
+// The AI desktop clients (Claude, ChatGPT) are Electron windows a user keeps
+// maximised on a big monitor and that redraw while an answer streams: a user
+// saw Claude switch game mode on. Their names are generic words, so they are
+// matched exactly. Anything else the user rules out lives in their own list
+// (setIgnoreSource, the gameIgnore setting).
 // Matched against the bare process name (no ".exe") reported by the probe.
 // The Linux additions play the same role the Windows shell names do: the
 // desktop shell (gnome-shell, plasmashell, the compositors), the file manager
@@ -72,7 +77,7 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // probe reads them exactly as it reads a game. `foot`, `kitty` and `konsole`
 // are matched exactly for the same reason `cmd` and `wt` are — they are short
 // enough to swallow a real game's name as a substring.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|nvidia overlay|nvidia share|gamebar|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper|-capture)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|nvidia overlay|nvidia share|gamebar|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|claude|chatgpt|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper|-capture)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed
@@ -80,7 +85,9 @@ const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplo
 // exactly like a windowed game. These stay on the windowed path only (not the
 // blanket ignore above) because some carry generic names (resolve, premiere)
 // and a real full-screen game must still be detected by the full-screen path.
-const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|netflix|primevideo|stremio|photoshop|illustrator|afterfx|premiere|blender|resolve|unrealeditor|cinema 4d|krita|lightroom|capcut/i;
+// The chat and design apps (WhatsApp, Telegram, Teams, Signal, Notion, Figma)
+// redraw while you type or scroll and sit maximised on a second monitor.
+const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|netflix|primevideo|stremio|photoshop|illustrator|afterfx|premiere|blender|resolve|unrealeditor|cinema 4d|krita|lightroom|capcut|whatsapp|telegram|ms-teams|^signal$|notion|figma/i;
 const WINDOWED_MIN_FPS = 24;
 
 const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');
@@ -122,9 +129,40 @@ function _windowedGameActive(s) {
   return hintName !== '' && hintName === s.process.replace(/\.exe$/, '');
 }
 
+// The user's own "not a game" list (the gameIgnore setting, js/game-ignore.js
+// shape). Read through a getter server.js injects, so every path that replaces
+// the settings is covered without a push on each one; the Set is rebuilt only
+// when the array itself changes.
+let _ignoreSource = null;
+let _ignoreRef = null;
+let _userIgnore = new Set();
+
+function bareName(name) {
+  return String(name || '').trim().toLowerCase().replace(/\.exe$/, '');
+}
+
+function userIgnore() {
+  let list = null;
+  try { list = _ignoreSource ? _ignoreSource() : null; } catch { list = null; }
+  if (list === _ignoreRef) return _userIgnore;
+  _ignoreRef = list;
+  _userIgnore = new Set((Array.isArray(list) ? list : []).map(bareName).filter(Boolean));
+  // The game tracked right now was just ruled out: stop tracking it here, or
+  // the PID check would hold "a game is running" (and game mode) until it closed.
+  if (_gameProc && _userIgnore.has(_gameProc)) {
+    _gamePid = 0; _gameProc = ''; _pidFirstDeadAt = 0; _lastGamingAt = 0;
+  }
+  return _userIgnore;
+}
+
 function isIgnoredProc(name) {
   if (!name) return false;
-  return IGNORE_PROC_RE.test(name);
+  return IGNORE_PROC_RE.test(name) || userIgnore().has(bareName(name));
+}
+
+function setIgnoreSource(fn) {
+  _ignoreSource = typeof fn === 'function' ? fn : null;
+  _ignoreRef = undefined;
 }
 
 // Fires right after the gaming state flips (entered/left a game). Wired by
@@ -374,4 +412,4 @@ function stopGameDetect() {
   if (_linuxProbe) { try { _linuxProbe.stop(); } catch { /* ignore */ } _linuxProbe = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource };

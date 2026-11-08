@@ -256,6 +256,13 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // Game Companion opens Bit's card for the game on the screen: the screen goes
   // to the AI only when the user taps "Analyze screen" on the card itself.
   layers: Object.freeze(['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion']),
+  // Game mode, Performance Mode and "this app is not a game" (v5.0.0): the
+  // switches of Settings, Performance, as a key would press them. Performance
+  // Mode applies only the safe tweaks the user saved (closing apps always asks
+  // on screen), and the not-a-game list takes the app detected right now, never
+  // a name the widget picks, so a widget cannot switch detection off for a game.
+  // Sensor history is local only: on, off and how often it samples.
+  performance: Object.freeze(['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory']),
 });
 
 // Per-type limits inside a category: a field the widget sends must be one of
@@ -274,6 +281,7 @@ const SDK_ACTION_LIMITS = Object.freeze({
   gallery: Object.freeze({ filter: Object.freeze(['all', 'video', 'screenshot']), id: Object.freeze([]) }),
   // A chime every few seconds, from a widget, is noise nobody asked for.
   stopwatchStart: Object.freeze({ everyMinutes: Object.freeze([]) }),
+  gameIgnore: Object.freeze({ mode: Object.freeze(['current']), name: Object.freeze([]) }),
 });
 
 function sdkActionWithinLimits(action) {

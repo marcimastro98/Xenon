@@ -220,6 +220,8 @@ const capabilityRunner = capabilities.createCapabilities({
     get: () => normalizeNotifications(_serverHubSettings && _serverHubSettings.notifications),
     set: (change) => updateNotificationsSetting(change),
   },
+  // kWh from the sensor history (capabilities/energy.js); guardian is defined later.
+  energy: { summary: () => guardian.getEnergySummary() },
   // What the Game performance tile shows (capabilities/perf-hud.js).
   perfHud: {
     get: () => PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud),
@@ -306,6 +308,14 @@ const capabilityRunner = capabilities.createCapabilities({
   // The functions installed Store widgets offer to keys (capabilities/widget-key.js),
   // with whether the person allowed each one when the widget was installed.
   sdkHandlers: () => _sdkWidgetKeys(),
+  // One key at a time for the capabilities that only flip a setting (game mode,
+  // the not-a-game list, sensor history), and the Performance Mode key.
+  settingKeys: {
+    get: (key) => (_serverHubSettings || {})[key],
+    update: (key, change) => updateHubSettingKey(key, change),
+  },
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  handToDashboard: (action) => deckShortcutRunner.handToDashboard(action),
   // Global shortcuts need the Helper (Windows/macOS) or GNOME's keybindings (Linux).
   shortcutsAvailable: () => process.platform === 'linux' || fs.existsSync(HELPER_EXE),
   deck: {
@@ -334,6 +344,7 @@ const signalrgb = require('./signalrgb');
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
+gameDetect.setIgnoreSource(() => _serverHubSettings && _serverHubSettings.gameIgnore);
 // …and the other way: PresentMon sees every presenter on the machine, so it asks
 // which window is in front before deciding which one is the game. Wired here
 // rather than by requiring across, because these two modules already read each
@@ -372,6 +383,8 @@ const { createLinuxTrash } = require('./linux-trash');         // the recycle-bi
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const { createFirstReading, createFactReader } = require('./first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
+const GameIgnore = require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
+const SensorHistory = require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
 const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
 const AmbientScene = require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
 const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
@@ -10386,7 +10399,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
   // default; independent of the AI Guardian feature (which also consumes it).
   // When on, collection runs even without any AI; the data never leaves the PC.
-  sensorHistory: Object.freeze({ enabled: false }),
+  sensorHistory: Object.freeze({ enabled: false, everyMin: 5 }),
   // Game sessions (Settings → Performance → Partite giocate): average FPS and
   // lows of each game played, kept on this PC to compare. ON by default: it
   // costs a counter per frame only while a game runs, and stores ~100 lines.
@@ -11073,11 +11086,6 @@ function normalizeServerAiFeatures(value) {
 
 // Local sensor-history opt-in (Settings → Performance). A tiny known-key rebuild
 // so an unknown/malformed value collapses to the safe default (off).
-function normalizeSensorHistory(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled === true };
-}
-
 // Default ON: only an explicit false turns the game-session log off.
 function normalizeGameSessionsSetting(value) {
   const v = value && typeof value === 'object' ? value : {};
@@ -11810,6 +11818,7 @@ function normalizeHubSettings(value) {
     // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
     // Same rule as the browser's normalizeSettings (js/sensor-sources.js).
     sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
+    gameIgnore: GameIgnore.normalizeGameIgnore(source.gameIgnore),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
@@ -11930,7 +11939,7 @@ function normalizeHubSettings(value) {
     usageMode: UsageMode.normalize(source.usageMode),
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
-    sensorHistory: normalizeSensorHistory(source.sensorHistory),
+    sensorHistory: SensorHistory.normalizeSensorHistory(source.sensorHistory),
     gameSessions: normalizeGameSessionsSetting(source.gameSessions),
     perfHud: PerfHud.normalizePerfHud(source.perfHud),
     // User fan names for the Fans widget ("mb|Fan #3" → "Radiatore alto").
@@ -12692,6 +12701,22 @@ async function _xenonMenuState() {
     quiet: hs.notifications && hs.notifications.quiet,
     companionOn: !!(hs.aiFeatures && hs.aiFeatures.enabled === true && hs.aiFeatures.gameCompanion === true),
     power: await require('./power').read().catch(() => null),
+  });
+}
+
+// One top-level setting changed by a Deck key, Bit or an SDK action. `change`
+// gets the stored value and returns the next one, inside the lock, so a toggle
+// never reads a value another press is about to replace; the normalizer in
+// writeHubSettings decides what survives. Nothing that changes nothing is written.
+async function updateHubSettingKey(key, change) {
+  return withHubSettingsLock(async () => {
+    const cur = await readHubSettingsForUpdate();
+    const next = change(cur[key]);
+    if (JSON.stringify(next) === JSON.stringify(cur[key])) return cur[key];
+    const saved = await writeHubSettings({ ...cur, [key]: next, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved[key];
   });
 }
 
@@ -13506,6 +13531,7 @@ const guardian = createGuardian({
     const aiGuardian = !!(f && f.enabled === true && f.guardian === true);
     return history || aiGuardian;
   },
+  getEveryMin: () => (_serverHubSettings && _serverHubSettings.sensorHistory || {}).everyMin,
   onAlert: ({ type, value }) => broadcastSSE('guardian_alert', { type, value }),
   // Foreground-app usage ("PC Screen Time"): the game detector already tracks the
   // focused process cheaply — reuse it, don't add a second probe.

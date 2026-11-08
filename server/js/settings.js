@@ -606,7 +606,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Local sensor history (Settings → Performance). OFF by default; independent of
   // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
   // RAM over time for the history charts, with or without any AI. Never leaves the PC.
-  sensorHistory: Object.freeze({ enabled: false }),
+  sensorHistory: Object.freeze({ enabled: false, everyMin: 5 }),
   // Game sessions log (Settings → Performance): ON unless explicitly turned off.
   gameSessions: Object.freeze({ enabled: true }),
   // What the Game performance tile shows (js/perf-hud.js).
@@ -704,6 +704,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // "Ask ChatGPT" tile: the model Codex answers with. See js/chatgpt-widget.js.
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
+  gameIgnore: Object.freeze([]), // apps the user says are not games (js/game-ignore.js)
   bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/bg-guard.js)
   // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
   // when the foreground activity changes and revert when it ends
@@ -952,7 +953,7 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // The daily numbers of AI questions a widget may get (server: sdk-ai.js DAILY_CAPS).
 const SDK_AI_DAILY_CAPS = Object.freeze([20, 50, 100, 200]);
 const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'wavelinkOutput', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'vitals', 'soundboard', 'browser', 'watch', 'pages', 'capture', 'benchmark', 'gallery', 'layers', 'timers']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'wavelinkOutput', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'vitals', 'soundboard', 'browser', 'watch', 'pages', 'capture', 'benchmark', 'gallery', 'layers', 'timers', 'performance']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -1836,6 +1837,7 @@ function normalizeSettings(source) {
     // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
     // One rule with the server (js/sensor-sources.js, loaded before this file).
     sensorSources: window.SensorSources ? window.SensorSources.normalizeSensorSources(value.sensorSources) : {},
+    gameIgnore: window.GameIgnore ? window.GameIgnore.normalizeGameIgnore(value.gameIgnore) : [],
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
@@ -1963,7 +1965,8 @@ function normalizeSettings(source) {
     aiEdgeGlow: ['auto', 'main', 'second', 'all', 'off'].includes(value.aiEdgeGlow) ? value.aiEdgeGlow : 'auto',
     usageMode: window.UsageMode ? window.UsageMode.normalize(value.usageMode) : '',
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
-    sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+    sensorHistory: window.SensorHistory ? window.SensorHistory.normalizeSensorHistory(value.sensorHistory)
+      : { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true), everyMin: 5 },
     gameSessions: { enabled: !(value.gameSessions && value.gameSessions.enabled === false) },
     perfHud: window.PerfHud ? window.PerfHud.normalizePerfHud(value.perfHud) : {},
     fanLabels: normalizeFanLabels(value.fanLabels),
@@ -5057,7 +5060,7 @@ function syncSettingsControls() {
   // "Enable sensors" card renders into Settings → Performance (only when needed).
   if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings();
   // "Sensor sources" lists render into Settings → Performance (polls only while shown).
-  if (window.SensorSourcesPage) window.SensorSourcesPage.show();
+  for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.show();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -5359,7 +5362,7 @@ function settingsSetCategory(cat) {
   if (window.SettingsBarPreview) SettingsBarPreview.page(cat);
   if (cat === 'search') renderSearchDiskSettings();
   if ((cat === 'capture' || cat === 'performance') && window.CaptureSettingsPane) CaptureSettingsPane.show();
-  if (cat === 'performance' && window.SensorSourcesPage) window.SensorSourcesPage.show();
+  if (cat === 'performance') for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.show();
   if (cat === 'performance') syncExpanderSummaries();
   // The monitor list is live: rendered on open, and re-rendered by the shell's
   // push when a display is plugged in or out while the panel is on screen.
@@ -5753,7 +5756,7 @@ function closeSettings() {
   const overlay = $('settings-overlay');
   if (overlay) overlay.hidden = true;
   if (window.NewsWidget) NewsWidget.mountFeedManager(null);
-  if (window.SensorSourcesPage) window.SensorSourcesPage.stop();
+  for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.stop();
   freezeSettingsAmbient(false);
 }
 
@@ -6894,7 +6897,7 @@ function syncGameModeControls() {
 // Guardian feature: turning this on records CPU/GPU/RAM over time for the history
 // charts, with or without any AI. Off by default; the data never leaves the PC.
 function updateSensorHistory(enabled) {
-  hubSettings = normalizeSettings({ ...hubSettings, sensorHistory: { enabled: !!enabled } });
+  hubSettings = normalizeSettings({ ...hubSettings, sensorHistory: { ...hubSettings.sensorHistory, enabled: !!enabled } });
   saveHubSettings();
   syncSensorHistoryControls();
   // Let the System-tile History tab appear/disappear immediately.
@@ -6973,6 +6976,7 @@ async function clearGameSessions() {
 function syncSensorHistoryControls() {
   const el = $('settings-senshist-enabled');
   if (el) el.checked = !!(hubSettings.sensorHistory && hubSettings.sensorHistory.enabled === true);
+  if (window.SensorHistoryEvery) window.SensorHistoryEvery.sync();
   // Keep the System-tile History tab's visibility in sync on every settings
   // render (initial hydrate included), not only on an explicit toggle.
   if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();

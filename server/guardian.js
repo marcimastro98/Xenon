@@ -12,13 +12,24 @@ const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
 
-const SAMPLE_MS = 5 * 60 * 1000; // one sensor sample every 5 minutes
+const Recent = require('./sensor-history/recent.js');
+const Energy = require('./sensor-history/energy.js');
+const { normalizeEveryMin } = require('./js/sensor-history.js');
+
+// How often a sample is taken is the user's choice (sensorHistory.everyMin,
+// 1 to 15 minutes, default 5). One timer ticks every minute and samples when
+// the chosen interval has passed, so a change applies without restarting it.
+const TICK_MS = 60 * 1000;
+const DUE_SLACK_MS = 5 * 1000;   // a tick that fires a little early still counts
+// The disk is written at most this often whatever the interval, so a 1-minute
+// interval costs memory, not five times the writes.
+const PERSIST_MS = 5 * 60 * 1000;
 const MAX_HOURS = 72;            // keep 3 days of hourly buckets
 const MAX_DAYS = 90;             // keep ~3 months of daily rollups
 
 // Foreground-app usage ("PC Screen Time"). We poll the focused app far more
-// often than the 5-min sensor tick so short sessions are counted, but accumulate
-// purely in memory and let the 5-min sample() flush it to disk — no extra writes.
+// often than the sensor sample so short sessions are counted, but accumulate
+// purely in memory and let sample() flush it to disk — no extra writes.
 const USAGE_MS = 15 * 1000;            // sample the foreground app every 15s…
 const USAGE_MAX_DELTA_MS = 45 * 1000;  // …but never credit a gap this large (sleep/timer throttle)
 const MAX_APPS_PER_DAY = 40;           // cap distinct apps stored per day (bounds the store)
@@ -66,12 +77,20 @@ function aggregate(buckets, metric) {
   return { avg: Math.round((sum / n) * 10) / 10, max: Math.round(max * 10) / 10 };
 }
 
-function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegroundApp = () => '', isForegroundGame = () => false }) {
+function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegroundApp = () => '', isForegroundGame = () => false, getEveryMin = () => 5 }) {
   const FILE = path.join(dataDir, 'guardian.json');
-  let store = null; // { hours: [{h, m}], days: [{d, m}], apps: [{d, a}] }
+  let store = null; // { hours: [{h, m}], days: [{d, m}], apps: [{d, a}], recent: [{at, v}] }
   let timer = null;
   let usageTimer = null;
   let sampling = false;
+  let lastSampleAt = 0;
+  let lastPersistAt = 0;
+  let lastCreditAt = 0; // the previous reading, for how long the next one stands for
+  let lastDraw = null;  // the last reading's watts, for the energy stream
+
+  function everyMin() {
+    try { return normalizeEveryMin(getEveryMin()); } catch { return normalizeEveryMin(null); }
+  }
   const lastAlertAt = { cpu: 0, gpu: 0, mem: 0 };
   // Foreground-usage accumulator: credit each interval to the app that owned the
   // foreground during it (attributed on the NEXT tick, once the interval elapsed).
@@ -80,7 +99,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
   let lastAppGame = false;
   // True when the in-memory store gained data since the last flush — sensors
   // being unavailable AND no foreground usage means there is nothing new to
-  // write, so the 5-min tick can skip the disk entirely on an idle machine.
+  // write, so the sample can skip the disk entirely on an idle machine.
   let usageDirty = false;
 
   function normalizeStore(raw) {
@@ -89,6 +108,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       hours: Array.isArray(src.hours) ? src.hours.slice(-MAX_HOURS) : [],
       days: Array.isArray(src.days) ? src.days.slice(-MAX_DAYS) : [],
       apps: normalizeApps(src.apps),
+      recent: Recent.normalizeRecent(src.recent, METRICS),
     };
   }
 
@@ -116,7 +136,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     try {
       store = normalizeStore(JSON.parse(await fs.promises.readFile(FILE, 'utf8')));
     } catch {
-      store = { hours: [], days: [], apps: [] };
+      store = { hours: [], days: [], apps: [], recent: [] };
     }
     return store;
   }
@@ -166,8 +186,8 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
   }
 
   // Attribute the elapsed interval to whatever app was focused during it, so
-  // short sessions are counted (a 5-min sensor tick alone would miss them). Zero
-  // I/O — mutates the in-memory store; the 5-min sample() flushes it atomically.
+  // short sessions are counted (the sensor sample alone would miss them). Zero
+  // I/O — mutates the in-memory store; sample() flushes it atomically.
   function usageTick() {
     if (!isEnabled() || !store) { lastUsageAt = 0; lastApp = ''; return; }
     const now = Date.now();
@@ -215,6 +235,12 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       };
       const hour = bucketFor(store.hours, 'h', localKey(now, true));
       const day = bucketFor(store.days, 'd', localKey(now, false));
+      // Watt-hours for the kWh views (sensor-history/energy.js).
+      const draw = { cpu: reading.cpuWatts, gpu: reading.gpuWatts, psu: sys.power && sys.power.psu };
+      const ms = Energy.creditMs(lastCreditAt, now.getTime(), everyMin() * 60 * 1000);
+      if (Energy.credit(hour, draw, ms) && Energy.credit(day, draw, ms)) usageDirty = true;
+      lastCreditAt = now.getTime();
+      lastDraw = { ...Energy.drawOf(draw), at: now.toISOString() };
       for (const k of METRICS) {
         // Buckets persisted before a metric existed lack its slot — backfill so
         // the first post-upgrade sample can't throw on `slot.min`.
@@ -225,13 +251,19 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       }
       if (store.hours.length > MAX_HOURS) store.hours = store.hours.slice(-MAX_HOURS);
       if (store.days.length > MAX_DAYS) store.days = store.days.slice(-MAX_DAYS);
+      const got = METRICS.some((k) => reading[k] != null);
+      if (got) store.recent = Recent.pushRecent(store.recent, reading, METRICS, now.getTime());
       // Skip the disk write when this tick recorded nothing new (sensors
       // unavailable and no foreground usage accumulated) — an idle machine
-      // shouldn't be written to every 5 minutes for empty buckets. The dirty
-      // flag is cleared only AFTER a successful write, so a transient disk
-      // failure retries on the next tick instead of stranding data in RAM.
-      if (METRICS.some((k) => reading[k] != null)) usageDirty = true;
-      if (usageDirty && await persist()) usageDirty = false;
+      // shouldn't be written to for empty buckets — and write at most every
+      // PERSIST_MS. The dirty flag is cleared only AFTER a successful write, so
+      // a transient disk failure retries on the next sample instead of
+      // stranding data in RAM.
+      if (got) usageDirty = true;
+      if (usageDirty && now.getTime() - lastPersistAt >= PERSIST_MS - DUE_SLACK_MS && await persist()) {
+        usageDirty = false;
+        lastPersistAt = now.getTime();
+      }
       maybeAlert('cpu', reading.cpuTemp, ALERT_CPU_TEMP);
       maybeAlert('gpu', reading.gpuTemp, ALERT_GPU_TEMP);
       maybeAlert('mem', reading.mem, ALERT_MEM_PCT);
@@ -293,7 +325,9 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       enabled: isEnabled(),
       collectedHours: store.hours.length,
       collectedDays: store.days.length,
-      sampleMinutes: SAMPLE_MS / 60000,
+      sampleMinutes: everyMin(),
+      // The last hours at the sampling resolution, for the "6h" range.
+      recent: Recent.recentSeries(Recent.normalizeRecent(store.recent, METRICS), METRICS),
       hours: series(store.hours, 'h'),
       days: series(store.days, 'd'),
       usage: {
@@ -301,6 +335,24 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
         ranges: { '24h': appsInRange(1), '7d': appsInRange(7), '30d': appsInRange(30) },
       },
     };
+  }
+
+  // Energy per hour (72 h) and per day (90 days) in Wh, for the SDK `energy`
+  // stream (sensor-history/routes.js), and the kWh summary Bit reads.
+  async function getEnergy() {
+    await load();
+    return {
+      enabled: isEnabled(),
+      sampleMinutes: everyMin(),
+      now: lastDraw,
+      hours: Energy.series(store.hours, 'h'),
+      days: Energy.series(store.days, 'd'),
+    };
+  }
+
+  async function getEnergySummary() {
+    await load();
+    return { enabled: isEnabled(), ...Energy.summary(store.days, localKey(new Date(), false)) };
   }
 
   // Targeted history query for the AI: one metric, broken down so the model can
@@ -380,8 +432,11 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     load(); // populate the store so the usage ticker can accumulate immediately
     timer = setInterval(() => {
       if (!isEnabled()) return; // disabled → just a boolean check, zero cost
+      const now = Date.now();
+      if (now - lastSampleAt < everyMin() * 60 * 1000 - DUE_SLACK_MS) return;
+      lastSampleAt = now;
       sample();
-    }, SAMPLE_MS);
+    }, TICK_MS);
     timer.unref();
     // Foreground-app usage: cheap in-memory accumulation; flushed by sample().
     usageTimer = setInterval(usageTick, USAGE_MS);
@@ -410,7 +465,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     return { ok: true, hours: store.hours.length, days: store.days.length };
   }
 
-  return { start, stop, sample, getDigest, getHistory, queryHistory, exportStore, importStore };
+  return { start, stop, sample, getDigest, getHistory, getEnergy, getEnergySummary, queryHistory, exportStore, importStore };
 }
 
 module.exports = { createGuardian };

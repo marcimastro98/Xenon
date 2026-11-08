@@ -22,8 +22,8 @@ const GROUPS = Object.freeze({
     tools: ['record_steps', 'record_screen', 'record_timelapse', 'set_recording_options', 'save_replay', 'add_capture_marker', 'make_clips_from_marks', 'set_instant_replay', 'open_gallery', 'list_captures', 'transcribe_recording', 'save_recording_chapters', 'export_capture', 'send_capture_to_phone', 'copy_capture_to_folder'],
   },
   games: {
-    about: 'game FPS and stutter, game sessions, the performance tile, benchmarks, power modes, the game companion, boosting or restoring performance',
-    tools: ['get_game_performance', 'explain_stutter', 'get_game_session_stats', 'compare_game_sessions', 'manage_game_sessions', 'set_perf_tile', 'run_benchmark', 'set_power_mode', 'get_power_status', 'open_game_companion', 'optimize_performance', 'restore_performance'],
+    about: 'game FPS and stutter, game sessions, the performance tile, benchmarks, power modes, the game companion, boosting or restoring performance, game mode, apps that are not games, the sensor history, energy use in kWh',
+    tools: ['get_game_performance', 'explain_stutter', 'get_game_session_stats', 'compare_game_sessions', 'manage_game_sessions', 'set_perf_tile', 'run_benchmark', 'set_power_mode', 'get_power_status', 'open_game_companion', 'optimize_performance', 'restore_performance', 'set_game_mode', 'set_not_a_game', 'set_sensor_history', 'get_energy_use'],
   },
   screen_widgets: {
     about: 'widgets on the PC screen (on the desktop, over games, attached to an app): place, move, group, edit, show or hide them, their shortcuts (one per widget too), their pages',

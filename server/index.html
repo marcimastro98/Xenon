@@ -820,9 +820,10 @@
             </button>
             <!-- The History tab's range, shown while that tab is open (network.js setSystemTab). -->
             <div class="guardian-range" id="sys-history-range" role="group" data-i18n-aria-label="guardian_range_label" aria-label="Intervallo" hidden>
-              <button type="button" class="guardian-range-btn active" data-range="24h" aria-pressed="true" onclick="setGuardianRange('24h')" data-i18n="guardian_range_24h">24h</button>
-              <button type="button" class="guardian-range-btn" data-range="7d" aria-pressed="false" onclick="setGuardianRange('7d')" data-i18n="guardian_range_7d">7g</button>
-              <button type="button" class="guardian-range-btn" data-range="30d" aria-pressed="false" onclick="setGuardianRange('30d')" data-i18n="guardian_range_30d">30g</button>
+              <button type="button" class="guardian-range-btn" data-range="6h" aria-pressed="false" data-i18n="guardian_range_6h">6h</button>
+              <button type="button" class="guardian-range-btn active" data-range="24h" aria-pressed="true" data-i18n="guardian_range_24h">24h</button>
+              <button type="button" class="guardian-range-btn" data-range="7d" aria-pressed="false" data-i18n="guardian_range_7d">7g</button>
+              <button type="button" class="guardian-range-btn" data-range="30d" aria-pressed="false" data-i18n="guardian_range_30d">30g</button>
             </div>
             <span class="sys-uptime" data-sf="uptime-text">--</span>
           </div>
@@ -2878,6 +2879,8 @@
             </span>
             <button type="button" class="settings-btn" id="settings-gamemode-install" onclick="installPresentMon(this)" data-i18n="settings_gamemode_install">Installa PresentMon</button>
           </div>
+          <!-- "Not games" list, built by js/game-ignore-settings.js. -->
+          <div class="settings-perf-app-editor full" id="settings-game-ignore"></div>
         </div>
       </div>
 
@@ -3047,9 +3050,11 @@
             <input class="settings-check" id="settings-senshist-enabled" type="checkbox" onchange="updateSensorHistory(this.checked)">
             <span class="settings-label-line">
               <span data-i18n="settings_senshist_title">Storico sensori</span>
-              <span class="settings-hint" data-i18n="settings_senshist_enable_hint">Un campione ogni 5 minuti di dati già letti; resta tutto sul tuo PC. Nessuna AI richiesta.</span>
+              <span class="settings-hint" data-i18n="settings_senshist_enable_hint">Campioni dei dati già letti, con le ultime 6 ore nel dettaglio; resta tutto sul tuo PC. Nessuna AI richiesta.</span>
             </span>
           </label>
+          <!-- "One sample every", built by js/sensor-history-settings.js. -->
+          <div class="settings-row full" id="settings-senshist-every" hidden></div>
         </div>
       </div>
 
@@ -4924,6 +4929,8 @@
 <script src="js/fuzzy-find.js"></script>
 <script src="js/smart-home-order.js"></script>
 <script src="js/sensor-sources.js"></script>
+<script src="js/game-ignore.js"></script>
+<script src="js/sensor-history.js"></script>
 <script src="js/dashboard-portrait.js"></script>
 <script src="js/save-file.js"></script>
 <script src="js/perf-settings.js"></script>
@@ -5076,6 +5083,8 @@
 <script src="js/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
 <script src="js/sensor-sources-settings.js"></script>
+<script src="js/game-ignore-settings.js"></script>
+<script src="js/sensor-history-settings.js"></script>
 <script src="js/fans-widget.js"></script>
 <script src="js/spotlight-bit.js"></script>
 <script src="js/spotlight.js"></script>

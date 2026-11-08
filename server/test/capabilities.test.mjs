@@ -50,7 +50,8 @@ test('the Deck catalog carries the capabilities, so they validate like any key',
   for (const c of CAPABILITIES) {
     assert.ok(ACTION_CATALOG.includes(c), c.type);
     // A strict choice has no default: the action is invalid without one.
-    if (c.params.some(p => p.strict)) assert.equal(validateAction({ type: c.type }), null, c.type);
+    // (an optional strict one, like sensorHistory's interval, may be left out).
+    if (c.params.some(p => p.strict && !p.optional)) assert.equal(validateAction({ type: c.type }), null, c.type);
     else assert.equal(validateAction({ type: c.type }).type, c.type);
   }
   assert.deepEqual(validateAction({ type: 'perfStats', path: 'C:/x.exe' }), { type: 'perfStats' });

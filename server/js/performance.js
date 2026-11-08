@@ -421,6 +421,17 @@
     _perfNote({ key: meta && meta.auto ? 'perf_auto_off' : 'perf_status_restored', moved }, 'ok');
   }
 
+  // A Deck key, a keyboard shortcut or a widget: the safe tweaks the user saved,
+  // with no sheet (closing apps always asks first), or the restore. 'toggle'
+  // follows the session's own state, so a second press always undoes the first.
+  async function quick(mode) {
+    const on = currentPerf().active;
+    const want = mode === 'toggle' ? !on : mode === 'on';
+    if (want === on) return;
+    if (want) await applyOptimizations(savedEffective(currentPerf()), [], { by: 'manual' });
+    else await restore();
+  }
+
   // ── Auto mode: apply on activity start, restore when it ends ──────
   async function _autoApply(activity) {
     // Safe, reversible tweaks only — closing apps always goes through the sheet.
@@ -1006,7 +1017,7 @@
   function refresh() { applyState(); hideBanner(); _lastActivity = 'other'; _reevaluate = true; _snoozedActivities.clear(); }
   function init() { applyState(); }
 
-  window.PerfMode = { init, refresh, optimize, restore, answer, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };
+  window.PerfMode = { init, refresh, optimize, restore, quick, answer, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });

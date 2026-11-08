@@ -24,7 +24,7 @@
   const GAME_ICON = 'M6 11h4M8 9v4M15 12h.01M18 10h.01';
 
   let cache = null;       // last fetched { hours, days, ... }
-  let range = '24h';      // '24h' | '7d' | '30d'
+  let range = '24h';      // '6h' | '24h' | '7d' | '30d'
   let loading = false;
   let activeBody = null;  // the tab pane currently displaying the charts
 
@@ -62,7 +62,8 @@
     }
   }
 
-  // Points for the active range: hourly buckets for 24h, daily for 7d/30d.
+  // Points for the active range: single samples for 6h (as often as Settings,
+  // Performance, Sensor history says), hourly buckets for 24h, daily for 7d/30d.
   //
   // These are the last N RECORDED buckets, laid out side by side — deliberately
   // not positioned on a clock. A real time axis was tried and reverted: on a PC
@@ -72,6 +73,7 @@
   // shows the readings that exist, in order, and is not a proportional timeline.
   function pointsForRange() {
     if (!cache) return [];
+    if (range === '6h') return (cache.recent || []).slice();
     if (range === '24h') return (cache.hours || []).slice(-24);
     if (range === '7d') return (cache.days || []).slice(-7);
     return (cache.days || []).slice(-30);
@@ -169,7 +171,8 @@
   // Screen time: how long the PC was used in the range, the share spent in games,
   // and the apps that were in front longest, as ranked bars. Fed by getHistory().usage.
   function screenTime() {
-    const usage = cache && cache.usage && cache.usage.ranges && cache.usage.ranges[range];
+    // App time is kept per day, so the 6h view shows today's, as 24h does.
+    const usage = cache && cache.usage && cache.usage.ranges && cache.usage.ranges[range === '6h' ? '24h' : range];
     const apps = usage && Array.isArray(usage.apps) ? usage.apps : [];
 
     const section = document.createElement('div');
@@ -292,7 +295,7 @@
   }
 
   function setRange(r) {
-    if (!['24h', '7d', '30d'].includes(r) || r === range) return;
+    if (!['6h', '24h', '7d', '30d'].includes(r) || r === range) return;
     range = r;
     document.querySelectorAll('.guardian-range-btn').forEach(b => {
       const on = b.getAttribute('data-range') === r;
@@ -313,4 +316,13 @@
   document.addEventListener('ai-features-changed', syncUi);
   document.addEventListener('sensor-history-changed', syncUi);
   document.addEventListener('DOMContentLoaded', syncUi);
+  // The range buttons in the System tile's tab bar (index.html #sys-history-range).
+  document.addEventListener('DOMContentLoaded', () => {
+    const group = $('sys-history-range');
+    if (!group) return;
+    group.addEventListener('click', (e) => {
+      const b = e.target && e.target.closest ? e.target.closest('.guardian-range-btn') : null;
+      if (b) setRange(b.getAttribute('data-range'));
+    });
+  });
 })();

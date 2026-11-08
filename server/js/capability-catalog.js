@@ -133,6 +133,79 @@ const CAPABILITIES = [
     },
   },
 
+  // Game mode, its "not a game" list and Performance Mode on a key, a shortcut
+  // or a widget (server/capabilities/game-mode.js). Performance Mode runs where
+  // the session lives, a dashboard on this PC or the "widgets only" driver page,
+  // so the server hands the step there; Bit has optimize/restore_performance.
+  {
+    type: 'gameMode', group: 'perf', labelKey: 'deck_act_gameMode',
+    params: [{ name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }],
+    capability: {
+      domain: 'perf', risk: 'safe', requires: 'gameMode',
+      ai: {
+        name: 'set_game_mode',
+        description: 'Turn Xenon\'s game mode on or off (Settings, Performance, Game mode). On (the default), animated backgrounds and effects pause by themselves while a game is in front, so the game gets the GPU; off keeps them running. "toggle" switches. Returns gameMode (true when on). Use it for "keep my wallpaper moving while I play", "turn game mode back on". When an app that is not a game switches game mode on, use set_not_a_game instead.',
+        params: { mode: 'toggle (default), on or off' },
+      },
+    },
+  },
+  {
+    type: 'gameIgnore', group: 'perf', labelKey: 'deck_act_gameIgnore',
+    params: [
+      { name: 'mode', kind: 'select', options: ['current', 'add', 'remove', 'list'], optionKeys: { current: 'deck_opt_ignore_current', add: 'deck_opt_ignore_add', remove: 'deck_opt_ignore_remove', list: 'deck_opt_ignore_list' } },
+      { name: 'name', kind: 'text', maxLen: 64, optional: true, labelKey: 'deck_param_app' },
+    ],
+    capability: {
+      domain: 'perf', risk: 'safe', requires: 'gameMode',
+      ai: {
+        name: 'set_not_a_game',
+        description: 'The apps Xenon must never treat as a game (Settings, Performance, Game mode, "Not games"). Xenon decides an app is a game when it is full screen, or windowed and drawing at game frame rates, so a chat or AI app kept maximised can switch game mode on by mistake. "current" adds the app that counts as a game right now (error "no_game" when none does), "add" and "remove" take name, the app\'s process name without .exe (e.g. "claude"), "list" returns the list and current, the app detected now. Returns list. Errors: "bad_app_name", "list_full". Use it for "Claude is not a game", "stop treating this app as a game".',
+        params: { mode: 'current, add, remove or list', name: 'the app\'s process name, for add and remove' },
+      },
+    },
+  },
+  // Sensor history (Settings, Performance): the local record of temperatures,
+  // loads and power behind the System tile's History tab, and how often it
+  // takes a sample. "interval" changes only the interval.
+  {
+    type: 'sensorHistory', group: 'perf', labelKey: 'deck_act_sensorHistory',
+    params: [
+      { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'interval'], optionKeys: { interval: 'deck_opt_senshist_interval' } },
+      {
+        name: 'every', kind: 'select', optional: true, strict: true, labelKey: 'deck_param_sample_every',
+        options: ['1', '2', '5', '10', '15'],
+        optionKeys: { 1: 'deck_opt_sample_1', 2: 'deck_opt_sample_2', 5: 'deck_opt_sample_5', 10: 'deck_opt_sample_10', 15: 'deck_opt_sample_15' },
+      },
+    ],
+    capability: {
+      domain: 'perf', risk: 'safe', requires: 'sensorHistory',
+      ai: {
+        name: 'set_sensor_history',
+        description: 'Turn the local sensor history on or off, or change how often it takes a sample (Settings, Performance, Sensor history). It records CPU and GPU temperature and load, RAM and power on this PC only, for the History tab of the System tile: the last 6 hours at the sampling interval, then hourly and daily averages. every is the interval in minutes (1, 2, 5, 10 or 15; default 5): shorter catches brief spikes. "interval" changes only every. Returns enabled and everyMin. Error "bad_every" when "interval" has no every. Use it for "keep a history of my temperatures", "sample every minute".',
+        params: { mode: 'toggle, on, off or interval', every: '1, 2, 5, 10 or 15 (minutes), optional' },
+      },
+    },
+  },
+  // How much energy this PC used, from the sensor history. Voice only: the
+  // answer is something to read, so it is no Deck key.
+  {
+    type: 'energyUsage', group: 'perf', hidden: true, labelKey: 'deck_act_energyUsage',
+    params: [],
+    capability: {
+      domain: 'perf', risk: 'safe', requires: 'energyUsage',
+      ai: {
+        name: 'get_energy_use',
+        description: 'How much energy this PC used, in kWh, from the local sensor history: today and yesterday (with hoursCovered, the hours the history saw), thisMonth, last30Days and last7Days one by one. wholePc true means the power supply reported it, the whole PC; false means CPU + GPU only, which leaves out the rest of the PC: say so. For a cost, multiply by the price per kWh the user gives (ask for it, never guess one). Error "history_off": nothing recorded and the sensor history is off; offer set_sensor_history. A day with few hoursCovered was partly off or not recorded. Use it for "quanto ha consumato il PC oggi?", "how many kWh this month", "how much does my PC cost me".',
+        params: {},
+      },
+    },
+  },
+  {
+    type: 'perfMode', group: 'perf', labelKey: 'deck_act_perfMode',
+    params: [{ name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }],
+    capability: { domain: 'perf', risk: 'safe', requires: 'perfMode' },
+  },
+
   // The system power mode (server/power/): the switch the OS itself shows
   // (Windows "Power mode" on the Balanced plan, power-profiles-daemon on Linux).
   // Never a vendor tool, never TDP or fans. The Deck key needs a machine where

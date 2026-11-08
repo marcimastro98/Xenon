@@ -52,6 +52,8 @@ const functionKey = require('./function-key.js');
 const widgetKey = require('./widget-key.js');
 const power = require('./power.js');
 const notifications = require('./notifications.js');
+const gameMode = require('./game-mode.js');
+const energy = require('./energy.js');
 
 const BY_TYPE = new Map(CAPABILITIES.map(c => [c.type, c]));
 const BY_AI_NAME = new Map(CAPABILITIES.filter(c => c.capability.ai).map(c => [c.capability.ai.name, c]));
@@ -115,6 +117,11 @@ function createCapabilities(deps) {
       powerStatus: power.readable(d.power),
       powerMode: power.settable(d.power),
       notifications: !!d.notifications,
+      // The setting exists everywhere; detection itself degrades per OS (gamedetect.js).
+      gameMode: !!d.settingKeys,
+      sensorHistory: !!d.settingKeys,
+      energyUsage: !!(d.energy && typeof d.energy.summary === 'function'),
+      perfMode: typeof d.handToDashboard === 'function',
       // Linux engines that found no screenshot tool can still trim and thumb.
       capture: captureCan('screenshot'),
       // A Linux desktop can shoot the screen with no tool to pick an area.
@@ -244,6 +251,11 @@ function createCapabilities(deps) {
       case 'screenAlerts': return usageMode.setScreenAlerts({ host: d.layersHost, settings: d.settings }, action);
       case 'dnd': return notifications.setQuiet(d, action);
       case 'notifications': return notifications.setSwitches(d, action);
+      case 'gameMode': return gameMode.setGameMode(d, action);
+      case 'gameIgnore': return gameMode.editIgnore(d, action);
+      case 'sensorHistory': return gameMode.setSensorHistory(d, action);
+      case 'energyUsage': return energy.usage(d);
+      case 'perfMode': return gameMode.perfMode(d, action);
       case 'deckShortcut': return deckShortcut.setShortcut({ deck: d.deck }, action);
       case 'functionKey': return functionKey.setKey({ deck: d.deck }, action);
       case 'widgetHandlerKey': return widgetKey.setHandlerKey({ deck: d.deck, heldBy: d.deck && d.deck.heldBy, sdkHandlers: d.sdkHandlers }, action);

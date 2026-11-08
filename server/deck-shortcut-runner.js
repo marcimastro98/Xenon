@@ -27,7 +27,7 @@ const MAX_STEPS = 16;
 const CLAIM_MS = 1500;
 const PENDING_MAX = 32;
 const SOUND_ACTIONS = ['playSound', 'soundStopAll'];
-const HAND_OFF = ['ai', 'appMixer'];   // what a window that cannot run them hands on (handOff)
+const HAND_OFF = ['ai', 'appMixer', 'perfMode'];   // what a window that cannot run them hands on (handOff)
 
 function createDeckShortcutRunner(deps) {
   const d = deps || {};
@@ -152,7 +152,7 @@ function createDeckShortcutRunner(deps) {
     if (d.soundPlayer) d.soundPlayer.stop();
   }
 
-  return { press, pressKey, claim, handOff, stop };
+  return { press, pressKey, claim, handOff, handToDashboard, stop };
 }
 
 module.exports = { createDeckShortcutRunner, MAX_STEPS, CLAIM_MS };
