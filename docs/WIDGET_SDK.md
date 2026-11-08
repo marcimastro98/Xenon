@@ -37,11 +37,17 @@ server/data/widgets/
     (images, fonts, …)
 ```
 
-One filename is reserved: `__xenon-perf.js`. The host serves its own small
+Two filenames are reserved. `__xenon-guard.js` is the first script of every
+widget page: it removes WebRTC, because `connect-src` does not cover it and a
+widget has no network of its own. `RTCPeerConnection` and the other `RTC*` names
+do not exist in a widget, and the same goes for animated backgrounds.
+
+The other is `__xenon-perf.js`. The host serves its own small
 performance probe under that name inside every package (it measures long tasks
 and frame rate and reports them to the dashboard, so users can see which widget
-is using resources, and it tells the dashboard what the sandbox refused, see
-*From a web page to a widget*). A file with that name inside your package is ignored. The
+is using resources, it tells the dashboard what the sandbox refused, see
+*From a web page to a widget*, and whether your page settled on a dark
+`color-scheme`, see *Transparency and `color-scheme`*). A file with either name inside your package is ignored. The
 probe never touches your DOM or globals beyond `window.__xenonPerf`, apart from
 wrapping `console.error` so your error lines reach the author tools (your call
 still runs as before), and you do not need to do anything to support it.
@@ -158,6 +164,7 @@ window) does not report errors or pictures yet.
 | `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
 | `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v5.0) |
 | `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
+| `key` | no | **A key combination you suggest for showing your widget** (v5.0): `{ "combo": "ctrl+shift+k", "mode": "toggle" }`, where `mode` is `"toggle"` (press to show or hide it, the default) or `"hold"` (it shows while the keys are held). Xenon only **offers** it in the widget's card of the Xenon menu; nothing is set until the user picks it, and they can choose any other combination. Not a permission. A combination Xenon cannot use or that the system reserves is dropped and your package still installs. Ignored on an `ambient` package. See *Suggested keys*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -174,7 +181,7 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
   XHR, WebSocket, EventSource), no cookies/localStorage, no reach into the
   dashboard DOM, no popups, no forms, no top-navigation. (Persistence isn't lost
   — you get a host-mediated key/value store instead; see *Persistent storage*.)
-- **Inline `<script>` is blocked** (`script-src 'self'`) — put all JS in files.
+- **Inline `<script>` is blocked, and scripts load only from your widget's own folder.** Put all JS in files and reference them with relative paths (`widget.js`, `js/main.js`, `import './x.js'`). A script from anywhere else on the server is refused, so what a widget reads comes through the permissions it was granted.
   Inline `<style>` is allowed.
 - **Your widget is one page (v5.0.0).** If its frame loads a second document
   (`location.href = …`, a link, a form, `location.reload()`, even another page
@@ -287,6 +294,18 @@ cannot stop a timer inside your iframe — only you can. Listen for
 [`visibility`](#4c-visibility--host--widget) and stop your own work when you are
 told you are hidden. While your widget is visible, its cost is entirely yours.
 
+## Touch (the page swipe crosses your widget)
+
+Dashboard pages turn on a sideways drag, and that drag starts on your tile as
+often as anywhere else. Leave it free:
+
+- **A list that scrolls up and down uses `overscroll-behavior-y: contain`,** not
+  `overscroll-behavior: contain`. The plain form stops the drag on both axes, so
+  the finger can no longer change page over your widget.
+- **Keep `touch-action: none` on the control that needs the drag** (a knob, a
+  fader, a canvas you draw on), not on the whole widget. Over that area the page
+  does not turn, so a widget that covers its tile with it needs a good reason.
+
 ## The bridge protocol (v1)
 
 Every message in both directions is an object with `xenonSdk: 1` plus a `type`.
@@ -324,8 +343,9 @@ than the manifest requested):
   api: 1,
   theme:  {
     appearance: 'dark'|'light',
-    // Which SKIN the dashboard is wearing: 'glass' (Liquid Glass) or 'retro'
-    // (Pixel Retro). The palette cannot carry this — Retro differs in SHAPE
+    // Which SKIN the dashboard is wearing: 'glass' (Liquid Glass and Classic, the
+    // two share one shape language) or 'retro' (Pixel Retro). The palette cannot
+    // carry this — Retro differs in SHAPE
     // language, not colour: square corners, 2px borders, hard offset shadows
     // with no blur, and a monospace face. A widget that follows only the palette
     // still renders as a glass card inside a pixel dashboard. See *Following the
@@ -397,6 +417,9 @@ than the manifest requested):
   // Where this frame is drawn, and whether a dashboard is in use (v5.0.0).
   // See "Where your widget is".
   placement: { where: 'dashboard', dashboard: true },
+  // True on a paired phone or tablet (v5.0.0). Some actions only make sense on
+  // the PC and are refused from there: hide those buttons. Missing on an older Xenon.
+  remote: false,
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
   // Only slots they actually filled appear. See "User-supplied addresses".
   userHosts: {
@@ -423,7 +446,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
 - `lighting` — `{ ok, enabled, devices:[{ id, name, maker, mode, parts:[{ index, kind, leds, name? }] }] }`: **the user's lights by name** and what each one shows (`mode`, the same values `lightDevice` takes). `parts` lists, in map order, each fan, the pump, each strip or RAM stick of a device Xenon knows the layout of (`kind`: `fan`, `pump`, `block`, `strip`, `dram`, `zone`, `header` for a motherboard output the user has not set up yet, `pos` for a keyboard); `index` is what `lightPart` takes. Lights with no layout (a WLED strip, a Hue bulb) come with `parts: []`. No colours per LED. A **pull** stream: send a `refresh` for it when your widget opens and after you change something
 - `devStorage` — `{ ok, docker, ollama, vscode, vhdx, reclaimable }`: how much space developer tools hold and how much could be freed, **numbers only**. See *Developer storage* below. A **pull** stream
-- `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
+- `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -436,7 +459,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `discord` — Discord voice state (connected, mute/deafen, current channel, speaking) plus `members[]` for the channel the user is in: `{ id, name, avatar, mute, deaf, speaking, volume, localMute }`. `avatar` is the public address of that person's Discord avatar (`https://cdn.discordapp.com/...`, never empty for a real member: Discord's default avatar when they have none); to draw it, declare `cdn.discordapp.com` in your manifest `hosts` and load it through the image proxy, like any picture from the web (see *Artwork that stays cached* below). `mute`/`deaf` are that person's own mic state; `volume` (0-200, `null` if unreported) and `localMute` are what THIS machine hears — the pair `discordUserVol` writes
 - `discordChannels` — `{ ok, channels:[{ id, name, guild, guildId, members:[] }] }`; Discord voice-channel catalog merged with the live roster (same `members[]` shape). `guild` is the server's name and `guildId` its snowflake — group by the id, not the name: it survives a rename and tells two servers that share a name apart
 - `discordSoundboard` — `{ ok, sounds:[{ id, guildId, name, guild }] }`; the soundboard catalog available to the connected Discord account
-- `discordNotifications` — `{ ok, enabled, hide, state, items:[...] }`; private DM/mention notifications, with the user's privacy setting preserved. Request this grant only when the widget genuinely displays notification content
+- `discordNotifications` — `{ ok, enabled, hide, state, items:[{ id, at, title, body, icon, channelId, messageType }] }`; private DM/mention notifications, with the user's privacy setting preserved. `icon` is the sender's picture on `cdn.discordapp.com` (declare that host to show it), `channelId` is what [`discordOpenChat`](#5d-bis-replying-to-a-message-discordopenchat-v500) opens. Request this grant only when the widget genuinely displays notification content
 - `streamerbot` — Streamer.bot connection state, globals, and activity events
 - `twitchWatch` — `{ ok, connected, error, live:[…], playing:{…}|null }`; the channels the user follows that are on air, and the one playing in the Twitch tile. See *Watching Twitch and YouTube* below
 - `twitchChat` — `{ ok, channel, connected, messages:[…] }`; the chat of the channel being watched, already split into text and emotes. Push-only, see below
@@ -498,7 +521,7 @@ simply get no data, which is the case you already handle.
 ### Which apps are busy (`processes`)
 
 The per-application view of the machine — the data behind a task-manager widget.
-One payload every 2 seconds:
+One payload every 2 seconds, every 6 while a game runs:
 
 ```js
 if (m.type === 'data' && m.stream === 'processes') {
@@ -757,17 +780,31 @@ The `battery` stream is separate — it broadcasts on its own ~90s tick:
 
 ```js
 { devices: [{ id: 'k100 air', name: 'K100 AIR', percent: 62, charging: null, source: 'corsair' }],
-  sources: { corsair: true, bluetooth: true } }
+  sources: { corsair: true, bluetooth: true, peripherals: true } }
 ```
 
-`source` is `'corsair'` (via the iCUE bridge), `'bluetooth'`, or `'system'` (a
-laptop battery pack or a USB-connected UPS, via Win32_Battery). `charging` is a
-real boolean only for `'system'` entries — neither the iCUE SDK v4 nor the
-Windows Bluetooth property exposes a charging state, so it stays `null` for
-those. `sources` tells you whether each backend answered at all, so you can
-distinguish "no devices" from "iCUE is off". Peripherals on a proprietary
-2.4GHz dongle (Logitech Unifying/Lightspeed and most custom keyboards) report no
-battery to Windows and cannot appear.
+`source` is `'corsair'` (via the iCUE bridge), `'bluetooth'`, `'system'` (a laptop
+battery pack or a USB-connected UPS), `'logitech'` or `'razer'` (a mouse or keyboard
+on its USB dongle or cable, read directly; Razer is Beta), `'dongle'` (another brand's
+mouse, keyboard, headset or controller, read directly with no program of that brand; Beta)
+or `'usb'` (any other peripheral the Linux kernel reports). `charging` is a real boolean
+for `'system'`, `'logitech'`, `'razer'` and `'usb'` entries, a boolean or `null` for
+`'dongle'` ones, and `null` when a device cannot say: neither the iCUE SDK v4 nor the
+Windows Bluetooth property exposes it. A device that stopped answering (a sleeping mouse, headphones
+turned off) stays listed with its last `percent`, and then carries `lastSeen`, the time in
+milliseconds of that reading, with `charging: null`. Fresh devices have no `lastSeen`, so show
+it as old when it is there. Two devices of one model read `PRO X 2` and `PRO X 2 (2)`. `sources`
+tells you whether each backend answered at all, so you can distinguish "no devices"
+from "iCUE is off"; `sources.peripherals` is the direct dongle read, which runs
+about every 5 minutes. A 2.4GHz dongle has no common standard, so a device Xenon has no
+protocol for does not appear. Dongles are read on Windows and Linux, and on macOS in Beta. AirPods and Beats appear as
+`'bluetooth'` entries, with a second `'<name> case'` entry when the case level is known;
+their levels move in steps of 10. AirPods and Beats are read on Windows, and on macOS and Linux
+in Beta.
+The person can switch this reading off in Settings: `sources.peripherals` stays true and
+only what the OS itself reports is left. When the OS stands in the way the payload also has
+`access`: `{ kind: 'input-monitoring' }` on macOS, or `{ kind: 'udev', command }` on Linux
+with the one line to paste. It is absent otherwise.
 
 ### 3b-bis. Per-adapter network (v4.11.10)
 
@@ -784,6 +821,7 @@ not a sensor, and the permission dialog says so in those words.
   downloadBps: 1340221,   // the PHYSICAL adapters, summed — what the Network tile draws
   uploadBps: 88104,
   ping: 12, latency: 3,
+  loss: 0,                // percent of the last 60 echoes to 1.1.1.1 that never came back, null until measured
   interfaces: [
     {
       id: '{9F2A…}',            // stable across reboots; key your per-adapter settings on it
@@ -1720,19 +1758,22 @@ function applyControls(c) {
 // button { background: var(--btn-bg, var(--my-button)); color: var(--btn-text, inherit); }
 ```
 
-### The white-tile trap: declare a `color-scheme`
+### Transparency and `color-scheme`
 
-If your widget renders as a solid **white block** inside the dark dashboard while
-every background in your CSS is `transparent`, this is why, and no amount of
-staring at your own stylesheet will find it.
+A widget with `background: transparent` shows what is behind it: the tile's panel,
+or, when the person takes the panel away ("Remove background" in the Xenon menu),
+the desktop or the game. That is how a widget becomes words alone on the screen.
 
-A sandboxed iframe is composited transparently only while its used
-`color-scheme` **matches the embedding document's**. A widget that declares none
-is treated as light; Xenon's dashboard is dark; the two disagree, so the engine
-paints an **opaque canvas** underneath your transparent backgrounds. The widget's
-own CSS is blameless and unchanged, which is what makes this so hard to spot.
+A sandboxed iframe is composited transparently only while its used `color-scheme`
+**matches the one of the frame element**. When they disagree the engine paints an
+**opaque canvas** under your transparent backgrounds, white or black, and your own
+CSS is blameless. From 5.0.0 the host matches the frame element to your page, on load
+and whenever your root element changes, so a transparent widget stays transparent
+whatever it declares.
 
-Declare one, and keep it in step with the theme:
+Keep declaring one all the same, in step with the theme: it sets the look of form
+controls and scrollbars, and on Xenon 4.11.13 and earlier a widget that declares none
+is a solid **white block** on the dark dashboard.
 
 ```css
 :root { color-scheme: dark; }          /* sensible default */
@@ -1744,9 +1785,7 @@ document.documentElement.style.colorScheme =
 
 The same mechanism, in the opposite direction, is documented in
 `server/spotlight.html` for the frameless native window: setting a scheme there
-*creates* the opaque backdrop it must not have. Either way the rule is the same —
-the canvas is transparent only when the scheme is what the surrounding surface
-expects.
+*creates* the opaque backdrop it must not have.
 
 ### Following the skin (`theme.skin`)
 
@@ -2009,6 +2048,18 @@ the user, and you cannot move yourself: where a widget goes is the user's
 choice. On an older Xenon the field is missing: treat that as
 `{ where: 'dashboard', dashboard: true }`.
 
+The same goes for when it shows. The user can give any placed widget a rule (only
+during music, except during a call, between two times...), and the widget then
+leaves the screen and returns like a hidden tab: keep no state that depends on being
+seen. There is no SDK call to read or set the rule.
+
+On the screen a widget can be as small as 48 x 48 px, enough for one button
+that stays in a corner. Design for it if that is what your widget is: fill the
+frame, keep the whole of it clickable, and set a transparent background so the
+user can take the card away. While it waits for the user's permission the box
+grows to 220 x 140 px by itself, then goes back. A built-in tile stays at
+160 x 120 px or more, and so does a tab group.
+
 ### 4d. `notice` — host → widget (v4.10)
 
 Whether a Xenon pop-up is on screen right now. Sent immediately after `init`,
@@ -2122,14 +2173,16 @@ the same gate Deck keys go through):
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
 | `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. `{ type: 'audioDeviceToggle', deviceA, deviceB }` (v4.11.10) flips between two of them in one call: see *Moving the sound between two outputs* below. `{ type: 'audioDeviceFirst', device1, device2, device3? }` (v4.11.12) moves it to the first of a list that is connected right now: see *The first output that is connected* below. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
-| `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }`, `{ type: 'lightPart', device, part, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off\|custom` (`custom` shows what the user set for each part and LED of that device in Settings → Lighting, a colour or an effect of its own; LEDs left unset, or a device without a map, follow Xenon like `follow`); `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. `lightPart` colours one part of a device (a fan, the pump, a strip: `part` is its `index` in the `lighting` stream) and leaves the rest of that device looking as it did; without `color` the part goes back to following Xenon. Requires lighting configured in Settings → Illuminazione. |
+| `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }`, `{ type: 'lightPart', device, part, color }`, `{ type: 'signalRgbEffect', effect }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off\|custom` (`custom` shows what the user set for each part and LED of that device in Settings → Lighting, a colour or an effect of its own; LEDs left unset, or a device without a map, follow Xenon like `follow`); `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. `lightPart` colours one part of a device (a fan, the pump, a strip: `part` is its `index` in the `lighting` stream) and leaves the rest of that device looking as it did; without `color` the part goes back to following Xenon. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
-| `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
+| `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlMixVolume', mixId, value }`, `{ type: 'wlMixMute', mixId }`, `{ type: 'wlEffect', mixId, effectId, mode: 'toggle' \| 'on' \| 'off' }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; ids from the `wavelink` stream: `wlMixVolume` and `wlMixMute` take a `mixes[].id`, `wlEffect` a `channels[].id` and one of its `effects[].id`, Wave Link 3 only, `wl_unsupported` otherwise). Requires the user to enable Wave Link in Settings. |
+| `wavelinkOutput` | `{ type: 'wlOutputDevice', deviceId }` — move the Wave Link output to another device, `deviceId` from `outputs.devices[].id` in the `wavelink` stream. Wave Link 3 only. Its own line in the permission dialog, for the reason `audioDevice` is apart from `volume`. |
+| `timers` | `{ type: 'timerStart', label, minutes }`, `{ type: 'stopwatchStart', label }`, `{ type: 'timerToggle', label }`, `{ type: 'timerCancel', label }` — timers and stopwatches on the user's Timers tile, shown as `<your package id>: <label>`. A widget reaches only its own: the host adds the prefix, so asking for the name of a timer the user made answers `not_found` and never touches it. Up to 5 per widget (`max_timers`), 24 characters per label (the rest is cut), no `everyMinutes`. There is no stream of the Timers tile. Not available in manifest Deck macros. |
 | `steam` | `{ type: 'launchSteamGame', gameId }` — start a game the user owns, by Steam AppID. `gameId` is digits only (it becomes `steam://rungameid/<id>`), so a widget names a number, never a command. Steam has to be installed for the protocol handler to exist; nothing happens otherwise. Not part of `url`: that category is http(s) links, and it stays that way. |
 | `voicemeeter` | `{ type: 'vmStripMute', strip, mode }`, `{ type: 'vmStripGain', strip, mode, value }`, `{ type: 'vmStripBus', strip, bus, mode }`, `{ type: 'vmBusMute', bus, mode }`, `{ type: 'vmBusGain', bus, mode, value }`, `{ type: 'vmMacro', index, mode }` — Voicemeeter strips, buses and routing (`strip`: index; `bus`: a LABEL, `A1`…`B3`; `mode`: `toggle` \| `on` \| `off` for the flags, `set` \| `up` \| `down` for gain; gain in dB, clamped to −60…+12). Windows only, and only while Voicemeeter is running. `vmParam` is a Deck-key privilege and is **not** in this category: it names any parameter the mixer has, `Command.Shutdown` included. |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
-| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
+| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordOpenChat`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair and [Replying to a message](#5d-bis-replying-to-a-message-discordopenchat-v500) for the chat one. |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. Added in v5.0.0: `haClimate` mode `heat_cool`, `range` (`value` "20-24", sets both setpoints), `humidity` (0-100), `fan_mode` / `swing_mode` / `preset` (`value` must be one the entity lists in `fanModes` / `swingModes` / `presetModes`); `haMedia` cmd `on`, `off`, `source` / `sound_mode` (`value` from the entity's `sources` / `soundModes`), `seek` (seconds), `shuffle` (`on`/`off`, empty flips), `repeat` (`off`/`all`/`one`, empty steps). An unknown `mode` or `cmd`, or a mode the device does not offer, is refused (`bad_ha_action`) instead of falling back to another command. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
@@ -2142,13 +2195,17 @@ the same gate Deck keys go through):
 | `vitals` | `{ type: 'vitalsRefill', vital }` — mark a Vitals meter done, `vital` one of `hydration`, `energy`, `stamina`, `focus`, `posture` or `all` (every meter that is on). The same write as a tap on the bar. Errors: `vitals_off` (Vitals is off), `vital_off` (that meter is off). Pair with the `vitals` **stream** to read the meters. |
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
-The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma is write-only (no stream): fire the actions or show a static control. The whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` and `lightPart` take device ids and part indexes from the `lighting` stream (a pull snapshot, requested like `network`).
+The `wavelink` **stream** pushes the live mixer state — `{ enabled, connected, dialect, version, channels: [{ id, name, level, muted, effects: [{ id, name, enabled }], … }], mixes: [{ id, name, level, muted, icon, meter }], outputs: { devices: [{ id, name, kind, outputs }], … }, monitor, capabilities: { meters, effects, outputDevices, monitorSwitch, namedMixes } }` — so a widget can render real faders and read the ids to target. Check `capabilities` before offering effects or output devices. Razer Chroma is write-only (no stream): fire the actions or show a static control. The whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` and `lightPart` take device ids and part indexes from the `lighting` stream (a pull snapshot, requested like `network`).
 
 The `voicemeeter` **stream** does the same for Voicemeeter: `{ type, edition, strips: [{ index, mute, gain, routes: { A1: true, B1: false, … } }], buses: [{ index, label, mute, gain }] }`, sized to the edition that is running (Voicemeeter 3 strips / 2 buses, Banana 5 / 5, Potato 8 / 8). Target a bus by its **label**, never by its index: `B1` is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato, so an index stored in a widget would point at a different output on someone else's machine. The stream is polled from the mixer's own change flag and only while a dashboard is connected, so it costs nothing on a PC that has no Voicemeeter.
 
 > Local-hardware note: apps like Razer Synapse and Wave Link expose a **loopback** endpoint, which the sandbox and fetch proxy deliberately block. These `chroma`/`wavelink` categories are the supported path — Xenon's backend does the local talking, you request the category, the user grants it. Do **not** try to reach `127.0.0.1` from a widget; it won't work by design.
 
 Actions are rate-limited to one per ~250 ms per widget instance.
+
+An `action_result` error is always a short code (lower case, digits, underscores). When an action fails with anything else, such as the text of a system error, your widget gets `failed`: that text can name folders on the user's PC.
+
+**Deck keys on the screen are not a widget's.** A person can put a Deck key on the screen as a small button (5.0.0). A widget cannot place one, press one or read one, and no permission changes that.
 
 #### `openUrl` and the destination prompt (v4.8)
 
@@ -2356,6 +2413,11 @@ action: { type: 'captureMarker' }                       // a bookmark on the rec
 // { ok: true }, or { ok: false, error: 'unavailable' | 'running' | 'not_recording' | 'off' | 'saving' | … }
 ```
 
+A screenshot taken from a Deck key, a shortcut or Bit is also copied, ready to
+paste. One taken by a widget is saved but not copied, because a widget can fire
+without the user asking and must not rewrite the clipboard: only an area the user
+drags (`target: 'region'`) reaches it.
+
 ```json
 { "actions": ["capture"] }
 ```
@@ -2438,7 +2500,7 @@ action: { type: 'layerPage', page: 'next' }            // a page name or number;
 action: { type: 'screenDraw', mode: 'toggle' }         // drawing on the screen; mode: 'toggle' | 'start' | 'stop'
 // { ok: true, drawing: true } = open now; { ok: false, error: 'unsupported' | 'unavailable' }
 action: { type: 'xenonMenu', mode: 'open', section: 'keys' } // mode: 'toggle' | 'open' | 'close'
-// section: 'now' | 'widgets' | 'overlay' | 'capture' | 'keys' | 'look' | 'mode'
+// section: 'now' | 'widgets' | 'capture' | 'keys' | 'look' | 'mode' ('overlay', the old name, opens 'widgets')
 // { ok: true, where: 'screen' | 'dashboard' | 'closed', section } ; { ok: false, error: 'unavailable' }
 action: { type: 'gameCompanion' }                     // Bit's card for the game being played
 // { ok: true } ; { ok: false, error: 'companion_off' | 'screen_alerts_off' | 'unavailable' }
@@ -2477,7 +2539,9 @@ action: { type: 'gameCompanion' }                     // Bit's card for the game
 - **Xenon menu** (`xenonMenu`, v5.0.0) opens, closes or toggles the menu, like
   its Deck key: over the main screen when the Xenon app draws it there, otherwise
   as a panel on the open dashboards (`where` says which). `section` picks the page
-  it opens on. Nothing is read: your widget gets back only where it opened. Every
+  it opens on. `toggle` on a menu window that is minimized or behind another app
+  brings it forward instead of closing it. Nothing is read: your widget gets back
+  only where it opened. Every
   row inside the menu is the user's to press.
 - **Game Companion** (`gameCompanion`, v5.0.0) opens Bit's card for the game
   being played, like its Deck key: on the dashboard, or on the main screen with
@@ -2540,6 +2604,24 @@ action: { type: 'discordUserMute', user: '123456789012345678', mode: 'toggle' }
 
 Requires Discord running and connected in Settings, like every other action in
 the category.
+
+### 5d-bis. Replying to a message: `discordOpenChat` (v5.0.0)
+
+Discord gives apps no way to send a message, so the closest honest "Reply" is
+taking the user to the conversation. This action brings Discord forward on the
+PC with that chat open, and starts Discord first when it is closed.
+
+```js
+// channelId comes from an item of the discordNotifications stream
+action: { type: 'discordOpenChat', channel: item.channelId }
+```
+
+- `ok: true` means the chat is on screen. `ok: false` covers everything else,
+  including Discord opening without the chat, so say the user has to find it
+  there. Starting Discord can take up to ten seconds: wait that long for the result.
+- It runs on the PC only and a paired phone is refused. Hide the button when the
+  `init` message says `remote: true`, and also when `remote` is missing: that is
+  a Xenon older than 5.0.0, which does not have this action.
 
 ### 5e. Driving the Voicemeeter mixer: `voicemeeter` (v4.11.7)
 
@@ -2691,11 +2773,11 @@ the user granted, and every action is re-validated server-side.
 | `browser` | `browserOpen` |
 | `capture` | `screenshot`, `record`, `replay`, `screenText`, `screenPin`, `screenColor`, `screenMeasure`, `captureMarker` |
 | `chroma` | `chromaColor`, `chromaOff` |
-| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |
+| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordOpenChat`, `discordAudioToggle`, `discordSoundboard` |
 | `gallery` | `gallery` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
 | `layers` | `layersToggle`, `layerPage`, `screenDraw`, `xenonMenu`, `gameCompanion` |
-| `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice`, `lightPart` |
+| `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice`, `lightPart`, `signalRgbEffect` |
 | `media` | `media`, `mediaSeek` |
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
@@ -2705,13 +2787,15 @@ the user granted, and every action is re-validated server-side.
 | `steam` | `launchSteamGame` |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` |
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |
+| `timers` | `timerStart`, `stopwatchStart`, `timerToggle`, `timerCancel` |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
 | `url` | `openUrl` |
 | `vitals` | `vitalsRefill` |
 | `voicemeeter` | `vmStripMute`, `vmStripGain`, `vmStripBus`, `vmBusMute`, `vmBusGain`, `vmMacro` |
 | `volume` | `volume`, `appVolume`, `appMute` |
 | `watch` | `twitchWatchPlay`, `ytWatchPlay` |
-| `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlSwitchMonitoring`, `wlSetMonitorMix` |
+| `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlMixVolume`, `wlMixMute`, `wlEffect`, `wlSwitchMonitoring`, `wlSetMonitorMix` |
+| `wavelinkOutput` | `wlOutputDevice` |
 | `youtube` | `ytBroadcast` |
 | `youtubePlayer` | `ytPlayer` |
 <!-- SDK-REFERENCE:END -->
@@ -2915,6 +2999,24 @@ carries `gesture`, so one handler can tell its keys apart:
 | `press`, `release` | A momentary key: the finger goes down, then lifts. `release` always comes after its `press`. |
 | `repeat` | A repeat key still held: every run after the first. Repeats over the rate limit are dropped quietly. |
 | `cycle` | A cycle key. `gesture.state` is the state whose action ran, from 1 (its first face) to 8. |
+
+**Suggested keys (v5.0).** A handler that takes no params can run from a key
+combination too: the user sets one in the widget's card of the Xenon menu
+(*Keys*), and it shows under *Shortcuts and macros* with every other key. You
+may suggest the combination with `key` on the handler:
+
+```json
+{ "id": "lap", "name": "Lap", "key": { "combo": "ctrl+shift+l" } }
+```
+
+It is only shown next to the function as a hint: nothing is set until the user
+chooses. A handler with params stays on the Deck, where the user fills them in,
+and a handler the user did not grant gets no key. The top-level `key` suggests
+the combination that **shows or hides** your placed widget. Both follow the
+rule of every Xenon combination: two of Ctrl, Alt, Shift and Win with a letter
+or digit, or one of them with F1-F12; a reserved or malformed one is dropped and
+your package still installs. The call your handler receives from such a key is
+an ordinary key press (`gesture.type` is `tap`).
 
 `gesture` is absent when the handler ran another way (an AI action, a macro
 step with no key behind it), so treat it as optional. A `release` has its own
@@ -3280,6 +3382,33 @@ never the only place your widget says something.
 a readout the user deliberately parked in their top bar is worth having precisely
 when your tile is not on screen. Without it, your slot is dropped a few seconds
 after your last frame goes away.
+
+**Example: one mouse's charge.** `battery.devices` is sorted by name, so never take
+the first entry for "my mouse": find it by name, and ask the user for the name they
+see in the Batteries widget. The whole widget, with `{ "streams": ["battery"], "mini": true,
+"background": true }` in its manifest:
+
+```js
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'data' || msg.stream !== 'battery') return;
+  const device = msg.data.devices.find((d) => /pro x 2/i.test(d.name));
+  if (!device) parent.postMessage({ xenonSdk: 1, type: 'mini', op: 'clear' }, '*');
+  else parent.postMessage({
+    xenonSdk: 1, type: 'mini', op: 'present', tooltip: device.name,
+    blocks: [
+      { type: 'icon', text: '🔋' },
+      { type: 'text', text: `${device.percent}%`, weight: 'strong' },
+      { type: 'progress', value: device.percent / 100 },
+    ],
+  }, '*');
+});
+parent.postMessage({ xenonSdk: 1, type: 'hello' }, '*');
+```
+
+In Xenon Maker the same readout needs no code: a source `battery.device.<name>.level`
+(also `.charging`, `.name` and `.asleep`), fired once when the widget appears. What sits in the
+bar then follows its data by itself.
 
 ### 9e. Bar button — `topbarButton` (widget → host) (v5.0)
 

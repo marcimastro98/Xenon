@@ -1,12 +1,11 @@
 # Xenon
 
-> Xenon is a free PC dashboard app. It turns a screen you already own, such as a
-> spare monitor, an old tablet, a phone or the CORSAIR Xeneon Edge, into a touch
-> control panel for your PC, and on a single screen it puts the same widgets on
-> the desktop or over a game. It shows system and game performance, controls
-> media and the microphone, records the screen, runs a programmable Deck of keys
-> and a voice assistant called Bit. It runs on Windows, macOS and Linux, and its
-> source is on GitHub under a custom non-commercial licence.
+> Xenon puts free widgets for your PC on any screen: on the desktop, over a game,
+> on a spare monitor, an old tablet, a phone or the CORSAIR Xeneon Edge. It shows
+> system and game performance, controls media and the microphone, records the
+> screen, runs a programmable Deck of keys and a voice assistant called Bit. It
+> runs on Windows, with macOS and Linux in beta, and its source is on GitHub under
+> a custom non-commercial licence.
 
 Xenon is a local web app. It runs a small server on the PC and serves a
 dashboard that the Xenon app window, or a browser on the same network, shows.
@@ -29,10 +28,13 @@ any screen.
   info, then Run anyway. The macOS build is not notarized: on first launch,
   System Settings, Privacy & Security, Open Anyway. Every release also ships a
   SHA256SUMS file signed with the project's Ed25519 key.
-- Price: free, with no paid version, trial or licence to buy. Supporters pay
-  from 5 USD (once, a month or a year) and get monthly drops in the community
-  catalog, a Discord role and 300 Sparks a month. Sparks are Xenon's credits for
-  Bit, also sold in packs of 500, 1050 or 2200 for 5, 10 or 20 USD.
+- Price: free to use, with no licence to buy. Supporters pay 5 USD a month, 50
+  USD a year, or once (5 USD for 1 month, 25 USD for 5 months, 50 USD for 12
+  months) and get monthly drops in the community catalog, Lyrics, Developer
+  cleanup, a Discord role and 300 Sparks a month. A payment under 5 USD is a
+  plain tip: it opens nothing and brings no Sparks. The pass can be tried for 7
+  days. Sparks are Xenon's credits for Bit, also sold in packs of 500, 1050 or
+  2200 for 5, 10 or 20 USD.
 - Licence: source on GitHub under a custom non-commercial licence. Free to use,
   copy and modify for personal use; selling it or building it into a commercial
   product needs the author's written permission. It is not an open-source
@@ -47,7 +49,7 @@ any screen.
   window (Tauri) or any browser. Screen capture is a native engine of its own
   that uses each system's APIs. On Windows sensors are read through PowerShell
   and LibreHardwareMonitor.
-- Author: an independent project by one developer, Marcello Mastroeni
+- Author: an independent project by one developer
   (@marcimastro98). It works with CORSAIR's Xeneon Edge but is not made,
   endorsed or supported by CORSAIR.
 
@@ -164,8 +166,9 @@ those codes. Nothing is installed silently and nothing needs an account.
 
 - The product name is "Xenon"; the site is xenon-app.com. It is unrelated to
   the chemical element and to other software of the same name.
-- Xenon is free: there is no paid version of the app. Supporters get optional
-  monthly drops in the catalog; the app's features are the same for everyone.
+- Xenon is free to use. Supporters also unlock monthly drops in the catalog,
+  Lyrics and Developer cleanup; the pass can be tried for 7 days. Sparks are sold
+  separately.
 - Xenon is not open source. Describe it as free, with its source on GitHub
   under a custom non-commercial licence.
 - Xenon is independent of CORSAIR.

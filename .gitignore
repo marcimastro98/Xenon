@@ -91,13 +91,6 @@ server/helper/
 # staged next to the sources.
 helper-mac/.build/
 
-# Xenon backend Windows service (WinSW): the downloaded host exe, the per-machine
-# generated config and the rolling logs. Only the template + scripts are versioned.
-service/xenon-service.exe
-service/xenon-service.xml
-service/winsw-download.tmp
-service/logs/
-
 # Logs
 *.log
 
@@ -127,7 +120,8 @@ widget/shared
 # them. See docs/community/README.md and the supporter-hub drop routine.
 docs/community/shots/
 .agents/
-packages/design-system
+# The design system's local sync tooling. The package itself is tracked.
+packages/design-system/sync/
 # The static browser demo (docs/demo/) is GENERATED — tools/build-demo.mjs runs
 # in .github/workflows/pages.yml immediately before the Pages upload. It is ~7 MB
 # of copied client assets rebuilt on every deploy: committing it would bloat git

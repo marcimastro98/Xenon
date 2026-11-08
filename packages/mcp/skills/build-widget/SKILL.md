@@ -30,7 +30,7 @@ person's own dashboard, so you can see it run and fix it.
 - Say `hello` first, then wait for `init` before reading data.
 - Fill the tile at every size: `container-type: size` on the root and `cqmin` units, no fixed pixel layout.
 - Put text on the page with `textContent`, never `innerHTML`.
-- Read `theme` and follow its colours, and declare a `color-scheme`, or the tile can turn white.
+- Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
 - Keep it light: no busy loops, pause work while the `visibility` message says hidden.
 
 ## When something is wrong

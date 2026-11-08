@@ -10,7 +10,7 @@ Xenon is a **local-only** Node.js web app for Windows. The server is a single HT
 
 There is no build step for the web widget — the browser loads the ES modules in `server/js/` directly.
 
-- **Runtime:** Node.js ≥ 18.15, Windows x64 only
+- **Runtime:** Node.js LTS (the exact floor is `engines` in `package.json`) on Windows, macOS and Linux
 - **Server:** `http://127.0.0.1:3030` (loopback only)
 - **Dependencies:** `koffi` (FFI for the iCUE RGB bridge), `msedge-tts` (local Edge TTS). Do not add more without agreement.
 
@@ -76,14 +76,13 @@ server/                 Backend + dashboard UI (unchanged home; all runtime path
 widget/                 Native iCUE widget (in development) — consumes the same packages/core
                         via its packaging step; its only widget-specific layer is the iCUE
                         lifecycle/adapter.
-service/                Retired Windows-service host, kept for migration (see below).
 ```
 
 **How the browser reaches `packages/core` without a build:** a Windows directory junction `server/shared → packages/core` (created by `npm run link:shared`, also `postinstall`, and self-healed at server boot) exposes the files at `/shared/*`, served by the existing static handler (`shared` is on its allowlist; the loopback traversal guard is unchanged because `path.normalize` is lexical). `server/js` consumes them as plain `<script>` includes with inline fallbacks, so the dashboard still boots byte-identically if `/shared` is briefly unavailable. The iCUE packaging step *copies* `packages/core/src` into the package instead of relying on the junction. The junctions are git-ignored.
 
-### Backend startup (`service/` is retired)
+### Backend startup
 
-The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). The launcher looks nothing up on `PATH`: `install.ps1` records the `node.exe` it verified in `%LOCALAPPDATA%\Xenon\node-path.txt` and `start-hidden.vbs` starts that one, falling back to the usual install folders and then to a `PATH` scan it walks itself, and writing into `%LOCALAPPDATA%\Xenon\server.log` when there is no `node.exe` at all — the logon task's environment is not the installer's, and a start that fails there has no console to fail in. An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task; `service/` keeps only the uninstall script (used by that migration and by `uninstall.ps1`) — see `service/README.md`. There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
+The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). The launcher looks nothing up on `PATH`: `install.ps1` records the `node.exe` it verified in `%LOCALAPPDATA%\Xenon\node-path.txt` and `start-hidden.vbs` starts that one, falling back to the usual install folders and then to a `PATH` scan it walks itself, and writing into `%LOCALAPPDATA%\Xenon\server.log` when there is no `node.exe` at all — the logon task's environment is not the installer's, and a start that fails there has no console to fail in. An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task, and `uninstall.ps1` does the same (both with `sc.exe`; the old `service/` folder is gone). There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
 
 ### Native app (`apps/native/`)
 
