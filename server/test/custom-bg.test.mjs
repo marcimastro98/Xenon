@@ -179,3 +179,8 @@ test('the frame loop throttles paints to the embedded fps', () => {
   // Elapsed time stays on the real clock — skipping frames must not slow motion.
   assert.ok(html.includes('var el=(t-start)/1000'), 'elapsed seconds follow the rAF timestamp');
 });
+
+test('a background loses WebRTC before its code runs', () => {
+  const doc = buildSrcdoc('function draw(){}', {}, 30);
+  assert.ok(doc.indexOf('RTC') > 0 && doc.indexOf('RTC') < doc.indexOf('var __src='));
+});

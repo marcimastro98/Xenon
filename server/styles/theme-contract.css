@@ -6,14 +6,14 @@
 
 ::selection { background: var(--selection-bg); color: var(--selection-text); }
 
-/* Floating application surfaces. Immersive media/weather/AI canvases are
+/* Floating application surfaces. Immersive media and AI canvases are
    intentionally absent because they own a local light-on-dark palette. */
 :is(
   .settings-panel, .app-panel, .tab-panel, .picker-panel, .day-modal-card,
   .cs-panel, .widget-palette-modal, .tile-style-pop, .preset-modal, .cgal-modal,
   .native-promo, .wc-modal, .cw-modal, .upd-card, .discord-invite,
-  .deck-pmenu, .deck-style-modal, .deck-ed-modal, .deck-mix-modal, .deck-toast,
-  .event-toast, .gc-pill, .gc-card, .perf-banner, .perf-toast, .perf-sheet
+  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-asw, .deck-toast, .xfer-sheet,
+  .event-toast, .gc-pill, .gc-card, .perf-sheet, .weather-panel, .ai-pc-card, .onb-card, .diskw-advisor-dialog
 ) {
   color: var(--text);
   background-color: var(--surface);
@@ -21,21 +21,21 @@
 }
 
 :is(
-  .settings-head, .settings-foot, .app-head, .tab-head, .picker-head,
-  .picker-header, .day-modal-header, .cgal-topbar, .deck-ed-head,
-  .deck-mix-head, .settings-nav-footer
+  .app-head, .tab-head, .picker-head,
+  .picker-header, .day-modal-header, .deck-ed-head,
+  .deck-mix-head
 ) { border-color: var(--divider); }
 
 /* Repeated rows, cards, wells and editor sections. */
 :is(
   .settings-group, .settings-subpanel, .settings-segmented,
-  .settings-upload, .settings-preview-card, .ai-provider-toggle label,
+  .settings-upload, .ai-provider-toggle label,
   .app-card, .app-search-wrap, .tab-card, .picker-item,
-  .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
+  .preset-page-item, .preset-check-row, .preset-deck-acts,
   .wc-card, .wc-preview, .tile-style-tabs,
-  .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
+  .deck-ed-step,
   .upd-notes code, .upd-hl-footer, .upd-status,
-  .gc-stat, .perf-sheet-item, .perf-sheet-opt, .perf-sheet-app
+  .perf-sheet-opt, .perf-sheet-app
 ) {
   color: var(--text);
   background-color: var(--surface-alt);
@@ -44,7 +44,7 @@
 
 :is(
   .settings-group, .settings-subpanel, .app-card,
-  .tab-card, .picker-item, .widget-palette-item, .preset-page-item,
+  .tab-card, .picker-item, .preset-page-item,
   .preset-check-row, .wc-card, .deck-ed-step
 ):hover { border-color: var(--line); }
 
@@ -53,7 +53,7 @@
   input[type="text"], input[type="search"], input[type="number"],
   input[type="password"], input[type="url"], textarea, select,
   .settings-text-input, .settings-hex-input, .app-search,
-  .deck-ed-input, .deck-ed-select, .deck-ed-textarea, .cgal-search
+  .deck-ed-input, .deck-ed-select, .deck-ed-textarea
 ) {
   color: var(--text);
   background-color: var(--input-bg);
@@ -65,18 +65,18 @@
 :is(input, textarea, select):focus { border-color: var(--accent); }
 
 /* Generic commands. Brand-specific controls can still override these rules. */
-:is(.ui-btn, .settings-btn, .topbtn, .preset-btn, .tile-style-btn,
-  .gc-close, .gc-ask-btn, .gc-analyze, .perf-btn) {
+:is(.ui-btn, .settings-btn, .topbtn, .tile-style-btn,
+  .gc-close, .gc-ask-btn, .gc-ask-voice, .perf-btn) {
   color: var(--text);
   background-color: var(--control-bg);
   border-color: var(--line);
 }
-:is(.ui-btn, .settings-btn, .topbtn, .preset-btn, .tile-style-btn,
-  .gc-close, .gc-ask-btn, .gc-analyze, .perf-btn):hover {
+:is(.ui-btn, .settings-btn, .topbtn, .tile-style-btn,
+  .gc-close, .gc-ask-btn, .gc-ask-voice, .perf-btn):hover {
   color: var(--text);
   background-color: var(--hover-bg);
 }
-:is(.ui-btn--primary, .settings-btn.primary, .preset-btn.primary, .perf-btn-primary) {
+:is(.ui-btn--primary, .settings-btn.primary, .perf-btn-primary, .gc-analyze) {
   color: var(--on-accent);
   background-color: var(--accent);
   border-color: var(--accent);
@@ -118,8 +118,7 @@
 :is(.deck-pmenu-head, .deck-pmenu-empty, .deck-ed-label, .deck-ed-sub,
   .deck-mix-sub, .deck-toast-sub) { color: var(--muted-text); }
 :is(.deck-pmenu-pick, .deck-pmenu-tool, .deck-pmenu-add, .deck-pmenu-clean,
-  .deck-ed-close, .deck-ed-tab, .deck-ed-segbtn, .deck-ed-btn,
-  .deck-ed-stepbtn, .deck-ed-addstep, .deck-mix-close) {
+  .deck-ed-btn, .deck-ed-stepbtn, .deck-ed-addstep) {
   color: var(--text);
   background-color: var(--control-bg);
   border-color: var(--line);
@@ -156,10 +155,10 @@
   background-color: var(--surface-alt);
   border-color: var(--line);
 }
-:is(.streaming-card-title, .settings-spotify-setup-head, .settings-spotify-steps li) {
+:is(.settings-spotify-steps li) {
   color: var(--text);
 }
-:is(.streaming-field-label, .settings-spotify-premium, .streaming-poll) {
+:is(.streaming-poll) {
   color: var(--muted-text);
 }
 .streaming-copy-val { color: var(--text); background: var(--control-bg); border-color: var(--line); }
@@ -213,10 +212,10 @@
   .browser-url, .browser-fav, .browser-fav-input,
   .ss-bar, .ss-btn, .ss-tune-panel, .ss-tune-seg, .ss-tune-opt, .ss-setup-card,
   .remote-intro, .remote-panel-section, .remote-ready-row, .remote-step, .remote-status,
-  .up-setup, .up-seg, .up-seg-btn, .up-reorder-row, .up-move-btn
+  .up-setup, .up-reorder-row, .up-move-btn
 ) {
   background-color: var(--card-surface);
-  border-color: var(--divider);
+  border-color: var(--card-edge, var(--divider));
 }
 
 /* Vitals fill segments are data, not material: the list above themes the empty
@@ -246,11 +245,11 @@
   .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
   .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
   .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn,
-  .remote-btn-secondary, .up-seg-btn, .up-move-btn
+  .remote-btn-secondary, .up-move-btn
 ) {
   color: var(--text);
   background-color: var(--control-bg);
-  border-color: var(--line);
+  border-color: var(--control-edge, var(--line));
 }
 
 .panel :is(
@@ -262,12 +261,11 @@
   .fw-back, .fw-detail-rm, .fw-row, .fw-match, .fw-idcard, .fw-news, .fw-tab, .fw-lchip,
   .nw-manage, .nw-item, .cw-budget-back,
   .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn, .sh-icobtn, .sh-step,
-  .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
-  .up-seg-btn, .up-move-btn
+  .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary, .up-move-btn
 ):hover {
   color: var(--text);
   background-color: var(--hover-bg);
-  border-color: var(--line);
+  border-color: var(--control-edge, var(--line));
 }
 
 .panel :is(
@@ -290,7 +288,7 @@
   .dc-pill:not(.in-voice), .dc-tab:not(.is-active), .dc-vol-lbl, .dc-sec-label,
   .dc-member:not(.is-speaking), .dc-chip, .sbw-pill:not(.is-live),
   .yt-pill:not(.live), .twitch-status-pill:not(.live),
-  .up-setup-msg, .up-seg-btn:not(.is-active), .up-move-btn,
+  .up-setup-msg, .up-move-btn,
   .remote-hint, .remote-panel-label, .remote-ready-label,
   .sh-item-ico, .sh-item-sub, .sh-item-go, .sh-item-unit,
   .sh-item--value .sh-item-name, .sh-sheet-sub, .sh-sheet-close,
@@ -298,7 +296,7 @@
 ) { color: var(--muted-text); }
 
 .panel :is(
-  .obs-scene.is-active, .up-seg-btn.is-active, .ss-tune-opt.is-active,
+  .obs-scene.is-active, .ss-tune-opt.is-active,
   .wl-seg-btn.is-active, .sh-seg-btn.is-active, .sh-abtn.is-active,
   .sh-chip.is-active, .sh-chan-go, .lgt-chip.is-active,
   .dc-tab.is-active, .dc-ptt.is-on, .dc-chan.is-active, .dc-chip.is-on,
@@ -405,10 +403,15 @@
   background: var(--surface-alt);
 }
 
+/* The same words in the Codex and ChatGPT tiles: outside the chat pane, on any look. */
+:is(.cx-bubble, .cg-bubble).ai-msg-markdown :is(.ai-h3, .ai-h4, strong, em) { color: inherit; }
+:is(.cx-bubble, .cg-bubble).ai-msg-markdown .ai-hr { border-top-color: var(--divider); }
+
 /* Attachments (image thumbs + document chips) rendered in the transcript */
 [data-chatf="pane"] :is(.ai-bubble-img, .ai-attach-thumb) { border-color: var(--line); }
 [data-chatf="pane"] :is(.ai-attach-doc, .ai-bubble-doc) {
   background: var(--surface-alt);
   border-color: var(--line);
 }
-[data-chatf="pane"] .ai-attach-doc-name { color: var(--text); }
+/* Two classes: in the search window AIPanel.css loads after this sheet. */
+[data-chatf="pane"] :is(.ai-attach-doc-name, .ai-bubble-doc .ai-attach-doc-name) { color: var(--text); }

@@ -1,0 +1,89 @@
+/* Editing the dashboard under Liquid Glass: the style window and layout mode wear the
+   same material as the island and the rails (--lg-*, liquid-chrome.css) and the same
+   keys as the tiles (--lg-key, liquid-tiles.css). Liquid only: a look chosen in
+   Settings keeps its own window and tools. Green stays for the one main action. */
+
+/* The window holds text, so it takes a thicker glass than the chrome: Apple's regular
+   material, not clear. A layer over --lg-fill, so low power and reduced transparency
+   still come through it. Two classes: it must outweigh the light look's solid surface. */
+:root[data-style="liquid"] .tile-style-overlay .tile-style-pop {
+  background: var(--lg-sheen), linear-gradient(rgba(var(--panel-rgb), 0.42) 0 0), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  border-color: var(--lg-edge);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+}
+/* With no blur the tiles would read straight through the window's text. */
+:root[data-style="liquid"] body.low-power-gpu .tile-style-overlay .tile-style-pop { background: rgb(var(--panel-rgb)); }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style="liquid"] .tile-style-overlay .tile-style-pop { background: rgb(var(--panel-rgb)); }
+}
+:root[data-style="liquid"] .tile-style-pop .tile-style-tabs { background: var(--lg-well); }
+:root[data-style="liquid"] .tile-style-pop .tile-style-btn:not(.primary),
+:root[data-style="liquid"] .tile-style-pop .tile-shape-chip { border-color: transparent; background: var(--lg-key); }
+:root[data-style="liquid"] .tile-style-pop .tile-style-btn:not(.primary):hover,
+:root[data-style="liquid"] .tile-style-pop .tile-shape-chip:hover { background: var(--lg-key-hover); }
+
+/* The dock: one glass capsule, like the island it answers. */
+:root[data-style="liquid"] .layout-dock {
+  background: var(--lg-sheen), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  border-color: var(--lg-edge);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+}
+:root[data-style="liquid"] .layout-chip,
+:root[data-style="liquid"] .layout-control-btn { background: var(--lg-key); color: var(--text); font-weight: 600; }
+:root[data-style="liquid"] .layout-chip:hover,
+:root[data-style="liquid"] .layout-control-btn:hover { background: var(--lg-key-hover); color: var(--text); }
+:root[data-style="liquid"] .layout-chip.primary,
+:root[data-style="liquid"] .layout-chip.primary:hover { background: var(--green); color: var(--on-accent); }
+:root[data-style="liquid"] .layout-chip.active { border-color: transparent; background: var(--lg-thumb); color: var(--text); }
+:root[data-style="liquid"] .layout-dock-title {
+  font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted-text);
+}
+
+/* A tile being edited: one hairline round the tile itself, in place of green dashes on
+   three nested boxes. It also shows where a tile with no panel ends. */
+:root[data-style="liquid"] .layout-editing :is(.grid-stack-item-content, .dashboard-widget, [data-system-card]) { outline: none; }
+:root[data-style="liquid"] .layout-editing .grid-stack-item-content > :is(.panel, .dashboard-widget) { outline: 1px solid var(--lg-line); outline-offset: -1px; }
+:root[data-style="liquid"] body.tile-styling.layout-editing .grid-stack-item:not(.is-style-target) > .grid-stack-item-content > :is(.panel, .dashboard-widget) { outline-color: transparent; }
+:root[data-style="liquid"] .gs-edit-grip { background: var(--lg-key); color: var(--text); box-shadow: none; }
+
+/* A System card's keys, with room kept for them: the card's name used to run under. */
+:root[data-style="liquid"] .layout-controls {
+  padding: 0; border: 0; background: none; box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-style="liquid"] body:not(.tile-styling).layout-editing [data-system-card] .stat-head { padding-right: 126px; }
+
+/* The tile's keys sit on the tile, not on black plates. Danger is said on hover and by
+   the icon: red on every tile at rest reads as an alarm on the whole dashboard. */
+:root[data-style="liquid"] .layout-editing .gs-edit-bar > button,
+:root[data-style="liquid"] .layout-editing .gs-edit-bar .layout-control-btn {
+  border-color: transparent; background: var(--lg-key); color: var(--text); font-weight: 500;
+}
+:root[data-style="liquid"] .layout-editing .gs-edit-bar > button:hover,
+:root[data-style="liquid"] .layout-editing .gs-edit-bar .layout-control-btn:hover {
+  border-color: transparent; background: var(--lg-key-hover); color: var(--text);
+}
+:root[data-style="liquid"] .layout-editing .gs-edit-bar .gs-add-tab { color: var(--text) !important; }
+:root[data-style="liquid"] .layout-editing .gs-edit-bar .gs-remove { color: var(--text) !important; border-color: transparent !important; }
+:root[data-style="liquid"] .layout-editing .gs-edit-bar .gs-remove:hover { color: var(--red) !important; }
+
+/* Corners: a mark on the glass, with no box round it. */
+:root[data-style="liquid"] .layout-editing .grid-stack > .grid-stack-item > :is(.ui-resizable-se, .ui-resizable-nw) {
+  border-color: transparent; background: var(--lg-key); box-shadow: none;
+}
+:root[data-style="liquid"] .layout-editing .grid-stack > .grid-stack-item > :is(.ui-resizable-se, .ui-resizable-nw)::after { border-color: var(--text); }
+
+:root[data-style="liquid"] .layout-editing .tabgroup-remove { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .layout-editing .tabgroup-remove:hover { background: var(--lg-key-hover); color: var(--red); }
+
+/* The page tools in the island. */
+:root[data-style="liquid"] .pager-page-tools { border-left-color: var(--lg-line); }
+:root[data-style="liquid"] .pager-page-btn { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .pager-page-btn:hover { background: var(--lg-key-hover); }
+:root[data-style="liquid"] .pager-page-remove { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .pager-page-remove:hover { background: var(--lg-key-hover); color: var(--red); }

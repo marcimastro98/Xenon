@@ -6,14 +6,6 @@ function getLockWidgetPrefs() {
   return normalizeLockWidgets(hubSettings && hubSettings.lockWidgets);
 }
 
-// Pre-v4.4 entry point, kept as a delegating shim: anything still calling it
-// (old muscle memory, external snippets) must go through AmbientMode so scene
-// resolution and the idle re-arm stay consistent.
-function toggleWidgetLockScreen() {
-  if (window.AmbientMode) AmbientMode.toggle();
-  else openWidgetLockScreen();
-}
-
 // One timer aimed just past the next second boundary. A requestAnimationFrame
 // loop polling for the second to change woke the page every vsync (60-240 times
 // a second) to repaint once; the timer lands within a few ms of the same moment.
@@ -69,7 +61,9 @@ function renderLockScreen() {
   const weatherActive = prefs.weather;
   const mediaWide = mediaActive && !eventsActive;
   const mediaOnly = mediaWide && !weatherActive;
+  const noCards = !weatherActive && !eventsActive && !mediaActive;
   overlay.classList.toggle('no-clock', !prefs.clock);
+  overlay.classList.toggle('no-cards', noCards);
   overlay.classList.toggle('media-wide', mediaWide);
   overlay.classList.toggle('media-only', mediaOnly);
   const grid = $('lockscreen-widgets');
@@ -79,6 +73,7 @@ function renderLockScreen() {
     grid.classList.toggle('no-media', !mediaActive);
     grid.classList.toggle('media-wide', mediaWide);
     grid.classList.toggle('media-only', mediaOnly);
+    grid.classList.toggle('is-empty', noCards);
   }
   setLockWidgetVisible('lock-clock-widget', prefs.clock);
   renderLockClock();
@@ -120,33 +115,41 @@ function renderLockClock() {
   const is12h = clockUses12h();
   const h24 = now.getHours();
   const mins = now.getMinutes();
-  const hours = is12h ? String(h24 % 12 || 12).padStart(2, '0') : String(h24).padStart(2, '0');
-  const ampm = is12h ? (h24 < 12 ? 'AM' : 'PM') : '';
+  const hours = is12h ? String(h24 % 12 || 12) : String(h24).padStart(2, '0');
+  const ampm = is12h ? (h24 < 12 ? ' AM' : ' PM') : '';
+  const time = `${hours}:${String(mins).padStart(2, '0')}`;
   const date = new Intl.DateTimeFormat(locale, {
-    weekday: 'long', day: '2-digit', month: 'long'
+    weekday: 'long', day: 'numeric', month: 'long'
   }).format(now);
-  const hoursEl = $('lock-time-h');
-  const minsEl = $('lock-time-m');
-  const ampmEl = $('lock-time-ampm');
   const dateEl = $('lockscreen-date');
-  if (hoursEl) updateLockClockPart(hoursEl, hours);
-  if (minsEl) updateLockClockPart(minsEl, String(mins).padStart(2, '0'));
-  if (ampmEl) ampmEl.textContent = ampm;
+  setLockDigits(time, time + ampm);
   if (dateEl) dateEl.textContent = date;
-  const greetEl = $('lockscreen-greeting');
-  if (greetEl) {
-    const h = now.getHours();
-    const key = h < 5 ? 'greet_night' : h < 12 ? 'greet_morning' : h < 18 ? 'greet_afternoon' : 'greet_evening';
-    greetEl.textContent = t(key);
-  }
 }
 
-function updateLockClockPart(element, value) {
-  if (element.textContent === value) return;
-  element.textContent = value;
-  element.classList.remove('tick');
-  void element.offsetWidth;
-  element.classList.add('tick');
+// Written only when the minute changes, so the page stays still in between and the blur
+// behind the digits is not worked out again. Like a phone's lock screen the clock leaves
+// AM and PM to the words read aloud: the numbers stay the one big thing on screen.
+function setLockDigits(time, spoken) {
+  const clock = $('lockscreen-time');
+  if (!clock || clock.dataset.time === time) return;
+  clock.dataset.time = time;
+  clock.setAttribute('aria-label', spoken);
+  LockDigits.draw(clock, time);
+  shiftLockStage();
+}
+
+// A clock in one place for hours marks an OLED panel. The whole scene walks a few pixels
+// around its centre, one step a minute: too little and too slow for anyone to see.
+const LOCK_SHIFT_STEPS = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const LOCK_SHIFT_PX = 5;
+let lockShiftStep = 0;
+function shiftLockStage() {
+  const stage = $('lockscreen-stage');
+  if (!stage) return;
+  lockShiftStep = (lockShiftStep + 1) % LOCK_SHIFT_STEPS.length;
+  const [x, y] = LOCK_SHIFT_STEPS[lockShiftStep];
+  stage.style.setProperty('--lk-shift-x', `${x * LOCK_SHIFT_PX}px`);
+  stage.style.setProperty('--lk-shift-y', `${y * LOCK_SHIFT_PX}px`);
 }
 
 function classifyLockWeather(data) {
@@ -162,11 +165,15 @@ function renderLockWeather(enabled) {
   const data = weatherData;
   const art = $('lock-weather-art');
   if (art) {
-    const state = data && data.ok ? classifyLockWeather(data) : 'state-cloud';
+    const state = data && data.ok ? classifyLockWeather(data) : '';
     // At night the light source behind clouds/rain must be the moon, not the sun.
     const night = data && data.ok && typeof isWeatherNight === 'function'
       && isWeatherNight(data.sunrise, data.sunset);
-    art.className = `lock-weather-art ${state}${night ? ' is-night' : ''}`;
+    const drawn = `${state}${night ? ' night' : ''}`;
+    if (art.dataset.sky !== drawn) {
+      art.dataset.sky = drawn;
+      art.innerHTML = WeatherArt.svg(state, night);
+    }
   }
 
   if (!data || !data.ok) {
@@ -224,13 +231,8 @@ function renderLockEvents(enabled, upcoming = getLockUpcomingEvents()) {
   setLockWidgetVisible('lock-events-widget', enabled);
   if (!enabled) {
     list.replaceChildren();
-    const count = $('lock-events-count');
-    if (count) count.textContent = '0';
     return;
   }
-
-  const count = $('lock-events-count');
-  if (count) count.textContent = String(upcoming.length);
 
   const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short', day: '2-digit', month: 'short' }));
   list.replaceChildren(...upcoming.map(event => {
@@ -241,18 +243,13 @@ function renderLockEvents(enabled, upcoming = getLockUpcomingEvents()) {
       closeWidgetLockScreen();
       openDayModal(String(event.startsAt).slice(0, 10));
     };
-    const dot = document.createElement('span');
-    dot.className = 'lock-event-dot';
-    const copy = document.createElement('span');
-    copy.className = 'lock-event-copy';
     const title = document.createElement('span');
     title.className = 'lock-event-title';
     title.textContent = event.title || t('ph_title');
     const when = document.createElement('span');
     when.className = 'lock-event-when';
     when.textContent = fmt.format(new Date(event.startsAt));
-    copy.append(title, when);
-    item.append(dot, copy);
+    item.append(title, when);
     return item;
   }));
 }

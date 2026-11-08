@@ -20,8 +20,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = read('server.js');
-const SYSTEM = read('js', 'system.js');
-const CSS = read('components', 'WeatherModal', 'WeatherModal.css');
+const TILE = read('js', 'weather-tile.js');
+const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const I18N = read('js', 'i18n.js');
 const INDEX = read('index.html');
 
@@ -94,15 +94,15 @@ test('the server accepts exactly the values the client offers', () => {
 });
 
 test('the compact bar is still the button that opens the full view', () => {
-  const fn = extractFunction(SYSTEM, 'buildWeatherCompactBar');
-  assert.match(fn, /document\.createElement\('button'\)/);
+  const fn = extractFunction(TILE, 'buildWeatherCompactBar');
+  assert.match(fn, /weatherEl\('button',/);
   assert.match(fn, /toggleWeatherDetails\(\)/);
   // Each stat honours the same per-field toggle as the big card's chips, and
   // feels-like sits with the temperature rather than among the extras.
   assert.match(fn, /weatherFieldEnabled\(id\)/);
   assert.match(fn, /weatherFieldEnabled\('feels'\)/);
   assert.match(fn, /weather-compact-chevron/);
-  assert.match(extractFunction(SYSTEM, 'renderWeatherTile'),
+  assert.match(extractFunction(TILE, 'renderWeatherTile'),
     /sec\.compact \? buildWeatherCompactBar\(data\) : buildWeatherHeroCard\(data\)/);
 });
 

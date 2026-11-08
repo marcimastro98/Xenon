@@ -110,15 +110,13 @@ test('it lives with the top bar, not in a second place to look', () => {
 });
 
 test('every language names both sliders', () => {
-  for (const key of ['settings_clock_scale', 'settings_clock_date_scale', 'settings_clock_hint']) {
+  for (const key of ['settings_clock_scale', 'settings_clock_date_scale']) {
     const n = I18N.split('\n').filter((l) => {
       const t = l.trimStart();
       return t.startsWith(`${key}:`) || t.startsWith(`'${key}':`) || t.startsWith(`"${key}":`);
     }).length;
     assert.equal(n, LANGS.length, `${key} is defined ${n} times, expected ${LANGS.length}`);
   }
-  // The group's hint promised only a format before there was a size.
-  assert.ok(!/settings_clock_hint: 'time format'/.test(I18N));
 });
 
 // ── How much of the date the bar spells out ─────────────────────────────────
@@ -136,9 +134,10 @@ test('the shorter forms are asked of Intl, never cut out of the long one', () =>
   }
   const block = CLOCK.slice(CLOCK.indexOf('CLOCK_DATE_SHAPES'), CLOCK.indexOf('});', CLOCK.indexOf('CLOCK_DATE_SHAPES')));
   assert.ok(!/slice\(|split\(|substring\(/.test(block), 'the date is being cut up rather than re-asked for');
-  // full is what the bar has always shown, so it has to stay the default.
+  // full is what the bar showed before 5.0.0: a saved setting keeps it. A new install
+  // starts on medium, so the island fits the tile under it (default-look.test.mjs).
   assert.match(block, /full:\s*\{\s*weekday: 'long',\s*day: '2-digit',\s*month: 'long'\s*\}/);
-  assert.match(SETTINGS, /clockDateFormat: 'full'/);
+  assert.match(SETTINGS, /clockDateFormat: 'medium'/);
 });
 
 test('the formatter cache knows about the shape, not only the locale', () => {

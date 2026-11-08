@@ -30,7 +30,8 @@ function load(name, extra = '') {
 const KINDS = "const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);\n";
 // _normalizeTimer also checks the id's shape and mints a fresh one when needed.
 const ID_RE = SERVER.match(/^const SAFE_ITEM_ID_RE = .*$/m)[0] + '\n';
-const normalize = new Function(KINDS + ID_RE + load('_timerId') + load('_normalizeTimer') + '; return _normalizeTimer;')();
+const LABEL_MAX = 'const SCOPED_LABEL_MAX = 67;\n';
+const normalize = new Function(KINDS + ID_RE + LABEL_MAX + load('_timerId') + load('_normalizeTimer') + '; return _normalizeTimer;')();
 const remaining = new Function(load('_getTimerRemaining') + '; return _getTimerRemaining;')();
 const elapsed = new Function(load('_getTimerElapsed') + '; return _getTimerElapsed;')();
 

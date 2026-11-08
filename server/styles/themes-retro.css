@@ -87,8 +87,7 @@
   letter-spacing: 0.02em;
   font-size-adjust: 0.52;
 }
-:root[data-style="retro"] :is(.settings-group-head > span:first-child,
-  .settings-preview-kicker, .tabgroup-tab, .deck-crumb, .topbtn span) {
+:root[data-style="retro"] :is(.tabgroup-tab, .deck-crumb, .topbtn span) {
   font-family: 'Press Start 2P', 'VT323', monospace;
   /* P2P's own x-height is already tall — the inherited adjust would
      shrink it; give it back its natural size with a legibility floor. */
@@ -121,12 +120,12 @@
 /* ── Controls: cartridge buttons ─────────────────────────────
    2px border, hard shadow, and a real "press": the control moves into
    its own shadow. */
-:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn) {
+:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn) {
   border: 2px solid rgba(var(--accent-rgb), 0.5);
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
   transition: none;
 }
-:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn):active {
+:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn):active {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
@@ -172,7 +171,7 @@
 
 /* Phosphor glow on the accent ink — headers and active labels only
    (a page-wide text-shadow would smear the terminal body face). */
-:root[data-style="retro"] :is(.settings-group-head > span:first-child, .tabgroup-tab.active, .clock-face) {
+:root[data-style="retro"] :is(.tabgroup-tab.active, .clock-face) {
   text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.45);
 }
 

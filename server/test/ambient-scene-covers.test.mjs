@@ -47,8 +47,11 @@ test('only the classic scene is see-through; the other two are not', () => {
 test('the note appears for any scene but the classic one, and never for it', () => {
   const fn = SETTINGS.slice(SETTINGS.indexOf('function syncAmbientSettings()'));
   const body = fn.slice(0, fn.indexOf('\n}'));
-  assert.match(body, /const covers = cfg\.sceneId !== 'builtin'/);
-  assert.match(body, /sceneNote\.hidden = !covers/);
+  const noteFn = SETTINGS.slice(SETTINGS.indexOf('function syncAmbientSceneNote('));
+  const note = noteFn.slice(0, noteFn.indexOf('\n}'));
+  assert.match(body, /syncAmbientSceneNote\(cfg\)/);
+  assert.match(note, /const covers = cfg\.sceneId !== 'builtin'/);
+  assert.match(note, /sceneNote\.hidden = !covers/);
   // It must follow exactly the condition that hides the lock-widget toggles —
   // the note exists to explain that disappearance, so a different rule would
   // leave one of the two unexplained.
@@ -69,7 +72,7 @@ test('the note sits with the scene picker and starts hidden', () => {
 test('the note carries its key, not just its text', () => {
   const fn = SETTINGS.slice(SETTINGS.indexOf('const sceneNote ='));
   const body = fn.slice(0, fn.indexOf('\n  }\n'));
-  assert.match(body, /setAttribute\('data-i18n', 'ambient_scene_covers'\)/);
+  assert.match(body, /setAttribute\('data-i18n', waiting \? 'ambient_scene_wait' : 'ambient_scene_covers'\)/);
   assert.match(body, /removeAttribute\('data-i18n'\)/, 'and drops it again on the classic scene');
 });
 

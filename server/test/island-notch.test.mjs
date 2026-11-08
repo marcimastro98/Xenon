@@ -74,3 +74,10 @@ test('the item clip is unchanged by the surface variant', () => {
   assert.match(N.clipPath(g), /^path\("M -48 -48 H /);
   assert.equal(N.surfaceClipPath(null), '');
 });
+
+test('the line along the cutout carries on the tile border, and a tile without one gets none', () => {
+  assert.deepEqual(N.edgeLine({ borderLeftWidth: '1px', borderLeftColor: 'rgb(60, 60, 60)' }), { width: 1, color: 'rgb(60, 60, 60)' });
+  assert.deepEqual(N.edgeLine({ borderLeftWidth: '0.667px', borderLeftColor: 'rgb(60, 60, 60)' }), { width: 1, color: 'rgb(60, 60, 60)' });
+  // The Deck's bare frame: border 0, and its computed colour is the white of the text.
+  assert.deepEqual(N.edgeLine({ borderLeftWidth: '0px', borderLeftColor: 'rgb(255, 255, 255)' }), { width: 0, color: 'transparent' });
+});

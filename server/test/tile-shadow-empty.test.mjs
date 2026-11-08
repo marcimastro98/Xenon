@@ -41,7 +41,7 @@ function fakeEl() {
   };
 }
 
-const applyTileTokens = new Function('window', cut(LAYOUT, 'function applyTileTokens(el, style) {', 'function applyAllTileStyles')
+const applyTileTokens = new Function('window', cut(LAYOUT, 'const TILE_THIN_BELOW', 'function applyAllTileStyles')
   + '\nreturn applyTileTokens;')({ PANEL_DROP_CSS: { dark: 'DROP', light: 'DROP' }, getEffectiveThemePalette: () => ({ tone: 'dark' }) });
 
 test('a fully transparent tile casts no shadow, and the border is left alone', () => {
@@ -73,7 +73,7 @@ test('a transparent tile is marked plain; a shadow the user set on it is marked,
 test('re-applying a style clears the markers first, so they never go stale', () => {
   const at = LAYOUT.indexOf('function applyTileEffects(el, content, style, colorsOnly) {');
   const body = LAYOUT.slice(at, LAYOUT.indexOf('applyTileTokens(el, style)', at));
-  for (const a of ['data-tile-glass', 'data-tile-plain', 'data-tile-shadow']) {
+  for (const a of ['data-tile-glass', 'data-tile-plain', 'data-tile-thin', 'data-tile-shadow']) {
     assert.ok(body.includes(`el.removeAttribute('${a}')`), `${a} is not reset`);
   }
 });
@@ -156,7 +156,7 @@ test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   assert.equal(clamp(1, 0, 2, 0), 1, 'someone who turns it on keeps it');
   assert.equal(clamp(1.6, 0, 2, 0), 1.6);
   // The per-tile slider has the same range and starts from the dashboard's own value.
-  assert.match(read('../js/tile-style-editor.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
+  assert.match(read('../js/tile-style-material-pane.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
 });
 
 test('the Deck rule keys off the mark on a direct child of the grid item, and respects a chosen shadow', () => {

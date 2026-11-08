@@ -69,7 +69,7 @@ test('the page has every host it fills, and loads after settings.js', () => {
   }
   assert.ok(INDEX.includes('href="components/Topbar/TopbarLookSettings.css"'));
   // The rails group is the one settings.js hides in Full.
-  assert.match(SETTINGS, /getElementById\('topbar-rails-personalize'\);\n\s+if \(railsRow\) railsRow\.hidden = style === 'full';/);
+  assert.match(SETTINGS, /getElementById\('topbar-rails-personalize'\);\n\s+setSettingsCardAvailable\(railsRow, style !== 'full'\);/);
 });
 
 test('settings sync, the button list and the reset all reach the look', () => {

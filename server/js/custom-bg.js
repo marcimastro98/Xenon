@@ -140,6 +140,9 @@
   const GUARD_SRC = Guard
     ? Guard.createGuard.toString() + Guard.guardStep.toString() + 'var G=createGuard(__fps,' + JSON.stringify(Guard.LIMITS) + ');'
     : '';
+  // connect-src 'none' does not cover WebRTC, so a background's code loses it
+  // before it runs (server/sdk-widgets.js FRAME_GUARD_SOURCE says why).
+  const WEBRTC_OFF = 'Object.getOwnPropertyNames(window).forEach(function(n){if(/^(webkit)?RTC/.test(n)){try{delete window[n];}catch(e){}}});';
   function guardSource(on) {
     return on && GUARD_SRC ? GUARD_SRC : 'var G=null;';
   }
@@ -156,7 +159,7 @@
       '<style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}' +
       'canvas{display:block;width:100vw;height:100vh}</style></head><body>' +
       '<canvas id="c"></canvas>' +
-      '<script>var __src=' + js + ',__assetsJson=' + assetsJson + ',__fps=' + sanitizeBgFps(fps) + ';' +
+      '<script>' + WEBRTC_OFF + 'var __src=' + js + ',__assetsJson=' + assetsJson + ',__fps=' + sanitizeBgFps(fps) + ';' +
       guardSource(guard !== false) + BOOTSTRAP + '</scr' + 'ipt>' +
       '</body></html>';
   }
@@ -419,6 +422,8 @@
     // mutation — neither restarts the animation nor pays any per-call work
     // proportional to the asset bytes.
     function apply(code, assets, fps, guard) {
+      // A sheet fills its window: nobody would see it, and the frame would keep running.
+      if (typeof isSheetPage === 'function' && isSheetPage()) return;
       const next = (typeof code === 'string' && code.trim()) ? code.slice(0, CODE_MAX) : '';
       if (!next) { if (current !== null) unmount(); document.body.classList.remove('custom-bg-on'); return; }
       const rawAssets = (assets && typeof assets === 'object' && !Array.isArray(assets)) ? assets : {};

@@ -120,7 +120,15 @@
     return head + tail;
   }
 
-  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, GAP };
+  // The hairline along the cutout carries on the tile's own border. A tile with no
+  // border (the Deck's bare frame) gets none: its computed colour is the text's,
+  // a bright line nothing else on the tile has.
+  function edgeLine(style) {
+    const border = parseFloat(style.borderLeftWidth) || 0;
+    return border > 0 ? { width: Math.max(1, border), color: style.borderLeftColor } : { width: 0, color: 'transparent' };
+  }
+
+  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, edgeLine, GAP };
   if (typeof window !== 'undefined') window.IslandNotch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

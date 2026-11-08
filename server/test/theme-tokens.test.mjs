@@ -135,3 +135,10 @@ test('a font url that is not one of our uploads never reaches the stylesheet', (
   }
   assert.equal(ThemeTokens.fontSource({ url: '/uploads/a.ttf', version: '1"x' }), '/uploads/a.ttf?v=1x');
 });
+
+test('an off switch shows on paper: the track is a real grey there, the old glass on dark', () => {
+  const dark = paint(BASE).root.props.get('--toggle-off');
+  assert.equal(dark, 'rgba(255,255,255,0.16)');
+  const light = paint({ ...BASE, appearance: 'light' }).root.props.get('--toggle-off');
+  assert.match(light, /color-mix\(in srgb, var\(--text\) 46%, var\(--surface\)\)/);
+});

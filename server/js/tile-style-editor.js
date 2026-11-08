@@ -1,4 +1,4 @@
-// Per-tile style editor: one tile's own colours, material, shape, background
+// Per-tile style editor: one tile's own material, colours, shape, background
 // picture, frame and overlays. Opened from the edit bar (dashboard-grid.js).
 //
 // Every change repaints the tile at once and persists through setTileStyle()
@@ -165,114 +165,34 @@
     return pane;
   }
 
-  function effectsPane(ctx) {
-    const { work, commit, hs } = ctx;
-    const pane = mk('div', 'tile-style-body');
-    const fx = (key, label, min, max, step, theme, format) => F().rangeField({
-      label, tt, min, max, step, theme, format, get: () => work[key], set: (v) => { work[key] = v; }, onChange: () => { syncHint(); commit(); },
-    });
-    const pct = (v) => `${Math.round(v * 100)}%`;
-    const opacity = fx('panelAlpha', tt('tile_style_opacity', 'Panel opacity'), 0, 1, 0.01, num(hs.panelAlpha, 0.94), pct);
-    const blur = fx('glassBlur', tt('tile_style_glass_blur', 'Glass blur'), 0, 40, 1, 0, (v) => `${Math.round(v)} px`);
-    const sat = fx('glassSaturate', tt('tile_style_glass_saturate', 'Glass saturation'), 100, 220, 5, num(hs.glassSaturate, 160), (v) => `${Math.round(v)}%`);
-    // Blur shows only THROUGH the panel. Rather than lowering the opacity behind
-    // the user's back, the hint offers to do it.
-    const hint = mk('div', 'tile-style-hint');
-    hint.appendChild(mk('span', '', tt('tile_style_glass_hint', 'Blur only shows through a translucent panel.')));
-    const fix = mk('button', 'tsf-link', tt('tile_style_glass_fix', 'Make the panel translucent'));
-    fix.type = 'button';
-    fix.addEventListener('click', () => { work.panelAlpha = 0.55; opacity.refresh(); syncHint(); commit(); });
-    hint.appendChild(fix);
-    const syncHint = () => {
-      const alpha = work.panelAlpha != null ? work.panelAlpha : num(hs.panelAlpha, 0.94);
-      hint.hidden = !(work.glassBlur > 0 && alpha >= 0.95);
-    };
-    const material = F().section(tt('tile_style_group_material', 'Material'));
-    [opacity, blur, sat].forEach((f) => material.appendChild(f.row));
-    material.appendChild(hint);
-    const edges = F().section(tt('tile_style_group_edges', 'Edges'));
-    [
-      fx('radius', tt('tile_style_radius', 'Corner radius'), 0, 2, 0.05, num(hs.uiRoundness, 1), (v) => `${Math.round(16 * v)} px`),
-      fx('borderStrength', tt('tile_style_border', 'Panel border'), 0, 2, 0.05, num(hs.panelBorderStrength, 1), pct),
-      fx('shadowStrength', tt('tile_style_shadow', 'Panel shadow'), 0, 2, 0.05, num(hs.tileShadowStrength, 0), pct),
-    ].forEach((f) => edges.appendChild(f.row));
-    pane.append(material, edges);
-    shapeSection(ctx, pane);
-    syncHint();
-    return pane;
-  }
-
-  function shapeThumb(d) {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 1 1');
-    // Keep the shape's own proportions in the chip: squashed flat, a circle, a
-    // blob and an arch all read as the same ellipse.
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    const p = document.createElementNS(NS, 'path');
-    p.setAttribute('d', d || 'M 0 0 L 1 0 L 1 1 L 0 1 Z');
-    p.setAttribute('fill', 'currentColor');
-    svg.appendChild(p);
-    return svg;
-  }
-
-  function shapeSection(ctx, pane) {
-    const { work, commit } = ctx;
-    const DI = window.DashboardInstances || {};
-    const shape = work.shape;
-    const sec = F().section(tt('tile_style_shape', 'Shape'));
-    const grid = mk('div', 'tile-shape-grid');
-    const chips = [];
-    const pathInput = mk('input', 'tile-shape-path');
-    const extra = mk('div', 'tsf-section');
-    const sync = () => {
-      chips.forEach(({ btn, id }) => btn.classList.toggle('active', shape.preset === id && (id || !shape.path)));
-      extra.hidden = !(shape.preset || shape.path);
-    };
-    const chip = (id, label, d) => {
-      const btn = mk('button', 'tile-shape-chip'); btn.type = 'button'; btn.title = label;
-      btn.append(shapeThumb(d), mk('span', '', label));
-      btn.addEventListener('click', () => { shape.preset = id; if (id) shape.path = ''; pathInput.value = shape.path; sync(); commit(); });
-      grid.appendChild(btn);
-      chips.push({ btn, id });
-    };
-    chip('', tt('tile_shape_none', 'Rectangle'), '');
-    ((window.TileShapePresets && window.TileShapePresets.TILE_SHAPES) || []).forEach((s) => chip(s.id, tt(s.labelKey, s.label), s.d));
-    // The code door: any closed SVG path in a 0..1 square. A rejected path is
-    // named, never swallowed: an ignored path looks like a shape that broke.
-    const pathRow = mk('div', 'tsf-row tsf-col');
-    pathInput.type = 'text';
-    pathInput.placeholder = 'M 0.5 0 L 1 0.5 L 0.5 1 L 0 0.5 Z';
-    pathInput.value = shape.path || '';
-    pathInput.setAttribute('aria-label', tt('tile_shape_path', 'Custom path (SVG, 0–1 square)'));
-    const err = mk('div', 'tile-style-hint tile-style-hint-err', tt('tile_shape_path_bad', 'That is not a usable path: it must start with M, end closed with Z, and contain only path commands and numbers.'));
-    err.hidden = true;
-    pathInput.addEventListener('input', () => {
-      const v = pathInput.value.trim();
-      shape.path = v;
-      if (v) shape.preset = '';
-      const ok = !v || !!(DI.normalizeTileShape && DI.normalizeTileShape({ path: v }));
-      err.hidden = ok;
-      if (ok) { sync(); commit(); }
-    });
-    pathRow.append(mk('span', 'tsf-label', tt('tile_shape_path', 'Custom path (SVG, 0–1 square)')), pathInput, err);
-    extra.append(
-      F().rangeField({ label: tt('tile_shape_inset', 'Safe margin'), tt, min: 0, max: 25, step: 1, theme: 6, format: (v) => `${v}%`, get: () => shape.inset, set: (v) => { shape.inset = v; }, onChange: commit }).row,
-      F().toggleField({ label: tt('tile_shape_fit', 'Keep proportions'), get: () => shape.fit === 'fit', set: (v) => { shape.fit = v ? 'fit' : 'stretch'; }, onChange: commit }).row,
-    );
-    sec.append(grid, pathRow, extra);
-    pane.appendChild(sec);
-    sync();
-  }
-
   // ── Shell ─────────────────────────────────────────────────────────────────
   let overlayEl = null;
   let flush = null;
 
+  // True when a window was open: Escape closes this before it leaves layout mode.
   function close() {
     // Flush a pending persist so closing right after a drag never drops it.
     if (flush) { const f = flush; flush = null; try { f(); } catch (_) {} }
-    if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+    if (!overlayEl) return false;
+    overlayEl.remove();
+    overlayEl = null;
+    spotlight(null);
+    return true;
+  }
+
+  // While the window is open the marks of layout mode step aside, so the tile
+  // being dressed is seen as it will be, and a ring says which one it is.
+  function spotlight(el) {
+    document.querySelectorAll('.grid-stack-item.is-style-target').forEach((n) => n.classList.remove('is-style-target'));
+    document.body.classList.toggle('tile-styling', !!el);
+    if (el) el.classList.add('is-style-target');
+  }
+
+  // The window opens on the far side of the tile, never over it.
+  function placeAwayFrom(overlay, el) {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    overlay.classList.toggle('is-left', r.left + r.width / 2 > window.innerWidth / 2);
   }
 
   function readClipboard() {
@@ -313,11 +233,14 @@
       b.addEventListener('click', () => {
         list.forEach(([, p]) => { p.hidden = p !== pane; });
         bar.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+        b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       });
       bar.appendChild(b);
     });
     pop.appendChild(bar);
-    list.forEach(([, pane]) => pop.appendChild(pane));
+    const scroller = mk('div', 'tile-style-scroll');
+    list.forEach(([, pane]) => scroller.appendChild(pane));
+    pop.appendChild(scroller);
   }
 
   function footer(ctx) {
@@ -383,7 +306,8 @@
       Promise.resolve().then(fn).catch((e) => toast(tt('decor_upload_failed', 'Upload failed') + (e && e.message ? `: ${e.message}` : '')))
         .finally(() => { btn.disabled = false; });
     };
-    const ctx = { id, work, commit, cancel, hs, pal, afterPaint, TDP, tt, toast, busyPick, seedAccent: pal.accent };
+    const leaveFor = (category) => { close(); if (typeof window.openSettings === 'function') window.openSettings(category); };
+    const ctx = { id, work, commit, cancel, hs, pal, afterPaint, TDP, tt, toast, busyPick, seedAccent: pal.accent, leaveFor };
 
     const overlay = mk('div', 'tile-style-overlay');
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) close(); });
@@ -394,8 +318,8 @@
     pop.appendChild(head);
     makeDraggable(pop, head, overlay);
     const panes = [
+      [tt('tile_style_group_material', 'Material'), window.TileStyleMaterialPane.materialPane(ctx)],
       [tt('tile_style_tab_colors', 'Colours'), colorsPane(ctx)],
-      [tt('tile_style_tab_fx', 'Effects'), effectsPane(ctx)],
       [tt('tile_style_tab_bg', 'Background'), window.TileStyleDecorPanes.backgroundPane(ctx)],
       [tt('tile_style_tab_decor', 'Decor'), window.TileStyleDecorPanes.decorPane(ctx)],
       [tt('tile_style_tab_controls', 'Controls'), window.TileStyleControlsPane.controlsPane(ctx)],
@@ -406,7 +330,9 @@
     tabs(pop, panes);
     pop.appendChild(footer(ctx));
     overlay.appendChild(pop);
+    placeAwayFrom(overlay, tileEl(id));
     document.body.appendChild(overlay);
+    spotlight(tileEl(id));
     // The shared dropdown instead of the native list, which the OS places and
     // which drops off the bottom of the Edge. data-cs-fixed: this panel scrolls.
     if (typeof window.initCustomSelect === 'function') {
@@ -423,6 +349,7 @@
   if (typeof window !== 'undefined') {
     window.openTileStyleEditor = open;
     window.closeTileStyleEditor = close;
+    window.TileStyleWork = { workingCopy, buildStyle };
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { workingCopy, buildStyle };
 })();

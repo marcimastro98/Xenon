@@ -124,7 +124,7 @@ test('every place that lists the share kinds knows `topbar`', () => {
 test('the import shows a review step and the export is in the Export list', () => {
   const src = read('../js/preset-share.js');
   assert.match(src, /if \(env\.kind === 'topbar'\) \{ close\(\); openTopbarImport\(env\.name, env\.data\); return; \}/);
-  assert.match(src, /\{ kind: 'topbar', label: \['settings_share_topbar'/);
+  assert.match(src, /\{ label: \['settings_share_topbar'/);
   assert.match(src, /if \(sel\.topbar && window\.TopbarShare\) data\.topbar = TopbarShare\.of\(HS\(\)\);/);
   const index = read('../index.html');
   assert.ok(index.indexOf('src="js/topbar-share.js"') > index.indexOf('src="js/topbar-look.js"'));

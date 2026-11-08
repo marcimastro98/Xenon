@@ -101,6 +101,8 @@
       '--oled-border': 'var(--line)',
       '--slider-fill': 'var(--accent)',
       '--slider-track': 'var(--control-bg)',
+      // 3:1 against paper: a white knob on a pale track reads as nothing at all.
+      '--toggle-off': palette.tone === 'light' ? 'color-mix(in srgb, var(--text) 46%, var(--surface))' : 'rgba(255,255,255,0.16)',
     };
     Object.entries(semantic).forEach(([key, value]) => root.style.setProperty(key, value));
 
@@ -132,8 +134,10 @@
     const safe = s.safeMode === true;
     const retro = !safe && s.styleMode === 'retro';
     const comic = !safe && s.styleMode === 'comic';
+    const liquid = !safe && s.styleMode === 'liquid';
     if (retro) root.dataset.style = 'retro';
     else if (comic) root.dataset.style = 'comic';
+    else if (liquid) root.dataset.style = 'liquid';
     else delete root.dataset.style;
     return { safe, retro, comic };
   }

@@ -74,7 +74,7 @@
       const v = own != null ? own : o.theme;
       range.value = String(v);
       showValue(tail, own != null, o.format(v), o.tt);
-      if (own == null) tail.value.textContent = o.themeUnknown ? o.tt('tile_style_from_theme', 'Theme') : `${o.tt('tile_style_from_theme', 'Theme')} · ${o.format(v)}`;
+      if (own == null) tail.value.textContent = o.themeUnknown ? o.tt('tile_style_from_theme', 'Theme') : `${o.tt('tile_style_from_theme', 'Theme')} ${o.format(v)}`;
     }
     row.append(label, range, tail.value, tail.reset);
     refresh();

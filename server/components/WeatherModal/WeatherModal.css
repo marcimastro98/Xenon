@@ -48,623 +48,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────
-   Weather overlay backdrop
-────────────────────────────────────────────────────────── */
-.weather-overlay[hidden] { display: none !important; }
-.weather-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 230;
-  display: grid;
-  place-items: center;
-  padding: 14px;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(24px) saturate(1.15);
-}
-
-/* ─────────────────────────────────────────────────────────
-   Panel shell — sky gradient changes per state
-────────────────────────────────────────────────────────── */
-.weather-panel {
-  width: min(1320px, calc(100vw - 30px));
-  max-height: calc(100vh - 28px);
-  overflow: hidden;
-  position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0,1fr);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 28px;
-  /* Liquid glass base — near-transparent, heavy blur picks up ambient colors */
-  background: rgba(255,255,255,0.055);
-  backdrop-filter: blur(56px) saturate(2.4) brightness(1.06);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.32),   /* top specular edge */
-    inset 1px 0 0 rgba(255,255,255,0.08),       /* left specular edge */
-    0 44px 130px rgba(0,0,0,0.65),
-    0 0 0 0.5px rgba(255,255,255,0.08);
-  isolation: isolate;
-
-  /* Local dark contract. The modal floats over a 55%-black scrim in every theme,
-     so it is an immersive dark island rather than application chrome and owns its
-     palette instead of following the dashboard's. Without this a light or Comic
-     Book palette pushes its paper-tuned text and status colours onto the sky —
-     the metric values (air quality, UV, PM, humidity) then sit at ~1.7:1 and
-     vanish. The shared metric/hour/forecast primitives below paint from --text,
-     so redefining it here is what keeps them light-on-dark inside the modal. */
-  --text: #ffffff;
-  --muted-text: rgba(255,255,255,0.72);
-  --dim-text: rgba(255,255,255,0.55);
-  --color-success: var(--color-success-ondark, #45d483);
-  --color-warn: var(--color-warn-ondark, #f0b84f);
-  --color-danger: var(--color-danger-ondark, #ff6268);
-  --color-info: var(--color-info-ondark, #62cbea);
-}
-/* Specular glass sheen — top-left light reflection */
-.weather-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 0;
-  background: linear-gradient(150deg, rgba(255,255,255,0.11) 0%, transparent 24%);
-}
-/* State tints — very subtle color cast through the glass, no opaque gradients */
-.weather-panel.state-sun    { background: radial-gradient(ellipse at 68% 10%, rgba(255,195,40,0.10), transparent 52%), rgba(255,255,255,0.055); border-color: rgba(255,215,80,0.26); }
-.weather-panel.state-moon   { background: radial-gradient(ellipse at 68% 10%, rgba(80,128,240,0.09), transparent 52%), rgba(255,255,255,0.050); border-color: rgba(110,155,255,0.22); }
-.weather-panel.state-cloud  { background: rgba(255,255,255,0.052); border-color: rgba(255,255,255,0.16); }
-.weather-panel.state-rain   { background: radial-gradient(ellipse at 68% 10%, rgba(80,160,255,0.08), transparent 52%), rgba(255,255,255,0.050); border-color: rgba(120,184,255,0.22); }
-.weather-panel.state-storm  { background: radial-gradient(ellipse at 68% 10%, rgba(30,40,80,0.14), transparent 52%), rgba(255,255,255,0.042); border-color: rgba(255,218,58,0.18); }
-.weather-panel.state-snow   { background: radial-gradient(ellipse at 68% 10%, rgba(160,212,255,0.08), transparent 52%), rgba(255,255,255,0.058); border-color: rgba(200,230,255,0.22); }
-.weather-panel.state-fog    { background: rgba(255,255,255,0.062); border-color: rgba(255,255,255,0.13); }
-.weather-panel.state-offline{ filter: grayscale(0.4); opacity: 0.78; }
-
-/* ─────────────────────────────────────────────────────────
-   Panel header
-────────────────────────────────────────────────────────── */
-.weather-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.weather-kicker {
-  color: rgba(255,255,255,0.52);
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.9px;
-}
-.weather-panel-title {
-  margin-top: 2px;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 600;
-}
-.weather-panel-actions { display: inline-flex; gap: 8px; }
-.weather-icon-btn {
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 50%;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.68);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  transition: transform 0.14s ease, background 0.14s ease, color 0.14s ease;
-}
-.weather-icon-btn:hover {
-  transform: scale(1.08);
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-}
-.weather-icon-btn svg { width: 15px; height: 15px; fill: currentColor; }
-
-/* ─────────────────────────────────────────────────────────
-   Content grid
-────────────────────────────────────────────────────────── */
-.weather-content {
-  min-height: 0;
-  /* Fits the panel height on the Xeneon Edge (720px) and typical laptops without a
-     scroll; overflow stays auto only as a graceful fallback on very short windows. */
-  overflow-y: auto;
-  padding: 13px 14px;
-  display: grid;
-  grid-template-columns: minmax(360px, 0.86fr) minmax(560px, 1.14fr);
-  grid-template-rows: auto auto auto;
-  gap: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.12) transparent;
-}
-.weather-content::-webkit-scrollbar { width: 5px; }
-.weather-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
-
-/* ─────────────────────────────────────────────────────────
-   Hero card  (left column, spans all rows)
-────────────────────────────────────────────────────────── */
-.weather-hero-card {
-  min-height: 380px;
-  grid-row: 1 / 4;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24px;
-  padding: 20px 24px;
-  display: grid;
-  align-content: end;
-  background: rgba(255,255,255,0.045);
-  backdrop-filter: blur(24px) saturate(1.8);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
-}
-.weather-hero-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 42%, rgba(0,0,0,0.50) 100%);
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-/* Immersive dynamic sky on the hero — changes with condition + day/night */
-.weather-panel.state-sun   .weather-hero-card { background: linear-gradient(165deg, #5cb3f0 0%, #2479c4 52%, #0f4a82 100%); }
-.weather-panel.state-moon  .weather-hero-card { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
-.weather-panel.state-cloud .weather-hero-card { background: linear-gradient(165deg, #74828f 0%, #4c5763 52%, #2c333d 100%); }
-.weather-panel.state-rain  .weather-hero-card { background: linear-gradient(165deg, #51687d 0%, #324658 52%, #1b2836 100%); }
-.weather-panel.state-storm .weather-hero-card { background: linear-gradient(165deg, #3c3656 0%, #241f3a 52%, #120e20 100%); }
-.weather-panel.state-snow  .weather-hero-card { background: linear-gradient(165deg, #9ab4cd 0%, #647a96 52%, #3a4a5e 100%); }
-.weather-panel.state-fog   .weather-hero-card { background: linear-gradient(165deg, #828a94 0%, #585f69 52%, #353a42 100%); }
-
-/* ─────────────────────────────────────────────────────────
-   Animated weather icon (hero)
-────────────────────────────────────────────────────────── */
-.weather-hero-visual {
-  position: absolute;
-  top: 24px;
-  right: 16px;
-  width: min(260px, 52%);
-  aspect-ratio: 1;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  transform: translateZ(0);
-}
-.weather-hero-visual span { position: absolute; display: block; }
-
-/* Background blob — hidden in new design */
-.weather-viz-sky { opacity: 0; }
-
-/* ── Celestial body (sun default) ── */
-.weather-viz-celestial {
-  --weather-celestial-x: 0px;
-  --weather-celestial-y: 0px;
-  --weather-celestial-scale: 1;
-  --weather-celestial-scale-float: 1.03;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: #ffd60a;
-  box-shadow:
-    0 0 0 10px rgba(255,214,10,0.10),
-    0 0 38px rgba(255,200,0,0.52),
-    0 0 100px rgba(255,165,0,0.20);
-  animation: weather-float 6s ease-in-out infinite;
-  will-change: transform;
-}
-@keyframes weather-float {
-  0%, 100% { transform: translate(var(--weather-celestial-x), var(--weather-celestial-y)) scale(var(--weather-celestial-scale)); }
-  50%      { transform: translate(var(--weather-celestial-x), calc(var(--weather-celestial-y) - 8px)) scale(var(--weather-celestial-scale-float)); }
-}
-
-/* ── Sun halo rings ── */
-.weather-viz-ring {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.20);
-  opacity: 0;
-}
-@keyframes weather-ring-pulse {
-  0%   { transform: scale(0.60); opacity: 0.38; }
-  100% { transform: scale(1.42); opacity: 0; }
-}
-.state-sun .weather-viz-ring { opacity: 1; animation: weather-ring-pulse 3.8s ease-out infinite; }
-.state-sun .weather-viz-ring-b { animation-delay: 1.8s; }
-
-/* ── Moon ── */
-.state-moon .weather-viz-celestial,
-.weather-hero-visual.is-night .weather-viz-celestial {
-  background:
-    radial-gradient(circle at 65% 34%, rgba(8,16,36,0.97) 0 30%, transparent 31%),
-    radial-gradient(circle at 38% 38%, #f8f8f2, #e2ecff 55%, #b4ccf2 100%);
-  box-shadow:
-    0 0 26px rgba(185,212,255,0.55),
-    0 0 90px rgba(100,155,255,0.20);
-}
-/* No warm sun halo rings at night */
-.weather-hero-visual.is-night .weather-viz-ring { opacity: 0 !important; animation: none !important; }
-
-/* ── Clouds ── */
-.weather-viz-cloud {
-  width: 100px;
-  height: 40px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.84);
-  opacity: 0;
-  filter: drop-shadow(0 5px 18px rgba(0,0,0,0.14));
-}
-.weather-viz-cloud::before,
-.weather-viz-cloud::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: inherit;
-}
-.weather-viz-cloud::before { width: 46px; height: 46px; left: 16px; top: -22px; }
-.weather-viz-cloud::after  { width: 58px; height: 58px; right: 9px;  top: -30px; }
-.weather-viz-cloud-a { left: 90px; bottom: 60px; transform: scale(1.04); animation: weather-cloud-drift 8s ease-in-out infinite; will-change: translate; }
-.weather-viz-cloud-b { left: 24px; bottom: 92px; transform: scale(0.66); animation: weather-cloud-drift 10s ease-in-out reverse infinite; will-change: translate; }
-@keyframes weather-cloud-drift {
-  0%, 100% { translate: -10px 0; }
-  50%      { translate: 14px -4px; }
-}
-.state-cloud .weather-viz-cloud,
-.state-rain  .weather-viz-cloud,
-.state-storm .weather-viz-cloud,
-.state-snow  .weather-viz-cloud,
-.state-fog   .weather-viz-cloud { opacity: 1; }
-.state-cloud .weather-viz-celestial,
-.state-rain  .weather-viz-celestial,
-.state-storm .weather-viz-celestial,
-.state-snow  .weather-viz-celestial,
-.state-fog   .weather-viz-celestial {
-  --weather-celestial-x: 42px;
-  --weather-celestial-y: -32px;
-  --weather-celestial-scale: 0.78;
-  --weather-celestial-scale-float: 0.81;
-  opacity: 0.30;
-}
-
-/* ── Rain ── */
-.weather-viz-rain {
-  width: 2px;
-  height: 36px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(180,222,255,0), rgba(180,222,255,0.90));
-  opacity: 0;
-}
-.weather-viz-rain-a { left: 108px; bottom: 32px; }
-.weather-viz-rain-b { left: 144px; bottom: 22px; animation-delay: 0.18s; }
-.weather-viz-rain-c { left: 178px; bottom: 38px; animation-delay: 0.36s; }
-@keyframes weather-rain-fall {
-  from { transform: translateY(-12px) rotate(12deg); opacity: 0; }
-  25%  { opacity: 1; }
-  to   { transform: translateY(24px) rotate(12deg); opacity: 0; }
-}
-.state-rain  .weather-viz-rain,
-.state-storm .weather-viz-rain { opacity: 1; animation: weather-rain-fall 0.95s linear infinite; will-change: transform, opacity; }
-.state-rain  .weather-viz-rain-b, .state-storm .weather-viz-rain-b { animation-delay: 0.18s; }
-.state-rain  .weather-viz-rain-c, .state-storm .weather-viz-rain-c { animation-delay: 0.36s; }
-
-/* ── Lightning bolt ── */
-.weather-viz-bolt {
-  width: 28px; height: 54px;
-  left: 140px; bottom: 44px;
-  background: #ffd60a;
-  clip-path: polygon(40% 0, 80% 0, 58% 40%, 88% 40%, 28% 100%, 44% 52%, 16% 52%);
-  filter: drop-shadow(0 0 14px rgba(255,214,10,0.82));
-  opacity: 0;
-}
-@keyframes weather-flash {
-  0%, 68%, 100% { opacity: 0; }
-  69%, 76%      { opacity: 1; }
-}
-.state-storm .weather-viz-bolt { opacity: 1; animation: weather-flash 2s steps(1,end) infinite; }
-
-/* ── Snow ── */
-.weather-viz-snow {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.92);
-  box-shadow: 32px 16px 0 rgba(255,255,255,0.70), 68px 4px 0 rgba(255,255,255,0.82);
-  opacity: 0;
-}
-.weather-viz-snow-a { left: 90px; bottom: 56px; }
-.weather-viz-snow-b { left: 124px; bottom: 32px; animation-delay: 1.3s; }
-@keyframes weather-snow-fall {
-  from { transform: translateY(-14px); opacity: 0; }
-  30%  { opacity: 1; }
-  to   { transform: translateY(30px); opacity: 0; }
-}
-.state-snow .weather-viz-snow { opacity: 1; animation: weather-snow-fall 3.2s ease-in-out infinite; will-change: transform, opacity; }
-.state-snow .weather-viz-snow-b { animation-delay: 1.3s; }
-
-/* ── Fog ── */
-.weather-viz-fog {
-  left: 56px; right: 16px; bottom: 52px;
-  height: 46px;
-  border-radius: 999px;
-  background: repeating-linear-gradient(180deg, rgba(255,255,255,0.48) 0 3px, transparent 3px 12px);
-  opacity: 0;
-}
-@keyframes weather-fog-slide {
-  0%, 100% { transform: translateX(-10px); opacity: 0.40; }
-  50%       { transform: translateX(10px);  opacity: 0.70; }
-}
-.state-fog .weather-viz-fog { opacity: 1; animation: weather-fog-slide 5.5s ease-in-out infinite; will-change: transform, opacity; }
-
-/* ── Offline ── */
-.state-offline .weather-viz-celestial { opacity: 0.18; filter: grayscale(1); }
-.state-offline .weather-viz-cloud     { opacity: 0.22; filter: grayscale(1); }
-
-/* ─────────────────────────────────────────────────────────
-   Hero text content
-────────────────────────────────────────────────────────── */
-.weather-hero-place,
-.weather-hero-temp,
-.weather-hero-condition,
-.weather-hero-meta { position: relative; z-index: 2; }
-
-.weather-hero-place {
-  color: rgba(255,255,255,0.70);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weather-hero-temp {
-  margin-top: 4px;
-  color: #fff;
-  font-size: clamp(82px, 8.5vw, 124px);
-  line-height: 0.88;
-  font-weight: 200;
-  letter-spacing: -3px;
-  font-variant-numeric: tabular-nums;
-}
-.weather-hero-condition {
-  margin-top: 10px;
-  color: rgba(255,255,255,0.88);
-  font-size: 19px;
-  font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weather-hero-meta {
-  margin-top: 5px;
-  color: rgba(255,255,255,0.46);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-/* ── Hero chips (feels / wind / rain) ── */
-.weather-hero-chips {
-  position: relative;
-  z-index: 2;
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 8px;
-}
-.weather-hero-chips span {
-  min-width: 0;
-  padding: 10px 12px 9px;
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 16px;
-  background: rgba(255,255,255,0.10);
-  backdrop-filter: blur(18px) saturate(1.4);
-  display: grid;
-  align-content: center;
-  gap: 2px;
-}
-.weather-hero-chips b {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weather-hero-chips em {
-  color: rgba(255,255,255,0.52);
-  font-size: 9.5px;
-  font-weight: 600;
-  font-style: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.55px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ─────────────────────────────────────────────────────────
-   Metrics grid  (right column, top row)
-────────────────────────────────────────────────────────── */
-.weather-metrics {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
-  gap: 8px;
-}
-/* Metric, hour and forecast cards are shared by the modal and the dashboard tile.
-   The modal is always dark glass, but the tile's sections sit on the widget panel
-   — cream paper under Comic Book, white under Light — so these primitives mix
-   their washes and text from --text instead of hard-coding white. On a dark
-   palette --text is near-white and the result is the glass they always were; on
-   paper they invert with the surface. Anything keyed to the sky itself (the hero
-   card, its chips) stays literal white: that surface is dark in every theme. */
-.weather-metric {
-  /* Anchor for the --good/--moderate/--bad level bar below: without it the
-     bar resolves against .weather-panel and every metric's bar stacks in one
-     stripe down the panel's left edge instead of marking its own card. */
-  position: relative;
-  min-width: 0;
-  min-height: 64px;
-  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
-  border-radius: 18px;
-  padding: 11px 13px;
-  display: grid;
-  align-content: space-between;
-  gap: 5px;
-  background: color-mix(in srgb, var(--text) 7%, transparent);
-  backdrop-filter: blur(28px) saturate(1.9);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.weather-metric:hover {
-  background: color-mix(in srgb, var(--text) 13%, transparent);
-  border-color: color-mix(in srgb, var(--text) 22%, transparent);
-}
-
-/* Semantic colour per metric value (air quality, UV, PM, humidity, visibility) */
-.weather-metric--good::before,
-.weather-metric--moderate::before,
-.weather-metric--bad::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 11px;
-  bottom: 11px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-}
-.weather-metric--good::before     { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.55); }
-.weather-metric--moderate::before { background: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.55); }
-.weather-metric--bad::before      { background: #f87171; box-shadow: 0 0 12px rgba(248,113,113,0.55); }
-.weather-metric--good   .weather-metric-value { color: var(--color-success); }
-.weather-metric--moderate .weather-metric-value { color: var(--color-warn); }
-.weather-metric--bad    .weather-metric-value { color: var(--color-danger); }
-.weather-metric-label {
-  color: color-mix(in srgb, var(--text) 50%, transparent);
-  font-size: 9.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.55px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weather-metric-value {
-  color: var(--text);
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weather-metric-sub {
-  color: color-mix(in srgb, var(--text) 42%, transparent);
-  font-size: 10.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* The failure card explains WHY in a full sentence, so it spans the whole grid
-   and wraps. The metric primitive above is a quarter-width cell with
-   nowrap + ellipsis — correct for "18 km/h", useless for an explanation, which
-   it would cut down to two words and leave as uninformative as the blank tile
-   it replaced. */
-.weather-metric--explain { grid-column: 1 / -1; }
-.weather-metric--explain .weather-metric-value {
-  font-size: 15px;
-  line-height: 1.25;
-  white-space: normal;
-}
-.weather-metric--explain .weather-metric-sub {
-  white-space: normal;
-  line-height: 1.35;
-}
-
-/* ─────────────────────────────────────────────────────────
-   Hourly & Forecast blocks
-────────────────────────────────────────────────────────── */
-.weather-hourly-block,
-.weather-forecast-block {
-  min-width: 0;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 20px;
-  background: rgba(255,255,255,0.06);
-  backdrop-filter: blur(28px) saturate(1.9);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
-  padding: 11px 14px;
-}
-.weather-hourly-block  { grid-column: 2; }
-.weather-forecast-block { grid-column: 2; }
-
-.weather-section-title {
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
-  color: color-mix(in srgb, var(--text) 50%, transparent);
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-/* ── Hourly cards ── */
-.weather-hourly {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(70px,1fr));
-  gap: 6px;
-}
-.weather-hour {
-  min-width: 0;
-  min-height: 74px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
-  background: color-mix(in srgb, var(--text) 5%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.13);
-  padding: 8px 7px;
-  display: grid;
-  gap: 5px;
-  align-content: center;
-  justify-items: center;
-  text-align: center;
-  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
-}
-.weather-hour:hover {
-  transform: translateY(-2px);
-  background: color-mix(in srgb, var(--text) 13%, transparent);
-  border-color: color-mix(in srgb, var(--text) 18%, transparent);
-}
-.weather-hour-time {
-  color: color-mix(in srgb, var(--text) 52%, transparent);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-.weather-hour-temp {
-  color: var(--text);
-  font-size: 17px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-/* In the hourly list rain is already shown as "Pioggia X%" text — drop the mini
-   icon's rain/storm dots (their box-shadow spilled over the temperature). */
-.weather-hour .weather-mini-icon { box-shadow: none !important; }
-/* Rain chance is the one informational accent here; as a role it survives the
-   move onto paper, where a pale sky-blue would not. */
-.weather-hour-rain {
-  color: var(--color-info);
-  font-size: 9.5px;
-  font-weight: 600;
-}
-
-/* ─────────────────────────────────────────────────────────
-   Mini weather icons  (hourly + forecast)
+   Mini weather icon  (the pill)
 ────────────────────────────────────────────────────────── */
 .weather-mini-icon {
   width: 26px;
@@ -747,503 +131,295 @@
     linear-gradient(rgba(220,232,242,0.38), rgba(220,232,242,0.38)) 50% 96%/11px 1.6px no-repeat;
 }
 
-/* ─────────────────────────────────────────────────────────
-   3-day forecast
-────────────────────────────────────────────────────────── */
-.weather-forecast {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 8px;
-}
-.weather-day {
-  min-width: 0;
-  position: relative;
-  border: 1px solid rgba(255,255,255,0.11);
-  border-radius: 16px;
-  background: rgba(255,255,255,0.05);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
-  padding: 10px 42px 10px 12px;
-  display: grid;
-  gap: 5px;
-  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
-}
-.weather-day:hover {
-  transform: translateY(-2px);
-  background: rgba(255,255,255,0.13);
-  border-color: rgba(255,255,255,0.16);
-}
-.weather-day-top {
+/* ───────────────────────────────────────
+   The window: the tile's parts at full size, on a sheet that follows the theme. No painted
+   sky: colour is kept for the picture, the rain and the temperatures, and nothing here
+   loops. On Liquid Glass the frame comes from styles/liquid-sheets.css.
+──────────────────────────────────────── */
+.weather-overlay[hidden] { display: none !important; }
+.weather-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.66);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.weather-panel {
+  --wx-well: var(--surface-alt);
+  --wx-line: var(--divider);
+  --wx-day: 44px;
+  container: wxwin / inline-size;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  background: var(--glass-sheen), rgba(var(--oled-bg-rgb), 0.97);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+}
+.weather-panel:focus { outline: none; }
+.weather-panel:has(.weather-win-trouble) { width: min(520px, 100%); }
+/* A strip like the Edge's: wider, so everything stands side by side with no scroll. */
+@media (min-aspect-ratio: 2/1) and (min-width: 1400px) {
+  .weather-panel:not(:has(.weather-win-trouble)) { width: min(1560px, 100%); }
+}
+
+.weather-panel-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-.weather-day-range {
-  color: rgba(255,255,255,0.68);
-  font-variant-numeric: tabular-nums;
-}
-.weather-day-icon { position: absolute; right: 10px; top: 37px; }
-.weather-day-condition,
-.weather-day-sun {
-  color: rgba(255,255,255,0.52);
-  font-size: 10.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ─────────────────────────────────────────────────────────
-   Responsive — compact landscape
-────────────────────────────────────────────────────────── */
-@media (max-height: 620px) and (min-width: 900px) {
-  .clock-weather { height: 34px; max-width: 188px; }
-  .weather-panel { width: min(1240px, calc(100vw - 24px)); max-height: calc(100vh - 18px); border-radius: 22px; }
-  .weather-panel-head { padding: 12px 16px 10px; }
-  .weather-content { padding: 10px; gap: 9px; grid-template-columns: minmax(250px,0.74fr) minmax(420px,1.26fr); }
-  .weather-hero-card { min-height: 380px; padding: 18px; }
-  .weather-hero-visual { width: min(210px, 50%); right: 0; top: 14px; }
-  .weather-hero-temp { font-size: clamp(66px, 6.5vw, 98px); }
-  .weather-hero-condition { font-size: 17px; }
-  .weather-hero-chips span { padding: 7px 9px; }
-  .weather-metrics { gap: 7px; }
-  .weather-metric { min-height: 68px; padding: 10px; }
-  .weather-metric-value { font-size: 18px; }
-  .weather-hourly-block, .weather-forecast-block { padding: 10px; }
-  .weather-hourly { grid-template-columns: repeat(8, minmax(58px,1fr)); gap: 5px; }
-  .weather-hour { min-height: 72px; padding: 7px 5px; }
-  .weather-day { padding: 9px; gap: 5px; }
-  .weather-day-icon { display: none; }
-}
-
-/* ─────────────────────────────────────────────────────────
-   Responsive — narrow / single-column
-────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
-  .clock-row { flex-wrap: wrap; justify-content: center; }
-  .weather-panel { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
-  .weather-content { grid-template-columns: 1fr; }
-  .weather-hero-card,
-  .weather-hourly-block,
-  .weather-forecast-block { grid-column: 1; grid-row: auto; }
-  .weather-metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .weather-hourly { grid-template-columns: repeat(4, minmax(0,1fr)); }
-  .weather-forecast { grid-template-columns: 1fr; }
-  .weather-hero-card { min-height: 320px; }
-  .weather-hero-visual { width: 200px; right: -8px; top: 10px; }
-  .weather-hero-chips { grid-template-columns: 1fr; }
-}
-
-/* ─────────────────────────────────────────────────────────
-   Standalone Weather dashboard tile
-   Reuses the modal hero card (.weather-hero-card + .weather-hero-visual) verbatim
-   so it looks and animates identically — these rules only free it from the modal's
-   fixed proportions and scale it to whatever size the user gives the tile.
-   Rendered into .weather-widget-mount by renderWeatherTile() in system.js.
-────────────────────────────────────────────────────────── */
-.weather-tile-panel { padding: 0; overflow: hidden; }
-.weather-widget-mount {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border-radius: inherit;
-  container-type: size;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-}
-.weather-tile-root {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  border-radius: inherit;
-}
-.weather-tile-card.weather-hero-card {
-  min-height: 0;
-  width: 100%;
-  grid-row: auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: clamp(2px, 1.2cqmin, 7px);
-  padding: clamp(9px, 3.4cqmin, 20px);
-  border-radius: inherit;
-  text-align: left;
-  font: inherit;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.6s ease;
-}
-/* Pure hero card (no extra sections chosen): fill the whole tile. */
-.weather-tile-root:not(.has-body) .weather-tile-card { flex: 1 1 auto; }
-/* With sections: the hero is a substantial top card; the sections flow below and
-   the tile scrolls. Square off the hero's bottom where it meets the body. */
-.weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-card {
-  flex: 0 0 auto;
-  min-height: clamp(118px, 33cqmin, 260px);
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.weather-tile-card:focus-visible { outline: 2px solid rgba(255,255,255,0.65); outline-offset: -3px; }
-
-/* Same dynamic sky gradients as the modal hero, keyed to the tile card so the
-   modal (which keys them on .weather-panel) is untouched. */
-.weather-tile-card.state-sun     { background: linear-gradient(165deg, #5cb3f0 0%, #2479c4 52%, #0f4a82 100%); }
-.weather-tile-card.state-moon    { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
-.weather-tile-card.state-cloud   { background: linear-gradient(165deg, #74828f 0%, #4c5763 52%, #2c333d 100%); }
-.weather-tile-card.state-rain    { background: linear-gradient(165deg, #51687d 0%, #324658 52%, #1b2836 100%); }
-.weather-tile-card.state-storm   { background: linear-gradient(165deg, #3c3656 0%, #241f3a 52%, #120e20 100%); }
-.weather-tile-card.state-snow    { background: linear-gradient(165deg, #9ab4cd 0%, #647a96 52%, #3a4a5e 100%); }
-.weather-tile-card.state-fog     { background: linear-gradient(165deg, #828a94 0%, #585f69 52%, #353a42 100%); }
-.weather-tile-card.state-offline { background: linear-gradient(165deg, #3a4048 0%, #23272d 52%, #14171b 100%); }
-.weather-tile-card.is-night      { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
-
-/* Scale the animated visual and the hero type to the tile via container units. */
-.weather-tile-card .weather-hero-visual {
-  top: clamp(8px, 4cqmin, 24px);
-  right: clamp(6px, 3cqmin, 18px);
-  width: min(210px, 46%);
-}
-.weather-tile-card .weather-hero-place {
-  font-size: clamp(11px, 3.3cqmin, 15px);
-  margin: 0;
-}
-.weather-tile-card .weather-hero-temp {
-  font-size: clamp(34px, 17cqmin, 104px);
-  line-height: 0.92;
-  margin: 0;
-}
-.weather-tile-card .weather-hero-condition {
-  font-size: clamp(12px, 3.8cqmin, 18px);
-  margin: 0;
-}
-.weather-tile-card .weather-hero-meta { font-size: clamp(10px, 2.6cqmin, 12px); margin: 0; }
-/* The chips always span the card width as three equal columns, exactly like the
-   modal hero — width:100% guards against any flex context that wouldn't stretch
-   them. */
-.weather-tile-card .weather-hero-chips {
-  width: 100%;
-  margin-top: clamp(6px, 2.2cqmin, 18px);
-  gap: clamp(5px, 1.4cqmin, 8px);
-}
-.weather-tile-card .weather-hero-chips span { padding: clamp(6px, 2cqmin, 11px) clamp(7px, 2cqmin, 12px); }
-.weather-tile-card .weather-hero-chips b  { font-size: clamp(12px, 3.2cqmin, 16px); }
-.weather-tile-card .weather-hero-chips em { font-size: clamp(8px, 2cqmin, 10px); }
-
-.weather-tile--stale { opacity: 0.85; }
-
-/* Extra sections (details / hourly / forecast) below the hero — reuse the modal's
-   own .weather-metrics / .weather-hourly / .weather-forecast so they look
-   identical, on the panel's dark glass like the modal body. */
-.weather-tile-body {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(5px, 1.7cqmin, 10px);
-  padding: clamp(6px, 2cqmin, 10px) clamp(8px, 2.4cqmin, 12px);
-  /* Pack the sections tightly at the top instead of spreading them to fill the
-     tile height — the spread left big empty gaps between Details / Hours / Days
-     (the "unnecessary gaps" users reported). Any leftover space now sits once at
-     the bottom, and shrinking the tile removes it. */
-  justify-content: flex-start;
-}
-.weather-tile-section { min-width: 0; }
-/* Compact the reused modal cards for the tile so everything fits with little or no
-   scroll (the modal keeps its roomier sizing). Sizes scale with container units so
-   that shrinking the tile makes the text/icons smaller proportionally instead of
-   clipping or forcing a scroll. */
-.weather-tile-body .weather-section-title {
-  margin-bottom: clamp(4px, 1.4cqmin, 7px);
-  padding-bottom: clamp(3px, 1cqmin, 5px);
-  font-size: clamp(10px, 2.7cqmin, 13px);
-}
-.weather-tile-body .weather-metric {
-  min-height: clamp(42px, 12.5cqmin, 62px);
-  padding: clamp(6px, 2cqmin, 10px) clamp(8px, 2.4cqmin, 12px);
-  border-radius: 14px;
-}
-.weather-tile-body .weather-metric-label { font-size: clamp(9px, 2.4cqmin, 12px); }
-.weather-tile-body .weather-metric-value { font-size: clamp(13px, 3.8cqmin, 18px); }
-.weather-tile-body .weather-hour {
-  min-height: clamp(48px, 14cqmin, 66px);
-  padding: clamp(4px, 1.4cqmin, 6px) clamp(3px, 1.2cqmin, 5px);
-  gap: 2px;
-  border-radius: 12px;
-}
-.weather-tile-body .weather-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(clamp(64px, 20cqmin, 78px), 1fr));
-  gap: clamp(4px, 1.4cqmin, 6px);
-}
-/* Scale the hourly card internals with the tile too, so the whole card shrinks as
-   one instead of the text staying large while the card gets cramped. */
-.weather-tile-body .weather-hour-time { font-size: clamp(8px, 2.2cqmin, 10px); }
-.weather-tile-body .weather-hour-temp { font-size: clamp(12px, 3.6cqmin, 17px); }
-.weather-tile-body .weather-hour-rain { font-size: clamp(8px, 2cqmin, 9.5px); }
-.weather-tile-body .weather-hour .weather-mini-icon {
-  width: clamp(18px, 5.4cqmin, 26px);
-  height: clamp(15px, 4.6cqmin, 22px);
-}
-/* Forecast rows scale their day label / temps with the tile as well. */
-.weather-tile-body .weather-fc-row { gap: clamp(6px, 2cqmin, 12px); }
-.weather-tile-body .weather-fc-day { font-size: clamp(10px, 2.7cqmin, 13px); }
-.weather-tile-body .weather-fc-min,
-.weather-tile-body .weather-fc-max { font-size: clamp(11px, 2.9cqmin, 14px); }
-/* Hourly cards stretch to fill the whole width (each an equal fraction), only
-   scrolling horizontally when there are too many to fit at a legible min width. */
-.weather-tile-body .weather-hourly {
-  grid-template-columns: none;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(58px, 1fr);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  padding-bottom: 2px;
-}
-/* "Now" (first hour) gets a soft highlight so the timeline has an anchor. */
-.weather-tile-body .weather-hourly .weather-hour:first-child {
-  background: rgba(255,255,255,0.11);
-  border-color: rgba(255,255,255,0.22);
-}
-
-/* Progressive disclosure applies only to the PURE hero tile (no sections chosen):
-   drop the chips/meta when the tile is too small. With sections the user opted
-   into the full content, which scrolls instead of being clipped. */
-@container (max-height: 150px) {
-  .weather-tile-root:not(.has-body) .weather-hero-chips { display: none; }
-}
-@container (max-height: 108px) {
-  .weather-tile-root:not(.has-body) .weather-hero-meta { display: none; }
-}
-@container (max-width: 190px) {
-  .weather-tile-root:not(.has-body) .weather-hero-chips { display: none; }
-}
-@container (max-width: 250px) {
-  .weather-tile-body .weather-forecast { grid-template-columns: 1fr; }
-}
-
-/* Landscape tiles: put the hero and the extra sections SIDE BY SIDE (like the
-   full modal) so the info uses the width instead of forcing a long vertical
-   scroll. Portrait/square tiles keep the stacked layout above. */
-@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
-  .weather-tile-root.has-body:not(.weather-tile-root--compact) { flex-direction: row; height: 100%; min-height: 0; }
-  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-card {
-    width: clamp(260px, 38%, 480px);
-    height: 100%;
-    min-height: 0;
-    flex: 0 0 auto;
-    border-radius: inherit;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-body {
-    flex: 1 1 auto;
-    height: 100%;
-    min-width: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-  }
-}
-
-/* ── Forecast as iOS-style rows with a temperature range bar ── */
-.weather-forecast--rows {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.weather-fc-row {
-  display: grid;
-  grid-template-columns: minmax(52px, 0.9fr) 26px 2.6em minmax(60px, 3fr) 2.6em;
-  align-items: center;
   gap: 12px;
-  padding: 6px 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
+  padding: 18px 16px 14px 24px;
 }
-.weather-fc-row:last-child { border-bottom: none; }
-.weather-fc-day {
-  color: color-mix(in srgb, var(--text) 92%, transparent);
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: capitalize;
-  white-space: nowrap;
+.weather-panel-titles { min-width: 0; }
+.weather-panel-title {
+  margin: 0;
   overflow: hidden;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.weather-fc-row .weather-mini-icon { width: 26px; height: 22px; }
-.weather-fc-min { color: color-mix(in srgb, var(--text) 55%, transparent); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
-.weather-fc-max { color: var(--text); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.weather-fc-bar {
-  position: relative;
-  height: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 14%, transparent);
-  overflow: hidden;
+.weather-panel-updated {
+  margin: 2px 0 0;
+  color: var(--muted-text);
+  font-size: 15px;
+  line-height: 1.3;
 }
-.weather-fc-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  min-width: 8px;
-  border-radius: 999px;
-  /* cold → warm gradient; a bar to the right/left reads as a warmer/cooler day */
-  background: linear-gradient(90deg, #4aa3e0 0%, #64c8b4 45%, #f2c14e 78%, #f08a3c 100%);
-  box-shadow: 0 0 10px rgba(240,160,60,0.25);
-}
-
-/* ── Ambient tint: the body carries a faint wash of the current sky colour, so
-   the whole widget (hero + sections) reads as one cohesive weather scene. ── */
-.weather-tile-root.state-sun   .weather-tile-body { background: linear-gradient(180deg, rgba(92,179,240,0.12), transparent 42%); }
-.weather-tile-root.state-cloud .weather-tile-body { background: linear-gradient(180deg, rgba(116,130,143,0.14), transparent 42%); }
-.weather-tile-root.state-rain  .weather-tile-body { background: linear-gradient(180deg, rgba(81,104,125,0.16), transparent 42%); }
-.weather-tile-root.state-storm .weather-tile-body { background: linear-gradient(180deg, rgba(90,70,130,0.16), transparent 42%); }
-.weather-tile-root.state-snow  .weather-tile-body { background: linear-gradient(180deg, rgba(154,180,205,0.14), transparent 42%); }
-.weather-tile-root.state-fog   .weather-tile-body { background: linear-gradient(180deg, rgba(130,138,148,0.14), transparent 42%); }
-.weather-tile-root.state-moon  .weather-tile-body,
-.weather-tile-root.is-night    .weather-tile-body { background: linear-gradient(180deg, rgba(44,62,116,0.20), transparent 46%); }
-/* In the landscape (side-by-side) layout the wash comes from the hero on the left.
-   The compact bar never goes sideways, so its wash stays top-down. */
-@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
-  .weather-tile-root:not(.weather-tile-root--compact).state-sun   .weather-tile-body { background: linear-gradient(90deg, rgba(92,179,240,0.12), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-cloud .weather-tile-body { background: linear-gradient(90deg, rgba(116,130,143,0.14), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-rain  .weather-tile-body { background: linear-gradient(90deg, rgba(81,104,125,0.16), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-storm .weather-tile-body { background: linear-gradient(90deg, rgba(90,70,130,0.16), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-snow  .weather-tile-body { background: linear-gradient(90deg, rgba(154,180,205,0.14), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-fog   .weather-tile-body { background: linear-gradient(90deg, rgba(130,138,148,0.14), transparent 34%); }
-  .weather-tile-root:not(.weather-tile-root--compact).state-moon  .weather-tile-body,
-  .weather-tile-root:not(.weather-tile-root--compact).is-night    .weather-tile-body { background: linear-gradient(90deg, rgba(44,62,116,0.20), transparent 38%); }
-}
-
-/* ── Compact hero: current conditions on one line (GitHub #130) ──
-   Settings → Weather → Current conditions → One line. The big card gives way to
-   a single card-sized row so hours and days get the tile. It keeps the card's
-   sky gradient (.weather-tile-card.state-*) and stays the button that opens the
-   full view.
-   It is inset like the hourly/forecast cards below it rather than drawn edge to
-   edge: flush with the tile it read as the tile's title bar, not as weather.
-   Its side margins are the body's padding, so the three line up.
-   It never goes side by side: a strip across the top is the whole point, and
-   the landscape rules above are scoped away from it. */
-.weather-tile-card.weather-tile-compact {
-  position: relative;
-  overflow: hidden;
-  flex: 0 0 auto;
+.weather-panel-updated:empty { display: none; }
+.weather-panel-updated.is-stale { color: var(--amber); }
+.weather-panel-actions {
+  flex: none;
   display: flex;
-  align-items: center;
-  gap: clamp(8px, 2.2cqi, 14px);
-  width: auto;
-  min-height: 0;
-  margin: clamp(6px, 2cqmin, 10px) clamp(8px, 2.4cqmin, 12px) 0;
-  padding: clamp(8px, 2cqi, 12px) clamp(10px, 2.6cqi, 16px);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: clamp(12px, 3cqi, 18px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 6px 18px rgba(0,0,0,0.22);
-  text-align: left;
-  font: inherit;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.6s ease, filter 0.15s ease, transform 0.15s ease;
+  gap: 4px;
 }
-@media (hover: hover) {
-  .weather-tile-compact:hover { filter: brightness(1.08); }
-  .weather-tile-compact:hover .weather-compact-chevron { transform: translateX(2px); opacity: 0.95; }
-}
-.weather-tile-compact:active { transform: scale(0.99); }
-/* Nothing below it: the row IS the tile, so fill it and centre the line. */
-.weather-tile-root--compact:not(.has-body) .weather-tile-compact {
-  flex: 1 1 auto;
-  margin-bottom: clamp(6px, 2cqmin, 10px);
-}
-
-/* The mini icon's shapes are drawn in fixed px, so it is scaled as a whole
-   rather than resized — resizing the box would only move the drawing in it. */
-.weather-compact-icon {
-  flex: 0 0 auto;
+.weather-icon-btn {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted-text);
+  cursor: pointer;
 }
-.weather-compact-icon .weather-mini-icon { transform: scale(1.35); }
-.weather-compact-temp {
-  flex: 0 0 auto;
-  font-size: clamp(24px, 6cqi, 32px);
-  font-weight: 700;
+.weather-icon-btn:hover { background: var(--wx-well); color: var(--text); }
+.weather-icon-btn:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
+.weather-icon-btn[aria-busy="true"] { opacity: 0.5; }
+.weather-icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+.weather-content {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 24px;
+  min-height: 0;
+  padding: 4px 24px 24px;
+  overflow-y: auto;
+}
+.weather-content:has(> .weather-win-trouble) { grid-template-columns: minmax(0, 1fr); }
+.weather-win-main,
+.weather-win-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* ── Now ── */
+.weather-win-now {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "temp lines art"
+    "next next next";
+  align-items: center;
+  column-gap: 16px;
+}
+.weather-win-temp {
+  grid-area: temp;
+  font-size: 76px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
-  font-variant-numeric: tabular-nums;
 }
-.weather-compact-text {
-  flex: 1 1 auto;
+.weather-win-lines {
+  grid-area: lines;
+  display: grid;
+  gap: 3px;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.2;
+  font-size: 15px;
+  line-height: 1.3;
 }
-.weather-compact-condition,
-.weather-compact-feels {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.weather-win-condition { font-size: 18px; font-weight: 600; }
+.weather-win-art {
+  display: block;
+  width: 92px;
+  aspect-ratio: 1;
 }
-.weather-compact-condition {
-  font-size: clamp(12px, 2.8cqi, 14px);
+.weather-win-now > .weather-win-art { grid-area: art; }
+.weather-win-art svg { display: block; width: 100%; height: 100%; }
+.weather-win-next {
+  grid-area: next;
+  margin: 10px 0 0;
+  color: var(--muted-text);
+  font-size: 15px;
   font-weight: 600;
 }
-.weather-compact-feels {
-  font-size: clamp(11px, 2.4cqi, 12.5px);
-  color: rgba(255,255,255,0.72);
-}
-/* Wind and rain: present, but a step quieter than the line on the left. */
-.weather-compact-stats {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: clamp(10px, 2.6cqi, 16px);
-  padding-left: clamp(10px, 2.6cqi, 16px);
-  border-left: 1px solid rgba(255,255,255,0.16);
-}
-.weather-compact-stat {
+.weather-win-next.is-wet { color: var(--wx-rain); }
+
+/* ── Blocks: the name outside, one well, hairlines between rows ── */
+.weather-win-block {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.weather-win-heading {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1.2;
 }
-.weather-compact-stat b {
-  font-size: clamp(12px, 2.6cqi, 14px);
-  font-weight: 600;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+.weather-win-well {
+  box-sizing: border-box;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: var(--wx-well);
 }
-.weather-compact-stat em {
-  font-style: normal;
-  font-size: clamp(8.5px, 1.9cqi, 10px);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.62);
-  white-space: nowrap;
+
+.weather-win-hours { flex: 1 1 auto; }
+.weather-win-hours .weather-win-well {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 236px;
+  padding: 6px 6px 2px;
 }
-.weather-compact-chevron {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  margin-left: -2px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.6;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+.weather-win-hours .weather-hours {
+  --wx-temp: 14px;
+  flex: 1 1 auto;
+  max-height: none;
 }
-/* Narrow tiles shed from the right, rain before wind; the feels-like line
-   under the condition is never one of them. */
-@container (max-width: 400px) {
-  .weather-compact-stat--rain { display: none; }
+/* It grows with the well, to a point: the whole height would turn a mild evening into a cliff. */
+.weather-win-hours .weather-hours-plot { flex: 1 1 150px; max-height: 280px; margin-block: auto; }
+.weather-win-hours .weather-hours-rain { height: 46px; }
+.weather-win-hours .weather-hours-chance:has(b)::after { height: calc(3px + var(--rain, 0) * 26px); }
+.weather-win-hours .weather-hours-chance b { font-size: 12px; }
+.weather-win-hours .weather-hours-axis { font-size: 13px; }
+
+.weather-win-days .weather-fc-row {
+  grid-template-columns: minmax(max(3.4em, min(var(--wx-name, 0px), 34%)), 0.9fr) 26px 2.4em minmax(44px, 3fr) 2.4em;
+  gap: 10px;
 }
-@container (max-width: 330px) {
-  .weather-compact-stats { display: none; }
+.weather-win-days .weather-fc-row + .weather-fc-row { border-top: 1px solid var(--wx-line); }
+.weather-win-days .weather-fc-art { width: 26px; height: 26px; }
+.weather-win-days :is(.weather-fc-day, .weather-fc-min, .weather-fc-max) { font-size: 15px; }
+
+.weather-win-facts .weather-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: none;
+  overflow: visible;
 }
-@container (max-width: 210px) {
-  .weather-compact-chevron { display: none; }
+.weather-win-facts .weather-fact {
+  width: auto;
+  height: 44px;
+  font-size: 14px;
+}
+.weather-win-facts .weather-fact dt { line-height: 1.15; white-space: normal; }
+.weather-win-facts .weather-fact:nth-child(n + 3) { border-top: 1px solid var(--wx-line); }
+/* An odd one out takes the whole row, so the rule above it does not stop half way. */
+.weather-win-facts .weather-fact:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* ── When there is nothing to show ── */
+.weather-win-trouble {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 0 12px;
+  text-align: center;
+}
+.weather-win-trouble-title { margin: 0; font-size: 18px; font-weight: 700; }
+.weather-win-trouble-hint {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.weather-win-key {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.weather-win-key:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* ── Sizes ── */
+/* Wide strip: three columns, with the days under now so that none of them ends in a hole. */
+@container wxwin (min-width: 1300px) {
+  .weather-content {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "now hours facts"
+      "days hours facts";
+    row-gap: 14px;
+  }
+  .weather-win-main,
+  .weather-win-side { display: contents; }
+  .weather-win-now { grid-area: now; }
+  .weather-win-hours { grid-area: hours; }
+  .weather-win-days { grid-area: days; }
+  .weather-win-facts { grid-area: facts; }
+  /* The details spread down their column and end on the same line as the other two. */
+  .weather-win-facts .weather-win-well { flex: 1 1 auto; display: grid; }
+  .weather-win-facts .weather-facts { grid-auto-rows: 1fr; }
+  .weather-win-facts .weather-fact { height: auto; min-height: 44px; }
+}
+@container wxwin (max-width: 759px) {
+  .weather-content { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-inline: 16px; }
+  .weather-panel-head { padding-left: 16px; padding-right: 8px; }
+}
+@container wxwin (max-width: 479px) {
+  .weather-win-temp { font-size: 64px; }
+  .weather-win-art { width: 72px; }
+  .weather-win-now { column-gap: 12px; }
+  .weather-win-facts .weather-facts { grid-template-columns: minmax(0, 1fr); }
+  .weather-win-facts .weather-fact:nth-child(2) { border-top: 1px solid var(--wx-line); }
+}
+@media (max-width: 560px) {
+  .weather-overlay { padding: 8px; }
+}
+
+/* ───────────────────────────────────────
+   The pill on small screens
+──────────────────────────────────────── */
+@media (max-height: 620px) and (min-width: 900px) {
+  .clock-weather { height: 34px; max-width: 188px; }
+}
+@media (max-width: 860px) {
+  .clock-row { flex-wrap: wrap; justify-content: center; }
 }

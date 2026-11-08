@@ -49,7 +49,6 @@
     ambient: '#ambient-topbtn',
     xenon: '.topbtn-xenon',
     search: '.qbtn-search',
-    mail: '#bit-mail-btn',
     layout: '#layout-edit-toggle',
     settings: '.qbtn-settings',
     apps: '.qbtn-apps',

@@ -1,0 +1,271 @@
+/* What sits inside a tile on the Liquid look. Glass belongs to controls and navigation
+   (liquid-chrome.css); the content layer stays calm, so a tile is one sheet: its cards are
+   wells with no outline, its keys a soft fill, and a chosen tab a raised thumb in the text
+   colour, which leaves the accent to what the tile is about. Every rule waits for Liquid. */
+
+:root[data-style="liquid"] {
+  --lg-well: rgba(8, 9, 16, 0.16);
+  --lg-key: rgba(255, 255, 255, 0.09);
+  --lg-key-hover: rgba(255, 255, 255, 0.15);
+  --lg-thumb: rgba(255, 255, 255, 0.16);
+  --lg-sep: rgba(255, 255, 255, 0.08);
+  /* The fader: the mixer's channels (LiquidMixer.css) and the Playback volume (LiquidPlayer.css). */
+  --mix-track: rgba(255, 255, 255, 0.07);
+  --mix-fill: rgba(255, 255, 255, 0.36);
+  --mix-edge: rgba(255, 255, 255, 0.06);
+  --mix-on: color-mix(in srgb, var(--color-success), transparent 74%);
+  --mix-off: color-mix(in srgb, var(--color-danger), transparent 68%);
+}
+:root[data-style="liquid"][data-appearance="light"] {
+  --lg-well: rgba(255, 255, 255, 0.42);
+  --lg-key: rgba(24, 26, 44, 0.06);
+  --lg-key-hover: rgba(24, 26, 44, 0.1);
+  --lg-thumb: rgba(255, 255, 255, 0.86);
+  --lg-sep: rgba(24, 26, 44, 0.1);
+  --mix-track: rgba(24, 26, 44, 0.08);
+  --mix-fill: rgba(255, 255, 255, 0.92);
+  --mix-edge: rgba(24, 26, 44, 0.08);
+}
+
+/* On the tile, not on :root: the theme writes these on the root element, and the sheets
+   around a tile (Settings, the Store) keep their own. */
+:root[data-style="liquid"] :is(.panel, .dashboard-widget) {
+  --card-surface: var(--lg-well);
+  --card-edge: transparent;
+  --control-bg: var(--lg-key);
+  --control-edge: transparent;
+  --input-bg: var(--lg-well);
+  --hover-bg: var(--lg-key-hover);
+  --divider: var(--lg-sep);
+  --line: var(--lg-sep);
+  --surface-alt: var(--lg-well);
+  --floating-ui-bg: var(--lg-key);
+  --floating-ui-border: transparent;
+  /* themes-light.css resolves these on the root, so they do not follow the ones above. */
+  --lt-border: transparent;
+  --lt-divider: var(--lg-sep);
+  --lt-track: var(--lg-key);
+  --lt-hover: var(--lg-key-hover);
+}
+/* A widget without its panel sits right on the desktop: its cards are all that is behind
+   the words, so they keep the thick sheet. */
+:root[data-style="liquid"] .layer-slot[data-bare] :is(.panel, .dashboard-widget) { --card-surface: var(--panel-soft); }
+
+/* Tab strips: one look, as wide as their words. Discord's and Streamer.bot's tabs
+   are words, as the other streaming tiles' (liquid-streaming.css). */
+:root[data-style="liquid"] :is(.tabgroup-bar, .system-tabs-left, .guardian-range, .cal-task-toggle, .sp-tabs, .fw-tabs, .wl-seg, .sh-seg, .diskw-tabs, .cx-faces, .cw-faces) {
+  border-color: transparent;
+  border-radius: 10px;
+  background: var(--lg-well);
+}
+:root[data-style="liquid"] :is(.cx-faces, .cw-faces) { box-shadow: none; }
+:root[data-style="liquid"] :is(.tabgroup-bar, .cal-task-toggle, .dc-tabs, .sbw-tabs, .sp-tabs, .fw-tabs) {
+  align-self: flex-start;
+  max-width: 100%;
+}
+:root[data-style="liquid"] .tabgroup-bar { max-width: calc(100% - 16px); }
+:root[data-style="liquid"] :is(.tabgroup-tab, .cal-task-btn, .fw-tab) { flex: 0 0 auto; }
+:root[data-style="liquid"] :is(.dc-tabs, .sbw-tabs, .sp-tabs) { grid-auto-columns: auto; }
+:root[data-style="liquid"] :is(.tabgroup-tab, .sys-tab, .guardian-range-btn, .cal-task-btn, .sp-tab, .fw-tab, .diskw-tab, .wl-seg-btn, .sh-seg-btn, .cx-face, .cw-face) {
+  border-radius: 7px;
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+:root[data-style="liquid"] :is(.cx-face.is-on, .cw-face.is-on, .tabgroup-tab.active, .sys-tab.active, .guardian-range-btn.active, .cal-task-btn.active, .sp-tab.is-active, .fw-tab.is-on, .wl-seg-btn.is-active, .sh-seg-btn.is-active, .diskw-tab.is-active) {
+  border-color: transparent;
+  background: var(--lg-thumb);
+  box-shadow: none;
+  color: var(--text);
+}
+
+/* Tab groups: the members' names are the tile's titles, the open one bright and heavier
+   (Carbon: light "line" tabs inside a component; NN/g: two cues for the open tab; Apple:
+   words or icons, not both). The well and its thumb read as a second row of tabs over
+   the widget's own and left the rest of the row empty. A group painted in its own
+   colours keeps the strip it was painted on. */
+:root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) {
+  gap: 2px;
+  margin: 4px 8px -6px;
+  padding: 0;
+  background: none;
+}
+/* 44px tall for a finger; the words sit where a 30px row would put them. */
+:root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) .tabgroup-tab {
+  padding: 13px 8px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--muted-text) 78%, transparent);
+}
+/* Heavier by a stroke, not by the weight: the names keep their width, so the row does
+   not shift when another tab opens. */
+:root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) .tabgroup-tab.active {
+  background: none;
+  color: var(--text);
+  -webkit-text-stroke: 0.45px currentColor;
+}
+:root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) .tabgroup-tab:not(.active):hover {
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+}
+:root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) .tabgroup-tab-ico { display: none; }
+
+/* Bit's chat: the name beside the face, and the conversation starts without a rule. */
+:root[data-style="liquid"] .bit-chat-head { padding-bottom: 0; border-bottom-color: transparent; }
+:root[data-style="liquid"] .bit-chat-face { place-items: center; }
+:root[data-style="liquid"] .bit-chat-face:not(:empty) + .bit-chat-name { width: auto; height: auto; overflow: visible; clip-path: none; }
+:root[data-style="liquid"] [data-chatf="pane"] .ai-msg-user .ai-msg-bubble { border-color: transparent; background: var(--lg-key); }
+:root[data-style="liquid"] [data-chatf="pane"] .ai-text-input:not(:focus) { border-color: transparent; }
+
+/* System: the card's label says which reading it is, so every line takes one colour and
+   colour is left to state, the temperature that turns amber. */
+:root[data-style="liquid"] :is(.stat-head, .stat-head-name, .stat-head-value, .stat-sub, .stat-detail) { font-size: 12px; font-weight: 500; }
+:root[data-style="liquid"] .stat-head > :first-child { color: var(--text); font-weight: 600; }
+:root[data-style="liquid"] .stat-track.has-spark { background: none; }
+:root[data-style="liquid"] .stat-spark-line { stroke: var(--text); stroke-opacity: 0.82; }
+:root[data-style="liquid"] .stat-spark-glow { display: none; }
+:root[data-style="liquid"] .sys-optimize-btn { border-color: transparent; border-radius: 7px; background: var(--lg-key); }
+:root[data-style="liquid"] .sys-optimize-btn:hover { background: var(--lg-key-hover); }
+
+/* The temperature beside a reading is a word until it is a warning. */
+:root[data-style="liquid"] .stat-head-temp { padding: 0; border-color: transparent; background: none; color: var(--muted-text); font-weight: 600; }
+:root[data-style="liquid"] .stat-head-temp.amber { border-color: transparent; background: none; color: var(--amber); }
+/* The number first, its unit right beside it, and the chart under the line it draws. */
+:root[data-style="liquid"] .stat-row { justify-content: flex-start; gap: 4px; }
+:root[data-style="liquid"] .stat-value { font-weight: 700; }
+@media (min-height: 721px) { :root[data-style="liquid"] .stat-value { font-size: 22px; } }
+:root[data-style="liquid"] .stat-spark-area { display: inline; fill: var(--text); fill-opacity: 0.08; }
+
+/* Lyrics: a cover never floods a Liquid tile, so the words sit on the sheet like everything
+   else and take the theme's colours. On the stage the widget fills the screen and keeps it. */
+:root[data-style="liquid"] .lyrics-panel.has-cover:not(.lyw-staged) .lyrics-widget-mount {
+  --text: inherit;
+  --muted-text: inherit;
+  --floating-ui-bg: inherit;
+  --floating-ui-border: inherit;
+}
+:root[data-style="liquid"] .lyrics-panel.has-cover:not(.lyw-staged) .lyrics-widget-mount::before,
+:root[data-style="liquid"] .lyrics-panel.has-cover:not(.lyw-staged) .lyrics-widget-mount::after { display: none; }
+:root[data-style="liquid"] .lyrics-panel:not(.lyw-staged) .lyo-sheet { background: none; }
+
+/* ChatGPT: the same conversation as Bit's, neutral bubbles and a field without an outline. */
+:root[data-style="liquid"] .chatgpt-widget-mount { --cg-well: var(--lg-well); --cg-line: transparent; }
+:root[data-style="liquid"] .cg-msg.is-user .cg-bubble { background: var(--lg-key); }
+:root[data-style="liquid"] .cg-input:not(:focus) { border-color: transparent; }
+:root[data-style="liquid"] .cg-btn.is-quiet { background: var(--lg-key); box-shadow: none; }
+
+/* Codex: the same, and its amber and green stay for what asks for a person. */
+:root[data-style="liquid"] .codex-widget-mount { --cx-well: var(--lg-well); --cx-line: var(--lg-sep); }
+:root[data-style="liquid"] :is(.cx-btn, .cx-key).is-quiet { background: var(--lg-key); box-shadow: none; }
+:root[data-style="liquid"] .cx-msg.is-user .cx-bubble { background: var(--lg-key); }
+
+/* Developer cleanup and Disk: cards are wells, a chosen drive is a raised thumb. */
+:root[data-style="liquid"] :is(.devclean-card, .devclean-confirm, .diskw-cap, .diskw-section) { border-color: transparent; background: var(--lg-well); }
+:root[data-style="liquid"] .devclean-badge { border-radius: 6px; background: var(--lg-key); color: var(--muted-text); }
+:root[data-style="liquid"] .diskw-root { border-color: transparent; }
+:root[data-style="liquid"] .diskw-root.is-active { border-color: transparent; background: var(--lg-thumb); box-shadow: none; color: var(--text); }
+:root[data-style="liquid"] .diskw-root.is-active small { color: var(--muted-text); }
+:root[data-style="liquid"] .diskw-ai-btn { border-color: transparent; background: var(--lg-key); color: var(--text) !important; }
+
+/* A timer alone is what the tile is for: the time fills the room inside its ring. */
+:root[data-style="liquid"] .timer-list:has(> .timer-card:only-child) { container: timerlist / size; min-height: 150px; justify-content: center; }
+:root[data-style="liquid"] .timer-card:only-child {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+}
+:root[data-style="liquid"] .timer-card:only-child :is(.timer-ring, .timer-info) { grid-area: 1 / 1; }
+:root[data-style="liquid"] .timer-card:only-child :is(.timer-ring, .timer-ring svg) { width: min(62cqh, 60cqw, 240px); height: min(62cqh, 60cqw, 240px); }
+:root[data-style="liquid"] .timer-card:only-child :is(.timer-circle-bg, .timer-circle-arc) { stroke-width: 1.4; }
+:root[data-style="liquid"] .timer-card:only-child .timer-info { align-self: center; align-items: center; max-width: 52cqmin; }
+:root[data-style="liquid"] .timer-card:only-child .timer-time { font-size: clamp(1.5rem, 12cqmin, 3.2rem); font-weight: 700; }
+:root[data-style="liquid"] .timer-card:only-child .timer-actions { grid-area: 2 / 1; }
+:root[data-style="liquid"] :is(.timer-add-label-input, .timer-add-dur-input):not(:focus, .timer-input-error) { border-color: transparent; }
+:root[data-style="liquid"] .timer-add-btn { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .timer-add-btn:hover { border-color: transparent; background: var(--lg-key-hover); }
+
+/* Notes: the open note is a raised thumb like every other chosen tab. */
+:root[data-style="liquid"] .notes-tab { border-color: transparent; border-radius: 7px; background: none; }
+:root[data-style="liquid"] .notes-tab:hover { background: var(--lg-key); }
+:root[data-style="liquid"] .notes-tab.active { border-color: transparent; background: var(--lg-thumb); }
+
+/* What state a tile is in is a word in the state's colour, and a tag where it means on air. */
+:root[data-style="liquid"] .status-label { padding: 0; border-color: transparent; background: none; box-shadow: none; }
+:root[data-style="liquid"] .sp-dev-chip { border-color: transparent; border-radius: 6px; }
+:root[data-style="liquid"] .sp-dev-chip { background: var(--lg-key); }
+:root[data-style="liquid"] .sp-dev-chip-name { color: var(--text); }
+
+/* Transfer: two ways in, the same key. */
+:root[data-style="liquid"] .xfer-btn,
+:root[data-style="liquid"] .xfer-btn-primary { border-color: transparent; background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] :is(.xfer-btn, .xfer-btn-primary):hover { border-color: transparent; background: var(--lg-key-hover); }
+/* The tile reads as the phone's sheet does (TransferWidget.css): files are lines, their keys
+   muted rather than faded, and the dashed box shows only under a dragged file, the whole zone
+   lighting up once there are files. On the tile only, so the sheet keeps its own sizes. */
+:root[data-style="liquid"] .transfer-panel :is(.xfer-row, .xfer-row:hover, .xfer-row.is-pending) { padding: 6px 0; border-radius: 0; background: none; }
+:root[data-style="liquid"] .transfer-panel .xfer-thumb { width: 44px; height: 44px; border-radius: var(--radius-control, 10px); background: var(--lg-well); box-shadow: none; }
+:root[data-style="liquid"] .transfer-panel .xfer-name { font-size: 14px; font-weight: 600; }
+:root[data-style="liquid"] .transfer-panel .xfer-meta { font-size: 13px; font-weight: 500; color: var(--muted-text); }
+:root[data-style="liquid"] .transfer-panel .xfer-bar { background: var(--lg-key); }
+:root[data-style="liquid"] .transfer-panel .xfer-row-acts .xfer-icon { width: 36px; height: 36px; color: var(--muted-text); opacity: 1; }
+:root[data-style="liquid"] .transfer-panel .xfer-row-acts .xfer-icon:hover { background: var(--lg-key-hover); color: var(--text); }
+:root[data-style="liquid"] .transfer-panel .xfer-row-acts .xfer-icon-primary { color: var(--text); }
+:root[data-style="liquid"] .transfer-panel .xfer-zone:not(.is-hot) .xfer-drop,
+:root[data-style="liquid"] .transfer-panel .xfer-drop.is-compact { border-color: transparent; background: none; }
+:root[data-style="liquid"] .transfer-panel .xfer-drop.is-compact { align-items: flex-end; padding: 8px 0 0; }
+:root[data-style="liquid"] .transfer-panel .xfer-drop-glyph { width: 44px; height: 44px; background: var(--lg-key); }
+:root[data-style="liquid"] .transfer-panel .xfer-drop-text { font-size: 14px; color: var(--muted-text); }
+:root[data-style="liquid"] .transfer-panel .xfer-drop.is-compact .xfer-drop-text { font-size: 13px; opacity: 1; }
+:root[data-style="liquid"] .transfer-panel .xfer-undo { padding: 4px 4px 4px 12px; border: 0; background: var(--lg-key); font-size: 13px; }
+:root[data-style="liquid"] .transfer-panel .xfer-undo-btn { background: var(--lg-key-hover); color: var(--text); }
+/* The steps take the files' place on the glass, as on the phone, not a box over them. */
+:root[data-style="liquid"] .transfer-panel .xfer-zone:has(> .xfer-help:not([hidden])) > :not(.xfer-help) { display: none; }
+:root[data-style="liquid"] .transfer-panel .xfer-help { position: static; flex: 1 1 auto; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; }
+:root[data-style="liquid"] .transfer-panel .xfer-help-head { font-size: 14px; opacity: 1; }
+:root[data-style="liquid"] .transfer-panel :is(.xfer-help-where, .xfer-help-note) { font-size: 13px; color: var(--muted-text); opacity: 1; }
+:root[data-style="liquid"] .transfer-panel .xfer-help-btn.is-on { background: var(--lg-thumb); color: var(--text); }
+/* A narrow column: the keys give the name some room back, still a finger tall. */
+@container (max-width: 320px) {
+  :root[data-style="liquid"] .transfer-panel .xfer-row-acts .xfer-icon { width: 30px; }
+  :root[data-style="liquid"] .transfer-panel .xfer-meta { font-size: 12px; }
+}
+
+/* Energy: the whole PC is the sum of the cards, so its number carries it, not an outline. */
+:root[data-style="liquid"] :is(.pw-card--total, .pw-card--psu) { border-color: transparent; }
+
+/* The rest of the tiles, by what a thing is rather than by whose it is. */
+
+/* Rows and cards: a well has no outline. */
+:root[data-style="liquid"] :is(.batw-row, .fanw-row, .phw-row, .pw-card, .pw-ha-row, .sp-track, .sp-now, .tww-row, .yt-row, .upcoming-item, .ytl-card, .guardian-chart, .lgt-mode, .lgt-hero, .up-cam, .diskw-treemap, .media-art, .xfer-row, .device-icon) { border-color: transparent; }
+
+/* These rows paint a dark card of their own; hover and the channel on screen keep their colour. */
+:root[data-style="liquid"] :is(.tww-row, .yt-row):not(:hover, .is-current) { background: var(--lg-well); }
+
+/* Keys and fields: a soft fill. A field keeps its focus ring. */
+:root[data-style="liquid"] :is(.devclean-btn, .devclean-icon-btn, .diskw-icon-btn, .diskw-small-btn, .phw-icon-btn, .wl-mute, .deck-edit, .cs-trigger, .notes-tab-add, .control-btn:not(.primary)) { border-color: transparent; }
+:root[data-style="liquid"] :is(.panel, .dashboard-widget) :is(input:not([type="range"], [type="checkbox"], [type="radio"]), textarea):not(:focus) { border-color: transparent; }
+
+/* Tags: small with soft shoulders, never a pill. */
+:root[data-style="liquid"] :is(.batw-src, .lgt-chip, .sw-pill, .wl-fx-pill, .wl-outdev-pill, .app-pill) { border-radius: 6px; }
+:root[data-style="liquid"] :is(.batw-src, .lgt-chip, .wl-fx-pill, .wl-outdev-pill, .app-pill) { border-color: transparent; }
+
+/* A count or a fact beside a title is a word, not a plate. */
+:root[data-style="liquid"] :is(.batw-count, .fanw-count, .nw-count, .sw-count, .wl-badge, .sys-uptime, .xfer-usage) { padding: 0; border-color: transparent; background: none; color: var(--muted-text); }
+
+/* The head spreads its children apart; the count stays by the name. */
+:root[data-style="liquid"] .wl-badge { margin-right: auto; }
+
+/* Chosen in a list of choices: the same thumb as a tab. */
+:root[data-style="liquid"] :is(.obs-scene.is-active, .lgt-chip.is-active, .sh-chip.is-active, .sh-abtn.is-active, .dc-chip.is-on, .dc-chan.is-active, .wl-fx-pill.is-on, .wl-outdev-pill.is-on, .tww-row.is-current, .yt-row.is-current) {
+  border-color: transparent;
+  background: var(--lg-thumb);
+  box-shadow: none;
+  color: var(--text);
+}
+
+/* A letter standing in for an app's icon. */
+:root[data-style="liquid"] .app-mix-icon-letter { border-color: transparent; background: var(--lg-key); color: var(--muted-text); }

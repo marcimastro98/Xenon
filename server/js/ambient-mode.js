@@ -115,10 +115,10 @@ if (typeof window !== 'undefined') (function () {
   const BUSY_BODY_CLASSES = ['game-mode', 'perf-mode', 'layout-editing', 'ai-open', 'ai-active', 'ai-voice-mode', 'ai-listening', 'ai-picker-open'];
   // Visible overlays/dialogs that suppress the idle auto-start.
   const OVERLAY_IDS = ['ai-overlay', 'settings-overlay', 'weather-overlay', 'app-switcher', 'tab-switcher', 'day-modal'];
-  // `.cw-overlay` is the Claude Code approval: a tool call is blocked on a tap,
+  // `.ask-overlay` is a Codex or Claude Code request: a tool call is blocked on a tap,
   // so starting a screensaver over it would hide the one thing on screen that
-  // someone is waiting for.
-  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .cw-overlay, .deck-mix-backdrop, .wc-overlay, dialog[open]';
+  // someone is waiting for. `.xm-scrim` is the Xenon menu on the dashboard, as Settings above.
+  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .ask-overlay, .xm-scrim, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, dialog[open]';
 
   let idleTimer = null;
   let lastRearm = 0;
@@ -577,16 +577,15 @@ if (typeof window !== 'undefined') (function () {
   const STARTUP_POLL_MS = 500;
   const STARTUP_GIVE_UP_MS = 10 * 60 * 1000;   // a first-run tour left open all morning is not a startup any more
 
-  // The screen question still to be asked, or the tour not yet seen — read the
-  // way surface-picker.js and onboarding.js decide it themselves.
+  // The first-run question still to be asked, or the tour running: read the way
+  // surface-picker.js and onboarding.js decide it themselves. usage-ask.js counts
+  // too: it answers the screen question, and until it does that one is pending.
   function firstRunPending() {
     const sp = window.SurfacePicker;
     if (sp && typeof sp.shouldAsk === 'function' && sp.shouldAsk()) return true;
     if (sp && typeof sp.isOpen === 'function' && sp.isOpen()) return true;
     const onb = window.Onboarding;
-    if (onb && typeof onb.isActive === 'function' && onb.isActive()) return true;
-    const seen = typeof window.getOnboardingSeen === 'function' ? Number(window.getOnboardingSeen()) || 0 : Infinity;
-    return !!(onb && Number(onb.version) > seen);
+    return !!(onb && typeof onb.isActive === 'function' && onb.isActive());
   }
 
   function collectStartupState() {

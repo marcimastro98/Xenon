@@ -47,9 +47,9 @@ test('clouds and rain do not care about the time', () => {
 });
 
 test('callers pass their own moment', () => {
-  const hour = SRC.slice(SRC.indexOf('function createWeatherHour'));
-  assert.match(hour.slice(0, 700), /parseSunTime\(hour\.time\)/);
-  const day = SRC.slice(SRC.indexOf('function createWeatherDay'));
-  assert.match(day.slice(0, 400), /classifyWeatherState\(day, WEATHER_DAY_NOON_MIN\)/);
-  assert.match(SRC, /const state = classifyWeatherState\(day, WEATHER_DAY_NOON_MIN\);\n    row\.dataset\.weather/);
+  // The tile's hours and forecast rows, which the Weather window shows too.
+  const tile = readFileSync(new URL('../js/weather-tile.js', import.meta.url), 'utf8');
+  const hours = tile.slice(tile.indexOf('function weatherHourRows'));
+  assert.match(hours.slice(0, 700), /parseSunTime\(hour\.time\)/);
+  assert.match(tile, /const state = classifyWeatherState\(day, WEATHER_DAY_NOON_MIN\);[^\n]*\n[^\n]*\n\s*row\.dataset\.weather = weatherStateIcon\(state\);/);
 });

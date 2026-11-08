@@ -65,6 +65,27 @@
     }),
   });
 
+  /* The website's paper, set apart from the app's greys on 5 Nov 2026: white
+   * in light, a near-black room in dark, under the flat colour sheets of the
+   * pages. The green, Bit's moods, the corners and the fonts stay the ones above. */
+  const SITE = Object.freeze({
+    dark: Object.freeze({
+      surface: Object.freeze(['#0e1113', '#171b1e', '#22272b', '#2c3236']),
+      rule: '#2a3034',
+      ruleStrong: '#3c444a',
+      text: Object.freeze(['#f2f4f5', '#b5bcc2', '#98a0a7']),
+      // Under the Maker's preview canvas: a step below the page.
+      stage: '#090b0c',
+    }),
+    light: Object.freeze({
+      surface: Object.freeze(['#ffffff', '#f2f3f4', '#e6e8ea', '#dadde0']),
+      rule: '#dadde0',
+      ruleStrong: '#b5bac0',
+      text: Object.freeze(['#0f1214', '#4a5056', '#5a6167']),
+      stage: '#e6e8ea',
+    }),
+  });
+
   const RADIUS = Object.freeze({ tag: 4, control: 6, panel: 10 });
 
   const FONT = Object.freeze({
@@ -82,5 +103,5 @@
     easeIn: 'cubic-bezier(0.05, 0.7, 0.1, 1)',
   });
 
-  return { MODES, RADIUS, FONT, MOTION };
+  return { MODES, SITE, RADIUS, FONT, MOTION };
 });

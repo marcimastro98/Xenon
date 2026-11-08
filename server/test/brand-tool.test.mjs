@@ -75,27 +75,24 @@ test('every icon size puts whole screen pixels under every Bit pixel', () => {
 });
 
 test('icons contain only the palette colours: no blur, no stray pixels', () => {
-  const allowed = new Set([PALETTE.plate, PALETTE.bit, PALETTE.face, null]);
+  const allowed = new Set([PALETTE.bit, PALETTE.face, null]);
   for (const size of APP_ICON_SIZES) {
     const img = iconRgba(size);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) assert.ok(allowed.has(hex(img, x, y)), `${size} at ${x},${y}: ${hex(img, x, y)}`);
   }
 });
 
-test('the plate corners are cut by one Bit pixel and the antenna sits where the sprite says', () => {
+test('Bit stands alone, with nothing behind him, and the antenna sits where the sprite says', () => {
   for (const size of [16, 48, 256]) {
     const img = iconRgba(size);
     const { u, ox, oy } = iconLayout(size);
-    assert.equal(hex(img, 0, 0), null, `${size}: corner cut`);
-    assert.equal(hex(img, u - 1, u - 1), null, `${size}: the whole Bit pixel is cut`);
-    assert.equal(hex(img, u, 0), PALETTE.plate, `${size}: the plate starts right after`);
+    assert.equal(hex(img, 0, 0), null, `${size}: corner`);
+    assert.equal(hex(img, 0, size >> 1), null, `${size}: beside him`);
     assert.equal(hex(img, ox + 4 * u, oy), PALETTE.bit, `${size}: antenna (column 6 of the grid)`);
     assert.equal(hex(img, ox + 2 * u, oy + 4 * u), PALETTE.face, `${size}: left eye`);
   }
-  const bare = iconRgba(24, { plate: null });
-  assert.equal(hex(bare, 0, 12), null, 'no plate: transparent around Bit');
-  const full = iconRgba(180, { plate: 'full' });
-  assert.equal(hex(full, 0, 0), PALETTE.plate, 'Apple icon is full bleed, the OS rounds it');
+  const apple = iconRgba(180, { ground: PALETTE.plate });
+  assert.equal(hex(apple, 0, 0), PALETTE.plate, 'Apple icon is full bleed: iOS paints transparency black');
 });
 
 test('the lockup: outlined letters, Bit on the baseline, sized from the x-height', () => {
@@ -130,7 +127,8 @@ test('marks and favicon SVGs are crisp and use the brand colours', () => {
   assert.doesNotMatch(mono, new RegExp(PALETTE.bit));
   const fav = iconSvg();
   assert.match(fav, /viewBox="0 0 16 16"/);
-  assert.match(fav, new RegExp(PALETTE.plate));
+  assert.doesNotMatch(fav, new RegExp(PALETTE.plate), 'nothing behind Bit');
+  assert.match(fav, new RegExp(`prefers-color-scheme:light.*${PALETTE.bitDeep}`), 'deep green on a light browser');
 });
 
 test('the .ico holds each size as a PNG with the right directory entries', () => {
@@ -152,7 +150,7 @@ test('build writes the full set, and the set lists every size it promises', asyn
   const names = brandFiles().map((f) => f.name);
   for (const size of APP_ICON_SIZES) assert.ok(names.includes(`icon-${size}.png`));
   for (const size of BARE_SIZES) assert.ok(names.includes(`bit-${size}.png`) && names.includes(`bit-${size}-light.png`));
-  for (const n of ['bit.svg', 'bit-light.svg', 'bit-mono.svg', 'bit-blink.svg', 'xenon-logo-dark.svg', 'xenon-logo-light.svg', 'favicon.svg', 'favicon.ico', 'bit-4x.png', 'apple-touch-icon.png']) {
+  for (const n of ['bit.svg', 'bit-light.svg', 'bit-mono.svg', 'bit-blink.svg', 'xenon-logo-dark.svg', 'xenon-logo-light.svg', 'favicon.svg', 'favicon.ico', 'bit-4x.png', 'bit-sheet-4x.png', 'apple-touch-icon.png']) {
     assert.ok(names.includes(n), n);
   }
   assert.deepEqual(ICO_SIZES.filter((s) => s > 256), []);
@@ -175,7 +173,7 @@ test('the native app icons: every flat file the bundle ships, drawn pixel-exact'
   }
   const committed = (await readdir(path.join(root, 'apps/native/src-tauri/icons'))).filter((n) => /\.(png|ico)$/.test(n));
   assert.deepEqual([...names].sort(), committed.sort(), 'the same set as apps/native/src-tauri/icons');
-  const allowed = new Set([PALETTE.plate, PALETTE.bit, PALETTE.face, null]);
+  const allowed = new Set([PALETTE.bit, PALETTE.face, null]);
   for (const size of Object.values(TAURI_ICONS)) {
     assert.ok(ICON_UNIT[size], `${size} has a unit`);
     const img = iconRgba(size);
@@ -192,7 +190,7 @@ test('the fixed-path logo files in the repo are the ones the tool draws', async 
   for (const f of fixedPathFiles()) {
     assert.ok(Buffer.from(f.bytes).equals(await readFile(path.join(root, f.name))), `${f.name} is up to date (node tools/brand/build.mjs --fixed)`);
   }
-  const badge = iconRgba(96, { plate: null, body: '#ffffff', face: null });
+  const badge = iconRgba(96, { body: '#ffffff', face: null });
   const { u, ox, oy } = iconLayout(96);
   assert.equal(hex(badge, ox + 4 * u, oy), '#ffffff', 'badge: Bit in white');
   assert.equal(hex(badge, ox + 2 * u, oy + 4 * u), null, 'badge: the eye is a hole');

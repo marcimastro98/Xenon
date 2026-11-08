@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { MODES } = require('../../packages/core/src/brand-tokens.js');
+const { MODES, SITE } = require('../../packages/core/src/brand-tokens.js');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
@@ -23,10 +23,11 @@ function tokens(css, selector) {
 
 function siteWants(mode) {
   const m = MODES[mode];
+  const paper = SITE[mode];
   return {
-    'g-0': m.surface[0], 'g-1': m.surface[1], 'g-2': m.surface[2], 'g-3': m.surface[3],
-    rule: m.rule, 'rule-2': m.ruleStrong,
-    'bone-0': m.text[0], 'bone-1': m.text[1], 'bone-2': m.text[2],
+    'g-0': paper.surface[0], 'g-1': paper.surface[1], 'g-2': paper.surface[2], 'g-3': paper.surface[3],
+    rule: paper.rule, 'rule-2': paper.ruleStrong,
+    'bone-0': paper.text[0], 'bone-1': paper.text[1], 'bone-2': paper.text[2],
     danger: m.bit.angry, warn: m.bit.worry,
     main: m.main, 'main-hover': m.mainHover, 'main-ink': m.mainInk, 'main-text': m.mainText,
   };
@@ -36,6 +37,7 @@ function siteWants(mode) {
 const SITE_SOURCES = [
   'docs/site.css', 'docs/index.html', 'docs/download.html', 'docs/thanks.html',
   'docs/get/index.html', 'docs/submit/index.html', 'docs/submit/status/index.html', 'tools/build-seo.mjs',
+  'docs/catalog/index.html',
 ];
 
 function pick(got, want) {
@@ -51,6 +53,22 @@ test('the site greys and its problem red are the brand set, dark and light', () 
   assert.deepEqual(pick({ ...dark, ...roles }, siteWants('dark')), siteWants('dark'));
   for (const sel of [':root:not([data-theme="dark"])', ':root[data-theme="light"]']) {
     assert.deepEqual(pick(tokens(css, sel), siteWants('light')), siteWants('light'), sel);
+  }
+});
+
+test('the home stands on the same paper as every other page', () => {
+  const home = read('docs/index.html');
+  const paper = (mode) => {
+    const { surface, rule, ruleStrong, text } = SITE[mode];
+    return {
+      room: surface[0], 'room-2': surface[1], 'room-3': surface[2],
+      'g-0': surface[0], 'g-1': surface[1], 'g-2': surface[2], 'g-3': surface[3],
+      rule, 'rule-2': ruleStrong, fg: text[0], 'fg-2': text[1], 'fg-3': text[2],
+    };
+  };
+  assert.deepEqual(pick(tokens(home, ':root'), paper('light')), paper('light'));
+  for (const sel of [':root:not([data-theme="light"])', ':root[data-theme="dark"]']) {
+    assert.deepEqual(pick(tokens(home, sel), paper('dark')), paper('dark'), sel);
   }
 });
 
@@ -83,7 +101,7 @@ test('the main action wears Bit green on the brand surfaces, never inside the da
     assert.doesNotMatch(src, /var\(--(gold|iris)\)/, `${page} still colours with gold or iris`);
   }
   const site = read('docs/site.css');
-  for (const key of ['.xh-dl {', '.xh-key {']) {
+  for (const key of ['\n.xh-dl {', '\n.xh-key {']) {
     const rule = site.slice(site.indexOf(key), site.indexOf('}', site.indexOf(key)));
     assert.match(rule, /background:\s*var\(--main\)/, key);
     assert.match(rule, /color:\s*var\(--main-ink\)/, key);
@@ -106,7 +124,7 @@ const DEVICE_DRAWINGS = /\.(dev|scr|dv|foot-base|bars|xh-bars|dev-phone|dev-tab|
 const RADIUS_OK = /^(0|4px|6px|10px|50%|var\(--r(adius|-[0-9])\))$/;
 
 test('site corners are 4, 6 or 10 outside the device drawings', () => {
-  const pages = [...SITE_SOURCES, 'docs/create/index.html', 'docs/phone.html', 'docs/privacy.html', 'docs/catalog/index.html',
+  const pages = [...SITE_SOURCES, 'docs/create/index.html', 'docs/phone.html', 'docs/privacy.html',
     'docs/claude-code.html', 'docs/deck.html', 'docs/linux.html', 'docs/mac.html', 'docs/sensor-panel.html', 'docs/widgets.html'];
   const off = [];
   for (const page of pages) {

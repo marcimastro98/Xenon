@@ -36,6 +36,10 @@ body.custom-bg-on #custom-bg-layer {
   visibility: visible;
   transition: opacity 0.45s ease, visibility 0s;
 }
+/* A hidden layer has nothing on the compositor, so its loop falls back to the main
+   thread: a switched-off grid asked for a frame on every vsync with nothing to draw. */
+body:not(.aurora-on) .aurora-blob,
+body:not(.grid-on) .grid-plane { animation-play-state: paused; }
 
 /* ── Aurora ──────────────────────────────────────────────── */
 #bg-aurora {
@@ -372,6 +376,16 @@ body[data-bg-static] #bg-static { opacity: var(--static-opacity, 1); }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 :root[data-appearance="light"] #bg-static::after { opacity: 0.03; }
+
+/* ── Dusk: the wallpaper of a new install. A picture, because glass needs big colour
+   fields behind it, and its grain is baked in (tools/wallpapers). ── */
+body[data-bg-static="dusk"] #bg-static {
+  background: #161c30 url("../assets/wallpapers/dusk.webp") center / cover no-repeat;
+}
+:root[data-appearance="light"] body[data-bg-static="dusk"] #bg-static {
+  background: #e9edf3 url("../assets/wallpapers/dusk-light.webp") center / cover no-repeat;
+}
+body[data-bg-static="dusk"] #bg-static::after { display: none; }
 
 /* ── Nebulosa: the aurora, frozen — soft accent pools + depth vignette ── */
 body[data-bg-static="nebulosa"] #bg-static {

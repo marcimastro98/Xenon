@@ -88,7 +88,6 @@
     ambient: '#ambient-topbtn',
     xenon: '.topbtn-xenon',
     search: '.qbtn-search',
-    mail: '#bit-mail-btn',
     mini: '#topbar-mini-slot',
     layout: '#layout-edit-toggle',
     settings: '.qbtn-settings',
@@ -118,10 +117,11 @@
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget.js)
     const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/perf-marker.js)
+    const clockBit = clock.querySelector('.clock-bit'); // Bit waiting with a message (js/bit-message-card.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude, clockCodex, clockPerf,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude, clockCodex, clockPerf, clockBit,
     };
     return els;
   }
@@ -241,7 +241,7 @@
     // online indicator and has to stay, so instead the bare row stops taking a
     // row of its own (CSS below) and the face centres on the bar.
     if (els.clock) {
-      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf]
+      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf, els.clockBit]
         .some((el) => el && el.hidden !== true && !el.classList.contains('topbar-item-hidden'));
       els.clock.classList.toggle('clock-meta-bare', !metaAlive);
     }
@@ -510,6 +510,8 @@
       const el = islandSegEl(id);
       if (el) ui.pill.appendChild(el);
     });
+    // Not a segment: nobody sets it up, it is there only while Bit waits.
+    if (els.clockBit) ui.pill.appendChild(els.clockBit);
     document.body.classList.add('topbar-minimal');
     active = true;
     applyIslandLayout();
@@ -526,9 +528,9 @@
       el.style.removeProperty('order');
       el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
     });
-    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude · codex · perf
+    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude · codex · perf · bit
     // (fixed original order — must match index.html)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf]
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf, els.clockBit]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the
@@ -773,8 +775,7 @@
           const local = (b) => ({ left: b.left - g.left - left, right: b.right - g.left - left, bottom: b.bottom - g.top, height: b.height, radius: b.radius });
           const geo = N.geometry({ ...tile, pill: local(pill) });
           if (!geo) return;
-          const width = Math.max(1, parseFloat(cs.borderLeftWidth) || 1);
-          want.set(item, { geo, line: { width, color: cs.borderLeftColor }, inset: geo.inset });
+          want.set(item, { geo, line: N.edgeLine(cs), inset: geo.inset });
         });
       });
       // Writes. Reconcile idempotently: fitGridHeights re-runs on every
@@ -857,6 +858,7 @@
     configureAutoHide();
     // Cards on the island move to the normal stack if the chrome stopped being minimal.
     if (window.XenonToast && typeof window.XenonToast.refresh === 'function') window.XenonToast.refresh();
+    if (window.XenonBitCard) window.XenonBitCard.refit();
   }
 
   // Keep the rails out while the user is styling them; let go and the idle

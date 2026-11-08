@@ -1,0 +1,292 @@
+/* Liquid Glass, the windows that ask for a moment. Two materials:
+   - a card over the live dashboard (Bit's message, a vote, a suggestion) blurs what is
+     behind it, like the notification it stands beside;
+   - a sheet that stops the page gets its blur from the scrim. A backdrop-filter on the
+     overlay makes it a backdrop root, so a second one on the sheet would sample nothing:
+     the sheet is fill and rim, and the page is blurred once, not twice.
+   The full-screen stages stay in colour: colour is Bit's. Everything sits behind
+   :root[data-style="liquid"]; the other skins keep their lists. */
+:root[data-style="liquid"] {
+  --sheet-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 60%);
+  --sheet-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.26), inset -1px -1px 0 rgba(255, 255, 255, 0.1);
+  --sheet-edge: rgba(255, 255, 255, 0.1);
+  --sheet-fill: rgba(14, 15, 24, 0.62);
+  --sheet-card: rgba(var(--panel-rgb), 0.62);
+  --sheet-under: rgba(14, 15, 24, 0.38);
+  --sheet-blur: blur(24px) saturate(1.8);
+  --sheet-lift: 0 16px 44px rgba(3, 4, 10, 0.4);
+  --sheet-scrim: rgba(6, 7, 14, 0.46);
+  --sheet-scrim-blur: blur(20px) saturate(1.4);
+  --sheet-well: rgba(255, 255, 255, 0.08);
+  --sheet-well-hover: rgba(255, 255, 255, 0.13);
+  --sheet-line: rgba(255, 255, 255, 0.16);
+  --sheet-text: #f2f4f3;
+  --sheet-muted: rgba(242, 244, 243, 0.76);
+  --sheet-main: var(--accent);
+  --sheet-main-ink: var(--on-accent);
+}
+:root[data-style="liquid"][data-appearance="light"] {
+  --sheet-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0) 60%);
+  --sheet-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.82), inset -1px -1px 0 rgba(255, 255, 255, 0.4);
+  --sheet-edge: rgba(255, 255, 255, 0.5);
+  --sheet-fill: rgba(255, 255, 255, 0.72);
+  --sheet-card: rgba(var(--panel-rgb), 0.8);
+  --sheet-under: rgba(255, 255, 255, 0.5);
+  --sheet-lift: 0 14px 38px rgba(40, 44, 70, 0.2);
+  --sheet-scrim: rgba(226, 229, 240, 0.42);
+  --sheet-well: rgba(24, 26, 44, 0.06);
+  --sheet-well-hover: rgba(24, 26, 44, 0.11);
+  --sheet-line: rgba(24, 26, 44, 0.14);
+  --sheet-text: #16181f;
+  --sheet-muted: rgba(22, 24, 31, 0.72);
+}
+/* No blur on the slow path: a thin fill would leave tiles sharp behind the words. */
+:root[data-style="liquid"] body.low-power-gpu {
+  --sheet-card: rgba(var(--panel-rgb), 0.97);
+  --sheet-fill: rgba(var(--panel-rgb), 0.97);
+  --sheet-blur: none;
+  --sheet-scrim: rgba(6, 7, 14, 0.62);
+  --sheet-scrim-blur: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style="liquid"] body {
+    --sheet-sheen: none;
+    --sheet-card: rgb(var(--panel-rgb));
+    --sheet-fill: rgb(var(--panel-rgb));
+    --sheet-blur: none;
+    --sheet-scrim: rgba(6, 7, 14, 0.72);
+    --sheet-scrim-blur: none;
+  }
+}
+/* The alerts window is see-through and cut around the card: a blur has nothing to
+   soften there, and a shadow would end in a straight edge. */
+:root[data-style="liquid"][data-screen-alerts] {
+  --sheet-card: rgba(var(--panel-rgb), 0.92);
+  --sheet-fill: rgba(var(--panel-rgb), 0.92);
+  --sheet-blur: none;
+  --sheet-lift: 0 0 0 transparent;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────── */
+:root[data-style="liquid"] :is(.bm-card, .rn-corner:not(.rn-corner-major), .rn-card) {
+  --wn-paper-3: var(--sheet-well);
+  --wn-rule: var(--sheet-line);
+  --wn-rule-2: var(--sheet-line);
+  --wn-text: var(--sheet-text);
+  --wn-text-2: var(--sheet-muted);
+  --wn-main: var(--sheet-main);
+  --wn-main-ink: var(--sheet-main-ink);
+}
+:root[data-style="liquid"] :is(.bm-card:not(.is-face), .rn-corner:not(.rn-corner-major), .discord-invite, .onb-card) {
+  border-color: var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(var(--sheet-card) 0 0), var(--sheet-under);
+  -webkit-backdrop-filter: var(--sheet-blur);
+  backdrop-filter: var(--sheet-blur);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+}
+:root[data-style="liquid"] .rn-corner-major { border-radius: 16px; }
+:root[data-style="liquid"] :is(.bm-go, .bm-quiet, .bm-off, .bm-x, .bm-answer, .rc-x, .rn-corner-go, .rn-main) { border-radius: 10px; }
+:root[data-style="liquid"] .bm-media { border-radius: 15px 15px 0 0; }
+
+:root[data-style="liquid"] .discord-invite { color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.discord-invite-text, .discord-invite-close, .discord-invite-dismiss, .support-ask-already) { color: var(--sheet-muted); }
+:root[data-style="liquid"] .support-ask .discord-invite-text { color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.discord-invite-close, .discord-invite-dismiss):hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .discord-invite-join { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .support-ask-already { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] .support-ask-already:hover { color: var(--sheet-text); }
+
+:root[data-style="liquid"] .onb-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] .onb-dot { background: var(--sheet-line); }
+:root[data-style="liquid"] .onb-dot.active { background: var(--sheet-text); }
+
+/* ── Sheets ────────────────────────────────────────────────────── */
+:root[data-style="liquid"] :is(.upd-overlay, .rn-overlay, .perf-sheet-overlay, .weather-overlay, .day-modal-backdrop, .ai-pc-confirm, .picker-overlay, .call-overlay, .gc-overlay, .diskw-advisor-modal, .ask-overlay, .xm-scrim, .widget-palette-overlay, .deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal, .xfer-sheet-backdrop, .preset-modal-overlay:not(.cst-overlay, .capg-overlay)) {
+  background: var(--sheet-scrim);
+  -webkit-backdrop-filter: var(--sheet-scrim-blur);
+  backdrop-filter: var(--sheet-scrim-blur);
+}
+:root[data-style="liquid"] :is(.upd-card, .rn-card, .perf-sheet, .weather-panel, .day-modal-card, .ai-pc-card, .picker-panel, .call-card, .gc-card, .diskw-advisor-dialog, .ask-sheet, .xm-frame, .widget-palette-modal, .deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw, .xfer-sheet, .preset-modal:not(.cst, .cgal-modal)) {
+  border: 1px solid var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(var(--sheet-fill) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] :is(.perf-sheet, .xm-frame) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="liquid"] .picker-backdrop { background: none; }
+:root[data-style="liquid"] .widget-palette-modal {
+  --pal-text: var(--sheet-text);
+  --pal-muted: var(--sheet-muted);
+  --pal-well: var(--sheet-well);
+  --pal-well-hover: var(--sheet-well-hover);
+  --pal-line: var(--sheet-line);
+}
+/* Send to PC stands on the bottom edge of a phone, so it keeps square feet there. */
+:root[data-style="liquid"] .xfer-sheet {
+  --text: var(--sheet-text); --text-dim: var(--sheet-muted); --text-muted: var(--sheet-muted); --muted-text: var(--sheet-muted);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover); --line: var(--sheet-line);
+}
+@media (max-width: 699.98px) {
+  :root[data-style="liquid"] .xfer-sheet-backdrop .xfer-sheet { border-bottom: 0; border-radius: 16px 16px 0 0; }
+}
+/* The Deck's windows: what is selected is neutral, as on every other sheet of this skin. */
+:root[data-style="liquid"] :is(.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw) {
+  --text: var(--sheet-text); --text-dim: var(--sheet-muted); --muted-text: var(--sheet-muted);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover); --input-bg: var(--sheet-well);
+  --line: var(--sheet-line); --divider: var(--sheet-line); --surface-alt: var(--sheet-well);
+  --ded-text: var(--sheet-text);
+  --ded-muted: var(--sheet-muted);
+  --ded-well: var(--sheet-well);
+  --ded-well-hover: var(--sheet-well-hover);
+  --ded-line: var(--sheet-line);
+  --ded-on: var(--sheet-line);
+  --ded-on-ink: var(--sheet-text);
+}
+:root[data-style="liquid"] :is(.deck-ed-tab.active, .deck-ed-segbtn.active) { color: var(--ded-on-ink); background-color: var(--ded-on); }
+:root[data-style="liquid"] .deck-style-dialog .deck-seg button.active { color: var(--ded-on-ink); }
+:root[data-style="liquid"] .picker-panel {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+}
+:root[data-style="liquid"] .picker-close { border-color: transparent; border-radius: 10px; background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .picker-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .picker-item { border: 0; border-radius: 10px; background: var(--sheet-well); }
+:root[data-style="liquid"] .picker-item + .picker-item { margin-top: 6px; }
+:root[data-style="liquid"] .picker-item:hover { background: var(--sheet-well-hover); }
+
+/* The ringing window and Bit's card over a game. On the alerts window they hang on their
+   own over the screen: no scrim, and the shadow would end in a straight edge. The call's
+   pulse stays: it is the point of it. */
+:root[data-style="liquid"][data-screen-alerts] :is(.call-overlay, .gc-overlay) { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="liquid"] .diskw-advisor-dialog {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line); --control-bg: var(--sheet-well);
+}
+:root[data-style="liquid"] .diskw-modal-review { border-color: transparent; }
+:root[data-style="liquid"] .diskw-modal-review:hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .call-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+}
+:root[data-style="liquid"] .call-avatar { background: var(--sheet-well); }
+:root[data-style="liquid"] .gc-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+}
+:root[data-style="liquid"] .gc-close { background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .gc-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.gc-ask-input, .gc-ask-btn, .gc-ask-voice) { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.gc-ask-btn, .gc-ask-voice):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .gc-ask-input:focus { border-color: var(--sheet-main); }
+:root[data-style="liquid"] .gc-analyze { border-color: transparent; background: var(--sheet-main); color: var(--sheet-main-ink); }
+/* Seen only while a game runs: the sheet's look without a blur, which the game would pay for. */
+:root[data-style="liquid"] .gc-pill {
+  border-color: var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(rgba(var(--panel-rgb), 0.92) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] .call-btn { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .call-btn:hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .call-btn--answer,
+:root[data-style="liquid"] .call-btn--answer:hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .call-btn--decline { color: var(--color-danger); }
+:root[data-style="liquid"] .call-actions--minor .call-btn { border-color: transparent; background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .call-actions--minor .call-btn:hover { background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .call-dismiss:hover { background: var(--sheet-well); }
+
+/* A request of Codex or Claude Code. On the overlay, not on the sheet: the agents' own
+   tokens are declared there and resolve there. */
+:root[data-style="liquid"] .ask-overlay {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line); --divider: var(--sheet-line);
+}
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-deny, .cw-key.is-quiet, .cx-key.is-deny, .cx-key.is-quiet, .cw-key.is-hold, .cx-key.is-hold, .cw-opt, .cw-dec-input) {
+  box-shadow: none; border-color: transparent; background: var(--sheet-well);
+}
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-deny, .cw-key.is-quiet, .cx-key.is-deny, .cx-key.is-quiet, .cw-key.is-hold, .cx-key.is-hold, .cw-opt):hover:not(:disabled) { background: var(--sheet-well-hover); filter: none; }
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-allow:not(.is-hold), .cx-key.is-allow:not(.is-hold)) { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .ask-sheet .cw-dec-input:focus { border-color: var(--sheet-main); }
+
+/* The colour picker is of the family but stays solid: a colour is judged on a plain
+   ground (ColorPicker.css). */
+:root[data-style="liquid"] .cp-pop {
+  border-color: var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(rgb(var(--panel-rgb)) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+}
+:root[data-style="liquid"] .cp-hex { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .cp-hex:focus { border-color: var(--sheet-main); box-shadow: none; }
+:root[data-style="liquid"] .cp-recents { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] .weather-panel {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted);
+  --wx-well: var(--sheet-well); --wx-line: var(--sheet-line);
+}
+:root[data-style="liquid"] .weather-win-key { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .day-modal-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+  --divider: var(--sheet-line); --hover-bg: var(--sheet-well-hover);
+}
+:root[data-style="liquid"] .day-modal-card :is(.event-item, .event-input, .time-picker-display, .cs-trigger) { border-color: transparent; background: var(--sheet-well); }
+:root[data-style="liquid"] .day-modal-card :is(.event-input:focus, .time-picker-display:focus, .cs-wrap.cs-open .cs-trigger) { border-color: var(--sheet-main); }
+/* A list over the form has to hide it: a well's fill would let the fields read through. */
+:root[data-style="liquid"] .time-picker-dropdown { border-color: var(--sheet-edge); border-radius: 10px; background: rgb(var(--panel-rgb)); }
+:root[data-style="liquid"] .tp-item.selected { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .tp-sep { color: var(--sheet-muted); }
+:root[data-style="liquid"] .ai-pc-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover);
+}
+/* The head of the notes keeps its colour: colour is Bit's. */
+:root[data-style="liquid"] .rn-main { min-height: 48px; min-width: 120px; font: 700 18px / 1 var(--wn-body); }
+:root[data-style="liquid"] .rn-link { padding-inline: 10px; margin-left: -10px; border-radius: 10px; font: 600 16px / 1 var(--wn-body); text-decoration: none; }
+:root[data-style="liquid"] .rn-link:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.rn-card, .rn-corner) button:focus-visible { outline: 2px solid var(--sheet-text); }
+
+:root[data-style="liquid"] .upd-close { width: 36px; height: 36px; border-radius: 10px; background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .upd-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .upd-ver { color: var(--sheet-muted); opacity: 1; }
+:root[data-style="liquid"] :is(.upd-actions, .perf-sheet-actions) { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(.upd-btn, .perf-btn) { border-color: transparent; border-radius: 10px; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.upd-btn:not(.primary), .perf-btn:not(.perf-btn-primary)):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .upd-btn.ghost { background: none; color: var(--sheet-muted); opacity: 1; }
+:root[data-style="liquid"] :is(.upd-btn.primary, .perf-btn-primary),
+:root[data-style="liquid"] :is(.upd-btn.primary, .perf-btn-primary):hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .upd-status:not(.ok, .error) { background: var(--sheet-well); }
+:root[data-style="liquid"] .upd-notes code { background: var(--sheet-well); }
+:root[data-style="liquid"] .upd-media { border-color: var(--sheet-line); }
+
+/* Share, import, export and their family. Their rows read the app's tokens, so the sheet
+   hands them its own. The fill stays readable at any --panel-alpha: it does not follow it. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) {
+  --text: var(--sheet-text); --text-dim: var(--sheet-muted); --text-muted: var(--sheet-muted);
+  --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+  --glass-border: var(--sheet-line); --line: var(--sheet-line); --divider: var(--sheet-line);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover); --surface-alt: var(--sheet-well);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(.settings-btn, .preset-page-item, .preset-check-row, .export-pick-row, .preset-deck-acts, .preset-lock-code-row, .preset-code-field, .preset-unlock-field, .preset-lock-count-input, .sharecard-link-field) {
+  border-color: transparent;
+  border-radius: 10px;
+  background: var(--sheet-well);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(.settings-btn:not(.primary), .preset-page-item:not(:disabled), .preset-check-row:not(.is-static), .export-pick-row):hover {
+  border-color: transparent;
+  background: var(--sheet-well-hover);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.primary,
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.primary:hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(input, textarea):focus { border-color: var(--sheet-main); }
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .preset-keep-code { border-color: transparent; background: var(--sheet-well); }
+/* A key that destroys: a red word, as in Settings. White on the theme's red reads under 3:1. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.danger { color: var(--color-danger); }
+:root[data-style="liquid"][data-appearance="light"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.danger { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
+/* The space above and below is border, not padding: text stops at the padding box, so a
+   long link ends on a whole line instead of a sliced one. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .preset-code-field { padding-block: 0; border-block-width: 9px; }
+
+:root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app) { border-color: transparent; border-radius: 10px; background: var(--sheet-well); }
+:root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] :is(.perf-sheet-hint, .perf-sheet-apps-head, .perf-sheet-app-title, .perf-sheet-app-mem, .perf-sheet-apps-empty) { color: var(--sheet-muted); opacity: 1; }

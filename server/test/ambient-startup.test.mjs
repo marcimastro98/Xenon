@@ -45,6 +45,7 @@ function clientNormalize() {
   return new Function([
     'const AMBIENT_IDLE_MINUTES = [0, 1, 2, 5, 10, 15, 30];',
     'const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;',
+    'const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;',
     `const DEFAULT_HUB_SETTINGS = ${DEFAULTS};`,
     extractFunction(SETTINGS, 'normalizeAmbientMode'),
     'return normalizeAmbientMode;',
@@ -56,6 +57,7 @@ function serverNormalize() {
     'const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);',
     'const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;',
     'const AMBIENT_CANVAS_REF_RE = /^canvas:[a-z0-9][a-z0-9-]{1,40}$/;',
+    'const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;',
     `const DEFAULT_HUB_SETTINGS = ${DEFAULTS};`,
     extractFunction(SERVER, 'normalizeAmbientMode'),
     'return normalizeAmbientMode;',
@@ -102,7 +104,8 @@ test('a load that runs the first-run questions is skipped, not waited out', () =
   const fn = extractFunction(MODE, 'firstRunPending');
   assert.match(fn, /sp\.shouldAsk\(\)/);
   assert.match(fn, /onb\.isActive\(\)/);
-  assert.match(fn, /Number\(onb\.version\) > seen/);
+  // The tour is offered, it no longer opens by itself: nobody having taken it holds nothing back.
+  assert.doesNotMatch(fn, /getOnboardingSeen/);
   assert.match(read('js', 'surface-picker.js'), /window\.SurfacePicker = \{[^}]*shouldAsk[^}]*isOpen/);
   assert.match(read('js', 'onboarding.js'), /window\.Onboarding = \{[^}]*isActive[^}]*version: ONBOARDING_VERSION/);
 });

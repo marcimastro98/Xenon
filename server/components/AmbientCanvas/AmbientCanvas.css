@@ -480,6 +480,7 @@ body.low-power-gpu .ambient-canvas-stage > .ac-bg[data-motion], body.perf-mode .
 .settings-ambient-row .cs-wrap { min-width: 150px; }
 .settings-ambient-row--wide .cs-wrap { flex: 1 1 auto; }
 .settings-ambient-sec > .settings-note { margin: 2px 7px 0; }
+.settings-ambient-sec > .settings-btn { align-self: flex-start; margin: 6px 7px 2px; }
 .settings-ambient-sec > .settings-hint { margin: -4px 7px 2px; }
 .settings-ambient-sec > .settings-note[hidden] { display: none; }
 .settings-ambient-classic { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
@@ -501,7 +502,6 @@ body.low-power-gpu .ambient-canvas-stage > .ac-bg[data-motion], body.perf-mode .
 }
 .settings-ambient-scenes-head .settings-ambient-sec-title { margin-bottom: 0; }
 .settings-ambient-scenes-acts { display: flex; flex-wrap: wrap; gap: 6px; }
-.settings-ambient-scenes-acts a.settings-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; padding: 0 7px; }
 .settings-ambient-scene-empty { margin: 2px 0; font-size: 12px; color: var(--muted-text, #8b93a7); }
 .settings-ambient-scene-row {

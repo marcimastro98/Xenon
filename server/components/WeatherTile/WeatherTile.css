@@ -1,0 +1,491 @@
+/* The Weather tile, drawn by js/weather-tile.js into .weather-widget-mount.
+   It sits on the tile's own sheet on every look, with no painted sky: colour is kept for the
+   picture, the rain and the temperatures. Nothing here loops, so it costs nothing while it
+   waits. What shows follows the tile's size: details go first, then days, then the line. */
+:is(.weather-tile-panel, .weather-panel) {
+  --wx-rain: #6db6ff;
+  --wx-night: color-mix(in srgb, var(--text) 6%, transparent);
+  --wx-track: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.weather-tile-panel {
+  padding: 0;
+  overflow: hidden;
+}
+/* White clouds vanish on a light sheet: the pictures take a darker sky. */
+:root[data-appearance="light"] :is(.weather-tile-panel, .weather-panel) {
+  --wx-rain: #1a6fd0;
+  --wx-night: color-mix(in srgb, var(--text) 4%, transparent);
+  --sky-cloud-top: #c3d0e6;
+  --sky-cloud-low: #8195b8;
+  --sky-moon-top: #aebbdc;
+  --sky-moon-low: #7c8db8;
+  --sky-drop: #2f80d8;
+  --sky-flake: #6f9bd6;
+  --sky-haze: #8094b4;
+}
+
+.weather-widget-mount {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+  container-type: size;
+  overflow: hidden;
+}
+.weather-tile-root {
+  --wx-gap: clamp(8px, 3cqmin, 14px);
+  --wx-day: clamp(28px, 8cqmin, 34px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wx-gap);
+  height: 100%;
+  min-height: 0;
+  padding: clamp(12px, 4.4cqmin, 16px);
+  color: var(--text);
+}
+.weather-tile-card {
+  appearance: none;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.weather-tile-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.weather-tile--stale { opacity: 0.85; }
+
+/* ── Now ── */
+.weather-now {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "place place art"
+    "temp lines art"
+    "next next next";
+  align-items: center;
+  column-gap: clamp(8px, 3cqmin, 14px);
+  width: 100%;
+}
+.weather-tile-root:not(.has-body) .weather-now { flex: 1 1 auto; align-content: center; }
+.weather-now-place {
+  grid-area: place;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: clamp(12px, 3.4cqmin, 15px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-now-temp {
+  grid-area: temp;
+  font-size: clamp(40px, 19cqmin, 92px);
+  font-weight: 600;
+  line-height: 1.05;
+}
+.weather-now-lines {
+  grid-area: lines;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: clamp(12px, 3.2cqmin, 14px);
+  line-height: 1.25;
+}
+.weather-now-condition { font-weight: 600; }
+.weather-now-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  color: var(--muted-text);
+}
+.weather-now-art {
+  grid-area: art;
+  display: block;
+  width: clamp(52px, 25cqmin, 120px);
+  aspect-ratio: 1;
+}
+.weather-now-art svg,
+.weather-hours-art svg,
+.weather-fc-art svg,
+.weather-compact-icon svg { display: block; width: 100%; height: 100%; }
+.weather-now-next {
+  grid-area: next;
+  margin-top: clamp(4px, 1.6cqmin, 8px);
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: clamp(12px, 3.2cqmin, 14px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-now-next.is-wet { color: var(--wx-rain); }
+
+/* ── Body: whatever the room left ── */
+.weather-tile-body {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wx-gap);
+  min-width: 0;
+  min-height: 0;
+  cursor: pointer;
+}
+
+/* ── The next hours ── */
+.weather-hours {
+  --wx-temp: clamp(11px, 3cqi, 13px);
+  position: relative;
+  flex: 1 1 150px;
+  display: flex;
+  flex-direction: column;
+  min-height: 96px;
+  max-height: 300px;
+  container: wxhours / size;
+}
+.weather-hours-night {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--from) * 100%);
+  right: calc((1 - var(--to)) * 100%);
+  border-radius: 10px;
+  background: var(--wx-night);
+}
+.weather-hours-row {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--wx-cols), minmax(0, 1fr));
+}
+.weather-hours-sky { height: 28px; padding-top: 4px; }
+.weather-hours-art { justify-self: center; width: 24px; height: 24px; }
+.weather-hours-plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 32px;
+  margin-top: 18px;
+}
+.weather-hours-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.weather-hours-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-linecap: round;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.weather-hours-temp {
+  position: absolute;
+  top: calc(var(--y) * 1%);
+  left: calc(var(--x) * 1%);
+  font-size: var(--wx-temp);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+  transform: translate(calc(-50% + var(--lean, 0) * 10px), calc(-100% - 6px));
+}
+.weather-hours-rain { height: 30px; margin-top: 4px; }
+/* The number over its bar, never on it: blue on blue could not be read. */
+.weather-hours-chance {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 12%;
+  text-align: center;
+}
+.weather-hours-chance:has(b)::after {
+  content: "";
+  height: calc(2px + var(--rain, 0) * 12px);
+  border-radius: 2px 2px 0 0;
+  background: var(--wx-rain);
+}
+.weather-hours-chance b {
+  color: var(--wx-rain);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.weather-hours-axis {
+  padding: 5px 0 6px;
+  color: var(--muted-text);
+  font-size: clamp(11px, 2.9cqi, 12px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: center;
+}
+.weather-hours-axis span {
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* "Сейчас" is wider than an hour on a phone: at that width the next label is hidden, so it takes the room. */
+.weather-hours-axis span:first-child { overflow: visible; color: var(--text); font-weight: 600; }
+/* Narrow: every other hour keeps its words; the line itself still shows them all. */
+@container wxhours (max-height: 139px) {
+  .weather-hours-sky { display: none; }
+}
+@container wxhours (max-height: 118px) {
+  .weather-hours-rain { display: none; }
+}
+@container wxhours (max-width: 330px) {
+  .weather-hours-temp:nth-of-type(even),
+  .weather-hours-chance:nth-child(even) b,
+  .weather-hours-axis span:nth-child(even) { visibility: hidden; }
+}
+
+/* ── The next days. A flex column that wraps, in a box that hides the wrap: whole rows stay,
+   the ones without room leave rather than get cut. ── */
+.weather-forecast--rows {
+  flex: 0 1000 auto;
+  display: flex;
+  flex-flow: column wrap;
+  min-height: var(--wx-day);
+  overflow: hidden;
+}
+.weather-fc-row {
+  box-sizing: border-box;
+  display: grid;
+  /* The name asks for its width and stops at a third, so a narrow tile keeps its temperatures. */
+  grid-template-columns: minmax(max(3em, min(var(--wx-name, 0px), 34%)), 0.9fr) 24px 2.3em minmax(44px, 3fr) 2.3em;
+  align-items: center;
+  gap: clamp(6px, 2cqmin, 10px);
+  width: 100%;
+  height: var(--wx-day);
+}
+.weather-fc-day {
+  overflow: hidden;
+  font-size: clamp(12px, 3cqmin, 14px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-fc-art { width: 24px; height: 24px; }
+.weather-fc-min,
+.weather-fc-max {
+  font-size: clamp(12px, 3cqmin, 14px);
+  font-variant-numeric: tabular-nums;
+}
+.weather-fc-min { color: var(--muted-text); text-align: right; }
+.weather-fc-max { color: var(--text); font-weight: 600; }
+.weather-fc-bar {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--wx-track);
+}
+.weather-fc-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 8px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--cold), var(--warm));
+}
+
+/* ── Details: two plain columns, read top to bottom. The third column would be off the
+   tile, which is how the ones without room leave. ── */
+.weather-facts {
+  --wx-fact: 26px;
+  flex: 0 100000 auto;
+  display: flex;
+  flex-flow: column wrap;
+  align-content: flex-start;
+  column-gap: 16px;
+  min-height: var(--wx-fact);
+  max-height: calc(var(--wx-rows) * var(--wx-fact));
+  margin: 0;
+  overflow: hidden;
+}
+.weather-fact {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: calc(50% - 8px);
+  height: var(--wx-fact);
+  font-size: clamp(12px, 3cqmin, 13px);
+}
+.weather-fact dt {
+  overflow: hidden;
+  color: var(--muted-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-fact dd {
+  flex: 0 0 auto;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.weather-fact.is-warning dd { color: var(--amber); }
+
+/* ── Sizes ── */
+/* Wide: now on the left, the rest beside it. */
+@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) { flex-direction: row; gap: clamp(16px, 3.4cqi, 28px); }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now {
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "place art"
+      "temp art"
+      "lines lines"
+      "next next";
+    align-content: center;
+    row-gap: 2px;
+    width: clamp(200px, 34%, 320px);
+  }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now-art { width: clamp(44px, 24cqh, 88px); }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now-temp { font-size: clamp(40px, 22cqh, 84px); }
+}
+/* Very wide, like the Edge's strip: now, the hours and the days side by side. */
+@container (min-width: 820px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+    column-gap: clamp(16px, 3cqi, 28px);
+  }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-hours { grid-row: 1 / -1; max-height: none; }
+  /* The full height of the tile would turn a mild evening into a cliff. */
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-hours-plot { flex: 0 1 72px; margin-block: auto; }
+}
+/* What stacks under now, the tile's height decides: the line first, then the days, then the
+   details. Days and details leave whole, so nothing is ever half a row. */
+@container (max-height: 232px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-tile-body { display: none; }
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-now { flex: 1 1 auto; align-content: center; }
+}
+@container (max-height: 379px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-forecast--rows { display: none; }
+}
+@container (max-height: 559px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-facts { display: none; }
+}
+@container (max-height: 399px) and (max-width: 819px) {
+  .weather-facts { display: none; }
+}
+@container (max-height: 219px) {
+  .weather-forecast--rows { display: none; }
+}
+@container (max-height: 176px) {
+  .weather-hours { min-height: 0; }
+}
+@container (max-height: 124px) {
+  .weather-now-next { display: none; }
+  .weather-now-range { display: none; }
+}
+@container (max-height: 92px) {
+  .weather-now-place { display: none; }
+}
+@container (max-width: 240px) {
+  .weather-now { grid-template-areas: "place art" "temp art" "lines lines" "next next"; grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+/* ── Compact hero: current conditions on one line (GitHub #130) ──
+   Settings → Weather → Current conditions → One line. The big card gives way to a single
+   row so hours and days get the tile. It stays the button that opens the full view, and it
+   never goes side by side: a strip across the top is the whole point, and the wide rules
+   above are scoped away from it. */
+.weather-tile-card.weather-tile-compact {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2.2cqi, 14px);
+  width: 100%;
+  min-height: 0;
+}
+.weather-tile-root--compact:not(.has-body) .weather-tile-compact { flex: 1 1 auto; }
+.weather-compact-icon {
+  flex: 0 0 auto;
+  display: block;
+  width: 38px;
+  height: 38px;
+}
+.weather-compact-temp {
+  flex: 0 0 auto;
+  font-size: clamp(24px, 6cqi, 32px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+.weather-compact-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.weather-compact-condition,
+.weather-compact-feels {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-compact-condition { font-size: clamp(12px, 2.8cqi, 14px); font-weight: 600; }
+.weather-compact-feels { color: var(--muted-text); font-size: clamp(12px, 2.4cqi, 12.5px); }
+/* Wind and rain: present, but a step quieter than the line on the left. */
+.weather-compact-stats {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 2.6cqi, 16px);
+}
+.weather-compact-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+.weather-compact-stat b {
+  font-size: clamp(12px, 2.6cqi, 14px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.weather-compact-stat em {
+  color: var(--muted-text);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.weather-compact-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-left: -2px;
+  fill: none;
+  opacity: 0.6;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+/* Narrow tiles shed from the right, rain before wind; the feels-like line
+   under the condition is never one of them. */
+@container (max-width: 400px) {
+  .weather-compact-stat--rain { display: none; }
+}
+@container (max-width: 330px) {
+  .weather-compact-stats { display: none; }
+}
+@container (max-width: 210px) {
+  .weather-compact-chevron { display: none; }
+}

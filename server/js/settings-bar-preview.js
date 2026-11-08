@@ -16,7 +16,6 @@
 
   const PAGE = 'island';
   const GAP = 10;          // px between the bar and the sheet
-  const EDGE = 14;         // the sheet's own margin (SettingsModal.css)
 
   let on = false;
   let frame = 0;
@@ -48,9 +47,9 @@
     }
     const left = shown(document.querySelector('.edge-rail-left'));
     const right = shown(document.querySelector('.edge-rail-right'));
-    o.style.setProperty('--sbp-top', Math.round(top ? top + GAP : EDGE) + 'px');
-    o.style.setProperty('--sbp-left', Math.round(left && left.right > 0 ? left.right + GAP : EDGE) + 'px');
-    o.style.setProperty('--sbp-right', Math.round(right && right.left < w ? w - right.left + GAP : EDGE) + 'px');
+    o.style.setProperty('--sbp-top', Math.round(top ? top + GAP : 0) + 'px');
+    o.style.setProperty('--sbp-left', Math.round(left && left.right > 0 ? left.right + GAP : 0) + 'px');
+    o.style.setProperty('--sbp-right', Math.round(right && right.left < w ? w - right.left + GAP : 0) + 'px');
   }
 
   function schedule() {

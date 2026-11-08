@@ -111,14 +111,14 @@
 /* ── App-wide utility surfaces ──────────────────────────────
    Settings, switchers, editors and portaled menus sit outside `.panel`, so a
    widget-only skin can never make the whole application coherent. These are
-   all paper tools. Image/video canvases and immersive AI/weather surfaces are
+   all paper tools. Image/video canvases and immersive AI surfaces are
    intentionally absent and keep their own light-on-dark contrast contract. */
 :root[data-style="comic"] :is(
   .settings-panel, .app-panel, .tab-panel, .picker-panel, .day-modal-card, .cs-panel,
   .widget-palette-modal, .tile-style-pop, .preset-modal, .cgal-modal,
   .native-promo, .wc-modal, .cw-modal, .upd-card, .discord-invite,
-  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-toast,
-  .vt-card
+  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-asw, .deck-toast, .xfer-sheet,
+  .vt-card, .weather-panel, .ai-pc-card, .onb-card, .diskw-advisor-dialog, .ask-sheet
 ) {
   background: var(--comic-paper-fill);
   color: var(--text);
@@ -129,19 +129,6 @@
   backdrop-filter: none;
 }
 
-/* Portaled Deck tools are paper in Comic, so keep their text on the same
-   semantic ink role even though they live outside the redrawn device root. */
-:root[data-style="comic"] :is(
-  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-toast
-) {
-  --text: var(--comic-ink);
-}
-
-/* Deck editing stays a legible paper tool while the full-screen overlay remains
-   a translucent backdrop. This also fixes compact S/M/L labels and icon buttons. */
-:root[data-style="comic"] .deck-style-modal {
-  background: color-mix(in srgb, var(--comic-ink) 58%, transparent);
-}
 :root[data-style="comic"] .vt-overlay {
   background: color-mix(in srgb, var(--comic-ink) 58%, transparent);
   -webkit-backdrop-filter: blur(2px);
@@ -172,7 +159,7 @@
   background: color-mix(in srgb, rgb(var(--vt-rgb)) 30%, var(--comic-paper-soft));
 }
 :root[data-style="comic"] :is(.deck-tools, .deck-seg) {
-  color: var(--comic-ink);
+  color: var(--text);
   background: var(--comic-paper-soft);
   border-color: var(--comic-ink);
   box-shadow: 2px 2px 0 var(--comic-pencil);
@@ -185,30 +172,30 @@
 :root[data-style="comic"] .deck-style-subhead { border-color: var(--comic-rule); }
 :root[data-style="comic"] .deck-seg button {
   min-width: 30px;
-  color: var(--comic-ink);
+  color: var(--text);
   background: transparent;
   border: 1px solid transparent;
 }
 :root[data-style="comic"] .deck-seg button.active {
-  color: var(--comic-ink);
+  color: var(--text);
   background: color-mix(in srgb, var(--accent) 34%, var(--comic-paper));
   border-color: var(--comic-ink);
   box-shadow: 1px 1px 0 var(--comic-pencil);
 }
-:root[data-style="comic"] :is(.deck-pill, .deck-step, .deck-style-close) {
-  color: var(--comic-ink);
+:root[data-style="comic"] :is(.deck-pill, .deck-step, .deck-style-close, .deck-asw-close) {
+  color: var(--text);
   background: var(--comic-paper);
   border-color: var(--comic-ink);
   box-shadow: 1px 1px 0 var(--comic-pencil);
 }
 :root[data-style="comic"] .deck-pill.on,
 :root[data-style="comic"] .deck-customize.deck-pill {
-  color: var(--comic-ink);
+  color: var(--text);
   background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper));
   border-color: var(--comic-ink);
 }
 :root[data-style="comic"] .deck-step-val,
-:root[data-style="comic"] .deck-style-title { color: var(--comic-ink); }
+:root[data-style="comic"] .deck-style-title { color: var(--text); }
 :root[data-style="comic"] .deck-decor-swatch { border-color: var(--comic-ink); }
 :root[data-style="comic"] .deck-style-preview {
   background:
@@ -217,27 +204,29 @@
 }
 
 :root[data-style="comic"] :is(
-  .settings-head, .settings-foot, .app-head, .tab-head, .picker-head,
-  .day-modal-header, .cgal-topbar, .deck-ed-head, .deck-mix-head,
-  .settings-nav-footer
+  .app-head, .tab-head, .picker-head,
+  .day-modal-header, .deck-ed-head, .deck-mix-head
 ) { border-color: var(--comic-rule); }
 
 :root[data-style="comic"] :is(
   .settings-group, .settings-subpanel, .settings-segmented,
-  .settings-upload, .settings-preview-card, .ai-provider-toggle label,
+  .settings-upload, .ai-provider-toggle label,
   .app-card, .app-search-wrap, .tab-card,
-  .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
+  .preset-page-item, .preset-check-row, .preset-deck-acts,
   .wc-card, .wc-preview, .tile-style-tabs,
-  .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
+  .deck-ed-step,
   .upd-notes code, .upd-hl-footer, .upd-status
 ) {
   background-color: var(--comic-paper-soft);
   border-color: var(--comic-rule);
 }
 
+/* The "+" gallery: the pictures are framed in the page's ink. */
+:root[data-style="comic"] .widget-palette-modal { --pal-line: var(--comic-rule); }
+
 :root[data-style="comic"] :is(
   .settings-group, .settings-subpanel,
-  .app-card, .tab-card, .widget-palette-item, .preset-page-item,
+  .app-card, .tab-card, .preset-page-item,
   .preset-check-row, .wc-card, .deck-ed-step
 ) {
   border-width: 1.5px;
@@ -282,7 +271,7 @@
 :root[data-style="comic"] :is(
   .settings-segment-btn.active, .settings-nav-btn.active,
   .tile-style-tabs button.active,
-  .widget-palette-cat.active, .deck-ed-tab.active, .deck-ed-segbtn.active,
+  .deck-ed-tab.active, .deck-ed-segbtn.active,
   .deck-ed-trigbtn.active, .deck-pmenu-row.active
 ) {
   color: var(--text);
@@ -292,8 +281,8 @@
 }
 
 :root[data-style="comic"] :is(
-  .settings-store-pill, .settings-btn.primary, .native-promo-install,
-  .tile-style-btn.primary, .deck-ed-btn.primary, .upd-btn.primary, .feed-add
+  .settings-btn.primary, .native-promo-install,
+  .tile-style-btn.primary, .deck-ed-btn.primary, .upd-btn.primary, .discord-invite-join, .feed-add
 ) {
   color: var(--text);
   background: var(--comic-accent-strong);
@@ -332,11 +321,11 @@
 /* Accents that are bright enough for dots and fills are not necessarily dark
    enough for 10–12px copy on paper. Keep those roles separate. */
 :root[data-style="comic"] :is(
-  .qbtn-settings, .qbtn-tabs, .qbtn-focus, .qbtn-apps, .qbtn-layout,
-  .tab-icon, .tab-current, .settings-preview-kicker, .settings-slider-value,
+  .qbtn-settings, .qbtn-focus, .qbtn-apps, .qbtn-layout,
+  .tab-icon, .tab-current, .settings-slider-value,
   .calendar-kicker, .day-cell.today, .upcoming-when,
-  .day-modal-kicker, .event-time, .stat-head-temp,
-  .notes-status.saved, .streaming-url, .streaming-setup-link,
+  .stat-head-temp,
+  .notes-status.saved, .streaming-url,
   .settings-spotify-steps li::marker
 ) { color: var(--comic-accent-ink); }
 :root[data-style="comic"] .settings-spotify-steps li::marker {
@@ -371,9 +360,7 @@
 :root[data-style="comic"] :is(
   .settings-hint.settings-superseded-note,
   .ai-provider-toggle input[type="radio"]:checked ~ .ai-prov-name,
-  .settings-inline-link, .settings-store-hero-eyebrow,
-  .settings-subcard-badge,
-  .settings-subcard-ico--limited
+  .settings-inline-link
 ) { color: var(--comic-accent-ink); }
 :root[data-style="comic"] .native-promo-beta { color: var(--text); }
 :root[data-style="comic"] .settings-seg-btn.is-active {
@@ -411,10 +398,6 @@
   color: var(--text);
   background: var(--comic-paper-deep);
 }
-:root[data-style="comic"] :is(.settings-nav-btn-support,
-  .settings-nav-btn-support:hover, .settings-nav-btn-support.active) {
-  color: color-mix(in srgb, #ff4d8d 52%, var(--comic-ink));
-}
 
 /* Dark hard-coded switcher labels are not covered by shared tokens. */
 :root[data-style="comic"] :is(.app-name, .tab-title, .preset-modal-title,
@@ -435,8 +418,7 @@
   font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
   letter-spacing: 0;
 }
-:root[data-style="comic"] :is(.settings-group-head > span:first-child,
-  .settings-preview-kicker, .tabgroup-tab, .topbtn span,
+:root[data-style="comic"] :is(.tabgroup-tab, .topbtn span,
   .panel [class$="-title"]:not(.deck-root *), .panel [class$="-logo"]:not(.deck-root *),
   .panel .section-title, .panel .dc-sec-label) {
   font-family: 'Bangers', 'Comic Sans MS', 'Comic Neue', cursive;
@@ -444,8 +426,7 @@
   font-style: normal;           /* Bangers is a display cap — never the inherited italic */
   letter-spacing: 0;
 }
-:root[data-style="comic"] :is(.settings-group-head > span:first-child,
-  .settings-preview-kicker, .tabgroup-tab, .topbtn span,
+:root[data-style="comic"] :is(.tabgroup-tab, .topbtn span,
   .panel .section-title, .panel .dc-sec-label) {
   font-size: max(1.02em, 11px);
   text-transform: uppercase;
@@ -506,7 +487,7 @@
 /* ── Controls: inked buttons with a real press ───────────────
    A hair of ink tint lifts them off the paper; ink outline, hard shadow, and a
    physical press (the control moves into its own shadow). */
-:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn) {
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn) {
   background: var(--comic-paper-soft);
   color: var(--text);
   border: 1.5px solid var(--comic-ink);
@@ -514,7 +495,7 @@
   box-shadow: 2px 2px 0 var(--comic-pencil);
   transition: transform 0.04s steps(2, end), box-shadow 0.04s steps(2, end);
 }
-:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn):active {
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn):active {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
@@ -535,23 +516,12 @@
 }
 :root[data-style="comic"] .settings-btn:hover { background: color-mix(in srgb, var(--panel), var(--comic-ink) 10%); }
 :root[data-style="comic"] .settings-btn:active { transform: translate(2px, 2px); box-shadow: none; }
-:root[data-style="comic"] :is(.settings-btn.primary, .settings-gamemode-install .settings-btn) {
+:root[data-style="comic"] .settings-btn.primary {
   background: var(--comic-accent-strong);
   color: var(--text);            /* ink on the accent, never the light default */
   border-color: var(--comic-ink);
 }
 :root[data-style="comic"] .settings-btn.danger { color: var(--color-danger); }
-
-/* Settings scrim: the comic tiles are opaque, but a theme with a low background
-   dim (a vivid animated background left bright for the dashboard) bleeds through
-   the overlay's thin default scrim and makes Settings hard to read. Lay a strong
-   scrim behind the modal so the paper UI reads cleanly — without dimming the
-   dashboard itself (this doesn't touch bgDim). */
-:root[data-style="comic"] .settings-overlay {
-  background: color-mix(in srgb, var(--bg), transparent 8%);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-}
 
 /* Segmented wells and chips: recessed paper. */
 :root[data-style="comic"] :is(.ui-segmented, .settings-segmented, .tabgroup-bar) {
@@ -591,8 +561,8 @@
    The outer sketch alone still leaves dark-theme literals (white washes and
    dividers) almost invisible on paper. These are the repeated card/control
    primitives used by the built-in dashboard widgets. `background-color`
-   deliberately preserves meaningful image/gradient layers such as album art,
-   weather skies and charts. */
+   deliberately preserves meaningful image/gradient layers such as album art
+   and charts. */
 :root[data-style="comic"] .panel :is(
   .stat-box, .system-tabs-left, .sys-uptime,
   .calendar-card, .cal-task-toggle, .day-cell, .upcoming-block,
@@ -613,7 +583,7 @@
   .browser-url, .browser-fav, .browser-fav-input,
   .ss-bar, .ss-btn, .ss-tune-panel, .ss-tune-seg, .ss-tune-opt, .ss-setup-card,
   .remote-intro, .remote-panel-section, .remote-ready-row, .remote-step, .remote-status,
-  .up-setup, .up-seg, .up-seg-btn, .up-reorder-row, .up-move-btn
+  .up-setup, .up-reorder-row, .up-move-btn
 ) {
   background-color: var(--comic-paper-soft);
   border-color: var(--comic-rule);
@@ -629,8 +599,7 @@
   .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
   .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
   .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
-  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
-  .up-seg-btn, .up-move-btn
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary, .up-move-btn
 ) {
   color: var(--text);
   border-color: var(--comic-ink);
@@ -642,8 +611,7 @@
   .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
   .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
   .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
-  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
-  .up-seg-btn, .up-move-btn
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary, .up-move-btn
 ):active {
   transform: translate(1px, 1px);
   box-shadow: none;
@@ -752,14 +720,17 @@
    only the controls and labels are converted to inked paper. */
 :root[data-style="comic"] :is(.media-title, .media-chat-np-title, .msp-sheet-title) { color: var(--text); }
 :root[data-style="comic"] :is(.media-artist, .media-chat-np-artist, .msp-item-artist) { color: var(--muted-text); }
+/* On a light theme this tile stays a dark island (themes-light.css): the paper under its light marks
+   has to stay dark with it, or they land on the white of the page. */
+:root[data-style="comic"][data-appearance="light"] .media-panel { --comic-paper-soft: rgba(15, 20, 19, 0.55); }
 :root[data-style="comic"] :is(.control-btn, .msp-ctl, .msp-pill, .media-vol-mute) {
-  color: var(--comic-ink);
+  color: var(--text);
   background-color: var(--comic-paper-soft);
   border-color: var(--comic-ink);
   box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
 }
 :root[data-style="comic"] .control-btn.primary {
-  color: var(--comic-ink);
+  color: var(--on-accent);
   background: var(--accent);
   border: 1.5px solid var(--comic-ink);
 }
@@ -795,12 +766,12 @@
 :root[data-style="comic"] :is(.yt-viewers-num, .twitch-viewers-num,
   .obs-scene.is-active, .up-setup-title, .remote-intro-title,
   .remote-ready-val, .sh-item-name, .sh-item-value, .sh-now-title) { color: var(--text); }
-:root[data-style="comic"] :is(.up-setup-msg, .up-seg-btn:not(.is-active),
+:root[data-style="comic"] :is(.up-setup-msg,
   .up-move-btn, .remote-hint, .remote-panel-label, .remote-ready-label,
   .sh-item-ico, .sh-item-sub, .sh-item-go, .sh-item-unit,
   .sh-sheet-sub, .sh-sheet-close, .sh-thermo-current, .sh-thermo-action,
   .sh-now-artist, .sh-empty-msg) { color: var(--comic-muted); }
-:root[data-style="comic"] :is(.obs-scene.is-active, .up-seg-btn.is-active,
+:root[data-style="comic"] :is(.obs-scene.is-active,
   .ss-tune-opt.is-active, .wl-seg-btn.is-active) {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 30%, var(--comic-paper));
@@ -1269,7 +1240,7 @@
 
 /* The profile menu is portaled to body, outside .deck-root. */
 :root[data-style="comic"] .deck-pmenu {
-  color: var(--comic-ink);
+  color: var(--text);
   background: var(--comic-paper);
   border: 2px solid var(--comic-ink);
   border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
@@ -1279,18 +1250,12 @@
 :root[data-style="comic"] .deck-pmenu :is(.deck-pmenu-head, .deck-pmenu-empty) { color: var(--comic-muted); }
 :root[data-style="comic"] .deck-pmenu-row.active,
 :root[data-style="comic"] .deck-pmenu-pick:hover { background: color-mix(in srgb, var(--accent) 24%, var(--comic-paper)); }
-:root[data-style="comic"] .deck-pmenu-pick { color: var(--comic-ink); }
 :root[data-style="comic"] .deck-pmenu-tool,
 :root[data-style="comic"] .deck-pmenu-add {
-  color: var(--comic-ink);
+  color: var(--text);
   background: var(--comic-paper-soft);
   border-color: var(--comic-ink);
   box-shadow: 1px 1px 0 var(--comic-pencil);
-}
-:root[data-style="comic"] .deck-pmenu-input {
-  color: var(--comic-ink);
-  background: white;
-  border-color: var(--comic-ink);
 }
 
 /* The tab-group mount belongs to the dashboard page and must use the same

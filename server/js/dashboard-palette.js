@@ -1,18 +1,10 @@
 'use strict';
-// "+" quick-add: lists the addable widgets, built-in and installed from the
-// Store, grouped into categories with an icon each, filtered and searchable, and
-// adds the chosen one to the current page — OR (tab mode) merges it into a
-// target tile as a new tab. Which entries exist and where they are filed is
+// "+" quick-add: a gallery of the addable widgets, built-in and installed from the
+// Store, each shown by its picture, grouped into categories, filtered and searchable.
+// It adds the chosen one to the current page, OR (tab mode) merges it into a target
+// tile as a new tab. Which entries exist and where they are filed is
 // js/palette-model.js; this file draws them.
 (function () {
-  // Widgets grouped into scannable categories (instead of one long flat list).
-  // An id not in any category falls into a trailing "misc" grid so nothing is lost.
-  const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
-    { labelKey: 'palette_cat_media', ids: ['media', 'lyrics', 'chat', 'chatgpt', 'browser', 'slideshow'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'perf', 'screen', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
-    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
-  ];
   // Built-in widgets that open only with a supporter pass. The panel says so up
   // front, so nobody adds one expecting it to work straight away.
   const SUPPORTER_WIDGETS = new Set(['devclean', 'lyrics']);
@@ -74,8 +66,7 @@
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
-  const supporterLine = (base) => {
-    const key = 'layout_widget_sub_' + base;
+  const lineOf = (key) => {
     const v = tr(key, '');
     return v && v !== key ? v : '';
   };
@@ -83,21 +74,42 @@
   const CW = () => window.CustomWidget;
 
   // ── One item, whatever it is ────────────────────────────────────────────
-  // A built-in widget (its i18n name and glyph), a Store widget (its own name,
-  // author and glyph, the puzzle when it has none) or a tile already on the
-  // page (tab mode's "move here": a Store widget's tile shows its package).
-  // `query` highlights the match while searching; `idx` marks a search result
-  // for the arrow keys.
-  function makeEntryItem(entry, onPick, query, idx) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'widget-palette-item';
-    if (idx != null) btn.dataset.idx = String(idx);
+  // A built-in widget (its i18n name, picture and glyph), a Store widget (its own
+  // name, author, the Store's picture and its glyph, the puzzle when it has none)
+  // or a tile already on the page (tab mode's "move here": a Store widget's tile
+  // shows its package). `query` highlights the match while searching; `idx` marks a
+  // search result for the arrow keys.
+  function entryGlyph(entry) {
     const ico = document.createElement('span');
     ico.className = 'widget-palette-ico';
     const own = entry.iconEl ? entry.iconEl() : null;   // a package's own glyph (inert SVG element)
     if (own) ico.appendChild(own);
     else ico.innerHTML = WIDGET_ICONS[entry.base] || FALLBACK_ICON;   // static, trusted SVG
+    return ico;
+  }
+
+  // The frame every card has, so a row stays even: the picture, or the glyph when
+  // there is none or it does not load.
+  function entryPicture(entry) {
+    const frame = document.createElement('span');
+    frame.className = 'widget-palette-pic';
+    if (!entry.picture) { frame.appendChild(entryGlyph(entry)); return frame; }
+    const img = document.createElement('img');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.draggable = false;
+    img.addEventListener('error', () => { frame.replaceChildren(entryGlyph(entry)); });
+    img.src = entry.picture;
+    frame.appendChild(img);
+    return frame;
+  }
+
+  function makeEntryItem(entry, onPick, query, idx) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'widget-palette-item';
+    if (idx != null) btn.dataset.idx = String(idx);
     const text = document.createElement('span');
     text.className = 'widget-palette-text';
     const lbl = document.createElement('span');
@@ -109,23 +121,25 @@
       lbl.textContent = entry.label;
     }
     text.appendChild(lbl);
+    if (entry.supporter) {
+      const note = document.createElement('span');
+      note.className = 'widget-palette-note';
+      note.setAttribute('data-i18n', 'palette_supporters');
+      note.textContent = tr('palette_supporters', 'For supporters');
+      text.appendChild(note);
+    }
     if (entry.sub) {
       const sub = document.createElement('span');
       sub.className = 'widget-palette-sub';
       sub.textContent = entry.sub;
       text.appendChild(sub);
     }
-    btn.append(ico, text);
-    if (entry.supporter) {
-      const badge = document.createElement('span');
-      badge.className = 'widget-palette-badge';
-      badge.setAttribute('data-i18n', 'palette_supporters');
-      badge.textContent = tr('palette_supporters', 'For supporters');
-      btn.appendChild(badge);
-    }
+    const row = entry.placed || entry.row;
+    btn.append(row ? entryGlyph(entry) : entryPicture(entry), text);
+    if (row) btn.classList.add('is-row');
     if (entry.placed) {
-      // Already on the dashboard: the same item, quieter, with an arrow that says
-      // the tap goes there instead of adding something.
+      // Already on the dashboard: a quiet row with an arrow that says the tap goes
+      // there instead of adding something.
       btn.classList.add('is-placed');
       const go = document.createElement('span');
       go.className = 'widget-palette-go';
@@ -157,8 +171,9 @@
   }
 
   // A titled block of items: the heading, then the items on the panel's one
-  // shared grid, so every block's columns line up with the others.
-  function renderBlock(pop, headingKey, entries, onPick) {
+  // shared grid, so every block's columns line up with the others. `found` is a
+  // search's { query, first }: what to highlight, and the first result's number.
+  function renderBlock(pop, headingKey, entries, onPick, found) {
     if (!entries.length) return;
     const section = document.createElement('div');
     section.className = 'widget-palette-section';
@@ -168,8 +183,8 @@
     head.textContent = tr(headingKey, '');
     section.appendChild(head);
     const grid = document.createElement('div');
-    grid.className = 'widget-palette-grid';
-    entries.forEach((e) => grid.appendChild(makeEntryItem(e, onPick)));
+    grid.className = 'widget-palette-grid' + (entries[0].placed || entries[0].row ? ' is-rows' : '');
+    entries.forEach((e, i) => grid.appendChild(makeEntryItem(e, onPick, found && found.query, found ? found.first + i : null)));
     section.appendChild(grid);
     pop.appendChild(section);
   }
@@ -181,12 +196,13 @@
   // the filter that is on. Matching is js/fuzzy-find.js; this is only the
   // palette's half.
   let _search = null;   // { input, pop, render, entries, index, results, selected }
+  let _letGo = null;    // gives the keyboard back; a panel that goes must call it
   // The filter chosen last, kept for the session: reopening the panel to add a
   // second Store widget should not send you back to "all".
   let _lastFilter = 'all';
 
   function catKeyOf(base) {
-    const cat = WIDGET_CATEGORIES.find(c => c.ids.includes(base));
+    const cat = PM().WIDGET_CATEGORIES.find(c => c.ids.includes(base));
     return cat ? cat.labelKey : 'palette_cat_other';
   }
 
@@ -225,9 +241,9 @@
       && !(typeof C.isSuspended === 'function' && C.isSuspended(p.id)));
   }
 
-  // The catalog is read only to file a Store widget whose manifest names no
-  // category, once per session (the server keeps its own cache). Offline, such
-  // a widget is simply filed under "other".
+  // The catalog gives a Store widget its picture and files one whose manifest names
+  // no category, once per session (the server keeps its own cache). Offline, such a
+  // widget keeps its glyph and is filed under "other".
   let _catalog = null;
   let _catalogAsk = null;
   function loadCatalog() {
@@ -260,8 +276,6 @@
     const res = window.FuzzyFind.search(S.index, q, { limit: 40 });
     const pop = S.pop;
     pop.textContent = '';
-    pop.classList.remove('widget-palette--cols');
-    pop.classList.add('widget-palette--results');
     S.results = [];
     if (!res.length) {
       const empty = document.createElement('div');
@@ -278,17 +292,8 @@
       groups.get(g).push(r.entry);
     }
     for (const [groupKey, list] of groups) {
-      const head = document.createElement('div');
-      head.className = 'widget-palette-cat';
-      head.textContent = tr(groupKey, '');
-      pop.appendChild(head);
-      const grid = document.createElement('div');
-      grid.className = 'widget-palette-grid widget-palette-results';
-      for (const entry of list) {
-        grid.appendChild(makeEntryItem(entry, (e) => e.pick(), q, S.results.length));
-        S.results.push(entry);
-      }
-      pop.appendChild(grid);
+      renderBlock(pop, groupKey, list, (e) => e.pick(), { query: q, first: S.results.length });
+      S.results.push(...list);
     }
     selectResult(0);
   }
@@ -327,22 +332,15 @@
         if (e) e.pick();
       }
     });
-    // Straight into the field with a keyboard. Never where there is a touch
-    // surface: focusing would raise the on-screen keyboard over the Edge's
-    // 720 pixels before anyone asked for it.
-    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
-    if (!touch) setTimeout(() => { try { input.focus({ preventScroll: true }); } catch { /* best effort */ } }, 0);
     return input;
   }
 
-  // Esc from main.js (capture phase): a query is cleared first, the palette
-  // closes on the next one.
-  function handleEscape() {
-    if (!_search || !document.getElementById('widget-palette') || !_search.input.value) return false;
+  // Esc: a query is cleared first, the palette closes on the next one.
+  function stepBack() {
+    if (!_search || !_search.input.value) { closePalette(); return; }
     _search.input.value = '';
     _search.results = [];
     _search.render();
-    return true;
   }
 
   // The filter row: "All", "Installed" (the Store widgets on this PC) and each
@@ -386,10 +384,15 @@
     overlay.id = 'widget-palette';
     const modal = document.createElement('div');
     modal.className = 'widget-palette-modal';
+    modal.tabIndex = -1;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'widget-palette-title');
     const head = document.createElement('div');
     head.className = 'widget-palette-head';
     const title = document.createElement('h3');
     title.className = 'widget-palette-title';
+    title.id = 'widget-palette-title';
     const titleKey = tabTarget ? 'palette_tab_title' : 'palette_title';
     title.setAttribute('data-i18n', titleKey);
     title.textContent = tr(titleKey, tabTarget ? 'Aggiungi come tab' : 'Aggiungi widget');
@@ -462,7 +465,7 @@
     // there. Which ones count is palette-model.js's placedBuiltins.
     const tabGroupId = tabTarget && tg ? tg.widgetGroupOf(layout.groups, tabTarget) : null;
     const placedModel = PM().placedBuiltins({
-      widgets: layout.widgets, ids: DASHBOARD_WIDGET_IDS, pageId, table: WIDGET_CATEGORIES,
+      widgets: layout.widgets, ids: DASHBOARD_WIDGET_IDS, pageId, table: PM().WIDGET_CATEGORIES,
       groupOf: (id) => (tg ? tg.widgetGroupOf(layout.groups, id) : null),
       isDuplicable: (id) => !!(window.DashboardInstances && window.DashboardInstances.isDuplicable(id)),
       tabTarget, members,
@@ -529,7 +532,7 @@
       const safe = typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode;
       if (safe || !C || typeof C.missingExamples !== 'function') return [];
       return C.missingExamples().map((ex) => ({
-        base: 'custom', label: String(ex.name), sub: String(ex.desc || ''),
+        base: 'custom', label: String(ex.name), sub: String(ex.desc || ''), row: true,   // no picture to show
         group: 'palette_examples', pick: () => pickExample(ex.id),
         fields: [{ text: String(ex.name), weight: 1, fuzzy: true }, { text: String(ex.desc || ''), weight: 0.4 }],
       }));
@@ -543,6 +546,7 @@
       const name = isPkg && C && C.assignedName ? C.assignedName(e.id) : '';
       return {
         base: e.base, label: name || tr('layout_widget_' + e.base, e.base), i18nKey: name ? '' : 'layout_widget_' + e.base,
+        picture: PM().previewPath(e.base),
         iconEl: isPkg && C && C.assignedIcon ? () => C.assignedIcon(e.id) : null,
         group: 'palette_move_existing', pick: () => pickMove(e.id),
         fields: name ? [{ text: name, weight: 1, fuzzy: true }] : builtinFields(e.base),
@@ -553,22 +557,24 @@
         const pkg = m.pkg;
         return {
           base: 'custom', label: String(pkg.name), sub: pkg.author ? String(pkg.author) : '',
+          picture: PM().storeShot(PM().catalogEntryForPackage(pkg.id, _catalog || [], receipts())),
           iconEl: () => (CW() && CW().packageIcon ? CW().packageIcon(pkg) : null),
           group: 'palette_group_store', pick: () => pickPackage(pkg.id), fields: packageFields(pkg, m.category),
         };
       }
       return {
         base: m.base, label: tr('layout_widget_' + m.base, m.base), i18nKey: 'layout_widget_' + m.base,
+        picture: PM().previewPath(m.base),
         supporter: SUPPORTER_WIDGETS.has(m.base),
-        // A supporter widget says in one line what it does that the free
-        // dashboard does not; '' (no line) when the string is absent.
-        sub: SUPPORTER_WIDGETS.has(m.base) ? supporterLine(m.base) : '',
+        // One line on what it is for; a supporter widget says what it does that the
+        // free dashboard does not.
+        sub: (SUPPORTER_WIDGETS.has(m.base) && lineOf('layout_widget_sub_' + m.base)) || lineOf('layout_widget_' + m.base + '_desc'),
         group: tabTarget ? 'palette_add_new' : 'palette_group_builtin', pick: () => pickBuiltin(m.id), fields: builtinFields(m.base),
       };
     };
     let model = [];
     const rebuild = () => {
-      model = PM().buildEntries({ builtins, packages: storePackages(), table: WIDGET_CATEGORIES, catalog: _catalog || [], receipts: receipts() });
+      model = PM().buildEntries({ builtins, packages: storePackages(), table: PM().WIDGET_CATEGORIES, catalog: _catalog || [], receipts: receipts() });
     };
     rebuild();
 
@@ -586,8 +592,6 @@
     const render = () => {
       paintFilters();
       pop.textContent = '';
-      pop.classList.remove('widget-palette--results');
-      pop.classList.add('widget-palette--cols');
       const shown = PM().filterEntries(model, filter);
       if (tabTarget && filter === 'all') renderBlock(pop, 'palette_move_existing', moveEntries.map(moveItem), (e) => e.pick());
       for (const [cat, list] of PM().groupByCategory(shown)) {
@@ -632,9 +636,9 @@
       ...PM().filterEntries(placedModel, filter).map(toPlacedItem),
     ]);
 
-    // Store widgets may not be loaded yet (no tile on screen this session), and
-    // one without a manifest category is filed from the catalog: fetch both,
-    // then redraw whatever view is up.
+    // Store widgets may not be loaded yet (no tile on screen this session), and each
+    // takes its picture from the catalog, which also files one without a manifest
+    // category: fetch both, then redraw whatever view is up.
     const refresh = () => {
       if (!_search || _search.input !== input) return;
       rebuild();
@@ -648,22 +652,24 @@
     const loaded = (C && typeof C.getPackages === 'function') ? C.getPackages(true).catch(() => null) : Promise.resolve(null);
     loaded.then(() => {
       refresh();
-      const needCatalog = storePackages().some((p) => !(PM().MANIFEST_CATEGORIES.includes(p.category)));
-      if (needCatalog && !_catalog) loadCatalog().then(refresh);
+      if (storePackages().length && !_catalog) loadCatalog().then(refresh);
     });
 
     document.body.appendChild(overlay);
-    if (typeof applyTranslations === 'function') applyTranslations();
+    if (typeof translateStatic === 'function') translateStatic(overlay);
     // Dismiss on a backdrop tap (never on a click inside the card) or Escape.
     overlay.addEventListener('pointerdown', (ev) => { if (ev.target === overlay) closePalette(); });
-    document.addEventListener('keydown', _escClose);
+    // Straight into the field with a keyboard. Never where there is a touch surface:
+    // focusing would raise the on-screen keyboard over the Edge's 720 pixels before
+    // anyone asked for it.
+    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+    _letGo = window.DialogFocus.hold(modal, { start: touch ? modal : input, onEsc: stepBack });
   }
-  function _escClose(ev) { if (ev.key === 'Escape') closePalette(); }
   function closePalette() {
+    if (_letGo) { _letGo(); _letGo = null; }
     const p = document.getElementById('widget-palette');
     if (p) p.remove();
     _search = null;
-    document.removeEventListener('keydown', _escClose);
   }
 
   // Canonical per-widget glyph (full <svg> string, currentColor). Shared so other
@@ -671,5 +677,7 @@
   // from, instead of keeping their own drifting copy. null for unknown ids.
   function iconFor(base) { return WIDGET_ICONS[base] || null; }
 
-  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor, handleEscape };
+  const forSupporters = (base) => SUPPORTER_WIDGETS.has(base);
+
+  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor, forSupporters };
 })();
