@@ -23,6 +23,12 @@
 // validateAction (js/deck-actions.js) and server/actions/registry.js; the
 // effects live in server/capabilities/.
 
+// js/perf-hud.js PERF_HUD_PARTS: this file is also loaded where that one is not.
+const PERF_TILE_PARTS = Object.freeze([
+  'fps', 'low1', 'low01', 'frame', 'graph', 'cpu', 'cpuTemp', 'cpuClock', 'cpuPower',
+  'gpu', 'gpuTemp', 'gpuClock', 'gpuPower', 'vram', 'ram', 'ping', 'loss',
+]);
+
 const CAPABILITIES = [
   // The frame rate with the numbers around it: average, 1% and 0.1% lows,
   // 99th-percentile frame time. Read-only, so it is no key in the Deck editor.
@@ -75,7 +81,7 @@ const CAPABILITIES = [
       domain: 'perf', risk: 'safe', requires: 'gameSessions',
       ai: {
         name: 'compare_game_sessions',
-        description: 'Compare the latest session of a game with the session before it of the same game: both summaries plus deltaAvgFps, deltaLow1Fps and deltaLow01Fps (latest minus previous; positive = better). Use it for "did the driver update help?", "is it running better than last time?". Without a game it takes the game played last. Errors: "first_session" (only one session of that game, returned as latest), "no_sessions", "off".',
+        description: 'Compare the latest session of a game with the session before it of the same game: both summaries plus deltaAvgFps, deltaLow1Fps and deltaLow01Fps (latest minus previous; positive = better). Use it for "did the driver update help?", "is it running better than last time?". A session played in Performance Mode for most of the game has perfMode true and appsMoved (apps moved aside at the busiest moment): one with it against one without answers "did Performance Mode help?". Without a game it takes the game played last. Errors: "first_session" (only one session of that game, returned as latest), "no_sessions", "off".',
         params: { game: 'optional game process name; empty for the game played last' },
       },
     },
@@ -93,17 +99,20 @@ const CAPABILITIES = [
     },
   },
 
-  // What the Game performance tile shows besides the FPS (js/perf-hud.js),
-  // the same switches as Settings, Performance. Voice only: it is set once.
+  // What the Game performance tile shows (js/perf-hud.js), the same switches as
+  // Settings, Performance and this widget's row in the menu. Voice only: it is set once.
   {
     type: 'perfHud', group: 'perf', hidden: true, labelKey: 'deck_act_perfHud',
-    params: ['low1', 'low01', 'frame', 'graph', 'hw'].map(name => ({ name, kind: 'select', options: ['keep', 'show', 'hide'] })),
+    params: [
+      ...PERF_TILE_PARTS.map(name => ({ name, kind: 'select', options: ['keep', 'show', 'hide'] })),
+      { name: 'layout', kind: 'select', options: ['keep', 'column', 'row'] },
+    ],
     capability: {
       domain: 'perf', risk: 'safe', requires: 'perfTile',
       ai: {
         name: 'set_perf_tile',
-        description: 'Read or change what the Game performance tile (the FPS widget, also over the game) shows besides the FPS. Each part is "show" or "hide"; leave out what the user did not mention, and with none the call only returns what is shown now. low1: the 1% low. low01: the 0.1% low. frame: the frame time (between games, how long the last game lasted). graph: the graph of the latest frame times. hw: the row with CPU and GPU load and the GPU temperature. Use it for "show only the FPS", "hide the graph", "put the CPU back on the FPS widget".',
-        params: { low1: 'show or hide', low01: 'show or hide', frame: 'show or hide', graph: 'show or hide', hw: 'show or hide' },
+        description: 'Read or change what the Game performance tile (the FPS widget, also over the game) shows, chosen reading by reading as in the statistics of the NVIDIA overlay. Each part is "show" or "hide"; leave out what the user did not mention, and with none the call only returns what is shown now. fps: the frame rate. low1, low01: the 1% and 0.1% lows. frame: the frame time (between games, how long the last game lasted). graph: the graph of the latest frame times. cpu, gpu: load. cpuTemp, gpuTemp: temperature. cpuClock, gpuClock: clock speed. cpuPower, gpuPower: power draw. vram, ram: memory used. ping: time to reach the internet. loss: packets lost on the way there; neither is measured against the game server. layout: over a game the readings sit one under the other (column) or on one line (row). Use it for "show only the FPS", "hide the graph", "add the CPU temperature to the overlay", "show the ping and the lost packets", "put the overlay on one line".',
+        params: { ...Object.fromEntries(PERF_TILE_PARTS.map(name => [name, 'show or hide'])), layout: 'column or row' },
       },
     },
   },
@@ -164,7 +173,7 @@ const CAPABILITIES = [
       domain: 'capture', risk: 'sensitive', requires: 'capture',
       ai: {
         name: 'take_screenshot',
-        description: 'Save a screenshot as a PNG file in the user\'s Pictures/Xenon folder, in a subfolder named after the running game (or "Desktop"). HDR screens are converted so the picture looks like the screen. "screen" (default) is the whole monitor the user is working on, "window" only the window in front, "region" freezes every screen and lets the user drag an area or click a window: the picture is saved AND copied to the clipboard, and the call waits until they pick. Returns the file name, size, whether it came from an HDR screen and "copied". "cancelled": true means the user pressed Esc (nothing saved, not an error); "picking": true means a picker is already open on screen. This saves a file for the user; to LOOK at the screen yourself use capture_screen instead. "reveal" opens the folder of the last screenshot. Errors: "no_window" (nothing in front), "no_file" (reveal with no screenshot yet), "unsupported" (this Windows cannot capture).',
+        description: 'Save a screenshot as a PNG file in the user\'s Pictures/Xenon folder, in a subfolder named after the running game (or "Desktop"). HDR screens are converted so the picture looks like the screen. "screen" (default) is the whole monitor the user is working on, "window" only the window in front, "region" freezes every screen and lets the user drag an area or click a window, and the call waits until they pick. Every picture is saved AND copied to the clipboard. Returns the file name, size, whether it came from an HDR screen and "copied". "cancelled": true means the user pressed Esc (nothing saved, not an error); "picking": true means a picker is already open on screen. This saves a file for the user; to LOOK at the screen yourself use capture_screen instead. "reveal" opens the folder of the last screenshot. Errors: "no_window" (nothing in front), "no_file" (reveal with no screenshot yet), "unsupported" (this Windows cannot capture).',
         params: { target: 'screen (default), window, or region (the user picks an area)', mode: 'take (default) or reveal' },
       },
     },
@@ -299,9 +308,10 @@ const CAPABILITIES = [
     type: 'record', group: 'capture', labelKey: 'deck_act_record',
     params: [
       { name: 'target', kind: 'select', options: ['screen', 'window'] },
-      { name: 'audio', kind: 'select', options: ['sound', 'sound_mic', 'silent'] },
+      // 'chosen' = what the Xenon menu picked (capabilities/record.js).
+      { name: 'audio', kind: 'select', options: ['sound', 'sound_mic', 'silent'], keeps: ['chosen'] },
       {
-        name: 'webcam', kind: 'select', options: ['off', 'br', 'bl', 'tr', 'tl'],
+        name: 'webcam', kind: 'select', options: ['off', 'br', 'bl', 'tr', 'tl'], keeps: ['chosen'],
         optionKeys: { off: 'deck_opt_cam_off', tl: 'deck_opt_cam_tl', tr: 'deck_opt_cam_tr', bl: 'deck_opt_cam_bl', br: 'deck_opt_cam_br' },
       },
       { name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop', 'reveal'] },
@@ -349,6 +359,8 @@ const CAPABILITIES = [
       { name: 'quality', kind: 'select', options: ['keep', 'normal', 'high', 'small'] },
       { name: 'pill', kind: 'select', options: ['keep', 'show', 'hide'] },
       { name: 'limit', kind: 'select', options: ['keep', 'none', '10', '25', '50', '100'] },
+      { name: 'audio', kind: 'select', options: ['keep', 'sound', 'sound_mic', 'silent'] },
+      { name: 'webcam', kind: 'select', options: ['keep', 'off', 'tl', 'tr', 'bl', 'br'] },
       { name: 'folder', kind: 'select', options: ['keep', 'pick', 'default'] },
       { name: 'folderFor', kind: 'select', options: ['recordings', 'screenshots', 'benchmarks', 'bugReports', 'bugLogs'] },
     ],
@@ -360,6 +372,8 @@ const CAPABILITIES = [
         params: {
           fps: '60 or 30', size: 'native, 1440, 1080 or 720', quality: 'normal, high or small',
           pill: 'show or hide', limit: 'none, 10, 25, 50 or 100 (GB)', folder: 'pick or default',
+          audio: 'What a recording started from the Xenon menu takes: sound, sound_mic or silent. Change it only when the user asks for it.',
+          webcam: 'The webcam corner of a recording started from the Xenon menu: off, tl, tr, bl or br. Change it only when the user asks for it.',
           folderFor: 'recordings (default), screenshots, benchmarks, bugReports or bugLogs',
         },
       },
@@ -460,7 +474,7 @@ const CAPABILITIES = [
       domain: 'ai', risk: 'safe', requires: 'gameCompanion',
       ai: {
         name: 'open_game_companion',
-        description: 'Open the Game Companion card on the PC screen: the game being played, how long the session runs, the live FPS, and a button the user taps to have the screen looked at for a tip. Use it for "apri il game companion", "open the game companion". To answer a question about what is on screen yourself, use capture_screen instead. Error "companion_off": the user has not turned Game Companion on (Settings, Bit assistant, Advanced AI features). Error "screen_alerts_off": in Widgets only mode the card shows in the on-screen alerts, which the user turned off (Settings, Notifications).',
+        description: 'Open the Game Companion card on the PC screen: the game being played, how long the session runs, the live FPS, and a button the user taps to have the screen looked at for a tip. Use it for "apri il game companion", "open the game companion". To answer a question about what is on screen yourself, use capture_screen instead. Error "companion_off": the user has not turned Game Companion on (Settings, Bit, Advanced AI features). Error "screen_alerts_off": in Widgets only mode the card shows in the on-screen alerts, which the user turned off (Settings, Notifications).',
         params: {},
       },
     },
@@ -516,7 +530,7 @@ const CAPABILITIES = [
       domain: 'capture', risk: 'safe', requires: 'captureSpeech',
       ai: {
         name: 'transcribe_recording',
-        description: 'Read what is said in a recording or Instant Replay clip, written down on this PC by the local speech recognition (nothing is uploaded). The first time it transcribes the video, which takes about a fifth of its length; after that it is instant. Returns "text" (one line per sentence, "[m:ss] words"), "seconds", "lang", the saved "chapters" ("m:ss Title") and "summary" if any; "cut": true when the text was too long and only the start is there. Without "id" or "name" it reads the newest video. Use it for "what did I say in the last video?", "riassumi la registrazione", "dividi il video in capitoli": then write the summary and the chapters from the text and keep them with save_recording_chapters. "working": true means the transcription is still running (a long video): tell the user it shows up in the gallery when it is done. Errors: "no_file" (no video yet), "not_found", "not_video" (that capture is a picture), "no_audio" (recorded without sound), "whisper_missing" (the local speech recognition is not installed: Settings, Bit assistant, Whisper), "too_long" (over 2 hours), "busy" (another video is being transcribed), "unavailable".',
+        description: 'Read what is said in a recording or Instant Replay clip, written down on this PC by the local speech recognition (nothing is uploaded). The first time it transcribes the video, which takes about a fifth of its length; after that it is instant. Returns "text" (one line per sentence, "[m:ss] words"), "seconds", "lang", the saved "chapters" ("m:ss Title") and "summary" if any; "cut": true when the text was too long and only the start is there. Without "id" or "name" it reads the newest video. Use it for "what did I say in the last video?", "riassumi la registrazione", "dividi il video in capitoli": then write the summary and the chapters from the text and keep them with save_recording_chapters. "working": true means the transcription is still running (a long video): tell the user it shows up in the gallery when it is done. Errors: "no_file" (no video yet), "not_found", "not_video" (that capture is a picture), "no_audio" (recorded without sound), "whisper_missing" (the local speech recognition is not installed: Settings, Bit, Whisper), "too_long" (over 2 hours), "busy" (another video is being transcribed), "unavailable".',
         params: { id: 'optional: a capture id from list_captures', name: 'optional: the file name of the video, as the gallery shows it' },
       },
     },
@@ -666,11 +680,14 @@ const CAPABILITIES = [
       { name: 'widget', kind: 'text', maxLen: 128 },
       { name: 'surface', kind: 'select', options: ['desktop', 'overlay'] },
       { name: 'position', kind: 'select', options: ['top-right', 'top-left', 'top', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] },
-      { name: 'size', kind: 'select', options: ['medium', 'small', 'large'] },
+      { name: 'size', kind: 'select', options: ['medium', 'button', 'hud', 'small', 'large'] },
       { name: 'screen', kind: 'select', options: ['main', 'second'] },
       // "Add" in edit mode: the monitor key of the window it was pressed on.
       { name: 'monitor', kind: 'text', maxLen: 64, optional: true },
       { name: 'page', kind: 'text', maxLen: 40, optional: true },
+      // When it starts showing, the same two as layerMove.
+      { name: 'show', kind: 'select', options: ['always', 'gaming', 'notGaming'], optional: true },
+      { name: 'when', kind: 'text', maxLen: 200, optional: true },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -684,6 +701,8 @@ const CAPABILITIES = [
           size: 'small, medium (default) or large',
           screen: 'main (default) or second when the user names their other monitor',
           page: 'Only when the user has widget pages and names one: its name or number. Default: the page shown now',
+          show: 'When it shows: always (default), gaming (only while a game runs) or notGaming. For "only in game" use surface overlay with gaming',
+          when: 'A rule for any other situation, as in move_layer_widget: "the player only when music plays" = music',
         },
       },
     },
@@ -693,22 +712,26 @@ const CAPABILITIES = [
     params: [
       { name: 'widget', kind: 'text', maxLen: 128 },
       { name: 'app', kind: 'text', maxLen: 128, optional: true },
-      { name: 'corner', kind: 'select', options: ['top-right', 'top-left', 'bottom-right', 'bottom-left'] },
-      { name: 'size', kind: 'select', options: ['medium', 'small', 'large'] },
-      // on = attach (default), off = back to the desktop, apps = the open apps (edit mode).
-      { name: 'mode', kind: 'select', options: ['on', 'off', 'apps'] },
+      // Left out, a widget moving to another app keeps its own; a new one starts top right, medium.
+      { name: 'corner', kind: 'select', optional: true, options: ['top-right', 'top-left', 'bottom-right', 'bottom-left'] },
+      { name: 'size', kind: 'select', optional: true, options: ['medium', 'small', 'large'] },
+      // on = attach (default), off = back to the desktop, apps = the open apps (edit mode),
+      // corner and size = change an attached widget, its app open or not.
+      { name: 'mode', kind: 'select', options: ['on', 'off', 'apps', 'corner', 'size'] },
+      // 'on' adds each app's picture to the list: for the menu, never for an AI turn.
+      { name: 'pictures', kind: 'hidden', maxLen: 2, optional: true },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layerAnchor',
       ai: {
         name: 'attach_widget_to_app',
-        description: 'Attach a widget to an open app: it follows that app window, at one of its corners, and hides when the app is minimized. Use it for "put my notes on Excel", "keep the timer on Zoom", "attach the weather to this window". A widget already on the screen moves there; otherwise it is added. mode "off" puts an attached widget back on the desktop. Error "no_app" comes with the names of the open apps; the app must be open. Error "unavailable": this computer cannot follow the windows of other apps (Linux on Wayland, or no Xenon app running); say so plainly.',
+        description: 'Attach a widget to an open app: it follows that app window, at one of its corners, and hides when the app is minimized. Use it for "put my notes on Excel", "keep the timer on Zoom", "attach the weather to this window". A widget already on the screen moves there; otherwise it is added. mode "off" puts an attached widget back on the desktop; "corner" and "size" change one already attached: "move the notes to the bottom left of Excel", "make the timer on Zoom smaller". Error "no_app" comes with the names of the open apps; the app must be open. Error "unavailable": this computer cannot follow the windows of other apps (Linux on Wayland, or no Xenon app running); say so plainly.',
         params: {
           widget: 'Built-in tile id, installed widget name, or the id list_layer_widgets returns',
           app: 'The app to follow, e.g. "Excel" or "krita". Leave empty for the app in front',
-          corner: 'Which corner of the app window: top-right (default), top-left, bottom-right, bottom-left',
-          size: 'small, medium (default) or large',
-          mode: 'on (default) to attach, off to put it back on the desktop',
+          corner: 'Which corner of the app window: top-right, top-left, bottom-right, bottom-left. Leave empty to keep the one it has; a new widget starts top-right',
+          size: 'small, medium or large. Leave empty to keep the one it has; a new widget starts medium',
+          mode: 'on (default) to attach, off to put it back on the desktop, corner or size to change an attached widget',
         },
       },
     },
@@ -730,7 +753,7 @@ const CAPABILITIES = [
     params: [
       { name: 'target', kind: 'text', maxLen: 128 },
       { name: 'position', kind: 'select', options: ['keep', 'top-right', 'top-left', 'top', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] },
-      { name: 'size', kind: 'select', options: ['keep', 'small', 'medium', 'large'] },
+      { name: 'size', kind: 'select', options: ['keep', 'button', 'hud', 'small', 'medium', 'large'] },
       // Exact place from edit mode: "x,y,w,h" as fractions of the screen.
       { name: 'rect', kind: 'text', maxLen: 64, optional: true },
       { name: 'page', kind: 'text', maxLen: 40, optional: true },
@@ -738,20 +761,52 @@ const CAPABILITIES = [
       { name: 'opacity', kind: 'text', maxLen: 4, optional: true },
       // When it shows: always, only while a game runs, or only without one.
       { name: 'show', kind: 'select', options: ['keep', 'always', 'gaming', 'notGaming'] },
+      // Any other rule, in the text form of js/layer-when.js: "music, app:obs64".
+      { name: 'when', kind: 'text', maxLen: 200, optional: true },
+      // Without its panel (on) or with it (off): only what the widget paints itself.
+      { name: 'bare', kind: 'select', options: ['keep', 'on', 'off'] },
+      // Hides this one widget and keeps its place; the menu has a switch on every row.
+      { name: 'visible', kind: 'select', options: ['keep', 'on', 'off'] },
+      // Under the windows or above everything. An app's window is layerAnchor's.
+      { name: 'surface', kind: 'select', options: ['keep', 'desktop', 'overlay'] },
+      { name: 'screen', kind: 'select', options: ['keep', 'main', 'second'] },
+      // A screen by its key, from the menu's list of screens.
+      { name: 'monitor', kind: 'text', maxLen: 64, optional: true },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
         name: 'move_layer_widget',
-        description: 'Move or resize a widget already placed on the desktop or in the overlay: "move the weather to the bottom left", "make the music bigger", or to another widget page: "put the music on my Games page" (it leaves its tabs). Widgets grouped as tabs move together on the screen. A name placed more than once returns error "ambiguous" with the ids to use instead.',
+        description: 'Move or resize a widget already placed on the screen: "move the weather to the bottom left", "make the music bigger", "hide the clock for now", "show the music only while music plays", "hide the notes during a call", from under the windows to above everything or back: "keep the timer above my apps", to another screen: "put the clock on my second monitor", or to another widget page: "put the music on my Games page" (it leaves its tabs). Widgets grouped as tabs move together on the screen. A name placed more than once returns error "ambiguous" with the ids to use instead.',
         params: {
           target: 'The placed widget: its id from list_layer_widgets or its name',
           position: 'Where on the screen; keep (default) leaves it where it is',
-          size: 'small, medium or large; keep (default) leaves the size',
+          size: 'small, medium or large; button for a Store widget that is one button; keep (default) leaves the size',
           page: 'Another widget page to move it to (name or number), only when the user asks',
           show: 'When it shows: always, gaming (only while a game runs) or notGaming; keep (default) leaves it',
+          when: 'A rule for any other situation, one is enough: game, music, live (OBS streaming), recording, call (another app has the microphone), timer, dnd, busy (CPU under load), idle (nobody at the PC), app:NAME (in front), appOpen:NAME, battery:PERCENT (10, 20, 30 or 50, away from the plug), time:HH:MM-HH:MM:DAYS (days 0-6 from Sunday, optional). Comma separated, e.g. "music, live". Start with hide: to hide it instead: "hide:call". "always" clears the rule. Error "bad_when": a word that is not a situation.',
           opacity: 'How opaque, 20 to 100 percent (100 = solid), only when the user asks to see through it: "make the pinned screenshot half transparent" = 50',
+          bare: 'on takes away the panel behind the widget, so only its own words and pictures show: "no background on the clock"; off puts it back; keep (default) leaves it',
+          visible: 'off hides this one widget and keeps it in its place: "hide the clock"; on shows it again; keep (default) leaves it',
+          surface: 'desktop = under the windows, overlay = above apps and games; keep (default) leaves it. It also takes a widget off the app it follows',
+          screen: 'main or second; keep (default) leaves it',
         },
+      },
+    },
+  },
+  {
+    type: 'layersUndo', group: 'xenon', hidden: true, labelKey: 'deck_act_layersUndo',
+    params: [
+      // "step" takes back the last change, wherever it was made; left out, everything
+      // since edit mode began.
+      { name: 'mode', kind: 'select', options: ['step'], optional: true },
+    ],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'layers',
+      ai: {
+        name: 'undo_layer_edits',
+        description: 'Take back a change to the widgets. mode "step" undoes only the last change, at any time, even one you just made: "undo that", "no, as it was". Without mode, while the widgets are being edited on the screen, every widget goes back to how it was when editing began: "put them all back".',
+        params: { mode: 'step: only the last change; leave out for everything since editing began' },
       },
     },
   },
@@ -776,7 +831,38 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerList', group: 'xenon', hidden: true, labelKey: 'deck_act_layerList', params: [],
+    // Never a Store widget's: pressing runs whatever the key does (server/deck-press.js).
+    type: 'layerKey', group: 'xenon', hidden: true, labelKey: 'deck_act_layerKey',
+    params: [
+      { name: 'key', kind: 'text', maxLen: 80 },
+      { name: 'surface', kind: 'select', options: ['desktop', 'overlay'] },
+      { name: 'position', kind: 'select', options: ['top-right', 'top-left', 'top', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] },
+      { name: 'screen', kind: 'select', options: ['main', 'second'] },
+      { name: 'monitor', kind: 'text', maxLen: 64, optional: true },
+      { name: 'page', kind: 'text', maxLen: 40, optional: true },
+    ],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'layers',
+      ai: {
+        name: 'place_deck_key',
+        description: 'Put one of the Deck keys of the user on the screen as a small button that stays there, on the desktop or over everything, for someone who wants a light switch or a Streamer.bot action always at hand. The button runs nothing yet: the first tap shows the person what the key does and asks them to agree. Tell them so.',
+        params: {
+          key: 'The title of the Deck key, as the user says it',
+          surface: 'desktop (default) or overlay',
+          position: 'Where on the screen; default top-right',
+          screen: 'main (default) or second when the user names their other monitor',
+          page: 'Only when the user has widget pages and names one: its name or number. Default: the page shown now',
+        },
+      },
+    },
+  },
+  {
+    type: 'layerList', group: 'xenon', hidden: true, labelKey: 'deck_act_layerList',
+    // Edit mode's "Add" alone sends it: Bit's list stays without addresses.
+    params: [
+      { name: 'pictures', kind: 'text', maxLen: 3, optional: true },
+      { name: 'keys', kind: 'text', maxLen: 3, optional: true },
+    ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
@@ -828,6 +914,24 @@ const CAPABILITIES = [
       },
     },
   },
+  // A key of the person's own that shows or hides one placed widget (its whole box
+  // of tabs): pressed to switch it, or held to see it (capabilities/widget-key.js).
+  {
+    type: 'layerWidgetKey', group: 'xenon', hidden: true, labelKey: 'deck_act_layerWidgetKey',
+    params: [
+      { name: 'target', kind: 'text', maxLen: 128 },
+      { name: 'shortcut', kind: 'text', maxLen: 40, optional: true },
+      { name: 'mode', kind: 'select', options: ['toggle', 'hold'], optional: true },
+    ],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'layers',
+      ai: {
+        name: 'set_widget_key',
+        description: 'Give a widget placed on the screen a keyboard shortcut that shows or hides it from any app, or take it away. Mode "toggle" (default): each press hides or shows it. Mode "hold": the widget stays hidden and shows only while the keys are held down (on Linux, and with an older Xenon Helper, a press shows it for 4 seconds). After a restart every widget is shown again. A shortcut is two of ctrl, alt, shift, win plus a letter or digit, or one of them plus F1-F12. Error "reserved" names who already uses it, "in_use" names the Xenon shortcut that has it ("widget" = another widget): suggest another. Name the widget by its id or name from list_layer_widgets (which shows each one’s shortcut); "ambiguous" comes with the ids. Leave shortcut out to change only the mode. A widget’s creator may suggest a combination: offer it, never set it without the user’s yes. Use it for "show my FPS with Ctrl+Shift+1" or "make the clock appear only while I hold Alt+Shift+C".',
+        params: { target: 'the widget id or name', shortcut: 'the combination, or "off" to remove it', mode: 'toggle (default) or hold' },
+      },
+    },
+  },
 
   // Pages of the screen widgets ("Work", "Games"): one shown at a time on every
   // screen (server/layer-pages.js). Switching is a Deck key too; creating and
@@ -847,21 +951,24 @@ const CAPABILITIES = [
   {
     type: 'layerPageEdit', group: 'xenon', hidden: true, labelKey: 'deck_act_layerPageEdit',
     params: [
-      { name: 'mode', kind: 'select', options: ['create', 'rename', 'delete', 'gaming', 'notGaming', 'desktop'] },
+      { name: 'mode', kind: 'select', options: ['create', 'rename', 'delete', 'gaming', 'notGaming', 'desktop', 'when'] },
       { name: 'page', kind: 'text', maxLen: 40, optional: true },
       { name: 'name', kind: 'text', maxLen: 32, optional: true },
+      // The situation that brings the page forward, as layerMove's rule.
+      { name: 'when', kind: 'text', maxLen: 200, optional: true },
       { name: 'desktop', kind: 'select', options: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], optional: true },
     ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
         name: 'manage_widget_pages',
-        description: 'Create, rename or delete pages of the widgets on the desktop and in the overlay, or choose the page shown while a game runs. create: a new empty page, shown at once (the first one also keeps every widget placed so far on a page of its own). delete: removes the page AND the widgets on it, so say so and ask before deleting a page with widgets. gaming: that page appears by itself when a game starts and the previous page comes back when it ends (one page at most); notGaming stops it. desktop: that page is shown whenever the user switches to that virtual desktop (Windows desktops, Mac Spaces, Linux workspaces, counted from 1; 0 unties it; one page per desktop), and a desktop with no page brings back the page shown before. The result has desktopShown, the desktop shown right now. Error "no_desktops": this computer cannot tell which desktop is shown (Linux on Wayland, or no Xenon app running); say so plainly. Use it for "make a Games page", "rename page 2 to Study", "show my Games page when I play", "show my Work widgets on desktop 2".',
+        description: 'Create, rename or delete pages of the widgets on the desktop and in the overlay, or choose the page shown while a game runs. create: a new empty page, shown at once (the first one also keeps every widget placed so far on a page of its own). delete: removes the page AND the widgets on it, so say so and ask before deleting a page with widgets. gaming: that page appears by itself when a game starts and the previous page comes back when it ends (one page at most); notGaming stops it. desktop: that page is shown whenever the user switches to that virtual desktop (Windows desktops, Mac Spaces, Linux workspaces, counted from 1; 0 unties it; one page per desktop), and a desktop with no page brings back the page shown before. The result has desktopShown, the desktop shown right now. Error "no_desktops": this computer cannot tell which desktop is shown (Linux on Wayland, or no Xenon app running); say so plainly. when: that page comes forward by itself while the situation holds and the previous page comes back after it. Use it for "make a Games page", "rename page 2 to Study", "show my Games page when I play", "show my Work widgets on desktop 2", "show my Stream page when I go live".',
         params: {
-          mode: 'create, rename, delete, gaming, notGaming or desktop',
+          mode: 'create, rename, delete, gaming, notGaming, desktop or when',
           page: 'The page to change (name or number); not needed to create',
           name: 'The name for create or rename, short, e.g. "Work"',
           desktop: 'For desktop: the virtual desktop number from 1, or 0 to untie the page',
+          when: 'For when: the situations, as in move_layer_widget, without hide:; "always" takes the rule away',
         },
       },
     },
@@ -903,8 +1010,8 @@ const CAPABILITIES = [
     type: 'xenonMenu', group: 'xenon', labelKey: 'deck_act_xenonMenu',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'open', 'close'], optionKeys: { open: 'deck_opt_xmenu_open' } },
-      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['now', 'widgets', 'overlay', 'capture', 'keys', 'look', 'mode'], optionKeys: {
-        now: 'xmenu_sec_now', widgets: 'xmenu_sec_widgets', overlay: 'xmenu_sec_overlay', capture: 'xmenu_sec_capture',
+      { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['now', 'widgets', 'capture', 'keys', 'look', 'mode'], optionKeys: {
+        now: 'xmenu_sec_now', widgets: 'xmenu_sec_widgets', capture: 'xmenu_sec_capture',
         keys: 'xmenu_sec_keys', look: 'xmenu_sec_look', mode: 'xmenu_sec_mode',
       } },
     ],
@@ -912,8 +1019,26 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'xenonMenu',
       ai: {
         name: 'open_xenon_menu',
-        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: now (screenshot, area, record, save the replay, gallery, performance over the game), widgets (the widgets on the screen and their pages), overlay (what shows over the game, where and when), capture (recording and replay options), keys (every shortcut and macro, with conflicts), look (theme, animated wallpaper, screensaver) and mode (dashboard, widgets only or both). With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (now by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
-        params: { mode: 'toggle (default), open or close', section: 'now (default), widgets, overlay, capture, keys, look or mode' },
+        description: 'Open or close the Xenon menu: one place for everything Xenon does on the main screen. Sections: now (screenshot, area, record, save the replay, gallery, performance over the game), widgets (every widget on the screen: on the desktop, above apps and games or attached to an app, when it shows, the performance readings, the pages), capture (recording and replay options), keys (every shortcut and macro, with conflicts), look (theme, animated wallpaper, screensaver) and mode (dashboard, widgets only or both). With the app it opens over the screen (Alt+Shift+X by default); otherwise it opens as a panel on the dashboard. mode: toggle (default), open or close; section: which one to show first (now by default). Returns "where": screen, dashboard or closed. Use it for "open the Xenon menu", "show me the shortcuts", "where are my widget settings". To change a setting directly, call its own function instead.',
+        params: { mode: 'toggle (default), open or close', section: 'now (default), widgets, capture, keys, look or mode' },
+      },
+    },
+  },
+  // One screen by itself, in the menu's window: what a key does for someone who
+  // has no dashboard (capabilities/xenon-menu.js).
+  {
+    type: 'xenonScreen', group: 'xenon', labelKey: 'deck_act_xenonScreen',
+    params: [
+      { name: 'screen', kind: 'select', labelKey: 'deck_param_xenon_screen', options: ['chat', 'store', 'sparks', 'settings', 'mixer', 'whatsnew'], optionKeys: {
+        chat: 'xmenu_bit', store: 'xmenu_store', sparks: 'xmenu_sparks', settings: 'settings_title', mixer: 'deck_act_appMixer', whatsnew: 'xmenu_whatsnew',
+      } },
+    ],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'xenonMenu',
+      ai: {
+        name: 'open_xenon_screen',
+        description: 'Open one Xenon screen by itself in a window over what the user is doing, without the dashboard: chat (talk to Bit), store (widgets and packs), sparks (buy Sparks), settings, or mixer (volume per app).',
+        params: { screen: 'chat, store, sparks, settings, mixer or whatsnew' },
       },
     },
   },
@@ -941,6 +1066,34 @@ const CAPABILITIES = [
         name: 'set_pc_screensaver',
         description: 'Set the PC screensaver: the Ambient scene full screen on the screens without the dashboard (or the only screen) after the PC sits idle for this many minutes, never during a game, while an app keeps the screen on (a video player does) or while a window is full screen; any key, click or mouse move ends it. minutes: 0 (off), 5, 10, 15, 30 or 60. Use it for "start the screensaver after 10 minutes", "turn off the screensaver".',
         params: { minutes: '0 (off), 5, 10, 15, 30 or 60' },
+      },
+    },
+  },
+  // Which scene those two show. The names change with what is installed, so a key
+  // could not offer them: the Xenon menu and Bit choose.
+  {
+    type: 'desktopScene', group: 'xenon', hidden: true, labelKey: 'deck_act_desktopScene',
+    params: [{ name: 'scene', kind: 'text', maxLen: 80 }, { name: 'show', kind: 'text', maxLen: 40 }],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'scene',
+      ai: {
+        name: 'set_desktop_scene',
+        description: 'Choose the scene the animated wallpaper and the PC screensaver show: Classic, a scene installed from the Store, one the user made, or the animated background of one of their saved themes. scene: its name. Error "unknown_scene" comes with the names in "choices". Use it for "use Nocturne as my wallpaper", "change the screensaver scene". A scene not installed yet comes from the Store, or Bit can make one. To choose what the Classic scene shows, send show instead of scene.',
+        params: { scene: 'The scene name, or Classic for the built-in one', show: 'all, none, or any of clock, weather, media, calendar separated by commas' },
+      },
+    },
+  },
+  // Which screens they appear on: the list changes with what is plugged in, so the
+  // Xenon menu and Bit choose, not a key.
+  {
+    type: 'desktopScreens', group: 'xenon', hidden: true, labelKey: 'deck_act_desktopScreens',
+    params: [{ name: 'screens', kind: 'text', maxLen: 40 }],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'scene',
+      ai: {
+        name: 'set_desktop_scene_screens',
+        description: 'Choose the screens the animated wallpaper and the PC screensaver appear on. By number, 1 being the main screen; "all" for every screen; "auto" for the screens without the dashboard.',
+        params: { screens: 'auto, all, or screen numbers separated by commas, for example 1,3' },
       },
     },
   },
@@ -997,6 +1150,31 @@ const CAPABILITIES = [
         name: 'set_key_shortcut',
         description: 'Give a Deck key a keyboard shortcut that runs it from any app on the PC, or take it away. The key is named by its title. A shortcut is two of ctrl, alt, shift, win plus a letter or digit, or one of them plus F1-F12, e.g. "ctrl+shift+f9" or "ctrl+alt+shift+m". Combinations the system, NVIDIA, Xbox Game Bar or common apps already use are refused (error "reserved" with the owner), and so is one another key or page shortcut holds ("in_use"). "ambiguous" or "no_key" come with the key titles to ask the user about. Use it for "put ctrl shift F9 on my Music key" or "remove the shortcut from Mute".',
         params: { key: 'the title of the Deck key', shortcut: 'the combination, or empty to remove it' },
+      },
+    },
+  },
+  // The Xenon menu's Keys section: a combination on a function's row. It makes the
+  // key itself, so only that row asks for it (capabilities/function-key.js).
+  {
+    type: 'functionKey', group: 'system', hidden: true, labelKey: 'deck_act_functionKey',
+    params: [{ name: 'fn', kind: 'text', maxLen: 32 }, { name: 'shortcut', kind: 'text', maxLen: 40, optional: true }],
+    capability: { domain: 'deck', risk: 'safe', requires: 'shortcuts' },
+  },
+  // A combination for one function of an installed Store widget (its manifest's
+  // deck.handlers), made as a key on the menu's own Deck (capabilities/widget-key.js).
+  {
+    type: 'widgetHandlerKey', group: 'system', hidden: true, labelKey: 'deck_act_widgetHandlerKey',
+    params: [
+      { name: 'widget', kind: 'text', maxLen: 128 },
+      { name: 'handler', kind: 'text', maxLen: 64 },
+      { name: 'shortcut', kind: 'text', maxLen: 40, optional: true },
+    ],
+    capability: {
+      domain: 'deck', risk: 'safe', requires: 'shortcuts',
+      ai: {
+        name: 'set_widget_function_key',
+        description: 'Give one function of an installed Store widget (for example "Next track" or "Start timer") a keyboard shortcut that runs it from any app, or take it away. The widget runs it on a dashboard or on the screen, so one must be open. Only functions that need no settings; the others go on a Deck key. The same combination rules as set_key_shortcut ("reserved", "in_use"). Error "no_widget" or "no_function" comes with the names to choose from; "not_granted" means the user did not allow that function when installing the widget; "needs_settings" means it goes on a Deck key instead. A creator may suggest a combination: offer it, never set it without the user’s yes.',
+        params: { widget: 'the widget name or id', handler: 'the function name or id', shortcut: 'the combination, or "off" to remove it' },
       },
     },
   },

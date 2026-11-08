@@ -122,7 +122,8 @@ test('the native app opens on the same Bit, still without motion', () => {
 test('the native splash speaks plainly and has no stock decoration', () => {
   const page = read('../../apps/native/splash/index.html');
   const markup = page.slice(page.indexOf('<body>'), page.indexOf('<script>'));
-  const said = [...page.matchAll(/textContent =\s*([\s\S]*?);(?: *\/\/[^\n]*)?\n/g)].map((m) => m[1]);
+  const words = read('../../apps/native/splash/words.js');
+  const said = [...words.slice(words.indexOf('en: {'), words.indexOf('it: {')).matchAll(/^ {4}\w+: (.*),$/gm)].map((m) => m[1]);
   assert.ok(said.length >= 10);
   for (const text of [markup, ...said]) {
     assert.doesNotMatch(text, /—|–/, 'no long dashes: ' + text.slice(0, 60));

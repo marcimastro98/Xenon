@@ -52,6 +52,17 @@
     document.addEventListener('readystatechange', onState);
   }
 
+  // The shell's splash opens before the server that holds the language answers,
+  // so the shell keeps a copy. An older shell has no `splashLang` and is left alone.
+  function tellSplashLanguage(code) {
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (!isNative || !caps || typeof caps.splashLang !== 'string' || caps.splashLang === code) return;
+    caps.splashLang = code;
+    afterLoad(() => {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:splash-language?l=' + encodeURIComponent(code)); } catch (e) { /* not native */ }
+    });
+  }
+
   // Restart the app from the dashboard (Settings → "Riavvia Xenon"). A clean
   // relaunch that clears transient/stuck state — a wedged widget, a stalled
   // background probe — WITHOUT losing anything: settings, layout, backgrounds and
@@ -61,7 +72,9 @@
   // native process to relaunch, so it reloads the dashboard — which re-hydrates
   // and clears client-side glitches all the same.
   function restartApp() {
-    if (isNative) {
+    // The Xenon menu's window hands this one on to the main window (layers/mod.rs).
+    const sheet = typeof isSheetPage === 'function' && isSheetPage() && window.__XENON_NATIVE__ === true;
+    if (isNative || sheet) {
       try { window.location.href = (window.__xenonSignal || String)('xenon-app:restart'); return; } catch (e) { /* fall through to reload */ }
     }
     try { window.location.reload(); } catch (e) { /* nothing else to try */ }
@@ -204,7 +217,7 @@
   }
 
   // ── Browser / iCUE: "install the native app" promo ───────────────────
-  // Reveals the compact #native-promo-chip in the settings header (hidden in
+  // Reveals the #native-promo-chip row under the Settings rail (hidden in
   // index.html) when the native app is not the current surface and is not already
   // installed; the chip toggles the #native-promo details dropdown, whose button
   // kicks off the install. Nothing is shown inside the native app.
@@ -237,7 +250,7 @@
     if (!status || status.installed) return; // already installed -> nothing to offer
     chip.hidden = false;
 
-    // Toggle the dropdown from the pill; close on outside-click or Escape.
+    // Toggle the card from its row; close on outside-click or Escape.
     function setOpen(open) {
       card.hidden = !open;
       chip.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -822,15 +835,16 @@
     window.addEventListener('resize', reconcileHomeMode);
     reconcileHomeMode();
 
-    // One-time discoverability hint: the gesture is invisible, so tell the user
-    // it exists the first time the native app runs. Delayed so it doesn't land
-    // on top of the startup toasts, and skipped if the setting was turned off
-    // in the meantime.
+    // One-time discoverability hint: the gesture is invisible, so tell the user it
+    // exists the first time they touch the screen. Someone with a mouse has no use
+    // for it, and on a timer it was the first thing a new install ever said.
     try {
       if (!localStorage.getItem('xenonHomeHintShown')) {
-        setTimeout(() => {
-          if (!homeGestureEnabled || inHome()) return;
+        window.addEventListener('pointerup', function hintOnFirstTouch(e) {
+          if (e.pointerType !== 'touch' || !homeGestureEnabled || inHome()) return;
+          if (document.body.classList.contains('first-run-asking')) return;
           if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
+          window.removeEventListener('pointerup', hintOnFirstTouch);
           window.XenonToast.show({
             type: 'info',
             duration: 14000,
@@ -838,7 +852,7 @@
             message: tr('native_home_hint', 'Swipe up quickly from the lower part of the screen to reach the Windows desktop. Tap the bar at the top to come back. You can turn this off in Settings → General.'),
           });
           try { localStorage.setItem('xenonHomeHintShown', '1'); } catch (e) { /* storage full */ }
-        }, 6000);
+        }, { passive: true });
       }
     } catch (e) { /* localStorage unavailable */ }
   }
@@ -1148,6 +1162,7 @@
   window.XenonNative = {
     isNative: isNative,
     afterLoad: afterLoad,
+    tellSplashLanguage: tellSplashLanguage,
     displayState: displayState,
     onDisplaysChanged: onDisplaysChanged,
     setDisplayListener: setDisplayListener,

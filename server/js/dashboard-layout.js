@@ -40,6 +40,9 @@ let dashboardLayoutEditing = false;
 function stripSystemClone(clone) {
   const cap = clone.querySelector('#gpu-caption');
   if (cap) cap.remove();
+  // A copy has no History tab (wireSystemCloneTabs keeps Sistema, Volume and
+  // Microfono): its pane and its range go too, whatever the primary was showing.
+  clone.querySelectorAll('.system-history-pane, .guardian-range').forEach(el => el.remove());
   wireSystemCloneTabs(clone);
 }
 
@@ -402,13 +405,6 @@ function createDashboardChip(labelKey, titleKey, iconMarkup, handler, extraClass
   return chip;
 }
 
-function createDashboardEmptyLabel() {
-  const label = document.createElement('span');
-  label.className = 'layout-empty-label';
-  label.textContent = t('layout_no_hidden');
-  return label;
-}
-
 function ensureDashboardLayoutDock() {
   let dock = document.getElementById('dashboard-layout-dock');
   if (dock) return dock;
@@ -441,7 +437,7 @@ function getDashboardDockState() {
     const raw = JSON.parse(localStorage.getItem(DASHBOARD_DOCK_STATE_KEY) || '{}') || {};
     return {
       collapsed: typeof raw.collapsed === 'boolean' ? raw.collapsed : null,
-      // Free-drag position (px from viewport top-left); null → CSS default (centred, top).
+      // Free-drag position (px from viewport top-left); null → CSS default (centred, bottom).
       x: Number.isFinite(raw.x) ? raw.x : null,
       y: Number.isFinite(raw.y) ? raw.y : null,
     };
@@ -820,7 +816,7 @@ function refreshDashboardLayoutEditor() {
   // System & Network render together in one "Sistema" view (setSystemTab maps the
   // legacy 'net' tab onto 'main'), so the active tab is never 'net'. List hidden
   // cards from BOTH groups — otherwise a hidden Rete & Gaming card (ping/fps/
-  // bandwidth) is orphaned with no way to restore it. (GitHub issue: Forlin-77)
+  // bandwidth) is orphaned with no way to restore it. (GitHub issue #106)
   const hiddenCards = document.createElement('div');
   hiddenCards.className = 'layout-chip-list';
   let hiddenCardCount = 0;
@@ -924,12 +920,6 @@ const TILE_FONT_STACKS = {
   pressstart: "'Press Start 2P', 'Inter', system-ui, sans-serif",
   vt323: "'VT323', 'Inter', system-ui, sans-serif",
 };
-function tileHexToRgb(hex) {
-  const h = String(hex || '').replace('#', '');
-  if (h.length !== 6) return '';
-  const n = parseInt(h, 16);
-  return Number.isFinite(n) ? `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}` : '';
-}
 function tileStyleForId(layout, id) {
   if (!layout || !id) return null;
   if (layout.widgets && layout.widgets[id]) return layout.widgets[id].style || null;
@@ -1517,9 +1507,11 @@ function applyTileStyle(el, style, opts) {
 function applyTileEffects(el, content, style, colorsOnly) {
   el.removeAttribute('data-tile-glass');
   el.removeAttribute('data-tile-plain');
+  el.removeAttribute('data-tile-thin');
   el.removeAttribute('data-tile-shadow');
   let any = false;
   if (style) any = applyTileTokens(el, style);
+  if (tileTakesStyleGlass(el, style)) el.setAttribute('data-tile-glass', '');
   // The widget's own buttons, tabs and fields (tile-controls.js).
   if (window.TileControls) window.TileControls.applyTileControls(el, style && style.controls);
   if (style && style.controls) any = true;
@@ -1550,6 +1542,18 @@ function packageShapeFor(el) {
   if (!id || !window.CustomWidget || typeof window.CustomWidget.shapeFor !== 'function') return null;
   try { return window.CustomWidget.shapeFor(id) || null; } catch { return null; }
 }
+// Liquid Glass puts glass on every dashboard tile. A tile that asked for no blur, or
+// for no panel at all, stays as asked; an ambient scene is not a dashboard tile, and
+// blurring a backdrop that animates would be paid on every frame.
+function tileTakesStyleGlass(el, style) {
+  return document.documentElement.dataset.style === 'liquid'
+    && el.hasAttribute('gs-id')
+    && !el.hasAttribute('data-tile-plain')
+    && !(style && style.glassBlur === 0);
+}
+// Under this a panel only reads because the blur behind it evens the picture out. With
+// the blur off (low power, reduced transparency) DashboardGrid.css lifts it to this.
+const TILE_THIN_BELOW = 0.86;
 // The material tokens themselves. Returns true when the tile carries any.
 function applyTileTokens(el, style) {
   let any = false;
@@ -1560,6 +1564,7 @@ function applyTileTokens(el, style) {
     // highlight have to go with it: they are part of the fill, and a card asked
     // to be transparent that kept them read as a faint white sheet.
     if (style.panelAlpha <= 0.02) el.setAttribute('data-tile-plain', '');
+    else if (style.panelAlpha < TILE_THIN_BELOW) el.setAttribute('data-tile-thin', '');
     any = true;
   }
   if (typeof style.radius === 'number') {
@@ -1933,27 +1938,12 @@ function applyDashboardMediaView(layout) {
   }
 }
 
-function persistDashboardMediaView(viewId) {
-  if (!MEDIA_VIEW_IDS.includes(viewId)) return;
-  const layout = getDashboardLayout();
-  layout.mediaView.active = viewId;
-  saveDashboardLayout(layout, { status: false });
-}
-
 function persistDashboardCalendarTab(tabId) {
   if (!['calendar', 'tasks', 'timer', 'notes'].includes(tabId)) return;
   const layout = getDashboardLayout();
   layout.calendarTabs.active = tabId;
   saveDashboardLayout(layout, { status: false });
   if (dashboardLayoutEditing) refreshDashboardLayoutEditor();
-}
-
-function swapDashboardCalendarTabs() {
-  const layout = getDashboardLayout();
-  layout.calendarTabs.order = layout.calendarTabs.order.slice().reverse();
-  saveDashboardLayout(layout);
-  applyDashboardCalendarTabs(layout);
-  refreshDashboardLayoutEditor();
 }
 
 function applyDashboardLayout() {
@@ -2198,13 +2188,6 @@ function persistDashboardSystemTab(tabId) {
   layout.tabs.active = tabId;
   saveDashboardLayout(layout, { status: false });
   refreshDashboardLayoutEditor();
-}
-
-function swapDashboardSystemTabs() {
-  const layout = getDashboardLayout();
-  layout.tabs.order = layout.tabs.order.slice().reverse();
-  saveDashboardLayout(layout);
-  applyDashboardLayout();
 }
 
 // Reset is scoped to the page the user is looking at — the old full-layout

@@ -94,13 +94,14 @@
    a legitimate look. A shadow the user set on THIS tile (data-tile-shadow) stays. */
 .grid-stack-item[data-tile-plain]:not([data-tile-shadow]) { box-shadow: none; }
 
-/* ── Per-tile glass (opt-in) ────────────────────────────────────────────────
+/* ── Per-tile glass ─────────────────────────────────────────────────────────
    backdrop-filter is a per-frame GPU cost and the Edge composites on the
-   integrated adapter, so this is NEVER on by default: applyTileStyle() sets
-   data-tile-glass only when the tile actually asks for a blur. It is also
-   dropped on the hybrid-GPU freeze, where every frame is already being paid
-   for twice. Blur behind an opaque panel is invisible — the editor says so
-   rather than quietly lowering the opacity. */
+   integrated adapter, so applyTileStyle() sets data-tile-glass only when the
+   tile asks for a blur or the Liquid Glass style is on. That style measured
+   lighter than the animated backdrops it replaces (invariants-rendering-gpu.md).
+   The blur is also dropped on the hybrid-GPU freeze, where every frame is already
+   being paid for twice. Blur behind an opaque panel is invisible — the editor says
+   so rather than quietly lowering the opacity. */
 .grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -108,6 +109,13 @@
 body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+/* Thin glass with nothing evening out the picture behind it: text would sit straight
+   on the wallpaper. The same floors the Liquid sheets take (themes-liquid.css). Both
+   marks, so a tile set translucent with no blur stays as it was chosen. */
+body.low-power-gpu .grid-stack-item[data-tile-thin][data-tile-glass] { --panel-alpha: 0.86 !important; }
+@media (prefers-reduced-transparency: reduce) {
+  .grid-stack-item[data-tile-thin][data-tile-glass] { --panel-alpha: 0.92 !important; }
 }
 
 /* Per-tile custom font (Settings → tile style). Only styled tiles get the rule,
@@ -289,32 +297,47 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 }
 
 /* ── Per-tile style editor popover ── */
-/* A side panel, NOT a blurred cover — so the tile updates live behind it and you
-   can see the style apply to the real widget while you edit it. Docked to the
-   right; only a faint dim (no blur) keeps the dashboard readable and sharp. */
+/* A side panel, NOT a cover: the tile updates live beside it. It opens on the far
+   side of the tile (.is-left, tile-style-editor.js) and nothing dims the dashboard:
+   the point of the window is to see the real tile change. */
 .tile-style-overlay {
   position: fixed; inset: 0; z-index: 200;
-  /* Top-anchored: centred, the panel jumped up and down with each tab's height. */
+  /* Top-anchored and of one height: the footer stays put from tab to tab. */
   display: flex; align-items: flex-start; justify-content: flex-end; padding: 20px;
-  background: rgba(2, 5, 6, 0.18);
 }
+.tile-style-overlay.is-left { justify-content: flex-start; }
 .tile-style-pop {
-  width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto;
-  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  width: min(340px, calc(100vw - 32px)); height: min(700px, calc(100vh - 40px)); overflow: hidden;
+  display: flex; flex-direction: column; gap: 10px; padding: 6px 16px 14px;
   border: 1px solid var(--panel-border); border-radius: 16px;
   background: rgba(10, 13, 14, 0.96); color: var(--text);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
-.tile-style-head { font-size: 15px; font-weight: 800; letter-spacing: 0.2px; }
-/* Draggable header — move the panel off the widget to watch it update live. */
-.tile-style-head.tile-style-drag { cursor: move; user-select: none; touch-action: none; display: flex; align-items: center; gap: 8px; }
+/* Only this part scrolls, so Done is always in reach, also on a 720 px screen. */
+.tile-style-scroll { flex: 1 1 auto; min-height: 0; margin-right: -10px; padding-right: 10px; overflow-y: auto; }
+.tile-style-head { font-size: 15px; font-weight: 600; }
+/* Draggable header: move the panel off the widget to watch it update live. */
+.tile-style-head.tile-style-drag {
+  cursor: move; user-select: none; touch-action: none;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 2px;
+}
 .tile-style-head.tile-style-drag::before {
-  content: '⠿'; font-size: 15px; line-height: 1; opacity: 0.5; letter-spacing: -2px;
+  content: ""; width: 36px; height: 4px; border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 32%, transparent);
 }
 /* Moved by its header: the panel is pinned where it was dropped. */
 .tile-style-overlay.is-moved { justify-content: flex-start; align-items: flex-start; }
 .tile-style-body[hidden] { display: none; }
 .tile-style-body { display: flex; flex-direction: column; gap: 14px; }
+
+/* While the window is open the marks of layout mode step aside, so the tile is seen
+   as it will be. visibility, not display: the tiles must not move under the window. */
+body.tile-styling :is(.gs-edit-bar, .gs-edit-grip, .layout-dock, .layout-controls, .tabgroup-remove),
+body.tile-styling .grid-stack > .grid-stack-item > .ui-resizable-handle { visibility: hidden; }
+body.tile-styling.layout-editing :is(.grid-stack-item-content, .dashboard-widget, [data-system-card]) { outline-color: transparent; }
+body.tile-styling.layout-editing .grid-stack-item.is-style-target > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  outline: 2px solid color-mix(in srgb, var(--text) 45%, transparent); outline-offset: -2px;
+}
 
 /* ── Editor fields (tile-style-fields.js) ──
    Every control is live from the first touch. A value the tile takes from the
@@ -368,30 +391,33 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
   color: var(--accent); font: inherit; font-weight: 700; text-decoration: underline;
 }
 .tile-style-foot-group { display: flex; flex-wrap: wrap; gap: 6px; }
-.tile-style-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin-top: 2px; }
+.tile-style-foot { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: flex-end; gap: 8px; }
 .tile-style-btn {
   padding: 8px 16px; cursor: pointer; border: 1px solid var(--panel-border);
   border-radius: 9px; background: rgba(255, 255, 255, 0.05); color: var(--text);
-  font: inherit; font-weight: 700; font-size: 12.5px;
+  font: inherit; font-weight: 600; font-size: 12.5px;
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .tile-style-btn:active { transform: scale(0.96); }
 .tile-style-btn.primary { border-color: transparent; background: var(--accent); color: var(--on-accent); }
 .tile-style-btn:disabled { opacity: 0.45; cursor: default; }
 
-/* ── Tabbed tile-style editor (Colours / Effects / Background / Decor / Controls) ── */
+/* ── Tabbed tile-style editor (Material / Colours / Background / Decor / Controls) ── */
 .tile-style-pop.wide { width: min(420px, calc(100vw - 32px)); }
+/* One line, whatever the language and however many tabs: the row scrolls. */
 .tile-style-tabs {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 3px;
+  display: flex; flex: 0 0 auto; gap: 2px; padding: 3px; overflow-x: auto; scrollbar-width: none;
   border-radius: 11px; background: rgba(255, 255, 255, 0.05);
 }
+.tile-style-tabs::-webkit-scrollbar { display: none; }
 .tile-style-tabs button {
-  padding: 8px 4px; cursor: pointer; border: 0; border-radius: 8px;
-  background: transparent; color: var(--text); font: inherit; font-weight: 700; font-size: 12px;
-  opacity: 0.7; transition: background 0.15s ease, opacity 0.15s ease;
+  flex: 1 0 auto; padding: 8px 10px; cursor: pointer; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; font-weight: 500; font-size: 12px;
+  opacity: 0.72; transition: background 0.15s ease, opacity 0.15s ease;
 }
-.tile-style-tabs button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
-.tile-style-subhead { font-size: 13px; font-weight: 800; color: var(--muted-text); margin-top: 2px; }
+/* A raised thumb in the text colour: colour stays for state, not for place. */
+.tile-style-tabs button.active { background: color-mix(in srgb, var(--text) 15%, transparent); color: var(--text); font-weight: 600; opacity: 1; }
+.tile-style-subhead { font-size: 13px; font-weight: 600; color: var(--muted-text); margin-top: 2px; }
 /* A one-line explanation under a control, for the cases where a setting is
    inert for a reason the user can fix (blur behind an opaque panel). */
 .tile-style-hint { font-size: 11.5px; line-height: 1.45; opacity: 0.72; }
@@ -412,7 +438,7 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 .tile-shape-chip svg { width: 100%; height: 34px; opacity: 0.85; }
 .tile-shape-chip span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
 .tile-shape-chip:hover { background: rgba(255, 255, 255, 0.08); }
-.tile-shape-chip.active { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.16); color: var(--accent); }
+.tile-shape-chip.active { border-color: var(--text); background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
 .tile-shape-path {
   width: 100%; padding: 8px 10px; border: 1px solid var(--panel-border);
   border-radius: 8px; background: var(--input-bg); color: var(--text);
@@ -698,9 +724,10 @@ body.gs-manipulating .page-add-widget {
   position: absolute; inset: 0; margin: auto; width: min(420px, 60%); height: 180px; font-size: 48px;
 }
 
-/* Palette — a centered modal (backdrop + card) listing the addable widgets,
-   categorised and icon'd. A dialog, not an anchored popover, so it can never be
-   clipped by the layout dock or minimal-mode chrome and always reads tidy. */
+/* The "+" panel: a gallery of what can go on the page, each widget shown by its picture.
+   A dialog, not an anchored popover, so the layout dock or the minimal bar can never clip
+   it. Its size does not depend on what is listed: a filter must not make the sheet jump.
+   The skins change the --pal-* tokens. */
 .widget-palette-overlay {
   position: fixed; inset: 0; z-index: 1200;
   display: flex; align-items: center; justify-content: center; padding: 18px;
@@ -713,163 +740,166 @@ body.gs-manipulating .page-add-widget {
 }
 @keyframes widget-palette-fade { from { opacity: 0; } to { opacity: 1; } }
 .widget-palette-modal {
-  width: min(760px, 94vw); max-height: min(86vh, 660px);
-  /* dvh: on a phone the browser bars come and go, and vh is measured without them. */
-  max-height: min(86dvh, 660px);
-  display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px;
-  border-radius: 18px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  --pal-text: var(--text, #e7e9ee);
+  --pal-muted: var(--text-dim, #8b91a1);
+  --pal-well: rgba(255, 255, 255, 0.08);
+  --pal-well-hover: rgba(255, 255, 255, 0.13);
+  --pal-line: rgba(255, 255, 255, 0.1);
+  width: min(1000px, 100%); height: min(760px, 100%);
+  display: grid; gap: 14px 16px; padding: 20px 22px 0; overflow: hidden;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "head head" "search filters" "body body";
+  border-radius: var(--radius-modal, 18px); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   /* Opaque surface (like ColorPicker / preset-modal): actionable content must stay
      readable regardless of the user's panel-transparency setting. */
   background: rgb(var(--panel-rgb, 14, 17, 22));
+  color: var(--pal-text);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
   animation: widget-palette-pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+.widget-palette-modal:focus { outline: none; }
 @keyframes widget-palette-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
-.widget-palette-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.widget-palette-title { margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.widget-palette-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.widget-palette-title { margin: 0; font-size: 22px; font-weight: 800; color: var(--pal-text); }
 .widget-palette-close {
-  appearance: none; border: 0; background: transparent; cursor: pointer;
-  color: var(--text-dim, #8b91a1); padding: 7px; border-radius: 9px;
-  display: inline-flex; transition: background 0.14s ease, color 0.14s ease;
+  appearance: none; border: 0; background: transparent; cursor: pointer; flex: 0 0 auto;
+  width: 40px; height: 40px; border-radius: var(--radius-control, 10px); color: var(--pal-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.14s ease, color 0.14s ease;
 }
-.widget-palette-close svg { width: 18px; height: 18px; }
-.widget-palette-close { align-items: center; justify-content: center; min-width: 32px; min-height: 32px; }
+.widget-palette-close svg { width: 20px; height: 20px; }
+.widget-palette-close:hover { background: var(--pal-well); color: var(--pal-text); }
 
-/* Filters: All, Installed and each category with something in it. One row of
-   plain buttons; the one that is on is drawn in the text colour, like the
-   selected button of a segmented control. On a narrow screen the row scrolls
-   sideways under the finger (native scrolling; nothing scrolls it for you). */
+/* Search. [type] outweighs the shared field rule in theme-contract.css. */
+.widget-palette-searchrow { grid-area: search; position: relative; min-width: 0; }
+.widget-palette-searchrow > svg {
+  position: absolute; left: 12px; top: 50%; width: 16px; height: 16px;
+  transform: translateY(-50%); color: var(--pal-muted); pointer-events: none;
+}
+.widget-palette-modal .widget-palette-search[type] {
+  width: 100%; height: 40px; padding: 0 12px 0 36px;
+  border: 1px solid transparent; border-radius: var(--radius-control, 10px);
+  background: var(--pal-well); color: var(--pal-text);
+  font: inherit; font-size: 15px; font-weight: 500;
+  -webkit-user-select: text; user-select: text;
+}
+.widget-palette-modal .widget-palette-search[type]::placeholder { color: var(--pal-muted); opacity: 1; }
+.widget-palette-modal .widget-palette-search[type]:focus { outline: none; border-color: var(--pal-line); }
+.widget-palette-modal .widget-palette-search[type]:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -1px; }
+.widget-palette-search::-webkit-search-cancel-button { cursor: pointer; }
+
+/* Filters: All, Installed and each category with something in it. Words, and the one that
+   is on stands on a neutral well: the colour in this window is the widgets' own. On a
+   narrow screen the row scrolls sideways under the finger (native scrolling only). */
 .widget-palette-filters {
-  flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain;
-  scrollbar-width: none; margin: 0 -2px; padding: 0 2px;
+  grid-area: filters; align-self: center; min-width: 0;
+  display: flex; gap: 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
 }
 .widget-palette-filters::-webkit-scrollbar { display: none; }
 .widget-palette-filters:empty { display: none; }
 .widget-palette-filter {
   flex: 0 0 auto; appearance: none; cursor: pointer; white-space: nowrap;
-  min-height: 34px; padding: 0 14px; border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.1); background: transparent;
-  color: var(--text-dim, #8b91a1); font: inherit; font-size: 12.5px; font-weight: 700;
+  min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-control, 10px);
+  background: transparent; color: var(--pal-muted);
+  font: inherit; font-size: 14px; font-weight: 600;
   transition: background 0.14s ease, color 0.14s ease;
 }
-.widget-palette-filter:hover { color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05); }
-.widget-palette-filter.is-on { background: var(--text, #e7e9ee); border-color: transparent; color: rgb(var(--panel-rgb, 14, 17, 22)); }
-.widget-palette-filter:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
-.widget-palette-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
+.widget-palette-filter:hover { color: var(--pal-text); }
+.widget-palette-filter.is-on { background: var(--pal-well); color: var(--pal-text); }
+.widget-palette-close:focus-visible, .widget-palette-empty-btn:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 1px; }
+.widget-palette-filter:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+
+/* Runs to the sheet's foot. The negative margins put the cards' hover wells and the
+   scrollbar in the sheet's padding, so the pictures line up with the title. */
 .widget-palette-body {
-  min-height: 0; overflow-y: auto; scrollbar-width: thin;
-  /* One grid for the whole panel: every section uses the same columns, so
-     items line up from one group to the next whatever each group holds. */
-  container-type: inline-size; --pal-cols: 3;
-  /* Reserve the scrollbar's width even when it's absent, so a category that only
-     needs the bar at some sizes can't shift the column flow sideways as the bar
-     appears/disappears (which reflowed "Custom widget" between columns). */
-  scrollbar-gutter: stable;
-  display: flex; flex-direction: column; gap: 3px;
+  grid-area: body; min-height: 0; margin: 0 -16px 0 -6px; padding-bottom: 22px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable;
+  display: flex; flex-direction: column; gap: 20px;
 }
-.widget-palette-cat {
-  /* A heading in sentence case, not tracked capitals: it names the group the
-     filter above also names, and reads as the same word. */
-  font-size: 12.5px; font-weight: 700;
-  color: var(--text-dim, #8b91a1); padding: 10px 4px 6px;
+.widget-palette-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.widget-palette-cat { padding: 0 6px; font-size: 15px; font-weight: 700; color: var(--pal-text); }
+.widget-palette-grid {
+  display: grid; gap: 4px 8px;
+  /* Two side by side on a phone, as many as fit elsewhere. */
+  grid-template-columns: repeat(auto-fill, minmax(min(212px, calc(50% - 4px)), 1fr));
 }
-.widget-palette-cat:first-child { padding-top: 2px; }
-.widget-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-
-/* Sections stacked full width, each a heading and a grid of equal columns
-   shared by the whole panel (--pal-cols, set by the width of the body). */
-.widget-palette-body.widget-palette--cols { flex-direction: column; gap: 6px; }
-.widget-palette-section { display: flex; flex-direction: column; min-width: 0; }
-.widget-palette-grid { grid-template-columns: repeat(var(--pal-cols), minmax(0, 1fr)); }
-@container (max-width: 520px) { .widget-palette-grid { --pal-cols: 2; } }
-/* A phone: one column, so a long widget name is never cut. */
-@container (max-width: 380px) { .widget-palette-grid { --pal-cols: 1; } }
+.widget-palette-grid.is-rows { grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 2px 8px; }
 .widget-palette-item {
-  display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left;
-  /* Every item the same height, with or without an author line, so the rows
-     of the grid stay even. */
-  height: 50px; padding: 0 11px; border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
-  color: inherit; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
-  transition: background 0.14s ease, border-color 0.14s ease, transform 0.06s ease;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 6px; text-align: left;
+  border: 0; border-radius: calc(var(--radius-control, 10px) * 1.4);
+  background: transparent; color: var(--pal-text); font: inherit; cursor: pointer;
+  transition: background 0.14s ease;
 }
-.widget-palette-item:hover { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.42); }
-.widget-palette-item:active { transform: translateY(1px); }
-.widget-palette-ico { display: inline-flex; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
-.widget-palette-ico svg { width: 18px; height: 18px; }
-.widget-palette-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.widget-palette-empty { flex: 1 1 100%; padding: 18px 12px; text-align: center; color: var(--text-dim, #8b91a1); }
+.widget-palette-item:hover { background: var(--pal-well); }
+.widget-palette-item:active { background: var(--pal-well-hover); }
+.widget-palette-item:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+/* The tiles were shot at this shape, so nothing of them is cut. */
+.widget-palette-pic {
+  display: grid; place-items: center; aspect-ratio: 360 / 298; overflow: hidden;
+  border-radius: var(--radius-control, 10px); background: var(--pal-well);
+  outline: 1px solid var(--pal-line); outline-offset: -1px;
+}
+.widget-palette-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.widget-palette-ico { display: inline-flex; flex: 0 0 auto; color: var(--pal-muted); }
+.widget-palette-ico svg { width: 20px; height: 20px; }
+.widget-palette-pic .widget-palette-ico svg { width: 40px; height: 40px; }
+.widget-palette-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 0 2px 2px; }
+.widget-palette-label { font-size: 14px; font-weight: 700; color: var(--pal-text); overflow-wrap: anywhere; }
+.widget-palette-note, .widget-palette-sub { font-size: 12.5px; font-weight: 500; color: var(--pal-muted); }
+.widget-palette-sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.widget-palette-empty { margin: 0 auto; padding: 18px 12px; text-align: center; font-size: 15px; color: var(--pal-muted); }
+.widget-palette-empty:only-child { margin: auto; }
 .widget-palette-empty-btn {
-  display: block; margin: 12px auto 0; min-height: 36px; padding: 0 16px; border-radius: 10px; cursor: pointer;
-  border: 1px solid rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-rgb), 0.14);
-  color: var(--text, #e7e9ee); font: inherit; font-size: 13px; font-weight: 700;
+  display: block; margin: 12px auto 0; min-height: 40px; padding: 0 16px; border: 0; cursor: pointer;
+  border-radius: var(--radius-control, 10px); background: var(--accent); color: var(--on-accent);
+  font: inherit; font-size: 14px; font-weight: 700;
 }
-/* A phone: one column, the whole width, and a little less margin around the sheet. */
-@media (max-width: 480px) {
-  .widget-palette-overlay { padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
-  .widget-palette-modal { width: 100%; padding: 14px 14px 16px; }
-}
-
-/* Search (js/dashboard-palette.js). Its own row under the title, so on a phone
-   it gets the full width. The field's colours come from the shared
-   input[type="search"] rule in theme-contract.css, like every other field. */
-.widget-palette-searchrow { position: relative; flex: 0 0 auto; }
-.widget-palette-searchrow > svg {
-  position: absolute; left: 12px; top: 50%; width: 16px; height: 16px;
-  transform: translateY(-50%); color: var(--text-dim, #8b91a1); pointer-events: none;
-}
-.widget-palette-search {
-  width: 100%; height: 42px; padding: 0 12px 0 36px;
-  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 11px;
-  font: inherit; font-size: 14px; font-weight: 600;
-  -webkit-user-select: text; user-select: text;
-}
-.widget-palette-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.5); }
-.widget-palette-search::-webkit-search-cancel-button { cursor: pointer; }
-/* Results: one flowing grid rather than the category columns. */
-/* Results use the same columns as the grouped view. */
-.widget-palette-text { display: flex; flex-direction: column; min-width: 0; }
-/* "For supporters", at the item's end so the name keeps its room. */
-.widget-palette-badge {
-  flex: 0 0 auto; margin-left: auto; padding: 2px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 700; white-space: nowrap;
-  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.14);
-}
-.widget-palette-sub {
-  font-size: 11px; font-weight: 600; color: var(--text-dim, #8b91a1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* Already on the dashboard: the same item, quieter, ending in an arrow. It goes to the
-   widget instead of adding one, so it keeps the hover of any other item but not its
-   accent glyph. */
-.widget-palette-item.is-placed { background: transparent; border-color: rgba(255, 255, 255, 0.06); font-weight: 600; }
-.widget-palette-item.is-placed .widget-palette-ico { color: var(--text-dim, #8b91a1); }
-.widget-palette-item.is-placed .widget-palette-label { color: var(--text-dim, #8b91a1); }
-.widget-palette-item.is-placed:hover .widget-palette-ico,
-.widget-palette-item.is-placed:hover .widget-palette-label,
-.widget-palette-item.is-placed.is-selected .widget-palette-label { color: inherit; }
-.widget-palette-item.is-placed:hover .widget-palette-ico,
-.widget-palette-item.is-placed.is-selected .widget-palette-ico { color: rgb(var(--accent-rgb)); }
-.widget-palette-go { display: inline-flex; flex: 0 0 auto; margin-left: auto; color: var(--text-dim, #8b91a1); opacity: 0.7; }
+/* What has no picture to offer is a row. Already on the dashboard, it also ends in an arrow:
+   it goes to the widget instead of adding one. */
+.widget-palette-item.is-row { flex-direction: row; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; }
+.widget-palette-item.is-row .widget-palette-text { padding: 0; }
+.widget-palette-item.is-row .widget-palette-label { font-weight: 600; }
+.widget-palette-item.is-placed { background: transparent; }
+.widget-palette-item.is-placed:hover, .widget-palette-item.is-placed.is-selected { background: var(--pal-well); }
+.widget-palette-go { display: inline-flex; flex: 0 0 auto; margin-left: auto; color: var(--pal-muted); }
 .widget-palette-go svg { width: 16px; height: 16px; }
-.widget-palette-item.is-placed:hover .widget-palette-go { color: rgb(var(--accent-rgb)); opacity: 1; }
 /* The tile a tap on one of them goes to, lit for a moment so the eye finds it. */
 @keyframes widget-found {
   0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
   25%, 70% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.85), 0 0 30px rgba(var(--accent-rgb), 0.4); }
 }
 .grid-stack-item.widget-found { animation: widget-found 2s ease; }
-.widget-palette-item.is-selected { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.55); }
+.widget-palette-item.is-selected { background: var(--pal-well); }
 .widget-palette-item mark {
   background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius: 3px; padding: 0 1px;
 }
-/* Fingers, not a mouse: every item at least 44px tall, and 16px text in the
-   field so iOS does not zoom the page when it takes focus. */
+/* Search and filters no longer fit side by side. */
+@media (max-width: 860px) {
+  .widget-palette-modal {
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-areas: "head" "search" "filters" "body";
+  }
+}
+/* A phone: a little less margin around the sheet. */
+@media (max-width: 480px) {
+  .widget-palette-overlay { padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  .widget-palette-modal { padding: 14px 14px 0; }
+}
+/* The Edge and other wide, short screens: width is what they have. */
+@media (min-aspect-ratio: 2/1) and (min-width: 1400px) {
+  .widget-palette-modal { width: min(1480px, 100%); }
+}
+/* Fingers, not a mouse: 44px targets, 16px text in the field so iOS does not zoom the page
+   when it takes focus, and a scrollbar that takes no room. */
 @media (pointer: coarse) {
-  .widget-palette-item { height: 52px; }
-  .widget-palette-search { font-size: 16px; height: 44px; }
-  .widget-palette-close { min-width: 44px; min-height: 44px; }
-  .widget-palette-filter { min-height: 40px; }
+  .widget-palette-modal .widget-palette-search[type] { font-size: 16px; height: 44px; }
+  .widget-palette-close { width: 44px; height: 44px; }
+  .widget-palette-filter { min-height: 44px; }
+  .widget-palette-item.is-row { min-height: 52px; }
+  .widget-palette-body { margin-right: -6px; }
 }
 
 /* ── Tab-group tile (generic) ── */

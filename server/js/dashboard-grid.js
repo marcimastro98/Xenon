@@ -26,8 +26,11 @@ function addableWidgetIds(widgets, groups, allIds) {
 }
 
 // Find the first w×h cell (row-major, `columns`-wide) that doesn't overlap any
-// occupied rect {x,y,w,h}. Used to place a newly-added widget.
-function firstFreeSlot(occupied, w, h, columns) {
+// occupied rect {x,y,w,h}. Used to place a newly-added widget. Named for the
+// grid because classic scripts share one global scope: deck-model.js declares
+// its own firstFreeSlot(config), loads later and would replace this one.
+// Exported as DashboardGrid.firstFreeSlot.
+function gridFirstFreeSlot(occupied, w, h, columns) {
   const cols = columns || 24;
   const fits = (x, y) => {
     if (x + w > cols) return false;
@@ -660,7 +663,7 @@ function resolveLayoutOverlaps(layout) {
     });
     // Pass 2: move each conflicting tile to the first free slot.
     pending.forEach(t => {
-      const slot = firstFreeSlot(occupied, t.rect.w, t.rect.h, GRID_COLUMNS);
+      const slot = gridFirstFreeSlot(occupied, t.rect.w, t.rect.h, GRID_COLUMNS);
       if (slot.x !== t.rect.x || slot.y !== t.rect.y) {
         t.ref.x = slot.x; t.ref.y = slot.y; t.rect.x = slot.x; t.rect.y = slot.y;
         changed = true;
@@ -816,7 +819,7 @@ function placeNewWidget(occupied, defW, defH, pageId, keepShape) {
   if (rect && rect.w >= 6 && rect.h >= MIN_TILE_H) {
     return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: Math.min(defH, rect.h) };
   }
-  const slot = firstFreeSlot(occupied, defW, defH, GRID_COLUMNS);
+  const slot = gridFirstFreeSlot(occupied, defW, defH, GRID_COLUMNS);
   return { x: slot.x, y: slot.y, w: defW, h: defH };
 }
 
@@ -1106,7 +1109,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, parkForPlacement, addWidgetToPage, sizeForHint, fitsOnPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, parkForPlacement, addWidgetToPage, sizeForHint, fitsOnPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot: gridFirstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // A render-parked page (content-visibility, dashboard-pager .is-parked) reports
@@ -1122,5 +1125,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot, spanForSize, sizeForHint, fitsOnPage, TILE_SIZE_HINTS, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
+  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot: gridFirstFreeSlot, spanForSize, sizeForHint, fitsOnPage, TILE_SIZE_HINTS, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
 }

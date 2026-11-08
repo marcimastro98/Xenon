@@ -40,6 +40,14 @@
    the browser then stops. The page's own box is explicitly sized (flex-basis +
    height 100%), so offsetLeft and scroll-snap geometry are unaffected. */
 .pager-page.is-parked { content-visibility: hidden; }
+/* Set first, see parkInactivePages(): motion left behind the lock costs a frame on
+   every vsync. It stays on, for what a forced read would start in there. */
+body:not(.layout-editing) .pager-page.is-parking *,
+body:not(.layout-editing) .pager-page.is-parking *::before,
+body:not(.layout-editing) .pager-page.is-parking *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
 /* Layout mode measures and mutates every page's grid — never park while editing. */
 body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 

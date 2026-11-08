@@ -98,16 +98,64 @@
   // dropped the instant any scroll starts, so partially-visible pages always
   // render during a swipe; it never applies while editing (GridStack measures
   // every page there — belt and braces with the CSS override).
+  //
+  // Motion stops BEFORE the lock. A main-thread animation or transition left
+  // inside content-visibility: hidden asks for a frame on every vsync and never
+  // ends: a page parked in the middle of a sparkline glide woke the renderer 240
+  // times a second for the whole session, with nothing to draw. Style stops at the
+  // lock, so .is-parking goes first and has to reach the tiles. A loop a script has
+  // played no longer listens to CSS (the idle sweep plays every loop it thaws):
+  // those are paused by hand here and played again when the page comes back.
+  let heldMotion = [];
+
+  function holdScriptedMotion(el) {
+    if (typeof el.getAnimations !== 'function') return;
+    for (const a of el.getAnimations({ subtree: true })) {
+      if (a.playState !== 'running') continue;
+      try { a.pause(); heldMotion.push(a); } catch { /* inert animation */ }
+    }
+  }
+
+  function releaseHeldMotion() {
+    for (const a of heldMotion) {
+      // A tile that re-rendered behind the lock cancelled this one: play() would start it again
+      // out of the page, where nothing can see or stop it (see stillFrozen in ambient-idle.js).
+      if (a.playState !== 'paused') continue;
+      try { a.play(); } catch { /* inert animation */ }
+    }
+    heldMotion = [];
+  }
+
+  // The idle sweep's wake: a loop on a page that parked meanwhile waits for the page.
+  function holdIfParked(animation) {
+    const target = animation.effect && animation.effect.target;
+    if (!target || typeof target.closest !== 'function' || !target.closest('.pager-page.is-parked')) return false;
+    heldMotion.push(animation);
+    return true;
+  }
+
   function parkInactivePages() {
     if (typeof document === 'undefined' || document.body.classList.contains('layout-editing')) return;
     const parked = new Set(computeParkedIndices(pages, currentIndex));
-    pages.forEach((p, i) => {
-      if (p.element) p.element.classList.toggle('is-parked', parked.has(i));
+    const mark = (name) => pages.forEach((p, i) => {
+      if (p.element) p.element.classList.toggle(name, parked.has(i));
     });
+    mark('is-parking');
+    void document.body.offsetHeight; // the style has to land before the lock stops it
+    pages.forEach((p, i) => { if (p.element && parked.has(i)) holdScriptedMotion(p.element); });
+    mark('is-parked');
   }
 
   function unparkAll() {
-    pages.forEach(p => { if (p.element) p.element.classList.remove('is-parked'); });
+    let woke = false;
+    pages.forEach(p => {
+      if (!p.element || !p.element.classList.contains('is-parked')) return;
+      p.element.classList.remove('is-parked', 'is-parking');
+      woke = true;
+    });
+    releaseHeldMotion();
+    // Loops CSS was holding start again, and a page change needs nobody at the screen.
+    if (woke && window.AmbientIdle) window.AmbientIdle.sweep();
   }
 
   // Park once things settle WITHOUT a scroll: boot and page-set rebuilds land on
@@ -531,7 +579,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, setLabel, goToPage, goToPageOf, goByDelta, goBack, resolvePage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
+    window.DashboardPager = { init, registerPage, setLabel, goToPage, goToPageOf, goByDelta, goBack, resolvePage, getCurrentPage, isOnCurrentPage, holdIfParked, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

@@ -165,6 +165,7 @@ test('mixer: the app icon is set through the DOM, never interpolated', () => {
     },
     get innerHTML() { return this._html; },
     querySelectorAll: (sel) => (sel === '.app-mix-row' ? rows : []),
+    closest: () => null,
   };
   const ctx = { setInterval: () => 0, document: { getElementById: () => null } };
   vm.createContext(ctx);
@@ -223,7 +224,7 @@ test('server: note and timer ids are limited to [A-Za-z0-9_-]{1,80}', () => {
   const ID_RE = constLine(SERVER, 'SAFE_ITEM_ID_RE');
   const notes = new Function('const NOTES_MAX = 50, NOTE_BODY_MAX = 1e5, NOTES_TOTAL_MAX = 1e6;\n'
     + fnSource(SERVER, '_noteId') + ID_RE + fnSource(SERVER, 'normalizeNotesState') + 'return { normalizeNotesState, _noteId };')();
-  const timers = new Function("const TIMER_KINDS = ['countdown', 'stopwatch'];\n" + ID_RE
+  const timers = new Function("const TIMER_KINDS = ['countdown', 'stopwatch'], SCOPED_LABEL_MAX = 67;\n" + ID_RE
     + fnSource(SERVER, '_timerId') + fnSource(SERVER, '_normalizeTimer') + 'return { _normalizeTimer, _timerId };')();
   const re = /^[A-Za-z0-9_-]{1,80}$/;
 

@@ -17,12 +17,13 @@ test('the README support section names every plan in USD, the 300 Sparks and the
   const packs = [...src.matchAll(/\{ credits: (\d+), usd: (\d+)/g)];
   assert.equal(packs.length, 3);
   for (const [, credits, usd] of packs) assert.ok(support.includes(credits) && support.includes(usd), `${credits} for ${usd}`);
-  assert.ok(support.includes('https://www.buymeacoffee.com/marcimastro98/extras'));
+  assert.doesNotMatch(support, /marcimastro98\/extras/, 'no link to the Extras until they are open');
+  assert.match(support, /do not carry over/);
   assert.match(support, /Settings → Support Xenon/);
 });
 
 test('the README calls the assistant Bit and lists every way it runs', () => {
   assert.doesNotMatch(readme, /\*\*Xenon AI\*\* —/, 'the old bullet name');
-  assert.match(readme, /\*\*Bit, the assistant\*\*/);
+  assert.match(readme, /^## Bit$/m);
   for (const p of ['Gemini', 'OpenAI', 'Anthropic', 'Ollama', 'Claude Code', 'Codex', "Sparks, Xenon's credits"]) assert.ok(readme.includes(p), p);
 });

@@ -43,6 +43,7 @@
 const fs = require('fs');
 const path = require('path');
 const { validateAction, clampDelay } = require('./js/deck-actions.js');
+const DeckShortcuts = require('./js/deck-shortcuts.js');
 // A package may declare the SILHOUETTE of its own tile. It goes through the very
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.
@@ -102,9 +103,18 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // of an ordered list that is connected, each id through the same check.
   audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst']),
   mic: Object.freeze(['micMute']),
-  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart']),
+  // signalRgbEffect is the same act by another engine: it picks what the lights
+  // show. The name is encoded and passed as one argv entry (signalrgb.js), and
+  // nothing runs unless the user turned SignalRGB on.
+  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart', 'signalRgbEffect']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),
-  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlMixVolume', 'wlMixMute', 'wlEffect', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  // Its own line, for the reason audioDevice is not in `volume`: moving a fader
+  // and moving the sound to other hardware are different asks.
+  wavelinkOutput: Object.freeze(['wlOutputDevice']),
+  // Timers and stopwatches on the user's Timers tile, under a name the widget
+  // cannot choose (actions/widget-timers.js), so the user's own stay out of reach.
+  timers: Object.freeze(['timerStart', 'stopwatchStart', 'timerToggle', 'timerCancel']),
   // Voicemeeter strips, buses and routing. `vmParam` is deliberately LEFT OUT,
   // for the same reason haCallService is: it names any parameter the mixer has,
   // which includes Command.Shutdown and Command.Restart, and "close the user's
@@ -132,7 +142,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // person in the user's own voice channel — local playback, not moderation and
   // not anything the rest of the channel can observe. Same grant as the other
   // voice controls: a widget the user handed the `discord` category to.
-  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard']),
+  // discordOpenChat only shows a conversation in the user's own Discord window,
+  // it sends nothing, so it needs no line of its own in the dialog.
+  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordOpenChat', 'discordAudioToggle', 'discordSoundboard']),
   homeassistant: Object.freeze(['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton']),
   twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
   youtube: Object.freeze(['ytBroadcast']),
@@ -260,6 +272,8 @@ const SDK_ACTION_LIMITS = Object.freeze({
   benchmark: Object.freeze({ mode: Object.freeze(['toggle', 'start', 'stop']) }),
   // Empty list = the field must be absent.
   gallery: Object.freeze({ filter: Object.freeze(['all', 'video', 'screenshot']), id: Object.freeze([]) }),
+  // A chime every few seconds, from a widget, is noise nobody asked for.
+  stopwatchStart: Object.freeze({ everyMinutes: Object.freeze([]) }),
 });
 
 function sdkActionWithinLimits(action) {
@@ -277,6 +291,10 @@ const SDK_SOUND_FILE_RE = require('./sound-packs').PACK_FILE_RE;
 // Every deck-action type the SDK can reach, across all categories. Macro steps
 // are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
 const SDK_ACTION_TYPES = Object.freeze(Object.values(SDK_ACTION_CATEGORIES).flat());
+
+// A macro runs on the server, where nothing stamps a timer with its widget, so a
+// macro step could name the user's own timers. Refused at install instead.
+const SDK_MACRO_ACTION_TYPES = Object.freeze(SDK_ACTION_TYPES.filter((type) => !SDK_ACTION_CATEGORIES.timers.includes(type)));
 
 // Category (grant unit) a deck-action type belongs to, or null. Used to check a
 // macro's steps against the categories the user granted the package.
@@ -337,9 +355,9 @@ const ASSET_MIME = Object.freeze({
 //
 // The fix is to name the origin as well as `'self'`, so the same header works
 // under both readings — see widgetCspFor(). WIDGET_CSP stays as the
-// origin-less form: it is what the constant has always meant, it is what the
-// tests and the SDK docs pin, and it is the correct answer when there is no
-// request to take an origin from.
+// origin-less form: it is what the constant has always meant and what the tests
+// pin. It is the template, never served as it is: widgetCspFor() replaces its
+// script-src with the widget's own folder on every response.
 const WIDGET_CSP = [
   "default-src 'none'",
   "script-src 'self'",
@@ -363,30 +381,52 @@ const WIDGET_CSP = [
 // but a value that ends up inside a security header gets checked where it is
 // used, not only where it came from.
 const CSP_HOST_RE = /^(?:\[[0-9a-fA-F:.]{2,45}\]|[A-Za-z0-9.-]{1,253})(?::\d{1,5})?$/;
+// A folder we are willing to write into a header: no dots, no separators.
+const CSP_ROOT_RE = /^(?:\/[A-Za-z0-9-]+)+\/$/;
 
 /**
- * WIDGET_CSP with the serving origin named explicitly alongside `'self'`.
+ * The folder a widget's file is served from, under either spelling of the
+ * route, or '' when the path is not one. The closing slash matters: in a CSP
+ * it makes the source a prefix, without it the source is one exact file.
  *
- * Both spellings are sent on purpose. `'self'` is what a Chromium engine
- * already honours and what the docs describe; the explicit origin is what a
+ * @param {string} pathname the request path, not decoded
+ */
+function widgetAssetRoot(pathname) {
+  const m = /^(\/sdk\/(?:widget|wk\/[a-f0-9]{32})\/([^/]+)\/)/.exec(String(pathname || ''));
+  return m && WIDGET_ID_RE.test(m[2]) ? m[1] : '';
+}
+
+/**
+ * WIDGET_CSP for one response: the serving origin named alongside `'self'`, and
+ * scripts limited to the widget's own folder.
+ *
+ * Both spellings are sent on purpose for styles, images, fonts and media.
+ * `'self'` is what a Chromium engine already honours; the explicit origin is what a
  * WebKit engine needs, because there `'self'` inside an opaque-origin document
  * matches nothing at all (see the note above WIDGET_CSP). Naming the origin
- * does not widen anything: it is the SAME origin `'self'` was meant to be, and
- * `connect-src 'none'` is untouched, so a widget still has no network.
+ * does not widen anything, and `connect-src 'none'` is untouched.
  *
- * Falls back to the plain constant when there is no usable host — a CSP that
- * is too strict degrades a widget's appearance, one built from a bad host would
- * be a security header assembled from unvalidated input.
+ * Scripts are different: a <script> is the one load whose answer a page can
+ * read, and the JSONP routes answer it for the iCUE widgets. So script-src names
+ * the folder alone and drops `'self'`, which Chromium would read as the whole
+ * origin. A widget gets what it was granted through the bridge, and cannot read
+ * the PC's state around it.
+ *
+ * With no usable host or folder no script runs: a CSP that is too strict costs a
+ * widget its code, one built from unvalidated input is a worse failure.
  *
  * @param {string} host   the request's Host header
  * @param {boolean} secure whether it arrived on the TLS listener
+ * @param {string} assetRoot the widget's folder, from widgetAssetRoot()
  */
-function widgetCspFor(host, secure) {
+function widgetCspFor(host, secure, assetRoot) {
   const h = String(host || '').trim();
-  if (!h || !CSP_HOST_RE.test(h)) return WIDGET_CSP;
+  const hostOk = !!h && CSP_HOST_RE.test(h);
   const origin = (secure === true ? 'https://' : 'http://') + h;
-  return WIDGET_CSP
-    .replace("script-src 'self'", "script-src 'self' " + origin)
+  const scripts = hostOk && CSP_ROOT_RE.test(String(assetRoot || '')) ? origin + assetRoot : "'none'";
+  const csp = WIDGET_CSP.replace("script-src 'self'", 'script-src ' + scripts);
+  if (!hostOk) return csp;
+  return csp
     .replace("style-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' " + origin)
     .replace("img-src 'self' data: blob:", "img-src 'self' " + origin + ' data: blob:')
     .replace("font-src 'self' data:", "font-src 'self' " + origin + ' data:')
@@ -645,6 +685,18 @@ function normalizeHandlerParams(raw) {
 // rejects the manifest. States are display metadata only. Handlers are named
 // entry points the widget's own code answers when a bound deck key is pressed
 // (delivered over the bridge, grant-gated per handler id like hooks).
+// A key combination the creator suggests: for showing the widget (top-level
+// `key`, with `mode` "toggle" or "hold") or for one of its functions
+// (`deck.handlers[].key`). It is only ever OFFERED to the person in the Xenon
+// menu, never set on install, so it needs no grant; like every cosmetic field a
+// malformed or reserved one is dropped and never rejects the package.
+function normalizeKeySuggestion(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const combo = DeckShortcuts.normalizeShortcut(typeof raw.combo === 'string' ? raw.combo : '');
+  if (!combo || DeckShortcuts.reservedBy(combo)) return null;
+  return { combo, mode: raw.mode === 'hold' ? 'hold' : 'toggle' };
+}
+
 function normalizeDeckExtras(raw, declaredActions) {
   const empty = { actions: [], states: [], handlers: [] };
   if (raw == null) return { ok: true, deck: empty };
@@ -662,7 +714,7 @@ function normalizeDeckExtras(raw, declaredActions) {
       const steps = [];
       for (const s of m.steps) {
         const action = validateAction(s && s.action);
-        if (!action || !SDK_ACTION_TYPES.includes(action.type)) return { ok: false };
+        if (!action || !SDK_MACRO_ACTION_TYPES.includes(action.type)) return { ok: false };
         if (!sdkActionWithinLimits(s.action) || !sdkActionWithinLimits(action)) return { ok: false };
         // A macro step may only touch categories the manifest also DECLARES in
         // `actions` — otherwise the user is never asked to grant that category
@@ -698,7 +750,8 @@ function normalizeDeckExtras(raw, declaredActions) {
       if (deck.handlers.some(a => a.id === id)) return { ok: false };
       const params = normalizeHandlerParams(h.params);
       if (params === null) return { ok: false };
-      deck.handlers.push({ id, name, params });
+      const key = normalizeKeySuggestion(h.key);
+      deck.handlers.push({ id, name, params, ...(key ? { key: { combo: key.combo } } : {}) });
     }
   }
   return { ok: true, deck };
@@ -899,6 +952,9 @@ function normalizeManifest(raw, folderId) {
       // own entries, so no grant; a malformed one is dropped and the generic
       // puzzle stays, like every other cosmetic field.
       icon: normalizeWidgetIcon(raw.icon),
+      // The key the creator suggests for showing or hiding the placed widget
+      // (normalizeKeySuggestion): offered, never set. A scene is never placed.
+      key: raw.surface === 'ambient' ? null : normalizeKeySuggestion(raw.key),
       // Where the "+" panel files the widget: one of the panel's own categories.
       // Cosmetic like the icon (no grant); anything else is dropped and the panel
       // falls back to the catalog entry's category, then "other".
@@ -987,7 +1043,7 @@ function resolveAsset(rootDir, id, relPath) {
   }
   // The probe filename is reserved: it is served from memory by the route, and
   // a package file by that name must never shadow it from disk.
-  if (segments[segments.length - 1] === PERF_PROBE_FILENAME) return null;
+  if (isReservedAsset(segments[segments.length - 1])) return null;
   const ext = path.extname(segments[segments.length - 1]).toLowerCase();
   if (!ASSET_MIME[ext]) return null;
   const base = path.join(rootDir, id);
@@ -1010,6 +1066,48 @@ function mimeFor(absPath) {
 // runs in the widget's context and a hostile widget can tamper with it — the
 // security boundary remains the CSP sandbox.
 const PERF_PROBE_FILENAME = '__xenon-perf.js';
+
+// ── WebRTC off (reserved same-origin asset) ─────────────────────────────────
+// `connect-src 'none'` does not cover WebRTC, and no directive does: a STUN or
+// TURN address in RTCPeerConnection leaves the machine, and `webrtc 'block'` is
+// ignored by Chromium and Edge (measured 5 Nov 2026, as was
+// --force-webrtc-ip-handling-policy, which Edge ignores and which leaves TURN
+// over TCP open). So the constructors are taken away before any widget code
+// runs. This one IS security, unlike the probe: it has to be the first thing in
+// the document, blocking, with an absolute src so a page in a subfolder gets it.
+// Nothing can bring the constructors back: a widget cannot reach another realm,
+// because frame-src 'none' refuses it a child frame.
+const FRAME_GUARD_FILENAME = '__xenon-guard.js';
+const FRAME_GUARD_SOURCE = "Object.getOwnPropertyNames(window).forEach(function(n){if(/^(webkit)?RTC/.test(n)){try{delete window[n];}catch(e){}}});";
+
+function isReservedAsset(name) {
+  return name === PERF_PROBE_FILENAME || name === FRAME_GUARD_FILENAME;
+}
+
+// Where a tag can go ahead of everything a page says: past a BOM, comments and
+// the doctype, which must stay first or the page falls into quirks mode. A comment
+// ends where the HTML parser ends it (`<!-->`, `<!--->` and `--!>` close one too):
+// reading it as longer would skip a live script. Stopping early only costs quirks mode.
+const DOCUMENT_PREAMBLE_RE = /^\uFEFF?(?:[\t\n\f\r ]|<!--(?:-?>|[\s\S]*?--!?>))*(?:<!doctype[^>]*>)?/i;
+
+function injectFrameGuard(html, assetRoot) {
+  const src = String(html == null ? '' : html);
+  if (!assetRoot) return src;   // no folder means script-src 'none': nothing runs at all
+  const at = DOCUMENT_PREAMBLE_RE.exec(src)[0].length;
+  return `${src.slice(0, at)}<script src="${assetRoot}${FRAME_GUARD_FILENAME}"></script>${src.slice(at)}`;
+}
+
+// The two host scripts every served widget page carries.
+function prepareWidgetHtml(html, assetRoot) {
+  return injectFrameGuard(injectPerfProbe(html), assetRoot);
+}
+
+// A widget can send its own frame to one of its SVG files, and an SVG document
+// runs scripts with no HTML to put the guard in. As an image it never runs any,
+// so an SVG simply gets no scripts.
+function assetCsp(csp, mime) {
+  return String(mime).startsWith('image/svg') ? String(csp).replace(/script-src [^;]*/, "script-src 'none'") : csp;
+}
 
 // Never touches the widget's DOM, one namespaced global, every path try/caught:
 // the probe must never break or observably change a widget. It stays silent
@@ -1093,8 +1191,31 @@ const PERF_PROBE_SOURCE = [
   "        return ce.apply(this, args);",
   "      };",
   "    } catch (e) { /* console not writable */ }",
+  "    // A page that settles on dark paints an opaque canvas unless its frame element",
+  "    // is dark too, so the host hears which it is: a transparent widget stays",
+  "    // transparent over the tile, the desktop or a game. 'light dark' follows the",
+  "    // element by itself. xenon-client sets the scheme after load, hence the watch.",
+  "    let saidDark = false;",
+  "    const sayScheme = () => {",
+  "      try {",
+  "        const css = getComputedStyle(document.documentElement).colorScheme || '';",
+  "        const meta = document.querySelector('meta[name=color-scheme]');",
+  "        const words = (css && css !== 'normal' ? css : (meta && meta.content) || '').toLowerCase().split(' ');",
+  "        const dark = words.includes('dark') && !words.includes('light');",
+  "        if (dark === saidDark) return;",
+  "        saidDark = dark;",
+  "        parent.postMessage({ xenonSdk: 1, type: 'scheme', dark }, '*');",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    sayScheme();",
+  "    window.addEventListener('load', sayScheme);",
+  "    try {",
+  "      new MutationObserver(sayScheme).observe(document.documentElement, { attributes: true });",
+  "    } catch (e) { /* observer unsupported */ }",
   '    try {',
-  '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { S.lt += e.duration; S.ltN++; } })',
+  "      // A frame in the dashboard's process is also told about the dashboard's own",
+  "      // long tasks (named '...-ancestor'). Only 'self' is this widget's work.",
+  "      new PerformanceObserver((l) => { for (const e of l.getEntries()) { if (e.name !== 'self') continue; S.lt += e.duration; S.ltN++; } })",
   "        .observe({ type: 'longtask', buffered: true });",
   '    } catch (e) { /* observer type unsupported */ }',
   '    try {',
@@ -1229,7 +1350,7 @@ function validateWidgetPayload(raw) {
     if (!relPath || seen.has(relPath)) return { ok: false, reason: 'bad_path' };
     // Reserved probe name: drop the file, keep the rest of the bundle valid —
     // resolveAsset would refuse to serve it anyway, this just avoids dead bytes.
-    if (relPath.split('/').pop() === PERF_PROBE_FILENAME) continue;
+    if (isReservedAsset(relPath.split('/').pop())) continue;
     seen.add(relPath);
     let bytes;
     try { bytes = Buffer.from(String(f.data == null ? '' : f.data), 'base64'); } catch { return { ok: false, reason: 'bad_data' }; }
@@ -1448,11 +1569,13 @@ module.exports = {
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,
+  SDK_MACRO_ACTION_TYPES,
   SDK_ACTION_LIMITS,
   sdkActionWithinLimits,
   SDK_SOUND_FILE_RE,      // unit-tested (SDK soundboard file boundary)
-  WIDGET_CSP, widgetCspFor,
+  WIDGET_CSP, widgetCspFor, widgetAssetRoot,
   normalizeManifest,
+  normalizeKeySuggestion,
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
   validateProxyRequest,
   resolveUserHosts,       // unit-tested (user-filled host slot boundary)
@@ -1463,6 +1586,12 @@ module.exports = {
   PERF_PROBE_FILENAME,
   PERF_PROBE_SOURCE,
   injectPerfProbe,        // unit-tested (probe injection is a pure transform)
+  FRAME_GUARD_FILENAME,
+  FRAME_GUARD_SOURCE,
+  isReservedAsset,
+  injectFrameGuard,       // unit-tested (must land ahead of every widget script)
+  prepareWidgetHtml,
+  assetCsp,               // unit-tested (an SVG document runs no scripts)
   listPackages,
   validateWidgetPayload,  // unit-tested (bundle install boundary)
   installPackageStaged,   // unit-tested (the automatic update's swap-and-rollback install)

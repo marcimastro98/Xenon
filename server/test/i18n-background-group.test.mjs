@@ -73,12 +73,12 @@ test('the group heading and upload row carry their keys', () => {
   assert.match(body, /data-i18n="settings_bg_upload"/, 'and so is the upload label');
 });
 
-// settings_background_media names BOTH the sidebar entry and the group heading,
-// which is why leaving it untranslated hid the whole category rather than one
+// Leaving the rail's name untranslated hid the whole category rather than one
 // row: the user was scanning a Spanish sidebar for a Spanish word.
-test('the sidebar entry for the category shares that key', () => {
+test('the sidebar entry for the category has its own translated name', () => {
   const nav = HTML.slice(HTML.indexOf('class="settings-nav-btn" data-settings-cat="background"'));
-  assert.match(nav.slice(0, nav.indexOf('</button>')), /data-i18n="settings_background_media"/);
+  assert.match(nav.slice(0, nav.indexOf('</button>')), /data-i18n="settings_cat_background"/);
+  assert.equal((I18N.match(/\bsettings_cat_background["']?:/g) || []).length, LANGS.length);
 });
 
 // The formats named in the hint must be the formats the picker accepts: a hint

@@ -8,7 +8,7 @@
 
 // ── Panel routing ─────────────────────────────────────────────
 const panelParam = (new URLSearchParams(window.location.search).get('panel') || '').toLowerCase();
-const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio'];
+const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio', 'sheet'];
 const activePanel = VALID_PANELS.includes(panelParam) ? panelParam : 'full';
 if (activePanel !== 'full') document.body.dataset.panel = activePanel;
 
@@ -115,6 +115,7 @@ function showAlertToast(toast) {
 let autoUpdateToastId = 0;
 function onAutoUpdate(d) {
   if (!window.XenonToast || !window.AlertToasts || isLayerPage()) return;
+  if (d && d.phase === 'failed' && window.XenonUpdate) window.XenonUpdate.showNotices();
   if (autoUpdateToastId) window.XenonToast.dismiss(autoUpdateToastId);
   const toast = window.AlertToasts.autoUpdate(d, alertToastCtx(), postponeAutoUpdate);
   autoUpdateToastId = toast ? window.XenonToast.show(toast) : 0;
@@ -209,7 +210,7 @@ function postponeAutoUpdate() {
       // Performance Mode: suggest optimizing on a foreground-activity change.
       step(() => {
         if (!hasGameInfo || !window.PerfMode) return;
-        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true);
+        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true, data.gameProcess);
         else if (typeof window.PerfMode.onGaming === 'function') window.PerfMode.onGaming(!!data.gaming);
       });
       // Game Companion (opt-in): the pill follows the game being RUNNING (alive in
@@ -314,6 +315,12 @@ function postponeAutoUpdate() {
         if (window.CustomWidget) window.CustomWidget.onData('perf', d);
       } catch {}
     });
+    // Ping and packet loss, when the tile was told to show them (server/perf-net.js).
+    es.addEventListener('perf_net', e => {
+      try {
+        if (window.PerfWidget) window.PerfWidget.onNet(JSON.parse(e.data));
+      } catch {}
+    });
     // A benchmark started or ended (server/benchmark.js): one toast each.
     es.addEventListener('benchmark', e => {
       try {
@@ -328,6 +335,7 @@ function postponeAutoUpdate() {
     });
     // The Xenon menu opened or closed over the screen: the shell's /menu window.
     es.addEventListener('screen_menu', e => {
+      try { if (window.XenonSheet) window.XenonSheet.onMenu(JSON.parse(e.data)); } catch {}
       try { if (window.LayersShell && typeof window.LayersShell.onMenu === 'function') window.LayersShell.onMenu(JSON.parse(e.data)); } catch {}
     });
     // Bit's vitals popup on this PC (macOS, Linux): the on-screen alerts window.
@@ -734,6 +742,10 @@ function postponeAutoUpdate() {
         if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
       } catch {}
     });
+    es.addEventListener('bit-messages', () => {
+      if (window.BitMessages) window.BitMessages.check();
+      if (window.BitTold) window.BitTold.sync();
+    });
     es.addEventListener('settings', e => {
       // Another surface (Edge screen / browser / native app) saved the settings —
       // re-hydrate when the rev is newer than ours, so surfaces stay in sync live
@@ -866,6 +878,10 @@ function postponeAutoUpdate() {
     // What Bit asked to play in a Twitch, YouTube or Browser tile (js/tile-play.js).
     // Layer windows take part: the tile may live on the screen, not the dashboard.
     if (window.TilePlay) window.TilePlay.listen(es);
+    es.addEventListener('xenon_menu_failed', (e) => {
+      if (isLayerPage() || typeof window.XenonMenuFailed !== 'function') return;
+      try { window.XenonMenuFailed(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('deck_shortcut_failed', (e) => {
       if (isLayerPage() || typeof window.DeckShortcutFailed !== 'function') return;
       try { window.DeckShortcutFailed(JSON.parse(e.data)); } catch {}
@@ -927,6 +943,7 @@ function postponeAutoUpdate() {
       if (typeof window._reconcileSettingsAfterReconnect === 'function') {
         window._reconcileSettingsAfterReconnect();
       }
+      if (window.LayersShell && typeof window.LayersShell.onStream === 'function') window.LayersShell.onStream();
     };
 
     es.onerror = () => {
@@ -951,13 +968,16 @@ function postponeAutoUpdate() {
 }());
 
 // ── Remote state for Deck live-state keys ────────────────────
-// Deck keys can bind to remoteConnected/remoteActive. /remote/status runs a
-// real check (winget + Tailscale CLI + Sunshine HTTP), so it is NOT cheap.
-// Therefore: do ONE check at startup and only keep polling if the remote
-// feature is actually installed — users who never set up remote control pay
-// nothing beyond that single call. Only on the full dashboard (single-panel
-// embeds never host a Deck).
+// Deck keys can bind to remoteConnected/remoteActive. /remote/status runs a real
+// check on the PC (Tailscale CLI, sc.exe, Sunshine HTTP, winget the first time), so
+// only a key showing that state pays for it: the tick looks at the Deck and asks
+// nothing while no key needs the answer, so one added later starts it. A machine
+// with neither tool stops asking until the next load, and so does a hidden tab.
+// Only on the full dashboard (single-panel embeds never host a Deck).
 if (activePanel === 'full') {
+  const REMOTE_POLL_MS = 15000;
+  const REMOTE_STATES = ['remoteConnected', 'remoteActive'];
+  let remoteToolsAbsent = false;
   function applyRemoteSnapshot(st) {
     if (!st || !window.Deck || typeof window.Deck.refreshStates !== 'function') return;
     const remoteConnected = !!(Array.isArray(st.connectedClients) && st.connectedClients.length > 0);
@@ -967,17 +987,16 @@ if (activePanel === 'full') {
   function fetchRemoteStatus() {
     return fetch('/remote/status').then(r => (r.ok ? r.json() : null)).catch(() => null);
   }
-  (async () => {
+  async function pollRemoteState() {
+    if (remoteToolsAbsent || document.hidden) return;
+    if (!window.Deck || !window.Deck.usesState(REMOTE_STATES)) return;
     const st = await fetchRemoteStatus();
+    if (!st) return;
     applyRemoteSnapshot(st);
-    // If neither tool is installed the feature isn't in use — never start the
-    // recurring poll (avoids winget/CLI spawns for users without remote control).
-    const installed = st && st.installed && (st.installed.sunshine || st.installed.tailscale);
-    if (!installed) return;
-    // The check spawns winget/Tailscale/Sunshine processes server-side, so don't
-    // run it while the tab is hidden — nobody's watching the remote-state pill.
-    setInterval(() => { if (!document.hidden) fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
-  })();
+    remoteToolsAbsent = !(st.installed && (st.installed.sunshine || st.installed.tailscale));
+  }
+  pollRemoteState();
+  setInterval(pollRemoteState, REMOTE_POLL_MS);
 }
 
 // ── Init app favorites buttons ───────────────────────────────
@@ -1000,11 +1019,10 @@ if (window.DashboardPages) window.DashboardPages.init();
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    // A search typed in the "+" palette is cleared first; the palette (and
-    // then edit mode) close on the following presses.
-    if (window.DashboardPalette && DashboardPalette.handleEscape()) {
+    // The style window goes first: it sits over layout mode, and leaving layout
+    // mode under it left the window open on a dashboard no longer being edited.
+    if (typeof window.closeTileStyleEditor === 'function' && window.closeTileStyleEditor()) {
       e.preventDefault();
-      e.stopPropagation();
       return;
     }
     if (document.body.classList.contains('layout-editing') && typeof setDashboardLayoutEditMode === 'function') {
@@ -1017,12 +1035,6 @@ document.addEventListener('keydown', e => {
     if (window.AmbientMode && AmbientMode.isOpen()) {
       e.preventDefault();
       AmbientMode.close();
-      return;
-    }
-    const weatherOverlay = document.getElementById('weather-overlay');
-    if (weatherOverlay && !weatherOverlay.hidden) {
-      e.preventDefault();
-      closeWeatherDetails();
       return;
     }
     const settingsOverlay = document.getElementById('settings-overlay');

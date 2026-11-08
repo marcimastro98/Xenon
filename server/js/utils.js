@@ -12,17 +12,32 @@ const $ = id => document.getElementById(id);
 // surface and nothing else. What speaks, rings, chimes, notifies or announces
 // on its own belongs to the main dashboard: a second copy would do it twice,
 // unseen, or mark an announcement read that nobody saw. Read from the URL so
-// modules that load before layer-host.js can ask too.
+// modules that load before layer-host.js can ask too. A sheet counts as one.
 function isLayerPage() {
-  return /[?&]layer=/.test(String((typeof window !== 'undefined' && window.location && window.location.search) || ''));
+  return /[?&]layer=/.test(String((typeof window !== 'undefined' && window.location && window.location.search) || '')) || isSheetPage();
+}
+
+// One screen of the dashboard alone (Settings, the Store, the gallery) in the
+// Xenon menu's own window (`/?panel=sheet`, js/sheet-page.js). It stays as quiet
+// as a layer page, but the person is using it: what they do there saves, and
+// what answers them (a toast, the gallery) shows.
+function isSheetPage() {
+  return /[?&]panel=sheet(&|$)/.test(String((typeof window !== 'undefined' && window.location && window.location.search) || ''));
 }
 
 // A tile's "Set up" button: Settings on that category. A widget on the screen
 // has no Settings of its own (read-only, or no settings.js at all), so the shell
 // opens the dashboard there (layers::spec::tile_settings).
 function openSettingsCategory(cat) {
-  if (isLayerPage()) {
-    try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=settings&cat=' + encodeURIComponent(cat || '')); } catch (e) { /* not in the shell */ }
+  if (isLayerPage() && !isSheetPage()) {
+    const onDashboard = () => {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=settings&cat=' + encodeURIComponent(cat || '')); } catch (e) { /* not in the shell */ }
+    };
+    // Alone in the Xenon menu's window; the dashboard where no shell draws one.
+    fetch(SERVER + '/screen-menu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheet: { open: 'settings', cat } }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!d || d.where !== 'screen') onDashboard(); })
+      .catch(onDashboard);
     return;
   }
   if (typeof window.openSettings === 'function') window.openSettings(cat);
@@ -67,6 +82,18 @@ function makeEl(tag, cls, text) {
   if (cls) n.className = cls;
   if (text != null) n.textContent = text;
   return n;
+}
+
+// A line of separate facts (a channel and a queue position, views and likes) as one
+// span each, so the look decides what sets them apart: a dot on the classic looks,
+// space on Liquid. The words are remembered on the node, so a player that paints
+// several times a second rebuilds the line only when they change.
+function setWordParts(node, parts) {
+  const words = parts.filter(Boolean).map(String);
+  const key = words.join('\n');
+  if (node.dataset.parts === key && node.childElementCount === words.length) return;
+  node.dataset.parts = key;
+  node.replaceChildren(...words.map((w) => makeEl('span', null, w)));
 }
 
 // fetch → parsed JSON, null on any failure (offline server, non-JSON reply).
@@ -391,6 +418,15 @@ function timeParts(extra) {
   return base;
 }
 
+// timeParts() with the hour unpadded: a sentence or a chart axis has no column to keep
+// straight ("9:30", "3 PM"). minutes: false leaves the bare hour.
+function plainHourParts({ minutes = true } = {}) {
+  const parts = timeParts();
+  parts.hour = 'numeric';
+  if (!minutes) delete parts.minute;
+  return parts;
+}
+
 function toDateInputValue(date) {
   if (_xcFmt) return _xcFmt.toDateInputValue(date);
   const d = new Date(date);
@@ -432,16 +468,6 @@ function formatUptime(seconds) {
   return `${m}m`;
 }
 
-function brandFromName(name) {
-  if (!name) return '';
-  const n = name.toUpperCase();
-  if (n.includes('NVIDIA') || n.includes('GEFORCE') || n.includes('RTX') || n.includes('GTX')) return 'NVIDIA';
-  if (n.includes('AMD') || n.includes('RADEON') || n.includes('RYZEN')) return 'AMD';
-  if (n.includes('INTEL') || n.includes('CORE')) return 'INTEL';
-  if (n.includes('APPLE')) return 'APPLE';
-  return '';
-}
-
 function cleanTitle(title) {
   let s = (title || '').trim();
   s = s.replace(/^(?:[A-Za-z]:\\|(?:\/[^/]+)+\/|.*[\\/])([^\\/]+)$/, '$1');
@@ -453,12 +479,14 @@ function cleanTitle(title) {
 }
 
 function prettyAppName(name) {
-  const raw = String(name || '').trim();
+  // The mixer names an app by its process ("Spotify.exe"): the name alone reads better.
+  const raw = String(name || '').trim().replace(/\.exe$/i, '');
   if (!raw) return 'App';
   const known = {
     chrome: 'Chrome', msedge: 'Edge', firefox: 'Firefox', explorer: 'Explorer', spotify: 'Spotify',
     code: 'VS Code', discord: 'Discord', steam: 'Steam', notepad: 'Notepad', powershell: 'PowerShell',
-    pwsh: 'PowerShell', cmd: 'Command Prompt', taskmgr: 'Task Manager', icue: 'iCUE'
+    pwsh: 'PowerShell', cmd: 'Command Prompt', taskmgr: 'Task Manager', icue: 'iCUE',
+    msedgewebview2: 'Edge WebView2', obs64: 'OBS Studio', obs: 'OBS Studio'
   };
   const key = raw.toLowerCase();
   return known[key] || raw.replace(/(^|\s)\S/g, s => s.toUpperCase());
@@ -508,6 +536,7 @@ function _statSparkColor(fillEl) {
   if (c.includes('net-ping')) return 'var(--green)';
   if (c.includes('net-fps')) return '#7c5cff';
   if (c.includes('net-latency')) return '#ff8a3d';
+  if (c.includes('net-down')) return 'var(--cyan)';
   return 'var(--accent)';
 }
 
@@ -545,7 +574,10 @@ function renderStatSpark(fillEl, value) {
     glow.setAttribute('class', 'stat-spark-glow');
     const line = document.createElementNS(NS, 'path');
     line.setAttribute('class', 'stat-spark-line');
-    svg.append(glow, line);
+    // The soft fill under the line, drawn only on looks that ask for it (hidden by default).
+    const area = document.createElementNS(NS, 'path');
+    area.setAttribute('class', 'stat-spark-area');
+    svg.append(area, glow, line);
     svg.style.color = _statSparkColor(fillEl);
     track.appendChild(svg);
   }
@@ -573,4 +605,5 @@ function renderStatSpark(fillEl, value) {
   // did, which is what `transition: d` needs to keep interpolating.
   const path = SparkPath.smoothLineD(pts, 2);
   svg.querySelectorAll('.stat-spark-line, .stat-spark-glow').forEach(p => p.setAttribute('d', path));
+  svg.querySelector('.stat-spark-area').setAttribute('d', `${path} L100 30 L0 30 Z`);
 }

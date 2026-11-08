@@ -1,7 +1,9 @@
 import { test } from 'node:test';
+import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -17,7 +19,7 @@ test('manifest: valid minimal manifest normalizes', () => {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
     badgeAction: false, mini: false, topbarButton: false,
-    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, category: null, size: null, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
@@ -730,6 +732,54 @@ test('probe: PERF_PROBE_SOURCE parses and cannot break out of a script tag', () 
   assert.doesNotThrow(() => new Function(sdk.PERF_PROBE_SOURCE));
 });
 
+// Runs the served probe against a stand-in page and returns what it told the host.
+function runProbe({ css = 'normal', meta = null } = {}) {
+  const page = { css, meta, watch: null, onload: null, said: [] };
+  const window = {
+    addEventListener: (name, fn) => { if (name === 'load') page.onload = fn; },
+  };
+  const document = {
+    documentElement: {},
+    addEventListener() {},
+    querySelector: () => (page.meta ? { content: page.meta } : null),
+  };
+  const parent = { postMessage: (m) => { if (m.type === 'scheme') page.said.push(m.dark); } };
+  class MutationObserver { constructor(fn) { page.watch = fn; } observe() {} }
+  const getComputedStyle = () => ({ colorScheme: page.css });
+  const noop = () => 0;
+  new Function('window', 'document', 'parent', 'MutationObserver', 'getComputedStyle', 'setTimeout', 'setInterval', 'requestAnimationFrame', sdk.PERF_PROBE_SOURCE)(
+    window, document, parent, MutationObserver, getComputedStyle, noop, noop, noop,
+  );
+  return page;
+}
+
+test('probe: a page that settles on dark says so, once, because its canvas is opaque otherwise', () => {
+  assert.deepEqual(runProbe({ css: 'dark' }).said, [true]);
+  assert.deepEqual(runProbe({ css: 'only dark' }).said, [true]);
+  assert.deepEqual(runProbe({ meta: 'dark' }).said, [true], 'the meta tag counts');
+  assert.deepEqual(runProbe({ css: 'normal' }).said, [], 'a page with none needs nothing');
+  assert.deepEqual(runProbe({ css: 'light' }).said, []);
+  assert.deepEqual(runProbe({ css: 'light dark' }).said, [], 'both follow the frame element by themselves');
+  assert.deepEqual(runProbe({ css: 'light', meta: 'dark' }).said, [], 'the stylesheet wins over the meta tag');
+});
+
+test('probe: a scheme set after load, as xenon-client does with the theme, is followed both ways', () => {
+  const page = runProbe();
+  page.css = 'dark';
+  page.watch();
+  page.watch();
+  page.css = 'light';
+  page.onload();
+  assert.deepEqual(page.said, [true, false]);
+});
+
+test('the host matches the frame to what its page says, with a yes or no only', () => {
+  const widget = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  assert.match(widget, /d\.type === 'scheme'\) \{[\s\S]{0,300}entry\.frame\.classList\.toggle\('cw-frame--dark', d\.dark === true\)/);
+  const css = readFileSync(new URL('../components/CustomWidget/CustomWidget.css', import.meta.url), 'utf8');
+  assert.match(css, /\.cw-frame--dark \{ color-scheme: dark; \}/);
+});
+
 test('the widget CSP names the serving origin, because "self" is opaque in a sandbox', () => {
   // The bug this pins, and it is not a detail: a sandboxed document without
   // allow-same-origin has an OPAQUE origin, and 'self' means "the origin of the
@@ -738,8 +788,8 @@ test('the widget CSP names the serving origin, because "self" is opaque in a san
   // stylesheet; WebKit follows the spec and blocks it — so every SDK widget
   // rendered as bare markup on a white background on iPhone and iPad while
   // looking perfect on the Edge, the kiosk app and every desktop browser.
-  const lan = sdk.widgetCspFor('192.168.1.3:3030', false);
-  assert.match(lan, /script-src 'self' http:\/\/192\.168\.1\.3:3030/);
+  const lan = sdk.widgetCspFor('192.168.1.3:3030', false, '/sdk/widget/clock/');
+  assert.match(lan, /script-src http:\/\/192\.168\.1\.3:3030\/sdk\/widget\/clock\/;/);
   assert.match(lan, /style-src 'self' 'unsafe-inline' http:\/\/192\.168\.1\.3:3030/);
   assert.match(lan, /img-src 'self' http:\/\/192\.168\.1\.3:3030 data: blob:/);
   assert.match(lan, /font-src 'self' http:\/\/192\.168\.1\.3:3030 data:/);
@@ -747,7 +797,7 @@ test('the widget CSP names the serving origin, because "self" is opaque in a san
 
   // Naming the origin must widen NOTHING else. These are the directives the
   // sandbox rests on, and they are the reason a widget has no network at all.
-  for (const csp of [lan, sdk.widgetCspFor('h.ts.net:3443', true)]) {
+  for (const csp of [lan, sdk.widgetCspFor('h.ts.net:3443', true, '/sdk/widget/clock/')]) {
     assert.match(csp, /connect-src 'none'/);
     assert.match(csp, /default-src 'none'/);
     assert.match(csp, /sandbox allow-scripts/);
@@ -756,14 +806,142 @@ test('the widget CSP names the serving origin, because "self" is opaque in a san
   }
   // The scheme follows the LISTENER, not a header: an https origin named on a
   // cleartext response would simply never match.
-  assert.match(sdk.widgetCspFor('h.ts.net:3443', true), /script-src 'self' https:\/\/h\.ts\.net:3443/);
-  assert.match(sdk.widgetCspFor('127.0.0.1:3030', false), /script-src 'self' http:\/\/127\.0\.0\.1:3030/);
-  assert.match(sdk.widgetCspFor('[::1]:3030', false), /script-src 'self' http:\/\/\[::1\]:3030/);
+  assert.match(sdk.widgetCspFor('h.ts.net:3443', true, '/sdk/widget/clock/'), /script-src https:\/\/h\.ts\.net:3443\/sdk\/widget\/clock\/;/);
+  assert.match(sdk.widgetCspFor('127.0.0.1:3030', false, '/sdk/widget/clock/'), /script-src http:\/\/127\.0\.0\.1:3030\/sdk\/widget\/clock\/;/);
+  assert.match(sdk.widgetCspFor('[::1]:3030', false, '/sdk/widget/clock/'), /script-src http:\/\/\[::1\]:3030\/sdk\/widget\/clock\/;/);
 
-  // A host that could not be validated falls back to the plain constant. Too
-  // strict costs a widget its stylesheet; a header built from unvalidated input
-  // costs more than that.
+  // A host that could not be validated names no origin and runs no script. Too
+  // strict costs a widget its code; a header built from unvalidated input, or
+  // a script source wider than the widget's folder, costs more than that.
+  const closed = sdk.WIDGET_CSP.replace("script-src 'self'", "script-src 'none'");
   for (const bad of ['', null, undefined, 'a b', 'evil.com/;script-src *', 'x"y', '\n', 'a'.repeat(300)]) {
-    assert.equal(sdk.widgetCspFor(bad, false), sdk.WIDGET_CSP, JSON.stringify(bad));
+    assert.equal(sdk.widgetCspFor(bad, false, '/sdk/widget/clock/'), closed, JSON.stringify(bad));
   }
+});
+
+test('a widget runs scripts from its own folder and nowhere else on the server', () => {
+  // The JSONP routes answer a <script> from a foreign page, for the iCUE
+  // widgets. Naming the whole origin, or 'self' (Chromium reads it as the
+  // response's origin), let a widget with no grant read them.
+  const key = 'a'.repeat(32);
+  for (const [path, root] of [
+    ['/sdk/widget/clock/index.html', '/sdk/widget/clock/'],
+    ['/sdk/widget/clock/js/deep/main.js', '/sdk/widget/clock/'],
+    ['/sdk/wk/' + key + '/clock/index.html', '/sdk/wk/' + key + '/clock/'],
+  ]) {
+    assert.equal(sdk.widgetAssetRoot(path), root);
+    const script = sdk.widgetCspFor('127.0.0.1:3030', false, root).split('; ').find((d) => d.startsWith('script-src '));
+    assert.equal(script, 'script-src http://127.0.0.1:3030' + root, 'the folder, with its closing slash, and nothing beside it');
+  }
+  for (const path of ['/system', '/sdk/widget/', '/sdk/widget/clock', '/sdk/widget/BAD_ID/x.js', '/sdk/wk/short/clock/x.js', '/sdk/widget/%2e%2e/x.js', null]) {
+    assert.equal(sdk.widgetAssetRoot(path), '', String(path));
+  }
+  // No folder, or one that could break out of the directive: no script at all.
+  for (const root of ['', null, undefined, '/', '/sdk/widget/clock', '/a b/', '/a/;script-src */', '/a/../b/', 'http://x/']) {
+    const csp = sdk.widgetCspFor('127.0.0.1:3030', false, root);
+    assert.match(csp, /script-src 'none';/, String(root));
+    assert.match(csp, /style-src 'self' 'unsafe-inline' http:\/\/127\.0\.0\.1:3030/, 'only scripts close');
+  }
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /widgetCspFor\(req\.headers\.host, !!\(req\.socket && req\.socket\.encrypted\), sdkWidgets\.widgetAssetRoot\(reqPath\)\)/);
+});
+
+// ── WebRTC guard ──
+const GUARD_ROOT = '/sdk/widget/clock/';
+const GUARD_TAG = `<script src="${GUARD_ROOT}${sdk.FRAME_GUARD_FILENAME}"></script>`;
+
+test('guard: runs ahead of a script placed before <head>', () => {
+  const out = sdk.injectFrameGuard('<!doctype html><script src="a.js"></script><head></head>', GUARD_ROOT);
+  assert.ok(out.indexOf(GUARD_TAG) < out.indexOf('a.js'));
+});
+
+test('guard: the doctype stays first, past a BOM and comments, so no page falls into quirks mode', () => {
+  const out = sdk.injectFrameGuard('\uFEFF\n<!-- a --><!DOCTYPE html>\n<html></html>', GUARD_ROOT);
+  assert.ok(out.indexOf('<!DOCTYPE html>') < out.indexOf(GUARD_TAG));
+});
+
+test('guard: a page with no doctype, or empty, still gets it first', () => {
+  assert.ok(sdk.injectFrameGuard('<script src="a.js"></script>', GUARD_ROOT).startsWith(GUARD_TAG));
+  assert.equal(sdk.injectFrameGuard('', GUARD_ROOT), GUARD_TAG);
+});
+
+test('guard: a comment cannot hide a script from it', () => {
+  const out = sdk.injectFrameGuard('<!-- x --><script src="a.js"></script>', GUARD_ROOT);
+  assert.ok(out.indexOf(GUARD_TAG) < out.indexOf('a.js'));
+});
+
+test('guard: a comment the browser closes early cannot hide a script from it', () => {
+  for (const opening of ['<!-->', '<!--->', '<!-- x --!>']) {
+    const html = `${opening}<script src="a.js"></script><!-- y -->`;
+    const out = sdk.injectFrameGuard(html, GUARD_ROOT);
+    assert.ok(out.indexOf(GUARD_TAG) < out.indexOf('a.js'), html);
+  }
+});
+
+test('guard: a comment that never ends is not skipped', () => {
+  assert.ok(sdk.injectFrameGuard('<!-- <script src="a.js"></script>', GUARD_ROOT).startsWith(GUARD_TAG));
+});
+
+test('guard: the src is absolute, so a page in a subfolder gets it too', () => {
+  assert.match(sdk.injectFrameGuard('<p>', '/sdk/wk/' + 'a'.repeat(32) + '/clock/'), /src="\/sdk\/wk\/a{32}\/clock\/__xenon-guard\.js"/);
+});
+
+test('guard: comes before the probe in a prepared page', () => {
+  const out = sdk.prepareWidgetHtml('<!doctype html><html><head></head></html>', GUARD_ROOT);
+  assert.ok(out.indexOf(sdk.FRAME_GUARD_FILENAME) < out.indexOf(sdk.PERF_PROBE_FILENAME));
+  assert.ok(out.includes(sdk.PERF_PROBE_FILENAME));
+});
+
+test('guard: its name is reserved like the probe, at any depth', () => {
+  assert.equal(sdk.resolveAsset(ROOT, 'clock', sdk.FRAME_GUARD_FILENAME), null);
+  assert.equal(sdk.resolveAsset(ROOT, 'clock', 'assets/' + sdk.FRAME_GUARD_FILENAME), null);
+});
+
+test('guard: the source removes every RTC name and leaves the rest', () => {
+  const fake = { RTCPeerConnection: 1, webkitRTCPeerConnection: 1, RTCDataChannel: 1, RTCIceTransport: 1, fetch: 1, ARTCraft: 1 };
+  vm.runInNewContext(sdk.FRAME_GUARD_SOURCE, { window: fake });
+  assert.deepEqual(Object.keys(fake), ['fetch', 'ARTCraft']);
+});
+
+test('assetCsp: an SVG runs no scripts, everything else keeps the policy', () => {
+  const csp = sdk.widgetCspFor('127.0.0.1:3030', false, GUARD_ROOT);
+  assert.match(sdk.assetCsp(csp, 'image/svg+xml'), /script-src 'none'/);
+  assert.match(sdk.assetCsp(csp, 'image/svg+xml'), /connect-src 'none'/);
+  assert.equal(sdk.assetCsp(csp, 'text/html; charset=utf-8'), csp);
+  assert.equal(sdk.assetCsp(csp, 'image/png'), csp);
+});
+
+test('probe: only the widget\'s own long tasks count, never the dashboard\'s', () => {
+  // A frame sharing the dashboard's process is told about the parent's long
+  // tasks too (measured in Chromium: name "same-origin-ancestor"; a sandboxed
+  // frame gets "cross-origin-ancestor"). Counting them blamed a widget for the
+  // dashboard's own reload.
+  let observe = null;
+  let tick = null;
+  const sent = [];
+  class PerformanceObserver {
+    constructor(fn) { this.fn = fn; }
+    observe(o) { if (o.type === 'longtask') observe = this.fn; }
+  }
+  let clock = 0;
+  const performance = { now: () => clock };
+  const window = { addEventListener() {} };
+  const document = { documentElement: {}, addEventListener() {}, querySelector: () => null };
+  const parent = { postMessage: (m) => { if (m.type === 'perf') sent.push(m); } };
+  class MutationObserver { observe() {} }
+  new Function('window', 'document', 'parent', 'MutationObserver', 'getComputedStyle', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'PerformanceObserver', 'performance', sdk.PERF_PROBE_SOURCE)(
+    window, document, parent, MutationObserver, () => ({ colorScheme: 'normal' }), () => 0,
+    (fn) => { tick = fn; return 1; }, () => 0, PerformanceObserver, performance,
+  );
+  observe({ getEntries: () => [
+    { name: 'cross-origin-ancestor', duration: 900 },
+    { name: 'same-origin-ancestor', duration: 700 },
+    { name: 'cross-origin-unreachable', duration: 300 },
+    { name: 'self', duration: 120 },
+  ] });
+  clock = 12000;
+  tick();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].longTaskMs, 120);
+  assert.equal(sent[0].longTasks, 1);
 });

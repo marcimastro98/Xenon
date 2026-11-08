@@ -53,9 +53,9 @@ let hubSettings = {};
   }
 
   // A Deck key's shortcut offers a step only a dashboard can do
-  // (deck-shortcut-runner.js). The mixer and the written chat are dashboard
-  // screens, so this page takes them and becomes the dashboard with one open;
-  // the voice session stays with the alerts window (screen-bit.js), and sounds
+  // (deck-shortcut-runner.js). This page takes the mixer and the written chat:
+  // they open alone in the Xenon menu's window, or on the dashboard it becomes
+  // where no shell draws a menu; the voice session stays with the alerts window (screen-bit.js), and sounds
   // the PC plays itself. null = not ours to take.
   function deckStepPlan(action) {
     if (!action || typeof action !== 'object') return null;
@@ -115,6 +115,11 @@ let hubSettings = {};
       settingsTimer = setTimeout(() => { settingsTimer = null; refresh(); }, SETTINGS_EVENT_DELAY_MS);
     }
 
+    function onStreamOpen() {
+      onSettingsEvent();
+      if (window.LayersShell && typeof window.LayersShell.onStream === 'function') window.LayersShell.onStream();
+    }
+
     function onStatus(e) {
       try {
         const d = JSON.parse(e.data);
@@ -157,10 +162,16 @@ let hubSettings = {};
     }
 
     function onGalleryOpen(e) {
-      try {
-        const url = galleryUrl(JSON.parse(e.data));
-        if (url) go(url);
-      } catch (err) { /* a bad payload opens nothing */ }
+      let d;
+      try { d = JSON.parse(e.data); } catch (err) { return; /* a bad payload opens nothing */ }
+      const onDashboard = () => { const url = galleryUrl(d); if (url) go(url); };
+      // Alone in the Xenon menu's window; the dashboard where no shell draws one.
+      fetch(SERVER + '/screen-menu', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheet: { ...(d && typeof d === 'object' ? d : {}), open: 'gallery' } }),
+      }).then((r) => (r.ok ? r.json() : null))
+        .then((r) => { if (!r || r.where !== 'screen') onDashboard(); })
+        .catch(onDashboard);
     }
 
     function onDeckShortcut(e) {
@@ -171,10 +182,16 @@ let hubSettings = {};
       fetch(SERVER + '/deck/shortcut-claim', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nonce: data.nonce }),
       }).then((r) => (r.ok ? r.json() : null)).then((r) => {
-        if (!r || !r.ok) return;
-        const D = window.DashboardOpen;
-        if (plan.ask) D.storeAsk(plan.ask, window.sessionStorage);
-        go(MAIN_URL + '&full=1' + D.query({ open: plan.open }));
+        if (!r || !r.ok) return null;
+        return fetch(SERVER + '/screen-menu', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet: { open: plan.open }, ask: plan.ask }),
+        }).then((s) => (s.ok ? s.json() : null)).then((s) => {
+          if (s && s.where === 'screen') return;
+          const D = window.DashboardOpen;
+          if (plan.ask) D.storeAsk(plan.ask, window.sessionStorage);
+          go(MAIN_URL + '&full=1' + D.query({ open: plan.open }));
+        });
       }).catch(() => { /* the server tells the key it failed */ });
     }
 
@@ -198,7 +215,7 @@ let hubSettings = {};
       const es = new EventSource(SERVER + '/sse');
       es.addEventListener('settings', onSettingsEvent);
       // SSE has no replay: a save made while the stream was down is read on reconnect.
-      es.addEventListener('open', onSettingsEvent);
+      es.addEventListener('open', onStreamOpen);
       es.addEventListener('status', onStatus);
       es.addEventListener('spotlight_hotkey', onSpotlightHotkey);
       es.addEventListener('gallery_open', onGalleryOpen);

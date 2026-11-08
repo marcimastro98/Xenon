@@ -15,6 +15,39 @@ const AlertToasts = require('../js/alert-toasts.js');
 
 const ID = '0123456789abcdef';
 
+test('the supporter pass: What\'s New in the alerts window asks for it by name', () => {
+  assert.deepEqual(DashboardOpen.parse('?open=supporters&id=' + ID), { open: 'supporters' });
+  const opened = [];
+  globalThis.window = { CommunityGallery: { openSupporters: () => opened.push('supporters'), openSparks: () => opened.push('sparks') } };
+  try {
+    assert.equal(DashboardOpen.run({ open: 'supporters' }), true);
+    assert.equal(DashboardOpen.run({ open: 'sparks' }), true);
+    assert.deepEqual(opened, ['supporters', 'sparks']);
+    globalThis.window = {};
+    assert.equal(DashboardOpen.run({ open: 'supporters' }), false);
+  } finally { delete globalThis.window; }
+});
+
+test("What's New: asked for by name, it opens where the stage can, and a page without it says so", () => {
+  assert.deepEqual(DashboardOpen.parse('?open=whatsnew&id=' + ID), { open: 'whatsnew' });
+  assert.equal(DashboardOpen.sheetAddress({ open: 'whatsnew' }), '/?panel=sheet&open=whatsnew');
+  const read = [];
+  globalThis.window = { XenonWhatsNew: { reopen: () => read.push('stage') } };
+  try {
+    assert.equal(DashboardOpen.run({ open: 'whatsnew' }), true);
+    assert.deepEqual(read, ['stage']);
+    globalThis.window = {};
+    assert.equal(DashboardOpen.run({ open: 'whatsnew' }), false);
+  } finally { delete globalThis.window; }
+});
+
+test('macro: the key editor, with a key id only if it is one', () => {
+  assert.deepEqual(DashboardOpen.normalize({ open: 'macro' }), { open: 'macro' });
+  assert.deepEqual(DashboardOpen.normalize({ open: 'macro', id: 'k_12-a' }), { open: 'macro', id: 'k_12-a' });
+  assert.deepEqual(DashboardOpen.normalize({ open: 'macro', id: '../x' }), { open: 'macro' });
+  assert.ok(DashboardOpen.sheet({ open: 'macro', id: 'k1' }), 'it opens in the menu window');
+});
+
 test('only the update, the gallery, the mixer and the chat can be asked for, with safe values only', () => {
   const { normalize, parse } = DashboardOpen;
   assert.deepEqual(parse('?shell=main&full=1&open=update'), { open: 'update' });
@@ -24,6 +57,9 @@ test('only the update, the gallery, the mixer and the chat can be asked for, wit
   assert.deepEqual(parse('?open=gallery&filter=video&id=' + ID), { open: 'gallery', filter: 'video', id: ID });
   assert.deepEqual(parse('?open=gallery&filter=all&id=../../x'), { open: 'gallery' });
   assert.deepEqual(parse('?open=gallery&id=' + ID.toUpperCase()), { open: 'gallery' });
+  // A message's Store button: the entry's page, nothing else rides along.
+  assert.deepEqual(parse('?open=store&entry=nitrato-october&kind=theme&id=' + ID), { open: 'store', entry: 'nitrato-october' });
+  assert.deepEqual(parse('?open=store&entry=../../x'), { open: 'store' });
   for (const bad of ['', '?open=Update', '?open=javascript:alert(1)', '?full=1']) {
     assert.equal(parse(bad), null, bad);
   }
@@ -46,6 +82,48 @@ test('the Xenon menu opens the dashboard or one Settings category, never a made-
   for (const cat of cats) {
     assert.ok(DashboardOpen.SETTINGS_CATS.includes(cat), cat);
     assert.match(spec, new RegExp('"' + cat + '"'), 'spec.rs SETTINGS_CATS lacks ' + cat);
+  }
+});
+
+test('every category the menu can ask for is a real pane of Settings, Ambient included', () => {
+  const html = read('../index.html');
+  for (const cat of DashboardOpen.SETTINGS_CATS) {
+    const pane = DashboardOpen.SETTINGS_PANES[cat] || cat;
+    assert.ok(html.includes('data-settings-cat="' + pane + '"'), cat + ' would open an empty Settings');
+  }
+  const asked = [];
+  const had = globalThis.window;
+  globalThis.window = { openSettings: (cat) => asked.push(cat) };
+  try {
+    DashboardOpen.run({ open: 'settings', cat: 'ambient' });
+    DashboardOpen.run({ open: 'settings', cat: 'capture' });
+    DashboardOpen.run({ open: 'settings' });
+  } finally { globalThis.window = had; }
+  assert.deepEqual(asked, ['lock', 'capture', undefined]);
+});
+
+test('the Xenon menu opens the Store and the Sparks on the dashboard, through the shell too', () => {
+  const { parse, run } = DashboardOpen;
+  assert.deepEqual(parse('?open=store&id=x'), { open: 'store' });
+  assert.deepEqual(parse('?open=store&kind=ambient'), { open: 'store', kind: 'ambient' });
+  assert.deepEqual(parse('?open=store&kind=__screen'), { open: 'store', kind: '__screen' });
+  assert.deepEqual(parse('?open=store&kind=__installed'), { open: 'store', kind: '__installed' });
+  assert.deepEqual(parse('?open=store&kind=theme'), { open: 'store' }, 'only the kinds the menu opens on');
+  assert.deepEqual(parse('?open=sparks'), { open: 'sparks' });
+  const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
+  assert.match(spec, /Some\("store"\) if menu/);
+  assert.match(spec, /Some\("sparks"\) =>/);
+  const opened = [];
+  const had = globalThis.window;
+  globalThis.window = { CommunityGallery: { open: () => opened.push('store'), openSparks: () => opened.push('sparks') } };
+  try {
+    assert.equal(run({ open: 'store' }), true);
+    assert.equal(run({ open: 'sparks' }), true);
+    assert.deepEqual(opened, ['store', 'sparks']);
+    globalThis.window = {};
+    assert.equal(run({ open: 'store' }), false, 'no Store on this page: said, not pretended');
+  } finally {
+    globalThis.window = had;
   }
 });
 
@@ -144,7 +222,8 @@ test('the driver keeps the app catching up with its dashboard, with nothing draw
 test('the shell takes open-dashboard from the alerts window and the menu only, for the screens they offer', () => {
   const mod = read('../../apps/native/src-tauri/src/layers/mod.rs');
   assert.match(mod, /"xenon-app" if alerts \|\| kind == Kind::Menu => \{/);
-  assert.match(mod, /spec::dashboard_page\(url\.path\(\), open\.as_deref\(\), cat\.as_deref\(\), kind == Kind::Menu\)/);
+  assert.match(mod, /spec::dashboard_page\(url\.path\(\), open\.as_deref\(\), cat\.as_deref\(\), menu\)/);
+  assert.match(mod, /open_asked_dashboard\(app, url, kind == Kind::Menu\)/);
   const monitor = read('../../apps/native/src-tauri/src/monitor.rs');
   assert.match(monitor, /pub fn open_dashboard\(app: &AppHandle, page: &'static str, cat: Option<&'static str>\)/);
 });
@@ -226,18 +305,30 @@ test('the driver claims before it leaves, and the question never rides in the ad
 // A tile's "Set up" button on a widget on the screen did nothing: Settings do not
 // exist there. One helper: Settings on the dashboard, or the shell opens the
 // dashboard on that category; every category it asks for is one both accept.
-test('a tile Set up button opens Settings, from a widget on the screen through the shell', async () => {
+test('a tile Set up button opens Settings, from a widget on the screen in the menu window or through the shell', async () => {
   const vm = await import('node:vm');
-  const run = (search) => {
+  const run = async (search, answer) => {
     const calls = [];
-    const ctx = { window: { location: { search, href: '' }, openSettings: (c) => calls.push(c) }, document: {}, console };
+    const posted = [];
+    const fetch = async (url, o) => {
+      posted.push(JSON.parse(o.body));
+      if (!answer) throw new Error('server restarting');
+      return { ok: true, json: async () => answer };
+    };
+    const ctx = { window: { location: { search, href: '' }, openSettings: (c) => calls.push(c) }, document: {}, console, fetch, SERVER: '' };
     vm.createContext(ctx);
     vm.runInContext(read('../js/utils.js'), ctx);
     vm.runInContext("openSettingsCategory('streaming')", ctx);
-    return { calls, href: ctx.window.location.href };
+    await new Promise((r) => setTimeout(r, 0));
+    return { calls, posted, href: ctx.window.location.href };
   };
-  assert.deepEqual(run(''), { calls: ['streaming'], href: '' });
-  assert.deepEqual(run('?layer=overlay:MON1'), { calls: [], href: 'xenon-app:open-dashboard?open=settings&cat=streaming' });
+  const toDashboard = 'xenon-app:open-dashboard?open=settings&cat=streaming';
+  const asked = [{ sheet: { open: 'settings', cat: 'streaming' } }];
+  assert.deepEqual(await run(''), { calls: ['streaming'], posted: [], href: '' });
+  assert.deepEqual(await run('?panel=sheet'), { calls: ['streaming'], posted: [], href: '' }, 'a sheet has Settings itself');
+  assert.deepEqual(await run('?layer=overlay:MON1', { where: 'screen' }), { calls: [], posted: asked, href: '' });
+  assert.deepEqual(await run('?layer=overlay:MON1', { where: 'closed' }), { calls: [], posted: asked, href: toDashboard });
+  assert.deepEqual(await run('?layer=overlay:MON1'), { calls: [], posted: asked, href: toDashboard });
 
   const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
   const files = ['discord-widget', 'smart-home', 'spotify-widget', 'streamerbot-widget', 'streaming-page',
@@ -252,4 +343,18 @@ test('a tile Set up button opens Settings, from a widget on the screen through t
       assert.match(spec, new RegExp('"' + cat + '"'), 'spec.rs SETTINGS_CATS lacks ' + cat);
     }
   }
+});
+
+test('the import dialog opens empty: nothing from the address reaches it', () => {
+  const { parse, sheetAddress, run } = DashboardOpen;
+  const opened = [];
+  globalThis.window = { PresetShare: { openImport: (...args) => opened.push(args) } };
+  try {
+    assert.deepEqual(parse('?open=import&id=abc&kind=theme'), { open: 'import' });
+    assert.equal(sheetAddress({ open: 'import' }), '/?panel=sheet&open=import');
+    assert.equal(run({ open: 'import' }), true);
+    assert.deepEqual(opened, [[]]);
+    window.PresetShare = undefined;
+    assert.equal(run({ open: 'import' }), false, 'no dialog on this page: said, not pretended');
+  } finally { delete globalThis.window; }
 });

@@ -148,7 +148,7 @@ function _applyMemberLabel(label, base, mid) {
     label.textContent = custom;
   } else {
     label.setAttribute('data-i18n', 'layout_widget_' + base);
-    label.textContent = base;
+    label.textContent = t('layout_widget_' + base);
   }
 }
 
@@ -366,7 +366,6 @@ function renderGroupTile(gridItem, group) {
   // A Deck with the Theme faceplate is drawn as a tile, so the group keeps its own surface.
   tile.toggleAttribute('data-deck-themeplate', !!(shownRoot && shownRoot.dataset.plate === 'theme'));
   paintGroupTabs(gridItem, group.style && group.style.tabs);
-  if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
 }
 

@@ -134,7 +134,7 @@ test('route `/` redirects only the app window, only on this PC, only in "widgets
 test('the driver page carries only what it needs, in order', () => {
   const scripts = [...HTML.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(scripts, [
-    'shared/src/constants.js', 'js/utils.js', 'js/state.js', 'js/layer-tiles.js', 'js/layers-model.js', 'js/usage-mode.js',
+    'shared/src/constants.js', 'js/live-stream.js', 'js/utils.js', 'js/state.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/usage-mode.js',
     'js/native-bridge.js', 'js/screen-scene-model.js', 'js/layers-shell.js', 'js/dashboard-open.js', 'js/update.js', 'js/album-theme.js',
     'js/driver-album-lights.js', 'js/driver-sdk-host.js', 'js/driver-perf.js', 'js/shell-driver.js',
   ]);
@@ -157,6 +157,7 @@ test('the shell hides the window for the driver URL and the splash marks its win
   assert.match(monitor, /pub const DRIVER_PATH: &str = "\/shell-driver";/);
   assert.match(monitor, /if DRIVER\.load\(Ordering::SeqCst\) \{\n\s+return Target::Nothing\(NoScreen::Phone\);/);
   assert.match(monitor, /cache\.mode == Placement::Phone \|\| DRIVER\.load\(Ordering::SeqCst\)/);
-  assert.match(lib, /if monitor::set_driver\(&win, _payload\.url\(\)\.path\(\) == monitor::DRIVER_PATH\) \{/);
+  assert.match(lib, /let on_driver = url\.path\(\) == monitor::DRIVER_PATH;\s+if monitor::set_driver\(&win, on_driver, full\) \{/);
+  assert.match(lib, /nav_policy::is_backend_page\(_payload\.url\(\), monitor::backend_port\(\)\)/, 'the splash is not the dashboard leaving the driver');
   assert.match(splash, /var DASHBOARD = 'http:\/\/127\.0\.0\.1:' \+ port \+ '\/\?shell=main';/);
 });
