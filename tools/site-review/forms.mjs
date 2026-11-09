@@ -139,19 +139,27 @@ async function main() {
     await page.fill('#name', 'Northern Lights');
     await page.fill('#author', 'Sam');
     await page.fill('#version', '1.0.0');
-    // The Discord sign-in: refused first (not in the server), then signed in.
-    const signIn = async () => {
+    // The Discord sign-in: refused first (not in the server), then signed in. A yes
+    // lands the sign-in tab on the real /submit/signed-in/ page, which hands the form
+    // its token through localStorage, as the hub's redirect does.
+    const signIn = async (yes) => {
       const [tab] = await Promise.all([ctx.waitForEvent('page'), page.click('.id-go')]);
+      if (yes) {
+        const k = new URL(tab.url()).searchParams.get('k');
+        await tab.goto(`${base}/submit/signed-in/#k=${k}&t=${'a'.repeat(64)}&lang=${lang}`, { waitUntil: 'load' });
+        await tab.screenshot({ path: path.join(out, 'signed-in.jpg'), type: 'jpeg', quality: 74 });
+        console.log('signed-in page:', await tab.locator('h1').textContent(), '| address:', new URL(tab.url()).hash || 'clean');
+      }
       await tab.close();
     };
     await shot('submit-identity-idle', false);
     identityReply = { ok: false, status: 'not_member' };
-    await signIn(); await page.waitForTimeout(3000);
+    await signIn(false); await page.waitForTimeout(3000);
     await shot('submit-identity-not-member', false);
     await page.click('.id-row button');
     identityReply = { ok: true, name: 'Sam Rivers', username: 'sam_rivers', email: 'sam@example.com' };
     await page.waitForTimeout(300);
-    await signIn(); await page.waitForTimeout(3000);
+    await signIn(true); await page.waitForTimeout(3000);
     await shot('submit-identity-ok', false);
     await page.fill('#tags', 'aurora dark');
     await page.fill('#description', 'A calm green theme for a spare screen.');
@@ -163,7 +171,7 @@ async function main() {
     await page.click('#send');
     await page.waitForTimeout(500);
     await shot('submit-ok');
-    console.log('identity sent:', /name="identity"\r\n\r\n[A-Za-z0-9_-]{43}\r\n/.test(sent || ''), 'contact sent:', /name="contact"/.test(sent || ''));
+    console.log('identity sent:', /name="identity"\r\n\r\n[A-Za-z0-9_-]{43}\.a{64}\r\n/.test(sent || ''), 'contact sent:', /name="contact"/.test(sent || ''));
     console.log('focus on', await page.evaluate(() => document.activeElement?.id), 'err', await page.locator('#err').textContent().catch(() => ''));
     console.log('page errors:', errors.length ? errors.join(' | ') : 'none');
   } finally {

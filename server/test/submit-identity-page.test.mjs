@@ -59,3 +59,15 @@ test('the form sends the sign-in, never a typed contact', () => {
   assert.match(html, /<script src="identity\.js"><\/script>/);
   assert.match(html, /XenonSubmitIdentity\.mount\(document\.getElementById\('identity'\), \{ hub: HUB, lang: lang \}\)/);
 });
+
+test('the signed-in page hands the token to the form under the key the form reads, and stays private', () => {
+  const page = readFileSync(path.join(DIR, 'signed-in', 'index.html'), 'utf8');
+  const key = "'xenon.submit.identity.done'";
+  assert.ok(page.includes('DONE_KEY = ' + key) && js.includes('DONE_KEY = ' + key));
+  assert.match(page, /<meta name="robots" content="noindex, nofollow">/);
+  assert.match(page, /<meta name="referrer" content="no-referrer">/);
+  assert.match(page, /history\.replaceState\(null, '', location\.pathname\)/);
+  for (const l of ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh']) assert.ok(page.includes(`    ${l}: { ok: [`), l);
+  // The form sends nothing until the token is there.
+  assert.match(js, /view === 'ok' && token \? secret \+ '\.' \+ token : ''/);
+});
