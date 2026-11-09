@@ -226,6 +226,17 @@
   .status-link a { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; }
   .status-link .btn { margin-top: 12px; }
   .turnstile-wrap { min-height: 66px; }
+  /* The Discord sign-in (identity.js): it takes the old free-text Contact's place. */
+  .id-box { margin-bottom: 12px; }
+  .grid2 .id-box { grid-column: 1 / -1; }
+  .id-label { display: block; font-size: 16px; font-weight: 600; }
+  .id-hint { margin: 2px 0 8px; }
+  .id-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .id-row .btn { min-height: 44px; }
+  .id-go[aria-disabled=true] { opacity: 0.5; pointer-events: none; }
+  .id-who, .id-wait, .id-problem { flex: 1 1 220px; min-width: 0; font-size: 16px; overflow-wrap: anywhere; }
+  .id-mail { display: block; font-family: var(--mono); font-size: 14px; color: var(--bone-1); }
+  .id-problem { color: var(--danger); }
   .captcha-broken { padding: 10px 12px; font-size: 15px; line-height: 1.5; color: var(--danger); background: var(--g-0); border-radius: var(--r-1); box-shadow: inset 0 0 0 1.5px var(--danger); }
   @media (max-width: 700px) {
     .card { padding: 20px; }
@@ -234,6 +245,7 @@
   @media (forced-colors: active) { .finding, .audit-sum p, .captcha-broken { border: 1px solid CanvasText; } }
 </style>
 <script src="/chrome.js" defer></script>
+<script src="identity.js"></script>
 </head>
 <body data-sheet="violet" data-own-key data-track-view="submit_start">
 <!-- xenon:header -->
@@ -356,7 +368,7 @@
         <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
         <label class="f"><span data-t="f_author">Author / handle *</span><input type="text" id="author" maxlength="40" required></label>
         <label class="f"><span data-t="f_version">Version * <small>(e.g. 1.0.0: bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
-        <label class="f"><span data-t="f_contact">Contact * <small>(email/Discord: only the reviewer sees it, so they can reach you if something needs fixing)</small></span><input type="text" id="contact" maxlength="120" required></label>
+        <div class="f id-box" id="identity"></div>
         <label class="f"><span data-t="f_supporter">Supporter code <small>(optional: supporters are reviewed first; the code is checked, never stored)</small></span><input type="text" id="supporterCode" maxlength="24" autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"></label>
         <label class="f" hidden><span data-t="f_price">Your price in USD <small>(optional: what you would ask; the review suggests one too)</small></span><input type="text" id="price" maxlength="6" inputmode="decimal" autocomplete="off" placeholder="2.00"></label>
         <label class="f"><span data-t="f_tags">Tags * <small>(up to 6, lowercase: this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
@@ -522,7 +534,6 @@
       f_name: 'Nom *',
       f_author: 'Auteur / pseudo *',
       f_version: 'Version * <small>(p. ex. 1.0.0 : à incrémenter lors d\'une mise à jour)<\/small>',
-      f_contact: 'Contact * <small>(e-mail/Discord : seul le relecteur peut le voir, afin de pouvoir vous contacter si des corrections sont nécessaires)<\/small>',
       f_tags: 'Tags* <small>(jusqu\'à 6, en minuscules : c\'est ainsi que les gens le trouvent dans le store)<\/small>',
       f_desc: 'Description *',
       desc_ph: 'Ce qu\'il fait, en une ou deux phrases. Le Markdown fonctionne : **gras**, *italique*, listes avec - ou 1.',
@@ -572,7 +583,6 @@
       e_author: 'Ajoutez le nom ou le pseudo que vous souhaitez afficher en tant qu’auteur sur la carte.',
       e_version_req: 'Ajoutez un numéro de version, p. ex. 1.0.0.',
       e_version_bad: 'La version doit contenir uniquement des chiffres et des points, p. ex. 1.0.0.',
-      e_contact: 'Laissez une adresse e-mail ou un identifiant Discord afin que le relecteur puisse vous contacter si des corrections sont nécessaires.',
       e_tags: 'Ajoutez au moins un tag : les tags sont la façon dont les gens trouvent votre entrée dans le store.',
       e_desc: 'Écrivez une ou deux lignes sur votre création : c\'est ce qui s\'affiche sur la carte.',
       e_code: 'Collez le code de partage.',
@@ -606,7 +616,6 @@
       lede: 'Incolla il codice di condivisione di ciò che hai creato. Una persona controlla ogni proposta prima che compaia nel catalogo.',
       f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle *',
       f_version: 'Versione * <small>(es. 1.0.0: aumentala quando aggiorni)</small>',
-      f_contact: 'Contatto * <small>(email/Discord: lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
       f_tags: 'Tag * <small>(fino a 6, minuscoli: è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
       desc_ph: 'Cosa fa, in una o due frasi. Puoi usare il Markdown: **grassetto**, *corsivo*, elenchi con - o 1.',
       f_category: 'Categoria *', c_none: 'Scegli…',
@@ -647,7 +656,6 @@
       k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
       k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)', k_topbar: 'topbar (configurazione della barra superiore)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
-      e_contact: 'Lascia un\'email o un handle Discord, così chi revisiona può scriverti se qualcosa non va.',
       e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto: copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
       e_rate: 'Troppi invii: riprova più tardi.', e_generic: 'Invio non riuscito ({err}): riprova.',
@@ -692,7 +700,6 @@
       lede: 'Pega el código para compartir de lo que has creado. Una persona revisa cada envío antes de que aparezca en el catálogo.',
       f_kind: 'Tipo', f_name: 'Nombre *', f_author: 'Autor / alias *',
       f_version: 'Versión * <small>(p. ej. 1.0.0; súbela cuando actualices)</small>',
-      f_contact: 'Contacto * <small>(email o Discord: solo lo ve quien revisa, para escribirte si hay que corregir algo)</small>',
       f_tags: 'Etiquetas * <small>(hasta 6, en minúsculas: así te encuentran en la Tienda)</small>', f_desc: 'Descripción *',
       desc_ph: 'Qué hace, en una o dos frases. Admite Markdown: **negrita**, *cursiva*, listas con - o 1.',
       f_category: 'Categoría *', c_none: 'Elige una…',
@@ -733,7 +740,6 @@
       k_widget: 'widget (widget de la comunidad)', k_ambient: 'ambient (escena Ambient)', k_bundle: 'bundle (paquete completo)',
       k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)', k_topbar: 'topbar (configuración de la barra superior)',
       e_name: 'Ponle un nombre a tu creación.', e_code: 'Pega el código para compartir.',
-      e_contact: 'Deja un email o tu usuario de Discord, para que quien revisa pueda escribirte si hay que corregir algo.',
       e_code_incomplete: 'El código para compartir parece cortado o incompleto. Cópialo entero desde Xenon (o usa «Cargar desde archivo») y vuelve a enviarlo.',
       e_code_big: 'El código supera los 2 MB.', e_captcha: 'Completa la verificación antispam.',
       e_rate: 'Demasiados envíos. Inténtalo más tarde.', e_generic: 'El envío ha fallado ({err}). Inténtalo de nuevo.',
@@ -786,7 +792,6 @@
       c_tools: 'tools (도구)',
       c_fun: 'fun (재미)',
       f_version: '버전 * <small>(예: 1.0.0. 업데이트할 때 올리세요)</small>',
-      f_contact: '연락처 * <small>(이메일/Discord. 고칠 점이 있을 때 연락할 수 있도록 검토자만 봅니다)</small>',
       f_tags: '태그 * <small>(최대 6개, 소문자. 스토어에서 사람들이 이것으로 찾습니다)</small>',
       code_ph: '공유 및 가져오기 → 내보내기에서 복사한 코드를 붙여넣으세요…',
       code_file: '.txt / .json 파일에서 불러오기…',
@@ -808,7 +813,6 @@
       e_author: '카드에 제작자로 표시할 이름이나 핸들을 입력하세요.',
       e_version_req: '버전 번호를 입력하세요. 예: 1.0.0.',
       e_version_bad: '버전은 숫자와 점만 쓸 수 있습니다. 예: 1.0.0.',
-      e_contact: '고칠 점이 있을 때 검토자가 연락할 수 있도록 이메일이나 Discord 핸들을 남겨 주세요.',
       e_tags: '태그를 하나 이상 추가하세요. 사람들이 스토어에서 항목을 찾는 방법입니다.',
       e_desc: '작품을 한두 줄로 설명하세요. 카드에 표시되는 내용입니다.',
       e_code: '공유 코드를 붙여넣으세요.',
@@ -891,7 +895,6 @@
       c_tools: 'tools (ツール)',
       c_fun: 'fun (お楽しみ)',
       f_version: 'バージョン * <small>(例: 1.0.0。更新するときは上げてください)</small>',
-      f_contact: '連絡先 * <small>(メールまたは Discord。修正が必要なときに連絡できるよう、確認担当者だけが見ます)</small>',
       f_tags: 'タグ * <small>(最大 6 個、小文字。ストアで見つけてもらうためのものです)</small>',
       code_ph: '共有とインポート → エクスポートのコードを貼り付けてください…',
       code_file: '.txt / .json ファイルから読み込む…',
@@ -913,7 +916,6 @@
       e_author: 'カードに作者として表示する名前かハンドルを入力してください。',
       e_version_req: 'バージョン番号を入力してください (例: 1.0.0)。',
       e_version_bad: 'バージョンは数字とドットだけで入力してください (例: 1.0.0)。',
-      e_contact: '修正が必要なときに連絡できるよう、メールか Discord のハンドルを入力してください。',
       e_tags: 'タグを 1 つ以上追加してください。ストアで見つけてもらうためのものです。',
       e_desc: '作ったものについて 1〜2 行で書いてください。カードに表示されます。',
       e_code: '共有コードを貼り付けてください。',
@@ -996,7 +998,6 @@
       c_tools: 'tools (工具)',
       c_fun: 'fun (娱乐)',
       f_version: '版本 * <small>(例如 1.0.0，更新时请提高版本号)</small>',
-      f_contact: '联系方式 * <small>(邮箱或 Discord，仅审核者可见，以便需要修改时联系你)</small>',
       f_tags: '标签 * <small>(最多 6 个，小写，用户靠它们在商店中找到你的作品)</small>',
       code_ph: '粘贴从“分享与导入 → 导出”复制的代码…',
       code_file: '从 .txt / .json 文件加载…',
@@ -1018,7 +1019,6 @@
       e_author: '请填写卡片上显示的作者名称或昵称。',
       e_version_req: '请填写版本号，例如 1.0.0。',
       e_version_bad: '版本号只能包含数字和点，例如 1.0.0。',
-      e_contact: '请留下邮箱或 Discord 昵称，以便需要修改时审核者能联系你。',
       e_tags: '请至少添加一个标签：用户靠标签在商店中找到你的条目。',
       e_desc: '请用一两句话介绍你的作品：这是卡片上显示的内容。',
       e_code: '请粘贴分享代码。',
@@ -1131,6 +1131,7 @@
         box.classList.remove('open');
         btn.setAttribute('aria-expanded', 'false');
         applyLang(); renderShots(); renderAudit();
+        window.XenonSubmitIdentity.setLang(lang);
       });
     });
   })();
@@ -1762,7 +1763,7 @@
     ev.preventDefault();
     showErr('');
     var name = document.getElementById('name').value.trim();
-    var contact = document.getElementById('contact').value.trim();
+    var identity = window.XenonSubmitIdentity.secret();
     var author = document.getElementById('author').value.trim();
     var category = document.getElementById('category').value;
     var tags = document.getElementById('tags').value.trim();
@@ -1779,7 +1780,7 @@
     // installed the first.
     if (!version) { showErr(T('e_version_req', 'Add a version number, e.g. 1.0.0.')); return; }
     if (!/^[0-9]+(\.[0-9]+)*$/.test(version)) { showErr(T('e_version_bad', 'The version must be numbers and dots only, e.g. 1.0.0.')); return; }
-    if (!contact) { showErr(T('e_contact', 'Leave an email or Discord handle, so the reviewer can reach you if something needs fixing.')); return; }
+    if (!identity) { showErr(window.XenonSubmitIdentity.required()); document.getElementById('identity').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (!/[a-z0-9-]/.test(tags.toLowerCase())) { showErr(T('e_tags', 'Add at least one tag: tags are how people find your entry in the Store.')); return; }
     if (!description) { showErr(T('e_desc', 'Write a line or two about your creation: it is what the card shows.')); return; }
     if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
@@ -1833,7 +1834,7 @@
     fd.append('category', category);
     fd.append('name', name);
     fd.append('author', author);
-    fd.append('contact', contact);
+    fd.append('identity', identity);
     fd.append('version', version);
     if (targetId) { fd.append('targetEntryId', targetId); fd.append('changelog', changelog); }
     fd.append('tags', tags);
@@ -1875,7 +1876,9 @@
       return;
     }
     var err = (out && out.error) || 'network';
-    if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions: try again later.'));
+    var identityErr = window.XenonSubmitIdentity.errorText(err);
+    if (identityErr) showErr(identityErr);
+    else if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions: try again later.'));
     else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
     else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete: copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
     else if (err === 'missing_changelog') showErr(T('e_changelog', 'Say what changed in this version: users see that line on the update prompt.'));
@@ -1905,6 +1908,7 @@
   });
 
   applyLang();
+  window.XenonSubmitIdentity.mount(document.getElementById('identity'), { hub: HUB, lang: lang });
   renderShots();
   renderAudit(); // paints the idle line of the Automatic check card
   // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.

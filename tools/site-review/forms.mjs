@@ -11,7 +11,7 @@ import { DOCS_DIR, startSite } from '../site-shots/serve.mjs';
 import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 
 const PHONE_BELOW = 700;
-const CORS = { 'access-control-allow-origin': '*' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type' };
 
 const HASH = '#sub_abc123.' + 'a'.repeat(43);
 const report = (outcome, extra = {}) => ({
@@ -63,7 +63,10 @@ export function parseArgs(argv) {
 }
 
 // What the page may reach: the stubbed hub answers, everything else outside this PC is refused.
-export function hubReply(url, statusReply) {
+export function hubReply(url, statusReply, identityReply = { ok: false, status: 'pending' }) {
+  // The Discord sign-in: the start link stands in for Discord, the poll answers what it said.
+  if (url.includes('/submit/identity/start')) return { status: 200, contentType: 'text/html', body: '<p>Discord stand-in</p>' };
+  if (url.endsWith('/submit/identity')) return { json: identityReply, headers: CORS };
   if (url.endsWith('/submission/status')) {
     if (statusReply === 'offline') return { abort: true };
     if (statusReply === 404 || statusReply === 429) return { status: statusReply, body: '{}' };
@@ -88,8 +91,12 @@ async function main() {
       window.turnstile = { render(sel, o) { setTimeout(() => o.callback('tok'), 0); return 'w'; }, reset() {} };
     }, lang);
     let statusReply = null;
+    let identityReply = { ok: false, status: 'pending' };
+    let sent = null;
     await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => {
-      const reply = hubReply(r.request().url(), statusReply);
+      if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+      if (r.request().url().endsWith('/submit')) sent = r.request().postData() || '';
+      const reply = hubReply(r.request().url(), statusReply, identityReply);
       return reply.abort ? r.abort() : r.fulfill(reply);
     });
     const page = await ctx.newPage();
@@ -132,7 +139,20 @@ async function main() {
     await page.fill('#name', 'Northern Lights');
     await page.fill('#author', 'Sam');
     await page.fill('#version', '1.0.0');
-    await page.fill('#contact', 'sam@example.test');
+    // The Discord sign-in: refused first (not in the server), then signed in.
+    const signIn = async () => {
+      const [tab] = await Promise.all([ctx.waitForEvent('page'), page.click('.id-go')]);
+      await tab.close();
+    };
+    await shot('submit-identity-idle', false);
+    identityReply = { ok: false, status: 'not_member' };
+    await signIn(); await page.waitForTimeout(3000);
+    await shot('submit-identity-not-member', false);
+    await page.click('.id-row button');
+    identityReply = { ok: true, name: 'Sam Rivers', username: 'sam_rivers', email: 'sam@example.com' };
+    await page.waitForTimeout(300);
+    await signIn(); await page.waitForTimeout(3000);
+    await shot('submit-identity-ok', false);
     await page.fill('#tags', 'aurora dark');
     await page.fill('#description', 'A calm green theme for a spare screen.');
     await page.fill('#code', JSON.stringify({ xenonPreset: 1, kind: 'theme', name: 'Northern Lights', theme: { accent: '#6ee787', bg: '#0b1412', text: '#e9f6ee' } }));
@@ -143,6 +163,7 @@ async function main() {
     await page.click('#send');
     await page.waitForTimeout(500);
     await shot('submit-ok');
+    console.log('identity sent:', /name="identity"\r\n\r\n[A-Za-z0-9_-]{43}\r\n/.test(sent || ''), 'contact sent:', /name="contact"/.test(sent || ''));
     console.log('focus on', await page.evaluate(() => document.activeElement?.id), 'err', await page.locator('#err').textContent().catch(() => ''));
     console.log('page errors:', errors.length ? errors.join(' | ') : 'none');
   } finally {
