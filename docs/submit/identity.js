@@ -2,15 +2,21 @@
 // the hub checks they are in the Xenon server and reads the email Discord has
 // confirmed, so the reviewer always has a real way to reach them.
 //
-// No cookie and no message between tabs: this page makes a random secret, sends
-// only its SHA-256 to the hub (which carries it through Discord's sign-in), then
-// asks the hub with the secret itself what Discord said. The secret stays in this
-// tab's sessionStorage, so a reload keeps the sign-in, and the form never leaves
-// the page (the Maker hands the code over through localStorage).
+// This page makes a random secret and sends only its SHA-256 to the hub, which
+// carries it through Discord's sign-in. After a yes the sign-in tab lands on
+// /submit/signed-in/ with a token the hub signed for that hash, and leaves it in
+// localStorage for this tab. The hub hands out the name and email, and takes the
+// submission, only with the secret AND that token: a start link someone else built
+// would put the token in the victim's browser, never in theirs. The secret stays in
+// this tab's sessionStorage, so a reload keeps the sign-in, and the form never
+// leaves the page (the Maker hands the code over through localStorage).
 (function () {
   'use strict';
 
   var KEY = 'xenon.submit.identity';
+  var TOKEN_KEY = 'xenon.submit.identity.token';
+  var DONE_KEY = 'xenon.submit.identity.done'; // written by /submit/signed-in/
+  var HEX64 = /^[0-9a-f]{64}$/;
   var POLL_MS = 2500;
   var POLL_FOR_MS = 16 * 60 * 1000; // the hub's sign-in link lasts 15 minutes
   var INVITE = 'https://discord.gg/MBVrw9kZyg';
@@ -134,6 +140,7 @@
   var host = null;
   var secret = '';
   var keyHash = '';
+  var token = '';
   var who = null;          // { name, username, email } once Discord said yes
   var view = 'idle';       // idle | waiting | ok | problem
   var problem = '';
@@ -142,11 +149,23 @@
 
   function w(key) { return (WORDS[lang] || WORDS.en)[key] || WORDS.en[key] || key; }
 
-  function readStored() {
-    try { return sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  function readStored(key) {
+    try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; }
   }
-  function store(v) {
-    try { if (v) sessionStorage.setItem(KEY, v); else sessionStorage.removeItem(KEY); } catch (e) { /* private mode: lives in memory */ }
+  function store(key, v) {
+    try { if (v) sessionStorage.setItem(key, v); else sessionStorage.removeItem(key); } catch (e) { /* private mode: lives in memory */ }
+  }
+
+  // The token the signed-in tab left for this sign-in, if it has arrived. Taken
+  // once: another form tab's token (another key) is left where it is.
+  function takeToken() {
+    if (token || !keyHash) return;
+    var done = null;
+    try { done = JSON.parse(localStorage.getItem(DONE_KEY) || 'null'); } catch (e) { return; }
+    if (!done || done.k !== keyHash || !HEX64.test(String(done.t || ''))) return;
+    token = done.t;
+    store(TOKEN_KEY, token);
+    try { localStorage.removeItem(DONE_KEY); } catch (e) {}
   }
 
   function newSecret() {
@@ -166,7 +185,9 @@
   // straight away (an awaited digest inside the click would trip popup blockers).
   async function prepare(reuse) {
     secret = reuse || newSecret();
-    store(secret);
+    store(KEY, secret);
+    token = reuse ? readStored(TOKEN_KEY) : '';
+    if (!reuse) store(TOKEN_KEY, '');
     keyHash = await sha256Hex(secret);
     render();
   }
@@ -199,10 +220,11 @@
   // Asks the hub what Discord said. Returns 'ok', 'pending', 'offline' or a problem.
   async function ask() {
     if (!secret) return 'pending';
+    takeToken();
     var out = null;
     try {
       var res = await fetch(hub + '/submit/identity', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: secret })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: secret, token: token })
       });
       out = await res.json();
     } catch (e) { return 'offline'; }
@@ -235,6 +257,7 @@
     view = 'idle';
     problem = '';
     keyHash = '';
+    token = '';
     render();
     prepare('');
   }
@@ -312,13 +335,15 @@
       lang = (opts && opts.lang) || 'en';
       document.addEventListener('visibilitychange', onReturn);
       window.addEventListener('focus', onReturn);
-      var kept = readStored();
+      // The signed-in tab writing the token: ask at once, even if this tab is behind it.
+      window.addEventListener('storage', function (ev) { if (ev.key === DONE_KEY && view !== 'ok' && secret) ask(); });
+      var kept = readStored(KEY);
       render();
       prepare(kept).then(function () { if (kept) ask(); });
     },
     setLang: function (l) { lang = l; render(); },
-    // The secret /submit needs, only once Discord said yes.
-    secret: function () { return view === 'ok' ? secret : ''; },
+    // What /submit needs as `identity`, "<secret>.<token>", only once Discord said yes.
+    secret: function () { return view === 'ok' && token ? secret + '.' + token : ''; },
     // The message for an identity_* error from /submit, '' for any other. A spent
     // or refused sign-in goes back to the button.
     errorText: function (err) {

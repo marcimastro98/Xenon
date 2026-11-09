@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon: signed in</title>
+<!-- The submit form's Discord sign-in tab lands here after a yes (hub:
+     src/submit-identity.js). The fragment carries the token the hub signed for this
+     sign-in: it goes to the form's tab through localStorage and is wiped from the
+     address bar. Only this browser ever holds it, which is what keeps a start link
+     built by someone else from reading the creator's email. Never indexed, no
+     Referer, no analytics. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/png" href="../../images/favicon.png">
+<link rel="stylesheet" href="/site.css">
+<style>
+  body {
+    display: grid; place-items: center; min-height: 100dvh; margin: 0; padding: 24px 16px;
+    font: 17px/1.55 var(--sans, system-ui, sans-serif);
+    background: var(--g-0, var(--bg, Canvas)); color: var(--bone-0, var(--text, CanvasText));
+  }
+  main { max-width: 520px; }
+  h1 { margin: 0 0 10px; font: 800 28px/1.15 var(--display, inherit); }
+  p { margin: 0; }
+</style>
+</head>
+<body>
+<main aria-live="polite">
+  <h1 id="h">Signed in</h1>
+  <p id="p">Go back to the tab with the form: your Discord name and email are there now. You can close this tab.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  var DONE_KEY = 'xenon.submit.identity.done';
+  var HEX64 = /^[0-9a-f]{64}$/;
+  var WORDS = {
+    en: { ok: ['Signed in', 'Go back to the tab with the form: your Discord name and email are there now. You can close this tab.'],
+      bad: ['This sign-in did not finish', 'Go back to the form and press Sign in with Discord again.'] },
+    it: { ok: ['Accesso fatto', 'Torna alla scheda con il modulo: ora ci sono il tuo nome Discord e la tua email. Puoi chiudere questa scheda.'],
+      bad: ['L\'accesso non si è concluso', 'Torna al modulo e premi di nuovo Accedi con Discord.'] },
+    es: { ok: ['Sesión iniciada', 'Vuelve a la pestaña del formulario: ya están tu nombre de Discord y tu email. Puedes cerrar esta pestaña.'],
+      bad: ['El inicio de sesión no terminó', 'Vuelve al formulario y pulsa otra vez Iniciar sesión con Discord.'] },
+    fr: { ok: ['Connecté', 'Revenez à l\'onglet du formulaire : votre nom Discord et votre e-mail y sont maintenant. Vous pouvez fermer cet onglet.'],
+      bad: ['La connexion n\'a pas abouti', 'Revenez au formulaire et appuyez de nouveau sur Se connecter avec Discord.'] },
+    ja: { ok: ['ログインしました', 'フォームのタブに戻ってください。Discord の名前とメールが入っています。このタブは閉じてかまいません。'],
+      bad: ['ログインが完了しませんでした', 'フォームに戻り、もう一度「Discord でログイン」を押してください。'] },
+    ko: { ok: ['로그인했습니다', '양식이 있는 탭으로 돌아가세요. Discord 이름과 이메일이 들어가 있습니다. 이 탭은 닫아도 됩니다.'],
+      bad: ['로그인이 끝나지 않았습니다', '양식으로 돌아가 Discord로 로그인을 다시 누르세요.'] },
+    zh: { ok: ['已登录', '请回到表单所在的标签页，你的 Discord 名称和邮箱已经在那里。可以关闭此标签页。'],
+      bad: ['登录没有完成', '请回到表单，再次点击“用 Discord 登录”。'] }
+  };
+  var q = new URLSearchParams(location.hash.slice(1));
+  var lang = WORDS[q.get('lang')] ? q.get('lang') : 'en';
+  var k = q.get('k') || '';
+  var t = q.get('t') || '';
+  var handed = false;
+  if (HEX64.test(k) && HEX64.test(t)) {
+    try {
+      localStorage.setItem(DONE_KEY, JSON.stringify({ k: k, t: t, at: Date.now() }));
+      handed = true;
+    } catch (e) { /* storage blocked: the form cannot receive it, say so */ }
+  }
+  // The token has done its job here: keep it out of the address bar and history.
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  var w = WORDS[lang][handed ? 'ok' : 'bad'];
+  document.documentElement.lang = lang;
+  document.title = 'Xenon: ' + w[0];
+  document.getElementById('h').textContent = w[0];
+  document.getElementById('p').textContent = w[1];
+})();
+</script>
+</body>
+</html>
