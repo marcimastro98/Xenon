@@ -188,3 +188,14 @@ test('a game that runs but whose frames cannot be read is named once, with wheth
   const ok = createPerfStream({ fps: { ...fps, isAvailable: () => true }, wanted: () => true, hasClients: () => true, broadcast: () => {}, game: () => 'Game.exe' });
   assert.deepEqual(ok.snapshot(), { active: false, game: 'Game.exe' });
 });
+
+test('the stutter line carries the program that weighs on the PC, checked, never trusted', () => {
+  const why = (w) => snapshot(fakeFps(), null, null, () => w).why;
+  assert.deepEqual(why({ verdict: 'low', reason: 'cpu_bound', app: { name: 'encoder', cpu: 15, path: 'x' } }),
+    { verdict: 'low', reason: 'cpu_bound', app: { name: 'encoder', cpu: 15 } });
+  assert.deepEqual(why({ verdict: 'stutter', reason: 'ram_full', app: { name: 'browser', ramMB: 3400 } }),
+    { verdict: 'stutter', reason: 'ram_full', app: { name: 'browser', ramMB: 3400 } });
+  for (const app of [null, { name: '' , cpu: 5 }, { name: 'a' }, { name: 3, cpu: 5 }, { name: 'a', cpu: 'lots' }]) {
+    assert.deepEqual(why({ verdict: 'low', reason: 'cpu_bound', app }), { verdict: 'low', reason: 'cpu_bound' }, JSON.stringify(app));
+  }
+});

@@ -52,6 +52,7 @@ const isProtected = (key) => SYSTEM.has(key);
 const isOwnName = (key) => key.startsWith('xenon');
 // Left alone together with everything they started.
 const keepsItsTree = (key) => isOwnName(key) || LATENCY_APPS.has(key);
-const leftAlone = (key) => SYSTEM.has(key) || DESKTOP_SESSION.has(key) || keepsItsTree(key);
+const isDesktopSession = (key) => DESKTOP_SESSION.has(key);
+const leftAlone = (key) => SYSTEM.has(key) || isDesktopSession(key) || keepsItsTree(key);
 
-module.exports = { processKey, isProtected, keepsItsTree, isSharedRuntime, leftAlone };
+module.exports = { processKey, isProtected, isDesktopSession, isOwnName, keepsItsTree, isSharedRuntime, leftAlone };

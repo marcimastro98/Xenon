@@ -229,6 +229,38 @@
     if (!STUTTER_REASONS.includes(reason)) return '';
     return fill(tr(ctx, 'why_' + reason, STUTTER_FALLBACK[reason][0]), d || {});
   }
+
+  // The program that weighs on the PC (server/perf-session/culprit.js, `app` on the
+  // answer and on the perf reading's `why`): its name, and how much of the processor
+  // (%) or of the memory (GB) it uses. Null when there is none.
+  const STUTTER_APP_FALLBACK = Object.freeze({
+    cpu: '{app} is using {cpu}% of the processor. Close it if you do not need it while you play.',
+    ram: '{app} is holding {ram} GB of memory. Close it if you do not need it while you play.',
+  });
+  function stutterAppOf(d, ctx) {
+    const a = d && d.app;
+    if (!a || typeof a.name !== 'string' || !a.name) return null;
+    const name = a.name.slice(0, 40);
+    let amount = '';
+    try {
+      const page = typeof document !== 'undefined' && document.documentElement ? document.documentElement.lang : '';
+      const fmt = (v) => new Intl.NumberFormat((ctx && ctx.lang) || page || 'en', { maximumFractionDigits: v < 10 ? 1 : 0 }).format(v);
+      if (Number.isFinite(a.cpu)) return { name, kind: 'cpu', amount: fmt(Math.round(a.cpu)) };
+      if (Number.isFinite(a.ramMB)) amount = fmt(a.ramMB / 1024);
+    } catch { amount = ''; }
+    return amount ? { name, kind: 'ram', amount } : null;
+  }
+  // The tile's short form, after the reason: "videoencoder 15%", "browser 3.3 GB".
+  function stutterAppShort(d, ctx) {
+    const a = stutterAppOf(d, ctx);
+    return a ? a.name + ' ' + a.amount + (a.kind === 'cpu' ? '%' : ' GB') : '';
+  }
+  function stutterAppTip(d, ctx) {
+    const a = stutterAppOf(d, ctx);
+    if (!a) return '';
+    return tr(ctx, 'why_app_' + a.kind + '_tip', STUTTER_APP_FALLBACK[a.kind])
+      .replace(/\{(app|cpu|ram)\}/g, (_, k) => (k === 'app' ? a.name : a.amount));
+  }
   function stutterWhy(d, ctx) {
     if (!d || typeof d !== 'object' || d.ok !== true || !STUTTER_REASONS.includes(d.reason)) return null;
     const fine = d.reason === 'smooth' || d.reason === 'capped';
@@ -236,7 +268,7 @@
       type: fine ? 'success' : 'info',
       kicker: String(d.process || '').replace(/\.exe$/i, '').slice(0, 40) || tr(ctx, 'deck_act_stutterWhy', 'Why does it stutter?'),
       title: stutterLabel(d.reason, d, ctx),
-      message: fill(tr(ctx, 'why_' + d.reason + '_tip', STUTTER_FALLBACK[d.reason][1]), d),
+      message: stutterAppTip(d, ctx) || fill(tr(ctx, 'why_' + d.reason + '_tip', STUTTER_FALLBACK[d.reason][1]), d),
       duration: fine ? 6000 : 12000,
       important: true, // the answer to a press, in the game it was asked about
     };
@@ -307,5 +339,5 @@
     };
   }
 
-  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS };
+  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS };
 });

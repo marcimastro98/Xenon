@@ -172,7 +172,10 @@
   function whyText() {
     const w = perf.why;
     if (!w || (w.verdict !== 'stutter' && w.verdict !== 'low') || !window.AlertToasts) return '';
-    return window.AlertToasts.stutterLabel(w.reason, perf, { t });
+    const label = window.AlertToasts.stutterLabel(w.reason, perf, { t });
+    // The program that weighs on the PC, when there is one: "browser 3.3 GB".
+    const app = label && window.AlertToasts.stutterAppShort ? window.AlertToasts.stutterAppShort(w, { t }) : '';
+    return app ? label + ' · ' + app : label;
   }
 
   // What the user chose to show (Settings, Performance, or the Overlay section of

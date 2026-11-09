@@ -13,6 +13,7 @@ const { createLedger } = require('./ledger');
 const { createWindowsFence } = require('./fence-windows');
 const { createLinuxFence } = require('./fence-linux');
 const { createDarwinFence } = require('./fence-darwin');
+const { createCulpritWatch } = require('./culprit');
 
 const STATS_WINDOW_MS = 350;
 const STATS_TOP_APPS = 40;
@@ -64,6 +65,8 @@ function createPerfSession({ collectors, dataDir, platform = process.platform })
     priority: createPriority({ table }),
     shield,
     stats: () => readStats(table),
+    // The program that weighs on the PC while the stutter watch blames it (culprit.js).
+    culprit: createCulpritWatch({ read: () => readStats(table), available: () => table.available() }),
   };
 }
 

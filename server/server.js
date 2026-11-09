@@ -27296,6 +27296,7 @@ const _stutterWatch = createStutterWatch({
   fps: fpsMonitor,
   readSystem: async () => ({ ...(await getSystemInfo()), cpuMaxCore: cachedCpuMaxCore }),
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  culprit: perfSession.culprit,
 });
 // A game in exclusive full screen hides the widgets over it: said once per game
 // (exclusive-hint.js), only when there is something on the overlay to hide.

@@ -146,8 +146,17 @@ function diagnose({ stats, frames, samples } = {}) {
   };
 }
 
+// Bit's English line for the program that weighs on the PC (the screens word it themselves).
+function appSentence(app) {
+  return app.cpu != null
+    ? `${app.name} is using ${app.cpu}% of the processor.`
+    : `${app.name} is holding ${Math.round(app.ramMB / 102.4) / 10} GB of memory.`;
+}
+
 // deps: { fps (fps-monitor facade), readSystem()? → one fresh reading,
-//         game()? → the game in front ('' = none) }
+//         game()? → the game in front ('' = none),
+//         culprit? → { onWhy(shown, game), current(reason?) } (perf-session/culprit.js):
+//         the program that weighs on the PC, added as `app` when it is to blame }
 // fpsmon measures whatever app presents frames in front, a browser too: without
 // a game (gamedetect's word, as the perf tile uses it) there is nothing to judge.
 function createStutterWatch(deps) {
@@ -172,7 +181,7 @@ function createStutterWatch(deps) {
   // starts over, so its readings are never mixed with the previous one's.
   function onSystem(sys, running) {
     const name = typeof running === 'string' ? running : '';
-    if (!name) { if (game) { game = ''; reset(); } return; }
+    if (!name) { if (game) { game = ''; reset(); } tellCulprit(null, ''); return; }
     if (name !== game) { game = name; reset(); }
     if (sys && typeof sys === 'object') samples = samples.concat([sys]).slice(-SAMPLES_KEPT);
     const r = evaluate();
@@ -181,10 +190,22 @@ function createStutterWatch(deps) {
     if (key && candidate === key) shown = { verdict: r.verdict, reason: r.reason };
     else if (!key) shown = null;
     candidate = key;
+    tellCulprit(shown, game);
   }
 
-  // For the perf stream: { verdict, reason } once it held for two ticks, or null.
-  function current() { return shown; }
+  function tellCulprit(why, name) {
+    try { if (d.culprit) d.culprit.onWhy(why, name); } catch { /* the verdict stands alone */ }
+  }
+
+  function culpritFor(reason) {
+    try { return d.culprit ? d.culprit.current(reason) : null; } catch { return null; }
+  }
+
+  // For the perf stream: { verdict, reason, app? } once it held for two ticks, or null.
+  function current() {
+    const app = shown ? culpritFor(shown.reason) : null;
+    return app ? { ...shown, app } : shown;
+  }
 
   // The full answer now (Deck key, Bit). Without a reading yet (no dashboard
   // open, so no system tick), one is taken.
@@ -198,7 +219,9 @@ function createStutterWatch(deps) {
     if (!samples.length && typeof d.readSystem === 'function') {
       try { const sys = await d.readSystem(); if (sys && typeof sys === 'object') samples = [sys]; } catch { /* frames alone */ }
     }
-    return evaluate();
+    const r = evaluate();
+    const app = r.ok ? culpritFor(r.reason) : null;
+    return app ? { ...r, app, summary: r.summary + ' ' + appSentence(app) } : r;
   }
 
   return { onSystem, current, explain };

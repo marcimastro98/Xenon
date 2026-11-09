@@ -118,6 +118,28 @@ test('"why does it stutter?": every server reason is worded, in all 11 languages
   assert.match(read('../js/main.js'), /addEventListener\('stutter_why'[\s\S]{0,120}PerfWidget\.onStutterWhy/);
 });
 
+test('"why does it stutter?": the program that weighs on the PC is named, in all 11 languages', () => {
+  const i18n = read('../js/i18n.js');
+  for (const key of ['why_app_cpu_tip', 'why_app_ram_tip']) {
+    const lines = i18n.match(new RegExp('^    ' + key + ': .*$', 'gm')) || [];
+    assert.equal(lines.length, 11, key);
+    for (const line of lines) assert.match(line, key.includes('cpu') ? /\{app\}[\s\S]*\{cpu\}|\{cpu\}[\s\S]*\{app\}/ : /\{app\}[\s\S]*\{ram\}|\{ram\}[\s\S]*\{app\}/, line);
+  }
+  const cpu = A.stutterWhy({ ok: true, reason: 'cpu_bound', app: { name: 'encoder', cpu: 15 } }, ctx());
+  assert.equal(cpu.title, 'The graphics card waits');
+  assert.equal(cpu.message, 'encoder is using 15% of the processor. Close it if you do not need it while you play.');
+  const ram = A.stutterWhy({ ok: true, reason: 'ram_full', app: { name: 'browser', ramMB: 3400 } }, ctx());
+  assert.equal(ram.message, 'browser is holding 3.3 GB of memory. Close it if you do not need it while you play.');
+  assert.equal(A.stutterAppShort({ app: { name: 'browser', ramMB: 3400 } }, { lang: 'it' }), 'browser 3,3 GB');
+  assert.equal(A.stutterAppShort({ app: { name: 'encoder', cpu: 15.4 } }, ctx()), 'encoder 15%');
+  assert.equal(A.stutterAppShort({ app: { name: 'big', ramMB: 20480 } }, ctx()), 'big 20 GB');
+  assert.equal(A.stutterWhy({ ok: true, reason: 'cpu_bound', app: { name: '$&', cpu: 9 } }, ctx()).message.startsWith('$& is'), true, 'a name is text, never a pattern');
+  for (const app of [null, { name: '' }, { name: 'x' }, { name: 5, cpu: 1 }]) {
+    assert.equal(A.stutterAppShort({ app }, ctx()), '', JSON.stringify(app));
+    assert.equal(A.stutterWhy({ ok: true, reason: 'cpu_bound', app }, ctx()).message, 'The processor or the game itself is the limit. Close apps in the background.');
+  }
+});
+
 test("Bit's vitals popup: its line, for as long as the server says, never past it or empty", () => {
   const now = 1000;
   assert.deepEqual(A.vitals({ text: ' drink ', until: now + 9000 }, now),

@@ -1214,7 +1214,12 @@ if (m.type === 'data' && m.stream === 'perf') {
   //            system readings in a row (5 to 10 s at the default refresh), else null:
   //            verdict smooth | stutter | low; reason smooth, capped, vram_full,
   //            ram_full, gpu_hot, cpu_hot, gpu_bound, cpu_bound, mixed,
-  //            no_gpu_reading, loading (shaders or streaming: nothing at its limit)
+  //            no_gpu_reading, loading (shaders or streaming: nothing at its limit);
+  //            with cpu_bound or mixed `app` { name, cpu } is the program other than
+  //            the game and the system using the most of the processor (cpu = % of
+  //            the whole CPU, 5 or more), with ram_full `app` { name, ramMB } the one
+  //            holding the most memory (1024 MB or more); absent when none (5.0.0).
+  //            The name is the process's (lowercase, no .exe): show it as text
   // d.exclusive true when the game runs in exclusive full screen: no window,
   //            yours included, can show over it (borderless or windowed full
   //            screen fixes that); false otherwise, and always false on Linux

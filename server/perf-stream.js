@@ -38,11 +38,21 @@ function unreadable(fps, game) {
 }
 
 // "Why does it stutter?" (stutter-why.js): { verdict, reason } once it held for
-// two system ticks, or null.
+// two system ticks, or null; with `app` { name, cpu | ramMB } when a program other
+// than the game weighs on the PC (perf-session/culprit.js).
 function whyOf(why) {
   let w = null;
   try { w = typeof why === 'function' ? why() : null; } catch { w = null; }
-  return w && typeof w.verdict === 'string' && typeof w.reason === 'string' ? { verdict: w.verdict, reason: w.reason } : null;
+  if (!w || typeof w.verdict !== 'string' || typeof w.reason !== 'string') return null;
+  const app = appOf(w.app);
+  return app ? { verdict: w.verdict, reason: w.reason, app } : { verdict: w.verdict, reason: w.reason };
+}
+
+function appOf(a) {
+  if (!a || typeof a.name !== 'string' || !a.name) return null;
+  if (Number.isFinite(a.cpu)) return { name: a.name, cpu: a.cpu };
+  if (Number.isFinite(a.ramMB)) return { name: a.name, ramMB: a.ramMB };
+  return null;
 }
 
 function snapshot(fps, last, bench, why, game) {
