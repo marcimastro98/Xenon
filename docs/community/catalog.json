@@ -42,7 +42,7 @@
         "cost",
         "supporter"
       ],
-      "version": "1.1.0",
+      "version": "1.1.1",
       "pkgId": "meter-reading",
       "appVersionMin": "5.0.0",
       "preview": {
@@ -54,7 +54,7 @@
       "active": false,
       "addedAt": "2026-11-08",
       "codeFile": true,
-      "updatedAt": "2026-11-08"
+      "updatedAt": "2026-11-09"
     },
     {
       "id": "car-stereo-scene",
