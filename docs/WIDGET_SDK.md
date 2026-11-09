@@ -164,6 +164,8 @@ window) does not report errors or pictures yet.
 | `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
 | `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v5.0) |
 | `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
+| `options` | no | **Your widget's own choices, set from the Store (Installed, Options) and the Xenon menu** (v5.0): what to show, which shape, when. Up to 32 entries; each is `{ id, kind, label }` with `kind` `"toggle"` (`default: true\|false`), `"select"` (2 to 8 `choices` of `{ value, label }`, `default` one of their values) or `"group"` (a heading; a toggle names it with `group`). `id` and `value` match `^[a-z][a-zA-Z0-9_-]{0,31}$`; `label` is a string or a map by two-letter language (`{ "en": "Memory", "it": "Memoria" }`), cut at 60 characters. The values arrive in `init.options` and again in an `options` message when they change. Not a permission. A wrong entry is left out and the rest are kept. See *Your own options*. |
+| `fit` | no | `true` → on the desktop and over everything your **box takes the size you ask for** with a `layer` message, instead of the size the user drew, so a counter is as big as its numbers. The menu then hides the size and the merge-into-tabs rows for your widget. Not a permission; ignored on an `ambient` package. See *Sizing your box*. (v5.0) |
 | `key` | no | **A key combination you suggest for showing your widget** (v5.0): `{ "combo": "ctrl+shift+k", "mode": "toggle" }`, where `mode` is `"toggle"` (press to show or hide it, the default) or `"hold"` (it shows while the keys are held). Xenon only **offers** it in the widget's card of the Xenon menu; nothing is set until the user picks it, and they can choose any other combination. Not a permission. A combination Xenon cannot use or that the system reserves is dropped and your package still installs. Ignored on an `ambient` package. See *Suggested keys*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
@@ -341,6 +343,15 @@ than the manifest requested):
 {
   xenonSdk: 1, type: 'init',
   api: 1,
+  // Every limit the host enforces on you, so you can size requests without a
+  // test fetch (v5.0.0; absent before, when a fetch answer was capped at 1 MB).
+  // Read the numbers, never a Xenon version: see "Host limits" under Network.
+  limits: {
+    fetch:   { maxResponseBytes: 4194304, maxRequestBytes: 262144, minIntervalMs: 1000,
+               maxInFlight: 2, timeoutMs: 20000 },
+    store:   { maxKeys: 128, maxValueBytes: 16384, maxTotalBytes: 262144 },
+    secrets: { maxCount: 16, maxValueBytes: 4096 }
+  },
   theme:  {
     appearance: 'dark'|'light',
     // Which SKIN the dashboard is wearing: 'glass' (Liquid Glass and Classic, the
@@ -421,6 +432,13 @@ than the manifest requested):
   // True on a paired phone or tablet (v5.0.0). Some actions only make sense on
   // the PC and are refused from there: hide those buttons. Missing on an older Xenon.
   remote: false,
+  // Your manifest `options` with the user's values, keyed by id (v5.0.0): true/false
+  // for a toggle, the chosen value for a select. {} without options. See "Your own options".
+  options: { form: 'row', fps: true, ram: false },
+  // The number of this copy when it was bought with Sparks in the Store (v5.0.0):
+  // 1 for the first copy sold, 2 for the next. null for any other copy (yours,
+  // a supporter's, a shared code, the trial). See "Your copy number".
+  edition: 42,
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
   // Only slots they actually filled appear. See "User-supplied addresses".
   userHosts: {
@@ -1061,6 +1079,12 @@ total is right even if the widget was closed for hours.
   package holds the grant.
 - **Pull it rarely.** It changes once per sample: a `refresh` every minute is
   plenty (the reading is cached 60 s).
+- **Out of sight too.** `energy` is the one pulled stream a background service
+  frame may `refresh`: with `"background": true` and a granted badge, island
+  or mini slot, a kWh chip by the clock keeps counting with no tile anywhere.
+  A tile that is not on screen is still refused (`not_visible`), so send the
+  chip from the service frame only (`init.service`), or the two frames fight
+  over it.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -2302,6 +2326,91 @@ Errors: `bad_request` (`through` is not `true` or `false`), `not_in_layer`
 (on a dashboard page, or from a service or ambient frame). On a Xenon older than
 5.0.0 nothing answers: treat silence as "not available".
 
+#### Sizing your box — `layer` with `fit` (v5.0.0)
+
+On the desktop or over everything, the box is a share of the screen the user
+drew. A counter wants the opposite: a box as big as what it shows. Declare
+`"fit": true` in the manifest, measure what you drew and ask for that size in
+CSS px:
+
+```js
+const r = document.querySelector('.row').getBoundingClientRect();
+parent.postMessage({ xenonSdk: 1, type: 'layer', id: 2, fit: { w: Math.ceil(r.width), h: Math.ceil(r.height) } }, '*');
+// → { xenonSdk: 1, type: 'layer_result', id: 2, ok: true }
+```
+
+The box keeps the corner it leans on (a counter in the top right grows to the
+left and down), stays inside the screen, adds the tile's own edge around your
+frame and is saved like a move the user makes. Ask again only when your size
+changes (a reading switched on, another language), not every frame. Answers:
+`not_allowed` (no `"fit": true`), `not_in_layer` (a dashboard tile: there the
+tile's size is the user's), `unavailable` (beside an app, or in a tab group),
+`busy` (edit mode is open), `bad_request` (not two positive numbers). Once
+refused, keep drawing for the box you have and stop asking.
+
+### 4e-ter. Your own options — `options` and `option` (v5.0.0)
+
+What a widget shows is a choice the user makes once. Declare the choices in the
+manifest `options` and Xenon draws them, in the user's language, in two places:
+**Options** on the widget's row in the Store (Installed), on every screen, a
+dashboard tile, a browser and a paired phone included; and its card in the Xenon
+menu (Widgets) when it sits on the desktop or over a game. Xenon keeps the values
+(they survive restarts and updates while the ids stay the same). Bit can list and
+change them too (`list_widget_options`, `set_widget_option`).
+
+```json
+"options": [
+  { "id": "form", "kind": "select", "label": { "en": "Shape", "it": "Forma" }, "default": "row",
+    "choices": [{ "value": "min", "label": "Minimal" }, { "value": "row", "label": "Row" }] },
+  { "id": "net", "kind": "group", "label": "Network" },
+  { "id": "ping", "kind": "toggle", "label": "Ping", "default": true, "group": "net" }
+]
+```
+
+The values come in `init.options`, and in an `options` message whenever the user
+(or another copy of your widget) changes one:
+
+```js
+// host → widget
+{ xenonSdk: 1, type: 'options', values: { form: 'min', ping: true } }
+```
+
+A choice made inside your widget (a settings page of your own) goes to the same
+place, so the menu shows it too: one change per message, toggles as `'on'` or
+`'off'`, a select as one of its values.
+
+```js
+parent.postMessage({ xenonSdk: 1, type: 'option', id: 3, option: 'ping', value: 'off' }, '*');
+// → { xenonSdk: 1, type: 'option_result', id: 3, ok: true }
+```
+
+Only your own package's declared options can be set. Errors: `not_allowed` (no
+`options` in the manifest), `bad_request` (`option` or `value` not a string),
+`bad_option` (an id or value you did not declare), `rate_limited` (more than one
+every 200 ms: send a list one after the other). Every copy then gets the
+`options` message, the sender included. On a Xenon older than 5.0.0 nothing
+answers and `init.options` is missing: keep your choices in your own store there.
+
+### 4e-quater. Your copy number — `edition` (v5.0.0)
+
+A widget sold for Sparks in the Store can show which copy this is ("No. 042").
+The hub numbers every copy bought with Sparks, per Store entry, in the order they
+were bought, and the number comes in `init.edition`: a whole number, the same on
+every PC the buyer opens their copy on, and kept across updates. A number is
+never given to two buyers: a copy taken back (a refund) leaves its number unused.
+
+```js
+const n = init.edition;   // 42, or null
+if (Number.isInteger(n)) badge.textContent = 'No. ' + String(n).padStart(3, '0');
+```
+
+It is `null` for every copy that was not bought with Sparks (your own build, a
+supporter's pass, an item code, the 7-day trial, an older Xenon) and is missing
+before 5.0.0: draw nothing then, never a made-up number. It needs no permission
+and nothing in the manifest. Say "numbered" in your Store text only when every
+copy is sold with Sparks; how many copies exist is the Store entry's copy cap,
+not something the widget knows.
+
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
 ```js
@@ -3013,6 +3122,7 @@ window.parent.postMessage({
 // { xenonSdk: 1, type: 'fetch_result', id: 7, ok: true, status: 200,
 //   contentType: 'application/json', encoding: 'utf8'|'base64', body: '…' }
 // { xenonSdk: 1, type: 'fetch_result', id: 7, ok: false, error: 'host_not_allowed' | 'rate_limited' | 'timeout' | … }
+// { xenonSdk: 1, type: 'fetch_result', id: 7, ok: false, error: 'response_too_large', limit: 4194304 }
 ```
 
 Rules (enforced server-side against your **manifest**, not just your grant):
@@ -3027,6 +3137,21 @@ Rules (enforced server-side against your **manifest**, not just your grant):
 - Responses are capped at 4 MB (1 MB before v5.0); textual bodies arrive as UTF-8 (`encoding:
   'utf8'`), everything else as base64 (build a `data:` URI to display images).
 - Rate limit: ~1 request/s per widget instance, plus a per-package floor.
+
+**Host limits.** Every number above, and the store and secret caps
+(Persistent storage, Secrets & API keys), arrives in `init.limits` (v5.0.0). Size your requests from it instead
+of probing, and instead of mapping a Xenon version to what it allows:
+
+```js
+const init = await xenon.ready;
+// Absent on Xenon before 5.0.0, where an answer was capped at 1 MB.
+const maxBytes = init.limits?.fetch?.maxResponseBytes ?? 1024 * 1024;
+const perPage = maxBytes >= 4 * 1024 * 1024 ? 1000 : 300;   // fewer pages when more fits
+```
+
+A fetch refused for size says which size fits: `response_too_large` and
+`body_too_large` come with `limit`, the number of bytes allowed, so a widget that
+never read `init.limits` can still step down and try again.
 
 To poll an API, simply `setInterval` + `fetch` in your widget — data streams and
 your visibility already gate how often you actually run.
@@ -3237,7 +3362,8 @@ code runs only while a tile is mounted. A package that declares handlers, a
 the host mounts a hidden sandboxed frame (same CSP, same grants, capped at 4
 packages) so those contributions remain live with no tile on screen. Shown to
 the user in the permission dialog; meaningless (and normalized away) without
-one of those capabilities.
+one of those capabilities. A service frame is fed every stream it holds, but it
+may `refresh` only `energy`; the other pulled streams answer `not_visible`.
 
 With **Widgets only** (no dashboard on the PC, v5.0) the service frame still
 runs while one of your handlers is granted, so your Deck keys, their keyboard

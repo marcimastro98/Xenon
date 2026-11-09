@@ -1171,6 +1171,7 @@ addEventListener('message', e =&gt; {
         <li>Loopback and link-local are unreachable, even if a hostname resolves to <code>127.0.0.1</code>; they are blocked at connect time.</li>
         <li>Redirects are <b>not</b> followed (you get the status and location and decide). Headers are limited to <code>accept</code>, <code>accept-language</code>, <code>content-type</code>, <code>authorization</code> and <code>x-*</code>.</li>
         <li>Responses cap at 4&nbsp;MB (1&nbsp;MB before Xenon 5.0); text arrives as UTF-8, binary as base64. Rate limit: about one request per second.</li>
+        <li>From Xenon 5.0, <code>init.limits</code> gives every one of these numbers (and the storage caps), so a widget sizes its requests without a test fetch: <code>init.limits?.fetch?.maxResponseBytes ?? 1048576</code>. An answer refused for size comes back with <code>limit</code>, the bytes that fit.</li>
       </ul>
       <div class="note">Apps like Razer Synapse or Wave Link expose a <code>127.0.0.1</code> endpoint, which the sandbox blocks on purpose. Don't try to reach them directly: use the matching <code>chroma</code> / <code>wavelink</code> action category instead and let Xenon do the local talking.</div>
 
