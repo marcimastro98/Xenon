@@ -5455,22 +5455,20 @@ async function syncSupporterCodeBox() {
     : wallet ? t('settings_sparks_code_saved') : '';
   forget.dataset.which = pass ? 'pass' : 'sparks';
   forget.hidden = !saved;
-  // A saved code is a STATE: "Code saved" and Remove, nothing to type. An empty
-  // field and a Save button beside a saved code read as "enter your code", which
-  // is exactly what a supporter who already did it was being asked. To replace
-  // it, Remove brings the field back. The field is never repopulated: the code
-  // does not come back from the server, and a masked value invites a "fix".
+  // A saved code is a STATE ("Code saved", Remove), never sent back by the server.
+  // Beside a saved pass the box asks only for a Sparks code bought with another
+  // email, by name, so it never reads as "enter your code" (sparks-wallet.js).
+  const open = !saved || (pass && !wallet);
   field.value = '';
-  field.hidden = saved;
+  field.hidden = !open;
+  field.dataset.mode = pass ? 'sparks' : '';
   const save = $('settings-supporter-save');
-  if (save) save.hidden = saved;
+  if (save) save.hidden = !open;
   const savedLine = $('settings-supporter-saved');
   if (savedLine) savedLine.hidden = !saved;
-  // What the box is for goes with the box: the saved line says the rest.
-  ['settings-supporter-lead', 'settings-supporter-sparks-note'].forEach((id) => {
-    const note = $(id);
-    if (note) note.hidden = saved;
-  });
+  if ($('settings-supporter-lead')) $('settings-supporter-lead').hidden = saved;
+  const note = $('settings-supporter-sparks-note');
+  if (note) Object.assign(note, { hidden: !open, textContent: t(note.dataset.i18n = pass ? 'settings_sparks_add_note' : 'settings_sparks_code_note') });
 }
 
 // "Enter your code" on the Support page: the box lives with the other sharing
@@ -5491,10 +5489,11 @@ async function saveSupporterCode() {
   const code = String(field.value || '').trim();
   if (!code) { field.focus(); return; }
   const btn = $('settings-supporter-save');
-  if (btn) btn.disabled = true;
-  // A Sparks code has its own store (sparks-wallet.js); with a pass already here
-  // the server moves its Sparks onto the pass.
+  // A Sparks code has its own store (sparks-wallet.js); with a pass already here the
+  // server moves its Sparks onto the pass, and nothing else may replace that pass.
   const isSparks = code.toUpperCase().replace(/[^A-Z0-9]/g, '').startsWith('XC');
+  if (!isSparks && field.dataset.mode === 'sparks') { setSettingsStatus('settings_sparks_add_note', 'error'); field.focus(); return; }
+  if (btn) btn.disabled = true;
   let out = null;
   let status = 0;
   try {

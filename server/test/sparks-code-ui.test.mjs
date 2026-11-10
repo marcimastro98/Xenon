@@ -40,3 +40,19 @@ test('the new lines exist in all 11 languages and the "no code" line names both 
   }
   assert.match(i18n, /settings_xenon_no_code: ["']To use Sparks, save your supporter code or your Sparks code\./);
 });
+
+// A supporter who bought Sparks with another email got an XC code by mail with no
+// field to paste it into: the box hid itself beside the saved pass (10 Nov 2026).
+test('Settings: beside a saved pass the box stays open for a Sparks code, and only for one', () => {
+  assert.match(box, /const open = !saved \|\| \(pass && !wallet\);/);
+  assert.match(box, /field\.hidden = !open;/);
+  assert.match(box, /field\.dataset\.mode = pass \? 'sparks' : '';/);
+  assert.match(box, /pass \? 'settings_sparks_add_note' : 'settings_sparks_code_note'/);
+  // Anything but an XC code typed there would replace the pass: refused before any request.
+  const save = box.slice(box.indexOf('async function saveSupporterCode('));
+  const guard = save.indexOf("if (!isSparks && field.dataset.mode === 'sparks')");
+  assert.ok(guard > 0 && guard < save.indexOf('fetch('), 'checked before the request');
+  assert.ok(guard < save.indexOf('btn.disabled = true'), 'the button is never left disabled');
+  const i18n = read('js/i18n.js');
+  assert.equal((i18n.match(/\bsettings_sparks_add_note:/g) || []).length, 11);
+});

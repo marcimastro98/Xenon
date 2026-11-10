@@ -70292,66 +70292,77 @@ Object.assign(i18n.nl, {
 Object.assign(i18n.it, {
   settings_sparks_code_saved: 'Resta su questo PC e viene usato quando compri un drop con le Scintille o chiedi qualcosa a Bit.',
   settings_sparks_code_note: "Hai comprato Scintille senza essere sostenitore? Anche il tuo codice Scintille (XC-…) va qui.",
+  settings_sparks_add_note: "Hai comprato Scintille con un’altra email? Incolla qui il codice Scintille (XC-…): si aggiungono alle tue.",
   xai_offer_title_wallet: "Le tue Scintille funzionano con Bit",
   xai_offer_line_wallet: "Le tue Scintille pagano quello che Bit crea per te: widget, temi e pagine. Attivale con un tocco, niente chiavi da configurare.",
 });
 Object.assign(i18n.en, {
   settings_sparks_code_saved: 'It stays on this PC and is used when you buy a drop with Sparks or ask Bit for something.',
   settings_sparks_code_note: "Bought Sparks without being a supporter? Your Sparks code (XC-…) goes here too.",
+  settings_sparks_add_note: "Bought Sparks with another email? Paste the Sparks code (XC-…) here: they are added to yours.",
   xai_offer_title_wallet: "Your Sparks work with Bit",
   xai_offer_line_wallet: "Your Sparks pay for what Bit builds for you: widgets, themes and pages. Turn them on in one tap, no keys to set up.",
 });
 Object.assign(i18n.ko, {
   settings_sparks_code_saved: '이 PC에 보관되며 스파크로 드롭을 살 때나 Bit에게 무언가를 요청할 때 사용됩니다.',
   settings_sparks_code_note: "후원자가 아니어도 스파크를 샀나요? 스파크 코드(XC-…)도 여기에 입력하세요.",
+  settings_sparks_add_note: "다른 이메일로 스파크를 샀나요? 스파크 코드(XC-…)를 여기에 붙여 넣으면 내 스파크에 더해집니다.",
   xai_offer_title_wallet: "내 스파크로 Bit를 쓸 수 있습니다",
   xai_offer_line_wallet: "코드의 스파크로 Bit가 만들어 주는 위젯, 테마, 페이지 비용을 냅니다. 한 번 탭으로 켜고, 설정할 키는 없습니다.",
 });
 Object.assign(i18n.ja, {
   settings_sparks_code_saved: 'この PC に保存され、スパークでドロップを買うときや Bit に頼むときに使われます。',
   settings_sparks_code_note: "サポーターでなくてもスパークを買いましたか？ スパークコード（XC-…）もここに入力してください。",
+  settings_sparks_add_note: "別のメールでスパークを買いましたか？ スパークコード（XC-…）をここに貼り付けると、あなたのスパークに加わります。",
   xai_offer_title_wallet: "あなたのスパークで Bit が使えます",
   xai_offer_line_wallet: "コードのスパークで、Bit が作るウィジェット、テーマ、ページの分を支払います。ワンタップでオン、設定するキーはありません。",
 });
 Object.assign(i18n.zh, {
   settings_sparks_code_saved: '它保存在这台电脑上，用火花购买 drop 或向 Bit 提出请求时使用。',
   settings_sparks_code_note: "没有成为支持者也买了火花？你的火花代码（XC-…）也填在这里。",
+  settings_sparks_add_note: "用其他邮箱买了火花？把火花代码（XC-…）粘贴到这里，火花会加到你的余额里。",
   xai_offer_title_wallet: "你的火花可以用于 Bit",
   xai_offer_line_wallet: "你代码里的火花用于支付 Bit 为你制作的小组件、主题和页面。一键开启，无需设置密钥。",
 });
 Object.assign(i18n.es, {
   settings_sparks_code_saved: 'Se queda en este PC y se usa cuando compras un drop con Chispas o le pides algo a Bit.',
   settings_sparks_code_note: "¿Compraste Chispas sin ser mecenas? Tu código de Chispas (XC-…) también va aquí.",
+  settings_sparks_add_note: "¿Compraste Chispas con otro correo? Pega aquí el código de Chispas (XC-…): se suman a las tuyas.",
   xai_offer_title_wallet: "Tus Chispas funcionan con Bit",
   xai_offer_line_wallet: "Las Chispas de tu código pagan lo que Bit crea para ti: widgets, temas y páginas. Actívalas con un toque, sin claves que configurar.",
 });
 Object.assign(i18n.fr, {
   settings_sparks_code_saved: 'Il reste sur ce PC et sert quand vous achetez un drop avec des Étincelles ou demandez quelque chose à Bit.',
   settings_sparks_code_note: "Vous avez acheté des Étincelles sans être supporter ? Votre code Étincelles (XC-…) se met ici aussi.",
+  settings_sparks_add_note: "Vous avez acheté des Étincelles avec un autre e-mail ? Collez ici le code Étincelles (XC-…) : elles s’ajoutent aux vôtres.",
   xai_offer_title_wallet: "Vos Étincelles fonctionnent avec Bit",
   xai_offer_line_wallet: "Les Étincelles de votre code paient ce que Bit crée pour vous : widgets, thèmes et pages. Activez-les d’un geste, sans clé à configurer.",
 });
 Object.assign(i18n.de, {
   settings_sparks_code_saved: 'Er bleibt auf diesem PC und wird verwendet, wenn du einen Drop mit Funken kaufst oder Bit um etwas bittest.',
   settings_sparks_code_note: "Funken gekauft, ohne Unterstützer zu sein? Dein Funken-Code (XC-…) kommt auch hierher.",
+  settings_sparks_add_note: "Funken mit einer anderen E-Mail gekauft? Füge den Funken-Code (XC-…) hier ein: Sie kommen zu deinen dazu.",
   xai_offer_title_wallet: "Deine Funken funktionieren mit Bit",
   xai_offer_line_wallet: "Die Funken auf deinem Code bezahlen, was Bit für dich baut: Widgets, Themes und Seiten. Mit einem Tipp einschalten, keine Schlüssel nötig.",
 });
 Object.assign(i18n.pt, {
   settings_sparks_code_saved: 'Fica neste PC e é usado quando compras um drop com Faíscas ou pedes algo ao Bit.',
   settings_sparks_code_note: "Compraste Faíscas sem ser apoiante? O teu código de Faíscas (XC-…) também vai aqui.",
+  settings_sparks_add_note: "Compraste Faíscas com outro e-mail? Cola aqui o código de Faíscas (XC-…): juntam-se às tuas.",
   xai_offer_title_wallet: "As tuas Faíscas funcionam com o Bit",
   xai_offer_line_wallet: "As Faíscas do teu código pagam o que o Bit cria para ti: widgets, temas e páginas. Ativa-as com um toque, sem chaves para configurar.",
 });
 Object.assign(i18n.ru, {
   settings_sparks_code_saved: 'Он хранится на этом ПК и используется, когда вы покупаете дроп за Искры или просите о чём-то Bit.',
   settings_sparks_code_note: "Купили Искры, не будучи спонсором? Код Искр (XC-…) тоже вводится здесь.",
+  settings_sparks_add_note: "Купили Искры с другой почты? Вставьте сюда код Искр (XC-…): они добавятся к вашим.",
   xai_offer_title_wallet: "Ваши Искры работают с Bit",
   xai_offer_line_wallet: "Искры вашего кода оплачивают то, что Bit делает для вас: виджеты, темы и страницы. Включаются одним касанием, ключи не нужны.",
 });
 Object.assign(i18n.nl, {
   settings_sparks_code_saved: 'Hij blijft op deze pc en wordt gebruikt als je een drop met Vonken koopt of Bit iets vraagt.',
   settings_sparks_code_note: "Vonken gekocht zonder supporter te zijn? Je Vonkencode (XC-…) hoort hier ook.",
+  settings_sparks_add_note: "Vonken gekocht met een ander e-mailadres? Plak de Vonkencode (XC-…) hier: ze komen bij de jouwe.",
   xai_offer_title_wallet: "Je Vonken werken met Bit",
   xai_offer_line_wallet: "De Vonken op je code betalen wat Bit voor je maakt: widgets, thema's en pagina's. Zet ze aan met één tik, geen sleutels in te stellen.",
 });
