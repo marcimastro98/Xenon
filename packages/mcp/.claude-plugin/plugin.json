@@ -1,6 +1,6 @@
 {
   "name": "xenon-widgets",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Build your own Xenon widgets: the Widget SDK, a starter, install on the dashboard, the errors it hits and a picture of its tile.",
   "author": { "name": "marcimastro98" },
   "homepage": "https://xenon-app.com/create/#mcp"

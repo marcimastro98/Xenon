@@ -1,6 +1,6 @@
 {
   "name": "xenon-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Build widgets for the Xenon dashboard from Claude Code, Codex or any MCP client: read the SDK, install, see errors and a picture of the tile.",
   "mcpName": "io.github.marcimastro98/xenon-widgets",
   "license": "SEE LICENSE IN LICENSE",
