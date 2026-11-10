@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 🐛 Fixed
 - **The website's banner for an item sold with Sparks says its price.** The banner for Culprit read "A widget for Xenon supporters" with an Unlock key, but no pass opens it: it is bought. It now says "A widget for 300 Sparks" with a Buy key, in every language of the site.
+- **Closing a banner on the website hides it for that visit only.** Before, a banner closed once never came back, so a visitor who closed one missed every later drop shown in the same place. The next visit shows the current banners again, and the card in the corner now appears after the first screen instead of after half the page.
 
 ## [v5.0.0] - 10-11-2026
 

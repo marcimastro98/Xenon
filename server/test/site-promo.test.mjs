@@ -198,7 +198,7 @@ test('the design rules hold in the stylesheet: no gradient, no shadow, no blur, 
 });
 
 // ── The page half, through a fake DOM ──────────────────────────────────────────────
-function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {}, pageHeight = 3000, reserved = false, hang = false } = {}) {
+function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {}, visit = {}, pageHeight = 3000, reserved = false, hang = false } = {}) {
   const docListeners = {};
   const winListeners = {};
   const make = (tag) => ({
@@ -247,7 +247,7 @@ function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path =
     return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
   };
   const local = storage(Object.assign(consent ? { 'xenon.site.consent': consent } : {}, stored));
-  const session = storage({});
+  const session = storage(visit);
   const window = {
     matchMedia: (q) => ({ matches: q.includes('min-width') ? wide : false }),
     navigator: { languages: ['it-IT', 'it'] },
@@ -305,36 +305,50 @@ test('render: an Italian page is Italian', async () => {
   assert.match(strip.textContent, /Quale app sta pesando sul PC\./);
 });
 
-test('render: a closed strip stays closed, and closing it gives the header its place back', async () => {
+test('render: a closed strip stays closed for the visit, comes back on the next one, and gives the header its place back', async () => {
   const dom = await run();
   const strip = dom.body.children[0];
   const x = dom.all().find((n) => n.tagName === 'BUTTON' && dom.hasClass(n, 'xp-x') && dom.all().includes(n) && strip.textContent.includes(n.textContent) && n.parent && dom.hasClass(n.parent, 'xp-in'));
   x.on.click();
   assert.equal(dom.all().some((n) => dom.hasClass(n, 'xp-strip')), false);
   assert.equal(dom.hd.style.top, '');
-  const saved = dom.local.getItem('xenon.site.promo.v1');
+  assert.equal(dom.local.getItem('xenon.site.promo.v1'), null, 'never kept forever');
+  const saved = dom.session.getItem('xenon.site.promo.v2');
   assert.match(saved, /"strip:river-strip"/);
 
-  const again = await run({ stored: { 'xenon.site.promo.v1': saved } });
-  assert.equal(again.all().some((n) => again.hasClass(n, 'xp-strip')), false);
+  const samePage = await run({ visit: { 'xenon.site.promo.v2': saved }, path: '/faq/' });
+  assert.equal(samePage.all().some((n) => samePage.hasClass(n, 'xp-strip')), false, 'not on the next page of the same visit');
+
+  const nextVisit = await run();
+  assert.ok(nextVisit.all().some((n) => nextVisit.hasClass(n, 'xp-strip')), 'back on the next visit');
 });
 
-// The drop panel: never on arrival, only once the visitor has read half the page, never a modal,
-// and once per drop (not per visit). The page in these tests is 3000px tall in a 900px window, so
-// half of it is a scroll of 1050px.
+// Before 10 Nov 2026 a closing was kept in localStorage for good, so someone who closed a banner
+// once never saw another drop's banner from that place: that memory is dropped on load.
+test('render: a closing kept forever by the old version is forgotten', async () => {
+  const dom = await run({ stored: { 'xenon.site.promo.v1': '{"strip:river-strip":1,"panel:river":1}' } });
+  assert.equal(dom.local.getItem('xenon.site.promo.v1'), null);
+  assert.ok(dom.all().some((n) => dom.hasClass(n, 'xp-strip')));
+  scrollTo(dom, 1100);
+  assert.ok(panelOf(dom));
+});
+
+// The drop panel: never on arrival, only once the visitor has read the first screen (or half of a
+// short page), never a modal, and once per visit. The page in these tests is 3000px tall in a 900px
+// window, so the first screen is a scroll of 900px.
 const panelOf = (dom) => dom.all().find((n) => dom.hasClass(n, 'xp-panel'));
 const scrollTo = (dom, y) => { dom.window.scrollY = y; (dom.docListeners.scroll || []).slice().forEach((fn) => fn()); };
 
-test('render: the panel waits for the cookie choice and for half the page, and is never a modal', async () => {
+test('render: the panel waits for the cookie choice and for the first screen, and is never a modal', async () => {
   const dom = await run({ consent: null });
   scrollTo(dom, 2000);
   assert.equal(panelOf(dom), undefined, 'nothing before the cookie choice');
   dom.ctx.document.dispatchEvent(new dom.ctx.CustomEvent('xenon:consent', { detail: { granted: false } }));
   scrollTo(dom, 600);
-  assert.equal(panelOf(dom), undefined, 'not after the first screen: half the page has not been read');
+  assert.equal(panelOf(dom), undefined, 'not inside the first screen');
   scrollTo(dom, 1100);
   const panel = panelOf(dom);
-  assert.ok(panel, 'after half the page');
+  assert.ok(panel, 'after the first screen');
   assert.ok(dom.hasClass(panel, 'xp-corner'), 'in the corner on a computer');
   assert.equal(panel.classList.contains('in'), true);
   assert.equal(dom.all().some((n) => n.tagName === 'DIALOG'), false, 'never a modal');
@@ -343,17 +357,21 @@ test('render: the panel waits for the cookie choice and for half the page, and i
   assert.doesNotMatch(src, /showModal|<dialog|'dialog'/);
 });
 
-test('render: the panel shows once per drop, across visits, whatever the hub called the place', async () => {
+test('render: the panel shows once per visit, again on the next one, whatever the hub called the place', async () => {
   const dom = await run();
   scrollTo(dom, 1100);
   assert.equal(dom.all().filter((n) => dom.hasClass(n, 'xp-panel')).length, 1, 'one panel even with a spotlight and a corner set');
-  const saved = dom.local.getItem('xenon.site.promo.v1');
-  assert.match(saved, /"panel:river"/, 'remembered by the drop, as soon as it is shown');
+  const saved = dom.session.getItem('xenon.site.promo.v2');
+  assert.match(saved, /"panel:river"/, 'remembered for the visit, as soon as it is shown');
 
-  const again = await run({ stored: { 'xenon.site.promo.v1': saved }, path: '/faq/' });
+  const again = await run({ visit: { 'xenon.site.promo.v2': saved }, path: '/faq/' });
   scrollTo(again, 2000);
-  assert.equal(panelOf(again), undefined, 'not again on the next visit');
+  assert.equal(panelOf(again), undefined, 'not again on the next page of the same visit');
   assert.ok(again.all().some((n) => again.hasClass(n, 'xp-strip')), 'the strip is on every page until closed');
+
+  const nextVisit = await run({ path: '/faq/' });
+  scrollTo(nextVisit, 1100);
+  assert.ok(panelOf(nextVisit), 'back on the next visit');
 });
 
 test('render: on every page, and on a phone it runs along the bottom edge', async () => {
@@ -412,6 +430,7 @@ test('preview: only the hub origin is heard, only the draft is drawn, nothing is
   assert.match(strip.textContent, /Anteprima, non pubblicato/);
   assert.equal(dom.ctx.fetched.length, 0);
   assert.equal(dom.local.getItem('xenon.site.promo.v1'), null);
+  assert.equal(dom.session.getItem('xenon.site.promo.v2'), null);
 });
 
 // ── The thanks page picture: the newest supporter pack, so it never shows a stale date ──
@@ -495,7 +514,7 @@ test('strip: closed, it is forgotten, and no room is kept for it', async () => {
 test('strip: closed on another page, or out of date, memory draws nothing', async () => {
   const first = await run();
   const saved = remembered(first);
-  const closed = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: { ...saved, 'xenon.site.promo.v1': '{"strip:river-strip":1}' }, reserved: true, hang: true });
+  const closed = fakeDom({ feed: FEED, catalog: { entries: ENTRIES }, stored: saved, visit: { 'xenon.site.promo.v2': '{"strip:river-strip":1}' }, reserved: true, hang: true });
   vm.runInNewContext(src, closed.ctx);
   assert.equal(stripOf(closed), undefined);
   assert.equal('data-strip' in closed.ctx.document.documentElement.attrs, false, 'and the room closes');
@@ -599,7 +618,7 @@ test('render: on a phone the drawer waits while a strip is up, and comes once th
   const phone = await run({ wide: false });
   scrollTo(phone, 1100);
   assert.equal(panelOf(phone), undefined, 'not beside the strip');
-  assert.doesNotMatch(String(phone.local.getItem('xenon.site.promo.v1')), /panel:river/, 'waiting does not spend its one showing');
+  assert.doesNotMatch(String(phone.session.getItem('xenon.site.promo.v2')), /panel:river/, 'waiting does not spend its one showing');
   closeOf(phone).on.click();
   scrollTo(phone, 1150);
   assert.ok(panelOf(phone));

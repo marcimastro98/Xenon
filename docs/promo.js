@@ -1,7 +1,7 @@
 // The month's drops on the Xenon site (xenon-app.com), in two places:
-//   strip      a band above the header, on every page, until the visitor closes it
-//   panel      a card at the bottom right (computer) or along the bottom edge (phone), on every
-//              page once half of it has been read, once per drop. Never a modal and never on
+//   strip      a band above the header, on every page, until the visitor closes it for this visit
+//   panel      a card at the bottom right (computer) or along the bottom edge (phone), once per
+//              visit, after the first screen has been read. Never a modal and never on
 //              arrival: see the Panel section for the reasons. The hub's formats "spotlight" and
 //              "corner" both draw this panel; when both are set, spotlight wins.
 //
@@ -329,7 +329,11 @@
 
   // ── The page half ─────────────────────────────────────────────────────────────
   const HUB_ORIGIN = 'https://xenon-supporter-hub.xenonedge.workers.dev';
-  const DISMISS_KEY = 'xenon.site.promo.v1';      // { "strip:<promo id>": ts, "panel:<entry id>": ts }
+  // Closing hides a banner for this visit only (sessionStorage): the next visit shows it again
+  // (his call, 10 Nov 2026: a drop people closed once was never seen again). v1 kept closings in
+  // localStorage forever; it is dropped on load so those visitors see the banners again.
+  const DISMISS_KEY = 'xenon.site.promo.v2';      // { "strip:<promo id>": ts, "panel:<entry id>": ts }
+  const OLD_DISMISS_KEY = 'xenon.site.promo.v1';
   const CONSENT_KEY = 'xenon.site.consent';
 
   let PREVIEW = false;
@@ -347,15 +351,19 @@
   function readJson(store, key) {
     try { const v = JSON.parse(store.getItem(key) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
   }
-  function dismissed(format, id) { return !PREVIEW && Object.prototype.hasOwnProperty.call(readJson(localStorage, DISMISS_KEY), format + ':' + id); }
+  try { localStorage.removeItem(OLD_DISMISS_KEY); } catch (e) { /* private mode */ }
+  function dismissed(format, id) {
+    if (PREVIEW) return false;
+    try { return Object.prototype.hasOwnProperty.call(readJson(sessionStorage, DISMISS_KEY), format + ':' + id); } catch (e) { return false; }
+  }
   function dismiss(format, id) {
     if (PREVIEW) return;
     try {
-      const all = readJson(localStorage, DISMISS_KEY);
+      const all = readJson(sessionStorage, DISMISS_KEY);
       all[format + ':' + id] = Date.now();
       const keys = Object.keys(all).sort((a, b) => all[b] - all[a]).slice(0, 40);
-      localStorage.setItem(DISMISS_KEY, JSON.stringify(Object.fromEntries(keys.map((k) => [k, all[k]]))));
-    } catch (e) { /* private mode: it comes back next visit, which is fine */ }
+      sessionStorage.setItem(DISMISS_KEY, JSON.stringify(Object.fromEntries(keys.map((k) => [k, all[k]]))));
+    } catch (e) { /* storage off: it may come back on the next page, which is fine */ }
   }
   function consentDecided() { try { return !!localStorage.getItem(CONSENT_KEY); } catch (e) { return true; } }
   function whenConsented(fn) {
@@ -576,19 +584,20 @@
   }
 
   // ── Panel ───────────────────────────────────────────────────────────────────────
-  // The month's drop, once per drop and only to someone already reading. It waits until half the
-  // page has gone by (NN/g, "Popups: 10 Problematic Trends", 2019: a box on arrival is the one people
+  // The month's drop, once per visit and only to someone already reading. It waits until the first
+  // screen, or half of a short page, has gone by (NN/g, "Popups: 10 Problematic Trends", 2019: a box on arrival is the one people
   // hate most; Google Search Central treats a box covering the page a search result opened as
   // intrusive), stays small (a corner card on a computer, the bottom edge on a phone, never a modal;
   // under about 1440 px the card can touch the end of the text until it is closed), and is remembered
-  // as soon as it shows, so it never comes back for that drop (Wikimedia banner tests: one ask, then
-  // quiet). A phone has room for one ask: beside the strip the drawer would take close to 40% of the
+  // for the visit as soon as it shows, so it does not follow the reader from page to page; the next
+  // visit shows it again. A phone has room for one ask: beside the strip the drawer would take close to 40% of the
   // screen, so it waits, unspent, until the strip is closed. The hub's "spotlight" and "corner" both
   // land here; spotlight wins.
   const HALF = 0.5;
-  function halfRead() {
-    const max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
-    return max > 0 && (window.scrollY || 0) >= max * HALF;
+  function readOn() {
+    const view = window.innerHeight || 0;
+    const max = (document.documentElement.scrollHeight || 0) - view;
+    return max > 0 && (window.scrollY || 0) >= Math.min(max * HALF, view);
   }
 
   // A press on a button or link is someone doing something (copying a code,
@@ -652,7 +661,7 @@
     }
     whenConsented(() => {
       panelWatch = () => {
-        if (!halfRead() || document.visibilityState === 'hidden' || screenBusy() || crowded() || justActed()) return;
+        if (!readOn() || document.visibilityState === 'hidden' || screenBusy() || crowded() || justActed()) return;
         document.removeEventListener('scroll', panelWatch, true);
         panelWatch = null;
         dismiss('panel', drop);
