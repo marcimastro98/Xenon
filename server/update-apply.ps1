@@ -643,6 +643,12 @@ try {
 
   }   # end of the steps a resumed run skips
 
+  # 3d) Make sure the old engine is gone before npm (it holds koffi's native
+  #     module) and before the new one starts. A run handed over from 4.11.x
+  #     stopped it with -State Listen, which misses the listener on some Windows
+  #     builds. A no-op when the port is already free.
+  Stop-Server
+
   # 4) Reconcile dependencies (the release zip has no node_modules; deps may have
   #    changed). The old tree is snapshotted by RENAME first - instant, and a
   #    failed install is undone exactly by renaming back, with no dependence on
