@@ -218,7 +218,7 @@
       "supportersOnly": true,
       "locked": true,
       "featured": "on",
-      "description": "Your Home Assistant devices as wall plates. Tap to switch, drag a dimmer, set volume, power and temperature right on the plate. Compact, comfortable or large keys; thermostats, energy, 24 hour traces, cameras and media. Smoke, a leak, a triggered alarm or an open door also show in the top bar.",
+      "description": "Your Home Assistant devices as wall plates. Tap, dim, set volume and temperature on the plate. Sensors say what their value means (CO2, air, noise, humidity, battery) over a 6, 24 or 48 hour trace, with limits you set. Players show the cover and source, thermostats every mode they have.",
       "category": "smart-home",
       "tags": [
         "home-assistant",
@@ -227,9 +227,9 @@
         "camera",
         "supporter"
       ],
-      "version": "1.0.2",
+      "version": "2.0.0",
       "pkgId": "casa",
-      "appVersionMin": "4.11.13",
+      "appVersionMin": "5.0.0",
       "preview": {
         "accent": "#FFB36E",
         "bg": "#141617",
@@ -238,7 +238,7 @@
       "shots": 6,
       "addedAt": "2026-10-16",
       "codeFile": true,
-      "updatedAt": "2026-10-16"
+      "updatedAt": "2026-11-10"
     },
     {
       "id": "pagina-100",
