@@ -384,7 +384,7 @@
         <input type="file" id="codeFile" accept=".txt,.json,text/plain,application/json" hidden>
         <span class="hint" id="codeSize"></span>
       </div>
-      <p class="hint" data-t="code_hint">In Xenon: Settings → Widgets &amp; sharing → export your creation, then copy the code or download the file. Max 2&nbsp;MB.</p>
+      <p class="hint" data-t="code_hint">In Xenon: Settings → Widgets &amp; sharing → export your creation, then copy the code or download the file. Max 4&nbsp;MB.</p>
     </div>
 
     <!-- Automatic pre-submit check. The hub audits the pasted code (POST /audit)
@@ -481,7 +481,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {});
     });
   }
-  var MAX_CODE = 2 * 1024 * 1024;
+  var MAX_CODE = 4 * 1024 * 1024;   // mirrors the hub and the catalog (4 MB since app 4.11.10)
   var MAX_SHOTS = 3;
   var MIN_SHOTS = 2;               // mirrors the hub's MIN_SHOTS
   var SHOT_MAX = 4 * 1024 * 1024;
@@ -539,7 +539,7 @@
       desc_ph: 'Ce qu\'il fait, en une ou deux phrases. Le Markdown fonctionne : **gras**, *italique*, listes avec - ou 1.',
       code_ph: 'Collez le code depuis Partager et importer → Exporter…',
       code_file: 'Charger depuis un fichier .txt / .json…',
-      code_hint: 'Dans Xenon : Paramètres → Widgets & partage → exportez votre création, puis copiez le code ou téléchargez le fichier. Max 2 Mo.',
+      code_hint: 'Dans Xenon : Paramètres → Widgets & partage → exportez votre création, puis copiez le code ou téléchargez le fichier. Max 4 Mo.',
       f_audit: 'Vérification automatique',
       f_justify: 'Pourquoi votre création a-t-elle besoin de cela ? *',
       f_accent: 'Accent *',
@@ -552,7 +552,7 @@
       ok_p2: 'Vous envoyez une mise à jour plus tard ? Revenez, cochez <b>« C\'est une mise à jour »<\/b>, sélectionnez votre entrée et augmentez la version : elle remplace celle publiée au lieu de devenir une deuxième fiche.',
       ok_back: 'Parcourir le catalogue',
       foot: 'Les soumissions sont modérées. Les codes sont à nouveau validés dans l\'application lors de l\'importation : une entrée du catalogue ne peut jamais modifier quoi que ce soit en silence.',
-      e_code_big: 'Le code dépasse 2 Mo.',
+      e_code_big: 'Le code dépasse 4 Mo.',
       shot_rm: 'Supprimer',
       shot_add: '+ Ajouter',
       pal_manual: 'Ce type ne comporte aucun thème, les trois couleurs ci-dessous sont donc celles par défaut de Xenon : modifiez-les pour adapter votre création.',
@@ -645,7 +645,7 @@
       e_version_lower: 'La v{ver} è PIÙ BASSA della v{pub} pubblicata: l\'app propone l\'aggiornamento solo se la versione sale, quindi questa non arriverebbe a nessuno. Usa la {next} o superiore.',
       code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
-      code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
+      code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 4 MB.',
       send: 'Invia per la revisione', ok_title: 'Inviato',
       ok_status: 'Salva questo link: mostra la revisione, cosa correggere e come.', ok_copy: 'Copia il link',
       ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona: una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
@@ -657,7 +657,7 @@
       k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)', k_topbar: 'topbar (configurazione della barra superiore)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
       e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto: copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
-      e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
+      e_code_big: 'Il codice supera i 4 MB.', e_captcha: 'Completa la verifica anti-spam.',
       e_rate: 'Troppi invii: riprova più tardi.', e_generic: 'Invio non riuscito ({err}): riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
       e_captcha_blocked: 'Non è stato possibile caricare la verifica anti-spam: di solito è colpa di un ad blocker o di un\'estensione per la privacy. Disattivala per questa pagina e ricarica, oppure usa il form su GitHub.',
@@ -729,7 +729,7 @@
       e_version_lower: 'La v{ver} es MENOR que la v{pub} publicada. La app solo ofrece una actualización cuando la versión sube, así que esta no llegaría a nadie. Usa la {next} o una superior.',
       code_file: 'Cargar desde archivo .txt / .json…',
       code_ph: 'Pega el código de Compartir e importar → Exportar…',
-      code_hint: 'En Xenon: Ajustes → Widgets y compartir → exporta tu creación y luego copia el código o descarga el archivo. Máximo 2 MB.',
+      code_hint: 'En Xenon: Ajustes → Widgets y compartir → exporta tu creación y luego copia el código o descarga el archivo. Máximo 4 MB.',
       send: 'Enviar a revisión', ok_title: 'Enviado',
       ok_status: 'Guarda este enlace: muestra la revisión, qué corregir y cómo.', ok_copy: 'Copiar enlace',
       ok_p1: 'Tu creación está en la cola de revisión. Una persona mira cada envío: cuando se aprueba, aparece en el catálogo de la comunidad y en la galería Descubrir dentro de Xenon.',
@@ -741,7 +741,7 @@
       k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)', k_topbar: 'topbar (configuración de la barra superior)',
       e_name: 'Ponle un nombre a tu creación.', e_code: 'Pega el código para compartir.',
       e_code_incomplete: 'El código para compartir parece cortado o incompleto. Cópialo entero desde Xenon (o usa «Cargar desde archivo») y vuelve a enviarlo.',
-      e_code_big: 'El código supera los 2 MB.', e_captcha: 'Completa la verificación antispam.',
+      e_code_big: 'El código supera los 4 MB.', e_captcha: 'Completa la verificación antispam.',
       e_rate: 'Demasiados envíos. Inténtalo más tarde.', e_generic: 'El envío ha fallado ({err}). Inténtalo de nuevo.',
       shot_add: '+ Añadir', shot_rm: 'Quitar', sending: 'Enviando…',
       e_captcha_blocked: 'No se pudo cargar la verificación antispam. Suele deberse a un bloqueador de anuncios o a una extensión de privacidad. Desactívalo en esta página y vuelve a cargarla, o usa el formulario de GitHub.',
@@ -795,14 +795,14 @@
       f_tags: '태그 * <small>(최대 6개, 소문자. 스토어에서 사람들이 이것으로 찾습니다)</small>',
       code_ph: '공유 및 가져오기 → 내보내기에서 복사한 코드를 붙여넣으세요…',
       code_file: '.txt / .json 파일에서 불러오기…',
-      code_hint: 'Xenon에서 설정 → 위젯 &amp; 공유로 가서 작품을 내보낸 뒤, 코드를 복사하거나 파일을 내려받으세요. 최대 2&nbsp;MB.',
+      code_hint: 'Xenon에서 설정 → 위젯 &amp; 공유로 가서 작품을 내보낸 뒤, 코드를 복사하거나 파일을 내려받으세요. 최대 4&nbsp;MB.',
       f_accent: '강조색 *',
       f_bgcol: '배경 *',
       f_textcol: '텍스트 *',
       ok_p1: '작품이 검토 대기열에 들어갔습니다. 모든 제출물은 사람이 확인합니다. 승인되면 커뮤니티 카탈로그와 Xenon의 Discover 갤러리에 표시됩니다.',
       ok_p2: '나중에 업데이트하나요? 다시 와서 <b>“업데이트입니다”</b>를 선택하고 항목을 고른 뒤 버전을 올리세요. 새 항목이 생기지 않고 게시된 항목이 교체됩니다.',
       foot: '제출물은 검토를 거칩니다. 코드는 앱에서 가져올 때 다시 검증되므로, 카탈로그 항목이 몰래 무언가를 바꿀 수 없습니다.',
-      e_code_big: '코드가 2 MB를 넘습니다.',
+      e_code_big: '코드가 4 MB를 넘습니다.',
       pal_manual: '이 종류에는 테마가 없어 아래 세 색상이 Xenon 기본값으로 시작합니다. 작품에 맞게 바꾸세요.',
       pal_auto: '코드에서 채웠습니다. 카드를 다르게 보이게 하려면 바꾸세요.',
       target_unknown: '그 id의 카탈로그 항목이 없습니다. 목록에서 고르세요. 그렇지 않으면 검토자가 새 항목으로 처리합니다.',
@@ -898,14 +898,14 @@
       f_tags: 'タグ * <small>(最大 6 個、小文字。ストアで見つけてもらうためのものです)</small>',
       code_ph: '共有とインポート → エクスポートのコードを貼り付けてください…',
       code_file: '.txt / .json ファイルから読み込む…',
-      code_hint: 'Xenon の設定 → ウィジェットと共有で作ったものをエクスポートし、コードをコピーするかファイルをダウンロードします。最大 2&nbsp;MB。',
+      code_hint: 'Xenon の設定 → ウィジェットと共有で作ったものをエクスポートし、コードをコピーするかファイルをダウンロードします。最大 4&nbsp;MB。',
       f_accent: 'アクセント *',
       f_bgcol: '背景 *',
       f_textcol: 'テキスト *',
       ok_p1: '作ったものは確認待ちに入りました。すべての投稿は人が確認します。承認されると、コミュニティカタログと Xenon の Discover ギャラリーに表示されます。',
       ok_p2: 'あとで更新するときは、ここに戻って<b>「更新です」</b>にチェックを入れ、項目を選び、バージョンを上げてください。2 つ目の項目は作られず、公開中のものが置き換わります。',
       foot: '投稿は審査されます。コードはインポート時にアプリ内で再度検証されるため、カタログの項目が黙って何かを変更することはありません。',
-      e_code_big: 'コードが 2 MB を超えています。',
+      e_code_big: 'コードが 4 MB を超えています。',
       pal_manual: 'この種類にはテーマが含まれないため、下の 3 色は Xenon の既定値から始まります。作ったものに合わせて変更してください。',
       pal_auto: 'コードから入力しました。カードの見た目を変えたいときは変更してください。',
       target_unknown: 'その ID のカタログ項目はありません。一覧から選んでください。選ばないと、確認担当者は新しい項目として扱います。',
@@ -1001,14 +1001,14 @@
       f_tags: '标签 * <small>(最多 6 个，小写，用户靠它们在商店中找到你的作品)</small>',
       code_ph: '粘贴从“分享与导入 → 导出”复制的代码…',
       code_file: '从 .txt / .json 文件加载…',
-      code_hint: '在 Xenon 的 设置 → 小组件与分享 中导出你的作品，然后复制代码或下载文件。最大 2&nbsp;MB。',
+      code_hint: '在 Xenon 的 设置 → 小组件与分享 中导出你的作品，然后复制代码或下载文件。最大 4&nbsp;MB。',
       f_accent: '强调色 *',
       f_bgcol: '背景 *',
       f_textcol: '文字 *',
       ok_p1: '你的作品已进入审核队列。每份投稿都由人工查看，通过后会出现在社区目录和 Xenon 的 Discover 图库中。',
       ok_p2: '以后要更新？回到这里，勾选<b>“这是更新”</b>，选择你的条目并提高版本号：它会替换已发布的版本，而不是新增一个条目。',
       foot: '投稿都经过审核。导入时应用会再次验证代码，目录条目绝不会悄悄更改任何内容。',
-      e_code_big: '代码超过 2 MB。',
+      e_code_big: '代码超过 4 MB。',
       pal_manual: '这种类型不含主题，下面三种颜色默认使用 Xenon 的预设值，请按你的作品调整。',
       pal_auto: '已根据你的代码填入；如果想让卡片看起来不同，可以修改。',
       target_unknown: '目录中没有这个 id 的条目，请从列表中选择。否则审核者会把它当作新条目处理。',
@@ -1151,7 +1151,7 @@
     codeSize.textContent = n ? Math.max(1, Math.round(n / 1024)) + ' KB' : '';
     codeSize.style.color = n > MAX_CODE ? 'var(--danger)' : '';
   }
-  // Debounced: parsing runs over a code that can reach 2 MB, so it must not fire
+  // Debounced: parsing runs over a code that can reach 4 MB, so it must not fire
   // on every keystroke of a paste.
   var syncTimer = 0;
   function syncFromCodeSoon() {
@@ -1165,7 +1165,7 @@
   document.getElementById('codeFile').addEventListener('change', function () {
     var f = this.files && this.files[0];
     if (!f) return;
-    if (f.size > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
+    if (f.size > MAX_CODE) { showErr(T('e_code_big', 'The code is over 4 MB.')); return; }
     var r = new FileReader();
     r.onload = function () {
       var text = String(r.result || '');
@@ -1811,7 +1811,7 @@
         return;
       }
     }
-    if (code.length > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
+    if (code.length > MAX_CODE) { showErr(T('e_code_big', 'The code is over 4 MB.')); return; }
     // Catch a code that is already cut off in the browser — a clipboard that
     // pasted short, a half-saved file — before it is ever sent. If it fails to
     // parse HERE, the truncation happened on this machine; if it parses here but
