@@ -2,6 +2,38 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "alibi",
+      "kind": "widget",
+      "name": "Culprit",
+      "author": "Xenon",
+      "locked": true,
+      "sparks": 300,
+      "featured": "main",
+      "description": "A frame counter that also tells you who is to blame when a game lags: this PC, the Wi-Fi, the home line or the provider. A row, or a panel with the route in four sectors: over a game, on the desktop, in a tile.\n\n- **You choose what shows:** FPS, lows, frame time, ping, packet loss, Wi-Fi signal, CPU and GPU load, temperature, clock and power, VRAM, RAM, the time.\n- **Colours that mean something:** a value turns from white to yellow, orange and red as it gets worse.\n- **Only when something is wrong:** nothing over the game until there is a culprit.\n- **Is it me?** answers for the last 30 seconds.\n- **After each match:** every lag with times and numbers, ready to copy.\n\nCulprit cannot see the game's server. Frame readings: all on Windows, FPS only on Linux with MangoHud, none on macOS.",
+      "category": "system",
+      "tags": [
+        "gaming",
+        "fps",
+        "network",
+        "ping",
+        "lag"
+      ],
+      "version": "1.2.0",
+      "pkgId": "alibi",
+      "appVersionMin": "5.0.0",
+      "preview": {
+        "accent": "#ff4034",
+        "bg": "#0c0e11",
+        "text": "#f4f4f0"
+      },
+      "shots": 5,
+      "active": false,
+      "activeFrom": "2026-11-10T00:00:00+01:00",
+      "activeUntil": "2026-12-09T23:59:59+01:00",
+      "addedAt": "2026-11-10",
+      "codeFile": true
+    },
+    {
       "id": "sports",
       "kind": "widget",
       "name": "Sports",
@@ -123,7 +155,7 @@
       "name": "Haunted House",
       "author": "xenon",
       "authorSupporter": true,
-      "featured": "main",
+      "featured": "on",
       "description": "A haunted house with 8 windows. The first holds a pumpkin you carve with your finger or the mouse; where Xenon can read your GPU, its candle burns brighter the harder the GPU works. From 25 to 31 October a window lights up every evening at 8 pm: tap it for a peek. The guests are for supporters.",
       "category": "system",
       "tags": [
