@@ -83,10 +83,9 @@
         "text": "#1d281d"
       },
       "shots": 5,
-      "active": false,
       "addedAt": "2026-11-08",
-      "codeFile": true,
-      "updatedAt": "2026-11-10"
+      "updatedAt": "2026-11-10",
+      "codeFile": true
     },
     {
       "id": "car-stereo-scene",
