@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v5.0.0] - 10-11-2026
+
 ### ✨ Added
 - **Your copy's number.** A widget bought with Sparks now knows which copy it is, numbered in the order people bought it, so a numbered edition can show "No. 042" on your screen. The number stays yours on every PC you install it on and through every update. A Sparks sale with an end date now also ends by itself on that date: nobody new is charged after it, and a copy already bought keeps opening. For creators: `init.edition` in the Widget SDK, and Your copy's number in Xenon Maker.
 - **Choose what a Store widget shows.** A widget can now list its own choices (which readings to show, a smaller shape, when to appear), and Xenon draws them in that widget's card under Widgets in the Xenon menu, in your language. The same choices are under Store → Installed → Options on every screen, so a widget used as a dashboard tile, in a browser, on a paired phone, a Mac or Linux can be changed too, and Back to the widget's choices puts them back as the widget set them. They are kept across restarts and updates, and Bit can tell you which widgets have choices and change them when you ask, wherever the widget is. A widget made to sit over a game can also size its own box to what it shows, so a small counter takes only the room of its numbers instead of a slice of the screen; for those widgets the menu hides the size and the "merge into tabs" rows, and they are never offered as a tab of another widget. A widget's own choices have their own tab on its screen, What it shows. For widget makers: manifest `options` and `fit`, see the Widget SDK guide.
