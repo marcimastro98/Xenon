@@ -32,7 +32,7 @@ test('the sheet holds the name, the search and the count', () => {
 });
 
 test('a tag is words beside the author: no plate, and no kicker over the name', () => {
-  for (const sel of ['.drop-badge', '.drop-badge.lim, .drop-badge.gold', '.drop-badge.sold']) {
+  for (const sel of ['.drop-badge', '.drop-badge.lim, .drop-badge.gold, .drop-badge.sparks', '.drop-badge.sold']) {
     assert.doesNotMatch(rules(sel), /background|border|padding/, sel);
   }
   assert.ok(page.indexOf('meta.appendChild(badges)') > page.indexOf("el('h3', 'drop-name')"));
@@ -63,7 +63,8 @@ test('a locked card has one key: joining; the code is words for those who hold o
   assert.match(words, /box-shadow: none/);
   assert.match(words, /text-decoration: underline/);
   assert.match(words, /min-height: 44px/);
-  assert.equal(page.match(/if \(entry\.locked\) foot\.appendChild\(joinKey\(\)\);/g).length, 2, 'main and side cards');
+  // A drop sold only for Sparks has no join key: no pass opens it (site-catalog-sparks-only.test.mjs).
+  assert.equal(page.match(/if \(entry\.locked && !sparksOnly\(entry\)\) foot\.appendChild\(joinKey\(\)\);/g).length, 2, 'main and side cards');
   assert.match(rules('.spot-foot .sjoin'), /min-height: 44px/);
 });
 

@@ -34,6 +34,8 @@ const DISCORD = 'https://discord.gg/MBVrw9kZyg';
 // Five USD a month is sold on the membership page, not on the one-off coffee page.
 const SUPPORT = 'https://www.buymeacoffee.com/marcimastro98/membership';
 const TRIAL = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
+// The Sparks a supporter's pass gets each month (MONTHLY in the app's js/sparks-store.js).
+const SPARKS_MONTHLY = 300;
 // Catalog entries come from the supporter hub, so their links and colours are
 // checked here as the app checks them (server/community-catalog.js): a
 // "reserve" link must be https on Discord, a preview colour a hex value. An
@@ -222,9 +224,16 @@ const PAGE_CSS = `
 // One item as a card, on a creator's page and under an entry. The box keeps its 16/9
 // whether or not the picture lands, so a missing screenshot leaves a tinted rectangle
 // instead of collapsing the card and reflowing the grid under the reader's cursor.
+// Sold only for Sparks (the hub's "item" access): no supporter pass opens it. The
+// price in Sparks, or 0. Mirror of sparksOnly() in the app's js/community-gallery.js.
+function sparksPrice(e) {
+  return !e.limited && e.supportersOnly !== true && Number.isInteger(e.sparks) && e.sparks > 0 ? e.sparks : 0;
+}
+
 function itemCard(e, { eager = false, full = false } = {}) {
   const locked = e.locked === true || e.supportersOnly === true;
-  const kind = (KIND_LABEL[e.kind] || e.kind) + (locked ? ' for supporters' : '');
+  const price = sparksPrice(e);
+  const kind = (KIND_LABEL[e.kind] || e.kind) + (price ? ` for ${price} Sparks` : locked ? ' for supporters' : '');
   const desc = full && e.description ? clamp(plainDesc(e.description), 140) : '';
   const thumb = Number.isInteger(e.shots) && e.shots > 0
     ? `<img src="${esc(shotUrl(e.id, 1))}" alt="${esc(e.name)} running in Xenon"` +
@@ -286,6 +295,7 @@ function entryPage(e, indexable, live = []) {
   const kindLabel = KIND_LABEL[e.kind] || e.kind;
   const catLabel = e.category ? (CAT_LABEL[e.category] || e.category) : '';
   const locked = e.locked === true || e.supportersOnly === true;
+  const price = sparksPrice(e);
   const limited = e.limited && typeof e.limited === 'object' ? e.limited : null;
   const soldOut = limited ? Number(limited.claimed) >= Number(limited.total) : false;
   const shots = Number.isInteger(e.shots) ? Math.max(0, Math.min(8, e.shots)) : 0;
@@ -385,6 +395,7 @@ function entryPage(e, indexable, live = []) {
     : '';
 
   const what = limited ? `Limited edition ${kindLabel.toLowerCase()} for Xenon`
+    : price ? `${kindLabel} for Xenon, bought with Sparks`
     : locked ? `${kindLabel} for Xenon supporters`
     : `${kindLabel} for Xenon`;
   const sheet = limited || locked ? 'yellow' : 'violet';
@@ -403,6 +414,12 @@ function entryPage(e, indexable, live = []) {
     note = `A limited drop: ${esc(limited.total)} copies, ` +
       `${Math.max(0, Number(limited.total) - Number(limited.claimed))} left. ` +
       `Discord verifies your account and sends a personal access code.`;
+  } else if (price) {
+    buttons =
+      `<a class="pg-key" href="/download.html">Get Xenon</a>` +
+      `<a class="pg-alt" href="${inCatalog}">Open in the catalog</a>`;
+    note = `Bought with ${price} Sparks in Xenon's Store: open the Store in Xenon to unlock it. ` +
+      `Supporters get ${SPARKS_MONTHLY} Sparks every month, and can spend them here.`;
   } else if (locked) {
     buttons =
       `<a class="pg-key" href="${SUPPORT}" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="catalog_item">Become a supporter</a>` +

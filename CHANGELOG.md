@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### 🐛 Fixed
+- **The website shows items sold for Sparks as such.** The catalog, its detail panel, the home page and each item's own page called Culprit a supporter pack, with "Become a supporter" and "Unlock with a code". They now show its price in Sparks and say it is bought in Xenon's Store.
 - **The website's banner for an item sold with Sparks says its price.** The banner for Culprit read "A widget for Xenon supporters" with an Unlock key, but no pass opens it: it is bought. It now says "A widget for 300 Sparks" with a Buy key, in every language of the site.
 - **Closing a banner on the website hides it for that visit only.** Before, a banner closed once never came back, so a visitor who closed one missed every later drop shown in the same place. The next visit shows the current banners again, and the card in the corner now appears after the first screen instead of after half the page.
 - **A Sparks code next to your supporter code.** If you bought Sparks with a different email from your supporter one, the Sparks code (XC-…) we mail you had nowhere to go in Settings once your supporter code was saved. The box now stays open for it, says what it is for, and adds those Sparks to yours when you save.
