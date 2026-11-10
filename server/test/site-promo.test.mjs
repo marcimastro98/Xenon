@@ -150,6 +150,20 @@ test('a banner lands on the item page in English, on the catalog card in any oth
   assert.equal(home.href, 'https://xenon-app.com/maker/');
 });
 
+test('describe: a Sparks-only item says its price and Buy, never "for supporters" (Culprit, 10 Nov 2026)', () => {
+  const culprit = { id: 'alibi', kind: 'widget', name: 'Culprit', locked: true, sparks: 300 };
+  const v = P.validatePromo(promo({ entryId: 'alibi' }));
+  const it = P.describe(v, culprit, 'it', NOW);
+  assert.equal(it.what, 'Un widget a 300 Scintille.');
+  assert.equal(it.go, 'Compra');
+  assert.equal(P.describe(v, culprit, 'en', NOW).what, 'A widget for 300 Sparks.');
+  for (const l of P.LANGS) assert.ok(P.describe(v, culprit, l, NOW).what.includes('300'), l);
+  // Supporters or Sparks: the pass opens it, so it stays a supporter item.
+  const both = P.describe(v, { ...culprit, supportersOnly: true }, 'en', NOW);
+  assert.equal(both.what, 'A widget for Xenon supporters.');
+  assert.equal(both.go, 'Unlock');
+});
+
 test('every language carries every string, and every kind in every language', () => {
   const keys = Object.keys(P.STR.en);
   for (const l of P.LANGS) {

@@ -63,13 +63,13 @@
     zh: { widget: '小组件', theme: '主题', bg: '背景', ambient: '环境场景', bundle: '合集', deck: 'Deck 配置' },
   };
   const STR = {
-    en: { supK: '{k} for Xenon supporters.', freeK: '{k}, free in the Xenon catalog.', sup: 'For Xenon supporters.', free: 'Free in the Xenon catalog.', unlock: 'Unlock', get: 'Get it', see: 'See {name}', close: 'Close', pause: 'Pause the loop', play: 'Play the loop', until: 'Available until {d}.', left: '{n} days left.', last: 'Last day.', preview: 'Preview, not published' },
-    fr: { supK: '{k} pour les supporters de Xenon.', freeK: '{k}, gratuit dans le catalogue Xenon.', sup: 'Pour les supporters de Xenon.', free: 'Gratuit dans le catalogue Xenon.', unlock: 'Déverrouiller', get: 'Obtenez-le', see: 'Voir {name}', close: 'Fermer', pause: 'Mettre la boucle en pause', play: 'Lire la boucle', until: 'Disponible jusqu\'au {d}.', left: '{n} jours restants.', last: 'Dernier jour.', preview: 'Aperçu, non publié' },
-    it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', preview: 'Anteprima, non pubblicato' },
-    es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', preview: 'Vista previa, sin publicar' },
-    ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', preview: 'プレビュー（未公開）' },
-    ko: { supK: 'Xenon 후원자를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 후원자 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', preview: '미리보기, 게시되지 않음' },
-    zh: { supK: '为 Xenon 支持者准备的{k}。', freeK: 'Xenon 目录中的免费{k}。', sup: '为 Xenon 支持者准备。', free: 'Xenon 目录中免费。', unlock: '解锁', get: '获取', see: '查看 {name}', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止。', left: '还剩 {n} 天。', last: '最后一天。', preview: '预览，未发布' },
+    en: { supK: '{k} for Xenon supporters.', freeK: '{k}, free in the Xenon catalog.', sup: 'For Xenon supporters.', free: 'Free in the Xenon catalog.', unlock: 'Unlock', get: 'Get it', see: 'See {name}', close: 'Close', pause: 'Pause the loop', play: 'Play the loop', until: 'Available until {d}.', left: '{n} days left.', last: 'Last day.', sparksK: '{k} for {n} Sparks.', sparks: 'For {n} Sparks.', buy: 'Buy', preview: 'Preview, not published' },
+    fr: { supK: '{k} pour les supporters de Xenon.', freeK: '{k}, gratuit dans le catalogue Xenon.', sup: 'Pour les supporters de Xenon.', free: 'Gratuit dans le catalogue Xenon.', unlock: 'Déverrouiller', get: 'Obtenez-le', see: 'Voir {name}', close: 'Fermer', pause: 'Mettre la boucle en pause', play: 'Lire la boucle', until: 'Disponible jusqu\'au {d}.', left: '{n} jours restants.', last: 'Dernier jour.', sparksK: '{k} pour {n} Étincelles.', sparks: 'Pour {n} Étincelles.', buy: 'Acheter', preview: 'Aperçu, non publié' },
+    it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', sparksK: '{k} a {n} Scintille.', sparks: 'A {n} Scintille.', buy: 'Compra', preview: 'Anteprima, non pubblicato' },
+    es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', sparksK: '{k} por {n} Chispas.', sparks: 'Por {n} Chispas.', buy: 'Comprar', preview: 'Vista previa, sin publicar' },
+    ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', sparksK: '{n} スパークの{k}。', sparks: '{n} スパーク。', buy: '購入', preview: 'プレビュー（未公開）' },
+    ko: { supK: 'Xenon 후원자를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 후원자 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', sparksK: '{k}, {n} 스파크.', sparks: '{n} 스파크.', buy: '구매', preview: '미리보기, 게시되지 않음' },
+    zh: { supK: '为 Xenon 支持者准备的{k}。', freeK: 'Xenon 目录中的免费{k}。', sup: '为 Xenon 支持者准备。', free: 'Xenon 目录中免费。', unlock: '解锁', get: '获取', see: '查看 {name}', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止。', left: '还剩 {n} 天。', last: '最后一天。', sparksK: '{n} 火花的{k}。', sparks: '{n} 火花。', buy: '购买', preview: '预览，未发布' },
   };
   const tr = (l, k) => { const d = STR[l] || STR.en; return d[k] != null ? d[k] : STR.en[k]; };
 
@@ -210,6 +210,7 @@
     return {
       id: r.id, kind: typeof r.kind === 'string' ? r.kind : '', name: str(r.name, CAP.title),
       locked: r.locked === true, supportersOnly: r.supportersOnly === true,
+      sparks: Number.isInteger(r.sparks) && r.sparks > 0 ? r.sparks : 0,
       active: r.active === true || r.active === false ? r.active : undefined,
       activeUntil: isDate(r.activeUntil) ? r.activeUntil : '',
     };
@@ -280,9 +281,12 @@
   function describe(p, entry, lang, now) {
     const tx = textFor(p, lang);
     const name = tx.title || str(entry && entry.name, CAP.title) || p.entryId;
-    const sup = !!entry && (entry.locked === true || entry.supportersOnly === true);
+    // A Sparks-only item (Culprit) is locked too, but no pass opens it: it is bought.
+    const price = entry && entry.supportersOnly !== true && Number.isInteger(entry.sparks) && entry.sparks > 0 ? entry.sparks : 0;
+    const sup = !price && !!entry && (entry.locked === true || entry.supportersOnly === true);
     const kind = (entry && (KIND[lang] || KIND.en)[entry.kind]) || '';
-    const what = kind ? tr(lang, sup ? 'supK' : 'freeK').replace('{k}', kind) : tr(lang, sup ? 'sup' : 'free');
+    const who = price ? 'sparks' : sup ? 'sup' : 'free';
+    const what = (kind ? tr(lang, who + 'K').replace('{k}', kind) : tr(lang, who)).replace('{n}', String(price));
     const end = endOf(entry, now);
     const days = daysLeft(end, now);
     let when = '';
@@ -299,7 +303,7 @@
       soon: !!days,
       line: tx.line,
       cta: tx.cta || tr(lang, 'see').replace('{name}', name),
-      go: tr(lang, sup ? 'unlock' : 'get'),
+      go: tr(lang, price ? 'buy' : sup ? 'unlock' : 'get'),
       href: landing(p, lang),
       external: !!p.url && !/^https:\/\/(www\.)?xenon-app\.com\//.test(p.url),
       video: p.video || '',

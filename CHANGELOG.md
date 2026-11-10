@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- **The website's banner for an item sold with Sparks says its price.** The banner for Culprit read "A widget for Xenon supporters" with an Unlock key, but no pass opens it: it is bought. It now says "A widget for 300 Sparks" with a Buy key, in every language of the site.
+
 ## [v5.0.0] - 10-11-2026
 
 ### ✨ Added
