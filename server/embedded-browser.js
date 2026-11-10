@@ -310,6 +310,11 @@ function createEmbeddedBrowser(opts) {
   // compositing. Nothing failed, so the tile sat on its spinner with no error.
   // A healthy Edge paints the forced frame in well under a second.
   const frameWaitMs = Number.isFinite(o.frameWaitMs) ? o.frameWaitMs : 15000;
+  // A page can stall on its own (a script that never yields). Restarting the
+  // shared Edge for it would blank every other tile, and a page that does it on
+  // purpose could do it on every reload: at most one stall restart per window.
+  const stallRestartGapMs = Number.isFinite(o.stallRestartGapMs) ? o.stallRestartGapMs : 120000;
+  let lastStallRestartAt = -Infinity;
   // Called fresh at each Edge launch → returns the unpacked extension dirs to load
   // (e.g. the opt-in ad-blocker). Read at launch time so a settings toggle takes
   // effect on the next relaunch without touching this module's state.
@@ -969,9 +974,9 @@ function createEmbeddedBrowser(opts) {
   }
 
   // The stream started but never painted (#144). Restarting it clears a lost frame
-  // ack, which holds every later frame; if that paints nothing either, the
-  // renderer itself is stuck while Edge still answers, so Edge is restarted. The
-  // error names a closed browser, which the tile retries on a fresh Edge.
+  // ack, which holds every later frame. If that paints nothing either, the page or
+  // the renderer is stuck while Edge still answers: see escalateStall. Either way
+  // the error names a closed page, which the tile retries by reopening it.
   async function recoverStalledStream(tileId, tile) {
     if (tile.recovering) return;   // a concurrent start is already on it
     tile.recovering = true;
@@ -988,12 +993,32 @@ function createEmbeddedBrowser(opts) {
       await forceFrame(tile);
       if (await painted) return;
       if (!tile.streaming || tiles.get(tileId) !== tile) return;
-      console.warn('[embedded-browser] Edge stopped drawing pages: restarting it');
-      killBrowser('stalled_closed');
+      await escalateStall(tile);
       throw new Error('stalled_closed');
     } finally {
       tile.recovering = false;
     }
+  }
+
+  // Edge is restarted only when the stall is Edge's: no other tile on screen
+  // still paints when asked, and no stall restart happened in the last window.
+  // Otherwise only this page is reopened (by the tile's retry), and the others
+  // keep running.
+  async function escalateStall(tile) {
+    if (await anotherTilePaints(tile)) return;
+    const now = Date.now();
+    if (now - lastStallRestartAt < stallRestartGapMs) return;
+    lastStallRestartAt = now;
+    console.warn('[embedded-browser] Edge stopped drawing pages: restarting it');
+    killBrowser('stalled_closed');
+  }
+
+  async function anotherTilePaints(tile) {
+    const peer = [...tiles.values()].find((t) => t !== tile && t.streaming);
+    if (!peer) return false;
+    const painted = nextFrame(peer, frameWaitMs);
+    await forceFrame(peer);
+    return painted;
   }
 
   // Force a single screencast frame by momentarily perturbing the device metrics.

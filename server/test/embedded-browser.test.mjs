@@ -620,20 +620,26 @@ test('the reasons a hung Edge fails with are ones the tile retries on', () => {
 // the tile sat on its spinner. A started stream must now paint within frameWaitMs.
 
 // Like makeFakeWS(true), but Page.startScreencast pushes a frame only from the
-// `state.paintFrom`-th start on (Infinity = never paints).
+// `state.paintFrom`-th start on (Infinity = never paints). A repaint nudge
+// paints only on the sessions listed in `state.healthy`.
 function makeStallingWS(state) {
   const Base = makeFakeWS(false);
   return class StallingWS extends Base {
+    frame(sessionId) {
+      setTimeout(() => this._emit('message', { data: JSON.stringify({
+        method: 'Page.screencastFrame', sessionId,
+        params: { data: 'BBBB', metadata: {}, sessionId: 1 },
+      }) }), 0);
+    }
     send(raw) {
       const m = JSON.parse(raw);
       if (m.method === 'Page.startScreencast') {
         state.starts += 1;
-        if (state.starts >= state.paintFrom) {
-          setTimeout(() => this._emit('message', { data: JSON.stringify({
-            method: 'Page.screencastFrame', sessionId: m.sessionId,
-            params: { data: 'BBBB', metadata: {}, sessionId: state.starts },
-          }) }), 0);
-        }
+        state.lastSession = m.sessionId;
+        if (state.starts >= state.paintFrom) this.frame(m.sessionId);
+      }
+      if (m.method === 'Emulation.setDeviceMetricsOverride' && state.healthy && state.healthy.has(m.sessionId)) {
+        this.frame(m.sessionId);
       }
       return super.send(raw);
     }
@@ -698,5 +704,38 @@ test('a stream stopped or closed before its first frame is not a stall (#144)', 
     await delay(100);
     assert.equal(state.starts, 2, 'no stream was restarted');
     assert.equal(counts.kills, 0, 'Edge was kept');
+  } finally { host.shutdown(); }
+});
+
+test('a page stuck on its own is reopened without restarting Edge for the other tiles (#144)', async () => {
+  const state = { starts: 0, paintFrom: 0, healthy: new Set() };
+  const counts = { launches: 0, kills: 0 };
+  const host = stallingHost(state, counts);
+  try {
+    await host.open('a', 'example.com', 400, 300, 1, () => {});
+    await host.startScreencast('a');
+    state.healthy.add(state.lastSession);   // tile a keeps painting when asked
+
+    state.paintFrom = Infinity;
+    await host.open('b', 'example.com', 400, 300, 1, () => {});
+    await assert.rejects(host.startScreencast('b'), /stalled_closed/, 'the tile retries, reopening only its page');
+    assert.equal(counts.kills, 0, 'Edge is kept: another tile still paints');
+    assert.equal(host._tiles.has('a'), true);
+  } finally { host.shutdown(); }
+});
+
+test('Edge is restarted for a stall at most once per window (#144)', async () => {
+  const state = { starts: 0, paintFrom: Infinity };
+  const counts = { launches: 0, kills: 0 };
+  const host = stallingHost(state, counts);
+  try {
+    await host.open('a', 'example.com', 400, 300, 1, () => {});
+    await assert.rejects(host.startScreencast('a'), /stalled_closed/);
+    assert.equal(counts.kills, 1);
+
+    await delay(80);
+    await host.open('b', 'example.com', 400, 300, 1, () => {});
+    await assert.rejects(host.startScreencast('b'), /stalled_closed/, 'the tile still gets an error it handles');
+    assert.equal(counts.kills, 1, 'a page that stalls again does not restart Edge again');
   } finally { host.shutdown(); }
 });
