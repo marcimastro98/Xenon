@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- **A Sparks code next to your supporter code.** If you bought Sparks with a different email from your supporter one, the Sparks code (XC-…) we mail you had nowhere to go in Settings once your supporter code was saved. The box now stays open for it, says what it is for, and adds those Sparks to yours when you save.
+
 ## [v5.0.0] - 10-11-2026
 
 ### ✨ Added

@@ -206,10 +206,15 @@ async function supporterAfter(answer) {
 }
 
 test('a saved code is said once: what the box is for goes with the box', async () => {
-  const saved = await supporterAfter({ pass: true });
+  const saved = await supporterAfter({ pass: true, wallet: true });
   assert.equal(saved['settings-supporter-state'].textContent, 'settings_supporter_saved');
   for (const id of ['code', 'save', 'lead', 'sparks-note']) assert.equal(saved['settings-supporter-' + id].hidden, true, id);
   for (const id of ['saved', 'forget']) assert.equal(saved['settings-supporter-' + id].hidden, false, id);
+  // A pass alone keeps the field, asking only for a Sparks code bought with another email.
+  const pass = await supporterAfter({ pass: true });
+  for (const id of ['code', 'save', 'sparks-note', 'saved', 'forget']) assert.equal(pass['settings-supporter-' + id].hidden, false, id);
+  assert.equal(pass['settings-supporter-lead'].hidden, true);
+  assert.equal(pass['settings-supporter-sparks-note'].textContent, 'settings_sparks_add_note');
   const wallet = await supporterAfter({ wallet: true });
   assert.equal(wallet['settings-supporter-state'].textContent, 'settings_sparks_code_saved');
 });
