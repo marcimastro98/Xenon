@@ -26,12 +26,13 @@
         "bg": "#0c0e11",
         "text": "#f4f4f0"
       },
-      "shots": 5,
+      "shots": 4,
       "active": false,
       "activeFrom": "2026-11-10T00:00:00+01:00",
-      "activeUntil": "2026-12-09T23:59:59+01:00",
+      "activeUntil": "2026-12-10T23:59:59+01:00",
       "addedAt": "2026-11-10",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-10"
     },
     {
       "id": "sports",
