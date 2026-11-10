@@ -14,6 +14,7 @@
     "dev": "node tools/dev.mjs",
     "demo": "node tools/build-demo.mjs && node tools/preview-docs.cjs",
     "demo:build": "node tools/build-demo.mjs",
+    "site:deploy": "node tools/site-deploy.mjs",
     "link:shared": "node tools/link-shared.mjs",
     "check:platform-apis": "node tools/check-platform-apis.mjs",
     "capture:build": "node tools/build-capture.mjs",
