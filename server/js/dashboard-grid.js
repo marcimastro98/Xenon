@@ -1090,6 +1090,10 @@ function fitPageRows({ avail, width, rows, tiles, fixedRows }) {
 }
 
 function fitGridHeights() {
+  // Collapsed to the desktop's round button (see phone-view.js) the page box is a
+  // few pixels tall: fitting the rows to it would only shrink every tile for the
+  // way back. The resize of the return fits them to the real screen.
+  if (typeof document !== 'undefined' && document.body && document.body.classList.contains('xenon-home-mode')) return;
   const plan = typeof getDashboardLayout === 'function' ? portraitPlan(getDashboardLayout()) : null;
   _grids.forEach((grid, pageId) => {
     try {

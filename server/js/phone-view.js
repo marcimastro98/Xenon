@@ -653,7 +653,17 @@
     // be a second chance to get it wrong.
   }
 
+  // Swiped to the desktop, the native window is a round button about 84 px wide
+  // and the dashboard under it is hidden (native-bridge.js, `xenon-home-mode`).
+  // That size is not a phone: stacking the tiles for it only to put them back on
+  // the way out showed every tile jumping around as the dashboard returned
+  // (GitHub #152). The view keeps what it had; the resize of the return re-decides.
+  function collapsedToButton() {
+    return !!(document.body && document.body.classList.contains('xenon-home-mode'));
+  }
+
   function sync() {
+    if (collapsedToButton()) return;
     const want = stackMode({
       width: window.innerWidth,
       height: window.innerHeight,

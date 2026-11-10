@@ -24,13 +24,20 @@
 :root[data-style="liquid"] .tile-style-pop .tile-style-btn:not(.primary):hover,
 :root[data-style="liquid"] .tile-style-pop .tile-shape-chip:hover { background: var(--lg-key-hover); }
 
-/* The dock: one glass capsule, like the island it answers. */
+/* The dock: one glass capsule, like the island it answers. It floats over the tiles
+   and is the only way out of Layout mode, so it has to read as on top at a glance:
+   on the chrome's clear glass it melted into the tile under it ("you don't even
+   see it"). A near-solid panel, the accent on its edge and a deep shadow lift it. */
 :root[data-style="liquid"] .layout-dock {
-  background: var(--lg-sheen), var(--lg-fill);
+  background: var(--lg-sheen), linear-gradient(rgba(var(--panel-rgb), 0.86) 0 0);
   -webkit-backdrop-filter: var(--lg-blur);
   backdrop-filter: var(--lg-blur);
-  border-color: var(--lg-edge);
-  box-shadow: var(--lg-rim), var(--lg-lift);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: var(--lg-rim), var(--shadow-xl);
+}
+:root[data-style="liquid"] body.low-power-gpu .layout-dock { background: rgb(var(--panel-rgb)); }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style="liquid"] .layout-dock { background: rgb(var(--panel-rgb)); }
 }
 :root[data-style="liquid"] .layout-chip,
 :root[data-style="liquid"] .layout-control-btn { background: var(--lg-key); color: var(--text); font-weight: 600; }
