@@ -5,6 +5,13 @@
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
+  // The domain itself: Cloudflare keeps the DNS records of a custom domain. Going back to GitHub
+  // Pages means removing these two and adding back the two CNAME records (xenon-app.com and www)
+  // pointing to marcimastro98.github.io, DNS only.
+  "routes": [
+    { "pattern": "xenon-app.com", "custom_domain": true },
+    { "pattern": "www.xenon-app.com", "custom_domain": true }
+  ],
   "assets": {
     "directory": "../docs",
     "binding": "ASSETS",
