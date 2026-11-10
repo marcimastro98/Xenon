@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import worker, { candidates } from '../../site-host/worker.js';
+import worker, { candidates, liveIsNewer } from '../../site-host/worker.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FILES = new Set(['/index.html', '/faq.html', '/it/index.html', '/catalog/index.html', '/community/catalog.json', '/404.html', '/demo/js/app.js']);
@@ -71,4 +71,63 @@ test('the host serves the built docs/ untouched, and the workflow deploys it aft
   assert.ok(deploy > yml.indexOf('node tools/build-seo.mjs'), 'deployed after the last builder');
   assert.match(yml, /- 'site-host\/\*\*'/);
   assert.match(fs.readFileSync(path.join(ROOT, '.gitattributes'), 'utf8'), /^site-host\/\s+export-ignore/m, 'never in the update zip');
+});
+
+// The supporter hub's live copy of /community/ (its src/site-live.js writes it on each publish).
+function fakeLive(items) {
+  return {
+    get: async (key) => {
+      const o = items[key];
+      if (!o) return null;
+      return { body: o.body, httpEtag: '"e-' + key + '"', httpMetadata: { contentType: o.type || 'application/json' }, customMetadata: o.meta };
+    },
+  };
+}
+const liveEnv = (items, built = 1000) => ({ ...env, LIVE: fakeLive(items), SITE_COMMIT_TIME: String(built) });
+const getLive = (p, e, init) => worker.fetch(new Request('https://xenon-app.com' + p, init), e);
+
+test('liveIsNewer compares the copy with the build, and a missing build time means none', () => {
+  assert.equal(liveIsNewer({ committedAt: '1001' }, '1000'), true);
+  assert.equal(liveIsNewer({ committedAt: '1000' }, '1000'), false, 'the same commit: the build has it');
+  assert.equal(liveIsNewer({ committedAt: '999' }, '1000'), false);
+  assert.equal(liveIsNewer({}, '1000'), false);
+  assert.equal(liveIsNewer({ committedAt: '5' }, undefined), true);
+});
+
+test('a publish newer than the build is served at once, with CORS and an etag', async () => {
+  const e = liveEnv({ 'community/catalog.json': { body: '{"live":1}', meta: { committedAt: '1005' } } });
+  const res = await getLive('/community/catalog.json', e);
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), '{"live":1}');
+  assert.equal(res.headers.get('content-type'), 'application/json');
+  assert.equal(res.headers.get('access-control-allow-origin'), '*');
+  const again = await getLive('/community/catalog.json', e, { headers: { 'if-none-match': res.headers.get('etag') } });
+  assert.equal(again.status, 304);
+  const head = await getLive('/community/catalog.json', e, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), '');
+});
+
+test('once the deploy has caught up, the built file wins again', async () => {
+  const e = liveEnv({ 'community/catalog.json': { body: '{"live":1}', meta: { committedAt: '1000' } } }, 1000);
+  assert.equal(await (await getLive('/community/catalog.json', e)).text(), 'file /community/catalog.json');
+});
+
+test('a removed file answers 404 until the deploy drops it; other paths never read the copy', async () => {
+  const e = liveEnv({
+    'community/codes/gone.txt': { body: '', meta: { committedAt: '1005', deleted: '1' } },
+    'faq.html': { body: 'not from the copy', meta: { committedAt: '9999' } },
+  });
+  const gone = await getLive('/community/codes/gone.txt', e);
+  assert.equal(gone.status, 404);
+  assert.equal(await gone.text(), 'file /404.html');
+  assert.equal(await (await getLive('/faq.html', e)).text(), 'file /faq.html');
+});
+
+test('a failing bucket leaves the site on its build', async () => {
+  const log = console.log; console.log = () => {};
+  try {
+    const e = { ...env, LIVE: { get: async () => { throw new Error('r2 down'); } }, SITE_COMMIT_TIME: '1' };
+    assert.equal(await (await getLive('/community/catalog.json', e)).text(), 'file /community/catalog.json');
+  } finally { console.log = log; }
 });

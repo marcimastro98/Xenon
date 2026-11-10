@@ -158,7 +158,9 @@ jobs:
             echo "::error::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set: the site was not published"
             exit 1
           fi
-          npx --yes wrangler@4.110.0 deploy --config site-host/wrangler.jsonc
+          # The time of the commit this build came from: the hub's live copy of /community/
+          # (site-host/worker.js) is served only while it is newer than this.
+          npx --yes wrangler@4.110.0 deploy --config site-host/wrangler.jsonc --var "SITE_COMMIT_TIME:$(git log -1 --format=%ct)"
           echo "Live: https://xenon-app.com" >> "$GITHUB_STEP_SUMMARY"
 
       # Announces the URLs this run changed to the IndexNow engines (Bing, and

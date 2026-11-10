@@ -19,5 +19,10 @@
     "not_found_handling": "none",
     "run_worker_first": true
   },
+  // The live copy of /community/ the supporter hub writes on every publish (see worker.js).
+  // The deploy passes SITE_COMMIT_TIME, the time of the commit this build came from.
+  "r2_buckets": [
+    { "binding": "LIVE", "bucket_name": "xenon-site-live" }
+  ],
   "observability": { "enabled": true }
 }
