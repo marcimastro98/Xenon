@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/privacy.html" aria-current="page" data-xl="f.privacy">개인정보</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"개인정보","item":"https://xenon-app.com/ko/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">개인정보 처리방침</h1>
         <p class="lede" data-i18n="pv.lede">Xenon 앱은 사용자의 PC에서 실행되고 데이터도 그 PC에 저장합니다. 이 웹사이트는 그것과 별개이며 적용되는 규칙도 다릅니다. 이 페이지는 둘을 나누어, 각각이 무엇을 보내고 무엇을 저장하는지 설명합니다.</p>
-        <p class="updated" data-i18n="pv.updated">최종 수정: 2026년 11월 6일</p>
+        <p class="updated" data-i18n="pv.updated">최종 수정: 2026년 11월 10일</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">기능 사용 횟수</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">패스 7일 체험</a>
       <a href="#sparks" data-i18n="pv.sparks.h">스파크</a>
+      <a href="#submit" data-i18n="pv.submit.h">Store에 작품 보내기</a>
       <a href="#rights" data-i18n="pv.rights.h">사용자의 권리</a>
       <a href="#changes" data-i18n="pv.changes.h">이 페이지의 변경</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">Bit가 스파크로 동작할 때는 내 코드로 허브에서 세션을 열고, 그 뒤에는 최대 30일 동안 유효한 세션 토큰만 오갑니다. Bit에게 요청한 내용과 Bit가 만든 것은 허브를 거쳐 Claude 모델을 운영하는 Anthropic으로, Anthropic의 약관에 따라 전달됩니다. 허브는 그 내용을 저장하지 않습니다. 답변마다 모델, 토큰 수, 비용, 월만 기록해 스파크를 계산합니다.</p>
     <p data-i18n="pv.sparks.p4">PC에서는 스파크 코드가 후원자 코드처럼 앱 데이터 폴더의 sparks-code.json에 저장되며, 페어링한 기기로 전달되는 설정에는 절대 들어가지 않습니다. 같은 PC에 후원자 코드도 있으면 스파크는 한 번 그쪽으로 옮겨지고 스파크 코드는 지워집니다.</p>
     <p data-i18n="pv.sparks.p5">새 설치는 Bit에게 처음 말을 걸 때 이메일 없이 체험 스파크 30개를 받습니다. 이 한 번의 요청에서 앱은 후원자 코드에 쓰는 것과 같은 설치 해시를 허브로 보내고, 허브는 설치마다 한 번만 받도록 이를 보관합니다. 또한 한 네트워크가 받을 수 있는 수를 제한하기 위해 네트워크 주소의 키 기반 해시를 30일 동안 보관한 뒤 삭제합니다. 주소 자체는 저장하지 않습니다. 체험 스파크는 Bit에서만 쓸 수 있고 7일 후 끝나며 후원자 코드로 옮겨지지 않습니다. 그 후 앱은 해당 코드를 잊습니다.</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Store에 작품 보내기</h2>
+    <p data-i18n="pv.submit.p1">제출 페이지에서 위젯, 테마 또는 다른 작품을 Store에 보내려면 Discord로 로그인합니다. Discord는 후원자 허브에 내 Discord ID, 사용자 이름과 표시 이름, Discord 계정의 이메일 주소와 Discord가 그 주소를 인증했는지, 그리고 내가 Xenon Discord 서버의 멤버인지를 알려 줍니다. 제출은 인증된 이메일이 있는 서버 멤버에게서만 받습니다.</p>
+    <p data-i18n="pv.submit.p2">제출할 때마다 허브는 내 Discord ID, 사용자 이름, 표시 이름, 그 이메일을 보낸 내용과 함께 보관합니다. 이 정보는 저만 허브의 검토 페이지에서 보며, 제출에 대해 연락하거나 서버에서 찾을 때 씁니다. Store에는 표시되지 않습니다. Store에 나오는 작성자 이름은 양식에 직접 입력한 이름입니다. 로그인 정보만 따로 남은 것은 6시간 뒤 만료되고 그다음 삭제됩니다.</p>
+    <p data-i18n="pv.submit.p3">제출은 Store 아이템의 이력을 따라갈 수 있도록 보관됩니다. 내 제출과 함께 온 데이터를 지우고 싶다면 이 페이지 맨 위의 주소로 연락해 주세요.</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">사용자의 권리</h2>
     <p data-i18n-html="pv.rights.p1">GDPR에 따라 개인정보의 열람, 정정, 삭제를 요청할 수 있고, 처리에 반대할 수 있습니다. 이 웹사이트에서 실제로 쓸 수 있는 방법은 다음과 같습니다. 거부(또는 위의 버튼)를 눌러 Analytics를 멈추거나, Google의 <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">차단 부가 기능</a>을 쓰거나, 브라우저 데이터를 지우세요. 앱의 경우, 제거하면 위에 설명한 모든 통신이 멈추고, <code>server/data/</code>를 삭제하면 설치 UUID를 포함해 앱이 저장한 모든 것이 지워집니다.</p>

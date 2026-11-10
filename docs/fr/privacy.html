@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/privacy.html" aria-current="page" data-xl="f.privacy">Confidentialité</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Confidentialité","item":"https://xenon-app.com/fr/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">Politique de confidentialité</h1>
         <p class="lede" data-i18n="pv.lede">L'application Xenon s'exécute sur votre propre PC et y stocke ses données. Ce site Web est une entité distincte, soumise à des règles différentes. Cette page distingue les deux et précise ce que chacun envoie et stocke.</p>
-        <p class="updated" data-i18n="pv.updated">Dernière mise à jour : 6 novembre 2026</p>
+        <p class="updated" data-i18n="pv.updated">Dernière mise à jour : 10 novembre 2026</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">Comptage des fonctions</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">L'essai de 7 jours du pass</a>
       <a href="#sparks" data-i18n="pv.sparks.h">Les Étincelles</a>
+      <a href="#submit" data-i18n="pv.submit.h">Envoyer une création au Store</a>
       <a href="#rights" data-i18n="pv.rights.h">Vos droits</a>
       <a href="#changes" data-i18n="pv.changes.h">Modifications apportées à cette page</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">Quand Bit fonctionne avec des Étincelles, votre code ouvre une session sur le hub, puis seul un jeton de session circule, valable 30 jours au maximum. Ce que vous demandez à Bit, et ce que Bit crée, passe par le hub jusqu'à Anthropic, qui fait tourner les modèles Claude, selon les conditions d'Anthropic. Le hub ne le conserve pas : pour chaque réponse, il garde le modèle, le nombre de jetons, ce qu'elle a coûté et le mois, pour compter vos Étincelles.</p>
     <p data-i18n="pv.sparks.p4">Sur votre PC, le code Étincelles reste dans sparks-code.json, dans le dossier de données de l'app, comme le code supporter, et jamais dans les réglages qui voyagent vers les appareils associés. Si le même PC a aussi un code supporter, les Étincelles y sont transférées une fois et le code Étincelles est oublié.</p>
     <p data-i18n="pv.sparks.p5">Une nouvelle installation reçoit 30 Étincelles d'essai, sans e-mail, la première fois que vous écrivez à Bit. Pour cette seule requête, l'app envoie au hub le même hachage d'installation que pour les codes supporter, et le hub le garde pour qu'une installation ne les reçoive qu'une fois. Le hub garde aussi pendant 30 jours un hachage avec clé de votre adresse réseau, pour limiter le nombre qu'un même réseau peut recevoir, puis le supprime. L'adresse elle-même n'est pas conservée. Les Étincelles d'essai ne servent que pour Bit, prennent fin après 7 jours et ne passent pas sur un code supporter ; ensuite, l'app oublie leur code.</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Envoyer une création au Store</h2>
+    <p data-i18n="pv.submit.p1">Pour envoyer au Store un widget, un thème ou une autre création depuis la page d'envoi, vous vous connectez avec Discord. Discord indique au hub des supporters votre identifiant Discord, votre nom d'utilisateur et votre nom affiché, l'adresse e-mail de votre compte Discord et si Discord l'a vérifiée, et si vous êtes membre du serveur Discord de Xenon. Un envoi n'est accepté que d'un membre du serveur avec une adresse e-mail vérifiée.</p>
+    <p data-i18n="pv.submit.p2">Avec chaque envoi, le hub garde votre identifiant Discord, votre nom d'utilisateur, votre nom affiché et cette adresse e-mail, à côté de ce que vous avez envoyé. Je suis le seul à les voir, sur la page de relecture du hub, pour vous écrire au sujet de votre envoi ou vous retrouver sur le serveur. Le Store ne les affiche pas : le nom d'auteur qui y figure est celui que vous tapez dans le formulaire. La connexion seule expire au bout de 6 heures, puis elle est supprimée.</p>
+    <p data-i18n="pv.submit.p3">Les envois sont conservés pour qu'on puisse suivre l'historique d'un élément du Store. Pour faire supprimer le vôtre, avec les données qui l'accompagnaient, écrivez à l'adresse indiquée en haut de cette page.</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">Vos droits</h2>
     <p data-i18n-html="pv.rights.p1">En vertu du GDPR, vous pouvez demander l'accès à vos données personnelles, leur rectification ou leur effacement, et vous pouvez vous opposer au traitement. Pour ce site web, les voies pratiques sont les suivantes : appuyez sur Refuser (ou sur le bouton ci-dessus) pour arrêter Analytics, utilisez le module complémentaire de désactivation <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">opt-out</a> de Google, ou effacez les données de votre navigateur. Pour l'application, la désinstallation arrête tous les appels décrits ci-dessus, et la suppression de <code>server/data/</code> supprime tout ce que l'application a stocké, y compris le UUID d'installation.</p>

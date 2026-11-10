@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/privacy.html" aria-current="page" data-xl="f.privacy">隐私</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"隐私","item":"https://xenon-app.com/zh/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">隐私政策</h1>
         <p class="lede" data-i18n="pv.lede">Xenon 应用运行在你自己的电脑上，数据也保存在那里。本网站是另一回事，规则也不一样。本页把两者分开来讲，分别说明各自会发送和保存什么。</p>
-        <p class="updated" data-i18n="pv.updated">最后更新：2026年11月6日</p>
+        <p class="updated" data-i18n="pv.updated">最后更新：2026年11月10日</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">功能使用次数</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">通行证 7 天试用</a>
       <a href="#sparks" data-i18n="pv.sparks.h">火花</a>
+      <a href="#submit" data-i18n="pv.submit.h">向 Store 提交作品</a>
       <a href="#rights" data-i18n="pv.rights.h">你的权利</a>
       <a href="#changes" data-i18n="pv.changes.h">本页的变更</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">当 Bit 使用火花运行时，你的代码会在中心开启一个会话，之后只传输一个会话令牌，最长有效 30 天。你向 Bit 提出的内容以及 Bit 创作的内容，会经由中心发送给运行 Claude 模型的 Anthropic，并适用 Anthropic 的条款。中心不会保存这些内容：每次回答只记录模型、令牌数、费用和月份，用来计算你的火花。</p>
     <p data-i18n="pv.sparks.p4">在你的电脑上，火花代码和支持者代码一样保存在应用数据文件夹中的 sparks-code.json 里，绝不会放进同步到已配对设备的设置中。如果同一台电脑上也有支持者代码，火花会被一次性转移到支持者代码上，火花代码随后被删除。</p>
     <p data-i18n="pv.sparks.p5">新安装在你第一次给 Bit 写消息时，无需邮箱即可获得 30 个试用火花。仅为这一次请求，应用会把与支持者代码相同的安装哈希发送给中心，中心保存它以确保每个安装只能领取一次。中心还会保存你网络地址的带密钥哈希 30 天，用来限制同一网络可领取的数量，之后将其删除。地址本身不会保存。试用火花只能用于 Bit，7 天后结束，也不会转入支持者代码；之后应用会忘记它们的代码。</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">向 Store 提交作品</h2>
+    <p data-i18n="pv.submit.p1">要从提交页面向 Store 发送小组件、主题或其他作品，你需要用 Discord 登录。Discord 会告诉支持者中心你的 Discord ID、用户名和显示名称、你的 Discord 账户的电子邮箱地址以及 Discord 是否已验证它，还有你是否是 Xenon Discord 服务器的成员。只有拥有已验证邮箱的服务器成员才能提交。</p>
+    <p data-i18n="pv.submit.p2">每次提交，中心都会把你的 Discord ID、用户名、显示名称和该邮箱与你发送的内容一起保存。只有我能在中心的审核页面看到它们，用来就你的提交联系你，或在服务器上找到你。Store 不会显示它们：那里的作者名是你在表单中填写的名字。单独的登录信息会在 6 小时后过期，然后被删除。</p>
+    <p data-i18n="pv.submit.p3">提交会被保留，以便追溯 Store 中某一项的历史。如果想删除你的提交以及随之而来的数据，请写信到本页顶部的地址。</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">你的权利</h2>
     <p data-i18n-html="pv.rights.p1">根据《通用数据保护条例》（GDPR），你可以要求访问、更正或删除你的个人数据，也可以反对对其进行处理。对于本网站，实际可行的做法是：按“拒绝”（或上面的按钮）来停止 Analytics，使用 Google 的<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">停用浏览器插件</a>，或者清除浏览器数据。对于应用，卸载会停止上面描述的所有请求，删除 <code>server/data/</code> 会移除应用保存的一切，包括安装 UUID。</p>

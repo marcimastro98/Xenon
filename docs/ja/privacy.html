@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/privacy.html" aria-current="page" data-xl="f.privacy">プライバシー</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"プライバシー","item":"https://xenon-app.com/ja/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">プライバシーポリシー</h1>
         <p class="lede" data-i18n="pv.lede">Xenon アプリはあなた自身の PC 上で動き、データもそこに保存します。このウェブサイトはそれとは別のもので、ルールも別です。このページでは両者を分けて、それぞれが何を送り、何を保存するかを説明します。</p>
-        <p class="updated" data-i18n="pv.updated">最終更新日：2026年11月6日</p>
+        <p class="updated" data-i18n="pv.updated">最終更新日：2026年11月10日</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">機能の利用回数</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">パスの7日間お試し</a>
       <a href="#sparks" data-i18n="pv.sparks.h">スパーク</a>
+      <a href="#submit" data-i18n="pv.submit.h">Store に作品を送る</a>
       <a href="#rights" data-i18n="pv.rights.h">あなたの権利</a>
       <a href="#changes" data-i18n="pv.changes.h">このページの変更</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">Bit がスパークで動くときは、あなたのコードでハブ上のセッションを開き、その後はセッショントークン（最長 30 日有効）だけがやり取りされます。Bit への質問と Bit が作るものは、ハブを経由して Claude モデルを運営する Anthropic に、Anthropic の規約のもとで送られます。ハブはその内容を保存しません。回答ごとに保存するのは、モデル、トークン数、費用、月だけで、スパークの計算に使います。</p>
     <p data-i18n="pv.sparks.p4">PC では、スパークコードはサポーターコードと同じくアプリのデータフォルダーの sparks-code.json に保存され、ペアリングしたデバイスに送られる設定には入りません。同じ PC にサポーターコードもある場合、スパークは一度だけそちらに移され、スパークコードは削除されます。</p>
     <p data-i18n="pv.sparks.p5">新しいインストールには、初めて Bit に話しかけたときに、メールなしでお試しスパークが 30 付与されます。この 1 回のリクエストでは、アプリはサポーターコードと同じインストールのハッシュをハブに送り、ハブは 1 つのインストールに一度だけ付与するためにそれを保存します。また、同じネットワークが受け取れる数を制限するため、ハブはネットワークアドレスの鍵付きハッシュを 30 日間保存し、その後削除します。アドレスそのものは保存しません。お試しスパークは Bit でのみ使え、7 日で終了し、サポーターコードには移せません。その後、アプリはそのコードを忘れます。</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Store に作品を送る</h2>
+    <p data-i18n="pv.submit.p1">送信ページからウィジェット、テーマ、その他の作品を Store に送るには、Discord でサインインします。Discord はサポーターハブに、あなたの Discord ID、ユーザー名と表示名、Discord アカウントのメールアドレスと Discord がそれを確認済みかどうか、そして Xenon の Discord サーバーのメンバーかどうかを伝えます。送信を受け付けるのは、確認済みのメールを持つサーバーのメンバーからだけです。</p>
+    <p data-i18n="pv.submit.p2">送信ごとに、ハブはあなたの Discord ID、ユーザー名、表示名、そのメールアドレスを、送った内容と一緒に保存します。それを見るのは私だけで、ハブのレビューページで、送信について連絡したりサーバーであなたを見つけたりするために使います。Store には表示されません。Store に出る作者名は、フォームに入力した名前です。サインインの情報だけのものは 6 時間で期限が切れ、その後削除されます。</p>
+    <p data-i18n="pv.submit.p3">送信は、Store のアイテムの履歴をたどれるように保存されます。あなたの送信と、それと一緒に届いたデータを削除してほしいときは、このページの上部にあるアドレスに連絡してください。</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">あなたの権利</h2>
     <p data-i18n-html="pv.rights.p1">GDPR のもとで、あなたは自分の個人データへのアクセス、訂正、消去を求めることができ、処理に異議を申し立てることもできます。このウェブサイトについての実際の方法は、「拒否する」（または上のボタン）を押して Analytics を止める、Google の <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">オプトアウト アドオン</a> を使う、ブラウザのデータを消去する、のいずれかです。アプリについては、アンインストールすると上で説明したすべての通信が止まり、<code>server/data/</code> を削除すると、インストール UUID を含め、アプリが保存したものがすべて消えます。</p>

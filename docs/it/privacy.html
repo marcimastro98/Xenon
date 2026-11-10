@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/privacy.html" aria-current="page" data-xl="f.privacy">Privacy</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Privacy","item":"https://xenon-app.com/it/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">Informativa sulla privacy</h1>
         <p class="lede" data-i18n="pv.lede">L'app Xenon gira sul tuo PC e tiene lì i suoi dati. Questo sito è un'altra cosa, con regole diverse. Questa pagina tiene separate le due parti e spiega cosa invia e cosa conserva ciascuna.</p>
-        <p class="updated" data-i18n="pv.updated">Ultimo aggiornamento: 6 novembre 2026</p>
+        <p class="updated" data-i18n="pv.updated">Ultimo aggiornamento: 10 novembre 2026</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">Conteggio delle funzioni</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">La prova di 7 giorni del pass</a>
       <a href="#sparks" data-i18n="pv.sparks.h">Le Scintille</a>
+      <a href="#submit" data-i18n="pv.submit.h">Inviare qualcosa allo Store</a>
       <a href="#rights" data-i18n="pv.rights.h">I tuoi diritti</a>
       <a href="#changes" data-i18n="pv.changes.h">Modifiche a questa pagina</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">Quando Bit usa le Scintille, il tuo codice apre una sessione sull'hub, e da lì in poi viaggia solo un token di sessione, valido al massimo 30 giorni. Quello che chiedi a Bit, e quello che Bit crea, passa dall'hub ad Anthropic, che fa girare i modelli Claude, secondo i termini di Anthropic. L'hub non lo conserva: per ogni risposta tiene il modello, il numero di token, quanto è costata e il mese, per contare le tue Scintille.</p>
     <p data-i18n="pv.sparks.p4">Sul tuo PC il codice Scintille resta in sparks-code.json, nella cartella dati dell'app, come il codice supporter, e mai nelle impostazioni che viaggiano verso i dispositivi abbinati. Se lo stesso PC ha anche un codice supporter, le Scintille vengono spostate su quello una volta e il codice Scintille viene dimenticato.</p>
     <p data-i18n="pv.sparks.p5">Una nuova installazione riceve 30 Scintille di prova, senza email, la prima volta che scrivi a Bit. Solo per quella richiesta l'app manda all'hub lo stesso hash dell'installazione usato per i codici supporter, e l'hub lo conserva perché ogni installazione le riceva una volta sola. L'hub conserva anche per 30 giorni un hash con chiave del tuo indirizzo di rete, per limitare quante ne può ricevere una stessa rete, e poi lo cancella. L'indirizzo in sé non viene salvato. Le Scintille di prova valgono solo per Bit, finiscono dopo 7 giorni e non passano su un codice supporter; dopo, l'app dimentica il loro codice.</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Inviare qualcosa allo Store</h2>
+    <p data-i18n="pv.submit.p1">Per inviare allo Store un widget, un tema o un'altra creazione dalla pagina di invio, accedi con Discord. Discord comunica all'hub dei supporter il tuo ID Discord, il tuo nome utente e il nome visualizzato, l'indirizzo email del tuo account Discord e se Discord lo ha verificato, e se sei membro del server Discord di Xenon. Un invio viene accettato solo da un membro del server con un'email verificata.</p>
+    <p data-i18n="pv.submit.p2">Con ogni invio l'hub conserva il tuo ID Discord, il nome utente, il nome visualizzato e quell'email, accanto a ciò che hai mandato. Li vedo solo io, nella pagina di revisione dell'hub, per scriverti sul tuo invio o trovarti sul server. Lo Store non li mostra: il nome dell'autore lì è quello che scrivi nel modulo. L'accesso da solo scade dopo 6 ore e poi viene cancellato.</p>
+    <p data-i18n="pv.submit.p3">Gli invii vengono conservati per poter seguire la storia di un elemento dello Store. Per far cancellare il tuo, insieme ai dati arrivati con esso, scrivi all'indirizzo in cima a questa pagina.</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">I tuoi diritti</h2>
     <p data-i18n-html="pv.rights.p1">In base al GDPR puoi chiedere l'accesso, la rettifica o la cancellazione dei tuoi dati personali, e puoi opporti al trattamento. Per questo sito, le strade pratiche sono: premere Rifiuta (o il pulsante qui sopra) per fermare Analytics, usare il <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">componente aggiuntivo di disattivazione</a> di Google, oppure cancellare i dati del browser. Per l'app, disinstallarla ferma tutte le connessioni descritte sopra, e cancellare <code>server/data/</code> rimuove tutto ciò che l'app ha salvato, compreso l'UUID di installazione.</p>

@@ -136,7 +136,7 @@
         <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/privacy.html" aria-current="page" data-xl="f.privacy">Privacidad</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"Privacidad","item":"https://xenon-app.com/es/privacy.html"}]}</script><!-- /xenon:crumbs -->
         <h1 id="pg-h" data-i18n="pv.h1">Política de privacidad</h1>
         <p class="lede" data-i18n="pv.lede">La app Xenon funciona en tu propio PC y guarda ahí sus datos. Esta web es otra cosa, con otras reglas. Esta página mantiene las dos separadas y explica qué envía y qué guarda cada una.</p>
-        <p class="updated" data-i18n="pv.updated">Última actualización: 6 de noviembre de 2026</p>
+        <p class="updated" data-i18n="pv.updated">Última actualización: 10 de noviembre de 2026</p>
       </div>
       <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
     </div>
@@ -152,6 +152,7 @@
       <a href="#usage-counts" data-i18n="pv.use.h">Recuento de funciones</a>
       <a href="#pass-trial" data-i18n="pv.trial.h">La prueba de 7 días del pase</a>
       <a href="#sparks" data-i18n="pv.sparks.h">Las Chispas</a>
+      <a href="#submit" data-i18n="pv.submit.h">Enviar algo a la Store</a>
       <a href="#rights" data-i18n="pv.rights.h">Tus derechos</a>
       <a href="#changes" data-i18n="pv.changes.h">Cambios en esta página</a>
     </nav>
@@ -361,6 +362,11 @@
     <p data-i18n="pv.sparks.p3">Cuando Bit funciona con Chispas, tu código abre una sesión en el hub, y a partir de ahí solo viaja un token de sesión, válido como máximo 30 días. Lo que le pides a Bit, y lo que Bit crea, pasa por el hub hasta Anthropic, que ejecuta los modelos Claude, según los términos de Anthropic. El hub no lo guarda: por cada respuesta conserva el modelo, el número de tokens, lo que costó y el mes, para contar tus Chispas.</p>
     <p data-i18n="pv.sparks.p4">En tu PC el código de Chispas queda en sparks-code.json, en la carpeta de datos de la app, como el código de supporter, y nunca en los ajustes que viajan a los dispositivos emparejados. Si el mismo PC tiene también un código de supporter, las Chispas se pasan a él una vez y el código de Chispas se olvida.</p>
     <p data-i18n="pv.sparks.p5">Una instalación nueva recibe 30 Chispas de prueba, sin correo, la primera vez que escribes a Bit. Para esa única petición la app envía al hub el mismo hash de instalación que se usa para los códigos de supporter, y el hub lo guarda para que cada instalación las reciba una sola vez. El hub también guarda un hash con clave de tu dirección de red durante 30 días, para limitar cuántas puede recibir una misma red, y después lo borra. La dirección en sí no se guarda. Las Chispas de prueba solo sirven para Bit, terminan a los 7 días y no pasan a un código de supporter; después la app olvida su código.</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Enviar algo a la Store</h2>
+    <p data-i18n="pv.submit.p1">Para enviar a la Store un widget, un tema u otra creación desde la página de envío, inicias sesión con Discord. Discord le dice al hub de supporters tu ID de Discord, tu nombre de usuario y tu nombre visible, la dirección de correo de tu cuenta de Discord y si Discord la ha verificado, y si eres miembro del servidor de Discord de Xenon. Un envío solo se acepta de un miembro del servidor con un correo verificado.</p>
+    <p data-i18n="pv.submit.p2">Con cada envío el hub guarda tu ID de Discord, tu nombre de usuario, tu nombre visible y ese correo, junto a lo que enviaste. Solo los veo yo, en la página de revisión del hub, para escribirte sobre tu envío o encontrarte en el servidor. La Store no los muestra: el nombre de autor que aparece allí es el que escribes en el formulario. El inicio de sesión por sí solo caduca a las 6 horas y luego se borra.</p>
+    <p data-i18n="pv.submit.p3">Los envíos se conservan para poder seguir la historia de un elemento de la Store. Para que se borre el tuyo, junto con los datos que llegaron con él, escribe a la dirección que aparece al principio de esta página.</p>
 
     <h2 id="rights" data-i18n="pv.rights.h">Tus derechos</h2>
     <p data-i18n-html="pv.rights.p1">Según el RGPD puedes pedir el acceso, la rectificación o la supresión de tus datos personales, y puedes oponerte al tratamiento. Para esta web, las vías prácticas son: pulsar Rechazar (o el botón de arriba) para detener Analytics, usar el <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">complemento de inhabilitación</a> de Google, o borrar los datos del navegador. Para la app, desinstalarla detiene todas las conexiones descritas arriba, y borrar <code>server/data/</code> elimina todo lo que la app guardó, incluido el UUID de instalación.</p>
