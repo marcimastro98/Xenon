@@ -1,6 +1,56 @@
 {
   "promos": [
     {
+      "id": "meter-reading-corner",
+      "entryId": "meter-reading",
+      "format": "corner",
+      "activeFrom": "2026-11-10T00:00:00+01:00",
+      "video": "https://assets.xenon-app.com/community/promo/meter-reading.mp4",
+      "poster": "https://assets.xenon-app.com/community/promo/meter-reading-poster.png",
+      "url": "https://xenon-app.com/catalog/meter-reading/",
+      "look": {
+        "paper": "#d4d5cd",
+        "ink": "#1d281d"
+      },
+      "text": {
+        "en": {
+          "title": "Meter Reading",
+          "line": "Your PC's electricity meter: kWh today and this month, what they cost at your price, and a red light that blinks once per watt-hour.",
+          "cta": "Unlock it in the Store"
+        },
+        "it": {
+          "title": "Meter Reading",
+          "line": "Il contatore della luce del tuo PC: kWh di oggi e del mese, quanto costano al tuo prezzo e una luce rossa che lampeggia a ogni wattora.",
+          "cta": "Sbloccalo nello Store"
+        },
+        "es": {
+          "title": "Meter Reading",
+          "line": "El contador de luz de tu PC: kWh de hoy y del mes, lo que cuestan a tu precio y una luz roja que parpadea con cada vatio hora.",
+          "cta": "Desbloquéalo en la Store"
+        },
+        "fr": {
+          "title": "Meter Reading",
+          "line": "Le compteur électrique de ton PC : les kWh du jour et du mois, leur coût à ton prix, et un voyant rouge qui clignote à chaque wattheure.",
+          "cta": "Débloque-le dans le Store"
+        },
+        "ja": {
+          "title": "Meter Reading",
+          "line": "PCの電力メーター。今日と今月のkWh、自分で決めた単価での料金、そして1Whごとに点滅する赤いランプ。",
+          "cta": "ストアでアンロック"
+        },
+        "ko": {
+          "title": "Meter Reading",
+          "line": "PC의 전력 계량기: 오늘과 이번 달의 kWh, 내가 정한 단가로 계산한 요금, 그리고 1Wh마다 깜박이는 빨간 불빛.",
+          "cta": "스토어에서 잠금 해제"
+        },
+        "zh": {
+          "title": "Meter Reading",
+          "line": "你的电脑电表：今天和本月的千瓦时、按你设定的电价算出的费用，还有每消耗一瓦时就闪一次的红灯。",
+          "cta": "在商店解锁"
+        }
+      }
+    },
+    {
       "id": "alibi-strip",
       "entryId": "alibi",
       "format": "strip",
