@@ -1,6 +1,57 @@
 {
   "promos": [
     {
+      "id": "alibi-strip",
+      "entryId": "alibi",
+      "format": "strip",
+      "activeFrom": "2026-11-10T00:00:00+01:00",
+      "activeUntil": "2026-12-09T23:59:59+01:00",
+      "video": "https://assets.xenon-app.com/community/promo/alibi.mp4",
+      "poster": "https://assets.xenon-app.com/community/promo/alibi-poster.png",
+      "url": "https://xenon-app.com/catalog/alibi/",
+      "look": {
+        "paper": "#eceeef",
+        "ink": "#141619"
+      },
+      "text": {
+        "en": {
+          "title": "Culprit",
+          "line": "Names who made your game lag, in red while you play: your PC, your Wi-Fi, your home line or your provider. 300 Sparks, on sale only in the first 30 days of Xenon 5.0.0.",
+          "cta": "See Culprit"
+        },
+        "it": {
+          "title": "Culprit",
+          "line": "Dice chi ha fatto laggare il gioco, in rosso mentre giochi: il PC, il Wi-Fi, la linea di casa o il provider. 300 Scintille, in vendita solo nei primi 30 giorni di Xenon 5.0.0.",
+          "cta": "Vedi Culprit"
+        },
+        "es": {
+          "title": "Culprit",
+          "line": "Dice quién hizo que tu juego vaya con lag, en rojo mientras juegas: tu PC, tu Wi-Fi, tu línea o tu proveedor. 300 Chispas, a la venta solo los primeros 30 días de Xenon 5.0.0.",
+          "cta": "Ver Culprit"
+        },
+        "fr": {
+          "title": "Culprit",
+          "line": "Dit en rouge, en jeu, qui fait laguer votre partie : votre PC, votre Wi-Fi, votre ligne ou votre FAI. 300 Étincelles, en vente les 30 premiers jours de Xenon 5.0.0 seulement.",
+          "cta": "Voir Culprit"
+        },
+        "ja": {
+          "title": "Culprit",
+          "line": "ゲームのラグが誰のせいかを、プレイ中に赤で表示します。PC、Wi-Fi、家の回線、プロバイダーのどれか。300 スパーク、Xenon 5.0.0 の最初の 30 日間だけ販売します。",
+          "cta": "Culprit を見る"
+        },
+        "ko": {
+          "title": "Culprit",
+          "line": "게임 렉이 누구 탓인지 플레이 중에 빨간색으로 알려 줍니다. PC, Wi-Fi, 집 회선, 인터넷 제공업체 중 하나. 300 스파크, Xenon 5.0.0의 처음 30일 동안만 판매합니다.",
+          "cta": "Culprit 보기"
+        },
+        "zh": {
+          "title": "Culprit",
+          "line": "游戏卡顿时，边玩边用红色标出是谁的错：电脑、Wi-Fi、家里的线路还是运营商。300 火花，仅在 Xenon 5.0.0 的前 30 天出售。",
+          "cta": "查看 Culprit"
+        }
+      }
+    },
+    {
       "id": "alibi-spotlight",
       "entryId": "alibi",
       "format": "spotlight",
