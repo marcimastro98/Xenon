@@ -150,6 +150,17 @@
     background: var(--g-0); border: 1px solid var(--bone-2); border-radius: 6px;
   }
   ::placeholder { color: var(--bone-2); opacity: 1; }
+  /* Tags (tags.js): chips inside one box that reads as a field. */
+  .tag-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 44px; padding: 4px; background: var(--g-0); border: 1px solid var(--bone-2); border-radius: 6px; }
+  .tag-box:focus-within { outline: 2px solid var(--bone-0); outline-offset: 1px; }
+  .tag-list { display: contents; list-style: none; }
+  .tag-chip { display: inline-flex; align-items: center; min-height: 34px; padding-left: 10px; font-size: 15px; background: var(--g-2); border-radius: 4px; overflow-wrap: anywhere; }
+  .tag-x { min-width: 34px; min-height: 34px; border: 0; background: none; color: var(--bone-1); font-size: 19px; line-height: 1; cursor: pointer; border-radius: 4px; }
+  .tag-x:hover { color: var(--bone-0); background: var(--g-3); }
+  .tag-box input[type=text] { flex: 1 1 110px; width: auto; min-width: 0; min-height: 34px; padding: 4px 6px; border: 0; background: none; outline: none; }
+  .tag-add { min-height: 34px; padding: 0 12px; font-size: 15px; }
+  .tag-add:disabled { opacity: 0.5; cursor: default; }
+  .tag-note { display: block; min-height: 1.4em; margin-top: 4px; font-size: 14px; color: var(--bone-1); }
   textarea { resize: vertical; min-height: 90px; }
   #code { font-family: var(--mono); font-size: 15px; min-height: 120px; }
   .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
@@ -246,6 +257,7 @@
 </style>
 <script src="/chrome.js" defer></script>
 <script src="identity.js"></script>
+<script src="tags.js"></script>
 </head>
 <body data-sheet="violet" data-own-key data-track-view="submit_start">
 <!-- xenon:header -->
@@ -371,7 +383,7 @@
         <div class="f id-box" id="identity"></div>
         <label class="f"><span data-t="f_supporter">Supporter code <small>(optional: supporters are reviewed first; the code is checked, never stored)</small></span><input type="text" id="supporterCode" maxlength="24" autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"></label>
         <label class="f" hidden><span data-t="f_price">Your price in USD <small>(optional: what you would ask; the review suggests one too)</small></span><input type="text" id="price" maxlength="6" inputmode="decimal" autocomplete="off" placeholder="2.00"></label>
-        <label class="f"><span data-t="f_tags">Tags * <small>(up to 6, lowercase: this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
+        <label class="f" for="tagInput"><span data-t="f_tags">Tags * <small>(up to 6: type one and press Enter or +; this is how people find it in the Store)</small></span><span class="tag-box"><ul class="tag-list" id="tagList"></ul><input type="text" id="tagInput" maxlength="40" autocomplete="off" spellcheck="false" enterkeyhint="done"><button type="button" class="btn tag-add" id="tagAdd">+ Add</button></span><span class="tag-note" id="tagNote" aria-live="polite"></span><input type="hidden" id="tags"></label>
       </div>
       <label class="f"><span data-t="f_desc">Description *</span><textarea id="description" maxlength="800" rows="4" required data-t-ph="desc_ph" placeholder="What it does, in a sentence or two. Markdown works: **bold**, *italic*, lists with - or 1."></textarea></label>
     </div>
@@ -534,7 +546,7 @@
       f_name: 'Nom *',
       f_author: 'Auteur / pseudo *',
       f_version: 'Version * <small>(p. ex. 1.0.0 : à incrémenter lors d\'une mise à jour)<\/small>',
-      f_tags: 'Tags* <small>(jusqu\'à 6, en minuscules : c\'est ainsi que les gens le trouvent dans le store)<\/small>',
+      f_tags: 'Tags * <small>(jusqu\'à 6 : tapez-en un puis Entrée ou + ; c\'est ainsi que les gens le trouvent dans le Store)<\/small>',
       f_desc: 'Description *',
       desc_ph: 'Ce qu\'il fait, en une ou deux phrases. Le Markdown fonctionne : **gras**, *italique*, listes avec - ou 1.',
       code_ph: 'Collez le code depuis Partager et importer → Exporter…',
@@ -616,7 +628,7 @@
       lede: 'Incolla il codice di condivisione di ciò che hai creato. Una persona controlla ogni proposta prima che compaia nel catalogo.',
       f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle *',
       f_version: 'Versione * <small>(es. 1.0.0: aumentala quando aggiorni)</small>',
-      f_tags: 'Tag * <small>(fino a 6, minuscoli: è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
+      f_tags: 'Tag * <small>(fino a 6: scrivine uno e premi Invio o +; è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
       desc_ph: 'Cosa fa, in una o due frasi. Puoi usare il Markdown: **grassetto**, *corsivo*, elenchi con - o 1.',
       f_category: 'Categoria *', c_none: 'Scegli…',
       c_style: 'style (temi, sfondi, aspetto)', c_deck: 'deck (profili Deck)', c_streaming: 'streaming',
@@ -700,7 +712,7 @@
       lede: 'Pega el código para compartir de lo que has creado. Una persona revisa cada envío antes de que aparezca en el catálogo.',
       f_kind: 'Tipo', f_name: 'Nombre *', f_author: 'Autor / alias *',
       f_version: 'Versión * <small>(p. ej. 1.0.0; súbela cuando actualices)</small>',
-      f_tags: 'Etiquetas * <small>(hasta 6, en minúsculas: así te encuentran en la Tienda)</small>', f_desc: 'Descripción *',
+      f_tags: 'Etiquetas * <small>(hasta 6: escribe una y pulsa Intro o +; así te encuentran en la Tienda)</small>', f_desc: 'Descripción *',
       desc_ph: 'Qué hace, en una o dos frases. Admite Markdown: **negrita**, *cursiva*, listas con - o 1.',
       f_category: 'Categoría *', c_none: 'Elige una…',
       c_style: 'style (temas, fondos, apariencia)', c_deck: 'deck (perfiles de Deck)', c_streaming: 'streaming',
@@ -792,7 +804,7 @@
       c_tools: 'tools (도구)',
       c_fun: 'fun (재미)',
       f_version: '버전 * <small>(예: 1.0.0. 업데이트할 때 올리세요)</small>',
-      f_tags: '태그 * <small>(최대 6개, 소문자. 스토어에서 사람들이 이것으로 찾습니다)</small>',
+      f_tags: '태그 * <small>(최대 6개. 하나 입력하고 Enter 또는 + 를 누르세요. 스토어에서 사람들이 이것으로 찾습니다)</small>',
       code_ph: '공유 및 가져오기 → 내보내기에서 복사한 코드를 붙여넣으세요…',
       code_file: '.txt / .json 파일에서 불러오기…',
       code_hint: 'Xenon에서 설정 → 위젯 &amp; 공유로 가서 작품을 내보낸 뒤, 코드를 복사하거나 파일을 내려받으세요. 최대 4&nbsp;MB.',
@@ -895,7 +907,7 @@
       c_tools: 'tools (ツール)',
       c_fun: 'fun (お楽しみ)',
       f_version: 'バージョン * <small>(例: 1.0.0。更新するときは上げてください)</small>',
-      f_tags: 'タグ * <small>(最大 6 個、小文字。ストアで見つけてもらうためのものです)</small>',
+      f_tags: 'タグ * <small>(最大 6 個。1 つ入力して Enter か + を押します。ストアで見つけてもらうためのものです)</small>',
       code_ph: '共有とインポート → エクスポートのコードを貼り付けてください…',
       code_file: '.txt / .json ファイルから読み込む…',
       code_hint: 'Xenon の設定 → ウィジェットと共有で作ったものをエクスポートし、コードをコピーするかファイルをダウンロードします。最大 4&nbsp;MB。',
@@ -998,7 +1010,7 @@
       c_tools: 'tools (工具)',
       c_fun: 'fun (娱乐)',
       f_version: '版本 * <small>(例如 1.0.0，更新时请提高版本号)</small>',
-      f_tags: '标签 * <small>(最多 6 个，小写，用户靠它们在商店中找到你的作品)</small>',
+      f_tags: '标签 * <small>(最多 6 个：输入一个后按回车或 +，用户靠它们在商店中找到你的作品)</small>',
       code_ph: '粘贴从“分享与导入 → 导出”复制的代码…',
       code_file: '从 .txt / .json 文件加载…',
       code_hint: '在 Xenon 的 设置 → 小组件与分享 中导出你的作品，然后复制代码或下载文件。最大 4&nbsp;MB。',
@@ -1132,6 +1144,7 @@
         btn.setAttribute('aria-expanded', 'false');
         applyLang(); renderShots(); renderAudit();
         window.XenonSubmitIdentity.setLang(lang);
+        window.XenonSubmitTags.setLang(lang);
       });
     });
   })();
@@ -1766,6 +1779,7 @@
     var identity = window.XenonSubmitIdentity.secret();
     var author = document.getElementById('author').value.trim();
     var category = document.getElementById('category').value;
+    window.XenonSubmitTags.commit();
     var tags = document.getElementById('tags').value.trim();
     var description = document.getElementById('description').value.trim();
     var code = codeEl.value.trim();
@@ -1909,6 +1923,10 @@
 
   applyLang();
   window.XenonSubmitIdentity.mount(document.getElementById('identity'), { hub: HUB, lang: lang });
+  window.XenonSubmitTags.mount({
+    input: document.getElementById('tagInput'), hidden: document.getElementById('tags'), list: document.getElementById('tagList'),
+    addBtn: document.getElementById('tagAdd'), note: document.getElementById('tagNote'), lang: lang
+  });
   renderShots();
   renderAudit(); // paints the idle line of the Automatic check card
   // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.
