@@ -42,7 +42,7 @@
       asked: 'Your price', with_pass: 'with the supporter pass', drop: 'limited drop',
       basis_similar: 'Based on similar entries.', basis_category: 'Based on its category; there are no close matches yet.',
       basis_complexity: 'Estimated from what it does; there is nothing similar in the Store yet.',
-      omitted: 'more minor points not listed.', submitted: 'Sent', priority: 'Supporter, reviewed first', resend: 'Open the submission form',
+      omitted: 'more minor points not listed.', submitted: 'Sent', priority: 'Supporter, reviewed first', resend: 'Send a corrected version',
     },
     it: {
       title: 'La tua proposta', loading: 'Caricamento…',
@@ -68,7 +68,7 @@
       asked: 'Il tuo prezzo', with_pass: 'con il pass sostenitore', drop: 'drop limitato',
       basis_similar: 'In base a contenuti simili.', basis_category: 'In base alla categoria; non ci sono ancora contenuti molto simili.',
       basis_complexity: 'Stimato da quello che fa; nello Store non c’è ancora niente di simile.',
-      omitted: 'punti minori in più non elencati.', submitted: 'Inviata', priority: 'Sostenitore, revisione in priorità', resend: 'Apri il modulo di invio',
+      omitted: 'punti minori in più non elencati.', submitted: 'Inviata', priority: 'Sostenitore, revisione in priorità', resend: 'Manda la versione corretta',
     },
     es: {
       title: 'Tu envío', loading: 'Cargando…',
@@ -94,7 +94,7 @@
       asked: 'Tu precio', with_pass: 'con el pase de mecenas', drop: 'drop limitado',
       basis_similar: 'Según entradas parecidas.', basis_category: 'Según su categoría; aún no hay entradas muy parecidas.',
       basis_complexity: 'Estimado por lo que hace; aún no hay nada parecido en la Store.',
-      omitted: 'puntos menores más sin listar.', submitted: 'Enviado', priority: 'Mecenas, revisión prioritaria', resend: 'Abrir el formulario de envío',
+      omitted: 'puntos menores más sin listar.', submitted: 'Enviado', priority: 'Mecenas, revisión prioritaria', resend: 'Enviar la versión corregida',
     },
     fr: {
       title: 'Votre proposition', loading: 'Chargement…',
@@ -120,7 +120,7 @@
       asked: 'Votre prix', with_pass: 'avec le pass supporter', drop: 'drop limité',
       basis_similar: 'D’après des entrées similaires.', basis_category: 'D’après sa catégorie ; pas encore d’entrée très proche.',
       basis_complexity: 'Estimé d’après ce qu’il fait ; rien de similaire dans le Store pour l’instant.',
-      omitted: 'points mineurs de plus non listés.', submitted: 'Envoyé', priority: 'Supporter, relu en priorité', resend: 'Ouvrir le formulaire d’envoi',
+      omitted: 'points mineurs de plus non listés.', submitted: 'Envoyé', priority: 'Supporter, relu en priorité', resend: 'Envoyer la version corrigée',
     },
     ko: {
       title: '내 제출물', loading: '불러오는 중…',
@@ -146,7 +146,7 @@
       asked: '희망 가격', with_pass: '후원자 패스 포함', drop: '한정 드롭',
       basis_similar: '비슷한 항목을 기준으로 했습니다.', basis_category: '카테고리를 기준으로 했습니다. 아직 아주 비슷한 항목은 없습니다.',
       basis_complexity: '기능을 기준으로 추정했습니다. 스토어에 아직 비슷한 항목이 없습니다.',
-      omitted: '개의 사소한 항목은 표시하지 않았습니다.', submitted: '제출일', priority: '후원자, 우선 검토', resend: '제출 양식 열기',
+      omitted: '개의 사소한 항목은 표시하지 않았습니다.', submitted: '제출일', priority: '후원자, 우선 검토', resend: '수정한 버전 보내기',
     },
     ja: {
       title: 'あなたの投稿', loading: '読み込み中…',
@@ -172,7 +172,7 @@
       asked: 'あなたの価格', with_pass: 'サポーターパスに含まれる', drop: '限定ドロップ',
       basis_similar: '似ている項目をもとにしています。', basis_category: 'カテゴリをもとにしています。まだよく似た項目はありません。',
       basis_complexity: '機能から見積もりました。ストアにはまだ似たものがありません。',
-      omitted: '件の軽微な項目は省略しています。', submitted: '送信日', priority: 'サポーター、優先レビュー', resend: '投稿フォームを開く',
+      omitted: '件の軽微な項目は省略しています。', submitted: '送信日', priority: 'サポーター、優先レビュー', resend: '修正版を送る',
     },
     zh: {
       title: '你的投稿', loading: '加载中…',
@@ -198,9 +198,11 @@
       asked: '你的定价', with_pass: '包含在支持者通行证中', drop: '限量发布',
       basis_similar: '参考了类似的条目。', basis_category: '参考了所属类别；目前还没有很相似的条目。',
       basis_complexity: '根据功能估算；商店里还没有类似的条目。',
-      omitted: '个次要问题未列出。', submitted: '提交于', priority: '支持者，优先审核', resend: '打开投稿表单',
+      omitted: '个次要问题未列出。', submitted: '提交于', priority: '支持者，优先审核', resend: '发送修改后的版本',
     },
   };
+
+  var current = null; // the { id, token } this page shows
 
   /** "#sub_abc.TOKEN" → { id, token }, or null when it is not that shape. */
   function parseHash(hash) {
@@ -439,9 +441,12 @@
     if (sub.status !== 'approved') root.append(findingsBlock(r));
     if (r.scores) root.append(scoresBlock(r.scores));
     if (SHOW_PRICE && r.price) root.append(priceBlock(r.price));
-    if (statusKey(sub) === 's_fix') {
+    // The form opens filled with what this submission sent, and what is sent from
+    // it takes this one's place in the queue.
+    var key = statusKey(sub);
+    if (current && (key === 's_fix' || key === 's_rejected')) {
       var again = el('a', 'st-btn', T('resend'));
-      again.href = '/submit/';
+      again.href = '/submit/#from=' + current.id + '.' + current.token;
       root.append(again);
     }
   }
@@ -460,6 +465,7 @@
   async function load() {
     var ref = parseHash(location.hash);
     if (!ref) { message('bad_link'); return; }
+    current = ref;
     message('loading');
     var res;
     try {

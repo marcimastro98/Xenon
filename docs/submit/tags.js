@@ -125,6 +125,12 @@
     setLang: function (l) { lang = l; if (els) render(); },
     // Takes a word still in the box, so pressing Send right after typing keeps it.
     commit: function () { commit(true); },
+    // Replaces the chips with these words (the form refilled from a status link).
+    set: function (raw) {
+      tags = [];
+      String(raw || '').split(SEPARATORS).forEach(add);
+      if (els) render();
+    },
     clean: clean
   };
 })();

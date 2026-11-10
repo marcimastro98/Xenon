@@ -142,3 +142,12 @@ test('the page sends the chips and switches their language', () => {
   assert.match(html, /\.tag-box:has\(input:focus-visible\) \{ outline: 2px solid var\(--focus, var\(--bone-0\)\); outline-offset: 2px; \}/, 'the box carries the shared ring for its text');
 });
 
+test('a refilled form replaces the chips with the words it sent', () => {
+  const { tags, els } = load();
+  tags.mount(els);
+  type(els, 'old ');
+  tags.set('Calm green,calm  #Neon_Glow');
+  assert.equal(els.hidden.value, 'calm green neon-glow');
+  tags.set('');
+  assert.equal(els.hidden.value, '');
+});
