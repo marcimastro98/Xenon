@@ -540,6 +540,9 @@
     document.body.classList.remove('topbar-minimal');
     clearIslandTags();
     active = false;
+    arrived = false; // back to Minimal later, the island arrives again
+    if (ui && ui.pill) ui.pill.classList.remove('island-waiting', 'island-arriving');
+    stopPaging();
     applyIslandLayout();
     // Stop the idle countdown and clear the transient hidden state, so switching
     // back to minimal later starts from fully-visible rails.
@@ -598,6 +601,13 @@
     if (bar.under) item.style.setProperty('--island-under', bar.under + 'px');
   }
 
+  // The content where a closed cut leaves it (as releaseNotch does): at the tile
+  // top, a strip unshifted, so a soft opening has a place to slide from.
+  function shutContent(item, line, bar) {
+    item.style.setProperty('--island-inset', line.width + 'px');
+    setBar(item, bar ? { shift: 0, max: bar.max, under: 0 } : null);
+  }
+
   // Where a group's tab strip may sit and what it needs, in the item's own px.
   // Read only on a shown page outside editing: a rect read on a parked page
   // renders the very subtree the parking skips, and while editing the content
@@ -627,14 +637,95 @@
     if (st && st.leaving) clearTimeout(st.leaving);
     notchState.delete(item);
     item.classList.remove('island-clear');
-    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-surface', '--island-notch-ms'].forEach(p => item.style.removeProperty(p));
+    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-surface', ...SOFT_PROPS].forEach(p => item.style.removeProperty(p));
     setBar(item, null);
     const svg = item.querySelector(':scope > .island-notch-edge');
     if (svg) svg.remove();
   }
 
+  // Performance mode and a game hold the island's motion: the cuts then just
+  // appear. Not low-power-gpu: that pause is for loops that cost frames all
+  // session (native-bridge.js), and a cutout opening is one short transition.
+  const MOTION_HOLD = ['perf-mode', 'game-mode'];
   function motionOk() {
+    if (MOTION_HOLD.some((c) => document.body.classList.contains(c))) return false;
     return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // A cutout appearing (a page settling, a widget added) opens slowly and evenly,
+  // the content with it: the shared ease-out (TopbarMinimal.css) does most of
+  // its travel in the first frames, which read as a snap for a whole cutout.
+  // The content slides on a CSS transition; the cut itself is written frame by
+  // frame (openSoftly), so it can head for a new shape mid-way when the island
+  // changes as the page arrives (retargetOpening) instead of jumping to it.
+  const SOFT_OPEN = { ms: 620, ease: 'cubic-bezier(.4, 0, .2, 1)' };
+  const SOFT_PROPS = ['--island-notch-ms', '--island-content-ms', '--island-ease'];
+  function softOpen(item) {
+    item.style.setProperty('--island-notch-ms', '0ms');
+    item.style.setProperty('--island-content-ms', SOFT_OPEN.ms + 'ms');
+    item.style.setProperty('--island-ease', SOFT_OPEN.ease);
+  }
+
+  // SOFT_OPEN.ease as a function of time (0..1): cubic-bezier(.4, 0, .2, 1),
+  // x solved by Newton steps, so the cut and the content keep one pace.
+  function softEase(t) {
+    const bez = (a, b, s) => 3 * a * s * (1 - s) * (1 - s) + 3 * b * s * s * (1 - s) + s * s * s;
+    let s = t;
+    for (let i = 0; i < 6; i++) {
+      const dx = 3 * 0.4 * (1 - s) * (1 - s) + 6 * (0.2 - 0.4) * s * (1 - s) + 3 * (1 - 0.2) * s * s;
+      if (Math.abs(dx) < 1e-6) break;
+      s = Math.min(1, Math.max(0, s - (bez(0.4, 0.2, s) - t) / dx));
+    }
+    return bez(0, 1, s);
+  }
+
+  // A cutout appearing: flat (island-notch.js flat), content at the top, then
+  // both open two frames later. A write in the very next frame lands before the
+  // closed state was ever styled, so there is nothing to transition from and it
+  // appears whole (measured after a page change).
+  function startSoftOpen(item, st) {
+    const N = window.IslandNotch;
+    st.opening = true;
+    softOpen(item);
+    shutContent(item, st.line, st.bar);
+    item.classList.add('island-clear');
+    drawNotch(item, N.flat(st.geo), st.line);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (notchState.get(item) !== st || !st.key) { st.opening = false; return; }
+      st.started = true;
+      openContent(item, st);
+      openSoftly(item, st, N.flat(st.geo));
+    }));
+  }
+
+  function openContent(item, st) {
+    item.style.setProperty('--island-inset', st.inset + 'px');
+    setBar(item, st.bar);
+  }
+
+  // The island changed while a cut was opening: a widget waking on the page it
+  // arrived with rewrites its line and the pill grows (measured: Meter Reading's
+  // cost). A direct draw cut the opening short and the whole cut appeared in one
+  // frame, so the opening heads for the new shape instead.
+  function retargetOpening(item, st, next) {
+    Object.assign(st, next);
+    if (st.started) openContent(item, st);
+  }
+
+  // Draw the cut from `from` to its shape over SOFT_OPEN.ms, toward st.geo as it
+  // is on each frame. It stops when the tile is redrawn, released or dropped
+  // (its state is no longer `st`).
+  function openSoftly(item, st, from) {
+    const N = window.IslandNotch;
+    const t0 = performance.now();
+    const step = (now) => {
+      if (notchState.get(item) !== st || !st.key) { st.opening = false; return; }
+      const t = Math.min(1, (now - t0) / SOFT_OPEN.ms);
+      drawNotch(item, N.between(from, st.geo, softEase(t)), st.line);
+      if (t < 1) requestAnimationFrame(step);
+      else st.opening = false;
+    };
+    requestAnimationFrame(step);
   }
 
   // Close a cutout into its centre, then take the tags off once it has.
@@ -644,6 +735,7 @@
     if (st.leaving) return;
     st.leaving = setTimeout(() => { if (notchState.get(item) === st) dropNotch(item); }, NOTCH_MS);
     st.key = '';
+    SOFT_PROPS.forEach(p => item.style.removeProperty(p));
     item.style.setProperty('--island-notch-ms', NOTCH_MS + 'ms'); // closes on its own clock while the box follows
     item.style.setProperty('--island-inset', st.line.width + 'px');
     setBar(item, null);
@@ -748,6 +840,60 @@
     reflowIsland(); // the real box, with the tiles' own transitions back on
   }
 
+  // ── Arrival ──────────────────────────────────────────────────────────────────
+  // The island comes in from a small dot at its centre, and the tiles take its
+  // shape as it grows: the cutout box rides the same spring from that dot, so no
+  // tile is cut before there is an island to cut around. Once per Minimal session
+  // (reload, or switching to Minimal), only when the screen can be seen.
+  const ARRIVE_HOLD_MS = 560; // the island's own entrance (TopbarMinimal.css)
+  let arrived = false;
+  let splashWait = false;
+  // Under Bit's boot splash the entrance would play unseen: hold the island out
+  // of sight (nothing cut either) and start it once the splash is gone.
+  function behindSplash() {
+    const splash = document.getElementById('boot-splash');
+    if (!splash || !splash.isConnected || !window.BootSplash) return false;
+    ui.pill.classList.add('island-waiting');
+    if (!splashWait) {
+      splashWait = true;
+      window.BootSplash.whenGone(() => { splashWait = false; scheduleReflow(); });
+    }
+    return true;
+  }
+  // true once arrived (with or without the entrance); false to wait: the page is
+  // hidden or the island not laid out yet, and nothing is cut meanwhile.
+  function arrive() {
+    if (arrived) return true;
+    if (document.hidden) {
+      document.addEventListener('visibilitychange', scheduleReflow, { once: true });
+      return false;
+    }
+    if (behindSplash()) return false;
+    const box = homeBox(); // at rest: the entrance has not scaled it yet
+    if (!box || !box.height) return false;
+    arrived = true;
+    ui.pill.classList.remove('island-waiting');
+    if (!motionOk() || document.body.classList.contains('layout-editing') || box.kind !== 'pill') return true;
+    const dot = box.height * 0.2;
+    const cx = (box.left + box.right) / 2, cy = box.bottom - box.height / 2;
+    follow.pos = { left: cx - dot, right: cx + dot, bottom: cy + dot, height: 2 * dot, radius: dot };
+    follow.vel = { left: 0, right: 0, bottom: 0, height: 0, radius: 0 };
+    follow.last = performance.now();
+    follow.until = follow.last + ARRIVE_HOLD_MS;
+    document.body.classList.add('island-following');
+    const pill = ui.pill;
+    const done = (e) => {
+      if (e && e.target !== pill) return;
+      pill.classList.remove('island-arriving');
+      pill.removeEventListener('animationend', done);
+    };
+    pill.addEventListener('animationend', done);
+    setTimeout(done, ARRIVE_HOLD_MS + 200); // an animation that never ran never ends
+    pill.classList.add('island-arriving');
+    if (!follow.raf) follow.raf = requestAnimationFrame(followStep);
+    return true;
+  }
+
   // Call when the island's tenant changes. No-op without motion or a known
   // starting box: the plain reflow then does the job.
   function followIsland() {
@@ -764,14 +910,46 @@
     if (!follow.raf) follow.raf = requestAnimationFrame(followStep);
   }
 
+  // ── Paging ───────────────────────────────────────────────────────────────────
+  // Nothing on the tiles moves while a page slides: the page leaving keeps its
+  // cutouts (they ride along with their tiles) and the page coming in slides
+  // whole. Once the pager has settled with a page in place, the tiles under the
+  // island open softly around it (SOFT_OPEN). A finger held still mid-swipe has
+  // no page in place, so nothing changes until one is.
+  const PAGE_REST_MS = 120; // after the pager's own settle (dashboard-pager.js, 90ms)
+  const HOME_SLACK = 8;     // px a settled page may sit off the pager's edge (fractional scaling)
+  let paging = false;
+  let pageRestTimer = 0;
+  let pagerWatched = null;
+  function onPagerScroll() {
+    if (!active) return;
+    paging = true;
+    clearTimeout(pageRestTimer);
+    pageRestTimer = setTimeout(pageRest, PAGE_REST_MS);
+  }
+  function pageRest() {
+    stopPaging();
+    reflowIsland();
+  }
+  function stopPaging() {
+    clearTimeout(pageRestTimer);
+    paging = false;
+  }
+  function watchPager(el) {
+    if (!el || el === pagerWatched) return;
+    pagerWatched = el;
+    el.addEventListener('scroll', onPagerScroll, { passive: true });
+  }
+
   // The grid keeps the full viewport height in minimal mode, so tiles can sit
   // level with the floating clock island. Every tile whose TOP ROW actually
-  // intersects the pill gets the notch above. Grid-local coords keep this
-  // correct for off-screen pages, so paging never reveals an overlap. Called at
-  // the tail of fitGridHeights, from the grid change/dragstop throttle and on
-  // every pill resize.
+  // intersects the pill gets the notch above, on the page in place under it
+  // (see Paging above). Called at the tail of fitGridHeights, from the grid
+  // change/dragstop throttle and on every pill resize.
   function reflowIsland() {
     if (!active || !ui || !ui.pill || !window.IslandNotch) { clearIslandTags(); return; }
+    if (!arrive()) { clearIslandTags(); return; }
+    if (paging) return; // the tiles hold still while a page slides; pageRest catches up
     try {
       const pill = follow.pos || homeBox();
       if (!pill || !pill.height) { clearIslandTags(); return; }
@@ -789,17 +967,29 @@
       const grids = Array.from(document.querySelectorAll('.pager-page .grid-stack'));
       const ref = grids.find(g => !g.closest('.pager-page.is-parked')) || grids[0];
       if (!ref) { clearIslandTags(); return; }
-      const g = ref.getBoundingClientRect();
+      const N = window.IslandNotch;
+      const home = ref.closest('.pager-page');
+      const pagerEl = document.getElementById('dashboard-pager');
+      watchPager(pagerEl);
+      const pagerLeft = pagerEl ? pagerEl.getBoundingClientRect().left : 0;
+      const span = pagerEl ? pagerEl.clientWidth : 0;
+      const g = N.gridInView(ref.getBoundingClientRect(), home && home.getBoundingClientRect(), pagerEl && pagerEl.getBoundingClientRect());
       if (!g.height || !g.width) { clearIslandTags(); return; }
       const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
       if (!clearance) { clearIslandTags(); return; }
       const cols = (window.DashboardGrid && window.DashboardGrid.GRID_COLUMNS) || 24;
       const colWidth = g.width / cols;
-      const N = window.IslandNotch;
       const editing = document.body.classList.contains('layout-editing');
       let margin = null;
+      let inPlace = !span; // a page sits under the island (no pager: the grid does)
       const want = new Map(); // item -> { geo, line, inset, bar }
       grids.forEach(grid => {
+        // How far this page sits from the view (0 for the page in place). Its own
+        // box, not offsetLeft: that counts from the pager's offset parent.
+        const page = grid.closest('.pager-page');
+        const shift = page && pagerEl ? page.getBoundingClientRect().left - pagerLeft : 0;
+        if (span && Math.abs(shift) > HOME_SLACK) return;
+        inPlace = true;
         const readable = !editing && !grid.closest('.pager-page.is-parked');
         // Row height from GridStack, not a rect: the grid's own height bounds a
         // tile when it is unknown. Feeds the clip's bottom (island-notch.js FAR).
@@ -813,7 +1003,7 @@
           if (!surface) return;
           // GridStack's gutter is the same on every tile: read it once.
           if (margin === null) margin = parseFloat(getComputedStyle(content).left) || 0;
-          const left = (n.x || 0) * colWidth;
+          const left = (n.x || 0) * colWidth + shift;
           const cs = getComputedStyle(surface);
           const height = cell > 0 ? (n.h || 1) * cell : g.height;
           const tile = { width: (n.w || 0) * colWidth, height, margin, radius: parseFloat(cs.borderTopLeftRadius) || 0 };
@@ -825,17 +1015,19 @@
           want.set(item, { geo, line: N.edgeLine(cs), inset, bar });
         });
       });
+      // A finger held still mid-swipe: no page in place, so keep every cut as it is.
+      if (!inPlace) return;
       // Writes. Reconcile idempotently: fitGridHeights re-runs on every
       // interaction, so a tile whose cutout has not changed is not touched.
       document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
         if (!want.has(item)) releaseNotch(item);
       });
-      const animate = motionOk();
       // While a notification is out the pill is hidden, so a cut around it would
       // wrap nothing: it closes into its centre and the tiles are whole again
       // (body.xtoast-fold, js/toast.js; it lifts as the card heads home). The inset
       // stays, so their content does not move for a notification.
       const folded = document.body.classList.contains('xtoast-fold') && !editing;
+      const animate = motionOk();
       want.forEach(({ geo, line, inset, bar }, item) => {
         const prev = notchState.get(item);
         const shape = folded ? N.collapsed(geo) : geo;
@@ -843,21 +1035,21 @@
         const key = N.clipPath(shape) + '|' + inset + '|' + line.width + '|' + line.color + '|' + clearance + '|' + beside;
         if (prev && !prev.leaving && prev.key === key && item.classList.contains('island-clear')) return;
         if (prev && prev.leaving) { clearTimeout(prev.leaving); prev.leaving = 0; }
-        const fresh = !prev || !item.classList.contains('island-clear');
-        item.style.removeProperty('--island-notch-ms');
         item.style.setProperty('--island-clear', clearance + 'px');
-        item.style.setProperty('--island-inset', inset + 'px');
-        setBar(item, bar);
-        notchState.set(item, { geo, line, key, leaving: 0 });
-        item.classList.add('island-clear');
-        if (fresh && animate && !follow.pos && !folded) {
-          // Start closed at the island's centre and open on the next frame.
-          drawNotch(item, N.collapsed(geo), line);
-          requestAnimationFrame(() => {
-            const st = notchState.get(item);
-            if (st && st.key === key) drawNotch(item, geo, line);
-          });
+        if (prev && prev.opening && !folded && item.classList.contains('island-clear')) {
+          retargetOpening(item, prev, { geo, line, key, inset, bar });
+          return;
+        }
+        const fresh = !prev || !item.classList.contains('island-clear');
+        SOFT_PROPS.forEach(p => item.style.removeProperty(p));
+        const st = { geo, line, key, inset, bar, leaving: 0 };
+        notchState.set(item, st);
+        if (fresh && animate && !folded) {
+          startSoftOpen(item, st);
         } else {
+          item.style.setProperty('--island-inset', inset + 'px');
+          setBar(item, bar);
+          item.classList.add('island-clear');
           drawNotch(item, shape, line);
         }
       });

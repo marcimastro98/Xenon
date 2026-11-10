@@ -230,3 +230,14 @@ test('no key listener stays behind, and letting go twice is harmless', () => {
   assert.equal(r.keys.length, 0);
   assert.equal(r.document.activeElement, r.trigger);
 });
+
+test('the focus goes back without scrolling: a closed window never moves the page under it', () => {
+  const r = rig();
+  const { root, keys } = r.windowWith(1);
+  const letGo = r.hold(root, { start: keys[0], onEsc() {} });
+  let asked = null;
+  const back = r.trigger.focus.bind(r.trigger);
+  r.trigger.focus = (options) => { asked = options; back(options); };
+  letGo();
+  assert.equal(asked.preventScroll, true);
+});

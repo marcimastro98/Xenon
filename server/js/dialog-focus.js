@@ -56,7 +56,7 @@
     const wasTop = at === held.length - 1;
     held.splice(at, 1);
     if (!held.length) window.removeEventListener('keydown', onKey, true);
-    if (wasTop && entry.back && entry.back.isConnected) entry.back.focus();
+    if (wasTop && entry.back && entry.back.isConnected) entry.back.focus({ preventScroll: true });
     // Opened from a page with nothing focused, there is no way back, and a window that
     // stays in the page hidden would keep the focus: Enter would press a key nobody sees.
     if (entry.root.contains(document.activeElement)) document.activeElement.blur();

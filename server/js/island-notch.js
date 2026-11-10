@@ -72,6 +72,27 @@
     return { ...g, left: mid, right: mid, bottom: g.margin, cornerR: 0, shoulderL: 0, shoulderR: 0 };
   }
 
+  // The same cutout as wide as it will be and no depth yet: where a soft opening
+  // starts, so every tile under the island is shaped at once, slowly. Grown from
+  // the centre, a tile beside it stayed whole until the edge swept across it in a
+  // few frames (measured on screen). Corners and shoulders grow in step with the
+  // depth, so they never outgrow it on the way.
+  function flat(g) {
+    if (!g) return null;
+    return { ...g, bottom: g.margin, cornerR: 0, shoulderL: 0, shoulderR: 0 };
+  }
+
+  // The cutout `t` (0..1) of the way from `a` to `b`, for an opening driven frame
+  // by frame (js/topbar-minimal.js openSoftly), which can change target mid-way.
+  const BLEND = ['left', 'right', 'bottom', 'cornerR', 'shoulderL', 'shoulderR'];
+  function between(a, b, t) {
+    if (!a || !b) return b || null;
+    const k = Math.min(1, Math.max(0, Number(t) || 0));
+    const out = { ...b };
+    BLEND.forEach((p) => { out[p] = r1(a[p] + (b[p] - a[p]) * k); });
+    return out;
+  }
+
   // clip-path for the item. ALWAYS the same command list, whatever the case, so
   // the browser can interpolate between two cutouts instead of jumping.
   // `shift` moves the origin by that many px on both axes: surfaceClipPath()
@@ -158,7 +179,18 @@
     };
   }
 
-  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, edgeLine, besideBar, GAP };
+  // in: the rects of one page's grid, of that page, and of the pager (viewport px).
+  // out: where that grid sits when its page is the one in view. Pages scroll
+  //     sideways, so the measured grid can be a page away (the first unparked one
+  //     while a just-added widget wakes every page): its offset inside its own
+  //     page, from the pager's left edge, is the same on every page.
+  function gridInView(grid, page, pager) {
+    if (!grid) return null;
+    if (!page || !pager) return grid;
+    return { left: pager.left + (grid.left - page.left), top: grid.top, width: grid.width, height: grid.height };
+  }
+
+  const api = { geometry, collapsed, flat, between, clipPath, surfaceClipPath, edgePath, edgeLine, besideBar, gridInView, GAP };
   if (typeof window !== 'undefined') window.IslandNotch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

@@ -656,7 +656,7 @@
     // A fresh list every time the panel opens: a widget folder just created by
     // hand (the SDK guide's first step) or installed on another surface shows up
     // without a reload. One small local request.
-    const loaded = (C && typeof C.getPackages === 'function') ? C.getPackages(true).catch(() => null) : Promise.resolve(null);
+    const loaded = (C && typeof C.getPackages === 'function') ? C.getPackages(true, { listOnly: true }).catch(() => null) : Promise.resolve(null);
     loaded.then(() => {
       refresh();
       if (storePackages().length && !_catalog) loadCatalog().then(refresh);

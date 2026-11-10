@@ -722,6 +722,17 @@
     const v = pkg && pkg.optionValues;
     return v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {};
   }
+  // The number of the copy bought with Sparks this package came with (v5.0.0), or
+  // null: from the package list, else from this page's own receipts (a frame
+  // mounted before the fresh receipt reached the server).
+  function editionOf(pkgId) {
+    const n = (packageById(pkgId) || {}).edition;
+    if (Number.isInteger(n) && n > 0) return n;
+    try {
+      return window.ContentInstalls && typeof hubSettings !== 'undefined' && hubSettings
+        ? window.ContentInstalls.editionOf(hubSettings.contentInstalls, pkgId) : null;
+    } catch { return null; }
+  }
   async function onOptionsChanged(payload) {
     const pkgId = payload && typeof payload.pkg === 'string' ? payload.pkg : '';
     if (!pkgId) return;
@@ -752,10 +763,13 @@
     blockedByPkg.clear();
     errorsByPkg.clear();
   }
-  async function fetchPackages(force) {
+  async function fetchPackages(force, listOnly) {
     // A forced fetch is a Rescan / (re)install — the files on disk may have
     // changed, so bump the asset version to force mounted frames to reload them.
-    if (force) bumpAssets();
+    // A list-only refresh (the Add widget panel) leaves mounted frames alone:
+    // reloading every widget there moved the pager to whichever page held a
+    // widget that focuses itself on load.
+    if (force && !listOnly) bumpAssets();
     if (pkgFetchPromise) {
       await pkgFetchPromise;
       if (!force) return;
@@ -2378,6 +2392,22 @@
     return out;
   }
 
+  // A widget that focuses itself (a password field on its lock screen) while it
+  // sits on a page nobody is looking at makes the browser scroll the pager to it:
+  // the dashboard jumps to another page on its own. Nobody can tap a frame on a
+  // page that is not shown, so that focus is never the person's: take it back
+  // and stay on the page they are on.
+  window.addEventListener('blur', () => {
+    setTimeout(() => {
+      const el = document.activeElement;
+      const P = window.DashboardPager;
+      if (!el || !el.classList || !el.classList.contains('cw-frame') || !P || P.isOnCurrentPage(el)) return;
+      el.blur();
+      const here = P.getCurrentPage();
+      if (here) P.goToPage(here);
+    }, 0);
+  });
+
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
@@ -2440,10 +2470,12 @@
         service: entry.service === true,
         // Where the frame is drawn and whether a dashboard is in use (v5.0.0).
         placement,
-        // On a paired phone or tablet (v5.0.0). Some actions only make sense on the
-        // PC itself and are refused from there, so a widget hides those buttons.
         // Its own options as the person set them in the Xenon menu (v5.0.0).
         options: optionValuesOf(entry.pkgId),
+        // The number of this bought copy, null for any other (v5.0.0).
+        edition: editionOf(entry.pkgId),
+        // On a paired phone or tablet (v5.0.0). Some actions only make sense on the
+        // PC itself and are refused from there, so a widget hides those buttons.
         remote: !!(window.RemoteSurface && typeof window.RemoteSurface.isRemote === 'function' && window.RemoteSurface.isRemote()),
       });
       // History first, then the latest value: a widget building a chart gets the
@@ -4199,8 +4231,8 @@
   }
 
   // Package list access for AmbientMode / the Settings scene picker.
-  async function getPackages(force) {
-    if (!pkgCache || force) await fetchPackages(!!force);
+  async function getPackages(force, opts) {
+    if (!pkgCache || force) await fetchPackages(!!force, !!(opts && opts.listOnly));
     return pkgCache || { packages: [], invalid: [], skipped: 0 };
   }
   function cachedPackages() {

@@ -51,6 +51,19 @@ test('collapsed shrinks the cutout to its centre at the tile top', () => {
   assert.equal(N.edgePath(c, 1).split(' ').length, N.edgePath(g, 1).split(' ').length);
 });
 
+test('flat keeps the cutout full width with no depth, so a soft opening shapes every tile at once', () => {
+  const g = N.geometry(base);
+  const f = N.flat(g);
+  assert.equal(f.left, g.left);
+  assert.equal(f.right, g.right);
+  assert.equal(f.bottom, base.margin);
+  assert.deepEqual([f.cornerR, f.shoulderL, f.shoulderR], [0, 0, 0]);
+  const shape = (p) => p.replace(/-?\d+(\.\d+)?/g, '#');
+  assert.equal(shape(N.clipPath(f)), shape(N.clipPath(g)));
+  assert.equal(N.edgePath(f, 1).split(' ').length, N.edgePath(g, 1).split(' ').length);
+  assert.equal(N.flat(null), null);
+});
+
 // A glass tile under the island takes the cutout on its surfaces, not on the
 // item (an ancestor clip-path is the backdrop root and the blur saw nothing).
 // The surfaces live in the content box, which starts `margin` inside the item,
@@ -158,9 +171,124 @@ test('a tile the island leaves gives its strip back', () => {
   assert.match(body('releaseNotch'), /setBar\(item, null\);/);
 });
 
-test('the strip moves and the content under it moves down, on the cutout clock', () => {
-  assert.match(TOPBAR_CSS, /\.island-clear > \.grid-stack-item-content > \.tabgroup > \.tabgroup-bar \{\s*translate: var\(--island-bar-shift, none\);\s*transition: translate var\(--island-notch-ms, 360ms\)/);
+test('the strip moves and the content under it moves down, on the content clock', () => {
+  assert.match(TOPBAR_CSS, /\.island-clear > \.grid-stack-item-content > \.tabgroup > \.tabgroup-bar \{\s*translate: var\(--island-bar-shift, none\);\s*transition: translate var\(--island-content-ms, 360ms\)/);
   assert.match(TOPBAR_CSS, /\.island-beside > \.grid-stack-item-content > \.tabgroup > \.tabgroup-bar \{\s*max-width: var\(--island-bar-max, none\);/);
-  assert.match(TOPBAR_CSS, /\.tabgroup > \.tabgroup-body \{\s*padding-top: var\(--island-under, 0px\);\s*transition: padding-top var\(--island-notch-ms, 360ms\)/);
-  assert.match(TOPBAR_CSS, /@media \(prefers-reduced-motion: reduce\) \{\s*body\.topbar-minimal \{ --island-notch-ms: 0ms; \}/);
+  assert.match(TOPBAR_CSS, /\.tabgroup > \.tabgroup-body \{\s*padding-top: var\(--island-under, 0px\);\s*transition: padding-top var\(--island-content-ms, 360ms\)/);
+  assert.match(TOPBAR_CSS, /@media \(prefers-reduced-motion: reduce\) \{\s*body\.topbar-minimal \{ --island-notch-ms: 0ms; --island-content-ms: 0ms; \}/);
+});
+
+test('the island is measured on the page in view, whichever page the grid was read on', () => {
+  // The pager shows its fourth page (scrolled 3 x 2532px); the grid read is the first.
+  const pager = { left: 14, top: 0, width: 2532, height: 720 };
+  const firstPage = { left: 14 - 3 * 2532, top: 0 };
+  const grid = { left: firstPage.left + 0, top: 12, width: 2532, height: 666 };
+  assert.deepEqual(N.gridInView(grid, firstPage, pager), { left: 14, top: 12, width: 2532, height: 666 });
+  // The page in view itself, or no pager: the grid as it is.
+  assert.deepEqual(N.gridInView({ ...grid, left: 14 }, { left: 14 }, pager), { left: 14, top: 12, width: 2532, height: 666 });
+  assert.equal(N.gridInView(grid, null, pager), grid);
+});
+
+test('the notch pass places the island from the grid in view, not from the first unparked page', () => {
+  assert.match(TOPBAR_JS, /N\.gridInView\(ref\.getBoundingClientRect\(\), home && home\.getBoundingClientRect\(\), pagerEl && pagerEl\.getBoundingClientRect\(\)\)/);
+});
+
+test('the island arrives from a dot after the boot splash, and nothing is cut before it', () => {
+  assert.match(TOPBAR_JS, /if \(!arrive\(\)\) \{ clearIslandTags\(\); return; \}/);
+  assert.match(TOPBAR_JS, /if \(behindSplash\(\)\) return false;/);
+  assert.match(TOPBAR_JS, /window\.BootSplash\.whenGone\(\(\) => \{ splashWait = false; scheduleReflow\(\); \}\)/);
+  assert.match(TOPBAR_JS, /arrived = true;\s*ui\.pill\.classList\.remove\('island-waiting'\);/);
+  assert.match(TOPBAR_CSS, /\.topbar-mini\.island-waiting \{ opacity: 0; \}/);
+  assert.match(TOPBAR_CSS, /\.topbar-mini\.island-arriving \{\s*animation: island-arrive 560ms/);
+  assert.match(TOPBAR_JS, /const ARRIVE_HOLD_MS = 560;/);
+});
+
+test('the tile content slides on its own clock while the cut follows the island frame by frame', () => {
+  assert.match(TOPBAR_CSS, /body\.island-following \{ --island-notch-ms: 0ms; \}/);
+  assert.match(TOPBAR_CSS, /transition: border-top-width var\(--island-content-ms, 360ms\)/);
+  assert.doesNotMatch(TOPBAR_CSS, /body\.island-following \{[^}]*--island-content-ms/);
+});
+
+test('an expanded SDK widget leaves its glass panel, so it covers the whole screen and the island', () => {
+  const css = readFileSync(new URL('../components/CustomWidget/CustomWidget.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.custom-panel:has\(\.cw-wrap\.cw-expanded\) \{([^}]*)\}/);
+  assert.ok(rule, 'the expanded rule exists');
+  for (const prop of ['backdrop-filter: none', 'filter: none', 'transform: none', 'clip-path: none']) assert.ok(rule[1].includes(prop), prop);
+});
+
+test('a sliding page holds still, and its tiles open softly once a page is in place', () => {
+  const has = (src, text) => assert.ok(src.includes(text), text);
+  has(TOPBAR_JS, "el.addEventListener('scroll', onPagerScroll, { passive: true });");
+  has(TOPBAR_JS, 'pageRestTimer = setTimeout(pageRest, PAGE_REST_MS);');
+  has(TOPBAR_JS, 'if (paging) return; // the tiles hold still while a page slides; pageRest catches up');
+  // Measured on screen, not from offsetLeft (its offset parent sits off the pager edge).
+  has(TOPBAR_JS, 'const shift = page && pagerEl ? page.getBoundingClientRect().left - pagerLeft : 0;');
+  has(TOPBAR_JS, 'if (span && Math.abs(shift) > HOME_SLACK) return;');
+  has(TOPBAR_JS, 'const left = (n.x || 0) * colWidth + shift;');
+  // A finger held mid-swipe: no page in place, nothing changes.
+  has(TOPBAR_JS, 'if (!inPlace) return;');
+  has(TOPBAR_JS, 'if (fresh && animate && !folded) {\n          startSoftOpen(item, st);');
+  // The closed shape and the content at the top must be styled before the open
+  // ones are written: two frames, then inset, strip and cut together.
+  assert.match(TOPBAR_JS, /softOpen\(item\);\s*shutContent\(item, st\.line, st\.bar\);\s*item\.classList\.add\('island-clear'\);\s*drawNotch\(item, N\.flat\(st\.geo\), st\.line\);\s*requestAnimationFrame\(\(\) => requestAnimationFrame\(/);
+  assert.match(TOPBAR_JS, /st\.started = true;\s*openContent\(item, st\);\s*openSoftly\(item, st, N\.flat\(st\.geo\)\);/);
+  has(TOPBAR_JS, "item.style.setProperty('--island-inset', line.width + 'px');\n    setBar(item, bar ? { shift: 0, max: bar.max, under: 0 } : null);");
+});
+
+test('an opening cut heads for the island\'s new shape instead of snapping to it', () => {
+  // Measured on screen: Meter Reading woke with its page, rewrote its island line,
+  // the pill grew, and a direct draw replaced the opening with the whole cut.
+  const has = (text) => assert.ok(TOPBAR_JS.includes(text), text);
+  has("if (prev && prev.opening && !folded && item.classList.contains('island-clear')) {\n          retargetOpening(item, prev, { geo, line, key, inset, bar });\n          return;");
+  has('Object.assign(st, next);\n    if (st.started) openContent(item, st);');
+  // Each frame reads the shape as it is now, so a retarget is followed smoothly.
+  has('drawNotch(item, N.between(from, st.geo, softEase(t)), st.line);');
+  has('if (t < 1) requestAnimationFrame(step);\n      else st.opening = false;');
+});
+
+test('a glass tile slides its content too, not only its cut', () => {
+  // Its surface rule outranks the content inset's, and one `transition` replaces
+  // the other: measured on the Lyrics tile, the content dropped in one frame.
+  const rule = TOPBAR_CSS.slice(TOPBAR_CSS.indexOf('clip-path: var(--island-notch-surface, none);'));
+  const transition = rule.slice(0, rule.indexOf('}'));
+  assert.ok(transition.includes('border-top-width var(--island-content-ms, 360ms)'), transition);
+});
+
+test('a soft opening draws the cut frame by frame, on the content\'s own curve', () => {
+  // The cut is written each frame (a CSS transition cannot change target
+  // mid-way without restarting), so its own transition is off meanwhile.
+  assert.ok(TOPBAR_JS.includes("item.style.setProperty('--island-notch-ms', '0ms');"));
+  // It stops once the tile is redrawn, released or dropped.
+  assert.ok(TOPBAR_JS.includes('if (notchState.get(item) !== st || !st.key) { st.opening = false; return; }'));
+  const src = TOPBAR_JS.match(/function softEase[\s\S]*?\n {2}\}\n/)[0];
+  const ease = new Function(src + 'return softEase;')();
+  assert.equal(ease(0), 0);
+  assert.equal(ease(1), 1);
+  // cubic-bezier(.4, 0, .2, 1): slow start, most travel mid-way, gentle landing.
+  assert.ok(Math.abs(ease(0.5) - 0.776) < 0.01, String(ease(0.5)));
+  for (let t = 0.05; t <= 1; t += 0.05) assert.ok(ease(t) >= ease(t - 0.05));
+});
+
+test('between blends two cutouts and clamps', () => {
+  const g = N.geometry(base);
+  const f = N.flat(g);
+  const half = N.between(f, g, 0.5);
+  assert.equal(half.bottom, Math.round(((f.bottom + g.bottom) / 2) * 2) / 2);
+  assert.equal(half.left, g.left);
+  assert.deepEqual(N.between(f, g, 2), { ...g });
+  assert.deepEqual(N.between(f, g, -1), { ...g, bottom: f.bottom, cornerR: 0, shoulderL: 0, shoulderR: 0 });
+  assert.equal(N.between(null, g, 0.5), g);
+});
+
+test('a cutout that appears opens on a slower, even clock, and every island transition reads it', () => {
+  assert.match(TOPBAR_JS, /const SOFT_OPEN = \{ ms: \d+, ease: 'cubic-bezier\(\.4, 0, \.2, 1\)' \};/);
+  assert.ok(TOPBAR_JS.includes("const SOFT_PROPS = ['--island-notch-ms', '--island-content-ms', '--island-ease'];"));
+  const curves = TOPBAR_CSS.match(/var\(--island-(notch|content)-ms, 360ms\) [^;]+;/g) || [];
+  assert.ok(curves.length >= 6, 'every island transition found');
+  for (const c of curves) assert.ok(c.includes('var(--island-ease, cubic-bezier(.32, .72, 0, 1))'), c);
+});
+
+test('performance mode and games skip the island motion', () => {
+  assert.ok(TOPBAR_JS.includes("const MOTION_HOLD = ['perf-mode', 'game-mode'];"));
+  assert.ok(TOPBAR_CSS.includes('body.topbar-minimal:is(.perf-mode, .game-mode) { --island-notch-ms: 0ms; --island-content-ms: 0ms; }'));
 });

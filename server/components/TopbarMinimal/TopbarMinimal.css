@@ -53,7 +53,7 @@ body.topbar-minimal.layout-editing .grid-stack-item.island-clear > .grid-stack-i
 }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear {
   clip-path: var(--island-notch, none);
-  transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  transition: clip-path var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* A glass tile cannot take the clip on the item: an ancestor's clip-path is the
    backdrop root of everything inside it, so the panel's backdrop-filter blurred
@@ -67,7 +67,11 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile-glass]:not([data-tile-shape]):not(:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged)) > .grid-stack-item-content
   > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays, .tile-decor-above) {
   clip-path: var(--island-notch-surface, none);
-  transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  /* One shorthand per element: this rule outranks the content inset's below, so
+     it carries that slide too, or a glass tile's content dropped in one frame. */
+  transition:
+    clip-path var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1)),
+    border-top-width var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* A tile covering the whole screen (full-screen Twitch/YouTube, an expanded SDK
    widget, the Lyrics stage) is `position: fixed` INSIDE this item, and an
@@ -86,7 +90,7 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
   border-top-color: transparent;
   border-top-width: var(--island-inset, 1px);
   background-origin: border-box;
-  transition: border-top-width var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  transition: border-top-width var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* A group whose tabs fit beside the cutout keeps them at the tile top
    (.island-beside, js/island-notch.js besideBar): the strip moves sideways out of
@@ -94,14 +98,14 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
    room the whole tile starts under the cutout, as above. */
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
   translate: var(--island-bar-shift, none);
-  transition: translate var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  transition: translate var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-beside > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
   max-width: var(--island-bar-max, none);
 }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-body {
   padding-top: var(--island-under, 0px);
-  transition: padding-top var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  transition: padding-top var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* A mounted SDK widget draws its own look edge to edge (CustomWidget.css,
    .cw-mounted), so the band above would be the host card showing through: a
@@ -113,7 +117,10 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
 }
 /* While the box is being moved frame by frame (js/topbar-minimal.js followIsland)
    the tiles are redrawn every frame, so their own transitions would only lag it.
-   A tile that is closing sets its own value inline and keeps its transition. */
+   A tile that is closing sets its own value inline and keeps its transition.
+   The content still slides on its own clock (--island-content-ms): a tile the
+   growing cut reaches mid-way would otherwise drop its content in one frame.
+   A cutout that appears opens on a slower, even clock set inline (softOpen). */
 body.island-following { --island-notch-ms: 0ms; }
 .island-notch-edge { display: none; }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge {
@@ -128,14 +135,16 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island
   fill: none;
 }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge path {
-  transition: d var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+  transition: d var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
 }
 /* Every cutout transition above runs on this one clock, so reduced motion stops
    them all at once (a list of `transition: none` rules lost to their :not() on
    specificity, and the glass surfaces were never on it). */
 @media (prefers-reduced-motion: reduce) {
-  body.topbar-minimal { --island-notch-ms: 0ms; }
+  body.topbar-minimal { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
 }
+/* Performance mode and a game hold it too (js/topbar-minimal.js MOTION_HOLD). */
+body.topbar-minimal:is(.perf-mode, .game-mode) { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
 
 /* ── Island pill — floating capsule, top centre ───────────────
    Segments (time · date · weather · page dots) read left→right, each set off
@@ -175,6 +184,20 @@ body.topbar-minimal:not([data-panel]) .topbar-mini {
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+/* The island's entrance (js/topbar-minimal.js arrive): it grows out of a dot at
+   its centre while the tiles under it open their cutouts on the same beat. Only
+   added when motion is allowed. */
+body.topbar-minimal:not([data-panel]) .topbar-mini.island-arriving {
+  animation: island-arrive 560ms cubic-bezier(.32, .72, 0, 1) both;
+}
+/* Held out of sight while Bit's boot splash still covers the screen. */
+body.topbar-minimal .topbar-mini.island-waiting { opacity: 0; }
+@keyframes island-arrive {
+  from { opacity: 0; transform: translateX(var(--mini-tx)) scale(.2); }
+  40% { opacity: 1; }
+  to { opacity: 1; transform: translateX(var(--mini-tx)) scale(1); }
 }
 
 /* Left / right anchor the island to that screen edge (12px inset) instead of

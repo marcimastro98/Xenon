@@ -90,6 +90,17 @@ body.cw-has-expanded .shell { z-index: 70; }
   animation: cw-expand-in 0.18s ease both;
 }
 @keyframes cw-expand-in { from { opacity: 0; } to { opacity: 1; } }
+/* A fixed box fills the screen only if no ancestor holds it: a Liquid Glass
+   panel's backdrop-filter (or a filter, a transform, a tile shape's clip) made
+   the panel its frame, so the "full screen" widget stayed in its own tile with
+   the clock island lying over it. Hidden under the widget anyway while it is out. */
+.custom-panel:has(.cw-wrap.cw-expanded) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  transform: none !important;
+  clip-path: none !important;
+}
 .cw-wrap.cw-expanded .cw-frame { border-radius: 0; }
 /* The head would sit over the guest's own top-left while fullscreen. */
 .cw-wrap.cw-expanded .cw-head { display: none !important; }

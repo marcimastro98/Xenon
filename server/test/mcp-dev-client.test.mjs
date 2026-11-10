@@ -59,6 +59,6 @@ test('reloading widget files clears what the old code reported', () => {
   assert.match(bump, /assetVersion\+\+;/);
   assert.match(bump, /blockedByPkg\.clear\(\);/);
   assert.match(bump, /errorsByPkg\.clear\(\);/);
-  assert.match(cw, /if \(force\) bumpAssets\(\);/);
+  assert.match(cw, /if \(force && !listOnly\) bumpAssets\(\);/);
   assert.equal((cw.match(/assetVersion\+\+/g) || []).length, 1, 'every bump goes through bumpAssets');
 });
