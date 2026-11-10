@@ -515,7 +515,7 @@ const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
-const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');
+const { createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');
 const { createNativeInstallerFetch } = require('./native-installer');
 let _nativeInstallInFlight = null; // one verified installer download at a time (POST /api/native/install)
 // PresentMon 1.10.0, the last classic single-binary CLI fpsmon.js parses: the
@@ -24738,10 +24738,9 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
     // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
-    // renders it via textContent. NEVER a JSONP candidate. Always rescans (this
-    // is the Rescan button) and refreshes the shared scan cache. Each package is
-    // decorated (copy — the cached scan stays undecorated) with its origin +
-    // exportable flag so the UI can limit exports to the user's own creations.
+    // renders it via textContent. NEVER a JSONP candidate. Always rescans (the
+    // Rescan button) and refreshes the shared scan cache. Each package is a copy
+    // decorated with origin + exportable (exports limited to the user's own creations).
     const scan = await refreshSdkScan();
     await widgetOptionsStore.load();
     const packages = scan.packages.map(p => ({
@@ -24750,6 +24749,7 @@ const handleRequest = async (req, res) => {
       exportable: widgetExportable(p.id),
       catalogVersion: widgetCatalogVersionOf(p.id),
       optionValues: widgetOptionsStore.valuesFor(p),
+      edition: contentInstalls.editionOf((_serverHubSettings || {}).contentInstalls, p.id),   // init.edition
     }));
     // `skipped` is how many installed packages this scan did not load because
     // MAX_PACKAGES was already reached. It travels with the list because a
@@ -26329,16 +26329,13 @@ function _handleLiveClient(client) {
   client.on('error', onGone);
 }
 
-// After a self-update, the in-app updater cannot ship the native helper: it applies
-// only the signed source zip, and xenon-helper.exe isn't in it (it's a separate
-// release asset attached by CI). A freshly updated install would keep running a stale
-// exe until the user re-ran INSTALL. Heal it here — once per new app version, and only
-// when a helper is already present — via helper-update.js, which downloads the exe
-// ONLY when its SHA-256 matches the release's Ed25519-SIGNED SHA256SUMS (same pinned
-// key and fail-closed rule as the app self-update). Because the server then executes
-// this exe, verifying it keeps this auto path from ever running a swapped/MITM'd
-// binary. Best-effort and off the boot hot path; the PowerShell fallback covers the
-// gap until the next restart, and a machine with no helper is left alone.
+// The in-app updater applies only the signed source zip, and the native helper is
+// a separate release asset (the Windows exe, the macOS tar.gz), so an updated install
+// kept a stale helper until INSTALL ran again. Heal it here — once per app version, and only
+// when a helper is already present — via helper-update.js, which installs only bytes
+// whose SHA-256 the release's Ed25519-SIGNED SHA256SUMS lists (pinned key, fail closed),
+// so this auto path never runs a swapped/MITM'd binary. Best-effort, off the boot hot
+// path; the fallbacks cover the gap until the next restart.
 // Last look at the per-logon startup task: whether Xenon will still be here
 // after the next sign-in. Held in memory so the dashboard can ask without
 // paying for a schtasks spawn per page load — see startup-task.js for why this
@@ -26373,13 +26370,14 @@ let _helperInstall = null;   // one Settings install at a time; a second tap wai
 const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
 const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
 function ensureHelperUpToDate(attempt = 1) {
-  if (process.platform !== 'win32' || !APP_VERSION) return;
+  const asset = { win32: HELPER_ASSET, darwin: HELPER_ASSET_MAC }[process.platform]; // Linux has no helper
+  if (!asset || !APP_VERSION) return;
   try {
-    if (!fs.existsSync(HELPER_EXE)) return; // PS-only install by choice: never surprise-download
+    if (!fs.existsSync(HELPER_EXE)) return; // declined or never arrived: never surprise-download
     let marked = '';
     try { marked = fs.readFileSync(HELPER_CHECK_MARKER, 'utf8').trim(); } catch { /* first run */ }
     if (marked && marked === APP_VERSION) return; // already ensured for this version
-    createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION }).refresh().then(status => {
+    createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION, asset, minVersion: asset === HELPER_ASSET_MAC ? MIN_MAC_HELPER : '' }).refresh().then(status => {
       // Terminal for this app version → record it so we don't re-check until the next
       // update. 'skip-not-latest' = the app isn't on the latest release, so pulling
       // latest's helper could pair a newer helper with an older server; leave it.

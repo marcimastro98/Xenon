@@ -58,6 +58,15 @@ jobs:
         if: always()
         run: npm run doctor -- --capture "$RUNNER_TEMP/doctor" 2>&1 | tee "$RUNNER_TEMP/doctor.log"
 
+      # The in-app update of the Mac helper, run for real: the helper built here,
+      # the system's tar and xattr, and the helper's own --version.
+      - name: Mac helper updates in place
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          swift build -c release --package-path helper-mac
+          node tools/ci/mac-helper-update-check.mjs "$(swift build -c release --package-path helper-mac --show-bin-path)/xenon-helper"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20

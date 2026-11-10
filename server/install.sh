@@ -307,11 +307,11 @@ install_media_adapter
 # gated the same way: an installed helper below it is REPLACED, not kept. This
 # used to be a bare "is the file there" test, which meant an existing install
 # stayed on whatever helper it first downloaded forever — a new mode would ship
-# and the only machines that ever saw it were fresh installs. There is no in-app
-# helper update off Windows yet (helper-update.js checks the hash of the exe),
-# so re-running the installer is the whole update path and it has to be able to
-# move the version. Bump this with helper-mac/…/Version.swift whenever a mode
-# is added or its answers change.
+# and the only machines that ever saw it were fresh installs. The in-app update
+# applies the same gate after an update (MIN_MAC_HELPER in helper-update.js, by
+# version and never by hash, so the Accessibility grant is not lost at every
+# release). Bump all three with helper-mac/…/Version.swift whenever a mode is
+# added or its answers change; server/test/helper-update-mac.test.mjs holds them equal.
 MIN_MAC_HELPER='0.7.0'
 
 # Compare dotted versions without sort -V, which BSD sort does not have.

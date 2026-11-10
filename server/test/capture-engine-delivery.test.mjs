@@ -45,7 +45,7 @@ test('server: Windows, macOS and x86-64 Linux, installs a missing engine, refres
   assert.match(body, /attempt < HELPER_REFRESH_MAX_TRIES/);
   // Scheduled after listen, never on the request path, and after the helper.
   assert.match(SERVER, /setTimeout\(\(\) => \{ try \{ ensureCaptureEngine\(\); \} catch \{ \/\* ignore \*\/ \} \}, 12000\);/);
-  assert.match(SERVER, /const \{ createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX \} = require\('\.\/helper-update'\);/);
+  assert.match(SERVER, /const \{ createHelperUpdate, [\w, ]*CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX \} = require\('\.\/helper-update'\);/);
   // The macOS file has no extension.
   assert.match(SERVER, /process\.platform === 'win32' \? 'xenon-capture\.exe' : 'xenon-capture'/);
 });
