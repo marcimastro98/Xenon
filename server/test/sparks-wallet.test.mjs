@@ -176,3 +176,14 @@ test('a typed pass the hub refuses is the buyer\'s answer: no silent payment wit
   assert.equal((await wallet.buy({ entryId: 'pack', code: PASS, dataDir: dir })).error, 'bad_code');
   assert.equal(calls.filter((c) => c.path === '/buy').length, 1);
 }));
+
+test('the copy number the hub gives a bought copy reaches the dashboard, and junk never does', run(async () => {
+  const dir = tmp();
+  const sold = { ok: true, cek: 'k'.repeat(43), name: 'Pack', bought: true, balance: 380 };
+  hub({ '/buy': { ...sold, copyNo: 42 } });
+  assert.equal((await wallet.buy({ entryId: 'pack', code: SPARKS, dataDir: dir })).copyNo, 42);
+  for (const junk of [0, -1, 1.5, '42', 1e7, null]) {
+    hub({ '/buy': { ...sold, copyNo: junk } });
+    assert.equal('copyNo' in (await wallet.buy({ entryId: 'pack', code: SPARKS, dataDir: dir })), false, String(junk));
+  }
+}));

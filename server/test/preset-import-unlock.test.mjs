@@ -78,7 +78,9 @@ test('a drop sold for Sparks: bought with the box ticked, then opened with the k
   assert.match(dialog, /fetch\('\/api\/community\/buy'/);
   // Only a pass or Sparks code typed in the field is sent; empty = what this PC remembers.
   assert.match(dialog, /code: \/\^X\[CS\]\/\.test\(typed\) \? unlockField\.value : ''/);
-  assert.match(share, /if \(locked\.remote && boughtCek\) \{\s*\/\/[^\n]*\n\s*importBtn\.disabled = true;\s*inner = await unlockWithCek\(locked, boughtCek\);\s*importBtn\.disabled = false;/);
+  // The buy's copy number rides on the catalog receipt, which hands it to the widget (init.edition).
+  assert.match(share, /boughtCopyNo = Number\.isInteger\(r\.copyNo\) && r\.copyNo > 0 \? r\.copyNo : 0;/);
+  assert.match(share, /if \(locked\.remote && boughtCek\) \{\s*(\/\/[^\n]*\n\s*)+if \(!importSource\.sourceId\) importSource = \{ source: 'catalog', sourceId: locked\.entryId, sourceVersion: '' \};\s*if \(boughtCopyNo\) importSource = \{ \.\.\.importSource, copyNo: boughtCopyNo \};\s*importBtn\.disabled = true;\s*inner = await unlockWithCek\(locked, boughtCek\);\s*importBtn\.disabled = false;/);
   // A Sparks-only drop is never "opened by your saved code": the pass and the trial do not open it.
   // A pass the hub just called expired no longer opens it either.
   assert.match(dialog, /const emptyOk = \(\) => !sparksOnly && \(\(savedPass && !passLapsed\) \|\| trialActive\(\)\);/);

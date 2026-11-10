@@ -109,6 +109,12 @@ const TOPICS = [
     body: 'Xenon is the seller of everything it sells; Buy Me a Coffee only takes the payment. Within 14 days of paying, a membership payment or a Sparks pack can be refunded: the person writes to support@xenon-app.com and the refund is made on Buy Me a Coffee. A refund removes the pack and what was bought with those Sparks. Sparks already spent on Bit count against the balance, which can go below zero until the next pack. A Store item bought with Sparks is delivered at once: the person ticks a box asking for that, and the right to withdraw ends when delivery starts. You never refund, buy or tick that box yourself.',
   },
   {
+    id: 'sparks-items',
+    title: 'Store items sold for Sparks: what the buyer owns, the copy number, when a sale ends',
+    keywords: ['buy', 'comprare', 'comprato', 'acquisto', 'purchase', 'bought', 'copy number', 'numero di copia', 'numbered', 'numerato', 'numerata', 'edition', 'edizione', 'copia', 'sale ends', 'fine vendita', 'in vendita', 'on sale'],
+    body: 'Some Store items are sold for Sparks. A bought copy is the buyer’s for good, updates included, on up to 3 PCs; buying it again on another PC opens it without charging. Every copy bought with Sparks gets a number per item, in the order they were bought (the first is No. 1), the same on every PC; a widget can show it, a copy that was not bought (a supporter pass, a code, the trial) has none. A sale can have an end date: after it nobody new can buy, a copy already bought keeps opening and updating. An item sold only for Sparks is not part of the supporter pass. Refunds: topic purchases-and-refunds.',
+  },
+  {
     id: 'pass-trial',
     title: 'The 7-day supporter pass trial, and what a trial, a supporter, a Sparks buyer and a lapsed supporter each get',
     keywords: ['trial', 'prova', 'pass', '7 days', '7 giorni', 'free trial', 'prova gratuita', 'prova gratis', 'xt', 'lapsed', 'scaduto', 'scaduta', 'membership', 'abbonamento', 'lyrics', 'cleanup', 'export', 'esportare'],

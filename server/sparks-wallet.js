@@ -26,6 +26,8 @@ const PASS_RE = /^XS[A-Z0-9]{12}$/;
 const canonCode = (s) => String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
 const cleanKv = (v) => (Number.isInteger(v) && v >= 1 && v <= 1000 ? v : null);
 const whole = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+// The copy's number from the hub (0036): whole and positive, or not passed on.
+const copyNoOf = (v) => (Number.isInteger(v) && v > 0 && v <= 1000000 ? v : 0);
 // What /buy can answer besides success; anything else is 'network'.
 const BUY_ERRORS = new Set(['included', 'not_for_sale', 'no_sparks', 'sold_out', 'revoked', 'limit',
   'wrong_code', 'bad_code', 'bad_entry', 'bad_request', 'rate_limited', 'busy', 'consent_required']);
@@ -91,7 +93,7 @@ async function mergeIfBoth(dataDir) {
  * Buys `entryId` with Sparks. `code` empty = the codes this PC remembers (the
  * pass first, it holds the monthly Sparks too). A typed code is remembered once
  * the hub has accepted it, like a typed pass.
- * → {ok, cek, name, bought, balance} | {ok:false, error, balance?, price?}
+ * → {ok, cek, name, bought, balance, emailed, copyNo?} | {ok:false, error, balance?, price?}
  */
 async function buy({ entryId, code, kv, consent, dataDir }) {
   const id = String(entryId || '');
@@ -126,7 +128,7 @@ async function buy({ entryId, code, kv, consent, dataDir }) {
     await supporterRedeem.keepRatingTicket(id, out);
     if (typed && WALLET_RE.test(typed)) await saveTypedWalletCode(dataDir, typed);
     if (typed && PASS_RE.test(typed)) await supporterRedeem.saveTypedCode(dataDir, typed);
-    return {
+    const answer = {
       ok: true,
       cek: out.cek,
       name: typeof out.name === 'string' ? out.name.slice(0, 120) : '',
@@ -134,6 +136,8 @@ async function buy({ entryId, code, kv, consent, dataDir }) {
       balance: whole(out.balance),
       emailed: out.emailed === true,
     };
+    if (copyNoOf(out.copyNo)) answer.copyNo = out.copyNo;
+    return answer;
   }
   const error = out && BUY_ERRORS.has(out.error) ? out.error : 'network';
   // A remembered Sparks code the hub no longer knows was replaced or switched off.

@@ -916,6 +916,8 @@
         source: importSource.source === 'catalog' ? 'catalog' : 'import',
         sourceId: importSource.sourceId || '',
         sourceVersion: importSource.sourceVersion || '',
+        // A copy bought with Sparks carries its number (the hub's copyNo).
+        ...(Number.isInteger(importSource.copyNo) && importSource.copyNo > 0 ? { copyNo: importSource.copyNo } : {}),
         // Opened with the pass trial: marked, with the theme to go back to.
         ...(importSource.trial === true ? {
           trial: true,
@@ -3298,6 +3300,7 @@
       // starts empty and is never remembered. The local server picks the code that
       // pays (the pass, else the Sparks code) and answers with the content key.
       let boughtCek = '';
+      let boughtCopyNo = 0;
       // The hub said the pass opens it: from then on Import redeems as usual.
       let useRedeem = false;
       // The saved pass is past its window: it no longer opens new drops, so a
@@ -3392,6 +3395,7 @@
           return;
         }
         boughtCek = r.cek;
+        boughtCopyNo = Number.isInteger(r.copyNo) && r.copyNo > 0 ? r.copyNo : 0;
         if (window.XenonCredits && typeof window.XenonCredits.refresh === 'function') window.XenonCredits.refresh(true);
         const balance = Number.isInteger(r.balance) ? r.balance : null;
         const shown = await sale.finish({ bought: r.bought === true, balance, emailed: r.emailed === true });
@@ -3534,7 +3538,10 @@
           if (!boughtCek && !usingSaved && !canonCode(unlockField.value)) { unlockField.focus(); return; }
           let inner;
           if (locked.remote && boughtCek) {
-            // Bought a moment ago: /api/community/buy already gave the key.
+            // Bought a moment ago: /api/community/buy already gave the key, and the
+            // copy's number, which the receipt keeps for its widgets (init.edition).
+            if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId, sourceVersion: '' };
+            if (boughtCopyNo) importSource = { ...importSource, copyNo: boughtCopyNo };
             importBtn.disabled = true;
             inner = await unlockWithCek(locked, boughtCek);
             importBtn.disabled = false;
