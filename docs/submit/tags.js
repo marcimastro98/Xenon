@@ -11,13 +11,13 @@
   var SEPARATORS = /[\s,;]+/;
 
   var WORDS = {
-    en: { placeholder: 'Type a tag', add: 'Add', remove: 'Remove {tag}', full: 'That makes 6: remove one to add another.', count: '{n} of 6' },
-    it: { placeholder: 'Scrivi un tag', add: 'Aggiungi', remove: 'Togli {tag}', full: 'Sono 6: togline uno per aggiungerne un altro.', count: '{n} di 6' },
-    es: { placeholder: 'Escribe una etiqueta', add: 'Añadir', remove: 'Quitar {tag}', full: 'Ya hay 6: quita una para añadir otra.', count: '{n} de 6' },
-    fr: { placeholder: 'Tapez un tag', add: 'Ajouter', remove: 'Retirer {tag}', full: 'Il y en a 6 : retirez-en un pour en ajouter un autre.', count: '{n} sur 6' },
-    ja: { placeholder: 'タグを入力', add: '追加', remove: '{tag} を削除', full: '6 個になりました。追加するには 1 つ削除してください。', count: '{n} / 6' },
-    ko: { placeholder: '태그 입력', add: '추가', remove: '{tag} 삭제', full: '6개가 되었습니다. 추가하려면 하나를 삭제하세요.', count: '{n} / 6' },
-    zh: { placeholder: '输入标签', add: '添加', remove: '移除 {tag}', full: '已有 6 个：先移除一个再添加。', count: '{n} / 6' }
+    en: { placeholder: 'Type a tag and press Enter', more: 'Add another', add: 'Add tag', remove: 'Remove {tag}', full: 'That makes 6: remove one to add another.', count: '{n} of 6' },
+    it: { placeholder: 'Scrivi un tag e premi Invio', more: 'Aggiungine un altro', add: 'Aggiungi tag', remove: 'Togli {tag}', full: 'Sono 6: togline uno per aggiungerne un altro.', count: '{n} di 6' },
+    es: { placeholder: 'Escribe una etiqueta y pulsa Intro', more: 'Añade otra', add: 'Añadir etiqueta', remove: 'Quitar {tag}', full: 'Ya hay 6: quita una para añadir otra.', count: '{n} de 6' },
+    fr: { placeholder: 'Tapez un tag puis Entrée', more: 'Ajoutez-en un autre', add: 'Ajouter le tag', remove: 'Retirer {tag}', full: 'Il y en a 6 : retirez-en un pour en ajouter un autre.', count: '{n} sur 6' },
+    ja: { placeholder: 'タグを入力して Enter', more: 'さらに追加', add: 'タグを追加', remove: '{tag} を削除', full: '6 個になりました。追加するには 1 つ削除してください。', count: '{n} / 6' },
+    ko: { placeholder: '태그를 입력하고 Enter', more: '하나 더 추가', add: '태그 추가', remove: '{tag} 삭제', full: '6개가 되었습니다. 추가하려면 하나를 삭제하세요.', count: '{n} / 6' },
+    zh: { placeholder: '输入标签后按回车', more: '再加一个', add: '添加标签', remove: '移除 {tag}', full: '已有 6 个：先移除一个再添加。', count: '{n} / 6' }
   };
 
   var lang = 'en';
@@ -65,8 +65,9 @@
   }
 
   function chip(tag, i) {
-    var li = document.createElement('li');
+    var li = document.createElement('span');
     li.className = 'tag-chip';
+    li.setAttribute('role', 'listitem');
     var word = document.createElement('span');
     word.textContent = tag;
     var x = document.createElement('button');
@@ -79,15 +80,23 @@
     return li;
   }
 
+  // The + is live only while there is a word to add.
+  function syncAdd() {
+    els.addBtn.disabled = !els.input.value.trim();
+  }
+
   function render() {
+    var full = tags.length >= MAX_TAGS;
     els.list.replaceChildren.apply(els.list, tags.map(chip));
     els.hidden.value = tags.join(' ');
-    var full = tags.length >= MAX_TAGS;
-    els.input.disabled = full;
-    els.input.placeholder = full ? '' : w('placeholder');
-    els.addBtn.disabled = full;
-    els.addBtn.textContent = '+ ' + w('add');
+    // Six chips: the text stays focused but takes nothing more (the CSS folds it away),
+    // so Backspace still takes the last chip and a stray key changes nothing.
+    els.input.readOnly = full;
+    els.input.placeholder = full ? '' : w(tags.length ? 'more' : 'placeholder');
+    els.addBtn.hidden = full;
+    els.addBtn.setAttribute('aria-label', w('add'));
     els.note.textContent = full ? w('full') : (tags.length ? w('count') : '');
+    syncAdd();
   }
 
   function onKey(ev) {
@@ -107,7 +116,7 @@
       };
       lang = opts.lang || 'en';
       els.input.addEventListener('keydown', onKey);
-      els.input.addEventListener('input', function () { commit(false); });
+      els.input.addEventListener('input', function () { commit(false); syncAdd(); });
       els.input.addEventListener('blur', function () { commit(true); });
       els.addBtn.addEventListener('click', function () { commit(true); els.input.focus(); });
       String(els.hidden.value || '').split(SEPARATORS).forEach(add);
