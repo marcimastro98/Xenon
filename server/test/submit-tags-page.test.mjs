@@ -75,6 +75,19 @@ test('a separator turns the word before it into a chip', () => {
   assert.equal(els.note.textContent, '3 di 6');
 });
 
+test('the + is live only while there is a word to add, and the field says how', () => {
+  const { tags, els } = load();
+  tags.mount({ ...els, lang: 'it' });
+  assert.ok(els.addBtn.disabled, 'an empty field has nothing to add');
+  assert.equal(els.addBtn.attrs['aria-label'], 'Aggiungi tag');
+  assert.match(els.input.placeholder, /Invio/);
+  type(els, 'neo');
+  assert.ok(!els.addBtn.disabled);
+  els.input.fire('keydown', { key: 'Enter' });
+  assert.ok(els.addBtn.disabled);
+  assert.equal(els.input.placeholder, 'Aggiungine un altro');
+});
+
 test('the + button, leaving the field and Send all keep a word still in the box', () => {
   const { tags, els } = load();
   tags.mount({ ...els, lang: 'en' });
@@ -92,12 +105,15 @@ test('duplicates are dropped, six is the limit, Backspace takes the last chip', 
   tags.mount({ ...els, lang: 'en' });
   type(els, 'a a b c d e f g ');
   assert.equal(els.hidden.value, 'a b c d e f');
-  assert.ok(els.input.disabled && els.addBtn.disabled);
+  // The text keeps the focus but takes nothing more, so a key typed after the sixth tag
+  // changes nothing and Backspace still works; the + goes away.
+  assert.ok(els.input.readOnly && els.addBtn.hidden);
+  assert.equal(els.input.placeholder, '');
   assert.match(els.note.textContent, /remove one/);
   els.input.value = '';
   els.input.fire('keydown', { key: 'Backspace' });
   assert.equal(els.hidden.value, 'a b c d e');
-  assert.ok(!els.input.disabled);
+  assert.ok(!els.input.readOnly && !els.addBtn.hidden);
 });
 
 test('a chip is removed by its own button, named for screen readers', () => {
@@ -116,8 +132,13 @@ test('the page sends the chips and switches their language', () => {
   assert.match(html, /window\.XenonSubmitTags\.commit\(\);\s*var tags = document\.getElementById\('tags'\)\.value/);
   assert.match(html, /window\.XenonSubmitTags\.setLang\(lang\)/);
   assert.match(html, /window\.XenonSubmitTags\.mount\(\{/);
-  // Every language's field line says how to add a tag.
-  const lines = html.match(/f_tags: '(?:[^'\\]|\\.)*'/g);
-  assert.equal(lines.length, 6);
-  for (const line of lines) assert.match(line, /\+/, line);
+  // Every language says how to add a tag, inside the field itself.
+  const start = js.indexOf('var WORDS = {');
+  const words = vm.runInNewContext(js.slice(start, js.indexOf('\n  };', start) + 5) + ' WORDS;', {});
+  for (const [l, d] of Object.entries(words)) assert.match(d.placeholder, /Enter|Invio|Intro|Entrée|回车/, l);
+  // One box the height of the field beside it: the label's own span rule must not flatten it.
+  assert.match(html, /label\.f > \.tag-box \{ display: flex;/);
+  assert.match(html, /\.tag-add\[hidden\] \{ display: none; \}/);
+  assert.match(html, /\.tag-box:has\(input:focus-visible\) \{ outline: 2px solid var\(--focus, var\(--bone-0\)\); outline-offset: 2px; \}/, 'the box carries the shared ring for its text');
 });
+
