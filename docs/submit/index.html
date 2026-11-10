@@ -214,6 +214,7 @@
   .audit-export .btn { font-size: 15px; }
   #justifyWrap { margin-top: 12px; }
   #justifyWrap .hint { margin-bottom: 10px; }
+  #prefillNote { margin: 0; }
   label.chk { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; font-size: 16px; }
   label.chk input { width: 18px; height: 18px; accent-color: var(--main); flex: none; cursor: pointer; }
   #updateFields { margin: 8px 0 16px; }
@@ -266,6 +267,7 @@
 <script src="/chrome.js" defer></script>
 <script src="identity.js"></script>
 <script src="tags.js"></script>
+<script src="prefill.js"></script>
 </head>
 <body data-sheet="violet" data-own-key data-track-view="submit_start">
 <!-- xenon:header -->
@@ -340,6 +342,7 @@
   <div class="wrap">
 
   <form id="form" novalidate>
+    <div class="card" id="prefillCard" hidden><p class="hint" id="prefillNote" role="status"></p></div>
     <!-- Update mode. Without this, an update was indistinguishable from a new
          listing: the reviewer had to recognise it by eye and retype the original
          entry id, and a wrong id grew a duplicate that reaches nobody. -->
@@ -1150,7 +1153,7 @@
         try { localStorage.setItem(LKEY, l); } catch (e) {}
         box.classList.remove('open');
         btn.setAttribute('aria-expanded', 'false');
-        applyLang(); renderShots(); renderAudit();
+        applyLang(); renderShots(); renderAudit(); paintPrefillNote();
         window.XenonSubmitIdentity.setLang(lang);
         window.XenonSubmitTags.setLang(lang);
       });
@@ -1693,7 +1696,7 @@
   var catalogEntries = [];
 
   function loadCatalogForPicker() {
-    fetch('../community/catalog.json', { cache: 'no-cache' }).then(function (r) {
+    return fetch('../community/catalog.json', { cache: 'no-cache' }).then(function (r) {
       return r.ok ? r.json() : null;
     }).then(function (cat) {
       catalogEntries = (cat && Array.isArray(cat.entries) ? cat.entries : []).filter(function (e) {
@@ -1776,6 +1779,52 @@
   });
   targetEl.addEventListener('input', syncTargetHint);
   targetEl.addEventListener('change', syncTargetHint);
+
+  // ── Opened from a status link (prefill.js): the earlier submission's fields,
+  // and while it still waits its code and screenshots. Every field stays editable;
+  // what is sent names that submission, so it leaves the queue. ──
+  var prefillRef = null;
+  var prefillNoteKey = '';
+  function paintPrefillNote() {
+    var card = document.getElementById('prefillCard');
+    card.hidden = !prefillNoteKey;
+    if (!prefillNoteKey) return;
+    var note = document.getElementById('prefillNote');
+    note.className = 'hint' + (prefillRef ? ' good' : ' warn');
+    note.textContent = window.XenonSubmitPrefill.text(prefillNoteKey, lang);
+  }
+  function setField(id, value) {
+    if (typeof value === 'string' && value) document.getElementById(id).value = value;
+  }
+  function setSelect(sel, value) {
+    if (Array.prototype.some.call(sel.options, function (o) { return o.value === value; })) sel.value = value;
+  }
+  function applyPrefill(got) {
+    if (!got) return;
+    prefillRef = got.ref;
+    prefillNoteKey = got.notice;
+    paintPrefillNote();
+    if (!got.fields) return;
+    var f = got.fields;
+    setSelect(kindSel, f.kind);
+    setSelect(document.getElementById('category'), f.category);
+    ['name', 'author', 'version', 'description', 'justification'].forEach(function (k) { setField(k, f[k]); });
+    window.XenonSubmitTags.set(f.tags);
+    if (got.code) { codeEl.value = got.code; paintSize(); syncFromCode(); }
+    // After the code: the colours the creator sent win over the ones read from it.
+    if (setPalette({ accent: f.accent, bg: f.bg, text: f.textColor })) palHint.textContent = '';
+    got.files.slice(0, MAX_SHOTS).forEach(function (file, i) {
+      shots[i] = { file: file, url: URL.createObjectURL(file) };
+    });
+    renderShots();
+    if (f.targetEntryId) {
+      isUpdateEl.checked = true;
+      updateFields.hidden = false;
+      targetEl.value = f.targetEntryId;
+      setField('changelog', f.changelog);
+      loadCatalogForPicker().then(syncTargetHint);
+    }
+  }
 
   // ── Submit ──
   var errEl = document.getElementById('err');
@@ -1868,6 +1917,8 @@
     // scene to its update.
     if (derivedPkgId) fd.append('pkgId', derivedPkgId);
     if (justification) fd.append('justification', justification);
+    // Sent from a status link: this version takes that one's place in the queue.
+    if (prefillRef) { fd.append('replaces', prefillRef.id); fd.append('replacesToken', prefillRef.token); }
     var supporterCode = document.getElementById('supporterCode').value.trim();
     if (supporterCode) fd.append('supporterCode', supporterCode);
     var price = document.getElementById('price').value.trim();
@@ -1946,6 +1997,7 @@
     if (!window.turnstile || typeof window.turnstile.render !== 'function') showCaptchaBroken();
   }, 8000);
   paintSize();
+  window.XenonSubmitPrefill.load(HUB).then(applyPrefill);
 })();
 </script>
 <!-- xenon:footer -->

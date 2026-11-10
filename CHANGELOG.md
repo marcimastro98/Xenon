@@ -5,7 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Changed
+- **A creation sent back by the review comes back filled in.** When a reviewer asks for changes or turns a submission down, the creator now gets an email with a link that opens the website's submit form already filled in with what they sent: name, description, tags, colours and, while it is still waiting, the share code and screenshots. Every field can still be changed. The new version takes the old one's place in the queue, even if its name changed.
+
 ### 🐛 Fixed
+- **A shared Deck profile no longer carries a link to your own chat.** A key that opened a Telegram, WhatsApp, Discord, Messenger, Signal or Instagram conversation now arrives as a key that opens that app, on the account of whoever imports it. Passwords, tokens, phone numbers and email addresses written inside any other link are taken out too. This happens on its own when a profile is shared and again when one is imported, so nobody has to remember to check.
 - **Tiles fill the screen again after a swipe to the desktop** ([#152](https://github.com/marcimastro98/Xenon/issues/152)). Coming back from the desktop with the swipe-up gesture left an empty band of about 50 to 120 pixels under every tile, until Layout mode was opened and closed. The dashboard measured the space for the tiles a moment too early, while it was still changing back from the small round button. Now it measures again whenever that space changes, so the tiles reach the bottom on their own. This also covers other changes of size, such as a window going from phone size back to full size.
 - **The way back from the desktop is calm** ([#152](https://github.com/marcimastro98/Xenon/issues/152)). While Xenon sat as the small round button, the tiles were rearranged for that tiny size and then put back, so they jumped around for a moment on the way back. The dashboard now leaves them alone while it is folded away, and they come back already in place.
 - **Swipe up to the desktop works on a page that scrolls.** On the native app the swipe from the bottom edge did nothing when the page was taller than the screen, because the page took the swipe for itself. The bottom edge now wins over the page, like the home bar on a phone. A list inside a tile, such as the chat, still scrolls first until it reaches its end.

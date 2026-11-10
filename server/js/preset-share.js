@@ -160,6 +160,10 @@
   const PACK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
   // openApp launch arguments travel ("--incognito") unless one of them is a path.
   const LOCAL_PATH_RE = /[a-z]:[\\/]|\\\\\w|(^|[\s"'=])(~[\\/]|\/(users|home|mnt|media|volumes)\/)/i;
+  // A shared key's link loses what names a person (a chat id, a phone, a token):
+  // js/share-link-privacy.js, loaded first.
+  const LinkPrivacy = (typeof window !== 'undefined' && window.ShareLinkPrivacy)
+    || (typeof require === 'function' ? require('./share-link-privacy.js') : null);
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
   // Caps mirror server/icon-packs.js (the authority) so the builder gives the
@@ -424,6 +428,7 @@
     const out = { ...action };
     for (const name of (A.PERSONAL_PARAMS || {})[action.type] || []) if (name in out) out[name] = '';
     if (action.type === 'openApp' && LOCAL_PATH_RE.test(String(action.args || ''))) delete out.args;
+    if (action.type === 'openUrl' && LinkPrivacy) out.url = LinkPrivacy.shareableLink(out.url);
     return out;
   }
 
