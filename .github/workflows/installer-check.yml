@@ -133,7 +133,7 @@ jobs:
         run: |
           node ../../tools/engine-bundle/cli.mjs
           echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$RUNNER_TEMP/no-updater.json"
-          NO_STRIP=true npm run tauri -- build --bundles appimage,deb \
+          NO_STRIP=true npm run tauri -- build --verbose --bundles appimage,deb \
             --config "$GITHUB_WORKSPACE/apps/native/src-tauri/tauri.engine.conf.json" \
             --config "$RUNNER_TEMP/no-updater.json"
 
