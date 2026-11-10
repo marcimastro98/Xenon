@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ops = require('../list-ops.js');
 const ListSync = require('../js/list-sync.js');
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
 const SERVER = read('../server.js');
 const FIELDS = ['text', 'completed', 'completedAt'];
 

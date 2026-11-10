@@ -2727,12 +2727,11 @@
            and Linux, where LibreHardwareMonitor does not exist at all, it drew a
            titled panel containing absolutely nothing, and on a healthy Windows
            box it sat at the top of the Performance page saying only "already
-           on". While empty this host is hidden by `#settings-sensors-hub:empty`
-           in styles/controls.css — an empty div still occupies a row of
-           .settings-content's grid and the row-gap above the next section, so
-           leaving it in the flow trades a titled empty box for an untitled
-           empty one. -->
+           on". While empty these hosts are hidden by `:empty` rules in
+           styles/controls.css: an empty div still takes a grid row and its gap.
+           The FFmpeg card (js/ffmpeg-offer.js) follows the same rule. -->
       <div id="settings-sensors-hub" data-settings-cat="performance"></div>
+      <div id="settings-ffmpeg-hub" data-settings-cat="performance"></div>
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
@@ -5082,6 +5081,7 @@
 <script src="js/chatgpt-widget.js"></script>
 <script src="js/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
+<script src="js/ffmpeg-offer.js"></script>
 <script src="js/sensor-sources-settings.js"></script>
 <script src="js/game-ignore-settings.js"></script>
 <script src="js/sensor-history-settings.js"></script>

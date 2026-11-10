@@ -2906,9 +2906,10 @@
   // A granted package with a persistent contribution (handlers, badge or
   // Dynamic Island activity) AND `background: true` gets a hidden sandboxed
   // frame so it stays live with no tile on screen.
-  // Same sandbox + registry as every frame; capped; torn down when the grant or
+  // Same sandbox + registry as every frame; capped at 8, since each one is a live
+  // page of someone else's code (4 until v5.1); torn down when the grant or
   // the package goes away (the sweep runs on every package/grant refresh).
-  const SERVICE_FRAMES_MAX = 4;
+  const SERVICE_FRAMES_MAX = 8;
   function serviceHost() {
     let host = document.getElementById('sdk-service-frames');
     if (!host) {
@@ -2919,41 +2920,59 @@
     }
     return host;
   }
+  // Ids of background packages past the cap, for the Installed list to explain.
+  let serviceLeftOut = [];
+
+  // Which background packages get a hidden frame. Pure (every input is passed in),
+  // so it is tested on its own. Ranked by need, not by install order: until
+  // v5.1 the first four packages in the list won and the rest were dropped
+  // without a word, so a badge the user wanted could lose its place to an island
+  // pop-up nobody was looking at. Deck keys first (a key must answer), then what
+  // stays on screen (badge, mini slot, bar button), island activities last. A
+  // package whose bar contribution the user switched off keeps a frame only for
+  // its Deck keys, since nothing else of it would show.
+  function planServiceFrames(pkgs, grantOf, opts) {
+    const tiers = [[], [], []];
+    for (const pkg of pkgs) {
+      if (!pkg || pkg.background !== true) continue;
+      // Suspended runs nothing (its keys go dead on purpose); a frame stopped
+      // for leaving its page stays down until a reload or new files.
+      if (opts.suspended(pkg.id) || opts.leftPage(pkg.id)) continue;
+      const grant = grantOf(pkg.id);
+      const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
+      const shown = !opts.handlersOnly && opts.barShows(pkg.id);
+      if (declared.some(h => grant.handlers.includes(h.id))) tiers[0].push(pkg);
+      else if (shown && ((pkg.badge === true && grant.badge) || (pkg.mini === true && grant.mini)
+        || (pkg.topbarButton === true && grant.topbarButton))) tiers[1].push(pkg);
+      else if (shown && pkg.islandDynamic === true && grant.island && grant.islandDynamic) tiers[2].push(pkg);
+    }
+    const ranked = tiers.flat();
+    return { run: ranked.slice(0, opts.max), left: ranked.slice(opts.max).map(p => p.id) };
+  }
+
+  // Top bar → "Apps and widgets in the bar": a package switched off there shows
+  // nothing in the bar, island or badges.
+  function barShowsPackage(pkgId) {
+    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
+    return !(cfg && Array.isArray(cfg.hiddenSources) && cfg.hiddenSources.includes(pkgId));
+  }
+
   function syncServiceFrames() {
-    const wanted = new Map();   // 'svc:'+pkgId → pkg
     // A layer window shows its own tiles only: the main dashboard already runs
     // the background frames, and a second copy would answer every Deck key twice.
     const layerSurface = !!(window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     // The hidden widget host of "widgets only" (sdk-service.html) has no bar,
     // badge or island to feed: there, only granted Deck actions justify a frame.
     const handlersOnly = document.documentElement.hasAttribute('data-sdk-service');
+    let plan = { run: [], left: [] };
     if (sdk().enabled === true && !layerSurface) {
-      let count = 0;
-      for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
-        if (count >= SERVICE_FRAMES_MAX) break;
-        if (!pkg || pkg.background !== true) continue;
-        // A suspended package runs nothing, background included — its deck keys
-        // go dead on purpose (the suspend card says so).
-        if (isSuspended(pkg.id)) continue;
-        const grant = grantsFor(pkg.id);
-        // Only granted persistent capabilities justify a headless frame.
-        const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
-        const handlersLive = declared.some(h => grant.handlers.includes(h.id));
-        const badgeLive = pkg.badge === true && grant.badge;
-        const islandLive = pkg.islandDynamic === true && grant.island && grant.islandDynamic;
-        // A mini slot is a persistent readout like a badge, so it justifies a
-        // headless frame for the same reason: the user put it in the bar to watch
-        // it, not to watch it go stale whenever its tile is off screen.
-        const miniLive = pkg.mini === true && grant.mini;
-        // A bar button the user placed must answer a tap with no tile on screen.
-        const buttonLive = pkg.topbarButton === true && grant.topbarButton;
-        if (!handlersLive && (handlersOnly || (!badgeLive && !islandLive && !miniLive && !buttonLive))) continue;
-        // Stopped for leaving its page: stays down until a reload or new files.
-        if (leftPage.get('svc:' + pkg.id) === pkg.id) continue;
-        wanted.set('svc:' + pkg.id, pkg);
-        count++;
-      }
+      plan = planServiceFrames(cachedPackages(), grantsFor, {
+        max: SERVICE_FRAMES_MAX, handlersOnly, suspended: isSuspended, barShows: barShowsPackage,
+        leftPage: (id) => leftPage.get('svc:' + id) === id,
+      });
     }
+    serviceLeftOut = plan.left;
+    const wanted = new Map(plan.run.map(pkg => ['svc:' + pkg.id, pkg]));
     // Tear down service frames no longer wanted.
     for (const [key, entry] of Array.from(frames)) {
       if (!key.startsWith('svc:')) continue;
@@ -4422,6 +4441,11 @@
     // package from the SAME base as a tile does — see sdkAssetBase.
     assetBase: sdkAssetBase,
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
+    // Background packages left without a hidden frame because the cap is full.
+    serviceLeftOut: () => serviceLeftOut.slice(),
+    serviceFramesMax: SERVICE_FRAMES_MAX,
+    // Re-plan them now: Settings switched a package's bar contribution on or off.
+    syncBackground: () => syncServiceFrames(),
     // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
     // Installed list and the after-install prompt all use these.
     addToPage, addAsTab, bindPackages, placeCreated,

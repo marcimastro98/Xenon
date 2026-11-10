@@ -147,18 +147,16 @@
     <p class="note" data-i18n-html="lx.beta">La prise en charge de Linux est en <strong>beta</strong>. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows. Ce qui diffère encore, c'est la partie qui lit et pilote la machine, répertoriée dans le tableau ci-dessous. Elle n'a pas encore été essayée sur un vrai PC Linux, seulement sur des machines de test, alors dites-nous ce qui ne fonctionne pas.</p>
 
     <h2 id="setup" data-i18n="lx.h.setup">Premier lancement</h2>
-    <p data-i18n-html="lx.setup.p1">Ouvrez l'application. Au premier lancement, il est proposé de configurer le dashboard dans un terminal : il télécharge le moteur, vérifie le téléchargement avant de l'extraire, et enregistre un service <code>systemd --user</code> afin que Xenon démarre lors de votre connexion. En l'absence de gestionnaire d'utilisateurs, il utilise à la place une entrée de démarrage automatique XDG et vous l'indique, en précisant que ce mode de secours ne redémarre pas Xenon après un plantage.</p>
+    <p data-i18n-html="lx.setup.p1">Ouvrez l'application. Le premier lancement configure le dashboard dans la fenêtre de Xenon, avec une barre de progression : il copie le moteur que l'application contient, avec son propre Node.js, sans rien télécharger, et enregistre un service <code>systemd --user</code> pour que Xenon démarre à votre connexion. Sans gestionnaire utilisateur, il utilise à la place une entrée de démarrage automatique XDG, qui ne relance pas Xenon après un plantage.</p>
     <p data-i18n="lx.setup.p2">Les fichiers .deb et .rpm ne le font pas volontairement lors de l'installation : tout ce que la configuration crée appartient à un seul compte utilisateur, tandis qu'un paquet est installé en tant que root pour toute la machine.</p>
-    <p data-i18n="lx.setup.p3">L'installateur énumère également les outils facultatifs dont vous ne disposez pas. Sur Debian et Ubuntu :</p>
-    <pre><code># required
-sudo apt install nodejs npm unzip
-# volume, microphone and the per-app mixer
+    <p data-i18n="lx.setup.p3">Certaines fonctions utilisent des outils de votre système. Sur Debian et Ubuntu :</p>
+    <pre><code># volume, microphone and the per-app mixer
 sudo apt install wireplumber
 # the open-applications widget (X11 sessions)
 sudo apt install wmctrl xdotool x11-utils
 # voice input and spoken replies
 sudo apt install ffmpeg</code></pre>
-    <p data-i18n-html="lx.setup.p4">Si votre bureau ne dispose d'aucun émulateur de terminal, l'application ne peut pas vous afficher l'installateur : téléchargez le zip source depuis <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la release</a>, extrayez-le et exécutez <code>./INSTALL.sh</code>.</p>
+    <p data-i18n-html="lx.setup.p4">Si la configuration ne peut pas aller au bout, téléchargez le zip source depuis <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la version publiée</a>, extrayez-le et lancez <code>./INSTALL.sh</code> dans un terminal.</p>
 
     <h2 id="works" data-i18n="lx.h.works">Ce qui fonctionne sur Linux</h2>
     <div class="tablewrap"><table>

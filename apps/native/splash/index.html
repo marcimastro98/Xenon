@@ -76,6 +76,15 @@
   .setup-btn:hover { background: #8bf0a0; }
   .setup-btn:focus-visible { outline: 2px solid #ededed; outline-offset: 2px; }
   .setup-btn:disabled { background: #2c2c2c; color: #a6a6a6; cursor: default; }
+  /* The engine install the shell runs itself (engine_install in src-tauri):
+     one bar, filled from what the shell reports, never from a timer. */
+  .progress {
+    display: none; width: 100%; height: 6px; margin: 4px 0;
+    border-radius: 3px; background: #2c2c2c; overflow: hidden;
+  }
+  .progress.show { display: block; }
+  .progress-fill { height: 100%; width: 0; background: #6ee787; transition: width 0.4s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .progress-fill { transition: none; } }
 </style>
 </head>
 <body>
@@ -87,6 +96,9 @@
       <div class="setup" id="setup">
         <h1 class="setup-title" id="setup-title"></h1>
         <p class="setup-body" id="setup-body"></p>
+        <div class="progress" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="setup-body">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
         <button class="setup-btn" id="setup-btn" type="button"></button>
         <p class="setup-note" id="setup-note"></p>
       </div>
@@ -120,10 +132,17 @@
     var setupBtn = document.getElementById('setup-btn');
     var setupNoteEl = document.getElementById('setup-note');
     var wrapEl = document.getElementById('wrap');
+    var progressEl = document.getElementById('progress');
+    var progressFillEl = document.getElementById('progress-fill');
     var okStreak = 0;
 
+    // This build carries the engine and installs it itself, with no console
+    // and no download (engine_install in src-tauri). Older builds and
+    // `tauri dev` leave it unset and keep the bootstrap flow below.
+    var engineBundled = window.__XENON_ENGINE_BUNDLED__ === true;
+
     setupTitleEl.textContent = WORDS.setupTitle;
-    setupBodyEl.textContent = WORDS.setupBody;
+    setupBodyEl.textContent = engineBundled ? WORDS.setupBodyBundled : WORDS.setupBody;
     setupBtn.textContent = WORDS.setupBtn;
     setupNoteEl.textContent = WORDS.setupNote;
 
@@ -199,6 +218,8 @@
       setupNoteEl.textContent = note;
       setupBtn.textContent = button;
       setupBtn.disabled = false;
+      setupBtn.hidden = false;
+      progressEl.classList.remove('show');
       setupEl.classList.add('show');
       hintEl.textContent = '';
       statusEl.textContent = '';
@@ -227,7 +248,7 @@
     }
 
     function offerEnable() {
-      if (done || panelMode === 'enable') return;
+      if (done || panelMode === 'enable' || panelMode === 'installing') return;
       showPanel('enable', WORDS.enableTitle, WORDS.enableBody, '', WORDS.enableBtn);
     }
 
@@ -260,8 +281,77 @@
     /** True once the panel owns the copy — the timed messages stand down. */
     function setupShowing() { return setupEl.classList.contains('show'); }
 
+    // The shell's engine install reports {step, percent, failed, done} in
+    // window.__XENON_INSTALL__ (engine_install/progress.rs). Only codes cross
+    // over; every word is chosen here, in the user's language.
+    var INSTALL_STEPS = {
+      preparing: 'installPreparing', copying: 'installCopying', runtime: 'installRuntime',
+      registering: 'installRegistering', starting: 'installStarting', ready: 'installReady'
+    };
+    var shownInstall = '';
+
+    // Where crash_log.rs keeps its file on each platform.
+    function logPath() {
+      var platform = navigator.platform || '';
+      if (/Win/i.test(platform)) return '%APPDATA%\\com.marcimastro98.xenon\\crash.log';
+      if (/Mac/i.test(platform)) return '~/Library/Application Support/com.marcimastro98.xenon/crash.log';
+      return '~/.config/com.marcimastro98.xenon/crash.log';
+    }
+
+    function showInstall(state) {
+      if (done) return;
+      var key = [state.step, state.percent, state.failed].join('|');
+      if (key === shownInstall) return;
+      shownInstall = key;
+      panelMode = 'installing';
+      setupEl.classList.add('show');
+      statusEl.textContent = '';
+      hintEl.textContent = '';
+      setupTitleEl.textContent = WORDS.installTitle;
+      if (state.failed) {
+        progressEl.classList.remove('show');
+        setupBodyEl.textContent = state.step === 'no_answer' ? WORDS.installNoAnswer : WORDS.installFailed;
+        setupNoteEl.textContent = WORDS.installHelp.replace('{log}', logPath());
+        setupBtn.hidden = false;
+        setupBtn.disabled = false;
+        setupBtn.textContent = WORDS.tryAgain;
+        asking(true);
+        return;
+      }
+      var percent = Math.max(0, Math.min(100, Number(state.percent) || 0));
+      setupBodyEl.textContent = WORDS[INSTALL_STEPS[state.step]] || WORDS.installPreparing;
+      setupNoteEl.textContent = WORDS.installBody;
+      progressEl.classList.add('show');
+      progressEl.setAttribute('aria-valuenow', String(percent));
+      progressFillEl.style.width = percent + '%';
+      setupBtn.hidden = true;
+      asking(false);
+    }
+
+    // Starts (or restarts) the shell's install and shows it at once, before
+    // the shell's first report arrives.
+    function runEngineInstall() {
+      window.__XENON_INSTALL__ = { step: 'preparing', percent: 0, failed: false, done: false };
+      shownInstall = '';
+      showInstall(window.__XENON_INSTALL__);
+      window.location.href = (window.__xenonSignal || String)('xenon-setup:run');
+    }
+
+    // Its own short timer: a refused probe can take ~2s on Windows, too slow
+    // for a bar. Stops with the hand-over to the dashboard.
+    var installWatch = setInterval(function () {
+      if (done) { clearInterval(installWatch); return; }
+      var state = window.__XENON_INSTALL__;
+      if (state && typeof state === 'object') showInstall(state);
+    }, 250);
+
     setupBtn.addEventListener('click', function () {
       setupClickedAt = Date.now();
+      // A build that carries the engine installs (or repairs) it right here.
+      if (engineBundled && (panelMode === 'install' || panelMode === 'repair' || panelMode === 'installing')) {
+        runEngineInstall();
+        return;
+      }
       setupBtn.disabled = true;
       setupNoteEl.textContent = '';
       asking(false);
@@ -303,6 +393,11 @@
     // shell allows a fresh run once its console is gone (see BOOTSTRAP_CHILD).
     function rearmSetup() {
       if (setupBtn.disabled === false) return;
+      // The shell's own install reports its own end (showInstall).
+      if (panelMode === 'installing') return;
+      // The bootstrap console is still open: the user is watching it work, and
+      // "Xenon has still not started" over it would be wrong (lib.rs tells us).
+      if (window.__XENON_SETUP_RUNNING__ === true) return;
       // A start that produced nothing moves on to the repair (offerRepair).
       if (panelMode === 'start') return;
       if (panelMode === 'enable') {
@@ -381,7 +476,10 @@
             if (startClickedAt && (startFailed() || Date.now() - startClickedAt >= START_REARM_MS)) {
               offerRepair();
             }
-          } else if (canSetup && (backendAbsent() || elapsed() >= SETUP_AFTER_MS)) {
+          } else if (canSetup && ((backendAbsent() && !engineBundled) || elapsed() >= SETUP_AFTER_MS)) {
+            // A build that carries the engine starts installing on its own when
+            // nothing is installed, so its progress normally arrives first; the
+            // offer is only the fallback if it never does.
             offerSetup();
           }
           // Setup was started and the backend still isn't there — hand the

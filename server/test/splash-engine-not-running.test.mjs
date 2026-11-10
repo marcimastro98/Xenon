@@ -27,6 +27,10 @@ function fakeElement(text = '') {
   const el = {
     textContent: text,
     disabled: false,
+    hidden: false,
+    style: {},
+    attrs: {},
+    setAttribute(name, value) { el.attrs[name] = value; },
     listeners: {},
     classList: {
       add: (c) => classes.add(c),
@@ -53,6 +57,8 @@ function bootSplash({ flags = {}, setupAvailable = true, language = 'en-US' } = 
     'setup-btn': fakeElement('Complete setup'),
     'setup-note': fakeElement('Already installed? Wait a few seconds.'),
     wrap: fakeElement(),
+    progress: fakeElement(),
+    'progress-fill': fakeElement(),
   };
   const state = { answers: false, navigatedTo: '' };
   const location = {
@@ -66,6 +72,17 @@ function bootSplash({ flags = {}, setupAvailable = true, language = 'en-US' } = 
     navigator: { platform: 'Win32', language },
     Date: { now: () => now },
     setTimeout: (fn, ms) => { timers.push({ at: now + ms, fn }); },
+    setInterval: (fn, ms) => {
+      const handle = { cancelled: false };
+      const tick = () => {
+        if (handle.cancelled) return;
+        fn();
+        timers.push({ at: now + ms, fn: tick });
+      };
+      timers.push({ at: now + ms, fn: tick });
+      return handle;
+    },
+    clearInterval: (handle) => { if (handle) handle.cancelled = true; },
     fetch: () => (state.answers ? Promise.resolve({}) : Promise.reject(new TypeError('refused'))),
   };
   vm.runInNewContext(WORDS + SCRIPT, context);
@@ -89,6 +106,9 @@ function bootSplash({ flags = {}, setupAvailable = true, language = 'en-US' } = 
     body: els['setup-body'].textContent,
     button: els['setup-btn'].textContent,
     disabled: els['setup-btn'].disabled,
+    buttonHidden: els['setup-btn'].hidden,
+    note: els['setup-note'].textContent,
+    bar: els.progress.classList.contains('show') ? els['progress-fill'].style.width : '',
   });
   const click = () => els['setup-btn'].listeners.click();
   return { window, els, state, advanceTo, panel, click, now: () => now };
@@ -242,4 +262,79 @@ test('a normal start says nothing, a slow one says it is waiting', async () => {
   assert.equal(slow.els.status.textContent, '');
   await slow.advanceTo(4000);
   assert.equal(slow.els.status.textContent, 'Waiting for Xenon to start…');
+});
+
+// 5.1.0: the setup carries the engine and the shell installs it itself
+// (engine_install in src-tauri), reporting {step, percent, failed, done}.
+const BUNDLED = { __XENON_ENGINE_BUNDLED__: true, __XENON_BACKEND_ABSENT__: true };
+
+test('a build that carries the engine shows the shell\'s progress, not the console offer', async () => {
+  const s = bootSplash({ flags: BUNDLED });
+  await s.advanceTo(1000);
+  // The shell is already installing: no "complete setup" button meanwhile.
+  assert.equal(s.panel().shown, false);
+  s.window.__XENON_INSTALL__ = { step: 'copying', percent: 40, failed: false, done: false };
+  await s.advanceTo(1500);
+  const p = s.panel();
+  assert.equal(p.title, 'Setting up Xenon');
+  assert.equal(p.body, 'Copying Xenon to this computer…');
+  assert.equal(p.bar, '40%');
+  assert.equal(p.buttonHidden, true);
+  assert.doesNotMatch(p.body + p.note, /window|console/i);
+  // Twenty seconds in, still installing: the old offer must not cover it.
+  await s.advanceTo(25000);
+  assert.equal(s.panel().title, 'Setting up Xenon');
+  s.window.__XENON_INSTALL__ = { step: 'ready', percent: 100, failed: false, done: true };
+  s.state.answers = true;
+  await s.advanceTo(28000);
+  assert.ok(s.state.navigatedTo.includes('/?shell=main'));
+});
+
+test('a failed install says so, names the log and runs again on Try again', async () => {
+  const s = bootSplash({ flags: BUNDLED });
+  s.window.__XENON_INSTALL__ = { step: 'copy', percent: 0, failed: true, done: true };
+  await s.advanceTo(1000);
+  let p = s.panel();
+  assert.match(p.body, /stopped before the end/);
+  assert.ok(p.note.includes('%APPDATA%\\com.marcimastro98.xenon\\crash.log'), p.note);
+  assert.equal(p.button, 'Try again');
+  assert.equal(p.buttonHidden, false);
+  assert.equal(p.bar, '');
+  s.click();
+  assert.equal(s.window.location.href, 'xenon-setup:run');
+  p = s.panel();
+  assert.equal(p.body, 'Getting ready…');
+  assert.equal(p.buttonHidden, true);
+  // A rearm timer must never talk over the shell's own install.
+  await s.advanceTo(40000);
+  assert.equal(s.panel().title, 'Setting up Xenon');
+});
+
+test('an engine that installed but never answered gets its own words', async () => {
+  const s = bootSplash({ flags: BUNDLED });
+  s.window.__XENON_INSTALL__ = { step: 'no_answer', percent: 0, failed: true, done: true };
+  await s.advanceTo(1000);
+  assert.match(s.panel().body, /set up but has not started yet/);
+});
+
+test('the bundled offer, if the shell never reported, installs right here', async () => {
+  const s = bootSplash({ flags: { __XENON_ENGINE_BUNDLED__: true } });
+  await s.advanceTo(21000);
+  assert.match(s.panel().body, /adds it right here/);
+  s.click();
+  assert.equal(s.window.location.href, 'xenon-setup:run');
+  assert.equal(s.panel().title, 'Setting up Xenon');
+});
+
+test('the old console flow never says "still not started" while its window is open', async () => {
+  const s = bootSplash({ flags: { __XENON_BACKEND_ABSENT__: true } });
+  await s.advanceTo(1000);
+  s.click();
+  s.window.__XENON_SETUP_RUNNING__ = true;
+  await s.advanceTo(1000 + 45000);
+  assert.equal(s.panel().disabled, true);
+  assert.doesNotMatch(s.panel().body, /still not started/);
+  s.window.__XENON_SETUP_RUNNING__ = false;
+  await s.advanceTo(1000 + 46000);
+  assert.equal(s.panel().button, 'Run setup again');
 });

@@ -1619,6 +1619,8 @@ a.settings-btn { display: inline-flex; align-items: center; justify-content: cen
 /* What the row waits on from you (installed-manager.js needsYou): full ink and
    weight among the dim lines, so a scan of the list finds it. */
 .inst-row-state { font-size: 0.8rem; line-height: 1.35; font-weight: 600; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
+/* Not a task for the person, a fact about this PC: quieter than the rows above. */
+.inst-row-state.is-left-out { font-weight: 500; color: var(--text-dim, #8b91a1); }
 /* The publisher's note about what a pending update changes. */
 .inst-row-changelog {
   font-size: 0.76rem; line-height: 1.4; color: var(--accent, #35e08e);

@@ -188,15 +188,14 @@
     <p data-i18n-html="mac.nz.p3">4.11.13까지의 버전은 프로젝트 자체 인증서로 서명되었고 공증을 받지 않았습니다. 5.0에서 서명이 바뀌기 때문에, 업데이트 후 macOS가 전체 디스크 접근, 손쉬운 사용, 화면 기록처럼 이미 허용한 권한을 한 번 더 요청할 수 있습니다. <strong>시스템 설정</strong>의 <strong>개인정보 보호 및 보안</strong>에서 다시 허용하세요.</p>
 
     <h3 data-i18n="mac.h.setup">대시보드 엔진 설정</h3>
-    <p data-i18n="mac.setup.p1">.dmg는 설치 프로그램을 실행할 수 없기 때문에 첫 실행 때 설정합니다. Xenon은 뒤에서 동작하는 대시보드가 없는 것을 확인하면, 내용을 읽고 중단할 수 있는 터미널 창을 엽니다. 그 창에서 하는 일은 다음과 같습니다.</p>
+    <p data-i18n="mac.setup.p1">.dmg는 설치 프로그램을 실행할 수 없으므로, 첫 실행 때 Xenon 창 안에서 진행 막대와 함께 설치합니다. Xenon은:</p>
     <ol>
-      <li data-i18n="mac.setup.1">최신 릴리스와 서명된 체크섬 목록을 내려받습니다.</li>
-      <li data-i18n="mac.setup.2">압축을 풀기 전에 프로젝트의 서명 키로 다운로드를 검증합니다.</li>
-      <li data-i18n-html="mac.setup.3"><code>~/Library/Application Support/Xenon</code>에 설치합니다.</li>
-      <li data-i18n="mac.setup.4">앱 전환기, 온도, 검색을 맡는 작은 동반 프로그램인 Xenon Helper와, 재생 중인 곡을 읽는 브리지를 추가합니다.</li>
-      <li data-i18n="mac.setup.5">로그인 항목을 등록해 로그인할 때 Xenon이 열리게 합니다.</li>
+      <li data-i18n="mac.setup.1">앱에 들어 있는 대시보드 엔진을 자체 Node.js와 함께 복사하므로 아무것도 내려받지 않습니다.</li>
+      <li data-i18n="mac.setup.2">&lt;code&gt;~/Library/Application Support/Xenon&lt;/code&gt;에 설치합니다.</li>
+      <li data-i18n-html="mac.setup.3">로그인 항목을 등록해 로그인할 때 Xenon이 열리게 합니다.</li>
+      <li data-i18n="mac.setup.4">엔진을 시작하고 응답하는 즉시 대시보드를 보여 줍니다.</li>
     </ol>
-    <p data-i18n-html="mac.setup.p2">끝나면 설치 프로그램이 앱을 닫았다가 다시 열고, 대시보드가 나타납니다. Mac의 어느 브라우저에서든 <code>http://127.0.0.1:3030/</code>으로도 열 수 있습니다.</p>
+    <p data-i18n-html="mac.setup.p2">1분 정도 걸리고 한 번만 진행됩니다. 중간에 멈추면 Xenon이 이유를 알려 주고, 파일은 건드리지 않은 채 <strong>다시 시도</strong>를 보여 줍니다. Mac의 어느 브라우저에서든 <code>http://127.0.0.1:3030/</code>으로도 대시보드를 열 수 있습니다.</p>
     <p data-i18n="mac.setup.p3">대시보드 엔진은 Xenon 앱의 자식 프로세스로 실행됩니다. 그래서 Xenon에 전체 디스크 접근 권한을 한 번 주면 엔진에도 적용됩니다. Node.js에 권한을 주면 Mac의 다른 모든 스크립트가 그 권한을 함께 갖게 되는데, 그럴 필요가 없습니다.</p>
     <p data-i18n="mac.setup.p4">업데이트는 Windows와 같습니다. 새 버전을 먼저 내려받아 검증하고, 새 버전이 시작되지 않으면 이전 버전을 되돌립니다.</p>
     <p class="note" data-i18n-html="mac.setup.zip">앱 창 없이 쓰고 싶다면 <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">릴리스</a>에서 소스 코드 zip을 내려받아 압축을 풀고 <code>INSTALL.command</code>를 더블 클릭하세요. 대시보드는 같지만, 앱 없이 실행하면 macOS가 보호하는 폴더에는 접근할 수 없습니다.</p>

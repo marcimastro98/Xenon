@@ -147,18 +147,16 @@
     <p class="note" data-i18n-html="lx.beta">Il supporto a Linux è in <strong>beta</strong>. La dashboard, i widget, il catalogo e le integrazioni sono identici a Windows. Cambia ancora la parte che legge e comanda il computer, elencata nella tabella qui sotto. Non è ancora stato provato su un vero PC Linux, solo su macchine di test, quindi dicci cosa non funziona.</p>
 
     <h2 id="setup" data-i18n="lx.h.setup">Primo avvio</h2>
-    <p data-i18n-html="lx.setup.p1">Apri l'app. Al primo avvio ti propone di configurare la dashboard in una finestra del terminale: scarica il motore, verifica il download prima di estrarlo e registra un servizio <code>systemd --user</code>, così Xenon parte quando accedi. Dove manca il gestore dei servizi utente usa invece una voce di avvio automatico XDG e te lo dice, compreso il fatto che questa alternativa non riavvia Xenon dopo un crash.</p>
+    <p data-i18n-html="lx.setup.p1">Apri l'app. Al primo avvio prepara la dashboard dentro la finestra di Xenon, con una barra di avanzamento: copia il motore che l'app porta con sé, con il suo Node.js, quindi non scarica niente, e registra un servizio <code>systemd --user</code> così Xenon parte quando accedi. Dove non c'è un gestore utente usa invece una voce di avvio automatico XDG, che però non riavvia Xenon dopo un crash.</p>
     <p data-i18n="lx.setup.p2">Il .deb e l'.rpm non lo fanno durante l'installazione, ed è voluto: tutto quello che la configurazione crea appartiene a un solo account utente, mentre un pacchetto si installa come root per tutto il computer.</p>
-    <p data-i18n="lx.setup.p3">Il programma di installazione elenca anche gli strumenti facoltativi che ti mancano. Su Debian e Ubuntu:</p>
-    <pre><code># required
-sudo apt install nodejs npm unzip
-# volume, microphone and the per-app mixer
+    <p data-i18n="lx.setup.p3">Alcune funzioni usano strumenti del tuo sistema. Su Debian e Ubuntu:</p>
+    <pre><code># volume, microphone and the per-app mixer
 sudo apt install wireplumber
 # the open-applications widget (X11 sessions)
 sudo apt install wmctrl xdotool x11-utils
 # voice input and spoken replies
 sudo apt install ffmpeg</code></pre>
-    <p data-i18n-html="lx.setup.p4">Se il tuo desktop non ha proprio un emulatore di terminale, l'app non può mostrarti il programma di installazione: scarica lo zip dei sorgenti dalla <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">pagina della versione</a>, estrailo ed esegui <code>./INSTALL.sh</code>.</p>
+    <p data-i18n-html="lx.setup.p4">Se la preparazione non riesce a finire, scarica lo zip dei sorgenti dalla <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">release</a>, estrailo ed esegui <code>./INSTALL.sh</code> in un terminale.</p>
 
     <h2 id="works" data-i18n="lx.h.works">Cosa funziona su Linux</h2>
     <div class="tablewrap"><table>

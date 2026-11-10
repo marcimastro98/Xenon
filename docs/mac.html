@@ -188,15 +188,14 @@
     <p data-i18n-html="mac.nz.p3">Versions up to 4.11.13 were signed with the project's own certificate and were not notarized. Because the signature changes in 5.0, after the update macOS may ask once more for permissions you already gave, such as Full Disk Access, Accessibility and Screen Recording. Allow them again in <strong>System Settings</strong>, <strong>Privacy &amp; Security</strong>.</p>
 
     <h3 data-i18n="mac.h.setup">Setting up the dashboard engine</h3>
-    <p data-i18n="mac.setup.p1">A .dmg cannot run an installer, so the first launch does it. Xenon finds no dashboard behind it and opens a Terminal window you can read and stop. In that window it:</p>
+    <p data-i18n="mac.setup.p1">A .dmg cannot run an installer, so the first launch does it, inside the Xenon window, with a progress bar. It:</p>
     <ol>
-      <li data-i18n="mac.setup.1">downloads the latest release and its signed checksum list;</li>
-      <li data-i18n="mac.setup.2">checks the download against the project's signing key before extracting anything;</li>
-      <li data-i18n-html="mac.setup.3">installs into <code>~/Library/Application Support/Xenon</code>;</li>
-      <li data-i18n="mac.setup.4">adds the Xenon Helper, a small companion for the app switcher, temperatures and search, and the bridge that reads what is playing;</li>
-      <li data-i18n="mac.setup.5">registers a login item, so Xenon opens when you log in.</li>
+      <li data-i18n="mac.setup.1">copies the dashboard engine the app carries, with its own Node.js, so nothing is downloaded;</li>
+      <li data-i18n="mac.setup.2">installs it into <code>~/Library/Application Support/Xenon</code>;</li>
+      <li data-i18n-html="mac.setup.3">registers a login item, so Xenon opens when you log in;</li>
+      <li data-i18n="mac.setup.4">starts the engine and shows the dashboard as soon as it answers.</li>
     </ol>
-    <p data-i18n-html="mac.setup.p2">When it finishes, the installer closes and reopens the app, and the dashboard appears. It is also at <code>http://127.0.0.1:3030/</code> in any browser on the Mac.</p>
+    <p data-i18n-html="mac.setup.p2">It takes about a minute and happens once. If something stops it, Xenon says why and offers <strong>Try again</strong>, without touching your files. The dashboard is also at <code>http://127.0.0.1:3030/</code> in any browser on the Mac.</p>
     <p data-i18n="mac.setup.p3">The dashboard engine runs as a child of the Xenon app. That is why one Full Disk Access grant to Xenon covers it, instead of a grant to Node.js that every other script on the Mac would share.</p>
     <p data-i18n="mac.setup.p4">Updates work as on Windows: the new version is downloaded and verified first, and the previous one is put back if the new one does not start.</p>
     <p class="note" data-i18n-html="mac.setup.zip">Prefer no app window? Download the source code zip from <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the release</a>, extract it and double-click <code>INSTALL.command</code>. The dashboard is the same, but without the app the folders macOS protects stay out of reach.</p>

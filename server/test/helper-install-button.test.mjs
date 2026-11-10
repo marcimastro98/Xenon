@@ -26,7 +26,10 @@ test('the route installs through helper-update, POST only, and restarts the wave
   const route = cut(S, "reqPath === '/audio/levels/install-helper' && req.method === 'POST'", '\n  } else if (');
   assert.match(route, /createHelperUpdate\(\{ helperExe: HELPER_EXE, appVersion: APP_VERSION \}\)\.install\(\)/);
   assert.match(route, /process\.platform !== 'win32'/);
-  assert.match(route, /audioLevels\.reset\(\);\n\s+refreshAudioLevelsWatch\(\);/);
+  assert.match(route, /if \(ok\) helperArrived\(\);/);
+  const arrived = cut(S, 'function helperArrived() {', '\n}\n');
+  assert.match(arrived, /writeFileAtomic\(HELPER_CHECK_MARKER, APP_VERSION\)/);
+  assert.match(arrived, /audioLevels\.reset\(\);\n\s+refreshAudioLevelsWatch\(\);/);
   assert.match(route, /if \(!_helperInstall\)/, 'a second tap waits on the first download');
   assert.doesNotMatch(S, /reqPath === '\/audio\/levels\/install-helper' && req\.method === 'GET'/);
 });

@@ -147,18 +147,16 @@
     <p class="note" data-i18n-html="lx.beta">Linux 支持目前是<strong>测试版</strong>。仪表盘、小组件、目录和各项集成与 Windows 上完全相同。仍有差别的是读取和控制电脑本身的那部分，列在下表中。目前还没有在真正的 Linux 电脑上试过，只在测试机器上试过，所以如有不能用的地方，请告诉我们。</p>
 
     <h2 id="setup" data-i18n="lx.h.setup">首次启动</h2>
-    <p data-i18n-html="lx.setup.p1">打开应用。首次启动时，它会提出在终端窗口中设置仪表盘：下载引擎，在解压前验证下载的文件，并注册一个 <code>systemd --user</code> 服务，让 Xenon 在你登录时启动。如果没有用户级服务管理器，它会改用 XDG 自启动项，并告诉你这一点，包括这种备用方式不会在 Xenon 崩溃后重新启动它。</p>
+    <p data-i18n-html="lx.setup.p1">打开应用。首次启动会在 Xenon 窗口里设置仪表盘，并显示进度条：它复制应用自带的引擎及其自带的 Node.js，因此无需下载任何内容，并注册一个 <code>systemd --user</code> 服务，让 Xenon 在你登录时启动。没有用户管理器时，它会改用 XDG 自动启动项，但这种方式在崩溃后不会重启 Xenon。</p>
     <p data-i18n="lx.setup.p2">.deb 和 .rpm 在安装时不做这一步，这是有意为之：设置过程创建的所有东西都属于某一个用户账号，而软件包是以 root 身份为整台电脑安装的。</p>
-    <p data-i18n="lx.setup.p3">安装程序还会列出你缺少的可选工具。在 Debian 和 Ubuntu 上：</p>
-    <pre><code># required
-sudo apt install nodejs npm unzip
-# volume, microphone and the per-app mixer
+    <p data-i18n="lx.setup.p3">部分功能会用到系统自带的工具。在 Debian 和 Ubuntu 上：</p>
+    <pre><code># volume, microphone and the per-app mixer
 sudo apt install wireplumber
 # the open-applications widget (X11 sessions)
 sudo apt install wmctrl xdotool x11-utils
 # voice input and spoken replies
 sudo apt install ffmpeg</code></pre>
-    <p data-i18n-html="lx.setup.p4">如果你的桌面环境根本没有终端模拟器，应用就无法向你显示安装程序：请从<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">发布页面</a>下载源代码 zip，解压后运行 <code>./INSTALL.sh</code>。</p>
+    <p data-i18n-html="lx.setup.p4">如果设置无法完成，请从<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">发布页面</a>下载源代码 zip，解压后在终端中运行 <code>./INSTALL.sh</code>。</p>
 
     <h2 id="works" data-i18n="lx.h.works">Linux 上哪些功能可用</h2>
     <div class="tablewrap"><table>

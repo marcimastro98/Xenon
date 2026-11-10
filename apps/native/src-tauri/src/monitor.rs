@@ -535,6 +535,10 @@ const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
 /// legitimately needs repairing is left unrepaired.
 const MAX_REPIN_ATTEMPTS: u32 = 5;
 
+/// Ticks in which the kiosk is raised after a screen goes away: the one that sees
+/// the loss and the next, for the windows Windows finishes moving late.
+const RAISE_TICKS_AFTER_LOSS: u8 = 2;
+
 /// After the quick attempts, one more full re-placement this often while the
 /// window is still off its screen, instead of never again. Reported from a Mac:
 /// after every wake from sleep the dashboard sat on the main screen as a small
@@ -1558,14 +1562,6 @@ pub fn place_now(window: &WebviewWindow) {
 /// screen after a restart" then carries the answer instead of a guess.
 pub fn note_startup(window: &WebviewWindow, autostarted: bool) {
     let cache = placement_cache();
-    let screens = monitors_of(window)
-        .unwrap_or_default()
-        .iter()
-        .map(|m| {
-            let p = m.position();
-            format!("{} {} at {},{}", m.name().map(String::as_str).unwrap_or("?"), fingerprint(m), p.x, p.y)
-        })
-        .collect::<Vec<_>>();
     let asked = match cache.mode {
         Placement::Auto => "automatic".to_string(),
         Placement::Phone => "phone".to_string(),
@@ -1590,9 +1586,22 @@ pub fn note_startup(window: &WebviewWindow, autostarted: bool) {
         &format!(
             "started {}; show on: {asked}; screens: {}; placed: {placed}",
             if autostarted { "at login" } else { "by hand" },
-            if screens.is_empty() { "none readable".to_string() } else { screens.join(", ") }
+            screens_text(window)
         ),
     );
+}
+
+/// The connected screens as the crash log lists them: name, size, scale, origin.
+fn screens_text(window: &WebviewWindow) -> String {
+    let screens = monitors_of(window)
+        .unwrap_or_default()
+        .iter()
+        .map(|m| {
+            let p = m.position();
+            format!("{} {} at {},{}", m.name().map(String::as_str).unwrap_or("?"), fingerprint(m), p.x, p.y)
+        })
+        .collect::<Vec<_>>();
+    if screens.is_empty() { "none readable".to_string() } else { screens.join(", ") }
 }
 
 /// Xenon opened again while it is already running.
@@ -1847,6 +1856,50 @@ fn clear_stuck_topmost(window: &WebviewWindow) {
     // still sees a state change and issues its SetWindowPos.
     let _ = window.set_always_on_top(false);
 }
+
+/// Put the kiosk back in front of the windows a lost screen pushed onto its own,
+/// without taking the foreground.
+///
+/// When a monitor goes away (a KVM switch, a cable, power), Windows moves that
+/// screen's windows onto the screens left, the Edge included, and stacks them above
+/// the kiosk. Nothing is minimized and the kiosk has not moved, so the re-pin finds
+/// it in place, and `place_on_edge` raises it only when it already had the
+/// foreground. Reported with a KVM switch: the Edge showed the browser left open on
+/// the main screen for as long as the switch was away, unless every window had been
+/// minimized first.
+///
+/// HWND_NOTOPMOST does nothing to a window that is not topmost, so the window is
+/// made topmost and at once ordinary again: that leaves it above every ordinary
+/// window and below the taskbar, which keeps the moved windows one click away for
+/// someone still at this PC. It is never left pinned (see `clear_stuck_topmost`),
+/// and SWP_NOACTIVATE leaves the foreground where it was.
+#[cfg(windows)]
+fn raise_quietly(window: &WebviewWindow) {
+    #[link(name = "user32")]
+    extern "system" {
+        fn SetWindowPos(hwnd: isize, after: isize, x: i32, y: i32, cx: i32, cy: i32, flags: u32) -> i32;
+    }
+    const HWND_TOPMOST: isize = -1;
+    const HWND_NOTOPMOST: isize = -2;
+    const SWP_NOSIZE: u32 = 0x0001;
+    const SWP_NOMOVE: u32 = 0x0002;
+    const SWP_NOACTIVATE: u32 = 0x0010;
+    // Lifted over the desktop on purpose while Win+D shows it (show_desktop.rs).
+    if crate::show_desktop::raised() {
+        return;
+    }
+    let Ok(hwnd) = window.hwnd() else { return };
+    let hwnd = hwnd.0 as isize;
+    let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+    unsafe {
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags);
+        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
+    }
+}
+
+// Only Windows has been seen stacking a lost screen's windows over the kiosk.
+#[cfg(not(windows))]
+fn raise_quietly(_window: &WebviewWindow) {}
 
 /// Swipe-up-to-desktop: collapse the kiosk to a small, round, always-on-top
 /// "return" button centred near the top edge of the Edge (or, off the Edge, the
@@ -2213,6 +2266,14 @@ fn topology_signature(window: &WebviewWindow) -> String {
     format!("P:{}|{}", primary, parts.join("|"))
 }
 
+/// True when the newer signature lists fewer screens than the older one: a monitor
+/// was unplugged, turned off, or taken by a KVM switch. An empty signature means the
+/// screens could not be read, which is not a loss.
+fn lost_a_screen(before: &str, after: &str) -> bool {
+    let count = |sig: &str| sig.split('|').skip(1).count();
+    !before.is_empty() && !after.is_empty() && count(after) < count(before)
+}
+
 /// One crash-log line per re-placement of a window that was off its screen:
 /// where it was, where it is going, and which attempt this is, so a report of
 /// "it is still on the wrong screen" comes with what was tried. Slow retries are
@@ -2242,6 +2303,59 @@ fn note_repin(window: &WebviewWindow, target: &Monitor, attempts: u32, now: Syst
     crate::crash_log::note("display", &line);
 }
 
+/// What the window looked like, in words, for the crash log.
+struct WindowState {
+    rect: Option<(i32, i32, u32, u32)>,
+    screen: Option<String>,
+    minimized: bool,
+    visible: bool,
+    in_front: bool,
+}
+
+fn window_state_text(st: &WindowState) -> String {
+    let yes_no = |b: bool| if b { "yes" } else { "no" };
+    let at = st
+        .rect
+        .map(|(x, y, w, h)| format!("at {x},{y} {w}x{h}"))
+        .unwrap_or_else(|| "at an unreadable place".to_string());
+    format!(
+        "the window is {at} on {}, minimized {}, shown {}, in front {}",
+        st.screen.as_deref().unwrap_or("no screen"),
+        yes_no(st.minimized),
+        yes_no(st.visible),
+        yes_no(st.in_front)
+    )
+}
+
+/// One crash-log line about the window when the screens change, and one more on
+/// the next tick, after the watchdog has had its turn. A KVM switch report said
+/// the Edge showed the desktop while the main screen was away, yet the log held
+/// nothing: the watchdog saw a window in place and not minimized. These lines say
+/// what Windows really did to it, and whether our re-placement held.
+fn note_window_state(window: &WebviewWindow, when: &str, with_screens: bool) {
+    let w = window.clone();
+    let rect = on_main(window.app_handle(), move || {
+        let p = w.outer_position().ok()?;
+        let s = w.outer_size().ok()?;
+        Some((p.x, p.y, s.width, s.height))
+    })
+    .flatten();
+    let w = window.clone();
+    let visible = on_main(window.app_handle(), move || w.is_visible().unwrap_or(false)).unwrap_or(false);
+    let st = WindowState {
+        rect,
+        screen: current_of(window).and_then(|m| m.name().cloned()),
+        minimized: minimized(window),
+        visible,
+        in_front: kiosk_has_foreground(window),
+    };
+    let mut line = format!("{when}: {}", window_state_text(&st));
+    if with_screens {
+        line.push_str(&format!("; screens: {}", screens_text(window)));
+    }
+    crate::crash_log::note("display", &line);
+}
+
 /// Start the background watchdog. Re-pins the window to the Edge whenever it is
 /// present but the window has drifted off it (display reorder, replug, resume) or
 /// the display topology changes (e.g. a monitor powered off relocates the Windows
@@ -2262,6 +2376,10 @@ pub fn start_watchdog(app: AppHandle) {
         let mut settle_until: Option<SystemTime> = None;
         let mut last_attempt: Option<SystemTime> = None;
         let mut last_slow_log: Option<SystemTime> = None;
+        // Set on a change of screens: the next tick logs the window once more.
+        let mut recheck_window = false;
+        // Ticks left in which to raise the kiosk over windows a lost screen moved.
+        let mut raise_ticks: u8 = 0;
         loop {
         thread::sleep(WATCHDOG_INTERVAL);
 
@@ -2349,12 +2467,29 @@ pub fn start_watchdog(app: AppHandle) {
         // valid read still compares against real data.
         let topology_changed =
             !last_topology.is_empty() && !topology.is_empty() && topology != last_topology;
+        // Windows may still be moving the lost screen's windows when this tick runs,
+        // so the kiosk is raised again on the next one (see `raise_quietly`).
+        if lost_a_screen(&last_topology, &topology) {
+            raise_ticks = RAISE_TICKS_AFTER_LOSS;
+        }
+        let raise_now = raise_ticks > 0 && !game_mode();
+        raise_ticks = raise_ticks.saturating_sub(1);
         if !topology.is_empty() {
             last_topology = topology.clone();
+        }
+        if recheck_window {
+            recheck_window = false;
+            note_window_state(&window, "3 s after the screens changed", false);
         }
         if topology_changed {
             // The list the dashboard's screen picker is showing just went stale.
             push_display_state(&app);
+            // Not in a game: a game flipping resolution would fill the log, which
+            // keeps only its last 64 KB.
+            if !game_mode() {
+                note_window_state(&window, "the screens changed", true);
+                recheck_window = true;
+            }
         }
 
         // The screen the user NAMED. Structurally the Edge branch below, with the
@@ -2417,6 +2552,11 @@ pub fn start_watchdog(app: AppHandle) {
                                 place_windowed_on(&window, &target, true);
                             }
                         }
+                    }
+                    // The kiosk only: a full-screen or windowed Xenon has a taskbar
+                    // button and sits among the other windows like any of them.
+                    if raise_now && is_edge_panel(&target) {
+                        raise_quietly(&window);
                     }
                 }
             }
@@ -2483,6 +2623,9 @@ pub fn start_watchdog(app: AppHandle) {
                     let focus = kiosk_has_foreground(&window);
                     place_on_edge(&window, &edge, focus);
                 }
+            }
+            if raise_now {
+                raise_quietly(&window);
             }
         } else {
             // Off the Edge: keep the baseline current so returning to it re-pins once.
@@ -2557,6 +2700,60 @@ mod visit_tests {
         assert_eq!(visit_screen(vec!["edge", "main", "edge"], edge), Some("main"));
         assert_eq!(visit_screen(vec!["edge", "edge"], edge), Some("edge"));
         assert_eq!(visit_screen(Vec::<&str>::new(), edge), None);
+    }
+}
+
+#[cfg(test)]
+mod window_state_tests {
+    use super::*;
+
+    #[test]
+    fn the_line_says_where_the_window_is_and_what_state_it_is_in() {
+        let st = WindowState {
+            rect: Some((0, 0, 2560, 720)),
+            screen: Some("DISPLAY5".to_string()),
+            minimized: false,
+            visible: true,
+            in_front: false,
+        };
+        assert_eq!(
+            window_state_text(&st),
+            "the window is at 0,0 2560x720 on DISPLAY5, minimized no, shown yes, in front no"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_window_still_gives_a_line() {
+        let st = WindowState { rect: None, screen: None, minimized: true, visible: false, in_front: false };
+        assert_eq!(
+            window_state_text(&st),
+            "the window is at an unreadable place on no screen, minimized yes, shown no, in front no"
+        );
+    }
+}
+
+#[cfg(test)]
+mod lost_screen_tests {
+    use super::*;
+
+    const TWO: &str = "P:3840x2160@\\\\.\\DISPLAY1|0,0,3840x2160|3840,1435,2560x720";
+    const EDGE_ALONE: &str = "P:2560x720@\\\\.\\DISPLAY5|0,0,2560x720";
+
+    #[test]
+    fn a_kvm_switch_taking_the_main_screen_is_a_loss() {
+        assert!(lost_a_screen(TWO, EDGE_ALONE));
+    }
+
+    #[test]
+    fn a_screen_coming_back_or_moving_is_not() {
+        assert!(!lost_a_screen(EDGE_ALONE, TWO));
+        assert!(!lost_a_screen(TWO, "P:3840x2160@\\\\.\\DISPLAY1|0,0,3840x2160|3840,0,2560x720"));
+    }
+
+    #[test]
+    fn unreadable_screens_are_not_a_loss() {
+        assert!(!lost_a_screen(TWO, ""));
+        assert!(!lost_a_screen("", EDGE_ALONE));
     }
 }
 

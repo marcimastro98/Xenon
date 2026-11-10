@@ -147,18 +147,16 @@
     <p class="note" data-i18n-html="lx.beta">Linux support is in <strong>beta</strong>. The dashboard, the widgets, the catalog and the integrations are identical to Windows. What still differs is the part that reads and drives the machine, listed in the table below. It has not been tried on a real Linux PC yet, only on test machines, so tell us what does not work.</p>
 
     <h2 id="setup" data-i18n="lx.h.setup">First launch</h2>
-    <p data-i18n-html="lx.setup.p1">Open the app. The first launch offers to set the dashboard up in a terminal window: it downloads the engine, verifies the download before extracting it, and registers a <code>systemd --user</code> service so Xenon starts when you log in. Where there is no user manager it uses an XDG autostart entry instead and tells you so, including that this fallback does not restart Xenon after a crash.</p>
+    <p data-i18n-html="lx.setup.p1">Open the app. The first launch sets the dashboard up inside the Xenon window, with a progress bar: it copies the engine the app carries, with its own Node.js, so nothing is downloaded, and registers a <code>systemd --user</code> service so Xenon starts when you log in. Where there is no user manager it uses an XDG autostart entry instead, which does not restart Xenon after a crash.</p>
     <p data-i18n="lx.setup.p2">The .deb and .rpm do not do this at install time, on purpose: everything the setup creates belongs to one user account, while a package installs as root for the whole machine.</p>
-    <p data-i18n="lx.setup.p3">The installer also lists the optional tools you do not have. On Debian and Ubuntu:</p>
-    <pre><code># required
-sudo apt install nodejs npm unzip
-# volume, microphone and the per-app mixer
+    <p data-i18n="lx.setup.p3">Some features use tools of your system. On Debian and Ubuntu:</p>
+    <pre><code># volume, microphone and the per-app mixer
 sudo apt install wireplumber
 # the open-applications widget (X11 sessions)
 sudo apt install wmctrl xdotool x11-utils
 # voice input and spoken replies
 sudo apt install ffmpeg</code></pre>
-    <p data-i18n-html="lx.setup.p4">If your desktop has no terminal emulator at all, the app cannot show you the installer: download the source zip from <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the release</a>, extract it and run <code>./INSTALL.sh</code>.</p>
+    <p data-i18n-html="lx.setup.p4">If the setup cannot finish, download the source zip from <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the release</a>, extract it and run <code>./INSTALL.sh</code> in a terminal.</p>
 
     <h2 id="works" data-i18n="lx.h.works">What works on Linux</h2>
     <div class="tablewrap"><table>

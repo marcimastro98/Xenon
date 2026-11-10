@@ -45,7 +45,7 @@ test('the wallpaper survives the code round trip inside a bundle', () => {
 
 // Both sanitizers keep `imported` + a valid installId, and nothing else new.
 function loadSanitizer(file, fnName, extra) {
-  const src = readFileSync(join(ROOT, file), 'utf8');
+  const src = readFileSync(join(ROOT, file), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
   const start = src.indexOf('function ' + fnName + '(');
   const end = src.indexOf('\n}\n', start) + 2;
   const ctx = vm.createContext(Object.assign({

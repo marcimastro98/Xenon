@@ -14,6 +14,7 @@
     both: 'usage_ask_both_title', widgets: 'usage_ask_widgets_title', dashboard: 'usage_ask_dash_title', phone: 'usage_ask_phone_title',
   };
   const RAILS_PEEK_MS = 3200;
+  const DRIVER_WAIT_MS = 4000; // a window that should have left for the driver page and did not
 
   let overlay = null;
   let picture = null;
@@ -254,11 +255,21 @@
     setTimeout(() => rails.peekRails(false), RAILS_PEEK_MS);
   }
 
+  // "Widgets only" in the app's own window (the splash opens it with shell=main): saving the
+  // mode trades this page for the small driver page, which the shell hides (layers-shell.js).
+  function leavesForDriver(answer) {
+    if (answer.usage !== 'widgets' || answer.phone) return false;
+    try { return new URLSearchParams(window.location.search).get('shell') === 'main'; } catch { return false; }
+  }
+
   async function confirm(mode = picked) {
     if (leaving) return;
     leaving = true;
     const answer = plan().answer({ mode, list, dash });
-    await window.XenonMelt(close); // the dialog melts into what the person just chose
+    const toDriver = leavesForDriver(answer);
+    // The dialog melts into what the person just chose. "Widgets only" has no dashboard to
+    // melt into: the dialog stays until the window goes, so the dashboard never shows.
+    if (!toDriver) await window.XenonMelt(close);
     placeDashboard(answer);
     // Before the mode: 'widgets' trades this page for the small driver page.
     await placeStarters(answer);
@@ -266,6 +277,7 @@
     if (answer.usage !== 'dashboard' && !answer.phone) showMenu();
     if (answer.usage !== 'widgets' && !answer.phone) peekRails();
     await saved;
+    if (toDriver) setTimeout(close, DRIVER_WAIT_MS);
     leaving = false;
   }
 

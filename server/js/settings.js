@@ -4479,7 +4479,7 @@ function applyHubSettings() {
       image.hidden = false;
     }
     image.hidden = false;
-    document.body.dataset.bgType = 'image';
+    document.body.dataset.bgType = media.type === 'image/gif' ? 'gif' : 'image';
   }
 
   // Keep the System-tile History tab's visibility in step with settings. This
@@ -5055,8 +5055,8 @@ function syncSettingsControls() {
   if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
   // UniFi Protect connect + camera picker renders into Settings → Cameras.
   if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
-  // "Enable sensors" card renders into Settings → Performance (only when needed).
-  if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings();
+  if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings(); // Performance cards, only when needed
+  if (window.FfmpegOffer) window.FfmpegOffer.initSettings();
   // "Sensor sources" lists render into Settings → Performance (polls only while shown).
   for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.show();
   // External calendars section — injected dynamically (no HTML change required).
@@ -5512,10 +5512,9 @@ async function saveSupporterCode() {
   } else if (status === 403) {
     // A paired device: what the PC pays with is changed on the PC.
     setSettingsStatus('settings_supporter_save_pc_only', 'error');
-  } else if (out && out.error === 'bad_code') {
-    // Shape, not validity: the hub is the only thing that can say whether a
-    // well-formed code works, and it answers that against a specific drop.
-    setSettingsStatus('settings_supporter_bad', 'error');
+  } else if (out && (out.error === 'bad_code' || out.error === 'refused')) {
+    // bad_code: not the shape of a code; refused: the hub does not know it.
+    setSettingsStatus(out.error === 'refused' ? 'preset_redeem_saved_stale' : 'settings_supporter_bad', 'error');
     field.focus();
   } else {
     setSettingsStatus('settings_supporter_failed', 'error');
@@ -10625,10 +10624,9 @@ function toggleDynamicIslandSource(pkgId, enabled) {
     topbarClock: { ...(hubSettings.topbarClock || {}), hiddenSources: Array.from(hidden) },
   });
   saveHubSettings();
-  if (window.SdkIsland) window.SdkIsland.apply();
-  if (window.SdkBadges) window.SdkBadges.apply();
-  if (window.SdkMini) window.SdkMini.apply();
-  if (window.SdkTopbarButton) window.SdkTopbarButton.apply();
+  ['SdkIsland', 'SdkBadges', 'SdkMini', 'SdkTopbarButton'].forEach((name) => { if (window[name]) window[name].apply(); });
+  // Switched off there, a package also gives up its hidden background frame.
+  if (window.CustomWidget && CustomWidget.syncBackground) CustomWidget.syncBackground();
   setSettingsStatus('settings_saved', 'ok');
 }
 

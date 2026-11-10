@@ -12,7 +12,7 @@ const SRC = read('../js/boot-splash.js');
 const LOOK_KEY = 'xeneonedge.bootLook.v1';
 
 // Runs boot-splash.js against a fake page and hand-driven timers.
-function boot({ stored = null, computed = {}, reduced = false } = {}) {
+function boot({ stored = null, computed = {}, reduced = false, readyState } = {}) {
   let now = 0;
   const timers = new Map();
   let nextId = 1;
@@ -35,7 +35,12 @@ function boot({ stored = null, computed = {}, reduced = false } = {}) {
     CSS: { supports: (_p, v) => /^(#[0-9a-f]{3,8}|rgba?\([\d.,\s%]+\))$/i.test(v) },
     getComputedStyle: () => ({ getPropertyValue: (p) => computed[p] || '' }),
     matchMedia: (q) => ({ matches: reduced && q.includes('reduce') }),
-    document: { getElementById: (id) => (id === 'boot-splash' ? el : null), documentElement: {} },
+    document: {
+      readyState,
+      getElementById: (id) => (id === 'boot-splash' ? el : null),
+      documentElement: {},
+      addEventListener: (type, fn) => { listeners['doc:' + type] = fn; },
+    },
   };
   sandbox.window = sandbox;
   vm.runInNewContext(SRC, sandbox);
@@ -169,4 +174,21 @@ test('the setting is kept the same way on both sides, on by default', () => {
   for (const key of ['settings_boot_splash', 'settings_boot_splash_hint']) {
     assert.equal((i18n.match(new RegExp('\\n  ' + key + ': ', 'g')) || []).length, 11, key);
   }
+});
+
+test('a page still parsing keeps Bit up: the cap counts from the parsed page', () => {
+  const slow = boot({ readyState: 'loading' });
+  slow.advance(20000);
+  assert.ok(!slow.classes.has('is-ready'), 'the bare markup is never shown while scripts still load');
+  slow.listeners['doc:DOMContentLoaded']();
+  slow.advance(5999);
+  assert.ok(!slow.classes.has('is-ready'));
+  slow.advance(1);
+  assert.ok(slow.classes.has('is-ready'));
+
+  const stuck = boot({ readyState: 'loading' });
+  stuck.advance(59999);
+  assert.ok(!stuck.classes.has('is-ready'));
+  stuck.advance(1);
+  assert.ok(stuck.classes.has('is-ready'), 'a page that never finishes parsing is let go');
 });

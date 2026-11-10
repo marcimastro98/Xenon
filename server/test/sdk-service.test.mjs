@@ -161,5 +161,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');
   const cw = read('../js/custom-widget.js');
   assert.match(cw, /const handlersOnly = document\.documentElement\.hasAttribute\('data-sdk-service'\);/);
-  assert.match(cw, /if \(!handlersLive && \(handlersOnly \|\| \(!badgeLive && !islandLive && !miniLive && !buttonLive\)\)\) continue;/);
+  // On the hidden host nothing that shows in a bar counts: only Deck keys get a frame.
+  assert.match(cw, /const shown = !opts\.handlersOnly && opts\.barShows\(pkg\.id\);/);
+  assert.match(cw, /max: SERVICE_FRAMES_MAX, handlersOnly, suspended: isSuspended, barShows: barShowsPackage,/);
 });

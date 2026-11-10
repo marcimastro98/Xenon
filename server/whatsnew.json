@@ -443,5 +443,125 @@
     }
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
-  "releases": []
+  "releases": [
+    {
+      "version": "5.1.0",
+      "news": [
+        {
+          "title": {
+            "it": "Un solo installer",
+            "en": "One installer",
+            "es": "Un solo instalador",
+            "fr": "Un seul installeur",
+            "de": "Ein einziger Installer",
+            "pt": "Um só instalador",
+            "ru": "Один установщик",
+            "nl": "Eén installer",
+            "ko": "설치 프로그램 하나",
+            "ja": "インストーラーはひとつ",
+            "zh": "一个安装程序"
+          },
+          "text": {
+            "it": "Chi installa Xenon da zero ora fa un solo passaggio: niente finestre nere, niente da scaricare prima di partire, e la barra di avanzamento parla la sua lingua.",
+            "en": "Anyone installing Xenon from scratch now takes one step: no black windows, nothing to download before it starts, and the progress bar speaks their language.",
+            "es": "Quien instala Xenon desde cero ahora da un solo paso: sin ventanas negras, nada que descargar antes de empezar, y la barra de progreso habla su idioma.",
+            "fr": "Installer Xenon depuis zéro tient maintenant en une étape : pas de fenêtres noires, rien à télécharger avant le démarrage, et la barre de progression parle ta langue.",
+            "de": "Wer Xenon neu installiert, braucht jetzt nur einen Schritt: keine schwarzen Fenster, nichts herunterzuladen vor dem Start, und der Fortschrittsbalken spricht deine Sprache.",
+            "pt": "Quem instala o Xenon de raiz agora faz um só passo: sem janelas pretas, nada para transferir antes de arrancar, e a barra de progresso fala a sua língua.",
+            "ru": "Новая установка Xenon теперь занимает один шаг: никаких чёрных окон, ничего не нужно скачивать перед запуском, а индикатор прогресса говорит на вашем языке.",
+            "nl": "Wie Xenon nieuw installeert, doet nu één stap: geen zwarte vensters, niets te downloaden voor de start, en de voortgangsbalk spreekt je taal.",
+            "ko": "처음부터 Xenon을 설치할 때 이제 한 단계면 됩니다. 검은 창도, 시작 전에 내려받을 것도 없고, 진행 막대는 사용 중인 언어로 표시됩니다.",
+            "ja": "Xenon を新しくインストールする手順はひとつだけになりました。黒いウィンドウも、起動前のダウンロードもなく、進行状況バーはあなたの言語で表示されます。",
+            "zh": "全新安装 Xenon 现在只需一步：没有黑色窗口，启动前无需下载任何内容，进度条使用你的语言。"
+          }
+        }
+      ],
+      "fixes": [
+        {
+          "area": {
+            "it": "Store",
+            "en": "Store",
+            "es": "Tienda",
+            "fr": "Store",
+            "de": "Store",
+            "pt": "Loja",
+            "ru": "Магазин",
+            "nl": "Store",
+            "ko": "스토어",
+            "ja": "ストア",
+            "zh": "商店"
+          },
+          "text": {
+            "it": "Gli elementi in vendita con le Sparks mostrano di nuovo il prezzo dopo un aggiornamento.",
+            "en": "Items sold for Sparks show their price again after an update.",
+            "es": "Los elementos que se venden con Sparks vuelven a mostrar su precio tras una actualización.",
+            "fr": "Les éléments vendus en Sparks affichent de nouveau leur prix après une mise à jour.",
+            "de": "Artikel, die es für Sparks gibt, zeigen nach einem Update wieder ihren Preis.",
+            "pt": "Os itens vendidos com Sparks voltam a mostrar o preço depois de uma atualização.",
+            "ru": "Товары за Sparks снова показывают цену после обновления.",
+            "nl": "Items die je met Sparks koopt, tonen na een update weer hun prijs.",
+            "ko": "Sparks로 판매되는 항목이 업데이트 후에도 다시 가격을 표시합니다.",
+            "ja": "Sparks で販売されているアイテムが、アップデート後も価格を表示するようになりました。",
+            "zh": "用 Sparks 出售的项目在更新后会重新显示价格。"
+          }
+        },
+        {
+          "area": {
+            "it": "Sparks",
+            "en": "Sparks",
+            "es": "Sparks",
+            "fr": "Sparks",
+            "de": "Sparks",
+            "pt": "Sparks",
+            "ru": "Sparks",
+            "nl": "Sparks",
+            "ko": "Sparks",
+            "ja": "Sparks",
+            "zh": "Sparks"
+          },
+          "text": {
+            "it": "Su un drop che si compra con le Sparks, il codice sostenitore ora lo dice e ti mostra l'acquisto, che le Sparks del pass possono pagare.",
+            "en": "On a drop bought with Sparks, your supporter code now says so and shows the purchase, which the Sparks on your pass can pay for.",
+            "es": "En un drop que se compra con Sparks, tu código de mecenas ahora lo indica y muestra la compra, que las Sparks de tu pase pueden pagar.",
+            "fr": "Sur un drop qui s'achète en Sparks, ton code supporter le dit maintenant et affiche l'achat, que les Sparks de ton pass peuvent payer.",
+            "de": "Bei einem Drop, den man mit Sparks kauft, sagt dein Unterstützer-Code das jetzt und zeigt den Kauf, den die Sparks deines Passes bezahlen können.",
+            "pt": "Num drop que se compra com Sparks, o teu código de apoiante agora diz isso e mostra a compra, que as Sparks do teu passe podem pagar.",
+            "ru": "Для дропа, который покупается за Sparks, код спонсора теперь говорит об этом и показывает покупку, которую можно оплатить Sparks с вашего пропуска.",
+            "nl": "Bij een drop die je met Sparks koopt, zegt je supportercode dat nu en toont de aankoop, die de Sparks van je pas kunnen betalen.",
+            "ko": "Sparks로 구매하는 드롭에서 후원자 코드가 이제 그 사실을 알려 주고, 패스의 Sparks로 결제할 수 있는 구매 화면을 보여 줍니다.",
+            "ja": "Sparks で購入するドロップでは、サポーターコードがそのことを伝え、パスの Sparks で支払える購入画面を表示するようになりました。",
+            "zh": "对于用 Sparks 购买的内容，你的支持者代码现在会说明这一点，并显示可用通行证中的 Sparks 支付的购买。"
+          }
+        },
+        {
+          "area": {
+            "it": "Sparks",
+            "en": "Sparks",
+            "es": "Sparks",
+            "fr": "Sparks",
+            "de": "Sparks",
+            "pt": "Sparks",
+            "ru": "Sparks",
+            "nl": "Sparks",
+            "ko": "Sparks",
+            "ja": "Sparks",
+            "zh": "Sparks"
+          },
+          "text": {
+            "it": "Un codice Sparks comprato con un'altra email ora si salva in Impostazioni accanto al codice sostenitore.",
+            "en": "A Sparks code bought with a different email now saves in Settings next to your supporter code.",
+            "es": "Un código de Sparks comprado con otro correo ahora se guarda en Ajustes junto a tu código de mecenas.",
+            "fr": "Un code Sparks acheté avec une autre adresse e-mail s'enregistre maintenant dans les Réglages à côté de ton code supporter.",
+            "de": "Ein Sparks-Code, der mit einer anderen E-Mail gekauft wurde, lässt sich jetzt in den Einstellungen neben deinem Unterstützer-Code speichern.",
+            "pt": "Um código de Sparks comprado com outro email agora fica guardado nas Definições ao lado do teu código de apoiante.",
+            "ru": "Код Sparks, купленный с другой почтой, теперь сохраняется в настройках рядом с кодом спонсора.",
+            "nl": "Een Sparks-code die je met een ander e-mailadres kocht, bewaar je nu in Instellingen naast je supportercode.",
+            "ko": "다른 이메일로 구매한 Sparks 코드도 이제 설정에서 후원자 코드 옆에 저장됩니다.",
+            "ja": "別のメールアドレスで購入した Sparks コードも、設定でサポーターコードの横に保存できるようになりました。",
+            "zh": "用其他邮箱购买的 Sparks 代码现在可以保存在设置中，与你的支持者代码并列。"
+          }
+        }
+      ]
+    }
+  ]
 }

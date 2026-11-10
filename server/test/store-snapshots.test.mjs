@@ -9,9 +9,11 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-snapshots.js');
-const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
-const MAIN = fs.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-const I18N = fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+// LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
+const readLf = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SERVER = readLf('../server.js');
+const MAIN = readLf('../js/main.js');
+const I18N = readLf('../js/i18n.js');
 const DAY = 86_400_000;
 
 function tmpData() {

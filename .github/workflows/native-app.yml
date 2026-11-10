@@ -166,6 +166,29 @@ jobs:
         run: |
           & "$env:XENON_SIGN_SCRIPT" -Path 'apps/native/src-tauri/windows/xenon-bootstrap.ps1'
 
+      # 5.1.0: the setup carries the engine and a pinned Node (see release.yml).
+      - name: Build the engine the installer carries
+        shell: pwsh
+        run: |
+          node tools/engine-bundle/cli.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Tauri signs only what it builds; node.exe keeps the OpenJS signature.
+      - name: Sign the engine's native files
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        shell: pwsh
+        run: |
+          $engine = 'apps/native/src-tauri/engine'
+          $files = Get-ChildItem $engine -Recurse -File -Include *.exe, *.dll, *.node
+          foreach ($f in $files) {
+            if ((Get-AuthenticodeSignature -LiteralPath $f.FullName).Status -eq 'Valid') { continue }
+            & "$env:XENON_SIGN_SCRIPT" -Path $f.FullName
+            if ((Get-AuthenticodeSignature -LiteralPath $f.FullName).Status -ne 'Valid') {
+              throw "$($f.FullName) is still not validly signed"
+            }
+            Write-Host "signed $($f.FullName.Substring((Resolve-Path $engine).Path.Length))"
+          }
+
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
         shell: pwsh
@@ -173,16 +196,16 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          # The overlay adds bundle.windows.signCommand and nothing else, so
+          # The sign overlay adds bundle.windows.signCommand and nothing else, so
           # Tauri signs every binary it bundles: xenon-native.exe AND the setup
           # that carries it. Signing the setup alone would leave the exe inside
           # it unsigned, and that is the one antivirus quarantines mid-session.
-          # With no certificate the flag is absent and this is the plain build.
-          if ($env:XENON_SIGN_CONFIG) {
-            npm run build -- --config "$env:XENON_SIGN_CONFIG"
-          } else {
-            npm run build
-          }
+          # With no certificate that flag is absent. The engine overlay is always
+          # passed: configs merge in order, and each touches different keys.
+          $engineConf = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/tauri.engine.conf.json'
+          $configs = @('--config', $engineConf)
+          if ($env:XENON_SIGN_CONFIG) { $configs = @('--config', $env:XENON_SIGN_CONFIG) + $configs }
+          npm run build -- @configs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # A build that quietly lost its signature is worth failing for: it ships
@@ -225,6 +248,11 @@ jobs:
             }
             Write-Host "$name inside the installer signed by: $($isig.SignerCertificate.Subject)"
           }
+          # The engine's binaries as they ship, signed above or by their maker.
+          $unsigned = Get-ChildItem $dir -Recurse -File -Include *.exe, *.dll, *.node |
+            Where-Object { $_.FullName -match '[\\/]engine[\\/]' } |
+            Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -ne 'Valid' }
+          if ($unsigned) { throw "engine files inside the installer are not validly signed: $($unsigned.Name -join ', ')" }
           Remove-Item $dir -Recurse -Force
 
       - name: Compose latest.json and stage artifacts

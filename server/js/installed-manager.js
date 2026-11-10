@@ -514,6 +514,13 @@
   // What a row waits on from the person: a new version, or a permission without
   // which an installed widget never runs. Said in words under the name, so the
   // list answers "does anything need me?" without reading the keys.
+  // A background package past the cap of hidden frames: it only works while its
+  // tile is on screen, and the row says so instead of the widget going quiet.
+  function leftOutOfBackground(row) {
+    const CW = window.CustomWidget;
+    return !!(row.pkg && CW && typeof CW.serviceLeftOut === 'function' && CW.serviceLeftOut().includes(row.pkg.id));
+  }
+
   function needsYou(row, cat) {
     const upd = updateFor(row, cat);
     if (upd) return { kind: 'update', text: t('installed_state_update', 'Versione {v} disponibile').replace('{v}', String(upd.version)) };
@@ -576,6 +583,10 @@
     const upd = updateFor(row, cat);
     const need = needsYou(row, cat);
     if (need) info.appendChild(el('span', 'inst-row-state is-' + need.kind, need.text));
+    else if (leftOutOfBackground(row)) {
+      info.appendChild(el('span', 'inst-row-state is-left-out', t('installed_state_background_full',
+        'Funziona solo con il widget a schermo: {n} widget girano già in background').replace('{n}', String(CustomWidget.serviceFramesMax))));
+    }
     // What the new version changes, straight from the publisher. Before this the
     // prompt asked for a permission re-approval while explaining nothing, so
     // "should I?" had no answerable form.

@@ -3609,7 +3609,7 @@
                 savedPass = false;
                 syncUnlockVisibility();
                 unlockField.focus();
-                toast(tr('preset_redeem_saved_stale', 'Your saved code no longer works: it was replaced or revoked. Paste the newest one from your email.'), '', 'error');
+                toast(tr('preset_redeem_saved_stale', 'This code does not work. Paste the one from your latest supporter email.'), '', 'error');
               } else if (err === 'not_in_trial') {
                 toast(tr('trial_err_not_in', 'This drop is not part of the trial. New drops usually join after their first 30 days; limited drops need their own code.'), '', 'error');
               } else if (err === 'trial_used') {
@@ -4174,6 +4174,16 @@
       return true;
     }
 
+    function askIfRunsWithoutTile(pkgId) {
+      const CW = window.CustomWidget;
+      if (!CW || typeof CW.cachedPackages !== 'function' || typeof CW.requestGrants !== 'function') return;
+      const pkg = CW.cachedPackages().find((p) => p && p.id === pkgId);
+      const offTile = !!pkg && pkg.background === true && (pkg.badge === true || pkg.mini === true
+        || pkg.topbarButton === true || pkg.islandDynamic === true
+        || !!(pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.length));
+      if (offTile) CW.requestGrants([pkg]);
+    }
+
     async function showInstalledToast(CW, pkgs) {
       const screen = window.PlaceInstalled ? await window.PlaceInstalled.onScreenOption(pkgs.map((p) => p.id)) : null;
       if (screen && screen.only) {
@@ -4297,9 +4307,15 @@
         const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true, replace: review.replaces === true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        const pkgId = review.id || w.id || (w.payload && w.payload.id);
+        // A widget that works with no tile (a badge, a mini slot, an island
+        // activity, Deck keys, all with `background`) asks for its permissions
+        // now, as a bundle import does. Otherwise the only way to approve it was
+        // placing a tile its owner never wanted, and it stayed dead in silence.
+        askIfRunsWithoutTile(pkgId);
         // The installed widget says where it goes; a scene or a headless widget,
         // which has no tile, just gets the plain confirmation.
-        if (!offerAddToPage([review.id || w.id || (w.payload && w.payload.id)])) {
+        if (!offerAddToPage([pkgId])) {
           toast(importDoneLabel(), String(name || w.name || ''), 'success');
         }
       });

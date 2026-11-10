@@ -5,9 +5,9 @@
 // theme had last time, then lifts it once the dashboard has something real to
 // show: the server's settings, and the first system data or a short wait after
 // the settings for screens without it. Bit says hello for HELLO_MS before it
-// goes. However the load goes, the splash is gone after HARD_CAP_MS, and a tap
-// removes it at once: it never holds the dashboard hostage to a slow or
-// offline backend.
+// goes. However the load goes, the splash is gone HARD_CAP_MS after the page is
+// parsed, and a tap removes it at once: it never holds the dashboard hostage to
+// a slow or offline backend.
 //
 // The colours are a snapshot of the applied theme, written by remember() after
 // a settings apply, in a tiny key of their own: the settings blob can be
@@ -16,7 +16,8 @@
   'use strict';
 
   const LOOK_KEY = 'xeneonedge.bootLook.v1';
-  const HARD_CAP_MS = 6000;   // never cover the dashboard longer than this
+  const HARD_CAP_MS = 6000;   // never cover a parsed dashboard longer than this
+  const PARSE_CAP_MS = 60000; // nor a page that never finishes parsing
   const SETTLE_MS = 1200;     // after the settings, how long to wait for live data
   const MIN_MS = 500;         // long enough to read as Bit, not a flash
   // Bit's hello once ready, skipped on a tap and without motion. With the CSS
@@ -130,5 +131,15 @@
   }
   // A tap means "let me in": no hello, even if it already started.
   el.addEventListener('pointerdown', () => (done ? leave() : hide(true)), { once: true });
-  capTimer = setTimeout(hide, HARD_CAP_MS);
+  // The cap is for a slow backend, so it counts from a parsed page. On a cold or
+  // slow PC (a first start after the install) the page's own scripts can take
+  // longer than the cap, and lifting the splash then showed the bare markup:
+  // fallback text and "--" in every tile, as if the app had hung.
+  const startCap = () => { clearTimeout(capTimer); capTimer = setTimeout(hide, HARD_CAP_MS); };
+  if (document.readyState === 'loading') {
+    capTimer = setTimeout(hide, PARSE_CAP_MS);
+    document.addEventListener('DOMContentLoaded', startCap, { once: true });
+  } else {
+    startCap();
+  }
 })();

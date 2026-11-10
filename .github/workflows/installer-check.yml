@@ -1,0 +1,164 @@
+name: Installer check (macOS and Linux)
+
+# The 5.1.0 installer on a real Mac and a real Linux machine, before a release
+# tag exists: the app is built with the engine it carries, then its hidden
+# self-test places that engine in a temporary folder, starts it on a spare port,
+# waits for /status and, with --check-register, creates the sign-in agent or
+# unit under a throwaway name, checks it and deletes it. The same steps as the
+# native-macos and native-linux jobs of release.yml, minus every secret: the app
+# is not signed (node gets an ad-hoc signature so Apple Silicon runs it) and no
+# updater artifacts are made. Signing and notarization stay in release.yml and
+# mac-notarize-check.yml. Hosted runners only: nothing here touches a real
+# session, and nothing is published.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [v5.1.0]
+    paths:
+      - 'apps/native/**'
+      - 'tools/engine-bundle/**'
+      - 'server/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/installer-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
+
+      - name: Build the engine the app carries
+        run: node tools/engine-bundle/cli.mjs
+
+      # lipo dropped node's own signature, and Apple Silicon kills an unsigned binary.
+      - name: Give node an ad-hoc signature
+        run: |
+          codesign --force --sign - apps/native/src-tauri/engine/node-runtime/bin/node
+          apps/native/src-tauri/engine/node-runtime/bin/node --version
+
+      - name: Build the app (unsigned, no updater artifacts)
+        working-directory: apps/native
+        run: |
+          echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$RUNNER_TEMP/no-updater.json"
+          npm run tauri -- build --target universal-apple-darwin --bundles app \
+            --config "$GITHUB_WORKSPACE/apps/native/src-tauri/tauri.engine.conf.json" \
+            --config "$RUNNER_TEMP/no-updater.json"
+
+      - name: Install the carried engine into a temporary folder and start it
+        run: |
+          set -euo pipefail
+          APP=$(ls -d apps/native/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app | head -1)
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          [ -f "$APP/Contents/Resources/engine/bundle.json" ] || { echo "::error::the app carries no engine"; exit 1; }
+          "$APP/Contents/MacOS/$EXE" --install-engine-selftest \
+            "$APP/Contents/Resources/engine" "$RUNNER_TEMP/engine-root" 39123 --check-register
+
+      - name: Keep the engine log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-check-macos
+          path: ${{ runner.temp }}/engine-root/**/*.log
+          if-no-files-found: ignore
+
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+
+      - name: Install the Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
+
+      - name: Build the app (unsigned, no updater artifacts)
+        working-directory: apps/native
+        run: |
+          node ../../tools/engine-bundle/cli.mjs
+          echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$RUNNER_TEMP/no-updater.json"
+          NO_STRIP=true npm run tauri -- build --bundles appimage,deb \
+            --config "$GITHUB_WORKSPACE/apps/native/src-tauri/tauri.engine.conf.json" \
+            --config "$RUNNER_TEMP/no-updater.json"
+
+      - name: Install the carried engine into a temporary folder and start it
+        run: |
+          set -euo pipefail
+          IMG=$(ls apps/native/src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+          work=$(mktemp -d)
+          cp "$IMG" "$work/x.AppImage" && chmod +x "$work/x.AppImage"
+          ( cd "$work" && ./x.AppImage --appimage-extract > /dev/null )
+          BUNDLE=$(find "$work/squashfs-root" -path '*/engine/bundle.json' | head -1)
+          [ -n "$BUNDLE" ] || { echo "::error::the AppImage carries no engine"; exit 1; }
+          "$work/squashfs-root/usr/bin/xenon-native" --install-engine-selftest \
+            "$(dirname "$BUNDLE")" "$RUNNER_TEMP/engine-root" 39123 --check-register
+
+      - name: The deb carries the engine too
+        run: |
+          set -euo pipefail
+          DEB=$(ls apps/native/src-tauri/target/release/bundle/deb/*.deb | head -1)
+          dpkg-deb -c "$DEB" | grep -q '/engine/bundle.json' || { echo "::error::the deb carries no engine"; exit 1; }
+
+      - name: Keep the engine log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-check-linux
+          path: ${{ runner.temp }}/engine-root/**/*.log
+          if-no-files-found: ignore

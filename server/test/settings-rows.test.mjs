@@ -338,7 +338,8 @@ test('the sensors repair is a row with the page key, and only when there is some
     return host;
   };
   assert.equal((await run('ok')).children.length, 0);
-  assert.equal((await run('missing')).children.length, 0);
+  // Missing parts get the same row, with the key that installs them.
+  assert.ok((await run('missing')).querySelector('button'));
   const host = await run('needs_admin');
   assert.ok(host.querySelector('.settings-group-head'));
   assert.equal(host.querySelector('button').className, 'settings-btn primary');

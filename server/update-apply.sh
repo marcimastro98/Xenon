@@ -98,6 +98,12 @@ done
 export PATH
 NODE_BIN="$(command -v node || true)"
 NPM_BIN="$(command -v npm || true)"
+# An install made by the app carries its own Node (node-runtime/, never part of
+# an update): the engine runs on that one, so it does the work here too.
+if [ -x "$ROOT_DIR/node-runtime/bin/node" ] && [ -x "$ROOT_DIR/node-runtime/bin/npm" ]; then
+  NODE_BIN="$ROOT_DIR/node-runtime/bin/node"
+  NPM_BIN="$ROOT_DIR/node-runtime/bin/npm"
+fi
 
 PHASE='start'          # last stage entered — maps to a reason code on failure
 TREE_TOUCHED=0         # the copy step ran — ROOT_DIR may hold staged files
@@ -317,7 +323,7 @@ remove_update_additions() {
 # previous manifest, never a directory mirror.
 is_protected_path() { # $1 = relative path
   case "$1" in
-    server/data/*|node_modules/*|.git/*|server/shared/*|server/helper/*|server/presentmon/*|server/icue-sdk/*|server/whisper/*|server/mediaremote/*) return 0 ;;
+    server/data/*|node_modules/*|node-runtime/*|.git/*|server/shared/*|server/helper/*|server/presentmon/*|server/icue-sdk/*|server/ffmpeg/*|server/whisper/*|server/mediaremote/*) return 0 ;;
     */node_modules/*) return 0 ;;
   esac
   return 1
@@ -519,6 +525,7 @@ mkdir -p "$BACKUP_DIR" || die 'could not create the backup folder'
 rsync -a \
   --exclude 'node_modules/' \
   --exclude 'node_modules.xenon-rollback/' \
+  --exclude '/node-runtime/' \
   --exclude 'server/data/' \
   --exclude '.git/' \
   "$ROOT_DIR"/ "$BACKUP_DIR"/ || die 'backup failed'

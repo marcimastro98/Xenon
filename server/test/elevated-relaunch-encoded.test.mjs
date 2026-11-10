@@ -73,7 +73,30 @@ for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1',
 test('enable-sensors.ps1 checks the task name before it goes anywhere', () => {
   const check = SENSORS.indexOf("if ($TaskName -notmatch '^[A-Za-z0-9 ._()-]{1,128}$')");
   assert.ok(check > 0 && check < SENSORS.indexOf('-Verb RunAs'));
-  assert.match(SENSORS, /-TaskName " \+ \(ConvertTo-PsLiteral \$TaskName\) \+ ' -Elevated'/);
+  assert.match(SENSORS, /-TaskName " \+ \(ConvertTo-PsLiteral \$TaskName\) \+/);
+  assert.match(SENSORS, /' -DataDir ' \+ \(ConvertTo-PsLiteral \$DataDir\) \+ ' -Elevated'/);
+});
+
+// Since 5.1.0 the elevated copy may install LHM and PawnIO first, which takes
+// minutes, so it answers through a status file instead of the task's run level.
+test('enable-sensors.ps1 reports through server\\data, through no link', () => {
+  const t = fnBody(SENSORS, 'Test-StatusPath');
+  assert.match(t, /\(Split-Path -Leaf \$dir\) -ne 'data'/);
+  assert.match(t, /\(Split-Path -Leaf \$serverDir\) -ne 'server'/);
+  assert.match(t, /Test-IsLink \$di/);
+  assert.match(t, /Test-IsLink \$fi/);
+  const w = fnBody(SENSORS, 'Write-Status');
+  assert.ok(w.indexOf('if (-not (Test-StatusPath)) { return }') < w.indexOf('[IO.File]::Open'));
+  assert.match(w, /\[IO\.FileMode\]::CreateNew/);
+  assert.ok(SENSORS.indexOf('if (-not (Test-StatusPath)) {') < SENSORS.indexOf('-Verb RunAs'), 'checked before the prompt');
+});
+
+test('enable-sensors.ps1 installs only fixed winget ids, LHM machine-wide', () => {
+  const ids = [...SENSORS.matchAll(/'--id', '([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(ids)].sort(), ['LibreHardwareMonitor.LibreHardwareMonitor', 'namazso.PawnIO']);
+  for (const m of SENSORS.matchAll(/'--id', 'LibreHardwareMonitor\.LibreHardwareMonitor'([^)]*)\)/g)) assert.match(m[1], /'--scope', 'machine'/);
+  assert.match(fnBody(SENSORS, 'Test-MachineLhm'), /\[Version\]'0\.9\.5'/, 'never a WinRing0 build');
+  assert.ok(SENSORS.indexOf('$parts = Install-SensorParts') < SENSORS.indexOf('/Change /TN $TaskName /RL HIGHEST'), 'installs before the task is raised');
 });
 
 test('compact-vhdx.ps1 embeds all three values and pins the data folder', () => {

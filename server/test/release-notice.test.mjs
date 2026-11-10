@@ -320,3 +320,39 @@ test('an update that lands during a game is shown when the game ends', () => {
   const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
   assert.match(update, /whenIdle\(fn, \{ priority: I\.PRIORITY\.update, maxTries: Infinity \}\)/);
 });
+
+test('a new install is not told the news of the version it started on', () => {
+  const wn = {
+    id: '5.0.0', version: '5.1.0', highlights: [{ title: 'Big' }], more: { title: 'More', items: ['x'] },
+    releases: [{ version: '5.1.0', news: [], fixes: [{ area: 'a', text: 'b' }] }, { version: '5.0.2', news: [], fixes: [{ area: 'c', text: 'd' }] }],
+  };
+  const fresh = notes.sinceOrigin(wn, '5.1.0');
+  assert.deepEqual(fresh.highlights, []);
+  assert.equal(fresh.more, null);
+  assert.deepEqual(fresh.releases, []);
+  assert.deepEqual(notice.pick({ wn: fresh, whatsNewSeen: '', notesSeen: '' }), { major: false, notes: null });
+  // Started on 5.0.1: 5.0.2 and 5.1.0 are still news, the 5.0 sheet is not.
+  const older = notes.sinceOrigin(wn, '5.0.1');
+  assert.deepEqual(older.releases.map((r) => r.version), ['5.1.0', '5.0.2']);
+  assert.deepEqual(older.highlights, []);
+  // Before 5.0 (or no origin at all): everything as before.
+  assert.equal(notes.sinceOrigin(wn, '4.11.13').highlights.length, 1);
+  assert.equal(notes.sinceOrigin(wn, null), wn);
+  assert.equal(notes.sinceOrigin({ ...wn, id: 'spring-sheet' }, '5.1.0').highlights.length, 1);
+});
+
+test('the origin of a new install is written once and read back', async () => {
+  const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const dir = await mkdtemp(path.join(tmpdir(), 'xenon-origin-'));
+  try {
+    await notes.markOrigin(dir, 'not-a-version');
+    await assert.rejects(readFile(path.join(dir, 'install-origin.json')));
+    await notes.markOrigin(dir, '5.1.0');
+    assert.deepEqual(JSON.parse(await readFile(path.join(dir, 'install-origin.json'), 'utf8')), { version: '5.1.0' });
+    assert.equal(await notes.origin(dir), '5.1.0');
+    assert.match(SERVER, /markOrigin\(DATA_DIR, APP_VERSION\)/);
+    assert.match(SERVER, /sinceOrigin\(await loadWhatsNew\(\), await releaseNotes\.origin\(DATA_DIR\)\)/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

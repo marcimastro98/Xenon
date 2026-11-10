@@ -21,9 +21,11 @@
   function resultText(res) {
     const status = res && res.status;
     if (status === 'declined') return { cls: 'is-warn', text: t('sensors_enable_declined', 'You cancelled the Windows prompt, so nothing changed. You can try again any time.') };
-    if (status === 'no_task') return { cls: 'is-warn', text: t('sensors_enable_no_task', 'Part of the Xenon install is missing. Re-run INSTALL.bat with right-click → “Run as administrator”.') };
+    if (status === 'no_task') return { cls: 'is-warn', text: t('sensors_enable_no_task', 'Part of Xenon’s setup is missing. Close Xenon, open it again and choose “Complete setup”.') };
     if (status === 'raised_no_restart') return { cls: 'is-warn', text: t('sensors_enable_no_restart', 'Permission granted! Just one step left: restart your computer and the sensors will switch on by themselves.') };
-    return { cls: 'is-warn', text: t('sensors_enable_failed', 'That didn’t work. Try re-running INSTALL.bat with right-click → “Run as administrator”.') };
+    // The task was raised either way; only the sensor reader is missing.
+    if (status === 'no_winget' || status === 'install_failed') return { cls: 'is-warn', text: t('sensors_install_failed', 'The sensor reader could not be installed. Check the internet connection and try again.') };
+    return { cls: 'is-warn', text: t('sensors_enable_failed', 'That didn’t work. Restart your computer and try once more.') };
   }
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -42,11 +44,28 @@
     return false;
   }
 
+  // The answer now arrives a moment BEFORE the elevated helper stops this
+  // server (it has to, to be sent at all), so wait for the old one to go away
+  // first; asking it about the sensors would describe the state before the fix.
+  async function waitForDown(timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { await fetch('/version', { cache: 'no-store' }); } catch { return true; }
+      await sleep(400);
+    }
+    return false;
+  }
+
   // Never claim success from a status string alone: the whole point of this
-  // button is that the sensors read, so ask the new server whether they do.
+  // button is that the sensors read, so ask the new server whether they do. A
+  // server that just started has not read them yet (null): ask again briefly.
   async function verifyAccess() {
-    const sys = await apiJson('/system');
-    return sys && sys.sensorAccess;
+    for (let i = 0; i < 12; i++) {
+      const sys = await apiJson('/system');
+      if (sys && sys.sensorAccess) return sys.sensorAccess;
+      await sleep(1000);
+    }
+    return null;
   }
 
   // A hint line plus the repair button. `text` is the caller's already-localized
@@ -54,14 +73,15 @@
   // `cls` ADDS the caller's placement class — it never replaces `sa-hint`, which
   // carries the layout: without it the text/status blocks (max-width, so they do
   // not self-centre) pin left while the inline button centres, and the block falls
-  // apart.
-  function hintNode(text, cls) {
+  // apart. `install`: the sensor reader itself is missing ('missing'), so the
+  // same prompt also installs it and the wait is longer; the label says so.
+  function hintNode(text, cls, install) {
     const wrap = el('div', 'sa-hint' + (cls ? ' ' + cls : ''));
     wrap.appendChild(el('div', 'sa-hint-text', text));
 
     const btn = el('button', 'sa-btn');
     btn.type = 'button';
-    btn.textContent = t('sensors_enable_btn', 'Enable sensors');
+    btn.textContent = install ? t('sensors_install_btn', 'Install sensors') : t('sensors_enable_btn', 'Enable sensors');
     const status = el('div', 'sa-status');
 
     const say = (cls, text) => { status.className = 'sa-status' + (cls ? ' ' + cls : ''); status.textContent = text; };
@@ -69,7 +89,9 @@
     btn.addEventListener('click', async () => {
       if (btn.disabled) return;
       btn.disabled = true;
-      say('', t('sensors_enable_busy', 'Confirm the Windows prompt…'));
+      say('', install
+        ? t('sensors_install_busy', 'Confirm the Windows prompt. Installing takes a minute or two…')
+        : t('sensors_enable_busy', 'Confirm the Windows prompt…'));
 
       let res = null;
       try {
@@ -93,6 +115,7 @@
       }
 
       say('', t('sensors_enable_restarting', 'Restarting Xenon…'));
+      if (res.status === 'raised') await waitForDown(8000);
       const back = await waitForServer(45000);
       if (!back) {
         say('is-warn', t('sensors_enable_slow', 'Xenon is taking a while to come back. Reload the page in a few seconds.'));
@@ -137,15 +160,21 @@
     const sys = await apiJson('/system');
     // 'ok' — nothing to fix, and the Fans and Energy widgets showing real
     // numbers is a better confirmation than a line of text here.
-    // 'missing' or unknown — no LibreHardwareMonitor, so this repair cannot help
-    // whatever is wrong; offering it would be a button that always fails.
-    if ((sys && sys.sensorAccess) !== 'needs_admin') { host.replaceChildren(); return; }
+    // 'missing' — no LibreHardwareMonitor (5.1 installs no longer add it at
+    // setup): the same prompt installs it. Only Windows reports it.
+    // Unknown — nothing to offer.
+    const access = sys && sys.sensorAccess;
+    if (access !== 'needs_admin' && access !== 'missing') { host.replaceChildren(); return; }
+    const install = access === 'missing';
 
     const group = el('div', 'settings-group');
     const head = el('div', 'settings-group-head');
     head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
     group.appendChild(head);
-    const repair = group.appendChild(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
+    const desc = install
+      ? t('sensors_missing_desc', 'CPU temperature, fan speeds and watts need a small free sensor reader (LibreHardwareMonitor) and Windows’ permission to use it. One click installs both.')
+      : t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.');
+    const repair = group.appendChild(hintNode(desc, 'sa-hint--settings', install));
     // Same block as the tiles, but on this page the key looks like every other key.
     repair.querySelector('.sa-btn').className = 'settings-btn primary';
     host.replaceChildren(group);

@@ -31,7 +31,8 @@
   // so "install it" is the wrong advice for the common case: unelevated, its
   // kernel driver never loads and the fan headers stay invisible.
   // 'needs_admin' is repairable in place, so the hint carries the button that
-  // repairs it (SensorAccess). 'missing' is not — LHM genuinely isn't there.
+  // repairs it (SensorAccess). 'missing' (LHM genuinely isn't there, as on every
+  // 5.1 install) gets the same button, which installs it first.
   function hintNode(cls) {
     if (access === 'needs_admin') {
       return SensorAccess.hintNode(t('fans_hint_admin', 'Fan speeds can’t be read: Windows protects your PC’s sensors, and Xenon needs your permission.'), cls);
@@ -45,7 +46,7 @@
       return el('div', cls, t('fans_hint_none_posix',
         'This machine exposes no fan sensors that can be read without special privileges.'));
     }
-    return el('div', cls, t('fans_hint_lhm', 'Reading fan speeds needs LibreHardwareMonitor, which the Xenon installer sets up. Re-run INSTALL.bat.'));
+    return SensorAccess.hintNode(t('fans_hint_lhm', 'Reading fan speeds needs LibreHardwareMonitor, a small free sensor reader. One click installs it.'), cls, true);
   }
 
   // Reference speeds the colour bands, bar and spin rate are scaled against:

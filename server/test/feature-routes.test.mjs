@@ -16,6 +16,9 @@ const CLASSIFIED = Object.freeze({
   'GET /api/energy': { remote: true },
   // The app's own strings: the dashboard on a paired phone fetches them too.
   'GET /i18n-langs.json': { remote: true },
+  // Whether FFmpeg is there may be read anywhere; installing it is the PC's call.
+  'GET /api/ffmpeg/status': { remote: true },
+  'POST /api/ffmpeg/install': { remote: false },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

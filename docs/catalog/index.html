@@ -698,7 +698,8 @@
   .drop-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
   .drop-badges { display: flex; flex-wrap: wrap; gap: 2px 14px; }
   .drop-badge { display: inline-flex; align-items: center; gap: 5px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
-  .drop-badge.lim, .drop-badge.gold { color: var(--text); }
+  .drop-badge.lim, .drop-badge.gold, .drop-badge.sparks { color: var(--text); }
+  .pill-spark { flex: none; width: 1em; height: 1em; image-rendering: pixelated; }
   /* Inside their own shelf the heading already says so, once. */
   .sup-strip .drop-badge.gold, .lim-strip .drop-badge.lim { display: none; }
   .drop-badge.sold { color: var(--danger); }
@@ -1217,7 +1218,7 @@ const I18N = {
     'dt.plan': 'As a supporter, {usd} USD a month:', 'dt.perk.sparks': '{spark}{n} Sparks every month', 'dt.perk.pack': 'A new pack every month', 'dt.perk.keep': 'What you unlock stays yours',
     'dt.trial': 'Or {a}try it free for 7 days{/a}, once per PC, with no card.', 'plan.trial': '{a}Try the supporter drops free for 7 days{/a}, once per PC, with no card.',
     'dt.free': 'Free. Copy the code, then paste it in Xenon: Settings → Widgets & sharing → Import.', 'dt.get': 'Download Xenon', 'dt.close': 'Close', 'dt.pics': 'Pictures', 'dt.pic': 'Picture {n}', 'dt.zoom': 'See picture {n} large', 'dt.prev': 'Previous picture', 'dt.next': 'Next picture',
-    'card.unlock': 'Unlock with a code', 'card.loadmore': 'Show more ({n})',
+    'card.unlock': 'Unlock with a code', 'card.sparks': '{n} Sparks', 'card.inxenon': 'Get it in Xenon', 'dt.sparks': 'Bought with Sparks in Xenon\'s Store: open the Store in Xenon to unlock it.', 'dt.sparks.pass': 'Supporters get {spark}{n} Sparks every month, and can spend them here.', 'card.loadmore': 'Show more ({n})',
     'state.loading': 'Loading the catalog…',
     'state.empty': 'Nothing matches your filters.',
     'state.none': 'Nothing published yet. Check back soon, or be the first to submit.',
@@ -1299,7 +1300,7 @@ const I18N = {
     'dt.plan': 'En tant que supporter, {usd} USD par mois :', 'dt.perk.sparks': '{spark}{n} Étincelles chaque mois', 'dt.perk.pack': 'Un nouveau pack chaque mois', 'dt.perk.keep': 'Ce que vous débloquez reste à vous',
     'dt.trial': 'Ou {a}essayez gratuitement pendant 7 jours{/a}, une fois par PC, sans carte.', 'plan.trial': '{a}Essayez les sorties des supporters gratuitement pendant 7 jours{/a}, une fois par PC, sans carte.',
     'dt.free': 'Gratuit. Copiez le code, puis collez-le dans Xenon : Paramètres → Widgets & partage → Importer.', 'dt.get': 'Télécharger Xenon', 'dt.close': 'Fermer', 'dt.pics': 'Images', 'dt.pic': 'Image {n}', 'dt.zoom': 'Agrandir l’image {n}', 'dt.prev': 'Image précédente', 'dt.next': 'Image suivante',
-    'card.unlock': 'Déverrouiller avec un code',
+    'card.unlock': 'Déverrouiller avec un code', 'card.sparks': '{n} Étincelles', 'card.inxenon': 'L\'obtenir dans Xenon', 'dt.sparks': 'S\'achète avec des Étincelles dans le Store de Xenon : ouvrez le Store dans Xenon pour le déverrouiller.', 'dt.sparks.pass': 'Les supporters reçoivent {spark}{n} Étincelles chaque mois et peuvent les dépenser ici.',
     'card.loadmore': 'Afficher plus ({n})',
     'state.loading': 'Chargement du catalogue…',
     'state.empty': 'Aucun résultat ne correspond à vos filtres.',
@@ -1342,7 +1343,7 @@ const I18N = {
     'dt.plan': 'Da sostenitore, {usd} USD al mese:', 'dt.perk.sparks': '{spark}{n} Scintille ogni mese', 'dt.perk.pack': 'Un pacchetto nuovo ogni mese', 'dt.perk.keep': 'Quello che sblocchi resta tuo',
     'dt.trial': 'Oppure {a}prova gratis per 7 giorni{/a}, una volta per PC, senza carta.', 'plan.trial': '{a}Prova le uscite dei sostenitori gratis per 7 giorni{/a}, una volta per PC, senza carta.',
     'dt.free': 'Gratis. Copia il codice e incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'dt.get': 'Scarica Xenon', 'dt.close': 'Chiudi', 'dt.pics': 'Immagini', 'dt.pic': 'Immagine {n}', 'dt.zoom': 'Ingrandisci l’immagine {n}', 'dt.prev': 'Immagine precedente', 'dt.next': 'Immagine successiva',
-    'card.unlock': 'Sblocca con un codice', 'card.loadmore': 'Mostra altri ({n})',
+    'card.unlock': 'Sblocca con un codice', 'card.sparks': '{n} Scintille', 'card.inxenon': 'Prendilo in Xenon', 'dt.sparks': 'Si compra con le Scintille nello Store di Xenon: apri lo Store in Xenon per sbloccarlo.', 'dt.sparks.pass': 'I sostenitori ricevono {spark}{n} Scintille ogni mese e possono spenderle qui.', 'card.loadmore': 'Mostra altri ({n})',
     'state.loading': 'Carico il catalogo…',
     'state.empty': 'Nessun risultato per i filtri scelti.',
     'state.none': 'Ancora niente di pubblicato. Torna presto, o sii il primo a condividere.',
@@ -1383,7 +1384,7 @@ const I18N = {
     'dt.plan': 'Como mecenas, {usd} USD al mes:', 'dt.perk.sparks': '{spark}{n} Chispas cada mes', 'dt.perk.pack': 'Un paquete nuevo cada mes', 'dt.perk.keep': 'Lo que desbloqueas sigue siendo tuyo',
     'dt.trial': 'O {a}prueba gratis durante 7 días{/a}, una vez por PC, sin tarjeta.', 'plan.trial': '{a}Prueba las novedades para quienes apoyan gratis durante 7 días{/a}, una vez por PC, sin tarjeta.',
     'dt.free': 'Gratis. Copia el código y pégalo en Xenon: Ajustes → Widgets y compartir → Importar.', 'dt.get': 'Descargar Xenon', 'dt.close': 'Cerrar', 'dt.pics': 'Imágenes', 'dt.pic': 'Imagen {n}', 'dt.zoom': 'Ampliar la imagen {n}', 'dt.prev': 'Imagen anterior', 'dt.next': 'Imagen siguiente',
-    'card.unlock': 'Desbloquear con un código', 'card.loadmore': 'Ver más ({n})',
+    'card.unlock': 'Desbloquear con un código', 'card.sparks': '{n} Chispas', 'card.inxenon': 'Consíguelo en Xenon', 'dt.sparks': 'Se compra con Chispas en la Store de Xenon: abre la Store en Xenon para desbloquearlo.', 'dt.sparks.pass': 'Los mecenas reciben {spark}{n} Chispas cada mes y pueden gastarlas aquí.', 'card.loadmore': 'Ver más ({n})',
     'state.loading': 'Cargando el catálogo…',
     'state.empty': 'Nada coincide con tus filtros.',
     'state.none': 'Todavía no hay nada publicado. Vuelve pronto, o sé el primero en enviar algo.',
@@ -1424,7 +1425,7 @@ const I18N = {
     'dt.plan': '후원자는 월 {usd} USD:', 'dt.perk.sparks': '매달 {spark}스파크 {n}개', 'dt.perk.pack': '매달 새 팩', 'dt.perk.keep': '잠금 해제한 것은 계속 당신의 것',
     'dt.trial': '{a}7일 동안 무료로 써 볼{/a} 수도 있습니다. PC당 한 번, 카드는 필요 없습니다.', 'plan.trial': '{a}후원자 팩을 7일 동안 무료로 써 보세요{/a}. PC당 한 번, 카드는 필요 없습니다.',
     'dt.free': '무료. 코드를 복사해 Xenon에 붙여넣으세요: 설정 → 위젯 및 공유 → 가져오기.', 'dt.get': 'Xenon 다운로드', 'dt.close': '닫기', 'dt.pics': '이미지', 'dt.pic': '이미지 {n}', 'dt.zoom': '이미지 {n} 크게 보기', 'dt.prev': '이전 이미지', 'dt.next': '다음 이미지',
-    'card.unlock': '코드로 잠금 해제', 'card.loadmore': '더 보기 ({n})',
+    'card.unlock': '코드로 잠금 해제', 'card.sparks': '스파크 {n}개', 'card.inxenon': 'Xenon에서 받기', 'dt.sparks': 'Xenon 스토어에서 스파크로 구매합니다. Xenon에서 스토어를 열어 잠금 해제하세요.', 'dt.sparks.pass': '후원자는 매달 {spark}스파크 {n}개를 받아 여기에 쓸 수 있습니다.', 'card.loadmore': '더 보기 ({n})',
     'state.loading': '카탈로그 불러오는 중…',
     'state.empty': '필터에 맞는 항목이 없습니다.',
     'state.none': '아직 게시된 항목이 없습니다. 곧 다시 확인하거나 첫 번째로 공유해 보세요.',
@@ -1465,7 +1466,7 @@ const I18N = {
     'dt.plan': 'サポーターは月 {usd} USD：', 'dt.perk.sparks': '毎月 {spark}{n} スパーク', 'dt.perk.pack': '毎月新しいパック', 'dt.perk.keep': 'アンロックしたものはずっとあなたのもの',
     'dt.trial': '{a}7 日間無料で試す{/a}こともできます。PC ごとに 1 回、カードは不要です。', 'plan.trial': '{a}サポーターの配布を 7 日間無料で試す{/a}。PC ごとに 1 回、カードは不要です。',
     'dt.free': '無料。コードをコピーして Xenon に貼り付けます: 設定 → ウィジェットと共有 → インポート。', 'dt.get': 'Xenon をダウンロード', 'dt.close': '閉じる', 'dt.pics': '画像', 'dt.pic': '画像 {n}', 'dt.zoom': '画像 {n} を拡大', 'dt.prev': '前の画像', 'dt.next': '次の画像',
-    'card.unlock': 'コードでアンロック', 'card.loadmore': 'もっと見る ({n})',
+    'card.unlock': 'コードでアンロック', 'card.sparks': '{n} スパーク', 'card.inxenon': 'Xenon で入手', 'dt.sparks': 'Xenon のストアでスパークを使って購入します。Xenon でストアを開いてアンロックしてください。', 'dt.sparks.pass': 'サポーターは毎月 {spark}{n} スパークを受け取り、ここで使えます。', 'card.loadmore': 'もっと見る ({n})',
     'state.loading': 'カタログを読み込み中…',
     'state.empty': 'フィルターに一致する項目がありません。',
     'state.none': 'まだ公開された項目はありません。また後で確認するか、最初に共有してみてください。',
@@ -1506,7 +1507,7 @@ const I18N = {
     'dt.plan': '支持者每月 {usd} USD：', 'dt.perk.sparks': '每月 {spark}{n} 火花', 'dt.perk.pack': '每月一个新资源包', 'dt.perk.keep': '你解锁的内容永久归你',
     'dt.trial': '也可以{a}免费试用 7 天{/a}，每台电脑一次，无需银行卡。', 'plan.trial': '{a}免费试用支持者内容 7 天{/a}，每台电脑一次，无需银行卡。',
     'dt.free': '免费。复制代码并粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'dt.get': '下载 Xenon', 'dt.close': '关闭', 'dt.pics': '图片', 'dt.pic': '图片 {n}', 'dt.zoom': '放大图片 {n}', 'dt.prev': '上一张图片', 'dt.next': '下一张图片',
-    'card.unlock': '用代码解锁', 'card.loadmore': '显示更多 ({n})',
+    'card.unlock': '用代码解锁', 'card.sparks': '{n} 火花', 'card.inxenon': '在 Xenon 中获取', 'dt.sparks': '在 Xenon 商店中用火花购买：在 Xenon 中打开商店即可解锁。', 'dt.sparks.pass': '支持者每月获得 {spark}{n} 火花，可以在这里使用。', 'card.loadmore': '显示更多 ({n})',
     'state.loading': '正在加载目录…',
     'state.empty': '没有符合筛选条件的内容。',
     'state.none': '暂无已发布的内容。稍后再来看看，或成为第一个分享的人。',
@@ -1979,6 +1980,17 @@ function applyLang(lang) {
   };
   function cico(name, cls) { const s = document.createElement('span'); s.className = 'cico' + (cls ? ' ' + cls : ''); if (ICONS[name]) s.innerHTML = ICONS[name]; return s; }
   function pill(cls, iconName, text) { const s = el('span', cls); s.appendChild(cico(iconName)); s.appendChild(document.createTextNode(text)); return s; }
+  // Sold only for Sparks (the hub's "item" access): a supporter pass never opens it,
+  // so it shows its price, never the supporter mark or the join key, and its key
+  // opens the card that says where to buy it. Mirror of sparksOnly() in the app's
+  // js/community-gallery.js; server/test/site-catalog-sparks-only.test.mjs keeps them in step.
+  function sparksOnly(entry) { return !!entry && !entry.limited && entry.sparks > 0 && entry.supportersOnly !== true; }
+  function sparksPill(cls, entry) {
+    const s = el('span', cls);
+    s.appendChild(sparkImg('pill-spark'));
+    s.appendChild(document.createTextNode(T('card.sparks').replace('{n}', entry.sparks)));
+    return s;
+  }
 
   // ── Rebuild one entry into a shape we trust, or null (mirrors the server). ──
   function clean(entry) {
@@ -2223,6 +2235,7 @@ function applyLang(lang) {
     const info = el('div', 'dt-info');
     const meta = el('div', 'dt-meta');
     if (entry.limited) meta.appendChild(pill('dt-tier', 'spark', T('k.limited')));
+    else if (sparksOnly(entry)) meta.appendChild(sparksPill('dt-tier', entry));
     else if (entry.locked) meta.appendChild(pill('dt-tier', 'star', T('sec.supporters')));
     else meta.appendChild(el('span', 'dt-tier', KIND_LABEL(entry.kind)));
     meta.appendChild(bylineEl('dt-by', entry));
@@ -2277,6 +2290,18 @@ function applyLang(lang) {
     note.append(before || '', link, after || '');
     return note;
   }
+  // Where a Sparks drop is bought, and that the pass's monthly Sparks pay for it.
+  function sparksNote() {
+    const note = el('div', 'dt-note dt-plan');
+    note.appendChild(el('p', 'dt-plan-h', T('dt.sparks')));
+    const pass = el('p');
+    String(T('dt.sparks.pass')).replace('{n}', SPARKS_MONTHLY).split('{spark}').forEach((part, i) => {
+      if (i) pass.appendChild(sparkImg());
+      pass.appendChild(document.createTextNode(part));
+    });
+    note.appendChild(pass);
+    return note;
+  }
   function freeNote() {
     const note = el('p', 'dt-note', T('dt.free') + ' ');
     const get = el('a', null, T('dt.get')); get.href = '/download.html';
@@ -2295,17 +2320,21 @@ function applyLang(lang) {
         say.appendChild(limCount(entry.limited));
       }
     } else {
+      const sparksDrop = sparksOnly(entry);
       const { btn, hint } = codeButton(entry);
-      say.append(entry.locked ? planNote() : freeNote());
+      say.append(sparksDrop ? sparksNote() : entry.locked ? planNote() : freeNote());
       if (trialCovers(entry, Date.now())) say.appendChild(trialNote('dt.trial', 'dt-note', 'catalog_detail', entry));
       say.appendChild(hint);
-      if (entry.locked) {
+      if (sparksDrop) {
+        const get = el('a', 'dt-support', T('dt.get')); get.href = '/download.html';
+        keys.appendChild(get);
+      } else if (entry.locked) {
         const join = el('a', 'dt-support', T('sec.supporters_join'));
         join.href = MEMBERSHIP; join.target = '_blank'; join.rel = 'noopener';
         join.setAttribute('data-track', 'coffee_click'); join.setAttribute('data-track-location', 'catalog_detail');
         keys.appendChild(join);
       }
-      keys.appendChild(btn);
+      if (!sparksDrop) keys.appendChild(btn);
       // "Try in the browser" — opens the static demo with this entry already
       // loaded into the app's own import dialog. Only the kinds the demo can
       // apply WITHOUT a PC: theme/bg/page go through preset-share.js entirely
@@ -2469,6 +2498,7 @@ function applyLang(lang) {
     if (!bare) {
       media.appendChild(el('span', 'cat-kind', KIND_LABEL(entry.kind)));
       if (entry.limited) media.appendChild(pill('cat-badge limited', 'spark', T('k.limited')));
+      else if (sparksOnly(entry)) media.appendChild(sparksPill('cat-badge locked', entry));
       else if (entry.locked) media.appendChild(pill('cat-badge locked', 'star', T('sec.supporters')));
     }
     // No padlock or dark veil over a supporter pack's picture: the gold badge and
@@ -2502,6 +2532,11 @@ function applyLang(lang) {
   // Copy/unlock control: normal + supporter (locked) cards both copy a code;
   // locked ones are labelled as an unlock and the code is access-code protected.
   function codeButton(entry) {
+    if (sparksOnly(entry)) {
+      const key = el('button', 'cat-unlock', T('card.inxenon')); key.type = 'button';
+      key.addEventListener('click', () => openDetail(entry));
+      return { btn: key, hint: el('div', 'cat-hint') };
+    }
     const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
     btn.appendChild(document.createTextNode(entry.locked ? T('card.unlock') : T('card.copy')));
     const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
@@ -2620,6 +2655,8 @@ function applyLang(lang) {
     if (entry.limited) {
       badges.appendChild(pill('drop-badge lim', 'spark', T('k.limited_ed')));
       if (limUnavailable(entry)) badges.appendChild(el('span', 'drop-badge sold', limUnavailableText(entry)));
+    } else if (sparksOnly(entry)) {
+      badges.appendChild(sparksPill('drop-badge sparks', entry));
     } else if (entry.locked) {
       badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
     }
@@ -2651,7 +2688,7 @@ function applyLang(lang) {
       const { btn, hint } = codeButton(entry);
       // Conversion leads on a locked drop: the gold join CTA first — "Unlock
       // with a code" speaks only to people who already hold a code.
-      if (entry.locked) foot.appendChild(joinKey());
+      if (entry.locked && !sparksOnly(entry)) foot.appendChild(joinKey());
       foot.appendChild(btn); foot.appendChild(hint);
     }
     foot.appendChild(linkButton(entry, 'cat-link'));
@@ -2676,7 +2713,7 @@ function applyLang(lang) {
 
   // A featured entry beside the main card: thumbnail, name, one action.
   function spotCard(entry) {
-    const card = el('article', 'spot-card' + (entry.limited ? ' lim' : entry.locked ? ' gold' : ''));
+    const card = el('article', 'spot-card' + (entry.limited ? ' lim' : entry.locked && !sparksOnly(entry) ? ' gold' : ''));
     card.id = 'cat-' + entry.id;
     card.addEventListener('click', (e) => { if (e.target.closest('.spot-foot, a, button')) return; openDetail(entry); });
 
@@ -2687,7 +2724,8 @@ function applyLang(lang) {
     if (entry.limited) {
       badges.appendChild(pill('drop-badge lim', 'spark', T('k.limited')));
       if (limUnavailable(entry)) badges.appendChild(el('span', 'drop-badge sold', limUnavailableText(entry)));
-    } else if (entry.locked) badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
+    } else if (sparksOnly(entry)) badges.appendChild(sparksPill('drop-badge sparks', entry));
+    else if (entry.locked) badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
     else badges.appendChild(el('span', 'drop-badge', KIND_LABEL(entry.kind)));
     info.appendChild(badges);
     const spotName = el('h3', 'spot-name');
@@ -2700,7 +2738,7 @@ function applyLang(lang) {
       else limitedButtons(foot, entry);
     } else {
       const { btn, hint } = codeButton(entry);
-      if (entry.locked) foot.appendChild(joinKey());
+      if (entry.locked && !sparksOnly(entry)) foot.appendChild(joinKey());
       foot.appendChild(btn); foot.appendChild(hint);
     }
     info.appendChild(foot);
@@ -2728,8 +2766,9 @@ function applyLang(lang) {
   // free creation gets the same stage — 'plain' just drops the iris/gold tint
   // that would otherwise imply it is limited.
   function mainCard(entry) {
-    const card = featuredCard(entry, !entry.limited && entry.locked);
-    if (!entry.limited && !entry.locked) card.classList.add('plain');
+    const gold = !entry.limited && entry.locked && !sparksOnly(entry);
+    const card = featuredCard(entry, gold);
+    if (!entry.limited && !gold) card.classList.add('plain');
     return card;
   }
 
