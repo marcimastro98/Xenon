@@ -50,6 +50,8 @@ on:
       - 'tools/i18n/**'
       - 'tools/demo/**'
       - '.github/workflows/pages.yml'
+      # The Cloudflare host of the same build (worker + its config).
+      - 'site-host/**'
   workflow_dispatch: {}
   # A new Xenon Maker release (its own private repo) asks for a redeploy.
   repository_dispatch:
@@ -153,6 +155,23 @@ jobs:
 
       - name: Build SEO surface
         run: node tools/build-seo.mjs
+
+      # The same build on Cloudflare (site-host/), live in seconds: GitHub Pages took from 35 s to
+      # over 25 minutes to publish, with no incident reported. While both run, the domain's DNS
+      # decides which one visitors get; Pages stays until the switch has held. Without the token
+      # the step only warns, so the Pages deploy below goes on as before.
+      - name: Publish on Cloudflare
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set: the site was not published on Cloudflare"
+            exit 0
+          fi
+          npx --yes wrangler@4.110.0 deploy --config site-host/wrangler.jsonc
+          echo "Live on Cloudflare: https://xenon-site.xenonedge.workers.dev" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload docs/ artifact
         id: upload

@@ -1,0 +1,16 @@
+// The website's host: docs/ after the build steps of .github/workflows/pages.yml, served by
+// site-host/worker.js. Deployed by that workflow with `wrangler deploy --config site-host/wrangler.jsonc`.
+{
+  "name": "xenon-site",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "../docs",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": true
+  },
+  "observability": { "enabled": true }
+}

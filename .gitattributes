@@ -72,6 +72,7 @@ icue-widget/                    export-ignore
 
 # CI workflows
 .github/                        export-ignore
+site-host/                      export-ignore
 
 # Shell scripts must stay LF in the working tree on EVERY platform. This repo is
 # developed on Windows with core.autocrlf=true, and a CRLF checkout of a .sh dies
