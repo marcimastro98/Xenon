@@ -177,9 +177,16 @@ async function savedStatus(dataDir) {
  * survives until the first unlock, which is why the UI says this is a place to
  * keep the code and not a proof that it works.
  */
-async function saveTypedCode(dataDir, code) {
+// With `verify` (Settings) the hub is asked once: a code it does not know is
+// said now, not at the next drop or in Bit. Offline, or any other answer
+// (an expired pass still opens its drops), it is saved as before.
+async function saveTypedCode(dataDir, code, { verify = false } = {}) {
   const canon = canonCode(code);
   if (!SAVEABLE_RE.test(canon)) return { ok: false, error: 'bad_code' };
+  if (verify && /^XS/.test(canon)) {
+    const out = await hubPost('/ai/session', { code: canon }, undefined, FETCH_TIMEOUT_MS).catch(() => null);
+    if (out && out.error === 'bad_code') return { ok: false, error: 'refused' };
+  }
   const ok = await saveCode(dataDir, canon);
   return ok ? { ok: true, saved: true } : { ok: false, error: 'network' };
 }

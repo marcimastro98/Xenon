@@ -347,7 +347,7 @@ test('oneShot leaves room for a thinking model and reports usage', async () => {
   const text = await server.oneShot({ config: config({ model: 'm' }), systemText: 's', userText: 'u', maxTokens: 100, onUsage: (n, p) => { heard = [n, p]; } });
   assert.equal(text, 'ok');
   assert.deepEqual(heard, [12, { input: 10, output: 2 }]);
-  assert.equal(seen[0].body.max_tokens, 2048);
+  assert.equal(seen[0].body.max_tokens, 100 + 2048, 'the room comes on top of the answer, however long it is');
   assert.deepEqual(seen[0].body.messages, [{ role: 'system', content: 's' }, { role: 'user', content: 'u' }]);
 });
 

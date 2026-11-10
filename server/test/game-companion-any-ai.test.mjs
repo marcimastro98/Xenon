@@ -37,12 +37,12 @@ test('ChatGPT one-shots carry the picture as an image part', () => {
 test('the user AI helper passes the picture to every provider, and a plan program refuses it', () => {
   const i = S.indexOf('async function completeWithUserAi(');
   const fn = S.slice(i, S.indexOf('\n}\n', i));
-  assert.match(fn, /image = null \}\)/);
+  assert.match(fn, /image = null, use \}\)/);
   assert.match(fn, /const parts = image \? \[\{ text: user \}, \{ inlineData: image \}\] : \[\{ text: user \}\];/);
   assert.match(fn, /history: \[\{ role: 'user', parts \}\]/, 'Ollama');
   assert.match(fn, /if \(image\) \{ const e = new Error\('this AI cannot see pictures'\); e\.code = 'no_vision'; throw e; \}/, 'Claude Code / Codex');
   assert.match(fn, /onUsage, image,\n/, 'ChatGPT / Claude key');
-  assert.match(fn, /aiXenon\.oneShot\(\{[^}]*onUsage, image \}\)/, 'Sparks');
+  assert.match(fn, /aiXenon\.oneShot\(\{[^}]*onUsage, image, use \}\)/, 'Sparks, with what the call is for');
   assert.match(fn, /_geminiOneShot\(apiKey, parts, system, maxTokens, opts\)/, 'Gemini');
 });
 

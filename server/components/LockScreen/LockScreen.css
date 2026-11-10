@@ -532,14 +532,16 @@ body:not([data-bg-static]) .lockscreen-overlay { background-color: rgba(7, 8, 14
 
 /* ── Thinner surroundings ──────────────────────────────────────────────
    A still blur costs one pass, not one per frame, so a weak GPU keeps it over a picture.
-   Over anything that moves it would run on every frame, so the sheet goes solid there. */
-body.low-power-gpu:not([data-bg-static]) .lock-widget,
+   Over anything that moves it would run on every frame, so the sheet goes solid there. On
+   a weak GPU the aurora, grid and code backgrounds already stand still: only a video or
+   GIF wallpaper still moves (settings.js sets data-bg-type). */
+body.low-power-gpu:is([data-bg-type="video"], [data-bg-type="gif"]) .lock-widget,
 body.perf-mode .lock-widget {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--lk-sheet-solid);
 }
-body.low-power-gpu:not([data-bg-static]) .lock-digits-glass,
+body.low-power-gpu:is([data-bg-type="video"], [data-bg-type="gif"]) .lock-digits-glass,
 body.perf-mode .lock-digits-glass {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
