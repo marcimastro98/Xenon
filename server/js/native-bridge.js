@@ -23,8 +23,45 @@
   // set by the shell's init script, and Tauri's built-in `window.isTauri` global,
   // which Tauri core injects into the webview regardless of our shim (so this
   // still holds even on an older native build whose shim lacked the marker).
-  const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
+  // A widget-layer window (apps/native/src-tauri/src/layers) is a Tauri webview
+  // too, but not the kiosk: its shell drops every signal except its own, and a
+  // dropped one sent while the page loads still cancels the page's `load` event.
+  const isNative = window.__XENON_LAYER_SHELL__ !== true
+    && (window.__XENON_NATIVE__ === true || window.isTauri === true);
   const SERVER = (window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '';
+
+  // Every shell signal below goes through `(window.__xenonSignal || String)(url)`.
+  // The native shell only obeys a signal that carries this launch's random nonce
+  // (apps/native/src-tauri/src/nav_policy.rs), because on macOS and Linux its
+  // navigation hook also sees what the sandboxed widget frames navigate to.
+  // __xenonSignal is the shell's initialization script appending that nonce, and
+  // it exists only in this top-level page; everywhere else (a browser, iCUE, a
+  // layer window with its own hook) `String` hands the URL back unchanged.
+  //
+  // Shell signals are navigations, and one sent while the page is still loading
+  // cancels its `load` event for good: every later "wait for load" never runs.
+  // readyState still reaches 'complete' then, and the timer runs after the load
+  // event that same step dispatches.
+  function afterLoad(fn) {
+    if (document.readyState === 'complete') { fn(); return; }
+    const onState = () => {
+      if (document.readyState !== 'complete') return;
+      document.removeEventListener('readystatechange', onState);
+      setTimeout(fn, 0);
+    };
+    document.addEventListener('readystatechange', onState);
+  }
+
+  // The shell's splash opens before the server that holds the language answers,
+  // so the shell keeps a copy. An older shell has no `splashLang` and is left alone.
+  function tellSplashLanguage(code) {
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (!isNative || !caps || typeof caps.splashLang !== 'string' || caps.splashLang === code) return;
+    caps.splashLang = code;
+    afterLoad(() => {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:splash-language?l=' + encodeURIComponent(code)); } catch (e) { /* not native */ }
+    });
+  }
 
   // Restart the app from the dashboard (Settings → "Riavvia Xenon"). A clean
   // relaunch that clears transient/stuck state — a wedged widget, a stalled
@@ -35,12 +72,58 @@
   // native process to relaunch, so it reloads the dashboard — which re-hydrates
   // and clears client-side glitches all the same.
   function restartApp() {
-    if (isNative) {
-      try { window.location.href = 'xenon-app:restart'; return; } catch (e) { /* fall through to reload */ }
+    // The Xenon menu's window hands this one on to the main window (layers/mod.rs).
+    const sheet = typeof isSheetPage === 'function' && isSheetPage() && window.__XENON_NATIVE__ === true;
+    if (isNative || sheet) {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:restart'); return; } catch (e) { /* fall through to reload */ }
     }
     try { window.location.reload(); } catch (e) { /* nothing else to try */ }
   }
   window.restartXenonApp = restartApp;
+
+  // ── Native shell: the see-through window ─────────────────────────────
+  // The app (Windows, macOS, Linux) can build its window transparent, so the
+  // desktop under it (a Wallpaper Engine scene, the wallpaper) shows behind the
+  // tiles. The shell decides at launch and says so in its caps (see_through.rs):
+  //   seeThrough       → this shell offers the switch at all
+  //   seeThroughOn     → THIS window was built transparent
+  //   seeThroughWanted → the user's switch, as saved in display.json
+  //   seeThroughReady  → a transparent window can be drawn here, and when not,
+  //   seeThroughWhy      why: 'gpu' (Windows: another graphics card shows this
+  //                      screen, it would come out blank) or 'compositor'
+  //                      (Linux: nothing composes it, it would come out black)
+  // Layer windows and every other surface get "not offered".
+  function seeThroughState() {
+    const caps = isNative ? window.__XENON_NATIVE_CAPS__ : null;
+    const offered = !!caps && caps.seeThrough === true;
+    return {
+      offered,
+      on: offered && caps.seeThroughOn === true,
+      wanted: offered && caps.seeThroughWanted === true,
+      ready: offered && caps.seeThroughReady === true,
+      why: offered && typeof caps.seeThroughWhy === 'string' ? caps.seeThroughWhy : '',
+    };
+  }
+  // Mirrors needs_restart in see_through.rs: the shell relaunches only when the
+  // window has to be rebuilt, so only then is there something to confirm.
+  function seeThroughNeedsRestart(want) {
+    const s = seeThroughState();
+    return s.offered && want !== s.on && (!want || s.ready);
+  }
+  function setSeeThrough(want) {
+    const s = seeThroughState();
+    if (!s.offered) return false;
+    // The page keeps its own copy of the switch until the relaunch (or for good,
+    // when nothing has to be rebuilt).
+    window.__XENON_NATIVE_CAPS__.seeThroughWanted = want === true;
+    afterLoad(() => {
+      try { window.location.href = (window.__xenonSignal || String)(want ? 'xenon-app:see-through-on' : 'xenon-app:see-through-off'); } catch (e) { /* not native */ }
+    });
+    return true;
+  }
+  // Set while the page is still under the boot splash, so the first frame after
+  // it already shows the desktop instead of flashing the theme's ground.
+  if (seeThroughState().on) document.documentElement.classList.add('see-through');
 
   // Localized string with a plain-English fallback (the dashboard's own t()).
   function tr(key, fallback) {
@@ -113,7 +196,7 @@
         // as the fallback for a cached old update.js without the orchestrator.
         const upd = window.XenonUpdate;
         const legacyInstall = function () {
-          try { window.location.href = 'xenon-update:install'; } catch (e) { /* not native */ }
+          try { window.location.href = (window.__xenonSignal || String)('xenon-update:install'); } catch (e) { /* not native */ }
           try {
             window.XenonToast.show({
               type: 'info',
@@ -134,7 +217,7 @@
   }
 
   // ── Browser / iCUE: "install the native app" promo ───────────────────
-  // Reveals the compact #native-promo-chip in the settings header (hidden in
+  // Reveals the #native-promo-chip row under the Settings rail (hidden in
   // index.html) when the native app is not the current surface and is not already
   // installed; the chip toggles the #native-promo details dropdown, whose button
   // kicks off the install. Nothing is shown inside the native app.
@@ -167,7 +250,7 @@
     if (!status || status.installed) return; // already installed -> nothing to offer
     chip.hidden = false;
 
-    // Toggle the dropdown from the pill; close on outside-click or Escape.
+    // Toggle the card from its row; close on outside-click or Escape.
     function setOpen(open) {
       card.hidden = !open;
       chip.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -197,13 +280,19 @@
     }
 
     // The install is silent (no installer window), so a friendly line for the raw
-    // reason codes install-native.ps1 emits; unknown codes fall through verbatim so
-    // they stay diagnosable.
+    // reason codes the server's verified download and install-native.ps1 emit;
+    // unknown codes fall through verbatim so they stay diagnosable. The integrity
+    // codes all mean the same thing to the user: the file was not run because it
+    // could not be proven to be the one the release signed.
     function reasonText(code) {
+      const unverified = tr('native_promo_err_unverified', 'the download could not be verified, so it was not run');
       const map = {
         no_installer: tr('native_promo_err_no_installer', 'the installer is not on the latest release yet'),
-        download_failed: tr('native_promo_err_download', 'the download failed — check your connection'),
+        download_failed: tr('native_promo_err_download', 'the download failed: check your connection'),
         launch_missing: tr('native_promo_err_launch', 'installed, but the app could not be started'),
+        signature_invalid: unverified,
+        integrity_missing: unverified,
+        hash_mismatch: unverified,
       };
       return map[code] || code;
     }
@@ -234,7 +323,7 @@
           btn.textContent = tr('native_promo_done_btn', 'Installed ✓');
           const done = tr('native_promo_st_done', 'Installed! The app is now open full-screen.');
           const guide = inIcueFrame
-            ? tr('native_promo_done_icue', 'It runs on its own, independently of iCUE — you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
+            ? tr('native_promo_done_icue', 'It runs on its own, independently of iCUE: you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
             : tr('native_promo_done_browser', 'It is now full-screen on the display you gave it. This browser tab stays available too.');
           if (statusEl) statusEl.textContent = done + ' ' + guide;
           return;
@@ -246,7 +335,7 @@
         }
         if (tries >= MAX_TRIES) {
           btn.disabled = false;
-          setStatus('native_promo_st_timeout', 'This is taking longer than usual — check the Edge, or try again.');
+          setStatus('native_promo_st_timeout', 'This is taking longer than usual: check the Edge, or try again.');
           return;
         }
         pollTimer = setTimeout(tick, 1200);
@@ -304,12 +393,11 @@
         if (homeGestureShellSignal === homeGestureEnabled) return;
         homeGestureShellSignal = homeGestureEnabled;
         try {
-          window.location.href = homeGestureEnabled ? 'xenon-home:gesture-on' : 'xenon-home:gesture-off';
+          window.location.href = (window.__xenonSignal || String)(homeGestureEnabled ? 'xenon-home:gesture-on' : 'xenon-home:gesture-off');
         } catch (e) { /* not native */ }
       }, 1500);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   function setHomeGestureEnabled(on) {
@@ -350,12 +438,11 @@
         if (hideOnRdpShellSignal === hideOnRdpEnabled) return;
         hideOnRdpShellSignal = hideOnRdpEnabled;
         try {
-          window.location.href = hideOnRdpEnabled ? 'xenon-home:rdp-on' : 'xenon-home:rdp-off';
+          window.location.href = (window.__xenonSignal || String)(hideOnRdpEnabled ? 'xenon-home:rdp-on' : 'xenon-home:rdp-off');
         } catch (e) { /* not native */ }
       }, 1500);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   function setHideOnRdp(on) {
@@ -430,11 +517,10 @@
         pageZoomSignalTimer = null;
         if (pageZoomShellSignal === currentNativeZoom) return;
         pageZoomShellSignal = currentNativeZoom;
-        try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom; } catch (e) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)('xenon-zoom:set?z=' + currentNativeZoom); } catch (e) { /* not native */ }
       }, 120);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   // A frame that loads while the page is already scaled comes out unscaled:
@@ -449,7 +535,7 @@
     pageZoomNudgeTimer = setTimeout(() => {
       pageZoomNudgeTimer = null;
       if (currentNativeZoom === 1 || document.readyState !== 'complete') return;
-      try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom + '&nudge=1'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-zoom:set?z=' + currentNativeZoom + '&nudge=1'); } catch (e) { /* not native */ }
     }, 200);
   }
 
@@ -627,7 +713,7 @@
     function goHome() {
       if (inHome()) return;
       document.body.classList.add(HOME_CLASS); // show the strip handle before the shrink
-      try { window.location.href = 'xenon-home:go'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-home:go'); } catch (e) { /* not native */ }
     }
     function goBack() {
       if (!inHome()) return;
@@ -645,7 +731,7 @@
       };
       document.addEventListener('click', swallowClick, true);
       setTimeout(() => document.removeEventListener('click', swallowClick, true), 500);
-      try { window.location.href = 'xenon-home:return'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-home:return'); } catch (e) { /* not native */ }
     }
 
     // A drag that belongs to something else must never fire the gesture: a
@@ -749,15 +835,16 @@
     window.addEventListener('resize', reconcileHomeMode);
     reconcileHomeMode();
 
-    // One-time discoverability hint: the gesture is invisible, so tell the user
-    // it exists the first time the native app runs. Delayed so it doesn't land
-    // on top of the startup toasts, and skipped if the setting was turned off
-    // in the meantime.
+    // One-time discoverability hint: the gesture is invisible, so tell the user it
+    // exists the first time they touch the screen. Someone with a mouse has no use
+    // for it, and on a timer it was the first thing a new install ever said.
     try {
       if (!localStorage.getItem('xenonHomeHintShown')) {
-        setTimeout(() => {
-          if (!homeGestureEnabled || inHome()) return;
+        window.addEventListener('pointerup', function hintOnFirstTouch(e) {
+          if (e.pointerType !== 'touch' || !homeGestureEnabled || inHome()) return;
+          if (document.body.classList.contains('first-run-asking')) return;
           if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
+          window.removeEventListener('pointerup', hintOnFirstTouch);
           window.XenonToast.show({
             type: 'info',
             duration: 14000,
@@ -765,7 +852,7 @@
             message: tr('native_home_hint', 'Swipe up quickly from the lower part of the screen to reach the Windows desktop. Tap the bar at the top to come back. You can turn this off in Settings → General.'),
           });
           try { localStorage.setItem('xenonHomeHintShown', '1'); } catch (e) { /* storage full */ }
-        }, 6000);
+        }, { passive: true });
       }
     } catch (e) { /* localStorage unavailable */ }
   }
@@ -805,7 +892,7 @@
       settleTimer = setTimeout(() => {
         settleTimer = null;
         if (activeTouches !== 0) return;
-        try { window.location.href = 'xenon-cursor:restore'; } catch (err) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)('xenon-cursor:restore'); } catch (err) { /* not native */ }
       }, SETTLE_MS);
     };
     document.addEventListener('pointerup', onTouchEnd, { capture: true, passive: true });
@@ -910,7 +997,7 @@
     let typeEndTimer = null;
 
     function send(signal) {
-      try { window.location.href = 'xenon-focus:' + signal; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-focus:' + signal); } catch (e) { /* not native */ }
     }
 
     function isEditable(el) {
@@ -938,9 +1025,13 @@
       }
       send(on ? 'guard-on' : 'guard-off');
     }
-    new MutationObserver(syncGameMode)
-      .observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    syncGameMode();
+    // After load: settings.js sets the class during boot, and a signal then
+    // would cancel the page's load event (see afterLoad).
+    afterLoad(() => {
+      new MutationObserver(syncGameMode)
+        .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      syncGameMode();
+    });
 
     document.addEventListener('focusin', (e) => {
       if (!guardOn || !isEditable(e.target)) return;
@@ -1007,6 +1098,12 @@
   }
 
   function onDisplaysChanged() {
+    // Widget layers cover a monitor's work area: they move with the screens.
+    if (window.LayersShell) window.LayersShell.onDisplays();
+    // A screen coming or going can reset the graphics device and wipe a paused
+    // animated background, which then stays blank (custom-bg.js repaint).
+    if (window.CustomBg && typeof window.CustomBg.repaint === 'function') window.CustomBg.repaint();
+    if (window.AiEdgeGlow) window.AiEdgeGlow.refresh();
     if (typeof displayListener === 'function') {
       try { displayListener(displayState()); } catch (e) { /* a listener must not break the shell */ }
     }
@@ -1037,11 +1134,10 @@
         const next = pendingDisplayUrl;
         pendingDisplayUrl = '';
         if (!next) return;
-        try { window.location.href = next; } catch (e) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)(next); } catch (e) { /* not native */ }
       }, 200);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
     return true;
   }
 
@@ -1065,6 +1161,8 @@
 
   window.XenonNative = {
     isNative: isNative,
+    afterLoad: afterLoad,
+    tellSplashLanguage: tellSplashLanguage,
     displayState: displayState,
     onDisplaysChanged: onDisplaysChanged,
     setDisplayListener: setDisplayListener,
@@ -1080,6 +1178,9 @@
     setHomeGestureEnabled: setHomeGestureEnabled,
     setHideOnRdp: setHideOnRdp,
     setNativeZoom: setNativeZoom,
+    seeThroughState: seeThroughState,
+    seeThroughNeedsRestart: seeThroughNeedsRestart,
+    setSeeThrough: setSeeThrough,
   };
 
   function init() {

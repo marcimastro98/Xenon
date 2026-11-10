@@ -5,13 +5,6 @@
 
 :root {
   --xe-ticker-h: 34px;
-  /* Up/down status colours — reserved, secondary-encoded with an arrow + label.
-     Tuned for contrast on the glass surface in light mode; overridden for dark. */
-  --xe-stock-up: #0a8f54;
-  --xe-stock-down: #d32f3c;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --xe-stock-up: var(--color-success); --xe-stock-down: var(--color-danger); }
 }
 
 #xe-ticker {

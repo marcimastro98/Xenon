@@ -21,14 +21,13 @@ window.__XD__ = (function () {
   };
 
   // Track covers are inline SVG data URIs: no third-party art, no licensing
-  // question, and no bytes on the wire.
-  const cover = (a, b, glyph) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">' +
-    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
-    '<stop offset="0" stop-color="' + a + '"/><stop offset="1" stop-color="' + b + '"/>' +
-    '</linearGradient></defs><rect width="300" height="300" fill="url(#g)"/>' +
-    '<text x="150" y="196" font-family="Inter,sans-serif" font-size="140" font-weight="800" ' +
-    'text-anchor="middle" fill="rgba(255,255,255,0.82)">' + glyph + '</text></svg>');
+  // question, and no bytes on the wire. Cut paper, like the wallpaper behind them.
+  const cover = (sky, sun, hill, shore) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">' +
+    '<rect width="300" height="300" fill="' + sky + '"/>' +
+    '<circle cx="205" cy="112" r="62" fill="' + sun + '"/>' +
+    '<path d="M0 196 C 70 150 130 176 190 200 S 270 214 300 186 V300 H0Z" fill="' + hill + '"/>' +
+    '<path d="M0 246 C 80 214 160 250 300 228 V300 H0Z" fill="' + shore + '"/></svg>');
 
   return {
     // Seeded into localStorage['xeneonedge.settings.v1'] on first visit. Only
@@ -37,7 +36,11 @@ window.__XD__ = (function () {
     settings: {
       language: 'en',
       appearance: 'dark',
-      accent: '#1ed760',
+      // The look a visitor would get from a new install, held still: the accent
+      // must not wander with the fake album art.
+      dynamicAlbumTheme: false,
+      // Any local provider: the chat then reads as a working Bit, not as a Sparks offer.
+      aiProvider: 'ollama',
       weather: { city: 'Milano', unit: 'c' },
       clockSeconds: true,
       // The demo must never nag a visitor about updating an install they don't
@@ -72,10 +75,18 @@ window.__XD__ = (function () {
     },
 
     playlist: [
-      { title: 'Midnight Protocol', artist: 'VECTOR SEVEN', album: 'Dead End Streets', duration: 254, thumbnail: cover('#1ed760', '#0b6b39', '◈') },
-      { title: 'Neon Districts', artist: 'Dan Terminus', album: 'The Wrath of Code', duration: 331, thumbnail: cover('#7b5cff', '#2b1a6b', '◆') },
-      { title: 'Slow Burn', artist: 'Carpenter Brut', album: 'Leather Terror', duration: 218, thumbnail: cover('#ff5470', '#6b1226', '▲') },
-      { title: 'Aurora Drift', artist: 'Perturbator', album: 'Lustful Sacraments', duration: 287, thumbnail: cover('#3ec9ff', '#0d3a6b', '●') },
+      { title: 'Long Way Home', artist: 'The Quiet Hours', album: 'Low Sun', duration: 254, thumbnail: cover('#123a44', '#f0764f', '#0d5a5e', '#f2c879') },
+      { title: 'Paper Harbour', artist: 'Ninth Lantern', album: 'Tide Tables', duration: 331, thumbnail: cover('#2b2358', '#f2c879', '#7a3055', '#14181c') },
+      { title: 'Slow Burn', artist: 'Mara Velde', album: 'Copper Hours', duration: 218, thumbnail: cover('#7a3055', '#ffd75e', '#a83e4e', '#2b2358') },
+      { title: 'Aurora Drift', artist: 'VECTOR SEVEN', album: 'Dead End Streets', duration: 287, thumbnail: cover('#0d3a6b', '#6ee787', '#1f5a44', '#0d2231') },
+    ],
+
+    // What the chat opens on, as [role, text]. Written for this demo's fake machine.
+    chat: [
+      ['user', 'Why are my fans so loud?'],
+      ['ai', 'Cyberfall is keeping your GPU busy and the fans follow its temperature. Nothing else is using much, so there is nothing to close.'],
+      ['user', 'Turn the desk lights down.'],
+      ['ai', 'Done. The desk lights are at 30%.'],
     ],
 
     audio: {
@@ -92,9 +103,10 @@ window.__XD__ = (function () {
     notes: {
       rev: 1, v: 1, activeId: 'n1',
       notes: [
-        { id: 'n1', title: 'Welcome', text: 'This is a live demo of Xenon.\n\nEverything you see is simulated — the CPU load, the music, the weather. Nothing here touches a real PC.\n\nTry it: change the theme, drag the tiles around, open the Store and import a community theme. It all works.', updatedAt: iso(now - 2 * HOUR) },
-        { id: 'n2', title: 'Shopping', text: '- coffee\n- thermal paste\n- a second monitor (apparently)', updatedAt: iso(now - 26 * HOUR) },
-        { id: 'n3', title: 'Stream rundown', text: '1. intro + music\n2. build showcase\n3. Q&A\n4. outro', updatedAt: iso(now - 3 * 24 * HOUR) },
+        // `body` is the note: the tab title is its first line (js/notes.js).
+        { id: 'n1', body: 'Welcome\n\nThis is a live demo of Xenon. Everything you see is simulated: the CPU load, the music, the weather. Nothing here touches a real PC.\n\nTry it: change the theme, drag the tiles around, open the Store and import a community theme. It all works.', updatedAt: iso(now - 2 * HOUR) },
+        { id: 'n2', body: 'Shopping\n\n- coffee\n- thermal paste\n- a second monitor (apparently)', updatedAt: iso(now - 26 * HOUR) },
+        { id: 'n3', body: 'Stream rundown\n\n1. intro + music\n2. build showcase\n3. Q&A\n4. outro', updatedAt: iso(now - 3 * 24 * HOUR) },
       ],
     },
 
@@ -115,16 +127,26 @@ window.__XD__ = (function () {
       { id: 'e5', title: 'Coffee with Marco', startsAt: iso(dayAt(3, 16, 30)) },
     ],
 
-    timers: [{ id: 'tm1', label: 'Focus', total: 1500, remaining: 1140, running: true }],
+    // The server's own shape (timer.js reads durationSecs/startedAt/status);
+    // boot.js sets startedAt when the demo opens, the card counts down by itself.
+    timers: [{ id: 'tm1', label: 'Focus', durationSecs: 1500, pausedElapsed: 360, status: 'running', startedAt: 0 }],
 
     // The client reads tempC/feelsC/condition/location and gates on `ok`.
     weather: {
       ok: true, stale: false, location: 'Milano',
-      tempC: 21, feelsC: 20, condition: 'Partly cloudy',
+      tempC: 21, feelsC: 20, condition: 'Clear',
+      windKph: 11, precipMM: 0, humidity: 58, aqi: 32, pm25: 8, pm10: 14, no2: 11, pollen: 3,
+      pressure: 1016, visibility: 18, uv: 4, cloudCover: 15, sunrise: '07:12', sunset: '17:04',
+      hourly: ['Clear', 'Clear', 'Partly cloudy', 'Partly cloudy', 'Cloudy', 'Rain', 'Rain', 'Cloudy'].map((condition, i) => ({
+        time: `${String((new Date(now).getHours() + i) % 24).padStart(2, '0')}:00`,
+        tempC: [21, 22, 22, 21, 20, 18, 17, 17][i], condition, rain: [5, 5, 10, 20, 45, 70, 80, 60][i],
+      })),
+      forecast: [[14, 22, 'Clear'], [13, 19, 'Rain'], [11, 17, 'Rain'], [10, 18, 'Cloudy'], [12, 20, 'Clear'], [13, 21, 'Clear'], [12, 19, 'Partly cloudy']]
+        .map(([minC, maxC, condition], i) => ({ date: iso(now + i * 24 * HOUR).slice(0, 10), minC, maxC, condition })),
     },
 
     // downloadBps/uploadBps, not down/up — the tiles read bytes per second.
-    network: { downloadBps: 1_450_000, uploadBps: 210_000, ping: 12, latency: 9, fps: 0 },
+    network: { downloadBps: 1_450_000, uploadBps: 210_000, ping: 12, latency: 9, loss: 0, fps: 0 },
 
     stocks: [
       { symbol: 'NVDA', name: 'NVIDIA', price: 184.22, changePct: 1.84 },

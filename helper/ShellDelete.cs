@@ -93,6 +93,11 @@ internal static class ShellDelete
                 if (p.Length < 4 || !char.IsLetter(p[0]) || p[1] != ':' || (p[2] != '\\' && p[2] != '/'))
                 { Print(false, -3, false); return 1; }
                 if (p.IndexOf('*') >= 0 || p.IndexOf('?') >= 0) { Print(false, -3, false); return 1; }
+                // Only fixed disks have a Recycle Bin. On a USB stick, a memory
+                // card or a network drive Windows deletes for good without a
+                // word, so a "move to the bin" there is refused instead.
+                try { if (new DriveInfo(p.Substring(0, 3)).DriveType != DriveType.Fixed) { Print(false, -3, false); return 1; } }
+                catch { Print(false, -3, false); return 1; }
                 paths.Add(p.Replace('/', '\\'));
             }
             if (paths.Count == 0) { Print(true, 0, false); return 0; }
@@ -134,7 +139,14 @@ internal static class ShellDelete
         var binRoot = Path.Combine(driveRoot, "$Recycle.Bin");
         if (!Directory.Exists(binRoot)) return;
 
-        foreach (var sidDir in SafeEnumerateDirs(binRoot))
+        // Only the current user's own bin. Every other user's folder is theirs to
+        // empty, and when Xenon runs elevated another account could otherwise
+        // plant a "$R" junction in its own bin pointing at any folder an admin
+        // can write. The folder itself must not be a link either.
+        string sidDir;
+        try { sidDir = Path.Combine(binRoot, System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value); }
+        catch { return; }
+        if (!Directory.Exists(sidDir) || IsReparsePoint(sidDir)) return;
         {
             // Index the $I names present so an orphan check is O(1).
             var haveMeta = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -150,9 +162,21 @@ internal static class ShellDelete
             {
                 var suffix = Path.GetFileName(rPath).Substring(2);
                 if (haveMeta.Contains(suffix)) continue;   // has its twin → a real entry, leave it
+                // A recycle still in progress can show its $R before its $I:
+                // leave anything younger than a minute.
+                try { if (DateTime.UtcNow - File.GetLastWriteTimeUtc(rPath) < TimeSpan.FromMinutes(1)) continue; } catch { continue; }
                 DeleteHard(rPath);
             }
         }
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        foreach (var p in new[] { @"\\?\" + path, path })
+        {
+            try { return (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0; } catch { }
+        }
+        return true;   // unreadable: treat as a link, so it is never walked
     }
 
     private static IEnumerable<string> SafeEnumerateDirs(string dir)
@@ -171,6 +195,24 @@ internal static class ShellDelete
         const string pfx = @"\\?\";
         try
         {
+            // A junction, symbolic link or mount point is removed as a link,
+            // never walked: Directory.Exists is true for a link to a folder,
+            // and recursing into it would delete the real folder it points at
+            // (a pnpm node_modules link, a dev folder, anything at all).
+            if (IsReparsePoint(path))
+            {
+                ClearReadOnly(path);
+                var attrs = File.GetAttributes(pfx + path);
+                if ((attrs & FileAttributes.Directory) != 0)
+                {
+                    try { Directory.Delete(pfx + path, false); } catch { try { Directory.Delete(path, false); } catch { } }
+                }
+                else
+                {
+                    try { File.Delete(pfx + path); } catch { try { File.Delete(path); } catch { } }
+                }
+                return;
+            }
             if (Directory.Exists(path))
             {
                 foreach (var child in SafeEnumerateFileSystem(path)) DeleteHard(child);

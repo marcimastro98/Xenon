@@ -1,4 +1,4 @@
-/* ── Game Companion (opt-in) — floating pill + in-game overlay ────────────── */
+/* ── Game Companion (opt-in): floating pill + the card over the dashboard ─── */
 
 /* The display rules below would otherwise override the UA [hidden] style and
    leave the full-screen overlay invisibly intercepting every tap. */
@@ -16,13 +16,8 @@
   padding: 10px 16px 10px 13px;
   min-height: 44px;
   border-radius: 999px;
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  background:
-    radial-gradient(120% 150% at 0% 0%, rgba(var(--accent-rgb), 0.22), transparent 58%),
-    linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-    rgba(7,13,12,0.92);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.5), 0 0 26px rgba(var(--accent-rgb), 0.18);
-  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
   font: inherit;
   font-size: 0.86rem;
   font-weight: 600;
@@ -33,7 +28,8 @@
 
 .gc-pill:active { transform: scale(0.96); }
 
-.gc-pill-icon { font-size: 1.05rem; line-height: 1; }
+.gc-pill-icon { display: inline-flex; width: 24px; height: 24px; }
+.gc-pill-icon svg { width: 100%; height: 100%; }
 
 .gc-pill-label {
   max-width: 140px;
@@ -50,11 +46,11 @@
 .gc-overlay {
   position: fixed;
   inset: 0;
-  z-index: 130;
+  z-index: 230;
   display: grid;
   place-items: center;
   padding: 18px;
-  background: var(--surface-alt);
+  background: rgba(0, 0, 0, 0.66);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   opacity: 0;
@@ -63,20 +59,21 @@
 
 .gc-overlay.show { opacity: 1; }
 
+/* The card speaks as Bit, like the chat tile: Bit in the head, its answer
+   beside a small Bit with no bubble, the question box under it. Colours come
+   from the theme contract (theme-contract.css), so light themes get a light card;
+   the keys take their colours from it too. A long answer scrolls in its place:
+   the keys stay on screen on a 720 px Edge and on a phone. */
 .gc-card {
   width: min(440px, 100%);
+  max-height: calc(100dvh - 36px);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid rgba(var(--accent-rgb), 0.3);
-  background:
-    radial-gradient(130% 140% at 0% 0%, rgba(var(--accent-rgb), 0.2), transparent 60%),
-    linear-gradient(150deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)),
-    rgba(7,13,12,0.96);
-  box-shadow: 0 26px 80px rgba(0,0,0,0.6), 0 0 48px rgba(var(--accent-rgb), 0.14), inset 0 1px 0 rgba(255,255,255,0.06);
-  color: var(--text);
+  gap: 16px;
+  padding: 22px;
+  border-radius: var(--radius-modal, 20px);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
   transform: translateY(14px);
   transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
@@ -85,142 +82,38 @@
 
 .gc-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
 }
 
-.gc-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(var(--accent-rgb), 0.9);
-}
+.gc-bit { width: 44px; height: 42px; flex: none; display: grid; place-items: end center; }
+.gc-bit .xbit { width: 44px; height: auto; display: block; }
+
+.gc-headline { flex: 1; min-width: 0; }
+
+.gc-name { display: block; font-size: 22px; font-weight: 800; line-height: 1.2; }
 
 .gc-game {
-  margin-top: 3px;
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 15px;
+  color: var(--muted-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .gc-close {
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: var(--control-bg);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.gc-close svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-.gc-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.gc-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: var(--surface-alt);
-}
-
-.gc-stat-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--dim-text);
-}
-
-.gc-stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.gc-insight {
-  min-height: 64px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(var(--accent-rgb), 0.18);
-  background: rgba(var(--accent-rgb), 0.06);
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: var(--text);
-}
-
-.gc-insight-loading {
-  color: var(--muted-text);
-  animation: gc-pulse 1.4s ease-in-out infinite;
-  will-change: opacity;
-}
-
-@keyframes gc-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
-.gc-ask {
-  display: flex;
-  gap: 8px;
-}
-
-.gc-ask-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: var(--input-bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.9rem;
-}
-
-.gc-ask-input::placeholder { color: var(--dim-text); }
-
-.gc-ask-input:focus {
-  outline: none;
-  border-color: rgba(var(--accent-rgb), 0.5);
-}
-
-.gc-ask-btn {
-  flex: 0 0 auto;
+  flex: none;
+  align-self: flex-start;
   width: 44px;
-  min-height: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  border: 1px solid rgba(var(--accent-rgb), 0.4);
-  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-rgb), 0.14));
-  color: var(--text);
+  border: 0;
+  border-radius: var(--radius-control, 10px);
   cursor: pointer;
 }
 
-.gc-ask-btn:disabled { opacity: 0.5; cursor: default; }
-
+.gc-close svg,
 .gc-ask-btn svg {
   width: 18px;
   height: 18px;
@@ -231,16 +124,117 @@
   stroke-linejoin: round;
 }
 
-.gc-analyze {
+.gc-stats { display: flex; gap: 36px; }
+
+.gc-stat { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.gc-stat-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+
+.gc-stat-label { font-size: 14px; color: var(--muted-text); }
+
+.gc-reply { display: flex; gap: 10px; flex: 0 1 auto; min-height: 64px; overflow-y: auto; }
+.gc-reply-bit { flex: none; width: 18px; margin-top: 3px; }
+.gc-reply-bit svg { display: block; width: 18px; height: auto; }
+
+.gc-insight {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.gc-insight-loading { color: var(--muted-text); }
+
+/* Out of Sparks: the way to recharge, quiet underlined text like the chat's Undo. */
+.gc-recharge {
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(var(--accent-rgb), 0.4);
-  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-rgb), 0.14));
+  padding: 0 4px;
+  border: 0;
+  background: none;
   color: var(--text);
   font: inherit;
-  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.gc-ask { display: flex; gap: 8px; flex: none; }
+
+.gc-ask-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-control, 10px);
+  border: 1px solid var(--line);
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.gc-ask-input::placeholder { color: var(--dim-text); }
+.gc-ask-input:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.6); }
+
+.gc-ask-btn {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-control, 10px);
+  cursor: pointer;
+}
+
+/* What a look costs on Sparks sits beside the key, said before pressing. */
+.gc-keys {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.gc-cost {
+  flex: 1 1 150px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted-text);
+}
+.gc-cost[hidden] { display: none; }
+.gc-cost-spark { flex: none; display: inline-flex; width: 16px; height: 16px; }
+.gc-cost-spark svg { width: 100%; height: 100%; }
+
+.gc-analyze,
+.gc-ask-voice {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-control, 10px);
+  border: 1px solid var(--line);
+  font: inherit;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
 }
 
+.gc-ask-btn:disabled,
 .gc-analyze:disabled { opacity: 0.5; cursor: default; }
+
+.gc-close:focus-visible,
+.gc-ask-btn:focus-visible,
+.gc-analyze:focus-visible,
+.gc-ask-voice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

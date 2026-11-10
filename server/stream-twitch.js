@@ -71,7 +71,8 @@ function createTwitchProvider(deps) {
         ok: true,
         deviceCode: data.device_code,
         userCode: data.user_code,
-        verificationUri: data.verification_uri,
+        // Shown to the user as a link: https only, whatever the service answered.
+        verificationUri: httpsOnly(data.verification_url || data.verification_uri, 'https://www.twitch.tv/activate'),
         interval: data.interval || 5,
         expiresIn: data.expires_in,
       };
@@ -104,8 +105,9 @@ function createTwitchProvider(deps) {
     } catch { return { ok: false, error: 'network' }; }
   }
 
-  // Exchange the refresh token for a fresh access token. On any failure the stored
-  // creds are cleared (so the UI falls back to a clean "reconnect" state).
+  // Exchange the refresh token for a fresh access token. Only a refresh token Twitch
+  // refuses unlinks the account: 401, or 400 "Invalid refresh token". A 5xx, a rate
+  // limit or a bad client id must keep the login, or a hiccup forces a new link.
   async function refresh() {
     const c = await creds();
     if (!c.refreshToken) return false;
@@ -115,9 +117,10 @@ function createTwitchProvider(deps) {
         body: new URLSearchParams({ client_id: clientId, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) { await clearCreds(); return false; }
-      await persistToken(data);
-      return true;
+      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
+      const badToken = res.status === 400 && data && /invalid refresh token/i.test(String(data.message || ''));
+      if (res.status === 401 || badToken) await clearCreds();
+      return false;
     } catch { return false; }   // network blip: keep creds, just fail this attempt
   }
 
@@ -585,3 +588,8 @@ function mergeSearch(q, named, about) {
 }
 
 module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };
+
+// A link the dashboard shows as-is must be https, never javascript: or data:.
+function httpsOnly(u, fallback) {
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
+}

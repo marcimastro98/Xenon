@@ -35,7 +35,8 @@
 }
 
 /* Readability helper for content over user backgrounds */
-body.has-user-bg .material-oled { text-shadow: var(--readability-shadow); }
+body.has-user-bg .material-oled,
+html.see-through .material-oled { text-shadow: var(--readability-shadow); }
 
 /* Reduced transparency / motion fallbacks */
 @media (prefers-reduced-transparency: reduce) {

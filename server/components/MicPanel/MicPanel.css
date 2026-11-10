@@ -22,6 +22,11 @@
     var(--panel);
 }
 
+/* Wrappers for the Liquid mixer (LiquidMixer.css). Without it they have no box, so the
+   panel's own grid areas below still place the head, the button and the volume. */
+.mic-mixer,
+.mic-key { display: contents; }
+
 .mic-panel::before {
   content: '';
   position: absolute;

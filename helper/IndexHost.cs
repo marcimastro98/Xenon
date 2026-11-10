@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -316,6 +317,12 @@ internal static class IndexHost
     private static long[][] RootKinds = Array.Empty<long[]>();
     private static volatile bool Ready;
     private static volatile bool Cancelled;
+    // While a game runs the walk, the watcher drain and the repairs stand still:
+    // they are the only work here that can take a core. Requests keep being
+    // answered from what the index holds, and the watchers keep recording into
+    // their bounded queue, whose overflow already means a repair later.
+    private static volatile bool Held;
+    private const int HeldPollMs = 500;
 
     // Roots as given (normalized, a drive keeps its trailing '\'), the same
     // without the trailing separator (what paths are matched against), and
@@ -420,6 +427,7 @@ internal static class IndexHost
             // debounced and rate-limited, and sweeps instead of emptying.
             while (!Cancelled)
             {
+                WaitWhileHeld();
                 var due = TakeDueRoot();
                 if (due != null) RepairRoot(due);
                 else Thread.Sleep(1000);
@@ -1056,8 +1064,20 @@ internal static class IndexHost
             case "top": return OpTop(req);
             case "dupes": return OpDupes(req);
             case "stats": return OpStats();
+            case "hold": return OpHold(req);
             default: throw new Exception("unknown op");
         }
+    }
+
+    private static Dictionary<string, object?> OpHold(System.Text.Json.JsonElement req)
+    {
+        Held = req.TryGetProperty("on", out var on) && on.ValueKind == System.Text.Json.JsonValueKind.True;
+        return new Dictionary<string, object?> { ["held"] = Held };
+    }
+
+    private static void WaitWhileHeld()
+    {
+        while (Held && !Cancelled) Thread.Sleep(HeldPollMs);
     }
 
     private static string? Str(System.Text.Json.JsonElement req, string name)
@@ -1621,6 +1641,7 @@ internal static class IndexHost
             {
                 ["ready"] = Ready,
                 ["building"] = !Ready,
+                ["held"] = Held,
                 ["files"] = (long)(Entries.Count - Tombstones),
                 ["dirs"] = (long)DirNodes.Count,
                 ["bytes"] = TotalBytes,
@@ -1689,21 +1710,17 @@ internal static class IndexHost
         long emitted = 0;
         var lastProgress = Environment.TickCount64;
         var batch = new List<(string dir, string name, long size, long mtime)>(LockBatch);
-        IEnumerable<FileInfo> files;
+        IEnumerable<(string dir, string name, long size, long mtime)> files;
         // The enumeration never started, so this walk is evidence of nothing.
         // Reporting it as complete would let a repair sweep every entry under a
         // momentarily unreadable root out of the index.
-        try { files = new DirectoryInfo(root).EnumerateFiles("*", opts); }
+        try { files = WalkEntries(root, opts); }
         catch { return false; }
-        foreach (var fi in files)
+        foreach (var file in files)
         {
+            WaitWhileHeld();
             if (Cancelled) return false;
-            long len, mt;
-            string? dir;
-            try { len = fi.Length; mt = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(); dir = fi.DirectoryName; }
-            catch { continue; }
-            if (dir == null) continue;
-            batch.Add((dir, fi.Name, len, mt));
+            batch.Add(file);
             if (batch.Count >= LockBatch && !FlushWalkBatch(batch, gen)) return false;
             emitted++;
             var now = Environment.TickCount64;
@@ -1718,6 +1735,26 @@ internal static class IndexHost
             }
         }
         return FlushWalkBatch(batch, gen);
+    }
+
+    // Every file under `root`, read straight from the directory listing the
+    // kernel returns. FileInfo cost a full path, a name and a folder string per
+    // file plus the object itself; here a file costs its name, and its folder
+    // is one string shared by every file in it (the listing hands them over
+    // folder by folder, which is also what InternDirLocked counts on).
+    private static FileSystemEnumerable<(string dir, string name, long size, long mtime)> WalkEntries(string root, EnumerationOptions opts)
+    {
+        string? lastDir = null;
+        return new FileSystemEnumerable<(string dir, string name, long size, long mtime)>(root,
+            (ref FileSystemEntry e) =>
+            {
+                var dir = e.Directory;
+                if (lastDir == null || !dir.SequenceEqual(lastDir)) lastDir = dir.ToString();
+                return (lastDir, e.FileName.ToString(), e.Length, e.LastWriteTimeUtc.ToUnixTimeMilliseconds());
+            }, opts)
+        {
+            ShouldIncludePredicate = (ref FileSystemEntry e) => !e.IsDirectory,
+        };
     }
 
     // false = the entry cap stopped the walk.
@@ -1983,6 +2020,7 @@ internal static class IndexHost
 
         while (!Cancelled)
         {
+            WaitWhileHeld();
             touched.Clear(); adds.Clear(); fileDeletes.Clear(); subtreeDeletes.Clear(); dirWalks.Clear();
             lock (PendingGate)
             {

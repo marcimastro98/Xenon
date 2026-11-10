@@ -145,7 +145,7 @@ test('every media answer goes through the normaliser', () => {
   // Including the fallback path: a payload that skipped it would carry the bug
   // back in through the door the primary path just closed.
   assert.match(SERVER, /normalizeMedia\(await runMediaRequest\('info', 12000\)\)/);
-  assert.match(SERVER, /hydrateArtwork\(normalizeMedia\(await getMediaFallback\(e\.message\)\)\)/);
+  assert.match(SERVER, /hydrateArtwork\(normalizeMedia\(await getMediaFallback\(error\)\)\)/);
 });
 
 test('both hosts build a correct data URI in the first place', () => {

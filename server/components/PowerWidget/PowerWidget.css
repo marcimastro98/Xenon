@@ -58,7 +58,7 @@ body.layout-editing .pw-note--setup { display: block; }
 .pw-ha-val b { font-weight: 700; font-size: 15px; color: var(--text, #f0f3f1); }
 
 /* "Storico consumi" — the last 24h of CPU/GPU watts, drawn by the Guardian
-   history chart builder (guardian-chart / guardian-svg styles come from the
+   history charts (js/history-chart.js, styled by GuardianHistory.css like the
    System tile's History tab; only the layout wrapper lives here). */
 .pw-hist { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
 .pw-hist-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; padding: 2px 2px 0; }

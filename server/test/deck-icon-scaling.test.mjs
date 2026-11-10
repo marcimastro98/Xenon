@@ -119,8 +119,22 @@ test('the comic cap style scales its icon bubble too', () => {
   const comic = readFileSync(join(__dirname, '..', 'styles', 'themes-comic.css'), 'utf8');
   const m = /\.deck-root\[data-capstyle="vivid"\] \.deck-key:not\(\.has-image\):not\(\.is-slider\) \.deck-ico \{([\s\S]*?)\}/.exec(comic);
   assert.ok(m, 'the comic icon bubble rule is gone');
-  assert.match(m[1], /width: max\(34px, 46%\);/);
+  assert.match(m[1], /width: calc\(max\(34px, 46%\) \* var\(--ico-scale, 1\)\);/, 'scales with the cap and with the S/M/L preset');
   assert.ok(!/clamp\(34px/.test(m[1]), 'the comic bubble is back on a ceiling');
+});
+
+// "I set the icon colour to yellow and it stays black": the comic bubble forces
+// its ink with !important, which beats the inline colour deck.js puts on the
+// icon. The key's own tint has to reach the bubble through a variable instead.
+test('the comic icon bubble honours the key icon colour', () => {
+  const comic = readFileSync(join(__dirname, '..', 'styles', 'themes-comic.css'), 'utf8');
+  const m = /\.deck-root\[data-capstyle="vivid"\] \.deck-key:not\(\.has-image\):not\(\.is-slider\) \.deck-ico \{([\s\S]*?)\}/.exec(comic);
+  assert.ok(m, 'the comic icon bubble rule is gone');
+  assert.match(m[1], /color: var\(--key-icon-color, var\(--comic-ink\)\) !important;/,
+    'the bubble falls back to ink only when the key has no colour of its own');
+  const deck = readFileSync(join(__dirname, '..', 'js', 'deck.js'), 'utf8');
+  assert.match(deck, /btn\.style\.setProperty\('--key-icon-color', key\.iconColor\)/,
+    'the renderer publishes the key colour for cap styles that force their ink');
 });
 
 // ── The other half of the same story ────────────────────────────────────────

@@ -32,6 +32,18 @@ test('validateAction keeps only spec params and coerces select to a valid option
   assert.equal(b.cmd, 'playpause');
 });
 
+test('a strict select refuses an unknown value instead of coercing it (an AC must never default to off)', () => {
+  assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode: 'bogus' }), null);
+  assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac' }), null);
+  assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd: 'bogus' }), null);
+  for (const mode of ['heat_cool', 'range', 'fan_mode', 'swing_mode', 'preset', 'humidity']) {
+    assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode, value: '1' }).mode, mode);
+  }
+  for (const cmd of ['on', 'off', 'source', 'sound_mode', 'seek', 'shuffle', 'repeat']) {
+    assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd }).cmd, cmd);
+  }
+});
+
 test('mediaSeek is hidden from the Deck editor but validates SDK payloads', () => {
   const spec = da.actionSpec('mediaSeek');
   assert.equal(spec.hidden, true);
@@ -190,4 +202,21 @@ test('HA value actions keep their value through validateAction, and old keys kee
   assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd: 'volume_set', value: '40' }).value, '40');
   assert.equal(da.validateAction({ type: 'haCover', entity: 'cover.b', cmd: 'position', value: '30' }).cmd, 'position');
   assert.deepEqual(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode: 'heat' }), { type: 'haClimate', entity: 'climate.ac', mode: 'heat' });
+});
+
+// The part picker stores which device the part belongs to; dropping it made
+// every "Colour one part" key fail with bad_part.
+test('lightPart keeps the device its part belongs to', () => {
+  const a = da.validateAction({ type: 'lightPart', device: 'fusion2-5711c000', part: 1, color: '#ff0000' });
+  assert.deepEqual(a, { type: 'lightPart', device: 'fusion2-5711c000', part: '1', color: '#ff0000' });
+  assert.equal(da.validateAction({ type: 'lightPart', device: 'x'.repeat(300), part: 0 }).device.length, 160);
+});
+
+test('an optional select left out stays out, and a wrong value falls to its first option', () => {
+  const left = da.validateAction({ type: 'layerAnchor', widget: 'weather', app: 'Code' });
+  assert.equal('corner' in left, false);
+  assert.equal('size' in left, false);
+  assert.equal('corner' in da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: '' }), false);
+  assert.equal(da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: 'middle' }).corner, 'top-right');
+  assert.equal(da.validateAction({ type: 'layerAnchor', widget: 'weather', corner: 'bottom-left' }).corner, 'bottom-left');
 });

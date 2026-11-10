@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-sq-'));
+after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -22,7 +26,7 @@ const { createSpotifyProvider } = require('../stream-spotify.js');
 /** A connected provider wired to a fake fetch, so the paths it builds can be
  *  read back. Same shape as stream-spotify.test.mjs: a live token on disk. */
 function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
-  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));
@@ -46,7 +50,7 @@ function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
 /** Same, but the fetch does not answer until `gate` resolves — for the two
  *  callers that have to fold into one upstream call. */
 function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
-  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));
@@ -60,6 +64,34 @@ function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
     },
   });
 }
+
+/** A connected provider whose fetch answers each request from the first route
+ *  whose `match` is in the URL and whose `method` and `when(body)`, if set,
+ *  agree. Every request lands in `seen` as { url, method, body }. */
+function probeRoutes(routes, seen) {
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, JSON.stringify({
+    spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
+  }));
+  return createSpotifyProvider({
+    clientId: 'cid',
+    tokensFile: file,
+    fetch: async (url, init) => {
+      const u = String(url);
+      const method = (init && init.method) || 'GET';
+      let body = null;
+      try { body = init && init.body ? JSON.parse(init.body) : null; } catch { body = null; }
+      seen.push({ url: u, method, body });
+      const r = routes.find((x) => u.includes(x.match) && (!x.method || x.method === method) && (!x.when || x.when(body)));
+      if (!r) throw new Error(`unexpected fetch: ${method} ${u}`);
+      const status = r.status || 200;
+      return { ok: status < 400, status, json: async () => (r.json !== undefined ? r.json : null) };
+    },
+  });
+}
+
+/** The bodies of the play requests, in the order they were sent. */
+const plays = (seen) => seen.filter((s) => s.method === 'PUT').map((s) => s.body);
 
 test('every documented op maps to a real Spotify path', async () => {
   const seen = [];
@@ -153,9 +185,10 @@ test('playUri takes the four kinds a browser needs, and nothing else', async () 
 // ── Playing a track without losing what it came from ─────────────────────────
 // Reported after the same author moved his Spotify browser onto the SDK: tapping
 // a track inside an album played it and then stopped, the rest of the album
-// gone. Playing a track by its own URI is a queue of exactly one song, which is
+// gone. Playing a track by its own URI was a queue of exactly one song, which is
 // Spotify's behaviour and not a bug — but it is not what tapping a row in a list
-// means. `contextUri` restores "play this album, starting here".
+// means. `contextUri` restores "play this album, starting here". Since 5.0.0 a
+// track with no context plays inside its own album (see below).
 
 test('a track played inside a context starts the context at that track', () => {
   const seen = [];
@@ -177,20 +210,81 @@ test('an album context works the same way', async () => {
   assert.equal(seen[0].body.context_uri, 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
 });
 
-test('no context is the old behaviour, exactly', async () => {
+// ── A track with no list of its own ──────────────────────────────────────────
+// Spotify's desktop app (the Microsoft Store build 1.308.620, November 2026)
+// answered a lone track, `uris: [track]`, with "playing" and then loaded
+// nothing, while the same track inside its album started at once. The API says
+// 204 both ways, so the failure cannot be seen and retried: a track with
+// nowhere to come from plays inside its own album, from that track on.
+
+const TRACK = 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb';
+const ALBUM = 'spotify:album:2noRn2Aes5aoNVsU6iWThc';
+const PLAYLIST = 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M';
+const LOOKUP = { match: '/tracks/4Z8W4fKeB5YxbusRsdQVPb', method: 'GET', json: { uri: TRACK, album: { uri: ALBUM } } };
+
+test('a track with no context plays inside its own album, from that track', async () => {
   const seen = [];
-  const p = probe(() => {}, 204, {}, seen);
-  await p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb');
-  assert.deepEqual(seen[0].body, { uris: ['spotify:track:4Z8W4fKeB5YxbusRsdQVPb'] });
+  const p = probeRoutes([LOOKUP, { match: '/me/player/play', method: 'PUT', status: 204 }], seen);
+  assert.deepEqual(await p.playUri(TRACK), { ok: true });
+  assert.match(seen[0].url, /\/tracks\/4Z8W4fKeB5YxbusRsdQVPb\?market=from_token$/);
+  assert.deepEqual(plays(seen), [{ context_uri: ALBUM, offset: { uri: TRACK } }]);
+});
+
+test('a track relinked for this country starts at the id its album holds', async () => {
+  // In some countries a track is replaced by a copy with another id; the album
+  // read for this account holds the copy, so an offset by the old id is refused.
+  const local = 'spotify:track:7ouMYWpwJ422jRcDASZB7P';
+  const seen = [];
+  const p = probeRoutes([
+    { ...LOOKUP, json: { uri: local, linked_from: { uri: TRACK }, album: { uri: ALBUM } } },
+    { match: '/me/player/play', method: 'PUT', status: 204 },
+  ], seen);
+  await p.playUri(TRACK);
+  assert.deepEqual(plays(seen), [{ context_uri: ALBUM, offset: { uri: local } }]);
+});
+
+test('with no album to read, a lone track is the old request, exactly', async () => {
+  for (const lookup of [{ ...LOOKUP, status: 404, json: { error: {} } }, { ...LOOKUP, json: { uri: TRACK } }, { ...LOOKUP, json: { album: { uri: 'https://evil/x' } } }]) {
+    const seen = [];
+    const p = probeRoutes([lookup, { match: '/me/player/play', method: 'PUT', status: 204 }], seen);
+    assert.deepEqual(await p.playUri(TRACK), { ok: true });
+    assert.deepEqual(plays(seen), [{ uris: [TRACK] }], JSON.stringify(lookup.json));
+  }
+});
+
+test('an album that refuses the track plays it alone', async () => {
+  const seen = [];
+  const p = probeRoutes([
+    LOOKUP,
+    { match: '/me/player/play', method: 'PUT', when: (b) => !!b.context_uri, status: 404, json: { error: {} } },
+    { match: '/me/player/play', method: 'PUT', status: 204 },
+  ], seen);
+  assert.deepEqual(await p.playUri(TRACK), { ok: true });
+  assert.deepEqual(plays(seen), [{ context_uri: ALBUM, offset: { uri: TRACK } }, { uris: [TRACK] }]);
+});
+
+test('a context that refuses the track falls back to its album, then to the track alone', async () => {
+  // A queue row added with "add to queue" belongs to no playlist: Spotify
+  // refuses an offset its context has never heard of.
+  const seen = [];
+  const p = probeRoutes([
+    LOOKUP,
+    { match: '/me/player/play', method: 'PUT', when: (b) => b.context_uri === PLAYLIST, status: 404, json: { error: {} } },
+    { match: '/me/player/play', method: 'PUT', status: 204 },
+  ], seen);
+  assert.deepEqual(await p.playUri(TRACK, PLAYLIST), { ok: true });
+  assert.deepEqual(plays(seen), [
+    { context_uri: PLAYLIST, offset: { uri: TRACK } },
+    { context_uri: ALBUM, offset: { uri: TRACK } },
+  ]);
 });
 
 test('a context that cannot be honoured plays the tapped track, never another one', async () => {
   // Spotify accepts an offset for album and playlist contexts only, so an artist
   // context cannot start at a chosen song. Playing the artist from the top would
-  // play a DIFFERENT track than the one tapped — a worse surprise than losing
-  // the surrounding list, which is merely the old behaviour. Same for anything
-  // malformed: this field is always safe to send.
-  const track = 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb';
+  // play a DIFFERENT track than the one tapped. The track goes the way of a
+  // track with no context: inside its own album, from that track. Same for
+  // anything malformed: this field is always safe to send.
   for (const ctx of [
     'spotify:artist:0OdUWJ0sBjDrqHygGUXeCF',
     'spotify:track:2noRn2Aes5aoNVsU6iWThc',
@@ -199,10 +293,10 @@ test('a context that cannot be honoured plays the tapped track, never another on
     '',
   ]) {
     const seen = [];
-    const p = probe(() => {}, 204, {}, seen);
-    const r = await p.playUri(track, ctx);
+    const p = probeRoutes([LOOKUP, { match: '/me/player/play', method: 'PUT', status: 204 }], seen);
+    const r = await p.playUri(TRACK, ctx);
     assert.equal(r.ok, true, ctx);
-    assert.deepEqual(seen[0].body, { uris: [track] }, ctx);
+    assert.deepEqual(plays(seen), [{ context_uri: ALBUM, offset: { uri: TRACK } }], ctx);
   }
 });
 
@@ -233,13 +327,20 @@ test('the SDK guide says when to send it and that it is always safe to', () => {
   assert.match(doc, /Add `contextUri` when the track came from somewhere/);
   assert.match(doc, /queue of exactly one song/);
   assert.match(doc, /always safe to send/);
+  // …and what a track with no context does since 5.0.0, so an author does not
+  // build an album fallback of their own.
+  assert.match(doc, /plays the track inside its own album, starting at that track/);
 });
 
-test('a track plays as a track, a collection as a context', () => {
+test('a collection plays as a context, with no track looked up', async () => {
   // Spotify's play endpoint draws that distinction itself; getting it wrong
   // plays one song from an album instead of the album.
-  const src = read('server/stream-spotify.js');
-  assert.match(src, /u\.startsWith\('spotify:track:'\) \? \{ uris: \[u\] \} : \{ context_uri: u \}/);
+  for (const uri of [ALBUM, PLAYLIST, 'spotify:artist:0OdUWJ0sBjDrqHygGUXeCF']) {
+    const seen = [];
+    const p = probeRoutes([{ match: '/me/player/play', method: 'PUT', status: 204 }], seen);
+    assert.deepEqual(await p.playUri(uri), { ok: true });
+    assert.deepEqual(seen.map((s) => s.body), [{ context_uri: uri }], uri);
+  }
 });
 
 test('the two new scopes are requested', () => {

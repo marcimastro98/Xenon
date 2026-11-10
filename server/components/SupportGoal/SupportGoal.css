@@ -1,23 +1,19 @@
 /* The supporter count and its bar (js/support-goal.js), on the December appeal
  * and on the Settings support page.
  *
- * The colour belongs to whoever holds it. Both holders already paint themselves
- * in their own pink rather than the theme accent (see SupportAsk.css for why),
- * so each sets --goal-fill and the bar follows. A native <progress> keeps the
- * value readable to screen readers without any extra markup.
+ * The colour belongs to whoever holds it: each holder sets --goal-fill and the bar
+ * follows. A native <progress> keeps the value readable to screen readers without
+ * any extra markup.
  */
-.support-goal {
-  --goal-fill: 255, 77, 141;
-}
 .support-goal:lang(ko) { word-break: keep-all; }   /* wrap Korean at spaces, not mid-word */
 .support-goal[hidden],
 .support-goal-bar[hidden] { display: none; }
 
 .support-goal-line {
   margin: 0 0 7px;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--text, #e7e9ee);
   text-wrap: balance;               /* no "30." alone on the second line */
 }

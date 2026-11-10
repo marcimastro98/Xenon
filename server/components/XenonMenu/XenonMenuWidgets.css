@@ -1,0 +1,279 @@
+/* The Widgets section of the Xenon menu: the map, the list of a page and one screen per
+   widget. Where a widget sits arrives as custom properties from js/xenon-menu-map.js and
+   js/xenon-menu-widget-view.js. The same map shows the screens in Look
+   (js/xenon-menu-screens.js, .xm-scr*). */
+
+/* ── The list ── */
+.xm-wrow { position: relative; min-height: 72px; flex-wrap: nowrap; }
+.xm-wrow:hover { background-color: var(--cst-well); }
+/* The list has round corners and rows do not: a coloured row must follow them. */
+.xm-list > .xm-wrow:first-child { border-start-start-radius: var(--radius-control); border-start-end-radius: var(--radius-control); }
+.xm-list > .xm-wrow:last-child { border-end-start-radius: var(--radius-control); border-end-end-radius: var(--radius-control); }
+.xm-wrow-open {
+  appearance: none; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: start;
+  background: none; border: 0; cursor: pointer;
+}
+/* The whole row opens the widget; only the switch stays its own target. */
+.xm-wrow-open::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-control); }
+#xm-root .xm-wrow-open:focus-visible, #xm-root.xm-pad .xm-wrow-open:focus { box-shadow: none; }
+.xm-wrow-open:focus-visible::after, .xm.xm-pad .xm-wrow-open:focus::after { box-shadow: inset 0 0 0 2px var(--cst-key); }
+.xm-wrow .xm-switch { position: relative; z-index: 1; }
+.xm-wrow > .xm-ic { flex: none; color: var(--text-dim); }
+.xm-wrow-sub { display: flex; align-items: center; gap: var(--space-2); }
+.xm-wrow-sub .xm-app-icon { width: 18px; height: 18px; }
+
+.xm-groups { display: flex; flex-direction: column; gap: var(--space-2); }
+.xm-groups > .xm-tunehead { margin-top: var(--space-3); }
+.xm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.xm-head:has(.xm-actions) { flex-wrap: wrap; }
+.xm-head:has(.xm-actions) .xm-words { min-width: min(100%, 280px); }
+
+/* ── The map of the screens: as they stand on the desktop, in a column on a phone ── */
+.xm-mapblock { display: flex; flex-direction: column; gap: var(--space-2); container: xm-map / inline-size; }
+.xm-mapline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.xm-mapcount { margin: 0; }
+/* Never taller than half the window: the list under it must stay in reach. */
+.xm-map { position: relative; width: 100%; max-width: calc(50vh * var(--xm-ratio)); aspect-ratio: var(--xm-ratio); }
+.xm-mapscreen {
+  position: absolute; left: var(--xm-sleft); top: var(--xm-stop); width: var(--xm-swidth); height: var(--xm-sheight);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+}
+.xm-mapname {
+  position: absolute; z-index: 4; left: 4px; bottom: 4px; max-width: calc(100% - 8px); overflow: hidden; padding: 0 4px;
+  font-size: 12px; color: var(--text-dim); text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
+  background: var(--surface); border-radius: 3px;
+}
+.xm-mapw {
+  position: absolute; z-index: 2; left: var(--xm-mx); top: var(--xm-my); width: var(--xm-mw); height: var(--xm-mh);
+  min-width: 10px; min-height: 10px; overflow: hidden; background: var(--control-bg);
+  border: 1px solid var(--text-dim); border-radius: 4px; cursor: grab; touch-action: none;
+}
+.xm-mapw.is-bare, .xm-mapw.is-words { background: none; border-color: transparent; }
+.xm-mapw.is-moving { z-index: 5; cursor: grabbing; }
+.xm-mapw.is-picked { z-index: 3; overflow: visible; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.xm-mapw .xm-addthumb { width: 100%; height: 100%; overflow: hidden; aspect-ratio: auto; font-size: 1em; border-radius: 0; }
+/* All of it outside: a widget on the map can be smaller than a finger, and grabbing it must move it. */
+.xm-mapgrip { position: absolute; left: 100%; top: 100%; width: 24px; height: 24px; cursor: nwse-resize; touch-action: none; }
+.xm-mapgrip::after {
+  content: ''; position: absolute; left: 0; top: 0; width: 9px; height: 9px;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); border-bottom-right-radius: 2px;
+}
+.xm-mapw .xm-addthumb img { object-fit: cover; object-position: top; }
+.xm-mapw.is-words .xm-addthumb img { width: 240%; max-width: none; height: auto; object-fit: fill; }
+.xm-mapapp {
+  position: absolute; z-index: 1; left: var(--xm-mx); top: var(--xm-my); width: 29%; height: 40%; overflow: hidden;
+  background: var(--control-bg); border: 1px solid var(--text-dim); border-radius: 4px; cursor: pointer;
+}
+.xm-mapapp-bar {
+  display: block; overflow: hidden; padding: 0 4px; font-size: 11px; line-height: 16px; color: var(--text);
+  text-overflow: ellipsis; white-space: nowrap; background: var(--surface);
+}
+.xm-mapapp-widget { position: absolute; width: 42%; height: 42%; overflow: hidden; border: 1px solid var(--accent); border-radius: 3px; }
+.xm-mapapp-widget.is-top-left { left: 4%; top: 22px; }
+.xm-mapapp-widget.is-top-right { right: 4%; top: 22px; }
+.xm-mapapp-widget.is-bottom-left { left: 4%; bottom: 6%; }
+.xm-mapapp-widget.is-bottom-right { right: 4%; bottom: 6%; }
+.xm-mapapp-widget .xm-addthumb { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; }
+.xm-snap { position: absolute; z-index: 6; background: var(--accent); pointer-events: none; }
+.xm-snap--x { top: 0; bottom: 0; left: var(--xm-at); width: 1px; }
+.xm-snap--y { left: 0; right: 0; top: var(--xm-at); height: 1px; }
+/* The Look section: each screen is a button that says what it shows (js/xenon-menu-screens.js). */
+.xm-scrbox { display: flex; flex-direction: column; gap: var(--space-3); width: 100%; }
+.xm-scrpick {
+  appearance: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-height: 44px;
+  padding: 6px 8px; overflow: hidden; font: inherit; color: var(--text); text-align: start; cursor: pointer;
+}
+.xm-scrpick:hover { background: var(--cst-well); }
+.xm-scrpick[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.xm-scrname, .xm-scrsays { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-scrname { font-size: 12px; font-weight: 600; }
+.xm-scrsays { display: block; font-size: 11px; color: var(--text-dim); }
+.xm-scrsays-label::after { content: ": "; }
+.xm-scrrows { width: 100%; }
+/* The screen tapped plays its scene behind its name, drawn at four times its size and
+   scaled down, so the scene keeps the screen's own shape. */
+.xm-scrpick .xm-scene-view { position: absolute; inset: 0; width: auto; max-width: none; aspect-ratio: auto; border-radius: 0; }
+.xm-scrpick .xm-scene-frame { width: 400%; height: 400%; transform: scale(.25); }
+.xm-scrwords {
+  position: relative; display: flex; flex-direction: column; gap: 1px; max-width: 100%; padding: 2px 6px;
+  background: color-mix(in srgb, var(--cst-solid) 82%, transparent); border-radius: 6px; align-self: flex-start;
+}
+.xm-scrtitle { margin: 0; font-size: 17px; font-weight: 600; }
+.xm-scrtheme { margin-top: var(--space-5); }
+.xm-wtab-value { max-width: 100%; font-size: 12px; font-weight: 400; color: var(--cst-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A scene list: one per line, a tick on the one in use. */
+.xm-scenelist { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 2px; background: var(--cst-well); border-radius: 10px; }
+.xm-sceneopt {
+  appearance: none; display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 44px; padding: 6px 12px;
+  font: inherit; color: var(--cst-text); text-align: start; background: none; border: 0; border-radius: 8px; cursor: pointer;
+}
+.xm-sceneopt:hover, .xm-sceneopt[aria-pressed="true"] { background: var(--cst-on); }
+.xm-sceneopt[aria-pressed="true"] { font-weight: 600; }
+.xm-sceneopt-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.xm-sceneopt-tick { display: grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--cst-sep); }
+.xm-sceneopt[aria-pressed="true"] .xm-sceneopt-tick { background: var(--cst-text); box-shadow: none; }
+.xm-sceneopt[aria-pressed="true"] .xm-sceneopt-tick::after {
+  content: ""; width: 9px; height: 5px; border: solid var(--cst-solid); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg);
+}
+.xm-sceneopt--more { color: var(--cst-muted); }
+.xm-sceneopt--more .xm-ic { flex: none; width: 20px; height: 20px; }
+.xm-sceneopt-words { display: flex; flex-direction: column; min-width: 0; }
+.xm-scenemore > .xm-row { padding-top: 0; }
+.xm-scenemore > .xm-row > .xm-words { display: none; }
+@container xm-map (max-width: 480px) {
+  .xm-map { max-width: none; aspect-ratio: auto; display: flex; flex-direction: column; gap: var(--space-2); }
+  .xm-mapscreen { position: relative; left: auto; top: auto; width: 100%; height: auto; aspect-ratio: var(--xm-ratio); }
+}
+
+/* ── "When do you see it?": four cards with a figure ── */
+.xm-seecards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); flex-basis: 100%; }
+.xm-seecard {
+  appearance: none; display: flex; flex-direction: column; gap: 2px; min-height: 44px; padding: var(--space-2);
+  font: inherit; color: var(--cst-text); text-align: start; background: var(--cst-well);
+  border: 0; border-radius: 10px; cursor: pointer;
+}
+.xm-seecard:hover, .xm-seecard[aria-pressed="true"] { background: var(--cst-on); }
+.xm-fig { display: block; width: 100%; height: auto; margin-bottom: 4px; }
+.xm-fig-desk { fill: var(--surface); stroke: var(--line); }
+.xm-fig-win { fill: var(--control-bg); stroke: var(--text-dim); }
+.xm-fig-bar { fill: var(--text-dim); }
+.xm-fig-ground { fill: var(--text-dim); }
+.xm-fig-widget { fill: var(--accent); }
+.xm-fig-faint { fill: var(--accent); opacity: .45; }
+
+.xm-pages { display: flex; flex-direction: column; gap: var(--space-3); }
+.xm-pagebar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.xm-pageedit { margin-inline-start: auto; }
+.xm-pageadd { display: inline-grid; place-items: center; width: 44px; padding: 0; }
+.xm-pages-how { margin: 0; }
+.xm-link {
+  appearance: none; min-height: 44px; padding: 0; font: inherit; font-weight: 600; color: var(--text);
+  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.xm-link:hover { color: var(--cst-muted); }
+.xm-place-says .xm-link { flex: none; margin-inline-start: var(--space-2); white-space: nowrap; }
+.xm-pageempty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  padding: var(--space-6) var(--space-4); text-align: center;
+  background: var(--cst-well); border-radius: 10px;
+}
+.xm-pageempty p { margin: 0; }
+.xm-pageempty .xm-act { margin-top: var(--space-2); }
+.xm-foot { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* ── The second level ── */
+.xm-back {
+  appearance: none; align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1);
+  min-height: 44px; margin-bottom: var(--space-1); padding: 0; font: inherit; color: var(--text-dim);
+  background: none; border: 0; cursor: pointer;
+}
+.xm-back:hover { color: var(--text); }
+.xm-pagefield { display: flex; flex-direction: column; gap: var(--space-2); max-width: 440px; }
+.xm-gone { padding-top: var(--space-4); border-top: 1px solid var(--line); }
+
+/* ── One widget: the picture and its choices ── */
+.xm-detailbox { container: xm-detail / inline-size; }
+.xm-detail { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+/* The picture stays where it is while the choices beside it scroll. */
+.xm-detail-pic { position: sticky; top: 0; z-index: 1; min-width: 0; }
+.xm-detail-choices { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.xm-detail-choices { --xm-tabs-top: 66px; }
+/* Stops under the menu's close button, and solid, so the choices never show through. */
+.xm-wtabs {
+  position: sticky; top: var(--xm-tabs-top); z-index: 2; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 4px;
+  padding: 4px; background: linear-gradient(var(--cst-well), var(--cst-well)), var(--cst-solid); border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--cst-sep);
+}
+.xm-wtab {
+  appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; min-height: 52px; padding: 6px 4px; font: inherit; font-size: 13px; color: var(--cst-muted);
+  background: none; border: 0; border-radius: 9px; cursor: pointer; text-align: center;
+}
+.xm-wtab span { max-width: 100%; line-height: 1.15; overflow-wrap: anywhere; text-wrap: balance; }
+.xm-wtab:hover { color: var(--text); }
+.xm-wtab[aria-selected="true"] { font-weight: 600; color: var(--text); background: var(--cst-on); }
+.xm-wpanel { display: flex; flex-direction: column; gap: var(--space-2); }
+/* Five answers: three and two side by side, never one alone under four. */
+.xm-wpanel .xm-seecards { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.xm-cap { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--cst-muted); }
+.xm-cap { margin-top: var(--space-2); }
+.xm-remove { align-self: flex-start; margin-top: var(--space-3); }
+/* In the dashboard's panel the picture stays beside the choices: names go above them. */
+@container xm-detail (max-width: 820px) {
+  .xm-tune .xm-row--stack { flex-wrap: wrap; gap: var(--space-2); }
+  .xm-tune .xm-row--stack > .xm-words { flex-basis: 100%; }
+  .xm-tune .xm-row--place > .xm-choices { flex-basis: 100%; }
+  .xm-tune .xm-place-says, .xm-tune .xm-place-apps { padding-inline-start: 0; }
+  .xm-chipline { flex-direction: column; gap: var(--space-2); }
+  .xm-chipline-name { flex: none; padding-top: 0; }
+}
+@container xm-detail (max-width: 620px) {
+  .xm-detail { grid-template-columns: minmax(0, 1fr); }
+  .xm-detail-pic { position: static; }
+  .xm-detail-choices { --xm-tabs-top: 0px; }
+  .xm-wtab { font-size: 12px; }
+}
+
+.xm-stage {
+  position: relative; width: 100%; overflow: hidden; aspect-ratio: var(--xm-ratio);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-stage-widget {
+  position: absolute; z-index: 2; left: var(--xm-x); top: var(--xm-y); width: var(--xm-w); height: var(--xm-h);
+  overflow: hidden; opacity: var(--xm-o); background: var(--control-bg);
+  border: 1px solid var(--text-dim); border-radius: 6px;
+}
+.xm-stage-widget--bare { background: none; border-color: transparent; }
+.xm-stage-widget .xm-addthumb { width: 100%; height: 100%; aspect-ratio: auto; font-size: 1.2em; border-radius: 0; }
+.xm-stage-widget .xm-addthumb img { object-fit: cover; object-position: top; }
+
+.xm-appwin { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.xm-appbar {
+  flex: none; display: flex; align-items: center; gap: 6px; height: 12%; min-height: 24px; padding: 0 10px;
+  font-size: 12px; color: var(--text-dim); background: var(--control-bg);
+}
+.xm-appbar .xm-app-icon { width: 16px; height: 16px; }
+.xm-appname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-appmarks { flex: none; display: inline-flex; gap: 12px; margin-inline-start: auto; }
+.xm-appmarks .xm-ic { width: 12px; height: 12px; }
+.xm-appbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 24% 1fr; gap: 4%; padding: 4%; }
+.xm-appside { display: flex; flex-direction: column; gap: 10px; }
+.xm-appside i { display: block; width: 86%; height: 8px; background: var(--control-bg); border-radius: 2px; }
+.xm-appside i:first-child { width: 58%; }
+.xm-appgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 6px; }
+.xm-appgrid i { display: block; background: var(--control-bg); border-radius: 2px; }
+
+/* A quarter of the picture each: the corner is the button. */
+.xm-corner {
+  appearance: none; position: absolute; z-index: 4; width: 50%; height: 50%; padding: 0;
+  color: var(--text-dim); background: none; border: 0; cursor: pointer;
+}
+.xm-corner:hover { background: var(--hover-bg); }
+/* Inside the quarter: the picture clips anything outside it. */
+#xm-root .xm-corner:focus-visible, #xm-root.xm-pad .xm-corner:focus { box-shadow: inset 0 0 0 2px var(--cst-key); }
+.xm-corner.c-tl { left: 0; top: 0; }
+.xm-corner.c-tr { right: 0; top: 0; }
+.xm-corner.c-bl { left: 0; bottom: 0; }
+.xm-corner.c-br { right: 0; bottom: 0; }
+.xm-corner::before { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid currentColor; }
+.xm-corner.c-tl::before { left: 6px; top: 6px; border-right: 0; border-bottom: 0; }
+.xm-corner.c-tr::before { right: 6px; top: 6px; border-left: 0; border-bottom: 0; }
+.xm-corner.c-bl::before { left: 6px; bottom: 6px; border-right: 0; border-top: 0; }
+.xm-corner.c-br::before { right: 6px; bottom: 6px; border-left: 0; border-top: 0; }
+.xm-corner[aria-pressed="true"] { color: var(--accent-ink, var(--accent)); }
+/* On an app the top corners sit under the window's own buttons, as the widget does. */
+.xm-stage--anchor .xm-corner.c-tl::before, .xm-stage--anchor .xm-corner.c-tr::before { top: calc(26% + 4px); }
+
+@media (max-width: 720px) {
+  .xm-head:has(.xm-actions) .xm-words { min-width: min(100%, 200px); }
+  .xm-wrow { flex-wrap: nowrap; }
+  .xm-wrow.xm-row--widget > .xm-words { flex-basis: 0; }
+  .xm-wrow.xm-row--widget > .xm-addthumb { width: 56px; }
+}
+
+/* A finger on a handheld's small screen: 48 px targets instead of 44. */
+@media (pointer: coarse) {
+  .xm-back, .xm-link { min-height: 48px; }
+  .xm-mapgrip { width: 44px; height: 44px; }
+  .xm-pageadd { width: 48px; }
+}

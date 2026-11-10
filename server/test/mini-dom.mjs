@@ -69,6 +69,14 @@ export function makeDom() {
         return n === documentElement;
       },
     });
+    Object.defineProperty(node, 'parentElement', { get() { return node.parentNode; } });
+    // No layout here: a node counts as laid out when nothing above it is hidden.
+    Object.defineProperty(node, 'offsetParent', {
+      get() {
+        for (let n = node; n; n = n.parentNode) if (n.hidden) return null;
+        return node.parentNode;
+      },
+    });
     Object.defineProperty(node, 'hidden', {
       get() { return node._hidden; },
       set(v) { node._hidden = !!v; notify(node); },
@@ -77,6 +85,10 @@ export function makeDom() {
       get() { return node._text + node.children.map((c) => c.textContent).join(''); },
       set(v) { node._text = String(v); node.children = []; },
     });
+    // Elements only (there are no text nodes here), enough for a `while
+    // (from.firstChild) to.appendChild(from.firstChild)` move.
+    Object.defineProperty(node, 'firstChild', { get() { return node.children[0] || null; } });
+    Object.defineProperty(node, 'lastElementChild', { get() { return node.children[node.children.length - 1] || null; } });
     Object.defineProperty(node, 'innerHTML', {
       // Enough to satisfy modules that inject their own static, trusted markup.
       // The CONTENT is not parsed: no test here asserts on it, and pretending to
@@ -96,9 +108,20 @@ export function makeDom() {
       if (k === 'id') node.id = String(v);
       notify(node);
     };
-    node.getAttribute = (k) => (k in node.attrs ? node.attrs[k] : null);
+    // dataset and data-* are one thing in the DOM.
+    node.getAttribute = (k) => {
+      if (k in node.attrs) return node.attrs[k];
+      const key = k.startsWith('data-') ? k.slice(5).replace(/-(\w)/g, (_, ch) => ch.toUpperCase()) : '';
+      return key in node.dataset ? node.dataset[key] : null;
+    };
     node.removeAttribute = (k) => { delete node.attrs[k]; if (k === 'id') node.id = ''; };
+    // Inclusive, as in the DOM.
+    node.contains = (other) => {
+      for (let n = other; n; n = n.parentNode) if (n === node) return true;
+      return false;
+    };
     node.hasAttribute = (k) => k in node.attrs;
+    node.toggleAttribute = (k, on) => { if (on) node.setAttribute(k, ''); else node.removeAttribute(k); return !!on; };
     node.appendChild = (child) => {
       if (child && child._isFragment) { child.children.slice().forEach(node.appendChild); return child; }
       if (child.parentNode) child.remove();
@@ -106,7 +129,16 @@ export function makeDom() {
       node.children.push(child);
       return child;
     };
-    node.append = (...kids) => kids.forEach(node.appendChild);
+    // A string is text, as in the DOM; order against the child nodes is not kept.
+    node.append = (...kids) => kids.forEach((k) => { if (typeof k === 'string') node._text += k; else node.appendChild(k); });
+    node.insertBefore = (child, ref) => {
+      if (!ref) return node.appendChild(child);
+      if (child.parentNode) child.remove();
+      child.parentNode = node;
+      node.children.splice(node.children.indexOf(ref), 0, child);
+      return child;
+    };
+    node.prepend = (...kids) => kids.slice().reverse().forEach((k) => node.insertBefore(k, node.children[0] || null));
     node.replaceChildren = (...kids) => {
       node.children.slice().forEach((c) => c.remove());
       node._text = '';
@@ -128,9 +160,12 @@ export function makeDom() {
     node.click = () => (node._handlers.click || []).forEach((fn) => fn({
       stopPropagation() {}, preventDefault() {}, target: node,
     }));
+    // A list is "any of these compound selectors": perf-widget.js looks for
+    // '.pager-page, .layer-slot'.
     node.closest = (sel) => {
+      const parts = sel.split(',').map((p) => p.trim());
       let n = node;
-      while (n) { if (matches(n, sel)) return n; n = n.parentNode; }
+      while (n) { if (parts.some((p) => matches(n, p))) return n; n = n.parentNode; }
       return null;
     };
     node.cloneNode = () => {
@@ -146,6 +181,8 @@ export function makeDom() {
       width: node._rect.width, height: node._rect.height,
       top: 0, left: 0, right: node._rect.width, bottom: node._rect.height, x: 0, y: 0,
     });
+    node.focus = () => { document.activeElement = node; };
+    node.blur = () => { if (document.activeElement === node) document.activeElement = document.body; };
     node.querySelector = (sel) => find(node, sel)[0] || null;
     node.querySelectorAll = (sel) => find(node, sel);
     return node;
@@ -172,9 +209,14 @@ export function makeDom() {
     return out;
   }
   function find(root, sel) {
-    // Comma-separated selector lists are not supported on purpose: none of the
-    // modules under test use one, and half-supporting it would return a wrong
-    // answer rather than an obvious failure.
+    // A list answers in document order, as the DOM does.
+    if (sel.includes(',')) {
+      const hit = new Set(sel.split(',').flatMap((one) => find(root, one)));
+      return descendants(root).filter((d) => hit.has(d));
+    }
+    // `:scope > x` is a direct child of the node asked.
+    const direct = sel.trim().match(/^:scope\s*>\s*(.+)$/);
+    if (direct) return root.children.filter((c) => matches(c, direct[1]));
     const parts = sel.trim().split(/\s+/);
     let scope = [root];
     for (const part of parts) {
@@ -206,8 +248,13 @@ export function makeDom() {
     querySelector: (s) => find(documentElement, s)[0] || null,
     querySelectorAll: (s) => find(documentElement, s),
     getElementById: (id) => descendants(documentElement).find((n) => n.id === id) || null,
-    addEventListener() {},
-    removeEventListener() {},
+    _handlers: Object.create(null),
+    addEventListener(type, fn) { (this._handlers[type] ||= []).push(fn); },
+    removeEventListener(type, fn) {
+      const list = this._handlers[type] || [];
+      const at = list.indexOf(fn);
+      if (at >= 0) list.splice(at, 1);
+    },
   };
 
   class MutationObserver {
@@ -252,4 +299,15 @@ export function makeDom() {
 }
 
 /** Let queued promise callbacks run — the modules load their data with await. */
+// A rig's window that takes key listeners. The list comes back so the rig can press keys.
+export function windowKeys(window) {
+  const handlers = [];
+  window.addEventListener = (type, fn) => { if (type === 'keydown') handlers.push(fn); };
+  window.removeEventListener = (type, fn) => {
+    const at = handlers.indexOf(fn);
+    if (type === 'keydown' && at >= 0) handlers.splice(at, 1);
+  };
+  return handlers;
+}
+
 export const settle = async (turns = 8) => { for (let i = 0; i < turns; i++) await Promise.resolve(); };

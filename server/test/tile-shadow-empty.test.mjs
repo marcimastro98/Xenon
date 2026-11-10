@@ -41,7 +41,7 @@ function fakeEl() {
   };
 }
 
-const applyTileTokens = new Function('window', cut(LAYOUT, 'function applyTileTokens(el, style) {', 'function applyAllTileStyles')
+const applyTileTokens = new Function('window', cut(LAYOUT, 'const TILE_THIN_BELOW', 'function applyAllTileStyles')
   + '\nreturn applyTileTokens;')({ PANEL_DROP_CSS: { dark: 'DROP', light: 'DROP' }, getEffectiveThemePalette: () => ({ tone: 'dark' }) });
 
 test('a fully transparent tile casts no shadow, and the border is left alone', () => {
@@ -63,7 +63,7 @@ test('a transparent tile is marked plain; a shadow the user set on it is marked,
   applyTileTokens(withShadow, { panelAlpha: 0, shadowStrength: 1 });
   assert.ok(withShadow.attrs.has('data-tile-plain'));
   assert.ok(withShadow.attrs.has('data-tile-shadow'), 'the user chose this shadow: it stays');
-  assert.equal(withShadow.props['--panel-drop'], 'DROP');
+  assert.ok(withShadow.props['--panel-drop'].startsWith('DROP, '), 'the theme drop plus the lift of the chosen strength');
 
   const opaque = fakeEl();
   applyTileTokens(opaque, { panelAlpha: 0.9 });
@@ -73,7 +73,7 @@ test('a transparent tile is marked plain; a shadow the user set on it is marked,
 test('re-applying a style clears the markers first, so they never go stale', () => {
   const at = LAYOUT.indexOf('function applyTileEffects(el, content, style, colorsOnly) {');
   const body = LAYOUT.slice(at, LAYOUT.indexOf('applyTileTokens(el, style)', at));
-  for (const a of ['data-tile-glass', 'data-tile-plain', 'data-tile-shadow']) {
+  for (const a of ['data-tile-glass', 'data-tile-plain', 'data-tile-thin', 'data-tile-shadow']) {
     assert.ok(body.includes(`el.removeAttribute('${a}')`), `${a} is not reset`);
   }
 });
@@ -123,8 +123,9 @@ test('tiles cast no drop shadow until someone asks for one', () => {
   assert.match(S, /\n  tileShadowStrength: 0,\n/, 'the client default is not 0');
   assert.match(read('../server.js'), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
-  // The theme code falls back to the same default rather than a private 1.
-  assert.match(S, /clampNumber\(hubSettings\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
+  // The theme code (shared with the layer page) falls back to the same default
+  // rather than a private 1.
+  assert.match(read('../js/theme-tokens.js'), /clampNumber\(s\.tileShadowStrength, 0, 2, 0\)/);
 });
 
 // "Nothing changed, I still see it." A new default alone only reaches a fresh
@@ -154,8 +155,8 @@ test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   assert.equal(clamp(undefined, 0, 2, 0), 0, 'nothing stored: off');
   assert.equal(clamp(1, 0, 2, 0), 1, 'someone who turns it on keeps it');
   assert.equal(clamp(1.6, 0, 2, 0), 1.6);
-  // The per-tile shadow control starts at a visible 1 when it is switched on.
-  assert.match(LAYOUT, /rangeRow\('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0\.05, 1\)/);
+  // The per-tile slider has the same range and starts from the dashboard's own value.
+  assert.match(read('../js/tile-style-material-pane.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
 });
 
 test('the Deck rule keys off the mark on a direct child of the grid item, and respects a chosen shadow', () => {

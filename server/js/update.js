@@ -67,7 +67,7 @@
   // exists to be read and pasted by whoever is stuck.
   function applyFailureText(lastResult) {
     const base = lastResult && lastResult.rolledBack === false
-      ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed — please re-run INSTALL.bat.')
+      ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed: please re-run INSTALL.bat.')
       : tr('update_failed_rolled_back', 'The update could not be applied and your previous version was restored.');
     const reason = updReasonText(lastResult && lastResult.reason);
     const detail = String((lastResult && lastResult.detail) || '').trim().slice(0, 200);
@@ -365,7 +365,7 @@
     head.className = 'upd-head';
     const badge = document.createElement('div');
     badge.className = 'upd-badge';
-    badge.textContent = '✨';
+    if (window.BitApp) badge.innerHTML = window.BitApp.icon('idle');   // static, trusted markup
     head.appendChild(badge);
     const headText = document.createElement('div');
     const title = document.createElement('div');
@@ -378,7 +378,7 @@
     const from = !info.updateAvailable && shellBehind(info)
       ? (window.__XENON_NATIVE_CAPS__ || {}).shellVersion
       : info.current;
-    ver.textContent = 'v' + stripV(info.latest) + (from ? '  ·  ' + tr('update_from', 'dalla v') + stripV(from) : '');
+    ver.textContent = 'v' + stripV(info.latest) + (from ? ', ' + tr('update_from', 'dalla v') + stripV(from) : '');
     headText.appendChild(title);
     headText.appendChild(ver);
     head.appendChild(headText);
@@ -409,6 +409,26 @@
     const actions = document.createElement('div');
     actions.className = 'upd-actions';
 
+    // Skips THIS release only — the button used to say "Don't show again", which
+    // promised something the code never did (and made people afraid to press it).
+    // The title spells out that the next release still prompts.
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'upd-btn ghost';
+    skipBtn.textContent = tr('update_skip', 'Salta questa versione');
+    skipBtn.title = tr('update_skip_hint', 'Non chiedere più per la v{v}. Il prossimo aggiornamento verrà mostrato.')
+      .replace('{v}', stripV(info.latest));
+    skipBtn.addEventListener('click', () => { rememberDismissed(info.latest); closeModal(); });
+    actions.appendChild(skipBtn);
+
+    const laterBtn = document.createElement('button');
+    laterBtn.type = 'button';
+    laterBtn.className = 'upd-btn';
+    laterBtn.textContent = tr('update_later', 'Più tardi');
+    laterBtn.addEventListener('click', closeModal);
+    actions.appendChild(laterBtn);
+
+    // The main key closes the row: on every window of the app it is the last one.
     const native = isNativeShell();
     const dlBtn = document.createElement('button');
     dlBtn.type = 'button';
@@ -427,25 +447,6 @@
     }
     actions.appendChild(dlBtn);
 
-    const laterBtn = document.createElement('button');
-    laterBtn.type = 'button';
-    laterBtn.className = 'upd-btn';
-    laterBtn.textContent = tr('update_later', 'Più tardi');
-    laterBtn.addEventListener('click', closeModal);
-    actions.appendChild(laterBtn);
-
-    // Skips THIS release only — the button used to say "Don't show again", which
-    // promised something the code never did (and made people afraid to press it).
-    // The title spells out that the next release still prompts.
-    const skipBtn = document.createElement('button');
-    skipBtn.type = 'button';
-    skipBtn.className = 'upd-btn ghost';
-    skipBtn.textContent = tr('update_skip', 'Salta questa versione');
-    skipBtn.title = tr('update_skip_hint', 'Non chiedere più per la v{v}. Il prossimo aggiornamento verrà mostrato.')
-      .replace('{v}', stripV(info.latest));
-    skipBtn.addEventListener('click', () => { rememberDismissed(info.latest); closeModal(); });
-    actions.appendChild(skipBtn);
-
     card.appendChild(actions);
     overlay.appendChild(card);
 
@@ -454,7 +455,7 @@
     // already usable while we probe. Skipped on native: that probe targets the
     // server self-update (the Node backend), which is a different component from
     // the native .exe — the native shell already updates itself in-app above.
-    if (!native) enhanceAutoUpdate(info, { actions, statusEl, dlBtn });
+    if (!native) enhanceAutoUpdate(info, { actions, statusEl, dlBtn, skipBtn });
     document.body.appendChild(overlay);
     openOverlay = overlay;
     freezeAmbient(true);
@@ -466,8 +467,9 @@
     const st = await fetchSelfStatus();
     if (!st || !st.supported) return; // git checkout or applier missing → manual only
 
-    ui.dlBtn.classList.remove('primary');
+    ui.dlBtn.classList.replace('primary', 'ghost');
     ui.dlBtn.textContent = tr('update_download_manual', 'Scarica manualmente');
+    ui.skipBtn.after(ui.dlBtn);
 
     const state = { staged: !!(st.staged && stripV(String(st.staged.version || '')) === stripV(info.latest)) };
     const autoBtn = document.createElement('button');
@@ -496,7 +498,7 @@
         ui.statusEl.textContent = tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.') + reason;
       }
     });
-    ui.actions.insertBefore(autoBtn, ui.actions.firstChild);
+    ui.actions.appendChild(autoBtn);
   }
 
   function applyUpdate(info, ui, btn) {
@@ -533,8 +535,7 @@
     overlay.className = 'upd-overlay';
     const card = document.createElement('div');
     card.className = 'upd-card upd-updating';
-    const sp = document.createElement('div');
-    sp.className = 'upd-spinner';
+    const sp = XenonLoader.create({ size: 'lg' });
     const msg = document.createElement('div');
     msg.className = 'upd-title';
     msg.textContent = tr('update_updating', 'Aggiornamento in corso…');
@@ -558,6 +559,12 @@
         sub.textContent = body;
         const actions = document.createElement('div');
         actions.className = 'upd-actions';
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'upd-btn';
+        closeBtn.textContent = tr('update_close', 'Chiudi');
+        closeBtn.addEventListener('click', closeModal);
+        actions.appendChild(closeBtn);
         if (onRetry) {
           const retryBtn = document.createElement('button');
           retryBtn.type = 'button';
@@ -566,12 +573,6 @@
           retryBtn.addEventListener('click', () => { closeModal(); onRetry(); });
           actions.appendChild(retryBtn);
         }
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'upd-btn';
-        closeBtn.textContent = tr('update_close', 'Chiudi');
-        closeBtn.addEventListener('click', closeModal);
-        actions.appendChild(closeBtn);
         card.appendChild(actions);
       },
     };
@@ -648,6 +649,12 @@
   let nativeFlowActive = false; // double-tap guard: two flows = two appliers racing
   let shellPhaseRunning = false; // the shell's own update has started in this page (runShellPhase)
   async function nativeUpdateFlow(info) {
+    // The Xenon menu's window is not the app that replaces itself: the dashboard
+    // takes the update over (layers::spec::dashboard_page).
+    if (typeof isSheetPage === 'function' && isSheetPage()) {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=update'); } catch { /* not native */ }
+      return;
+    }
     if (nativeFlowActive || shellPhaseRunning) return;
     nativeFlowActive = true;
     try { await nativeUpdateFlowInner(info); } finally { nativeFlowActive = false; }
@@ -802,7 +809,8 @@
       // the app restarting mid-use is the success signal on these shells.
       setTimeout(() => location.reload(), 25000);
     }
-    try { window.location.href = 'xenon-update:install'; } catch { /* not native */ }
+    // With this launch's nonce, or the shell drops it (see native-bridge.js).
+    try { window.location.href = (window.__xenonSignal || String)('xenon-update:install'); } catch { /* not native */ }
   }
 
   // ── The app catching up with its dashboard ───────────────────────────────────
@@ -887,6 +895,14 @@
   // turns up (the dashboard goes first again), and otherwise looks again every
   // ten minutes.
   let shellCatchUpTimer = null;
+  // "Widgets only" (shell-driver.html): nothing on screen to draw the overlay
+  // on, so the app half runs unseen; the app restarting is the sign, as it is
+  // for the quiet catch-up.
+  const isShellDriver = () => document.documentElement.hasAttribute('data-shell-driver');
+  function shellPhaseView() {
+    if (isShellDriver()) return { setTitle() {}, setSub() {}, fail() {} };
+    return showUpdatingOverlay();
+  }
   function catchUpShell(info) {
     const pending = takeShellPending();
     if (!shellBehind(info) || info.updateAvailable) return;
@@ -903,7 +919,7 @@
     });
     const caps = window.__XENON_NATIVE_CAPS__ || {};
     if (plan === 'now') {
-      runShellPhase(showUpdatingOverlay(), caps, target);
+      runShellPhase(shellPhaseView(), caps, target);
       return;
     }
     if (plan !== 'quiet' || shellCatchUpTimer) return;
@@ -919,7 +935,7 @@
       const tried = readShellTried();
       if (tried === null || tried === target) return;   // tapped meanwhile, or nothing can be remembered
       if (a.safeNow === true && !(a.postponedUntil > 0)) {
-        runShellPhase(showUpdatingOverlay(), caps, target);
+        runShellPhase(shellPhaseView(), caps, target);
         return;
       }
       lookAgain();
@@ -929,8 +945,8 @@
 
   // ── Indicators (red dot + footer pill / check button) ───────────────────────
   // Single source of truth: when an update is available, show the red dot on the
-  // topbar Settings button + a pill in the Settings footer, and HIDE the now-
-  // redundant "Check for updates" button. When up to date, do the opposite.
+  // topbar Settings button, a count on the About row and a key on the About page, and
+  // HIDE the now-redundant "Check for updates" button. When up to date, the opposite.
   // After an update the next check reports nothing new, so the dot clears itself.
   // An app left behind its dashboard counts too (shellBehind): the dashboard
   // reading "up to date" was exactly how a stale shell went unnoticed.
@@ -944,12 +960,14 @@
     const dot = document.getElementById('settings-update-dot');
     if (dot) dot.hidden = !available;
 
+    const aboutCount = document.getElementById('settings-about-update');
+    if (aboutCount) aboutCount.hidden = !available;
+
     const checkBtn = document.getElementById('settings-update-check');
-    const out = document.getElementById('settings-version');
     const existing = document.querySelector('.settings-update-pill');
     if (existing) existing.remove();
 
-    if (available && out) {
+    if (available && checkBtn) {
       const a = document.createElement('a');
       a.className = 'settings-update-pill';
       // On native, DON'T give it a GitHub href/target: the shell's external-link
@@ -963,50 +981,37 @@
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
       }
-      a.textContent = tr('update_available', 'Update available') + ' · v' + stripV(info.latest);
+      a.textContent = tr('update_available', 'Update available') + ' v' + stripV(info.latest);
       a.addEventListener('click', (e) => { e.preventDefault(); openModal(info); });
-      out.insertAdjacentElement('beforebegin', a);
-      if (checkBtn) checkBtn.hidden = true;
+      checkBtn.insertAdjacentElement('beforebegin', a);
+      checkBtn.hidden = true;
     } else if (checkBtn) {
       checkBtn.hidden = false;
     }
   }
 
-  // ── What's New (curated highlights for the running version) ──────────────────
-  // A separate modal from the "update available" one above: it announces the
-  // headline features of the version the user is ALREADY on, from the curated,
-  // build-shipped server/whatsnew.json. It opens ONCE per release id: the moment
-  // it is actually put on screen the id is remembered, however it is closed
-  // afterwards, and it only comes back when a later build ships a new id (a
-  // bugfix release keeps the old id → no re-nag). Someone who wants to read it
-  // again taps the version number at the bottom of Settings.
+  // ── After an update ──────────────────────────────────────────────────────────
+  // What the person is told once the new version runs, from the curated,
+  // build-shipped server/whatsnew.json. A major opens the full-screen What's New
+  // (js/whats-new.js) and keeps coming back until it is closed, however it is
+  // closed. A patch or a minor opens the list of what was fixed (js/release-
+  // notes-card.js), once. js/release-notice.js holds the rules.
   //
-  // It used to be remembered only by a "Don't show again" button, so anyone who
-  // simply closed it saw it at every startup, and every other popup that waits
-  // behind it (the paid drops window) waited behind it too.
+  // Both are remembered on close, not on open: a page reloaded under them has not
+  // told anyone anything. The stored answers live in hub settings, a file on the
+  // PC (js/settings.js, see XenonStartupCards), with the pre-v4.11.6 localStorage
+  // key kept in step for What's New. Without that module nothing can be
+  // remembered, so nothing opens rather than open and come back forever.
   //
-  // The dismissal is stored in hub settings (a file on the PC) since v4.11.6,
-  // with the pre-v4.11.6 localStorage key kept in step as a per-device fallback.
-  // js/settings.js owns both — see the note on XenonStartupCards there for why a
-  // browser that clears its site data used to put this modal back at every boot.
-  // Without that module (a stripped page, a load order that went wrong) nothing
-  // can be remembered, so the modal must not open at all rather than open and be
-  // un-dismissable.
+  // The version number at the bottom of Settings opens What's New again.
   const CARDS = () => (window.XenonStartupCards || null);
   function dismissedWhatsNew(id) { const c = CARDS(); return c ? c.whatsNewDismissed(id) : true; }
   function rememberWhatsNew(id) { const c = CARDS(); if (c) c.rememberWhatsNew(id); }
+  const notice = () => window.XenonReleaseNotice;
 
-  // Text fields may be a plain string or a { <lang>: string } map — pick the UI
-  // language (set on <html lang> by i18n), then English, then whatever exists.
-  function pickLang(v) {
-    if (typeof v === 'string') return v;
-    if (v && typeof v === 'object') {
-      const l = (document.documentElement.lang || 'en').toLowerCase();
-      const keys = Object.keys(v);
-      return v[l] || v.en || (keys.length ? v[keys[0]] : '') || '';
-    }
-    return '';
-  }
+  // Text fields may be a plain string or a { <lang>: string } map.
+  const pickLang = (v) => notice().localText(v, document.documentElement.lang);
+  const trKey = (key) => tr(key, key);
 
   async function loadWhatsNew() {
     try {
@@ -1028,110 +1033,136 @@
   async function suppressForFreshInstall() {
     const wn = await loadWhatsNew();
     if (wn && wn.id && !dismissedWhatsNew(wn.id)) rememberWhatsNew(wn.id);
+    const c = CARDS();
+    if (wn && wn.version && c) c.rememberUpdateNotice({ notes: wn.version });
   }
 
-  function openWhatsNew(wn) {
-    if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length) return;
-    closeModal();
+  // The menu takes the screen only where a shell draws it: never on a phone.
+  async function menuKey() {
+    if (!isNativeShell()) return '';
+    try { return (await (await fetch(SERVER + '/xenon-menu')).json()).menuKey || ''; } catch { return ''; }
+  }
 
-    const overlay = document.createElement('div');
-    overlay.className = 'upd-overlay';
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
-
-    const card = document.createElement('div');
-    card.className = 'upd-card upd-whatsnew';
-    card.setAttribute('role', 'dialog');
-    card.setAttribute('aria-modal', 'true');
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'upd-close';
-    closeBtn.setAttribute('aria-label', tr('update_later', 'Più tardi'));
-    closeBtn.textContent = '×';
-    closeBtn.addEventListener('click', closeModal);
-    card.appendChild(closeBtn);
-
-    const head = document.createElement('div');
-    head.className = 'upd-head';
-    const badge = document.createElement('div');
-    badge.className = 'upd-badge';
-    badge.textContent = '✨';
-    head.appendChild(badge);
-    const headText = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'upd-title';
-    title.textContent = pickLang(wn.title) || tr('whatsnew_title', 'Novità');
-    const sub = document.createElement('div');
-    sub.className = 'upd-ver';
-    sub.textContent = tr('whatsnew_sub', 'Scopri cosa è cambiato in questa versione');
-    headText.appendChild(title);
-    headText.appendChild(sub);
-    head.appendChild(headText);
-    card.appendChild(head);
-
-    const list = document.createElement('div');
-    list.className = 'upd-notes upd-hl-list';
-    for (const h of wn.highlights) {
-      const item = document.createElement('div');
-      item.className = 'upd-hl';
-      if (h && h.media && (h.mediaType === 'image' || h.mediaType === 'video') && isAllowedMediaUrl(h.media)) {
-        appendMedia(item, h.media, h.mediaType, '');
-      }
-      const ht = pickLang(h && h.title);
-      if (ht) {
-        const ttl = document.createElement('div');
-        ttl.className = 'upd-hl-title';
-        ttl.textContent = ht;
-        item.appendChild(ttl);
-      }
-      const hb = pickLang(h && h.body);
-      if (hb) {
-        const bod = document.createElement('div');
-        bod.className = 'upd-hl-body';
-        bod.textContent = hb;
-        item.appendChild(bod);
-      }
-      list.appendChild(item);
-    }
-    card.appendChild(list);
-
-    // Closing invite (e.g. "open Settings / read the full release notes"). Sits
-    // outside the scrolling notes area so it's always visible above the buttons.
-    const footerText = pickLang(wn.footer);
-    if (footerText) {
-      const foot = document.createElement('div');
-      foot.className = 'upd-hl-footer';
-      foot.textContent = footerText;
-      card.appendChild(foot);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'upd-actions';
-
-    const okBtn = document.createElement('button');
-    okBtn.type = 'button';
-    okBtn.className = 'upd-btn primary';
-    okBtn.textContent = tr('whatsnew_great', 'Fantastico!');
-    okBtn.addEventListener('click', closeModal);
-    actions.appendChild(okBtn);
-
-    if (wn.url) {
-      const allBtn = document.createElement('button');
-      allBtn.type = 'button';
-      allBtn.className = 'upd-btn';
-      allBtn.textContent = tr('whatsnew_all', 'Tutte le novità');
-      allBtn.addEventListener('click', () => {
-        try { window.open(wn.url, '_blank', 'noopener'); } catch { /* ignore */ }
+  async function openScreenMenu(section) {
+    try {
+      const res = await fetch(SERVER + '/screen-menu', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section }),
       });
-      actions.appendChild(allBtn);
-    }
+      return res.ok ? (await res.json()).where : 'closed';
+    } catch { return 'closed'; }
+  }
 
-    card.appendChild(actions);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-    openOverlay = overlay;
+  async function screenMenuOpen() {
+    try { return (await (await fetch(SERVER + '/screen-menu', { cache: 'no-store' })).json()).open === true; } catch { return false; }
+  }
+
+  function openExternal(url) {
+    try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
+  }
+
+  // `done` runs when it closes; without it the stage was asked for by hand.
+  function openStoreFor(target) {
+    const store = window.CommunityGallery;
+    if (!store) return;
+    if (target === 'supporters') store.openSupporters();
+    else store.openSparks();
+  }
+
+  const lookOffer = () => (window.LookTrial && window.LookTrial.offered() ? window.LookTrial : null);
+
+  async function openWhatsNew(wn, done) {
+    if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length || !window.XenonWhatsNewStage) return;
+    if (document.querySelector('.wn-stage')) return; // stepped aside for a try of the look, Bit can still ask
+    closeModal();
+    const key = await menuKey();
     freezeAmbient(true);
-    document.addEventListener('keydown', onKey);
+    window.XenonWhatsNewStage.open(wn, {
+      text: pickLang,
+      tr: trKey,
+      openUrl: openExternal,
+      openMenu: openScreenMenu,
+      menuIsOpen: screenMenuOpen,
+      canOpenMenu: isNativeShell(),
+      menuKey: key,
+      openStore: openStoreFor,
+      look: lookOffer(),
+      onAside: (out) => freezeAmbient(!out),
+      onClose: () => {
+        freezeAmbient(false);
+        rememberWhatsNew(wn.id);
+        if (done) done();
+      },
+    });
+  }
+
+  function openReleaseNotes(wn, notes, done) {
+    window.XenonReleaseNotes.openNotes({
+      notes, text: pickLang, tr: trKey, url: wn.url, openUrl: openExternal,
+      onClose: () => {
+        CARDS().rememberUpdateNotice({ notes: notes.version });
+        done();
+      },
+    });
+  }
+
+  function failureReason(lr) {
+    const detail = String(lr.detail || '').trim().slice(0, 200);
+    return [updReasonText(lr.reason), detail].filter(Boolean).join(': ') || applyFailureText(lr);
+  }
+
+  function openUpdateFailed(lr, done) {
+    window.XenonReleaseNotes.openFailed({
+      lastResult: lr,
+      detail: failureReason(lr),
+      tr: trKey,
+      onRetry: async () => { const info = await check(true); if (hasUpdate(info)) openModal(info); },
+      onClose: () => {
+        try { localStorage.setItem(RESULT_ACK_KEY, String(lr.at)); } catch { /* ignore */ }
+        CARDS().rememberUpdateNotice({ failedAt: lr.at });
+        done();
+      },
+    });
+  }
+
+  function pendingFailure(lr) {
+    const c = CARDS();
+    if (!c || !notice().failurePending(lr, c.updateFailSeen())) return null;
+    let ack = '';
+    try { ack = localStorage.getItem(RESULT_ACK_KEY) || ''; } catch { /* ignore */ }
+    return ack === String(lr.at) ? null : lr;
+  }
+
+  // What still has to be said, oldest news first, one at a time: each opens only
+  // when the screen is free, and the next waits for the one before to close.
+  function noticeQueue(wn, lr) {
+    const c = CARDS();
+    const queue = [];
+    const failed = pendingFailure(lr);
+    if (failed) queue.push((next) => openUpdateFailed(failed, next));
+    if (c && wn) {
+      const { major, notes } = notice().pick({ wn, whatsNewSeen: c.whatsNewSeen(), notesSeen: c.releaseNotesSeen() });
+      if (major && !dismissedWhatsNew(wn.id)) queue.push((next) => openWhatsNew(wn, next));
+      if (notes) queue.push((next) => openReleaseNotes(wn, notes, next));
+    }
+    return queue;
+  }
+
+  let noticesRunning = false;
+  function runNotices(queue) {
+    if (noticesRunning || !queue.length) return;
+    noticesRunning = true;
+    const next = () => {
+      const show = queue.shift();
+      if (!show) { noticesRunning = false; return; }
+      whenNothingElseIsUp(() => show(next));
+    };
+    next();
+  }
+
+  // An automatic update failed while this page stayed open.
+  async function showUpdateNotices() {
+    const [wn, st] = await Promise.all([loadWhatsNew(), fetchSelfStatus()]);
+    runNotices(noticeQueue(wn, st && st.lastResult));
   }
 
   // ── Entry points ─────────────────────────────────────────────────────────────
@@ -1166,19 +1197,19 @@
         type: 'warning',
         duration: 0,   // sticky: this is the one notice that costs the user their next session
         title: tr('startup_task_off_title', 'Xenon will not start at your next sign-in'),
-        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself — Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
+        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself: Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
       });
     } else if (repaired.length) {
       window.XenonToast.show({
         type: 'info',
         duration: 10000,
         title: tr('startup_task_fixed_title', 'Xenon repaired its own startup entry'),
-        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under — it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
+        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under: it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
       });
     }
   }
 
-  async function surfacePendingUpdateNotices(info) {
+  function surfaceShellFailure(info) {
     try {
       if (localStorage.getItem(SHELL_ERR_KEY)) {
         localStorage.removeItem(SHELL_ERR_KEY);
@@ -1193,26 +1224,11 @@
             type: 'error',
             duration: 12000,
             title: tr('update_failed_title', 'Aggiornamento non riuscito'),
-            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata — riproverà al prossimo avvio.'),
+            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata: riproverà al prossimo avvio.'),
           });
         }
       }
     } catch { /* localStorage unavailable */ }
-    const st = await fetchSelfStatus();
-    const lr = st && st.lastResult;
-    if (!lr || lr.ok || !lr.at) return;
-    let ack = '';
-    try { ack = localStorage.getItem(RESULT_ACK_KEY) || ''; } catch { /* ignore */ }
-    if (ack === String(lr.at)) return;
-    try { localStorage.setItem(RESULT_ACK_KEY, String(lr.at)); } catch { /* ignore */ }
-    if (window.XenonToast) {
-      window.XenonToast.show({
-        type: 'error',
-        duration: 15000,
-        title: tr('update_failed_title', 'Aggiornamento non riuscito'),
-        message: applyFailureText(lr),
-      });
-    }
   }
 
   // This modal arrives on its own clock: `boot()` awaits `/update/check`, which
@@ -1231,10 +1247,16 @@
   function whenNothingElseIsUp(fn) {
     const I = window.XenonInterrupts;
     if (!I || typeof I.whenIdle !== 'function') { fn(); return; }
-    I.whenIdle(fn, { priority: I.PRIORITY.update });
+    I.whenIdle(fn, { priority: I.PRIORITY.update, maxTries: Infinity });
   }
 
   async function boot() {
+    // Update notices, What's New and the shell catch-up belong to the main
+    // dashboard; a layer window has none of that chrome on screen.
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;
+    // The driver of "widgets only" keeps only the app catching up with its
+    // dashboard; the update card lives in the alerts window (screen-alerts.js).
+    if (isShellDriver()) { catchUpShell(await check(false)); return; }
     const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
     // Wait for the stored dismissal to be known before deciding anything. The
     // check() above already went to the network, so in practice the local
@@ -1246,44 +1268,38 @@
       if (c && typeof c.whenReady === 'function') c.whenReady(resolve); else resolve();
     });
     refreshIndicators(info);
-    surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
+    surfaceShellFailure(info);         // fire-and-forget; only ever shows a toast
     surfaceStartupTaskNotice();        // same: silent on a healthy install
     catchUpShell(info);                // native only, and only with the app behind its dashboard
-    // Re-read the dismissed flag HERE, after the awaits: on a first run
-    // settings.js marks this release as seen while those fetches are still in
-    // flight, and reading it before them would show the modal it just suppressed.
-    const wnPending = !!(wn && wn.id && !dismissedWhatsNew(wn.id)
-      && Array.isArray(wn.highlights) && wn.highlights.length);
+    // Read what has been seen HERE, after the awaits: on a first run settings.js
+    // marks this release as seen while those fetches are still in flight.
+    const st = await fetchSelfStatus();
+    const queue = noticeQueue(wn, st && st.lastResult);
     const updatePending = !!(info && info.updateAvailable && !isVersionSkipped(info.latest));
-    // Remembered when it is really shown, not when it is queued: if the screen
-    // stays busy and the queue gives up, the modal has not been seen yet.
-    if (wnPending) whenNothingElseIsUp(() => {
-      if (dismissedWhatsNew(wn.id)) return;
-      rememberWhatsNew(wn.id);
-      openWhatsNew(wn);
-    });
     // On the native app, don't auto-pop this web modal: the shell shows its own
     // in-app "update available — tap to install" toast (native-bridge.js), and
     // two competing popups is exactly how a user ended up on the GitHub page.
     // The Settings pill still opens this modal on demand (now native-aware).
-    else if (updatePending && !isNativeShell()) whenNothingElseIsUp(() => openModal(info));
+    if (updatePending && !isNativeShell()) queue.push((next) => { openModal(info); next(); });
+    runNotices(queue);
   }
 
-  // The version number at the bottom of Settings re-opens What's New for the
-  // running build, the only way back to it once it has been seen.
+  // What's New of the running build, once it has been seen.
+  async function reopenWhatsNew() {
+    const wn = await loadWhatsNew();
+    if (wn) openWhatsNew(wn);
+  }
+
+  // The version number on Settings' About page is the way back to it; Bit is the other.
   function wireVersionLabel() {
     const el = document.getElementById('settings-version');
     if (!el) return;
-    const open = async () => {
-      const wn = await loadWhatsNew();
-      if (wn) openWhatsNew(wn);
-    };
     el.setAttribute('role', 'button');
     el.tabIndex = 0;
     el.title = tr('whatsnew_sub', 'Scopri cosa è cambiato in questa versione');
-    el.addEventListener('click', open);
+    el.addEventListener('click', reopenWhatsNew);
     el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reopenWhatsNew(); }
     });
   }
 
@@ -1315,12 +1331,13 @@
     openModal,
     refresh: () => check(false).then(refreshIndicators),
     nativeOrchestrate: nativeUpdateFlow,
+    showNotices: showUpdateNotices,
     // Shared with the native shell's own update toast (native-bridge.js) so both
     // surfaces read and write ONE skipped version, normalized the same way.
     isVersionSkipped,
     skipVersion: rememberDismissed,
   };
-  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, suppressForFreshInstall };
+  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, reopen: reopenWhatsNew, suppressForFreshInstall };
 
   document.addEventListener('DOMContentLoaded', wireVersionLabel, { once: true });
   document.addEventListener('DOMContentLoaded', boot, { once: true });

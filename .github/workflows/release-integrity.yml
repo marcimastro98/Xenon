@@ -2,7 +2,7 @@ name: Release integrity
 
 # MANUAL RECOVERY TOOL. Normal releases sign SHA256SUMS inside release.yml (the
 # atomic pipeline triggered by pushing the version tag), so every asset —
-# source.zip, xenon-helper.exe, Xenon-Setup-x64.exe — is hashed, signed and
+# source.zip, xenon-helper.exe, xenon-capture.exe, Xenon-Setup-x64.exe — is hashed, signed and
 # staged on the draft BEFORE the release is published. The old
 # `release: published` trigger here signed after the fact and had to poll for
 # the helper build, leaving a window where self-update hit integrity_missing.
@@ -13,11 +13,12 @@ name: Release integrity
 # zip and every other file the release's current SHA256SUMS lists (the macOS
 # and Linux installers too, which people check by hand), and stops rather than
 # drop a line. A release with no SHA256SUMS yet gets the source zip plus
-# whichever of xenon-helper.exe / Xenon-Setup-x64.exe are attached.
+# whichever of the helper, the capture engines and Xenon-Setup-x64.exe are attached.
 #
 # Consumers verifying against this signed manifest with the pinned key:
 #   - server/self-update.js       (source.zip line, before applying an update)
-#   - server/helper-update.js     (xenon-helper.exe line, boot self-heal)
+#   - server/helper-update.js     (xenon-helper.exe line, boot self-heal;
+#                                  xenon-capture.exe line, capture engine)
 #   - the setup.exe bootstrap     (source.zip line, first install)
 # All fail closed.
 #
@@ -43,6 +44,10 @@ concurrency:
 jobs:
   sign:
     runs-on: ubuntu-latest
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     env:
       TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
@@ -57,7 +62,7 @@ jobs:
           if gh release download "$TAG" --pattern 'SHA256SUMS' --dir previous --clobber --repo "${{ github.repository }}"; then
             awk 'NF { print $2 }' previous/SHA256SUMS > names.txt
           else
-            printf '%s\n' source.zip xenon-helper.exe Xenon-Setup-x64.exe > names.txt
+            printf '%s\n' source.zip xenon-helper.exe xenon-capture.exe xenon-capture-macos xenon-capture-linux-x64 Xenon-Setup-x64.exe > names.txt
           fi
           while read -r name; do
             case "$name" in

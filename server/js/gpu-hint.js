@@ -42,12 +42,14 @@
     const group = document.getElementById('settings-gpu-group');
     if (!group) return;
     const name = detectRenderer();
-    if (!name) { group.hidden = true; return; }   // no reliable read → show nothing
-    group.hidden = false;
+    if (!name) { setSettingsCardAvailable(group, false); return; }   // no reliable read → show nothing
+    setSettingsCardAvailable(group, true);
     const nameEl = document.getElementById('settings-gpu-name');
     if (nameEl) nameEl.textContent = name;
     const tip = document.getElementById('settings-gpu-tip');
-    if (tip) tip.hidden = !looksDiscrete(name);
+    // The steps it gives are Windows ones; the platform may not be known yet, and
+    // applyPlatformGating hides the row in that case.
+    if (tip) tip.hidden = !looksDiscrete(name) || (!!window.XenonPlatform && window.XenonPlatform !== 'win32');
   }
 
   if (document.readyState === 'loading') {

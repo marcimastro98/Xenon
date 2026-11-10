@@ -166,3 +166,45 @@ test('a malformed item can never throw', () => {
     assert.doesNotThrow(() => cd.classifyDiscord(bad, {}));
   }
 });
+
+// ── Signal ───────────────────────────────────────
+// The wording is Signal Desktop's own (_locales, icu:incomingAudioCall and
+// icu:incomingVideoCall, read 6 Nov 2026). Its voice call says "voice", which no
+// other app does, so naming the app alone would have rung for video calls only.
+test('a Signal Desktop toast belongs to Signal, by its app id or its name', () => {
+  assert.equal(cd.matchApp({ aumid: 'org.whispersystems.signal-desktop', app: '' }).id, 'signal');
+  assert.equal(cd.matchApp({ aumid: '', app: 'Signal' }).id, 'signal');
+});
+
+test('every language Signal rings in reads as a ring', () => {
+  const rings = [
+    'Incoming voice call', 'Incoming video call',
+    'Chiamata vocale in arrivo', 'Videochiamata in arrivo',
+    'Llamada entrante', 'Videollamada entrante',
+    'Appel vocal entrant', 'Appel vidéo entrant',
+    'Eingehender Sprachanruf', 'Eingehender Videoanruf',
+    'Recebendo chamada de voz', 'Chamada de vídeo recebida',
+    'A receber chamada de voz', 'A receber videochamada',
+    'Inkomende spraakoproep', 'Inkomende video-oproep',
+    'Входящий голосовой звонок', 'Входящий видеозвонок',
+    '音声通話着信', 'ビデオ通話着信',
+    '음성 통화 수신 중', '영상 통화 수신 중',
+    '语音来电', '视频来电',
+    'Przychodzące połączenie głosowe', 'Przychodzące połączenie wideo',
+  ];
+  for (const line of rings) assert.equal(cd.looksLikeRing(line), true, line);
+});
+
+test('a Signal video call is a video call in every language it says so', () => {
+  for (const line of ['Incoming video call', 'Appel vidéo entrant', 'Входящий видеозвонок', 'ビデオ通話着信', '영상 통화 수신 중', '视频来电', 'Przychodzące połączenie wideo']) {
+    assert.equal(cd.looksLikeVideo(line), true, line);
+  }
+  assert.equal(cd.looksLikeVideo('Incoming voice call'), false);
+});
+
+test('a real Signal toast raises a voice card with the caller on it', () => {
+  const call = cd.classifyNotification({ aumid: 'org.whispersystems.signal-desktop', app: 'Signal', title: 'Marco Rossi', body: 'Incoming voice call' });
+  assert.equal(call.appId, 'signal');
+  assert.equal(call.caller, 'Marco Rossi');
+  assert.equal(call.video, false);
+});

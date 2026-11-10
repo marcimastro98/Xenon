@@ -36,24 +36,27 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Usa il telefono o il tablet come schermo di Xenon</title>
-<meta name="description" content="Apri la dashboard di Xenon su telefono o tablet con il tuo Wi-Fi, o da ovunque con Tailscale. I tasti del Deck agiscono sul PC. Niente da installare sul telefono.">
+<meta name="theme-color" content="#B4A0FF">
+<title>Il telefono come pannello di controllo del PC con Xenon</title>
+<meta name="description" content="Apri la dashboard di Xenon nel browser del telefono sul Wi-Fi di casa, o da ovunque con Tailscale. I tasti Deck agiscono sul PC. Nessuna app da installare.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Usa il telefono o il tablet come schermo di Xenon">
-<meta property="og:description" content="Apri la dashboard di Xenon su telefono o tablet con il tuo Wi-Fi, o da ovunque con Tailscale. I tasti del Deck agiscono sul PC. Niente da installare sul telefono.">
+<meta property="og:title" content="Il telefono come pannello di controllo del PC con Xenon">
+<meta property="og:description" content="Apri la dashboard di Xenon nel browser del telefono sul Wi-Fi di casa, o da ovunque con Tailscale. I tasti Deck agiscono sul PC. Nessuna app da installare.">
 <meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/it/phone.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Il telefono come pannello di controllo del PC con Xenon">
+<meta name="twitter:description" content="Apri la dashboard di Xenon nel browser del telefono sul Wi-Fi di casa, o da ovunque con Tailscale. I tasti Deck agiscono sul PC. Nessuna app da installare.">
 <link rel="canonical" href="https://xenon-app.com/it/phone.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/phone.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/phone.html">
@@ -73,14 +76,7 @@
   .route { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px 24px 22px; }
   .route.pick { background: var(--g-2); }
   .route .tag { display: block; margin-bottom: 8px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
-  /* Beta mark for the feature this whole page is about. Gold, not green: green
-     is what this page uses for "yes, this works", and a caveat must not borrow it. */
-  .beta-pill {
-    display: inline-block; vertical-align: middle; margin-left: 12px;
-    font: 700 15px/1 var(--sans); letter-spacing: 0;
-    color: var(--beta-fg); background: var(--beta-bg);
-    border-radius: 6px; padding: 5px 9px;
-  }
+  /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
   .route h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
   .route .time { font-size: 15px; color: var(--muted); margin: 0 0 12px; }
   .route ul { margin: 0; padding-left: 20px; font-size: 16px; }
@@ -103,61 +99,19 @@
   .steps h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
   .steps p { margin: 0 0 10px; }
   .steps p:last-child { margin-bottom: 0; }
-  /* ── Device mockups ───────────────────────────────────────────────
-     Drawn in CSS, not photographed. They are an illustration of the
-     LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
-     notes and file paths, and this page is public. */
-  .shots { display: flex; gap: 34px; align-items: flex-end; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
-  /* figure carries a browser default of `margin: 1em 40px`. Left alone it added
-     160px across the pair and pushed the row 9px past the column, which wraps —
-     the two devices are meant to be read side by side. */
-  .shot { text-align: center; margin: 0; max-width: 100%; }
-  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; }
-  .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
-  .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
-  .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
-  .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
-            background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
-            display: flex; flex-direction: column; }
-  .dev-tab .screen { border-radius: 9px; }
-  .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
-         display: flex; align-items: center; gap: 4px; padding: 0 5px; }
-  .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
-  .bar i.a { width: 16px; background: var(--bone-1); }
-  .bar i.b { width: 26px; }
-  .bar i.c { width: 12px; margin-left: auto; }
-  /* phone: one column, tiles of different heights, thumb dock at the bottom */
-  .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
-  .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
-  .stack > div.t1 { height: 46px; }
-  .stack > div.t2 { height: 72px; }
-  .stack > div.t3 { height: 38px; }
-  .stack > div.t4 { height: 58px; }
-  .stack > div.hl { background: var(--g-2); border-color: var(--rule-2); }
-  .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
-          display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
-  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
-  .dock i:first-child { background: var(--bone-1); }
-  /* tablet: the real 24-column grid, kept */
-  .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
-  .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
-  .grid > div.w2 { grid-column: span 2; }
-  .grid > div.w3 { grid-column: span 3; }
-  .grid > div.w4 { grid-column: span 4; }
-  .grid > div.h2 { grid-row: span 2; }
-  .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
   /* ── A reproduction of the settings rows ──────────────────────── */
-  .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .ui { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .card.accent .ui { background: var(--g-0); }
   .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .ui-row:last-child { border-bottom: none; }
   .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
-  .sw.on { background: var(--bone-0); }
+  .sw.on { background: var(--main); }
   .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
   .sw.on::after { left: auto; right: 3px; background: #08110c; }
   .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
   .ui-txt span { display: block; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
-            color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
+            color: var(--green); border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
   .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
   .yn ul { list-style: none; padding: 0; margin: 0; }
   .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
@@ -165,24 +119,22 @@
   .can .k { color: var(--green); }
   .cant .k { color: var(--danger); }
   @media (max-width: 560px) {
-    .shots { gap: 22px; }
     .steps > li { padding-left: 38px; }
   }
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="violet">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/phone.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/phone.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/phone.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/phone.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/phone.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/phone.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/phone.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
@@ -191,10 +143,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/it/#install" data-xl="install">Installazione</a>
       <ul class="xh-mlinks">
@@ -208,48 +160,46 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/phone.html" aria-current="page" data-xl="f.phone">Abbinare un telefono</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Abbinare un telefono","item":"https://xenon-app.com/it/phone.html"}]}</script><!-- /xenon:crumbs -->
-    <h1><span data-i18n="ph.title">Usa il telefono come secondo schermo</span><span class="beta-pill" data-i18n="ph.beta">Beta</span></h1>
-    <p class="lede" data-i18n="ph.lede">Per usare Xenon serve uno schermo da lasciare acceso tutto il giorno: un monitor di scorta, un vecchio tablet, uno Xeneon Edge. È questo che ferma quasi tutti, non le funzioni. Ma uno schermo ce l'hai già in tasca. Qui c'è come usarlo.</p>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/phone.html" aria-current="page" data-xl="f.phone">Abbinare un telefono</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Abbinare un telefono","item":"https://xenon-app.com/it/phone.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h"><span data-i18n="ph.title">Usa il telefono come secondo schermo</span><span class="beta-pill" data-i18n="ph.beta">Beta</span></h1>
+        <p class="lede" data-i18n="ph.lede">Il telefono può essere uno degli schermi di Xenon. Si apre nel browser del telefono sul tuo Wi-Fi, senza installare niente sul telefono. Qui c’è come fare.</p>
+        <div class="pg-act">
+          <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Scarica per Windows</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">Provalo nel browser</a>
+        </div>
+      </div>
+      <figure class="pg-pic fit"><img src="/images/home/screen-phone.webp" width="320" height="693" fetchpriority="high" decoding="async" alt="La dashboard di Xenon su un telefono: musica, prestazioni in gioco e letture di sistema, con un menu in basso" data-i18n-alt="ph.pic.alt"><figcaption data-i18n="ph.cap.phone">Telefono: tile impilate, dock in basso</figcaption></figure>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">In questa pagina</p>
+      <a href="#what-works" data-i18n="ph.h.what">Cosa funziona e cosa no</a>
+      <a href="#files" data-i18n="ph.h.xfer">Portare foto e file da una parte all’altra</a>
+      <a href="#two-ways" data-i18n="ph.h.two">Due strade. Scegline una.</a>
+      <a href="#at-home" data-i18n="ph.h.home">In casa, in trenta secondi</a>
+      <a href="#anywhere" data-i18n="ph.h.away">Ovunque, e come app</a>
+      <a href="#trouble" data-i18n="ph.h.trouble">Se qualcosa non funziona</a>
+      <a href="#limits" data-i18n="ph.h.not">Cosa non fa</a>
+    </nav>
+    <div class="wrap">
     <p data-i18n-html="ph.intro">Quello che arriva sul telefono non è un telecomando e non è un'anteprima. È <strong>la tua dashboard</strong>, con lo stesso layout, gli stessi widget e lo stesso tema. I tasti del Deck partono davvero sul PC. Se metti in pausa la musica, la musica si ferma. Se cambi un'impostazione, un secondo dopo è cambiata anche sul PC. Non serve un account, non c'è nessun cloud, non c'è niente da installare e niente esce dalla rete di casa.</p>
 
-    <div class="shots">
-      <figure class="shot">
-        <div class="dev dev-phone">
-          <div class="screen">
-            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
-            <div class="stack"><div class="t1 hl"></div><div class="t2"></div><div class="t3"></div><div class="t4"></div></div>
-            <div class="dock"><i></i><i></i><i></i><i></i></div>
-          </div>
-        </div>
-        <figcaption data-i18n="ph.cap.phone">Telefono: tile impilate, dock in basso</figcaption>
-      </figure>
-      <figure class="shot">
-        <div class="dev dev-tab">
-          <div class="screen">
-            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
-            <div class="grid">
-              <div class="w2 h2 hl"></div><div class="w2"></div><div class="w2"></div>
-              <div class="w2"></div><div class="w2"></div><div class="w3"></div><div class="w3"></div>
-            </div>
-          </div>
-        </div>
-        <figcaption data-i18n="ph.cap.tab">Tablet: la griglia completa, come l'hai costruita</figcaption>
-      </figure>
-    </div>
-    <p class="note" data-i18n="ph.cap.note">Questi sono disegni del layout, non screenshot veri. Una dashboard vera mostra il calendario, le note e i percorsi dei file di chi la usa, e questa pagina è pubblica.</p>
+    <figure class="shot"><img src="/images/home/screen-tablet.webp" width="760" height="528" loading="lazy" decoding="async" alt="La dashboard di Xenon su un tablet: musica, testi, grafici di sistema e una griglia di tasti Deck" data-i18n-alt="ph.tab.alt"><figcaption data-i18n="ph.cap.tab">Tablet: la griglia completa, come l'hai costruita</figcaption></figure>
 
-    <h2 data-i18n="ph.h.what">Cosa funziona e cosa no</h2>
-    <p data-i18n="ph.what.p">Quando abbini un dispositivo, quel dispositivo diventa uno dei tuoi. Può fare tutto quello che fa la dashboard sul PC, tranne poche cose. Quelle poche cose hanno tutte lo stesso motivo: serve una persona seduta davanti a quel computer.</p>
+    <h2 id="what-works" data-i18n="ph.h.what">Cosa funziona e cosa no</h2>
+    <p data-i18n="ph.what.p">Quando abbini un dispositivo, quel dispositivo diventa uno dei tuoi. Fa quasi tutto quello che fa la dashboard sul PC. Le poche cose che non può fare hanno due motivi: alcune richiedono una persona seduta davanti a quel computer, altre permetterebbero a un telefono finito nelle mani sbagliate di fare più di quello che hai preparato tu.</p>
     <div class="yn">
       <div class="can">
         <ul>
           <li><span class="k">✓</span><span data-i18n="ph.can.1">Tutta la dashboard: sensori, widget, pagine e temi</span></li>
-          <li><span class="k">✓</span><span data-i18n="ph.can.2">I tasti del Deck. Partono sul PC, non sul telefono</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">I tasti del Deck che hai creato. Partono sul PC, non sul telefono</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.3">Media, volume, muto del microfono e cambio app</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.4">Lo Store: widget, pacchetti di icone, pacchetti di suoni e temi</span></li>
-          <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon AI e le impostazioni, che si salvano sul PC</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.5">Bit e le impostazioni, che si salvano sul PC</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.6">Mandare foto e file, nelle due direzioni</span></li>
         </ul>
       </div>
@@ -259,16 +209,19 @@
           <li><span class="k">✗</span><span data-i18n="ph.cant.2">Aggiornare Xenon. L'aggiornamento riavvia il server con cui sta parlando il telefono</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.3">Gli installer di sistema (l'helper, PresentMon, i driver). Ognuno mette un programma sul disco</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.4">Aggiungere o togliere dispositivi abbinati. Così un telefono non può mai aggiungerne un altro, né togliere il dispositivo che lo caccerebbe fuori</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.5">Nuovi tasti che aprono programmi o file, avviano script, scrivono testo o mandano scorciatoie. Questi li crei dal PC. Il telefono li preme, e può spostarli, rinominarli o eliminarli</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.6">Aggiungere app ai preferiti. Un preferito è un’app che il telefono può avviare sul PC, quindi la scegli dal PC. Dal telefono puoi comunque togliere i preferiti o cambiarne l’ordine</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.7">Configurare il desktop remoto, attivare Controllo PC, creare o caricare un backup, e le chiamate o i messaggi tramite il telefono collegato al PC</span></li>
         </ul>
       </div>
     </div>
-    <div class="card"><p data-i18n-html="ph.trade"><strong>Una cosa da sapere prima di iniziare.</strong> Un dispositivo abbinato resta una via d'ingresso nel tuo PC finché non lo togli. Quindi se perdi il telefono o lo dai a qualcuno, toglilo. L'elenco dei dispositivi serve a questo: puoi toglierne uno solo, oppure tutti con un tocco. Un dispositivo che togli perde il collegamento subito.</p></div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>Una cosa da sapere prima di iniziare.</strong> Un dispositivo abbinato resta una via d'ingresso nel tuo PC finché non lo togli. Quindi se perdi il telefono o lo dai a qualcuno, toglilo. L'elenco dei dispositivi serve a questo: puoi toglierne uno solo, oppure tutti con un tocco. Un dispositivo che togli perde il collegamento subito. Un dispositivo che non usi da 90 giorni smette di funzionare e va abbinato di nuovo, e il PC mostra un avviso ogni volta che si abbina un nuovo dispositivo.</p></div>
 
-    <h2 data-i18n="ph.h.xfer">Portare foto e file da una parte all’altra</h2>
+    <h2 id="files" data-i18n="ph.h.xfer">Portare foto e file da una parte all’altra</h2>
     <p data-i18n="ph.xfer.p">Un telefono associato può mandare file al PC e prenderne. Apri Xenon sul telefono, tocca Foto e video o Altri file, scegli cosa ti serve, e i file arrivano in Download/Xenon sul computer con il loro nome. Funziona anche al contrario: trascini un file sul riquadro da Esplora risorse o dal Finder e lo scarichi dal telefono. Non passa dal server di nessun altro.</p>
     <div class="card"><p data-i18n-html="ph.xfer.ios"><strong>Su iPhone devi aprire Xenon per mandare qualcosa.</strong> iOS non permette a nessun sito di comparire nel tasto Condividi, e da una pagina web non c’è modo di aggirarlo. Un file che scarichi su iPhone va poi in File, non nel rullino: tieni premuta una foto e scegli Aggiungi a Foto.</p></div>
 
-    <h2 data-i18n="ph.h.two">Due strade. Scegline una.</h2>
+    <h2 id="two-ways" data-i18n="ph.h.two">Due strade. Scegline una.</h2>
     <div class="routes">
       <div class="route pick">
         <span class="tag" data-i18n="ph.r1.tag">In casa</span>
@@ -287,14 +240,14 @@
         <ul>
       <li data-i18n="ph.r2.1">Cifrato, e funziona da ovunque senza aprire nessuna porta sul router</li>
       <li data-i18n="ph.r2.2">Si installa sul telefono come un'app, con la sua icona</li>
-      <li data-i18n="ph.r2.3">Dà il microfono a Xenon AI</li>
+      <li data-i18n="ph.r2.3">Dà il microfono a Bit</li>
       <li data-i18n="ph.r2.4">L'indirizzo resta lo stesso, anche quando il router lo cambia</li>
         </ul>
       </div>
     </div>
     <p data-i18n="ph.two.after">Non devi scegliere per sempre. La seconda strada aggiunge una porta accanto alla prima, non la sostituisce. Se usi Xenon solo in casa, parti dalla prima.</p>
 
-    <h2 data-i18n="ph.h.home">In casa, in trenta secondi</h2>
+    <h2 id="at-home" data-i18n="ph.h.home">In casa, in trenta secondi</h2>
     <ol class="steps">
       <li>
         <h3 data-i18n="ph.s1.h">Apri Impostazioni, poi Telefono, sul PC</h3>
@@ -321,7 +274,7 @@
     </ol>
     <p class="note" data-i18n="ph.home.note">I due dispositivi devono stare sullo stesso Wi-Fi. Se il router ha l'isolamento client attivo, o se sei sulla rete ospiti, possono essere sullo stesso Wi-Fi e comunque non vedersi.</p>
 
-    <h2 data-i18n="ph.h.away">Ovunque, e come app</h2>
+    <h2 id="anywhere" data-i18n="ph.h.away">Ovunque, e come app</h2>
     <p data-i18n="ph.away.1">Su HTTP in chiaro i browser tengono per sé un intero gruppo di funzioni, e non c'è design che le riporti indietro. La pagina non può installarsi come app, non può usare il microfono e non può ricevere notifiche. È questo il vero motivo della seconda strada. Non è una questione di distanza.</p>
     <p data-i18n-html="ph.away.2">Per farlo Xenon usa <a href="https://tailscale.com" rel="noopener">Tailscale</a>. Il PC e il telefono entrano in una piccola rete privata tutta tua, la dashboard ottiene un certificato vero e un indirizzo che non cambia mai, e <strong>non viene aperta nessuna porta sul router</strong>. L'indirizzo non esiste nel DNS pubblico, quindi là fuori non c'è niente da trovare.</p>
 
@@ -357,11 +310,11 @@
       </li>
       <li>
         <h3 data-i18n="ph.t5.h">Aggiungilo alla schermata home</h3>
-        <p data-i18n-html="ph.t5.p">Su Safari premi Condividi e poi <strong>Aggiungi a Home</strong>. Su Android è Chrome a proporti di installarlo. Da lì Xenon si apre con la sua icona, a tutto schermo e senza barra degli indirizzi. Qui il microfono funziona, quindi Xenon AI può ascoltare dal telefono invece che dal PC. Funzionano anche le notifiche: in Impostazioni, poi Telefono, accendile per questo dispositivo e un timer che scade ti raggiunge con l'app chiusa.</p>
+        <p data-i18n-html="ph.t5.p">Su Safari premi Condividi e poi <strong>Aggiungi a Home</strong>. Su Android è Chrome a proporti di installarlo. Da lì Xenon si apre con la sua icona, a tutto schermo e senza barra degli indirizzi. Qui il microfono funziona, quindi Bit può ascoltare dal telefono invece che dal PC. Funzionano anche le notifiche: in Impostazioni, poi Telefono, accendile per questo dispositivo e un timer che scade ti raggiunge con l'app chiusa.</p>
       </li>
     </ol>
 
-    <h2 data-i18n="ph.h.trouble">Se qualcosa non funziona</h2>
+    <h2 id="trouble" data-i18n="ph.h.trouble">Se qualcosa non funziona</h2>
     <details>
       <summary data-i18n="ph.q1">Il telefono dice che non riesce ad aprire l'indirizzo</summary>
       <div class="body"><p data-i18n-html="ph.a1">Quasi sempre il telefono non è ancora entrato nella tua rete privata. Apri Tailscale sul telefono e controlla che l'interruttore sia davvero <strong>acceso</strong>: installare l'app non basta. Su iPhone lo capisci perché compare <strong>VPN</strong> nella barra di stato. Controlla anche di aver usato lo stesso account del PC, perché due account sono due reti separate che non si vedono.</p></div>
@@ -387,11 +340,12 @@
       <div class="body"><p data-i18n-html="ph.a6">È voluto. Un tablet è abbastanza grande per la griglia vera, che poi è il senso di avere un tablet, e un iPad sta ben sopra la misura in cui Xenon cambia layout. Se su un certo dispositivo preferisci quello impilato puoi sceglierlo, e Xenon se lo ricorda <em>solo su quel dispositivo</em>. Non arriva mai al PC e il layout che hai salvato non viene mai sovrascritto.</p></div>
     </details>
 
-    <h2 data-i18n="ph.h.not">Cosa non fa</h2>
+    <h2 id="limits" data-i18n="ph.h.not">Cosa non fa</h2>
     <p data-i18n="ph.not.1">Non c'è nessun account Xenon, nessun nostro server in mezzo e niente della tua dashboard viene caricato da qualche parte. Sul tuo Wi-Fi il collegamento non è cifrato, ed è per questo che il pannello ti dice di usarlo su una rete di cui ti fidi. La strada sicura serve proprio a risolvere questo. Tailscale è un'azienda esterna che aggiungi tu se vuoi, quindi valgono le sue condizioni sulla privacy, e Xenon non prende da lei nient'altro che l'indirizzo e il certificato della tua macchina.</p>
     <p data-i18n-html="ph.not.2">Tutto il resto di quello che Xenon manda e non manda è sulla <a href="/it/privacy.html">pagina della privacy</a>.</p>
 
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+    </div>
   </div>
 </main>
 
@@ -399,14 +353,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Widget gratis per il tuo PC, su ogni schermo. Windows, con macOS e Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit vive nel widget Vitals e ha opinioni sulla tua postura.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR. Ogni altro nome e logo appartiene al suo proprietario.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

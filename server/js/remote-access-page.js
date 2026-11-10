@@ -42,6 +42,43 @@
     return n;
   }
 
+  // The pieces every Settings page is built from (SettingsPage.css).
+  function section(title) {
+    const box = el('section', 'settings-section');
+    if (title) box.appendChild(typeof title === 'string' ? el('div', 'settings-section-title', title) : title);
+    return box;
+  }
+
+  function switchRow(label, hint, checked, onChange) {
+    const row = el('label', 'settings-toggle-row');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'settings-check';
+    input.checked = checked;
+    input.addEventListener('change', () => onChange(input));
+    const words = el('span', 'settings-label-line');
+    words.appendChild(el('span', null, label));
+    if (hint) words.appendChild(el('span', 'settings-hint', hint));
+    row.append(input, words);
+    return row;
+  }
+
+  function keyRow(...keys) {
+    const row = el('div', 'settings-row settings-row-keys');
+    row.append(...keys);
+    return row;
+  }
+
+  // A name and the address under it, with a key on the right when there is one.
+  function addressRow(label, address, key) {
+    const row = el('div', 'settings-row ra-address');
+    const words = el('span', 'settings-label-line');
+    words.append(el('span', null, label), el('code', 'settings-hint', address));
+    row.appendChild(words);
+    if (key) row.appendChild(key);
+    return row;
+  }
+
   // Same loader the share card uses — the vendored qrcode-generator is already
   // shipped, so pairing costs no new asset.
   function loadQrLib() {
@@ -188,17 +225,14 @@
   // working and the honest thing to show is what it is doing.
   function setupProgress(setup) {
     const box = el('div', 'ra-setup');
-    const line = el('p', 'ra-setup-step');
-    line.appendChild(el('span', 'ra-setup-dot'));
-    line.appendChild(el('span', null, t(SETUP_STEP[setup.step] || 'ra_https_step_installing')));
-    box.appendChild(line);
+    box.appendChild(el('p', 'ra-setup-step', t(SETUP_STEP[setup.step] || 'ra_https_step_installing')));
     if (setup.step === 'wait_certs') {
-      const a = el('a', 'ra-btn primary', t('ra_https_open_admin'));
+      const a = el('a', 'settings-btn primary', t('ra_https_open_admin'));
       a.href = TAILNET_ADMIN;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       box.appendChild(a);
-      box.appendChild(el('p', 'ra-note', t('ra_https_wait_certs_note')));
+      box.appendChild(el('p', 'settings-note', t('ra_https_wait_certs_note')));
     }
     // The sign-in link, while we are waiting for it to be used. Xenon already
     // tried to open it in a browser; this is what makes the step actionable when
@@ -206,14 +240,14 @@
     // being driven from a phone, where the page opened on the wrong screen.
     // Only ever a https://login.tailscale.com URL (validated server-side).
     if (setup.step === 'wait_login' && setup.authUrl) {
-      const a = el('a', 'ra-btn primary', t('ra_https_open_login'));
+      const a = el('a', 'settings-btn primary', t('ra_https_open_login'));
       a.href = setup.authUrl;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       box.appendChild(a);
-      box.appendChild(el('p', 'ra-note', t('ra_https_wait_login_note')));
+      box.appendChild(el('p', 'settings-note', t('ra_https_wait_login_note')));
     }
-    const stop = el('button', 'ra-btn ghost small', t('ra_cancel'));
+    const stop = el('button', 'settings-btn', t('ra_cancel'));
     stop.type = 'button';
     stop.addEventListener('click', () => act('/api/remote-access/https/setup', { cancel: true }));
     box.appendChild(stop);
@@ -294,28 +328,24 @@
       sheet.appendChild(el('p', 'ra-pair-url', baseUrl(st) + '/pair'));
       sheet.appendChild(el('p', 'ra-pair-left', t('ra_expires_in') + ' ' + left + 's'));
 
-      const cancel = el('button', 'ra-btn ghost', t('ra_cancel'));
+      const cancel = el('button', 'settings-btn', t('ra_cancel'));
       cancel.type = 'button';
       cancel.addEventListener('click', () => act('/api/remote-access/pair/cancel'));
       sheet.appendChild(cancel);
       return sheet;
     }
-    const box = el('div', 'ra-pair-idle');
-    const add = el('button', 'ra-btn primary', t('ra_add_device'));
+    // The page's main action until a first device is in; after that, one key among others.
+    const add = el('button', 'settings-btn' + ((st.devices || []).length ? '' : ' primary'), t('ra_add_device'));
     add.type = 'button';
     add.disabled = (st.devices || []).length >= (st.maxDevices || 16);
     add.addEventListener('click', () => act('/api/remote-access/pair'));
-    box.appendChild(add);
     // The address is worth showing even without a live code: it is what the
     // user types when a camera cannot read the QR.
-    const addr = el('p', 'ra-addr');
-    addr.appendChild(el('span', null, t('ra_address') + ' '));
-    addr.appendChild(el('code', null, baseUrl(st)));
-    box.appendChild(addr);
+    const box = addressRow(t('ra_address'), baseUrl(st), add);
     // The other LAN addresses are only worth listing while the secure door is
     // down — with it up, that one name is the answer everywhere.
     if (!(st.https && st.https.running) && st.addresses.length > 1) {
-      box.appendChild(el('p', 'ra-addr-alt', t('ra_address_alt') + ' ' + st.addresses.slice(1).join(', ')));
+      box.appendChild(el('p', 'settings-hint', t('ra_address_alt') + ' ' + st.addresses.slice(1).join(', ')));
     }
     return box;
   }
@@ -328,17 +358,17 @@
     // Name the one thing in the way — never a bare "failed", because each of
     // these is a different action by the user and one of them is not on this
     // machine at all.
-    const why = el('p', 'ra-warn');
+    const why = el('p', 'settings-note settings-note-warn');
     why.textContent = t(HTTPS_WHY[tls.reason] || 'ra_https_why_failed');
     box.appendChild(why);
     // The button that does everything it can: installs Tailscale, opens the
     // sign-in, then waits for the one switch that is not on this machine.
-    const go = el('button', 'ra-btn primary', t('ra_https_setup'));
+    const go = el('button', 'settings-btn primary', t('ra_https_setup'));
     go.type = 'button';
     go.addEventListener('click', () => act('/api/remote-access/https/setup'));
     box.appendChild(go);
     if (setup.error) {
-      const err = el('p', 'ra-warn');
+      const err = el('p', 'settings-note settings-note-warn');
       err.textContent = t(SETUP_ERR[setup.error] || 'ra_https_setup_err_failed');
       box.appendChild(err);
     }
@@ -363,17 +393,17 @@
     return box;
   }
 
-  /** The paired devices, with rename and revoke. */
-  function appendDevices(page, st) {
+  /** The paired devices, with rename and revoke, under `lead` when there is one. */
+  function appendDevices(page, st, lead) {
     const devices = Array.isArray(st.devices) ? st.devices : [];
-    const listBox = el('div', 'ra-devices');
-    listBox.appendChild(el('h4', 'ra-devices-title', t('ra_devices') + ' (' + devices.length + '/' + (st.maxDevices || 16) + ')'));
+    const listBox = section(t('ra_devices') + ' (' + devices.length + '/' + (st.maxDevices || 16) + ')');
+    if (lead) listBox.appendChild(lead);
 
     if (!devices.length) {
-      listBox.appendChild(el('p', 'ra-empty', t('ra_no_devices')));
+      listBox.appendChild(el('p', 'settings-note', t('ra_no_devices')));
     } else {
       for (const d of devices) {
-        const item = el('div', 'ra-device');
+        const item = el('div', 'settings-row ra-device');
 
         const name = document.createElement('input');
         name.className = 'ra-device-name';
@@ -391,17 +421,17 @@
         if (d.lastIp) meta.appendChild(el('span', 'ra-device-ip', d.lastIp));
         item.appendChild(meta);
 
-        const kill = el('button', 'ra-btn danger small', t('ra_revoke'));
+        const kill = el('button', 'settings-btn danger', t('ra_revoke'));
         kill.type = 'button';
         kill.addEventListener('click', () => act('/api/remote-access/revoke', { id: d.id }));
         item.appendChild(kill);
 
         listBox.appendChild(item);
       }
-      const killAll = el('button', 'ra-btn ghost danger', t('ra_revoke_all'));
+      const killAll = el('button', 'settings-btn danger', t('ra_revoke_all'));
       killAll.type = 'button';
       killAll.addEventListener('click', () => act('/api/remote-access/revoke-all'));
-      listBox.appendChild(killAll);
+      listBox.appendChild(keyRow(killAll));
     }
     page.appendChild(listBox);
   }
@@ -498,34 +528,29 @@
    * them cannot be fixed from inside this page at all.
    */
   function appendNotifications(page) {
-    const box = el('div', 'ra-notif');
-    box.appendChild(el('h4', 'ra-limits-title', t('ra_notif_title')));
+    const box = section(t('ra_notif_title'));
     const p = _push;
 
     // Still reading this device's state. Draw the heading and nothing that
     // could be wrong — a row that says "off" and then flips to "on" a moment
     // later reads as the switch having done something.
     if (!p) {
-      box.appendChild(el('p', 'ra-note', t('ra_notif_checking')));
+      box.appendChild(el('p', 'settings-note', t('ra_notif_checking')));
       page.appendChild(box);
       return;
     }
-    if (!p.secure) { box.appendChild(el('p', 'ra-note', t('ra_notif_insecure'))); page.appendChild(box); return; }
-    if (!p.supported) { box.appendChild(el('p', 'ra-note', t('ra_notif_unsupported'))); page.appendChild(box); return; }
+    if (!p.secure) { box.appendChild(el('p', 'settings-note', t('ra_notif_insecure'))); page.appendChild(box); return; }
+    if (!p.supported) { box.appendChild(el('p', 'settings-note', t('ra_notif_unsupported'))); page.appendChild(box); return; }
     if (p.permission === 'denied') {
       // Nothing on this page can undo a denial: the browser will not ask again
       // and there is no API to reopen the prompt. Say where it lives instead of
       // showing a switch that silently does nothing.
-      box.appendChild(el('p', 'ra-warn', t('ra_notif_denied')));
+      box.appendChild(el('p', 'settings-note settings-note-warn', t('ra_notif_denied')));
       page.appendChild(box);
       return;
     }
 
-    const row = el('label', 'ra-toggle-row');
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.checked = p.subscribed === true;
-    toggle.addEventListener('change', async () => {
+    box.appendChild(switchRow(t('ra_notif'), t('ra_notif_hint'), p.subscribed === true, async (toggle) => {
       const want = toggle.checked;
       toggle.disabled = true;
       // The permission prompt must be raised inside this handler, so enable()
@@ -534,19 +559,12 @@
       if (want && !(r && r.ok)) toast(t(NOTIF_ERR[r && r.reason] || 'ra_notif_err_failed'));
       await refreshPush();
       render();
-    });
-    row.appendChild(toggle);
-    row.appendChild(el('span', 'ra-toggle-knob'));
-    const labels = el('span', 'ra-toggle-text');
-    labels.appendChild(el('strong', null, t('ra_notif')));
-    labels.appendChild(el('span', 'ra-toggle-hint', t('ra_notif_hint')));
-    row.appendChild(labels);
-    box.appendChild(row);
+    }));
 
     if (p.subscribed) {
       // The only way to find out it works without waiting for something to
       // happen at three in the morning.
-      const test = el('button', 'ra-btn ghost small', t('ra_notif_test'));
+      const test = el('button', 'settings-btn', t('ra_notif_test'));
       test.type = 'button';
       test.addEventListener('click', async () => {
         test.disabled = true;
@@ -554,12 +572,12 @@
         toast(r && r.sent ? t('ra_notif_test_sent') : t('ra_notif_test_failed'));
         test.disabled = false;
       });
-      box.appendChild(test);
+      box.appendChild(keyRow(test));
     }
 
     // Said once, plainly, and not buried: this is the only part of Xenon that
     // hands anything to a company that is not the user.
-    box.appendChild(el('p', 'ra-note', t('ra_notif_third_party')));
+    box.appendChild(el('p', 'settings-note', t('ra_notif_third_party')));
     page.appendChild(box);
   }
 
@@ -590,18 +608,12 @@
 
     const page = el('div', 'ra-page');
 
-    // ── Header ──
-    const head = el('div', 'ra-head');
-    // The beta mark rides with the title, and the line under it says what beta
-    // means here rather than leaving the badge to be read as a warning about
-    // safety. It is the newest thing in Xenon and the one that reaches another
-    // device, so saying so is part of the opt-in, not decoration.
-    const titleRow = el('div', 'ra-title-row');
-    titleRow.appendChild(el('h3', 'ra-title', t('ra_title')));
-    titleRow.appendChild(el('span', 'ra-beta', t('ra_beta')));
-    head.appendChild(titleRow);
-    head.appendChild(el('p', 'ra-sub', t('ra_sub')));
-    head.appendChild(el('p', 'ra-beta-note', t('ra_beta_note')));
+    // ── What this is, and the switch ──
+    const title = el('div', 'settings-section-title');
+    title.append(el('span', null, t('ra_title')), el('span', 'ra-beta', t('ra_beta')));
+    const access = section(title);
+    access.appendChild(el('p', 'settings-note', t('ra_sub')));
+    page.appendChild(access);
     // The panel is the switches; the guide is the reason and the walkthrough —
     // in particular the away-from-home setup, whose one manual step lives on
     // someone else's website and needs more room than a settings panel has.
@@ -609,21 +621,20 @@
     // that return early below: switched off (where the panel says least) and on
     // a paired phone (where the panel is closed by design and this is the only
     // thing left to read).
-    const guide = el('a', 'settings-inline-link ra-guide', t('ra_guide_link'));
+    const guide = el('a', 'settings-btn', t('ra_guide_link'));
     guide.href = 'https://xenon-app.com/phone.html';
     guide.target = '_blank';
     guide.rel = 'noopener noreferrer';
-    head.appendChild(guide);
-    page.appendChild(head);
+    const keys = keyRow(guide);
 
     // The step-by-step guide, reachable at any time and not only from the
     // first-run picker. Placed in the head so it is the first thing offered to
     // somebody who opened this panel and does not know where to start.
     if (!st.remote && window.RemoteAccessGuide && !window.RemoteAccessGuide.isOpen()) {
-      const openGuide = el('button', 'ra-btn ghost small ra-guide-open', t('ra_guide_open'));
+      const openGuide = el('button', 'settings-btn', t('ra_guide_open'));
       openGuide.type = 'button';
       openGuide.addEventListener('click', () => window.RemoteAccessGuide.open());
-      head.appendChild(openGuide);
+      keys.prepend(openGuide);
     }
 
     // On a paired device this whole panel is out of reach, and deliberately so:
@@ -632,7 +643,7 @@
     // endpoint anyway (see init) produced a refusal toast, which reads as a
     // fault rather than as a rule — the panel looked broken instead of closed.
     if (st.remote) {
-      page.appendChild(el('p', 'ra-pc-only', t('ra_pc_only')));
+      access.append(keys, el('p', 'settings-note', t('ra_pc_only')));
       // The ONE thing this panel can still offer a phone, and the right place
       // for it: notifications are a property of THIS browser, not of the PC, so
       // they can only be switched on from the device that will receive them.
@@ -650,9 +661,11 @@
     // of the same toggle, is a page arguing with itself. The device list stays —
     // it is the answer to "did it work", which the guide asks the user to check.
     if (window.RemoteAccessGuide && window.RemoteAccessGuide.isOpen()) {
+      access.appendChild(keys);
       page.appendChild(window.RemoteAccessGuide.render({
         st,
         act,
+        switchRow,
         pairingSheet,
         httpsFailure,
         setupProgress,
@@ -666,28 +679,17 @@
     }
 
     // ── The opt-in ──
-    const row = el('label', 'ra-toggle-row');
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.checked = st.enabled === true;
-    toggle.addEventListener('change', () => {
+    access.appendChild(switchRow(t('ra_enable'), t('ra_enable_hint'), st.enabled === true, (toggle) => {
       const value = toggle.checked;
       toggle.disabled = true;
       act('/api/remote-access/enable', { value });
-    });
-    const knob = el('span', 'ra-toggle-knob');
-    const labels = el('span', 'ra-toggle-text');
-    labels.appendChild(el('strong', null, t('ra_enable')));
-    labels.appendChild(el('span', 'ra-toggle-hint', t('ra_enable_hint')));
-    row.appendChild(toggle);
-    row.appendChild(knob);
-    row.appendChild(labels);
-    page.appendChild(row);
+    }));
+    access.appendChild(keys);
 
     if (st.enabled !== true) {
       // Off is the resting state, and the page says what turning it on means
       // rather than hiding the consequence behind the switch.
-      page.appendChild(el('p', 'ra-note', t('ra_off_note')));
+      access.appendChild(el('p', 'settings-note', t('ra_off_note')));
       mount.appendChild(page);
       stopTick();
       return;
@@ -695,61 +697,16 @@
 
     // ── No usable address ──
     if (!Array.isArray(st.addresses) || !st.addresses.length) {
-      page.appendChild(el('p', 'ra-warn', t('ra_no_network')));
+      access.appendChild(el('p', 'settings-note settings-note-warn', t('ra_no_network')));
       mount.appendChild(page);
       stopTick();
       return;
     }
 
-    // ── The secure door (T2) ──
-    // A second switch rather than a replacement: it can fail for reasons that
-    // have nothing to do with pairing, and turning it off must never take the
-    // LAN door down with it.
-    // Off Windows there is no door to open: bringing it up installs and
-    // supervises Tailscale through winget and elevated PowerShell. The whole
-    // block is skipped rather than rendered and refused — the plain-HTTP door
-    // above is untouched and is what those platforms pair on.
-    const httpsUi = st.httpsSupported !== false;
-    const tls = st.https || {};
-    const httpsRow = el('label', 'ra-toggle-row');
-    const httpsToggle = document.createElement('input');
-    httpsToggle.type = 'checkbox';
-    httpsToggle.checked = st.httpsEnabled === true;
-    httpsToggle.addEventListener('change', () => {
-      httpsToggle.disabled = true;
-      act('/api/remote-access/https', { value: httpsToggle.checked });
-    });
-    const httpsText = el('span', 'ra-toggle-text');
-    httpsText.appendChild(el('strong', null, t('ra_https')));
-    httpsText.appendChild(el('span', 'ra-toggle-hint', t('ra_https_hint')));
-    httpsRow.appendChild(httpsToggle);
-    httpsRow.appendChild(el('span', 'ra-toggle-knob'));
-    httpsRow.appendChild(httpsText);
-    if (httpsUi) page.appendChild(httpsRow);
+    // ── The live pairing invitation and the paired devices ──
+    appendDevices(page, st, pairingSheet(st));
 
-    const setup = st.httpsSetup || {};
-    if (!httpsUi) {
-      // Reserved for a platform that genuinely cannot run the door. macOS and
-      // Linux can: they have the same Tailscale CLI, so they get the same panel.
-    } else if (setup.running) {
-      // A setup is under way. Show the step it is on and nothing else: while the
-      // job is driving, offering the manual instructions as well would be two
-      // sets of directions at once.
-      page.appendChild(setupProgress(setup));
-    } else if (st.httpsEnabled === true && !tls.running) {
-      page.appendChild(httpsFailure(st));
-    } else if (tls.running) {
-      const on = el('p', 'ra-https-on');
-      on.appendChild(el('span', null, t('ra_https_url') + ' '));
-      on.appendChild(el('code', null, tls.url));
-      page.appendChild(on);
-      page.appendChild(el('p', 'ra-note', t('ra_https_pair_note')));
-      // Up on this PC is only half of it — the phone still needs the same app,
-      // the same account and its VPN switch on, or the address does not resolve
-      // there at all. That is the step people get stuck on, so it is stated
-      // exactly where they are about to hit it.
-      page.appendChild(el('p', 'ra-note', t('ra_https_phone_note')));
-    }
+    appendAwayFromHome(page, st);
 
     // Notifications sit under the HTTPS block because that is what unlocks
     // them: on the plain-HTTP door the browser will not deliver one whatever
@@ -757,32 +714,63 @@
     // treat as secure, so it works here too.
     appendNotifications(page);
 
-    // ── The live pairing invitation ──
-    page.appendChild(pairingSheet(st));
-
-    // ── Paired devices ──
-    appendDevices(page, st);
-
-    // ── What a paired device can and cannot do ──
-    // Stated in the UI, not only in the code: the boundary is the feature's
-    // main property, and a user who expects Deck keys to work from the phone
-    // should learn it here rather than by tapping one and getting nothing.
-    const limits = el('div', 'ra-limits');
-    limits.appendChild(el('h4', 'ra-limits-title', t('ra_limits_title')));
-    const canList = el('ul', 'ra-limits-list can');
-    for (const key of ['ra_can_1', 'ra_can_2', 'ra_can_3']) canList.appendChild(el('li', null, t(key)));
-    limits.appendChild(canList);
-    const cantList = el('ul', 'ra-limits-list cant');
-    for (const key of ['ra_cant_1', 'ra_cant_2', 'ra_cant_3']) cantList.appendChild(el('li', null, t(key)));
-    limits.appendChild(cantList);
-    // The cleartext caveat is true of the LAN door and stops being true the
-    // moment the secure one is up. Leaving it on screen either way would be the
-    // panel contradicting itself.
-    if (!(st.https && st.https.running)) limits.appendChild(el('p', 'ra-note', t('ra_http_note')));
-    page.appendChild(limits);
+    appendLimits(page, st);
 
     mount.appendChild(page);
     syncTick();
+  }
+
+  // The secure door (T2). A second switch rather than a replacement: it can fail
+  // for reasons that have nothing to do with pairing, and turning it off must
+  // never take the LAN door down with it. Skipped, not refused, on a platform
+  // that cannot run it: the plain-HTTP door above is what those pair on.
+  function appendAwayFromHome(page, st) {
+    if (st.httpsSupported === false) return;
+    const tls = st.https || {};
+    const setup = st.httpsSetup || {};
+    const box = section(t('ra_guide_group_away'));
+    box.appendChild(switchRow(t('ra_https'), t('ra_https_hint'), st.httpsEnabled === true, (toggle) => {
+      toggle.disabled = true;
+      act('/api/remote-access/https', { value: toggle.checked });
+    }));
+    if (setup.running) {
+      // A setup is under way. Show the step it is on and nothing else: while the
+      // job is driving, offering the manual instructions as well would be two
+      // sets of directions at once.
+      box.appendChild(setupProgress(setup));
+    } else if (st.httpsEnabled === true && !tls.running) {
+      box.appendChild(httpsFailure(st));
+    } else if (tls.running) {
+      box.appendChild(addressRow(t('ra_https_url'), tls.url));
+      box.appendChild(el('p', 'settings-note', t('ra_https_pair_note')));
+      // Up on this PC is only half of it — the phone still needs the same app,
+      // the same account and its VPN switch on, or the address does not resolve
+      // there at all. That is the step people get stuck on, so it is stated
+      // exactly where they are about to hit it.
+      box.appendChild(el('p', 'settings-note', t('ra_https_phone_note')));
+    }
+    page.appendChild(box);
+  }
+
+  // What a paired device can and cannot do. Stated in the UI, not only in the
+  // code: a user who expects something from the phone should learn it here rather
+  // than by tapping it and getting nothing.
+  function appendLimits(page, st) {
+    const box = section();
+    const more = el('details', 'settings-expander');
+    const name = el('summary');
+    name.appendChild(el('span', 'settings-label-line', t('ra_limits_title')));
+    const list = el('ul', 'settings-expander-list');
+    for (const key of ['ra_can_1', 'ra_can_2', 'ra_can_3', 'ra_cant_1', 'ra_cant_2', 'ra_cant_3']) {
+      list.appendChild(el('li', null, t(key)));
+    }
+    // The cleartext caveat is true of the LAN door and stops being true the
+    // moment the secure one is up. Leaving it on screen either way would be the
+    // panel contradicting itself.
+    if (!(st.https && st.https.running)) list.appendChild(el('li', null, t('ra_http_note')));
+    more.append(name, list);
+    box.appendChild(more);
+    page.appendChild(box);
   }
 
   function init() {

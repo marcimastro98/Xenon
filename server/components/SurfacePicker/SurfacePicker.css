@@ -1,53 +1,86 @@
-/* "Where do you want Xenon?" — the first-run screen choice (surface-picker.js).
-   Two cards, one question, shown once. Sits above the tour so the tour that
-   follows is about a dashboard the user has already placed.
+/* "Where do you want Xenon?": the first-run screen choice (surface-picker.js), for the
+   browser and the shells that draw no widgets; the app asks through usage-ask.js, which
+   shares this overlay. Two cards, one question, shown once. The wallpaper fills the screen,
+   so the first thing anyone sees is the look of a new install, and the words sit on one
+   sheet of glass: the material of the island and the rails, written out here because this
+   overlay stays the same whatever theme is on.
 
    Sized for the Xeneon Edge first: at 2560×720 the whole dialog has to fit in a
    720px-tall viewport with room to breathe, which is why the cards are side by
    side and the copy is short. Below 760px it stacks. */
 
+.sp-overlay,
+.wn-look {
+  --sp-glass: rgba(14, 15, 24, 0.5);
+  --sp-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 60%);
+  --sp-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.26), inset -1px -1px 0 rgba(255, 255, 255, 0.1);
+  --sp-lift: 0 24px 64px rgba(3, 4, 10, 0.42);
+  --sp-blur: blur(32px) saturate(1.8);
+  --sp-well: rgba(255, 255, 255, 0.07);
+  --sp-well-hover: rgba(255, 255, 255, 0.11);
+  --sp-on: rgba(255, 255, 255, 0.17);
+  --sp-line: rgba(255, 255, 255, 0.2);
+  --sp-text: #f2f4f3;
+  --sp-muted: rgba(242, 244, 243, 0.76);
+  --sp-focus: rgba(255, 255, 255, 0.7);
+}
 .sp-overlay {
   position: fixed;
   inset: 0;
   z-index: 4100; /* above the tour, which must not start on top of this */
   display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(4, 6, 7, 0.74);
-  backdrop-filter: blur(10px) saturate(120%);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  place-items: safe center;
+  padding: clamp(16px, 3vmin, 48px);
+  overflow-y: auto;
+  background: linear-gradient(rgba(8, 10, 22, 0.3) 0 0), #161c30 url("../../assets/wallpapers/dusk.webp") center / cover no-repeat;
   animation: sp-fade 0.22s ease both;
   overscroll-behavior: contain;
+}
+body.low-power-gpu .sp-overlay,
+body.low-power-gpu .wn-look {
+  --sp-glass: rgba(20, 22, 34, 0.9);
+  --sp-blur: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sp-overlay,
+  .wn-look {
+    --sp-glass: rgb(20, 22, 34);
+    --sp-sheen: none;
+    --sp-blur: none;
+  }
 }
 @keyframes sp-fade { from { opacity: 0; } to { opacity: 1; } }
 
 .sp-box {
   width: min(880px, 100%);
-  /* Never taller than the viewport, and scroll inside rather than pushing the
-     buttons off a 720px panel. */
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
   padding: clamp(20px, 3vw, 30px);
-  border-radius: 20px;
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-  background: var(--panel-bg, rgba(18, 20, 22, 0.94));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  background: var(--sp-sheen), var(--sp-glass);
+  -webkit-backdrop-filter: var(--sp-blur);
+  backdrop-filter: var(--sp-blur);
+  color: var(--sp-text);
+  font-family: var(--wn-body);
+  box-shadow: var(--sp-rim), var(--sp-lift);
   text-align: center;
 }
 
+.sp-bit { display: block; flex: none; width: 60px; aspect-ratio: 18 / 17; }
+.sp-bit .xbit { display: block; width: 100%; height: 100%; }
+.sp-box .sp-bit { margin: 0 auto 10px; }
+
 .sp-box h2 {
   margin: 0;
-  font-size: clamp(20px, 2.4vw, 27px);
+  font-family: var(--wn-display);
+  font-size: clamp(24px, 2.6vw, 30px);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text, #f0f3f1);
+  color: var(--sp-text);
 }
 .sp-sub {
   margin: 8px auto 0;
   max-width: 54ch;
   font-size: 14px;
   line-height: 1.55;
-  color: var(--text-dim, #9aa8a1);
+  color: var(--sp-muted);
 }
 
 .sp-cards {
@@ -66,15 +99,14 @@
   flex-direction: column;
   gap: 10px;
   padding: 18px 18px 16px;
-  border-radius: 15px;
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  background: var(--sp-well);
 }
 .sp-card-head { display: flex; align-items: center; gap: 10px; }
-.sp-card-head svg { width: 20px; height: 20px; flex: none; color: var(--accent, #1ed760); }
-.sp-card-head b { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
-.sp-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text-dim, #9aa8a1); }
-.sp-note { font-size: 12px; line-height: 1.5; color: var(--text-faint, #66736c); }
+.sp-card-head svg { width: 20px; height: 20px; flex: none; color: var(--sp-text); }
+.sp-card-head b { font-size: 16px; font-weight: 700; color: var(--sp-text); }
+.sp-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--sp-muted); }
+.sp-note { font-size: 12px; line-height: 1.5; color: var(--sp-muted); }
 
 /* The monitor list. Rows, not a dropdown: on a touchscreen a native select is a
    fiddly target, and there are rarely more than four displays. */
@@ -87,7 +119,7 @@
   /* 44px is the comfortable finger target this dashboard uses everywhere. */
   min-height: 44px;
   padding: 9px 12px;
-  border-radius: 11px;
+  border-radius: 6px;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   background: rgba(255, 255, 255, 0.02);
   color: var(--text, #f0f3f1);
@@ -106,19 +138,28 @@
    and refused rather than quietly offered. */
 .sp-screen:disabled { opacity: 0.45; cursor: not-allowed; }
 .sp-screen-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sp-screen-tag {
-  flex: none;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent, #1ed760);
-  background: rgba(var(--accent-rgb), 0.14);
-}
+.sp-screen-tag { flex: none; font-size: 12.5px; color: var(--accent, #1ed760); }
 
-.sp-go { margin-top: auto; align-self: stretch; justify-content: center; min-height: 42px; }
+/* The dialog is the same whatever theme is on; the rows of Settings → Schermo are not. */
+.sp-box .sp-screen { border-color: var(--sp-line); background: none; color: var(--sp-text); }
+.sp-box .sp-screen:hover:not(:disabled) { border-color: var(--sp-line); background: var(--sp-well-hover); }
+.sp-box .sp-screen.is-on { border-color: var(--wn-main); background: var(--sp-on); }
+.sp-box .sp-screen-tag { color: var(--wn-main); }
+
+.sp-overlay .sp-box .sp-go {
+  margin-top: auto;
+  align-self: stretch;
+  justify-content: center;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--wn-main);
+  color: var(--wn-main-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+/* One green key: "Use this PC" is the answer that needs nothing else. */
+.sp-overlay .sp-box .sp-go-quiet { background: var(--sp-on); color: var(--sp-text); }
 
 /* The same rows inside Settings → Schermo, where the panel spans the full width.
    A 1400px-wide row for "Display 2 — 2560×720" reads as a banner, not a choice. */
@@ -133,14 +174,14 @@
   padding: 8px 14px;
   border: 0;
   background: none;
-  color: var(--text-faint, #66736c);
+  color: var(--sp-muted);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-  border-radius: 9px;
+  border-radius: 4px;
   transition: color 0.18s;
 }
-.sp-later:hover { color: var(--text, #f0f3f1); }
+.sp-later:hover { color: var(--sp-text); }
 
 /* Where the phone answer lands. A brief ring so the panel the user was sent to
    is obviously the one they were sent to. */

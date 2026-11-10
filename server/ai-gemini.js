@@ -62,6 +62,10 @@ const EXCLUDED_SEGMENTS = Object.freeze([
   'computer-use', // gemini-2.5-computer-use-preview-10-2025
   'translate',    // gemini-3.5-live-translate-preview — Live, but only translates
   'customtools',  // gemini-3.1-pro-preview-customtools — its own tool protocol
+  // Nov 2026: in the list as generateContent models, but none can run the chat.
+  'nano-banana',  // gemini-nano-banana-2.1 — makes pictures
+  'omni',         // gemini-omni-1.1-flash — "only supports Interactions API"
+  'transcribe',   // gemini-3.5-transcribe — "Function calling is not enabled"
 ]);
 
 const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
@@ -152,7 +156,7 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 400 || status === 401 || status === 403) {
-    err = new Error('Gemini: the API key is invalid or has no access. Check it in Settings → Xenon AI.');
+    err = new Error('Gemini: the API key is invalid or has no access. Check it in Settings → Bit.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('Gemini: too many requests (rate limit).');
@@ -193,6 +197,41 @@ async function listModels({ apiKey, fetchImpl } = {}) {
   return out;
 }
 
+// Google closes models to new keys while still listing them: gemini-2.5-pro and
+// gemini-2.5-flash-lite answer 404 "no longer available to new users" (4 Nov 2026).
+function isMissingModel(err) {
+  return /not found|not supported|no longer available|NOT_FOUND|404/i.test(String((err && err.message) || ''));
+}
+
+// One retry on another model, then the real error. `alternatives` is a function so
+// the list is only worked out when it is needed.
+async function withFallbackModel(model, alternatives, run) {
+  try {
+    return await run(model);
+  } catch (err) {
+    if (!isMissingModel(err)) throw err;
+    const next = alternatives().find(id => id && id !== model);
+    if (!next) throw err;
+    return run(next);
+  }
+}
+
+// Works down a list of other models after `firstErr`, moving on only while
+// `canMoveOn` says the failure belongs to that model. Flash models can all be
+// overloaded at once while Flash-Lite still answers, so one retry is not enough.
+async function tryOtherModels(models, run, firstErr, canMoveOn) {
+  let lastErr = firstErr;
+  for (const id of new Set(models.filter(Boolean))) {
+    try {
+      return await run(id);
+    } catch (err) {
+      lastErr = err;
+      if (!canMoveOn(err)) break;
+    }
+  }
+  throw lastErr;
+}
+
 module.exports = {
   DEFAULTS,
   ROLES,
@@ -204,4 +243,7 @@ module.exports = {
   familyOf,
   kindOf,
   listModels,
+  isMissingModel,
+  withFallbackModel,
+  tryOtherModels,
 };

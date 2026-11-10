@@ -52,7 +52,7 @@
    that does not exist. */
 .yt-cards {
   flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
-  overflow-y: auto; overscroll-behavior: contain;
+  overflow-y: auto; overscroll-behavior-y: contain;
 }
 .yt-cards::-webkit-scrollbar { width: 6px; }
 .yt-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
@@ -111,6 +111,15 @@ body.layout-editing .yt-card--player.is-vacant { display: flex; }
 .yt-mute, .yt-v-cinema, .yt-v-fill, .yt-v-side, .yt-expand, .yt-out, .yt-stop { order: 3; }
 .yt-now-title { font-size: 0.84rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yt-now-sub { font-size: 0.7rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Channel and queue position are separate spans (setWordParts); a dot sets them apart here, space on Liquid. */
+:root:not([data-style="liquid"]) .yt-now-sub > span + span::before { content: '\00a0· '; }
+/* A narrow tile: the title takes a line of its own, so it reads whole and the
+   buttons stay on one row instead of leaving the last one alone below. */
+@container ytw (max-width: 540px) {
+  .yt-seek-row { order: -1; }
+  .yt-now { order: 0; flex-basis: 100%; }
+  .yt-mute { margin-left: auto; }
+}
 
 .yt-time { font-size: 0.64rem; font-weight: 700; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .yt-seek {
@@ -231,7 +240,7 @@ body.layout-editing .yt-card--player.is-vacant { display: flex; }
    two or three across a wide tile, so the width shows more videos instead of
    stretching a few rows across empty space. */
 .yt-list {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   align-content: start; gap: 6px;
 }
@@ -345,7 +354,10 @@ body.layout-editing .yt-card--player.is-vacant { display: flex; }
   background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.55) 42%, transparent);
   pointer-events: none;
 }
+/* On the picture in every appearance: the bar carries its own light ink, or a light
+   theme writes dark on dark. */
 .yt-wrap.is-overlay .yt-bar {
+  --text: #f2f4f7; --text-dim: #c3c8d1;
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   padding: 0 18px 14px; flex-wrap: wrap;
 }

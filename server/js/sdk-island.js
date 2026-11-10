@@ -266,10 +266,16 @@
 
   function paint(previous) {
     const active = !!current && surfaceAvailable() && sourceEnabled(current.pkgId);
+    const wasLive = document.body.classList.contains('xisland-live');
     document.body.classList.toggle('xisland-live', active);
     // Body-level, because a full-bar activity is a layout question for the whole
     // top row, not just for the capsule element.
     document.body.classList.toggle('xisland-full', active && !!(current.view && current.view.layout === 'full'));
+    // The tiles' cutouts glide to the capsule's shape and back to the pill's. Only
+    // when the island changes hands: a line that merely updates is a plain resize.
+    if (active !== wasLive && window.TopbarMinimal && typeof window.TopbarMinimal.followIsland === 'function') {
+      window.TopbarMinimal.followIsland();
+    }
     if (!active) { clearUi(); return; }
     ensureUi();
     const host = ui.host;

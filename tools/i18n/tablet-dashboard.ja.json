@@ -16,7 +16,7 @@
     "tab.how.p2": "表示されるのはリモコンではなく本物のダッシュボードです。モニターと同じタイル、同じテーマ、同じページが、タブレットの形に合わせて並べ直されます。タッチする部分は指で押しやすい大きさです。",
     "tab.h.setup": "設定方法",
     "tab.setup.1": "PC で <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a> をダウンロードして実行し、アプリに聞かれたら <strong>Complete setup</strong> を押します。これは一度だけです。",
-    "tab.setup.2": "設定 → <strong>リモート操作</strong> → <strong>スマホからのアクセス</strong> を開き、<strong>他のデバイスからのアクセスを許可</strong> をオンにして <strong>デバイスを追加</strong> を押します。PC に QR コードが表示されます。",
+    "tab.setup.2": "設定 → <strong>スマートフォン</strong> → <strong>スマホからのアクセス</strong> を開き、<strong>他のデバイスからのアクセスを許可</strong> をオンにして <strong>デバイスを追加</strong> を押します。PC に QR コードが表示されます。",
     "tab.setup.3": "タブレットのカメラをコードに向けます。タブレットのブラウザでダッシュボードが開きます。全画面で使いたい場合はホーム画面に追加してください。",
     "tab.setup.4": "PC に余っているモニターがまったくない場合は、初回起動時に、PC には何も表示しないよう Xenon に伝えてください。タブレットが唯一の画面になります。",
     "tab.setup.more": "<a href=\"phone.html\">スマートフォンのガイド</a>には同じ手順がスクリーンショット付きで載っていて、家の外からダッシュボードにアクセスする任意の方法も説明しています。",
@@ -36,8 +36,8 @@
     "tab.faq.a5": "はい。有料版も、アカウントも、広告もありません。ソースは非商用ライセンスで GitHub にあります。",
     "tab.cta.h": "Xenon をダウンロード",
     "tab.cta.p": "インストーラーは1つでアカウントは不要、設定は PC に保存されます。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 版と Linux 版のベータ</a>を入手してください。質問は <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> へどうぞ。",
-    "meta.title": "古いタブレットやスマートフォンを PC のダッシュボードに | Xenon",
-    "meta.desc": "使わなくなったタブレットやスマートフォンを PC のタッチパネルに。温度、メディア、マイクのミュート、オーディオの切り替え、キーのグリッド。無料で、端末には何もインストールしません。",
+    "meta.title": "古いタブレットをPCダッシュボードに: 温度、メディア、マクロ",
+    "meta.desc": "古いタブレットやスマホのブラウザで、PCの温度、メディア、マイクのミュート、Deckキーを操作。画面を広げるサブモニターではありません。",
     "ld.q1": "タブレットにアプリは必要ですか？",
     "ld.a1": "いいえ。ブラウザがあれば十分です。ダッシュボードは自宅の Wi-Fi を通じて PC から配信されます。",
     "ld.q2": "古い iPad や Android タブレットでも動きますか？",
@@ -47,6 +47,7 @@
     "ld.q4": "タブレットの代わりにスマートフォンを使えますか？",
     "ld.a4": "はい、同じ方法で使えます。レイアウトはスマートフォンの画面に合わせて並び直します。",
     "ld.q5": "Xenon は無料ですか？",
-    "ld.a5": "はい。有料版も、アカウントも、広告もありません。ソースは非商用ライセンスで GitHub にあります。"
+    "ld.a5": "はい。有料版も、アカウントも、広告もありません。ソースは非商用ライセンスで GitHub にあります。",
+    "tab.pic.alt": "タブレットに表示した Xenon のダッシュボード。音楽、歌詞、システムのグラフ、Deck のキーの一覧"
   }
 }

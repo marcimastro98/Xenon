@@ -137,7 +137,7 @@ function createChroma(opts) {
     title: 'Xenon',
     // Shown to the user inside Razer Synapse, next to every other app asking for
     // Chroma. It says what Xenon is, not which screen it happens to be on.
-    description: 'Xenon dashboard — RGB driven by your PC',
+    description: 'Xenon dashboard: RGB driven by your PC',
     author: { name: 'XenonEdge', contact: 'https://github.com/marcimastro98' },
     device_supported: DEVICES.slice(),
     category: 'application',

@@ -17,11 +17,11 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CW = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
 const SHARE = readFileSync(join(ROOT, 'server', 'js', 'preset-share.js'), 'utf8');
-const CSS = readFileSync(join(ROOT, 'server', 'components', 'CustomWidget', 'CustomWidget.css'), 'utf8');
+const CSS = readFileSync(join(ROOT, 'server', 'components', 'AskSheet', 'AskSheet.css'), 'utf8');
 
 function zIndexOf(css, selector) {
   const at = css.indexOf(selector + ' {');
-  assert.ok(at >= 0, selector + ' not found in CustomWidget.css');
+  assert.ok(at >= 0, selector + ' not found in AskSheet.css');
   const m = css.slice(at, at + 260).match(/z-index:\s*(\d+)/);
   assert.ok(m, 'no z-index on ' + selector);
   return Number(m[1]);
@@ -31,11 +31,9 @@ function zIndexOf(css, selector) {
 const PRESET_MODAL_Z = 2000;
 
 test('every host-drawn decision outranks the modal that can trigger it', () => {
-  for (const sel of ['.cw-perm-backdrop', '.cw-clip-backdrop', '.cw-ext-backdrop']) {
-    assert.ok(
-      zIndexOf(CSS, sel) > PRESET_MODAL_Z,
-      sel + ' must sit above the preset modal or the prompt is invisible',
-    );
+  assert.ok(zIndexOf(CSS, '.ask-overlay') > PRESET_MODAL_Z, 'the window must sit above the preset modal or the prompt is invisible');
+  for (const name of ['cw-perm-backdrop', 'cw-clip-backdrop', 'cw-ext-backdrop']) {
+    assert.ok(CW.includes(`className: '${name}'`), name + ' must open in that window');
   }
 });
 
@@ -119,10 +117,9 @@ test('an empty or all-granted list opens nothing', () => {
 
 test('closePermDialog runs the dialog onClose on every close path', () => {
   const fn = CW.slice(CW.indexOf('function closePermDialog'), CW.indexOf('// ── Clipboard copy confirmation'));
-  assert.match(fn, /_onClose/);
   // Cleared before firing: a callback that re-opens must not re-enter this one.
-  assert.ok(fn.indexOf('bd._onClose = null') < fn.indexOf('after()'), 'clear the handle before running it');
-  assert.match(fn, /try \{ after\(\); \} catch/);
+  assert.ok(fn.indexOf('permOpen = null') < fn.indexOf('onClose()'), 'clear the handle before running it');
+  assert.match(fn, /try \{ onClose\(\); \} catch/);
 });
 
 test('requestGrants is exported on the CustomWidget surface', () => {

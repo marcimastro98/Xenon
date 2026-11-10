@@ -1,12 +1,12 @@
 'use strict';
 // Search widget — a real search surface living on a dashboard page. The tile
 // embeds its own instance of the Spotlight engine (Spotlight.createSearchUI):
-// you type IN the tile, results and the AI mode live IN the tile, nothing
-// jumps to an overlay. At rest it still costs nothing — an idle input plus
+// you type IN the tile, results live IN the tile, nothing jumps to an overlay.
+// Bit on the bar opens the chat. At rest it still costs nothing — an idle input plus
 // quick filter chips (Foto / Documenti / Recenti); the first fetch happens on
 // the first keystroke. Files recently opened from Xenon are NOT listed here by
 // default: the tile sits on a dashboard other people can see, a paired phone
-// included. Settings → Search and disk turns them on (searchSettings.
+// included. Settings → Search & disk turns them on (searchSettings.
 // recentInTile); the Spotlight popup on the PC always shows them.
 (function () {
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -19,7 +19,7 @@
     if (!window.Spotlight || typeof Spotlight.createSearchUI !== 'function') return;
 
     // The live surface (bar + chips + status + results) — state classes
-    // (spot-expanded, spot-ai, …) land on this container, so the shared
+    // (spot-expanded, spot-loading) land on this container, so the shared
     // Spotlight rules apply scoped to the tile.
     const live = document.createElement('div');
     live.className = 'searchw-live';
@@ -32,6 +32,7 @@
       stateHost: live,
       keyHost: live,
       withClose: false,
+      onChat: Spotlight.chatHandler(),
       onClose: () => ui.reset(),          // Escape clears the tile search
       onExpand: (expanded) => { idle.hidden = expanded; },
       showRecent: () => {

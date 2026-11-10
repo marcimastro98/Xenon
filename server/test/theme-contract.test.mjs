@@ -132,42 +132,52 @@ test('Comic Deck ambient motion is transform-only and has reduced-motion exits',
   }
 });
 
-test('Comic Deck editor uses a paper dialog while preserving the modal backdrop', () => {
+test('Comic Deck windows are paper, with the theme Text on them and the backdrop of the other windows', () => {
   const css = read('styles', 'themes-comic.css');
   assert.match(css, /\.deck-style-dialog[\s\S]*background:\s*var\(--comic-paper-fill\)/);
-  assert.match(css, /\.deck-style-modal[\s\S]*color-mix\(in srgb, var\(--comic-ink\)/);
-  assert.match(css, /\.deck-seg button\.active[\s\S]*color:\s*var\(--comic-ink\)/);
+  const skin = css.slice(0, css.indexOf('.deck-root[data-capstyle="vivid"]'));
+  assert.ok(!skin.includes('--text: var(--comic-ink)'), 'the ink is Lines & borders, dim on Auto: words stay the theme Text');
+  assert.doesNotMatch(css, /\.deck-style-modal/, 'the overlay stays the one every Deck window has');
+  assert.match(css, /\.deck-seg button\.active \{\s*color:\s*var\(--text\)/);
 });
 
-test('the weather modal owns a dark contract while its tile primitives follow the palette', () => {
-  const wx = read('components', 'WeatherModal', 'WeatherModal.css');
-  const light = read('styles', 'themes-light.css');
-
-  // The panel is a dark island under every palette, so its contract must not sit
-  // behind an appearance gate — Comic Book and Light both fed it paper-tuned
-  // status colours, which sank the metric values into the glass.
-  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--text:\s*#ffffff/);
-  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-warn:\s*var\(--color-warn-ondark/);
-  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-success:\s*var\(--color-success-ondark/);
-  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-danger:\s*var\(--color-danger-ondark/);
-  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-info:\s*var\(--color-info-ondark/);
-  assert.doesNotMatch(light, /\.weather-panel[^}]*--text:/, 'the panel contract moved out of the light gate');
-
-  // The same primitives render inside the dashboard tile, on the widget panel's
-  // paper. They must mix from --text rather than hard-code white.
-  for (const rule of ['.weather-metric-value', '.weather-hour-temp', '.weather-fc-max']) {
-    // Anchor at line start so the severity-scoped `--good .weather-metric-value`
-    // rule, which correctly paints from a status role, is not what we read.
-    const at = wx.indexOf('\n' + rule + ' ');
-    assert.equal(at >= 0, true, rule + ' has a base rule');
-    const decl = wx.slice(at, wx.indexOf('}', at));
-    assert.match(decl, /color:\s*var\(--text\)/, rule + ' follows the surface it is on');
+test('on Comic the ink stays on the lines: words and key marks are the theme Text', () => {
+  const css = read('styles', 'themes-comic.css');
+  const rule = (selector) => css.slice(css.indexOf(selector)).match(/\{[^}]*\}/)?.[0] || '';
+  for (const selector of [
+    ':root[data-style="comic"] :is(.deck-tools, .deck-seg) {',
+    ':root[data-style="comic"] .deck-seg button {',
+    ':root[data-style="comic"] :is(.control-btn, .msp-ctl, .msp-pill, .media-vol-mute) {',
+    ':root[data-style="comic"] .deck-pmenu {',
+    ':root[data-style="comic"] .deck-pmenu-add {',
+  ]) {
+    assert.match(rule(selector), /[^-]color: var\(--text\);/, selector);
   }
-  assert.match(wx, /\.weather-metric\s*\{[\s\S]*background:\s*color-mix\(in srgb, var\(--text\)/);
-  assert.match(wx, /\.weather-metric-label\s*\{[\s\S]*color:\s*color-mix\(in srgb, var\(--text\)/);
-  assert.match(wx, /\.weather-section-title\s*\{[\s\S]*color:\s*color-mix\(in srgb, var\(--text\)/);
-  assert.match(wx, /\.weather-hour-rain\s*\{[\s\S]*color:\s*var\(--color-info\)/);
+  assert.match(rule(':root[data-style="comic"] .control-btn.primary {'), /[^-]color: var\(--on-accent\);/, 'the line on the accent measured 1.9 to 1');
+  assert.doesNotMatch(css, /\.deck-pmenu-(?:pick|input) \{\s*color: var\(--comic-ink\)/);
+});
 
-  // The hero sky is dark in every theme and keeps its literal white on purpose.
-  assert.match(wx, /\.weather-hero-temp\s*\{[\s\S]*color:\s*#fff/);
+test('the first question has one main key: the quiet one is not painted as primary', () => {
+  const js = read('js', 'surface-picker.js');
+  assert.match(js, /go\.className = 'settings-btn primary sp-go';/);
+  assert.match(js, /go\.className = 'settings-btn sp-go sp-go-quiet';/, 'Comic paints every .settings-btn.primary alike');
+});
+
+test('on a light Comic theme the music keys keep the dark paper of their tile', () => {
+  assert.ok(read('styles', 'themes-light.css').includes(':root[data-appearance="light"]:not([data-style="liquid"]) .media-panel {\n  --text: #f3f7f5;'));
+  assert.ok(read('styles', 'themes-comic.css').includes(':root[data-style="comic"][data-appearance="light"] .media-panel { --comic-paper-soft: rgba(15, 20, 19, 0.55); }'), 'light marks on the page paper measured 1:1');
+});
+
+test('the weather window follows the theme like the tile', () => {
+  const wx = read('components', 'WeatherModal', 'WeatherModal.css');
+  const tile = read('components', 'WeatherTile', 'WeatherTile.css');
+  const contract = read('styles', 'theme-contract.css');
+
+  // It used to be a dark island with a painted sky under every palette. It is a sheet now, so
+  // nothing may fix the colour of its words: the theme's surface list paints it.
+  assert.doesNotMatch(wx, /--text:\s*#/);
+  assert.doesNotMatch(wx, /\.weather-metric|\.weather-hero/);
+  assert.doesNotMatch(read('styles', 'themes-light.css'), /\.weather-panel/);
+  assert.match(contract, /\.perf-sheet, \.weather-panel/);
+  assert.match(tile, /\n\.weather-fc-max \{[^}]*color:\s*var\(--text\)/, 'the tile sits on the widget panel\'s paper');
 });

@@ -121,13 +121,15 @@ test('the phone test is about the device, not about the layout', () => {
   assert.equal(pv.isPhoneSized(NaN, NaN), false);
 });
 
-// 'auto' is untouched by the split: nothing about an unattended screen changes.
-test('the automatic answers are exactly what they were', () => {
+// 'auto' on the screens that matter most.
+test('the automatic answers', () => {
   assert.equal(pv.stackMode({ width: 390, height: 844, preference: 'auto' }), 'phone');
-  assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'auto' }), 'tablet');
-  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'phone', 'a vertical Edge');
+  assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'auto' }), 'tablet', 'a short tablet held upright');
+  assert.equal(pv.stackMode({ width: 1024, height: 1366, preference: 'auto' }), 'portrait', 'a tall tablet held upright');
+  assert.equal(pv.stackMode({ width: 1024, height: 768, preference: 'auto' }), 'tablet', 'the same tablet lying down');
+  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'portrait', 'a vertical Edge');
   assert.equal(pv.stackMode({ width: 2560, height: 720, preference: 'auto' }), 'off');
-  assert.equal(pv.stackMode({ width: 1440, height: 2560, preference: 'auto' }), 'off', 'wide enough to keep the grid');
+  assert.equal(pv.stackMode({ width: 1440, height: 2560, preference: 'auto' }), 'portrait', 'a rotated 1440p monitor');
 });
 
 // A `?panel=…` iCUE embed and the Edge preview stage are both narrow for
@@ -155,13 +157,11 @@ test('an unmeasurable viewport never silently restacks the dashboard', () => {
 // hidden`, against 9 at 390px. Nothing adapted between the phone threshold and
 // the desktop one, so a 32px grid column just squeezed every widget.
 
-test('tablets stack in two columns instead of being squeezed', () => {
+test('tablets lying down stack in two columns instead of being squeezed', () => {
   const TABLETS = [
-    { width: 768, height: 1024 },   // iPad
-    { width: 820, height: 1180 },   // iPad Air portrait
-    { width: 834, height: 1112 },   // iPad Pro 10.5
     { width: 1024, height: 768 },   // iPad landscape
     { width: 1080, height: 810 },
+    { width: 1112, height: 834 },   // iPad Pro 10.5 landscape
   ];
   for (const v of TABLETS) {
     assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'tablet',
@@ -170,47 +170,55 @@ test('tablets stack in two columns instead of being squeezed', () => {
   assert.ok(pv.TABLET_MAX_W > pv.PHONE_MAX_W, 'the two bands must not overlap or invert');
 });
 
-// A DISPLAY MOUNTED VERTICALLY gets ONE column, not the tablet's two: a Xeneon
-// Edge stood on its end is 720x2560, so two columns is ~360px each. The ratio is
-// what separates it from a tablet held in portrait: 3.6 against about 1.4.
-//
-// It used to keep the grid entirely, on the reasoning that the owner of a
-// vertical mount had built a layout for that shape. There is one layout, shared
-// by every surface, so that premise was never true and what the rule produced was
-// the landscape layout squeezed into 720px. Reported by a user asking how to
-// mount their screen vertically without the dashboard "scrunching up super tiny".
-test('a DISPLAY mounted vertically stacks into one column, not two', () => {
-  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'phone');
-  assert.equal(pv.stackMode({ width: 1080, height: 3840, preference: 'auto' }), 'phone');
-  // …and a tablet in portrait is nowhere near that ratio, so it still gets two.
-  assert.equal(pv.stackMode({ width: 820, height: 1180, preference: 'auto' }), 'tablet');
-  assert.ok(pv.TALL_DISPLAY_RATIO > 1180 / 820, 'must not claim an iPad in portrait');
-  assert.ok(pv.TALL_DISPLAY_RATIO < 2560 / 720, 'must claim a vertical Edge');
-});
-
-// The width rule is checked BEFORE the ratio one, and that order is the policy:
-// a tall panel wide enough for the grid keeps it. Turning a screen does not make
-// its columns narrower, so a width that read before still reads — restacking
-// there would take away a layout that works.
-test('a tall panel wide enough for the grid keeps the grid', () => {
-  for (const v of [{ width: 1440, height: 3840 }, { width: 1440, height: 2560 }, { width: 2160, height: 3840 }]) {
-    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'off',
-      v.width + 'x' + v.height + ' is narrow in shape but not in pixels');
+// Every screen clearly taller than wide, tall enough and not a phone gets the
+// vertical layout: the grid, with geometry made for that shape (js/dashboard-portrait.js).
+// Stacking a vertical Edge kept each tile's landscape height over three times
+// the screen, reported as the dashboard "scaling a bit weird".
+test('a screen taller than wide gets the vertical layout', () => {
+  const VERTICAL = [
+    { width: 720, height: 2560 },   // Xeneon Edge, 100%
+    { width: 576, height: 2048 },   // the same at 125%
+    { width: 480, height: 1707 },   // 150%: narrower than a phone, still a panel
+    { width: 360, height: 1280 },   // 200%
+    { width: 1080, height: 1920 },  // rotated 1080p monitor
+    { width: 1440, height: 2560 },
+    { width: 2160, height: 3840 },
+    { width: 1024, height: 1366 },  // iPad Pro 12.9 upright
+  ];
+  for (const v of VERTICAL) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'portrait', v.width + 'x' + v.height);
   }
 });
 
-// The boundary itself, both sides. It is TABLET_MAX_W and nothing else: a second
-// threshold that applied only to tall screens would make the same 1200px-wide
-// dashboard stack or not depending on how much empty space sat under it. Pinned
-// because the changelog first claimed 1440, a number taken from an EXAMPLE in the
-// comment above the ratio, and nothing in the suite probed the band between.
-test('the tall rule hands over to the grid at the tablet boundary, not lower', () => {
-  const tall = (w) => pv.stackMode({ width: w, height: w * 3, preference: 'auto' });
-  assert.equal(tall(pv.TABLET_MAX_W), 'phone', 'the last width in the band still stacks');
-  assert.equal(tall(pv.TABLET_MAX_W + 1), 'off', 'one pixel wider keeps the grid');
-  for (const w of [1200, 1280, 1366, 1439]) {
-    assert.equal(tall(w), 'off', w + 'px is above the band, so a tall panel keeps the grid');
+// One vertical page holds a landscape page's tiles one under the other; a short
+// upright screen would squeeze them under what their content needs, so it keeps
+// the tablet band, which scrolls.
+test('a short upright screen keeps the tablet band', () => {
+  for (const v of [{ width: 768, height: 1024 }, { width: 820, height: 1180 }, { width: 834, height: 1112 }]) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'tablet', v.width + 'x' + v.height);
   }
+  assert.ok(pv.PORTRAIT_MIN_H <= 1280, 'a vertical Edge at 200% is still a vertical screen');
+});
+
+// A desktop window a little taller than wide is not a vertical screen, and a
+// phone is a phone even at a foldable's cover-screen ratio.
+test('the vertical layout needs a clearly vertical shape, and never takes a phone', () => {
+  assert.equal(pv.stackMode({ width: 1300, height: 1400, preference: 'auto' }), 'off', 'nearly square desktop window');
+  assert.equal(pv.stackMode({ width: 1000, height: 1100, preference: 'auto' }), 'tablet', 'nearly square small window');
+  for (const v of [{ width: 390, height: 844 }, { width: 411, height: 960 }, { width: 344, height: 882 }, { width: 320, height: 870 }]) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'phone', v.width + 'x' + v.height);
+  }
+  assert.ok(pv.PANEL_RATIO > 870 / 320, 'the tallest phone screens stay phones');
+  assert.ok(pv.PANEL_RATIO < 2560 / 720, 'a vertical Edge is a panel');
+  assert.ok(pv.PORTRAIT_RATIO < 1024 / 768, 'a 3:4 tablet upright is vertical');
+});
+
+// "In colonna" on a narrow vertical panel is the plain column, not the phone's
+// chrome: the panel is not held in a hand.
+test('a narrow panel set to one column keeps the ordinary chrome', () => {
+  assert.equal(pv.stackMode({ width: 480, height: 1707, preference: 'on' }), 'column');
+  assert.equal(pv.stackMode({ width: 390, height: 844, preference: 'on' }), 'phone');
+  assert.equal(pv.isPhoneSized(480, 1707), false);
 });
 
 test('a phone on its side is answered phone, never tablet', () => {
@@ -230,6 +238,7 @@ test('desktops are left alone entirely', () => {
 
 test('the preference and the embed rule still beat every measurement', () => {
   assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'off' }), 'off');
+  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'off' }), 'off', 'the landscape grid, by choice');
   assert.equal(pv.stackMode({ width: 2560, height: 1440, preference: 'on' }), 'column');
   for (const pref of ['auto', 'on', 'off']) {
     assert.equal(pv.stackMode({ width: 768, height: 1024, preference: pref, embedded: true }), 'off', pref);

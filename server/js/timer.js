@@ -3,7 +3,7 @@
 // ── Timer module ──────────────────────────────────────────────────
 // Countdown timers: create, pause, resume, reset, delete.
 // Server stores state; client renders and ticks locally for smooth display.
-// AI can create/list/delete timers via function calling (start_timer, list_timers,
+// AI can create/list/control/delete timers via function calling (start_timer, list_timers, control_timer,
 // delete_timer → triggers 'refresh_timers' clientAction).
 
 let _timerState = [];          // local mirror of server timer list
@@ -91,11 +91,11 @@ function _updateTimerDisplays() {
     const reading = _getReading(timer);
     // Use data-timer-time / data-timer-arc so updates reach all instances
     // (clones have their IDs stripped by stripCloneFor, but data attrs survive).
-    document.querySelectorAll(`[data-timer-time="${timer.id}"]`).forEach(el => {
+    document.querySelectorAll(`[data-timer-time="${cssId(timer.id)}"]`).forEach(el => {
       el.textContent = _formatTime(reading, sw);
     });
     const r = 20, circ = 2 * Math.PI * r;
-    document.querySelectorAll(`[data-timer-arc="${timer.id}"]`).forEach(arc => {
+    document.querySelectorAll(`[data-timer-arc="${cssId(timer.id)}"]`).forEach(arc => {
       // A stopwatch has no end to draw a fraction of, so its ring sweeps once a
       // minute: a moving second hand rather than a progress bar with no total.
       const pct = sw ? (1 - (reading % 60) / 60) : (1 - (reading / timer.durationSecs));
@@ -157,9 +157,9 @@ function _buildTimerCard(timer) {
   let actionBtn = '';
   if (!isDone) {
     if (timer.status === 'running') {
-      actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">${SVG_PAUSE}</button>`;
+      actionBtn = `<button class="timer-btn timer-pause-btn" data-timer-action="pause" title="${pauseTip}">${SVG_PAUSE}</button>`;
     } else {
-      actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
+      actionBtn = `<button class="timer-btn timer-resume-btn" data-timer-action="resume" title="${resumeTip}">${SVG_PLAY}</button>`;
     }
   }
   // Stop is offered only where it would change something: never on a finished
@@ -168,10 +168,10 @@ function _buildTimerCard(timer) {
   // its elapsed reads, because stopping it is the point.
   const atFull = timer.status !== 'running' && (timer.pausedElapsed || 0) < 1;
   const stopBtn = (!isDone && !atFull)
-    ? `<button class="timer-btn timer-stop-btn" onclick="timerStop('${tid}')" title="${stopTip}">${SVG_STOP}</button>`
+    ? `<button class="timer-btn timer-stop-btn" data-timer-action="stop" title="${stopTip}">${SVG_STOP}</button>`
     : '';
-  const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
-  const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
+  const resetBtn  = `<button class="timer-btn timer-restart-btn" data-timer-action="restart" title="${resetTip}">${SVG_RESTART}</button>`;
+  const deleteBtn = `<button class="timer-btn timer-delete-btn" data-timer-action="delete" title="${delTip}">${SVG_DELETE}</button>`;
 
   // Use data-timer-arc / data-timer-time so _updateTimerDisplays reaches these
   // elements across all instances (ids get stripped from clones).
@@ -199,7 +199,35 @@ function _buildTimerCard(timer) {
   return card;
 }
 
+// The card buttons carry data-timer-action and the card its data-timer-id; one
+// document-level listener runs them. Inline onclick="timerPause('<id>')" put the
+// id into markup that the browser decodes before running, so a quote in an id
+// (from a restored backup, say) was script. Delegating from the document also
+// covers cloned tiles, whose cards a cloneNode would copy without listeners.
+const TIMER_ACTIONS = {
+  pause: (id) => timerPause(id),
+  resume: (id) => timerResume(id),
+  stop: (id) => timerStop(id),
+  restart: (id) => timerRestart(id),
+  delete: (id) => timerDelete(id),
+};
+let _timerActionsWired = false;
+function _wireTimerActions() {
+  if (_timerActionsWired) return;
+  _timerActionsWired = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('.timer-card [data-timer-action]') : null;
+    if (!btn) return;
+    const card = btn.closest('.timer-card');
+    const id = card && card.dataset.timerId;
+    const action = btn.dataset.timerAction;
+    if (!id || !Object.prototype.hasOwnProperty.call(TIMER_ACTIONS, action)) return;
+    TIMER_ACTIONS[action](id);
+  });
+}
+
 function renderTimers() {
+  _wireTimerActions();
   // Render into every timer instance (primary widget + clones).
   document.querySelectorAll('[data-timerf="list"]').forEach(list => {
     list.innerHTML = '';
@@ -343,20 +371,14 @@ function _patchTimer(id, action) {
 // the clock keeps running, and marking it done would stop the thing the person
 // asked to keep going.
 function onTimerChime(id, label, every) {
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the main dashboard chimes; a second chime would double it
   fetch('/api/chime', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind: 'wake' }),
   }).catch(() => {});
-  if (!window.XenonToast) return;
-  const msg = ((typeof t === 'function' ? t('timer_chime_alert') : '') || 'every {n}')
-    .replace('{n}', _formatTime(Number(every) || 0, true));
-  window.XenonToast.show({
-    type: 'timer',
-    kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
-    title: label || 'Stopwatch',
-    message: msg,
-  });
+  if (!window.XenonToast || !window.AlertToasts) return;
+  window.XenonToast.show(window.AlertToasts.timerChime(label, every, { t }));
 }
 
 function onTimerUpdate(timers) {
@@ -369,6 +391,7 @@ function onTimerDone(id, label) {
   const t = _timerState.find(t => t.id === id);
   if (t) t.status = 'done';
   renderTimers();
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the tile updates here; the chime and toast come from the main dashboard
   // Play chime
   fetch('/api/chime', {
     method: 'POST',
@@ -380,15 +403,7 @@ function onTimerDone(id, label) {
 }
 
 function _showTimerDoneToast(label) {
-  const msg = (typeof t === 'function' ? t('timer_done_alert') : null) || "Time's up!";
-  if (window.XenonToast) {
-    window.XenonToast.show({
-      type: 'timer',
-      kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
-      title: label || 'Timer',
-      message: msg,
-    });
-  }
+  if (window.XenonToast && window.AlertToasts) window.XenonToast.show(window.AlertToasts.timerDone(label, { t }));
 }
 
 // Enter key in duration input
@@ -447,4 +462,11 @@ function setTimerAddCollapsed(collapsed) {
   if (typeof saveDashboardLayout === 'function' && typeof getDashboardLayout === 'function') {
     saveDashboardLayout({ ...getDashboardLayout(), timerAddCollapsed: want }, { status: false });
   }
+}
+
+// An id inside a CSS attribute selector: a stray quote (a restored backup)
+// must not make querySelector throw on every tick.
+function cssId(v) {
+  const s = String(v == null ? '' : v);
+  return (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }

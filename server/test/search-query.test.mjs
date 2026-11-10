@@ -181,5 +181,5 @@ test('the stopword fallback stays out of the way of everything else', () => {
   assert.deepEqual(parse('e').terms, []);
   assert.deepEqual(parse('a').terms, []);
   // And a normal one-word query is unaffected (it was never a stopword).
-  assert.deepEqual(parse('marci').terms, ['marci']);
+  assert.deepEqual(parse('giulia').terms, ['giulia']);
 });

@@ -7,6 +7,11 @@
       "name": "xenon",
       "source": "./integrations/claude-code",
       "description": "Shows this Claude Code session on the Xenon dashboard: subagent models, live context and quota, messages typed on the Claude tile arriving here, a status line under the prompt, a /xenon connection check, and optional approvals from the dashboard."
+    },
+    {
+      "name": "xenon-widgets",
+      "source": "./packages/mcp",
+      "description": "Build your own Xenon widgets: the Widget SDK, a starter, install on the dashboard, the errors it hits and a picture of its tile."
     }
   ]
 }

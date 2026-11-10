@@ -82,7 +82,7 @@ async function mount({ remote = false } = {}) {
   };
   sandbox.window = sandbox;
   sandbox.window.t = (k) => LABELS[k] || '';
-  if (remote) sandbox.window.__xenonRemote = { name: 'iPhone di Marcello' };
+  if (remote) sandbox.window.__xenonRemote = { name: 'iPhone di Luca' };
   vm.createContext(sandbox);
   vm.runInContext(SRC, sandbox, { filename: 'phone-widget.js' });
 

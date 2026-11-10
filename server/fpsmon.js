@@ -23,9 +23,19 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { frameStats, toFrameTimes, cleanFrameTimes, createFrameRing } = require('./frame-stats');
+const { createGameSession } = require('./fps-game-session');
+const { createReaderLog, createStderrTail } = require('./fps-reader-log');
 
 const SAMPLE_WINDOW_MS = 2000;   // a process must have presented this recently
 const MAX_SAMPLES = 240;         // rolling frame-time samples kept per process
+// The lows need a longer tail than the median: 0.1% of 240 frames is a quarter
+// of a frame. ~7 s at 300 fps, ~33 s at 60.
+const STATS_SAMPLES = 2000;
+// Frames kept per process for the readers by mark (game sessions on the 3 s
+// status tick, benchmarks every second): 6000 = nothing lost below 2000 FPS
+// between two looks. The live stats still read the newest STATS_SAMPLES.
+const RING_FRAMES = 6000;
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off hard after repeated instant failures
 const GAMING_GRACE_MS = 10000;   // stay "gaming" briefly after frames stop (anti-flicker)
@@ -59,10 +69,34 @@ function isIgnoredProc(name) {
 // A PresentMode counts as a game only when it uses the flip model typical of
 // full-screen / borderless games ("Hardware: …" exclusive, or any "Independent
 // Flip"). Plain "Composed: …" presents come from windowed desktop apps and
-// browsers and are ignored.
+// browsers and are ignored, except for the game already being tracked.
 function isGamingPresentMode(modeRaw) {
   const mode = normHeader(modeRaw);
   return mode.startsWith('hardware') || mode.includes('independentflip');
+}
+
+const UNREADABLE_NAME = '<error>';
+
+// The game gamedetect already found, whatever way it presents now: a window of
+// ours above it, or the focus elsewhere, makes Windows compose it like a desktop
+// app. By pid too, because a protected process reports its name as "<error>".
+function isTrackedGame(game, pid, name) {
+  if (!game) return false;
+  if (game.pid && String(game.pid) === String(pid)) return true;
+  return !!game.name && name.replace(/.exe$/, '') === game.name;
+}
+
+// "Hardware: Legacy Flip" / "Hardware: Legacy Copy to front buffer": exclusive
+// full screen. Nothing outside the game can draw over it without injecting into
+// it, which Xenon never does, so the overlay says so (exclusive-hint.js).
+function isExclusivePresentMode(modeRaw) {
+  return normHeader(modeRaw).startsWith('hardwarelegacy');
+}
+
+// "Composed: Flip" and the like. "Hardware Composed: Independent Flip" is not:
+// that one is a flip mode, and display tracking reads it whole.
+function isComposedPresentMode(modeRaw) {
+  return normHeader(modeRaw).startsWith('composed');
 }
 
 // Where the single-binary PresentMon CLI is expected to live.
@@ -78,9 +112,10 @@ const PRESENTMON_CANDIDATES = [
 // own name, -stop_existing_session only ever clears a stale session left by a
 // previous unclean Xenon exit — never another tool's.
 const ETW_SESSION_NAME = 'XenonFps';
+const GAME_SESSION_NAME = `${ETW_SESSION_NAME}Game`;
 
 let _proc = null;
-let _cols = null;                // { frameTime, fps, app, pid }
+const _csv = { buffer: '', cols: null };  // what the main process has sent: unfinished line, header
 let _consecutiveFastFails = 0;
 let _stopped = false;            // terminal: server shutting down, never restart
 // Paused starts TRUE: PresentMon runs an admin ETW tracing session, so it stays
@@ -88,10 +123,11 @@ let _stopped = false;            // terminal: server shutting down, never restar
 // down when the last one leaves (pauseFpsMonitor) — no system-wide cost while
 // nobody is watching FPS / game-mode. Distinct from _stopped: pause is reversible.
 let _paused = true;
-let _buffer = '';
 let _restartTimer = null;        // pending relaunch timer, so reload() can pre-empt it
 let _lastGamingAt = 0;           // last time a real app was presenting (for grace window)
 const _byPid = new Map();        // pid -> { name, samples:number[], usesFps:bool, lastSeen:number }
+// PresentMon runs on Windows only: elsewhere this module reads nothing to report.
+const _readerLog = createReaderLog(process.platform === 'win32' ? (line) => console.warn(line) : () => {});
 
 function presentMonPath() {
   for (const candidate of PRESENTMON_CANDIDATES) {
@@ -110,10 +146,10 @@ function isAvailable() {
 // process — until reboot — unless stopped explicitly. logman ships with
 // Windows. Without the admin rights PresentMon needs, no session was ever
 // created and the stop fails; every outcome is deliberately ignored.
-function stopEtwSession() {
+function stopEtwSession(name = ETW_SESSION_NAME) {
   if (process.platform !== 'win32') return;
   try {
-    spawn('logman.exe', ['stop', ETW_SESSION_NAME, '-ets'], { windowsHide: true, stdio: 'ignore' })
+    spawn('logman.exe', ['stop', name, '-ets'], { windowsHide: true, stdio: 'ignore' })
       .on('error', () => { /* ignore */ })
       .unref(); // must never delay server shutdown
   } catch { /* ignore */ }
@@ -170,16 +206,22 @@ function parseHeader(fields) {
 // One CSV row → what it says, or null when the row is not ours to count.
 // Pure, so the whole of "which numbers does a PresentMon line yield" can be
 // pinned without a Windows box and a game running on it.
-function rowValues(cols, fields) {
+function rowValues(cols, fields, game) {
   if (!cols) return null;
   const pidRaw = cols.pid >= 0 ? fields[cols.pid] : '';
   const pid = String(pidRaw || '').trim() || (cols.app >= 0 ? fields[cols.app] : '?');
-  const name = (cols.app >= 0 ? String(fields[cols.app] || '') : '').trim().toLowerCase();
+  let name = (cols.app >= 0 ? String(fields[cols.app] || '') : '').trim().toLowerCase();
   if (isIgnoredProc(name)) return null;
+  // No admin rights, or a protected process: PresentMon cannot read the name. The
+  // window manager is one of those, and it presents as "Hardware: Legacy Flip".
+  if (name === UNREADABLE_NAME) {
+    if (!isTrackedGame(game, pid, name)) return null;
+    name = game.name || '';
+  }
 
   // When PresentMon reports the present mode, keep only flip-model (game) presents
   // so windowed desktop apps and the dashboard's own browser don't count.
-  if (cols.presentMode >= 0 && !isGamingPresentMode(fields[cols.presentMode])) return null;
+  if (cols.presentMode >= 0 && !isGamingPresentMode(fields[cols.presentMode]) && !isTrackedGame(game, pid, name)) return null;
 
   let present = null, usesFps = false;
   if (cols.frameTime >= 0) {
@@ -199,19 +241,51 @@ function rowValues(cols, fields) {
     if (Number.isFinite(dt) && dt > 0 && dt <= 1000) display = dt;
   }
   if (present == null && display == null) return null;
-  return { pid, name, present, display, usesFps };
+  const exclusive = cols.presentMode >= 0 && isExclusivePresentMode(fields[cols.presentMode]);
+  const composed = cols.presentMode >= 0 && isComposedPresentMode(fields[cols.presentMode]);
+  return { pid, name, present, display, usesFps, exclusive, composed };
 }
 
-function handleRow(fields) {
-  const r = rowValues(_cols, fields);
-  if (!r) return;
+function entryFor(r) {
   let entry = _byPid.get(r.pid);
-  if (!entry) { entry = { name: r.name, samples: [], display: [], usesFps: r.usesFps, lastSeen: 0 }; _byPid.set(r.pid, entry); }
+  if (!entry) {
+    entry = { name: r.name, samples: [], display: [], usesFps: r.usesFps, lastSeen: 0, presentRing: createFrameRing(RING_FRAMES), displayRing: createFrameRing(RING_FRAMES) };
+    _byPid.set(r.pid, entry);
+  }
+  return entry;
+}
+
+function record(entry, r) {
   entry.name = r.name || entry.name;
   entry.usesFps = r.usesFps;
-  if (r.present != null) push(entry.samples, r.present);
-  if (r.display != null) push(entry.display, r.display);
+  if (r.present != null) { push(entry.samples, r.present); entry.presentRing.push(r.present); }
+  if (r.display != null) { push(entry.display, r.display); entry.displayRing.push(r.display); }
   entry.lastSeen = Date.now();
+}
+
+function handleRow(fields, game) {
+  const r = rowValues(_csv.cols, fields, game);
+  if (!r) return;
+  if (r.composed && isTrackedGame(game, r.pid, r.name)) _gameFrames.want(r.pid);
+  const entry = entryFor(r);
+  entry.exclusive = r.exclusive;
+  if (!_gameFrames.owns(r.pid)) record(entry, r);
+}
+
+// A row of the second session (fps-game-session.js): every frame, present side
+// only. The rows the main session left behind go, or their gaps of seconds would
+// read as stutter and their display side would win over the complete one.
+function handleGameRow(fields, game) {
+  const r = rowValues(_gameCsv.cols, fields, game);
+  if (!r) return;
+  const entry = entryFor(r);
+  if (entry.displayRing.size()) {
+    entry.samples.length = 0;
+    entry.display.length = 0;
+    entry.presentRing.clear();
+    entry.displayRing.clear();
+  }
+  record(entry, r);
 }
 
 function push(arr, v) {
@@ -219,43 +293,79 @@ function push(arr, v) {
   if (arr.length > MAX_SAMPLES) arr.shift();
 }
 
-function onData(chunk) {
-  _buffer += chunk;
+// Splits a PresentMon stream into rows. `csv` holds what one process has sent so
+// far: the unfinished line and its header.
+function readRows(csv, chunk, onRow) {
+  csv.buffer += chunk;
   let nl;
-  while ((nl = _buffer.indexOf('\n')) >= 0) {
-    const line = _buffer.slice(0, nl).replace(/\r$/, '').trim();
-    _buffer = _buffer.slice(nl + 1);
+  while ((nl = csv.buffer.indexOf('\n')) >= 0) {
+    const line = csv.buffer.slice(0, nl).replace(/\r$/, '').trim();
+    csv.buffer = csv.buffer.slice(nl + 1);
     if (!line) continue;
     const fields = line.split(',');
-    if (!_cols) {
+    if (!csv.cols) {
       // The header is the first line containing recognisable column names.
-      if (/application|processid|presents/i.test(line)) _cols = parseHeader(fields);
+      if (/application|processid|presents/i.test(line)) csv.cols = parseHeader(fields);
       continue;
     }
-    _consecutiveFastFails = 0; // we're getting real data → healthy
-    try { handleRow(fields); } catch { /* ignore a malformed row */ }
+    try { onRow(fields); } catch { /* ignore a malformed row */ }
   }
 }
+
+function onData(chunk) {
+  const game = trackedGame();
+  readRows(_csv, chunk, (fields) => {
+    _consecutiveFastFails = 0; // we're getting real data → healthy
+    _readerLog.rows();
+    handleRow(fields, game);
+  });
+  _gameFrames.tick();
+}
+
+const _gameCsv = { buffer: '', cols: null };
+const _gameFrames = createGameSession({
+  launch: pid => spawn(presentMonPath(), [
+    '-output_stdout', '-stop_existing_session', '-no_top', '-session_name', GAME_SESSION_NAME,
+    '-process_id', pid, '-no_track_display', '-terminate_on_proc_exit',
+  ], { windowsHide: true }),
+  onChunk(text, fresh) {
+    if (fresh) { _gameCsv.buffer = ''; _gameCsv.cols = null; }
+    const game = trackedGame();
+    readRows(_gameCsv, text, fields => handleGameRow(fields, game));
+  },
+  stopTrace: () => stopEtwSession(GAME_SESSION_NAME),
+});
 
 function start() {
   if (_stopped || _paused || process.platform !== 'win32') return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   const exe = presentMonPath();
-  _cols = null;
-  _buffer = '';
+  _csv.cols = null;
+  _csv.buffer = '';
   _byPid.clear(); // fresh PresentMon session → PIDs from the old one are meaningless
   const startedAt = Date.now();
   try {
     _proc = spawn(exe, ['-output_stdout', '-stop_existing_session', '-no_top', '-session_name', ETW_SESSION_NAME], { windowsHide: true });
-  } catch {
+  } catch (e) {
     _proc = null;
+    _readerLog.ended(startedAt, e && e.message);
     scheduleRestart(startedAt);
     return;
   }
-  _proc.stdout.on('data', d => onData(d.toString('utf8')));
-  _proc.stderr.on('data', () => { /* PresentMon logs warnings here; ignore */ });
-  _proc.on('error', () => { _proc = null; scheduleRestart(startedAt); });
-  _proc.on('close', () => { _proc = null; scheduleRestart(startedAt); });
+  // A process killed by pause can close after resume started its successor:
+  // only the current one may feed the parser, clear _proc or schedule a restart.
+  const proc = _proc;
+  const ended = (why) => {
+    if (_proc !== proc) return;
+    _proc = null;
+    _readerLog.ended(startedAt, why);
+    scheduleRestart(startedAt);
+  };
+  proc.stdout.on('data', d => { if (_proc === proc) onData(d.toString('utf8')); });
+  const stderr = createStderrTail();
+  proc.stderr.on('data', (d) => stderr.add(d.toString('utf8')));
+  proc.on('error', (e) => ended((e && e.code) || 'error'));
+  proc.on('close', (code, signal) => ended(stderr.explain(signal || 'code ' + code)));
 }
 
 function scheduleRestart(startedAt) {
@@ -290,6 +400,12 @@ const STALE_ENTRY_MS = 60000;
 // requiring each other is how that ends badly.
 let _foregroundPid = null;       // () => number|0
 function setForegroundPid(fn) { _foregroundPid = typeof fn === 'function' ? fn : null; }
+
+let _trackedGame = null;         // () => { pid, name }|null
+function setTrackedGame(fn) { _trackedGame = typeof fn === 'function' ? fn : null; }
+function trackedGame() {
+  try { return _trackedGame ? _trackedGame() : null; } catch { return null; }
+}
 
 // The process to read the frame rate from. Doubles as the pruning pass: stale
 // PIDs are evicted while we scan, keeping the map bounded to processes that
@@ -337,6 +453,15 @@ function entryFps(entry) {
   return { fps: displayFps != null ? displayFps : presentFps, presentFps, displayFps };
 }
 
+// Frame-time statistics for one entry, from the same side entryFps reports: the
+// display side when the capture carries it, the present side otherwise.
+function entryStats(entry) {
+  if (!entry || !entry.presentRing) return null;
+  if (entry.displayRing.size()) return Object.assign({ side: 'display' }, frameStats(entry.displayRing.last(STATS_SAMPLES)));
+  const s = frameStats(toFrameTimes(entry.presentRing.last(STATS_SAMPLES), entry.usesFps));
+  return s && Object.assign({ side: 'present' }, s);
+}
+
 // The live table's pick. Doubles as the pruning pass: stale PIDs are evicted
 // while we scan, keeping the map bounded to processes that presented recently.
 function _bestEntry() {
@@ -358,6 +483,63 @@ function getCurrentFps() {
 // Either may be null on its own.
 function getFpsDetail() {
   return entryFps(_bestEntry());
+}
+
+// Average, 1% and 0.1% lows and frame-time percentiles of the active game, or
+// null. Computed on demand: nothing here runs per frame except the ring store.
+function getFrameStats() {
+  const best = _bestEntry();
+  const stats = entryStats(best);
+  return stats ? Object.assign({ process: best.name || '', exclusive: best.exclusive === true }, stats) : null;
+}
+
+// The newest `n` frame times (ms, oldest first) of an entry, from the same
+// side entryStats measures, for the performance tile's graph. Null when
+// nothing is measured.
+function entryWindow(entry, n) {
+  if (!entry || !entry.presentRing) return null;
+  if (entry.displayRing.size()) return { side: 'display', frames: entry.displayRing.last(n) };
+  const frames = cleanFrameTimes(toFrameTimes(entry.presentRing.last(n), entry.usesFps));
+  return frames.length ? { side: 'present', frames } : null;
+}
+
+// The same, for the active game.
+function getFrameWindow(n) {
+  return entryWindow(_bestEntry(), n);
+}
+
+// Frame times an entry presented since `mark` (what the last call returned), so
+// a game session can add every frame once. A mark from another entry or side
+// (the game restarted, the capture gained a display column) starts over: those
+// frames are not comparable with the ones already counted. The ring holds
+// RING_FRAMES, so a reader every 3 s misses nothing below 2000 FPS.
+function entryFramesSince(entry, mark) {
+  if (!entry || !entry.presentRing) return { mark: null, frames: [] };
+  const display = entry.displayRing.size() > 0;
+  const ring = display ? entry.displayRing : entry.presentRing;
+  const next = { entry, side: display ? 'display' : 'present', total: ring.total() };
+  if (!mark || mark.entry !== entry || mark.side !== next.side) return { mark: next, frames: [] };
+  const fresh = ring.last(next.total - mark.total);
+  return { mark: next, frames: display ? fresh : cleanFrameTimes(toFrameTimes(fresh, entry.usesFps)) };
+}
+
+// The entry of a named game (lowercase, no .exe, as game detection reports it),
+// not the foreground one: a session keeps counting its game while the user is
+// in another window.
+function entryForGame(byPid, game) {
+  const want = String(game || '').toLowerCase().replace(/\.exe$/, '');
+  if (!want) return null;
+  let found = null;
+  for (const e of byPid.values()) {
+    const name = String(e.name || '').toLowerCase().replace(/\.exe$/, '');
+    if (name === want && (!found || e.lastSeen > found.lastSeen)) found = e;
+  }
+  return found;
+}
+
+function getFramesSince(mark, game) {
+  _bestEntry();   // prunes stale entries
+  return entryFramesSince(entryForGame(_byPid, game), mark);
 }
 
 // Diagnostic: name + fps of the process currently driving game detection, or
@@ -397,14 +579,17 @@ function reload() {
 function pauseFpsMonitor() {
   if (_paused) return;
   _paused = true;
+  _readerLog.reading(false);
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; stopEtwSession(); }
+  _gameFrames.stop();
   _byPid.clear(); // a future session's PIDs are unrelated to this one
 }
 
 function resumeFpsMonitor() {
   if (_stopped) return;
   _paused = false;
+  _readerLog.reading(true);
   _consecutiveFastFails = 0;
   if (!_proc) start();
 }
@@ -413,14 +598,15 @@ function stopFpsMonitor() {
   _stopped = true;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; stopEtwSession(); }
+  _gameFrames.stop();
   _byPid.clear();
 }
 
 module.exports = {
   startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor,
-  getCurrentFps, getFpsDetail, getGamingProcess, setForegroundPid,
+  getCurrentFps, getFpsDetail, getFrameStats, getFrameWindow, getFramesSince, getGamingProcess, setForegroundPid, setTrackedGame,
   isGaming, isAvailable, reload,
   // Pure, and exported so every decision this module makes can be pinned
   // without a Windows box with a game running on it.
-  parseHeader, rowValues, pickEntry, entryFps,
+  parseHeader, rowValues, pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,
 };

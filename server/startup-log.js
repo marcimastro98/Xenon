@@ -98,7 +98,7 @@ function install() {
   if (installed) return;
   installed = true;
   rotate();
-  write(`engine starting — node ${process.version}, pid ${process.pid}, ${process.platform}`);
+  write(`engine starting: node ${process.version}, pid ${process.pid}, ${process.platform}`);
 
   process.on('uncaughtException', (err) => {
     const e = err || {};
@@ -116,7 +116,7 @@ function install() {
     } else if (e.code === 'EADDRINUSE') {
       write('  Port 3030 is already taken by another program. Xenon cannot share it.');
     } else if (e.code === 'EACCES' || e.code === 'EPERM') {
-      write('  Windows refused the operation — an antivirus or a permission on the install folder.');
+      write('  Windows refused the operation: an antivirus or a permission on the install folder.');
     }
     process.exit(1);
   });

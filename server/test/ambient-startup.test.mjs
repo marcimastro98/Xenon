@@ -21,6 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const { ambientStartupDecision } = require('../js/ambient-mode.js');
+const ScreenSceneModel = require('../js/screen-scene-model.js');
 const MODE = read('js', 'ambient-mode.js');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = read('server.js');
@@ -42,24 +43,26 @@ function extractFunction(src, name) {
 const DEFAULTS = "{ ambientMode: { enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false } }";
 
 function clientNormalize() {
-  return new Function([
+  return new Function('ScreenSceneModel', [
     'const AMBIENT_IDLE_MINUTES = [0, 1, 2, 5, 10, 15, 30];',
     'const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;',
+    'const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;',
     `const DEFAULT_HUB_SETTINGS = ${DEFAULTS};`,
     extractFunction(SETTINGS, 'normalizeAmbientMode'),
     'return normalizeAmbientMode;',
-  ].join('\n'))();
+  ].join('\n'))(ScreenSceneModel);
 }
 
 function serverNormalize() {
-  return new Function([
+  return new Function('ScreenSceneModel', [
     'const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);',
     'const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;',
     'const AMBIENT_CANVAS_REF_RE = /^canvas:[a-z0-9][a-z0-9-]{1,40}$/;',
+    'const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;',
     `const DEFAULT_HUB_SETTINGS = ${DEFAULTS};`,
     extractFunction(SERVER, 'normalizeAmbientMode'),
     'return normalizeAmbientMode;',
-  ].join('\n'))();
+  ].join('\n'))(ScreenSceneModel);
 }
 
 const CLEAR = { enabled: true, openOnStartup: true, firstRun: false, open: false, hidden: false, busyBodyClass: false, overlayOpen: false };
@@ -102,7 +105,8 @@ test('a load that runs the first-run questions is skipped, not waited out', () =
   const fn = extractFunction(MODE, 'firstRunPending');
   assert.match(fn, /sp\.shouldAsk\(\)/);
   assert.match(fn, /onb\.isActive\(\)/);
-  assert.match(fn, /Number\(onb\.version\) > seen/);
+  // The tour is offered, it no longer opens by itself: nobody having taken it holds nothing back.
+  assert.doesNotMatch(fn, /getOnboardingSeen/);
   assert.match(read('js', 'surface-picker.js'), /window\.SurfacePicker = \{[^}]*shouldAsk[^}]*isOpen/);
   assert.match(read('js', 'onboarding.js'), /window\.Onboarding = \{[^}]*isActive[^}]*version: ONBOARDING_VERSION/);
 });

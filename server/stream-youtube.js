@@ -48,7 +48,8 @@ function createYouTubeProvider(deps) {
         ok: true,
         deviceCode: data.device_code,
         userCode: data.user_code,
-        verificationUri: data.verification_url || data.verification_uri || 'https://www.google.com/device',
+        // Shown to the user as a link: https only, whatever the service answered.
+        verificationUri: httpsOnly(data.verification_url || data.verification_uri, 'https://www.google.com/device'),
         interval: data.interval || 5,
         expiresIn: data.expires_in,
       };
@@ -80,6 +81,8 @@ function createYouTubeProvider(deps) {
     } catch { return { ok: false, error: 'network' }; }
   }
 
+  // Only a revoked or expired refresh token (invalid_grant) unlinks the account: a
+  // 5xx, a rate limit or a bad client must keep the login, or a hiccup forces a new link.
   async function refresh() {
     const c = await creds();
     if (!c.refreshToken) return false;
@@ -89,9 +92,9 @@ function createYouTubeProvider(deps) {
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) { await clearCreds(); return false; }
-      await persistToken(data);
-      return true;
+      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
+      if (data && String(data.error || '').toLowerCase() === 'invalid_grant') await clearCreds();
+      return false;
     } catch { return false; }
   }
 
@@ -771,3 +774,8 @@ function createYouTubeProvider(deps) {
 }
 
 module.exports = { createYouTubeProvider, normalizeStreamYouTube };
+
+// A link the dashboard shows as-is must be https, never javascript: or data:.
+function httpsOnly(u, fallback) {
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
+}

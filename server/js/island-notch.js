@@ -1,0 +1,196 @@
+// Island notch — the shape a tile takes where the Minimal clock island sits on it.
+//
+// A tile under the floating island used to shrink from the top so its header
+// cleared the clock, which left a dead band beside the island and, when the fit
+// pass missed a beat, nothing at all (the clock simply covered the header). The
+// tile now keeps its full height and the island bites into its top edge: a cutout
+// one ring wider than the island, rounded where it meets the tile, with the tile's
+// own hairline drawn along it. The content starts under the cutout.
+//
+// Pure geometry only, in the tile ITEM's own pixel space (origin at the GridStack
+// item's top-left, the visible tile starting `margin` inside it), so it is unit-
+// testable and the caller decides when to read the DOM. topbar-minimal.js owns
+// the measuring and the writes.
+(() => {
+  'use strict';
+
+  const GAP = 8;        // ring of wallpaper between the island and the tile
+  const SHOULDER = 12;  // radius where the tile's top edge turns into the cutout
+  const SPILL = 48;     // clip reaches this far past the tile, so its shadow stays
+  // Bottom of the clip when the tile height is unknown. Chromium sizes a glass
+  // tile's clip mask to the whole path, so a far-off bottom cost a 36 MB mask per
+  // tile under the island; callers pass the tile's height instead.
+  const FAR = 10000;
+  const MIN_OVERLAP = 12;
+
+  const r1 = (n) => Math.round(n * 2) / 2; // half-pixel steps: stable strings, no churn
+
+  // in: { width, height?, margin, radius, pill: { left, right, bottom, height, radius? } }, every
+  //     number in item-local px (pill already translated into this item's space).
+  // out: null when the island does not sit on this tile, else the cutout:
+  //     left/right walls, bottom, corner radii, which sides run off the tile, and
+  //     `inset`, how far down the content must start.
+  function geometry(m) {
+    if (!m || !m.pill) return null;
+    const width = Number(m.width) || 0;
+    const height = Math.max(0, Number(m.height) || 0);
+    const margin = Math.max(0, Number(m.margin) || 0);
+    const radius = Math.max(0, Number(m.radius) || 0);
+    const p = m.pill;
+    if (!(width > 0) || !(p.right > p.left) || !(p.height > 0)) return null;
+    const tileLeft = margin, tileRight = width - margin;
+    const left = p.left - GAP, right = p.right + GAP, bottom = p.bottom + GAP;
+    if (bottom <= margin + 2) return null;   // the island ends above this tile
+    if (Math.min(right, tileRight) - Math.max(left, tileLeft) < MIN_OVERLAP) return null;
+    // A cutout that reaches the tile's own rounded corner takes the whole corner.
+    const openLeft = left - SHOULDER < tileLeft + radius;
+    const openRight = right + SHOULDER > tileRight - radius;
+    const depth = bottom - margin;
+    // The cutout's corners are the island's own corners plus the ring: a pill is
+    // fully round, a notification card is not, and a rounder cutout than the card
+    // leaves a wedge of wallpaper at its bottom corners.
+    const pillR = Number.isFinite(p.radius) ? Math.min(Math.max(0, p.radius), p.height / 2) : p.height / 2;
+    const cornerR = Math.max(0, Math.min(pillR + GAP, depth, (right - left) / 2));
+    return {
+      left: openLeft ? -SPILL : r1(left),
+      right: openRight ? width + SPILL : r1(right),
+      bottom: r1(bottom),
+      cornerR: r1(cornerR),
+      shoulderL: openLeft ? 0 : SHOULDER,
+      shoulderR: openRight ? 0 : SHOULDER,
+      openLeft, openRight,
+      width, height: Math.ceil(height), margin, radius,
+      inset: Math.ceil(depth),
+    };
+  }
+
+  // The same cutout shrunk to nothing at its own centre: where a notch grows
+  // from and shrinks back into, so it can animate (same commands as clipPath).
+  function collapsed(g) {
+    if (!g) return null;
+    const mid = r1((g.left + g.right) / 2);
+    return { ...g, left: mid, right: mid, bottom: g.margin, cornerR: 0, shoulderL: 0, shoulderR: 0 };
+  }
+
+  // The same cutout as wide as it will be and no depth yet: where a soft opening
+  // starts, so every tile under the island is shaped at once, slowly. Grown from
+  // the centre, a tile beside it stayed whole until the edge swept across it in a
+  // few frames (measured on screen). Corners and shoulders grow in step with the
+  // depth, so they never outgrow it on the way.
+  function flat(g) {
+    if (!g) return null;
+    return { ...g, bottom: g.margin, cornerR: 0, shoulderL: 0, shoulderR: 0 };
+  }
+
+  // The cutout `t` (0..1) of the way from `a` to `b`, for an opening driven frame
+  // by frame (js/topbar-minimal.js openSoftly), which can change target mid-way.
+  const BLEND = ['left', 'right', 'bottom', 'cornerR', 'shoulderL', 'shoulderR'];
+  function between(a, b, t) {
+    if (!a || !b) return b || null;
+    const k = Math.min(1, Math.max(0, Number(t) || 0));
+    const out = { ...b };
+    BLEND.forEach((p) => { out[p] = r1(a[p] + (b[p] - a[p]) * k); });
+    return out;
+  }
+
+  // clip-path for the item. ALWAYS the same command list, whatever the case, so
+  // the browser can interpolate between two cutouts instead of jumping.
+  // `shift` moves the origin by that many px on both axes: surfaceClipPath()
+  // uses it to express the same cutout in the content box, which starts
+  // `margin` inside the item.
+  function clipPath(g, shift = 0) {
+    if (!g) return '';
+    const s = Number(shift) || 0;
+    const { cornerR: R, shoulderL: fl, shoulderR: fr } = g;
+    const a = g.left - s, b = g.right - s, d = g.bottom - s, m = g.margin - s, w = g.width - s;
+    const out = -SPILL - s, far = (g.height > 0 ? g.height + SPILL : FAR) - s;
+    return 'path("'
+      + `M ${out} ${out} H ${a - fl} V ${m} A ${fl} ${fl} 0 0 1 ${a} ${m + fl}`
+      + ` V ${d - R} A ${R} ${R} 0 0 0 ${a + R} ${d} H ${b - R} A ${R} ${R} 0 0 0 ${b} ${d - R}`
+      + ` V ${m + fr} A ${fr} ${fr} 0 0 1 ${b + fr} ${m} V ${out} H ${w + SPILL} V ${far} H ${out} Z`
+      + '")';
+  }
+
+  // The same cutout for the tile's painted SURFACES (panel, picture layer). A
+  // clip-path on the item makes it the backdrop root of everything inside, so a
+  // glass tile under the island blurred an empty backdrop and showed no glass at
+  // all; a glass tile clips its surfaces instead (TopbarMinimal.css).
+  function surfaceClipPath(g) {
+    return g ? clipPath(g, g.margin) : '';
+  }
+
+  // The tile's top hairline, redrawn along the cutout (the tile's own top border
+  // is spent on the content inset). Drawn half a line inside the edge, so a
+  // `line`-px stroke lands exactly where the tile's border would.
+  function edgePath(g, line) {
+    if (!g) return '';
+    const o = Math.max(0, Number(line) || 1) / 2;
+    const { left, right, bottom, cornerR, shoulderL, shoulderR, margin: m, width: w, radius } = g;
+    const top = m + o, tl = m + o, tr = w - m - o;
+    const rt = Math.max(0, radius - o);
+    const a = left - o, b = right + o, d = bottom + o;
+    const R = cornerR + o;
+    // Shoulder radii a half line smaller: same centres as the clip's corners.
+    const sl = Math.max(0, shoulderL - o), sr = Math.max(0, shoulderR - o);
+    // Each closed side keeps its arcs even at radius 0, so a growing or shrinking
+    // cutout keeps one command list and the line can animate with the clip.
+    const head = g.openLeft
+      ? `M ${tl} ${d}`
+      : `M ${tl} ${top + rt} A ${rt} ${rt} 0 0 1 ${tl + rt} ${top} H ${a - sl}`
+        + ` A ${sl} ${sl} 0 0 1 ${a} ${top + sl} V ${d - R} A ${R} ${R} 0 0 0 ${a + R} ${d}`;
+    const tail = g.openRight
+      ? ` H ${tr}`
+      : ` H ${b - R} A ${R} ${R} 0 0 0 ${b} ${d - R} V ${top + sr} A ${sr} ${sr} 0 0 1 ${b + sr} ${top}`
+        + ` H ${tr - rt} A ${rt} ${rt} 0 0 1 ${tr} ${top + rt}`;
+    return head + tail;
+  }
+
+  // The hairline along the cutout carries on the tile's own border. A tile with no
+  // border (the Deck's bare frame) gets none: its computed colour is the text's,
+  // a bright line nothing else on the tile has.
+  function edgeLine(style) {
+    const border = parseFloat(style.borderLeftWidth) || 0;
+    return border > 0 ? { width: Math.max(1, border), color: style.borderLeftColor } : { width: 0, color: 'transparent' };
+  }
+
+  // A tab strip that fits beside the cutout stays at the tile top. Starting the
+  // whole tile under the cutout left an empty band as deep as the island across
+  // a tile the island only bit a corner of, with the tabs floating under it.
+  // in: g from geometry(); bar: { left, right, need, under } in item-local px:
+  //     where the strip starts and may end with nothing cut, the width its tabs
+  //     need, and where the content under it starts.
+  // out: null when it fits on neither side of the cutout, else how far to move
+  //     the strip (`shift`), its widest (`max`), and how far the content under it
+  //     moves down (`under`) to start below the cutout.
+  // The strip keeps one ring (GAP) from the cutout's wall, as from the tile edge.
+  // A side the cutout runs off has its wall past the tile edge, so no room there.
+  function besideBar(g, bar) {
+    if (!g || !bar || !(bar.need > 0) || !(bar.right > bar.left)) return null;
+    const runs = [
+      [bar.left, Math.min(bar.right, g.left - GAP)],
+      [Math.max(bar.left, g.right + GAP), bar.right],
+    ];
+    const run = runs.find(([from, to]) => to - from >= bar.need);
+    if (!run) return null;
+    return {
+      shift: r1(run[0] - bar.left),
+      max: Math.floor(run[1] - run[0]),
+      under: Math.max(0, Math.ceil(g.bottom - bar.under)),
+    };
+  }
+
+  // in: the rects of one page's grid, of that page, and of the pager (viewport px).
+  // out: where that grid sits when its page is the one in view. Pages scroll
+  //     sideways, so the measured grid can be a page away (the first unparked one
+  //     while a just-added widget wakes every page): its offset inside its own
+  //     page, from the pager's left edge, is the same on every page.
+  function gridInView(grid, page, pager) {
+    if (!grid) return null;
+    if (!page || !pager) return grid;
+    return { left: pager.left + (grid.left - page.left), top: grid.top, width: grid.width, height: grid.height };
+  }
+
+  const api = { geometry, collapsed, flat, between, clipPath, surfaceClipPath, edgePath, edgeLine, besideBar, gridInView, GAP };
+  if (typeof window !== 'undefined') window.IslandNotch = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})();

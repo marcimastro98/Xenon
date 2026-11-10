@@ -64,6 +64,4 @@ function install() {
   return inFlight;
 }
 
-function isInstalling() { return !!inFlight; }
-
-module.exports = { install, isInstalling, SDK_DIR };
+module.exports = { install, SDK_DIR };

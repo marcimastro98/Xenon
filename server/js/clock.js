@@ -13,7 +13,8 @@ let _lastH = null, _lastM = null, _lastAmpm = null, _lastDate = null;
 // nonsense in ten of the eleven languages Xenon speaks. Asking Intl for less
 // gets the SHORT form that locale actually uses.
 //
-// 'full' is what the bar has always shown, so it stays the default.
+// A new install starts on 'medium': at 1920 px wide the island then fits the middle
+// tile instead of biting into both neighbours. 'full' is what older installs keep.
 const CLOCK_DATE_SHAPES = Object.freeze({
   full:   { weekday: 'long',  day: '2-digit', month: 'long' },
   medium: { weekday: 'short', day: 'numeric', month: 'short' },

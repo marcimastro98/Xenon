@@ -1,10 +1,10 @@
 {
   "ja": {
-    "meta.title": "Linux 版 Xenon: セカンドスクリーン用ダッシュボード、AppImage、deb、rpm",
-    "meta.desc": "Linux 版 Xenon（ベータ）は、余っている画面のための無料ダッシュボードです。AppImage、.deb、.rpm のダウンロード、初回起動のセットアップ、X11 が必要な機能を説明します。",
+    "meta.title": "Linux版Xenon（ベータ）: AppImage、deb、rpm",
+    "meta.desc": "Linux版Xenon（ベータ）: AppImage、deb、rpm、初回起動、X11とWayland、KDEとGNOMEで動く機能の一覧。",
     "lx.title": "Linux 版 Xenon",
-    "lx.lede": "Xenon は、余っている画面のための無料ダッシュボードです。Linux 版はベータで、ダッシュボードは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。",
-    "lx.updated": "最終更新: 2026年9月26日 · すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています",
+    "lx.lede": "Xenon は、どの画面でも使える無料のPCウィジェットです。Linux 版はベータで、ウィジェットは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。",
+    "lx.updated": "最終更新: 2026年11月8日。すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています。",
     "lx.jump.get": "ダウンロード",
     "lx.jump.setup": "初回起動",
     "lx.jump.works": "動く機能",
@@ -13,7 +13,7 @@
     "lx.req.appimage": "x86_64 のデスクトップならどれでも動きます。<code>chmod +x</code> で実行権限を付けて起動します。",
     "lx.req.deb": "アプリをインストールします。ダッシュボードは初回起動時に、ユーザーごとにセットアップされます。",
     "lx.req.rpm": ".deb と同じ内容で、RPM 系のディストリビューション向けです。",
-    "lx.beta": "Linux 対応は <strong>ベータ</strong> です。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。まだ違うのはマシンを読み取って操作する部分で、下の表にまとめています。GNOME と KDE で動作を確認しています。",
+    "lx.beta": "Linux 対応は <strong>ベータ</strong> です。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。まだ違うのはマシンを読み取って操作する部分で、下の表にまとめています。まだ実際の Linux PC では試しておらず、テスト用のマシンでしか試していません。動かないところがあれば教えてください。",
     "lx.h.setup": "初回起動",
     "lx.setup.p1": "アプリを開きます。初回起動時に、ターミナルのウィンドウでダッシュボードをセットアップするよう提案されます。エンジンをダウンロードし、展開する前にダウンロードを検証し、ログイン時に Xenon が起動するよう <code>systemd --user</code> サービスを登録します。ユーザーマネージャーがない環境では代わりに XDG 自動起動のエントリーを使い、そのことを知らせます。この代替手段ではクラッシュ後に Xenon が再起動しないことも伝えます。",
     "lx.setup.p2": ".deb と .rpm がインストール時にこれを行わないのは意図的です。セットアップが作るものはすべて1つのユーザーアカウントに属しますが、パッケージは root としてマシン全体にインストールされるからです。",
@@ -35,7 +35,7 @@
     "lx.st.mpris": "動作します。MPRIS を使います。",
     "lx.row.fps": "ゲーム内の FPS カウンター",
     "lx.st.mangohud": "動作します。MangoHud を使います。",
-    "lx.row.ai": "Xenon AI、チャット、操作、「Hey Xenon」音声起動",
+    "lx.row.ai": "Bit、チャット、操作、「Hey Bit」音声起動",
     "lx.st.ai": "動作します。クラウドでもローカルでも使えます。",
     "lx.row.lighting": "ネットワーク上のライティング: WLED、Hue、Nanoleaf、OpenRGB",
     "lx.row.services": "配信、Spotify、Discord、Home Assistant",
@@ -61,6 +61,7 @@
     "ld.q3": "Linux で Xenon は自動で起動しますか？",
     "ld.a3": "はい。初回起動時に systemd のユーザーサービスを登録します。ユーザーマネージャーがない環境では、代わりに XDG 自動起動を使います。",
     "ld.q4": "Xenon は Wayland で動きますか？",
-    "ld.a4": "ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。"
+    "ld.a4": "ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。",
+    "lx.pic.alt": "Xenon のダッシュボード。音楽、カレンダー、システムのグラフを1ページに表示"
   }
 }

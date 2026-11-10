@@ -32,20 +32,31 @@ internal static class NotificationHost
     private const int MaxLogoBytes = 96 * 1024;
     private const int IconCacheMax = 64;
     private const int DeniedRecheckMs = 5000;
+    private const int PaceMinMs = 500;
+    private const int PaceMaxMs = 60_000;
 
     private static readonly object OutLock = new();
     private static readonly ManualResetEventSlim ExitRequested = new(false);
     // Per-app logo as a data: URI (or null for "tried, none") — re-decoding the
     // same logo on every toast from the same app is pure waste.
     private static readonly Dictionary<string, string?> IconCache = new();
+    private static volatile int _intervalMs;
 
     public static async Task<int> RunAsync(int intervalMs)
     {
-        // Parent-death watch: the server never writes to stdin; EOF means the
-        // parent is gone (or retiring us) — exit cleanly like the other hosts.
+        _intervalMs = intervalMs;
+        // Parent-death watch: EOF means the parent is gone (or retiring us), so exit
+        // cleanly like the other hosts. The only line the server sends is a new pause
+        // between looks, in milliseconds: slower through a game, each look is a call
+        // into the Windows notification service.
         new Thread(() =>
         {
-            try { while (Console.In.ReadLine() != null) { } } catch { }
+            try
+            {
+                string? line;
+                while ((line = Console.In.ReadLine()) != null) ApplyPace(line);
+            }
+            catch { }
             ExitRequested.Set();
         })
         { IsBackground = true, Name = "stdin-watch" }.Start();
@@ -117,9 +128,14 @@ internal static class NotificationHost
                 // the status probe above will notice and report it.
                 status = ProbeAccessSync(listener);
             }
-            ExitRequested.Wait(intervalMs);
+            ExitRequested.Wait(_intervalMs);
         }
         return 0;
+    }
+
+    private static void ApplyPace(string line)
+    {
+        if (int.TryParse(line, out var ms) && ms >= PaceMinMs && ms <= PaceMaxMs) _intervalMs = ms;
     }
 
     // ── Access probing ─────────────────────────────────────────────────────────

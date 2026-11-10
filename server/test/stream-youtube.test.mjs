@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -8,8 +8,12 @@ const require = createRequire(import.meta.url);
 const { createYouTubeProvider, normalizeStreamYouTube } = require('../stream-youtube.js');
 const { createRegistry } = require('../actions/registry.js');
 
+// One folder for this file's token files, removed when the file's tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-yt-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
+
 function tmpTokens() {
-  return path.join(os.tmpdir(), `xe-yt-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
 }
 function stubFetch(routes) {
   return async (url) => {
@@ -75,7 +79,22 @@ test('getAccessToken refreshes when expired and keeps the stored refresh token',
   assert.equal(stt.connected, true);
 });
 
-test('getAccessToken clears creds when refresh fails', async () => {
+for (const [name, status, json] of [
+  ['a server error', 503, null],
+  ['a rate limit', 429, { error: 'rate_limit_exceeded' }],
+  ['a rejected client', 401, { error: 'invalid_client' }],
+  ['an answer with no token', 200, {}],
+]) {
+  test(`a failed refresh keeps the YouTube link on ${name}`, async () => {
+    const file = tmpTokens();
+    fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, channel: 'C', channelId: 'UC' } }));
+    const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file, fetch: stubFetch([{ match: '/token', status, json }]) });
+    assert.equal(await p.getAccessToken(), '');
+    assert.equal((await p.status()).connected, true);
+  });
+}
+
+test('getAccessToken clears creds when the refresh token is revoked', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, channel: 'C', channelId: 'UC' } }));
   const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file,

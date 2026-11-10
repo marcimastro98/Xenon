@@ -98,7 +98,7 @@ test('an untouched picker does not save an icon nobody chose', () => {
 });
 
 test('the editor no longer promises emoji in every language', () => {
-  const hints = [...I18N.matchAll(/deck_statestyle_hint: '((?:[^'\\]|\\.)*)'/g)].map(m => m[1]);
+  const hints = [...I18N.matchAll(/deck_ss_hint: '((?:[^'\\]|\\.)*)'/g)].map(m => m[1]);
   assert.equal(hints.length, 11, 'the hint is translated everywhere');
   for (const h of hints) {
     assert.ok(!/^Emoji|^Émoji|^绝|^Эмодзи/.test(h), 'a hint still leads with "emoji": ' + h);

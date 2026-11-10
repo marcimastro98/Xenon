@@ -1,0 +1,77 @@
+/* Liquid Glass: the look of a new install, keyed off :root[data-style="liquid"].
+   The blur sits on the tiles themselves: tileTakesStyleGlass() marks each dashboard
+   tile with data-tile-glass, the one way past the island's clip (DashboardGrid.css).
+   This file keeps every tile to a single sheet over the wallpaper. */
+
+/* Nested cards take the panel's alpha like the Classic look does: the skins' solid
+   surface (theme-contract.css) would sit grey on the glass. */
+:root[data-style="liquid"] { --card-surface: var(--panel-soft); }
+
+/* One sheet per tile: the group panel paints the fill, so a member painting its own
+   doubled the tint and drew a second edge inside the tile. */
+:root[data-style="liquid"] .tabgroup-body > :is(.panel, .dashboard-widget) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* The cover sits on the glass instead of flooding it: at any strength the wash left a
+   muddy band on the sheet, and the overlay that keeps text readable over it turned the
+   tile black. */
+:root[data-style="liquid"] .media-overlay,
+:root[data-style="liquid"] .media-bg,
+:root[data-style="liquid"] .media-bg-fallback { display: none; }
+:root[data-style="liquid"] .media-title { color: var(--text); text-shadow: none; }
+:root[data-style="liquid"] .media-artist { color: var(--muted-text); text-shadow: none; }
+
+/* On a light sheet the controls drawn for a dark cover turn into grey stains. */
+:root[data-style="liquid"][data-appearance="light"] .media-panel {
+  --floating-ui-bg: var(--surface-alt);
+  --floating-ui-border: var(--lt-border);
+  --media-track: var(--line);
+}
+/* The keys, the source and the volume are drawn for both by LiquidPlayer.css. */
+:root[data-style="liquid"][data-appearance="light"] .media-source-picker .cs-trigger {
+  border-color: var(--lt-border);
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+/* The chat keeps to the conversation: the island and the music tile show the track. */
+:root[data-style="liquid"] .chat-bg,
+:root[data-style="liquid"] .media-chat-np { display: none; }
+
+/* Plain labels. Components set their own caps and tracking, so only this reaches all. */
+:root[data-style="liquid"] body * {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Without the blur a thin fill leaves the wallpaper sharp behind the words, so the sheet
+   goes nearly solid. These tokens resolve where they are declared: each thicker sheet
+   names them again, or the cards inside a tile stay on the thin value. */
+:root[data-style="liquid"] body.low-power-gpu,
+:root[data-style="liquid"][data-layer] body {
+  --panel: rgba(var(--panel-rgb), var(--panel-alpha));
+  --panel-soft: rgba(var(--panel-soft-rgb), var(--panel-soft-alpha));
+  --card-surface: var(--panel-soft);
+}
+:root[data-style="liquid"] body.low-power-gpu { --panel-alpha: 0.86; --panel-soft-alpha: 0.84; }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style="liquid"] body,
+  :root[data-style="liquid"] body.low-power-gpu {
+    --panel-alpha: 0.92;
+    --panel-soft-alpha: 0.9;
+    --panel: rgba(var(--panel-rgb), var(--panel-alpha));
+    --panel-soft: rgba(var(--panel-soft-rgb), var(--panel-soft-alpha));
+    --card-surface: var(--panel-soft);
+  }
+  :root[data-style="liquid"] .grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget, .tile-decor-bg) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* A widget window has no wallpaper and nothing to blur: whatever is on the desktop sits
+   right behind the words, a white page included. Last, so it wins on any machine. A
+   tile's own panel setting still wins, as it is written on the tile. */
+:root[data-style="liquid"][data-layer] body { --panel-alpha: 0.94; --panel-soft-alpha: 0.92; }

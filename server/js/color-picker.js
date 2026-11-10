@@ -67,6 +67,26 @@
     } catch { /* storage blocked/full — recents are a nicety, not a feature */ }
   }
 
+  const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return v === k ? fb : v; };
+
+  // The keyboard moves the knobs too: an arrow is a small step, Shift+arrow a big one,
+  // Home and End the ends. The colour lands on key up, once, as after a drag.
+  const KEY_STEP = 0.01;
+  const KEY_BIG = 0.1;
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  // [dx, dy] for a key on a 0..1 box: x grows to the right, y grows upwards.
+  function keyMove(key, step) {
+    switch (key) {
+      case 'ArrowLeft': return [-step, 0];
+      case 'ArrowRight': return [step, 0];
+      case 'ArrowUp': case 'PageUp': return [0, key === 'PageUp' ? KEY_BIG : step];
+      case 'ArrowDown': case 'PageDown': return [0, key === 'PageDown' ? -KEY_BIG : -step];
+      case 'Home': return [-1, 0];
+      case 'End': return [1, 0];
+      default: return null;
+    }
+  }
+
   let pop = null;          // the open popover element, or null
   let cleanupFns = [];     // listeners to detach on close
 
@@ -87,8 +107,13 @@
     let [h, s, v] = rgbToHsv(...(hexToRgb(o.value) || hexToRgb('#1ed760')));
     let committed = rgbToHex(...hsvToRgb(h, s, v));
 
+    // One recent per visit: the colour it ended on, not each stop on the way.
+    const first = committed;
+    cleanupFns.push(() => { if (committed !== first) saveRecent(committed); });
+
     pop = document.createElement('div');
     pop.className = 'cp-pop';
+    pop.tabIndex = -1;
     pop.innerHTML =
       '<div class="cp-sv"><div class="cp-sv-white"></div><div class="cp-sv-black"></div><div class="cp-knob cp-sv-knob"></div></div>' +
       '<div class="cp-hue"><div class="cp-knob cp-hue-knob"></div></div>' +
@@ -110,7 +135,7 @@
     const addSwatch = (row, c) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'cp-swatch'; b.style.background = c; b.title = c;
-      b.addEventListener('click', () => { [h, s, v] = rgbToHsv(...hexToRgb(c)); paint(); commit(); });
+      b.addEventListener('click', () => { [h, s, v] = rgbToHsv(...hexToRgb(c)); paint(); commit(); close(); });
       row.appendChild(b);
     };
     SWATCHES.forEach(c => addSwatch(swatchRow, c));
@@ -132,7 +157,7 @@
     // off-screen.
     pop.style.visibility = 'hidden';
     const place = () => {
-      if (!pop) return;
+      if (!pop || !anchor.isConnected) return;   // a caller may redraw its row on a pick
       const pad = 8;
       const vw = window.innerWidth, vh = window.innerHeight;
       pop.style.maxWidth = Math.max(160, vw - pad * 2) + 'px';
@@ -145,7 +170,13 @@
       pop.style.top = Math.max(pad, Math.min(top, vh - ph - pad)) + 'px';
       pop.style.visibility = '';
     };
-    requestAnimationFrame(place);
+    const mine = pop;
+    requestAnimationFrame(() => {
+      place();
+      // After place(): a hidden popover cannot take the focus. Esc belongs to it, and
+      // the page answers first: it would close what is under the popover.
+      if (pop === mine && window.DialogFocus) cleanupFns.push(window.DialogFocus.hold(pop, { onEsc: close }));
+    });
     window.addEventListener('resize', place);
     cleanupFns.push(() => window.removeEventListener('resize', place));
 
@@ -158,19 +189,25 @@
       hueKnob.style.left = (h / 360 * 100) + '%';
       hueKnob.style.background = 'hsl(' + Math.round(h) + ', 100%, 50%)';
       preview.style.background = hex;
+      hue.setAttribute('aria-valuemin', '0');
+      hue.setAttribute('aria-valuemax', '360');
+      hue.setAttribute('aria-valuenow', String(Math.round(h)));
+      sv.setAttribute('aria-valuemin', '0');
+      sv.setAttribute('aria-valuemax', '100');
+      sv.setAttribute('aria-valuenow', String(Math.round(v * 100)));
+      sv.setAttribute('aria-valuetext', t('cp_shade_value', 'Saturation {s}%, brightness {v}%')
+        .replace('{s}', String(Math.round(s * 100))).replace('{v}', String(Math.round(v * 100))));
       if (document.activeElement !== hexInput) hexInput.value = hex.toUpperCase();
       hexInput.classList.remove('invalid');
     }
 
+    // A drag or a typed value shows on the page at once and the popover stays: the
+    // hue and then the shade are one visit. A swatch is a whole answer and closes it.
     function commit() {
       const hex = rgbToHex(...hsvToRgb(h, s, v));
       if (hex === committed) return;
       committed = hex;
-      saveRecent(hex);
       try { o.onPick(hex); } catch { /* caller's problem */ }
-      // Auto-close after every committed pick so the caller's form never gets a
-      // stray click on the "no colour" swatch when the user dismisses the popover.
-      close();
     }
 
     // Shared drag handler: pointer capture so the drag survives leaving the box.
@@ -201,6 +238,23 @@
     drag(sv, (x, y) => { s = x; v = 1 - y; });
     drag(hue, (x) => { h = Math.min(359.9, x * 360); });
 
+    function slider(el, label, onKey) {
+      el.tabIndex = 0;
+      el.setAttribute('role', 'slider');
+      el.setAttribute('aria-label', label);
+      el.addEventListener('keydown', (ev) => {
+        const d = keyMove(ev.key, ev.shiftKey ? KEY_BIG : KEY_STEP);
+        if (!d) return;
+        ev.preventDefault();
+        onKey(d[0], d[1]);
+        paint();
+      });
+      el.addEventListener('keyup', () => commit());   // a key that moved nothing applies nothing
+    }
+    // Hue is one line, so up and down move it too, as on any slider.
+    slider(hue, t('cp_hue', 'Hue'), (dx, dy) => { h = Math.min(359.9, clamp01(h / 360 + dx + dy) * 360); });
+    slider(sv, t('cp_shade', 'Saturation and brightness'), (dx, dy) => { s = clamp01(s + dx); v = clamp01(v + dy); });
+
     hexInput.addEventListener('change', () => {
       let val = hexInput.value.trim();
       if (/^[0-9a-f]{6}$/i.test(val)) val = '#' + val;
@@ -212,14 +266,21 @@
 
     // Close on outside tap / Escape. Deferred so the opening tap doesn't
     // immediately re-close it.
-    const onDocDown = (ev) => { if (pop && !pop.contains(ev.target) && ev.target !== anchor && !anchor.contains(ev.target)) close(); };
+    const onDocDown = (ev) => {
+      if (!pop || pop.contains(ev.target) || ev.target === anchor || anchor.contains(ev.target)) return;
+      if (document.activeElement === hexInput) hexInput.blur();   // a typed colour counts
+      close();
+    };
     const onKey = (ev) => { if (ev.key === 'Escape') close(); };
     setTimeout(() => {
       if (!pop) return;
       document.addEventListener('pointerdown', onDocDown, true);
       document.addEventListener('keydown', onKey);
+      // A layer window takes no taps outside its tiles: leaving it is the tap outside.
+      window.addEventListener('blur', close);
       cleanupFns.push(() => document.removeEventListener('pointerdown', onDocDown, true));
       cleanupFns.push(() => document.removeEventListener('keydown', onKey));
+      cleanupFns.push(() => window.removeEventListener('blur', close));
     }, 0);
 
     paint();

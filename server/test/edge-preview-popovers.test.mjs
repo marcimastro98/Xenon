@@ -41,7 +41,7 @@ test('the dropdown panel measures the stage, not the window', () => {
 });
 
 test('every clamp in the dropdown reads that box', () => {
-  const at = CS.indexOf('function positionPanel()');
+  const at = CS.indexOf('function positionPanel(');
   const body = CS.slice(at, CS.indexOf('\n  function open()', at));
   // The old code clamped against window.innerWidth/innerHeight directly.
   assert.doesNotMatch(body, /window\.innerWidth|window\.innerHeight/,
@@ -55,7 +55,7 @@ test('every clamp in the dropdown reads that box', () => {
 test('the dropdown converts between layout and on-screen pixels', () => {
   // The stage is SCALED, so the trigger rect (on-screen) and scrollHeight
   // (layout) are different units. Mixing them silently mis-sizes the panel.
-  const at = CS.indexOf('function positionPanel()');
+  const at = CS.indexOf('function positionPanel(');
   const body = CS.slice(at, CS.indexOf('\n  function open()', at));
   assert.match(body, /probe\.height \/ panel\.offsetHeight/, 'the ratio is measured, not read off a transform');
   assert.match(body, /panel\.scrollHeight \* scale/, 'the natural height becomes on-screen pixels');
@@ -67,7 +67,7 @@ test('the dropdown converts between layout and on-screen pixels', () => {
 });
 
 test('with no scaling the dropdown behaves exactly as before', () => {
-  const at = CS.indexOf('function positionPanel()');
+  const at = CS.indexOf('function positionPanel(');
   const body = CS.slice(at, CS.indexOf('\n  function open()', at));
   // scale falls back to 1 on a zero-height measurement, so dividing is always safe
   // and is a no-op off the preview.

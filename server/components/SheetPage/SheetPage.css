@@ -1,0 +1,93 @@
+/* One screen of the dashboard alone in the Xenon menu's window (js/sheet-page.js):
+   no dashboard behind it, and the screen fills the window instead of floating. */
+body[data-panel="sheet"] { background: rgb(var(--panel-rgb, 17, 19, 20)); }
+
+body[data-panel="sheet"] .shell,
+body[data-panel="sheet"] #bg-aurora,
+body[data-panel="sheet"] #bg-static,
+body[data-panel="sheet"] #bg-grid,
+body[data-panel="sheet"] #user-bg-layer { display: none; }
+
+body[data-panel="sheet"] .settings-overlay,
+body[data-panel="sheet"] .cgal-overlay {
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+}
+
+body[data-panel="sheet"] .settings-panel,
+/* The Store keeps its own page colour: only the window's frame goes. */
+body[data-panel="sheet"] .cgal-overlay > .preset-modal {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The mixer is the window here: a card alone in an empty window looks broken. */
+body[data-panel="sheet"] .deck-mix-backdrop {
+  align-items: stretch;
+  padding: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+body[data-panel="sheet"] .deck-mix-modal {
+  width: 100%;
+  max-height: none;
+  padding: 24px clamp(16px, 4vw, 40px);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+body[data-panel="sheet"] .deck-mix-apps { max-width: 720px; }
+:root[data-style="liquid"] body[data-panel="sheet"] .deck-mix-backdrop { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="liquid"] body[data-panel="sheet"] .deck-mix-modal { border: 0; border-radius: 0; background: none; box-shadow: none; }
+
+/* A low window: the rows under the pages scroll with them, or they would leave room for
+   three pages. Only here: on the dashboard they stay pinned. */
+@media (min-width: 721px) and (max-height: 560px) {
+  body[data-panel="sheet"] #settings-overlay .settings-nav { overflow-y: auto; }
+  body[data-panel="sheet"] #settings-overlay .settings-nav-scroll { flex: 0 0 auto; overflow: visible; }
+}
+
+/* Rows that lead back to where the person already is, or start the dashboard's tour. */
+body[data-panel="sheet"] #settings-overlay .settings-row:has([onclick="openXenonMenu()"]),
+body[data-panel="sheet"] #settings-overlay .settings-tutorial-group { display: none; }
+
+/* What only the dashboard has, for who has no dashboard (js/sheet-usage.js). The
+   category in use stays: a tile's Set up button or a search result can lead to it. */
+body[data-panel="sheet"] #settings-overlay .sheet-off:not(.active) { display: none; }
+
+/* A dashboard's own cards among the general ones. A search still finds them. */
+body[data-panel="sheet"].sheet-short:has(.settings-search-input:placeholder-shown) #settings-overlay [data-dash-card] { display: none; }
+
+/* "Show all" at the end of a shortened list of Settings. */
+.sheet-more[hidden] { display: none; }
+
+/* The dashboard's voice button is on its top bar: in the chat here it sits in the head. */
+.bit-chat-talk {
+  min-height: 44px;
+  flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--accent); border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.bit-chat-talk svg { width: 18px; height: 18px; color: var(--accent); }
+.bit-chat-talk:hover { background: var(--hover-bg); }
+.bit-chat-talk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The card is narrower than the window here: the 420px control beside the name left
+   the name no room and they overlapped. One above the other, as on a phone. */
+body[data-panel="sheet"] .tbl-custom-rows > .settings-row {
+  row-gap: 6px;
+}

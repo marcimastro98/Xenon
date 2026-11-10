@@ -1,10 +1,10 @@
 {
   "fr": {
-    "meta.title": "Xenon sur Linux : dashboard en écran secondaire, AppImage, deb, rpm",
-    "meta.desc": "Xenon sur Linux (beta), un dashboard gratuit pour tout écran disponible : téléchargements AppImage, .deb et .rpm, configuration au premier lancement et ce dont a besoin X11.",
+    "meta.title": "Xenon pour Linux (bêta) : dashboard PC, AppImage, deb, rpm",
+    "meta.desc": "Xenon sous Linux (bêta) : AppImage, deb et rpm, premier lancement et un tableau de ce qui marche sous X11 et Wayland, KDE et GNOME.",
     "lx.title": "Xenon sur Linux",
-    "lx.lede": "Xenon est un dashboard gratuit pour tout écran disponible. Sur Linux, il est en beta : le dashboard est identique à celui de Windows, et cette page liste les différences restantes ainsi que les paquets requis.",
-    "lx.updated": "Dernière mise à jour : 26 septembre 2026 · chaque lien pointe vers <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la dernière version</a>",
+    "lx.lede": "Xenon affiche des widgets gratuits pour votre PC sur tous vos écrans. Sur Linux, il est en beta : les widgets sont identiques à ceux de Windows, et cette page liste les différences restantes ainsi que les paquets requis.",
+    "lx.updated": "Dernière mise à jour : 8 novembre 2026. Chaque lien pointe vers <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la dernière version</a>.",
     "lx.jump.get": "Téléchargements",
     "lx.jump.setup": "Premier lancement",
     "lx.jump.works": "Ce qui fonctionne",
@@ -13,7 +13,7 @@
     "lx.req.appimage": "Tout bureau x86_64. <code>chmod +x</code> et exécutez-le.",
     "lx.req.deb": "Installe l'application ; le dashboard est configuré au premier lancement, pour chaque utilisateur.",
     "lx.req.rpm": "Identique au .deb, pour les distributions RPM.",
-    "lx.beta": "La prise en charge de Linux est en <strong>beta</strong>. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows. Ce qui diffère encore, c'est la partie qui lit et pilote la machine, répertoriée dans le tableau ci-dessous. Elle est testée sur GNOME et KDE.",
+    "lx.beta": "La prise en charge de Linux est en <strong>beta</strong>. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows. Ce qui diffère encore, c'est la partie qui lit et pilote la machine, répertoriée dans le tableau ci-dessous. Elle n'a pas encore été essayée sur un vrai PC Linux, seulement sur des machines de test, alors dites-nous ce qui ne fonctionne pas.",
     "lx.h.setup": "Premier lancement",
     "lx.setup.p1": "Ouvrez l'application. Au premier lancement, il est proposé de configurer le dashboard dans un terminal : il télécharge le moteur, vérifie le téléchargement avant de l'extraire, et enregistre un service <code>systemd --user</code> afin que Xenon démarre lors de votre connexion. En l'absence de gestionnaire d'utilisateurs, il utilise à la place une entrée de démarrage automatique XDG et vous l'indique, en précisant que ce mode de secours ne redémarre pas Xenon après un plantage.",
     "lx.setup.p2": "Les fichiers .deb et .rpm ne le font pas volontairement lors de l'installation : tout ce que la configuration crée appartient à un seul compte utilisateur, tandis qu'un paquet est installé en tant que root pour toute la machine.",
@@ -35,7 +35,7 @@
     "lx.st.mpris": "Fonctionne via MPRIS.",
     "lx.row.fps": "Compteur FPS en jeu",
     "lx.st.mangohud": "Fonctionne via MangoHud.",
-    "lx.row.ai": "Xenon IA, chat, actions, commande vocale « Hey Xenon »",
+    "lx.row.ai": "Bit, chat, actions, commande vocale « Hey Bit »",
     "lx.st.ai": "Fonctionnel, cloud et local.",
     "lx.row.lighting": "Éclairage en réseau : WLED, Hue, Nanoleaf, OpenRGB",
     "lx.row.services": "Streaming, Spotify, Discord, Home Assistant",
@@ -61,6 +61,7 @@
     "ld.q3": "Xenon démarre-t-il automatiquement sur Linux ?",
     "ld.a3": "Oui. Le premier lancement enregistre un service utilisateur systemd, avec un mécanisme de démarrage automatique de secours via XDG en l'absence de gestionnaire d'utilisateur.",
     "ld.q4": "Est-ce que Xenon fonctionne sur Wayland ?",
-    "ld.a4": "La plupart le font. Les widget d'applications ouvertes, le sélecteur d'applications et la vision d'écran de l'IA ont besoin d'une session X11."
+    "ld.a4": "La plupart le font. Les widget d'applications ouvertes, le sélecteur d'applications et la vision d'écran de l'IA ont besoin d'une session X11.",
+    "lx.pic.alt": "Le tableau de bord Xenon : musique, calendrier et graphiques système sur une seule page"
   }
 }

@@ -72,7 +72,7 @@ test('client iconSvgProblem agrees with the server verdict on every case', () =>
 const b64 = (s) => Buffer.from(s).toString('base64');
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16, 1)]);
 const okPayload = (over = {}) => Object.assign({
-  manifest: { id: 'neon-arcade', name: 'Neon Arcade', author: 'Marci', version: '1.0.0' },
+  manifest: { id: 'neon-arcade', name: 'Neon Arcade', author: 'Alex', version: '1.0.0' },
   icons: [
     { id: 'play', label: 'Play', type: 'svg', data: b64(CLEAN) },
     { id: 'stop_1', type: 'png', data: PNG.toString('base64') },

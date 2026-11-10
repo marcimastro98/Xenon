@@ -17,6 +17,8 @@
   const D = window.__XD__;
   const BUILD = '__BUILD__';
   const VERSION = '__V__';
+  // A running timer started some minutes before the demo opened (data.js keeps it as data).
+  for (const t of D.timers) if (t.status === 'running') t.startedAt = Date.now();
 
   // ── 1. Park the fragment ──────────────────────────────────────────────────
   // Read it, remember it, and REMOVE it before anything else looks. Two things
@@ -31,6 +33,42 @@
       history.replaceState(null, '', location.pathname + location.search);
     }
   } catch { /* fragment stays; worst case is a cosmetic letterbox */ }
+
+  // ── 1b. The Maker's preview ───────────────────────────────────────────────
+  // xenon-app.com/maker opens this demo in a frame with ?maker to show the
+  // widget being edited (demo/maker.js), only ever from a parent on this same
+  // origin. That visit must not touch the visitor's own demo, so the dashboard
+  // gets an in-memory localStorage: every script reads the global, so swapping
+  // it here, before any of them runs, isolates all its call sites at once. If
+  // the swap fails the channel stays off rather than writing to the real one.
+  try {
+    const fromMaker = /[?&]maker(?:[=&]|$)/.test(location.search)
+      && window.parent !== window && window.parent.location.origin === location.origin;
+    if (fromMaker) {
+      const real = window.localStorage;
+      const mem = new Map();
+      // The site's language and theme still apply, read once, never written back.
+      for (const k of ['xenon.site.lang', 'xenon.site.theme']) {
+        const v = real.getItem(k);
+        if (v !== null) mem.set(k, v);
+      }
+      // The Maker's own language, when it says one, wins for this visit.
+      const makerLang = new URLSearchParams(location.search).get('lang');
+      if (makerLang && /^[a-z]{2}$/.test(makerLang)) mem.set('xenon.site.lang', makerLang);
+      // A preview shows the creation at once: no boot splash (js/boot-splash.js).
+      mem.set('xeneonedge.bootLook.v1', '{"off":true}');
+      const store = {
+        getItem: (k) => (mem.has(String(k)) ? mem.get(String(k)) : null),
+        setItem: (k, v) => { mem.set(String(k), String(v)); },
+        removeItem: (k) => { mem.delete(String(k)); },
+        clear: () => { mem.clear(); },
+        key: (i) => [...mem.keys()][i] ?? null,
+        get length() { return mem.size; },
+      };
+      Object.defineProperty(window, 'localStorage', { value: store, configurable: true });
+      if (window.localStorage === store) window.__XENON_DEMO_MAKER__ = { packages: [] };
+    }
+  } catch { /* not from the Maker, or no swap: a normal demo visit */ }
 
   // ── 2. Seed the settings mirror ───────────────────────────────────────────
   const SETTINGS_KEY = 'xeneonedge.settings.v1';
@@ -59,7 +97,9 @@
   // plus first-order lag on the temperatures so they look thermal instead of
   // twitchy. That lag is the detail that sells it.
   const T0 = Date.now();
-  const el = () => Date.now() - T0;
+  // seedGraphs() rewinds the clock to replay the minutes before the page opened.
+  let rewindMs = 0;
+  const el = () => Date.now() - T0 - rewindMs;
   const wob = (t, base, amp, period, phase) => base + amp * Math.sin(2 * Math.PI * (t / period) + phase);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   function seeded(n) {           // mulberry32, one draw per integer
@@ -68,6 +108,14 @@
     let x = Math.imul(s ^ (s >>> 15), 1 | s);
     x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  }
+  // Smooth noise: a sensor wanders, where a sine wave reads as a demo. Between -1 and 1.
+  function drift(t, period, seed) {
+    const i = Math.floor(t / period);
+    const f = t / period - i;
+    const a = seeded(i * 31 + seed);
+    const b = seeded((i + 1) * 31 + seed);
+    return (a + (b - a) * f * f * (3 - 2 * f)) * 2 - 1;
   }
   // A ~6 s burst roughly every 40 s, its size fixed per window so replays match.
   function spike(t) {
@@ -79,7 +127,7 @@
   }
 
   const sim = {
-    cpuTemp: 44, gpuTemp: 41,
+    cpuTemp: 50, gpuTemp: 60,
     micMuted: false,
     speakerVolume: D.audio.speaker.volume,
     speakerMuted: false,
@@ -90,11 +138,11 @@
 
   function cpuLoad() {
     const t = el();
-    return clamp(wob(t, 26, 9, 17000, 0) + wob(t, 0, 4, 3100, 1.7) + spike(t), 2, 97);
+    return clamp(34 + drift(t, 15000, 1) * 10 + drift(t, 3100, 2) * 4 + spike(t), 2, 97);
   }
   function gpuLoad() {
     const t = el() - 4000;            // trails the CPU
-    return clamp(wob(t, 18, 12, 21000, 0.9) + wob(t, 0, 5, 4700, 2.4) + spike(t) * 0.8, 1, 98);
+    return clamp(68 + drift(t, 18000, 3) * 9 + drift(t, 4700, 4) * 5 + spike(t) * 0.4, 1, 98);
   }
   function stepTemps(dtMs) {
     const k = Math.min(0.35, dtMs / 3000);
@@ -113,7 +161,7 @@
 
   function systemPayload() {
     const cpu = cpuLoad();
-    const ramPct = clamp(wob(el(), 47, 3, 61000, 0.4), 20, 92);
+    const ramPct = clamp(47 + drift(el(), 40000, 5) * 3, 20, 92);
     const total = D.system.memoryTotal;
     return {
       hostname: D.system.hostname,
@@ -155,12 +203,12 @@
   function networkPayload() {
     const t = el();
     return {
-      downloadBps: Math.max(0, Math.round(D.network.downloadBps * clamp(wob(t, 1, 0.85, 13000, 0.3) + spike(t) / 90, 0.02, 3))),
-      uploadBps: Math.max(0, Math.round(D.network.uploadBps * clamp(wob(t, 1, 0.6, 9400, 1.9), 0.05, 2.4))),
-      ping: Math.round(clamp(wob(t, 12, 4, 23000, 0.7), 4, 40)),
-      latency: Math.round(clamp(wob(t, 9, 3, 17000, 2.2), 2, 30)),
-      // No fps field: nothing is playing, and the tile's own "N/A" is more
-      // honest than a hard 0.
+      downloadBps: Math.max(0, Math.round(D.network.downloadBps * clamp(1 + drift(t, 8000, 12) * 0.7 + drift(t, 2300, 13) * 0.2 + spike(t) / 90, 0.02, 3))),
+      uploadBps: Math.max(0, Math.round(D.network.uploadBps * clamp(1 + drift(t, 9400, 14) * 0.6, 0.05, 2.4))),
+      ping: Math.round(clamp(12 + drift(t, 11000, 6) * 3 + drift(t, 2900, 7) * 2, 4, 40)),
+      latency: Math.round(clamp(9 + drift(t, 13000, 8) * 2 + drift(t, 3300, 9) * 1.5, 2, 30)),
+      // The fake PC is playing Cyberfall, the game Bit talks about in the chat.
+      fps: Math.round(clamp(144 + drift(t, 9000, 10) * 7 + drift(t, 2700, 11) * 3, 30, 240)),
     };
   }
   function statusPayload() {
@@ -184,12 +232,27 @@
     '/disk/clean/cancel', '/api/disk/advisor', '/windows/launch', '/windows/focus', '/windows/close',
     '/system/enable-sensors', '/api/performance/plan', '/api/performance/powerplan',
     '/update/prepare', '/update/apply', '/sdk/install', '/icon-pack', '/sound-pack',
-    '/search/open', '/search/reveal', '/search/ai', '/spotlight/claimed', '/lock',
+    '/search/open', '/search/reveal', '/spotlight/claimed', '/lock',
     '/api/community/rate', '/api/community/redeem', '/api/screenshot', '/api/screenshot/monitor',
     '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock', '/api/features/lyrics/unlock', '/api/features/lyrics/trial',
+    '/api/community/trial/check', '/api/community/trial/tried',
     '/api/claude/history/delete',
   ];
-  const blockedPrefixes = ['/api/ai/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
+  const blockedPrefixes = ['/api/ai/', '/api/mcp/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
+
+  // Reads the app makes on its own while it starts, under a blocked prefix.
+  // Answered quietly: the "runs on your PC" toast is for something the visitor
+  // pressed, never for opening the page.
+  const QUIET_READS = {
+    '/remote/status': () => ok({ ready: false, installed: false, blocked: false, connectedClients: [] }),
+    '/api/ai/memory': () => ok({ facts: [] }),
+    // Settings lists the local models when it opens: the demo has none.
+    '/api/ai/models': () => ok({ models: [] }),
+    // The Sparks chip reads the balance on start: the demo has no code, so no balance.
+    '/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' }),
+    '/api/mcp/dev/clients': () => ok({ ok: true, clients: [] }),
+    '/api/mcp/dev/pairs': () => ok({ ok: true, pairs: [] }),
+  };
 
   let lastToastAt = 0;
   function refuse() {
@@ -203,7 +266,7 @@
       window.XenonToast.show({
         type: 'notification', kicker: 'Demo',
         title: tr('demo_blocked_title', 'This one runs on your PC'),
-        message: tr('demo_blocked_msg', 'Not available in the browser demo — get Xenon free at xenon-app.com'),
+        message: tr('demo_blocked_msg', 'Not available in the browser demo. Get Xenon free at xenon-app.com'),
         duration: 7000,
       });
     }
@@ -231,6 +294,7 @@
     const method = ((init && init.method) || 'GET').toUpperCase();
     const q = url.searchParams;
 
+    if (method === 'GET' && Object.hasOwn(QUIET_READS, p)) return QUIET_READS[p]();
     if (BLOCKED.includes(p) || blockedPrefixes.some((pre) => p.startsWith(pre))) return refuse();
 
     switch (p) {
@@ -308,14 +372,15 @@
       case '/api/football/search': return ok({ results: [] });
       case '/api/gamemode/status': return ok({ gaming: false });
       case '/api/native/status': case '/api/native/install-status': return ok({ installed: false });
-      case '/remote/status': return ok({ ready: false, installed: false, blocked: false, connectedClients: [] });
       // Paired-device access, honestly off: the demo IS a browser tab on the
       // public site, so there is no PC to pair with and no LAN address to show.
       // Mocked rather than left to the Tier C default so the panel renders its
       // real off-state instead of an error nobody can act on.
       case '/api/remote-access/status':
         return ok({ enabled: false, port: 3030, addresses: [], devices: [], maxDevices: 16, pairing: null });
-      case '/sdk/widgets': return ok({ packages: [] });
+      // The Maker's preview lists the widget being edited (demo/maker.js).
+      case '/sdk/widgets':
+        return ok({ packages: window.__XENON_DEMO_MAKER__ ? window.__XENON_DEMO_MAKER__.packages.slice() : [] });
       // An empty Deck store is a real, valid store: the widget renders its own
       // "add a key" empty state rather than an error, and the editor works.
       // Inventing keys here would mean carrying deck.json's schema in this file.
@@ -336,7 +401,11 @@
       // real theme, watch it apply. Best moment in the demo, cheapest to build.
       case '/api/community/catalog': {
         const cat = await passthroughJson('../community/catalog.json');
-        return cat ? ok(cat) : ok({ entries: [] });
+        if (!cat) return ok({ entries: [] });
+        // The server's rule: a pulled or expired entry is not in the Store.
+        const now = Date.now();
+        const shown = (e) => e.active === true || (e.active !== false && !(Date.parse(e.activeFrom) > now) && !(Date.parse(e.activeUntil) < now));
+        return ok({ ...cat, entries: (cat.entries || []).filter(shown) });
       }
       case '/api/community/code': {
         const id = String(q.get('id') || '');
@@ -446,7 +515,8 @@
 
   // Cadences mirror the real broadcaster so the UI's own change-detection behaves.
   let lastStatus = '';
-  setInterval(() => { stepTemps(2000); push('system', systemPayload()); }, 2000);
+  const SYSTEM_PUSH_MS = 2000;
+  setInterval(() => { stepTemps(SYSTEM_PUSH_MS); push('system', systemPayload()); }, SYSTEM_PUSH_MS);
   setInterval(() => {
     const p = statusPayload();
     const key = JSON.stringify(p);
@@ -454,10 +524,6 @@
   }, 3000);
   setInterval(() => push('audio', audioPayload()), 5000);
   setInterval(() => { if (sim.playing) push('media', mediaPayload()); }, 1000);
-  setInterval(() => {
-    const tm = D.timers[0];
-    if (tm && tm.running && tm.remaining > 0) { tm.remaining--; push('timer_update', { timers: D.timers }); }
-  }, 1000);
 
   // ── 7. WebSocket + sendBeacon ─────────────────────────────────────────────
   // Stuck at CONNECTING forever, deliberately: browser-tile.js and
@@ -482,20 +548,50 @@
   // ── 8. Splash ─────────────────────────────────────────────────────────────
   // 115 classic scripts execute serially; on a mid laptop that is seconds of
   // blank page. This is the highest-value 30 lines in the whole demo.
+  // i18n.js is not loaded yet, so the line carries its own copy in the app's
+  // languages, picked the way the dashboard will pick its own.
+  const SPLASH_TEXT = {
+    en: 'Loading the Xenon demo…',
+    it: 'Caricamento della demo di Xenon…',
+    es: 'Cargando la demo de Xenon…',
+    fr: 'Chargement de la démo Xenon…',
+    de: 'Xenon-Demo wird geladen…',
+    pt: 'A carregar a demo do Xenon…',
+    nl: 'Xenon-demo wordt geladen…',
+    ru: 'Загрузка демо Xenon…',
+    ja: 'Xenon デモを読み込んでいます…',
+    ko: 'Xenon 데모를 불러오는 중…',
+    zh: '正在加载 Xenon 演示…',
+  };
+  function splashLang() {
+    const said = [];
+    try { said.push(localStorage.getItem('uiLang'), localStorage.getItem('xenon.site.lang')); } catch { /* none */ }
+    for (const l of navigator.languages || [navigator.language]) said.push(l);
+    for (const l of said) {
+      const code = String(l || '').slice(0, 2).toLowerCase();
+      if (SPLASH_TEXT[code]) return code;
+    }
+    return 'en';
+  }
   (function splash() {
+    // The Maker covers its preview frame with its own loading state.
+    if (window.__XENON_DEMO_MAKER__) return;
     const s = document.createElement('div');
     s.id = 'demo-splash';
     s.setAttribute('style', [
       'position:fixed', 'inset:0', 'z-index:2147483600', 'display:flex',
       'flex-direction:column', 'align-items:center', 'justify-content:center', 'gap:18px',
-      'background:#070808', 'color:#f0f3f1', 'font:600 15px/1.5 system-ui,sans-serif',
-      'letter-spacing:.02em', 'transition:opacity .45s ease',
+      'background:#14181c', 'color:#f0f3f1', 'font:600 15px/1.5 system-ui,sans-serif',
+      'transition:opacity .45s ease',
     ].join(';'));
+    const lang = splashLang();
+    s.lang = lang;
     s.innerHTML = '<div style="width:46px;height:46px;border-radius:50%;'
-      + 'border:3px solid rgba(0,141,255,.18);border-top-color:#008dff;'
+      + 'border:3px solid rgba(110,231,135,.18);border-top-color:#6ee787;'
       + 'animation:demospin 900ms linear infinite"></div>'
-      + '<div style="opacity:.7">Loading the Xenon demo…</div>'
+      + '<div style="opacity:.7"></div>'
       + '<style>@keyframes demospin{to{transform:rotate(360deg)}}</style>';
+    s.children[1].textContent = SPLASH_TEXT[lang];
     const mount = () => { if (document.body) document.body.appendChild(s); };
     if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount, { once: true });
     window.addEventListener('load', () => {
@@ -505,6 +601,30 @@
       }, 250);
     });
   })();
+
+  // An empty chat says nothing about Bit, so the demo opens on an exchange. The app
+  // draws its welcome once its first paint is done, hence the wait.
+  const CHAT_SEED_DELAY_MS = 1800;
+  function seedChat() {
+    if (typeof _aiAppendBubble !== 'function') return;
+    _aiDropWelcome();
+    for (const [role, text] of D.chat) _aiAppendBubble(role, text);
+    if (typeof mirrorChatCopies === 'function') mirrorChatCopies();
+  }
+  // Graphs draw what they have seen, so a page just opened would show a flat line.
+  // The same simulation plays the minutes before it, one sample per point on the graph.
+  const GRAPH_POINTS = 40;
+  function seedGraphs() {
+    for (let i = GRAPH_POINTS - 1; i >= 0; i--) {
+      rewindMs = i * SYSTEM_PUSH_MS;
+      push('system', systemPayload());
+      if (typeof applyNetwork === 'function') applyNetwork(networkPayload());
+    }
+    rewindMs = 0;
+  }
+  if (!window.__XENON_DEMO_MAKER__) {
+    window.addEventListener('load', () => setTimeout(() => { seedChat(); seedGraphs(); }, CHAT_SEED_DELAY_MS));
+  }
 
   window.__XENON_DEMO__ = { push, sim, seenUnmocked, build: BUILD, version: VERSION };
 })();

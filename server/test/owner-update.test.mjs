@@ -50,7 +50,7 @@ async function seal(entryId, { kv, kind = 'theme' } = {}) {
 test('update sends the entry, the HASHED device id and the versions, never a code', withTransport(async () => {
   const dir = tmp();
   const sent = [];
-  redeemMod._setTransport(async (url, body, max) => { sent.push({ url, body, max }); return { ok: true, upToDate: true }; });
+  redeemMod._setTransport(async (url, body, max, timeoutMs) => { sent.push({ url, body, max, timeoutMs }); return { ok: true, upToDate: true }; });
   const out = await redeemMod.update({ entryId: 'vanguard-50-01', have: '3.0.0', kv: 2, dataDir: dir });
   assert.deepEqual(out, { ok: true, upToDate: true });
   assert.equal(sent.length, 1);
@@ -61,6 +61,7 @@ test('update sends the entry, the HASHED device id and the versions, never a cod
   const raw = await redeemMod.getInstallId(dir);
   assert.ok(!JSON.stringify(sent[0].body).includes(raw), 'the raw install id never leaves the PC');
   assert.ok(sent[0].max > 2 * 1024 * 1024, 'room for a private bundle in the answer');
+  assert.ok(sent[0].timeoutMs >= 30000, 'a 3 MB answer on a slow link is not cut at the default 16 s cap');
 }));
 
 test('update drops a malformed version or key version instead of forwarding it', withTransport(async () => {
@@ -206,7 +207,7 @@ test('the unlock dialog asks for key version 1 when the file names none', async 
   const src = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
   // Sent nothing, the hub answers with its LATEST key, which stops opening the
   // original download the day a newer version is published.
-  assert.match(src, /JSON\.stringify\(\{ entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1 \}\)/);
+  assert.match(src, /entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1, enc: locked\.enc,/);
 });
 
 test('peekLocked reports no key version for a file that predates versions, and the named one otherwise', async () => {

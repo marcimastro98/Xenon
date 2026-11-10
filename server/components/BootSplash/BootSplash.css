@@ -1,0 +1,48 @@
+/* Bit over the first moments of a load (js/boot-splash.js).
+
+   Between the first paint and the first settings + data, every tile shows its
+   empty state ("--", no artwork, no events): a screen that looks broken. The
+   splash covers exactly that stretch and nothing more. Its ground is the
+   user's own theme, remembered from the last visit (--bs-bg), so a dark brown
+   dashboard opens on dark brown. With nothing remembered (a new device, or
+   cleared site data) it uses the product's dark ground.
+
+   Bit recharges while the dashboard loads, and says hello once it is ready:
+   the end of a wait is what people remember of it. Both pictures are the
+   loader set (tools/brand/loader.mjs) and share one box, so the swap never
+   moves Bit. */
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  background: var(--bs-bg, var(--bg, #06080a));
+  transition: opacity 0.32s ease, visibility 0s linear 0.32s;
+}
+.boot-splash.is-leaving {
+  opacity: 0;
+  visibility: hidden;
+}
+.boot-splash.is-neutral { background: #06080a; }
+
+/* 5 screen pixels per Bit pixel (the box is 20x19 cells), 7 on big screens. */
+.boot-splash-bit {
+  width: 100px;
+  aspect-ratio: 20 / 19;
+  background: url("../../public/images/loader/bit-recharge.svg") center / contain no-repeat;
+  image-rendering: pixelated;
+  transition: transform 0.32s ease;
+}
+@media (min-width: 900px) and (min-height: 600px) {
+  .boot-splash-bit { width: 140px; }
+}
+.boot-splash.is-ready .boot-splash-bit { background-image: url("../../public/images/loader/bit-hello.svg"); }
+.boot-splash.is-leaving .boot-splash-bit { transform: translateY(-6px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash-bit,
+  .boot-splash.is-ready .boot-splash-bit { background-image: url("../../public/images/loader/bit-recharge-still.svg"); }
+  .boot-splash.is-leaving .boot-splash-bit { transform: none; }
+}

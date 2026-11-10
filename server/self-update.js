@@ -1,4 +1,5 @@
 'use strict';
+const { psQuote } = require('./ps-quote');
 
 // ── Self-update (safe two-step) ───────────────────────────────────────────────
 // The "safer variant": preparing an update is fully NON-destructive — we download
@@ -176,7 +177,7 @@ function createSelfUpdate(opts) {
       const [file, args] = isPosix
         ? ['unzip', ['-qq', '-o', zipPath, '-d', extractDir]]
         : ['powershell', ['-NoProfile', '-NonInteractive', '-Command',
-          `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${extractDir.replace(/'/g, "''")}' -Force`]];
+          `Expand-Archive -LiteralPath ${psQuote(zipPath)} -DestinationPath ${psQuote(extractDir)} -Force`]];
       const p = spawn(file, args, { windowsHide: true });
       let err = '';
       if (p.stderr) p.stderr.on('data', (d) => { err += d; });

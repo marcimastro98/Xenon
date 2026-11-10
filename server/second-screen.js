@@ -97,10 +97,10 @@ function buildConfigXml(mode = {}) {
 
 // Locate the winget-installed VDD package dir (version-independent): its folder name
 // starts with the package id under the WinGet Packages store.
-function defaultFindPackageDir() {
+async function defaultFindPackageDir() {
   const base = path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WinGet', 'Packages');
   let entries = [];
-  try { entries = fs.readdirSync(base); } catch { return ''; }
+  try { entries = await fs.promises.readdir(base); } catch { return ''; }
   const hit = entries.find((n) => n.startsWith('VirtualDrivers.Virtual-Display-Driver_'));
   return hit ? path.join(base, hit) : '';
 }
@@ -151,7 +151,11 @@ function createSecondScreen({
       };
     }
 
-    const wingetAvailable = await inst.isWingetAvailable();
+    // Each winget run takes seconds, and the tile asks whenever it comes on screen.
+    // The package folder answers both questions; without it winget still decides,
+    // because the driver can be installed for the whole machine.
+    const packageFound = !!(await findPackageDir());
+    const wingetAvailable = packageFound || await inst.isWingetAvailable();
     if (!wingetAvailable) {
       return {
         supported: true,
@@ -160,7 +164,7 @@ function createSecondScreen({
       };
     }
 
-    const vddInstalled = await inst.isInstalled('vdd');
+    const vddInstalled = packageFound || await inst.isInstalled('vdd');
     if (!vddInstalled) {
       return {
         supported: true,
@@ -222,7 +226,7 @@ function createSecondScreen({
   // through the same path, guaranteeing the count can never grow.
   async function createDisplay(mode) {
     if (!supported) return { ok: false, action: 'manual', code: 'unsupported_platform' };
-    const dir = findPackageDir();
+    const dir = await findPackageDir();
     if (!dir) return { ok: false, action: 'retry', code: 'vdd_files_missing' };
     const devcon = path.join(dir, 'Dependencies', 'devcon.exe');
     const inf = path.join(dir, 'SignedDrivers', 'x86', 'VDD', 'MttVDD.inf');
@@ -248,7 +252,7 @@ function createSecondScreen({
   // Remove the virtual display (used when disabling the feature / cleanup).
   async function removeDisplay() {
     if (!supported) return { ok: false, code: 'unsupported_platform' };
-    const dir = findPackageDir();
+    const dir = await findPackageDir();
     if (!dir) return { ok: false, code: 'vdd_files_missing' };
     const devcon = path.join(dir, 'Dependencies', 'devcon.exe');
     const r = await runner.runElevated(devcon, ['remove', VDD_HWID]);

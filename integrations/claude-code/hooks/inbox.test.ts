@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { askInbox, createInbox } from './inbox'
+import { askInbox, createInbox, tileCommand } from './inbox'
 import type { Io } from './sender'
 
 const LINK = { base: 'http://127.0.0.1:3030/api/claude', token: 'i'.repeat(48) }
@@ -97,5 +97,30 @@ describe('inbox', () => {
     now += 10_000
     await inbox.poll(io, 's1', () => {})
     expect(links()).toBe(2)
+  })
+})
+
+describe('tileCommand', () => {
+  test('reads the three header commands and their arguments', () => {
+    expect(tileCommand('/model opus')).toEqual({ command: 'model', args: 'opus' })
+    expect(tileCommand('/effort high')).toEqual({ command: 'effort', args: 'high' })
+    expect(tileCommand('/compact')).toEqual({ command: 'compact', args: '' })
+    expect(tileCommand('/compact keep the plan')).toEqual({ command: 'compact', args: 'keep the plan' })
+  })
+
+  test('any command this session lists runs, and nothing else does', () => {
+    const known = new Set(['plan', 'searchfit-seo:create-topic', 'exit'])
+    expect(tileCommand('/plan', known)).toEqual({ command: 'plan', args: '' })
+    expect(tileCommand('/searchfit-seo:create-topic seo', known)).toEqual({ command: 'searchfit-seo:create-topic', args: 'seo' })
+    expect(tileCommand('/unknown', known)).toBeNull()
+    expect(tileCommand('/plan')).toBeNull()
+    expect(tileCommand('/exit', known)).toBeNull()
+  })
+
+  test('anything else is a message, and a bare /model would only open a picker', () => {
+    expect(tileCommand('/model')).toBeNull()
+    expect(tileCommand('/clear')).toBeNull()
+    expect(tileCommand('please /compact it')).toBeNull()
+    expect(tileCommand('write the tests')).toBeNull()
   })
 })

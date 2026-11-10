@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = path.join(HERE, '..');
@@ -44,6 +45,55 @@ test('the worker caches the shell and never anything that describes the PC', () 
   assert.match(sw, /catch[\s\S]{0,200}caches\.match/, 'the cache is only consulted when the network failed');
   // Mutations are not the worker's business at all.
   assert.match(sw, /req\.method !== 'GET'/);
+});
+
+// sw.js against a fake cache and network: each load answers one asset request.
+function worker() {
+  const entries = new Map();
+  const puts = [];
+  const cache = {
+    keys: async () => [...entries.keys()].map((url) => ({ url })),
+    put: async (req, res) => { puts.push(req.url); entries.set(req.url, res); },
+  };
+  const listeners = {};
+  const net = { up: true };
+  const response = () => ({ ok: true, type: 'basic', clone() { return this; } });
+  const sandbox = {
+    URL,
+    self: { location: { origin: 'http://pc' }, addEventListener: (type, run) => { listeners[type] = run; }, clients: {} },
+    caches: { open: async () => cache, match: async (req) => entries.get(req.url) },
+    fetch: async () => { if (!net.up) throw new Error('offline'); return response(); },
+  };
+  vm.runInNewContext(read('sw.js'), sandbox);
+  const load = async (url) => {
+    let answer;
+    listeners.fetch({ request: { method: 'GET', url, mode: 'no-cors' }, respondWith: (p) => { answer = p; } });
+    const out = await answer;
+    await new Promise((resolve) => setImmediate(resolve));
+    return out;
+  };
+  return { load, puts, net, entries };
+}
+
+test('a file with a version is stored once, a file without one at every load', async () => {
+  const w = worker();
+  await w.load('http://pc/js/a.js?v=5.0.0-1-2');
+  await w.load('http://pc/js/a.js?v=5.0.0-1-2');
+  await w.load('http://pc/js/a.js?v=5.0.0-1-2');
+  assert.deepEqual(w.puts, ['http://pc/js/a.js?v=5.0.0-1-2'], 'the same bytes are not written again');
+  await w.load('http://pc/js/a.js?v=5.0.0-1-3');
+  assert.equal(w.puts.length, 2, 'a new version is a new file');
+  await w.load('http://pc/js/plain.js');
+  await w.load('http://pc/js/plain.js');
+  assert.equal(w.puts.filter((u) => u.endsWith('plain.js')).length, 2, 'without a version it may have changed');
+});
+
+test('with the PC off, what was stored is what the page gets', async () => {
+  const w = worker();
+  const first = await w.load('http://pc/js/a.js?v=5.0.0-1-2');
+  w.net.up = false;
+  assert.equal(await w.load('http://pc/js/a.js?v=5.0.0-1-2'), first);
+  await assert.rejects(w.load('http://pc/js/never-seen.js?v=1'), /offline/);
 });
 
 test('what the worker may cache matches what the server actually serves', () => {

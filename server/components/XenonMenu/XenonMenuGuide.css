@@ -1,0 +1,177 @@
+/* The small moving pictures of the Xenon menu (js/xenon-menu-guide.js). Each is one
+   loop of transform and opacity, so it stays on the compositor. The rules outside the
+   keyframes draw a still frame that already says the point: with reduced motion, that
+   frame is the picture. */
+
+.xm-guide {
+  flex-basis: 100%; min-width: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: var(--space-3);
+}
+.xm-guide-card { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.xm-guide-card .xm-demo { width: 100%; margin-bottom: var(--space-1); }
+
+.xm-demo {
+  --demo-loop: 7s;
+  --demo-win: color-mix(in srgb, var(--text) 20%, var(--surface));
+  --demo-bar: color-mix(in srgb, var(--text) 34%, var(--surface));
+  --demo-mark: var(--accent);
+  position: relative; display: block; flex: none; overflow: hidden;
+  aspect-ratio: 16 / 9; width: 128px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-demo span { position: absolute; display: block; }
+
+/* A window: a block with a title bar. */
+.xm-demo-win {
+  left: 8%; top: 12%; width: 62%; height: 72%;
+  background: var(--demo-win); border-radius: 3px;
+  box-shadow: inset 0 7px 0 var(--demo-bar);
+}
+/* A widget: the one thing in colour. */
+.xm-demo-widget, .xm-demo-one, .xm-demo-two, .xm-demo-three {
+  background: var(--demo-mark); border-radius: 3px;
+}
+.xm-demo-widget { right: 7%; top: 12%; width: 26%; height: 30%; }
+
+/* On the desktop: a window comes over the widget and covers it. Still, it covers half. */
+.xm-demo--desktop .xm-demo-win { left: 34%; transform: translateX(74%); animation: xm-demo-cover var(--demo-loop) ease-in-out infinite; }
+@keyframes xm-demo-cover {
+  0%, 12% { transform: translateX(110%); }
+  34%, 66% { transform: translateX(0); }
+  88%, 100% { transform: translateX(110%); }
+}
+
+/* Above everything: the window slides under it, a key hides it and brings it back. */
+.xm-demo--overlay .xm-demo-win { left: 10%; width: 80%; animation: xm-demo-under var(--demo-loop) ease-in-out infinite; }
+.xm-demo--overlay .xm-demo-widget { animation: xm-demo-blink var(--demo-loop) step-end infinite; }
+.xm-demo-key {
+  left: 50%; bottom: 8%; width: 16%; height: 20%; margin-left: -8%;
+  background: var(--surface); border: 1px solid var(--text-dim); border-radius: 3px;
+  opacity: 0; animation: xm-demo-press var(--demo-loop) ease-out infinite;
+}
+@keyframes xm-demo-under {
+  0%, 8% { transform: translateX(-104%); }
+  30%, 100% { transform: translateX(0); }
+}
+@keyframes xm-demo-blink {
+  0%, 56% { opacity: 1; }
+  57%, 78% { opacity: 0; }
+  79%, 100% { opacity: 1; }
+}
+@keyframes xm-demo-press {
+  0%, 46% { opacity: 0; transform: scale(1); }
+  52% { opacity: 1; transform: scale(1); }
+  56% { opacity: 1; transform: scale(0.82); }
+  60%, 72% { opacity: 1; transform: scale(1); }
+  76% { opacity: 1; transform: scale(0.82); }
+  80% { opacity: 1; transform: scale(1); }
+  86%, 100% { opacity: 0; }
+}
+
+/* On an app: the widget is inside the window, so it goes where the window goes, and
+   away with it when the window is minimized. */
+.xm-demo--anchor .xm-demo-win { left: 14%; top: 18%; width: 54%; height: 62%; animation: xm-demo-roam var(--demo-loop) ease-in-out infinite; }
+.xm-demo--anchor .xm-demo-widget { right: 5%; top: 22%; width: 34%; height: 34%; }
+@keyframes xm-demo-roam {
+  0%, 8% { transform: none; opacity: 1; }
+  26%, 34% { transform: translate(40%, -12%); opacity: 1; }
+  50%, 56% { transform: translate(12%, 12%); opacity: 1; }
+  68%, 82% { transform: translate(12%, 70%) scale(0.2); opacity: 0; }
+  96%, 100% { transform: none; opacity: 1; }
+}
+
+/* Pages: one group of widgets or the other, never both, and the dot says which. */
+.xm-demo-one { left: 8%; top: 14%; width: 38%; height: 54%; }
+.xm-demo-two { right: 8%; top: 14%; width: 38%; height: 24%; }
+.xm-demo-three { right: 8%; top: 44%; width: 38%; height: 24%; }
+.xm-demo--pages .xm-demo-one { animation: xm-demo-page-a var(--demo-loop) ease-in-out infinite; }
+.xm-demo--pages .xm-demo-two, .xm-demo--pages .xm-demo-three { opacity: 0; animation: xm-demo-page-b var(--demo-loop) ease-in-out infinite; }
+.xm-demo-dot-a, .xm-demo-dot-b {
+  bottom: 9%; width: 7px; height: 7px; border-radius: 50%; background: var(--text);
+}
+.xm-demo-dot-a { left: calc(50% - 10px); animation: xm-demo-dot-a var(--demo-loop) ease-in-out infinite; }
+.xm-demo-dot-b { left: calc(50% + 3px); opacity: 0.25; animation: xm-demo-dot-b var(--demo-loop) ease-in-out infinite; }
+@keyframes xm-demo-page-a {
+  0%, 40% { opacity: 1; }
+  48%, 90% { opacity: 0; }
+  98%, 100% { opacity: 1; }
+}
+@keyframes xm-demo-dot-a {
+  0%, 40% { opacity: 1; }
+  48%, 90% { opacity: 0.25; }
+  98%, 100% { opacity: 1; }
+}
+@keyframes xm-demo-page-b {
+  0%, 42% { opacity: 0; }
+  50%, 88% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes xm-demo-dot-b {
+  0%, 42% { opacity: 0.25; }
+  50%, 88% { opacity: 1; }
+  96%, 100% { opacity: 0.25; }
+}
+
+/* The webcam: a face in a circle, in the corner of the video it was asked for. */
+.xm-demo-clip { inset: 0; background: var(--demo-win); }
+.xm-demo-clip::after {
+  content: ""; position: absolute; left: 10%; right: 10%; bottom: 16%; height: 12%;
+  background: var(--demo-bar); border-radius: 2px;
+}
+.xm-demo-face {
+  right: 5%; bottom: 9%; width: 28%; aspect-ratio: 1; overflow: hidden;
+  background: var(--demo-mark); border: 2px solid var(--surface); border-radius: 50%;
+  animation: xm-demo-corners 9s ease-in-out infinite;
+}
+.xm-demo-face::before, .xm-demo-face::after { content: ""; position: absolute; left: 50%; background: var(--surface); border-radius: 50%; }
+.xm-demo-face::before { top: 20%; width: 38%; height: 38%; margin-left: -19%; }
+.xm-demo-face::after { top: 64%; width: 76%; height: 70%; margin-left: -38%; }
+@keyframes xm-demo-corners {
+  0%, 20% { transform: none; }
+  25%, 45% { transform: translate(0, -140%); }
+  50%, 70% { transform: translate(-240%, -140%); }
+  75%, 95% { transform: translate(-240%, 0); }
+  100% { transform: none; }
+}
+
+/* A row that shows one beside its words. */
+.xm-row--demo > .xm-words { flex: 1 1 0; min-width: 0; }
+.xm-row--demo > .xm-choices { flex-basis: 100%; }
+.xm-row--demo > .xm-choices > .xm-choice { flex: 1 1 auto; }
+
+/* The place of a widget: what the chosen one means, and the apps to choose from. */
+.xm-place-says, .xm-place-ask { flex-basis: 100%; margin: 0; }
+.xm-place-apps { flex-basis: 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.xm-place-apps:empty { min-height: 44px; }
+.xm-tune .xm-row--place > .xm-choices { flex: 1 1 0; min-width: 0; }
+.xm-tune .xm-place-says, .xm-tune .xm-place-apps { padding-inline-start: calc(var(--xm-tune-name) + var(--space-4)); }
+.xm-tune .xm-row--place { flex-wrap: wrap; }
+
+/* "When it shows": a chip names its value, and a long list of apps must not stretch it. */
+.xm-when-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-when-chip:disabled { opacity: 0.45; cursor: default; }
+.xm-when-line { display: flex; flex-direction: column; gap: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--line); }
+.xm-when-line > .xm-sub { margin: 0; }
+.xm-when-hours { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.xm-when-clock { display: inline-flex; align-items: center; gap: var(--space-2); }
+.xm-when-clock input {
+  min-height: 44px; padding: 0 var(--space-3); color: inherit; font: inherit;
+  background: var(--cst-well); border: 0; border-radius: 10px;
+}
+#xm-root .xm-when-clock input:focus { outline: 1.5px solid var(--cst-muted); outline-offset: -1.5px; box-shadow: none; }
+
+@media (max-width: 720px) {
+  .xm-tune .xm-place-says, .xm-tune .xm-place-apps { padding-inline-start: 0; }
+  .xm-tune .xm-row--place > .xm-choices { flex-basis: 100%; }
+  .xm-guide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Stopped, each shows its still frame, the same as for reduced motion. */
+body.game-mode .xm-demo span,
+body.perf-mode .xm-demo span,
+body.overlay-frozen .xm-demo span,
+body.lock-screen-active .xm-demo span,
+body.ambient-scene-open .xm-demo span { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .xm-demo span { animation: none !important; }
+}

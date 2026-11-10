@@ -32,6 +32,7 @@
 
 const fs = require('fs');
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
 const { CATALOG_BASE } = require('./community-catalog');
@@ -291,6 +292,10 @@ const OLLAMA_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 256 * 1024;   // a model list; anything larger is not one
 const MAX_CATALOG_MODELS = 60;
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 
 let _ollama = { models: [], fetchedAt: 0, failedAt: 0, etag: '' };
 let _ollamaPending = null;
@@ -349,6 +354,7 @@ function _fetchText(url, etag, _hops = 0) {
     catch (e) { return reject(e); }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    armDeadline(req, FETCH_DEADLINE_MS);
 
     function onResponse(res) {
       if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }

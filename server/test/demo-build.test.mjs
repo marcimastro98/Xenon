@@ -31,11 +31,18 @@ test('the only required source patch — SERVER in state.js — is still anchore
     'build-demo.mjs prefix-inserts at this exact line; update both together');
 });
 
+test('the curated tile decor URLs the demo makes relative are still anchored', () => {
+  // Root paths 404 under /demo/, so the build rewrites both to relative ones.
+  const src = read('server', 'js', 'tile-decor-presets.js');
+  assert.equal(countOf(src, '`/assets/decor/frame-'), 1, 'build-demo.mjs patches the frame URL here');
+  assert.equal(countOf(src, '`/assets/decor/overlay-'), 1, 'build-demo.mjs patches the sticker URL here');
+});
+
 test('every index.html anchor the build inserts at occurs exactly once', () => {
   const html = read('server', 'index.html');
   const anchors = {
     'analytics prelude': '<meta charset="UTF-8">',
-    'boot scripts': '<script src="shared/src/constants.js"></script>',
+    'boot scripts': '<script src="js/boot-splash.js"></script>',
     'demo UI layer': '<script src="js/main.js"></script>',
     'Edge DPR block': '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
     'head metadata': '<title>',
@@ -53,10 +60,10 @@ test('the analytics prelude is still extractable from docs/index.html', () => {
   assert.ok(site.includes('static.cloudflareinsights.com'), 'Cloudflare beacon missing from the prelude');
 });
 
-test('the 1.12 MB logo has exactly one CSS reference to rewrite', () => {
+test('Settings loads no hi-res logo', () => {
+  // The old 1.12 MB logo.png was 14% of the demo payload; the app no longer ships it.
   const css = read('server', 'components', 'SettingsModal', 'SettingsModal.css');
-  assert.equal(countOf(css, '/public/images/logo/logo.png'), 1,
-    'build-demo.mjs rewrites this single reference to logo-mark.png and skips the 1.12 MB file');
+  assert.equal(countOf(css, '/public/images/logo/logo.png'), 0);
 });
 
 test('the copy allowlist equals the directory list the server actually serves', () => {
@@ -114,4 +121,55 @@ test('the catalog only offers "Try in the browser" for client-side kinds', () =>
   assert.ok(m, 'DEMO_KINDS is gone from docs/catalog/index.html');
   const kinds = m[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
   assert.deepEqual(kinds.sort(), ['bg', 'page', 'theme']);
+});
+
+test('the demo splash has a line in every language the app speaks', () => {
+  // i18n.js is not loaded when the splash paints, so boot.js carries its own copy.
+  const i18n = read('server', 'js', 'i18n.js');
+  const boot = read('tools', 'demo', 'boot.js');
+  const appLangs = [...i18n.matchAll(/^ {2}([a-z]{2}): \{$/gm)].map((m) => m[1]);
+  const block = /const SPLASH_TEXT = \{([\s\S]*?)\n {2}\};/.exec(boot);
+  assert.ok(block, 'SPLASH_TEXT is gone from tools/demo/boot.js');
+  const splashLangs = [...block[1].matchAll(/^ {4}([a-z]{2}): '/gm)].map((m) => m[1]);
+  assert.ok(appLangs.length >= 11, 'expected the app languages in i18n.js');
+  assert.deepEqual(splashLangs.sort(), appLangs.sort());
+});
+
+test('the demo timers have the shape the timer card reads', async () => {
+  // timer.js counts from durationSecs/startedAt/status; an older shape
+  // (total/remaining/running) left the demo's Focus timer reading NaN:NaN.
+  const vm = await import('node:vm');
+  const ctx = { window: {} };
+  vm.runInNewContext(read('tools', 'demo', 'data.js'), ctx);
+  const timers = ctx.window.__XD__.timers;
+  assert.ok(timers.length > 0);
+  for (const t of timers) {
+    assert.ok(Number.isFinite(t.durationSecs) && t.durationSecs > 0, `${t.id} has a duration`);
+    assert.ok(['running', 'paused', 'done'].includes(t.status), `${t.id} has a status`);
+    assert.ok((t.pausedElapsed || 0) < t.durationSecs, `${t.id} still has time left`);
+  }
+  assert.match(read('tools', 'demo', 'boot.js'), /t\.status === 'running'\) t\.startedAt = Date\.now\(\)/,
+    'boot.js starts the running timers when the demo opens');
+});
+
+test('the Sparks chip reading its balance on start is answered quietly, not with the runs-on-your-PC toast', () => {
+  const boot = read('tools', 'demo', 'boot.js');
+  const quiet = boot.slice(boot.indexOf('const QUIET_READS'), boot.indexOf('};', boot.indexOf('const QUIET_READS')));
+  assert.ok(read('server', 'js', 'xenon-credits.js').includes("'/api/ai/xenon/balance'"), 'the chip still reads this path');
+  assert.ok(quiet.includes("'/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' })"));
+});
+
+test('the demo notes carry the field the notes tile reads', async () => {
+  // The tile shows `note.body` (js/notes.js); notes written as {title, text}
+  // drew "undefined" in the public demo.
+  const { runInNewContext } = await import('node:vm');
+  const sandbox = { window: {} };
+  runInNewContext(read('tools', 'demo', 'data.js'), sandbox);
+  const notes = sandbox.window.__XD__.notes.notes;
+  assert.ok(notes.length > 0);
+  for (const n of notes) {
+    assert.equal(typeof n.body, 'string', `note ${n.id} has no body`);
+    assert.ok(n.body.trim(), `note ${n.id} is empty`);
+    assert.ok(!n.body.includes('—'), `note ${n.id} has an em-dash`);
+  }
 });

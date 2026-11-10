@@ -1,4 +1,8 @@
 'use strict';
+const { psEscape } = require('./ps-quote');
+const { checkPinnedSha256 } = require('./pinned-hash');
+const { createPace } = require('./search-pace');
+const { armDeadline } = require('./net-guard');
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -10,6 +14,7 @@ const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const { execFile, spawn } = require('child_process');
+const { follow } = require('./ai-tool-groups');
 
 const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
 
@@ -50,8 +55,9 @@ function voiceForLang(lang) {
 // client. 'ollama' is this module's own local provider; 'openai'/'anthropic' are
 // the cloud ChatGPT/Claude providers handled by ai-openai.js / ai-anthropic.js;
 // 'claudecode'/'codex' are the user's own subscription through the official
-// Claude Code / Codex program (ai-cli.js).
-const AI_PROVIDERS = Object.freeze(['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex']);
+// Claude Code / Codex program (ai-cli.js); 'localapi' is a server the user runs
+// on this PC that speaks the OpenAI API (ai-local-server.js).
+const AI_PROVIDERS = Object.freeze(['gemini', 'ollama', 'localapi', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon']);
 function sanitizeProvider(value) {
   return AI_PROVIDERS.includes(value) && value !== 'gemini' ? value : 'gemini';
 }
@@ -354,7 +360,7 @@ function _ollamaHttpError(statusCode, data) {
   let err;
   if (low.includes('cuda') || low.includes('illegal memory access') || low.includes('device-side assert') || low.includes('ggml_cuda')) {
     err = new Error('AI locale: il modello è andato in crash sulla GPU (errore CUDA). '
-      + 'Non è un limite del tuo hardware — è un bug noto tra Ollama, il driver NVIDIA e alcuni modelli. '
+      + 'Non è un limite del tuo hardware: è un bug noto tra Ollama, il driver NVIDIA e alcuni modelli. '
       + 'Prova così: aggiorna il driver NVIDIA e Ollama all’ultima versione, poi riavvia Ollama (o il PC). '
       + 'Se si ripresenta, passa temporaneamente a un modello più piccolo dalle impostazioni Xenon AI.');
     err.code = 'gpu_crash';
@@ -490,7 +496,9 @@ async function localChat(opts) {
 }
 
 async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText, executeTool }, progress) {
-  const tools = geminiToolsToOpenAI(geminiTools); // native tools share the OpenAI shape
+  // Native tools share the OpenAI shape; read each round, since use_tools can
+  // add a group mid-turn (ai-tool-groups.js).
+  const toolsNow = follow(geminiTools, geminiToolsToOpenAI);
   const supportsVision = await supportsVisionLive(baseUrl, model);
   const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToNative(history, { supportsVision })];
   const clientActions = [];
@@ -533,7 +541,7 @@ async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText
   // slower, so we stay a little below the cloud cap of 8.
   const MAX_ITERS = 6;
   for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const resp = await callModel({ model, messages, tools, stream: false });
+    const resp = await callModel({ model, messages, tools: toolsNow(), stream: false });
     const parsed = parseOllamaNativeResponse(resp);
 
     if (!parsed.functionCall) { finalText = parsed.text; break; }
@@ -639,6 +647,68 @@ function whisperExe(serverDir) {
   return null;
 }
 
+// whisper.cpp's decoding flags for a spoken request. A voice turn waits on this,
+// so speed matters as much as accuracy: more threads (whisper defaults to 4),
+// greedy decoding instead of a 5-wide beam search, and an encoder window sized
+// to the clip instead of a fixed 30 s (50 frames per second, with headroom).
+// Measured on a 4 s Italian request with ggml-small: 3.2 s -> 1.0 s, same text.
+// Non-speech tokens ("[Musica]") are suppressed at the source.
+const WAV_BYTES_PER_SEC = 16000 * 2;
+function whisperSpeedArgs(wavBytes, cpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length) {
+  const threads = Math.min(8, Math.max(4, Math.floor(cpus / 2)));
+  const seconds = Math.max(0, (Number(wavBytes) || 0) - 44) / WAV_BYTES_PER_SEC;
+  const audioCtx = Math.min(1500, Math.max(384, Math.ceil(seconds * 60) + 64));
+  return ['-t', String(threads), '-bs', '1', '-bo', '1', '-ac', String(audioCtx), '-sns'];
+}
+
+// What whisper writes when it heard no words: bracketed or parenthesised
+// annotations ("[BLANK_AUDIO]", "(musica)") and the sign-off lines it learned
+// from subtitled video and invents over near-silence. Sent on, any of these
+// becomes a request nobody made, so a transcript made only of them is empty.
+const STT_NOISE = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;
+const STT_HALLUCINATIONS = [
+  /amara\.org/gi,
+  /sottotitoli (creati|a cura|e revisione)[^.]*\.?/gi,
+  /grazie (a tutti )?per (la visione|l'attenzione|aver guardato)[.!]?/gi,
+  /thanks? (you )?for watching[.!]?/gi,
+  /subtitles by[^.]*\.?/gi,
+];
+function cleanTranscript(text) {
+  let out = String(text || '').replace(STT_NOISE, ' ');
+  for (const re of STT_HALLUCINATIONS) out = out.replace(re, ' ');
+  out = out.replace(/\s+/g, ' ').trim();
+  return /[\p{L}\p{N}]/u.test(out) ? out : '';
+}
+
+// Silence put in front of a clip before whisper hears it. A recording that
+// starts right on the first syllable loses it: whisper reads "che ore sono" as
+// "e ora sono". Only 16-bit PCM WAV is padded; anything else passes unchanged.
+const STT_LEAD_MS = 400;
+function padWavStart(wav, ms = STT_LEAD_MS) {
+  const buf = Buffer.isBuffer(wav) ? wav : Buffer.from(wav || []);
+  if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') return buf;
+  let fmt = null;
+  for (let at = 12; at + 8 <= buf.length;) {
+    const id = buf.toString('ascii', at, at + 4);
+    const size = buf.readUInt32LE(at + 4);
+    if (id === 'fmt ' && size >= 16) {
+      fmt = { format: buf.readUInt16LE(at + 8), channels: buf.readUInt16LE(at + 10), rate: buf.readUInt32LE(at + 12), bits: buf.readUInt16LE(at + 22) };
+    } else if (id === 'data') {
+      if (!fmt || fmt.format !== 1 || fmt.bits !== 16) return buf;
+      const lead = Math.round(fmt.rate * ms / 1000) * fmt.channels * 2;
+      // ffmpeg writing to a pipe leaves the sizes at 0 or 0xFFFFFFFF: use what is there.
+      const rest = buf.length - at - 8;
+      const dataLen = size > 0 && size <= rest ? size : rest;
+      const out = Buffer.concat([buf.subarray(0, at + 8), Buffer.alloc(lead), buf.subarray(at + 8, at + 8 + dataLen)]);
+      out.writeUInt32LE(dataLen + lead, at + 4);
+      out.writeUInt32LE(out.length - 8, 4);
+      return out;
+    }
+    at += 8 + size + (size % 2);
+  }
+  return buf;
+}
+
 // Transcribe a WAV buffer with whisper.cpp. `serverDir` locates the binary and
 // model. Writes the WAV to a temp file, runs whisper, reads the .txt output,
 // then cleans up. Rejects with a clear message when the binary/model is missing.
@@ -657,14 +727,15 @@ function localStt(wavBuffer, lang, serverDir) {
 
     const cleanup = () => { for (const f of [wavPath, txtPath]) fs.promises.unlink(f).catch(() => {}); };
 
-    fs.promises.writeFile(wavPath, wavBuffer).then(() => {
-      const args = ['-m', model, '-l', safeLang, '-f', wavPath, '-otxt', '-of', outBase, '-nt'];
+    const clip = padWavStart(wavBuffer);
+    fs.promises.writeFile(wavPath, clip).then(() => {
+      const args = ['-m', model, '-l', safeLang, '-f', wavPath, '-otxt', '-of', outBase, '-nt', ...whisperSpeedArgs(clip.length)];
       execFile(exe, args, { windowsHide: true, timeout: 30000, maxBuffer: 4 * 1024 * 1024 }, async (err) => {
         if (err) { cleanup(); return reject(new Error('whisper failed: ' + err.message)); }
         try {
           const text = await fs.promises.readFile(txtPath, 'utf8');
           cleanup();
-          resolve(text.trim());
+          resolve(cleanTranscript(text));
         } catch (readErr) { cleanup(); reject(new Error('whisper produced no output')); }
       });
     }).catch(e => { cleanup(); reject(e); });
@@ -700,7 +771,10 @@ async function localTts(text, lang, ffmpegPath) {
   const outPath = path.join(os.tmpdir(), `xenon-tts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`);
   try {
     return await new Promise((resolve, reject) => {
-      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
+      // -protocol_whitelist pipe (an input option: the output file is not
+      // affected): the input is untrusted audio whose format ffmpeg guesses,
+      // and a playlist format must not reach local files or URLs.
+      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
       const errBuf = [];
       ff.stderr.on('data', c => errBuf.push(c));
       ff.on('error', reject);
@@ -791,7 +865,13 @@ function _ollamaAgentPlistPath() {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `${_OLLAMA_AGENT_LABEL}.plist`);
 }
 
+// Windows (Run key) and macOS (LaunchAgent); on Linux Ollama's own installer sets up the service.
+function ollamaAutostartSupported() {
+  return process.platform === 'win32' || process.platform === 'darwin';
+}
+
 function getOllamaAutostart() {
+  if (!ollamaAutostartSupported()) return Promise.resolve(false);
   if (process.platform === 'darwin') {
     return Promise.resolve(fs.existsSync(_ollamaAgentPlistPath()));
   }
@@ -845,6 +925,7 @@ async function _setOllamaAutostartDarwin(enabled) {
 }
 
 function setOllamaAutostart(enabled) {
+  if (!ollamaAutostartSupported()) return Promise.resolve({ ok: false, error: 'unsupported' });
   if (process.platform === 'darwin') return _setOllamaAutostartDarwin(enabled);
   return new Promise((resolve) => {
     if (enabled) {
@@ -1031,6 +1112,9 @@ function _httpsGetText(url, timeoutMs = 8000, _redirects = 0) {
     });
     req.on('error', reject);
     req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('search request timed out')); });
+    // setTimeout is an idle timeout; a page trickling bytes would hold the
+    // search forever. Cap the whole request too.
+    armDeadline(req, timeoutMs * 2);
   });
 }
 
@@ -1075,6 +1159,12 @@ function _parseDdgHtml(html, limit = 4) {
   return { sources, snippets };
 }
 
+// DuckDuckGo's results page answers 202 with nothing in it to a search too soon after
+// the last one. Measured 4 Nov 2026: 12 s apart all passed, 8 s apart the second
+// failed, and Bit often searches twice in a turn. The instant answers have no such limit.
+const DDG_PAGE_GAP_MS = 12000;
+const ddgPagePace = createPace(DDG_PAGE_GAP_MS);
+
 // Public web search for the local provider. `query` is the model's search query.
 async function localWebSearch(query, timeoutMs = 8000) {
   const q = String(query || '').trim().slice(0, 300);
@@ -1098,6 +1188,9 @@ async function localWebSearch(query, timeoutMs = 8000) {
   } catch { /* fall through to HTML scrape */ }
 
   // 2) HTML SERP scrape — general queries (news, prices, "X today").
+  const wait = ddgPagePace(Date.now());
+  if (wait === null) return { error: 'web search busy' };
+  if (wait) await new Promise(resolve => setTimeout(resolve, wait));
   try {
     const html = await _httpsGetText(`https://html.duckduckgo.com/html/?q=${enc}`, timeoutMs);
     const { sources, snippets } = _parseDdgHtml(html);
@@ -1115,8 +1208,20 @@ async function localWebSearch(query, timeoutMs = 8000) {
 // ── On-demand Whisper.cpp install ─────────────────────────────────────────
 // The installer no longer bundles Whisper.cpp/Ollama (too slow for everyone).
 // Instead the user downloads Whisper from Settings → Xenon AI when switching to
-// the local provider. These helpers fetch the latest whisper.cpp Windows x64
+// the local provider. These helpers fetch a PINNED whisper.cpp Windows x64
 // build + the ggml-small model, streaming progress back to the UI over SSE.
+
+// The exact whisper.cpp build Xenon installs, and the SHA-256 of its zip. The
+// zip's whisper-cli.exe is executed on every voice request, so "whatever the
+// newest release is" was code from a third party's account running here with
+// nothing checking it, including pre-releases nobody had looked at. One tagged
+// version, one asset, one hash: bump all three together after checking that the
+// new zip still carries whisper-cli.exe (whisper.cpp stopped attaching binaries
+// to its tags at v1.9.4, so a newer TAG is not automatically a usable one).
+const WHISPER_VERSION = 'v1.9.2';
+const WHISPER_ASSET = 'whisper-bin-x64.zip';
+const WHISPER_ZIP_SHA256 = '49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a';
+const WHISPER_ZIP_URL = `https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_VERSION}/${WHISPER_ASSET}`;
 
 // HTTPS GET to a file, following 30x redirects (GitHub asset and HuggingFace
 // URLs both redirect to a CDN). Streams to destPath and reports received/total
@@ -1152,33 +1257,6 @@ function _downloadToFile(url, destPath, onProgress, _redirects = 0) {
   });
 }
 
-// HTTPS GET returning parsed JSON, following redirects. Used for the GitHub
-// releases API (sends the recommended Accept + User-Agent headers).
-function _httpsJson(url, _redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (_redirects > 5) return reject(new Error('too many redirects'));
-    const req = https.get(url, {
-      headers: { 'User-Agent': 'XenonEdgeHub', 'Accept': 'application/vnd.github+json' },
-    }, (res) => {
-      const code = res.statusCode || 0;
-      if (code >= 300 && code < 400 && res.headers.location) {
-        res.resume();
-        const next = new URL(res.headers.location, url).toString();
-        return resolve(_httpsJson(next, _redirects + 1));
-      }
-      if (code !== 200) {
-        res.resume();
-        return reject(new Error('http ' + code + ' for ' + url));
-      }
-      let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('invalid JSON from ' + url)); } });
-    });
-    req.on('error', reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error('request timed out: ' + url)); });
-  });
-}
-
 // Extract a zip via the .NET ZipFile API. We deliberately AVOID Expand-Archive:
 // that pure-PowerShell cmdlet is 10–50× slower and streams no progress, so a
 // large extraction looked frozen. ZipFile::ExtractToDirectory is the fast native
@@ -1188,8 +1266,8 @@ function _httpsJson(url, _redirects = 0) {
 // are doubled so the PowerShell single-quoted literals stay intact.
 function _unzipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
-    const z = zipPath.replace(/'/g, "''");
-    const d = destDir.replace(/'/g, "''");
+    const z = psEscape(zipPath);
+    const d = psEscape(destDir);
     const ps =
       `Unblock-File -LiteralPath '${z}' -ErrorAction SilentlyContinue; ` +
       `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
@@ -1226,35 +1304,6 @@ function _runBrewInstall(brewPath, formula) {
   });
 }
 
-// Pick the Windows x64 zip to install from a GitHub releases list (newest
-// first). whisper.cpp stopped attaching binaries to its tagged versions in
-// September 2026 (v1.9.4 and v1.9.5 have none): they now ship on the "bNNNN"
-// builds, marked as pre-releases. Asking for /releases/latest therefore found
-// nothing, and the download failed at once. So walk the list and take the
-// newest release, pre-release or not, that carries a usable zip.
-function pickWhisperAsset(releases) {
-  // Prefer the small CPU build (`whisper-bin-x64.zip`, ~4 MB). The accelerated
-  // variants (CUDA can be ~450 MB) need a matching GPU runtime and are far
-  // slower to download AND extract, which is what made the install look frozen.
-  // Never auto-pick them while a plain build exists; STT on the CPU build is fast.
-  const heavy = /cublas|cuda|clblast|hipblas|hip|vulkan|openblas|blas|arm64/i;
-  const isZip = (n) => /x64.*\.zip$/i.test(n) && !/win32|ubuntu|linux|mac/i.test(n);
-  const preds = [
-    (n) => /^whisper-bin-x64\.zip$/i.test(n),        // canonical CPU build (smallest)
-    (n) => isZip(n) && !heavy.test(n),                // any plain (non-accelerated) x64 zip
-    isZip,                                            // last resort: an accelerated x64 build
-  ];
-  const list = (Array.isArray(releases) ? releases : []).filter(r => r && !r.draft);
-  for (const pred of preds) {
-    for (const r of list) {
-      const assets = Array.isArray(r.assets) ? r.assets : [];
-      const a = assets.find(x => x && typeof x.name === 'string' && x.browser_download_url && pred(x.name));
-      if (a) return a;
-    }
-  }
-  return null;
-}
-
 // Recursively locate a whisper executable under `dir`. Returns the full path or
 // null. Used after unzip to find where the release placed the binary.
 function _findWhisperExeRecursive(dir) {
@@ -1275,9 +1324,9 @@ function _findWhisperExeRecursive(dir) {
 
 // Download + set up Whisper.cpp on demand. onProgress({ status, percent }).
 //  1. Ensure the whisper dir exists.
-//  2. If no exe: fetch latest whisper.cpp release, pick the Windows x64 zip,
-//     download (0→40%), unzip, delete the zip, then flatten so the exe sits in
-//     the dir root next to its ggml*.dll siblings.
+//  2. If no exe: download the pinned whisper.cpp Windows x64 zip (0→40%),
+//     check it against WHISPER_ZIP_SHA256, unzip, delete the zip, then flatten
+//     so the exe sits in the dir root next to its ggml*.dll siblings.
 //  3. If the ggml-small model is missing: download it (45→100%).
 // Returns { ok } reflecting whether both the exe and model are now present.
 async function installWhisper(serverDir, onProgress) {
@@ -1313,16 +1362,14 @@ async function installWhisper(serverDir, onProgress) {
     }
   } else if (!whisperExe(serverDir)) {
     report('Download Whisper…', 0);
-    const releases = await _httpsJson('https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20');
-    const asset = pickWhisperAsset(releases);
-    if (!asset) {
-      throw new Error('No Windows x64 whisper.cpp download found on GitHub right now.');
-    }
     const zipPath = path.join(dir, 'whisper.zip');
-    await _downloadToFile(asset.browser_download_url, zipPath, (received, total) => {
+    await _downloadToFile(WHISPER_ZIP_URL, zipPath, (received, total) => {
       const frac = total > 0 ? received / total : 0;
       report('Download Whisper…', Math.round(frac * 40));
     });
+    // Before anything is unpacked: a zip that is not the reviewed build is
+    // deleted here, and its exe never reaches the folder localStt() runs from.
+    await checkPinnedSha256(zipPath, WHISPER_ZIP_SHA256, 'whisper.cpp ' + WHISPER_VERSION);
     report('Estrazione Whisper…', 42);
     // Extract into a FRESH subfolder (removed first in case a prior attempt left
     // it behind), so the plain ZipFile overload never hits an "already exists"
@@ -1380,6 +1427,7 @@ module.exports = {
   EDGE_VOICES,
   EDGE_VOICE_FALLBACK,
   voiceForLang,
+  padWavStart,
   sanitizeProvider,
   sanitizeModel,
   sanitizeOllamaUrl,
@@ -1399,8 +1447,12 @@ module.exports = {
   whisperPaths,
   whisperExe,
   installWhisper,
-  pickWhisperAsset,
+  WHISPER_VERSION,
+  WHISPER_ZIP_SHA256,
+  WHISPER_ZIP_URL,
   localStt,
+  whisperSpeedArgs,
+  cleanTranscript,
   localTts,
   localStatus,
   _ollamaReachable,
@@ -1412,6 +1464,7 @@ module.exports = {
   pullModel,
   findOllamaExe,
   startOllama,
+  ollamaAutostartSupported,
   getOllamaAutostart,
   setOllamaAutostart,
 };

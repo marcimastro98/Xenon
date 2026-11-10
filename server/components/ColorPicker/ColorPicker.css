@@ -7,7 +7,8 @@
 .cp-pop {
   position: fixed;
   z-index: 4000; /* above the settings modal and deck editor */
-  width: 248px;  /* wide enough for ~28px swatches — comfortable by finger */
+  width: 264px;  /* wide enough for ~29px swatches, comfortable by finger */
+  box-sizing: border-box;
   padding: 12px;
   border-radius: var(--radius-control, 14px);
   /* Deliberately OPAQUE: panels use the user-tunable --panel-alpha glass
@@ -26,6 +27,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  outline: none;
 }
 .cp-sv,
 .cp-hue { touch-action: none; } /* the SV/hue drags own the gesture */
@@ -71,6 +73,9 @@
   pointer-events: none;
 }
 .cp-hue-knob { top: 50%; }
+/* Both boxes take the keyboard (arrows move the knob). */
+.cp-sv:focus-visible,
+.cp-hue:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
 
 /* Preview + hex entry row. */
 .cp-row {
@@ -88,8 +93,10 @@
 .cp-hex {
   flex: 1;
   min-width: 0;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  min-height: 36px;
+  box-sizing: border-box;
+  background: var(--control-bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text, #f0f3f1);
   font-family: inherit;
@@ -115,7 +122,7 @@
 .cp-swatch {
   aspect-ratio: 1;
   border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--line);
   cursor: pointer;
   padding: 0;
   transition: transform 0.12s ease;
@@ -125,7 +132,7 @@
 /* Recently picked custom colours: a second row under the presets, separated
    by a thin rule so the two groups read apart. */
 .cp-recents {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--divider);
   padding-top: 10px;
 }
 

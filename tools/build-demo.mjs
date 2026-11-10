@@ -89,10 +89,6 @@ for (const rel of COPY_ALLOWLIST) {
 }
 log('copied ' + COPY_ALLOWLIST.join(', '));
 
-// Drop the 1.12 MB hi-res logo; patch 6 below rewrites its only reference to the
-// 28 KB mark. One PNG was 14% of the whole payload and it is incompressible.
-rmSync(join(OUT, 'public', 'images', 'logo', 'logo.png'), { force: true });
-
 // ── 2. Materialize shared/ from packages/core — NEVER from server/shared.
 //      That path is a junction on Windows and a `dir` symlink elsewhere
 //      (tools/link-shared.mjs), and cpSync without dereference copies the LINK,
@@ -119,6 +115,19 @@ log('materialized shared/src from packages/core');
     'js/state.js SERVER → same-origin'));
 }
 
+// ── 3b. Curated tile decor. The app serves frames and stickers from the root
+//      (/assets/decor/…); the demo is mounted under /demo/, where a root path is
+//      the site's 404. Relative, they resolve against the demo page wherever it
+//      is mounted. These URLs never go through the image allowlist (a preset id
+//      is already validated), so the change is local to the demo.
+{
+  const file = join(OUT, 'js', 'tile-decor-presets.js');
+  let src = readFileSync(file, 'utf8');
+  src = patchOnce(src, '`/assets/decor/frame-', '`assets/decor/frame-', 'tile-decor-presets.js frame URL → relative');
+  src = patchOnce(src, '`/assets/decor/overlay-', '`assets/decor/overlay-', 'tile-decor-presets.js sticker URL → relative');
+  writeFileSync(file, src);
+}
+
 // ── 4. index.html.
 {
   let html = readFileSync(join(ROOT, 'server', 'index.html'), 'utf8');
@@ -136,21 +145,23 @@ log('materialized shared/src from packages/core');
   html = patchOnce(html, '<meta charset="UTF-8">',
     '<meta charset="UTF-8">\n' + prelude, 'analytics + consent prelude');
 
-  // 4b. Boot scripts FIRST. settings.js reads localStorage synchronously at
-  //     script-evaluation time and several modules probe location.hash on the
-  //     way up, so the shims and the seed must already exist.
-  html = patchOnce(html, '<script src="shared/src/constants.js"></script>',
+  // 4b. Boot scripts FIRST, before even the boot splash. settings.js reads
+  //     localStorage synchronously at script-evaluation time, several modules
+  //     probe location.hash on the way up, and boot-splash.js reads its look
+  //     from storage, so the shims and the seed must already exist.
+  html = patchOnce(html, '<script src="js/boot-splash.js"></script>',
     `<script src="demo/data.js?v=${version}"></script>\n`
     + `<script src="demo/boot.js?v=${version}"></script>\n`
-    + '<script src="shared/src/constants.js"></script>',
-    'demo boot scripts before shared/src/constants.js');
+    + '<script src="js/boot-splash.js"></script>',
+    'demo boot scripts before js/boot-splash.js');
 
   // 4c. The UI layer LAST, so the fake EventSource main.js created is already
   //     registered and the grid has mounted.
   html = patchOnce(html, '<script src="js/main.js"></script>',
     '<script src="js/main.js"></script>\n'
     + `<link rel="stylesheet" href="demo/demo.css?v=${version}">\n`
-    + `<script src="demo/demo.js?v=${version}"></script>`,
+    + `<script src="demo/demo.js?v=${version}"></script>\n`
+    + `<script src="demo/maker.js?v=${version}"></script>`,
     'demo UI layer after js/main.js');
 
   // 4d. Remove the Xeneon Edge fractional-DPR block. It applies CSS zoom to
@@ -159,42 +170,40 @@ log('materialized shared/src from packages/core');
   html = cutOnce(html, '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
     '</script>', 'Edge fractional-DPR block');
 
+  // 4d'. The app loads its strings from the server (/layer-i18n.js, one
+  //     language); a static site has no server, so the demo loads the whole
+  //     file, every language in it.
+  html = patchOnce(html, '<script src="layer-i18n.js"></script>',
+    '<script src="js/i18n.js"></script>', 'whole strings file in place of /layer-i18n.js');
+
   // 4e. Head metadata. <html lang> is left alone: i18n.js sets it from the
   //     seeded language.
   html = patchOnce(html, '<title>', '<link rel="canonical" href="https://xenon-app.com/demo/">\n'
-    + '<meta name="description" content="Try Xenon in your browser — the full dashboard, running on simulated data. No download.">\n'
+    + '<meta name="description" content="Try Xenon in your browser: the full dashboard, running on simulated data. No download.">\n'
     + '<meta name="theme-color" content="#070808">\n'
-    + '<meta property="og:title" content="Xenon — try the dashboard in your browser">\n'
+    + '<meta property="og:title" content="Xenon demo: try the dashboard in your browser">\n'
     + '<meta property="og:description" content="The full Xenon dashboard, live in your browser on simulated data.">\n'
     + '<meta property="og:url" content="https://xenon-app.com/demo/">\n'
     + '<meta property="og:type" content="website">\n'
     + '<title>', 'head metadata');
-  html = html.replace(/<title>[^<]*<\/title>/, '<title>Xenon — try the dashboard in your browser</title>');
+  html = html.replace(/<title>[^<]*<\/title>/, '<title>Xenon demo: try the dashboard in your browser</title>');
 
   writeFileSync(join(OUT, 'index.html'), html);
   log('wrote index.html');
 }
 
-// ── 5. Patch 6: the 1.12 MB logo reference.
-{
-  const file = join(OUT, 'components', 'SettingsModal', 'SettingsModal.css');
-  const src = readFileSync(file, 'utf8');
-  writeFileSync(file, patchOnce(src, '/public/images/logo/logo.png', '/public/images/logo/logo-mark.png',
-    'SettingsModal.css logo.png → logo-mark.png (−1.1 MB)'));
-}
-
-// ── 6. The demo runtime, token-substituted.
+// ── 5. The demo runtime, token-substituted.
 {
   const dst = join(OUT, 'demo');
   mkdirSync(dst, { recursive: true });
-  for (const name of ['data.js', 'boot.js', 'demo.js', 'demo.css']) {
+  for (const name of ['data.js', 'boot.js', 'demo.js', 'maker.js', 'demo.css']) {
     const src = readFileSync(join(ROOT, 'tools', 'demo', name), 'utf8');
     writeFileSync(join(dst, name), src.split('__V__').join(version).split('__BUILD__').join(stamp));
   }
   log('wrote demo/ runtime');
 }
 
-// ── 7. A #try=<id> fragment must never contain the substring "edge":
+// ── 6. A #try=<id> fragment must never contain the substring "edge":
 //      edge-preview.js tests `hash.indexOf('edge') >= 0` and would silently boot
 //      the demo into the 2560x720 letterbox. boot.js strips the fragment before
 //      anything reads it, and this is the belt to that pair of braces.
@@ -204,7 +213,7 @@ log('materialized shared/src from packages/core');
   if (bad.length) fail('catalog ids containing "edge" would trip the Edge-preview hash sniff: ' + bad.join(', '));
 }
 
-// ── 8. Build stamp. demo/boot.js reseeds a visitor's localStorage when this
+// ── 7. Build stamp. demo/boot.js reseeds a visitor's localStorage when this
 //      changes, so a redeploy repairs anyone left holding corrupted demo state.
 writeFileSync(join(OUT, '.build-stamp'), JSON.stringify({ version, builtAt: stamp }, null, 2) + '\n');
 

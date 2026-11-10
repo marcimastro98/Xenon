@@ -1,7 +1,7 @@
 {
   "fr": {
-    "meta.title": "Utilisation du plan OpenAI Codex et approbations sur un second écran",
-    "meta.desc": "Consultez l'utilisation de votre plan OpenAI Codex, les sessions en cours sur votre PC et leurs requêtes sur un second écran ou un téléphone, et répondez-y d'un simple geste.",
+    "meta.title": "Usage d'OpenAI Codex et approbations sur un second écran",
+    "meta.desc": "Voyez l'usage de votre plan OpenAI Codex, les sessions en cours sur votre PC et leurs requêtes sur un second écran ou un téléphone, et répondez d'un geste.",
     "cx.h1": "OpenAI Codex sur un second écran",
     "cx.lede": "La tuile Codex de Xenon affiche les fenêtres d'utilisation de votre plan, vos jetons par jour, les sessions en cours sur votre PC et chaque requête qu'elles génèrent, avec les options Autoriser, Refuser et Répondre dans Codex. Elle s'affiche à l'écran, à côté de votre PC : un Xeneon Edge, un moniteur, une tablette ou un téléphone apparié.",
     "cx.updated": "Dernière mise à jour : 6 octobre 2026",
@@ -22,7 +22,7 @@
     "cx.h.approve": "Réponse aux demandes",
     "cx.approve.p1": "Lorsqu'une session Codex demande d'exécuter une commande ou de modifier des fichiers, la requête s'affiche sur la tuile avec la commande, ou les fichiers touchés par la modification (les suppressions étant signalées), ainsi que trois boutons : <strong>Autoriser</strong>, <strong>Refuser</strong> et <strong>Répondre dans Codex</strong>, ce qui renvoie immédiatement la question à Codex. La carte indique ce qui rend la requête inhabituelle : le réseau, la publication de votre travail, un fichier situé en dehors du projet, des accès supérieurs à ceux de la session, ou une action irréversible.",
     "cx.approve.p2": "Une demande irréversible, telle que <code>rm -rf</code> ou un correctif supprimant un fichier, est autorisée en maintenant le bouton enfoncé, et non par une simple pression. Une demande laissée sans action pendant 25 secondes prend le contrôle de l'écran entier, afin qu'elle ne reste pas invisible sur une autre page.",
-    "cx.approve.p3": "Rien n'est approuvé pour vous. Pendant qu'une demande est en attente sur la tuile, Codex n'affiche pas son propre message, donc après 90 secondes, ou si Xenon est fermé, la demande est renvoyée à Codex, qui pose la question comme d'habitude. <strong>Paramètres → Codex</strong> modifie le délai d'attente ou désactive les demandes.",
+    "cx.approve.p3": "Rien n'est approuvé pour vous. Pendant qu'une demande est en attente sur la tuile, Codex n'affiche pas son propre message, donc après 90 secondes, ou si Xenon est fermé, la demande est renvoyée à Codex, qui pose la question comme d'habitude. <strong>Réglages → Claude Code et Codex</strong> modifie le délai d'attente ou désactive les demandes.",
     "cx.approve.phone": "Pour répondre depuis votre téléphone, associez-le à Xenon (beta). Le téléphone affiche le même dashboard, avec les mêmes boutons. <a href=\"/phone.html\">Comment associer un téléphone</a>.",
     "cx.h.link": "Connexion à Codex",
     "cx.link.1": "Ajoutez la tuile <strong>Codex</strong> à partir du bouton <strong>+</strong>, sous <strong>Système</strong>.",
@@ -58,6 +58,11 @@
     "ld.q4": "Pourquoi dois-je faire confiance aux hooks dans Codex ?",
     "ld.a4": "Codex exécute un hook uniquement après que vous avez fait confiance à ce hook exact. Il s'agit d'une vérification de sécurité propre à Codex, de sorte que Xenon ne le fait jamais pour vous. Si Xenon ou Node est déplacé dans un autre dossier, les hooks changent et Codex vous demande de leur faire confiance à nouveau ; la tuile indique quand.",
     "ld.q5": "La tuile fonctionne-t-elle avec une clé API ?",
-    "ld.a5": "Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher."
+    "ld.a5": "Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher.",
+    "cx.jump.widgets": "Vos widgets",
+    "cx.h.widgets": "Créer vos propres widgets",
+    "cx.widgets.p1": "Si vous codez dans Codex, il peut aussi créer des widgets pour Xenon. Dans <strong>Réglages → Widgets et partage → Créer des widgets avec Claude Code ou Codex</strong>, appuyez sur <strong>Connecter Codex</strong>. Codex lit alors le SDK des widgets, écrit le widget dans un dossier, l'installe sur votre tableau de bord, lit les erreurs qu'il rencontre et regarde une image de sa tuile, puis le corrige.",
+    "cx.widgets.p2": "La première fois, le tableau de bord vous demande s'il faut l'autoriser. Il n'approuve jamais les permissions d'un widget, ne modifie que les widgets que vous avez faits et ne fonctionne que depuis le PC où tourne Xenon. <a href=\"/create/#mcp\">Comment ça marche, et comment l'ajouter à la main</a>.",
+    "cx.pic.alt": "La tuile Codex : une requête de modification de fichiers avec ses boutons de réponse, deux sessions au travail et l'utilisation du plan sur 5 heures et sur la semaine"
   }
 }

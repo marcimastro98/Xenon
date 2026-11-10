@@ -30,7 +30,7 @@
   const TINTS = { power: '250, 200, 90', energy: '250, 200, 90', battery: '74, 222, 128' };
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="power"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="power"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   function fmtWatts(v) {
@@ -145,9 +145,9 @@
     mount.replaceChildren(wrap);
   }
 
-  // "Storico consumi" — the last 24h of CPU/GPU watts as the same sparklines the
-  // System tile's History tab draws (GuardianCharts reuses that module's chart
-  // builder and CSS). Rendered only when there is something to say: history off
+  // "Storico consumi" — the last 24h of CPU/GPU watts as the same charts the
+  // System tile's History tab draws (GuardianCharts.chartFor over
+  // js/history-chart.js, styled by GuardianHistory.css). Rendered only when there is something to say: history off
   // gets one quiet pointer to the setting, no data yet gets nothing at all.
   function historySection() {
     if (typeof window.GuardianCharts === 'undefined') return null;

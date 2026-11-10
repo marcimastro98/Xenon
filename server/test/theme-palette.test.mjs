@@ -190,3 +190,20 @@ test('both POW! halves derive to an accessible comic palette on their own tone',
     assert.equal(P.contrast(p.line, p.surface) >= 3, true, tone + ': the comic ink outline on paper');
   }
 });
+
+test('the accent as text stays readable on paper and untouched on a dark theme', () => {
+  const light = P.derive({ ...P.STOCK.light, accent: '#1ed760' }, 'light');
+  assert.equal(P.contrast(light.accentInk, light.surface) >= 4.5, true);
+  assert.equal(P.contrast(light.accentInk, light.control) >= 4.5, true);
+  assert.equal(light.accent, '#1ed760', 'a filled button keeps the real accent');
+  const dark = P.derive({ background: '#070808', text: '#f0f3f1', accent: '#1ed760' }, 'dark');
+  assert.equal(dark.accentInk, dark.accent);
+  assert.equal(P.cssTokens(light)['--accent-ink'], light.accentInk);
+});
+
+test('dim text is readable on paper, and keeps its softer floor on a dark theme', () => {
+  const light = P.derive(P.STOCK.light, 'light');
+  assert.equal(P.contrast(light.dim, light.surface) >= 4.5, true);
+  const dark = P.derive(P.STOCK.dark, 'dark');
+  assert.equal(P.contrast(dark.dim, dark.surface) >= 3, true);
+});

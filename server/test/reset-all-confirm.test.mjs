@@ -50,7 +50,7 @@ test('the destructive confirm is styled and focused as destructive', () => {
   const body = fn.slice(0, fn.indexOf('\n}'));
   assert.match(body, /o\.danger === true \? 'settings-btn danger' : 'settings-btn primary'/,
     'danger mode dresses the confirm as destructive');
-  assert.match(body, /\(o\.danger === true \? cancel : ok\)\.focus\(\)/,
+  assert.match(body, /start: input \|\| \(o\.danger === true \? cancel : ok\)/,
     'and opens with Cancel focused');
   assert.match(RESET, /danger: true/, 'the reset asks in danger mode');
 });
@@ -60,11 +60,9 @@ test('the button no longer wears the inviting colour, and says what it takes', (
   assert.ok(btn, 'the button is still there');
   assert.doesNotMatch(btn[0], /settings-btn primary/, 'not the primary slot');
   assert.match(btn[0], /settings-btn danger/, 'the destructive one');
-  // Its neighbour has carried a hint since it was added; this one is the button
-  // that actually needed one.
-  const after = HTML.slice(HTML.indexOf(btn[0]) + btn[0].length);
-  assert.match(after.slice(0, 400), /data-i18n="settings_reset_all_hint"/,
-    'a hint sits under it, like the restart button above');
+  // The line under the row's name says what it takes, before anyone reaches the key.
+  const before = HTML.slice(HTML.lastIndexOf('<div class="settings-row', HTML.indexOf(btn[0])), HTML.indexOf(btn[0]));
+  assert.match(before, /data-i18n="settings_reset_all_hint"/, 'the line sits in its row');
 });
 
 test('both sentences exist in every language the app ships', () => {

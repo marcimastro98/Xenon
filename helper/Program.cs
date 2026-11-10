@@ -75,6 +75,8 @@ internal static class Program
                 return IndexHost.Run(args);
             case "phone-serve":
                 return await PhoneHost.RunAsync();
+            case "apple-battery":
+                return await AppleBatteryTool.RunAsync(args);
             default:
                 Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs] | audio-serve [intervalMs] | disk-scan <root> [detailRoot ...] | crawl <dir> [dir ...] | shell-delete | hotkey-serve <combo> | index-serve <root> [root ...] | phone-serve");
                 return 2;

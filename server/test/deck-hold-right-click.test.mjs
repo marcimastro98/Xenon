@@ -8,6 +8,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const M = createRequire(import.meta.url)('../js/deck-model.js');
 
 // LF only, so the slice below finds the function's end on a CRLF checkout too.
 const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -19,7 +21,7 @@ function loadBinder() {
   const end = JS.indexOf('\n  }\n', start) + 4;
   const src = JS.slice(start, end);
   const fired = [];
-  const make = new Function('fired', `
+  const make = new Function('fired', 'window', `
     const bindPressFeedback = () => {};
     const fireFeedback = () => {};
     const runAction = () => {};
@@ -29,7 +31,7 @@ function loadBinder() {
     ${src}
     return bindActionKey;
   `);
-  return { bindActionKey: make(fired), fired };
+  return { bindActionKey: make(fired, { DeckModel: M }), fired };
 }
 
 function fakeNode() {

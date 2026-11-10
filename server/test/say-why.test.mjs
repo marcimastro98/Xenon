@@ -36,7 +36,7 @@ test('a server error page arrives as its status and its words, not as nothing', 
   const h = loginHelpers(async () => ({ status: 500, text: async () => 'Cannot read properties of undefined (reading "id")' }));
   const r = await h.postLogin('/stream/discord/login');
   assert.deepEqual(r, { ok: false, error: 'http_500', detail: 'Cannot read properties of undefined (reading "id")' });
-  assert.match(h.rpcLoginError(r), /Could not start login\. Try again\. \(http_500\) — “Cannot read properties/);
+  assert.match(h.rpcLoginError(r), /Could not start login\. Try again\. \(http_500\) “Cannot read properties/);
 });
 
 test('a server that does not answer says so', async () => {
@@ -52,7 +52,7 @@ test('a JSON answer is read as it is, and every code has words', async () => {
   assert.equal(r.error, 'authorize_denied');
   assert.match(h.rpcLoginError(r), /Authorization was denied/);
   assert.match(h.rpcLoginError({ ok: false, error: 'no_client' }), /no Discord Client ID and Client Secret yet/);
-  assert.match(h.rpcLoginError({ ok: false, error: 'login_failed', detail: 'EPERM: rename' }), /failed inside Xenon.*— “EPERM: rename”/);
+  assert.match(h.rpcLoginError({ ok: false, error: 'login_failed', detail: 'EPERM: rename' }), /failed inside Xenon.*\. “EPERM: rename”/);
   // An unknown code is still shown rather than swallowed.
   assert.match(h.rpcLoginError({ ok: false, error: 'something_new' }), /\(something_new\)/);
 });
@@ -82,18 +82,19 @@ test('the server answers a failed Discord login in JSON, with the reason', () =>
 
 // ── the Media tile wave ───────────────────────────────────────────────────
 
-async function vizStatus(status, mode = 'wave') {
+async function vizStatus(status, mode = 'wave', hold = '') {
   const src = read('../js/settings.js');
   const code = 'let _mediaVizStatusSeq = 0;\n' + cut(src, 'async function refreshMediaVizStatus(recheck) {', '\n}\n');
   const el = { textContent: '', dataset: {}, hidden: true };
   const btn = { hidden: true, disabled: false };
   el.btn = btn;
-  const fn = new Function('fetch', 't', '$', 'mediaVisualizerMode', 'setTimeout', code + '\nreturn refreshMediaVizStatus;')(
+  const fn = new Function('fetch', 't', '$', 'mediaVisualizerMode', 'setTimeout', 'mediaVizHold', code + '\nreturn refreshMediaVizStatus;')(
     async () => ({ ok: !!status, json: async () => status }),
     (k) => k + (k === 'settings_media_viz_st_old' ? ':{version}' : ''),
     (id) => (id === 'settings-media-viz-install' ? btn : el),
     () => mode,
     () => {},
+    () => hold,
   );
   await fn(true);
   return el;
@@ -119,6 +120,22 @@ test('Settings says whether the wave can be drawn, and what to do when it cannot
   assert.equal(el.hidden, false, 'a missing helper is said before the wave is even switched on');
 });
 
+test('a working wave that something keeps off screen says what, instead of "running"', async () => {
+  // Discord: "Media tile sound wave not showing up any more", with Settings saying
+  // Xenon Helper was running. Performance Mode had paused it, and nothing said so.
+  const ok = { ok: true, platform: 'win32', available: true, failure: '' };
+  for (const hold of ['perf', 'game', 'overlay', 'lyrics', 'silent']) {
+    const el = await vizStatus(ok, 'wave', hold);
+    assert.equal(el.textContent, 'settings_media_viz_st_hold_' + hold);
+    assert.equal(el.dataset.state, 'warn');
+    assert.equal(el.btn.hidden, true, 'nothing to install: the helper is fine');
+  }
+  // A real problem with the helper is still the one said first.
+  const el = await vizStatus({ ok: true, platform: 'win32', available: false, failure: 'no-helper' }, 'wave', 'perf');
+  assert.equal(el.textContent, 'settings_media_viz_st_missing');
+  assert.equal((await vizStatus(ok, 'off', 'perf')).hidden, true, 'nothing to say about a wave that is off');
+});
+
 test('the Install Xenon Helper button shows with every problem it fixes, and only then', async () => {
   for (const failure of ['no-helper', 'helper-too-old', 'helper-failed']) {
     const el = await vizStatus({ ok: true, platform: 'win32', available: failure !== 'no-helper', failure, minVersion: '0.7.0' });
@@ -140,7 +157,7 @@ test('every language has the new sentences, translated', () => {
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);
-  const keys = ['settings_media_viz_st_platform', 'settings_media_viz_st_missing', 'settings_media_viz_st_old', 'settings_media_viz_st_failed', 'settings_media_viz_st_ok', 'streaming_no_server', 'streaming_discord_noclient', 'streaming_login_failed'];
+  const keys = ['settings_media_viz_st_platform', 'settings_media_viz_st_missing', 'settings_media_viz_st_old', 'settings_media_viz_st_failed', 'settings_media_viz_st_ok', 'settings_media_viz_st_hold_perf', 'settings_media_viz_st_hold_game', 'settings_media_viz_st_hold_lyrics', 'settings_media_viz_st_hold_overlay', 'settings_media_viz_st_hold_silent', 'streaming_no_server', 'streaming_discord_noclient', 'streaming_login_failed'];
   for (const [l, d] of Object.entries(ctx.__i18n)) {
     for (const k of keys) {
       assert.ok(d[k], `${l}.${k}`);

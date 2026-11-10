@@ -1,0 +1,80 @@
+/* The Material tab of the style window (tile-style-material-pane.js). A card is real
+   glass over a picture, so the blur and the tint it promises are the ones it shows. */
+.tsm-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+.tsm-card {
+  display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 0; cursor: pointer;
+  border: 0; background: none; color: var(--text); font: inherit; font-size: 12px; text-align: left;
+}
+.tsm-art {
+  position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 10px;
+  background: url("../../assets/wallpapers/dusk.webp") 45% 63% / 240% auto no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent);
+}
+:root[data-appearance="light"] .tsm-art { background-image: url("../../assets/wallpapers/dusk-light.webp"); }
+/* Part of the picture stays outside the sheet: the difference is the sample. */
+.tsm-sheet {
+  position: absolute; inset: 12% 32% 12% 9%; display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 4px; padding: 7px; border-radius: 7px; color: var(--text);
+  background: color-mix(in srgb, var(--tsm-panel) calc(var(--tsm-alpha) * 100%), transparent);
+  -webkit-backdrop-filter: blur(var(--tsm-blur)) saturate(var(--tsm-sat));
+  backdrop-filter: blur(var(--tsm-blur)) saturate(var(--tsm-sat));
+}
+/* A sketch of what a tile holds, so "No panel" still has something to show. */
+.tsm-sheet i { display: block; height: 3px; border-radius: 2px; background: currentColor; }
+.tsm-sheet i:first-child { width: 72%; }
+.tsm-sheet i:last-child { width: 44%; opacity: 0.6; }
+/* The sample keeps its promise when the blur is off: the same floor a real tile takes. */
+body.low-power-gpu .tsm-sheet { -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.low-power-gpu .tsm-sheet.is-glass { --tsm-alpha: 0.86 !important; }
+@media (prefers-reduced-transparency: reduce) {
+  .tsm-sheet { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .tsm-sheet.is-glass { --tsm-alpha: 0.92 !important; }
+}
+.tsm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-text); }
+/* Inside the card: the scrolling box around the cards would cut a ring drawn outside. */
+.tsm-card.active .tsm-art { outline: 2px solid var(--text); outline-offset: -2px; }
+.tsm-card.active .tsm-name { color: var(--text); font-weight: 600; }
+.tsm-card:focus-visible { outline: none; }
+.tsm-card:focus-visible .tsm-art { outline: 2px solid var(--text); outline-offset: -2px; }
+
+.tsm-hints:empty { display: none; }
+
+.tsm-tints { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 6px 2px; }
+.tsm-tint {
+  width: 28px; height: 28px; flex: 0 0 auto; padding: 0; cursor: pointer; border: 0; border-radius: 50%;
+  background: var(--tsm-tint);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 24%, transparent);
+}
+.tsm-tint.active { outline: 2px solid var(--text); outline-offset: 2px; }
+.tsm-tint:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+/* Any other colour: the wheel everyone reads as "pick one", then the colour itself. */
+.tsm-tints .tsm-any {
+  width: 28px; height: 28px; overflow: hidden; border: 0; border-radius: 50%; appearance: none;
+  background: conic-gradient(#ff5b5b, #ffd75e, #6ee787, #5bc8ff, #8b7bff, #ff6ad5, #ff5b5b);
+}
+.tsm-any::-webkit-color-swatch-wrapper { padding: 0; }
+.tsm-any::-webkit-color-swatch { visibility: hidden; border: 0; border-radius: 50%; }
+.tsm-any.active::-webkit-color-swatch { visibility: visible; }
+.tsm-tints .tsm-any.active,
+.tsm-tints .tsm-any:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .tsm-tint,
+  .tsm-tints .tsm-any { width: 32px; height: 32px; }
+}
+
+/* The numbers behind a card, folded until someone wants them. */
+.tsm-fold > summary {
+  display: flex; align-items: center; justify-content: space-between; min-height: 38px;
+  cursor: pointer; list-style: none; font-size: 13px; color: var(--muted-text);
+}
+.tsm-fold > summary::-webkit-details-marker { display: none; }
+.tsm-fold > summary::after {
+  content: ""; width: 7px; height: 7px; margin-right: 4px; flex: 0 0 auto;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.tsm-fold[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.tsm-fold > summary:hover { color: var(--text); }
+/* One column for the sliders, whether or not a row holds a value of its own. */
+.tsm-fold .tsf-value { min-width: 76px; }
+.tsm-fold .tsf-reset[hidden] { display: inline-flex; visibility: hidden; }

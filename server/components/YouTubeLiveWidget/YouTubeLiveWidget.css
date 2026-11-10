@@ -40,7 +40,7 @@
 .ytl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
 .ytl-brand { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .ytl-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.02em; color: #ff4d4d; }
-.ytl-logo-sub { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.14em; color: var(--text-dim, #8b91a1); }
+.ytl-logo-sub { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim, #8b91a1); }
 .ytl-pill {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
   padding: 3px 10px; border-radius: 999px;
@@ -64,7 +64,7 @@ body.overlay-frozen .ytl-pill.live .ytl-pill-dot::after { animation-play-state: 
    card that does not exist. */
 .ytl-cards {
   flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
-  overflow-y: auto; overscroll-behavior: contain;
+  overflow-y: auto; overscroll-behavior-y: contain;
 }
 .ytl-cards::-webkit-scrollbar { width: 6px; }
 .ytl-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
@@ -81,10 +81,12 @@ body.overlay-frozen .ytl-pill.live .ytl-pill-dot::after { animation-play-state: 
 /* Info */
 .ytl-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
 .ytl-viewers { display: flex; align-items: baseline; gap: 7px; }
-.ytl-viewers-num { font-size: 2.1rem; font-weight: 900; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.ytl-viewers-num { font-size: 2.1rem; font-weight: 900; line-height: 1; color: var(--text, #fff); font-variant-numeric: tabular-nums; }
 .ytl-viewers-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
 .ytl-notice { font-size: 0.85rem; opacity: 0.7; }
 .ytl-stats { font-size: 0.78rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
+/* Views and likes are separate spans (setWordParts); a dot sets them apart here, space on Liquid. */
+:root:not([data-style="liquid"]) .ytl-stats > span + span::before { content: '\00a0· '; }
 .ytl-title { font-size: 0.8rem; min-width: 0; }
 .ytl-title-text {
   display: inline-block; max-width: 100%; cursor: text; opacity: 0.7;
@@ -174,7 +176,7 @@ body.overlay-frozen .ytl-pill.live .ytl-pill-dot::after { animation-play-state: 
 .ytl-card--chat { flex: 1 1 200px; min-height: 200px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
 .ytl-chat-list {
   flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 7px;
-  overflow-y: auto; overscroll-behavior: contain;
+  overflow-y: auto; overscroll-behavior-y: contain;
 }
 .ytl-chat-list::-webkit-scrollbar { width: 6px; }
 .ytl-chat-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
@@ -189,6 +191,11 @@ body.overlay-frozen .ytl-pill.live .ytl-pill-dot::after { animation-play-state: 
 .ytl-msg-who.is-owner { color: #ff4d4d; }
 .ytl-msg-who.is-mod { color: #5b9cff; }
 .ytl-msg-who.is-sponsor { color: #22c55e; }
+/* Those colours are for a dark chat: on a light surface the same roles take darker
+   shades, or the names fall under a readable contrast. */
+:root[data-appearance="light"] .ytl-msg-who.is-owner { color: #c62828; }
+:root[data-appearance="light"] .ytl-msg-who.is-mod { color: #1d5bd6; }
+:root[data-appearance="light"] .ytl-msg-who.is-sponsor { color: #15803d; }
 .ytl-msg-text { color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
 
 .ytl-chat-row { display: flex; gap: 6px; flex: 0 0 auto; }

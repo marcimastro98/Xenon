@@ -47,6 +47,8 @@
     row.setAttribute('role', 'tab');
     row.setAttribute('aria-selected', opts.selected ? 'true' : 'false');
     row.dataset.session = s.id || '';
+    // The slim rail shows only the mascot, so the name rides on the tooltip.
+    row.title = who.title || '';
     const pick = () => h.onSelect(s.id, s.project || '');
     row.addEventListener('click', pick);
     row.addEventListener('keydown', (ev) => {

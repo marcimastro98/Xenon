@@ -1,6 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const wn = require('../winnotif.js');
 
@@ -25,6 +26,55 @@ beforeEach(() => {
   line({ event: 'seed', items: [] });
   line({ event: 'status', status: 'allowed' });
   feedEvents = 0;
+});
+
+test('through a game the helper is told once to look less often, and back', () => {
+  const sent = [];
+  wn._setProcForTest({ stdin: { write: (text) => sent.push(text) } }, true);
+  try {
+    wn.setPace(true);
+    wn.setPace(true);
+    wn.setPace(false);
+    wn.setPace(false);
+    assert.deepEqual(sent, ['5000\n', '2000\n']);
+  } finally {
+    wn._setProcForTest(null);
+  }
+});
+
+test('the PowerShell fallback and the Linux reader are not written to', () => {
+  const sent = [];
+  wn._setProcForTest({ stdin: { write: (text) => sent.push(text) } }, false);
+  try {
+    wn.setPace(true);
+    wn.setPace(false);
+    assert.deepEqual(sent, []);
+  } finally {
+    wn._setProcForTest(null);
+  }
+});
+
+test('a pipe that broke does not reach the server', () => {
+  wn._setProcForTest({ stdin: { write: () => { throw new Error('EPIPE'); } } }, true);
+  try {
+    assert.doesNotThrow(() => { wn.setPace(true); wn.setPace(false); });
+  } finally {
+    wn._setProcForTest(null);
+  }
+});
+
+test('the child\'s stdin has an error handler, a broken pipe would otherwise take the server down', () => {
+  const source = readFileSync(new URL('../winnotif.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(source, /_proc = child;[\s\S]{0,900}child\.stdin\.on\('error', \(\) => \{\}\);\n\s+const onGone/);
+  assert.match(source, /spawn\(HELPER_EXE, \['notifications-serve', String\(_pollMs\)\]/, 'a restart mid-game keeps the pace');
+  assert.match(source, /'-File', PS_SCRIPT, '-IntervalMs', String\(POLL_MS\)/, 'the fallback never hears the way back');
+});
+
+test('the helper reads the pace within bounds and treats EOF as before', () => {
+  const host = readFileSync(new URL('../../helper/NotificationHost.cs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(host, /while \(\(line = Console\.In\.ReadLine\(\)\) != null\) ApplyPace\(line\);\n\s+\}\n\s+catch \{ \}\n\s+ExitRequested\.Set\(\);/);
+  assert.match(host, /int\.TryParse\(line, out var ms\) && ms >= PaceMinMs && ms <= PaceMaxMs\) _intervalMs = ms;/);
+  assert.match(host, /ExitRequested\.Wait\(_intervalMs\);/);
 });
 
 test('status line updates state and announces only on change', () => {

@@ -14,6 +14,7 @@
 // client is provider-agnostic.
 
 const aiLocal = require('./ai-local');
+const { follow } = require('./ai-tool-groups');
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
@@ -84,13 +85,13 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 401) {
-    err = new Error('ChatGPT (OpenAI): the API key is invalid or expired. Check it in Settings → Xenon AI.');
+    err = new Error('ChatGPT (OpenAI): the API key is invalid or expired. Check it in Settings → Bit.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('ChatGPT (OpenAI): quota exceeded or too many requests (rate limit). Check your OpenAI account credit.');
     err.code = 'rate_limited';
   } else if (status === 404) {
-    err = new Error('ChatGPT (OpenAI): the requested model is not available for your key. Pick another in Settings → Xenon AI.' + (detail ? ' (' + detail + ')' : ''));
+    err = new Error('ChatGPT (OpenAI): the requested model is not available for your key. Pick another in Settings → Bit.' + (detail ? ' (' + detail + ')' : ''));
     err.code = 'model_missing';
   } else {
     err = new Error('ChatGPT (OpenAI): HTTP error ' + status + (detail ? ' — ' + detail : ''));
@@ -121,31 +122,33 @@ async function _post(pathname, apiKey, body, timeoutMs = 60000) {
   try { return JSON.parse(text); } catch { throw new Error('ChatGPT (OpenAI): invalid response.'); }
 }
 
-// Chat turn with function calling. Mirrors ai-local.localChat: converts the
-// Gemini tools/history, runs the tool loop via the injected executeTool, and
-// returns { text, clientActions, newContent } in the same shape as /api/ai.
-async function chat({ apiKey, model, geminiTools, history, systemText, executeTool }) {
-  const key = String(apiKey || '').trim();
-  if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
-  const chatModel = sanitizeModel(model);
-  const tools = aiLocal.geminiToolsToOpenAI(geminiTools);
-  // GPT-4o class models are multimodal, so forward inline images as image_url parts.
+const _plainText = (msg) => ((msg && typeof msg.content === 'string') ? msg.content : '');
+
+// The chat-completions tool loop, for any server that speaks this API (the local
+// one in ai-local-server.js too). Converts the Gemini tools/history, runs tools
+// through the injected executeTool, and returns { text, clientActions, newContent }
+// in the same shape as /api/ai. `send(payload)` makes one request; `readText(msg)`
+// takes the reply out of a message; `onEmpty(messages)` gets one last try when the
+// turn ended with no text.
+async function toolLoop({ send, model, geminiTools, history, systemText, executeTool, supportsVision = true, maxIters = 8, readText = _plainText, onEmpty = null }) {
+  // Read each round: use_tools can add a group mid-turn (ai-tool-groups.js).
+  const toolsNow = follow(geminiTools, aiLocal.geminiToolsToOpenAI);
   const messages = [
     { role: 'system', content: systemText },
-    ...aiLocal.geminiHistoryToOpenAI(history, { supportsVision: true }),
+    ...aiLocal.geminiHistoryToOpenAI(history, { supportsVision }),
   ];
   const clientActions = [];
   let finalText = '';
 
-  const MAX_ITERS = 8;
-  for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const payload = { model: chatModel, messages };
+  for (let iter = 0; iter < maxIters; iter++) {
+    const payload = { model, messages };
+    const tools = toolsNow();
     if (tools.length) { payload.tools = tools; payload.tool_choice = 'auto'; }
-    const resp = await _post('/chat/completions', key, payload, 90000);
+    const resp = await send(payload);
     const msg = resp && resp.choices && resp.choices[0] && resp.choices[0].message;
     const calls = (msg && Array.isArray(msg.tool_calls)) ? msg.tool_calls.filter(c => c && c.function && c.function.name) : [];
 
-    if (!calls.length) { finalText = (msg && typeof msg.content === 'string') ? msg.content : ''; break; }
+    if (!calls.length) { finalText = readText(msg); break; }
 
     // Record the assistant turn (with its tool calls) so context is preserved.
     messages.push({ role: 'assistant', content: msg.content || '', tool_calls: calls });
@@ -164,33 +167,51 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
       if (pendingScreenImage) pendingImage = pendingScreenImage;
     }
     // capture_screen: feed the JPEG back so the (multimodal) model can see it.
-    if (pendingImage) {
+    if (pendingImage && supportsVision) {
       messages.push({ role: 'user', content: [
         { type: 'text', text: 'Here is the current screenshot of the requested monitor.' },
         { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + pendingImage } },
       ] });
     }
 
-    if (iter === MAX_ITERS - 1) {
+    if (iter === maxIters - 1) {
       // Budget exhausted: ask once more, without tools, for a closing answer.
-      const last = await _post('/chat/completions', key, { model: chatModel, messages }, 90000);
-      const lm = last && last.choices && last.choices[0] && last.choices[0].message;
-      finalText = (lm && typeof lm.content === 'string') ? lm.content : '';
+      const last = await send({ model, messages });
+      finalText = readText(last && last.choices && last.choices[0] && last.choices[0].message);
     }
   }
 
+  if (!finalText && onEmpty) finalText = await onEmpty(messages);
   const newContent = { role: 'model', parts: [{ text: finalText }] };
   return { text: finalText, clientActions, newContent };
 }
 
+// Chat turn with function calling on OpenAI itself. GPT-4o class models are
+// multimodal, so inline images go along as image_url parts (toolLoop's default).
+async function chat({ apiKey, model, geminiTools, history, systemText, executeTool }) {
+  const key = String(apiKey || '').trim();
+  if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
+  return toolLoop({
+    send: (payload) => _post('/chat/completions', key, payload, 90000),
+    model: sanitizeModel(model), geminiTools, history, systemText, executeTool,
+  });
+}
+
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
 // `onUsage(totalTokens, { input, output })`, when given, hears what the call cost.
-async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage }) {
+// `image` ({ mimeType, data } base64), when given, rides with the text.
+async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage, image }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
   const messages = [];
   if (systemText) messages.push({ role: 'system', content: systemText });
-  messages.push({ role: 'user', content: String(userText || '') });
+  const text = String(userText || '');
+  messages.push({
+    role: 'user',
+    content: image
+      ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.data}` } }]
+      : text,
+  });
   const body = { model: sanitizeModel(model), messages };
   if (maxTokens) body.max_tokens = maxTokens;
   const resp = await _post('/chat/completions', key, body, 60000);
@@ -322,6 +343,7 @@ module.exports = {
   TTS_MODEL,
   TTS_VOICE,
   sanitizeModel,
+  toolLoop,
   chat,
   oneShot,
   stt,

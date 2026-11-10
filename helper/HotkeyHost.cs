@@ -11,8 +11,9 @@ namespace XenonHelper;
 // POSITION in that list, which is the server's binding table: index 0 is the
 // Spotlight shortcut and the rest are whatever else it wanted bound.
 //
-//   {"event":"ready","registered":[0,2]}       these indices are ours
+//   {"event":"ready","registered":[0,2],"release":true}   these indices are ours
 //   {"event":"hotkey","index":0}               index 0 was pressed
+//   {"event":"release","index":0}              …and its key let go (0.16.0+)
 //   {"event":"error","error":"hotkey_taken","index":1}   somebody else owns it
 //
 // One process for every combo rather than one process each: RegisterHotKey is
@@ -24,6 +25,11 @@ namespace XenonHelper;
 // reason to lose the rest. Only when every combo fails does the host exit
 // non-zero, which is also what the single-combo case has always done.
 //
+// RegisterHotKey reports only the press. A widget shown while its keys are held
+// (server/widget-keys.js) needs the release too, so after a press a background
+// thread watches that key with GetAsyncKeyState until it goes up, never longer
+// than RELEASE_MAX_MS, and says so. `release` in `ready` tells the server it comes.
+//
 // Stdin EOF (parent gone or retiring us) posts WM_QUIT → clean unregister.
 internal static class HotkeyHost
 {
@@ -33,6 +39,9 @@ internal static class HotkeyHost
     // WM_HOTKEY wParam maps straight back to the server's binding index.
     private const int HOTKEY_ID_BASE = 0xE01;
     private const int MAX_COMBOS = 16;
+    private const int RELEASE_POLL_MS = 30;
+    private const int RELEASE_MAX_MS = 10 * 60 * 1000;
+    private static readonly object WriteLock = new();
 
     public static int Run(string[] args)
     {
@@ -52,6 +61,8 @@ internal static class HotkeyHost
         // IEnumerable<int> — value types are not covariant — so a list of ints
         // would have been emitted as the string "System.Int32[]".
         var registered = new List<object?>();
+        var keys = new uint[combos.Length];
+        var watching = new bool[combos.Length];
         for (var i = 0; i < combos.Length; i++)
         {
             if (!ParseCombo(combos[i], out var mods, out var vk))
@@ -59,6 +70,7 @@ internal static class HotkeyHost
                 Emit("error", "bad_combo", i);
                 continue;
             }
+            keys[i] = vk;
             if (!RegisterHotKey(IntPtr.Zero, HOTKEY_ID_BASE + i, mods | MOD_NOREPEAT, vk))
             {
                 Emit("error", "hotkey_taken", i);
@@ -81,7 +93,9 @@ internal static class HotkeyHost
             {
                 if (msg.message != WM_HOTKEY) continue;
                 var index = (int)msg.wParam - HOTKEY_ID_BASE;
-                if (index >= 0 && index < combos.Length) Emit("hotkey", null, index);
+                if (index < 0 || index >= combos.Length) continue;
+                Emit("hotkey", null, index);
+                WatchRelease(index, keys[index], watching);
             }
         }
         finally
@@ -89,6 +103,28 @@ internal static class HotkeyHost
             foreach (var i in registered) UnregisterHotKey(IntPtr.Zero, HOTKEY_ID_BASE + (int)i!);
         }
         return 0;
+    }
+
+    // One watcher per combo at a time: the press of a key already held changes nothing.
+    private static void WatchRelease(int index, uint vk, bool[] watching)
+    {
+        lock (watching)
+        {
+            if (watching[index]) return;
+            watching[index] = true;
+        }
+        new Thread(() =>
+        {
+            var waited = 0;
+            while (waited < RELEASE_MAX_MS && (GetAsyncKeyState((int)vk) & 0x8000) != 0)
+            {
+                Thread.Sleep(RELEASE_POLL_MS);
+                waited += RELEASE_POLL_MS;
+            }
+            lock (watching) watching[index] = false;
+            Emit("release", null, index);
+        })
+        { IsBackground = true, Name = "hotkey-release" }.Start();
     }
 
     // "ctrl+alt+space" → (MOD_CONTROL|MOD_ALT, VK_SPACE). Letters, digits,
@@ -133,13 +169,18 @@ internal static class HotkeyHost
         {
             ["event"] = "ready",
             ["registered"] = registered,
+            ["release"] = true,
         });
     }
 
     private static void Write(Dictionary<string, object?> obj)
     {
-        Console.Out.WriteLine(JsonOut.Serialize(obj));
-        Console.Out.Flush();
+        // The release watchers write from their own threads.
+        lock (WriteLock)
+        {
+            Console.Out.WriteLine(JsonOut.Serialize(obj));
+            Console.Out.Flush();
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -159,4 +200,5 @@ internal static class HotkeyHost
     [DllImport("user32.dll")] private static extern int GetMessage(out Msg msg, IntPtr hWnd, uint msgFilterMin, uint msgFilterMax);
     [DllImport("user32.dll")] private static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
 }

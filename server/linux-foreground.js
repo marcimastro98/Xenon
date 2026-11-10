@@ -38,6 +38,10 @@ const fs = require('fs');
 
 const DEFAULT_INTERVAL_MS = 2000;
 const CMD_TIMEOUT_MS = 3000;
+// A desktop without xprop (GNOME on Wayland often has none) has nothing to ask. Remembered for a
+// while, so the probe does not try the spawn at every sample. Only a missing tool: a tool that
+// failed once is asked again at the next sample, or a game could go unseen.
+const TOOL_RETRY_MS = 5 * 60 * 1000;
 
 // ── pure parsers (exported for tests) ───────────────────────────────────────
 
@@ -143,12 +147,21 @@ function xEnv() {
   return env;
 }
 
+const toolMissingAt = new Map();
+
 function run(cmd, args) {
   return new Promise((resolve) => {
+    if (Date.now() - (toolMissingAt.get(cmd) || 0) < TOOL_RETRY_MS) {
+      resolve(null);
+      return;
+    }
     let p;
     try {
       p = execFile(cmd, args, { timeout: CMD_TIMEOUT_MS, env: xEnv(), windowsHide: true },
-        (err, stdout) => resolve(err ? null : String(stdout || '')));
+        (err, stdout) => {
+          if (err && err.code === 'ENOENT') toolMissingAt.set(cmd, Date.now());
+          resolve(err ? null : String(stdout || ''));
+        });
     } catch {
       resolve(null);
       return;
@@ -179,13 +192,21 @@ async function sampleSway() {
   return out === null ? null : parseSwayTree(out);
 }
 
+// xprop answers one line per property it was asked for, found or not.
+function propertyLine(raw, name) {
+  return String(raw || '').split(/\r?\n/).find((line) => line.startsWith(name)) || '';
+}
+
 async function sampleX11() {
-  const active = parseActiveWindowId(await run('xprop', ['-root', '_NET_ACTIVE_WINDOW']));
+  // One process for both root properties: this runs every 2 seconds for as long as
+  // the server is up, and the spawns are all it costs.
+  const root = await run('xprop', ['-root', '_NET_ACTIVE_WINDOW', '_NET_CLIENT_LIST']);
+  const active = parseActiveWindowId(propertyLine(root, '_NET_ACTIVE_WINDOW'));
   if (!active) return { process: '', pid: 0, fullscreen: false };
   // Xwayland's focus proxy is not in _NET_CLIENT_LIST. Checking membership is
   // what distinguishes "a Wayland-native window has focus" (opaque, correctly
   // reported as nothing) from "an X11 window has focus" (readable).
-  const list = parseClientList(await run('xprop', ['-root', '_NET_CLIENT_LIST']));
+  const list = parseClientList(propertyLine(root, '_NET_CLIENT_LIST'));
   if (list.length && !list.includes(active)) return { process: '', pid: 0, fullscreen: false };
   const info = parseWindowInfo(
     await run('xprop', ['-id', active, 'WM_CLASS', '_NET_WM_PID', '_NET_WM_STATE']));

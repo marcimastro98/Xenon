@@ -18,19 +18,23 @@
 // Every case below is the sequence a real player produces, run through the pure
 // function. None of it needs a Spotify account, which is the point: the rules
 // are the risky part, not the HTTP.
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-q-'));
+after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
 const { createSpotifyProvider } = require('../stream-spotify.js');
 
 const provider = createSpotifyProvider({
   clientId: 'cid',
-  tokensFile: join(tmpdir(), `xe-q-${Date.now()}-${Math.random().toString(36).slice(2)}.json`),
+  tokensFile: join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`),
   fetch: async () => { throw new Error('the normaliser must not reach the network'); },
 });
 const { normalizeQueue } = provider;
@@ -155,7 +159,7 @@ test("the SDK's queue op is normalised too, not just the tile's", async () => {
     queue: ['D', 'E', 'A', 'B', 'C', 'D', 'E', 'A', 'B', 'C'].map((n) => ({ uri: 'spotify:track:' + n, name: n })),
   };
   const player = { is_playing: true, repeat_state: 'off', shuffle_state: false, item: { uri: 'spotify:track:C', name: 'C', artists: [], album: { images: [] } }, device: {} };
-  const file = join(tmpdir(), `xe-q2-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));

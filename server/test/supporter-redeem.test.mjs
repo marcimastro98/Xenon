@@ -262,3 +262,93 @@ test('redeem: transport rejection maps to network, never throws', withTransport(
   assert.notEqual(out, 'threw', 'redeem must not throw');
   assert.deepEqual(out, { ok: false, error: 'network' });
 }));
+
+// ── The pass trial (XT) ─────────────────────────────────────────────────────
+
+function fakeTrialPass(code = '') {
+  const remembered = [];
+  return { remembered, activeCode: async () => code, remember: async (c, endsAt) => { remembered.push([c, endsAt]); } };
+}
+
+test('trial: an XT the hub accepts is remembered, never saved as the pass, and its end comes back in ms', withTransport(async () => {
+  const dir = tmp();
+  const tp = fakeTrialPass();
+  redeemMod.useTrialPass(tp);
+  try {
+    redeemMod._setTransport(async () => ({ ok: true, cek: 'k', name: 'N', trialEndsAt: 2000 }));
+    const out = await redeemMod.redeem({ entryId: 'july-drop', code: 'xt-abcd-efgh-jklm', dataDir: dir });
+    assert.equal(out.ok, true);
+    assert.equal(out.trialEndsAt, 2_000_000);
+    assert.equal(out.saved, false);
+    assert.deepEqual(tp.remembered, [['XTABCDEFGHJKLM', 2000]]);
+    assert.equal(existsSync(path.join(dir, 'supporter-code.json')), false);
+  } finally { redeemMod.useTrialPass(null); }
+}));
+
+test('trial: an empty field uses the saved pass first, then the running trial code', withTransport(async () => {
+  const dir = tmp();
+  redeemMod.useTrialPass(fakeTrialPass('XTAAAABBBBCCCC'));
+  const sent = [];
+  redeemMod._setTransport(async (url, body) => { sent.push(body.code); return { ok: false, error: 'bad_code' }; });
+  try {
+    const out = await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: dir });
+    assert.equal(out.forgot, undefined, 'a refused trial code never drops a saved pass');
+    await redeemMod.saveTypedCode(dir, 'XS-ABCD-EFGH-JKLM');
+    await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: dir });
+    assert.deepEqual(sent, ['XTAAAABBBBCCCC', 'XSABCDEFGHJKLM']);
+  } finally { redeemMod.useTrialPass(null); }
+}));
+
+test('trial: a refused running-trial code makes the trial ask the hub now', withTransport(async () => {
+  let checks = 0;
+  const tp = { ...fakeTrialPass('XTAAAABBBBCCCC'), check: async () => { checks++; } };
+  redeemMod.useTrialPass(tp);
+  try {
+    redeemMod._setTransport(async () => ({ ok: false, error: 'expired' }));
+    assert.deepEqual(await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: tmp() }), { ok: false, error: 'expired' });
+    assert.equal(checks, 1);
+    redeemMod._setTransport(async () => null);
+    await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: tmp() });
+    assert.equal(checks, 1, 'offline is not a refusal');
+  } finally { redeemMod.useTrialPass(null); }
+}));
+
+test('trial: an ex-supporter whose saved pass ran out is opened by the running trial', withTransport(async () => {
+  const dir = tmp();
+  await redeemMod.saveTypedCode(dir, 'XS-ABCD-EFGH-JKLM');
+  redeemMod.useTrialPass({ ...fakeTrialPass('XTAAAABBBBCCCC'), check: async () => {} });
+  const sent = [];
+  redeemMod._setTransport(async (url, body) => {
+    sent.push(body.code);
+    return body.code.startsWith('XS') ? { ok: false, error: 'expired' } : { ok: true, cek: 'k', name: 'N', trialEndsAt: 2000 };
+  });
+  try {
+    const out = await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: dir });
+    assert.equal(out.ok, true);
+    assert.equal(out.trialEndsAt, 2_000_000);
+    assert.deepEqual(sent, ['XSABCDEFGHJKLM', 'XTAAAABBBBCCCC']);
+    assert.equal((await redeemMod.savedStatus(dir)).saved, true, 'the expired pass stays: a renewal revives it');
+  } finally { redeemMod.useTrialPass(null); }
+}));
+
+test('trial: a redeem that installs for good (allowTrial: false) never uses the trial', withTransport(async () => {
+  const dir = tmp();
+  await redeemMod.saveTypedCode(dir, 'XS-ABCD-EFGH-JKLM');
+  redeemMod.useTrialPass({ ...fakeTrialPass('XTAAAABBBBCCCC'), check: async () => {} });
+  const sent = [];
+  redeemMod._setTransport(async (url, body) => { sent.push(body.code); return { ok: false, error: 'expired' }; });
+  try {
+    assert.deepEqual(await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: dir, allowTrial: false }), { ok: false, error: 'expired' });
+    assert.deepEqual(sent, ['XSABCDEFGHJKLM']);
+    sent.length = 0;
+    assert.deepEqual(await redeemMod.redeem({ entryId: 'july-drop', code: '', dataDir: tmp(), allowTrial: false }), { ok: false, error: 'bad_request' });
+    assert.deepEqual(sent, []);
+  } finally { redeemMod.useTrialPass(null); }
+}));
+
+test('trial: the hub refusals of a trial code reach the dashboard', withTransport(async () => {
+  for (const error of ['not_in_trial', 'trial_used']) {
+    redeemMod._setTransport(async () => ({ ok: false, error }));
+    assert.deepEqual(await redeemMod.redeem({ entryId: 'july-drop', code: 'XT-ABCD-EFGH-JKLM', dataDir: tmp() }), { ok: false, error });
+  }
+}));

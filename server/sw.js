@@ -53,6 +53,22 @@ function isShell(url) {
   return SHELL_PREFIXES.some((p) => url.pathname.startsWith(p));
 }
 
+// What the cache holds, read once per life of this worker. A URL with a version
+// (asset-version.js) is the same bytes for ever: storing it again at every load
+// rewrote the whole shell, about 14 MB, to change nothing.
+let stored = null;
+function storedUrls(cache) {
+  if (!stored) stored = cache.keys().then((reqs) => new Set(reqs.map((r) => r.url)));
+  return stored;
+}
+
+async function keep(cache, url, req, response) {
+  const urls = await storedUrls(cache);
+  if (url.searchParams.has('v') && urls.has(req.url)) return;
+  urls.add(req.url);
+  await cache.put(req, response.clone());
+}
+
 self.addEventListener('install', () => {
   // No precache: the page is about to request everything it needs anyway, and a
   // precache list is a second copy of the asset graph that goes stale silently.
@@ -114,7 +130,7 @@ self.addEventListener('fetch', (e) => {
       const fresh = await fetch(req);
       if (fresh && fresh.ok && fresh.type === 'basic') {
         const c = await caches.open(CACHE);
-        c.put(req, fresh.clone()).catch(() => {});
+        keep(c, url, req, fresh).catch(() => {});
       }
       return fresh;
     } catch (err) {
@@ -147,7 +163,8 @@ self.addEventListener('push', (e) => {
     // the whole feature off.
     renotify: true,
     icon: '/public/images/logo/logo-mark.png',
-    badge: '/public/images/logo/logo-mark.png',
+    // Android paints the badge from its alpha alone, so it is Bit cut out, no plate.
+    badge: '/public/images/logo/badge.png',
     data: { url: typeof d.url === 'string' ? d.url : '/' },
   }));
 });

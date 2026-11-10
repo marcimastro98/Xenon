@@ -325,7 +325,7 @@ test('a child that keeps dying young is pinned down, not respawned in a loop', a
 // Shapes measured on 0.160 (thread/turns/list, itemsView "summary"): the
 // attachment wrapper and the skill-mention link both carry absolute paths.
 const ATTACH = '\n# Files mentioned by the user:\n\n## shot.png: C:/Users/x/AppData/Local/Temp/shot.png\n\n## My request for Codex:\ncome mai 2 cartelle?\n';
-const SKILL = '[$xenon-creator](C:\\Users\\x\\Marci Progetti\\skills\\SKILL.md) facciamo un widget, vedi [docs](https://example.com/a)';
+const SKILL = '[$xenon-creator](C:\\Users\\x\\Miei Progetti\\skills\\SKILL.md) facciamo un widget, vedi [docs](https://example.com/a)';
 
 test('cleanUserText: the request without its wrapper, links to local files reduced to their label', () => {
   assert.deepEqual(ap.cleanUserText(ATTACH), { text: 'come mai 2 cartelle?', files: 1 });

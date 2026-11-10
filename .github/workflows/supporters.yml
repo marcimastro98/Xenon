@@ -38,17 +38,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Push with a personal token (repo admin) so the auto-commit can land on a
-          # branch protected by a "require pull request" ruleset — admins are in the
-          # bypass list, the default GITHUB_TOKEN (github-actions[bot]) is not. Falls
-          # back to GITHUB_TOKEN if the secret isn't set (commit step then no-ops on push).
-          token: ${{ secrets.SUPPORTERS_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          # No token is left in .git/config: the push token is handed to the
+          # last step only, so setup-node and the build script never see it.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Build supporters.json
         env:
@@ -57,13 +54,22 @@ jobs:
         run: node tools/build-supporters.mjs
 
       - name: Commit if changed
+        env:
+          # A personal token (repo admin) so the auto-commit can land on a branch
+          # protected by a "require pull request" ruleset: admins are in the
+          # bypass list, the default GITHUB_TOKEN (github-actions[bot]) is not.
+          # Falls back to GITHUB_TOKEN if the secret isn't set (the push then
+          # fails on a protected branch). Only this step holds it.
+          PUSH_TOKEN: ${{ secrets.SUPPORTERS_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           if [ -n "$(git status --porcelain docs/supporters.json)" ]; then
             git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add docs/supporters.json
             git commit -m "chore: update supporters wall"
-            git push
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" "HEAD:${BRANCH}"
           else
             echo "No supporter changes to commit."
           fi

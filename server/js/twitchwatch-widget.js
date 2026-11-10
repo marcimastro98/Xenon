@@ -47,7 +47,7 @@
   // Only tiles actually placed on a dashboard page count — a widget that was
   // never added sits in the #widget-pool, outside any .pager-page, and must not
   // poll anything.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitchwatch"]')).filter(n => n.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitchwatch"]')).filter(n => n.closest('.pager-page, .layer-slot')); }
 
   let poll = null;
   let connected = null;              // null = not asked yet
@@ -61,7 +61,7 @@
     search: () => t('tww_tab_search', 'Search'),
   };
   const lib = {
-    tab: 'followed',
+    tab: window.TileTabMemory ? TileTabMemory.get('twitchwatch', TABS, 'followed') : 'followed',   // remembered across reloads
     data: { followed: null, top: null, search: null },   // null = never loaded
     loading: '',
     error: '',
@@ -111,9 +111,7 @@
   // Open Settings → Streaming, the same way the Discord widget's "not linked"
   // notice does.
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // Open a URL where the user can see it: a visible Browser tile first (which
@@ -371,7 +369,8 @@
     login.addEventListener('click', () => {
       openAccount(card, false);
       // Handled by the native shell's navigation hook; never a real page.
-      if (nativeLogin()) window.location.href = 'xenon-app:twitch-login';
+      // With this launch's nonce, or the shell drops it (see native-bridge.js).
+      if (nativeLogin()) window.location.href = (window.__xenonSignal || String)('xenon-app:twitch-login');
     });
     pop.appendChild(login);
     bar.append(now, ctl, pop);
@@ -405,6 +404,7 @@
       b.append(ico, el('span', 'tww-tab-lbl', TAB_LABEL[id]()));
       b.addEventListener('click', () => {
         lib.tab = id; lib.error = '';
+        if (window.TileTabMemory) TileTabMemory.set('twitchwatch', id);
         paintLibrary();
         loadTab(id);
       });
@@ -643,6 +643,9 @@
     chatLines.push(entry);
     if (chatLines.length > CHAT_MAX) chatLines.shift();
     document.querySelectorAll('.tww-chat-log').forEach(log => appendChatLine(log, entry));
+    // The first line ends the wait. Left to the next paint, "Waiting for the first
+    // message" sat above a chat that was already talking.
+    if (chatLines.length === 1) document.querySelectorAll('.tww-chat-note').forEach(n => { n.style.display = 'none'; });
     publishChatSoon();
   }
   // Names, message text and the colour all come from strangers in a public chat.
@@ -653,7 +656,7 @@
     const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     const line = el('div', 'tww-chat-line');
     const u = el('span', 'tww-chat-user', entry.name + ':');
-    if (entry.color) u.style.color = entry.color;
+    if (entry.color) u.style.setProperty('--name', entry.color);
     line.append(u, document.createTextNode(' '));
     const body = el('span', 'tww-chat-text');
     (entry.parts || [{ type: 'text', text: entry.text }]).forEach(p => {
@@ -680,8 +683,11 @@
     if (ch.image) art.style.backgroundImage = 'url("' + encodeURI(ch.image) + '")';
     const meta = el('div', 'tww-row-meta');
     meta.append(el('span', 'tww-row-name', ch.name || ch.login));
-    const sub = [ch.game || '', ch.title || ''].filter(Boolean).join(' · ');
-    if (sub) meta.append(el('span', 'tww-row-sub', sub));
+    if (ch.game || ch.title) {
+      const sub = el('span', 'tww-row-sub');
+      setWordParts(sub, [ch.game || '', ch.title || '']);
+      meta.append(sub);
+    }
     b.append(art, meta);
     const v = fmtViewers(ch.viewers);
     if (v) {
@@ -758,9 +764,7 @@
 
       card.querySelector('.tww-now-title').textContent = ch ? (ch.name || ch.login) : '';
       const v = ch ? fmtViewers(ch.viewers) : '';
-      card.querySelector('.tww-now-sub').textContent = ch
-        ? [ch.game || '', v ? v + ' ' + t('tww_viewers', 'watching') : ''].filter(Boolean).join(' · ')
-        : '';
+      setWordParts(card.querySelector('.tww-now-sub'), ch ? [ch.game || '', v ? v + ' ' + t('tww_viewers', 'watching') : ''] : []);
 
       const exp = card.querySelector('.tww-expand');
       const big = owns && vs.screen;

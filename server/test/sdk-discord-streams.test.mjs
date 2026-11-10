@@ -31,7 +31,11 @@ test('Discord refresh requires the exact grant and a visible non-service frame',
   // that the HOST names — never a target the message carries.
   assert.match(customWidget, /if \(!grant\.streams\.includes\(stream\)\) \{/);
   assert.match(customWidget, /if \(!LOCAL_STREAM_LOADERS\[stream\]\) \{/);
-  assert.match(customWidget, /entry\.service\s*\|\|\s*document\.hidden/);
+  // A service frame may refresh only a loader marked outOfSight (energy alone,
+  // sdk-energy-out-of-sight.test.mjs), never a Discord one.
+  assert.match(customWidget, /document\.hidden/);
+  assert.match(customWidget, /if \(entry\.service\) return LOCAL_STREAM_LOADERS\[stream\]\.outOfSight === true;/);
+  assert.doesNotMatch(customWidget, /discord\w*: Object\.freeze\(\{[^\n]*outOfSight/);
   assert.match(customWidget, /d\.type === 'refresh'/);
   assert.match(customWidget, /REFRESH_MIN_INTERVAL_MS/);
 });

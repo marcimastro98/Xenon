@@ -56,7 +56,7 @@
     };
     if (!opts || opts.allowNone !== false) {
       const none = document.createElement('button');
-      none.type = 'button'; none.className = 'deck-ed-swatch deck-ed-swatch-none'; none.dataset.c = ''; none.textContent = '✕'; none.title = '—';
+      none.type = 'button'; none.className = 'deck-ed-swatch deck-ed-swatch-none'; none.dataset.c = ''; none.innerHTML = window.DeckIcons.CLOSE_MARK; none.title = '—';
       none.addEventListener('click', () => { setVal(''); refresh(); });
       row.appendChild(none);
     }
@@ -351,12 +351,17 @@
   }
   // Lighting hub device list ({value:id, label:name}) for the lightDevice picker.
   // Falls back to [] (→ typed id field) when no lighting is configured/reachable.
-  function lightDevices() {
+  // Also carries the parts of each device with a map, for the lightPart picker.
+  function lightingLists() {
     if (!lightDevicesPromise) lightDevicesPromise = fetch('/api/lighting/devices').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.devices)) ? d.devices : []))
-      .catch(() => []);
+      .then((d) => ({
+        devices: (d && Array.isArray(d.devices)) ? d.devices : [],
+        parts: (d && Array.isArray(d.parts)) ? d.parts : [],
+      }))
+      .catch(() => ({ devices: [], parts: [] }));
     return lightDevicesPromise;
   }
+  function lightDevices() { return lightingLists().then((l) => l.devices); }
   // Third-party widget SDK: installed packages (validated manifests) for the
   // macro picker and the "reflect a widget state" binding. Only fetched when the
   // SDK is enabled; the settings blob is the classic-script `hubSettings` (bare
@@ -467,7 +472,11 @@
 
   function close() {
     const m = document.getElementById('deck-editor-backdrop');
-    if (m) m.remove();
+    if (!m) return;
+    if (m.letGo) m.letGo();
+    if (m.stopShortcut) m.stopShortcut();
+    if (m.stopFitRows) m.stopFitRows();
+    m.remove();
   }
 
   // Upgrade every native <select> in `root` to the shared custom dropdown so the
@@ -492,6 +501,43 @@
     span.textContent = t(labelKey);
     wrap.appendChild(span);
     return wrap;
+  }
+
+  // A field that holds buttons is a <div>, not field()'s <label>: a label
+  // forwards a click on its text to its first button.
+  function section(labelKey) {
+    const wrap = document.createElement('div');
+    wrap.className = 'deck-ed-field';
+    const span = document.createElement('span');
+    span.className = 'deck-ed-label';
+    span.setAttribute('data-i18n', labelKey);
+    span.textContent = t(labelKey);
+    wrap.appendChild(span);
+    return wrap;
+  }
+
+  // One on/off row: the text, then a switch. onChange(on) after each flip.
+  function switchRow(labelKey, value, onChange) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'deck-ed-switchrow'; b.setAttribute('role', 'switch');
+    const txt = document.createElement('span'); txt.className = 'deck-ed-switchtxt';
+    txt.setAttribute('data-i18n', labelKey); txt.textContent = t(labelKey);
+    const knob = document.createElement('span'); knob.className = 'deck-ed-switch'; knob.setAttribute('aria-hidden', 'true');
+    b.appendChild(txt); b.appendChild(knob);
+    let on = !!value;
+    const paint = () => b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.addEventListener('click', () => { on = !on; paint(); if (onChange) onChange(on); });
+    paint();
+    return { el: b, get: () => on, set: (v) => { on = !!v; paint(); } };
+  }
+
+  // A labelled sub-row inside a section.
+  function subRow(labelKey, child) {
+    const w = document.createElement('div'); w.className = 'deck-ed-subfield';
+    const l = document.createElement('span'); l.className = 'deck-ed-label';
+    l.setAttribute('data-i18n', labelKey); l.textContent = t(labelKey);
+    w.appendChild(l); w.appendChild(child);
+    return w;
   }
 
   function input(type, value) {
@@ -527,14 +573,20 @@
     return fileToDataUrl(file);
   }
 
-  // Read an uploaded picture for a key. Animated GIFs are kept as-is when they
-  // fit the stored-icon budget (the canvas downscale would re-encode to a static
-  // PNG and kill the animation); everything else is downscaled as usual. The cap
-  // is deliberately modest: a GIF is stored full-resolution as a base64 data URL
-  // that is cloned per key by "apply to page", and the deck config has an 8 MB
+  // Read an uploaded picture for a key. A moving picture (GIF, animated WebP,
+  // APNG) stays moving: kept as-is when it fits the stored-icon budget, else
+  // made into a smaller GIF (anim-picture.js), because the canvas downscale
+  // keeps only the first frame. Only when even that fails does it become a
+  // still, and the toast says so. The cap is deliberately modest: the data URL
+  // is cloned per key by "apply to page", and the deck config has an 8 MB
   // server accept limit — a larger cap made it easy to blow past it.
-  function readKeyImage(file, maxEdge) {
-    if (file && file.type === 'image/gif' && file.size <= 512 * 1024) return fileToDataUrl(file);
+  const KEY_ANIM_MAX_CHARS = Math.ceil((512 * 1024) / 3) * 4 + 22;
+  async function readKeyImage(file, maxEdge) {
+    const moving = file && typeof AnimPicture !== 'undefined'
+      ? await AnimPicture.fitAnimatedPicture(file, { maxChars: KEY_ANIM_MAX_CHARS, maxSide: maxEdge }).catch(() => null)
+      : null;
+    if (moving && moving.dataUrl) return moving.dataUrl;
+    if (moving && window.XenonToast) window.XenonToast.show({ type: 'info', kicker: 'Deck', message: t('picture_kept_still') });
     return downscaleImage(file, maxEdge);
   }
 
@@ -768,10 +820,12 @@
       custom.style.display = mode === 'emoji' ? '' : 'none';
       iconPanel.style.display = mode === 'builtin' ? '' : 'none';
       imgPanel.style.display = mode === 'image' ? '' : 'none';
-      fitField.style.display = mode === 'image' ? '' : 'none';
-      colField.style.display = mode === 'builtin' ? '' : 'none';
+      // A glyph-only picker (the lit face) has no fit, colour or size of its own:
+      // its colour is the lit face's, set beside it.
+      fitField.style.display = mode === 'image' && !glyphOnly ? '' : 'none';
+      colField.style.display = mode === 'builtin' && !glyphOnly ? '' : 'none';
       // Size preset only affects glyph icons (emoji/vector); an image is sized by Fit.
-      sizeField.style.display = mode === 'image' ? 'none' : '';
+      sizeField.style.display = mode === 'image' || glyphOnly ? 'none' : '';
       if (document.activeElement !== custom) custom.value = emojiVal;
       syncSelected();
       if (imageVal) { preview.src = imageVal; preview.style.display = ''; }
@@ -836,6 +890,8 @@
     backdrop.className = 'deck-ed-backdrop';
     const modal = document.createElement('div');
     modal.className = 'deck-ed-modal';
+    // A macro from the Xenon menu: no tile to dress, so name, actions and shortcut come first.
+    if (opts && opts.simple) modal.classList.add('deck-ed-modal--simple');
 
     // ── Shell: header / (side rail + tabbed main) / footer. The side rail keeps
     // the live preview always in view (also on the Xeneon touchscreen, where the
@@ -850,8 +906,12 @@
     const paneAction = document.createElement('div'); paneAction.className = 'deck-ed-pane';
     const paneLook = document.createElement('div'); paneLook.className = 'deck-ed-pane';
     const paneFx = document.createElement('div'); paneFx.className = 'deck-ed-pane';
+    // State: what lights the key (a switch, or a state it follows) and the live
+    // value it shows. How it looks while lit is in Look, under its On face.
+    const paneState = document.createElement('div'); paneState.className = 'deck-ed-pane';
     const TAB_DEFS = [
       { id: 'actions', labelKey: 'deck_tab_actions', pane: paneAction },
+      { id: 'state', labelKey: 'deck_tab_state', pane: paneState },
       { id: 'look', labelKey: 'deck_tab_look', pane: paneLook },
       { id: 'fx', labelKey: 'deck_tab_fx', pane: paneFx },
     ];
@@ -860,12 +920,14 @@
     let activeTab = (opts && opts.tab) || (existing ? 'look' : 'actions');
     if (!TAB_DEFS.some((d) => d.id === activeTab)) activeTab = 'actions';
     const tabBtns = {};
+    let titleSync = () => {};   // set once the faces exist; see inTitle below
     function showTab(id) {
       activeTab = id;
       TAB_DEFS.forEach((d) => {
         tabBtns[d.id].classList.toggle('active', d.id === id);
         d.pane.style.display = d.id === id ? '' : 'none';
       });
+      titleSync();
     }
     TAB_DEFS.forEach((d) => {
       const b = document.createElement('button');
@@ -878,12 +940,14 @@
 
     const h = document.createElement('h3');
     h.className = 'deck-ed-title';
-    h.setAttribute('data-i18n', 'deck_edit_title');
-    h.textContent = t('deck_edit_title');
+    const titleKey = (opts && opts.titleKey) || 'deck_edit_title';
+    h.setAttribute('data-i18n', titleKey);
+    h.textContent = t(titleKey);
     edHead.appendChild(h);
     const edClose = document.createElement('button');
     edClose.type = 'button'; edClose.className = 'deck-ed-close';
-    edClose.title = t('deck_edit_cancel'); edClose.textContent = '×';
+    edClose.title = t('deck_edit_cancel'); edClose.setAttribute('aria-label', edClose.title);
+    edClose.innerHTML = window.DeckIcons.CLOSE_MARK;
     edClose.addEventListener('click', close);
     edHead.appendChild(edClose);
     modal.appendChild(edHead);
@@ -909,11 +973,11 @@
         chip.appendChild(document.createTextNode(ps.name));
         chip.addEventListener('click', () => {
           const k = Object.assign({}, ps.key); delete k.id;   // fresh id assigned on save
-          open(Object.assign({}, opts, { key: k, tab: activeTab }));  // reload from the preset, same tab
+          open(Object.assign({}, opts, { key: k, tab: activeTab, face: lookFace }));  // reload from the preset, same tab
         });
         const del = document.createElement('span');
         del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
-        del.title = t('preset_delete'); del.textContent = '×';
+        del.title = t('preset_delete'); del.innerHTML = window.DeckIcons.CLOSE_MARK;
         del.addEventListener('click', (e) => {
           e.stopPropagation();
           if (window.Deck && typeof window.Deck.deleteKeyPreset === 'function') window.Deck.deleteKeyPreset(ps.id);
@@ -928,10 +992,17 @@
 
     const fTitle = field('deck_edit_name');
     const inTitle = input('text', existing ? existing.title : '');
+    // One Title field for every face. On Look with the On face or a later cycle
+    // state picked, it edits that face's title: a screen never shows two Title
+    // boxes, and the one you type in is the face the preview changes.
+    let baseTitle = inTitle.value;
+    const titleCaption = fTitle.querySelector('.deck-ed-label');
+    titleCaption.removeAttribute('data-i18n');
     fTitle.appendChild(inTitle);
     edMain.appendChild(fTitle);
     edMain.appendChild(tabBar);
     edMain.appendChild(paneAction);
+    edMain.appendChild(paneState);
     edMain.appendChild(paneLook);
     edMain.appendChild(paneFx);
     modal.appendChild(edBody);
@@ -939,11 +1010,82 @@
     // The picker pings back on any change so the auto-tint button below can
     // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
     const iconPicker = buildIconPicker(existing, () => syncBgImg(), { getAppTarget: currentLaunchTarget });
+    // Look edits one face at a time: Off (the key as it normally is) or On (only
+    // what changes while it is lit). One set of cards in one place, instead of a
+    // second tab of colours that read as the same settings twice. Tapping a face
+    // in the preview picks it too.
+    // How the key answers a press (button, switch, momentary, repeat, cycle).
+    // Built first: the faces and the gestures below both depend on it.
+    const behaviorUi = { t, section, subRow, input, swatchRow, buildIconPicker };
+    const behavior = window.DeckEditorBehavior.buildCard(behaviorUi, existing, () => syncBehavior());
+    const cycleStateName = (i) => t('deck_cycle_state').replace('{n}', String(i + 1));
+    // A cycle key's further faces (c1.. in Look), built the first time one is opened.
+    const cycleFacePanels = [];
+    function cycleFacePanel(i) {
+      if (!cycleFacePanels[i]) {
+        cycleFacePanels[i] = window.DeckEditorBehavior.buildCycleFace(behaviorUi, existing && Array.isArray(existing.cycle) ? existing.cycle[i] : null);
+        paneLook.appendChild(cycleFacePanels[i].el);
+      }
+      return cycleFacePanels[i];
+    }
+    function readCycleFace(i) {
+      if (cycleFacePanels[i]) return cycleFacePanels[i].read();
+      return (existing && Array.isArray(existing.cycle) && existing.cycle[i]) || {};
+    }
+    let lookFace = (opts && (opts.face === 'on' || /^c\d$/.test(opts.face || ''))) ? opts.face : 'off';
+    const faceSeg = document.createElement('div'); faceSeg.className = 'deck-ed-seg deck-ed-seg-text deck-ed-faceseg';
+    const faceBtns = {};
+    // The faces a key has: Off and On, or one per state for a cycle key.
+    function faceList() {
+      if (behavior.mode() !== 'cycle') return [['off', 'deck_preview_off'], ['on', 'deck_preview_on']];
+      const out = [];
+      for (let i = 0; i < behavior.cycleCount(); i++) out.push([i ? 'c' + i : 'off', '']);
+      return out;
+    }
+    function paintFaceSeg() {
+      faceSeg.replaceChildren();
+      Object.keys(faceBtns).forEach((k) => { delete faceBtns[k]; });
+      faceList().forEach(([f, lk], i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+        if (lk) { b.setAttribute('data-i18n', lk); b.textContent = t(lk); } else b.textContent = cycleStateName(i);
+        b.addEventListener('click', () => setFace(f));
+        faceSeg.appendChild(b); faceBtns[f] = b;
+      });
+      setFace(faceBtns[lookFace] ? lookFace : 'off');
+    }
+    paneLook.appendChild(faceSeg);
+    // An On face nobody will ever see: say so, and point at where that is set.
+    const faceNever = document.createElement('div'); faceNever.className = 'deck-ed-statesum is-idle deck-ed-on-face';
+    const faceNeverTxt = document.createElement('div');
+    faceNeverTxt.setAttribute('data-i18n', 'deck_look_never_on'); faceNeverTxt.textContent = t('deck_look_never_on');
+    const faceNeverBtn = document.createElement('button'); faceNeverBtn.type = 'button'; faceNeverBtn.className = 'deck-ed-btn deck-ed-facego';
+    faceNeverBtn.setAttribute('data-i18n', 'deck_look_go_state'); faceNeverBtn.textContent = t('deck_look_go_state');
+    faceNeverBtn.addEventListener('click', () => showTab('state'));
+    // The common case in one tap: a key the user wants to read OFF / ON is a
+    // switch. Flipping the State switch row keeps both places in step.
+    const faceSwitchBtn = document.createElement('button'); faceSwitchBtn.type = 'button'; faceSwitchBtn.className = 'deck-ed-btn deck-ed-facego';
+    faceSwitchBtn.setAttribute('data-i18n', 'deck_look_make_switch'); faceSwitchBtn.textContent = t('deck_look_make_switch');
+    faceSwitchBtn.addEventListener('click', () => { behavior.setMode('switch'); schedulePreview(); });
+    const faceNeverBtns = document.createElement('div'); faceNeverBtns.className = 'deck-ed-facebtns';
+    faceNeverBtns.appendChild(faceSwitchBtn); faceNeverBtns.appendChild(faceNeverBtn);
+    faceNever.appendChild(faceNeverTxt); faceNever.appendChild(faceNeverBtns);
+    paneLook.appendChild(faceNever);
+    function setFace(f) {
+      lookFace = f;
+      const cycleAt = /^c\d$/.test(f) ? Number(f.slice(1)) : 0;
+      if (cycleAt) cycleFacePanel(cycleAt - 1);
+      paneLook.dataset.face = cycleAt ? 'cycle' : f;
+      Object.keys(faceBtns).forEach((k) => faceBtns[k].classList.toggle('active', k === f));
+      cycleFacePanels.forEach((p, i) => { if (p) p.el.style.display = cycleAt === i + 1 ? '' : 'none'; });
+      titleSync();
+    }
+    paintFaceSeg();
+    iconPicker.element.classList.add('deck-ed-off-face');
     paneLook.appendChild(iconPicker.element);
 
     // ── Cap background: a solid accent OR a two-colour gradient, plus an
     // optional backdrop picture that sits UNDER the icon/label. ──
-    const fColor = field('deck_edit_color');
+    const fColor = field('deck_edit_color'); fColor.classList.add('deck-ed-off-face');
     let colorTouched = !!(existing && existing.bg);
     let bgColor = (existing && existing.bg) || '';
     let gradC1 = (existing && existing.bg2 && existing.bg) || '';
@@ -1032,13 +1174,13 @@
     let bgImgVal = (existing && existing.bgImage && existing.bgImage.value) || '';
     let bgImgDim = (existing && existing.bgImage && Number.isFinite(existing.bgImage.dim)) ? existing.bgImage.dim : 35;
     let bgImgBlur = (existing && existing.bgImage && Number.isFinite(existing.bgImage.blur)) ? existing.bgImage.blur : 0;
-    const fBgImg = field('deck_edit_bgimage');
+    const fBgImg = field('deck_edit_bgimage'); fBgImg.classList.add('deck-ed-off-face');
     const bgImgRow = document.createElement('div'); bgImgRow.className = 'deck-ed-imgpick';
     const bgImgFile = document.createElement('input'); bgImgFile.type = 'file'; bgImgFile.accept = 'image/*'; bgImgFile.className = 'deck-ed-file';
     const bgImgBtn = document.createElement('button'); bgImgBtn.type = 'button'; bgImgBtn.className = 'deck-ed-btn';
     bgImgBtn.setAttribute('data-i18n', 'deck_edit_image'); bgImgBtn.textContent = t('deck_edit_image');
     const bgImgPrev = document.createElement('img'); bgImgPrev.className = 'deck-ed-imgprev'; bgImgPrev.alt = '';
-    const bgImgDel = document.createElement('button'); bgImgDel.type = 'button'; bgImgDel.className = 'deck-ed-btn deck-ed-imgdel'; bgImgDel.textContent = '×';
+    const bgImgDel = document.createElement('button'); bgImgDel.type = 'button'; bgImgDel.className = 'deck-ed-btn deck-ed-imgdel'; bgImgDel.innerHTML = window.DeckIcons.CLOSE_MARK;
     bgImgDel.title = t('preset_delete');
     bgImgBtn.addEventListener('click', () => bgImgFile.click());
     bgImgFile.addEventListener('change', () => {
@@ -1122,6 +1264,13 @@
       o.setAttribute('data-i18n', 'deck_live_sensor_' + m); o.textContent = t('deck_live_sensor_' + m);
       selLive.appendChild(o);
     });
+    // How full a Vitals meter is, or whichever is emptiest (value carries the meter).
+    const VITALS_METERS = (window.DeckModel && window.DeckModel.DECK_VITALS_METERS) || [];
+    VITALS_METERS.forEach((m) => {
+      const o = document.createElement('option'); o.value = 'vitals:' + m;
+      o.textContent = t('deck_live_vitals', 'Vitals') + ' · ' + (m === 'lowest' ? t('deck_live_vitals_lowest', 'lowest') : t('vitals_' + m, m));
+      selLive.appendChild(o);
+    });
     // An existing sdkState/battery binding gets its option SYNCHRONOUSLY: the
     // async population below lands after the initial syncLive() call, which
     // would otherwise read the still-empty select and silently drop the binding
@@ -1157,6 +1306,7 @@
       if (devs.length) enhanceSelects(fLive);
     }).catch(() => {});
     if (liveSource === 'timer') selLive.value = 'timer';
+    if (liveSource === 'vitals') selLive.value = 'vitals:' + (VITALS_METERS.includes(liveName) ? liveName : 'lowest');
     if (liveSource === 'sensor' && liveName && !liveName.startsWith('battery:')) selLive.value = 'sensor:' + liveName;
     fLive.appendChild(selLive);
     const liveNameWrap = document.createElement('div'); liveNameWrap.className = 'deck-ed-subfield';
@@ -1167,22 +1317,22 @@
     fLive.appendChild(liveNameWrap);
     function syncLive() {
       const v = selLive.value;
-      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : ''));
+      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : (v.startsWith('vitals:') ? 'vitals' : '')));
       if (liveSource === 'sdkState') liveName = v.slice(4);
+      else if (liveSource === 'vitals') liveName = v.slice('vitals:'.length);
       else if (liveSource === 'sensor') liveName = v.slice('sensor:'.length);
       else if (liveSource === 'timer') liveName = liveNameIn.value.trim();
       liveNameWrap.style.display = liveSource === 'timer' ? '' : 'none';
     }
     selLive.addEventListener('change', syncLive);
     syncLive();
-    paneLook.appendChild(fLive);
 
     // ── Label styling: position, size, weight, colour. ──
     let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
     let labelSizeVal = (existing && ['sm', 'lg'].includes(existing.labelSize)) ? existing.labelSize : 'md';
     let labelBoldVal = !!(existing && existing.labelBold);
     let labelColorVal = (existing && existing.labelColor) || '';
-    const fLabel = field('deck_edit_label');
+    const fLabel = field('deck_edit_label'); fLabel.classList.add('deck-ed-off-face');
     const posSeg = document.createElement('div'); posSeg.className = 'deck-ed-seg deck-ed-seg-text';
     [['bottom', 'deck_label_pos_bottom'], ['top', 'deck_label_pos_top'], ['hidden', 'deck_label_pos_hidden']].forEach(([v, lk]) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
@@ -1217,7 +1367,8 @@
     const lcWrap = document.createElement('div'); lcWrap.className = 'deck-ed-subfield';
     lcWrap.appendChild(labelColorRow.el);
     fLabel.appendChild(lcWrap);
-    paneFx.appendChild(fLabel);
+    // The label is part of how the key looks: it sits right under the icon.
+    paneLook.insertBefore(fLabel, fColor);
 
     // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
     // key (action or folder); validated by normalizeKey on save.
@@ -1240,7 +1391,7 @@
       if (pcCustom) pcCustom.classList.toggle('sel', pressColorTouched && isCustomColor(pressColor));
     }
     const pcNone = document.createElement('button');
-    pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.textContent = '✕'; pcNone.title = '—';
+    pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.innerHTML = window.DeckIcons.CLOSE_MARK; pcNone.title = '—';
     pcNone.addEventListener('click', () => { pressColorTouched = false; pressColor = ''; markPressColor(); });
     pcSwatches.appendChild(pcNone);
     DECK_SWATCHES.forEach((c) => {
@@ -1265,40 +1416,108 @@
     selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
     fAnim.appendChild(selAnim); paneFx.appendChild(fAnim);
 
-    // ── Alternate face while the bound state is ON (toggle keys): optional
-    // emoji, label and accent that replace the base face when .is-on. Only
-    // meaningful for stateful action keys; collectKey stores it as stateStyle
-    // and normalizeKey re-validates every field. ──
-    // The icon here is a full icon, the same as the base face's: a built-in
-    // vector, an uploaded picture or an emoji. It used to be a text box capped at
-    // eight characters, which made "a key can carry two faces" mean two EMOJI in
-    // practice — the question it kept being offered as the answer to was "assign
-    // two icons to a single button and toggle between them", and it could not.
-    // Stored values were bare strings; normalizeStateIcon reads those as the emoji
-    // they always were, so nothing saved before this changes.
-    const ssExisting = { icon: (existing && existing.stateStyle && existing.stateStyle.icon) || null };
+    // ── The lit face: what changes while the key is on, in four cards that
+    // mirror the Look tab (label, icon, background, then light and motion).
+    // Every field left empty keeps the off face, so OFF as the title and ON here
+    // is the whole job. Only meaningful for stateful action keys; collectKey
+    // stores it as stateStyle and normalizeKey re-validates every field.
+    // The icon is a full icon, like the base face's: a built-in vector, an
+    // uploaded picture or an emoji. Stored values used to be bare strings;
+    // normalizeStateIcon reads those as the emoji they always were.
+    const ssEx = (existing && existing.stateStyle) || {};
+    const ssExisting = { icon: ssEx.icon || null };
     if (typeof ssExisting.icon === 'string') ssExisting.icon = { type: 'emoji', value: ssExisting.icon };
-    let ssLabelVal = (existing && existing.stateStyle && existing.stateStyle.label) || '';
-    let ssColorVal = (existing && existing.stateStyle && existing.stateStyle.color) || '';
-    const fStateStyle = field('deck_edit_statestyle');
+    let ssLabelVal = ssEx.label || '';
+    let ssColorVal = ssEx.color || '';
+    let ssColor2Val = ssEx.color2 || '';
+    let ssIconColorVal = ssEx.iconColor || '';
+    let ssLabelColorVal = ssEx.labelColor || '';
+    // A new key starts with the ring on, so its lit face differs from the
+    // normal one at a glance before anything else is picked.
+    let ssRingVal = existing ? ssEx.ring === true : true;
+    let dimOffVal = !!(existing && existing.dimOff);
+
     const ssHint = document.createElement('div'); ssHint.className = 'deck-ed-hint';
-    ssHint.setAttribute('data-i18n', 'deck_statestyle_hint'); ssHint.textContent = t('deck_statestyle_hint');
-    fStateStyle.appendChild(ssHint);
+    ssHint.setAttribute('data-i18n', 'deck_ss_hint'); ssHint.textContent = t('deck_ss_hint');
+
+    const fSsLabel = section('deck_ss_sec_label');
+    // The On title is typed in the Title field at the top (titleSync).
+    const faceTitleName = (f) => (f === 'on' ? t('deck_preview_on') : cycleStateName(Number(f.slice(1))));
+    titleSync = () => {
+      const f = activeTab === 'look' && lookFace !== 'off' ? lookFace : '';
+      titleCaption.textContent = f ? t('deck_edit_name') + ' · ' + faceTitleName(f) : t('deck_edit_name');
+      inTitle.value = !f ? baseTitle : (f === 'on' ? ssLabelVal : cycleFacePanel(Number(f.slice(1)) - 1).label());
+      // Empty means the same title as Off: show it, greyed.
+      inTitle.placeholder = f ? (baseTitle.trim() || t('deck_ph_statestyle_label')) : '';
+      inTitle.maxLength = f ? 40 : 524288;
+      inTitle.dataset.face = f || 'off';
+    };
+    inTitle.addEventListener('input', () => {
+      const f = inTitle.dataset.face;
+      if (f === 'on') ssLabelVal = inTitle.value.trim();
+      else if (f && f !== 'off') cycleFacePanel(Number(f.slice(1)) - 1).setLabel(inTitle.value.trim());
+      else baseTitle = inTitle.value;
+    });
+    titleSync();
+    fSsLabel.appendChild(subRow('deck_ss_labelcolor', swatchRow(() => ssLabelColorVal, (v) => { ssLabelColorVal = v; }).el));
+
+    const fSsIcon = section('deck_ss_sec_icon');
     const ssIconPicker = buildIconPicker(ssExisting, null, { glyphOnly: true });
-    ssIconPicker.element.classList.add('deck-ed-subfield');
-    fStateStyle.appendChild(ssIconPicker.element);
-    const ssRow = document.createElement('div'); ssRow.className = 'deck-ed-subfield';
-    const ssLabelIn = input('text', ssLabelVal);
-    ssLabelIn.placeholder = t('deck_ph_statestyle_label');
-    ssLabelIn.maxLength = 40;
-    ssLabelIn.addEventListener('input', () => { ssLabelVal = ssLabelIn.value.trim(); });
-    ssRow.appendChild(ssLabelIn);
-    fStateStyle.appendChild(ssRow);
-    const ssColorRow = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
-    const ssColorWrap = document.createElement('div'); ssColorWrap.className = 'deck-ed-subfield';
-    ssColorWrap.appendChild(ssColorRow.el);
-    fStateStyle.appendChild(ssColorWrap);
-    paneFx.appendChild(fStateStyle);
+    fSsIcon.appendChild(ssIconPicker.element);
+    const ssIconColorRow = subRow('deck_ss_iconcolor', swatchRow(() => ssIconColorVal, (v) => { ssIconColorVal = v; }).el);
+    fSsIcon.appendChild(ssIconColorRow);
+    // A colour only tints a built-in vector icon (emoji and pictures keep their
+    // own colours), the same rule the Look tab's icon colour follows.
+    function syncSsIconColor() {
+      const lit = ssIconPicker.read();
+      const type = (lit && lit.value) ? lit.type : iconPicker.read().type;
+      ssIconColorRow.style.display = type === 'builtin' ? '' : 'none';
+    }
+
+    // Background: Colour or Gradient, the same choice as the Look tab's. A
+    // gradient's first colour may stay empty: it then fades from the key's own.
+    const fSsBg = section('deck_ss_sec_bg');
+    let ssBgMode = ssColor2Val ? 'grad' : 'solid';
+    const ssModeSeg = document.createElement('div'); ssModeSeg.className = 'deck-ed-seg deck-ed-seg-text';
+    const ssModeBtns = {};
+    [['solid', 'deck_bg_solid'], ['grad', 'deck_bg_gradient']].forEach(([m, lk]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+      b.setAttribute('data-i18n', lk); b.textContent = t(lk);
+      b.addEventListener('click', () => { ssBgMode = m; syncSsBg(); });
+      ssModeSeg.appendChild(b); ssModeBtns[m] = b;
+    });
+    fSsBg.appendChild(ssModeSeg);
+    const ssSolidRow = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
+    fSsBg.appendChild(ssSolidRow.el);
+    const ssGradWrap = document.createElement('div');
+    const ssC1Row = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
+    const ssC2Row = swatchRow(() => ssColor2Val, (v) => { ssColor2Val = v; });
+    ssGradWrap.appendChild(subRow('deck_grad_c1', ssC1Row.el));
+    ssGradWrap.appendChild(subRow('deck_grad_c2', ssC2Row.el));
+    fSsBg.appendChild(ssGradWrap);
+    function syncSsBg() {
+      Object.keys(ssModeBtns).forEach((m) => ssModeBtns[m].classList.toggle('active', m === ssBgMode));
+      ssSolidRow.el.style.display = ssBgMode === 'solid' ? '' : 'none';
+      ssGradWrap.style.display = ssBgMode === 'grad' ? '' : 'none';
+      ssSolidRow.refresh(); ssC1Row.refresh(); ssC2Row.refresh();
+    }
+    syncSsBg();
+
+    const fSsFx = section('deck_ss_sec_fx');
+    const ssSwitches = document.createElement('div'); ssSwitches.className = 'deck-ed-switches';
+    ssSwitches.appendChild(switchRow('deck_ss_ring', ssRingVal, (on) => { ssRingVal = on; }).el);
+    ssSwitches.appendChild(switchRow('deck_dim_off', dimOffVal, (on) => { dimOffVal = on; }).el);
+    fSsFx.appendChild(ssSwitches);
+    const selSsAnim = document.createElement('select'); selSsAnim.className = 'deck-ed-input';
+    DM.STATE_ANIMS.forEach((v) => {
+      const o = document.createElement('option'); o.value = v;
+      o.setAttribute('data-i18n', 'deck_ss_anim_' + v); o.textContent = t('deck_ss_anim_' + v);
+      selSsAnim.appendChild(o);
+    });
+    selSsAnim.value = DM.STATE_ANIMS.includes(ssEx.anim) ? ssEx.anim : 'none';
+    fSsFx.appendChild(subRow('deck_ss_anim', selSsAnim));
+    // The On face's cards (Look) and the On-only light and motion (Effects).
+    const litSections = [ssHint, fSsLabel, fSsIcon, fSsBg];
 
     // ── Style tools: copy this key's look, paste a copied look, or repaint the
     // whole page with it. The clipboard survives across editors (session-only). ──
@@ -1324,7 +1543,7 @@
       const k = collectKey(false);
       (DM.KEY_STYLE_FIELDS || []).forEach((f) => { delete k[f]; });
       Object.assign(k, styleClipboard);
-      open(Object.assign({}, opts, { key: k, tab: activeTab }));
+      open(Object.assign({}, opts, { key: k, tab: activeTab, face: lookFace }));
     });
     const btnPageStyle = document.createElement('button'); btnPageStyle.type = 'button'; btnPageStyle.className = 'deck-ed-btn';
     btnPageStyle.setAttribute('data-i18n', 'deck_style_page'); btnPageStyle.textContent = t('deck_style_page');
@@ -1341,16 +1560,17 @@
 
     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
     // field below can pre-suggest a source from the tap action.
-    const TRIGGERS = ['tap', 'double', 'hold'];
+    const TRIGGERS = DM.KEY_TRIGGERS;
     const rawTriggers = (existing && existing.triggers) || {};
     // Each trigger is a list of step descriptors {type, params, delayMs}.
     const stepsOf = (name) => DA.triggerSteps(rawTriggers[name]).map((s) => {
       const params = Object.assign({}, s.action); delete params.type;
       return { type: s.action.type, params, delayMs: s.delayMs };
     });
-    const trig = { tap: stepsOf('tap'), double: stepsOf('double'), hold: stepsOf('hold') };
-    // Open on the first trigger that has any step so an existing double/hold key doesn't look empty.
-    let activeTrig = trig.tap.length ? 'tap' : trig.double.length ? 'double' : trig.hold.length ? 'hold' : 'tap';
+    const trig = {};
+    TRIGGERS.forEach((tr) => { trig[tr] = stepsOf(tr); });
+    // Open on the first gesture that has any step so an existing double/hold key doesn't look empty.
+    let activeTrig = behavior.triggers().find((tr) => trig[tr].length) || behavior.triggers()[0];
 
     // First open-app / open-Store-app target across the key's triggers, if any —
     // feeds the icon picker's "use the app's own icon" shortcut. Hoisted so the
@@ -1410,6 +1630,17 @@
       // Timer keys light while their timer is counting down.
       const tmr = find((s) => (s.type === 'timerStart' || s.type === 'timerToggle') && s.params && s.params.label);
       if (tmr) return { source: 'timerRunning', name: tmr.params.label };
+      // Lights on/off keys follow the lights themselves, not their own taps. A
+      // key that only turns them off would be lit exactly when it does nothing.
+      if (find((s) => s.type === 'lightPower' && (!s.params || s.params.state !== 'off'))) return { source: 'lightsOn' };
+      // A benchmark key lights while it records; one that only shows the file never does.
+      if (find((s) => s.type === 'benchmark' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'benchmarkRunning' };
+      if (find((s) => s.type === 'record' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'recordingOn' };
+      if (find((s) => s.type === 'timelapse' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'timelapseOn' };
+      // A steps key lights while the steps recorder runs; open and show never do.
+      if (find((s) => s.type === 'steps' && (!s.params || !['open', 'reveal'].includes(s.params.mode)))) return { source: 'stepsOn' };
+      // A replay key lights while the replay keeps the last seconds (a save does something).
+      if (find((s) => s.type === 'replay' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'replayOn' };
       return null;
     }
 
@@ -1440,7 +1671,88 @@
     }
     // The key's effective state binding: an explicit global binding wins, else the
     // action-derived one. Used by the LED "follows state" default and on save.
-    function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || detectKeyState(); }
+    // A key whose action has a state of its own (Instant Replay on, mic muted...) follows it
+    // unless the user turned that off in State: then it has one face and never lights.
+    let followAuto = !(existing && existing.unlit === true);
+    function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || (followAuto ? detectKeyState() : null); }
+
+    // What lights this key, in words, at the top of the On tab: the part that
+    // used to be guesswork (a lit colour set, and no state that ever lights it).
+    const stateSum = document.createElement('div'); stateSum.className = 'deck-ed-statesum';
+    paneState.appendChild(stateSum);
+    // Shown only when the action brings a state: its words say which one.
+    const followRow = switchRow('deck_state_sum_follows', followAuto, (on) => { followAuto = on; updateStateSummary(); refreshLedDurDefault(); schedulePreview(); });
+    // Its words are rebuilt with the source name, so the i18n pass must not reset them.
+    followRow.el.querySelector('.deck-ed-switchtxt').removeAttribute('data-i18n');
+    followRow.el.classList.add('deck-ed-follow');
+    paneState.appendChild(followRow.el);
+    // The same choice under the preview, where the two faces are seen.
+    const faceCountBtn = document.createElement('button'); faceCountBtn.type = 'button'; faceCountBtn.className = 'deck-ed-btn deck-ed-facecount';
+    faceCountBtn.addEventListener('click', () => { followAuto = !followAuto; followRow.set(followAuto); updateStateSummary(); refreshLedDurDefault(); schedulePreview(); });
+    const STATE_SOURCE_ACTION = {
+      micMuted: 'micMute', speakerMuted: 'volume', outputDevice: 'audioDevice', obsRecording: 'obsRecord',
+      obsStreaming: 'obsStream', obsScene: 'obsScene', obsInputMuted: 'obsMute', remoteActive: 'remoteBlock',
+      discordMuted: 'discordMute', discordDeafened: 'discordDeafen', spotifyPlaying: 'spotifyPlay',
+      mediaPlaying: 'media', haEntity: 'haToggle', timerRunning: 'timerStart', lightsOn: 'lightPower', benchmarkRunning: 'benchmark', recordingOn: 'record', timelapseOn: 'timelapse', stepsOn: 'steps', replayOn: 'replay',
+    };
+    const STATE_SOURCE_FIELD = { sbGlobal: 'deck_edit_sbglobal', sdkState: 'deck_edit_sdkstate', scriptState: 'deck_edit_scriptstate' };
+    function stateSourceText(st) {
+      const spec = DA.actionSpec(STATE_SOURCE_ACTION[st.source]);
+      const base = STATE_SOURCE_FIELD[st.source] ? t(STATE_SOURCE_FIELD[st.source]) : (spec ? t(spec.labelKey) : '');
+      const detail = st.name || st.entity || st.scene || st.input || '';
+      return [base, detail].filter(Boolean).join(': ');
+    }
+    function updateStateSummary() {
+      const st = effectiveKeyState();
+      let text = t('deck_state_sum_none');
+      const mode = behavior.mode();
+      // A switch, a held momentary key and a cycle key light themselves.
+      const ownSum = { switch: 'deck_state_sum_switch', momentary: 'deck_state_sum_momentary', cycle: 'deck_state_sum_cycle' }[mode];
+      if (mode === 'cycle') text = t(ownSum);
+      else if (st) text = t('deck_state_sum_follows') + ' ' + stateSourceText(st);
+      else if (ownSum) text = t(ownSum);
+      const auto = mode !== 'cycle' && !manualSbState() && !manualSdkState() && !manualScriptState() ? detectKeyState() : null;
+      followRow.el.style.display = auto ? '' : 'none';
+      if (auto) followRow.el.querySelector('.deck-ed-switchtxt').textContent = t('deck_state_sum_follows') + ' ' + stateSourceText(auto);
+      // One face is a choice, not a warning.
+      const single = auto && !followAuto && !ownSum;
+      if (single) text = t('deck_state_sum_single');
+      faceCountBtn.style.display = auto && !ownSum ? '' : 'none';
+      faceCountBtn.textContent = t(followAuto ? 'deck_face_one' : 'deck_face_two');
+      stateSum.textContent = text;
+      // The switch already says what it follows; the line under it would repeat it.
+      stateSum.style.display = auto && followAuto ? 'none' : '';
+      stateSum.classList.toggle('is-idle', !st && !ownSum && !single);
+      faceNever.style.display = (!st && !ownSum) ? '' : 'none';
+    }
+    // A switch: each tap turns the key on or off, the off tap with its own action.
+    let toggleVal = behavior.mode() === 'switch';
+    // The behaviour decides which gestures there are, which faces Look edits,
+    // and what State and the confirm tap still offer.
+    function syncBehavior() {
+      toggleVal = behavior.mode() === 'switch';
+      const shown = behavior.triggers();
+      TRIGGERS.forEach((tr) => { trigBtns[tr].style.display = shown.includes(tr) ? '' : 'none'; });
+      // In the behaviour's own order, so a cycle key's states sit side by side.
+      const seg = trigBtns[shown[0]].parentNode;
+      if (seg) shown.forEach((tr) => seg.appendChild(trigBtns[tr]));
+      paintTrigNames();
+      if (!shown.includes(activeTrig)) { activeTrig = shown[0]; renderSteps(); markActive(); }
+      paintFaceSeg();
+      syncKind();
+      refreshLedDurDefault();
+      updateStateSummary();
+    }
+    // A cycle key's gestures are its states: Tap reads State 1, cycle1 State 2...
+    function paintTrigNames() {
+      const cycle = behavior.mode() === 'cycle';
+      TRIGGERS.forEach((tr) => {
+        const nm = trigBtns[tr].querySelector('.deck-ed-trigname');
+        const m = /^cycle(\d)$/.exec(tr);
+        if (m || (cycle && tr === 'tap')) { nm.removeAttribute('data-i18n'); nm.textContent = cycleStateName(m ? Number(m[1]) : 0); }
+        else { nm.setAttribute('data-i18n', 'deck_trigger_' + tr); nm.textContent = t('deck_trigger_' + tr); }
+      });
+    }
 
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
@@ -1522,7 +1834,7 @@
     trigLbl.setAttribute('data-i18n', 'deck_triggers');
     trigLbl.textContent = t('deck_triggers');
     fTrig.appendChild(trigLbl);
-    const segTrig = document.createElement('div'); segTrig.className = 'deck-ed-seg';
+    const segTrig = document.createElement('div'); segTrig.className = 'deck-ed-seg deck-ed-trigseg';
     const trigBtns = {};
     TRIGGERS.forEach((tr) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-trigbtn';
@@ -1533,12 +1845,42 @@
       b.addEventListener('click', () => { activeTrig = tr; renderSteps(); markActive(); });
       segTrig.appendChild(b); trigBtns[tr] = b;
     });
-    fTrig.appendChild(segTrig); paneAction.appendChild(fTrig);
+    fTrig.appendChild(segTrig);
+    paneAction.appendChild(behavior.el);
+    paneAction.appendChild(fTrig);
 
     const fAction = field('deck_edit_action');
     const stepsHost = document.createElement('div');
     stepsHost.className = 'deck-ed-steps';
     fAction.appendChild(stepsHost); paneAction.appendChild(fAction);
+
+    // Confirm: the first tap only arms the key ("Tap again"), for keys that are
+    // costly to hit by mistake.
+    let confirmVal = !!(existing && existing.confirm);
+    const fConfirm = section('deck_confirm_title');
+    fConfirm.appendChild(switchRow('deck_confirm_label', confirmVal, (on) => { confirmVal = on; }).el);
+    paneAction.appendChild(fConfirm);
+
+    // A keyboard shortcut that runs this key's tap from anywhere on the PC.
+    const shortcut = window.DeckEditorShortcut.buildCard({ t, section }, existing);
+    paneAction.appendChild(shortcut.el);
+
+    // The same key as a small button that stays on the screen.
+    const onScreen = window.DeckEditorPlace.buildCard({ t, section }, existing, serverCaps);
+    if (onScreen) paneAction.appendChild(onScreen);
+
+    [fKind, behavior.el, fTrig, fConfirm].forEach((n) => n.classList.add('deck-ed-advanced'));
+    if (opts && opts.simple) {
+      const btnMore = document.createElement('button');
+      btnMore.type = 'button'; btnMore.className = 'deck-ed-btn deck-ed-more';
+      btnMore.setAttribute('data-i18n', 'deck_edit_more'); btnMore.textContent = t('deck_edit_more');
+      btnMore.addEventListener('click', () => {
+        opts.simple = false;   // a preset or paste reopens the editor from opts
+        modal.classList.remove('deck-ed-modal--simple');
+        btnMore.remove();
+      });
+      paneAction.appendChild(btnMore);
+    }
 
     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
     const existingLight = existing && existing.light;
@@ -1583,7 +1925,7 @@
     // duration by hand, or when editing a reaction that already has a saved choice.
     function refreshLedDurDefault() {
       if (existingLight || durTouched) return;
-      selLightDur.value = effectiveKeyState() ? 'state' : 'press';
+      selLightDur.value = (effectiveKeyState() || toggleVal) ? 'state' : 'press';
     }
     fLightDur.appendChild(selLightDur); fLight.appendChild(fLightDur);
 
@@ -1602,7 +1944,7 @@
     }
     selLightMode.addEventListener('change', syncLight);
     syncLight();
-    paneAction.appendChild(fLight);
+    paneFx.appendChild(fLight);
 
     // ── Reflect a Streamer.bot global (phase 2 "stateful key"): the key shows as ON
     // while a chosen global is truthy (or equals a given value). Optional; the tap
@@ -1646,7 +1988,7 @@
     }
     syncSbState();
     // Visibility (SB configured AND kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fSbState);
+    paneState.appendChild(fSbState);
 
     // ── Reflect a WIDGET state (SDK packages): same idea as the Streamer.bot
     // binding, fed by states installed widget packages publish over the bridge.
@@ -1688,7 +2030,7 @@
     }).catch(() => {});
     syncSdkState();
     // Visibility (states available AND kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fSdkState);
+    paneState.appendChild(fSdkState);
 
     // ── Reflect a SCRIPT state: no service to configure — any local script can
     // POST /state/set, so the field is always offered on action keys. The name is
@@ -1726,18 +2068,32 @@
     }
     syncScriptState();
     // Visibility (kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fScriptState);
+    paneState.appendChild(fScriptState);
+    paneState.appendChild(fLive);
+    litSections.forEach((n) => { n.classList.add('deck-ed-on-face'); paneLook.appendChild(n); });
+    paneFx.appendChild(fSsFx);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. The `lighting` group carries the visible
     // whole-system light actions (the legacy hidden `lighting` reaction is
-    // filtered out by its `hidden` flag).
+    // filtered out by its `hidden` flag). Built-in features first, then the
+    // services that need an account or an app, then the advanced ones.
     const ACTION_CATEGORIES = [
+      { group: 'launch', labelKey: 'deck_cat_launch' },
       { group: 'system', labelKey: 'deck_cat_system' },
+      { group: 'xenon', labelKey: 'deck_cat_xenon' },
       { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'soundboard', labelKey: 'deck_cat_soundboard' },
       { group: 'timer', labelKey: 'deck_cat_timer' },
-      { group: 'audio', labelKey: 'deck_cat_audio' },
+      { group: 'vitals', labelKey: 'deck_cat_vitals' },
+      { group: 'capture', labelKey: 'deck_cat_capture' },
+      { group: 'screen', labelKey: 'deck_cat_screen' },
+      { group: 'perf', labelKey: 'deck_cat_perf' },
+      { group: 'phone', labelKey: 'deck_cat_phone' },
+      { group: 'ai', labelKey: 'deck_cat_ai' },
+      { group: 'claude', labelKey: 'deck_cat_claude' },
+      { group: 'lighting', labelKey: 'deck_cat_lighting' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
       { group: 'streamerbot', labelKey: 'deck_cat_streamerbot' },
@@ -1747,12 +2103,8 @@
       { group: 'chroma', labelKey: 'deck_cat_chroma' },
       { group: 'wavelink', labelKey: 'deck_cat_wavelink' },
       { group: 'voicemeeter', labelKey: 'deck_cat_voicemeeter' },
-      { group: 'lighting', labelKey: 'deck_cat_lighting' },
-      { group: 'window', labelKey: 'deck_cat_window' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'sdk', labelKey: 'deck_cat_sdk' },
-      { group: 'ai', labelKey: 'deck_cat_ai' },
-      { group: 'claude', labelKey: 'deck_cat_claude' },
     ];
     // Per-action inline icons (currentColor). Kept compact; an action with no
     // entry simply shows no icon.
@@ -1774,7 +2126,38 @@
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
+      benchmark: _ai('<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-6"/>'),
+      powerMode: _ai('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+      gameMode: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15 11h.01M18 13h.01"/><path d="M12 2v3"/>'),
+      gameIgnore: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><path d="M3 3l18 18"/>'),
+      perfMode: _ai('<path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/>'),
+      dnd: _ai('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+      sensorHistory: _ai('<path d="M3 3v18h18"/><path d="m7 14 3-3 3 2 4-5"/><circle cx="18" cy="17" r="3"/><path d="M18 15.8V17l.8.6"/>'),
+      notificationOpen: _ai('<path d="M6 16V11a6 6 0 0 1 9-5.2"/><path d="M18 11v5l1.5 2h-15"/><path d="M10 21h4"/><path d="M15 3h6v6M21 3l-6 6"/>'),
+      stutterWhy: _ai('<path d="M2 16h4l2-9 2.5 9H14"/><path d="M16.5 8.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.1.9-1.1 1.8M19 16.5h.01"/>'),
+      record: _ai('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>'),
+      timelapse: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/><path d="M5 5.5l1.5 1.5"/>'),
+      replay: _ai('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>'),
+      captureMarker: _ai('<path d="M6 3h12v18l-6-4-6 4z"/>'),
+      markClips: _ai('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/>'),
+      screenshot: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/>'),
+      screenText: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 9h8M8 12h8M8 15h5"/>'),
+      screenPin: _ai('<rect x="3" y="7" width="14" height="13" rx="2"/><path d="M15 3l6 6M18 6l-3.5 3.5M12.5 7.5l4 4"/>'),
+      screenCover: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor"/>'),
+      screenColor: _ai('<path d="M14.5 4.5l5 5M17 2.5a2.1 2.1 0 0 1 3 3L18 7.5l-3-3z"/><path d="M15 6.5L5.5 16l-1 3.5 3.5-1L17.5 9"/>'),
+      screenMeasure: _ai('<rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/>'),
+      steps: _ai('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/><path d="M15 12l2 2 2-2"/>'),
+      screenDraw: _ai('<path d="M3 17c3-4 5-4 6.5-1.5S13 19 15.5 15"/><path d="M14.5 7.5l3-3 2 2-3 3z"/><path d="M14.5 7.5L11 11l-.5 2.5 2.5-.5 3.5-3.5"/>'),
+      xenonMenu: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M12.5 9h5M12.5 12h5M12.5 15h3"/>'),
+      xenonScreen: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M12 12v5M9.5 14.5h5"/>'),
+      gameCompanion: _ai('<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="15.5" cy="11.5" r="1" fill="currentColor"/><circle cx="17.5" cy="13.5" r="1" fill="currentColor"/>'),
+      exportCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 7v7M9 11l3 3 3-3"/>'),
+      sendCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 15V8M9 11l3-3 3 3M11 19h2"/>'),
+      copyCapture: _ai('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3 3 3-3"/>'),
+      bugReport: _ai('<rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M12 12v8M3 12h4M17 12h4M4 7l3 2.5M20 7l-3 2.5M4 19l3-2.5M20 19l-3-2.5"/>'),
+      gallery: _ai('<rect x="3" y="5" width="14" height="12" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V9"/><path d="M3 14l3.5-3.5a1.5 1.5 0 0 1 2 0L13 15"/><circle cx="12.5" cy="9" r="1.3"/>'),
       timerStart: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
+      vitalsRefill: _ai('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>'),
       timerToggle: _ai('<circle cx="12" cy="13" r="8"/><path d="M10 10v6M14 10v6M9 2h6"/>'),
       timerCancel: _ai('<circle cx="12" cy="13" r="8"/><path d="M9.5 10.5l5 5M14.5 10.5l-5 5M9 2h6"/>'),
       micMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
@@ -1801,7 +2184,8 @@
       remoteDisconnect: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M8 8l8 6M16 8l-8 6"/>'),
       remoteBlock: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'),
       remoteScreenCycle: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'),
-      ai: _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
+      // Bit, the AI the key talks to (the sparkle only if the engine is missing).
+      ai: (window.BitApp && BitApp.icon('idle')) || _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
       discordMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
       discordDeafen: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/>'),
       discordPtt: _ai('<rect x="8" y="2" width="8" height="13" rx="4"/><path d="M12 15v5M8 20h8"/>'),
@@ -1841,7 +2225,58 @@
       lightAuto: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/><circle cx="12" cy="12" r="2.5"/>'),
       lightEffect: _ai('<path d="m12 3 2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
       lightDevice: _ai('<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M8 9h.01M11 9h.01M14 9h.01"/>'),
+      lightPart: _ai('<rect x="2" y="9" width="20" height="6" rx="3"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/><path d="M10 5h4M10 19h4"/>'),
+      phoneCall: _ai('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'),
+      phoneMessage: _ai('<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M9 8h6M9 11.5h4M11 18h2"/>'),
+      deckState: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="3" fill="currentColor"/>'),
+      soundStopAll: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><rect x="15" y="9" width="6" height="6" rx="1"/>'),
+      stopwatchStart: _ai('<circle cx="12" cy="14" r="7"/><path d="M12 14V10M10 2h4M12 2v3M18.5 6.5l1.5-1.5"/>'),
+      audioDevice: _ai('<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="14" r="3.5"/><path d="M12 7h.01"/>'),
+      audioDeviceFirst: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/><path d="m10 11 1.5 1.5L14.5 9"/>'),
+      audioDeviceToggle: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/><path d="M10 15h4M12 13l2 2-2 2"/>'),
+      sbSendMessage: _ai('<path d="M4 5h16v11H8l-4 3z"/><path d="m10 8 4 2.5-4 2.5z" fill="currentColor"/>'),
+      sbCodeTrigger: _ai('<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>'),
+      spotifyPlayUri: _ai('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+      haLight: _ai('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>'),
+      haMedia: _ai('<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/><path d="m10 8 5 2.5-5 2.5z" fill="currentColor"/>'),
+      haCover: _ai('<path d="M3 3h18M5 3v18M19 3v18"/><path d="M5 7h14M5 11h14M5 15h14"/>'),
+      haClimate: _ai('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 11v6"/>'),
+      haFan: _ai('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-7 4-7s3 4-2 7M14 12c4 0 7 1 7 4s-4 3-7-2M12 14c0 4-1 7-4 7s-3-4 2-7M10 12c-4 0-7-1-7-4s4-3 7 2"/>'),
+      haVacuum: _ai('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3"/>'),
+      haLock: _ai('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><path d="M12 15v2"/>'),
+      haAlarm: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16h.01"/>'),
+      haScript: _ai('<path d="M6 3h9l4 4v14H6z"/><path d="m10 11 5 3-5 3z" fill="currentColor"/>'),
+      haButton: _ai('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/>'),
+      wlMixVolume: _ai('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
+      wlMixMute: _ai('<path d="M4 6h16M4 12h16M4 18h16"/><path d="M3 3l18 18"/>'),
+      wlEffect: _ai('<path d="M15 4V2M15 10V8M11 6h-2M21 6h-2M18 3l1-1M18 9l1 1"/><path d="M3 21 14 10"/>'),
+      wlOutputDevice: _ai('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="15" width="5" height="6" rx="1.5"/><rect x="17" y="15" width="5" height="6" rx="1.5"/>'),
+      vmStripMute: _ai('<path d="M8 3v18M16 3v18"/><rect x="5" y="8" width="6" height="4" rx="1"/><path d="m14 14 6 6M20 14l-6 6"/>'),
+      vmStripGain: _ai('<path d="M12 3v18"/><rect x="8" y="9" width="8" height="5" rx="1"/><path d="M5 6h2M5 18h2M17 6h2M17 18h2"/>'),
+      vmStripBus: _ai('<circle cx="5" cy="12" r="2"/><path d="M7 12h4M11 12l4-6h4M11 12l4 6h4"/>'),
+      vmBusMute: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4M11 10v4"/><path d="m15 9 4 6M19 9l-4 6"/>'),
+      vmBusGain: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 14l3-3 3 2 4-4"/>'),
+      vmMacro: _ai('<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><path d="M17 14v6M14 17h6"/>'),
+      vmParam: _ai('<path d="M4 7h7M15 7h5M4 17h3M11 17h9"/><circle cx="13" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'),
+      layersEdit: _ai('<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>'),
+      layersToggle: _ai('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+      layerPage: _ai('<rect x="7" y="3" width="13" height="13" rx="2"/><path d="M4 7v11a2 2 0 0 0 2 2h11"/>'),
+      usageMode: _ai('<rect x="2" y="4" width="13" height="10" rx="1.5"/><path d="M6 18h5"/><rect x="17" y="8" width="5" height="12" rx="1"/>'),
+      desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
+    // One icon per category header, from an action that stands for the group.
+    const CATEGORY_ICONS = {
+      launch: ACTION_ICONS.openApp, system: ACTION_ICONS.hotkey,
+      xenon: ACTION_ICONS.xenonMenu, phone: ACTION_ICONS.phoneCall,
+      media: ACTION_ICONS.media, soundboard: ACTION_ICONS.playSound,
+      timer: ACTION_ICONS.timerStart, vitals: ACTION_ICONS.vitalsRefill, audio: ACTION_ICONS.volume, obs: ACTION_ICONS.obsScene,
+      stream: ACTION_ICONS.ytBroadcast, streamerbot: ACTION_ICONS.sbDoAction, discord: ACTION_ICONS.discordDeafen,
+      spotify: ACTION_ICONS.spotifyPlay, homeassistant: ACTION_ICONS.haToggle, chroma: ACTION_ICONS.chromaColor,
+      wavelink: ACTION_ICONS.wlInputVolume, voicemeeter: ACTION_ICONS.vmStripGain, lighting: ACTION_ICONS.lightColor,
+      perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot, screen: ACTION_ICONS.screenMeasure,
+      remote: ACTION_ICONS.remoteScreenCycle, sdk: ACTION_ICONS.sdkMacro, ai: ACTION_ICONS.ai, claude: ACTION_ICONS.claudeAsk,
+    };
+    const RECENT_ICON = _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
 
     // A service category whose provider isn't configured/connected stays visible
     // as a single disabled "hint" row pointing to its setup, instead of vanishing
@@ -1912,17 +2347,82 @@
       return true;
     }
 
+    // The last few actions picked in any key's editor, newest first, for the
+    // "Recently used" group. Browser storage can be missing or full: then the
+    // group just isn't there.
+    const RECENT_ACTIONS_KEY = 'xenonDeckRecentActions';
+    const RECENT_ACTIONS_MAX = 5;
+    function recentActions() {
+      try {
+        const list = JSON.parse(localStorage.getItem(RECENT_ACTIONS_KEY) || '[]');
+        return Array.isArray(list) ? list.filter((v) => typeof v === 'string').slice(0, RECENT_ACTIONS_MAX) : [];
+      } catch { return []; }
+    }
+    function rememberRecentAction(type) {
+      if (!type) return;
+      try {
+        const list = [type, ...recentActions().filter((v) => v !== type)].slice(0, RECENT_ACTIONS_MAX);
+        localStorage.setItem(RECENT_ACTIONS_KEY, JSON.stringify(list));
+      } catch { /* storage unavailable: nothing to remember */ }
+    }
+
+    // English names searched too, so "volume" or "screenshot" finds the action
+    // whatever language the dashboard is in.
+    function englishLabel(key) {
+      try { return (typeof i18n !== 'undefined' && i18n.en && i18n.en[key]) || ''; } catch { return ''; }
+    }
+
+    // What an action does, in one or two plain sentences ('' when it has none).
+    function actionInfo(type) {
+      const key = 'deck_info_' + type;
+      const s = t(key);
+      return s && s !== key ? s : '';
+    }
+
+    function actionOption(a) {
+      const o = document.createElement('option');
+      o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
+      o.dataset.csIcon = ACTION_ICONS[a.type] || CATEGORY_ICONS[a.group] || ACTION_ICONS.hotkey;
+      const info = actionInfo(a.type);
+      if (info) o.dataset.csInfo = info;
+      return o;
+    }
+
     function actionSelect(value) {
       const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      // A long list of actions: categories that open and close, a search box
+      // (any language, accents ignored, category names too) and arrow keys + Enter.
+      sel.setAttribute('data-cs-search', '');
+      sel.setAttribute('data-cs-collapsible', '');
+      sel.setAttribute('data-cs-search-placeholder', t('deck_action_search'));
+      sel.setAttribute('data-cs-empty', t('deck_action_none_found'));
+      sel.setAttribute('data-cs-info-label', t('deck_info_btn'));
       const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_edit_none'); none.textContent = t('deck_edit_none'); sel.appendChild(none);
-      // Group the actions into labelled categories with a per-action icon, mirroring
-      // the dashboard "+" palette. Categories render as <optgroup>s; the custom
-      // select turns those into headers and shows each option's data-cs-icon.
+
+      const recent = recentActions()
+        .map((type) => DA.ACTION_CATALOG.find((a) => a.type === type))
+        .filter((a) => a && actionGateOk(a));
+      if (recent.length) {
+        const og = document.createElement('optgroup'); og.label = t('deck_cat_recent');
+        og.setAttribute('data-cs-key', '__recent__');
+        og.setAttribute('data-cs-open', '');          // the shortcut is only useful open
+        og.setAttribute('data-cs-search-skip', '');   // its actions are found in their own group
+        og.dataset.csIcon = RECENT_ICON;
+        recent.forEach((a) => og.appendChild(actionOption(a)));
+        sel.appendChild(og);
+      }
+
+      // Groups with something to pick come first; a service that still needs
+      // setting up keeps its place at the end with a hint saying where.
+      const ready = [];
+      const locked = [];
       ACTION_CATEGORIES.forEach((cat) => {
         const all = DA.ACTION_CATALOG.filter((a) => a.group === cat.group && !a.hidden);
         if (!all.length) return;
         const acts = all.filter(actionGateOk);
         const og = document.createElement('optgroup'); og.label = t(cat.labelKey);
+        og.setAttribute('data-cs-key', cat.group);
+        if (CATEGORY_ICONS[cat.group]) og.dataset.csIcon = CATEGORY_ICONS[cat.group];
         if (!acts.length) {
           // Locked service category → one disabled hint row instead of hiding it.
           const hintKey = LOCKED_HINTS[cat.group];
@@ -1935,17 +2435,19 @@
           o.setAttribute('data-i18n', hintKey); o.textContent = t(hintKey);
           o.dataset.csIcon = LOCK_ICON;
           og.appendChild(o);
-          sel.appendChild(og);
+          locked.push(og);
           return;
         }
+        const catEn = englishLabel(cat.labelKey);
         acts.forEach((a) => {
-          const o = document.createElement('option');
-          o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
-          if (ACTION_ICONS[a.type]) o.dataset.csIcon = ACTION_ICONS[a.type];
+          const o = actionOption(a);
+          // The explanation is searched too: "liked songs" finds the Spotify save.
+          o.dataset.csKeywords = [englishLabel(a.labelKey), a.type, catEn, o.dataset.csInfo || ''].join(' ');
           og.appendChild(o);
         });
-        sel.appendChild(og);
+        ready.push(og);
       });
+      ready.concat(locked).forEach((og) => sel.appendChild(og));
       sel.value = value || '';
       // A key may carry an action that isn't in the picker — a hidden/internal one
       // (e.g. `lighting`, which Genesis can configure), or a service action whose
@@ -1958,10 +2460,11 @@
         o.value = value;
         if (spec && spec.labelKey) { o.setAttribute('data-i18n', spec.labelKey); o.textContent = t(spec.labelKey); }
         else { o.textContent = value; }
-        if (ACTION_ICONS[value]) o.dataset.csIcon = ACTION_ICONS[value];
+        o.dataset.csIcon = ACTION_ICONS[value] || (spec && CATEGORY_ICONS[spec.group]) || ACTION_ICONS.hotkey;
         sel.appendChild(o);
         sel.value = value;
       }
+      sel.addEventListener('change', () => rememberRecentAction(sel.value));
       return sel;
     }
 
@@ -2468,6 +2971,33 @@
       return wrap;
     }
 
+    // A param control for the lightPart kind: one dropdown of every part of every
+    // device with a lighting map (Fan 3, Pump, Strip 1…), named as the map names
+    // them. Writes two params: the device id and the part's index in its map.
+    function lightPartPickControl(step) {
+      const wrap = document.createElement('div');
+      const note = document.createElement('p'); note.className = 'deck-ed-hint';
+      note.setAttribute('data-i18n', 'deck_part_none'); note.textContent = t('deck_part_none');
+      wrap.appendChild(note);
+      lightingLists().then(({ parts }) => {
+        const names = (segs) => (window.LightingMap && window.LightingMap.partLabels
+          ? window.LightingMap.partLabels(segs) : segs.map((s, i) => s.name || String(i + 1)));
+        const items = [];
+        parts.forEach((d) => names(d.segments).forEach((label, i) => items.push({ device: d.device, part: i, label: `${d.label} · ${label}` })));
+        if (!items.length) return;   // nothing with parts → the note stays
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        items.forEach((it, k) => { const o = document.createElement('option'); o.value = String(k); o.textContent = it.label; sel.appendChild(o); });
+        const at = items.findIndex((it) => it.device === step.params.device && it.part === Number(step.params.part));
+        const pick = (k) => { step.params.device = items[k].device; step.params.part = items[k].part; };
+        sel.value = String(at >= 0 ? at : 0);
+        pick(Number(sel.value));
+        sel.addEventListener('change', () => pick(Number(sel.value)));
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the audioApp kind. The text field is the source of truth
     // (the user can type ANY process name, e.g. "spotify" or "discord", even for an
     // app that isn't currently playing). A quick-pick dropdown of the apps that ARE
@@ -2667,7 +3197,7 @@
         main = tok; inp.value = tok; commit();
       });
       const clear = document.createElement('button');
-      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
+      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.innerHTML = window.DeckIcons.CLOSE_MARK; clear.title = t('deck_hotkey_clear');
       clear.addEventListener('click', () => {
         mods.clear(); main = ''; inp.value = '';
         modRow.querySelectorAll('.deck-ed-hotkey-mod.active').forEach((x) => x.classList.remove('active'));
@@ -2691,6 +3221,8 @@
         // claudeAsk's `prompt` is a request to Claude, the ai action's is a
         // prompt. Renaming the param would orphan every stored key, so the spec
         // may override the derived label key instead.
+        // Set by another param's control (lightPart's picker fills `device`).
+        if (p.kind === 'hidden') return;
         const f = field(p.labelKey || ('deck_param_' + p.name));
         if (step.type === 'hotkey' && p.name === 'keys') {
           if (step.params[p.name] == null) step.params[p.name] = '';
@@ -2819,6 +3351,11 @@
           host.appendChild(f);
           return;
         }
+        if (p.kind === 'lightPart') {
+          f.appendChild(lightPartPickControl(step));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'sound') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(soundPickControl(step, p.name));
@@ -2826,19 +3363,18 @@
           return;
         }
         if (p.kind === 'color') {
-          // Native colour picker; stored as "#rrggbb" (validated server-side).
-          const cur = /^#[0-9a-fA-F]{6}$/.test(step.params[p.name] || '') ? step.params[p.name] : '#7c5cff';
-          const ctrl = input('color', cur);
-          step.params[p.name] = ctrl.value;
-          const write = () => { step.params[p.name] = ctrl.value; };
-          ctrl.addEventListener('change', write); ctrl.addEventListener('input', write);
-          f.appendChild(ctrl); host.appendChild(f);
+          // The same swatch row as the key's own colours (one tap), with the
+          // app's picker behind the last swatch; stored as "#rrggbb" (validated server-side).
+          if (!/^#[0-9a-fA-F]{6}$/.test(step.params[p.name] || '')) step.params[p.name] = '#7c5cff';
+          f.appendChild(swatchRow(() => step.params[p.name], (v) => { step.params[p.name] = v; }, { allowNone: false }).el);
+          host.appendChild(f);
           return;
         }
         let ctrl;
         if (p.kind === 'select') {
           ctrl = document.createElement('select'); ctrl.className = 'deck-ed-input';
-          p.options.forEach((o) => { const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', 'deck_opt_' + o); opt.textContent = t('deck_opt_' + o); ctrl.appendChild(opt); });
+          // A param may name its own option words (optionKeys); otherwise the shared deck_opt_*.
+          p.options.forEach((o) => { const key = (p.optionKeys && p.optionKeys[o]) || ('deck_opt_' + o); const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', key); opt.textContent = t(key); ctrl.appendChild(opt); });
           ctrl.value = (step.params[p.name] != null && p.options.includes(step.params[p.name])) ? step.params[p.name] : p.options[0];
         } else {
           ctrl = input('text', step.params[p.name] || '');
@@ -2873,16 +3409,23 @@
         up.addEventListener('click', () => { list.splice(i - 1, 0, list.splice(i, 1)[0]); renderSteps(); });
         const down = document.createElement('button'); down.type = 'button'; down.className = 'deck-ed-stepbtn'; down.textContent = '↓'; down.disabled = i === list.length - 1;
         down.addEventListener('click', () => { list.splice(i + 1, 0, list.splice(i, 1)[0]); renderSteps(); });
-        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'deck-ed-stepbtn danger'; rm.textContent = '✕';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'deck-ed-stepbtn danger'; rm.innerHTML = window.DeckIcons.CLOSE_MARK;
         rm.addEventListener('click', () => { list.splice(i, 1); renderSteps(); updateTrigLabels(); });
         tools.appendChild(up); tools.appendChild(down); tools.appendChild(rm);
         head.appendChild(tools); row.appendChild(head);
+        // The chosen action says what it does, so a key never holds a mystery.
+        const info = step.type ? actionInfo(step.type) : '';
+        if (info) {
+          const hint = document.createElement('div'); hint.className = 'deck-ed-hint deck-ed-action-info';
+          hint.setAttribute('data-i18n', 'deck_info_' + step.type); hint.textContent = info;
+          row.appendChild(hint);
+        }
         const ph = document.createElement('div'); ph.className = 'deck-ed-params';
         stepParams(ph, step); row.appendChild(ph);
         stepsHost.appendChild(row);
       });
       const add = document.createElement('button'); add.type = 'button'; add.className = 'deck-ed-addstep';
-      add.setAttribute('data-i18n', 'deck_add_action'); add.textContent = '+ ' + t('deck_add_action');
+      add.setAttribute('data-i18n', 'deck_add_action'); add.textContent = t('deck_add_action');
       add.addEventListener('click', () => { list.push({ type: '', params: {}, delayMs: 0 }); renderSteps(); updateTrigLabels(); });
       stepsHost.appendChild(add);
       enhanceSelects(stepsHost);   // upgrade the freshly-built action/param dropdowns
@@ -2907,6 +3450,7 @@
     renderSteps();
     markActive();
     updateTrigLabels();
+    syncBehavior();
     // Re-check OBS availability now (it may have just been configured in Settings);
     // if it changed, rebuild the action lists so OBS actions appear/disappear.
     refreshCapabilities().then((changed) => { if (changed) renderSteps(); fillSliderTargets(); });
@@ -2921,14 +3465,28 @@
       // The Streamer.bot state binding is action-only too: collectKey/normalizeKey
       // only persist `state` on action keys, so showing it on a folder would
       // silently discard the user's choice on save.
-      fSbState.style.display = (isAction && streamerbotConfigured !== false) ? '' : 'none';
+      // A cycle key's states are its own: it follows nothing, and is never "on".
+      const mode = behavior.mode();
+      const follows = isAction && mode !== 'cycle';
+      behavior.el.style.display = isAction ? '' : 'none';
+      fSbState.style.display = (follows && streamerbotConfigured !== false) ? '' : 'none';
       // Widget-state binding: only once the package scan found published states
       // (or the key already carries one) — hidden noise-free for everyone else.
-      fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
+      fSdkState.style.display = (follows && sdkStatesAvail) ? '' : 'none';
       // Script-state binding: always available (it needs no configured service).
-      fScriptState.style.display = isAction ? '' : 'none';
+      fScriptState.style.display = follows ? '' : 'none';
       // Alternate ON face: stateful action keys only (state is action-only too).
-      fStateStyle.style.display = isAction ? '' : 'none';
+      // Only an action key can light up: the others have one face.
+      litSections.forEach((n) => { n.style.display = isAction ? '' : 'none'; });
+      fSsFx.style.display = follows ? '' : 'none';
+      faceSeg.style.display = isAction ? '' : 'none';
+      if (!isAction) setFace('off');
+      // A key that acts while held cannot wait for a second tap.
+      fConfirm.style.display = (isAction && mode !== 'momentary' && mode !== 'repeat') ? '' : 'none';
+      // A shortcut runs the tap (or a momentary key's press): action keys only.
+      shortcut.el.style.display = isAction ? '' : 'none';
+      tabBtns.state.style.display = isAction ? '' : 'none';
+      if (!isAction && activeTab === 'state') showTab('actions');
       // Live value badge: action keys only (normalizeKey drops it on folders).
       fLive.style.display = isAction ? '' : 'none';
     }
@@ -2938,20 +3496,24 @@
     const actions = document.createElement('div');
     actions.className = 'deck-ed-actions';
     const btnSave = document.createElement('button'); btnSave.type = 'button'; btnSave.className = 'deck-ed-btn primary'; btnSave.setAttribute('data-i18n', 'deck_edit_save'); btnSave.textContent = t('deck_edit_save');
-    const btnSavePreset = document.createElement('button'); btnSavePreset.type = 'button'; btnSavePreset.className = 'deck-ed-btn'; btnSavePreset.setAttribute('data-i18n', 'deck_key_save_preset'); btnSavePreset.textContent = t('deck_key_save_preset');
+    const btnSavePreset = document.createElement('button'); btnSavePreset.type = 'button'; btnSavePreset.className = 'deck-ed-btn deck-ed-preset-save'; btnSavePreset.setAttribute('data-i18n', 'deck_key_save_preset'); btnSavePreset.textContent = t('deck_key_save_preset');
     const btnCancel = document.createElement('button'); btnCancel.type = 'button'; btnCancel.className = 'deck-ed-btn'; btnCancel.setAttribute('data-i18n', 'deck_edit_cancel'); btnCancel.textContent = t('deck_edit_cancel');
-    actions.appendChild(btnSave);
-    actions.appendChild(btnSavePreset);
+    styleTools.appendChild(btnSavePreset);
     if (existing && opts.onDelete) {
       const btnDel = document.createElement('button'); btnDel.type = 'button'; btnDel.className = 'deck-ed-btn danger'; btnDel.setAttribute('data-i18n', 'deck_edit_delete'); btnDel.textContent = t('deck_edit_delete');
       btnDel.addEventListener('click', () => { close(); opts.onDelete(); });
       actions.appendChild(btnDel);
     }
     actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
     modal.appendChild(actions);
 
     btnCancel.addEventListener('click', close);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    // A press beside the window is often a slip: it closes only what has nothing to lose.
+    let pristine = '';
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop && JSON.stringify(collectKey(true)) === pristine) close();
+    });
 
     // Read the current form into a raw key object. `forPreset` omits the durable
     // id so a key placed/loaded from a preset always gets a fresh one on save.
@@ -2960,7 +3522,7 @@
       const key = {
         id: forPreset ? undefined : ((existing && existing.id) || DM.newKeyId()),
         kind,
-        title: inTitle.value,
+        title: baseTitle,
         // The icon picker yields {type:'emoji'|'builtin'|'image', value[, fit]}.
         icon: iconPicker.read(),
         bg: colorTouched ? bgColor : '',
@@ -2988,7 +3550,9 @@
       if (pressColorTouched && pressColor) key.pressColor = pressColor;
       if (kind === 'action') {
         key.triggers = {};
+        const shownTriggers = behavior.triggers();
         TRIGGERS.forEach((tr) => {
+          if (!shownTriggers.includes(tr)) return;   // only the gestures this behaviour runs
           const steps = trig[tr].map((s) => ({ action: Object.assign({ type: s.type }, s.params), delayMs: s.delayMs }));
           const v = DA.compactTrigger(steps);
           if (v) key.triggers[tr] = v;
@@ -3006,7 +3570,18 @@
         if (ssIcon && ssIcon.value) ss.icon = ssIcon;
         if (ssLabelVal) ss.label = ssLabelVal;
         if (ssColorVal) ss.color = ssColorVal;
-        if (Object.keys(ss).length) key.stateStyle = ss;
+        if (ssColor2Val && ssBgMode === 'grad') ss.color2 = ssColor2Val;
+        if (ssIconColorVal) ss.iconColor = ssIconColorVal;
+        if (ssLabelColorVal) ss.labelColor = ssLabelColorVal;
+        if (ssRingVal) ss.ring = true;
+        if (selSsAnim.value !== 'none') ss.anim = selSsAnim.value;
+        behavior.collect(key);
+        if (key.mode === 'cycle') key.cycle = Array.from({ length: behavior.cycleCount() - 1 }, (_, i) => readCycleFace(i));
+        if (confirmVal) key.confirm = true;
+        shortcut.collect(key);
+        if (dimOffVal) key.dimOff = true;
+        if (!followAuto && detectKeyState() && !key.state) key.unlit = true;
+        if (Object.keys(ss).length && !key.unlit) key.stateStyle = ss;
         // Live value badge (timer countdown / SDK state text) on the face.
         if (liveSource) {
           key.live = Object.assign({ source: liveSource }, liveName ? { name: liveName } : {});
@@ -3036,6 +3611,8 @@
     }
 
     btnSave.addEventListener('click', () => {
+      // Keys lists only keys with a shortcut: without one this macro could never run.
+      if (opts.needsShortcut && !shortcut.ask()) return;
       const key = collectKey(false);
       // A slider whose target needs a pick (app/entity/source) would be DROPPED
       // by normalizeSlider → the key silently vanishes on save. Block instead.
@@ -3054,7 +3631,7 @@
     // preset strip so it shows up immediately (the modal stays open).
     btnSavePreset.addEventListener('click', () => {
       if (window.Deck && typeof window.Deck.saveKeyPreset === 'function') {
-        window.Deck.saveKeyPreset(collectKey(true), inTitle.value);
+        window.Deck.saveKeyPreset(collectKey(true), baseTitle);
       }
       fillKeyPresets();
     });
@@ -3075,13 +3652,47 @@
     previewStage.appendChild(previewCap);
     previewPanel.appendChild(previewCaption);
     previewPanel.appendChild(previewStage);
+    previewPanel.appendChild(faceCountBtn);
 
     let previewRaf = 0;
     function updatePreview() {
       if (!window.Deck || typeof window.Deck.renderKeyPreview !== 'function') { previewPanel.style.display = 'none'; return; }
       let node = null;
-      try { node = window.Deck.renderKeyPreview(collectKey(true), opts && opts.look); } catch { node = null; }
+      const look = opts && opts.look;
+      try {
+        const raw = collectKey(true);
+        updateStateSummary();
+        syncSsIconColor();
+        if (raw.kind === 'action' && raw.mode === 'cycle') {
+          // The first state and the one being edited (else the second).
+          const at = /^c\d$/.test(lookFace) ? Number(lookFace.slice(1)) : 1;
+          node = document.createElement('div'); node.className = 'deck-ed-preview-pair';
+          node.appendChild(previewFig(raw, look, 'off', cycleStateName(0), '', { cycle: 0 }));
+          node.appendChild(previewFig(raw, look, 'c' + at, cycleStateName(at), '', { cycle: at }));
+        } else if (raw.kind === 'action' && (raw.toggle || raw.mode === 'momentary' || raw.state || raw.stateStyle)) {
+          node = document.createElement('div'); node.className = 'deck-ed-preview-pair';
+          node.appendChild(previewFig(raw, look, 'off', t('deck_preview_off'), 'deck_preview_off', { on: false }));
+          node.appendChild(previewFig(raw, look, 'on', t('deck_preview_on'), 'deck_preview_on', { on: true }));
+        } else {
+          node = window.Deck.renderKeyPreview(raw, look);
+        }
+      } catch { node = null; }
       if (node) previewCap.replaceChildren(node);
+    }
+    // One face in the preview; tapping it opens that face in Look.
+    function previewFig(raw, look, face, text, lk, renderOpts) {
+      const fig = document.createElement('div'); fig.className = 'deck-ed-preview-fig is-pickable';
+      fig.classList.toggle('is-face', activeTab === 'look' && face === lookFace);
+      fig.tabIndex = 0; fig.setAttribute('role', 'button'); fig.setAttribute('aria-label', text);
+      const pick = () => { setFace(face); showTab('look'); schedulePreview(); };
+      fig.addEventListener('click', pick);
+      fig.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      fig.appendChild(window.Deck.renderKeyPreview(raw, look, renderOpts));
+      const tag = document.createElement('span'); tag.className = 'deck-ed-preview-tag';
+      if (lk) tag.setAttribute('data-i18n', lk);
+      tag.textContent = text;
+      fig.appendChild(tag);
+      return fig;
     }
     function schedulePreview() {
       if (previewRaf) return;
@@ -3104,10 +3715,26 @@
     edSide.insertBefore(previewPanel, edSide.firstChild);
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
-    if (typeof applyTranslations === 'function') applyTranslations();
+    // Word segments never break into a lopsided pile in a narrow modal or a
+    // long language: they step to an even grid instead (DeckPanel.css).
+    backdrop.stopShortcut = shortcut.dispose;
+    if (window.FitRow) backdrop.stopFitRows = window.FitRow.watchWithin(modal, '.deck-ed-seg-text', 1);
+    if (typeof translateStatic === 'function') translateStatic(backdrop);
     enhanceSelects(modal);
     updatePreview();
-    inTitle.focus();
+    pristine = JSON.stringify(collectKey(true));
+    modal.tabIndex = -1;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', h.textContent);
+    // A touch keyboard would cover the form, so a finger starts on the window itself.
+    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+    backdrop.letGo = window.DialogFocus.hold(modal, {
+      start: touch ? modal : inTitle,
+      onEsc: close,
+      // Both fields take Tab and Esc as keys of the combination.
+      leavesKeys: () => shortcut.recording() || !!(document.activeElement && document.activeElement.classList.contains('deck-ed-hotkey-input')),
+    });
   }
 
   window.DeckEditor = { open, close };

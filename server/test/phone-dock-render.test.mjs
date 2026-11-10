@@ -10,7 +10,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
 
 // The thumb dock is the ONLY route to four controls on a phone: the compact
-// topbar hides Search, Xenon AI, Apps and Settings to buy back its width. That
+// topbar hides Search, Bit, Apps and Settings to buy back its width. That
 // makes every defect in this bar a control the user cannot reach at all, and
 // none of it was covered — phone-view.test.mjs tests the two pure functions and
 // reads the CSS as text, which cannot see a button that renders empty.
@@ -47,7 +47,7 @@ function topButton(mkEl, cls, pathD) {
 
 const LABELS = {
   ph_search: 'Cerca',
-  ph_ai: 'Xenon AI',
+  ph_ai: 'Bit',
   ph_apps: 'App',
   ph_settings: 'Impostazioni',
   ph_prev: 'Pagina precedente',
@@ -57,7 +57,7 @@ const LABELS = {
   ph_dock: 'Comandi rapidi',
 };
 
-function mountPhone({ pages = 3, width = 390, height = 844 } = {}) {
+function mountPhone({ pages = 3, width = 390, height = 844, bitSvg = true } = {}) {
   const dom = makeDom();
   const { document, mkEl } = dom;
 
@@ -70,9 +70,11 @@ function mountPhone({ pages = 3, width = 390, height = 844 } = {}) {
   shell.appendChild(topbar);
   topbar.append(
     topButton(mkEl, 'qbtn-search', 'M10 2a8 8 0 1 1 0 16Z'),
-    topButton(mkEl, 'topbtn-xenon', 'M12 0 12.7 6.1Z'),
+    topButton(mkEl, 'topbtn-xenon', 'M12 0h2v4h4v2Z'),
     topButton(mkEl, 'qbtn-apps', 'M4 4h7v7H4Z'),
   );
+  // Bit's launcher without any icon: the engine never painted it and the static one is gone.
+  if (!bitSvg) topbar.querySelector('.topbtn-xenon svg').remove();
   const settings = topButton(mkEl, 'qbtn-settings', 'M19.4 13.5Z');
   const dot = mkEl('span');
   dot.className = 'topbtn-update-dot';
@@ -152,7 +154,7 @@ test('every action button carries the real icon of the control it forwards to', 
 test('every action button is labelled, visibly and accessibly', () => {
   const { shell } = mountPhone();
   const labels = shell.querySelectorAll('.ph-acts .ph-lab').map((n) => n.textContent);
-  assert.deepEqual(labels, ['Cerca', 'Xenon AI', 'App', 'Impostazioni']);
+  assert.deepEqual(labels, ['Cerca', 'Bit', 'App', 'Impostazioni']);
 
   for (const b of shell.querySelectorAll('.ph-acts .ph-act')) {
     assert.ok(b.getAttribute('aria-label'), 'a dock button with no accessible name');
@@ -241,7 +243,7 @@ test('a removed action leaves the bar, and takes nothing else with it', () => {
   assert.equal(shell.querySelectorAll('.ph-acts .ph-act').length, 5);
   PhoneView.addDockAction({ id: 'transfer', remove: true });
   const left = shell.querySelectorAll('.ph-acts .ph-lab').map((n) => n.textContent);
-  assert.deepEqual(left, ['Cerca', 'Xenon AI', 'App', 'Impostazioni']);
+  assert.deepEqual(left, ['Cerca', 'Bit', 'App', 'Impostazioni']);
 });
 
 // ── The pager ────────────────────────────────────────────────────────────────
@@ -310,9 +312,9 @@ function bottomFixedSelectors() {
       if (/(?:^|;|\s)top:\s*0/.test(body) && bottom[1].trim() === '0') continue;
       for (const sel of m[1].split(',')) {
         const s = sel.trim().replace(/\s+/g, ' ');
-        // Only ever the element's own class, so a state variant does not need
-        // its own entry in the phone-view list.
-        const cls = s.match(/\.[a-z][\w-]*/i);
+        // Only ever the element's own class, the last part of the selector, so a
+        // state variant does not need its own entry in the phone-view list.
+        const cls = s.split(' ').pop().match(/\.[a-z][\w-]*/i);
         if (cls && !found.has(cls[0])) found.set(cls[0], basename(file));
       }
     }
@@ -349,6 +351,18 @@ test('everything the dashboard pins to the bottom of the screen clears the dock'
     + 'or hide them in the stacked view');
 });
 
+test('a ticker strip under the dock is cleared too, not covered', () => {
+  // Reported on a phone with the stock ticker at the bottom: the dock sits on
+  // top of the strip, so a floater lifted by the dock height alone still
+  // landed on the dock by the strip's height.
+  const css = readFileSync(join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.is-phone body\.xe-has-ticker\.xe-ticker-bottom \{ --ph-bottom-lift: var\(--xe-ticker-h/);
+  const lifts = [...css.matchAll(/bottom:\s*calc\(\s*var\(--ph-dock-h[^;]*;/g)].map((m) => m[0]);
+  assert.ok(lifts.length >= 2);
+  for (const rule of lifts) assert.match(rule, /var\(--ph-bottom-lift/, rule);
+});
+
 test('the dock publishes its own height, measured rather than assumed', () => {
   const { shell, document, resizeTargets, fireResize, PhoneView } = mountPhone();
   const dock = shell.querySelector('.ph-dock');
@@ -373,4 +387,27 @@ test('the dock publishes its own height, measured rather than assumed', () => {
   PhoneView.disable();
   assert.equal(html.style.getPropertyValue('--ph-dock-h'), '',
     'a stale height left on <html> keeps every toast floating for nothing');
+});
+
+test('the Bit button falls back to the pixel outline of Bit, never a sparkle glyph', () => {
+  const { shell } = mountPhone({ bitSvg: false });
+  const bit = shell.querySelectorAll('.ph-acts .ph-act')[1];
+  assert.equal(bit.title, 'Bit');
+  assert.equal(bit.querySelector('.ph-glyph'), null, 'the Bit button fell back to a Unicode glyph');
+  const d = bit.querySelector('path').getAttribute('d');
+  assert.match(d, /^M12 0h2v4h4v2h2v12/, 'the fallback must be the outline of Bit');
+});
+
+test('no static icon in the page still draws a sparkle for Bit', () => {
+  const html = readFileSync(join(HERE, '..', 'index.html'), 'utf8');
+  assert.equal(html.includes('M12 0 C12.7 6.1 17.9 11.3 24 12'), false, 'the four-point sparkle is back');
+  assert.doesNotMatch(SRC, /glyph: '✦'/);
+});
+
+test('a key starts from its caption, so a long word is not cut beside a short one', () => {
+  const css = readFileSync(join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8').replace(/\r\n/g, '\n');
+  const key = css.slice(css.indexOf('.ph-btn.ph-act {'), css.indexOf('.ph-ico {'));
+  assert.match(key, /flex: 1 1 auto;/);
+  assert.match(key, /min-width: 44px;/, 'never under a thumb');
+  assert.match(key, /max-width: 84px;/);
 });

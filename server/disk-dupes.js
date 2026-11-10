@@ -37,6 +37,9 @@ function createDupeVerifier(opts = {}) {
   const cacheFile = dataDir ? path.join(dataDir, CACHE_FILE) : null;
   const passBudget = opts.passBudget || DEFAULT_PASS_BUDGET;
   const now = typeof opts.now === 'function' ? opts.now : Date.now;
+  // While this says yes nothing more is read, as if the budget had run out: the
+  // next overview continues the pass.
+  const held = typeof opts.held === 'function' ? opts.held : () => false;
 
   let cache = null;            // key -> { s, m, e (edge hash), h (full hash), at }
   let saveTimer = null;
@@ -158,7 +161,7 @@ function createDupeVerifier(opts = {}) {
       for (const it of items) {
         if (it.rec.e) continue;
         const cost = Math.min(g.s, EDGE_BYTES * 2);
-        if (budget < cost) { groupPending = true; continue; }
+        if (budget < cost || held()) { groupPending = true; continue; }
         try {
           const { h, read } = await hashRange(it.p, g.s, true);
           it.rec.e = h;
@@ -172,7 +175,7 @@ function createDupeVerifier(opts = {}) {
         if (sub.length < 2) continue;
         for (const it of sub) {
           if (it.rec.h) continue;
-          if (budget < g.s) { groupPending = true; continue; }
+          if (budget < g.s || held()) { groupPending = true; continue; }
           try {
             const { h, read } = await hashRange(it.p, g.s, false);
             it.rec.h = h;

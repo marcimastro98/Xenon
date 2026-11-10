@@ -4,6 +4,8 @@
 .claude/
 AGENTS.md
 CORSAIR_SDK_NOTES.md
+# Offline copy of the iCUE SDK docs, kept locally as a reference
+WidgetBuilder/
 
 # Xenon Creator — generated dashboard packs (themes/widgets/backgrounds/pages
 # and their import codes). Authored locally by the xenon-creator skill; the
@@ -19,6 +21,9 @@ yarn-error.log*
 # Tauri native app — Rust build output and generated schemas/capabilities.
 # (Cargo.lock and src-tauri/icons/ ARE committed once generated.)
 apps/native/src-tauri/target/
+apps/capture/target/
+# Built by npm run capture:build (the release pipeline builds and signs its own).
+server/capture/
 apps/native/src-tauri/gen/
 
 # OS
@@ -86,13 +91,6 @@ server/helper/
 # staged next to the sources.
 helper-mac/.build/
 
-# Xenon backend Windows service (WinSW): the downloaded host exe, the per-machine
-# generated config and the rolling logs. Only the template + scripts are versioned.
-service/xenon-service.exe
-service/xenon-service.xml
-service/winsw-download.tmp
-service/logs/
-
 # Logs
 *.log
 
@@ -122,7 +120,8 @@ widget/shared
 # them. See docs/community/README.md and the supporter-hub drop routine.
 docs/community/shots/
 .agents/
-packages/design-system
+# The design system's local sync tooling. The package itself is tracked.
+packages/design-system/sync/
 # The static browser demo (docs/demo/) is GENERATED — tools/build-demo.mjs runs
 # in .github/workflows/pages.yml immediately before the Pages upload. It is ~7 MB
 # of copied client assets rebuilt on every deploy: committing it would bloat git
@@ -131,5 +130,15 @@ packages/design-system
 # tracked, in tools/demo/.
 docs/demo/
 
+# Xenon Maker (docs/maker/) is unpacked from its own repo's release by pages.yml.
+docs/maker/
+
 # Playwright MCP screenshots and snapshots taken while checking UI work
 .playwright-mcp/
+
+# Copied in by `npm pack`/`npm publish` (prepack); the repo LICENSE is the only source.
+packages/mcp/LICENSE
+
+# PowerShell drops its module analysis cache here when a tool runs it with the
+# repo as its profile folder; machine-local, never part of the project.
+/Microsoft/

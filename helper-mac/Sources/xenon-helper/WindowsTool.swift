@@ -25,6 +25,7 @@ enum WindowsTool {
     ]
 
     static let maxWindows = 24
+    static let iconSide = 48
 
     // Titles of on-screen windows, by owning pid. CGWindowListCopyWindowInfo is
     // public API and needs no permission for the window LIST; the titles come
@@ -116,11 +117,28 @@ enum WindowsTool {
                     ("path", .s(e.path)),
                     ("active", .b(e.active)),
                     ("minimized", .b(false)),    // needs Accessibility; never guessed
-                    ("icon", .null),
+                    ("icon", iconURL(e.pid).map(J.s) ?? J.null),
                 ])
             }
             emit(.obj([("windows", .arr(items))]))
         }
+    }
+
+    // The app's own picture as a 48 px PNG data URL: the shape WindowsTool.cs answers
+    // with. Nil leaves the list on the name alone.
+    static func iconURL(_ pid: pid_t) -> String? {
+        guard let icon = NSRunningApplication(processIdentifier: pid)?.icon,
+              let bitmap = NSBitmapImageRep(
+                  bitmapDataPlanes: nil, pixelsWide: iconSide, pixelsHigh: iconSide,
+                  bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                  colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        icon.draw(in: NSRect(x: 0, y: 0, width: iconSide, height: iconSide))
+        NSGraphicsContext.restoreGraphicsState()
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
+        return "data:image/png;base64," + png.base64EncodedString()
     }
 
     // Digits only, and it must fit a pid_t. The value arrives from an HTTP

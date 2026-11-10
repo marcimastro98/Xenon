@@ -22,7 +22,9 @@ test('a .desktop entry: name, local name, and the flags that hide it', () => {
   assert.equal(parseDesktopEntry('[Desktop Entry]\nType=Application\nName=X\nHidden=true').hidden, true);
 });
 
-test('Linux apps: user entries win, hidden and non-apps are left out', async () => {
+test('Linux apps: user entries win, hidden and non-apps are left out', {
+  skip: process.platform === 'win32' && 'XDG_DATA_DIRS is :-separated on Linux; a Windows path contains :',
+}, async () => {
   const home = mkdtempSync(path.join(tmpdir(), 'xenon-apps-'));
   const user = path.join(home, '.local', 'share', 'applications');
   const sys = path.join(home, 'sys', 'applications');

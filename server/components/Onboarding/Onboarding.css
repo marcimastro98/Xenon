@@ -5,7 +5,9 @@
   position: fixed;
   inset: 0;
   z-index: 4000; /* above settings/overlays but below nothing the tour needs to point at */
-  animation: onb-fade-in 0.2s ease both;
+  /* backwards and not both: once done it must not stay a backdrop root, or the card's blur
+     has nothing to read. */
+  animation: onb-fade-in 0.2s ease backwards;
 }
 @keyframes onb-fade-in { from { opacity: 0; } to { opacity: 1; } }
 /* Centered steps (welcome/finish) have no spotlight to dim the page, so the
@@ -43,23 +45,22 @@
   backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(var(--accent-rgb), 0.28);
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
   color: var(--text, #f0f3f1);
   transition: left 0.28s ease, top 0.28s ease;
   will-change: left, top;
 }
+.onb-card:focus { outline: none; }
 /* Centered welcome / finish cards (no target). */
 .onb-card.onb-card-center {
   left: 50% !important;
   top: 50% !important;
   transform: translate(-50%, -50%);
   width: min(380px, calc(100vw - 28px));
-  text-align: center;
 }
 
 .onb-dots { display: flex; gap: 6px; margin-bottom: 12px; justify-content: flex-start; }
-.onb-card-center .onb-dots { justify-content: center; }
 .onb-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: rgba(var(--accent-rgb), 0.25);
@@ -67,23 +68,21 @@
 }
 .onb-dot.active { background: rgba(var(--accent-rgb), 0.95); transform: scale(1.35); }
 
-.onb-title { margin: 0 0 6px; font-size: 1.08em; font-weight: 700; letter-spacing: -0.01em; }
-.onb-body { margin: 0 0 16px; font-size: 0.92em; line-height: 1.5; opacity: 0.86; }
+.onb-title { margin: 0 0 6px; font-size: 20px; font-weight: 800; line-height: 1.2; }
+.onb-body { margin: 0 0 16px; font-size: 15px; line-height: 1.45; color: var(--muted-text); }
 
 .onb-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.onb-card-center .onb-actions { justify-content: center; }
 .onb-actions-right { display: flex; align-items: center; gap: 8px; }
 .onb-btn {
-  border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 600;
-  padding: 9px 16px; min-height: 40px;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700;
+  padding: 0 16px; min-height: 44px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.onb-skip { background: transparent; color: inherit; opacity: 0.6; padding-left: 0; }
-.onb-skip:hover { opacity: 0.9; }
-.onb-back { background: rgba(var(--accent-rgb), 0.12); color: inherit; }
-.onb-back:hover { background: rgba(var(--accent-rgb), 0.22); }
+.onb-skip { margin-left: -12px; padding-inline: 12px; background: none; color: var(--muted-text); }
+.onb-skip:hover { color: var(--text); }
+.onb-back { background: var(--control-bg); color: inherit; }
+.onb-back:hover { background: var(--hover-bg); }
 .onb-next { background: var(--accent); color: var(--on-accent); }
-.onb-next:hover { background: rgba(var(--accent-rgb), 1); }
 
 /* Settings → replay tour. A single compact row: the button sits in the group
    header next to the label. align-self:start stops the 2-column appearance grid
@@ -93,14 +92,6 @@
 .settings-tutorial-group .settings-group-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.settings-onb-replay {
-  border: 1px solid rgba(var(--accent-rgb), 0.3);
-  background: rgba(var(--accent-rgb), 0.1);
-  color: inherit; cursor: pointer; font: inherit; font-weight: 600;
-  border-radius: 10px; padding: 8px 14px; min-height: 38px; flex: 0 0 auto;
-  white-space: nowrap;
-}
-.settings-onb-replay:hover { background: rgba(var(--accent-rgb), 0.2); }
 
 @media (prefers-reduced-motion: reduce) {
   .onb-overlay, .onb-spotlight, .onb-card { animation: none; transition: none; }

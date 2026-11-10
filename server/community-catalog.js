@@ -17,6 +17,7 @@
 // for unit tests (server/test/community-catalog.test.mjs).
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
@@ -35,10 +36,20 @@ let storefront = null;
 try { storefront = require('./shared/src/storefront-layout.js'); }
 catch { storefront = null; }
 
+// Descriptions are a small Markdown subset (shared/src/rich-text.js); the limit
+// lives there. Same guard as above, with the hub's number as the fallback.
+let DESCRIPTION_MAX = 800;
+try { DESCRIPTION_MAX = require('./shared/src/rich-text.js').DESCRIPTION_MAX; }
+catch { /* keep the fallback */ }
+
 const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;   // catalog JSON — generous, rejects absurd payloads
 // One shared code file. 4 MB since v4.11.10 (was 2): a remote-locked bundle carrying a theme
 // with painted backdrop images, a widget AND an Ambient scene lands around 3.5 MB, because
@@ -58,7 +69,7 @@ const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
 // (xenon-supporter-hub src/catalog-admin.js), the issue-template dropdown and
 // the website gallery's KINDS (docs/catalog/index.html). 'ambient-layout' is
 // deliberately not catalog-listable.
-const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'icons', 'sounds']);
+const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'icons', 'sounds', 'topbar']);
 
 // Entry/code ids become URL path segments (codes/<id>.txt) and DOM anchors —
 // conservative charset, no traversal by construction.
@@ -80,6 +91,8 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\
 // id-derived image (WebP — animated allowed — with a PNG fallback) — see the
 // screenshot note below.
 const MAX_SHOTS = 6;
+// The hub's ceiling on a Sparks price (buy.js MAX_PRICE): 1 Spark = 1 US cent.
+const SPARKS_MAX = 100000;
 
 function cleanStr(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -142,7 +155,7 @@ function normalizeEntry(raw) {
     authorSupporter: raw.authorSupporter === true,
     supportersOnly: raw.supportersOnly === true,
     locked: raw.locked === true,
-    description: cleanStr(raw.description, 300),
+    description: cleanStr(raw.description, DESCRIPTION_MAX),
     addedAt: cleanStr(raw.addedAt, 20),
     appVersionMin: cleanStr(raw.appVersionMin, 20),
     code,
@@ -177,6 +190,11 @@ function normalizeEntry(raw) {
   // override). Boolean-true-only, like the other v2 flags — the gallery shows a
   // "may use more resources" chip and the import dialog repeats it.
   if (raw.perfWarning === true) entry.perfWarning = true;
+  // Sold for Sparks (the hub's entries.sparks_price). Only the label and the
+  // button come from here: the hub charges, and refuses what is not for sale.
+  if (Number.isInteger(raw.sparks) && raw.sparks > 0 && raw.sparks <= SPARKS_MAX) entry.sparks = raw.sparks;
+  // When the pass trial may open it; absent means after its first 30 days.
+  if (raw.trial === 'now' || raw.trial === 'never') entry.trial = raw.trial;
   // Storefront spotlight, chosen in the hub admin: 'main' leads the Store at full
   // width, 'on' rides in the column beside it. Two literals only — an unknown
   // value must read as "not featured" rather than promote an entry by accident.
@@ -297,6 +315,7 @@ function fetchText(url, validators, _hops = 0) {
     catch (e) { return reject(e); }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    armDeadline(req, FETCH_DEADLINE_MS);
 
     function onResponse(res) {
       if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }

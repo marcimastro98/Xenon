@@ -35,6 +35,13 @@ on:
       - 'tools/page-i18n.mjs'
       - 'tools/lang-pages.mjs'
       - 'tools/site-chrome.mjs'
+      # Imported by the builders: build-i18n -> home-bake, build-seo ->
+      # page-meta -> home-i18n, build-seo -> trial-covers. Pinned by
+      # server/test/site-deploy-inputs.test.mjs.
+      - 'tools/home-bake.mjs'
+      - 'tools/home-i18n.mjs'
+      - 'tools/page-meta.mjs'
+      - 'tools/trial-covers.mjs'
       - 'tools/build-seo.mjs'
       - 'tools/stamp-release.mjs'
       - 'tools/build-releases.mjs'
@@ -44,6 +51,9 @@ on:
       - 'tools/demo/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch: {}
+  # A new Xenon Maker release (its own private repo) asks for a redeploy.
+  repository_dispatch:
+    types: [maker-release]
   # Once a day, so the release facts the pages state (version, installer size)
   # follow a release published between two pushes. Never `release: published`:
   # the release pipeline stages assets on a draft and publishes by hand.
@@ -72,6 +82,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           # Full history: build-seo.mjs reads each page's last commit date for the
           # sitemap's <lastmod>. A shallow clone has no such date, and the script
           # then ships the entry without one rather than inventing today's.
@@ -80,7 +91,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Generates docs/demo/ from server/ + packages/core/src. Deliberately no
       # `npm ci`: build-demo.mjs uses only node: builtins, and package.json
@@ -90,6 +101,24 @@ jobs:
       # dangling link.
       - name: Build the browser demo
         run: node tools/build-demo.mjs
+
+      # xenon-app.com/maker/ is built in the private xenon-maker repo and
+      # published there as maker.zip on each release. MAKER_RELEASE_TOKEN is a
+      # read-only fine-grained token on that repo. Without it the site deploys
+      # as before, with a warning; with it, a failed download fails the deploy
+      # rather than shipping a site whose /maker/ links lead nowhere.
+      - name: Add Xenon Maker
+        env:
+          GH_TOKEN: ${{ secrets.MAKER_RELEASE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::MAKER_RELEASE_TOKEN is not set: /maker/ is not published"
+            exit 0
+          fi
+          gh release download --repo marcimastro98/xenon-maker --pattern maker.zip --dir "$RUNNER_TEMP/maker"
+          mkdir -p docs/maker
+          unzip -q "$RUNNER_TEMP/maker/maker.zip" -d docs/maker
+          test -f docs/maker/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -1,0 +1,45 @@
+/* Bit thinking: the app's one loading mark (js/xenon-loader.js builds it).
+
+   The picture is a self-animating SVG made from Bit's own "think" clip by
+   tools/brand/loader.mjs (public/images/loader/), so a loader costs no
+   script and no timer. The boot splash uses the same set: Bit recharging,
+   then saying hello when the dashboard is ready.
+
+   Sizes are whole screen pixels per Bit pixel (the clip is 10x13 cells), so
+   Bit stays sharp. Frozen, idle, game and low-power states, and reduced
+   motion, swap in the still pose. */
+
+:root {
+  --xl-think: url("../../public/images/loader/bit-think.svg");
+  --xl-think-still: url("../../public/images/loader/bit-think-still.svg");
+}
+
+.xloader {
+  --xl-w: 30px; /* 3 px per Bit pixel */
+  display: inline-grid;
+  justify-items: center;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.xloader--sm { --xl-w: 20px; }
+.xloader--lg { --xl-w: 50px; }
+
+/* Also the glyph for pseudo-elements and button states: give one a width and
+   this background, and it follows the frozen states and reduced motion. */
+.xloader-bit {
+  display: block;
+  width: var(--xl-w);
+  aspect-ratio: 10 / 13;
+  background: var(--xl-think) center / contain no-repeat;
+  image-rendering: pixelated;
+}
+
+body.overlay-frozen .xloader-bit,
+body.ambient-idle .xloader-bit,
+body.game-mode .xloader-bit,
+body.low-power-gpu .xloader-bit {
+  background-image: var(--xl-think-still);
+}
+@media (prefers-reduced-motion: reduce) {
+  .xloader-bit { background-image: var(--xl-think-still); }
+}

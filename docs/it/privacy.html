@@ -36,9 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -47,7 +45,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Informativa privacy di Xenon: cosa inviano l'app e il sito</title>
-<meta name="description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi due contatori anonimi e come spegnerli, e cosa raccoglie xenon-app.com.">
+<meta name="description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi contatori anonimi e come spegnerli, e cosa raccolgono xenon-app.com e Xenon Maker.">
 <link rel="canonical" href="https://xenon-app.com/it/privacy.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
@@ -58,8 +56,7 @@
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
 <meta name="robots" content="index, follow, max-snippet:-1">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#8AB4F8">
 <link rel="icon" type="image/png" href="/images/favicon.png">
 
 <meta property="og:type" content="website">
@@ -67,14 +64,14 @@
 <meta property="og:locale" content="it_IT">
 <meta property="og:url" content="https://xenon-app.com/it/privacy.html">
 <meta property="og:title" content="Informativa privacy di Xenon: cosa inviano l'app e il sito">
-<meta property="og:description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi due contatori anonimi e come spegnerli, e cosa raccoglie xenon-app.com.">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi contatori anonimi e come spegnerli, e cosa raccolgono xenon-app.com e Xenon Maker.">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Informativa privacy di Xenon: cosa inviano l'app e il sito">
-<meta name="twitter:description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi due contatori anonimi e come spegnerli, e cosa raccoglie xenon-app.com.">
-<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:description" content="Le connessioni di rete dell'app Xenon e quando avvengono, i suoi contatori anonimi e come spegnerli, e cosa raccolgono xenon-app.com e Xenon Maker.">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Informativa privacy di Xenon: cosa inviano l'app e il sito","description":"Le connessioni di rete dell'app Xenon e quando avvengono, i suoi due contatori anonimi e come spegnerli, e cosa raccoglie xenon-app.com.","inLanguage": "it","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Informativa privacy di Xenon: cosa inviano l'app e il sito","description":"Le connessioni di rete dell'app Xenon e quando avvengono, i suoi contatori anonimi e come spegnerli, e cosa raccolgono xenon-app.com e Xenon Maker.","inLanguage": "it","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
 
 <noscript></noscript>
 
@@ -89,7 +86,7 @@
   td { color: var(--muted); }
   button.consent-reset {
     font-family: var(--sans); font-size: 16px; font-weight: 700;
-    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
+    min-height: 44px; padding: 11px 20px; border-radius: 6px; cursor: pointer;
     background: transparent; color: var(--text); border: 1px solid var(--line-2);
     transition: border-color .2s, color .2s;
   }
@@ -97,18 +94,17 @@
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="blue">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/privacy.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
@@ -117,10 +113,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/it/#install" data-xl="install">Installazione</a>
       <ul class="xh-mlinks">
@@ -134,27 +130,49 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/privacy.html" aria-current="page" data-xl="f.privacy">Privacy</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Privacy","item":"https://xenon-app.com/it/privacy.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="pv.h1">Informativa sulla privacy</h1>
-    <p class="lede" data-i18n="pv.lede">L'app Xenon gira sul tuo PC e tiene lì i suoi dati. Questo sito è un'altra cosa, con regole diverse. Questa pagina tiene separate le due parti e spiega cosa invia e cosa conserva ciascuna.</p>
-    <p class="updated" data-i18n="pv.updated">Ultimo aggiornamento: 14 ottobre 2026</p>
-
-    <h2 data-i18n="pv.sum.h">Riepilogo</h2>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/privacy.html" aria-current="page" data-xl="f.privacy">Privacy</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Privacy","item":"https://xenon-app.com/it/privacy.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="pv.h1">Informativa sulla privacy</h1>
+        <p class="lede" data-i18n="pv.lede">L'app Xenon gira sul tuo PC e tiene lì i suoi dati. Questo sito è un'altra cosa, con regole diverse. Questa pagina tiene separate le due parti e spiega cosa invia e cosa conserva ciascuna.</p>
+        <p class="updated" data-i18n="pv.updated">Ultimo aggiornamento: 10 novembre 2026</p>
+      </div>
+      <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">In questa pagina</p>
+      <a href="#summary" data-i18n="pv.sum.h">Riepilogo</a>
+      <a href="#controller" data-i18n="pv.who.h">Titolare del trattamento e contatti</a>
+      <a href="#website" data-i18n="pv.site.h">Questo sito (xenon-app.com)</a>
+      <a href="#app" data-i18n="pv.app.h">L'app Xenon</a>
+      <a href="#version-ping" data-i18n="pv.ping.h">Il ping della versione</a>
+      <a href="#usage-counts" data-i18n="pv.use.h">Conteggio delle funzioni</a>
+      <a href="#pass-trial" data-i18n="pv.trial.h">La prova di 7 giorni del pass</a>
+      <a href="#sparks" data-i18n="pv.sparks.h">Le Scintille</a>
+      <a href="#submit" data-i18n="pv.submit.h">Inviare qualcosa allo Store</a>
+      <a href="#rights" data-i18n="pv.rights.h">I tuoi diritti</a>
+      <a href="#changes" data-i18n="pv.changes.h">Modifiche a questa pagina</a>
+    </nav>
+    <div class="wrap">
+    <h2 id="summary" data-i18n="pv.sum.h">Riepilogo</h2>
     <div class="card accent">
       <ul>
-        <li data-i18n-html="pv.sum.track"><strong>L'app Xenon non tiene traccia di come la usi.</strong> Non c'è un account, non c'è un profilo e nessun registro d'uso lascia il tuo PC. Esistono due contatori. Uno viene inviato quando l'app controlla gli aggiornamenti e descrive l'installazione in sé: la versione, il sistema e, più o meno, da quanto esiste. L'altro aggiunge 1 al conteggio delle installazioni di una creazione quando la installi dallo Store. Nessuno dei due dice nulla su quali widget apri, cosa cerchi o cosa fai con la dashboard. <strong>Su una nuova installazione partono entrambi accesi</strong>, e puoi spegnere l'uno o l'altro in Impostazioni → Generale → Aggiornamenti; se usavi già Xenon prima della versione che ne ha aggiunto uno, per te è rimasto spento. Nessuno dei due contiene un identificativo, quindi nessuno può essere ricondotto a te o incrociato con l'altro.</li>
+        <li data-i18n-html="pv.sum.track"><strong>L'app Xenon non ha account, non crea un profilo e non tiene un registro di quello che fai.</strong> Ha tre contatori anonimi. Uno parte con il controllo aggiornamenti e descrive l'installazione stessa: versione, sistema e da quanto tempo esiste, a grandi linee. Uno aggiunge 1 alle installazioni di una creazione quando la installi dallo Store. Uno conta, una volta al giorno, quante volte è partita ogni funzione dell'app e quante volte non ha funzionato. Nessuno dice cosa cerchi, cosa scrivi o cosa crei. <strong>In una nuova installazione partono tutti e tre accesi</strong>, e puoi spegnere ognuno in Impostazioni &rarr; Generale &rarr; Aggiornamenti; un contatore aggiunto dopo che hai installato Xenon resta spento finché non lo accendi tu. Nessuno contiene un identificativo, quindi non ho niente con cui collegarli a te o tra loro.</li>
         <li data-i18n-html="pv.sum.offline"><strong>L'app non è del tutto offline.</strong> Controlla gli aggiornamenti e scarica da sola un breve elenco di annunci; il meteo, le copertine degli album e i servizi che colleghi vengono contattati solo dalle funzioni che li usano. Queste connessioni sono elencate più sotto.</li>
         <li data-i18n-html="pv.sum.ga"><strong>Questo sito usa Google Analytics</strong> per vedere quali pagine e quali download raggiungono i visitatori. Nel SEE, nel Regno Unito e in Svizzera non viene salvato nulla finché non accetti il banner.</li>
         <li data-i18n-html="pv.sum.cf"><strong>Conta anche le visite con Cloudflare Web Analytics</strong>, che non imposta cookie e non crea profili. Mi dice solo quante persone hanno raggiunto una pagina.</li>
         <li data-i18n-html="pv.sum.dl"><strong>Premere un pulsante di download aggiunge 1 a un contatore sul mio server</strong>, senza cookie e senza identificativo. Il link di download punta comunque direttamente a GitHub, quindi quel contatore non può mai mettersi tra te e il file.</li>
+        <li data-i18n-html="pv.sum.usage"><strong>Questo sito e Xenon Maker contano quali loro parti vengono usate</strong>, sul mio server: per esempio quante volte si apre la demo o si esporta un widget. Solo il nome della parte e un numero, senza identificativi. <a href="#usage-counts">I dettagli sono più sotto</a>.</li>
       </ul>
     </div>
 
-    <h2 data-i18n="pv.who.h">Titolare del trattamento e contatti</h2>
-    <p data-i18n-html="pv.who.p">Xenon è un progetto personale di un solo sviluppatore, Marcello Mastroeni, con il codice sorgente su GitHub sotto una licenza propria non commerciale, e sono io il titolare del trattamento per questo sito. Per qualsiasi cosa riguardi questa pagina, come una domanda, una correzione o una richiesta sui tuoi dati, scrivi a <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> o apri una issue su <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+    <h2 id="controller" data-i18n="pv.who.h">Titolare del trattamento e contatti</h2>
+    <p data-i18n-html="pv.who.p">Xenon è un progetto personale di un solo sviluppatore, con il codice sorgente su GitHub sotto una licenza propria non commerciale, e sono io il titolare del trattamento per questo sito. Per qualsiasi cosa riguardi questa pagina, come una domanda, una correzione o una richiesta sui tuoi dati, scrivi a <a href="mailto:support@xenon-app.com">support@xenon-app.com</a> o apri una issue su <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.</p>
 
-    <h2 data-i18n="pv.site.h">Questo sito (xenon-app.com)</h2>
+    <h2 id="website" data-i18n="pv.site.h">Questo sito (xenon-app.com)</h2>
     <p data-i18n-html="pv.site.p">Il sito usa <strong>Google Analytics 4</strong> (ID di misurazione <code>G-LQ8Y8WZPQF</code>) per capire quali pagine vengono lette, quali download vengono cliccati e da dove arrivano i visitatori. Sono statistiche aggregate sul sito. Non sono collegate alla tua copia dell'app, e non ho alcun modo di associare una visita qui a un'installazione sul tuo PC.</p>
 
     <h3 data-i18n="pv.ga.h">Cosa riceve Analytics</h3>
@@ -183,11 +201,11 @@
     <p data-i18n-html="pv.consent.store">La tua scelta viene ricordata nella memoria locale del browser, sotto <code>xenon.site.consent</code>. Quel valore non lascia mai il tuo dispositivo. Cancellando i dati del browser si azzera.</p>
 
     <h3 data-i18n="pv.host.h">Hosting e font</h3>
-    <p data-i18n-html="pv.host.p">Il sito è servito da <strong>GitHub Pages</strong>, che elabora la richiesta e il tuo indirizzo IP per consegnare la pagina e conserva log di sicurezza di breve durata. È tecnicamente necessario e avviene prima di qualsiasi scelta sul consenso. L'intestazione della pagina chiede anche all'API di GitHub il numero di stelle del progetto, una volta per sessione del browser, quindi GitHub vede anche quella richiesta. I font del sito sono serviti dal sito stesso (<code>/fonts/</code>), quindi caricarli non contatta nessun altro. L'unica eccezione è la <a href="/demo/">demo dal vivo</a>, che esegue la pagina della dashboard dell'app e carica i suoi font da <strong>Google Fonts</strong>, che quindi vede la richiesta. Gli screenshot della community sono serviti da <strong>Cloudflare R2</strong> (<code>assets.xenon-app.com</code>).</p>
+    <p data-i18n-html="pv.host.p">Il sito è servito da <strong>GitHub Pages</strong>, che elabora la richiesta e il tuo indirizzo IP per consegnare la pagina e conserva log di sicurezza di breve durata. È tecnicamente necessario e avviene prima di qualsiasi scelta sul consenso. La home chiede anche all'API di GitHub il numero di download, una volta per sessione del browser, quindi GitHub vede anche quella richiesta. I font del sito sono serviti dal sito stesso (<code>/fonts/</code>), quindi caricarli non contatta nessun altro. L'unica eccezione è la <a href="/demo/">demo dal vivo</a>, che esegue la pagina della dashboard dell'app e carica i suoi font da <strong>Google Fonts</strong>, che quindi vede la richiesta. Gli screenshot della community sono serviti da <strong>Cloudflare R2</strong> (<code>assets.xenon-app.com</code>).</p>
 
-    <h2 data-i18n="pv.app.h">L'app Xenon</h2>
-    <p data-i18n-html="pv.app.p1">L'app salva i tuoi dati sul tuo PC. Impostazioni, note, attività, eventi, deck, memoria dell'AI e sfondi caricati stanno tutti in <code>server/data/</code>. L'app non carica quella cartella da nessuna parte, e non contiene SDK di analisi, sistemi di segnalazione dei crash né tracciamento del comportamento. I due contatori anonimi descritti più sotto sono le uniche cose che l'app comunica su se stessa, e nessuno dei due contiene un identificativo di alcun tipo: quello che il server conserva sono contatori, mai righe su una macchina.</p>
-    <p data-i18n-html="pv.app.search">La ricerca locale dei file e il widget dello spazio su disco girano sul tuo PC: le frasi che cerchi, i nomi dei file, l'indice delle cartelle e i risultati della scansione del disco vengono calcolati lì, e l'elenco dei file che apri dalla ricerca (usato per ordinare meglio i tuoi risultati) sta in <code>server/data/</code> come tutto il resto. L'eccezione è ciò che affidi a Xenon AI. Con un provider AI nel cloud, la <strong>Ricerca intelligente</strong> (Ctrl+I) invia a quel provider la frase che scrivi, e chiedere all'AI di trovare un file o di spiegarti il disco le invia i risultati da cui risponde, come nomi di file e dimensioni delle cartelle. L'interruttore <strong>Cervello completo per ricerca e pulizia AI</strong> (spento di default) invia anche i nomi delle app installate, delle cartelle indicizzate, delle cartelle che usi di più e dei file che hai aperto di recente dalla ricerca, mai il loro contenuto.</p>
+    <h2 id="app" data-i18n="pv.app.h">L'app Xenon</h2>
+    <p data-i18n-html="pv.app.p1">L'app salva i tuoi dati sul tuo PC. Impostazioni, note, attività, eventi, deck, memoria dell'AI e sfondi caricati stanno tutti in <code>server/data/</code>. L'app non carica quella cartella da nessuna parte, e non contiene SDK di analisi, sistemi di segnalazione dei crash né un registro di quello che fai. I tre contatori anonimi descritti più sotto sono le uniche cose che l'app comunica su se stessa, e nessuno contiene un identificativo di alcun tipo: quello che il server conserva sono contatori, mai righe su una macchina.</p>
+    <p data-i18n-html="pv.app.search">La ricerca locale dei file e il widget dello spazio su disco girano sul tuo PC: le frasi che cerchi, i nomi dei file, l'indice delle cartelle e i risultati della scansione del disco vengono calcolati lì, e l'elenco dei file che apri dalla ricerca (usato per ordinare meglio i tuoi risultati) sta in <code>server/data/</code> come tutto il resto. L'eccezione è ciò che affidi a Bit. Con un provider AI nel cloud, la <strong>Ricerca intelligente</strong> (Ctrl+I) invia a quel provider la frase che scrivi, e chiedere all'AI di trovare un file o di spiegarti il disco le invia i risultati da cui risponde, come nomi di file e dimensioni delle cartelle. L'interruttore <strong>Cervello completo per ricerca e pulizia AI</strong> (spento di default) invia anche i nomi delle app installate, delle cartelle indicizzate, delle cartelle che usi di più e dei file che hai aperto di recente dalla ricerca, mai il loro contenuto.</p>
     <p data-i18n-html="pv.app.calls">Quello che l'app <em>fa</em> è collegarsi alla rete per le funzioni che ne hanno bisogno. Ecco l'elenco, e quando avviene ogni connessione.</p>
 
     <div class="tbl-scroll">
@@ -233,8 +251,13 @@
           </tr>
           <tr>
             <td data-i18n-html="pv.t.hub.what">Hub dei supporter<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
-            <td data-i18n="pv.t.hub.when">Quando valuti un elemento del catalogo, riscatti un codice supporter o aggiorni qualcosa che hai sbloccato</td>
-            <td data-i18n-html="pv.t.hub.why">Il tuo PC conserva un UUID casuale (<code>install-id.json</code>) perché un voto conti una volta sola e un codice non si possa riusare all'infinito. Quell'UUID non lascia mai la tua macchina: quello che viene inviato è un suo hash unidirezionale, e valutare qualcosa e riscattare un codice usano hash <strong>diversi</strong> dello stesso UUID. È voluto: con un unico valore condiviso, un codice supporter (che può essere collegato a un account Discord) e una valutazione a stelle starebbero nel database sotto lo stesso identificativo, e io potrei vedere quali creazioni ha valutato un supporter con nome e cognome. Con due, non c'è niente su cui abbinarli. Nessuno dei due hash è legato al tuo hardware o al tuo nome; cancella il file e viene generato un nuovo UUID. Aggiornare qualcosa che hai sbloccato invia lo stesso hash, l'id della creazione e la versione che hai, e nessun codice: l'hub risponde solo a un PC che già conosce come proprietario.</td>
+            <td data-i18n="pv.t.hub.when">Quando installi qualcosa dallo Store (con il conteggio anonimo delle installazioni attivo), valuti un elemento del catalogo, riscatti un codice supporter o aggiorni qualcosa che hai sbloccato</td>
+            <td data-i18n-html="pv.t.hub.why">Il tuo PC conserva un UUID casuale (<code>install-id.json</code>) perché un voto conti una volta sola e un codice non si possa riusare all'infinito. Quell'UUID non lascia mai la tua macchina: quello che viene inviato è un suo hash unidirezionale, e valutare qualcosa e riscattare un codice usano hash <strong>diversi</strong> dello stesso UUID. È voluto: con un unico valore condiviso, un codice supporter (che può essere collegato a un account Discord) e una valutazione a stelle starebbero nel database sotto lo stesso identificativo, e io potrei vedere quali creazioni ha valutato un supporter con nome e cognome. Con due, non c'è niente su cui abbinarli. Nessuno dei due hash è legato al tuo nome; cancella il file e viene generato un nuovo UUID. Votare aggiunge un terzo hash, fatto dall'id del tuo computer e non dall'UUID, così reinstallare Xenon non dà un secondo voto. Viene inviato solo con il conteggio anonimo delle installazioni attivo. L'hub firma un biglietto per PC e creazione, conserva solo un hash con chiave di quella coppia e salva il voto senza nulla che riporti al biglietto o al PC. Aggiornare qualcosa che hai sbloccato invia lo stesso hash, l'id della creazione e la versione che hai, e nessun codice: l'hub risponde solo a un PC che già conosce come proprietario.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.sparks.what">Hub dei supporter<br><span style="color:var(--dim)">(Scintille)</span></td>
+            <td data-i18n="pv.t.sparks.when">Quando compri qualcosa con le Scintille, o quando Bit usa le Scintille</td>
+            <td data-i18n="pv.t.sparks.why">Un acquisto manda il tuo codice, l'elemento e l'hash dell'installazione. Bit con le Scintille manda le tue richieste, che proseguono verso Anthropic. Cosa viene conservato è descritto più sotto, nella sezione sulle Scintille.</td>
           </tr>
           <tr>
             <td><code>ipwho.is</code>, <code>get.geojs.io</code>, <code>ipapi.co</code></td>
@@ -259,7 +282,7 @@
           <tr>
             <td data-i18n-html="pv.t.lyrtr.what">Il tuo provider AI<br><span style="color:var(--dim)">traduzione dei testi</span></td>
             <td data-i18n="pv.t.lyrtr.when">Solo se accendi Traduci le righe nel widget Testi delle canzoni</td>
-            <td data-i18n="pv.t.lyrtr.why">Invia le righe del brano in riproduzione al provider AI scelto in Xenon AI, una volta per brano, dopo 20 secondi di ascolto. Con Ollama nulla esce dal PC. Con il piano gratuito di Gemini, Google può usare ciò che riceve per migliorare i suoi prodotti. Spenta di default.</td>
+            <td data-i18n="pv.t.lyrtr.why">Invia le righe del brano in riproduzione al provider AI scelto in Impostazioni, Bit, una volta per brano, dopo 20 secondi di ascolto. Con Ollama nulla esce dal PC. Con il piano gratuito di Gemini, Google può usare ciò che riceve per migliorare i suoi prodotti. Spenta di default.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.svc.what">Servizi che colleghi tu<br><span style="color:var(--dim)">Spotify, Twitch, YouTube, Discord, Home Assistant, OBS, provider AI, feed di borsa, notizie e calcio</span></td>
@@ -276,11 +299,16 @@
             <td data-i18n-html="pv.t.ping.when"><strong>Acceso di default sulle installazioni dalla v4.8.0</strong>; spento su quelle precedenti, a meno che tu non l'abbia acceso</td>
             <td data-i18n="pv.t.ping.why">Versione, sistema, età dell'installazione e un indicatore di prima volta nella settimana, inviati al massimo una volta al giorno allo stesso hub dei supporter delle righe sopra. Nessun identificativo di alcun tipo. L'elenco completo è nella sezione qui sotto.</td>
           </tr>
+          <tr>
+            <td data-i18n-html="pv.t.use.what">Hub dei supporter<br><span style="color:var(--dim)">(conteggio funzioni)</span></td>
+            <td data-i18n="pv.t.use.when">Al massimo una volta al giorno, dopo il controllo aggiornamenti, e solo se quell'interruttore è acceso</td>
+            <td data-i18n="pv.t.use.why">Quante volte è partita ogni funzione dell'app e quante volte non ha funzionato, e se su questo PC è salvato un codice sostenitore. Nessun identificativo. L'elenco completo è nella sezione Conteggio delle funzioni, più sotto.</td>
+          </tr>
         </tbody>
       </table>
     </div>
 
-    <p data-i18n="pv.ai">Le funzioni di AI locale (Ollama, Whisper) girano interamente sulla tua macchina. I provider AI nel cloud no: se scegli Gemini, OpenAI o Anthropic, i tuoi prompt vanno a quel provider secondo i suoi termini. Le risposte parlate funzionano diversamente: con qualsiasi provider che non sia Gemini o OpenAI, che hanno voci proprie, il testo letto ad alta voce viene inviato al servizio vocale online di Microsoft Edge per trasformarlo in parlato. L'app lascia a te la scelta del provider AI, e non invia mai un prompt a un modello nel cloud che non hai scelto.</p>
+    <p data-i18n="pv.ai">Le funzioni di AI locale (Ollama, un server locale che avvii tu, Whisper) girano interamente sulla tua macchina. I provider AI nel cloud no: se scegli Gemini, OpenAI o Anthropic, i tuoi prompt vanno a quel provider secondo i suoi termini. Le risposte parlate funzionano diversamente: con qualsiasi provider che non sia Gemini o OpenAI, che hanno voci proprie, il testo letto ad alta voce viene inviato al servizio vocale online di Microsoft Edge per trasformarlo in parlato. L'app lascia a te la scelta del provider AI, e non invia mai un prompt a un modello nel cloud che non hai scelto.</p>
 
     <h2 id="version-ping" data-i18n="pv.ping.h">Il ping della versione</h2>
     <p data-i18n-html="pv.ping.intro">Non ho idea di quante persone usino davvero Xenon. I numeri dei download sono rumore, e preferisco sapere se la gente è rimasta ferma a una versione vecchia piuttosto che tirare a indovinare. Per questo c'è un interruttore in <strong>Impostazioni → Generale → Aggiornamenti</strong>, chiamato <strong>Conta questa installazione, in forma anonima</strong>, che invia pochi campi quando l'app controlla gli aggiornamenti, al massimo una volta al giorno. Ecco l'elenco completo:</p>
@@ -311,12 +339,42 @@
     <p data-i18n-html="pv.v48.p1">Fino alla v4.7.1 questo interruttore era spento finché non lo accendevi. Dalla <strong>v4.8.0 è acceso di default sulle nuove installazioni</strong>, perché quasi nessuno accende un interruttore del genere e quindi il conteggio non serviva. Puoi spegnerlo quando vuoi in Impostazioni, e lo spegnimento ha effetto subito.</p>
     <p data-i18n-html="pv.v48.p2"><strong>Se avevi già Xenon installato, per te non è cambiato niente.</strong> Il nuovo valore predefinito viene letto solo quando non esiste ancora un file di impostazioni, cioè su una nuova installazione. Se hai installato prima della v4.8.0 e non hai toccato l'interruttore, resta spento: ti era stato detto che era spento a meno che non scegliessi diversamente, e un aggiornamento non è il posto per rimetterlo in discussione di nascosto. Se l'avevi acceso, resta acceso. In ogni caso l'app mantiene quello che dicono già le tue impostazioni.</p>
 
-    <h2 data-i18n="pv.rights.h">I tuoi diritti</h2>
+    <h2 id="usage-counts" data-i18n="pv.use.h">Conteggio delle funzioni</h2>
+    <p data-i18n-html="pv.use.intro">Tre parti di Xenon contano quali loro funzioni vengono usate: l'app, questo sito e Xenon Maker. Tutte e tre mandano al mio server (l'hub dei supporter) lo stesso tipo di messaggio: il nome di una funzione presa da un elenco fisso e un numero, come <code>demo.open: 2</code> o <code>cap.screenshot: 5, 1 fallita</code>, e se il conteggio viene da un sostenitore. Mi serve per capire quali parti conviene migliorare prima, e quali non funzionano.</p>
+    <h3 data-i18n="pv.use.app.h">Nell'app</h3>
+    <p data-i18n-html="pv.use.app">Ogni funzione che l'app sa eseguire (quelle che un tasto del Deck o Bit possono avviare, come uno screenshot, una registrazione o un widget messo sul desktop) aggiunge 1 al suo conteggio sul tuo PC, e 1 a quello delle volte fallite quando non ha funzionato. Una volta al giorno, subito dopo il controllo aggiornamenti che l'app fa già, i conteggi vengono inviati e poi cancellati dal tuo PC; fino ad allora aspettano in <code>usage-stats.json</code> nella cartella dei dati dell'app. L'interruttore è <strong>Conta quali funzioni usi, in forma anonima</strong>, in Impostazioni &rarr; Generale &rarr; Aggiornamenti. Parte acceso nelle nuove installazioni; se hai installato Xenon prima che esistesse, resta spento finché non lo accendi. Spegnerlo ferma il conteggio e cancella i conteggi in attesa di essere inviati. Si cambia solo dal PC: un telefono collegato non lo mostra.</p>
+    <h3 data-i18n="pv.use.web.h">Su questo sito e in Xenon Maker</h3>
+    <p data-i18n="pv.use.web">Il sito conta quando si apre la demo, quando si preme un link alla demo, a Xenon Maker o per sostenere Xenon, quando si apre una voce del catalogo, quando si preme un pulsante di download, e quali sezioni della home sono comparse sullo schermo. Per questo non viene salvato niente sul tuo dispositivo. Xenon Maker conta quando viene aperto, quando si apre un editor o lo si modifica la prima volta, i suoi strumenti principali (aggiungere un livello, un tasto o un effetto, per esempio), il salvataggio, l'esportazione, l'invio al catalogo, l'accesso, Bit che parte, finisce o non riesce, e gli errori della pagina come numero, senza il loro messaggio. I conteggi restano nella pagina e vengono inviati quando la lasci, o ogni minuto finché c'è qualcosa da inviare.</p>
+    <p data-i18n-html="pv.use.marker">Un'altra cosa in Xenon Maker, e solo se hai accettato il banner dei cookie: il browser conserva, sotto <code>xenon.maker.usage.seen</code>, l'elenco delle funzioni che hai usato oggi, così il Maker può dire al server &ldquo;primo uso di oggi&rdquo; una volta per funzione. Così posso contare le persone oltre agli usi, senza un identificativo. Se hai rifiutato il banner, o non hai risposto, non viene salvato niente e si contano solo gli usi.</p>
+    <p data-i18n-html="pv.use.not">Cosa <strong>non</strong> viene inviato: nessun nome, nessun account, nessun UUID dell'installazione, nessun codice sostenitore, niente di quello che hai scritto, disegnato o costruito, nessun nome di file o di widget e nessun messaggio di errore. L'unica distinzione è gratis o sostenitore: nell'app significa che su questo PC è salvato un codice sostenitore; sul sito e in Xenon Maker, che hai fatto l'accesso al Maker come sostenitore.</p>
+    <p data-i18n-html="pv.use.store">Sul server ogni messaggio si limita ad aggiungere a un contatore per <em>(giorno, parte, funzione, gratis o sostenitore)</em>, e poi il messaggio viene scartato. Non ci sono righe su una persona o su una macchina. Per impedire che un solo indirizzo mandi troppi messaggi, il server conserva un hash non reversibile del tuo indirizzo IP per al massimo un giorno; l'IP in sé non viene salvato. I contatori vengono cancellati dopo 400 giorni.</p>
+    <p data-i18n-html="pv.use.off">Per spegnerlo: nell'app, l'interruttore qui sopra. Sul sito e in Xenon Maker, bloccare le richieste a <code>xenon-supporter-hub.xenonedge.workers.dev</code> (la maggior parte dei content blocker lo fa) ferma i conteggi, e le pagine continuano a funzionare.</p>
+
+    <h2 id="pass-trial" data-i18n="pv.trial.h">La prova di 7 giorni del pass</h2>
+    <p data-i18n="pv.trial.p1">Puoi provare il pass dei supporter per 7 giorni. La chiedi su una pagina dell'hub dei supporter con il tuo indirizzo email e una casella, non spuntata, per le novità sui nuovi drop. Quella pagina usa Cloudflare Turnstile per tenere fuori i bot. Il codice arriva per email, inviata tramite Brevo.</p>
+    <p data-i18n="pv.trial.p2">Cosa conserva l'hub: il tuo indirizzo, un suo hash unidirezionale con chiave, il codice sotto forma di hash, un hash dell'installazione su cui il codice è stato usato la prima volta (lo stesso usato per i codici supporter), le date di richiesta, inizio e fine della prova, se hai chiesto le novità e se quell'indirizzo è poi diventato supporter. Ti invia il codice, un promemoria due giorni prima della fine e un'email quando la prova finisce.</p>
+    <p data-i18n="pv.trial.p3">Cosa viene cancellato: l'indirizzo sparisce 30 giorni dopo la fine della prova, o 30 giorni dopo la richiesta se il codice non è mai stato usato, e il codice viene cancellato nello stesso momento. L'hash dell'indirizzo resta, così lo stesso indirizzo non può iniziare una seconda prova; non si può riportare all'indirizzo. Se hai spuntato la casella delle novità e hai usato il codice, l'indirizzo resta per quelle novità finché non premi il link di disiscrizione che ognuna di quelle email contiene, o finché non diventi supporter, e poi viene cancellato come gli altri.</p>
+    <p data-i18n="pv.trial.p4">Sul tuo PC l'app conserva il codice della prova e la sua data di fine in trial-pass.json. Mentre la prova è in corso, e per 30 giorni dopo la fine, chiede all'hub se è ancora attiva, inviando il codice e l'hash dell'installazione. Se in quel periodo l'indirizzo è diventato supporter, l'hub consegna una volta il tuo codice supporter a quella stessa installazione, così l'app passa da sola. Dopo, incolli il codice che hai ricevuto per email. I widget e le scene Ambient della prova restano cifrati nella cartella trial-vault; a ogni avvio l'app chiede all'hub le loro chiavi con lo stesso codice e lo stesso hash dell'installazione, e le tiene solo in memoria. Quando la prova finisce, quello che ha installato viene tolto dal PC; nient'altro di tuo viene toccato.</p>
+
+    <h2 id="sparks" data-i18n="pv.sparks.h">Le Scintille</h2>
+    <p data-i18n="pv.sparks.p1">Le Scintille sono i crediti di Xenon. Ogni mese di sostegno ne include 300, e chiunque può comprarne altre come extra su Buy Me a Coffee. Buy Me a Coffee comunica all'hub dei supporter ogni acquisto: l'importo, un suo riferimento e l'indirizzo email con cui hai pagato. Se quell'indirizzo è di un supporter, le Scintille vanno sul suo codice supporter. Altrimenti l'hub crea un codice Scintille (XC-…) e lo manda una volta a quell'indirizzo, tramite Brevo. Per un codice Scintille l'hub conserva l'indirizzo, per consegnarti il codice e le email dei tuoi ordini, un hash unidirezionale con chiave dell'indirizzo, il codice come hash e i suoi primi quattro caratteri. Il registro delle email conserva un indirizzo mascherato.</p>
+    <p data-i18n="pv.sparks.p2">Quando compri un elemento dello Store con le Scintille, l'app manda all'hub il tuo codice, l'elemento e un hash della tua installazione creato solo per questo. L'hub conserva quale codice ha comprato quale elemento, a che prezzo e quando, e gli hash delle installazioni su cui è stato aperto, al massimo 3, così si riapre sugli altri tuoi PC senza un secondo addebito. Registra anche che hai spuntato la casella con cui chiedi la consegna immediata. Poi manda l'email dell'ordine all'indirizzo del codice che ha pagato.</p>
+    <p data-i18n="pv.sparks.p3">Quando Bit usa le Scintille, il tuo codice apre una sessione sull'hub, e da lì in poi viaggia solo un token di sessione, valido al massimo 30 giorni. Quello che chiedi a Bit, e quello che Bit crea, passa dall'hub ad Anthropic, che fa girare i modelli Claude, secondo i termini di Anthropic. L'hub non lo conserva: per ogni risposta tiene il modello, il numero di token, quanto è costata e il mese, per contare le tue Scintille.</p>
+    <p data-i18n="pv.sparks.p4">Sul tuo PC il codice Scintille resta in sparks-code.json, nella cartella dati dell'app, come il codice supporter, e mai nelle impostazioni che viaggiano verso i dispositivi abbinati. Se lo stesso PC ha anche un codice supporter, le Scintille vengono spostate su quello una volta e il codice Scintille viene dimenticato.</p>
+    <p data-i18n="pv.sparks.p5">Una nuova installazione riceve 30 Scintille di prova, senza email, la prima volta che scrivi a Bit. Solo per quella richiesta l'app manda all'hub lo stesso hash dell'installazione usato per i codici supporter, e l'hub lo conserva perché ogni installazione le riceva una volta sola. L'hub conserva anche per 30 giorni un hash con chiave del tuo indirizzo di rete, per limitare quante ne può ricevere una stessa rete, e poi lo cancella. L'indirizzo in sé non viene salvato. Le Scintille di prova valgono solo per Bit, finiscono dopo 7 giorni e non passano su un codice supporter; dopo, l'app dimentica il loro codice.</p>
+
+    <h2 id="submit" data-i18n="pv.submit.h">Inviare qualcosa allo Store</h2>
+    <p data-i18n="pv.submit.p1">Per inviare allo Store un widget, un tema o un'altra creazione dalla pagina di invio, accedi con Discord. Discord comunica all'hub dei supporter il tuo ID Discord, il tuo nome utente e il nome visualizzato, l'indirizzo email del tuo account Discord e se Discord lo ha verificato, e se sei membro del server Discord di Xenon. Un invio viene accettato solo da un membro del server con un'email verificata.</p>
+    <p data-i18n="pv.submit.p2">Con ogni invio l'hub conserva il tuo ID Discord, il nome utente, il nome visualizzato e quell'email, accanto a ciò che hai mandato. Li vedo solo io, nella pagina di revisione dell'hub, per scriverti sul tuo invio o trovarti sul server. Lo Store non li mostra: il nome dell'autore lì è quello che scrivi nel modulo. L'accesso da solo scade dopo 6 ore e poi viene cancellato.</p>
+    <p data-i18n="pv.submit.p3">Gli invii vengono conservati per poter seguire la storia di un elemento dello Store. Per far cancellare il tuo, insieme ai dati arrivati con esso, scrivi all'indirizzo in cima a questa pagina.</p>
+
+    <h2 id="rights" data-i18n="pv.rights.h">I tuoi diritti</h2>
     <p data-i18n-html="pv.rights.p1">In base al GDPR puoi chiedere l'accesso, la rettifica o la cancellazione dei tuoi dati personali, e puoi opporti al trattamento. Per questo sito, le strade pratiche sono: premere Rifiuta (o il pulsante qui sopra) per fermare Analytics, usare il <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">componente aggiuntivo di disattivazione</a> di Google, oppure cancellare i dati del browser. Per l'app, disinstallarla ferma tutte le connessioni descritte sopra, e cancellare <code>server/data/</code> rimuove tutto ciò che l'app ha salvato, compreso l'UUID di installazione.</p>
     <p data-i18n-html="pv.rights.p2">Hai anche il diritto di presentare un reclamo a un'autorità di controllo; in Italia è il <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>.</p>
 
-    <h2 data-i18n="pv.changes.h">Modifiche a questa pagina</h2>
+    <h2 id="changes" data-i18n="pv.changes.h">Modifiche a questa pagina</h2>
     <p data-i18n="pv.changes.p">Se l'app inizia a fare una connessione di rete che non è nella tabella qui sopra, la tabella viene aggiornata nella stessa versione e le note di rilascio lo dicono. La data in alto indica quando questa pagina è cambiata l'ultima volta.</p>
+    </div>
   </div>
 </main>
 
@@ -324,14 +382,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Widget gratis per il tuo PC, su ogni schermo. Windows, con macOS e Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit vive nel widget Vitals e ha opinioni sulla tua postura.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/single-screen.html" data-xl="f.onescreen">Xenon su un solo schermo</a></li><li><a href="/it/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/it/screen-recorder.html" data-xl="f.recorder">Registrare lo schermo</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR. Ogni altro nome e logo appartiene al suo proprietario.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

@@ -1,6 +1,6 @@
 {
   "name": "xenon-edge-widget",
-  "version": "4.11.13",
+  "version": "5.0.0",
   "description": "A self-contained local dashboard for any second screen — a monitor, a touchscreen, a paired phone or tablet, a CORSAIR Xeneon Edge: media controls, audio devices, microphone mute, calendar, notes and live system stats, on Windows, macOS and Linux.",
   "private": true,
   "main": "server/server.js",
@@ -10,12 +10,14 @@
   ],
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\"",
+    "test": "node tools/run-tests.mjs \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\" \"packages/mcp/test/*.test.mjs\"",
     "dev": "node tools/dev.mjs",
     "demo": "node tools/build-demo.mjs && node tools/preview-docs.cjs",
     "demo:build": "node tools/build-demo.mjs",
     "link:shared": "node tools/link-shared.mjs",
     "check:platform-apis": "node tools/check-platform-apis.mjs",
+    "capture:build": "node tools/build-capture.mjs",
+    "bit:export": "node tools/bit-export/cli.mjs",
     "doctor": "node tools/doctor.mjs",
     "version:set": "node tools/set-version.mjs",
     "postinstall": "node tools/link-shared.mjs",
@@ -29,7 +31,7 @@
     "icue:xenon:package": "icuewidget validate icue-widget && icuewidget package icue-widget --output xenon.icuewidget"
   },
   "engines": {
-    "node": ">=18.15.0"
+    "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1"
   },
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -49,7 +51,12 @@
   ],
   "dependencies": {
     "koffi": "^3.0.2",
-    "msedge-tts": "^2.0.5",
+    "msedge-tts": "^2.1.1",
     "ws": "^8.21.0"
+  },
+  "overrides": {
+    "axios": "~1.20.0",
+    "follow-redirects": "^1.16.2",
+    "form-data": "^4.0.6"
   }
 }

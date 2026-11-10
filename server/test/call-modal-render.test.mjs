@@ -99,7 +99,7 @@ function makeDom() {
     addEventListener() {},
   };
   window.window = window;
-  return { window, document, body, freezeLog };
+  return { window, document, body, freezeLog, posts: [] };
 }
 
 function loadModule() {
@@ -114,7 +114,7 @@ function loadModule() {
       if (text != null) n.textContent = text;
       return n;
     },
-    apiJson: async () => ({ ok: true }),
+    apiJson: async (_path, init) => { dom.posts.push(JSON.parse(init.body)); return { ok: true }; },
     hubSettings: { calls: { enabled: true, sound: false } },
     t: (k) => k,
     setInterval: () => 0,
@@ -251,8 +251,87 @@ test('an app icon is rendered as an image only when its scheme is allowed', () =
   for (const icon of refused) {
     const dom = loadModule();
     dom.CallModal.onCalls({ calls: [CALL({ icon })] });
-    const ico = dom.body.querySelector('.call-app-ico');
-    assert.equal(ico.children.length, 0, icon + ' must not become an <img> src');
-    assert.ok(ico.innerHTML.includes('svg'), icon + ' should fall back to the glyph');
+    assert.equal(dom.body.querySelector('.call-app-ico'), null, icon + ' must not become an <img> src');
+    assert.equal(dom.body.querySelector('.call-app').children.length, 1, 'the app name stays, on its own');
   }
+});
+
+test('no picture leaves the name alone: an empty box reads as a broken card', () => {
+  const dom = loadModule();
+  dom.CallModal.onCalls({ calls: [CALL({ icon: '' })] });
+  assert.equal(dom.body.querySelector('.call-app-ico'), null);
+});
+
+test('Decline sits left of Answer, where phones put them', () => {
+  const dom = loadModule();
+  dom.CallModal.onCalls({ calls: [CALL({ caps: { answer: true, decline: true } })] });
+  const keys = dom.body.querySelector('.call-actions').children.map((key) => key.className);
+  assert.ok(keys[0].includes('call-btn--decline'), keys.join());
+  assert.ok(keys[1].includes('call-btn--answer'), keys.join());
+});
+
+function holdKeyboard(dom) {
+  const held = [];
+  dom.window.DialogFocus = {
+    hold(root, opts) {
+      const entry = { root, ...opts };
+      held.push(entry);
+      return () => held.splice(held.indexOf(entry), 1);
+    },
+  };
+  return held;
+}
+
+test('the keyboard lands on the window, never on a key: a stray Enter must not answer', () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  dom.CallModal.onCalls({ calls: [CALL({ id: 'c2' })] });
+  assert.equal(held.length, 1, 'a repaint holds nothing more');
+  assert.equal(held[0].root, dom.body.querySelector('.call-overlay'));
+  assert.equal(held[0].start, undefined);
+  assert.equal(held[0].root.tabIndex, -1);
+});
+
+test('Esc is Dismiss: the card goes and the keyboard comes back', async () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  held[0].onEsc();
+  await new Promise((done) => setImmediate(done));
+  assert.deepEqual(dom.posts, [{ id: 'c1', action: 'dismiss' }]);
+  assert.equal(dom.body.querySelector('.call-overlay'), null);
+  assert.equal(held.length, 0);
+});
+
+test('a ring that ends by itself gives the keyboard back too', () => {
+  const dom = loadModule();
+  const held = holdKeyboard(dom);
+  dom.CallModal.onCalls({ calls: [CALL()] });
+  dom.CallModal.onCalls({ calls: [] });
+  assert.equal(held.length, 0, 'a window removed without letting go holds Tab and Esc for good');
+});
+
+// The card lying down, for short windows: a phone held sideways. It once hid Close
+// there, and a phone has no Esc, so the card could only be put away by answering,
+// declining or waiting it out. And a small phone (667x375) missed the layout
+// entirely: upright, the card ran past the bottom and Close was cut off.
+test('a phone held sideways keeps Close and the honest line, and small phones lie the card down too', () => {
+  const css = readFileSync(join(HERE, '..', 'components', 'CallModal', 'CallModal.css'), 'utf8');
+  const head = css.match(/@media \(max-height: (\d+)px\) and \(min-width: (\d+)px\) \{/);
+  assert.ok(head, 'the sideways layout is there');
+  assert.ok(Number(head[1]) >= 375 && Number(head[2]) <= 667, 'a 667x375 phone gets it');
+  let depth = 0, end = head.index + head[0].length - 1;
+  for (; end < css.length; end++) {
+    if (css[end] === '{') depth++;
+    else if (css[end] === '}' && --depth === 0) break;
+  }
+  const block = css.slice(head.index, end).replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const rule of block.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (/\.call-(dismiss|note)\b/.test(rule[1])) assert.doesNotMatch(rule[2], /display:\s*none/, rule[1].trim());
+  }
+  assert.match(block, /\.call-dismiss\s*\{[^}]*grid-column:\s*3/, 'Close sits under the keys');
+  // The alerts window widens its frame for the same layout, so it must switch at the same size.
+  const alerts = readFileSync(join(HERE, '..', 'components', 'ScreenAlerts', 'ScreenAlerts.css'), 'utf8');
+  assert.ok(alerts.includes(head[0].slice(0, -2)), 'ScreenAlerts.css uses ' + head[0].slice(0, -2));
 });

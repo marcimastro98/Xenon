@@ -3,9 +3,17 @@
 // actions. ALL execution flows through here — validation/normalisation happens
 // at this boundary, and the OS side-effects are INJECTED so security decisions
 // live in one testable place. Reuses the shared catalog validator.
-const { validateAction } = require('../js/deck-actions.js');
+const fs = require('fs');
+const { repairMojibake } = require('../svv-text');
+const { validateAction, validateGesture } = require('../js/deck-actions.js');
+const { scopeTimerLabel } = require('./widget-timers');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
+const { CAPABILITIES } = require('../js/capability-catalog.js');
+
+// Types declared in js/capability-catalog.js. Validated above like every other
+// action, then handed whole to the capability runner (server/capabilities/).
+const CAPABILITY_TYPES = new Set(CAPABILITIES.map(c => c.type));
 
 function isHttpUrl(s) {
   return typeof s === 'string' && /^https?:\/\/\S+$/i.test(s.trim());
@@ -267,7 +275,21 @@ function isSteamAppId(s) {
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
-const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop)$/i;
+// Plus the types that run code the moment they open without being a program
+// on their face: management consoles (.msc, abused as "GrimResource"),
+// compiled help (.chm), Python and Office add-ins, ClickOnce and App Installer
+// manifests, Windows Script Components, PowerShell data and console files,
+// settings shortcuts, troubleshooter packs, Remote Desktop files, themes,
+// cabinets and disk images (which mount and show their own contents).
+// Also: Windows Sandbox configs (.wsb — its LogonCommand runs on open),
+// standalone update packages (.msu), every macro-enabled Office type (the
+// "-m" formats, .xlsb, legacy .xla/.xlm add-ins), the remaining Python
+// launchers (.pyzw/.pyo), the Monad/PowerShell 2 console and session files,
+// Access projects/databases that carry AutoExec macros, shell scraps (.shb/
+// .shs/.xnk), and the rest of the Outlook "Level 1" blocked list that a click
+// can launch. MS Access table shortcuts (.mad…/.maw) are left out on purpose:
+// .mat is MATLAB data far more often than an Access shortcut.
+const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|psd1|ps1xml|psc1|vbs|vbe|js|jse|wsf|wsh|ws|wsc|sct|hta|scr|pif|reg|msi|msp|mst|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop|msc|chm|py|pyw|pyz|pyc|xll|xlam|ppam|application|appinstaller|msix|msixbundle|appx|appxbundle|xbap|settingcontent-ms|diagcab|rdp|theme|themepack|cab|iso|img|vhd|vhdx|one|msh|mht|mhtml|wsb|msu|docm|dotm|xlsm|xltm|xlsb|xla|xlm|pptm|potm|ppsm|sldm|pyzw|pyo|msh1|msh2|mshxml|msh1xml|msh2xml|ps2|ps2xml|psc2|pssc|cdxml|ade|adp|mde|accde|mda|shb|shs|xnk|vb|vbp|ins|isp|its|hlp|vsmacros|vsw|printerexport|webpnp)$/i;
 
 // The same rule, restated for the platforms where `open`/`xdg-open` is the
 // handler. The list above is a Windows vocabulary: none of those extensions
@@ -277,13 +299,66 @@ const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh
 // stop. It is kept separate rather than merged so the Windows boundary stays
 // byte-for-byte what it was; a name like .sh or .py is a document there and has
 // been openable since the feature shipped.
-const BLOCKED_OPEN_EXT_POSIX = /\.(command|app|appex|workflow|terminal|action|definition|osax|prefpane|qlgenerator|saver|mdimporter|plugin|bundle|kext|pkg|mpkg|dmg|webloc|fileloc|inetloc|scpt|scptd|applescript|shortcut|sh|bash|zsh|csh|ksh|fish|py|pyw|rb|pl|php|lua|tcl|awk|run|appimage)$/i;
+const BLOCKED_OPEN_EXT_POSIX = /\.(command|app|appex|workflow|terminal|action|definition|osax|prefpane|qlgenerator|saver|mdimporter|plugin|bundle|kext|pkg|mpkg|dmg|webloc|fileloc|inetloc|scpt|scptd|applescript|shortcut|sh|bash|zsh|csh|ksh|fish|py|pyw|rb|pl|php|lua|tcl|awk|run|appimage|tool|term)$/i;
 
-function isBlockedOpenPath(p, platform) {
-  const v = String(p == null ? '' : p).trim();
+// `.tool` and `.term` above: Terminal runs a `.tool` like a `.command`, and
+// `.term` is the older Terminal settings file that can carry a startup command.
+
+// The name the extension test looks at. Trailing separators are dropped first:
+// `/x/Evil.app/` names the same bundle as `/x/Evil.app` and `open` launches it,
+// but the trailing slash used to hide the extension from the regex. Trailing
+// dots/spaces and an NTFS `::$DATA` stream suffix go too, because Windows
+// resolves `run.bat.` and `run.bat::$DATA` to run.bat.
+function _openGateName(p) {
+  let v = String(p == null ? '' : p).trim();
+  for (let prev = null; prev !== v;) {
+    prev = v;
+    v = v.replace(/[\\/]+$/, '').replace(/::\$DATA$/i, '').replace(/[.\s]+$/, '');
+  }
+  return v;
+}
+
+// Extensions that open in a viewer or an editor by their name alone.
+const DOCUMENT_EXT = /\.(pdf|txt|md|rtf|csv|tsv|log|docx?|xlsx?|pptx?|odt|ods|odp|pages|numbers|key|epub|jpe?g|png|gif|webp|heic|heif|bmp|tiff?|avif|mp3|wav|flac|m4a|aac|ogg|opus|mp4|m4v|mov|mkv|avi|webm|zip|7z|rar|tar|gz)$/i;
+
+// Real filesystem lookups, used only when the gate is asked about the platform
+// it is actually running on (so tests that pass another platform stay pure).
+function _realStat(p) {
+  try { return fs.statSync(p); } catch { return null; }
+}
+
+// `statPath(path)` → a fs.Stats-like object or null. Optional: when omitted it
+// defaults to the real fs.statSync, but only for the host platform — the
+// extension lists stay a pure function of the name everywhere.
+function isBlockedOpenPath(p, platform, statPath) {
+  const v = _openGateName(p);
   if (BLOCKED_OPEN_EXT.test(v)) return true;
   const plat = platform || process.platform;
-  return plat !== 'win32' && BLOCKED_OPEN_EXT_POSIX.test(v);
+  if (plat === 'win32') return false;
+  if (BLOCKED_OPEN_EXT_POSIX.test(v)) return true;
+  // What the name cannot tell us. `open` (macOS) picks the app by extension,
+  // so a file with a known document extension opens in that app even with an
+  // execute bit; a file with no extension, or one the system does not know,
+  // is a Unix executable to it and runs in Terminal (xdg-open can do the
+  // same). So an executable file is refused unless its extension is a known
+  // document type: a PDF on a FAT/exFAT stick, where every file shows as
+  // executable, still opens.
+  const stat = typeof statPath === 'function' ? statPath
+    : (plat === process.platform ? _realStat : null);
+  // Stat the path as given (only trailing slashes dropped): the dot/space
+  // trimming above is a Windows naming rule and would name another file here.
+  const real = String(p == null ? '' : p).trim().replace(/\/+$/, '');
+  if (!stat || !real) return false;
+  const st = stat(real);
+  if (!st) return false;
+  if (typeof st.isFile === 'function' && st.isFile() && (st.mode & 0o111) && !DOCUMENT_EXT.test(real)) return true;
+  // A directory that is shaped like an application bundle is launched by
+  // LaunchServices even without a bundle extension (the "package" Finder bit),
+  // so on macOS refuse any directory carrying Contents/Info.plist.
+  if (plat === 'darwin' && typeof st.isDirectory === 'function' && st.isDirectory()) {
+    if (stat(real + '/Contents/Info.plist')) return true;
+  }
+  return false;
 }
 
 // The 'runScript' action is the ONE deliberate, user-configured path that may
@@ -331,7 +406,9 @@ function isRunnableScriptPath(p, platform) {
 //         lighting(action)->Promise<boolean>,
 //         claudeRun({projectId,prompt,model})->Promise<{ok,error}>, claudeStop()->bool,
 //         remote: RemoteControl orchestrator instance (optional, injected after init),
-//         platform: override for the extension gates (tests) }
+//         platform: override for the extension gates (tests),
+//         statPath(path)->fs.Stats|null: optional, for openFile's POSIX
+//           executable-bit / bundle-directory check (tests) }
 function createRegistry(deps) {
   const d = deps || {};
   // An extension gate is a statement about a HANDLER, so it differs per
@@ -341,6 +418,21 @@ function createRegistry(deps) {
   // runnable on Windows and refused on POSIX by running the suite twice, on two
   // machines. Same option, same reason, as createDiskSpace's.
   const platform = d.platform || process.platform;
+  // set: the value (or 'on'); clear: removes it; toggle: a set name clears, an
+  // unset one takes the value. With a value, toggling a key in a radio group
+  // that holds another member's value selects this one instead of clearing.
+  function runDeckState(action) {
+    if (typeof d.setNamedState !== 'function') return { ok: false, error: 'unavailable' };
+    const value = action.value || 'on';
+    let next = value;
+    if (action.mode === 'clear') next = null;
+    else if (action.mode === 'toggle') {
+      const cur = typeof d.getNamedState === 'function' ? d.getNamedState(action.name) : null;
+      next = (cur != null && cur === value) ? null : value;
+    }
+    const err = d.setNamedState(action.name, next);
+    return err ? { ok: false, error: err } : { ok: true, state: next };
+  }
   async function run(rawAction) {
     const action = validateAction(rawAction);
     if (!action) return { ok: false, error: 'unknown_action' };
@@ -396,7 +488,9 @@ function createRegistry(deps) {
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
-          if (isBlockedOpenPath(p, platform)) return { ok: false, error: 'blocked_ext' };
+          // d.statPath (optional) lets tests stand in for the filesystem; the
+          // gate falls back to the real one only on the host platform.
+          if (isBlockedOpenPath(p, platform, typeof d.statPath === 'function' ? d.statPath : undefined)) return { ok: false, error: 'blocked_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           await d.openExternal(p);
           return { ok: true };
@@ -520,6 +614,7 @@ function createRegistry(deps) {
           const r = await d.mediaSeek(position);
           return r && r.ok === false ? { ok: false, error: r.error || 'seek_failed' } : { ok: true };
         }
+        case 'deckState': return runDeckState(action);
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume': {
           if (action.mode === 'set') {
@@ -533,13 +628,13 @@ function createRegistry(deps) {
         }
         case 'timerStart': {
           if (!d.timers || typeof d.timers.start !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
+          const named = scopeTimerLabel(rawAction, action.label, d.timers, { grows: true });
+          if (named.error) return { ok: false, error: named.error };
           // Minutes accept a decimal comma too ("1,5"); clamped to 5s–24h.
           const mins = Number(String(action.minutes || '').replace(',', '.'));
           if (!Number.isFinite(mins) || mins <= 0) return { ok: false, error: 'bad_minutes' };
           const secs = Math.min(86400, Math.max(5, Math.round(mins * 60)));
-          const r = await d.timers.start(label, secs);
+          const r = await d.timers.start(named.label, secs);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'timer_failed' } : { ok: true };
         }
         case 'stopwatchStart': {
@@ -548,8 +643,8 @@ function createRegistry(deps) {
           // timerToggle/timerCancel: both address a timer by label and a
           // stopwatch keeps the same clock underneath.
           if (!d.timers || typeof d.timers.stopwatch !== 'function') return { ok: false, error: 'unavailable' };
-          const swLabel = action.label.trim();
-          if (!swLabel) return { ok: false, error: 'empty_label' };
+          const swNamed = scopeTimerLabel(rawAction, action.label, d.timers, { grows: true });
+          if (swNamed.error) return { ok: false, error: swNamed.error };
           // Optional: chime every N minutes on the way up. Absent or unreadable
           // means a silent stopwatch, which is what the key did before this
           // param existed — an unparseable value must not turn a working key
@@ -557,22 +652,27 @@ function createRegistry(deps) {
           const every = Number(String(action.everyMinutes || '').replace(',', '.'));
           const everySecs = Number.isFinite(every) && every > 0
             ? Math.min(86400, Math.max(10, Math.round(every * 60))) : 0;
-          const rw = await d.timers.stopwatch(swLabel, everySecs);
+          const rw = await d.timers.stopwatch(swNamed.label, everySecs);
           return (rw && rw.ok === false) ? { ok: false, error: rw.error || 'timer_failed' } : { ok: true };
         }
         case 'timerToggle': {
           if (!d.timers || typeof d.timers.toggle !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
-          const r = await d.timers.toggle(label);
+          const named = scopeTimerLabel(rawAction, action.label, d.timers);
+          if (named.error) return { ok: false, error: named.error };
+          const r = await d.timers.toggle(named.label);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
         }
         case 'timerCancel': {
           if (!d.timers || typeof d.timers.cancel !== 'function') return { ok: false, error: 'unavailable' };
-          const label = action.label.trim();
-          if (!label) return { ok: false, error: 'empty_label' };
-          const r = await d.timers.cancel(label);
+          const named = scopeTimerLabel(rawAction, action.label, d.timers);
+          if (named.error) return { ok: false, error: named.error };
+          const r = await d.timers.cancel(named.label);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
+        }
+        case 'vitalsRefill': {
+          if (typeof d.vitalsRefill !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.vitalsRefill(action.vital);
+          return r && r.ok ? { ok: true, refilled: r.refilled } : { ok: false, error: (r && r.error) || 'refill_failed' };
         }
         case 'taskAdd': {
           if (typeof d.taskAdd !== 'function') return { ok: false, error: 'unavailable' };
@@ -739,6 +839,14 @@ function createRegistry(deps) {
           const r = await d.discord(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'discord_failed' } : { ok: true };
         }
+        case 'discordOpenChat': {
+          // Its own dep, because it may have to start Discord first. "Discord came
+          // up but the chat did not open" is a failure here: a widget has one
+          // ok to go on, and the chat on screen is what it asked for.
+          if (typeof d.discordOpenChat !== 'function') return { ok: false, error: 'discord_unavailable' };
+          const r = await d.discordOpenChat(action.channel);
+          return r && r.ok && r.selected ? { ok: true } : { ok: false, error: (r && r.error) || 'chat_not_opened' };
+        }
         case 'spotifySave':
         case 'spotifyPlaylist':
         case 'spotifyPlayUri':
@@ -835,7 +943,8 @@ function createRegistry(deps) {
         case 'lightColor':
         case 'lightAuto':
         case 'lightEffect':
-        case 'lightDevice': {
+        case 'lightDevice':
+        case 'lightPart': {
           // Whole-system RGB lighting control (master on/off, fixed colour,
           // ambient effect, per-device mode) — the same primitives the
           // Illuminazione settings drive, persisted the same way. One dep fronts
@@ -940,14 +1049,29 @@ function createRegistry(deps) {
           // composed from the handler's declared params). The dep owns every
           // check — declaration, per-handler grant, rate gate, arg coercion —
           // and waits for the widget frame's ack (or times out honestly).
+          // The key's gesture (tap, press, release, a cycle state…) rides along
+          // outside the stored action, checked here like everything else.
           if (!d.sdkHandler || typeof d.sdkHandler !== 'function') return { ok: false, error: 'sdk_unavailable' };
           const ref = String(action.handler || '');
           const slash = ref.indexOf('/');
           if (slash <= 0 || slash === ref.length - 1) return { ok: false, error: 'bad_handler' };
-          const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args);
+          const gesture = validateGesture(rawAction && rawAction.gesture);
+          const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args, gesture);
           return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
-        default: return { ok: false, error: 'unsupported' };
+        default:
+          if (CAPABILITY_TYPES.has(action.type)) {
+            if (typeof d.runCapability !== 'function') return { ok: false, error: 'unavailable' };
+            const r = await d.runCapability(action);
+            const out = r && typeof r === 'object' ? r : { ok: false, error: 'capability_failed' };
+            // Anonymous per-type counter (server/usage-stats.js, off unless the
+            // user's usageStats setting is on). Never allowed to change a result.
+            if (typeof d.countCapability === 'function') {
+              try { d.countCapability(action, out); } catch { /* a count is never worth a failure */ }
+            }
+            return out;
+          }
+          return { ok: false, error: 'unsupported' };
       }
     } catch (err) {
       return { ok: false, error: (err && err.message) || 'effect_error' };
@@ -963,11 +1087,20 @@ function createRegistry(deps) {
 // default MICROPHONE. Only entries present in the `speakers` (render) list are
 // resolvable — an id that is merely well-formed, or that names a capture
 // device, has no match and cannot be used.
+//
+// A key saved before issue #145 was fixed may hold the id as it was misread
+// then ("KopfhÃ¶rer" for "Kopfhörer"). That spelling is repaired and tried
+// second, against the same live list, so the key works again without being
+// set up anew; the check that makes this safe is unchanged.
 function resolveOutputDevice(id, speakers) {
   const wanted = String(id == null ? '' : id).trim();
   if (!wanted) return null;
   const list = Array.isArray(speakers) ? speakers : [];
-  return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
+  const find = (target) => list.find((s) => s && typeof s.id === 'string' && s.id === target) || null;
+  const exact = find(wanted);
+  if (exact) return exact;
+  const repaired = repairMojibake(wanted);
+  return repaired ? find(repaired) : null;
 }
 
 // The output a toggle key switches to: the second device when the first is the

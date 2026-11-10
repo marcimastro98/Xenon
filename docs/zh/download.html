@@ -36,9 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -46,16 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>下载 Xenon：适用于 Windows、Mac、Linux 的免费触控仪表盘</title>
-<meta name="description" content="下载 Xenon 最新版：Windows 安装程序、macOS 通用应用、Linux 的 AppImage、deb 或 rpm。另附首次设置、SmartScreen 警告和签名校验和的说明。">
+<meta name="theme-color" content="#6EE787">
+<title>下载 Xenon：Windows、macOS、Linux（免费）</title>
+<meta name="description" content="Windows 安装程序或 Microsoft Store。macOS 通用版，Linux 有 AppImage、deb、rpm（测试版）。附带签名校验和与首次启动步骤。">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="下载 Xenon：适用于 Windows、Mac、Linux 的免费触控仪表盘">
-<meta property="og:description" content="下载 Xenon 最新版：Windows 安装程序、macOS 通用应用、Linux 的 AppImage、deb 或 rpm。另附首次设置、SmartScreen 警告和签名校验和的说明。">
+<meta property="og:title" content="下载 Xenon：Windows、macOS、Linux（免费）">
+<meta property="og:description" content="Windows 安装程序或 Microsoft Store。macOS 通用版，Linux 有 AppImage、deb、rpm（测试版）。附带签名校验和与首次启动步骤。">
 <meta property="og:type" content="article">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:url" content="https://xenon-app.com/zh/download.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="下载 Xenon：Windows、macOS、Linux（免费）">
+<meta name="twitter:description" content="Windows 安装程序或 Microsoft Store。macOS 通用版，Linux 有 AppImage、deb、rpm（测试版）。附带签名校验和与首次启动步骤。">
 <link rel="canonical" href="https://xenon-app.com/zh/download.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html">
@@ -65,44 +67,27 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/download.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/download.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/download.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"在哪里下载 Xenon？","acceptedAnswer":{"@type":"Answer","text":"就在本页的链接里，它们始终指向 GitHub 上的最新版本：Windows 用 Xenon-Setup-x64.exe，macOS 用 Xenon-macOS-universal.dmg，Linux 用 AppImage、.deb 或 .rpm。"}},{"@type":"Question","name":"Xenon 可以免费下载吗？","acceptedAnswer":{"@type":"Answer","text":"可以。没有付费版，也不需要账号。源代码以非商业许可证公开在 GitHub 上。"}},{"@type":"Question","name":"为什么 Windows 会对 Xenon 安装程序发出警告？","acceptedAnswer":{"@type":"Answer","text":"因为 Microsoft 是随时间逐步给予 SmartScreen 信誉的。Windows 安装程序已经签名，所以 Windows 会显示经过验证的发布者，但 SmartScreen 仍可能在一段时间内发出警告：点击“更多信息”，再点“仍要运行”。每个版本还附带一个签名的 SHA256SUMS 文件，你可以自己验证下载的文件。"}},{"@type":"Question","name":"Xenon 会自动更新吗？","acceptedAnswer":{"@type":"Answer","text":"会。它在启动时检查新版本，并自动更新。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"在哪里下载 Xenon？","acceptedAnswer":{"@type":"Answer","text":"就在本页的链接里，它们始终指向 GitHub 上的最新版本：Windows 用 Xenon-Setup-x64.exe，macOS 用 Xenon-macOS-universal.dmg，Linux 用 AppImage、.deb 或 .rpm。"}},{"@type":"Question","name":"Xenon 可以免费下载吗？","acceptedAnswer":{"@type":"Answer","text":"可以。免费使用，无需购买许可证，也不需要账号。源代码以非商业许可证公开在 GitHub 上。"}},{"@type":"Question","name":"为什么 Windows 会对 Xenon 安装程序发出警告？","acceptedAnswer":{"@type":"Answer","text":"因为 Microsoft 是随时间逐步给予 SmartScreen 信誉的。Windows 安装程序已经签名，所以 Windows 会显示经过验证的发布者，但 SmartScreen 仍可能在一段时间内发出警告：点击“更多信息”，再点“仍要运行”。每个版本还附带一个签名的 SHA256SUMS 文件，你可以自己验证下载的文件。"}},{"@type":"Question","name":"Xenon 会自动更新吗？","acceptedAnswer":{"@type":"Answer","text":"会。它在启动时检查新版本，并自动更新。"}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
-  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
-  .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
-<style id="dl-mark">
-  /* The visitor's own system, marked and lit like the Deck key on the home. */
-  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
-  .pick.is-you * { color: #fff !important; }
-  .pick .you { display: inline-block; margin-left: 8px; font: 700 15px/1 var(--sans); padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,.18); }
-</style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
 </head>
-<body>
+<body data-sheet="green">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/download.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/download.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/download.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/download.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/download.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/download.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/download.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
@@ -111,10 +96,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/zh/#install" data-xl="install">安装</a>
       <ul class="xh-mlinks">
@@ -128,19 +113,53 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/download.html" aria-current="page" data-xl="f.download">下载</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"下载","item":"https://xenon-app.com/zh/download.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="dl.h1">下载 Xenon</h1>
-    <p class="lede" data-i18n="dl.lede">各平台的最新版本，直接来自 GitHub。免费，无需账号，装好之后会自动更新。</p>
-    <p class="updated" data-i18n-html="dl.updated">最后更新：2026年9月26日。所有链接都指向<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">最新版本</a>。</p>
-
-    <div class="dl">
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req" data-i18n="dl.win.req">Windows 10 或 11，64 位。安装应用并在登录时启动。</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small data-i18n="dl.beta">测试版</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req" data-i18n="dl.mac.req">macOS 11 或更高版本。一个文件同时支持 Apple 芯片和 Intel。</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small data-i18n="dl.beta">测试版</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n="dl.linux.req">任何 x86_64 桌面系统。.deb 和 .rpm 在 Linux 页面上。</span></a>
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w wide">
+    <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/download.html" aria-current="page" data-xl="f.download">下载</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"下载","item":"https://xenon-app.com/zh/download.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="dl.h1">下载 Xenon</h1>
+        <p class="lede" data-i18n="dl.lede">各平台的最新版本，直接来自 GitHub。免费，无需账号，装好之后会自动更新。</p>
+        <p class="updated" data-i18n-html="dl.updated">最后更新：2026年10月16日。所有链接都指向<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">最新版本</a>。</p>
     </div>
-    <p class="note" data-i18n-html="dl.note.linux"><a href="/zh/linux.html">Linux 上的 Xenon</a>：.deb 和 .rpm 安装包、首次启动会设置什么，以及一张列出哪些功能可用、哪些暂不可用的表格。</p>
-    <p class="note" data-i18n-html="dl.note.all">上面的每个文件都是最新版本，直接来自 GitHub。<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">这个版本的全部文件</a>（包括校验和）都在发布页面上。</p>
+    <div class="oses">
+      <div class="os-col pick" data-os="windows">
+        <svg class="os-bit" id="os-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true">
+          <path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/>
+          <path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/>
+        </svg>
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.2 10.4 4.2v7H3zM11.4 4 21 2.7v8.5h-9.6zM3 12.3h7.4v7L3 18.3zM11.4 12.3H21v8.9l-9.6-1.3z"/></svg>Windows</h2>
+        <p data-i18n="dl.win.req">Windows 10 或 11，64 位。安装应用并在登录时启动。</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win" data-i18n="dl.win.key">下载 Windows 版</a>
+        <span class="file">Xenon-Setup-x64.exe</span>
+        <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="download_page"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="从 Microsoft Store 获取 Xenon" data-i18n-alt="dl.store.alt"></a>
+      </div>
+      <div class="os-col" data-os="macos">
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS<span class="beta-pill" data-i18n="dl.beta">Beta</span></h2>
+        <p data-i18n="dl.mac.req">macOS 11 或更高版本。一个文件同时支持 Apple 芯片和 Intel。</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac" data-i18n="dl.mac.key">下载 macOS 版</a>
+        <span class="file">Xenon-macOS-universal.dmg</span>
+        <p class="os-more"><a href="/zh/mac.html" data-i18n="dl.mac.guide">Mac 指南</a></p>
+      </div>
+      <div class="os-col" data-os="linux">
+        <h2><img src="/images/os/tux.webp" width="76" height="88" alt="">Linux<span class="beta-pill" data-i18n="dl.beta">Beta</span></h2>
+        <p data-i18n="dl.linux.req">任何 x86_64 桌面系统。也提供 .deb 和 .rpm。</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux" data-i18n="dl.linux.key">下载 Linux 版</a>
+        <span class="file">Xenon-Linux-x86_64.AppImage</span>
+        <p class="os-more"><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="download_page_linux_deb">.deb</a><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="download_page_linux_rpm">.rpm</a><a href="/zh/linux.html" data-i18n="dl.linux.guide">Linux 指南</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="pg-body">
+  <nav class="jump" aria-labelledby="jump-h">
+    <p id="jump-h" data-xl="onpage">本页内容</p>
+    <a href="#after" data-i18n="dl.h.after">首次设置</a>
+    <a href="#warning" data-i18n="dl.h.warning">Windows 和 macOS 的警告</a>
+    <a href="#verify" data-i18n="dl.h.verify">验证下载</a>
+    <a href="#other" data-i18n="dl.h.other">其他安装方式</a>
+  </nav>
+  <div class="wrap">
+    <p class="note" data-i18n-html="dl.note.all"><a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">这个版本的全部文件</a>（包括校验和）都在发布页面上。</p>
 
     <h2 id="after" data-i18n="dl.h.after">首次设置</h2>
     <p data-i18n-html="dl.after.win"><strong>Windows：</strong>运行安装程序。它会安装应用，应用会自动打开，发现还没有仪表盘引擎时，会显示 <strong>Complete setup</strong>（完成设置）。点一次：会打开一个窗口，安装 Node.js、传感器读取程序，以及在你登录时启动 Xenon 的任务，每一步都会显示出来。在运行任何东西之前，下载的内容都会先用项目的签名密钥验证。整个过程需要几分钟，只需一次。</p>
@@ -149,17 +168,23 @@
 
     <h2 id="warning" data-i18n="dl.h.warning">Windows 和 macOS 的警告</h2>
     <p data-i18n-html="dl.warn.win">从 4.11.9 版起，Windows 安装程序已经签名，所以 Windows 会显示经过验证的发布者。不过 SmartScreen 仍可能在一段时间内发出警告，因为 Microsoft 是随时间逐步给予信誉的：点击<strong>更多信息</strong>，再点<strong>仍要运行</strong>。Defender 还会根据程序的行为作出判断，而不只看是谁签的名，所以仍有可能被检测到。<a href="/zh/faq.html#warnings">常见问题解释了每种警告</a>以及如何找回文件；如果你想确切了解安装了什么，<a href="/zh/xenon-exe.html">这个页面列出了 Xenon 运行的每个进程</a>。</p>
-    <p data-i18n-html="dl.warn.mac"><strong>macOS：</strong>Mac 版是测试版，没有经过公证（notarize），所以 macOS 会拒绝第一次启动。打开<strong>系统设置 &rarr; 隐私与安全性</strong>，向下滚动，点击 Xenon 旁边的<strong>仍要打开</strong>。在 macOS 15 及更高版本上，按住 Control 键点按再选“打开”的方法已经不再有效。</p>
+    <p data-i18n-html="dl.warn.mac"><strong>macOS：</strong>Mac 版是测试版。从 5.0 起它经过了 Apple 公证，所以第一次启动时，macOS 只会询问一次是否打开从互联网下载的应用：点击<strong>打开</strong>。如果 macOS 提示无法检查 Xenon，说明这份副本早于 5.0，请下载最新的 .dmg。</p>
 
     <h2 id="verify" data-i18n="dl.h.verify">验证下载</h2>
     <p data-i18n-html="dl.verify.p1">每个版本都附带一个用项目的 Ed25519 密钥签名的 <code>SHA256SUMS</code> 文件。比较你下载的文件的哈希值：</p>
-    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
-shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
-sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
+    <pre><code># Windows, PowerShell
+Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256
+
+# macOS
+shasum -a 256 Xenon-macOS-universal.dmg
+
+# Linux
+sha256sum Xenon-Linux-x86_64.AppImage</code></pre>
     <p data-i18n-html="dl.verify.p2">如果它和该版本 <code>SHA256SUMS</code> 中对应那个文件的一行一致，这个文件就和 GitHub Actions 在那个标签上从公开源代码构建出来的文件逐字节相同。在 Windows 上，你也可以右键点击安装程序，选择<strong>属性</strong>，打开<strong>数字签名</strong>选项卡查看发布者。</p>
 
     <h2 id="other" data-i18n="dl.h.other">其他安装方式</h2>
     <p data-i18n-html="dl.other.source"><strong>从源代码安装：</strong>从发布页面下载<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">源代码 zip</a>，解压后，在 Windows 上运行 <code>INSTALL.bat</code>，在 macOS 上运行 <code>INSTALL.command</code>，在 Linux 上运行 <code>./INSTALL.sh</code>。结果和安装程序一样，适合想先读一读会运行什么的人。</p>
+    <p data-i18n-html="dl.other.store"><strong>Microsoft Store：</strong>Xenon 也已上架 <a href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener">Microsoft Store</a>，适用于 Windows 10 和 11。它安装的是同一个已签名的 Windows 安装程序，之后和其他安装方式一样，Xenon 会自动更新到最新版本。</p>
     <p data-i18n-html="dl.other.winget"><strong>winget：</strong>软件包清单已经写好，正在等一个能在 Microsoft 那边顺利通过扫描的版本；在正式上架之前，请使用上面的安装程序。上架那天，这个页面会写上 <code>winget install xenon</code>。</p>
     <p data-i18n-html="dl.other.update"><strong>更新：</strong>Xenon 每次启动时都会检查有没有新版本，并自动更新。你不需要为此回到这里。</p>
 
@@ -167,42 +192,45 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
       <h3 data-i18n="dl.about.h">Xenon 是什么</h3>
       <p data-i18n-html="dl.about.p">一个免费的仪表盘，运行在你的电脑上，可以显示在任何闲置的屏幕上：系统状态、媒体和麦克风控制、类似 Stream Deck 的按键网格、灯光控制，还有可以对话的 AI。无需账号，你的设置、文件和传感器读数都保存在你的电脑上。<a href="/zh/">主页上可以看到它的样子</a>。</p>
     </div>
-    <span id="dl-you" hidden data-i18n="dl.you">你的系统</span>
   </div>
+</div>
 </main>
 
 <!-- xenon:footer -->
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">任何屏幕都能用的免费电脑小组件。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit 住在 Vitals 小组件里，对你的坐姿很有意见。</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/single-screen.html" data-xl="f.onescreen">在一块屏幕上使用 Xenon</a></li><li><a href="/zh/fps-overlay.html" data-xl="f.fps">FPS 叠加层</a></li><li><a href="/zh/screen-recorder.html" data-xl="f.recorder">屏幕录制</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。其他名称和标志归各自所有者所有。</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 <script>
-  // Marks the card for the visitor's system. Detection is a convenience:
-  // all three files stay listed and every link works without it.
+  // The visitor's column turns dark and Bit stands on it. Detection is a
+  // convenience: all three files stay listed and every link works without it.
   (function () {
+    var lang = (document.documentElement.lang || 'en').slice(0, 2);
+    var badge = document.querySelector('[data-store-badge]');
+    if (badge && ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'].indexOf(lang) >= 0) badge.src = '/images/store/ms-store-' + lang + '.svg';
     var uad = navigator.userAgentData;
     var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
     if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
-    var os = /Win/i.test(p) ? 'win' : /Mac/i.test(p) ? 'mac' : /Linux|X11/i.test(p) ? 'linux' : null;
-    if (!os) return;
-    var a = document.querySelector('.pick[data-track-location="download_page_' + os + '"]');
-    if (!a) return;
-    a.classList.add('is-you');
-    var o = a.querySelector('.os');
-    var lbl = document.getElementById('dl-you');
-    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = (lbl && lbl.textContent) || 'Your system'; o.appendChild(t); }
+    var os = /Win/i.test(p) ? 'windows' : /Mac/i.test(p) ? 'macos' : /Linux|X11/i.test(p) ? 'linux' : null;
+    var col = os && document.querySelector('.os-col[data-os="' + os + '"]');
+    var bit = document.getElementById('os-bit');
+    if (!col || !bit) return;
+    document.querySelector('.os-col.pick').classList.remove('pick');
+    col.classList.add('pick');
+    col.prepend(bit);
   })();
 </script>
 </body>

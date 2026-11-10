@@ -158,7 +158,7 @@ test('linux: on-demand tocca Sunshine e NON la VPN dell\'utente', async () => {
 
 test('darwin: usa brew services e legge "started" dalla tabella', async () => {
   const runner = fakeRunner({
-    'services list': { code: 0, stdout: 'Name       Status  User\nsunshine   started marcello\n' },
+    'services list': { code: 0, stdout: 'Name       Status  User\nsunshine   started alex\n' },
   });
   const svc = createService({ runner, platform: 'darwin' });
   assert.equal(await svc.isRunning(), true);

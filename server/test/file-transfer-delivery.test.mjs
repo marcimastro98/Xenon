@@ -134,20 +134,20 @@ test('delivery into a folder that vanished fails without losing the transfer', a
 
 test('the Downloads folder is found on every platform without shelling out', () => {
   assert.equal(
-    FT.resolveDownloadsDir({ platform: 'win32', homedir: 'C:\\Users\\marce' }),
-    path.join('C:\\Users\\marce', 'Downloads'));
+    FT.resolveDownloadsDir({ platform: 'win32', homedir: 'C:\\Users\\luca' }),
+    path.join('C:\\Users\\luca', 'Downloads'));
   assert.equal(
-    FT.resolveDownloadsDir({ platform: 'darwin', homedir: '/Users/marce' }),
-    path.join('/Users/marce', 'Downloads'),
+    FT.resolveDownloadsDir({ platform: 'darwin', homedir: '/Users/luca' }),
+    path.join('/Users/luca', 'Downloads'),
     'macOS keeps the English name on disk and localises only what Finder shows');
   // An Italian Linux desktop really does call it ~/Scaricati, and guessing
   // "Downloads" there creates a second folder the user never opens.
   assert.equal(
-    FT.resolveDownloadsDir({ platform: 'linux', homedir: '/home/marce', xdg: { download: '/home/marce/Scaricati' } }),
-    '/home/marce/Scaricati');
+    FT.resolveDownloadsDir({ platform: 'linux', homedir: '/home/luca', xdg: { download: '/home/luca/Scaricati' } }),
+    '/home/luca/Scaricati');
   assert.equal(
-    FT.resolveDownloadsDir({ platform: 'linux', homedir: '/home/marce', xdg: null }),
-    path.join('/home/marce', 'Downloads'),
+    FT.resolveDownloadsDir({ platform: 'linux', homedir: '/home/luca', xdg: null }),
+    path.join('/home/luca', 'Downloads'),
     'no xdg-user-dirs on this machine: the English default is all there is');
   assert.equal(FT.resolveDownloadsDir({ platform: 'linux', homedir: '' }), '',
     'no home directory means no answer, not a path relative to nothing');
@@ -155,7 +155,7 @@ test('the Downloads folder is found on every platform without shelling out', () 
 
 test('the default inbox is a folder of our own inside Downloads', () => {
   assert.equal(
-    FT.defaultInboxDir({ platform: 'win32', homedir: 'C:\\Users\\marce' }),
-    path.join('C:\\Users\\marce', 'Downloads', 'Xenon'),
+    FT.defaultInboxDir({ platform: 'win32', homedir: 'C:\\Users\\luca' }),
+    path.join('C:\\Users\\luca', 'Downloads', 'Xenon'),
     'arrivals should be gathered, not scattered through the user’s Downloads');
 });

@@ -1,0 +1,90 @@
+name: macOS and Linux check
+
+# The background half of Xenon on a real Mac and a real Linux machine, before a
+# release: the whole test suite, the server started and asked for its pages and
+# its action catalog, on the Node it asks for (24) and on the oldest one an old
+# install may still have (20), and the doctor with its raw tool output. The
+# maintainer has neither machine, so this is the only place these run outside
+# Windows and the Linux container on his PC. It sees no screen, no permission
+# dialog and no real device: widgets, capture and keys still need a person.
+#
+# Manual, plus every push to the 5.0.0 branch until it is merged (GitHub only
+# offers the manual button for workflows already on main). No secrets,
+# read-only permissions; it uploads its logs as an artifact of the run and
+# touches no release.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [v5.0.0]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # no token left in .git/config for later steps
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      # Kept going on failure: the boot and the doctor below say more about a
+      # broken platform than the test count alone. A few tests carry Windows
+      # paths in their fixtures; compare with tools/linux-suite.mjs.
+      - name: Test suite
+        id: tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/tests.log"; exit "${PIPESTATUS[0]}"
+
+      - name: Failed tests
+        if: always()
+        run: grep -E '^(ℹ (tests|pass|fail)|test at )' "$RUNNER_TEMP/tests.log" | sed 's/:[0-9]*:[0-9]*$//' | sort | uniq -c || true
+
+      - name: Server starts on Node 24
+        run: node tools/ci/boot-check.mjs "$RUNNER_TEMP/boot-24.log"
+
+      - name: Doctor
+        if: always()
+        run: npm run doctor -- --capture "$RUNNER_TEMP/doctor" 2>&1 | tee "$RUNNER_TEMP/doctor.log"
+
+      # The in-app update of the Mac helper, run for real: the helper built here,
+      # the system's tar and xattr, and the helper's own --version.
+      - name: Mac helper updates in place
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          swift build -c release --package-path helper-mac
+          node tools/ci/mac-helper-update-check.mjs "$(swift build -c release --package-path helper-mac --show-bin-path)/xenon-helper"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Server starts on Node 20
+        run: node tools/ci/boot-check.mjs "$RUNNER_TEMP/boot-20.log"
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/doctor
+            server/data/server.log*
+          if-no-files-found: ignore
+
+      - name: Tests failed
+        if: steps.tests.outcome == 'failure'
+        run: echo "::warning::the test suite failed on ${{ matrix.os }}, see the Failed tests step"

@@ -16,6 +16,31 @@
 /* Make the shell an explicit layer so the FX can sit behind it. */
 .shell { position: relative; z-index: 1; }
 
+/* A switched-off ambient layer is opacity 0, and Chromium still rasterizes an
+   opacity-0 layer it might fade in: the aurora blobs and the grid planes are
+   several screens wide, so an off aurora + grid kept ~80 MB of tiles alive (on an
+   iGPU that is system RAM; measured 27 Oct 2026, GPU process ~690 → ~570 MB).
+   `visibility: hidden` lets it drop them. The visibility step waits for the
+   0.45s fade-out and is immediate on the way in, so both fades look the same. */
+#bg-aurora,
+#bg-grid,
+#bg-static,
+#custom-bg-layer {
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
+body.aurora-on #bg-aurora,
+body.grid-on #bg-grid,
+body[data-bg-static] #bg-static,
+body.custom-bg-on #custom-bg-layer {
+  visibility: visible;
+  transition: opacity 0.45s ease, visibility 0s;
+}
+/* A hidden layer has nothing on the compositor, so its loop falls back to the main
+   thread: a switched-off grid asked for a frame on every vsync with nothing to draw. */
+body:not(.aurora-on) .aurora-blob,
+body:not(.grid-on) .grid-plane { animation-play-state: paused; }
+
 /* ── Aurora ──────────────────────────────────────────────── */
 #bg-aurora {
   position: fixed;
@@ -200,7 +225,11 @@ body.fx-motion-lite .grid-plane { animation: none !important; }
    GPU-intensive app is presenting, so the dashboard stops competing for the
    compositor. Re-enabled automatically when the game exits. ──────────── */
 body.game-mode #bg-aurora,
-body.game-mode #bg-grid { opacity: 0; }
+body.game-mode #bg-grid {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
 body.game-mode .aurora-blob,
 body.game-mode .grid-plane { animation-play-state: paused; }
 
@@ -268,7 +297,11 @@ body.ambient-idle .grid-plane { animation-play-state: paused; }
    decorative loops (the real GPU cost) finish one 10ms pass and stop. ──── */
 body.perf-mode #bg-aurora,
 body.perf-mode #bg-grid,
-body.perf-mode #custom-bg-layer { opacity: 0; }
+body.perf-mode #custom-bg-layer {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
 body.perf-mode *,
 body.perf-mode *::before,
 body.perf-mode *::after {
@@ -344,6 +377,16 @@ body[data-bg-static] #bg-static { opacity: var(--static-opacity, 1); }
 }
 :root[data-appearance="light"] #bg-static::after { opacity: 0.03; }
 
+/* ── Dusk: the wallpaper of a new install. A picture, because glass needs big colour
+   fields behind it, and its grain is baked in (tools/wallpapers). ── */
+body[data-bg-static="dusk"] #bg-static {
+  background: #161c30 url("../assets/wallpapers/dusk.webp") center / cover no-repeat;
+}
+:root[data-appearance="light"] body[data-bg-static="dusk"] #bg-static {
+  background: #e9edf3 url("../assets/wallpapers/dusk-light.webp") center / cover no-repeat;
+}
+body[data-bg-static="dusk"] #bg-static::after { display: none; }
+
 /* ── Nebulosa: the aurora, frozen — soft accent pools + depth vignette ── */
 body[data-bg-static="nebulosa"] #bg-static {
   background:
@@ -391,4 +434,29 @@ body[data-bg-static="halo"] #bg-static {
     radial-gradient(70% 78% at 74% 24%, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08) 34%, transparent 62%),
     radial-gradient(160% 130% at 50% 52%, transparent 52%, rgba(20, 28, 44, 0.12) 100%),
     linear-gradient(180deg, #eef2f7, #e0e6ee);
+}
+
+/* ── See-through window (native app on Windows) ───────────────
+   The shell built the window transparent (apps/native/src-tauri/src/
+   see_through.rs) and js/native-bridge.js set html.see-through, so the
+   desktop under the window (a Wallpaper Engine scene, the wallpaper) is
+   the backdrop. Nothing of Xenon's own may paint the page ground: the
+   theme colour on html/body (themes set it there too, hence !important)
+   and the media layer's own fill. applyHubSettings() already switches
+   every backdrop layer off; hiding them here as well means a layer that
+   some later code turns on cannot cover the desktop by accident.
+   The media layer's dim (::after) stays: it is "Background dim", and
+   over an arbitrary wallpaper it is what keeps the text readable. */
+html.see-through,
+html.see-through body {
+  background: transparent !important;
+}
+html.see-through .user-bg-layer { background: transparent; }
+html.see-through .user-bg-layer img,
+html.see-through .user-bg-layer video,
+html.see-through #bg-aurora,
+html.see-through #bg-grid,
+html.see-through #bg-static,
+html.see-through #custom-bg-layer {
+  display: none !important;
 }

@@ -1,0 +1,1022 @@
+/* The dashboard as a layer surface (js/layer-host.js): a transparent window on
+   the desktop, in the overlay or anchored to an app, showing only the tiles
+   placed on it. Everything else the page builds stays in the DOM, so each tile
+   keeps its code and data feed, but is never drawn. */
+
+/* !important: themes paint html/body with their own, more specific rules, and a
+   layer window must stay see-through whatever theme is active. */
+html[data-layer],
+html[data-layer] body {
+  background: transparent !important;
+}
+
+/* [data-layer-sheet]: a dialog a tile opened on the body (js/layer-host.js). */
+html[data-layer] body > :not(#layer-root):not(#picker-overlay):not([data-layer-sheet]) {
+  display: none !important;
+}
+
+/* The device picker opens over the tile that asked for it, not over the screen:
+   the window shows, and takes clicks on, only the tiles' rectangles. The
+   rectangle is the slot last pressed (js/layer-host.js). */
+html[data-layer] #picker-overlay {
+  inset: auto;
+  left: var(--layer-sheet-x, 0px);
+  top: var(--layer-sheet-y, 0px);
+  width: var(--layer-sheet-w, 100%);
+  height: var(--layer-sheet-h, 100%);
+  padding: 8px;
+}
+
+/* The System tile's Optimize button opens a dashboard panel the light page
+   does not have (js/layer-lite-tiles.js). */
+html[data-layer-lite] .sys-optimize-btn {
+  display: none !important;
+}
+
+/* The Deck's pencil opens the key editor (deck-editor.js), which the light page
+   does not load: the keys are pressed here and edited on the dashboard. */
+html[data-layer-lite] .deck-edit {
+  display: none !important;
+}
+
+.layer-root {
+  position: fixed;
+  inset: 0;
+  /* Clicks pass through the empty parts of the window; the shell makes the
+     window itself click-through where no tile is. */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.layer-slot {
+  /* The rectangle is a fraction of the screen, so on a small or portrait screen
+     a tile could shrink below what it can draw: keep a usable minimum, and keep
+     the grown box on screen by sliding it back from the far edges. */
+  --layer-min-w: 160px;
+  --layer-min-h: 120px;
+  --layer-box-w: min(100%, max(var(--layer-w, 20%), var(--layer-min-w)));
+  --layer-box-h: min(100%, max(var(--layer-h, 30%), var(--layer-min-h)));
+  position: absolute;
+  left: clamp(0px, var(--layer-x, 0%), 100% - var(--layer-box-w));
+  top: clamp(0px, var(--layer-y, 0%), 100% - var(--layer-box-h));
+  width: var(--layer-box-w);
+  height: var(--layer-box-h);
+  opacity: var(--layer-opacity, 1);
+  pointer-events: auto;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* A built-in tile needs the minimum above; a Store widget lays itself out, down
+   to one button the size of a comfortable touch target. */
+.layer-slot[data-small] {
+  --layer-min-w: 48px;
+  --layer-min-h: 48px;
+}
+
+/* Asking for permission needs room to be read and answered. */
+.layer-slot[data-small]:has(.cw-state) {
+  --layer-min-w: 220px;
+  --layer-min-h: 140px;
+}
+.layer-slot[data-small] .cw-state {
+  background: var(--surface);
+  border-radius: 10px;
+}
+.layer-slot[data-small]:has(.cw-state) .cw-head,
+.layer-slot[data-small] .cw-state-ico,
+.layer-slot[data-small] .cw-state-hint,
+.layer-slot[data-small] .cw-state-btns .cw-btn:not(.cw-btn--primary) { display: none; }
+.layer-slot[data-small] .cw-state-btns .cw-btn { min-height: 44px; }
+
+/* A box over a game has no room for the dashboard's padding. */
+.layer-slot .perf-widget-mount { padding: 8px 10px; }
+
+.layer-slot > [data-dashboard-widget] {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  position: relative;
+}
+
+/* A Store widget open at full size (the SDK `expand`, js/custom-widget.js) fills
+   the window: the box grows with it, so the window is cut to all of it and takes
+   every click, and it covers the other widgets at full opacity. */
+.layer-slot:has(.cw-wrap.cw-expanded) {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  z-index: 1;
+}
+
+/* A widget can be smaller than any dashboard tile. The System tile shares its height
+   out among the cards, which on a 320x240 widget left each one 33px for 60px of words
+   and cut the numbers. Here a card keeps the height its words need, spare height is
+   still shared out, and what does not fit scrolls. The selectors are this long to beat
+   DashboardLayout.css, which closes the panel for the dashboard. */
+body:not([data-panel]) .layer-slot .side-panel { overflow: hidden auto; }
+body:not([data-panel]) .layer-slot .side-panel .system-block { flex: 1 0 auto; }
+body:not([data-panel]) .layer-slot .side-panel .system-grid {
+  flex: 1 0 auto;
+  /* Two cards side by side until each would be under 96px: then one under the other. */
+  grid-template-columns: repeat(auto-fit, minmax(max(96px, calc(50% - 4px)), 1fr));
+  grid-auto-rows: minmax(min-content, 1fr);
+  overflow: visible;
+}
+/* The Volume tab goes side by side when short, for the wide strip of the Edge. A widget is
+   short and narrow, and the card then ran into the device rows: here it stays stacked. */
+body:not([data-panel]) .layer-slot .system-audio-pane:not([hidden]) { container: none; flex: 1 0 auto; }
+.layer-slot .system-audio-pane .device-section {
+  grid-template-columns: repeat(auto-fit, minmax(max(96px, calc(50% - 4px)), 1fr));
+}
+/* At the smallest size even the icons alone ran past the right edge: they share the row. */
+.layer-slot .system-tabs[data-fit="3"] .system-tabs-left { flex: 1 1 auto; }
+.layer-slot .system-tabs[data-fit="3"] .sys-tab { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; }
+
+/* Without its panel, by the person's choice: only what the widget paints. A built-in
+   tile's words get an edge, as nothing behind them promises any contrast. */
+.layer-slot[data-bare] > [data-dashboard-widget] {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
+}
+/* Dark words take a light edge: a dark one smears them. */
+:root[data-appearance="light"] .layer-slot[data-bare] > [data-dashboard-widget] { text-shadow: 0 0 2px #fff, 0 1px 2px #fff; }
+.layer-slot[data-bare] > [data-dashboard-widget]::before,
+.layer-slot[data-bare] > [data-dashboard-widget]::after { content: none; }
+
+/* Widgets grouped as tabs: the dashboard's tab-group tile (DashboardGrid.css). */
+.layer-slot > .layer-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+/* "Show when": game-running is set by the game detector on every surface. While
+   editing every widget stays in sight, or a hidden one could never be moved: it is
+   dimmed instead, so the screen still says what shows right now. `data-peek`: its screen
+   is open in the menu, and a change made there has to be seen (server/layers-peek.js). */
+html:not([data-layer-editing]) body:not(.game-running) .layer-slot[data-show="gaming"]:not([data-peek]),
+html:not([data-layer-editing]) body.game-running .layer-slot[data-show="notGaming"]:not([data-peek]),
+html:not([data-layer-editing]) .layer-slot[data-when-off]:not([data-peek]) {
+  display: none;
+}
+
+html[data-layer-editing] body:not(.game-running) .layer-slot[data-show="gaming"]:not([data-peek]) > [data-dashboard-widget],
+html[data-layer-editing] body.game-running .layer-slot[data-show="notGaming"]:not([data-peek]) > [data-dashboard-widget],
+html[data-layer-editing] .layer-slot[data-when-off]:not([data-peek]) > [data-dashboard-widget] {
+  opacity: 0.45;
+}
+
+/* ── Edit mode (js/layer-edit.js) ─────────────────────────────────────────────
+   The window takes the clicks on its widgets and on what edit mode adds, no more:
+   another window under it stays reachable. The frames show what can be dragged. */
+.layer-edit-frame {
+  position: absolute;
+  left: var(--layer-edit-left, 0px);
+  right: var(--layer-edit-right, 0px);
+  bottom: var(--layer-edit-bottom, 0px);
+  top: var(--layer-edit-top, 0px);
+  z-index: 20;
+  cursor: move;
+  touch-action: none;
+  border: 2px dashed rgba(var(--accent-rgb), 0.75);
+  border-radius: 14px;
+  /* The widget recedes while it is being arranged: the frame's controls are
+     what can be pressed, not the widget under them. */
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.layer-edit-frame.is-dragging {
+  background: rgba(0, 0, 0, 0.24);
+}
+
+/* Words have nothing to recede from: a dark box behind them reads as a black bar. */
+.layer-edit-frame.is-words,
+.layer-edit-frame.is-words.is-dragging {
+  background: none;
+}
+
+.layer-edit-frame.is-picked {
+  border-style: solid;
+}
+
+/* When it shows, on every frame: outside it, so even a line of words keeps its label. */
+.layer-edit-tag {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  max-width: 240px;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface, var(--panel));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.layer-slot[data-v="top"] > .layer-edit-frame > .layer-edit-tag {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.layer-slot[data-h="right"] > .layer-edit-frame > .layer-edit-tag {
+  left: auto;
+  right: 0;
+}
+
+/* The line a box is pulled to, while it is dragged. */
+.layer-edit-guide {
+  position: absolute;
+  z-index: 25;
+  background: rgba(var(--accent-rgb), 0.9);
+  pointer-events: none;
+}
+
+.layer-edit-guide--x {
+  top: 0;
+  bottom: 0;
+  left: var(--layer-edit-at, 0px);
+  width: 1px;
+}
+
+.layer-edit-guide--y {
+  left: 0;
+  right: 0;
+  top: var(--layer-edit-at, 0px);
+  height: 1px;
+}
+
+/* The choices of the widget tapped: words, beside it (js/layer-edit-card.js). */
+.layer-edit-card {
+  position: absolute;
+  left: var(--layer-edit-x, 8px);
+  top: var(--layer-edit-y, 8px);
+  z-index: 30;
+  width: min(240px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--surface, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+}
+
+.layer-edit-card > b {
+  overflow: hidden;
+  padding: 0 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-edit-card-btn,
+.layer-edit-card-size,
+.layer-edit-card-row {
+  min-height: 44px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-card-btn {
+  padding: 0 12px;
+  text-align: start;
+}
+
+.layer-edit-card-btn[aria-expanded="true"],
+.layer-edit-card-size[aria-pressed="true"],
+.layer-edit-card-row[aria-pressed="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+}
+
+.layer-edit-card-btn--off {
+  color: rgb(var(--danger-rgb, 255, 107, 107));
+}
+
+.layer-edit-card-size {
+  padding: 0 2px;
+  font-size: 12px;
+}
+
+.layer-edit-card-sizes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.layer-edit-card-menu {
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-edit-card-row {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 6px 10px;
+  text-align: start;
+}
+
+.layer-edit-card-row > span {
+  color: var(--dim-text);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.layer-edit-untab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(231, 76, 60, 0.45);
+  color: var(--red);
+  background: rgba(20, 20, 20, 0.85);
+  cursor: pointer;
+}
+
+.layer-edit-untab {
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.layer-edit-untab svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* A 44 px corner to grab, drawn as an L, only on the widget tapped: always there it
+   was grabbed by mistake. A box too small to hold one keeps all of itself to drag. */
+.layer-edit-frame:not(.is-picked) > .layer-edit-resize,
+.layer-edit-frame.is-tiny > .layer-edit-resize {
+  display: none;
+}
+
+/* Words and small boxes are not much bigger than the corner: it sits on theirs, half
+   outside, so the rest of the box still drags. */
+.layer-edit-frame.is-small > .layer-edit-resize {
+  right: -22px;
+  bottom: -22px;
+}
+
+.layer-edit-frame.is-small > .layer-edit-resize::after {
+  right: 16px;
+  bottom: 16px;
+}
+
+.layer-edit-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  height: 44px;
+  cursor: nwse-resize;
+}
+
+.layer-edit-resize::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 14px;
+  height: 14px;
+  border-right: 3px solid rgba(var(--accent-rgb), 0.9);
+  border-bottom: 3px solid rgba(var(--accent-rgb), 0.9);
+  border-bottom-right-radius: 4px;
+}
+
+/* No shadow on anything drawn here: the window is cut to a rectangle around each piece, so
+   a shadow fills the rounded corners and stops at the cut, a black box behind the piece. */
+.layer-edit-bar {
+  position: absolute;
+  top: 12px;
+  /* Centred with auto margins, not left: 50%, which leaves the bar only half the
+     width to grow into: on a small attached window "Done" fell off the edge. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-inline: auto;
+  z-index: 30;
+  max-width: calc(100% - 24px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 24px;
+  background: var(--surface, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* The bar moves off whatever it would cover (LayerDrag.freeSpot). */
+.layer-edit-bar[data-spot^="bottom"] {
+  top: auto;
+  bottom: 12px;
+}
+
+.layer-edit-bar[data-spot$="left"] {
+  right: auto;
+  left: 12px;
+  margin-inline: 0;
+}
+
+.layer-edit-bar[data-spot$="right"] {
+  left: auto;
+  right: 12px;
+  margin-inline: 0;
+}
+
+.layer-edit-hint {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--dim-text);
+}
+
+/* An attached window's bar has nothing to explain until something fails. */
+.layer-edit-hint:empty {
+  display: none;
+}
+
+.layer-edit-bar:has(> .layer-edit-hint:empty) {
+  padding-left: 6px;
+}
+
+/* An attached window can be as narrow as 160 px: its two buttons stack there. */
+.layer-edit-bar:has(> .layer-edit-detach) {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  border-radius: 20px;
+}
+
+.layer-edit-bar > .layer-edit-detach {
+  max-width: 100%;
+  padding-block: 4px;
+}
+
+.layer-edit-done {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--on-accent, #fff);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.layer-edit-add,
+.layer-edit-undo,
+.layer-edit-detach {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-sheet-note {
+  margin: 6px 10px 8px;
+  color: var(--dim-text);
+  line-height: 1.35;
+}
+
+.layer-edit-add[aria-expanded="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+}
+
+/* What "Add" lists, under the bar: one tap places a widget in the middle. */
+.layer-edit-sheet {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(320px, calc(100% - 24px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--surface, var(--panel));
+}
+
+.layer-edit-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-pick:hover,
+.layer-edit-pick:focus-visible {
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.layer-edit-pick > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.layer-edit-pick-thumb {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 60px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim-text);
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.layer-edit-pick-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Widget pages in the edit bar (js/layer-edit-pages.js): a chip per page, the
+   shown one filled; "+" makes a new one. The strip scrolls sideways before the
+   bar would overflow the window. */
+.layer-page-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.layer-page-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.layer-page-chip,
+.layer-page-new {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  max-width: 160px;
+  padding: 0 14px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-page-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.layer-page-chip[aria-pressed="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.layer-page-new.is-icon {
+  justify-content: center;
+  width: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.layer-page-pad {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.layer-page-sheet .layer-page-toggle .layer-page-pad {
+  color: var(--dim-text);
+}
+
+.layer-page-sheet .layer-page-toggle[aria-checked="true"] {
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.layer-page-sheet .layer-page-toggle[aria-checked="true"] .layer-page-pad {
+  color: var(--accent);
+}
+
+.layer-edit-bar[data-spot^="bottom"] ~ .layer-edit-sheet {
+  top: auto;
+  bottom: 64px;
+}
+
+.layer-page-sheet .is-danger {
+  color: rgb(var(--danger-rgb, 255, 107, 107));
+}
+
+/* Narrow windows: the pages get a row of their own under the hint and the
+   buttons, and the open list moves down to stay clear of it. */
+@media (max-width: 640px) {
+  .layer-edit-bar:has(.layer-page-strip) {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    border-radius: 20px;
+  }
+
+  .layer-edit-bar:has(.layer-page-strip) .layer-edit-hint {
+    flex: 1 1 0;
+  }
+
+  .layer-edit-bar .layer-page-strip {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .layer-edit-bar:has(.layer-page-strip) ~ .layer-edit-sheet {
+    top: 108px;
+  }
+
+  .layer-edit-bar[data-spot^="bottom"]:has(.layer-page-strip) ~ .layer-edit-sheet {
+    top: auto;
+    bottom: 108px;
+  }
+}
+
+/* A pinned screenshot (js/layer-pin.js): the picture itself, no tile around it,
+   any size down to a thumbnail. Dragged to move, so it shows the move cursor. */
+.layer-slot:has(> .layer-pin) {
+  --layer-min-w: 48px;
+  --layer-min-h: 32px;
+}
+
+.layer-slot > .layer-pin {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+/* A Deck key on the screen (js/layer-key.js): the key itself, no tile around it,
+   never smaller than a finger. */
+.layer-slot:has(> .layer-key) {
+  --layer-min-w: 44px;
+  --layer-min-h: 44px;
+}
+
+.layer-slot > .layer-key,
+.tabgroup-body > .layer-key {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.layer-key-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.18));
+  border-radius: 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  background: var(--key-bg, var(--surface, var(--panel)));
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.layer-key-btn:active,
+.layer-key.is-pressed .layer-key-btn {
+  transform: scale(0.94);
+}
+
+.layer-key-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.layer-key.is-running .layer-key-btn {
+  opacity: 0.6;
+}
+
+/* Runs nothing yet: the first tap shows what it does. */
+.layer-key.needs-ok .layer-key-btn {
+  border: 1px dashed var(--text);
+}
+
+.layer-key.is-gone .layer-key-btn {
+  color: var(--dim-text);
+  border-style: dashed;
+}
+
+.layer-key.is-failed .layer-key-btn {
+  border-color: var(--red);
+}
+
+.layer-key-ico {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.layer-key-ico img,
+.layer-key-ico svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.layer-key-ico svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+.layer-key-title {
+  display: -webkit-box;
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.layer-key-ico + .layer-key-title {
+  -webkit-line-clamp: 1;
+}
+
+/* What a key does, before the person agrees. On the body, above every slot. */
+.layer-key-sheet {
+  position: fixed;
+  left: var(--key-sheet-x, 8px);
+  top: var(--key-sheet-y, 8px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(520px, calc(100vh - 16px));
+  padding: 14px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: min(16px, var(--radius-modal));
+  color: var(--text);
+  background: var(--surface, var(--panel));
+}
+
+.layer-key-sheet:focus { outline: none; }
+
+.layer-key-sheet-title {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.layer-key-sheet-hint {
+  margin: 0;
+  color: var(--dim-text);
+  line-height: 1.35;
+}
+
+.layer-key-steps {
+  flex: 1 1 auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 0 0 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.layer-key-step {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.layer-key-step-detail {
+  display: block;
+  color: var(--dim-text);
+  font-size: 0.9em;
+}
+
+.layer-key-sheet-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.layer-key-sheet-go,
+.layer-key-sheet-no {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.layer-key-sheet-go {
+  border: none;
+  color: var(--on-accent, #fff);
+  background: var(--accent);
+}
+
+.layer-key-sheet-go:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.layer-key-sheet-no {
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  color: var(--text);
+  background: var(--control-bg, transparent);
+}
+
+/* A pin made a tab in edit mode fills the tab body like any tile. */
+.tabgroup-body > .layer-pin {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.layer-pin.is-moving {
+  cursor: grabbing;
+}
+
+.layer-pin-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.layer-pin-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(20, 20, 20, 0.8);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* Shown while the pointer is on the picture; always on a touch screen. */
+.layer-pin:hover .layer-pin-close,
+.layer-pin-close:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .layer-pin-close {
+    opacity: 1;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.layer-pin-close svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.layer-pin.is-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+}
+
+.layer-pin.is-missing .layer-pin-img {
+  display: none;
+}
+
+.layer-pin-missing {
+  margin: 0;
+  padding: 0 44px 0 12px;
+  color: var(--dim-text);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-pin-close {
+    transition: none;
+  }
+}

@@ -295,6 +295,15 @@ function createEmbeddedBrowser(opts) {
   const dataDir = o.dataDir || path.join(__dirname, 'data');
   const profileDir = path.join(dataDir, 'embedded-browser-profile');
   const idleMs = Number.isFinite(o.idleMs) ? o.idleMs : 15000;
+  // How long a DevTools command may go unanswered (issue #144). Before this,
+  // send() waited forever: an Edge that stayed alive but stopped answering left
+  // every tile on its loading spinner until somebody killed Edge by hand,
+  // because nothing ever failed for the self-healing below to act on.
+  // Navigation gets longer: it answers only once the page has committed, and a
+  // slow site is not a broken browser.
+  const cmdTimeoutMs = Number.isFinite(o.cmdTimeoutMs) ? o.cmdTimeoutMs : 30000;
+  const navTimeoutMs = Number.isFinite(o.navTimeoutMs) ? o.navTimeoutMs : 60000;
+  const probeTimeoutMs = Number.isFinite(o.probeTimeoutMs) ? o.probeTimeoutMs : 5000;
   // Called fresh at each Edge launch → returns the unpacked extension dirs to load
   // (e.g. the opt-in ad-blocker). Read at launch time so a settings toggle takes
   // effect on the next relaunch without touching this module's state.
@@ -693,16 +702,51 @@ function createEmbeddedBrowser(opts) {
     setPageMuted(activeSession(tile), !tile.audible);
   }
 
-  function send(method, params, sessionId) {
+  function send(method, params, sessionId, timeoutMs) {
     return new Promise((resolve, reject) => {
       if (!ws) { reject(new Error('no_socket')); return; }
       const id = nextId++;
-      pending.set(id, { resolve, reject });
+      const sock = ws;
+      const limit = Number.isFinite(timeoutMs) ? timeoutMs
+        : (method === 'Page.navigate' ? navTimeoutMs : cmdTimeoutMs);
+      const timer = setTimeout(() => {
+        if (!pending.has(id)) return;
+        pending.delete(id);
+        reject(new Error('cdp_timeout'));
+        checkAlive(sock);
+      }, limit);
+      timer.unref && timer.unref();
+      pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
+      });
       const frame = { id, method, params: params || {} };
       if (sessionId) frame.sessionId = sessionId;
       try { ws.send(JSON.stringify(frame)); }
-      catch (e) { pending.delete(id); reject(e); }
+      catch (e) { pending.delete(id); clearTimeout(timer); reject(e); }
     });
+  }
+
+  // One command went unanswered. A browser-level question Edge answers at once
+  // when it is alive tells a slow page from a hung browser: only the second is
+  // torn down, and the tile's own retry (browser-tile.js, on any *timeout* error)
+  // then opens on a fresh Edge. One probe at a time, and only for the socket
+  // that timed out, so a teardown already under way is not repeated.
+  let probing = false;
+  function checkAlive(sock) {
+    if (probing || sock !== ws) return;
+    probing = true;
+    send('Browser.getVersion', {}, undefined, probeTimeoutMs).then(
+      () => { probing = false; },
+      () => {
+        probing = false;
+        if (sock !== ws) return;
+        console.warn('[embedded-browser] Edge stopped answering: restarting it');
+        // A reason the tiles' retry recognises (browser-tile.js isLaunchError
+        // matches "closed"), so a tile whose command was cut short reopens too.
+        killBrowser('hung_closed');
+      },
+    );
   }
 
   // Configure a freshly-attached page session: identity spoof, the audio gate, size,

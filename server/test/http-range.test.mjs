@@ -102,3 +102,41 @@ test('the shipped file routes call the helper instead of keeping their own copy'
   assert.ok(!/const suffixLength = match\[1\] === ''/.test(SERVER),
     'an inline Range block is back in server.js — call serveFileRange instead, or the copies drift');
 });
+
+test('a client that aborts mid-download closes the file stream (no fd leak)', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const http = require('http');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-range-'));
+  const file = path.join(dir, 'big.bin');
+  fs.writeFileSync(file, Buffer.alloc(32 * 1024 * 1024, 7));
+  const stat = fs.statSync(file);
+  // Spy on the read stream the responder opens for this request.
+  const realCreate = fs.createReadStream;
+  let opened = null;
+  fs.createReadStream = (...args) => (opened = realCreate.apply(fs, args));
+  const server = http.createServer((req, res) => {
+    serveFileRange(req, res, file, stat, { 'Content-Type': 'application/octet-stream', 'Accept-Ranges': 'bytes' });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  try {
+    await new Promise((resolve) => {
+      const req = http.get(`http://127.0.0.1:${server.address().port}/`, (res) => {
+        res.once('data', () => req.destroy());   // read a little, then hang up
+      });
+      req.on('error', () => {});
+      req.on('close', resolve);
+    });
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('read stream was never closed')), 2000);
+      const check = () => { if (opened && opened.destroyed && opened.closed) { clearTimeout(t); resolve(); } else setTimeout(check, 20); };
+      check();
+    });
+  } finally {
+    fs.createReadStream = realCreate;
+    server.closeAllConnections();
+    server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

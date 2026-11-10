@@ -239,3 +239,32 @@ test('a missing file behind a live entry reads as a miss, not an error', async (
   }
   assert.equal(await store.get('art', 'https://cdn.test/x.jpg'), null);
 });
+
+test('a cache hit does not rewrite the index, but its access time still counts', async () => {
+  const fs = require('node:fs');
+  const root = mkroot();
+  let clock = 1_000_000;
+  const store = ac.createAssetStore({ root, now: () => clock, maxBytesPerPkg: 1e9, maxBytesTotal: 2500 });
+  for (const pkg of ['old', 'mid', 'new']) {
+    await store.put(pkg, 'https://cdn.test/' + pkg + '.jpg', 'image/jpeg', img(1000));
+    clock += 10;
+  }
+  const idx = join(root, 'old', 'index.json');
+  const before = fs.readFileSync(idx, 'utf8');
+  const mtime = fs.statSync(idx).mtimeMs;
+  clock += 1000;
+  for (let i = 0; i < 20; i++) assert.ok(await store.get('old', 'https://cdn.test/old.jpg'));
+  assert.equal(fs.readFileSync(idx, 'utf8'), before, 'hits are not written through one by one');
+  assert.equal(fs.statSync(idx).mtimeMs, mtime);
+  // The sweep folds the pending hit in: "old" is now the most recently used,
+  // so the global cap evicts "mid" instead.
+  await store.sweep();
+  assert.ok(await store.get('old', 'https://cdn.test/old.jpg'), 'the recently used entry survives');
+  assert.equal(await store.get('mid', 'https://cdn.test/mid.jpg'), null);
+  // And flush() persists what is pending.
+  clock += 5;
+  await store.get('new', 'https://cdn.test/new.jpg');
+  await store.flush();
+  const saved = JSON.parse(fs.readFileSync(join(root, 'new', 'index.json'), 'utf8'));
+  assert.equal(Object.values(saved.entries)[0].lastUsedAt, clock);
+});

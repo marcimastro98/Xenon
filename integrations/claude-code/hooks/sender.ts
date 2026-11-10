@@ -6,15 +6,22 @@ import type { XenonLink } from './link'
 // longer than REQUEST_TIMEOUT_MS is given up on, and a hub that is off is
 // retried on a growing backoff instead of on every event.
 export type Message =
-  | { kind: 'hello'; model?: string }
+  | { kind: 'hello'; model?: string; effort?: string }
   | { kind: 'measure'; contextPct?: number; costUsd?: number; rateLimits: RateLimit[] }
-  | { kind: 'agent'; agentId: string; type: string; model: string }
+  // A subagent as it starts: its type, its model and the short label its
+  // spawner gave it (the Agent call's description, never its prompt).
+  | { kind: 'agent'; agentId: string; type: string; model: string; description?: string }
+  // How a subagent is going: numbers and levels only.
+  | { kind: 'agentStat'; agentId: string; effort?: string; tokens?: number; done?: boolean }
+  // The slash commands this session lists (names and one line each), so the
+  // tile's "/" list is the terminal's own.
+  | { kind: 'commands'; commands: { name: string; description: string }[] }
   // Whether a tile message from the inbox got in: a code, never its text.
   | { kind: 'delivery'; ok: boolean; reason?: 'dropped' | 'refused' }
 
 export type RateLimit = { kind: string; percentUsed: number; resetsAt?: string }
 
-export type Reply = { hub?: string; tile?: boolean }
+export type Reply = { hub?: string; tile?: boolean; needCommands?: boolean }
 
 // The host calls the mod needs, bound by the hook that builds them.
 export type Io = {
@@ -52,10 +59,13 @@ export function createSender(version: string, now: () => number = Date.now) {
   let failures = 0
   let retryAt = 0
   let last: { result: SendResult | ''; okAt: number } = { result: '', okAt: 0 }
+  let wantsCommands = false
 
   function enqueue(msg: Message) {
     // Only the newest measure matters; agents and hellos are kept in order.
-    if (msg.kind === 'measure') queue = queue.filter(m => m.kind !== 'measure')
+    if (msg.kind === 'measure' || msg.kind === 'commands') queue = queue.filter(m => m.kind !== msg.kind)
+    // One pending stat per agent: only its newest figures matter.
+    if (msg.kind === 'agentStat') queue = queue.filter(m => !(m.kind === 'agentStat' && m.agentId === msg.agentId))
     queue.push(msg)
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE)
   }
@@ -77,8 +87,10 @@ export function createSender(version: string, now: () => number = Date.now) {
       link = link || await io.readLink()
       if (!link) return settle('unpaired')
       while (queue.length) {
-        const { result } = await request(io, link, { v: PROTOCOL, version, sessionId, ...queue[0] })
+        const { result, reply } = await request(io, link, { v: PROTOCOL, version, sessionId, ...queue[0] })
         if (result !== 'ok') return settle(result)
+        // A list already on its way answers the question.
+        if (reply?.needCommands && !queue.some(m => m.kind === 'commands')) wantsCommands = true
         queue.shift()
       }
       settle('ok')
@@ -92,5 +104,7 @@ export function createSender(version: string, now: () => number = Date.now) {
     flush,
     setSession(id: string) { sessionId = id },
     status: () => ({ ...last, queued: queue.length }),
+    // Xenon lost this session's command list (it restarted): true once, then clears.
+    takeWantsCommands() { const w = wantsCommands; wantsCommands = false; return w },
   }
 }

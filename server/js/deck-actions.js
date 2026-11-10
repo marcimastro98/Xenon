@@ -6,19 +6,20 @@
 // param.kind: 'text' | 'path' | 'url' | 'color' | 'select' (select carries
 //             `options`) | 'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' |
 //             'sbAction' | 'sbCodeTrigger' | 'discordChannel' | 'discordSound' |
-//             'haEntity' | 'wlChannel' | 'lightDevice' | 'sound' (picker controls).
+//             'haEntity' | 'wlChannel' | 'lightDevice' | 'lightPart' | 'sound' (picker controls) |
+//             'hidden' (no control: another param's picker sets it).
 
 const ACTION_CATALOG = [
-  { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
-  { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
-  { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
-  { type: 'openStoreApp', group: 'system', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
+  { type: 'openApp',  group: 'launch', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
+  { type: 'openFile', group: 'launch', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
+  { type: 'runScript', group: 'launch', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
+  { type: 'openStoreApp', group: 'launch', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
   // Launch a Steam game by its numeric AppID via the steam://rungameid/<id> deep
   // link (the canonical launcher route — goes through the Steam client/overlay,
   // unlike a raw steam.exe -applaunch, which openApp can't pass args to anyway).
   // The id is validated to digits-only in the server registry before use.
-  { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
-  { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
+  { type: 'launchSteamGame', group: 'launch', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
+  { type: 'openUrl',  group: 'launch', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   // `keys`, not `powershell`: sending a combo is a CAPABILITY, and since v4.11.0
   // it exists on macOS (helper `keys`) and on X11/ydotool Linux too. Spelling it
   // `powershell` hid a working key on two platforms — the exact trap the
@@ -30,15 +31,19 @@ const ACTION_CATALOG = [
   // The paired phone. `requires: 'phone'` names a CAPABILITY — "is there a
   // phone this machine can dial through" — rather than an OS by proxy, so the
   // key disappears where the answer is no instead of failing when pressed.
-  { type: 'phoneCall', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
-  { type: 'phoneMessage', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
+  { type: 'phoneCall', group: 'phone', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
+  { type: 'phoneMessage', group: 'phone', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   // Turn the dashboard to one of its own pages: a page id, or next / prev / back.
   // Runs in the browser that pressed the key (deck.js) so only THAT screen turns;
   // a surface with no pager (the Virtual Deck window) falls through to the server
   // registry, which relays it to every dashboard like a global page shortcut.
-  { type: 'dashboardPage', group: 'system', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
-  { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
+  { type: 'dashboardPage', group: 'xenon', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
+  // A named on/off the Deck itself owns (the same map /state/set writes): keys
+  // bound to it light up on every screen, so one key can switch another, and
+  // keys sharing a name with different values work as a radio group.
+  { type: 'deckState', group: 'xenon', labelKey: 'deck_act_deckState', params: [{ name: 'name', kind: 'text', maxLen: 64, labelKey: 'deck_param_state_name' }, { name: 'mode', kind: 'select', options: ['toggle', 'set', 'clear'] }, { name: 'value', kind: 'text', optional: true, maxLen: 200, labelKey: 'deck_param_state_value' }] },
+  { type: 'webhook',  group: 'launch', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // SDK-only absolute timeline seek. A separate hidden type keeps the Deck
   // editor's ordinary transport control free of a position field while still
@@ -59,6 +64,10 @@ const ACTION_CATALOG = [
   { type: 'stopwatchStart', group: 'timer', labelKey: 'deck_act_stopwatchStart', params: [{ name: 'label', kind: 'text' }, { name: 'everyMinutes', kind: 'text', optional: true, labelKey: 'deck_param_every_minutes' }] },
   { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
+  // Vitals: mark a meter done from a key. The server writes it with the same
+  // math as a tap on the bar or telling Bit (js/vitals-core.js refillPatch).
+  { type: 'vitalsRefill', group: 'vitals', labelKey: 'deck_act_vitalsRefill', params: [{ name: 'vital', kind: 'select', options: ['hydration', 'energy', 'stamina', 'focus', 'posture', 'all'], strict: true,
+    optionKeys: { hydration: 'vitals_hydration', energy: 'vitals_energy', stamina: 'vitals_stamina', focus: 'vitals_focus', posture: 'vitals_posture' } }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   // 'set' (+ value 0–100) is appended LAST: options[0] stays the legacy default.
   { type: 'volume',   group: 'audio',  labelKey: 'deck_act_volume',   params: [{ name: 'mode', kind: 'select', options: ['mute', 'up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
@@ -123,6 +132,9 @@ const ACTION_CATALOG = [
   // roster carries and a Deck key saved days earlier does not.
   { type: 'discordUserVol',  group: 'discord', hidden: true, labelKey: 'deck_act_discordUserVol',  params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'discordUserMute', group: 'discord', hidden: true, labelKey: 'deck_act_discordUserMute', params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
+  // Show one conversation in the Discord app on this PC. SDK-only (hidden) for the
+  // same reason: a mirrored message carries the channel id, a Deck key would not.
+  { type: 'discordOpenChat', group: 'discord', hidden: true, labelKey: 'deck_act_discordOpenChat', params: [{ name: 'channel', kind: 'text', maxLen: 25 }] },
   { type: 'discordAudioToggle', group: 'discord', labelKey: 'deck_act_discordAudioToggle', params: [{ name: 'feature', kind: 'select', options: ['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos'] }] },
   { type: 'discordSoundboard',  group: 'discord', labelKey: 'deck_act_discordSoundboard',  params: [{ name: 'sound', kind: 'discordSound' }] },
   { type: 'spotifyPlay',     group: 'spotify', labelKey: 'deck_act_spotifyPlay',     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'play', 'pause'] }] },
@@ -139,9 +151,9 @@ const ACTION_CATALOG = [
   { type: 'spotifyDevice',   group: 'spotify', labelKey: 'deck_act_spotifyDevice',   params: [{ name: 'device', kind: 'text' }] },
   { type: 'haToggle',      group: 'homeassistant', labelKey: 'deck_act_haToggle',      params: [{ name: 'entity', kind: 'haEntity' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'haLight',       group: 'homeassistant', labelKey: 'deck_act_haLight',       params: [{ name: 'entity', kind: 'haEntity', domain: 'light' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'brighter', 'dimmer', 'brightness', 'kelvin'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'haMedia',       group: 'homeassistant', labelKey: 'deck_act_haMedia',       params: [{ name: 'entity', kind: 'haEntity', domain: 'media_player' }, { name: 'cmd', kind: 'select', options: ['playpause', 'next', 'previous', 'stop', 'volume_up', 'volume_down', 'mute', 'unmute', 'volume_set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'haMedia',       group: 'homeassistant', labelKey: 'deck_act_haMedia',       params: [{ name: 'entity', kind: 'haEntity', domain: 'media_player' }, { name: 'cmd', kind: 'select', strict: true, options: ['playpause', 'next', 'previous', 'stop', 'volume_up', 'volume_down', 'mute', 'unmute', 'volume_set', 'on', 'off', 'source', 'sound_mode', 'seek', 'shuffle', 'repeat'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'haCover',       group: 'homeassistant', labelKey: 'deck_act_haCover',       params: [{ name: 'entity', kind: 'haEntity', domain: 'cover' }, { name: 'cmd', kind: 'select', options: ['open', 'close', 'stop', 'toggle', 'position'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'haClimate',     group: 'homeassistant', labelKey: 'deck_act_haClimate',     params: [{ name: 'entity', kind: 'haEntity', domain: 'climate' }, { name: 'mode', kind: 'select', options: ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only', 'temperature'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'haClimate',     group: 'homeassistant', labelKey: 'deck_act_haClimate',     params: [{ name: 'entity', kind: 'haEntity', domain: 'climate' }, { name: 'mode', kind: 'select', strict: true, options: ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only', 'heat_cool', 'temperature', 'range', 'fan_mode', 'swing_mode', 'preset', 'humidity'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'haFan',         group: 'homeassistant', labelKey: 'deck_act_haFan',         params: [{ name: 'entity', kind: 'haEntity', domain: 'fan' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'haVacuum',      group: 'homeassistant', labelKey: 'deck_act_haVacuum',      params: [{ name: 'entity', kind: 'haEntity', domain: 'vacuum' }, { name: 'cmd', kind: 'select', options: ['start', 'pause', 'stop', 'return', 'locate'] }] },
   { type: 'haLock',        group: 'homeassistant', labelKey: 'deck_act_haLock',        params: [{ name: 'entity', kind: 'haEntity', domain: 'lock' }, { name: 'mode', kind: 'select', options: ['lock', 'unlock'] }] },
@@ -150,7 +162,7 @@ const ACTION_CATALOG = [
   { type: 'haScript',      group: 'homeassistant', labelKey: 'deck_act_haScript',      params: [{ name: 'entity', kind: 'haEntity', domain: 'script' }] },
   { type: 'haButton',      group: 'homeassistant', labelKey: 'deck_act_haButton',      params: [{ name: 'entity', kind: 'haEntity', domain: 'button' }] },
   { type: 'haCallService', group: 'homeassistant', labelKey: 'deck_act_haCallService', params: [{ name: 'service', kind: 'text' }, { name: 'entity', kind: 'text' }, { name: 'data', kind: 'text' }] },
-  { type: 'windowMove',    group: 'window', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
+  { type: 'windowMove',    group: 'system', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
   { type: 'remoteDisconnect',  group: 'remote', labelKey: 'deck_act_remoteDisconnect',  params: [] },
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
@@ -238,15 +250,52 @@ const ACTION_CATALOG = [
   { type: 'lightColor',  group: 'lighting', labelKey: 'deck_act_lightColor',  params: [{ name: 'color', kind: 'color' }] },
   { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
   { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
-  { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightPart',   group: 'lighting', labelKey: 'deck_act_lightPart',   params: [{ name: 'device', kind: 'hidden', maxLen: 160 }, { name: 'part', kind: 'lightPart' }, { name: 'color', kind: 'color' }] },
   // SignalRGB scene switcher — separate from the colour-lighting actions above
   // (it applies a named SignalRGB effect via its launcher, not a per-LED colour).
   // Shown only when SignalRGB is enabled in Settings → Lighting (gated in the editor).
   { type: 'signalRgbEffect', group: 'lighting', labelKey: 'deck_act_signalRgbEffect', params: [{ name: 'effect', kind: 'signalRgbEffect' }] },
 ];
 
+// The single-screen capabilities (js/capability-catalog.js) are Deck actions
+// too, so they validate here and run through the same server registry. The
+// browser loads that file first; an old cached page without it simply has none.
+const CAPABILITY_ACTIONS = (typeof module !== 'undefined' && module.exports)
+  ? require('./capability-catalog.js').CAPABILITIES
+  : ((typeof window !== 'undefined' && window.CapabilityCatalog && window.CapabilityCatalog.CAPABILITIES) || []);
+ACTION_CATALOG.push(...CAPABILITY_ACTIONS);
+
 function actionSpec(type) {
   return ACTION_CATALOG.find(a => a.type === type) || null;
+}
+
+// Params that only mean something on one person's own PC or account: an install
+// path (it names their user folder), a phone number, a device id, a webhook (its
+// token usually sits in the URL), an alarm code. A shared Deck profile carries
+// them empty (preset-share.js), and the FIRST one listed is what the action
+// cannot run without; a webhook's body or a third audio device are extras.
+const PERSONAL_PARAMS = Object.freeze({
+  openApp: ['path'], openFile: ['path'],
+  phoneCall: ['number'], phoneMessage: ['number'],
+  webhook: ['url', 'body'],
+  haAlarm: ['code'],
+  audioDevice: ['device'], audioDeviceFirst: ['device1', 'device2', 'device3'], audioDeviceToggle: ['deviceA', 'deviceB'],
+  spotifyDevice: ['device'],
+  discordUserVol: ['user'], discordUserMute: ['user'],
+  claudeAsk: ['projectId'],
+  wlOutputDevice: ['deviceId'],
+  lightDevice: ['device'], lightPart: ['device'],
+});
+
+// True for a validated action that is still waiting for its owner's own app,
+// file, number or device, as an imported key arrives. A playSound without a
+// file is the same case (a shared key keeps only sound-pack clips).
+function needsSetup(action) {
+  if (!action || typeof action !== 'object') return false;
+  if (action.type === 'playSound') return !String(action.file || '').trim();
+  const needed = (PERSONAL_PARAMS[action.type] || [])[0];
+  return !!needed && !String(action[needed] || '').trim();
 }
 
 // Explorer's "Copy as path" (Shift+right-click, and the Windows 11 context menu)
@@ -267,7 +316,7 @@ function unquotePath(value) {
 }
 
 // Return a clean action with ONLY the params its spec allows, or null if the
-// type is unknown. select → coerced to a valid option; text/url/path → string,
+// type is unknown or a `strict` select holds a value it does not list. select → coerced to a valid option; text/url/path → string,
 // capped. This is the single source of truth the server registry will reuse.
 function validateAction(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -277,7 +326,17 @@ function validateAction(raw) {
   for (const p of spec.params) {
     let v = raw[p.name];
     if (p.kind === 'select') {
-      v = (typeof v === 'string' && p.options.includes(v)) ? v : p.options[0];
+      // An `optional` select left out stays out: the action reads "not said", which
+      // is not the same as its first option.
+      if (p.optional && (v == null || v === '')) continue;
+      // `strict`: an unknown value makes the whole action invalid instead of
+      // falling back to the first option. For a thermostat that option is 'off',
+      // and a typo or a newer client's mode must never switch the heating off.
+      // `keeps`: values the server's own actions may carry and nobody is offered:
+      // not in the Deck editor, not in the AI's list, not in a widget's limits.
+      const known = typeof v === 'string' && (p.options.includes(v) || (p.keeps || []).includes(v));
+      if (p.strict && !known) return null;
+      v = known ? v : p.options[0];
     } else {
       v = String(v == null ? '' : v);
       if (p.kind === 'path') v = unquotePath(v);
@@ -289,6 +348,17 @@ function validateAction(raw) {
     out[p.name] = v;
   }
   return out;
+}
+
+// How a key was pressed when it ran a widget's handler: the trigger slot that
+// ran, and for a cycle key the state (1-based) whose action it was. Anything
+// else is dropped, so a handler only ever sees one of these shapes.
+const KEY_GESTURES = ['tap', 'tapOff', 'double', 'hold', 'press', 'release', 'repeat', 'cycle'];
+function validateGesture(raw) {
+  if (!raw || typeof raw !== 'object' || !KEY_GESTURES.includes(raw.type)) return null;
+  if (raw.type !== 'cycle') return { type: raw.type };
+  const state = Math.round(Number(raw.state));
+  return { type: 'cycle', state: Number.isFinite(state) ? Math.max(1, Math.min(8, state)) : 1 };
 }
 
 function clampDelay(value) {
@@ -329,8 +399,8 @@ function compactTrigger(steps) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath, PERSONAL_PARAMS, needsSetup };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  module.exports = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath, PERSONAL_PARAMS, needsSetup };
 }

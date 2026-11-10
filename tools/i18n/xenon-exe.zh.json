@@ -1,6 +1,6 @@
 {
   "zh": {
-    "meta.title": "xenon.exe 安全吗？Xenon 在 Windows 上运行的进程",
+    "meta.title": "xenon.exe 安全吗？Xenon 的 Windows 进程",
     "meta.desc": "Xenon 不会安装名为 xenon.exe 的文件。本页介绍它在 Windows 上实际运行什么、每个文件在哪里，以及如何用签名的校验和进行核对。",
     "exe.h1": "xenon.exe",
     "exe.lede": "如果你在电脑上发现了一个陌生的进程，并搜索了它的名字，那么最常见的正确答案放在最前面：它很可能不是来自 Xenon。",
@@ -24,7 +24,7 @@
     "exe.row.node": "仪表盘引擎。Xenon 是一个本地网页应用，所以提供它的就是普通的 Node.js，监听 <code>127.0.0.1:3030</code>，这个地址只有本机能访问。如果你在“设置”中开启了手机访问，它还会在你的局域网中监听，好让你配对的手机和平板能连上它。",
     "exe.list.where": "它们位于你的用户配置文件下的两个文件夹中，从不放在 Windows 系统目录里：<code>%LOCALAPPDATA%\\Xenon</code> 和 <code>%LOCALAPPDATA%\\Programs\\Xenon</code>。一个按登录触发的计划任务会在你登录时以你自己的账户启动引擎。如果你在安装时接受了管理员提示，这个任务会以提升的权限运行，这样它才能读取温度；没有任何东西作为 Windows 服务安装。",
     "exe.list.tools": "此外还有 Xenon 为特定功能运行的工具，每个都来自各自的开发者，而不是本项目，并且只在需要它的功能开启时才运行：",
-    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong> 和 <strong>PawnIO</strong> 通过 winget 安装，用于读取 CPU 和磁盘温度。PawnIO 是一个已签名的内核驱动，用来取代 WinRing0，后者是大多数旧式硬件监控软件被误报的根源。Xenon 从未附带过 WinRing0，将来也不会。",
+    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong> 和 <strong><a href=\"pawnio.html\">PawnIO</a></strong> 通过 winget 安装，用于读取 CPU 和磁盘温度。PawnIO 是一个已签名的内核驱动，用来取代 WinRing0，后者是大多数旧式硬件监控软件被误报的根源。Xenon 从未附带过 WinRing0，将来也不会。",
     "exe.tool.presentmon": "<strong>PresentMon</strong> 是 Intel 的帧时间工具，下载到 Xenon 自己的文件夹中，用于游戏内的真实帧率计数器。",
     "exe.tool.ffmpeg": "<strong>FFmpeg</strong> 用于语音输入和语音回复；<strong>Ollama</strong> 只在你把助手切换到免费的本地服务时才需要。安装程序不会下载这两者；需要时你可以在“设置”中安装。",
     "exe.tool.sunshine": "<strong>Sunshine</strong> 和 <strong>Tailscale</strong>，只在你开启远程控制电脑时才会用到。",

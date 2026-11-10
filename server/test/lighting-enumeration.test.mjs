@@ -29,7 +29,7 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const src = readFileSync(join(ROOT, 'server', 'lighting.js'), 'utf8');
-const { _enumerationComplete: complete } = createRequire(import.meta.url)(join(ROOT, 'server', 'lighting.js'));
+const { _enumerationComplete: complete, _boardsToWake: toWake } = createRequire(import.meta.url)(join(ROOT, 'server', 'lighting.js'));
 
 const dev = (id, ledCount, ledIds) => ({ id, model: id, type: 1, ledCount, ledIds });
 
@@ -102,4 +102,14 @@ test('devices that register after the initial enumeration are picked up', () => 
   // The rescan must stay gated on wantsPaint() via maybeReenumerate, so an idle
   // bridge keeps costing nothing.
   assert.match(src, /function maybeReenumerate\(\) \{\s*if \(!wantsPaint\(\)\) return;/);
+});
+
+test('only a motherboard with real LEDs, not opted out and not woken yet, gets the wake', () => {
+  const board = { id: 'mb', type: 0x200, ledIds: [1] };
+  const ram = { id: 'ram', type: 0x80, ledIds: [1] };
+  const ids = (list) => list.map(d => d.id);
+  assert.deepEqual(ids(toWake([ram, board], {}, new Set())), ['mb']);
+  assert.deepEqual(ids(toWake([board], { mb: false }, new Set())), []);
+  assert.deepEqual(ids(toWake([board], {}, new Set(['mb']))), []);
+  assert.deepEqual(ids(toWake([{ ...board, ledIds: [] }], {}, new Set())), []);
 });

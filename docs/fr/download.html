@@ -36,9 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -46,16 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Télécharger Xenon : dashboard tactile gratuit pour Windows, Mac, Linux</title>
-<meta name="description" content="Téléchargez la dernière version de Xenon : installateur Windows, application universelle macOS, AppImage Linux, deb ou rpm. Configuration initiale, avertissements SmartScreen, checksums signés.">
+<meta name="theme-color" content="#6EE787">
+<title>Télécharger Xenon pour Windows, macOS et Linux (gratuit)</title>
+<meta name="description" content="Installateur Xenon pour Windows ou Microsoft Store. App universelle macOS et Linux AppImage, deb, rpm (bêta). Sommes de contrôle signées et premier lancement.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Télécharger Xenon : dashboard tactile gratuit pour Windows, Mac, Linux">
-<meta property="og:description" content="Téléchargez la dernière version de Xenon : installateur Windows, application universelle macOS, AppImage Linux, deb ou rpm. Configuration initiale, avertissements SmartScreen, checksums signés.">
+<meta property="og:title" content="Télécharger Xenon pour Windows, macOS et Linux (gratuit)">
+<meta property="og:description" content="Installateur Xenon pour Windows ou Microsoft Store. App universelle macOS et Linux AppImage, deb, rpm (bêta). Sommes de contrôle signées et premier lancement.">
 <meta property="og:type" content="article">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:url" content="https://xenon-app.com/fr/download.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Télécharger Xenon pour Windows, macOS et Linux (gratuit)">
+<meta name="twitter:description" content="Installateur Xenon pour Windows ou Microsoft Store. App universelle macOS et Linux AppImage, deb, rpm (bêta). Sommes de contrôle signées et premier lancement.">
 <link rel="canonical" href="https://xenon-app.com/fr/download.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html">
@@ -65,44 +67,27 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/download.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/download.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/download.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Où puis-je télécharger Xenon ?","acceptedAnswer":{"@type":"Answer","text":"À partir des liens de cette page, qui pointent toujours vers la dernière version publiée sur GitHub : Xenon-Setup-x64.exe pour Windows, Xenon-macOS-universal.dmg pour macOS, et un AppImage, .deb ou .rpm pour Linux."}},{"@type":"Question","name":"Xenon est-il gratuit à télécharger ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Il n'existe pas de version payante, ni de compte. Le code source est public sur GitHub sous une licence non commerciale."}},{"@type":"Question","name":"Pourquoi Windows me met-il en garde concernant l’installateur Xenon ?","acceptedAnswer":{"@type":"Answer","text":"Car Microsoft accorde la réputation SmartScreen au fil du temps. L'installateur Windows est signé, de sorte que Windows affiche un éditeur vérifié, mais SmartScreen peut toujours afficher un avertissement pendant un certain temps : cliquez sur Plus d'informations, puis sur Exécuter quand même. Chaque version est également livrée avec un fichier SHA256SUMS signé afin que vous puissiez vérifier le téléchargement vous-même."}},{"@type":"Question","name":"Xenon se met-il à jour ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Il vérifie la présence d'une nouvelle version au démarrage et se met à jour automatiquement."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Où puis-je télécharger Xenon ?","acceptedAnswer":{"@type":"Answer","text":"À partir des liens de cette page, qui pointent toujours vers la dernière version publiée sur GitHub : Xenon-Setup-x64.exe pour Windows, Xenon-macOS-universal.dmg pour macOS, et un AppImage, .deb ou .rpm pour Linux."}},{"@type":"Question","name":"Xenon est-il gratuit à télécharger ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Il est gratuit, sans licence à acheter et sans compte. Le code source est public sur GitHub sous une licence non commerciale."}},{"@type":"Question","name":"Pourquoi Windows me met-il en garde concernant l’installateur Xenon ?","acceptedAnswer":{"@type":"Answer","text":"Car Microsoft accorde la réputation SmartScreen au fil du temps. L'installateur Windows est signé, de sorte que Windows affiche un éditeur vérifié, mais SmartScreen peut toujours afficher un avertissement pendant un certain temps : cliquez sur Plus d'informations, puis sur Exécuter quand même. Chaque version est également livrée avec un fichier SHA256SUMS signé afin que vous puissiez vérifier le téléchargement vous-même."}},{"@type":"Question","name":"Xenon se met-il à jour ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Il vérifie la présence d'une nouvelle version au démarrage et se met à jour automatiquement."}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
-  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
-  .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
-<style id="dl-mark">
-  /* The visitor's own system, marked and lit like the Deck key on the home. */
-  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
-  .pick.is-you * { color: #fff !important; }
-  .pick .you { display: inline-block; margin-left: 8px; font: 700 15px/1 var(--sans); padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,.18); }
-</style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
 </head>
-<body>
+<body data-sheet="green">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
+    <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/fr/#support" data-xl="supporters">Supporters</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrez-moi un café</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>FR</span></summary><ul><li><a href="/download.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/download.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/download.html" hreflang="fr" lang="fr" aria-current="page">Français <span>FR</span></a></li><li><a href="/it/download.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/download.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/download.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/download.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Télécharger</a>
@@ -111,10 +96,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Fermer</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/fr/#screens" data-xl="screens">Écrans</a></li><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/fr/#support" data-xl="supporters">Supporters</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/fr/#install" data-xl="install">Installer</a>
       <ul class="xh-mlinks">
@@ -128,19 +113,53 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/download.html" aria-current="page" data-xl="f.download">Télécharger</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Télécharger","item":"https://xenon-app.com/fr/download.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="dl.h1">Télécharger Xenon</h1>
-    <p class="lede" data-i18n="dl.lede">La dernière version pour chaque plateforme, directement depuis GitHub. Gratuit, sans compte, et elle se met à jour automatiquement ensuite.</p>
-    <p class="updated" data-i18n-html="dl.updated">Dernière mise à jour : 26 septembre 2026. Chaque lien pointe vers <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la dernière version</a>.</p>
-
-    <div class="dl">
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req" data-i18n="dl.win.req">Windows 10 ou 11, 64 bits. Installe l'application et la démarre à la connexion.</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small data-i18n="dl.beta">beta</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req" data-i18n="dl.mac.req">macOS 11 ou version ultérieure. Apple Silicon et Intel dans un seul fichier.</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small data-i18n="dl.beta">beta</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n="dl.linux.req">Tout bureau x86_64. Disponible également en .deb et .rpm sur la page Linux.</span></a>
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w wide">
+    <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/download.html" aria-current="page" data-xl="f.download">Télécharger</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Télécharger","item":"https://xenon-app.com/fr/download.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="dl.h1">Télécharger Xenon</h1>
+        <p class="lede" data-i18n="dl.lede">La dernière version pour chaque plateforme, directement depuis GitHub. Gratuit, sans compte, et elle se met à jour automatiquement ensuite.</p>
+        <p class="updated" data-i18n-html="dl.updated">Dernière mise à jour : 16 octobre 2026. Chaque lien pointe vers <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la dernière version</a>.</p>
     </div>
-    <p class="note" data-i18n-html="dl.note.linux"><a href="/fr/linux.html">Xenon sur Linux</a> : les paquets .deb et .rpm, la configuration effectuée lors du premier lancement, ainsi qu'un tableau des fonctionnalités prises en charge et de celles qui ne le sont pas encore.</p>
-    <p class="note" data-i18n-html="dl.note.all">Chaque fichier ci-dessus est la dernière version, directement issue de GitHub. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">Tous les fichiers de cette version</a>, y compris les checksums, sont disponibles sur la page de la version.</p>
+    <div class="oses">
+      <div class="os-col pick" data-os="windows">
+        <svg class="os-bit" id="os-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true">
+          <path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/>
+          <path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/>
+        </svg>
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.2 10.4 4.2v7H3zM11.4 4 21 2.7v8.5h-9.6zM3 12.3h7.4v7L3 18.3zM11.4 12.3H21v8.9l-9.6-1.3z"/></svg>Windows</h2>
+        <p data-i18n="dl.win.req">Windows 10 ou 11, 64 bits. Installe l'application et la démarre à la connexion.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win" data-i18n="dl.win.key">Télécharger pour Windows</a>
+        <span class="file">Xenon-Setup-x64.exe</span>
+        <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="download_page"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="Obtenir Xenon sur le Microsoft Store" data-i18n-alt="dl.store.alt"></a>
+      </div>
+      <div class="os-col" data-os="macos">
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS<span class="beta-pill" data-i18n="dl.beta">Beta</span></h2>
+        <p data-i18n="dl.mac.req">macOS 11 ou version ultérieure. Apple Silicon et Intel dans un seul fichier.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac" data-i18n="dl.mac.key">Télécharger pour macOS</a>
+        <span class="file">Xenon-macOS-universal.dmg</span>
+        <p class="os-more"><a href="/fr/mac.html" data-i18n="dl.mac.guide">Guide Mac</a></p>
+      </div>
+      <div class="os-col" data-os="linux">
+        <h2><img src="/images/os/tux.webp" width="76" height="88" alt="">Linux<span class="beta-pill" data-i18n="dl.beta">Beta</span></h2>
+        <p data-i18n="dl.linux.req">Tout bureau x86_64. Disponible également en .deb et .rpm.</p>
+        <a class="pg-key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux" data-i18n="dl.linux.key">Télécharger pour Linux</a>
+        <span class="file">Xenon-Linux-x86_64.AppImage</span>
+        <p class="os-more"><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="download_page_linux_deb">.deb</a><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="download_page_linux_rpm">.rpm</a><a href="/fr/linux.html" data-i18n="dl.linux.guide">Guide Linux</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="pg-body">
+  <nav class="jump" aria-labelledby="jump-h">
+    <p id="jump-h" data-xl="onpage">Sur cette page</p>
+    <a href="#after" data-i18n="dl.h.after">Configuration initiale</a>
+    <a href="#warning" data-i18n="dl.h.warning">Avertissements Windows et macOS</a>
+    <a href="#verify" data-i18n="dl.h.verify">Vérification du téléchargement</a>
+    <a href="#other" data-i18n="dl.h.other">Autres méthodes d'installation</a>
+  </nav>
+  <div class="wrap">
+    <p class="note" data-i18n-html="dl.note.all"><a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">Tous les fichiers de cette version</a>, y compris les checksums, sont disponibles sur la page de la version.</p>
 
     <h2 id="after" data-i18n="dl.h.after">Configuration initiale</h2>
     <p data-i18n-html="dl.after.win"><strong>Windows.</strong> Lancez l’installateur. Il installe l’application, qui s’ouvre d’elle-même, ne trouve pas encore de moteur dashboard et propose <strong>Configuration complète</strong>. Cliquez dessus une fois : une fenêtre s’ouvre et installe Node.js, les lecteurs de capteurs et la tâche qui démarre Xenon lors de votre connexion, en vous affichant chaque étape. Le téléchargement est vérifié par rapport à la clé de signature du projet avant que quoi que ce soit ne s’exécute. Cela prend quelques minutes et n’a lieu qu’une seule fois.</p>
@@ -149,17 +168,23 @@
 
     <h2 id="warning" data-i18n="dl.h.warning">Avertissements Windows et macOS</h2>
     <p data-i18n-html="dl.warn.win">Depuis la version 4.11.9, l’installateur Windows est signé, ce qui permet à Windows d’afficher un éditeur vérifié. SmartScreen peut toujours afficher un avertissement pendant un certain temps, car Microsoft accorde une réputation au fil du temps : cliquez sur <strong>Plus d’informations</strong>, puis sur <strong>Exécuter quand même</strong>. Defender évalue également ce qu’un programme fait, et pas seulement qui l’a signé, donc une détection peut toujours se produire. La <a href="/fr/faq.html#warnings">FAQ explique chaque type d’avertissement</a> et comment récupérer le fichier; <a href="/fr/xenon-exe.html">cette page répertorie tous les processus que Xenon exécute</a>, pour le lecteur qui souhaite savoir exactement ce qui est installé.</p>
-    <p data-i18n-html="dl.warn.mac"><strong>macOS.</strong> La version Mac est beta et non notarisée, macOS refuse donc le premier lancement. Ouvrez <strong>Réglages Système, Confidentialité et sécurité</strong>, faites défiler vers le bas et cliquez sur <strong>Ouvrir quand même</strong> à côté de Xenon. Sur macOS 15 et versions ultérieures, la méthode d’ouverture par clic avec le contrôle ne fonctionne plus.</p>
+    <p data-i18n-html="dl.warn.mac"><strong>macOS.</strong> La version Mac est beta. Depuis la 5.0, elle est notarisée par Apple : au premier lancement, macOS demande seulement une fois si vous voulez ouvrir une application téléchargée sur Internet. Cliquez sur <strong>Ouvrir</strong>. Si macOS indique qu'il ne peut pas vérifier Xenon, cette copie est antérieure à la 5.0 : téléchargez le dernier .dmg.</p>
 
     <h2 id="verify" data-i18n="dl.h.verify">Vérification du téléchargement</h2>
     <p data-i18n-html="dl.verify.p1">Chaque version est accompagnée d'un fichier <code>SHA256SUMS</code> signé avec la clé Ed25519 du projet. Comparez l'empreinte numérique de ce que vous avez téléchargé :</p>
-    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
-shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
-sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
+    <pre><code># Windows, PowerShell
+Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256
+
+# macOS
+shasum -a 256 Xenon-macOS-universal.dmg
+
+# Linux
+sha256sum Xenon-Linux-x86_64.AppImage</code></pre>
     <p data-i18n-html="dl.verify.p2">S'il correspond à la ligne pour ce fichier dans le <code>SHA256SUMS</code> de la version, le fichier est identique, octet par octet, à celui que GitHub Actions a compilé à partir du code source public à ce tag. Sur Windows, vous pouvez également faire un clic droit sur l'installateur, choisir <strong>Propriétés</strong> et ouvrir l'onglet <strong>Signatures numériques</strong> pour voir l'éditeur.</p>
 
     <h2 id="other" data-i18n="dl.h.other">Autres méthodes d'installation</h2>
     <p data-i18n-html="dl.other.source"><strong>À partir de la source.</strong> Téléchargez le <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">zip du code source</a> de la version, extrayez-le et exécutez <code>INSTALL.bat</code> sous Windows, <code>INSTALL.command</code> sous macOS ou <code>./INSTALL.sh</code> sous Linux. Résultat identique à celui de l'installateur, pour ceux qui préfèrent lire ce qui s'exécute.</p>
+    <p data-i18n-html="dl.other.store"><strong>Microsoft Store.</strong> Xenon est aussi <a href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener">sur le Microsoft Store</a>, pour Windows 10 et 11. Il installe le même installateur Windows signé, puis Xenon se met à jour tout seul vers la dernière version, comme toute autre installation.</p>
     <p data-i18n-html="dl.other.winget"><strong>winget.</strong> Les manifestes de paquets sont rédigés et en attente d'une publication qui passe les contrôles sans avertissement chez Microsoft ; jusqu'à ce qu'il soit répertorié, l'installateur ci-dessus est la solution. Cette page indiquera <code>winget install xenon</code> le jour où cela changera.</p>
     <p data-i18n-html="dl.other.update"><strong>Mise à jour en cours.</strong> Xenon vérifie la présence d'une nouvelle version au démarrage et se met à jour automatiquement. Vous n'avez jamais besoin de revenir ici.</p>
 
@@ -167,42 +192,45 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
       <h3 data-i18n="dl.about.h">Qu'est-ce que Xenon</h3>
       <p data-i18n-html="dl.about.p">Un dashboard gratuit qui fonctionne sur votre PC et s'affiche sur n'importe quel écran disponible : statistiques système, contrôles multimédias et micro, une grille de touches au style Deck Stream, éclairage, une IA avec laquelle vous pouvez discuter. Aucun compte requis, et vos paramètres, fichiers et lectures de capteurs sont conservés sur votre PC. <a href="/fr/">La page d'accueil le montre</a>.</p>
     </div>
-    <span id="dl-you" hidden data-i18n="dl.you">Votre système</span>
   </div>
+</div>
 </main>
 
 <!-- xenon:footer -->
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Des widgets gratuits pour votre PC, sur tous vos écrans. Windows, avec macOS et Linux en beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit réside dans le widget Vitals et a des avis sur votre posture.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/single-screen.html" data-xl="f.onescreen">Xenon sur un seul écran</a></li><li><a href="/fr/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/fr/screen-recorder.html" data-xl="f.recorder">Enregistrer l’écran</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR. Les autres noms et logos appartiennent à leurs propriétaires.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 <script>
-  // Marks the card for the visitor's system. Detection is a convenience:
-  // all three files stay listed and every link works without it.
+  // The visitor's column turns dark and Bit stands on it. Detection is a
+  // convenience: all three files stay listed and every link works without it.
   (function () {
+    var lang = (document.documentElement.lang || 'en').slice(0, 2);
+    var badge = document.querySelector('[data-store-badge]');
+    if (badge && ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'].indexOf(lang) >= 0) badge.src = '/images/store/ms-store-' + lang + '.svg';
     var uad = navigator.userAgentData;
     var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
     if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
-    var os = /Win/i.test(p) ? 'win' : /Mac/i.test(p) ? 'mac' : /Linux|X11/i.test(p) ? 'linux' : null;
-    if (!os) return;
-    var a = document.querySelector('.pick[data-track-location="download_page_' + os + '"]');
-    if (!a) return;
-    a.classList.add('is-you');
-    var o = a.querySelector('.os');
-    var lbl = document.getElementById('dl-you');
-    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = (lbl && lbl.textContent) || 'Your system'; o.appendChild(t); }
+    var os = /Win/i.test(p) ? 'windows' : /Mac/i.test(p) ? 'macos' : /Linux|X11/i.test(p) ? 'linux' : null;
+    var col = os && document.querySelector('.os-col[data-os="' + os + '"]');
+    var bit = document.getElementById('os-bit');
+    if (!col || !bit) return;
+    document.querySelector('.os-col.pick').classList.remove('pick');
+    col.classList.add('pick');
+    col.prepend(bit);
   })();
 </script>
 </body>

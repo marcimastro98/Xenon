@@ -112,7 +112,8 @@ test('describeCodexTool: command, mcp, stdin, unknown — all clamped', () => {
   assert.ok(c.text.length <= 800);
   assert.equal(c.note, 'why');
   const m = cb.describeCodexTool('mcp__github__create_issue', { title: 'Bug', n: 3 }, CWD);
-  assert.deepEqual([m.kind, m.server, m.name, m.text], ['mcp', 'github', 'create_issue', 'Bug']);
+  // Every argument is shown, not just the first string (its order is the model's).
+  assert.deepEqual([m.kind, m.server, m.name, m.text], ['mcp', 'github', 'create_issue', 'title: Bug\nn: 3']);
   assert.equal(cb.describeCodexTool('write_stdin', { chars: 'y\n' }).kind, 'stdin');
   assert.equal(cb.describeCodexTool('Whatever', null).kind, 'other');
   assert.equal(cb.describeCodexTool('Bash', { command: 'a\u0007b' }).text, 'a b');

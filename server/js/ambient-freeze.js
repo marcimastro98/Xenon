@@ -29,4 +29,6 @@
     if (on) frozen.add(token); else frozen.delete(token);
     apply();
   };
+  // Who holds the freeze, for the lines that explain a paused animation.
+  window.ambientFreeze.tokens = () => [...frozen];
 })();

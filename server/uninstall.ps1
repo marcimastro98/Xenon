@@ -89,6 +89,53 @@ function Remove-PathSafe($path, $label) {
   else { Ok "removed: $what" }
 }
 
+# Delete a tree WITHOUT following links. %TEMP% is writable by anything running
+# as the user, so an entry named xenon* there can be a directory junction or a
+# symbolic link pointing somewhere else entirely. Windows PowerShell 5.1's
+# Remove-Item -Recurse walks INTO a junction and deletes what it points at; run
+# from an elevated uninstall that reaches files the user could never delete
+# alone. So a link is removed as a link (the link itself, never its target), and
+# only real directories are descended into. .NET calls rather than Remove-Item
+# also take the 8.3 short paths %TEMP% often has.
+function Remove-TreeNoFollow([string]$Path) {
+  $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+  if (-not $item) { return }
+  try {
+    if ($item.Attributes -band [IO.FileAttributes]::ReadOnly) {
+      $item.Attributes = $item.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly)
+    }
+  } catch { }
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    # Junction or symlink: unlink it. Directory.Delete(path, $false) on a link
+    # removes only the link and never touches what it points to.
+    try {
+      if ($item.PSIsContainer) { [IO.Directory]::Delete($item.FullName, $false) }
+      else { [IO.File]::Delete($item.FullName) }
+    } catch { }
+    return
+  }
+  if ($item.PSIsContainer) {
+    foreach ($child in @(Get-ChildItem -LiteralPath $item.FullName -Force -ErrorAction SilentlyContinue)) {
+      Remove-TreeNoFollow $child.FullName
+    }
+    try { [IO.Directory]::Delete($item.FullName, $false) } catch { }
+  } else {
+    try { [IO.File]::Delete($item.FullName) } catch { }
+  }
+}
+
+# Remove-PathSafe for places a link could have been planted (see above).
+# Get-Item rather than Test-Path: Test-Path follows a link and calls one whose
+# target is gone "not there", which would leave it behind.
+function Remove-PathNoFollowSafe($path, $label) {
+  if (-not $path -or -not (Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue)) { return }
+  $what = if ($label) { $label } else { $path }
+  if ($DryRun) { Info "$tag would remove: $what"; return }
+  Remove-TreeNoFollow $path
+  if (Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue) { Warn "could not fully remove: $what (a file may be in use)" }
+  else { Ok "removed: $what" }
+}
+
 function Remove-TaskSafe($name) {
   $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
   if (-not $task) { return }
@@ -329,6 +376,9 @@ Step 'Removing startup tasks & legacy service'
 Remove-TaskSafe $appName
 Remove-TaskSafe 'Xenon Edge Dashboard'
 Remove-TaskSafe 'XenonInstallNativeOnce'
+# The native app's own sign-in task (apps/native login_task.rs); the app's
+# uninstaller below cannot take it, so it would fire at a missing exe.
+Remove-TaskSafe 'Xenon App'
 
 $serviceUninstall = Join-Path (Join-Path $root 'service') 'uninstall-service.ps1'
 if ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -or (Test-Path $serviceUninstall)) {
@@ -461,8 +511,9 @@ Remove-RegValue 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI' 'AllowEdgeSwi
 # -- 6) leftover temp files ---------------------------------------------------
 Step 'Clearing temp files'
 # 'xenon*' already covers the 'xenonedge-*' sensor dumps - one pass, no duplicates.
-Get-ChildItem -Path $env:TEMP -Filter 'xenon*' -Force -ErrorAction SilentlyContinue |
-  ForEach-Object { Remove-PathSafe $_.FullName "temp: $($_.Name)" }
+# Without following links: see Remove-TreeNoFollow.
+Get-ChildItem -LiteralPath $env:TEMP -Filter 'xenon*' -Force -ErrorAction SilentlyContinue |
+  ForEach-Object { Remove-PathNoFollowSafe $_.FullName "temp: $($_.Name)" }
 
 # -- 6b) second-screen virtual display (admin) --------------------------------
 # The device node is Xenon-owned: only our second-screen setup creates it, so it
@@ -556,8 +607,10 @@ if ($removeFolder) {
     $selfDel = Join-Path $env:TEMP ("xenon-selfdelete-" + [Guid]::NewGuid().ToString('N') + ".ps1")
     # Paths land inside single-quoted literals below - double any apostrophe
     # (C:\Users\D'Amico\...) so the generated script still parses.
-    $rootEsc    = $root.Replace("'", "''")
-    $selfDelEsc = $selfDel.Replace("'", "''")
+    # PowerShell also ends a single-quoted string on the typographic quotes
+    # U+2018..U+201B (a right single quote typed in place of the apostrophe), so double those too.
+    $rootEsc    = $root -replace "(['\u2018\u2019\u201A\u201B])", '$1$1'
+    $selfDelEsc = $selfDel -replace "(['\u2018\u2019\u201A\u201B])", '$1$1'
     $body = @"
 Wait-Process -Id $PID -Timeout 60 -ErrorAction SilentlyContinue
 foreach (`$attempt in 1..30) {

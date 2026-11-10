@@ -34,11 +34,10 @@
 </script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/consent.js" defer></script>
+<script src="/promo.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- A phone, a tablet or a Chromebook runs none of the installers, so on one of
      those this page never starts the download: it says the file is for a
@@ -68,8 +67,7 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#6EE787">
 <title>Thanks for downloading Xenon</title>
 <meta name="description" content="Your Xenon download has started. What to do next on Windows, macOS and Linux, and how to support the project if you want to.">
 <!-- Reached only from a download button, so there is nothing here for a search
@@ -87,9 +85,6 @@
     --text:  var(--bone-0);
     --muted: var(--bone-1);
     --dim:   var(--bone-2);
-    --sans:  'Inter', system-ui, -apple-system, sans-serif;
-    --mono:  'JetBrains Mono', ui-monospace, monospace;
-    --maxw:  1140px;
   }
   * { box-sizing: border-box; }
   body {
@@ -97,7 +92,7 @@
     font-family: var(--sans); font-size: 16px; line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px; }
   a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
   code {
     font-family: var(--mono); font-size: 13px;
@@ -105,62 +100,9 @@
     color: var(--text); overflow-wrap: anywhere;
   }
 
-  header.top {
-    border-bottom: 1px solid var(--line);
-    padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px;
-    color: var(--text); text-decoration: none;
-    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
-  }
-  .logo img { width: 34px; height: 23px; }
-  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
-  .back:hover { color: var(--green); }
-
-  /* Header right cluster + language picker: same markup and behaviour as the
-     FAQ, so the choice carries across the site. */
-  .head-right { display: flex; align-items: center; gap: 14px; }
-  .navbtn {
-    font-size: 13px; font-weight: 600; padding: 8px 13px;
-    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
-    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
-    font-family: var(--sans); transition: border-color .2s, color .2s;
-  }
-  .navbtn svg { width: 16px; height: 16px; flex: none; }
-  .navbtn:hover { border-color: var(--green); }
-  .lang { position: relative; }
-  .lang-menu {
-    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
-    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
-    opacity: 0; transform: translateY(-6px); pointer-events: none;
-    transition: opacity .22s ease, transform .22s ease;
-  }
-  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
-  .lang-menu button {
-    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
-    background: none; border: 0; border-radius: 8px; color: var(--muted);
-    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
-  }
-  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
-  .lang-menu button.on { color: var(--green); }
-  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
-
-  /* ── The download line ── */
-  .toast {
-    margin-top: 22px; display: flex; align-items: center; gap: 12px;
-    border: 1px solid var(--line); background: var(--g-1); border-radius: 2px;
-    padding: 11px 16px; font-size: 14.5px; color: var(--muted);
-  }
-  .toast > span:last-child { flex: 1; min-width: 0; }
-  .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); flex: none; animation: tk-pulse 1.6s ease-in-out infinite; }
-  .toast[data-state="none"] .dot { display: none; }
-  .toast code { font-size: 12.5px; }
-  @keyframes tk-pulse { 50% { opacity: .25; } }
+  /* ── The download line, first on the sheet ── */
+  .toast { margin: 0 0 18px; font-size: 17px; line-height: 1.4; }
+  .toast code { padding: 0; background: none; color: inherit; font: 700 1em/1.4 var(--sans); }
 
   /* ── On a phone, a tablet or a Chromebook: no download, the file is for a
      computer, and three ways to get the link there. It takes the place of
@@ -168,132 +110,122 @@
   .away { display: none; }
   [data-handheld] .toast { display: none; }
   [data-handheld] .away {
-    display: grid; gap: 14px; margin-top: 22px;
-    background: var(--g-1); border: 1px solid var(--line-2); border-radius: 3px; padding: 22px;
+    --focus: var(--sheet); display: grid; gap: 14px; margin: 0 0 24px; padding: 24px;
+    border-radius: var(--r-2); background: var(--sheet-ink); color: var(--sheet);
   }
-  .away h2 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
-  .away .away-line { margin: 0; color: var(--muted); font-size: 15.5px; max-width: 40em; }
+  .away h2 { margin: 0; color: inherit; font: 800 28px/1.1 var(--display); letter-spacing: -.012em; text-wrap: balance; }
+  .away .away-line { margin: 0; max-width: 40em; font-size: 17px; line-height: 1.4; }
   .away-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
   .away-btn {
     display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px;
-    padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 3px;
-    background: var(--g-0); color: var(--text); text-decoration: none; cursor: pointer;
-    font-family: var(--sans); font-size: 15px; font-weight: 600; line-height: 1.2;
-    transition: border-color var(--d-state), background var(--d-state);
+    padding: 12px 16px; border: 1.5px solid currentColor; border-radius: 6px;
+    background: none; color: inherit; text-decoration: none; cursor: pointer;
+    font-family: var(--sans); font-size: 16px; font-weight: 600; line-height: 1.2;
+    transition: background var(--d-state);
   }
-  .away-btn:hover { border-color: var(--text); }
+  .away-btn:hover { background: color-mix(in oklab, currentColor 13%, transparent); }
   .away-btn[hidden] { display: none; }
   .away-btn svg { width: 17px; height: 17px; flex: none; }
   /* The first action that exists is the filled one: Send the link where the
      browser can share, Copy link where it cannot. */
-  .away-btn.primary, .away-btn[hidden] + .away-btn { background: var(--text); color: var(--g-0); border-color: var(--text); }
-  .away .away-status { margin: 0; min-height: 1.6em; font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .away-btn.primary, .away-btn[hidden] + .away-btn { background: var(--sheet); border-color: var(--sheet); color: var(--sheet-ink); }
+  .away-btn.primary:hover, .away-btn[hidden] + .away-btn:hover { background: color-mix(in oklab, var(--sheet) 84%, var(--sheet-ink)); }
+  .away .away-status { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+  /* Kept in the page so a reader hears it when it fills; takes no room until then. */
+  .away .away-status:empty { margin-top: -14px; }
 
-  /* ── Two columns: the thanks and the next steps on the left, the support
-     card on the right. In one column the steps come before the card: they
-     are what the person came for, and the card is still there below them. ── */
+  /* The picture beside the thanks: the newest supporter pack open now. With none
+     to show, Bit stands there. */
+  #drop a { display: block; }
+  /* Each pack's picture has its own shape: whole, never cut to a band. The size written on
+     the tag keeps the room of the commonest one, 16:9, until the picture is in. */
+  #drop img { height: auto; background: var(--g-1); }
+  #drop figcaption { min-height: 1.4em; }
+  .pg-w:has(#drop) .pg-bit { display: none; }
+
+  /* ── Under the sheet: the next steps, and the support card beside them. In one
+     column the steps come first: they are what the person came for. ── */
   .hero {
-    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px;
-    grid-template-areas: "intro card" "next card";
-    padding: 40px 0 96px; align-items: start;
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 80px);
+    align-items: start; padding: clamp(36px, 4.5vw, 64px) 0 clamp(56px, 6vw, 88px);
   }
-  .intro { grid-area: intro; }
-  .next  { grid-area: next; border-top: 1px solid var(--line); padding-top: 22px; }
-  .card  { grid-area: card; }
-
-  .shot { margin: 0 0 30px; }
-  .shot img {
-    display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 32 / 9;
-    object-fit: cover; border: 1px solid var(--line); border-radius: 2px;
-  }
-  .shot figcaption, .eyebrow {
-    margin-top: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--dim);
-  }
-  h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.04; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
-  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; max-width: 34em; }
-  .lede strong { color: var(--text); font-weight: 600; }
-
-  .eyebrow { margin: 0 0 14px; }
-  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
-  .steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; color: var(--muted); font-size: 15px; counter-increment: s; }
-  .steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); font-size: 12px; color: var(--text); padding-top: 3px; }
-  .steps strong { color: var(--text); font-weight: 600; }
+  .next h2 { margin: 0 0 18px; font: 800 clamp(30px, 1.5vw + 20px, 44px)/1.06 var(--display); letter-spacing: -.016em; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; counter-reset: s; }
+  .steps li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; color: var(--muted); font-size: 18px; counter-increment: s; }
+  .steps li::before { content: counter(s); font: 800 20px/1.45 var(--display); color: var(--text); }
+  .steps strong { color: var(--text); font-weight: 650; }
 
   /* ── Support card ── */
-  .card {
-    background: var(--g-1); border: 1px solid var(--line-2); border-radius: 3px;
-    padding: 26px; display: grid; gap: 18px;
-  }
+  .card { display: grid; gap: 16px; padding: 24px; border-radius: var(--r-2); background: var(--g-1); }
   .card h2 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
   .card .sub { margin: -8px 0 0; color: var(--muted); font-size: 15px; }
-  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: 2px; padding: 3px; gap: 3px; background: var(--g-0); }
+  /* The Scintille every plan brings, with the app's own spark (tools/brand/build.mjs). */
+  .card .sparks { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 15px; font-weight: 600; }
+  .card .sparks img { flex: none; width: 16px; height: 16px; image-rendering: pixelated; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: var(--r-1); padding: 3px; gap: 3px; }
   .seg button {
-    font-family: var(--sans); font-size: 14.5px; font-weight: 600; padding: 9px 10px; border: 0; border-radius: 1px;
+    min-height: 44px; font-family: var(--sans); font-size: 15px; font-weight: 600; padding: 8px 10px; border: 0; border-radius: 4px;
     background: none; color: var(--muted); cursor: pointer; transition: background var(--d-state), color var(--d-state);
   }
-  .seg button[aria-pressed="true"] { background: var(--text); color: var(--g-0); }
+  .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--main) 18%, var(--g-1)); color: var(--main-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--main) 55%, transparent); }
 
   .opts { display: grid; gap: 8px; }
   .opt {
-    display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: start; text-align: left;
-    padding: 14px 16px; border: 1px solid var(--line); border-radius: 2px; background: var(--g-0);
+    display: grid; grid-template-columns: 84px 1fr; gap: 16px; align-items: start; text-align: left;
+    padding: 16px; border: 0; border-radius: var(--r-1); background: var(--g-0);
     color: var(--muted); font: inherit; cursor: pointer; width: 100%;
-    transition: border-color var(--d-state);
+    transition: box-shadow var(--d-state);
   }
-  .opt:hover { border-color: var(--line-2); }
-  .opt[aria-checked="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
-  .opt .price { font-family: var(--mono); font-size: 19px; font-weight: 500; color: var(--text); line-height: 1.3; font-variant-numeric: tabular-nums; }
-  .opt .price small { display: block; font-size: 10px; letter-spacing: .06em; color: var(--dim); text-transform: uppercase; font-weight: 400; }
+  .opt:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+  .opt[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--text); }
+  /* The home's price: the number in the display face, its unit under it in the text face. */
+  .opt .price { font: 780 22px/1.2 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
+  .opt .price small { display: block; margin-top: 2px; font: 600 14px/1.3 var(--sans); color: var(--muted); }
   .opt .name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--text); font-weight: 600; font-size: 15.5px; }
-  .opt .what { display: block; font-size: 13.5px; line-height: 1.5; margin-top: 3px; }
-  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); border: 1px solid currentColor; border-radius: 2px; padding: 1px 5px; font-weight: 500; }
+  .opt .what { display: block; font-size: 15px; line-height: 1.5; margin-top: 4px; }
+  /* A label, not a button: the same outline tag as Beta (brand-tokens.js). */
+  .tag { font: 600 13px/1.2 var(--sans); color: var(--muted); border: 1px solid var(--rule-2); border-radius: 4px; padding: 2px 6px; }
 
   .go {
     display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center;
-    background: var(--text); color: var(--g-0); text-decoration: none;
-    font-weight: 700; font-size: 16px; padding: 15px 20px; border-radius: 3px;
+    background: var(--main); color: var(--main-ink); text-decoration: none;
+    font-weight: 700; font-size: 16px; padding: 15px 20px; border-radius: 6px;
     transition: background var(--d-state);
   }
-  .go:hover { background: var(--muted); }
+  .go:hover { background: var(--main-hover); }
   .go:active { transform: translateY(1px); }
   .go svg { width: 17px; height: 17px; flex: none; }
-  .hint { margin: -8px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--dim); text-align: center; line-height: 1.6; }
-  .hint b { color: var(--text); font-weight: 500; }
-  .foot { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 6px; font-size: 13.5px; color: var(--dim); }
+  .hint { margin: -8px 0 0; font-size: 15px; color: var(--muted); text-align: center; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 650; }
+  .foot { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 8px; font-size: 15px; color: var(--muted); }
   .foot a { color: var(--muted); }
 
-  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
-  footer a { color: var(--dim); }
-  footer a:hover { color: var(--green); }
-
   @media (max-width: 880px) {
-    .hero { grid-template-columns: 1fr; grid-template-areas: "intro" "next" "card"; gap: 40px; padding: 28px 0 64px; }
+    .hero { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  }
+  @media (max-width: 700px) {
+    .wrap { padding: 0 18px; }
   }
   @media (max-width: 480px) {
-    .wrap { padding: 0 16px; }
-    .back { display: none; }
     .card { padding: 20px 16px; }
     [data-handheld] .away { padding: 20px 16px; }
-    .opt { grid-template-columns: 64px 1fr; gap: 10px; padding: 12px; }
+    .opt { grid-template-columns: 72px 1fr; gap: 12px; padding: 16px 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .toast .dot { animation: none; } }
 </style>
 <link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
 </head>
-<body data-track-view="thanks_view">
+<body data-sheet="green" data-own-key data-track-view="thanks_view">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <div class="lang" id="lang">
         <button class="lang-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language"><span id="lang-cur">EN</span></button>
@@ -313,10 +245,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/#install" data-xl="install">Install</a>
       <ul class="xh-mlinks">
@@ -330,11 +262,12 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w">
+    <div class="pg-copy">
     <!-- Filled by the script below from ?f=. Without a script the page still
          reads correctly and points at the download page. -->
     <div class="toast" id="toast" role="status" data-state="none">
-      <span class="dot" aria-hidden="true"></span>
       <span id="toast-text">Pick your file on the <a href="download.html">download page</a>.</span>
     </div>
 
@@ -360,27 +293,32 @@
       <p class="away-status" id="away-status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="hero">
-      <div class="intro">
-        <figure class="shot">
-          <img src="images/ambient-edge-poster.webp" alt="" width="1600" height="450">
-          <figcaption data-i18n="t.shot">Ambient scene on a CORSAIR Xeneon Edge</figcaption>
-        </figure>
-        <h1 data-i18n="t.h1">Thanks for downloading Xenon</h1>
+        <h1 id="pg-h" data-i18n="t.h1">Thanks for downloading Xenon</h1>
         <p class="lede" data-i18n="t.lede1">Xenon is written by one person, with no ads and no investors. It keeps going because people support it.</p>
         <p class="lede"><strong data-i18n="t.lede2">The app stays free and complete even if you never give anything.</strong></p>
-      </div>
-
+    </div>
+    <!-- Filled by showDrop() from the catalog: the newest supporter pack open now, so the
+         picture is never a screenshot with an old date on it. Removed if the catalog is out of reach. -->
+    <figure class="pg-pic" id="drop">
+      <a id="drop-link" href="/catalog/" data-track="drop_click" data-track-location="thanks_drop"><img id="drop-img" alt="" width="1600" height="900"></a>
+      <figcaption id="drop-cap"></figcaption>
+    </figure>
+    <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+  </div>
+</section>
+  <div class="wrap">
+    <section class="hero">
       <div class="next">
         <!-- Set by renderSteps(): "What happens now" on a computer, the
              platform the steps are for on a handheld. -->
-        <p class="eyebrow" id="next-h">What happens now</p>
+        <h2 id="next-h">What happens now</h2>
         <ol class="steps" id="steps"></ol>
       </div>
 
       <aside class="card" aria-labelledby="sup-h">
         <h2 id="sup-h" data-i18n="t.card.h">Want to help?</h2>
         <p class="sub" data-i18n="t.card.sub">Supporters get the monthly supporter drops, the Discord role and their name on the site.</p>
+        <p class="sparks"><img src="images/brand/spark.svg" width="16" height="16" alt=""><span data-i18n="t.card.sparks">Every plan also brings 300 Sparks a month, Xenon&#39;s credits. Unused ones do not carry over.</span></p>
 
         <div class="seg" role="group" aria-labelledby="sup-h">
           <button type="button" id="seg-once" data-mode="once" aria-pressed="true" data-i18n="t.seg.once">One-time</button>
@@ -407,14 +345,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Free widgets for your PC, on any screen. Windows, with macOS and Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit lives in the Vitals widget and has opinions about your posture.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/screen-recorder.html" data-xl="f.recorder">Screen recorder</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR. Every other name and logo belongs to its owner.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->
@@ -426,20 +365,22 @@ const I18N = {
   "t.nav.back": "← Back to the site",
   "t.toast.started": "Your download of {file} has started. Nothing happened? <a id='manual'>Download it manually</a>.",
   "t.toast.none": "Pick your file on the <a href='/download.html'>download page</a>.",
-  "t.shot": "Ambient scene on a CORSAIR Xeneon Edge",
+  "t.drop": "{name}, the newest supporter pack",
   "t.h1": "Thanks for downloading Xenon",
+  "t.h1.away": "Thanks for choosing Xenon",
   "t.lede1": "Xenon is written by one person, with no ads and no investors. It keeps going because people support it.",
   "t.lede2": "The app stays free and complete even if you never give anything.",
   "t.next": "What happens now",
   "t.win.1": "<strong>Open Xenon-Setup-x64.exe.</strong> The installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. <a href='/faq.html#warnings'>More in the FAQ</a>.",
   "t.win.2": "<strong>Press Complete setup.</strong> The app opens by itself and offers it. It installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. A few minutes, once.",
-  "t.mac.1": "<strong>Open the .dmg and start Xenon.</strong> One file for Apple Silicon and Intel, macOS 11 or later. The Mac version is a beta and is not notarized, so macOS blocks the first launch: open <strong>System Settings</strong>, then <strong>Privacy &amp; Security</strong>, and click <strong>Open Anyway</strong>. <a href='/faq.html#mac-linux'>The FAQ has the details</a>.",
+  "t.mac.1": "<strong>Open the .dmg and start Xenon.</strong> One file for Apple Silicon and Intel, macOS 11 or later. The Mac version is a beta. From 5.0 it is notarized by Apple, so macOS only asks once whether to open an app downloaded from the internet: click <strong>Open</strong>. If macOS says it cannot check Xenon, that copy is older than 5.0, so download the latest .dmg. <a href='/faq.html#mac-linux'>The FAQ has the details</a>.",
   "t.setup.2": "<strong>Let it set itself up.</strong> The first launch offers to prepare the dashboard in a terminal window, and verifies the download before extracting anything.",
   "t.linux.1": "<strong>Make the AppImage executable and run it.</strong> <code>chmod +x</code> is all it needs. <a href='/linux.html'>The Linux page</a> lists what works on X11 and on Wayland.",
   "t.linux.pkg.1": "<strong>Install the package and open Xenon.</strong> The .deb is for Debian and Ubuntu, the .rpm for Fedora and openSUSE. <a href='/linux.html'>The Linux page</a> has the details.",
   "t.step.3": "<strong>Pick the screen.</strong> A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. <a href='/phone.html'>Pairing a phone</a> takes about thirty seconds.",
   "t.card.h": "Want to help?",
   "t.card.sub": "Supporters get the monthly supporter drops, the Discord role and their name on the site.",
+  "t.card.sparks": "Every plan also brings 300 Sparks a month, Xenon's credits. Unused ones do not carry over.",
   "t.seg.once": "One-time",
   "t.seg.sub": "Membership",
   "t.coffee.name": "A coffee",
@@ -447,7 +388,7 @@ const I18N = {
   "t.pass.name": "Supporter pass",
   "t.pass.what": "Five months of drops, paid once. Nothing renews by itself.",
   "t.free.name": "Another amount",
-  "t.free.what": "Each coffee is $5. The more you give, the longer the drops keep coming.",
+  "t.free.what": "Each coffee is 5 USD. The more you give, the longer the drops keep coming.",
   "t.month.name": "Monthly",
   "t.month.what": "Drops arrive every month while you stay. Cancel whenever you like.",
   "t.year.name": "A whole year",
@@ -484,20 +425,22 @@ const I18N = {
   "t.nav.back": "← Retour au site",
   "t.toast.started": "Votre téléchargement de {file} a démarré. Rien ne s'est passé ? <a id='manual'>Téléchargez-le manuellement<\/a>.",
   "t.toast.none": "Sélectionnez votre fichier sur la <a href='/download.html'>page de téléchargement<\/a>.",
-  "t.shot": "Scène d'ambiance sur un CORSAIR Xeneon Edge",
+  "t.drop": "{name}, le dernier pack pour supporters",
   "t.h1": "Merci d'avoir téléchargé Xenon",
+  "t.h1.away": "Merci d'avoir choisi Xenon",
   "t.lede1": "Xenon est rédigé par une seule personne, sans publicité ni investisseurs. Il continue grâce au soutien de ses lecteurs.",
   "t.lede2": "L'application reste gratuite et complète, même si vous ne donnez rien.",
   "t.next": "Ce qui se passe maintenant",
   "t.win.1": "<strong>Ouvrir Xenon-Setup-x64.exe.<\/strong> Le programme d'installation est signé, Windows affiche donc un éditeur vérifié. SmartScreen peut toujours afficher un avertissement pendant un certain temps, car Microsoft accorde la réputation au fil du temps : cliquez sur <strong>Plus d'informations<\/strong>, puis sur <strong>Exécuter quand même<\/strong>. <a href='/faq.html#warnings'>Plus d'informations dans le FAQ<\/a>.",
   "t.win.2": "<strong>Appuyez sur Terminer l’installation.<\/strong> L’application s’ouvre automatiquement et vous la propose. Elle installe Node.js, les lecteurs de capteurs et la tâche qui démarre Xenon lors de votre connexion, en vous guidant à chaque étape. Quelques minutes, une seule fois.",
-  "t.mac.1": "<strong>Ouvrez le fichier .dmg et lancez Xenon.<\/strong> Un seul fichier pour Apple Silicon et Intel, macOS 11 ou version ultérieure. La version Mac est une beta et n'est pas notarisée, macOS bloque donc le premier lancement : ouvrez <strong>Réglages Système<\/strong>, puis <strong>Confidentialité et sécurité<\/strong>, et cliquez sur <strong>Ouvrir quand même<\/strong>. <a href='/faq.html#mac-linux'>Le FAQ contient les détails<\/a>.",
+  "t.mac.1": "<strong>Ouvrez le fichier .dmg et lancez Xenon.<\/strong> Un seul fichier pour Apple Silicon et Intel, macOS 11 ou version ultérieure. La version Mac est une beta. Depuis la 5.0, elle est notarisée par Apple : macOS demande seulement une fois si vous voulez ouvrir une application téléchargée sur Internet. Cliquez sur <strong>Ouvrir<\/strong>. Si macOS indique qu'il ne peut pas vérifier Xenon, cette copie est antérieure à la 5.0 : téléchargez le dernier .dmg. <a href='/faq.html#mac-linux'>Le FAQ contient les détails<\/a>.",
   "t.setup.2": "<strong>Laissez-le se configurer.<\/strong> Au premier lancement, une option est proposée pour préparer le dashboard dans une fenêtre de terminal, et le téléchargement est vérifié avant toute extraction.",
   "t.linux.1": "<strong>Rendez l'AppImage exécutable et lancez-le.<\/strong> <code>chmod +x<\/code> est tout ce qu'il faut. <a href='/linux.html'>La page Linux<\/a> liste ce qui fonctionne sur X11 et sur Wayland.",
   "t.linux.pkg.1": "<strong>Installez le package et ouvrez Xenon.<\/strong> Le fichier .deb est destiné à Debian et Ubuntu, le fichier .rpm à Fedora et openSUSE. <a href='/linux.html'>La page Linux<\/a> contient les détails.",
   "t.step.3": "<strong>Choisissez l'écran.<\/strong> Un moniteur de rechange, une tablette, votre téléphone ou un CORSAIR Xeneon Edge. <a href='/phone.html'>L'appairage d'un téléphone<\/a> prend environ trente secondes.",
   "t.card.h": "Vous souhaitez aider ?",
   "t.card.sub": "Les supporters reçoivent les dépôts mensuels pour supporters, le rôle Discord et leur nom sur le site.",
+  "t.card.sparks": "Chaque formule apporte aussi 300 Étincelles par mois, les crédits de Xenon. Celles non utilisées ne sont pas reportées.",
   "t.seg.once": "Paiement unique",
   "t.seg.sub": "Adhésion",
   "t.coffee.name": "Un café",
@@ -505,7 +448,7 @@ const I18N = {
   "t.pass.name": "Pass supporter",
   "t.pass.what": "Cinq mois de sorties, payé une seule fois. Rien ne se renouvelle automatiquement.",
   "t.free.name": "Un autre montant",
-  "t.free.what": "Chaque café coûte 5 $. Plus vous donnez, plus les gouttes continuent à tomber.",
+  "t.free.what": "Chaque café coûte 5 USD. Plus vous donnez, plus longtemps les drops arrivent.",
   "t.month.name": "Mensuel",
   "t.month.what": "Les livraisons sont effectuées chaque mois tant que vous restez. Annulez à tout moment.",
   "t.year.name": "Une année entière",
@@ -542,20 +485,22 @@ const I18N = {
   "t.nav.back": "← Torna al sito",
   "t.toast.started": "Il download di {file} è partito. Non succede nulla? <a id='manual'>Scaricalo a mano</a>.",
   "t.toast.none": "Scegli il file giusto nella <a href='/download.html'>pagina di download</a>.",
-  "t.shot": "Scena Ambient su un CORSAIR Xeneon Edge",
+  "t.drop": "{name}, l'ultimo pack per chi sostiene Xenon",
   "t.h1": "Grazie per aver scaricato Xenon",
+  "t.h1.away": "Grazie per aver scelto Xenon",
   "t.lede1": "Xenon lo scrive una persona sola, senza pubblicità e senza investitori. Va avanti grazie a chi lo sostiene.",
   "t.lede2": "L'app resta gratis e completa anche se non doni nulla.",
   "t.next": "Cosa succede adesso",
   "t.win.1": "<strong>Apri Xenon-Setup-x64.exe.</strong> L'installer è firmato, quindi Windows mostra un editore verificato. SmartScreen può comunque avvisare per un po', perché Microsoft concede la reputazione col tempo: clicca <strong>Ulteriori informazioni</strong>, poi <strong>Esegui comunque</strong>. <a href='/faq.html#warnings'>Altro nelle FAQ</a>.",
   "t.win.2": "<strong>Premi Complete setup.</strong> L'app si apre da sola e te lo propone. Installa Node.js, i lettori dei sensori e l'avvio automatico all'accesso, mostrandoti ogni passaggio. Qualche minuto, una volta sola.",
-  "t.mac.1": "<strong>Apri il .dmg e avvia Xenon.</strong> Un solo file per Apple Silicon e Intel, da macOS 11 in su. La versione per Mac è in beta e non è notarizzata, quindi macOS blocca il primo avvio: apri <strong>Impostazioni di Sistema</strong>, poi <strong>Privacy e sicurezza</strong>, e clicca <strong>Apri comunque</strong>. <a href='/faq.html#mac-linux'>I dettagli sono nelle FAQ</a>.",
+  "t.mac.1": "<strong>Apri il .dmg e avvia Xenon.</strong> Un solo file per Apple Silicon e Intel, da macOS 11 in su. La versione per Mac è in beta. Dalla 5.0 è notarizzata da Apple, quindi macOS chiede solo una volta se aprire un'app scaricata da internet: clicca <strong>Apri</strong>. Se macOS dice che non può verificare Xenon, quella copia è precedente alla 5.0, quindi scarica l'ultimo .dmg. <a href='/faq.html#mac-linux'>I dettagli sono nelle FAQ</a>.",
   "t.setup.2": "<strong>Lascia che si configuri.</strong> Al primo avvio ti propone di preparare la dashboard in una finestra del terminale, e verifica il download prima di estrarre qualsiasi cosa.",
   "t.linux.1": "<strong>Rendi eseguibile l'AppImage e avviala.</strong> Basta <code>chmod +x</code>. <a href='/linux.html'>La pagina Linux</a> dice cosa funziona su X11 e su Wayland.",
   "t.linux.pkg.1": "<strong>Installa il pacchetto e apri Xenon.</strong> Il .deb è per Debian e Ubuntu, l'.rpm per Fedora e openSUSE. I dettagli sono nella <a href='/linux.html'>pagina Linux</a>.",
   "t.step.3": "<strong>Scegli lo schermo.</strong> Un monitor in più, un tablet, il telefono o un CORSAIR Xeneon Edge. <a href='/phone.html'>Collegare un telefono</a> richiede una trentina di secondi.",
   "t.card.h": "Vuoi darmi una mano?",
   "t.card.sub": "Chi sostiene Xenon riceve i drop mensili per sostenitori, il ruolo su Discord e il nome sul sito.",
+  "t.card.sparks": "Ogni piano porta anche 300 Scintille al mese, i crediti di Xenon. Quelle non usate non passano al mese dopo.",
   "t.seg.once": "Una volta",
   "t.seg.sub": "Abbonamento",
   "t.coffee.name": "Un caffè",
@@ -563,7 +508,7 @@ const I18N = {
   "t.pass.name": "Pass sostenitore",
   "t.pass.what": "Cinque mesi di drop, pagati una volta sola. Niente si rinnova da solo.",
   "t.free.name": "Un altro importo",
-  "t.free.what": "Ogni caffè vale $5. Più ne offri, più a lungo ricevi i drop.",
+  "t.free.what": "Ogni caffè vale 5 USD. Più ne offri, più a lungo ricevi i drop.",
   "t.month.name": "Mensile",
   "t.month.what": "I drop arrivano ogni mese finché resti. Disdici quando vuoi.",
   "t.year.name": "Un anno intero",
@@ -600,20 +545,22 @@ const I18N = {
   "t.nav.back": "← Volver al sitio",
   "t.toast.started": "La descarga de {file} ha empezado. ¿No pasa nada? <a id='manual'>Descárgalo a mano</a>.",
   "t.toast.none": "Elige tu archivo en la <a href='/download.html'>página de descarga</a>.",
-  "t.shot": "Escena Ambient en una CORSAIR Xeneon Edge",
+  "t.drop": "{name}, el último pack para quienes apoyan Xenon",
   "t.h1": "Gracias por descargar Xenon",
+  "t.h1.away": "Gracias por elegir Xenon",
   "t.lede1": "Xenon lo escribe una sola persona, sin anuncios ni inversores. Sigue adelante gracias a quienes lo apoyan.",
   "t.lede2": "La app sigue siendo gratis y completa aunque no des nada.",
   "t.next": "Qué pasa ahora",
   "t.win.1": "<strong>Abre Xenon-Setup-x64.exe.</strong> El instalador está firmado, así que Windows muestra un editor verificado. SmartScreen aún puede avisar durante un tiempo, porque Microsoft concede la reputación con el tiempo: pulsa <strong>Más información</strong> y luego <strong>Ejecutar de todas formas</strong>. <a href='/faq.html#warnings'>Más en las FAQ</a>.",
   "t.win.2": "<strong>Pulsa Complete setup.</strong> La app se abre sola y te lo ofrece. Instala Node.js, los lectores de sensores y la tarea que inicia Xenon al entrar en tu sesión, mostrándote cada paso. Unos minutos, una sola vez.",
-  "t.mac.1": "<strong>Abre el .dmg e inicia Xenon.</strong> Un solo archivo para Apple Silicon e Intel, desde macOS 11. La versión para Mac está en beta y no está notarizada, así que macOS bloquea el primer inicio: abre <strong>Ajustes del Sistema</strong>, luego <strong>Privacidad y seguridad</strong>, y pulsa <strong>Abrir igualmente</strong>. <a href='/faq.html#mac-linux'>Los detalles están en las FAQ</a>.",
+  "t.mac.1": "<strong>Abre el .dmg e inicia Xenon.</strong> Un solo archivo para Apple Silicon e Intel, desde macOS 11. La versión para Mac está en beta. Desde la 5.0, Apple la ha notarizado, así que macOS solo pregunta una vez si quieres abrir una app descargada de internet: pulsa <strong>Abrir</strong>. Si macOS dice que no puede comprobar Xenon, esa copia es anterior a la 5.0, así que descarga el .dmg más reciente. <a href='/faq.html#mac-linux'>Los detalles están en las FAQ</a>.",
   "t.setup.2": "<strong>Deja que se configure.</strong> El primer inicio ofrece preparar el panel en una ventana de terminal, y verifica la descarga antes de extraer nada.",
   "t.linux.1": "<strong>Haz ejecutable la AppImage y ábrela.</strong> Basta con <code>chmod +x</code>. <a href='/linux.html'>La página de Linux</a> cuenta qué funciona en X11 y en Wayland.",
   "t.linux.pkg.1": "<strong>Instala el paquete y abre Xenon.</strong> El .deb es para Debian y Ubuntu, el .rpm para Fedora y openSUSE. Los detalles están en <a href='/linux.html'>la página de Linux</a>.",
   "t.step.3": "<strong>Elige la pantalla.</strong> Un monitor de sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge. <a href='/phone.html'>Vincular un móvil</a> lleva unos treinta segundos.",
   "t.card.h": "¿Quieres echarme una mano?",
   "t.card.sub": "Quienes apoyan Xenon reciben los lanzamientos mensuales para patrocinadores, el rol en Discord y su nombre en el sitio.",
+  "t.card.sparks": "Cada plan trae también 300 Chispas al mes, los créditos de Xenon. Las que no uses no pasan al mes siguiente.",
   "t.seg.once": "Una vez",
   "t.seg.sub": "Membresía",
   "t.coffee.name": "Un café",
@@ -621,7 +568,7 @@ const I18N = {
   "t.pass.name": "Pase de patrocinador",
   "t.pass.what": "Cinco meses de lanzamientos, pagados una sola vez. Nada se renueva solo.",
   "t.free.name": "Otra cantidad",
-  "t.free.what": "Cada café vale $5. Cuanto más das, más tiempo recibes los lanzamientos.",
+  "t.free.what": "Cada café vale 5 USD. Cuanto más das, más tiempo recibes los lanzamientos.",
   "t.month.name": "Mensual",
   "t.month.what": "Los lanzamientos llegan cada mes mientras sigas. Cancela cuando quieras.",
   "t.year.name": "Un año entero",
@@ -658,28 +605,30 @@ const I18N = {
   "t.nav.back": "← 사이트로 돌아가기",
   "t.toast.started": "{file} 다운로드가 시작되었습니다. 아무 일도 없나요? <a id='manual'>직접 다운로드</a>하세요.",
   "t.toast.none": "<a href='/download.html'>다운로드 페이지</a>에서 파일을 고르세요.",
-  "t.shot": "CORSAIR Xeneon Edge의 Ambient 장면",
+  "t.drop": "{name}, 최신 후원자 팩",
   "t.h1": "Xenon을 다운로드해 주셔서 감사합니다",
+  "t.h1.away": "Xenon을 선택해 주셔서 감사합니다",
   "t.lede1": "Xenon은 한 사람이 만듭니다. 광고도 투자자도 없고, 후원해 주는 분들 덕분에 계속됩니다.",
   "t.lede2": "아무것도 후원하지 않아도 앱은 무료이고 완전합니다.",
   "t.next": "이제 할 일",
   "t.win.1": "<strong>Xenon-Setup-x64.exe를 여세요.</strong> 설치 파일은 서명되어 있어 Windows에 확인된 게시자가 표시됩니다. Microsoft가 평판을 시간을 두고 부여하기 때문에 한동안 SmartScreen 경고가 나올 수 있습니다. 그럴 때는 <strong>추가 정보</strong>, 이어서 <strong>실행</strong>을 클릭하세요. <a href='/faq.html#warnings'>자세한 내용은 FAQ에 있습니다</a>.",
   "t.win.2": "<strong>Complete setup을 누르세요.</strong> 앱이 저절로 열리고 이 버튼을 보여 줍니다. Node.js, 센서 리더, 로그인할 때 Xenon을 시작하는 작업을 설치하며 단계마다 보여 줍니다. 몇 분이면 되고, 한 번만 하면 됩니다.",
-  "t.mac.1": "<strong>.dmg를 열고 Xenon을 실행하세요.</strong> Apple Silicon과 Intel 모두 파일 하나로, macOS 11 이상입니다. Mac 버전은 베타이고 공증을 받지 않았기 때문에 macOS가 첫 실행을 막습니다. <strong>시스템 설정</strong>에서 <strong>개인정보 보호 및 보안</strong>을 열고 <strong>그래도 열기</strong>를 클릭하세요. <a href='/faq.html#mac-linux'>자세한 내용은 FAQ에 있습니다</a>.",
+  "t.mac.1": "<strong>.dmg를 열고 Xenon을 실행하세요.</strong> Apple Silicon과 Intel 모두 파일 하나로, macOS 11 이상입니다. Mac 버전은 베타입니다. 5.0부터 Apple의 공증을 받았기 때문에 macOS는 인터넷에서 다운로드한 앱을 열지 한 번만 묻습니다. <strong>열기</strong>를 클릭하세요. macOS가 Xenon을 확인할 수 없다고 하면 그 사본은 5.0보다 오래된 버전이므로 최신 .dmg를 다운로드하세요. <a href='/faq.html#mac-linux'>자세한 내용은 FAQ에 있습니다</a>.",
   "t.setup.2": "<strong>설정은 앱에 맡기세요.</strong> 처음 실행하면 터미널 창에서 대시보드를 준비할지 묻고, 무엇이든 풀기 전에 다운로드를 검증합니다.",
   "t.linux.1": "<strong>AppImage에 실행 권한을 주고 실행하세요.</strong> <code>chmod +x</code>면 충분합니다. X11과 Wayland에서 무엇이 되는지는 <a href='/linux.html'>Linux 페이지</a>에 있습니다.",
   "t.linux.pkg.1": "<strong>패키지를 설치하고 Xenon을 여세요.</strong> .deb는 Debian과 Ubuntu용, .rpm은 Fedora와 openSUSE용입니다. 자세한 내용은 <a href='/linux.html'>Linux 페이지</a>에 있습니다.",
   "t.step.3": "<strong>화면을 고르세요.</strong> 남는 모니터, 태블릿, 휴대폰 또는 CORSAIR Xeneon Edge. <a href='/phone.html'>휴대폰 연결</a>은 30초 정도 걸립니다.",
   "t.card.h": "도와주시겠어요?",
-  "t.card.sub": "후원자는 매달 서포터 드롭, Discord 역할, 그리고 사이트에 이름을 받습니다.",
+  "t.card.sub": "후원자는 매달 후원자 드롭, Discord 역할, 그리고 사이트에 이름을 받습니다.",
+  "t.card.sparks": "모든 플랜에 매달 300 스파크(Xenon 크레딧)도 포함됩니다. 쓰지 않은 스파크는 이월되지 않습니다.",
   "t.seg.once": "한 번",
   "t.seg.sub": "멤버십",
   "t.coffee.name": "커피 한 잔",
-  "t.coffee.what": "서포터 드롭 한 달, Discord 역할, 그리고 사이트에 이름.",
-  "t.pass.name": "서포터 패스",
+  "t.coffee.what": "후원자 드롭 한 달, Discord 역할, 그리고 사이트에 이름.",
+  "t.pass.name": "후원자 패스",
   "t.pass.what": "드롭 다섯 달, 한 번만 결제합니다. 저절로 갱신되지 않습니다.",
   "t.free.name": "다른 금액",
-  "t.free.what": "커피 한 잔은 $5입니다. 많이 후원할수록 드롭을 더 오래 받습니다.",
+  "t.free.what": "커피 한 잔은 5 USD입니다. 많이 후원할수록 드롭을 더 오래 받습니다.",
   "t.month.name": "매달",
   "t.month.what": "멤버로 있는 동안 매달 드롭이 옵니다. 언제든 해지할 수 있습니다.",
   "t.year.name": "일 년 전체",
@@ -716,20 +665,22 @@ const I18N = {
   "t.nav.back": "← サイトに戻る",
   "t.toast.started": "{file} のダウンロードが始まりました。始まらない場合は<a id='manual'>手動でダウンロード</a>してください。",
   "t.toast.none": "<a href='/download.html'>ダウンロードページ</a>でファイルを選んでください。",
-  "t.shot": "CORSAIR Xeneon Edge の Ambient シーン",
+  "t.drop": "{name}、最新のサポーター向けパック",
   "t.h1": "Xenon をダウンロードしていただきありがとうございます",
+  "t.h1.away": "Xenon を選んでいただきありがとうございます",
   "t.lede1": "Xenon はひとりで作っています。広告も投資家もなく、支援してくれる人たちのおかげで続いています。",
   "t.lede2": "何も支援しなくても、アプリは無料で機能も欠けません。",
   "t.next": "このあとの流れ",
   "t.win.1": "<strong>Xenon-Setup-x64.exe を開きます。</strong> インストーラーには署名があり、Windows に確認済みの発行元が表示されます。Microsoft は評価を時間をかけて付与するため、しばらくは SmartScreen の警告が出ることがあります。その場合は <strong>詳細情報</strong>、続いて <strong>実行</strong> をクリックしてください。<a href='/faq.html#warnings'>詳しくは FAQ へ</a>。",
   "t.win.2": "<strong>Complete setup を押します。</strong> アプリが自動で開き、このボタンを表示します。Node.js、センサーの読み取り機能、サインイン時に Xenon を起動するタスクを、手順をひとつずつ見せながらインストールします。数分、一度だけです。",
-  "t.mac.1": "<strong>.dmg を開いて Xenon を起動します。</strong> Apple Silicon と Intel の両方に対応した 1 ファイルで、macOS 11 以降が対象です。Mac 版はベータで公証を受けていないため、macOS は初回の起動をブロックします。<strong>システム設定</strong> の <strong>プライバシーとセキュリティ</strong> を開き、<strong>このまま開く</strong> をクリックしてください。<a href='/faq.html#mac-linux'>詳しくは FAQ へ</a>。",
+  "t.mac.1": "<strong>.dmg を開いて Xenon を起動します。</strong> Apple Silicon と Intel の両方に対応した 1 ファイルで、macOS 11 以降が対象です。Mac 版はベータです。5.0 から Apple の公証を受けているので、インターネットからダウンロードしたアプリを開くかどうかを macOS が一度確認するだけです。<strong>開く</strong> をクリックしてください。macOS が Xenon を確認できないと表示する場合、そのコピーは 5.0 より前のものなので、最新の .dmg をダウンロードしてください。<a href='/faq.html#mac-linux'>詳しくは FAQ へ</a>。",
   "t.setup.2": "<strong>あとはセットアップに任せます。</strong> 初回起動時にターミナルでダッシュボードを準備するか尋ね、何かを展開する前にダウンロードを検証します。",
   "t.linux.1": "<strong>AppImage に実行権限を付けて起動します。</strong> <code>chmod +x</code> だけで十分です。X11 と Wayland で何が動くかは <a href='/linux.html'>Linux のページ</a>にあります。",
   "t.linux.pkg.1": "<strong>パッケージをインストールして Xenon を開きます。</strong> .deb は Debian と Ubuntu 用、.rpm は Fedora と openSUSE 用です。詳しくは <a href='/linux.html'>Linux のページ</a>へ。",
   "t.step.3": "<strong>画面を選びます。</strong> 空いているモニター、タブレット、スマートフォン、または CORSAIR Xeneon Edge。<a href='/phone.html'>スマートフォンの接続</a>は 30 秒ほどです。",
   "t.card.h": "応援してもらえますか？",
   "t.card.sub": "支援者には毎月のサポーター向けドロップ、Discord のロール、そしてサイトへのお名前掲載があります。",
+  "t.card.sparks": "どのプランにも毎月 300 スパーク（Xenon のクレジット）が付きます。使わなかった分は繰り越されません。",
   "t.seg.once": "一回",
   "t.seg.sub": "メンバーシップ",
   "t.coffee.name": "コーヒー一杯",
@@ -737,7 +688,7 @@ const I18N = {
   "t.pass.name": "サポーターパス",
   "t.pass.what": "ドロップ五か月分を一度だけ。自動更新はありません。",
   "t.free.name": "ほかの金額",
-  "t.free.what": "コーヒー一杯は $5 です。多いほど、ドロップを長く受け取れます。",
+  "t.free.what": "コーヒー一杯は 5 USD です。多いほど、ドロップを長く受け取れます。",
   "t.month.name": "毎月",
   "t.month.what": "続けている間、毎月ドロップが届きます。いつでも解約できます。",
   "t.year.name": "まるごと一年",
@@ -774,20 +725,22 @@ const I18N = {
   "t.nav.back": "← 返回网站",
   "t.toast.started": "{file} 已开始下载。没有反应？<a id='manual'>手动下载</a>。",
   "t.toast.none": "请在<a href='/download.html'>下载页面</a>选择你的文件。",
-  "t.shot": "CORSAIR Xeneon Edge 上的 Ambient 场景",
+  "t.drop": "{name}，最新的支持者专属包",
   "t.h1": "感谢下载 Xenon",
+  "t.h1.away": "感谢选择 Xenon",
   "t.lede1": "Xenon 由一个人开发，没有广告，也没有投资人。它能继续下去，靠的是支持它的人。",
   "t.lede2": "即使你什么都不付，应用也一样免费、完整。",
   "t.next": "接下来",
   "t.win.1": "<strong>打开 Xenon-Setup-x64.exe。</strong> 安装程序已签名，Windows 会显示经过验证的发布者。由于 Microsoft 需要时间积累信誉，SmartScreen 可能仍会提示一段时间：点击<strong>更多信息</strong>，然后点击<strong>仍要运行</strong>。<a href='/faq.html#warnings'>详情见 FAQ</a>。",
   "t.win.2": "<strong>点击 Complete setup。</strong> 应用会自动打开并显示这个按钮。它会安装 Node.js、传感器读取组件，以及登录时启动 Xenon 的任务，每一步都会展示给你。几分钟，只需一次。",
-  "t.mac.1": "<strong>打开 .dmg 并启动 Xenon。</strong> 一个文件同时支持 Apple Silicon 和 Intel，需要 macOS 11 或更高版本。Mac 版目前是测试版，未经过公证，因此 macOS 会阻止首次启动：打开<strong>系统设置</strong>中的<strong>隐私与安全性</strong>，点击<strong>仍要打开</strong>。<a href='/faq.html#mac-linux'>详情见 FAQ</a>。",
+  "t.mac.1": "<strong>打开 .dmg 并启动 Xenon。</strong> 一个文件同时支持 Apple Silicon 和 Intel，需要 macOS 11 或更高版本。Mac 版目前是测试版。从 5.0 起它经过了 Apple 公证，所以 macOS 只会询问一次是否打开从互联网下载的应用：点击<strong>打开</strong>。如果 macOS 提示无法检查 Xenon，说明这份副本早于 5.0，请下载最新的 .dmg。<a href='/faq.html#mac-linux'>详情见 FAQ</a>。",
   "t.setup.2": "<strong>让它自己完成设置。</strong> 首次启动时会询问是否在终端窗口中准备仪表盘，并在解压任何内容之前先验证下载。",
   "t.linux.1": "<strong>给 AppImage 加上执行权限并运行。</strong> 只需要 <code>chmod +x</code>。哪些功能在 X11 和 Wayland 下可用，请看 <a href='/linux.html'>Linux 页面</a>。",
   "t.linux.pkg.1": "<strong>安装软件包并打开 Xenon。</strong> .deb 适用于 Debian 和 Ubuntu，.rpm 适用于 Fedora 和 openSUSE。详情见 <a href='/linux.html'>Linux 页面</a>。",
   "t.step.3": "<strong>选择屏幕。</strong> 闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 都可以。<a href='/phone.html'>配对手机</a>大约需要三十秒。",
   "t.card.h": "愿意帮我一把吗？",
   "t.card.sub": "支持者每月可获得支持者专属内容、Discord 身份组，名字还会出现在网站上。",
+  "t.card.sparks": "每种方案每月还附带 300 火花，也就是 Xenon 的点数。未用完的不会结转。",
   "t.seg.once": "一次性",
   "t.seg.sub": "会员",
   "t.coffee.name": "一杯咖啡",
@@ -795,7 +748,7 @@ const I18N = {
   "t.pass.name": "支持者通行证",
   "t.pass.what": "五个月的专属内容，一次付清。不会自动续费。",
   "t.free.name": "其他金额",
-  "t.free.what": "每杯咖啡 $5。给得越多，收到专属内容的时间就越长。",
+  "t.free.what": "每杯咖啡 5 USD。给得越多，收到专属内容的时间就越长。",
   "t.month.name": "按月",
   "t.month.what": "只要你还在，每月都会收到专属内容。随时可以取消。",
   "t.year.name": "整整一年",
@@ -858,13 +811,13 @@ const I18N = {
     const BMC = 'https://www.buymeacoffee.com/marcimastro98';
     const OPTS = {
       once: [
-        { id: 'coffee', price: '$5', unit: 't.unit.once', url: BMC },
-        { id: 'pass', price: '$25', unit: 't.unit.once', url: BMC, tag: 't.tag.pick' },
-        { id: 'free', price: '$?', unit: 't.unit.free', url: BMC },
+        { id: 'coffee', price: '5 USD', unit: 't.unit.once', url: BMC },
+        { id: 'pass', price: '25 USD', unit: 't.unit.once', url: BMC, tag: 't.tag.pick' },
+        { id: 'free', price: '5+ USD', unit: 't.unit.free', url: BMC },
       ],
       sub: [
-        { id: 'month', price: '$5', unit: 't.unit.month', url: BMC + '/membership' },
-        { id: 'year', price: '$50', unit: 't.unit.year', url: BMC + '/membership', tag: 't.tag.theme' },
+        { id: 'month', price: '5 USD', unit: 't.unit.month', url: BMC + '/membership' },
+        { id: 'year', price: '50 USD', unit: 't.unit.year', url: BMC + '/membership', tag: 't.tag.theme' },
       ],
     };
     const DEFAULT = { once: 'pass', sub: 'year' };
@@ -920,6 +873,8 @@ const I18N = {
 
     function renderAway() {
       if (!HANDHELD) return;
+      // Nothing was downloaded here, so the name does not say it was.
+      $('pg-h').textContent = XT('t.h1.away');
       const subject = XT('t.away.subject');
       const body = XT('t.away.body').replace('{url}', SEND_URL);
       $('away-mail').href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
@@ -1004,6 +959,31 @@ const I18N = {
     }
   })();
 
+  // The picture on top: the newest supporter pack open now (promo.js picks it), linked to its
+  // catalog page. A picture of what supporting gets you, that changes by itself with each drop.
+  (function () {
+    const fig = document.getElementById('drop');
+    let drop = null;
+    function caption() {
+      if (drop) document.getElementById('drop-cap').textContent = window.XT('t.drop').replace('{name}', drop.name);
+    }
+    window.__thanksDrop = caption;
+    document.addEventListener('DOMContentLoaded', async () => {
+      const P = window.XenonPromo;
+      try {
+        const res = P && await fetch('/community/catalog.json', { cache: 'no-cache' });
+        drop = res && res.ok ? P.newestDrop((await res.json()).entries, Date.now()) : null;
+      } catch (e) { drop = null; }
+      if (!drop) { fig.remove(); return; }
+      const img = document.getElementById('drop-img');
+      img.onerror = () => { drop = null; fig.remove(); };
+      img.src = P.dropShot(drop.id);
+      img.alt = String(drop.name || '');
+      document.getElementById('drop-link').href = '/catalog/' + encodeURIComponent(drop.id) + '/';
+      caption();
+    });
+  })();
+
   // Same engine and same storage key as the home page and the FAQ, so a
   // visitor's language choice carries across the site.
   (function () {
@@ -1024,6 +1004,7 @@ const I18N = {
       const c = document.getElementById('lang-cur'); if (c) c.textContent = cur.toUpperCase();
       document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
       if (window.__thanksRender) window.__thanksRender();
+      if (window.__thanksDrop) window.__thanksDrop();
       try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
     }
     const box = document.getElementById('lang');

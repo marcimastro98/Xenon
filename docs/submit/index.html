@@ -37,9 +37,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -48,27 +46,26 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon: publish to the community catalog</title>
-<meta name="description" content="Submit your Xenon creation: theme, background, page, Deck profile, widget, scene, icon or sound pack: to the community catalog. A human reviews every submission.">
+<meta name="description" content="Submit your Xenon creation to the community catalog: a theme, background, page, Deck profile, widget, scene, icon or sound pack. A person reviews each one.">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <link rel="canonical" href="https://xenon-app.com/submit/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#B4A0FF">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://xenon-app.com/submit/">
 <meta property="og:title" content="Xenon: publish to the community catalog">
-<meta property="og:description" content="Submit your Xenon creation: theme, background, page, Deck profile, widget, scene, icon or sound pack: to the community catalog. A human reviews every submission.">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
-<meta property="og:image:width" content="2560">
-<meta property="og:image:height" content="720">
-<meta property="og:image:alt" content="The Xenon dashboard, where a published creation ends up">
+<meta property="og:description" content="Submit your Xenon creation to the community catalog: a theme, background, page, Deck profile, widget, scene, icon or sound pack. A person reviews each one.">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Bit standing on a wide screen that shows Xenon's widgets">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Xenon: publish to the community catalog">
 <meta name="twitter:description" content="Submit your Xenon creation to the community catalog. A human reviews every submission.">
-<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
 <script type="application/ld+json">
 {
@@ -123,144 +120,143 @@
        onloadTurnstile before the inline script below has defined it. -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstile" defer></script>
 
+<link rel="stylesheet" href="/site.css">
 <style>
-  :root {
-    --ink: var(--g-0); --panel: var(--g-1); --line: var(--rule);
-    --line-2: var(--rule-2); --plasma: var(--bone-0); --plasma-2: var(--bone-1);
-    --danger: var(--danger); --text: var(--bone-0); --muted: var(--bone-1); --dim: var(--bone-2);
-    --maxw: 760px; --ease: cubic-bezier(0.16,1,0.3,1);
-  }
+  :root { --maxw: 780px; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(88px + var(--strip-h, 0px)); }
   body {
-    font-family: var(--sans); font-size: 17px; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 17px; background: var(--g-0); color: var(--bone-0);
     line-height: 1.55; min-height: 100dvh; -webkit-font-smoothing: antialiased;
-
   }
-  a { color: var(--text); text-underline-offset: .18em; }
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: clamp(40px, 6vh, 72px) 20px 32px; }
-  h1 { font: 780 clamp(34px, 3vw + 12px, 52px)/1.05 var(--display); letter-spacing: -0.016em; }
-  .lede { color: var(--muted); margin: 14px 0 32px; max-width: 60ch; font-size: 19px; line-height: 1.5; }
-  .lede b { color: var(--text); }
-  .card { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px; margin-bottom: 18px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  a { color: var(--bone-0); text-underline-offset: .18em; }
+  .wrap { max-width: var(--maxw); }
+  /* Without the room beside the form, the list would only repeat its headings. */
+  @media (max-width: 1180px) { .jump { display: none; } }
+  .card { margin: 0 0 16px; padding: 24px; border-radius: var(--r-2); background: var(--g-1); }
+  .card h2 { margin-bottom: 14px; font: 800 clamp(24px, 1vw + 18px, 30px)/1.1 var(--display); letter-spacing: -.012em; }
+  .card h2:has(+ .hint) { margin-bottom: 2px; }
+  .card h2 + .hint { margin: 0 0 14px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; margin-top: 8px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
   label.f { display: block; margin-bottom: 12px; }
-  label.f > span { display: block; font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
-  label.f small { font-size: 15px; font-weight: 400; color: var(--muted); }
-  .sec-lab { display: block; font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  /* A long hint must not push one field below its neighbour. */
+  .grid2 label.f { display: flex; flex-direction: column; justify-content: space-between; }
+  label.f[hidden] { display: none; }
+  label.f > span { display: block; font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  label.f small { font-size: 15px; font-weight: 400; color: var(--bone-1); }
   input[type=text], select, textarea {
-    width: 100%; font: inherit; font-size: 16px; color: var(--text);
-    background: var(--g-0); border: 1px solid var(--line); border-radius: 6px;
-    padding: 10px 12px; outline: none; transition: border-color 0.15s var(--ease);
+    width: 100%; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 16px; color: var(--bone-0);
+    background: var(--g-0); border: 1px solid var(--bone-2); border-radius: 6px;
   }
-  input:focus, select:focus, textarea:focus { border-color: var(--line-2); }
+  ::placeholder { color: var(--bone-2); opacity: 1; }
   textarea { resize: vertical; min-height: 90px; }
   #code { font-family: var(--mono); font-size: 15px; min-height: 120px; }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
   .btn {
-    font: inherit; font-weight: 700; cursor: pointer; border-radius: 9px;
-    min-height: 44px; padding: 10px 18px; border: 1px solid var(--line-2);
-    background: var(--g-2); color: var(--text);
-    transition: background 0.15s var(--ease), transform 0.1s var(--ease);
+    display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px;
+    border: 0; border-radius: 6px; cursor: pointer; font: 700 17px/1.1 var(--display);
+    background: var(--g-2); color: var(--bone-0);
   }
   .btn:hover { background: var(--g-3); }
-  /* The one lit key on the page: the site's Download key, the Deck key. */
-  .btn.primary {
-    --lit: #008DFF; color: #fff; font-family: var(--display); font-weight: 700;
-    background-color: #104D82;
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
-    border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38);
-  }
-  .btn.primary:hover { filter: brightness(1.1); background-color: #104D82; }
-  .btn.primary:disabled { opacity: 0.5; cursor: default; filter: none; }
-  .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
-  .hint { font-size: 15px; color: var(--muted); margin-top: 6px; }
-  .hint.good { color: var(--plasma); }
-  .hint.warn { color: var(--gold); }
+  /* The one main action on the page: Bit's green, as on every page. */
+  .btn.primary { min-height: 56px; padding: 0 28px; font-size: 19px; color: var(--main-ink); background: var(--main); }
+  .btn.primary:hover { background: var(--main-hover); }
+  .btn.primary:disabled { opacity: 0.5; cursor: default; }
+  .btn.ghost { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+  .btn.ghost:hover { background: var(--g-2); }
+  .hint { margin-top: 6px; font-size: 15px; color: var(--bone-1); }
+  .hint.good { color: var(--bone-0); }
+  .hint.warn { color: var(--warn); }
   .hint.bad { color: var(--danger); }
   /* Automatic pre-submit check */
-  .audit-line { font-size: 16px; color: var(--muted); margin-top: 10px; }
-  .audit-findings { display: grid; gap: 10px; margin-top: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
-  .finding { border: 1px solid var(--line); border-radius: var(--r-1); padding: 10px 12px; background: var(--g-0); font-size: 16px; }
-  .finding .floc { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-top: 2px; }
-  .finding .fwhy { font-size: 15px; color: var(--muted); margin-top: 2px; }
+  .audit-line { margin-top: 10px; font-size: 16px; color: var(--bone-1); }
+  #auditBox > :first-child { margin-top: 0; }
+  .audit-findings { display: grid; gap: 10px; margin-top: 8px; }
+  .audit-notes .audit-findings { max-height: 320px; overflow-y: auto; padding-right: 4px; }
+  /* Red blocks, orange needs a look, a note has neither: the same two sheets as
+     the status page, bright in both themes, and the group heading says it too. */
+  .finding { padding: 10px 12px; border-radius: var(--r-1); background: var(--g-0); font-size: 16px; }
+  .finding[data-sheet] { box-shadow: inset 0 0 0 2px var(--sheet); }
+  .audit-sum { display: grid; gap: 8px; margin-top: 10px; }
+  .audit-sum p { padding: 10px 12px; border-radius: var(--r-1); background: var(--sheet); color: var(--sheet-ink); font-size: 16px; font-weight: 600; }
+  .audit-grp { margin-top: 14px; font-size: 16px; font-weight: 700; }
+  .finding .floc { margin-top: 2px; font-family: var(--mono); font-size: 14px; color: var(--bone-1); }
+  .finding .fwhy { margin-top: 2px; font-size: 15px; color: var(--bone-1); }
+  .finding .ffix { margin-top: 4px; font-size: 15px; }
   .finding code.fex {
-    display: block; font-family: var(--mono); font-size: 14px; color: var(--muted);
-    background: var(--g-1); border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; word-break: break-word;
-    max-height: 110px; overflow-y: auto;
+    display: block; max-height: 110px; margin-top: 6px; padding: 6px 8px; overflow-y: auto;
+    font-family: var(--mono); font-size: 14px; color: var(--bone-1); background: var(--g-1);
+    border-radius: 6px; white-space: pre-wrap; word-break: break-word;
   }
-  .sev {
-    display: inline-block; font-size: 14px; font-weight: 700;
-    border-radius: 6px; padding: 2px 8px; margin-right: 8px; vertical-align: 1px;
-  }
-  .sev.block { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
-  .sev.warn { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); }
-  .sev.info { color: var(--muted); background: var(--g-1); border: 1px solid var(--line); }
   .audit-notes { margin-top: 8px; }
-  .audit-notes summary { cursor: pointer; font-size: 15px; color: var(--muted); }
+  .audit-notes summary { padding: 11px 0; cursor: pointer; font-size: 15px; color: var(--bone-1); }
   .audit-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .audit-export .btn { font-size: 15px; padding: 7px 12px; min-height: 40px; }
-  #justifyWrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-  label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 16px; }
-  label.chk input { width: 18px; height: 18px; accent-color: var(--plasma); flex: none; cursor: pointer; }
-  #updateFields { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
-  .pal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
-  @media (max-width: 560px) { .pal { grid-template-columns: 1fr; } }
-  /* Specific enough to beat `label.f > span { display: block }` above — as a
+  .audit-export .btn { font-size: 15px; }
+  #justifyWrap { margin-top: 12px; }
+  #justifyWrap .hint { margin-bottom: 10px; }
+  label.chk { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; font-size: 16px; }
+  label.chk input { width: 18px; height: 18px; accent-color: var(--main); flex: none; cursor: pointer; }
+  #updateFields { margin: 8px 0 16px; }
+  .pal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 560px) { .pal { grid-template-columns: minmax(0, 1fr); } }
+  /* Specific enough to beat `label.f > span { display: block }` above: as a
      plain `.cf` rule the swatch and the hex box stacked instead of sitting side
      by side. */
   label.f > span.cf { display: flex; gap: 8px; align-items: center; margin-bottom: 0; }
   .cf input[type=color] {
-    flex: none; width: 42px; height: 42px; padding: 3px; cursor: pointer;
-    background: var(--g-0); border: 1px solid var(--line); border-radius: 6px;
+    flex: none; width: 44px; height: 44px; padding: 3px; cursor: pointer;
+    background: var(--g-0); border: 1px solid var(--bone-2); border-radius: 6px;
   }
   .cf input[type=text] { flex: 1; min-width: 0; font-family: var(--mono); font-size: 15px; text-transform: lowercase; }
-  .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-  .shot { width: 150px; }
+  .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   .shot .box {
-    aspect-ratio: 16/9; border: 1px dashed var(--line-2); border-radius: var(--r-1);
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
-    color: var(--muted); font-size: 15px; cursor: pointer; background: var(--g-0);
+    display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 16/9; overflow: hidden;
+    font: inherit; font-size: 15px; color: var(--bone-1); background: var(--g-0);
+    border: 1.5px dashed var(--bone-2); border-radius: var(--r-1);
   }
+  button.box { cursor: pointer; }
+  button.box:hover { color: var(--bone-0); border-color: currentColor; }
   .shot .box img { width: 100%; height: 100%; object-fit: cover; }
-  .shot .rm { width: 100%; margin-top: 4px; font-size: 15px; padding: 4px; min-height: 36px; }
-  .err { color: var(--danger); font-size: 16px; min-height: 1.3em; margin-top: 10px; }
-  .ok-screen { text-align: center; padding: 48px 20px; }
-  .ok-screen .big { font-size: 3rem; }
-  .ok-screen h2 { font: 760 30px/1.15 var(--display); margin: 12px 0 8px; }
-  .ok-screen p { color: var(--muted); max-width: 46ch; margin: 0 auto 8px; }
-  .turnstile-wrap { margin: 14px 0 4px; min-height: 66px; }
+  .shot .rm { width: 100%; margin-top: 4px; font-size: 15px; }
+  .err { min-height: 1.3em; margin-top: 10px; font-size: 16px; color: var(--danger); }
+  .after { margin-top: 20px; font-size: 15px; color: var(--bone-1); }
+  #okScreen p + p, .status-link + p { margin-top: 14px; }
+  .status-link { padding: 24px; border-radius: var(--r-2); background: var(--g-1); }
+  .status-link a { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; }
+  .status-link .btn { margin-top: 12px; }
+  .turnstile-wrap { min-height: 66px; }
   /* The Discord sign-in (identity.js): it takes the old free-text Contact's place. */
   .id-box { margin-bottom: 12px; }
   .grid2 .id-box { grid-column: 1 / -1; }
-  .id-label { display: block; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .id-label { display: block; font-size: 16px; font-weight: 600; }
   .id-hint { margin: 2px 0 8px; }
   .id-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
   .id-row .btn { min-height: 44px; }
   .id-go[aria-disabled=true] { opacity: 0.5; pointer-events: none; }
   .id-who, .id-wait, .id-problem { flex: 1 1 220px; min-width: 0; font-size: 16px; overflow-wrap: anywhere; }
-  .id-mail { display: block; font-family: var(--mono); font-size: 14px; color: var(--muted); }
+  .id-mail { display: block; font-family: var(--mono); font-size: 14px; color: var(--bone-1); }
   .id-problem { color: var(--danger); }
-  .captcha-broken { color: var(--danger); font-size: 15px; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--r-1); padding: 10px 12px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
+  .captcha-broken { padding: 10px 12px; font-size: 15px; line-height: 1.5; color: var(--danger); background: var(--g-0); border-radius: var(--r-1); box-shadow: inset 0 0 0 1.5px var(--danger); }
+  @media (max-width: 700px) {
+    .card { padding: 20px; }
+    .btn.primary { width: 100%; }
+  }
+  @media (forced-colors: active) { .finding, .audit-sum p, .captcha-broken { border: 1px solid CanvasText; } }
 </style>
-<link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
 <script src="identity.js"></script>
 </head>
-<body data-track-view="submit_start">
+<body data-sheet="violet" data-own-key data-track-view="submit_start">
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <div class="lang" id="lang">
         <button class="lang-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language"><span id="lang-cur">EN</span></button>
@@ -280,10 +276,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/#install" data-xl="install">Install</a>
       <ul class="xh-mlinks">
@@ -295,16 +291,40 @@
   </nav>
 </header>
 <!-- /xenon:header -->
-<div class="wrap">
-
-  <h1 data-t="title">Publish to the community catalog</h1>
-  <p class="lede" data-t="lede">Made something for Xenon: a theme, a background, a Deck profile, a widget, an icon or sound pack? Paste its <b>share code</b> below and it lands in the review queue. <b>A human reviews every submission</b> before it appears in the in-app gallery; nothing you send here can change anyone's dashboard by itself.</p>
+<main>
+<section class="pg" id="pg" aria-labelledby="pg-h">
+  <div class="pg-w">
+    <div class="pg-copy">
+      <div id="formHead">
+        <h1 id="pg-h" data-t="title">Publish to the community catalog</h1>
+        <p class="lede" data-t="lede">Paste the share code of what you made. A person reviews every submission before it appears in the catalog.</p>
+      </div>
+      <div id="okHead" hidden>
+        <p id="ok-h" class="pg-title" role="heading" aria-level="1" tabindex="-1" data-t="ok_title">Submitted</p>
+        <p class="lede" data-t="ok_p1">Your creation is in the review queue. A human looks at every submission: once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
+      </div>
+    </div>
+    <svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>
+  </div>
+</section>
+<div class="pg-body">
+  <nav class="jump" id="jump" aria-labelledby="jump-h">
+    <p id="jump-h" data-xl="onpage">On this page</p>
+    <a href="#s-about" data-t="j_about">What you made</a>
+    <a href="#s-code" data-t="j_code">Share code</a>
+    <a href="#s-check" data-t="f_audit">Automatic check</a>
+    <a href="#s-colours" data-t="j_colours">Card colours</a>
+    <a href="#s-shots" data-t="j_shots">Screenshots</a>
+    <a href="#s-send" data-t="j_send">Send it</a>
+  </nav>
+  <div class="wrap">
 
   <form id="form" novalidate>
     <!-- Update mode. Without this, an update was indistinguishable from a new
          listing: the reviewer had to recognise it by eye and retype the original
          entry id, and a wrong id grew a duplicate that reaches nobody. -->
-    <div class="card">
+    <div class="card" id="s-about">
+      <h2 data-t="j_about">What you made</h2>
       <label class="chk"><input type="checkbox" id="isUpdate"><span data-t="f_isupdate">This is an update to something I already have in the catalog</span></label>
       <div id="updateFields" hidden>
         <label class="f"><span data-t="f_target">Which entry? *</span>
@@ -312,14 +332,11 @@
           <datalist id="entryList"></datalist>
         </label>
         <p class="hint" id="targetHint"></p>
-        <label class="f"><span data-t="f_changelog">What changed? * <small data-t="f_changelog_h">(one line: users see this on the update prompt)</small></span>
+        <label class="f"><span data-t="f_changelog">What changed? * <small>(one line: users see this on the update prompt)</small></span>
           <textarea id="changelog" maxlength="300" rows="2" data-t-ph="changelog_ph" placeholder="Fixed the clock drifting after DST"></textarea>
         </label>
-        <p class="hint" data-t="update_hint">Bump the version above: the app only offers an update when the version rises.</p>
+        <p class="hint" data-t="update_hint">Raise the version below: the app only offers an update when the version goes up.</p>
       </div>
-    </div>
-
-    <div class="card">
       <div class="grid2">
         <label class="f"><span data-t="f_kind">Kind</span>
           <select id="kind">
@@ -332,6 +349,7 @@
             <option value="bundle" data-t="k_bundle">bundle (full package)</option>
             <option value="icons" data-t="k_icons">icons (Deck icon pack)</option>
             <option value="sounds" data-t="k_sounds">sounds (soundboard pack)</option>
+            <option value="topbar" data-t="k_topbar">topbar (top bar setup)</option>
           </select>
         </label>
         <label class="f"><span data-t="f_category">Category *</span>
@@ -349,17 +367,18 @@
         </label>
         <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
         <label class="f"><span data-t="f_author">Author / handle *</span><input type="text" id="author" maxlength="40" required></label>
-        <label class="f"><span data-t="f_version">Version * <small data-t="f_version_h">(e.g. 1.0.0: bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
+        <label class="f"><span data-t="f_version">Version * <small>(e.g. 1.0.0: bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
         <div class="f id-box" id="identity"></div>
-        <label class="f"><span data-t="f_tags">Tags * <small data-t="f_tags_h">(up to 6, lowercase: this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
+        <label class="f"><span data-t="f_supporter">Supporter code <small>(optional: supporters are reviewed first; the code is checked, never stored)</small></span><input type="text" id="supporterCode" maxlength="24" autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"></label>
+        <label class="f" hidden><span data-t="f_price">Your price in USD <small>(optional: what you would ask; the review suggests one too)</small></span><input type="text" id="price" maxlength="6" inputmode="decimal" autocomplete="off" placeholder="2.00"></label>
+        <label class="f"><span data-t="f_tags">Tags * <small>(up to 6, lowercase: this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
       </div>
-      <label class="f"><span data-t="f_desc">Description *</span><textarea id="description" maxlength="400" required></textarea></label>
+      <label class="f"><span data-t="f_desc">Description *</span><textarea id="description" maxlength="800" rows="4" required data-t-ph="desc_ph" placeholder="What it does, in a sentence or two. Markdown works: **bold**, *italic*, lists with - or 1."></textarea></label>
     </div>
 
-    <div class="card">
-      <label class="f"><span data-t="f_code">Share code *</span>
-        <textarea id="code" spellcheck="false" data-t-ph="code_ph" placeholder="Paste the code from Share & Import → Export…"></textarea>
-      </label>
+    <div class="card" id="s-code">
+      <h2 id="code-h"><span data-t="j_code">Share code</span> *</h2>
+      <textarea id="code" spellcheck="false" aria-labelledby="code-h" data-t-ph="code_ph" placeholder="Paste the code from Share & Import → Export…"></textarea>
       <div class="row">
         <button type="button" class="btn ghost" id="codeFileBtn" data-t="code_file">Load from .txt / .json file…</button>
         <input type="file" id="codeFile" accept=".txt,.json,text/plain,application/json" hidden>
@@ -374,8 +393,8 @@
          explanation attached instead of bouncing. When the endpoint is
          unreachable the card says so and the page keeps working: it must never
          block a submit on its own. -->
-    <div class="card">
-      <span class="sec-lab" data-t="f_audit">Automatic check</span>
+    <div class="card" id="s-check">
+      <h2 data-t="f_audit">Automatic check</h2>
       <div id="auditBox"></div>
       <div id="justifyWrap" hidden>
         <p class="hint warn" id="auditNotice"></p>
@@ -388,8 +407,9 @@
     <!-- Card palette. These three colours paint the entry's card in the Store,
          so they are read straight out of the pasted code when it carries a theme
          and stay editable: the creator confirms rather than transcribes. -->
-    <div class="card">
-      <span class="sec-lab" data-t="f_palette">Card colours * <small data-t="f_palette_h">(they paint your card in the Store)</small></span>
+    <div class="card" id="s-colours">
+      <h2><span data-t="j_colours">Card colours</span> *</h2>
+      <p class="hint" data-t="h_colours">They paint your card in the Store.</p>
       <div class="pal" id="pal">
         <label class="f"><span data-t="f_accent">Accent *</span>
           <span class="cf"><input type="color" id="accentPick" value="#1ed760"><input type="text" id="accentHex" maxlength="7" spellcheck="false" placeholder="#1ed760"></span>
@@ -404,12 +424,14 @@
       <p class="hint" id="palHint"></p>
     </div>
 
-    <div class="card">
-      <span class="sec-lab" data-t="f_shots">Screenshots * (2 or 3: PNG, JPG or WebP, up to 4 MB each)</span>
+    <div class="card" id="s-shots">
+      <h2><span data-t="j_shots">Screenshots</span> *</h2>
+      <p class="hint" data-t="h_shots">2 or 3 pictures: PNG, JPG or WebP, up to 4 MB each.</p>
       <div class="shots" id="shots"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="s-send">
+      <h2 data-t="j_send">Send it</h2>
       <!-- id MUST NOT be "turnstile": an element id becomes a global on window, so
            <div id="turnstile"> IS window.turnstile, and Cloudflare api.js reads that as
            "already loaded" and never installs its API. -->
@@ -421,16 +443,20 @@
     </div>
   </form>
 
-  <div class="ok-screen" id="okScreen" hidden>
-    <div class="big">🎉</div>
-    <h2 data-t="ok_title">Submitted!</h2>
-    <p data-t="ok_p1">Your creation is in the review queue. A human looks at every submission: once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
+  <div id="okScreen" hidden>
+    <div class="status-link" id="statusLink" hidden>
+      <p data-t="ok_status">Save this link: it shows the review, what to fix and how.</p>
+      <p><a id="statusHref" href="#"></a></p>
+      <button type="button" class="btn" id="statusCopy" data-t="ok_copy">Copy link</button>
+    </div>
     <p data-t="ok_p2">Shipping an update later? Come back, tick <b>“This is an update”</b>, pick your entry and bump the version: it replaces the published one instead of becoming a second listing.</p>
-    <p style="margin-top:18px"><a href="../catalog/" data-t="ok_back">Browse the catalog →</a></p>
+    <p><a href="../catalog/" data-t="ok_back">Browse the catalog</a></p>
   </div>
 
-  <footer data-t="foot">Submissions are moderated. Codes are validated again inside the app at import: a catalog entry can never change anything silently.</footer>
+  <p class="after" data-t="foot">Submissions are moderated. Codes are validated again inside the app at import: a catalog entry can never change anything silently.</p>
+  </div>
 </div>
+</main>
 
 <script>
 (function () {
@@ -441,6 +467,20 @@
   // always-passes TEST key — replace it before going live.
   var TURNSTILE_SITEKEY = '0x4AAAAAAD3J3OwWA7zOElgx';
   var HUB = 'https://xenon-supporter-hub.xenonedge.workers.dev';
+
+  // The creator's private status page (docs/submit/status/). The token stays
+  // in the fragment, so it never reaches a server log or a Referer.
+  function showStatusLink(id, token) {
+    if (!id || !token) return;
+    var url = location.origin + '/submit/status/#' + id + '.' + token;
+    var a = document.getElementById('statusHref');
+    a.href = url;
+    a.textContent = url;
+    document.getElementById('statusLink').hidden = false;
+    document.getElementById('statusCopy').addEventListener('click', function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {});
+    });
+  }
   var MAX_CODE = 2 * 1024 * 1024;
   var MAX_SHOTS = 3;
   var MIN_SHOTS = 2;               // mirrors the hub's MIN_SHOTS
@@ -450,16 +490,27 @@
   var DICTS = {
     en: {},
     fr: {
-      back: '← Catalogue communautaire',
+      h_shots: '2 ou 3 images : PNG, JPG ou WebP, 4 Mo max. chacune.',
+      h_colours: 'Elles habillent votre carte dans le catalogue.',
+      j_send: 'Envoyer',
+      j_shots: 'Captures d\'écran',
+      j_colours: 'Couleurs de la carte',
+      j_code: 'Code de partage',
+      j_about: 'Votre création',
+      f_supporter: 'Code supporter <small>(facultatif : les supporters sont relus en premier ; le code est vérifié, jamais conservé)</small>',
+      f_price: 'Votre prix en USD <small>(facultatif : ce que vous demanderiez ; la revue en suggère un aussi)</small>',
+      e_price: 'Le prix doit être un nombre de 0 à 100 USD, avec deux décimales au plus.',
+      e_supporter: 'Ce code supporter n\'est pas valide. Vérifiez-le ou laissez le champ vide.',
+      e_supporter_exp: 'Ce code supporter a expiré. Laissez le champ vide pour envoyer dans la file normale.',
+      audit_design: '{n} suggestions de design. Elles ne bloquent jamais l\'envoi.',
       title: 'Publier dans le catalogue communautaire',
-      lede: 'Vous avez créé quelque chose pour Xenon : un thème, un fond d\'écran, un profil Deck, un widget, un pack d\'icônes ou de sons ? Collez son <b>code de partage<\/b> ci-dessous et il sera ajouté à la file d\'attente de modération. <b>Un humain examine chaque soumission<\/b> avant qu\'elle n\'apparaisse dans la galerie de l\'application ; rien de ce que vous envoyez ici ne peut modifier le dashboard de quiconque à lui seul.',
+      lede: 'Collez le code de partage de votre création. Une personne examine chaque soumission avant qu\'elle n\'apparaisse dans le catalogue.',
       f_isupdate: 'Il s\'agit d\'une mise à jour de quelque chose que j\'ai déjà dans le catalogue',
       f_target: 'Quelle entrée ? *',
       target_ph: 'Commencez à saisir le nom de votre entrée…',
-      f_changelog_h: '(une ligne : les utilisateurs voient ceci dans la fenêtre de mise à jour)',
-      f_changelog: 'Quelles sont les modifications ? * <small data-t="f_changelog_h">(une ligne : les utilisateurs voient ceci dans la fenêtre de mise à jour)<\/small>',
+      f_changelog: 'Quelles sont les modifications ? * <small>(une ligne : les utilisateurs voient ceci dans la fenêtre de mise à jour)<\/small>',
       changelog_ph: 'Corrigé la dérive de l\'horloge après DST',
-      update_hint: 'Augmentez la version ci-dessus : l\'application ne propose une mise à jour que lorsque la version augmente.',
+      update_hint: 'Augmentez la version ci-dessous : l\'application ne propose une mise à jour que lorsque la version augmente.',
       f_kind: 'Type',
       k_bg: 'bg (arrière-plan animé)',
       k_page: 'page (page dashboard)',
@@ -469,6 +520,7 @@
       k_bundle: 'bundle (paquet complet)',
       k_icons: 'icônes (pack d\'icônes Deck)',
       k_sounds: 'sons (paquet soundboard)',
+      k_topbar: 'topbar (configuration de la barre supérieure)',
       f_category: 'Catégorie *',
       c_none: 'Choisir un élément…',
       c_style: 'style (thèmes, arrière-plans, apparence)',
@@ -481,37 +533,30 @@
       c_fun: 'divertissement',
       f_name: 'Nom *',
       f_author: 'Auteur / pseudo *',
-      f_version_h: '(p. ex. 1.0.0 : à incrémenter lors d\'une mise à jour)',
-      f_version: 'Version * <small data-t="f_version_h">(p. ex. 1.0.0 : à incrémenter lors d\'une mise à jour)<\/small>',
-      f_tags_h: '(jusqu\'à 6, minuscules : c\'est ainsi que les gens le trouvent dans le store)',
-      f_tags: 'Tags* <small data-t="f_tags_h">(jusqu\'à 6, en minuscules : c\'est ainsi que les gens le trouvent dans le store)<\/small>',
+      f_version: 'Version * <small>(p. ex. 1.0.0 : à incrémenter lors d\'une mise à jour)<\/small>',
+      f_tags: 'Tags* <small>(jusqu\'à 6, en minuscules : c\'est ainsi que les gens le trouvent dans le store)<\/small>',
       f_desc: 'Description *',
-      f_code: 'Partager le code *',
+      desc_ph: 'Ce qu\'il fait, en une ou deux phrases. Le Markdown fonctionne : **gras**, *italique*, listes avec - ou 1.',
       code_ph: 'Collez le code depuis Partager et importer → Exporter…',
       code_file: 'Charger depuis un fichier .txt / .json…',
       code_hint: 'Dans Xenon : Paramètres → Widgets & partage → exportez votre création, puis copiez le code ou téléchargez le fichier. Max 2 Mo.',
       f_audit: 'Vérification automatique',
       f_justify: 'Pourquoi votre création a-t-elle besoin de cela ? *',
-      f_palette_h: '(utilisées pour personnaliser l’apparence de votre carte dans le catalogue)',
-      f_palette: 'Couleurs de carte * <small data-t="f_palette_h">(utilisées pour personnaliser l’apparence de votre carte dans le catalogue)<\/small>',
       f_accent: 'Accent *',
       f_bgcol: 'Arrière-plan *',
       f_textcol: 'Texte *',
-      f_shots: 'Captures d\'écran * (2 ou 3 : PNG, JPG ou WebP, 4 Mo max. chacune)',
       send: 'Soumettre pour examen',
-      ok_title: 'Envoyé !',
+      ok_title: 'Envoyé',
+      ok_status: 'Gardez ce lien : il montre la revue, ce qu\'il faut corriger et comment.', ok_copy: 'Copier le lien',
       ok_p1: 'Votre création est dans la file d\'attente de modération. Un humain examine chaque soumission : une fois approuvée, elle apparaît dans le catalogue communautaire et dans la galerie Découvrir de Xenon.',
       ok_p2: 'Vous envoyez une mise à jour plus tard ? Revenez, cochez <b>« C\'est une mise à jour »<\/b>, sélectionnez votre entrée et augmentez la version : elle remplace celle publiée au lieu de devenir une deuxième fiche.',
-      ok_back: 'Parcourir le catalogue →',
+      ok_back: 'Parcourir le catalogue',
       foot: 'Les soumissions sont modérées. Les codes sont à nouveau validés dans l\'application lors de l\'importation : une entrée du catalogue ne peut jamais modifier quoi que ce soit en silence.',
       e_code_big: 'Le code dépasse 2 Mo.',
       shot_rm: 'Supprimer',
       shot_add: '+ Ajouter',
       pal_manual: 'Ce type ne comporte aucun thème, les trois couleurs ci-dessous sont donc celles par défaut de Xenon : modifiez-les pour adapter votre création.',
       pal_auto: 'Remplies à partir de votre code : modifiez-les si la carte doit avoir un aspect différent.',
-      sev_block: 'BLOCK',
-      sev_warn: 'WARN',
-      sev_info: 'INFO',
       audit_export_done: 'Terminé',
       audit_export_failed: 'Impossible de faire cela',
       audit_export_save: 'Enregistrer le rapport (.md)',
@@ -520,6 +565,11 @@
       audit_unavailable: 'La vérification automatique n\'a pas pu s\'exécuter ici. Elle est effectuée sur le serveur lors de l\'envoi.',
       audit_green: 'Les vérifications automatiques n\'ont rien détecté de bloquant. Un humain examine toujours tout.',
       audit_notes: '{n} notes',
+      audit_sum_block: "À corriger : {n}. En l'état, une proposition comme celle-ci est en général refusée.",
+      audit_sum_warn: "À vérifier : {n}. Une personne les lit avant de décider.",
+      audit_grp_block: "Bloque l'examen",
+      audit_grp_warn: "À vérifier",
+      audit_grp_info: "Notes",
       audit_idle: 'Collez votre code de partage ci-dessus et il sera vérifié automatiquement.',
       audit_red_notice: 'La vérification a détecté des problèmes bloquants. Les soumissions de ce type sont généralement refusées. Expliquez ci-dessous pourquoi votre création nécessite cela, le modérateur lit cette section en premier.',
       audit_locked_notice: 'Paquet chiffré : il ne peut pas être vérifié automatiquement et fait l\'objet d\'un examen manuel complet. Indiquez à l\'examinateur ce qu\'il contient.',
@@ -549,15 +599,28 @@
       e_generic: 'Échec de la soumission ({err}) : veuillez réessayer.',
     },
     it: {
-      back: '← Catalogo community', title: 'Pubblica nel catalogo community',
-      lede: 'Hai creato qualcosa per Xenon: un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
+      h_shots: '2 o 3 immagini: PNG, JPG o WebP, fino a 4 MB ciascuna.',
+      h_colours: 'Colorano la tua scheda nello Store.',
+      j_send: 'Invia',
+      j_shots: 'Screenshot',
+      j_colours: 'Colori della scheda',
+      j_code: 'Codice di condivisione',
+      j_about: 'Cosa hai creato',
+      f_supporter: 'Codice sostenitore <small>(facoltativo: i sostenitori vengono revisionati per primi; il codice viene verificato, mai salvato)</small>',
+      f_price: 'Il tuo prezzo in USD <small>(facoltativo: quanto chiederesti; anche la revisione ne suggerisce uno)</small>',
+      e_price: 'Il prezzo deve essere un numero da 0 a 100 USD, con al massimo due decimali.',
+      e_supporter: 'Il codice sostenitore non è valido. Controllalo, oppure lascia il campo vuoto.',
+      e_supporter_exp: 'Il codice sostenitore è scaduto. Lascia il campo vuoto per inviare nella coda normale.',
+      audit_design: '{n} suggerimenti di design. Non bloccano mai l\'invio.',
+      title: 'Pubblica nel catalogo community',
+      lede: 'Incolla il codice di condivisione di ciò che hai creato. Una persona controlla ogni proposta prima che compaia nel catalogo.',
       f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle *',
       f_version: 'Versione * <small>(es. 1.0.0: aumentala quando aggiorni)</small>',
       f_tags: 'Tag * <small>(fino a 6, minuscoli: è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
+      desc_ph: 'Cosa fa, in una o due frasi. Puoi usare il Markdown: **grassetto**, *corsivo*, elenchi con - o 1.',
       f_category: 'Categoria *', c_none: 'Scegli…',
       c_style: 'style (temi, sfondi, aspetto)', c_deck: 'deck (profili Deck)', c_streaming: 'streaming',
       c_media: 'media', c_smarthome: 'smart-home', c_system: 'system', c_tools: 'tools', c_fun: 'fun',
-      f_palette: 'Colori della card * <small>(dipingono la tua scheda nello Store)</small>',
       f_accent: 'Accento *', f_bgcol: 'Sfondo *', f_textcol: 'Testo *',
       pal_auto: 'Compilati dal tuo codice: cambiali se la card deve avere un altro aspetto.',
       pal_manual: 'Questo tipo non contiene un tema, quindi i tre colori qui sotto partono dai valori predefiniti di Xenon: cambiali per adattarli alla tua creazione.',
@@ -573,26 +636,25 @@
       f_target: 'Quale voce? *', target_ph: 'Inizia a scrivere il nome della tua voce…',
       f_changelog: 'Cosa è cambiato? * <small>(una riga: gli utenti la vedono nella richiesta di aggiornamento)</small>',
       changelog_ph: 'Corretto l\'orologio che sballava dopo il cambio d\'ora',
-      update_hint: 'Aumenta la versione qui sopra: l\'app propone l\'aggiornamento solo se la versione sale.',
+      update_hint: 'Aumenta la versione qui sotto: l\'app propone l\'aggiornamento solo se la versione sale.',
       target_found: 'Aggiorni “{name}”, ora alla v{ver}.',
       target_suggest: 'Usa {next} o superiore.',
       target_unknown: 'Nessuna voce del catalogo con quell\'id: scegline una dall\'elenco, altrimenti chi revisiona la tratterà come una nuova pubblicazione.',
       e_changelog: 'Scrivi cosa è cambiato in questa versione: quella riga la vedono gli utenti nella richiesta di aggiornamento.',
-      e_version: 'Un aggiornamento ha bisogno di un numero di versione, e deve essere più alto di quello pubblicato.',
       e_version_same: 'La v{ver} è già pubblicata: aumenta la versione, altrimenti a nessuno verrà proposto l\'aggiornamento.',
       e_version_lower: 'La v{ver} è PIÙ BASSA della v{pub} pubblicata: l\'app propone l\'aggiornamento solo se la versione sale, quindi questa non arriverebbe a nessuno. Usa la {next} o superiore.',
-      f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
+      code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
       code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
-      f_shots: 'Screenshot * (almeno 2, fino a 3: PNG/JPG/WebP, max 4 MB ciascuno)',
-      send: 'Invia per la revisione', ok_title: 'Inviato!',
+      send: 'Invia per la revisione', ok_title: 'Inviato',
+      ok_status: 'Salva questo link: mostra la revisione, cosa correggere e come.', ok_copy: 'Copia il link',
       ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona: una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
       ok_p2: 'Un aggiornamento in futuro? Torna qui, spunta <b>“È un aggiornamento”</b>, scegli la tua voce e aumenta la versione: sostituisce quella pubblicata invece di diventare una seconda voce.',
-      ok_back: 'Sfoglia il catalogo →',
+      ok_back: 'Sfoglia il catalogo',
       foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione: una voce del catalogo non può mai cambiare nulla in silenzio.',
       k_bg: 'bg (sfondo animato)', k_page: 'page (pagina dashboard)', k_deck: 'deck (profilo Deck)',
       k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
-      k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
+      k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)', k_topbar: 'topbar (configurazione della barra superiore)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
       e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto: copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
@@ -605,6 +667,11 @@
       audit_checking: 'Controllo del codice in corso…',
       audit_green: 'I controlli automatici non hanno trovato nulla di bloccante. Una persona revisiona comunque tutto.',
       audit_notes: '{n} note',
+      audit_sum_block: "Da correggere: {n}. Così, una proposta come questa di solito viene rifiutata.",
+      audit_sum_warn: "Da guardare: {n}. Una persona li legge prima di decidere.",
+      audit_grp_block: "Bloccano la revisione",
+      audit_grp_warn: "Da guardare",
+      audit_grp_info: "Note",
       audit_export_save: 'Salva il report (.md)',
       audit_export_copy: 'Copia il report',
       audit_export_done: 'Fatto',
@@ -614,18 +681,30 @@
       audit_locked_notice: 'Pacchetto cifrato: non può essere controllato automaticamente e riceve una revisione manuale completa. Racconta a chi revisiona cosa contiene.',
       audit_unavailable: 'Il controllo automatico non è riuscito a partire qui. Viene eseguito sul server quando invii.',
       e_justify: 'Spiega perché la tua creazione ha bisogno degli elementi segnalati',
-      sev_block: 'BLOCCO', sev_warn: 'AVVISO', sev_info: 'INFO',
     },
     es: {
-      back: '← Catálogo de la comunidad', title: 'Publica en el catálogo de la comunidad',
-      lede: '¿Has hecho algo para Xenon, como un tema, un fondo, un perfil de Deck, un widget o un pack de iconos o de sonidos? Pega abajo su <b>código para compartir</b> y entrará en la cola de revisión. <b>Una persona revisa cada envío</b> antes de que aparezca en la galería de la app. Nada de lo que envíes aquí puede cambiar por sí solo el panel de nadie.',
+      h_shots: '2 o 3 imágenes: PNG, JPG o WebP, hasta 4 MB cada una.',
+      h_colours: 'Dan color a tu tarjeta en la Tienda.',
+      j_send: 'Enviar',
+      j_shots: 'Capturas',
+      j_colours: 'Colores de la tarjeta',
+      j_code: 'Código para compartir',
+      j_about: 'Qué has creado',
+      f_supporter: 'Código de mecenas <small>(opcional: los mecenas se revisan primero; el código se comprueba y nunca se guarda)</small>',
+      f_price: 'Tu precio en USD <small>(opcional: lo que pedirías; la revisión también sugiere uno)</small>',
+      e_price: 'El precio debe ser un número de 0 a 100 USD, con dos decimales como máximo.',
+      e_supporter: 'Ese código de mecenas no es válido. Revísalo o deja el campo vacío.',
+      e_supporter_exp: 'Ese código de mecenas ha caducado. Deja el campo vacío para enviarlo a la cola normal.',
+      audit_design: '{n} sugerencias de diseño. Nunca bloquean el envío.',
+      title: 'Publica en el catálogo de la comunidad',
+      lede: 'Pega el código para compartir de lo que has creado. Una persona revisa cada envío antes de que aparezca en el catálogo.',
       f_kind: 'Tipo', f_name: 'Nombre *', f_author: 'Autor / alias *',
       f_version: 'Versión * <small>(p. ej. 1.0.0; súbela cuando actualices)</small>',
       f_tags: 'Etiquetas * <small>(hasta 6, en minúsculas: así te encuentran en la Tienda)</small>', f_desc: 'Descripción *',
+      desc_ph: 'Qué hace, en una o dos frases. Admite Markdown: **negrita**, *cursiva*, listas con - o 1.',
       f_category: 'Categoría *', c_none: 'Elige una…',
       c_style: 'style (temas, fondos, apariencia)', c_deck: 'deck (perfiles de Deck)', c_streaming: 'streaming',
       c_media: 'media', c_smarthome: 'smart-home', c_system: 'system', c_tools: 'tools', c_fun: 'fun',
-      f_palette: 'Colores de la tarjeta * <small>(dan color a tu tarjeta en la Tienda)</small>',
       f_accent: 'Acento *', f_bgcol: 'Fondo *', f_textcol: 'Texto *',
       pal_auto: 'Rellenados a partir de tu código. Cámbialos si la tarjeta tiene que verse distinta.',
       pal_manual: 'Este tipo no incluye un tema, así que los tres colores de abajo parten de los valores por defecto de Xenon. Cámbialos para que encajen con tu creación.',
@@ -641,26 +720,25 @@
       f_target: '¿Qué entrada? *', target_ph: 'Empieza a escribir el nombre de tu entrada…',
       f_changelog: '¿Qué ha cambiado? * <small>(una línea: la gente la ve en el aviso de actualización)</small>',
       changelog_ph: 'Corregido el reloj que se desfasaba tras el cambio de hora',
-      update_hint: 'Sube la versión de arriba: la app solo ofrece una actualización cuando la versión aumenta.',
+      update_hint: 'Sube la versión de abajo: la app solo ofrece una actualización cuando la versión aumenta.',
       target_found: 'Actualizas «{name}», ahora en la v{ver}.',
       target_suggest: 'Usa la {next} o una superior.',
       target_unknown: 'No hay ninguna entrada del catálogo con ese id. Elige una de la lista; si no, quien revisa la tratará como una entrada nueva.',
       e_changelog: 'Di qué ha cambiado en esta versión: la gente ve esa línea en el aviso de actualización.',
-      e_version: 'Una actualización necesita un número de versión, y tiene que ser mayor que el publicado.',
       e_version_same: 'La v{ver} ya está publicada. Sube la versión, o no se ofrecerá la actualización a nadie.',
       e_version_lower: 'La v{ver} es MENOR que la v{pub} publicada. La app solo ofrece una actualización cuando la versión sube, así que esta no llegaría a nadie. Usa la {next} o una superior.',
-      f_code: 'Código para compartir *', code_file: 'Cargar desde archivo .txt / .json…',
+      code_file: 'Cargar desde archivo .txt / .json…',
       code_ph: 'Pega el código de Compartir e importar → Exportar…',
       code_hint: 'En Xenon: Ajustes → Widgets y compartir → exporta tu creación y luego copia el código o descarga el archivo. Máximo 2 MB.',
-      f_shots: 'Capturas de pantalla * (mínimo 2, máximo 3; PNG/JPG/WebP, hasta 4 MB cada una)',
-      send: 'Enviar a revisión', ok_title: '¡Enviado!',
+      send: 'Enviar a revisión', ok_title: 'Enviado',
+      ok_status: 'Guarda este enlace: muestra la revisión, qué corregir y cómo.', ok_copy: 'Copiar enlace',
       ok_p1: 'Tu creación está en la cola de revisión. Una persona mira cada envío: cuando se aprueba, aparece en el catálogo de la comunidad y en la galería Descubrir dentro de Xenon.',
       ok_p2: '¿Vas a publicar una actualización más adelante? Vuelve aquí, marca <b>«Es una actualización»</b>, elige tu entrada y sube la versión: sustituye a la publicada en lugar de convertirse en una segunda entrada.',
-      ok_back: 'Explorar el catálogo →',
+      ok_back: 'Explorar el catálogo',
       foot: 'Los envíos se moderan. Los códigos se validan de nuevo en la app al importarlos: una entrada del catálogo nunca puede cambiar nada sin avisar.',
       k_bg: 'bg (fondo animado)', k_page: 'page (página del panel)', k_deck: 'deck (perfil de Deck)',
       k_widget: 'widget (widget de la comunidad)', k_ambient: 'ambient (escena Ambient)', k_bundle: 'bundle (paquete completo)',
-      k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)',
+      k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)', k_topbar: 'topbar (configuración de la barra superior)',
       e_name: 'Ponle un nombre a tu creación.', e_code: 'Pega el código para compartir.',
       e_code_incomplete: 'El código para compartir parece cortado o incompleto. Cópialo entero desde Xenon (o usa «Cargar desde archivo») y vuelve a enviarlo.',
       e_code_big: 'El código supera los 2 MB.', e_captcha: 'Completa la verificación antispam.',
@@ -673,6 +751,11 @@
       audit_checking: 'Comprobando tu código…',
       audit_green: 'Las comprobaciones automáticas no han encontrado nada que bloquee el envío. Aun así, una persona lo revisa todo.',
       audit_notes: '{n} notas',
+      audit_sum_block: "Por corregir: {n}. Así, una propuesta como esta suele rechazarse.",
+      audit_sum_warn: "Por revisar: {n}. Una persona los lee antes de decidir.",
+      audit_grp_block: "Bloquea la revisión",
+      audit_grp_warn: "Por revisar",
+      audit_grp_info: "Notas",
       audit_export_save: 'Guardar informe (.md)',
       audit_export_copy: 'Copiar informe',
       audit_export_done: 'Hecho',
@@ -682,12 +765,87 @@
       audit_locked_notice: 'Paquete cifrado: no se puede comprobar automáticamente y recibe una revisión manual completa. Cuéntale a quien revisa qué contiene.',
       audit_unavailable: 'La comprobación automática no ha podido ejecutarse aquí. Se ejecuta en el servidor cuando envías.',
       e_justify: 'Explica por qué tu creación necesita los elementos señalados',
-      sev_block: 'BLOQUEO', sev_warn: 'AVISO', sev_info: 'INFO',
     },
     ko: {
-      back: '← 커뮤니티 카탈로그', title: '커뮤니티 카탈로그에 게시',
-      send: '검토 요청 보내기', ok_title: '제출 완료!', sending: '전송 중…',
-      f_kind: '종류', f_name: '이름 *', f_author: '제작자', f_desc: '설명', f_code: '공유 코드 *',
+      f_isupdate: '카탈로그에 이미 있는 내 항목의 업데이트입니다',
+      f_target: '어떤 항목인가요? *',
+      target_ph: '항목 이름을 입력하세요…',
+      f_changelog: '무엇이 바뀌었나요? * <small>(한 줄. 사용자에게 업데이트 안내로 표시됩니다)</small>',
+      changelog_ph: '서머타임 이후 시계가 어긋나던 문제 수정',
+      k_bg: 'bg (애니메이션 배경)',
+      k_page: 'page (대시보드 페이지)',
+      k_deck: 'deck (Deck 프로필)',
+      k_widget: 'widget (커뮤니티 위젯)',
+      k_ambient: 'ambient (Ambient 장면)',
+      k_bundle: 'bundle (전체 패키지)',
+      k_icons: 'icons (Deck 아이콘 팩)',
+      k_sounds: 'sounds (사운드보드 팩)',
+      k_topbar: 'topbar (상단 바 설정)',
+      f_category: '카테고리 *',
+      c_none: '하나를 선택하세요…',
+      c_style: 'style (테마, 배경, 스타일)',
+      c_deck: 'deck (Deck 프로필)',
+      c_streaming: 'streaming (스트리밍)',
+      c_media: 'media (미디어)',
+      c_smarthome: 'smart-home (스마트 홈)',
+      c_system: 'system (시스템)',
+      c_tools: 'tools (도구)',
+      c_fun: 'fun (재미)',
+      f_version: '버전 * <small>(예: 1.0.0. 업데이트할 때 올리세요)</small>',
+      f_tags: '태그 * <small>(최대 6개, 소문자. 스토어에서 사람들이 이것으로 찾습니다)</small>',
+      code_ph: '공유 및 가져오기 → 내보내기에서 복사한 코드를 붙여넣으세요…',
+      code_file: '.txt / .json 파일에서 불러오기…',
+      code_hint: 'Xenon에서 설정 → 위젯 &amp; 공유로 가서 작품을 내보낸 뒤, 코드를 복사하거나 파일을 내려받으세요. 최대 2&nbsp;MB.',
+      f_accent: '강조색 *',
+      f_bgcol: '배경 *',
+      f_textcol: '텍스트 *',
+      ok_p1: '작품이 검토 대기열에 들어갔습니다. 모든 제출물은 사람이 확인합니다. 승인되면 커뮤니티 카탈로그와 Xenon의 Discover 갤러리에 표시됩니다.',
+      ok_p2: '나중에 업데이트하나요? 다시 와서 <b>“업데이트입니다”</b>를 선택하고 항목을 고른 뒤 버전을 올리세요. 새 항목이 생기지 않고 게시된 항목이 교체됩니다.',
+      foot: '제출물은 검토를 거칩니다. 코드는 앱에서 가져올 때 다시 검증되므로, 카탈로그 항목이 몰래 무언가를 바꿀 수 없습니다.',
+      e_code_big: '코드가 2 MB를 넘습니다.',
+      pal_manual: '이 종류에는 테마가 없어 아래 세 색상이 Xenon 기본값으로 시작합니다. 작품에 맞게 바꾸세요.',
+      pal_auto: '코드에서 채웠습니다. 카드를 다르게 보이게 하려면 바꾸세요.',
+      target_unknown: '그 id의 카탈로그 항목이 없습니다. 목록에서 고르세요. 그렇지 않으면 검토자가 새 항목으로 처리합니다.',
+      target_found: '“{name}” 업데이트, 현재 v{ver}.',
+      target_suggest: '{next} 이상을 사용하세요.',
+      e_name: '작품 이름을 입력하세요.',
+      e_category: '카테고리를 고르세요. 스토어에서 항목이 분류되는 위치를 정합니다.',
+      e_author: '카드에 제작자로 표시할 이름이나 핸들을 입력하세요.',
+      e_version_req: '버전 번호를 입력하세요. 예: 1.0.0.',
+      e_version_bad: '버전은 숫자와 점만 쓸 수 있습니다. 예: 1.0.0.',
+      e_tags: '태그를 하나 이상 추가하세요. 사람들이 스토어에서 항목을 찾는 방법입니다.',
+      e_desc: '작품을 한두 줄로 설명하세요. 카드에 표시되는 내용입니다.',
+      e_code: '공유 코드를 붙여넣으세요.',
+      e_palette: '카드 색상 세 가지를 모두 설정하세요. 코드에 테마가 있으면 자동으로 채워집니다.',
+      e_shots: '스크린샷을 2장 이상 추가하세요. 사진이 없는 항목은 아무도 설치하지 않습니다.',
+      e_changelog: '이 버전에서 바뀐 점을 적으세요. 사용자가 업데이트 안내에서 그 줄을 봅니다.',
+      e_version_same: 'v{ver}은(는) 이미 게시되었습니다. 버전을 올리지 않으면 아무도 업데이트를 받지 못합니다.',
+      e_version_lower: 'v{ver}은(는) 게시된 v{pub}보다 낮습니다. 앱은 버전이 올라갈 때만 업데이트를 제공하므로 아무에게도 전달되지 않습니다. {next} 이상을 사용하세요.',
+      e_code_incomplete: '공유 코드가 잘렸거나 불완전해 보입니다. Xenon에서 전체를 복사하거나 파일에서 불러온 뒤 다시 제출하세요.',
+      e_captcha: '스팸 방지 검사를 완료하세요.',
+      e_rate: '제출이 너무 많습니다. 나중에 다시 시도하세요.',
+      e_generic: '제출에 실패했습니다 ({err}). 다시 시도하세요.',
+      update_hint: '아래 버전을 올리세요. 버전이 올라갈 때만 앱이 업데이트를 제공합니다.',
+      ok_back: '카탈로그 둘러보기',
+      h_shots: '이미지 2~3장: PNG, JPG 또는 WebP, 장당 최대 4MB.',
+      h_colours: '스토어에서 카드에 쓰이는 색입니다.',
+      j_send: '보내기',
+      j_shots: '스크린샷',
+      j_colours: '카드 색상',
+      j_code: '공유 코드',
+      j_about: '만든 작품',
+      lede: '만든 작품의 공유 코드를 붙여넣으세요. 모든 제출물은 카탈로그에 올라가기 전에 사람이 검토합니다.',
+      f_supporter: '후원자 코드 <small>(선택: 후원자의 제출물을 먼저 검토합니다. 코드는 확인만 하고 저장하지 않습니다)</small>',
+      f_price: '희망 가격(USD) <small>(선택: 받고 싶은 금액. 검토에서도 가격을 제안합니다)</small>',
+      e_price: '가격은 0~100 USD 사이의 숫자여야 하며 소수점은 두 자리까지입니다.',
+      e_supporter: '후원자 코드가 올바르지 않습니다. 확인하거나 칸을 비워 두세요.',
+      e_supporter_exp: '후원자 코드가 만료되었습니다. 칸을 비워 두면 일반 대기열로 보냅니다.',
+      audit_design: '디자인 제안 {n}개. 제출을 막지 않습니다.',
+      title: '커뮤니티 카탈로그에 게시',
+      send: '검토 요청 보내기', ok_title: '제출 완료', sending: '전송 중…',
+      ok_status: '이 링크를 저장하세요. 검토 결과와 고칠 점, 고치는 방법을 볼 수 있습니다.', ok_copy: '링크 복사',
+      f_kind: '종류', f_name: '이름 *', f_author: '제작자 / 핸들 *', f_desc: '설명 *',
+      desc_ph: '무엇을 하는지 한두 문장으로. 마크다운 사용 가능: **굵게**, *기울임*, - 또는 1. 로 목록',
       shot_add: '+ 추가', shot_rm: '제거',
       e_captcha_blocked: '스팸 방지 검사를 불러오지 못했습니다. 보통 광고 차단기나 개인정보 보호 확장 프로그램 때문입니다. 이 페이지에서 해제한 뒤 새로고침하거나, GitHub 양식을 이용하세요.',
       f_audit: '자동 검사',
@@ -696,6 +854,11 @@
       audit_checking: '코드 검사 중…',
       audit_green: '자동 검사에서 차단할 문제가 발견되지 않았습니다. 그래도 사람이 모두 검토합니다.',
       audit_notes: '참고 {n}개',
+      audit_sum_block: "고칠 것: {n}개. 이대로라면 보통 거절됩니다.",
+      audit_sum_warn: "확인할 것: {n}개. 결정 전에 사람이 읽습니다.",
+      audit_grp_block: "심사를 막는 문제",
+      audit_grp_warn: "확인 필요",
+      audit_grp_info: "참고",
       audit_export_save: '보고서 저장 (.md)',
       audit_export_copy: '보고서 복사',
       audit_export_done: '완료',
@@ -705,12 +868,87 @@
       audit_locked_notice: '암호화된 패키지: 자동 검사가 불가능하여 전체 수동 검토를 받습니다. 내용을 검토자에게 알려 주세요.',
       audit_unavailable: '자동 검사를 여기서 실행할 수 없었습니다. 제출 시 서버에서 실행됩니다.',
       e_justify: '표시된 항목이 왜 필요한지 설명해 주세요',
-      sev_block: '차단', sev_warn: '주의', sev_info: '정보',
     },
     ja: {
-      back: '← コミュニティカタログ', title: 'コミュニティカタログに公開',
-      send: 'レビューに送信', ok_title: '送信しました！', sending: '送信中…',
-      f_kind: '種類', f_name: '名前 *', f_author: '作者', f_desc: '説明', f_code: '共有コード *',
+      f_isupdate: 'カタログに公開済みの項目の更新です',
+      f_target: 'どの項目ですか? *',
+      target_ph: '項目名を入力してください…',
+      f_changelog: '変更点は? * <small>(1 行で。更新の案内に表示されます)</small>',
+      changelog_ph: 'サマータイム後に時計がずれる問題を修正',
+      k_bg: 'bg (アニメーション背景)',
+      k_page: 'page (ダッシュボードページ)',
+      k_deck: 'deck (Deck プロファイル)',
+      k_widget: 'widget (コミュニティウィジェット)',
+      k_ambient: 'ambient (Ambient シーン)',
+      k_bundle: 'bundle (フルパッケージ)',
+      k_icons: 'icons (Deck アイコンパック)',
+      k_sounds: 'sounds (サウンドボードパック)',
+      k_topbar: 'topbar (トップバー設定)',
+      f_category: 'カテゴリ *',
+      c_none: '選択してください…',
+      c_style: 'style (テーマ、背景、見た目)',
+      c_deck: 'deck (Deck プロファイル)',
+      c_streaming: 'streaming (配信)',
+      c_media: 'media (メディア)',
+      c_smarthome: 'smart-home (スマートホーム)',
+      c_system: 'system (システム)',
+      c_tools: 'tools (ツール)',
+      c_fun: 'fun (お楽しみ)',
+      f_version: 'バージョン * <small>(例: 1.0.0。更新するときは上げてください)</small>',
+      f_tags: 'タグ * <small>(最大 6 個、小文字。ストアで見つけてもらうためのものです)</small>',
+      code_ph: '共有とインポート → エクスポートのコードを貼り付けてください…',
+      code_file: '.txt / .json ファイルから読み込む…',
+      code_hint: 'Xenon の設定 → ウィジェットと共有で作ったものをエクスポートし、コードをコピーするかファイルをダウンロードします。最大 2&nbsp;MB。',
+      f_accent: 'アクセント *',
+      f_bgcol: '背景 *',
+      f_textcol: 'テキスト *',
+      ok_p1: '作ったものは確認待ちに入りました。すべての投稿は人が確認します。承認されると、コミュニティカタログと Xenon の Discover ギャラリーに表示されます。',
+      ok_p2: 'あとで更新するときは、ここに戻って<b>「更新です」</b>にチェックを入れ、項目を選び、バージョンを上げてください。2 つ目の項目は作られず、公開中のものが置き換わります。',
+      foot: '投稿は審査されます。コードはインポート時にアプリ内で再度検証されるため、カタログの項目が黙って何かを変更することはありません。',
+      e_code_big: 'コードが 2 MB を超えています。',
+      pal_manual: 'この種類にはテーマが含まれないため、下の 3 色は Xenon の既定値から始まります。作ったものに合わせて変更してください。',
+      pal_auto: 'コードから入力しました。カードの見た目を変えたいときは変更してください。',
+      target_unknown: 'その ID のカタログ項目はありません。一覧から選んでください。選ばないと、確認担当者は新しい項目として扱います。',
+      target_found: '「{name}」を更新します (現在 v{ver})。',
+      target_suggest: '{next} 以上にしてください。',
+      e_name: '名前を付けてください。',
+      e_category: 'カテゴリを選んでください。ストアでの分類が決まります。',
+      e_author: 'カードに作者として表示する名前かハンドルを入力してください。',
+      e_version_req: 'バージョン番号を入力してください (例: 1.0.0)。',
+      e_version_bad: 'バージョンは数字とドットだけで入力してください (例: 1.0.0)。',
+      e_tags: 'タグを 1 つ以上追加してください。ストアで見つけてもらうためのものです。',
+      e_desc: '作ったものについて 1〜2 行で書いてください。カードに表示されます。',
+      e_code: '共有コードを貼り付けてください。',
+      e_palette: 'カードの 3 色をすべて設定してください。コードにテーマが含まれていれば自動で入力されます。',
+      e_shots: 'スクリーンショットを 2 枚以上追加してください。画像のない項目はインストールされません。',
+      e_changelog: 'このバージョンの変更点を書いてください。更新の案内に表示されます。',
+      e_version_same: 'v{ver} はすでに公開されています。バージョンを上げないと、誰にも更新が案内されません。',
+      e_version_lower: 'v{ver} は公開中の v{pub} より低いバージョンです。アプリはバージョンが上がったときだけ更新を案内するため、誰にも届きません。{next} 以上にしてください。',
+      e_code_incomplete: '共有コードが途中で切れているようです。Xenon から全体をコピーするか、ファイルから読み込んで、もう一度送信してください。',
+      e_captcha: 'スパム対策のチェックを完了してください。',
+      e_rate: '送信回数が多すぎます。しばらくしてからもう一度お試しください。',
+      e_generic: '送信に失敗しました ({err})。もう一度お試しください。',
+      update_hint: '下のバージョンを上げてください。バージョンが上がったときだけ、アプリは更新を案内します。',
+      ok_back: 'カタログを見る',
+      h_shots: '画像 2〜3 枚: PNG、JPG、WebP、各 4 MB まで。',
+      h_colours: 'ストアのカードに使われます。',
+      j_send: '送信',
+      j_shots: 'スクリーンショット',
+      j_colours: 'カードの色',
+      j_code: '共有コード',
+      j_about: '作ったもの',
+      lede: '作ったものの共有コードを貼り付けてください。すべての投稿は、カタログに載る前に人が確認します。',
+      f_supporter: 'サポーターのコード <small>(任意：サポーターの投稿を先にレビューします。コードは確認のみで、保存しません)</small>',
+      f_price: '希望価格（USD） <small>(任意：付けたい価格。レビューでも価格を提案します)</small>',
+      e_price: '価格は0〜100 USDの数値で、小数点以下は2桁までです。',
+      e_supporter: 'このサポーターのコードは無効です。確認するか、空欄のままにしてください。',
+      e_supporter_exp: 'このサポーターのコードは期限切れです。空欄にすると通常の順番で送信します。',
+      audit_design: 'デザインの提案 {n} 件。送信を妨げることはありません。',
+      title: 'カタログに公開',
+      send: 'レビューに送信', ok_title: '送信しました', sending: '送信中…',
+      ok_status: 'このリンクを保存してください。レビュー結果と直すところ、直し方が確認できます。', ok_copy: 'リンクをコピー',
+      f_kind: '種類', f_name: '名前 *', f_author: '作者 / ハンドル *', f_desc: '説明 *',
+      desc_ph: '何をするものか、1〜2文で。Markdownが使えます: **太字**、*斜体*、- や 1. で箇条書き',
       shot_add: '+ 追加', shot_rm: '削除',
       e_captcha_blocked: 'スパム対策チェックを読み込めませんでした。通常は広告ブロッカーやプライバシー拡張機能が原因です。このページで無効にして再読み込みするか、GitHub のフォームをご利用ください。',
       f_audit: '自動チェック',
@@ -719,6 +957,11 @@
       audit_checking: 'コードをチェック中…',
       audit_green: '自動チェックで問題は見つかりませんでした。それでも人間がすべて確認します。',
       audit_notes: 'メモ {n} 件',
+      audit_sum_block: "直すこと: {n} 件。このままだと通常は却下されます。",
+      audit_sum_warn: "確認すること: {n} 件。判断の前に人が読みます。",
+      audit_grp_block: "審査を止める問題",
+      audit_grp_warn: "確認が必要",
+      audit_grp_info: "メモ",
       audit_export_save: 'レポートを保存 (.md)',
       audit_export_copy: 'レポートをコピー',
       audit_export_done: '完了',
@@ -728,12 +971,87 @@
       audit_locked_notice: '暗号化パッケージ: 自動チェックできないため、完全な手動レビューになります。内容をレビュアーに伝えてください。',
       audit_unavailable: '自動チェックをここでは実行できませんでした。送信時にサーバー側で実行されます。',
       e_justify: '指摘された項目がなぜ必要か説明してください',
-      sev_block: 'ブロック', sev_warn: '注意', sev_info: '情報',
     },
     zh: {
-      back: '← 社区目录', title: '发布到社区目录',
-      send: '提交审核', ok_title: '已提交！', sending: '发送中…',
-      f_kind: '类型', f_name: '名称 *', f_author: '作者', f_desc: '描述', f_code: '分享代码 *',
+      f_isupdate: '这是我在目录中已有条目的更新',
+      f_target: '哪个条目？*',
+      target_ph: '输入条目名称…',
+      f_changelog: '改了什么？* <small>(一行，用户会在更新提示中看到)</small>',
+      changelog_ph: '修复了夏令时后时钟走偏的问题',
+      k_bg: 'bg (动画背景)',
+      k_page: 'page (仪表盘页面)',
+      k_deck: 'deck (Deck 配置文件)',
+      k_widget: 'widget (社区小组件)',
+      k_ambient: 'ambient (Ambient 场景)',
+      k_bundle: 'bundle (完整包)',
+      k_icons: 'icons (Deck 图标包)',
+      k_sounds: 'sounds (音效板包)',
+      k_topbar: 'topbar (顶栏配置)',
+      f_category: '类别 *',
+      c_none: '请选择…',
+      c_style: 'style (主题、背景、外观)',
+      c_deck: 'deck (Deck 配置文件)',
+      c_streaming: 'streaming (直播)',
+      c_media: 'media (媒体)',
+      c_smarthome: 'smart-home (智能家居)',
+      c_system: 'system (系统)',
+      c_tools: 'tools (工具)',
+      c_fun: 'fun (娱乐)',
+      f_version: '版本 * <small>(例如 1.0.0，更新时请提高版本号)</small>',
+      f_tags: '标签 * <small>(最多 6 个，小写，用户靠它们在商店中找到你的作品)</small>',
+      code_ph: '粘贴从“分享与导入 → 导出”复制的代码…',
+      code_file: '从 .txt / .json 文件加载…',
+      code_hint: '在 Xenon 的 设置 → 小组件与分享 中导出你的作品，然后复制代码或下载文件。最大 2&nbsp;MB。',
+      f_accent: '强调色 *',
+      f_bgcol: '背景 *',
+      f_textcol: '文字 *',
+      ok_p1: '你的作品已进入审核队列。每份投稿都由人工查看，通过后会出现在社区目录和 Xenon 的 Discover 图库中。',
+      ok_p2: '以后要更新？回到这里，勾选<b>“这是更新”</b>，选择你的条目并提高版本号：它会替换已发布的版本，而不是新增一个条目。',
+      foot: '投稿都经过审核。导入时应用会再次验证代码，目录条目绝不会悄悄更改任何内容。',
+      e_code_big: '代码超过 2 MB。',
+      pal_manual: '这种类型不含主题，下面三种颜色默认使用 Xenon 的预设值，请按你的作品调整。',
+      pal_auto: '已根据你的代码填入；如果想让卡片看起来不同，可以修改。',
+      target_unknown: '目录中没有这个 id 的条目，请从列表中选择。否则审核者会把它当作新条目处理。',
+      target_found: '正在更新“{name}”，当前版本 v{ver}。',
+      target_suggest: '请使用 {next} 或更高版本。',
+      e_name: '请给你的作品取个名字。',
+      e_category: '请选择类别：它决定你的条目在商店中的归类。',
+      e_author: '请填写卡片上显示的作者名称或昵称。',
+      e_version_req: '请填写版本号，例如 1.0.0。',
+      e_version_bad: '版本号只能包含数字和点，例如 1.0.0。',
+      e_tags: '请至少添加一个标签：用户靠标签在商店中找到你的条目。',
+      e_desc: '请用一两句话介绍你的作品：这是卡片上显示的内容。',
+      e_code: '请粘贴分享代码。',
+      e_palette: '请设置全部三种卡片颜色：代码含主题时会自动填入。',
+      e_shots: '请至少添加 2 张截图：没有图片的条目没人会安装。',
+      e_changelog: '请说明这个版本改了什么：用户会在更新提示中看到这一行。',
+      e_version_same: 'v{ver} 已经发布：请提高版本号，否则没有人会收到更新。',
+      e_version_lower: 'v{ver} 低于已发布的 v{pub}：只有版本号升高时应用才会提供更新，所以这个版本到不了任何人手上。请使用 {next} 或更高版本。',
+      e_code_incomplete: '分享代码似乎被截断或不完整：请从 Xenon 复制完整内容（或从文件加载），然后重新提交。',
+      e_captcha: '请完成反垃圾验证。',
+      e_rate: '提交次数过多，请稍后再试。',
+      e_generic: '提交失败（{err}），请重试。',
+      update_hint: '请提高下面的版本号：只有版本号升高时，应用才会提供更新。',
+      ok_back: '浏览目录',
+      h_shots: '2 到 3 张图片：PNG、JPG 或 WebP，每张不超过 4 MB。',
+      h_colours: '用于商店中的卡片。',
+      j_send: '提交',
+      j_shots: '截图',
+      j_colours: '卡片颜色',
+      j_code: '分享代码',
+      j_about: '你的作品',
+      lede: '粘贴你作品的分享代码。每份投稿在进入目录之前都由人工审核。',
+      f_supporter: '支持者代码 <small>(可选：支持者的投稿优先审核；代码只做验证，不会保存)</small>',
+      f_price: '你的定价（USD） <small>(可选：你想要的价格；审核也会给出建议价格)</small>',
+      e_price: '价格必须是 0 到 100 USD 之间的数字，最多两位小数。',
+      e_supporter: '这个支持者代码无效。请检查，或留空。',
+      e_supporter_exp: '这个支持者代码已过期。留空即可按普通顺序提交。',
+      audit_design: '{n} 条设计建议。不会阻止提交。',
+      title: '发布到社区目录',
+      send: '提交审核', ok_title: '已提交', sending: '发送中…',
+      ok_status: '请保存这个链接：可以查看审核结果、需要修正的地方和修正方法。', ok_copy: '复制链接',
+      f_kind: '类型', f_name: '名称 *', f_author: '作者 / 昵称 *', f_desc: '描述 *',
+      desc_ph: '用一两句话说明它的作用。支持 Markdown：**粗体**、*斜体*、用 - 或 1. 写列表',
       shot_add: '+ 添加', shot_rm: '移除',
       e_captcha_blocked: '无法加载反垃圾验证。通常是广告拦截器或隐私扩展导致的。请在本页面停用它并刷新，或改用 GitHub 表单。',
       f_audit: '自动检查',
@@ -742,6 +1060,11 @@
       audit_checking: '正在检查代码…',
       audit_green: '自动检查未发现阻止性问题。仍会有人工审核所有内容。',
       audit_notes: '{n} 条备注',
+      audit_sum_block: "需修复：{n} 项。照现在这样，这类投稿通常会被拒绝。",
+      audit_sum_warn: "需查看：{n} 项。决定前会有人阅读。",
+      audit_grp_block: "阻止审核",
+      audit_grp_warn: "需查看",
+      audit_grp_info: "备注",
       audit_export_save: '保存报告 (.md)',
       audit_export_copy: '复制报告',
       audit_export_done: '完成',
@@ -751,7 +1074,6 @@
       audit_locked_notice: '加密包：无法自动检查，将进行完整的人工审核。请告诉审核者里面有什么。',
       audit_unavailable: '自动检查无法在此运行。提交时会在服务器上运行。',
       e_justify: '请说明你的作品为何需要被标记的项目',
-      sev_block: '阻止', sev_warn: '警告', sev_info: '信息',
     },
   };
   var LANGS = ['en', 'it', 'es', 'fr', 'ko', 'ja', 'zh'];
@@ -856,6 +1178,25 @@
     r.readAsText(f);
   });
 
+  // ── From Xenon Maker (?from=maker): the code it left on this origin, taken
+  // once. Only a fresh one is used; it is checked like a pasted code. ──
+  if (qs.get('from') === 'maker') {
+    var handed = null;
+    try {
+      handed = JSON.parse(localStorage.getItem('xenon.maker.submit') || 'null');
+      localStorage.removeItem('xenon.maker.submit');
+    } catch (e) {}
+    if (handed && typeof handed.code === 'string' && handed.code.length <= MAX_CODE &&
+        typeof handed.at === 'number' && Math.abs(Date.now() - handed.at) < 10 * 60 * 1000) {
+      // After the rest of this script has set up what syncFromCode() reads.
+      setTimeout(function () {
+        codeEl.value = handed.code;
+        paintSize();
+        syncFromCode();
+      }, 0);
+    }
+  }
+
   // ── Screenshots ──
   var shots = [null, null, null];
   function renderShots() {
@@ -863,7 +1204,7 @@
     box.textContent = '';
     for (var i = 0; i < MAX_SHOTS; i++) (function (i) {
       var cell = document.createElement('div'); cell.className = 'shot';
-      var frame = document.createElement('div'); frame.className = 'box';
+      var frame = document.createElement(shots[i] ? 'div' : 'button'); frame.className = 'box';
       if (shots[i]) {
         var img = document.createElement('img');
         img.src = shots[i].url; img.alt = '';
@@ -875,6 +1216,7 @@
         });
         cell.appendChild(frame); cell.appendChild(rm);
       } else {
+        frame.type = 'button';
         frame.textContent = T('shot_add', '+ Add');
         var input = document.createElement('input');
         input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp,image/gif'; input.hidden = true;
@@ -1048,12 +1390,8 @@
   function findingNode(f) {
     var item = document.createElement('div');
     item.className = 'finding';
-    var sev = f && f.severity === 'block' ? 'block' : f && f.severity === 'warn' ? 'warn' : 'info';
-    var chip = document.createElement('span');
-    chip.className = 'sev ' + sev;
-    chip.textContent = T('sev_' + sev, sev.toUpperCase());
-    item.appendChild(chip);
-    var msg = document.createElement('span');
+    if (SEVERITY_SHEET[sevOf(f)]) item.setAttribute('data-sheet', SEVERITY_SHEET[sevOf(f)]);
+    var msg = document.createElement('div');
     msg.textContent = String((f && (f.message || f.id)) || '');
     item.appendChild(msg);
     if (f && f.file) {
@@ -1068,6 +1406,12 @@
       why.textContent = String(f.why);
       item.appendChild(why);
     }
+    if (f && f.fix) {
+      var fix = document.createElement('div');
+      fix.className = 'ffix';
+      fix.textContent = String(f.fix);
+      item.appendChild(fix);
+    }
     if (f && f.excerpt) {
       var ex = document.createElement('code');
       ex.className = 'fex';
@@ -1075,6 +1419,50 @@
       item.appendChild(ex);
     }
     return item;
+  }
+
+  function sevOf(f) {
+    return f && f.severity === 'block' ? 'block' : f && f.severity === 'warn' ? 'warn' : 'info';
+  }
+  var SEVERITY_SHEET = { block: 'red', warn: 'orange' };
+
+  // What the findings add up to, first and in plain words; then each weight
+  // under its own heading, the heaviest first.
+  var SUM = {
+    block: ['audit_sum_block', 'To fix: {n}. As it is, a submission like this is usually turned down.'],
+    warn: ['audit_sum_warn', 'To look at: {n}. A person reads these before deciding.'],
+  };
+  var GROUP = {
+    block: ['audit_grp_block', 'Blocks the review'],
+    warn: ['audit_grp_warn', 'Needs a look'],
+    info: ['audit_grp_info', 'Notes'],
+  };
+  function groupedFindings(findings) {
+    var frag = document.createDocumentFragment();
+    var by = { block: [], warn: [], info: [] };
+    findings.forEach(function (f) { by[sevOf(f)].push(f); });
+    var sum = document.createElement('div');
+    sum.className = 'audit-sum';
+    ['block', 'warn'].forEach(function (k) {
+      if (!by[k].length) return;
+      var p = document.createElement('p');
+      p.setAttribute('data-sheet', SEVERITY_SHEET[k]);
+      p.textContent = T(SUM[k][0], SUM[k][1]).replace('{n}', by[k].length);
+      sum.appendChild(p);
+    });
+    if (sum.childNodes.length) frag.appendChild(sum);
+    ['block', 'warn', 'info'].forEach(function (k) {
+      if (!by[k].length) return;
+      var h = document.createElement('h3');
+      h.className = 'audit-grp';
+      h.textContent = T(GROUP[k][0], GROUP[k][1]) + ' (' + by[k].length + ')';
+      frag.appendChild(h);
+      var list = document.createElement('div');
+      list.className = 'audit-findings';
+      by[k].forEach(function (f) { list.appendChild(findingNode(f)); });
+      frag.appendChild(list);
+    });
+    return frag;
   }
 
   function auditLine(text) {
@@ -1146,14 +1534,26 @@
         auditBox.appendChild(det);
       }
     } else if (auditState === 'yellow' || auditState === 'red' || auditState === 'locked') {
-      var all = document.createElement('div');
-      all.className = 'audit-findings';
-      findings.forEach(function (f) { all.appendChild(findingNode(f)); });
-      if (findings.length) auditBox.appendChild(all);
+      if (findings.length) auditBox.appendChild(groupedFindings(findings));
     } else { // none
       auditBox.appendChild(auditLine(T('audit_idle', 'Paste your share code above and it is checked automatically.')));
     }
-    // Offered on every state that actually produced a report, green included:
+    // Design advice sits apart from the verdict: it never asks for a
+    // justification and never blocks, so it is folded away under its own line.
+    var design = (lastAudit && Array.isArray(lastAudit.design)) ? lastAudit.design : [];
+    if (design.length && auditState !== 'pending' && auditState !== 'unavailable') {
+      var dd = document.createElement('details');
+      dd.className = 'audit-notes';
+      var ds = document.createElement('summary');
+      ds.textContent = T('audit_design', '{n} design suggestions. They never block your submission.').replace('{n}', design.length);
+      dd.appendChild(ds);
+      var dl = document.createElement('div');
+      dl.className = 'audit-findings';
+      design.forEach(function (f) { dl.appendChild(findingNode(f)); });
+      dd.appendChild(dl);
+      auditBox.appendChild(dd);
+    }
+        // Offered on every state that actually produced a report, green included:
     // a clean result is worth keeping too, and the button appears only when
     // there is a document behind it.
     if (lastReport) auditBox.appendChild(auditExportRow());
@@ -1446,6 +1846,10 @@
     // scene to its update.
     if (derivedPkgId) fd.append('pkgId', derivedPkgId);
     if (justification) fd.append('justification', justification);
+    var supporterCode = document.getElementById('supporterCode').value.trim();
+    if (supporterCode) fd.append('supporterCode', supporterCode);
+    var price = document.getElementById('price').value.trim();
+    if (price) fd.append('price', price);
     fd.append('code', code);
     fd.append('turnstileToken', turnstileToken);
     var n = 0;
@@ -1461,8 +1865,14 @@
     btn.disabled = false; btn.textContent = T('send', 'Submit for review');
     if (out && out.ok) {
       document.getElementById('form').hidden = true;
+      document.getElementById('jump').remove();
+      document.getElementById('formHead').hidden = true;
+      document.getElementById('okHead').hidden = false;
+      document.getElementById('pg').setAttribute('aria-labelledby', 'ok-h');
       document.getElementById('okScreen').hidden = false;
+      showStatusLink(out.id, out.statusToken);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('ok-h').focus({ preventScroll: true });
       return;
     }
     var err = (out && out.error) || 'network';
@@ -1479,6 +1889,9 @@
     else if (err === 'missing_tags') showErr(T('e_tags', 'Add at least one tag: tags are how people find your entry in the Store.'));
     else if (err === 'missing_description') showErr(T('e_desc', 'Write a line or two about your creation: it is what the card shows.'));
     else if (err === 'missing_palette') showErr(T('e_palette', 'Set all three card colours: they are filled in from your code when it carries a theme.'));
+    else if (err === 'bad_supporter_code') showErr(T('e_supporter', 'That supporter code is not valid. Check it, or leave the field empty.'));
+    else if (err === 'bad_price') showErr(T('e_price', 'The price must be a number from 0 to 100 USD, with at most two decimals.'));
+    else if (err === 'supporter_expired') showErr(T('e_supporter_exp', 'That supporter code has expired. Leave the field empty to send in the normal queue.'));
     else if (err === 'missing_shots') showErr(T('e_shots', 'Add at least 2 screenshots: an entry with no pictures does not get installed.'));
     else if (err === 'justification_required') {
       // The hub ran the same audit server-side and wants an explanation. Its
@@ -1513,14 +1926,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+      <a class="xh-brand" href="/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Free widgets for your PC, on any screen. Windows, with macOS and Linux in beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit lives in the Vitals widget and has opinions about your posture.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/screen-recorder.html" data-xl="f.recorder">Screen recorder</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR. Every other name and logo belongs to its owner.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

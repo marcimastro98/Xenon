@@ -17,7 +17,10 @@ test('a message needs a charset-pinned id, a known level and a title', () => {
   assert.equal(M.normalizeMessage(msg({ id: '../escape' })), null);
   assert.equal(M.normalizeMessage(msg({ id: 'Has-Capitals' })), null);
   assert.equal(M.normalizeMessage(msg({ level: 'fullscreen' })), null);
-  assert.equal(M.normalizeMessage(msg({ level: '' })), null);
+  assert.equal(M.normalizeMessage(msg({ level: 'banner' })), null);
+  // No level at all: `where` is what the console writes, the level follows it.
+  assert.equal(M.normalizeMessage(msg({ level: '' })).level, 'toast');
+  assert.equal(M.normalizeMessage(msg({ level: '', where: 'stage' })).level, 'modal');
   assert.equal(M.normalizeMessage(msg({ title: '   ' })), null);
   assert.equal(M.normalizeMessage(null), null);
   assert.equal(M.normalizeMessage([]), null);
@@ -27,14 +30,13 @@ test('text is bounded and unknown keys never reach the client', () => {
   const out = M.normalizeMessage(msg({
     title: 'T'.repeat(500),
     body: 'B'.repeat(2000),
-    kicker: 'K'.repeat(100),
+    kicker: 'K'.repeat(100),    // the old eyebrow line: the card has no place for it
     onClick: 'alert(1)',        // not a key this shape has
     html: '<script>x</script>', // nor this
   }));
   assert.equal(out.title.length, 120);
   assert.equal(out.body.length, 600);
-  assert.equal(out.kicker.length, 24);
-  assert.deepEqual(Object.keys(out).sort(), ['body', 'id', 'kicker', 'level', 'title']);
+  assert.deepEqual(Object.keys(out).sort(), ['body', 'id', 'level', 'title', 'where']);
 });
 
 // ── Actions ────────────────────────────────────────────────────────────────

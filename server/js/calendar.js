@@ -24,6 +24,10 @@
       item.className = 'tp-item' + (i === selectedVal ? ' selected' : '');
       item.textContent = _pad(i);
       item.dataset.val = i;
+      // The chosen one of each column is the Tab stop: Tab goes hour, then minutes.
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(i === selectedVal));
+      item.tabIndex = i === selectedVal ? 0 : -1;
       item.addEventListener('click', function () {
         onSelect(i);
       });
@@ -73,19 +77,70 @@
     dd.style.top = (placeBelow ? r.bottom + gap : r.top - gap - h) + 'px';
   }
 
+  function _labelTp() {
+    $('tp-hours').setAttribute('aria-label', t('tp_hours'));
+    $('tp-minutes').setAttribute('aria-label', t('deck_param_minutes'));
+  }
+
+  function _focusSelected(colId) {
+    const sel = $(colId).querySelector('.tp-item.selected');
+    if (sel) sel.focus({ preventScroll: true });
+  }
+
   function toggleTimePicker() {
     _tpOpen = !_tpOpen;
     const dd = $('time-picker-dropdown');
     const btn = $('time-picker-btn');
     if (_tpOpen) {
       _rebuild();
+      _labelTp();
       dd.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
       _positionTp();   // measured after .open makes the dropdown displayable
+      _focusSelected('tp-hours');
     } else {
+      const hadFocus = dd.contains(document.activeElement);
       dd.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');
+      if (hadFocus) btn.focus();   // a closed list must not keep the focus
     }
+  }
+
+  // The keyboard inside the list: up and down change the value (and go round), Home and
+  // End jump to the ends, Enter or Space close it on the value shown. Esc is the day
+  // window's: it closes the list first (dayModalEsc).
+  function _tpStep(key, cur, count) {
+    if (key === 'ArrowDown') return (cur + 1) % count;
+    if (key === 'ArrowUp') return (cur - 1 + count) % count;
+    if (key === 'Home') return 0;
+    if (key === 'End') return count - 1;
+    return null;
+  }
+
+  function _onTpKey(e) {
+    const item = e.target.closest && e.target.closest('.tp-item');
+    if (!item) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTimePicker(); return; }
+    const col = item.parentNode;
+    const next = _tpStep(e.key, Number(item.dataset.val), col.children.length);
+    if (next === null) return;
+    e.preventDefault();
+    const colId = col.id;
+    col.children[next].click();   // the same path as a tap
+    _focusSelected(colId);
+  }
+
+  // Tab past the minutes leaves the list: it closes behind the focus.
+  function _onTpFocusOut(e) {
+    const wrap = $('time-picker-wrap');
+    if (!_tpOpen || !e.relatedTarget || wrap.contains(e.relatedTarget)) return;
+    toggleTimePicker();
+  }
+
+  const _tpDropdown = $('time-picker-dropdown');
+  if (_tpDropdown) {
+    _tpDropdown.addEventListener('keydown', _onTpKey);
+    _tpDropdown.addEventListener('focusout', _onTpFocusOut);
   }
 
   // close on outside click
@@ -200,10 +255,25 @@ function calendarWeekStart() {
   return (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.weekStart === 'sun') ? 0 : 1;
 }
 
+// One span per length; the card's width picks which one shows (CalendarView.css).
+function _monthLabelSpan(locale, format, className) {
+  const label = new Intl.DateTimeFormat(locale, format).format(calendarViewDate);
+  const span = document.createElement('span');
+  span.className = className;
+  span.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  return span;
+}
+
 function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
   const locale = t('locale');
-  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(calendarViewDate);
-  if (monthEl) monthEl.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+  if (monthEl) {
+    // The short name drops this year's number: with it "Aujourd'hui" still wrapped.
+    const thisYear = calendarViewDate.getFullYear() === new Date().getFullYear();
+    monthEl.replaceChildren(
+      _monthLabelSpan(locale, { month: 'long', year: 'numeric' }, 'calendar-month-long'),
+      _monthLabelSpan(locale, thisYear ? { month: 'short' } : { month: 'short', year: 'numeric' }, 'calendar-month-short'),
+    );
+  }
 
   const weekStart = calendarWeekStart();
   if (weekdaysEl) {
@@ -482,6 +552,8 @@ function renderUpcoming() {
   document.querySelectorAll('[data-calf="upcoming-list"]').forEach(list => _buildUpcomingInto(list));
 }
 
+let dayModalLetGo = null;
+
 function updateDayModalTitle() {
   if (!modalDateValue) return;
   const formatted = new Intl.DateTimeFormat(t('locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(modalDateValue + 'T00:00:00'));
@@ -502,13 +574,28 @@ function openDayModal(dateValue) {
   const endEl = $('event-end-date');
   if (endEl) { endEl.value = ''; endEl.min = dateValue; }
   $('day-modal').classList.add('open');
-  setTimeout(() => $('event-title').focus(), 80);
+  holdDayModal();
   if (calendarMode) renderCalendar();
+}
+
+// The time list is a step inside the window: Esc takes that back first.
+function dayModalEsc() {
+  if ($('time-picker-dropdown').classList.contains('open')) toggleTimePicker();
+  else closeDayModal();
+}
+
+function holdDayModal() {
+  if (dayModalLetGo) return;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('day-modal', true);
+  dayModalLetGo = window.DialogFocus.hold($('day-modal'), { start: $('event-title'), onEsc: dayModalEsc });
 }
 
 function closeDayModal() {
   $('day-modal').classList.remove('open');
   modalDateValue = null;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('day-modal', false);
+  if (dayModalLetGo) dayModalLetGo();
+  dayModalLetGo = null;
 }
 
 function renderDayModalEvents() {
@@ -541,9 +628,7 @@ function renderDayModalEvents() {
       const badgeColor = eventDotColor(event, _calendarFeedsNow());
       if (badgeColor) badge.style.background = badgeColor;
       badge.title = t('external_event');
-      top.appendChild(name);
-      top.appendChild(time);
-      top.appendChild(badge);
+      top.append(time, name, badge);
     } else {
       const del = document.createElement('button');
       del.type = 'button';
@@ -551,9 +636,7 @@ function renderDayModalEvents() {
       del.title = t('delete_event');
       del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
       del.onclick = () => deleteCalendarEvent(event.id);
-      top.appendChild(name);
-      top.appendChild(time);
-      top.appendChild(del);
+      top.append(time, name, del);
     }
     item.appendChild(top);
     if (event.notes) {
@@ -609,11 +692,6 @@ function flashEventNoteCopied(btn) {
   }, 1400);
 }
 
-function selectCalendarDate(dateValue) {
-  selectedCalendarDate = dateValue;
-  renderCalendar();
-}
-
 function moveCalendarMonth(delta) {
   calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + delta, 1);
   renderCalendar();
@@ -626,21 +704,85 @@ function jumpCalendarToday() {
   renderCalendar();
 }
 
+// Each change sends one edit, applied by the server to the events it has
+// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// list the server broadcasts (the `agenda` event).
+let _calendarEventsLoaded = false;
+let _calendarLoadRetry = null;
+let _calendarSyncInst = null;
+// The number of the newest list shown (the server's `seq`), and a broadcast
+// that arrived while an edit was on its way, held until that edit's answer
+// says which of the two is newer (as in tasks.js).
+let _calendarSeq = 0;
+let _calendarHeld = null;
+function _calendarSync() {
+  if (!_calendarSyncInst) {
+    _calendarSyncInst = window.ListSync.create({
+      url: SERVER + '/events',
+      listKey: 'events',
+      onList: (list, answer) => {
+        const held = _calendarHeld;
+        _calendarHeld = null;
+        if (!list) { loadCalendarEvents(); return; }   // refused: show what is saved
+        const seq = (answer && Number(answer.seq)) || 0;
+        if (held && held.seq > seq) _showCalendarEvents(held.list, held.seq);
+        else _showCalendarEvents(list, seq);
+      },
+    });
+  }
+  return _calendarSyncInst;
+}
+
+function repaintCalendarEvents() {
+  if (calendarMode) renderCalendar();
+  const modal = typeof $ === 'function' ? $('day-modal') : null;
+  if (modal && modal.classList.contains('open')) renderDayModalEvents();
+  renderUpcoming();
+}
+
+// Show a list unless a newer one is already on screen. A list without a
+// number (an older server) is always shown.
+function _showCalendarEvents(list, seq) {
+  if (seq && seq < _calendarSeq) return;
+  if (seq) _calendarSeq = seq;
+  calendarEvents = list;
+  _calendarEventsLoaded = true;
+  calendarLoaded = true;
+  repaintCalendarEvents();
+}
+
 async function loadCalendarEvents() {
   try {
     const res = await fetch(SERVER + '/events');
     if (!res.ok) throw new Error('events unavailable');
     const data = await res.json();
-    calendarEvents = Array.isArray(data.events) ? data.events : [];
+    _calendarEventsLoaded = true;
     calendarLoaded = true;
-    if (calendarMode) renderCalendar();
-    renderUpcoming();
+    // An edit still on its way would be undone on screen by this list; its
+    // own answer brings the list in a moment.
+    if (!(_calendarSyncInst && _calendarSyncInst.busy())) _showCalendarEvents(Array.isArray(data.events) ? data.events : [], Number(data.seq) || 0);
+    else repaintCalendarEvents();
   } catch {
+    // Keep what is on screen and keep asking. An event added meanwhile is
+    // safe: it goes to the list on the PC, never over it.
     calendarLoaded = true;
-    calendarEvents = [];
-    if (calendarMode) renderCalendar();
-    renderUpcoming();
+    repaintCalendarEvents();
+    if (!_calendarEventsLoaded && !_calendarLoadRetry) {
+      _calendarLoadRetry = setTimeout(() => { _calendarLoadRetry = null; if (!_calendarEventsLoaded) loadCalendarEvents(); }, 5000);
+    }
   }
+}
+
+// The events another screen, a phone or the assistant just saved (the
+// `agenda` event, with its `seq`).
+function applyServerEvents(list, seq) {
+  if (!Array.isArray(list)) return;
+  const n = Number(seq) || 0;
+  if (_calendarSyncInst && _calendarSyncInst.busy()) {
+    if (!_calendarHeld || n >= _calendarHeld.seq) _calendarHeld = { list, seq: n };
+    return;
+  }
+  _showCalendarEvents(list, n);
 }
 
 let externalEvents = [];
@@ -667,19 +809,15 @@ function allCalendarEvents() {
   return externalEvents.length ? calendarEvents.concat(externalEvents) : calendarEvents;
 }
 
-async function persistCalendarEvents() {
-  await fetch(SERVER + '/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ events: calendarEvents }),
-  });
+function sendCalendarEdit(op) {
+  return _calendarSync().send(op);
 }
 
 async function saveCalendarEvent() {
   const title = $('event-title').value.trim();
   const dateValue = modalDateValue || selectedCalendarDate;
   const starts = combineDateTime(dateValue, $('event-time').value);
-  if (!title || !starts) return;
+  if (!title || !starts) { $('event-title').focus(); return; }
   const reminderMinutes = Number($('event-reminder').value);
   const reminderAt = reminderMinutes >= 0 ? toLocalDateTimeValue(new Date(starts.getTime() - reminderMinutes * 60000)) : '';
   // Optional multi-day: an end date later than the start day makes the event
@@ -691,7 +829,7 @@ async function saveCalendarEvent() {
     const ends = combineDateTime(endDateVal, $('event-time').value);
     if (ends) endsAt = toLocalDateTimeValue(ends);
   }
-  calendarEvents.push({
+  const event = {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
     notes: $('event-notes').value.trim(),
@@ -700,13 +838,14 @@ async function saveCalendarEvent() {
     reminderAt,
     notifiedAt: '',
     createdAt: toLocalDateTimeValue(new Date()),
-  });
+  };
+  calendarEvents.push(event);
   $('event-title').value = '';
   $('event-notes').value = '';
   if ($('event-end-date')) $('event-end-date').value = '';
   selectedCalendarDate = dateValue;
   calendarViewDate = new Date(starts.getFullYear(), starts.getMonth(), 1);
-  await persistCalendarEvents().catch(() => {});
+  sendCalendarEdit({ op: 'add', item: event });
   if (calendarMode) renderCalendar();
   renderDayModalEvents();
   renderUpcoming();
@@ -715,84 +854,31 @@ async function saveCalendarEvent() {
   }
 }
 
-async function deleteCalendarEvent(id) {
+function deleteCalendarEvent(id) {
   calendarEvents = calendarEvents.filter(event => event.id !== id);
-  await persistCalendarEvents().catch(() => {});
+  sendCalendarEdit({ op: 'delete', id });
   if (calendarMode) renderCalendar();
   if ($('day-modal').classList.contains('open')) renderDayModalEvents();
   renderUpcoming();
 }
 
-function showReminder(event) {
+// The server decides when a reminder rings, once for every surface (SSE
+// calendar_reminder, server/calendar-reminders.js), and flashes the lights;
+// this surface shows it, rings, and keeps its own copy of the event in step.
+function showReminder(d) {
   const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short' }));
-  const meta = fmt.format(new Date(event.startsAt));
-  if (window.XenonToast) {
-    window.XenonToast.show({
-      type: 'reminder',
-      kicker: t('reminder'),
-      title: event.title || t('ph_title'),
-      message: meta,
-    });
-  }
+  const toast = window.AlertToasts ? window.AlertToasts.reminder(d, { t }, date => fmt.format(date)) : null;
+  if (!toast) return;
+  const own = calendarEvents.find(event => event.id === d.id);
+  if (own) own.notifiedAt = new Date().toISOString();
+  if (window.XenonToast) window.XenonToast.show(toast);
   playReminderSound();
-  if (window.lightingNotify) window.lightingNotify('reminder');
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification(t('desktop_title'), { body: `${event.title || t('ph_title')} - ${meta}`, silent: false, requireInteraction: true });
+      new Notification(t('desktop_title'), { body: toast.message ? `${toast.title} - ${toast.message}` : toast.title, silent: false, requireInteraction: true });
     } catch { }
   }
 }
 
-async function checkReminders() {
-  const now = Date.now();
-  let changed = false;
-
-  if (calendarLoaded && calendarEvents.length) {
-    calendarEvents.forEach(event => {
-      if (!event.reminderAt || event.notifiedAt) return;
-      const reminderTime = Date.parse(event.reminderAt);
-      if (Number.isFinite(reminderTime) && reminderTime <= now) {
-        event.notifiedAt = new Date().toISOString();
-        changed = true;
-        showReminder(event);
-      }
-    });
-    if (changed) await persistCalendarEvents().catch(() => {});
-  }
-
-  // External events: feed reminders are opt-out per feed. Fire 10 min before
-  // start; de-dupe via localStorage since we cannot write back to the feed.
-  if (externalEvents.length) {
-    const fired = _loadExtFired();
-    // Only feeds with reminders enabled qualify. If none qualify the set is
-    // empty and every external event is skipped (no reminders), which is the
-    // intended behaviour when the user turns reminders off everywhere.
-    const allowed = new Set(externalFeedsStatus.filter(f => f.reminders !== false).map(f => f.id));
-    let firedNew = false;
-    externalEvents.forEach(event => {
-      if (!allowed.has(event.source)) return;
-      const startMs = Date.parse(event.startsAt);
-      if (!Number.isFinite(startMs)) return;
-      const remindMs = startMs - 10 * 60000;
-      if (remindMs <= now && startMs >= now && !fired[event.id]) {
-        fired[event.id] = now;
-        firedNew = true;
-        showReminder(event);
-      }
-    });
-    if (firedNew) _saveExtFired(fired); // avoid rewriting localStorage every tick
-  }
-}
-
-function _loadExtFired() {
-  try { return JSON.parse(localStorage.getItem('xeneonedge.extReminders.notified') || '{}'); }
-  catch { return {}; }
-}
-
-function _saveExtFired(map) {
-  // Keep the store small: drop entries older than 2 days.
-  const cutoff = Date.now() - 2 * 86400000;
-  const pruned = {};
-  for (const [k, v] of Object.entries(map)) if (v >= cutoff) pruned[k] = v;
-  try { localStorage.setItem('xeneonedge.extReminders.notified', JSON.stringify(pruned)); } catch {}
-}
+// Feed reminders used to be remembered here; the server keeps them now.
+try { localStorage.removeItem('xeneonedge.extReminders.notified'); } catch { }

@@ -19,11 +19,11 @@ const reg = require('../actions/registry.js');
 const { completeWindowsEnvPath: expand } = reg;
 
 const ENV = {
-  APPDATA: 'C:\\Users\\wade\\AppData\\Roaming',
-  LOCALAPPDATA: 'C:\\Users\\wade\\AppData\\Local',
+  APPDATA: 'C:\\Users\\sam\\AppData\\Roaming',
+  LOCALAPPDATA: 'C:\\Users\\sam\\AppData\\Local',
   EMPTY: '',
 };
-const SPOTIFY = 'C:\\Users\\wade\\AppData\\Roaming\\Spotify\\Spotify.exe';
+const SPOTIFY = 'C:\\Users\\sam\\AppData\\Roaming\\Spotify\\Spotify.exe';
 const exists = (p) => p === SPOTIFY;
 
 test('the path Windows itself shows you now resolves', () => {
@@ -79,6 +79,6 @@ test('it is wired into the actions that take a path, not just exported', () => {
 test('the gates after it are untouched — it only changes the string they judge', () => {
   // The expanded path still has to be an allowed app path.
   assert.equal(reg.isAllowedAppPath(SPOTIFY, 'win32'), true);
-  assert.equal(reg.isAllowedAppPath('C:\\Users\\wade\\notes.txt', 'win32'), false,
+  assert.equal(reg.isAllowedAppPath('C:\\Users\\sam\\notes.txt', 'win32'), false,
     'expansion must not become a way to launch a non-app');
 });

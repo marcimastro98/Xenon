@@ -34,7 +34,9 @@
     if (!a || !b || a.length !== b.length) return false;
     if (!a.length) return true;
     const x = a[a.length - 1], y = b[b.length - 1];
-    return x.text === y.text && x.role === y.role && !!x.provisional === !!y.provisional;
+    return x.text === y.text && x.role === y.role && !!x.provisional === !!y.provisional
+      && (x.images ? x.images.length : 0) === (y.images ? y.images.length : 0)
+      && (x.tools ? x.tools.length : 0) === (y.tools ? y.tools.length : 0);
   }
 
   // The transcript, plus the Stop hook's final text when the transcript does
@@ -64,6 +66,8 @@
     let poll = null;
     let settle = [];
     let lastState = '';
+    let lastKey = '';
+    let nudge = null;
     let unread = false;        // a new reply arrived while the reader was scrolled up
     let atBottom = true;
 
@@ -99,6 +103,13 @@
       if (state !== 'running') stopPoll();
       if (lastState && state !== lastState) startSettle();
       lastState = state;
+      // A tool call starting or finishing is the moment Claude Code has just
+      // written to the transcript: read it now instead of waiting for the poll.
+      const key = sess ? (sess.activity ? sess.activity.length : 0) + ':' + (sess.tool || '') + ':' + (sess.toolDetail || '') : '';
+      if (state === 'running' && lastKey && key !== lastKey && !nudge) {
+        nudge = setTimer(() => { nudge = null; load(); }, 300);
+      }
+      lastKey = key;
     }
 
     function open(sessionId) {
@@ -112,6 +123,8 @@
 
     function close() {
       stopPoll(); clearSettle();
+      if (nudge) { clearTimer(nudge); nudge = null; }
+      lastKey = '';
       id = ''; messages = null; closed = false; full = false; lastState = ''; unread = false;
       seq++;
     }

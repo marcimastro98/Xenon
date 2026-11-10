@@ -43,10 +43,12 @@
 const fs = require('fs');
 const path = require('path');
 const { validateAction, clampDelay } = require('./js/deck-actions.js');
+const DeckShortcuts = require('./js/deck-shortcuts.js');
 // A package may declare the SILHOUETTE of its own tile. It goes through the very
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.
 const { normalizeTileShape, normalizeWidgetIcon } = require('./js/dashboard-instances.js');
+const WidgetOptions = require('./widget-options/options.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -74,7 +76,17 @@ const SDK_API_VERSION = 1;
 // REACT to one but never set one: writing into that shared map from a sandbox
 // would let one package overwrite another's name, and a package already has
 // `deck.states` for states of its own, which are declared and namespaced.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify', 'scriptStates']);
+// `lighting` is the user's lights by name and what each shows, with the parts of
+// a device that has a map (each fan, the pump, a strip): what a widget needs to
+// target `lightDevice` / `lightPart`. A pulled snapshot, no colours per LED.
+// `sensors` is every hardware sensor by name (an AIO's liquid, a VRM, each fan),
+// the catalog behind Settings → Sensor sources. Read only while granted.
+// `netPath` is how the way to the internet is doing, stretch by stretch: this
+// PC's link, the router, the provider's first hop, the internet. Numbers only,
+// never an address. Pulled; its echoes stop 10 s after the last read (net-path/).
+// `energy` is what this PC drew, in Wh per hour (72 h) and per day (90 days),
+// from the sensor history (sensor-history/energy.js). Pulled, numbers only.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -97,9 +109,18 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // of an ordered list that is connected, each id through the same check.
   audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst']),
   mic: Object.freeze(['micMute']),
-  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
+  // signalRgbEffect is the same act by another engine: it picks what the lights
+  // show. The name is encoded and passed as one argv entry (signalrgb.js), and
+  // nothing runs unless the user turned SignalRGB on.
+  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart', 'signalRgbEffect']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),
-  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlMixVolume', 'wlMixMute', 'wlEffect', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  // Its own line, for the reason audioDevice is not in `volume`: moving a fader
+  // and moving the sound to other hardware are different asks.
+  wavelinkOutput: Object.freeze(['wlOutputDevice']),
+  // Timers and stopwatches on the user's Timers tile, under a name the widget
+  // cannot choose (actions/widget-timers.js), so the user's own stay out of reach.
+  timers: Object.freeze(['timerStart', 'stopwatchStart', 'timerToggle', 'timerCancel']),
   // Voicemeeter strips, buses and routing. `vmParam` is deliberately LEFT OUT,
   // for the same reason haCallService is: it names any parameter the mixer has,
   // which includes Command.Shutdown and Command.Restart, and "close the user's
@@ -127,7 +148,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // person in the user's own voice channel — local playback, not moderation and
   // not anything the rest of the channel can observe. Same grant as the other
   // voice controls: a widget the user handed the `discord` category to.
-  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard']),
+  // discordOpenChat only shows a conversation in the user's own Discord window,
+  // it sends nothing, so it needs no line of its own in the dialog.
+  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordOpenChat', 'discordAudioToggle', 'discordSoundboard']),
   homeassistant: Object.freeze(['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton']),
   twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
   youtube: Object.freeze(['ytBroadcast']),
@@ -160,6 +183,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // tile shows. Low-risk (your own notes-style data, no system reach), grant-gated,
   // and each mutation is validated + length-capped in the action registry.
   tasks: Object.freeze(['taskAdd', 'taskToggle', 'taskDelete']),
+  // Mark one of the user's own Vitals meters done. Same low reach as tasks:
+  // the user's own self-care data, no system access, validated in the registry.
+  vitals: Object.freeze(['vitalsRefill']),
   // Soundboard playback. Browser-played (no registry case — the host dispatches
   // to deck.js's DeckSoundPlayer), and SDK-originated playSound may ONLY name a
   // pack-relative clip (packs/<pack>/<clip>.<ext>, see SDK_SOUND_FILE_RE) —
@@ -198,7 +224,77 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // state. The target is one of the user's own page ids, or a relative move, and
   // a page this screen does not have is refused rather than redirected.
   pages: Object.freeze(['dashboardPage']),
+  // Take a screenshot, start or stop a recording, save the Instant Replay: the
+  // capture keys of the Deck, START only. What the widget gets back is ok or an
+  // error code, never the picture, the file, its name or where it went (the
+  // bridge forwards only those two fields). SDK_ACTION_LIMITS below keeps out
+  // the modes that are not a capture: 'reveal' opens a file manager on the
+  // PC, replay on/off changes a setting, and the microphone stays the user's
+  // choice on their own key. The capture itself is never silent: the saved
+  // toast, the recording card and the on-screen badge show it as for a key.
+  // Text from the screen goes to the clipboard and the widget gets a line
+  // count: only from an area the user drags (SDK_ACTION_LIMITS), because a
+  // window or screen read would rewrite the clipboard with no gesture of theirs.
+  // A pinned screenshot is the same: an area the user drags, shown on their screen.
+  // The colour picker and the ruler wait for the user's own click or drag; the
+  // colour or size goes to the clipboard and the widget learns only ok/error.
+  // A bookmark on the recording that runs is a time on the user's own video:
+  // it starts nothing and reads nothing.
+  capture: Object.freeze(['screenshot', 'record', 'replay', 'screenText', 'screenPin', 'screenColor', 'screenMeasure', 'captureMarker']),
+  // Start and stop a benchmark of the game in front of the user (v5.0.0). The
+  // CSV stays in the user's folder: the widget gets ok or an error code, never
+  // the file, its name or the numbers in it ('reveal', which opens a file
+  // manager on the PC, is kept out by SDK_ACTION_LIMITS). Whether a run is going
+  // is already in the `perf` stream (`bench`), behind that stream's own grant.
+  benchmark: Object.freeze(['benchmark']),
+  // Open the gallery of what Xenon captured, on the screen the widget is on
+  // (the PC's screens when it is not on a dashboard). Only the filter: an `id`
+  // is never allowed, since a widget has no way to know one and must not learn
+  // that a capture exists by guessing. It never receives the list.
+  gallery: Object.freeze(['gallery']),
+  // Show or hide the widgets on the desktop and in the overlay, and switch
+  // their pages. Same kind of act as `pages` for the dashboard: what moves is
+  // the user's own layout, visible the instant it happens, and nothing leaves
+  // the PC. Placing, moving and removing widgets stays the user's (the edit mode
+  // and the voice), so one widget can never rearrange another. Drawing on the
+  // screen belongs here too: a sheet over the user's own screen, closed with
+  // Esc, that reads nothing and sends nothing back but whether it is open.
+  // Game Companion opens Bit's card for the game on the screen: the screen goes
+  // to the AI only when the user taps "Analyze screen" on the card itself.
+  layers: Object.freeze(['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion']),
+  // Game mode, Performance Mode and "this app is not a game" (v5.0.0): the
+  // switches of Settings, Performance, as a key would press them. Performance
+  // Mode applies only the safe tweaks the user saved (closing apps always asks
+  // on screen), and the not-a-game list takes the app detected right now, never
+  // a name the widget picks, so a widget cannot switch detection off for a game.
+  // Sensor history is local only: on, off and how often it samples.
+  performance: Object.freeze(['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory']),
 });
+
+// Per-type limits inside a category: a field the widget sends must be one of
+// these values (absent is fine: the registry's default is always allowed).
+// Mirrored in js/custom-widget.js, where bridge actions are gated.
+const SDK_ACTION_LIMITS = Object.freeze({
+  screenshot: Object.freeze({ mode: Object.freeze(['take']) }),
+  // Never the microphone or the webcam: a widget does not turn either on.
+  record: Object.freeze({ mode: Object.freeze(['toggle', 'start', 'stop']), audio: Object.freeze(['sound', 'silent']), webcam: Object.freeze(['off']) }),
+  replay: Object.freeze({ mode: Object.freeze(['save']) }),
+  screenText: Object.freeze({ target: Object.freeze(['region']) }),
+  // Pin an area the user drags, never a capture the widget names (it knows none).
+  screenPin: Object.freeze({ source: Object.freeze(['region']), id: Object.freeze([]) }),
+  benchmark: Object.freeze({ mode: Object.freeze(['toggle', 'start', 'stop']) }),
+  // Empty list = the field must be absent.
+  gallery: Object.freeze({ filter: Object.freeze(['all', 'video', 'screenshot']), id: Object.freeze([]) }),
+  // A chime every few seconds, from a widget, is noise nobody asked for.
+  stopwatchStart: Object.freeze({ everyMinutes: Object.freeze([]) }),
+  gameIgnore: Object.freeze({ mode: Object.freeze(['current']), name: Object.freeze([]) }),
+});
+
+function sdkActionWithinLimits(action) {
+  const limits = action && SDK_ACTION_LIMITS[action.type];
+  if (!limits) return true;
+  return Object.entries(limits).every(([field, allowed]) => action[field] == null || allowed.includes(action[field]));
+}
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
 // may use — sourced from the authority (sound-packs.js) so the server can
@@ -209,6 +305,10 @@ const SDK_SOUND_FILE_RE = require('./sound-packs').PACK_FILE_RE;
 // Every deck-action type the SDK can reach, across all categories. Macro steps
 // are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
 const SDK_ACTION_TYPES = Object.freeze(Object.values(SDK_ACTION_CATEGORIES).flat());
+
+// A macro runs on the server, where nothing stamps a timer with its widget, so a
+// macro step could name the user's own timers. Refused at install instead.
+const SDK_MACRO_ACTION_TYPES = Object.freeze(SDK_ACTION_TYPES.filter((type) => !SDK_ACTION_CATEGORIES.timers.includes(type)));
 
 // Category (grant unit) a deck-action type belongs to, or null. Used to check a
 // macro's steps against the categories the user granted the package.
@@ -269,9 +369,9 @@ const ASSET_MIME = Object.freeze({
 //
 // The fix is to name the origin as well as `'self'`, so the same header works
 // under both readings — see widgetCspFor(). WIDGET_CSP stays as the
-// origin-less form: it is what the constant has always meant, it is what the
-// tests and the SDK docs pin, and it is the correct answer when there is no
-// request to take an origin from.
+// origin-less form: it is what the constant has always meant and what the tests
+// pin. It is the template, never served as it is: widgetCspFor() replaces its
+// script-src with the widget's own folder on every response.
 const WIDGET_CSP = [
   "default-src 'none'",
   "script-src 'self'",
@@ -295,30 +395,52 @@ const WIDGET_CSP = [
 // but a value that ends up inside a security header gets checked where it is
 // used, not only where it came from.
 const CSP_HOST_RE = /^(?:\[[0-9a-fA-F:.]{2,45}\]|[A-Za-z0-9.-]{1,253})(?::\d{1,5})?$/;
+// A folder we are willing to write into a header: no dots, no separators.
+const CSP_ROOT_RE = /^(?:\/[A-Za-z0-9-]+)+\/$/;
 
 /**
- * WIDGET_CSP with the serving origin named explicitly alongside `'self'`.
+ * The folder a widget's file is served from, under either spelling of the
+ * route, or '' when the path is not one. The closing slash matters: in a CSP
+ * it makes the source a prefix, without it the source is one exact file.
  *
- * Both spellings are sent on purpose. `'self'` is what a Chromium engine
- * already honours and what the docs describe; the explicit origin is what a
+ * @param {string} pathname the request path, not decoded
+ */
+function widgetAssetRoot(pathname) {
+  const m = /^(\/sdk\/(?:widget|wk\/[a-f0-9]{32})\/([^/]+)\/)/.exec(String(pathname || ''));
+  return m && WIDGET_ID_RE.test(m[2]) ? m[1] : '';
+}
+
+/**
+ * WIDGET_CSP for one response: the serving origin named alongside `'self'`, and
+ * scripts limited to the widget's own folder.
+ *
+ * Both spellings are sent on purpose for styles, images, fonts and media.
+ * `'self'` is what a Chromium engine already honours; the explicit origin is what a
  * WebKit engine needs, because there `'self'` inside an opaque-origin document
  * matches nothing at all (see the note above WIDGET_CSP). Naming the origin
- * does not widen anything: it is the SAME origin `'self'` was meant to be, and
- * `connect-src 'none'` is untouched, so a widget still has no network.
+ * does not widen anything, and `connect-src 'none'` is untouched.
  *
- * Falls back to the plain constant when there is no usable host — a CSP that
- * is too strict degrades a widget's appearance, one built from a bad host would
- * be a security header assembled from unvalidated input.
+ * Scripts are different: a <script> is the one load whose answer a page can
+ * read, and the JSONP routes answer it for the iCUE widgets. So script-src names
+ * the folder alone and drops `'self'`, which Chromium would read as the whole
+ * origin. A widget gets what it was granted through the bridge, and cannot read
+ * the PC's state around it.
+ *
+ * With no usable host or folder no script runs: a CSP that is too strict costs a
+ * widget its code, one built from unvalidated input is a worse failure.
  *
  * @param {string} host   the request's Host header
  * @param {boolean} secure whether it arrived on the TLS listener
+ * @param {string} assetRoot the widget's folder, from widgetAssetRoot()
  */
-function widgetCspFor(host, secure) {
+function widgetCspFor(host, secure, assetRoot) {
   const h = String(host || '').trim();
-  if (!h || !CSP_HOST_RE.test(h)) return WIDGET_CSP;
+  const hostOk = !!h && CSP_HOST_RE.test(h);
   const origin = (secure === true ? 'https://' : 'http://') + h;
-  return WIDGET_CSP
-    .replace("script-src 'self'", "script-src 'self' " + origin)
+  const scripts = hostOk && CSP_ROOT_RE.test(String(assetRoot || '')) ? origin + assetRoot : "'none'";
+  const csp = WIDGET_CSP.replace("script-src 'self'", 'script-src ' + scripts);
+  if (!hostOk) return csp;
+  return csp
     .replace("style-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' " + origin)
     .replace("img-src 'self' data: blob:", "img-src 'self' " + origin + ' data: blob:')
     .replace("font-src 'self' data:", "font-src 'self' " + origin + ' data:')
@@ -368,7 +490,8 @@ const HANDLER_ARG_TEXT_MAX = 200;
 const MAX_MACRO_STEP_DELAY_MS = 5000;
 
 // Proxy request limits (enforced again by the /sdk/fetch handler).
-const PROXY_BODY_MAX_BYTES = 256 * 1024;
+// Every limit a widget can meet lives in sdk-limits/limits.js and reaches it in init.limits.
+const { SDK_LIMITS, limitFor, FETCH_BODY_MAX_BYTES: PROXY_BODY_MAX_BYTES } = require('./sdk-limits/limits.js');
 const PROXY_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
 // Request headers a widget may set through the proxy: the usual API-auth and
 // content-negotiation names plus custom x-* — never cookie/host/origin.
@@ -577,6 +700,18 @@ function normalizeHandlerParams(raw) {
 // rejects the manifest. States are display metadata only. Handlers are named
 // entry points the widget's own code answers when a bound deck key is pressed
 // (delivered over the bridge, grant-gated per handler id like hooks).
+// A key combination the creator suggests: for showing the widget (top-level
+// `key`, with `mode` "toggle" or "hold") or for one of its functions
+// (`deck.handlers[].key`). It is only ever OFFERED to the person in the Xenon
+// menu, never set on install, so it needs no grant; like every cosmetic field a
+// malformed or reserved one is dropped and never rejects the package.
+function normalizeKeySuggestion(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const combo = DeckShortcuts.normalizeShortcut(typeof raw.combo === 'string' ? raw.combo : '');
+  if (!combo || DeckShortcuts.reservedBy(combo)) return null;
+  return { combo, mode: raw.mode === 'hold' ? 'hold' : 'toggle' };
+}
+
 function normalizeDeckExtras(raw, declaredActions) {
   const empty = { actions: [], states: [], handlers: [] };
   if (raw == null) return { ok: true, deck: empty };
@@ -594,7 +729,8 @@ function normalizeDeckExtras(raw, declaredActions) {
       const steps = [];
       for (const s of m.steps) {
         const action = validateAction(s && s.action);
-        if (!action || !SDK_ACTION_TYPES.includes(action.type)) return { ok: false };
+        if (!action || !SDK_MACRO_ACTION_TYPES.includes(action.type)) return { ok: false };
+        if (!sdkActionWithinLimits(s.action) || !sdkActionWithinLimits(action)) return { ok: false };
         // A macro step may only touch categories the manifest also DECLARES in
         // `actions` — otherwise the user is never asked to grant that category
         // and the macro can never run (macro_unavailable). Fail loud at install.
@@ -629,7 +765,8 @@ function normalizeDeckExtras(raw, declaredActions) {
       if (deck.handlers.some(a => a.id === id)) return { ok: false };
       const params = normalizeHandlerParams(h.params);
       if (params === null) return { ok: false };
-      deck.handlers.push({ id, name, params });
+      const key = normalizeKeySuggestion(h.key);
+      deck.handlers.push({ id, name, params, ...(key ? { key: { combo: key.combo } } : {}) });
     }
   }
   return { ok: true, deck };
@@ -674,6 +811,9 @@ function macroCategories(macro) {
   }
   return cats;
 }
+
+// The shapes a package may say it was drawn for (manifest "size").
+const TILE_SIZES = Object.freeze(['small', 'medium', 'wide', 'tall', 'large']);
 
 // Rebuild a raw manifest into the exact shape the host trusts. Returns
 // { ok:true, manifest } or { ok:false, reason } — never a spread of the input.
@@ -738,8 +878,14 @@ function normalizeManifest(raw, folderId) {
   // on purpose — it is a different place on screen, so the permission dialog has
   // to be able to offer it, and the user to refuse it, on its own.
   const mini = raw.mini === true;
+  // A button of the package's own in the top bar, placed, hidden and restyled
+  // by the user like the built-in ones (an `sdk:<id>` entry in
+  // topbarClock.actions). Its face (glyph + short label) is plain text the host
+  // draws; a tap only posts a message to the package's frame.
+  const topbarButton = raw.topbarButton === true;
   const clipboard = raw.clipboard === true;
   const accent = raw.accent === true;
+  const ai = raw.ai === true;
   // Asking to cover the dashboard. Normalized away for an ambient package: an
   // Ambient scene already owns the whole screen, so the grant would be a
   // permission line that buys the user nothing.
@@ -769,7 +915,7 @@ function normalizeManifest(raw, folderId) {
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
       // A package may ask to run headless: handlers, badges and structured Live
       // Activities are the capabilities that can meaningfully outlive a tile.
-      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || islandDynamic || islandFull),
+      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || topbarButton || islandDynamic || islandFull),
       // Legacy text projection + the separately-consented structured surfaces.
       // All remain host-rendered and never weaken the widget iframe sandbox.
       island,
@@ -785,11 +931,18 @@ function normalizeManifest(raw, folderId) {
       // island's block allowlist — never guest DOM, so the chrome never becomes a
       // surface that runs package code.
       mini,
+      // Its own button among the bar's buttons (see `topbarButton` above).
+      topbarButton,
       // The widget may ask to write to the system clipboard — but only through a
       // host-rendered confirmation the user taps for each copy (the widget never
       // copies on its own). Write-only, no read; enforced entirely host-side in
       // js/custom-widget.js, so there is no server enforcement here.
       clipboard,
+      // The widget may ask the AI the user set for Bit (Sparks, their own key,
+      // Ollama or their plan) plain questions, through POST /sdk/ai: no tools,
+      // no history, a daily number per widget the user chooses. Enforced
+      // server-side (grant + this flag) in server.js and sdk-ai.js.
+      ai,
       // The widget may tint the dashboard's ACCENT at runtime — the same channel
       // the album-art accent uses, for sources Windows' media session never sees
       // (a Plex/Plexamp client, a game overlay). Runtime only: it never writes a
@@ -814,10 +967,24 @@ function normalizeManifest(raw, folderId) {
       // own entries, so no grant; a malformed one is dropped and the generic
       // puzzle stays, like every other cosmetic field.
       icon: normalizeWidgetIcon(raw.icon),
+      // The key the creator suggests for showing or hiding the placed widget
+      // (normalizeKeySuggestion): offered, never set. A scene is never placed.
+      key: raw.surface === 'ambient' ? null : normalizeKeySuggestion(raw.key),
       // Where the "+" panel files the widget: one of the panel's own categories.
       // Cosmetic like the icon (no grant); anything else is dropped and the panel
       // falls back to the catalog entry's category, then "other".
       category: ['productivity', 'media', 'system', 'streaming'].includes(raw.category) ? raw.category : null,
+      // The shape the widget was drawn for, so a new tile of it starts with that
+      // shape instead of the default span (js/dashboard-grid.js spanForSize).
+      // Cosmetic like the category; anything else is dropped.
+      size: TILE_SIZES.includes(raw.size) && raw.surface !== 'ambient' ? raw.size : null,
+      // The widget's own choices, set by the person in the Xenon menu's panel of it and
+      // handed back in `init.options` (widget-options/). They only shape what the widget
+      // draws, so no grant; an entry that is not right is dropped.
+      options: raw.surface === 'ambient' ? [] : WidgetOptions.normalizeDeclared(raw.options),
+      // On the screen its box takes the size the widget asks for (`layer` message `fit`),
+      // so the menu offers no size of its own. Cosmetic, no grant.
+      fit: raw.fit === true && raw.surface !== 'ambient',
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
@@ -898,7 +1065,7 @@ function resolveAsset(rootDir, id, relPath) {
   }
   // The probe filename is reserved: it is served from memory by the route, and
   // a package file by that name must never shadow it from disk.
-  if (segments[segments.length - 1] === PERF_PROBE_FILENAME) return null;
+  if (isReservedAsset(segments[segments.length - 1])) return null;
   const ext = path.extname(segments[segments.length - 1]).toLowerCase();
   if (!ASSET_MIME[ext]) return null;
   const base = path.join(rootDir, id);
@@ -922,17 +1089,155 @@ function mimeFor(absPath) {
 // security boundary remains the CSP sandbox.
 const PERF_PROBE_FILENAME = '__xenon-perf.js';
 
-// Zero DOM access, one namespaced global, every path try/caught: the probe must
-// never break or observably change a widget. It stays silent while the frame is
-// idle/throttled (all-zero window → no message).
+// ── WebRTC off (reserved same-origin asset) ─────────────────────────────────
+// `connect-src 'none'` does not cover WebRTC, and no directive does: a STUN or
+// TURN address in RTCPeerConnection leaves the machine, and `webrtc 'block'` is
+// ignored by Chromium and Edge (measured 5 Nov 2026, as was
+// --force-webrtc-ip-handling-policy, which Edge ignores and which leaves TURN
+// over TCP open). So the constructors are taken away before any widget code
+// runs. This one IS security, unlike the probe: it has to be the first thing in
+// the document, blocking, with an absolute src so a page in a subfolder gets it.
+// Nothing can bring the constructors back: a widget cannot reach another realm,
+// because frame-src 'none' refuses it a child frame.
+const FRAME_GUARD_FILENAME = '__xenon-guard.js';
+const FRAME_GUARD_SOURCE = "Object.getOwnPropertyNames(window).forEach(function(n){if(/^(webkit)?RTC/.test(n)){try{delete window[n];}catch(e){}}});";
+
+function isReservedAsset(name) {
+  return name === PERF_PROBE_FILENAME || name === FRAME_GUARD_FILENAME;
+}
+
+// Where a tag can go ahead of everything a page says: past a BOM, comments and
+// the doctype, which must stay first or the page falls into quirks mode. A comment
+// ends where the HTML parser ends it (`<!-->`, `<!--->` and `--!>` close one too):
+// reading it as longer would skip a live script. Stopping early only costs quirks mode.
+const DOCUMENT_PREAMBLE_RE = /^\uFEFF?(?:[\t\n\f\r ]|<!--(?:-?>|[\s\S]*?--!?>))*(?:<!doctype[^>]*>)?/i;
+
+function injectFrameGuard(html, assetRoot) {
+  const src = String(html == null ? '' : html);
+  if (!assetRoot) return src;   // no folder means script-src 'none': nothing runs at all
+  const at = DOCUMENT_PREAMBLE_RE.exec(src)[0].length;
+  return `${src.slice(0, at)}<script src="${assetRoot}${FRAME_GUARD_FILENAME}"></script>${src.slice(at)}`;
+}
+
+// The two host scripts every served widget page carries.
+function prepareWidgetHtml(html, assetRoot) {
+  return injectFrameGuard(injectPerfProbe(html), assetRoot);
+}
+
+// A widget can send its own frame to one of its SVG files, and an SVG document
+// runs scripts with no HTML to put the guard in. As an image it never runs any,
+// so an SVG simply gets no scripts.
+function assetCsp(csp, mime) {
+  return String(mime).startsWith('image/svg') ? String(csp).replace(/script-src [^;]*/, "script-src 'none'") : csp;
+}
+
+// Never touches the widget's DOM, one namespaced global, every path try/caught:
+// the probe must never break or observably change a widget. It stays silent
+// while the frame is idle/throttled (all-zero window → no message).
+//
+// It also names what the CSP REFUSED (a CDN script, inline code, a direct
+// fetch, a remote image), so a widget's author learns why the tile is blank
+// (js/sdk-diagnostics.js validates the report). Each distinct refusal is sent
+// once, as a CSP directive plus a bare hostname: never a path or query, which
+// can carry a key. The ReportingObserver is buffered, so refusals made while
+// the page parsed (before this deferred script ran) still count; the event
+// listener covers engines without it, and the shared key dedupes the two.
+// localStorage is NOT caught here and cannot be: to the opaque sandboxed
+// document every package script is cross-origin, so its errors arrive muted
+// ("Script error.", no error object; measured in Chromium). The static scan
+// (GET /sdk/check/<id>) is what names it.
 const PERF_PROBE_SOURCE = [
   '(() => {',
   "  'use strict';",
   '  try {',
   '    if (window.__xenonPerf) return;',
   '    const S = window.__xenonPerf = { lt: 0, ltN: 0, cls: 0, frames: 0, t0: performance.now() };',
+  '    const seen = new Set();',
+  '    let held = [];',
+  '    let flushT = 0;',
+  '    const flush = () => {',
+  '      flushT = 0;',
+  '      try {',
+  '        const items = held.slice(0, 8);',
+  '        held = [];',
+  "        if (items.length) parent.postMessage({ xenonSdk: 1, type: 'blocked', items }, '*');",
+  '      } catch (e) { /* never disturb the widget */ }',
+  '    };',
+  '    const note = (directive, uri) => {',
+  '      try {',
+  "        const u = String(uri || '');",
+  "        let b = '';",
+  "        if (u === 'inline' || u === 'eval' || u === 'wasm-eval') b = u;",
+  "        else if (u) { try { b = new URL(u).hostname; } catch (e) { b = ''; } }",
+  "        const d = String(directive || '').slice(0, 24);",
+  "        const k = d + '|' + b;",
+  '        if (!d || seen.has(k) || seen.size >= 32) return;',
+  '        seen.add(k);',
+  '        held.push({ directive: d, blocked: b });',
+  '        if (!flushT) flushT = setTimeout(flush, 1500);',
+  '      } catch (e) { /* never disturb the widget */ }',
+  '    };',
   '    try {',
-  '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { S.lt += e.duration; S.ltN++; } })',
+  '      new ReportingObserver((rs) => { for (const r of rs) note(r.body.effectiveDirective, r.body.blockedURL); },',
+  "        { types: ['csp-violation'], buffered: true }).observe();",
+  '    } catch (e) { /* ReportingObserver unsupported */ }',
+  "    document.addEventListener('securitypolicyviolation', (e) => note(e.effectiveDirective, e.blockedURI), true);",
+  "    // What went wrong while it ran, for the author: an uncaught error, a",
+  "    // rejected promise nobody handled, a console.error. Same batching as above.",
+  "    const errs = new Map();",
+  "    let errT = 0;",
+  "    const flushErr = () => {",
+  "      errT = 0;",
+  "      try {",
+  "        const items = [...errs.values()].slice(0, 8);",
+  "        errs.clear();",
+  "        if (items.length) parent.postMessage({ xenonSdk: 1, type: 'error', items }, '*');",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    const fault = (kind, msg) => {",
+  "      try {",
+  "        const m = String(msg == null ? '' : msg).slice(0, 300);",
+  "        const k = kind + '|' + m;",
+  "        const prev = errs.get(k);",
+  "        if (prev) prev.count++;",
+  "        else if (errs.size < 8) errs.set(k, { kind, message: m, count: 1 });",
+  "        if (!errT) errT = setTimeout(flushErr, 1500);",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    window.addEventListener('error', (e) => { if (e && e.target && e.target !== window) return; fault('error', e && e.message); });",
+  "    window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; fault('rejection', r && r.message ? r.message : r); });",
+  "    try {",
+  "      const ce = console.error;",
+  "      console.error = function (...args) {",
+  "        fault('console', args.map((x) => (x && x.message) || String(x)).join(' '));",
+  "        return ce.apply(this, args);",
+  "      };",
+  "    } catch (e) { /* console not writable */ }",
+  "    // A page that settles on dark paints an opaque canvas unless its frame element",
+  "    // is dark too, so the host hears which it is: a transparent widget stays",
+  "    // transparent over the tile, the desktop or a game. 'light dark' follows the",
+  "    // element by itself. xenon-client sets the scheme after load, hence the watch.",
+  "    let saidDark = false;",
+  "    const sayScheme = () => {",
+  "      try {",
+  "        const css = getComputedStyle(document.documentElement).colorScheme || '';",
+  "        const meta = document.querySelector('meta[name=color-scheme]');",
+  "        const words = (css && css !== 'normal' ? css : (meta && meta.content) || '').toLowerCase().split(' ');",
+  "        const dark = words.includes('dark') && !words.includes('light');",
+  "        if (dark === saidDark) return;",
+  "        saidDark = dark;",
+  "        parent.postMessage({ xenonSdk: 1, type: 'scheme', dark }, '*');",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    sayScheme();",
+  "    window.addEventListener('load', sayScheme);",
+  "    try {",
+  "      new MutationObserver(sayScheme).observe(document.documentElement, { attributes: true });",
+  "    } catch (e) { /* observer unsupported */ }",
+  '    try {',
+  "      // A frame in the dashboard's process is also told about the dashboard's own",
+  "      // long tasks (named '...-ancestor'). Only 'self' is this widget's work.",
+  "      new PerformanceObserver((l) => { for (const e of l.getEntries()) { if (e.name !== 'self') continue; S.lt += e.duration; S.ltN++; } })",
   "        .observe({ type: 'longtask', buffered: true });",
   '    } catch (e) { /* observer type unsupported */ }',
   '    try {',
@@ -1067,7 +1372,7 @@ function validateWidgetPayload(raw) {
     if (!relPath || seen.has(relPath)) return { ok: false, reason: 'bad_path' };
     // Reserved probe name: drop the file, keep the rest of the bundle valid —
     // resolveAsset would refuse to serve it anyway, this just avoids dead bytes.
-    if (relPath.split('/').pop() === PERF_PROBE_FILENAME) continue;
+    if (isReservedAsset(relPath.split('/').pop())) continue;
     seen.add(relPath);
     let bytes;
     try { bytes = Buffer.from(String(f.data == null ? '' : f.data), 'base64'); } catch { return { ok: false, reason: 'bad_data' }; }
@@ -1200,6 +1505,55 @@ function originExportable(origin) {
   return origin === 'creator' || origin === 'local';
 }
 
+// May an install write over a package id that is already installed?
+//
+// Grants are keyed by package id and nothing else. A share code carrying the id
+// of a widget the user already approved used to replace its files silently and
+// run with every permission the user had given the ORIGINAL — the camera feed,
+// the Deck actions, the hosts — without a single question. So writing over an
+// installed id is refused unless one of three things is true:
+//   - it is the user's own build being edited (the Creator, Bit's create_widget):
+//     origin 'creator' over a package the user owns;
+//   - it is the Store updating the same catalog entry it installed (the Update
+//     button, the Store's own install of a newer version): the caller works that
+//     out from the origin record and the catalog, never from the payload alone;
+//   - the user saw "this replaces …" and confirmed (`replace: true`). Then the
+//     old grants go with the old code (`dropGrants`), and the new package asks
+//     for its permissions like any new widget.
+// Pure: every fact is computed by the caller.
+function installOverwrite(o) {
+  const x = o && typeof o === 'object' ? o : {};
+  if (x.exists !== true) return { ok: true, dropGrants: false };
+  if (x.origin === 'creator' && x.own === true) return { ok: true, dropGrants: false };
+  if (x.origin !== 'creator' && x.catalogUpdate === true) return { ok: true, dropGrants: false };
+  if (x.replace === true) return { ok: true, dropGrants: true };
+  return { ok: false, error: 'id_exists' };
+}
+
+// Grants made before the approved `storageGroup` was recorded in them. The
+// group decides WHOSE store a package reads (a shared namespace among siblings),
+// so it is now part of what the user approved: a manifest that adds or changes
+// it asks again. A grant that predates the field is taken as approval of the
+// group the package has NOW, the one the user saw when they approved it, so
+// nobody's working widget turns into a permission prompt on update. Every grant
+// gets the field ('' when the package has no group, or is not installed), so
+// this runs once in effect: a second pass finds nothing to fill.
+// Returns { grants, changed } and never mutates its input.
+function migrateGrantStorageGroups(grants, packages) {
+  const src = grants && typeof grants === 'object' && !Array.isArray(grants) ? grants : {};
+  const byId = new Map((Array.isArray(packages) ? packages : []).filter((p) => p && typeof p.id === 'string').map((p) => [p.id, p]));
+  const out = {};
+  let changed = false;
+  for (const id of Object.keys(src)) {
+    const g = src[id];
+    if (!g || typeof g !== 'object' || typeof g.storageGroup === 'string') { out[id] = g; continue; }
+    const pkg = byId.get(id);
+    out[id] = { ...g, storageGroup: pkg && typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '' };
+    changed = true;
+  }
+  return { grants: changed ? out : src, changed };
+}
+
 // Read an installed package's files into an embeddable payload
 // { id, files:[{ path, data(base64) }] } for a bundle export, or null. Only
 // allowlisted asset files are included and the same caps apply, so a re-import
@@ -1232,13 +1586,20 @@ async function readPackagePayload(rootDir, id) {
 }
 
 module.exports = {
+  TILE_SIZES,
   SDK_API_VERSION,
+  SDK_LIMITS,
+  limitFor,
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,
+  SDK_MACRO_ACTION_TYPES,
+  SDK_ACTION_LIMITS,
+  sdkActionWithinLimits,
   SDK_SOUND_FILE_RE,      // unit-tested (SDK soundboard file boundary)
-  WIDGET_CSP, widgetCspFor,
+  WIDGET_CSP, widgetCspFor, widgetAssetRoot,
   normalizeManifest,
+  normalizeKeySuggestion,
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
   validateProxyRequest,
   resolveUserHosts,       // unit-tested (user-filled host slot boundary)
@@ -1249,10 +1610,18 @@ module.exports = {
   PERF_PROBE_FILENAME,
   PERF_PROBE_SOURCE,
   injectPerfProbe,        // unit-tested (probe injection is a pure transform)
+  FRAME_GUARD_FILENAME,
+  FRAME_GUARD_SOURCE,
+  isReservedAsset,
+  injectFrameGuard,       // unit-tested (must land ahead of every widget script)
+  prepareWidgetHtml,
+  assetCsp,               // unit-tested (an SVG document runs no scripts)
   listPackages,
   validateWidgetPayload,  // unit-tested (bundle install boundary)
   installPackageStaged,   // unit-tested (the automatic update's swap-and-rollback install)
   readPackagePayload,
   mergeOrigin,            // unit-tested (redistribution policy)
   originExportable,
+  installOverwrite,       // unit-tested (writing over an installed id)
+  migrateGrantStorageGroups,   // unit-tested (grants that predate the recorded group)
 };

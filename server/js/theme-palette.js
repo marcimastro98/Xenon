@@ -115,16 +115,23 @@
     const surfaceAlt = guard ? ensureBackgroundContrast(rawSurfaceAlt, text, surface, 4.5) : rawSurfaceAlt;
     const rawControl = optional(s, 'controlColor') || mix(surface, text, tone === 'light' ? 0.085 : 0.11);
     const control = guard ? ensureBackgroundContrast(rawControl, text, surface, 4.5) : rawControl;
-    const rawMuted = optional(s, 'mutedText') || mix(text, surface, 0.34);
+    // On glass the surface is a tint over a wallpaper, brighter than its own colour.
+    const glass = s.styleMode === 'liquid';
+    const rawMuted = optional(s, 'mutedText') || mix(text, surface, glass ? 0.15 : 0.34);
     let muted = guard ? ensureContrast(rawMuted, surface, 4.5) : rawMuted;
     if (guard) muted = ensureContrast(ensureContrast(muted, surfaceAlt, 4.5), control, 4.5);
-    let dim = guard ? ensureContrast(mix(text, surface, 0.49), surface, 3) : mix(text, surface, 0.49);
-    if (guard) dim = ensureContrast(ensureContrast(dim, surfaceAlt, 3), control, 3);
+    // Dim text carries real words on paper (dates, tabs, notes), so it needs the text ratio there.
+    const dimFloor = tone === 'light' ? 4.5 : 3;
+    const rawDim = mix(text, surface, glass ? 0.3 : 0.49);
+    let dim = guard ? ensureContrast(rawDim, surface, dimFloor) : rawDim;
+    if (guard) dim = ensureContrast(ensureContrast(dim, surfaceAlt, dimFloor), control, dimFloor);
     const rawLine = optional(s, 'lineColor') || mix(text, surface, tone === 'light' ? 0.78 : 0.76);
     const line = guard ? ensureContrast(rawLine, surface, 3) : rawLine;
     const accent = normalizeHex(s.accent, STOCK[tone].accent);
     const rawOnAccent = optional(s, 'accentText') || bestText(accent);
     const onAccent = guard ? ensureContrast(rawOnAccent, accent, 4.5) : rawOnAccent;
+    // The accent as text or an icon: a bright green fills a button well but can't be read on paper.
+    const accentInk = guard ? ensureContrast(ensureContrast(accent, surface, 4.5), control, 4.5) : accent;
 
     const state = {};
     for (const [role, key] of [['success', 'successColor'], ['warning', 'warningColor'], ['danger', 'dangerColor'], ['info', 'infoColor']]) {
@@ -146,7 +153,7 @@
 
     return Object.freeze({
       tone, guard, background, surface, surfaceAlt, control, text, muted, dim, line,
-      accent, onAccent,
+      accent, onAccent, accentInk,
       success: state.success, onSuccess: state.onSuccess, successOnDark: state.successOnDark,
       warning: state.warning, onWarning: state.onWarning, warningOnDark: state.warningOnDark,
       danger: state.danger, onDanger: state.onDanger, dangerOnDark: state.dangerOnDark,
@@ -177,6 +184,7 @@
       '--green': p.accent,
       '--accent-rgb': rgb(p.accent).join(', '),
       '--on-accent': p.onAccent,
+      '--accent-ink': p.accentInk,
       '--color-success': p.success,
       '--color-warn': p.warning,
       '--color-danger': p.danger,

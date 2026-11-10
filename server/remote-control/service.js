@@ -1,4 +1,5 @@
 'use strict';
+const { psQuote } = require('../ps-quote');
 
 const defaultRunner = require('./runner');
 
@@ -61,7 +62,7 @@ function createService({
   // Costruisce un blocco PS che applica i comandi dati a ogni servizio gestito,
   // isolando ciascuno in un try/catch cosi' un fallimento non interrompe gli altri.
   function perManaged(cmds) {
-    const list = managed.map((s) => `'${String(s).replace(/'/g, "''")}'`).join(',');
+    const list = managed.map((s) => psQuote(s)).join(',');
     const body = cmds.map((c) => `try { ${c} -Name $s -ErrorAction Stop } catch {}`).join('; ');
     return `foreach ($s in ${list}) { ${body} }`;
   }

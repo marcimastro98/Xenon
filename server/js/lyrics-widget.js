@@ -34,15 +34,21 @@
   let codeDraft = '';
   let unlocking = false;
   let unlockError = '';
-  // The one-week trial (feature-unlock.js). trialEndsAt is set only while one
-  // runs; trialUsed only once the server has said this install spent it.
+  // A trial (feature-unlock.js): the supporter-pass trial, or an old local one
+  // still running. trialEndsAt is set only while one runs; trialAvailable when
+  // this install never tried the pass; trialUsed once a trial here is over.
   let trialEndsAt = null;
   let trialAvailable = false;
   let trialUsed = false;
-  let startingTrial = false;
   let trialTimer = null;
   const coverOf = new WeakMap();   // panel → the cover it shows
   const instances = new Map();   // mount → { view, unsubscribe, offsetRow, offsetVal, minus, plus }
+
+  // The options sheet goes with whatever stood in the mount: its mark hides all the rest.
+  function fill(mount, ...nodes) {
+    mount.classList.remove('has-options');
+    mount.replaceChildren(...nodes);
+  }
 
   function el(tag, cls, text) {
     const node = document.createElement(tag);
@@ -79,15 +85,23 @@
     limit: ['devclean_unlock_limit', 'Il pass è già usato su tre dispositivi.'],
     rate_limited: ['devclean_unlock_rate', 'Troppi tentativi. Riprova tra qualche minuto.'],
     bad_entry: ['devclean_unlock_unavailable', 'Lo sblocco non è ancora attivo sul server dei sostenitori. Riprova più tardi.'],
+    trial_used: ['trial_err_used', 'Questo PC ha già usato la sua prova gratuita.'],
   };
 
+  // The grid renders in bursts while the page starts, and until the first answer each render
+  // would send its own question.
+  let stateLoading = false;
   async function loadState() {
+    if (stateLoading) return;
+    stateLoading = true;
     const out = await api('/api/features/lyrics');
     applyStatus(out);
-    if (!unlocked) {
+    // During the trial too: a supporter trying the tile keeps it with one tap.
+    if (!unlocked || trialEndsAt) {
       const s = await api('/api/community/supporter');
       codeSaved = !!(s && s.saved);
     }
+    stateLoading = false;
     renderWidgets();
   }
 
@@ -95,8 +109,8 @@
     const ok = !!(out && out.ok);
     unlocked = ok && !!out.unlocked;
     trialEndsAt = ok && Number.isFinite(out.trialEndsAt) ? out.trialEndsAt : null;
-    trialAvailable = ok && out.trialAvailable === true;
-    trialUsed = ok && out.trialAvailable === false && !out.owned && !out.unlocked;
+    trialAvailable = ok && out.passTrialAvailable === true;
+    trialUsed = ok && out.trialEnded === true;
     scheduleTrialEnd();
   }
 
@@ -110,16 +124,12 @@
     trialTimer = setTimeout(() => { trialTimer = null; void loadState(); }, wait);
   }
 
-  async function startTrial() {
-    startingTrial = true;
-    unlockError = '';
-    renderAll();
-    const out = await api('/api/features/lyrics/trial', {});
-    startingTrial = false;
-    if (out && out.ok) { applyStatus(out); renderWidgets(); return; }
-    if (out && out.error === 'trial_used') { trialAvailable = false; trialUsed = true; }
-    else unlockError = tr('lyrics_trial_error', 'Non riesco ad avviare la prova adesso. Riprova tra poco.');
-    renderAll();
+  // The pass trial starts on the hub's page (email + code); the code then goes
+  // in "Ho già un codice" here or in any Store unlock. A widget on the screen
+  // has no TrialPass (its page never loads that file), so it opens the page itself.
+  function startTrial() {
+    if (window.TrialPass) window.TrialPass.openTry();
+    else window.open(window.Xenon.constants.trialUrl(uiLangCode()), '_blank', 'noopener,noreferrer');
   }
 
   async function unlock() {
@@ -130,9 +140,12 @@
     unlocking = false;
     if (out && out.ok) {
       unlocked = true;
-      trialEndsAt = null;
+      // A trial code opens the tile until the trial's end, and nothing is owned.
+      trialEndsAt = out.passTrial && Number.isFinite(out.trialEndsAt) ? out.trialEndsAt : null;
+      trialAvailable = false;
       scheduleTrialEnd();
       renderWidgets();
+      if (out.passTrial && window.TrialPass) window.TrialPass.refresh();
       return;
     }
     const err = out && out.error;
@@ -151,7 +164,8 @@
     const out = await api('/api/community/supporter/save', { code });
     if (!out || !out.ok) {
       unlocking = false;
-      unlockError = out && out.error === 'bad_code'
+      if (out && out.error === 'remote_denied') unlockError = tr('settings_supporter_save_pc_only', 'The code can only be saved on the PC');
+      else unlockError = out && out.error === 'bad_code'
         ? tr('devclean_code_format', 'Il codice ha la forma XS-XXXX-XXXX-XXXX. Controllalo nell’email che hai ricevuto.')
         : tr('devclean_unlock_network', 'Non riesco a contattare il server dei sostenitori.');
       renderAll();
@@ -197,16 +211,15 @@
     box.appendChild(perks);
 
     const actions = el('div', 'lyw-actions');
-    const busy = unlocking || startingTrial;
+    const busy = unlocking;
     if (codeSaved) {
       actions.appendChild(btn('lyw-btn is-big', unlocking ? tr('devclean_unlocking', 'Sblocco…')
         : tr('devclean_unlock', 'Sblocca con il pass'), unlock, busy));
     } else {
       // A week of the real thing is the best pitch this widget has, so the
-      // trial leads while it is still available and joining sits beside it.
+      // pass trial leads while this install never had it, joining beside it.
       if (trialAvailable) {
-        actions.appendChild(btn('lyw-btn is-big', startingTrial ? tr('devclean_loading', 'Carico…')
-          : tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
+        actions.appendChild(btn('lyw-btn is-big', tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
       }
       const join = el('a', trialAvailable ? 'lyw-btn is-accent' : 'lyw-btn is-big', tr('devclean_join', 'Diventa sostenitore'));
       join.href = supportHref('lyrics');
@@ -227,7 +240,7 @@
 
   function pitchNote() {
     if (codeSaved) return tr('devclean_code_saved', 'Su questo PC c’è già un codice sostenitore: sblocca con un tocco.');
-    if (trialAvailable) return tr('lyrics_trial_note', 'Una settimana con tutte le funzioni, senza codice. Poi decidi tu.');
+    if (trialAvailable) return tr('lyrics_pass_trial_note', 'Una settimana del pass sostenitore, Lyrics compreso: il codice arriva per email. Poi decidi tu.');
     if (trialUsed) return tr('lyrics_trial_ended', 'La settimana di prova è finita. Diventa sostenitore per tenere il widget.');
     return tr('devclean_code_missing', 'Il codice ti arriva per email subito dopo aver sostenuto Xenon.');
   }
@@ -242,6 +255,11 @@
       date = new Date(trialEndsAt).toLocaleDateString(uiLangCode() || undefined, { day: 'numeric', month: 'long' });
     } catch { date = new Date(trialEndsAt).toLocaleDateString(); }
     inst.trialText.textContent = tr('lyrics_trial_until', 'Prova gratuita fino al {date}').replace('{date}', date);
+    // A refused code (ended, wrong) says why, and the way to join comes back.
+    if (codeSaved && unlockError) inst.trialText.textContent = unlockError;
+    inst.keep.hidden = codeSaved && !unlockError;
+    inst.keepUnlock.hidden = !codeSaved || !!unlockError;
+    inst.keepUnlock.disabled = unlocking;
   }
 
   // ── this song's timing ────────────────────────────────────────────────
@@ -301,6 +319,7 @@
     same: 'lyrics_tr_same',
     cap: 'lyrics_tr_cap',
     no_ai: 'lyrics_tr_no_ai',
+    no_credits: 'lyrics_tr_no_credits',
     failed: 'lyrics_tr_failed',
     too_long: 'lyrics_tr_too_long',
   };
@@ -334,10 +353,29 @@
     plus.setAttribute('aria-label', tr('lyrics_offset_earlier'));
     plus.title = tr('lyrics_offset_earlier');
     offsetRow.append(minus, offsetVal, plus);
+    // The song's cover beside its name, and the player's own controls: the
+    // lyrics are read from a distance, so pausing or skipping must not need a
+    // walk to the Media tile.
+    const cover = el('img', 'lyw-cover');
+    cover.alt = '';
+    cover.decoding = 'async';
+    cover.hidden = true;
+    const transport = el('div', 'lyw-transport-row');
+    transport.setAttribute('role', 'group');
+    transport.setAttribute('aria-label', tr('tip_play', 'Play/Pause'));
+    const prevBtn = transportBtn(GLYPH_PREV, tr('tip_prev', 'Previous'), () => { if (typeof mediaAction === 'function') void mediaAction('previous'); });
+    const playBtn = transportBtn(GLYPH_PLAY, tr('tip_play', 'Play/Pause'), () => {
+      if (typeof mediaAction !== 'function') return;
+      void mediaAction('playpause');
+      // mediaAction flips the state before it awaits: repaint the glyph now.
+      core().sync();
+    });
+    const nextBtn = transportBtn(GLYPH_NEXT, tr('tip_next', 'Next'), () => { if (typeof mediaAction === 'function') void mediaAction('next'); });
+    transport.append(prevBtn.node, playBtn.node, nextBtn.node);
     const panel = mount.closest('.lyrics-panel');
     const stageBtn = iconBtn('lyw-icon', ICON_STAGE, tr('lyrics_stage'), () => { if (panel && window.LyricsStage) window.LyricsStage.toggle(panel); });
     const optBtn = iconBtn('lyw-icon', ICON_OPTIONS, tr('lyrics_opt_title'), () => toggleOptions(mount));
-    head.append(titles, offsetRow, stageBtn, optBtn);
+    head.append(cover, titles, transport, offsetRow, stageBtn, optBtn);
     const trStat = el('p', 'lyw-trstat');
     trStat.hidden = true;
     const trialRow = el('p', 'lyw-trial');
@@ -346,12 +384,14 @@
     keep.href = supportHref('lyrics-trial');
     keep.target = '_blank';
     keep.rel = 'noopener noreferrer';
-    trialRow.append(trialText, keep);
+    // A PC that keeps a supporter code unlocks right here instead.
+    const keepUnlock = btn('lyw-trial-unlock', tr('devclean_unlock', 'Sblocca con il pass'), () => { void unlock(); });
+    trialRow.append(trialText, keep, keepUnlock);
     const body = el('div', 'lyw-body');
-    mount.replaceChildren(head, trialRow, trStat, body);
+    fill(mount, head, trialRow, trStat, body);
     mount.dataset.lywReady = '1';
 
-    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, view: window.LyricsView.create(body) };
+    const inst = { lang: uiLangCode(), title, sub, cover, transport, playPath: playBtn.path, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, keep, keepUnlock, view: window.LyricsView.create(body) };
     paintTrial(inst);
     const isVisible = () => mount.isConnected && mount.getClientRects().length > 0 && !document.hidden && onVisiblePage(mount);
     inst.unsubscribe = window.LyricsCore.subscribe({
@@ -376,6 +416,9 @@
     inst.title.textContent = (m && (typeof cleanTitle === 'function' ? cleanTitle(m.title) : m.title)) || tr('layout_widget_lyrics', 'Lyrics');
     inst.sub.textContent = (m && (m.artist || m.album)) || '';
     inst.sub.hidden = !inst.sub.textContent;
+    inst.transport.hidden = !m;
+    inst.playPath.setAttribute('d', snap.playing ? GLYPH_PAUSE : GLYPH_PLAY);
+    paintHeadCover(inst, m);
     inst.offsetRow.hidden = snap.state !== 'synced';
     paintOffset(inst);
     inst.view.render(snap);
@@ -386,6 +429,15 @@
   // ── icons ─────────────────────────────────────────────────────────────
   const ICON_STAGE = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
   const ICON_OPTIONS = 'M4 7h10M18 7h2M4 17h2M10 17h10M16 5v4M8 15v4';
+  // Transport glyphs are solid shapes, unlike the outline icons above.
+  const GLYPH_PREV = 'M6 5h2v14H6zM20 5v14L9 12z';
+  const GLYPH_NEXT = 'M16 5h2v14h-2zM4 5v14l11-7z';
+  const GLYPH_PLAY = 'M8 5v14l11-7z';
+  const GLYPH_PAUSE = 'M7 5h4v14H7zM13 5h4v14h-4z';
+  function transportBtn(d, label, onClick) {
+    const b = iconBtn('lyw-icon lyw-transport', d, label, onClick);
+    return { node: b, path: b.querySelector('path') };
+  }
   function iconBtn(cls, d, label, onClick) {
     const b = btn(cls, null, onClick);
     b.setAttribute('aria-label', label);
@@ -398,6 +450,13 @@
     svg.appendChild(path);
     b.appendChild(svg);
     return b;
+  }
+
+  function paintHeadCover(inst, m) {
+    const raw = (m && m.thumbnail) || '';
+    const src = SAFE_COVER.test(raw) ? raw : '';
+    inst.cover.hidden = !src;
+    if (inst.cover.getAttribute('src') !== src) { if (src) inst.cover.src = src; else inst.cover.removeAttribute('src'); }
   }
 
   // The cover, blurred and darkened behind the lyrics like the Media tile's
@@ -432,7 +491,7 @@
     document.querySelectorAll('.lyrics-widget-mount').forEach((mount) => {
       if (!unlocked) {
         release(mount);
-        mount.replaceChildren(unlocked === null ? el('p', 'lyw-note', tr('devclean_loading', 'Carico…')) : renderPitch());
+        fill(mount, unlocked === null ? el('p', 'lyw-note', tr('devclean_loading', 'Carico…')) : renderPitch());
         return;
       }
       // The buttons carry their labels from when they were built: a language

@@ -314,9 +314,11 @@ async function unlink(dataDir) {
 // script that is no longer where it was (Node upgraded to another folder,
 // Xenon moved). Every rewrite costs the user a re-trust in /hooks, so this runs
 // at boot, never on a read, and reports `needsRetrust` for the tile to say so.
+// Only a link this data folder made (it has a linkedAt): a second Xenon on
+// another data folder must not point the user's hooks at its own wrapper.
 async function repairLink(dataDir, port) {
   const st = await status(dataDir);
-  if (!st.linked || st.complete || st.unparsable) return { ...st, repaired: false };
+  if (!st.linked || st.complete || st.unparsable || !st.linkedAt) return { ...st, repaired: false };
   const next = await link(dataDir, port);
   // A stale wrapper alone is rewritten in place: hooks.json, and so the trust, is untouched.
   return { ...next, repaired: true, needsRetrust: st.missing.length + st.outdated.length > 0 };

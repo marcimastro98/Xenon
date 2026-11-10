@@ -1,6 +1,6 @@
 {
   "es": {
-    "meta.title": "Uso del plan de OpenAI Codex y aprobaciones en una segunda pantalla",
+    "meta.title": "Uso del plan de OpenAI Codex y aprobaciones en otra pantalla",
     "meta.desc": "Mira el uso de tu plan de OpenAI Codex, las sesiones que trabajan en tu PC y sus solicitudes en una segunda pantalla o el teléfono, y respóndelas con un toque.",
     "cx.h1": "OpenAI Codex en una segunda pantalla",
     "cx.lede": "El widget Codex de Xenon muestra las ventanas de uso de tu plan, tus tokens por día, las sesiones que trabajan en tu PC y cada solicitud que hacen, con Permitir, Denegar y Responder en Codex. Vive en la pantalla junto a tu PC: un Xeneon Edge, un monitor, una tablet o un teléfono emparejado.",
@@ -22,7 +22,7 @@
     "cx.h.approve": "Responder solicitudes",
     "cx.approve.p1": "Cuando una sesión de Codex pide ejecutar un comando o cambiar archivos, la solicitud aparece en el widget con el comando, o los archivos que toca el cambio con los borrados marcados, y tres botones: <strong>Permitir</strong>, <strong>Denegar</strong> y <strong>Responder en Codex</strong>, que devuelve la pregunta a Codex al instante. La tarjeta dice qué tiene de inusual: la red, publicar tu trabajo, un archivo fuera del proyecto, más acceso del que tiene la sesión o algo que no se puede deshacer.",
     "cx.approve.p2": "Una solicitud que no se puede deshacer, como <code>rm -rf</code> o un parche que borra un archivo, se permite manteniendo pulsado el botón, no con un toque. Una solicitud sin respuesta durante 25 segundos ocupa toda la pantalla, para que no se quede sin ver en otra página.",
-    "cx.approve.p3": "Nada se aprueba por ti. Mientras una solicitud espera en el widget, Codex no muestra la suya, así que a los 90 segundos, o si Xenon está cerrado, la solicitud vuelve a Codex, que pregunta como siempre. <strong>Ajustes → Codex</strong> cambia la espera o desactiva las solicitudes.",
+    "cx.approve.p3": "Nada se aprueba por ti. Mientras una solicitud espera en el widget, Codex no muestra la suya, así que a los 90 segundos, o si Xenon está cerrado, la solicitud vuelve a Codex, que pregunta como siempre. <strong>Ajustes → Claude Code y Codex</strong> cambia la espera o desactiva las solicitudes.",
     "cx.approve.phone": "Para responder desde el teléfono, emparéjalo con Xenon (beta). El teléfono muestra el mismo panel, con los mismos botones. <a href=\"/phone.html\">Cómo emparejar un teléfono</a>.",
     "cx.h.link": "Conectar Codex",
     "cx.link.1": "Añade el widget <strong>Codex</strong> con el botón <strong>+</strong>, en <strong>Sistema</strong>.",
@@ -58,6 +58,11 @@
     "ld.q4": "¿Por qué tengo que aprobar los hooks en Codex?",
     "ld.a4": "Codex solo ejecuta un hook después de que hayas aprobado ese hook exacto. Es la comprobación de seguridad del propio Codex, así que Xenon nunca lo hace por ti. Si Xenon o Node cambian de carpeta, los hooks cambian y Codex te pide aprobarlos otra vez; el widget te avisa.",
     "ld.q5": "¿Funciona el widget con una clave de API?",
-    "ld.a5": "Las sesiones y las aprobaciones sí. Las ventanas del plan solo existen con un plan de ChatGPT, así que con una clave de API el widget no tiene ninguna que mostrar."
+    "ld.a5": "Las sesiones y las aprobaciones sí. Las ventanas del plan solo existen con un plan de ChatGPT, así que con una clave de API el widget no tiene ninguna que mostrar.",
+    "cx.jump.widgets": "Tus widgets",
+    "cx.h.widgets": "Crear tus propios widgets",
+    "cx.widgets.p1": "Si escribes código en Codex, también puede crear widgets para Xenon. En <strong>Ajustes → Widgets y compartir → Crea widgets con Claude Code o Codex</strong>, pulsa <strong>Conectar Codex</strong>. Codex lee el SDK de widgets, escribe el widget en una carpeta, lo instala en tu panel, lee los errores que encuentra y mira una imagen de su recuadro, y luego lo corrige.",
+    "cx.widgets.p2": "La primera vez, el panel te pregunta si lo permites. Nunca aprueba los permisos de un widget, solo cambia widgets hechos por ti y funciona solo desde el PC donde corre Xenon. <a href=\"/create/#mcp\">Cómo funciona y cómo añadirlo a mano</a>.",
+    "cx.pic.alt": "El mosaico Codex: una solicitud para cambiar archivos con sus botones de respuesta, dos sesiones trabajando y el uso del plan de 5 horas y semanal"
   }
 }

@@ -32,6 +32,8 @@
 
   let overlay = null;
   let selectedId = '';
+  let bit = null;     // kept across redraws: a new list of screens must not restart Bit
+  let face = null;
 
   function surface() {
     return (typeof window.getSurfaceChoice === 'function')
@@ -50,6 +52,10 @@
     if (!overlay) return;
     overlay.remove();
     overlay = null;
+    face = null;
+    bit = null;
+    if (window.BitApp) window.BitApp.sweep();
+    document.body.classList.remove('first-run-asking');
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('surface-picker', false);
   }
 
@@ -77,7 +83,7 @@
     // nothing either. It is also not what everyone wants: plenty of people want
     // the dashboard on the phone AND on the PC. So the hiding is not part of
     // this answer at all — the guide asks for it at the end, once there is a
-    // paired device to hand the dashboard over to, and Settings → Screen moves
+    // paired device to hand the dashboard over to, and Settings → Display moves
     // between the two afterwards.
     //
     // The network door also stays SHUT: choosing "my phone" says where the user
@@ -93,7 +99,7 @@
     // pairing moved out of when the two were separated — so this landed the user
     // on a desktop-streaming panel while the highlight below aimed at a node in
     // a category that was hidden, and therefore did nothing at all. Measured on
-    // the real dashboard. The same fix already lives on the Settings → Screen
+    // the real dashboard. The same fix already lives on the Settings → Display
     // button (settingsSetCategory('phone')).
     if (typeof window.openSettings === 'function') window.openSettings('phone');
     // Let the panel render before pointing at it.
@@ -196,7 +202,7 @@
 
     const go = document.createElement('button');
     go.type = 'button';
-    go.className = 'settings-btn primary sp-go';
+    go.className = 'settings-btn sp-go sp-go-quiet';
     go.textContent = tr('surface_phone_cta', 'Set up my phone');
     go.addEventListener('click', choosePhone);
     card.appendChild(go);
@@ -211,6 +217,13 @@
       || state.displays.find((d) => d.primary)
       || state.displays[0];
     return (pick && pick.id) || '';
+  }
+
+  function mountBit() {
+    if (bit || !window.BitApp || typeof window.BitApp.mount !== 'function') return;
+    const hold = window.BitApp.TILE_HOLD.filter((name) => name !== 'overlay-frozen');
+    bit = window.BitApp.mount(face, { mood: 'idle', fidgets: true, calm: true, label: 'Bit', hold });
+    if (bit && window.BootSplash) window.BootSplash.whenGone(() => { if (bit) bit.play('hello'); });
   }
 
   function render() {
@@ -229,6 +242,8 @@
       overlay.setAttribute('role', 'dialog');
       overlay.setAttribute('aria-modal', 'true');
       document.body.appendChild(overlay);
+      document.body.classList.add('first-run-asking');
+      if (window.XenonToast) window.XenonToast.dismissAll();
       if (typeof window.ambientFreeze === 'function') window.ambientFreeze('surface-picker', true);
     }
     overlay.textContent = '';
@@ -236,13 +251,19 @@
     const box = document.createElement('div');
     box.className = 'sp-box';
 
+    if (!face) {
+      face = document.createElement('span');
+      face.className = 'sp-bit';
+    }
+    box.appendChild(face);
+
     const h = document.createElement('h2');
     h.textContent = tr('surface_title', 'Where do you want Xenon?');
     box.appendChild(h);
 
     const sub = document.createElement('p');
     sub.className = 'sp-sub';
-    sub.textContent = tr('surface_sub', 'Xenon lives on a screen you can leave on. Pick one now — Settings → Screen changes it whenever you like.');
+    sub.textContent = tr('surface_sub', 'Xenon lives on a screen you can leave on. Pick one now: Settings → Display changes it whenever you like.');
     box.appendChild(sub);
 
     const cards = document.createElement('div');
@@ -259,6 +280,7 @@
     box.appendChild(later);
 
     overlay.appendChild(box);
+    mountBit();
   }
 
   function start() {
@@ -278,9 +300,7 @@
     return true;
   }
 
-  // Called after settings hydrate, like the tour, and BEFORE it: answering
-  // "where" first means the tour that follows is about a dashboard the user has
-  // already put where they want it.
+  // Called after settings hydrate, where js/usage-ask.js has not taken the question.
   //
   // Opens immediately. It used to wait 600ms for the shell's first
   // `push_display_state` to land (the caps injected before the page loads carry
@@ -364,9 +384,10 @@
   if (window.XenonNative && typeof window.XenonNative.setDisplayListener === 'function') {
     window.XenonNative.setDisplayListener(() => {
       if (overlay) render();
+      if (window.UsageAsk) window.UsageAsk.onDisplays();
       if (typeof window.renderSurfaceSection === 'function') window.renderSurfaceSection();
     });
   }
 
-  window.SurfacePicker = { start, maybeStart, shouldAsk, reconcileShell, isOpen: () => !!overlay };
+  window.SurfacePicker = { start, maybeStart, shouldAsk, setUpPhone: choosePhone, reconcileShell, isOpen: () => !!overlay };
 })();

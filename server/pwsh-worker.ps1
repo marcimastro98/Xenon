@@ -35,7 +35,10 @@ $root  = $PSScriptRoot
 # disk-io.ps1 (the SDK diskIo stream) is stateless raw counters; server.js always
 # sent it here, and before it was listed every read was refused and fell back to
 # spawning a whole PowerShell per poll.
-$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true; 'processes.ps1' = $true; 'disk-io.ps1' = $true }
+# sensors.ps1 (Settings -> Sensor sources, the SDK `sensors` stream) walks the
+# LHM sessions cpu-temp.ps1 and gpu.ps1 keep in $global: here, so it is
+# worker-only by construction: spawned alone it would find no session at all.
+$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true; 'processes.ps1' = $true; 'disk-io.ps1' = $true; 'sensors.ps1' = $true }
 
 function Write-Frame($obj) {
   $json = ConvertTo-Json $obj -Compress -Depth 8

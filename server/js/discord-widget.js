@@ -20,12 +20,21 @@
     micOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
     micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M9 9v2a3 3 0 0 0 4.5 2.6M15 11V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 10 6.3M12 18v3"/></svg>',
     deafOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/></svg>',
-    deafOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M4 14v-2a8 8 0 0 1 12.5-6.6M20 12v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/></svg>',
+    deafOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-2a8 8 0 0 1 16 0v2"/><path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5zM20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5z" fill="currentColor"/><path d="m3 3 18 18"/></svg>',
     ptt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M7 11h.01M11 11h.01M15 11h.01M7 15h10"/></svg>',
     vad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h2l2-5 3 12 3-16 2 9h4"/></svg>',
     leave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17 5 12l5-5M5 12h11"/></svg>',
     join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
     spkOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 10 5 4M21 10l-5 4"/></svg>',
+    // The two states a member's avatar can carry, as Discord draws them: a
+    // struck-through microphone (they muted themselves) and struck-through
+    // headphones (they deafened themselves, which mutes them too). Geometry
+    // after Lucide's mic-off and headphone-off (ISC licence), the icon family
+    // the rest of the dashboard's glyphs follow; drawn heavier, because the
+    // badge shows them at 8px.
+    micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M12 19v3"/></svg>',
+    deafOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14h-1.343"/><path d="M9.128 3.47A9 9 0 0 1 21 12v3.343"/><path d="m2 2 20 20"/><path d="M20.414 20.414A2 2 0 0 1 19 21h-1a2 2 0 0 1-2-2v-3"/><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.636-6.364"/></svg>',
+    reply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
@@ -47,7 +56,7 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page). Adding the widget
   // makes it live (seed + SSE) on the next layout pass; removing it parks it back.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="discord"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="discord"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
 
   let connected = null;      // null = unknown, from /stream/discord/status
   let username = '';
@@ -82,7 +91,8 @@
   // exist — and is exactly what a second tile is for: asked for on Discord by
   // someone who wanted the notification feed on top and the voice controls
   // underneath, both on screen at once. Stored on the mount so it survives every
-  // repaint and travels with the tile, session-scoped like it always was.
+  // repaint and travels with the tile, and remembered per tile (TileTabMemory) so
+  // a reload opens each tile on the tab it was left on.
   function mounts() {
     return tiles().map((t) => t.querySelector('.discord-widget-mount')).filter(Boolean);
   }
@@ -109,14 +119,15 @@
   // the circle and then hid it again. Bounded — the feed itself is capped, and a
   // long session that somehow collects more than this starts the list over.
   const notifIconBad = new Set();
+  // Member avatars that failed to load: the chip keeps the initial instead of
+  // asking the CDN again on every rebuild. Bounded like notifIconBad.
+  const avatarBad = new Set();
   const NOTIF_ICON_BAD_MAX = 200;
   let notifUnread = 0;               // arrivals while another tab is open → red badge on the tab
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // POST an allowlisted Deck action and flash the button. Refreshes the voice
@@ -159,6 +170,8 @@
   function ensure(mount) {
     if (mount.dataset.dcBuilt === '1' && mount.firstChild) return;
     mount.dataset.dcBuilt = '1';
+    const tileId = window.TileTabMemory ? TileTabMemory.tileIdOf(mount, 'discord') : '';
+    if (tileId) mount.dataset.dcTab = TileTabMemory.get(tileId, TABS.map((tb) => tb.id), 'controls');
     const wrap = el('div', 'dc-wrap');
 
     const head = el('div', 'dc-head');
@@ -186,6 +199,7 @@
       if (tb.id === 'notifs') { const bd = el('span', 'dc-tab-badge'); bd.hidden = true; b.appendChild(bd); }
       b.addEventListener('click', () => {
         mount.dataset.dcTab = tb.id;   // this tile only — a sibling tile keeps its own
+        if (tileId) TileTabMemory.set(tileId, tb.id);
         if (tb.id === 'notifs') notifUnread = 0;
         paint();
       });
@@ -217,8 +231,8 @@
     // audio) evenly down the full height instead of clustering them at the top.
     const vols = el('div', 'dc-ctl-group dc-ctl-vols');
     vols.append(
-      volRow('dc-vol-in', 'deck_act_discordInputVol', 'discordInputVol'),
-      volRow('dc-vol-out', 'deck_act_discordOutputVol', 'discordOutputVol'),
+      volRow('dc-vol-in', 'dc_vol_mic', 'discordInputVol'),
+      volRow('dc-vol-out', 'dc_vol_out', 'discordOutputVol'),
     );
     pCtl.appendChild(vols);
     // Audio processing toggles.
@@ -318,12 +332,11 @@
   // from under the pointer that is about to click it.
   function toggleFav(id) {
     const key = String(id);
-    if (typeof hubSettings !== 'object' || !hubSettings) return;
-    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
+    if (typeof saveTileSetting !== 'function') return;
     const cur = favIds();
     const next = cur.includes(key) ? cur.filter((x) => x !== key) : cur.concat([key]);
-    hubSettings = normalizeSettings({ ...hubSettings, discordFavChannels: next });
-    saveHubSettings({ server: true });
+    // Also from a widget on the screen, where the settings are read-only (utils.js).
+    saveTileSetting({ discordFavChannels: next }).then((ok) => { if (!ok) renderWidgets(); });
     renderWidgets();
   }
 
@@ -364,10 +377,8 @@
   function isCollapsed(guildId) { return !!guildId && collapsedIds().includes(String(guildId)); }
 
   function saveCollapsed(next) {
-    if (typeof hubSettings !== 'object' || !hubSettings) return;
-    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
-    hubSettings = normalizeSettings({ ...hubSettings, discordCollapsedGuilds: next });
-    saveHubSettings({ server: true });
+    if (typeof saveTileSetting !== 'function') return;
+    saveTileSetting({ discordCollapsedGuilds: next }).then((ok) => { if (!ok) renderWidgets(); });
     renderWidgets();
   }
 
@@ -414,37 +425,109 @@
     return !!(m && m.id && voice && voice.channel && m.id !== (voice.selfId || ''));
   }
 
-  // A compact member chip: display name + a live speaking highlight + a muted/
-  // deafened marker. Names are dynamic Discord data → textContent (via el), never
-  // innerHTML. Reused by the current-call strip and the per-channel roster.
+  // A member chip: their Discord avatar and name, with Discord's own cues: a
+  // green ring on the avatar while they speak, a struck-through microphone or
+  // headphones after the name when they muted or deafened themselves. Names are dynamic Discord data, so textContent (via el),
+  // never innerHTML; the avatar address is built server-side from checked values
+  // (discord-rpc.js avatarUrl). Reused by the current-call strip and the
+  // per-channel roster.
+  //
+  // The chip is built once and its live state is applied separately
+  // (applyMemberState): voice pushes arrive several times a second while people
+  // talk, and rebuilding the chips on each one re-created every <img>, which is
+  // what made the avatars in the notification feed blink before.
   function memberChip(m, adjustable) {
     const chip = el(adjustable ? 'button' : 'span', 'dc-member');
+    chip.dataset.member = m.id || '';
     if (adjustable) {
       chip.type = 'button';
       chip.classList.add('is-adjustable');
       chip.classList.toggle('is-open', openMember === m.id);
-      // "I turned them down" is a different fact from "they muted themselves",
-      // and the two markers must not be the same one: the dot is theirs, this is
-      // yours. Without it, turning someone to zero looks identical to them
-      // having muted their own microphone.
-      chip.classList.toggle('is-local-muted', !!m.localMute);
       chip.addEventListener('click', () => {
         openMember = (openMember === m.id) ? '' : m.id;
         paint();
       });
     }
-    chip.classList.toggle('is-speaking', !!m.speaking);
-    chip.classList.toggle('is-muted', !!(m.mute || m.deaf));
-    chip.append(el('span', 'dc-member-dot'), el('span', 'dc-member-name', m.name || '—'));
+    // The state glyph follows the name, where Discord's own voice list puts it,
+    // at a size that reads: on the 20px avatar it was a badge nobody could make
+    // out. It holds both glyphs and CSS shows the one that applies, so muting
+    // changes a class instead of the markup.
+    const state = el('span', 'dc-member-state');
+    state.setAttribute('aria-hidden', 'true');
+    state.innerHTML = '<span class="dc-state-mic">' + ICONS.micOff + '</span><span class="dc-state-deaf">' + ICONS.deafOff + '</span>';   // static, trusted SVG
+    chip.append(memberAvatar(m), el('span', 'dc-member-name', m.name || '—'), state);
+    applyMemberState(chip, m);
     return chip;
+  }
+
+  // The round avatar: the picture over the person's initial, so a picture that
+  // cannot load (offline, a blocked CDN) still leaves a tidy circle, never a
+  // broken-image icon.
+  function memberAvatar(m) {
+    const av = el('span', 'dc-av');
+    // Decoration for sighted users: the name beside it says who it is, and a
+    // screen reader reading the initial too would say "G Giulia".
+    av.setAttribute('aria-hidden', 'true');
+    const first = Array.from(String(m.name || '').trim())[0] || '?';
+    av.appendChild(el('span', 'dc-av-initial', first.toLocaleUpperCase()));
+    if (m.avatar && !avatarBad.has(m.avatar)) {
+      const img = document.createElement('img');
+      img.className = 'dc-av-img';
+      img.alt = '';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.src = m.avatar;
+      img.addEventListener('error', () => {
+        if (avatarBad.size >= NOTIF_ICON_BAD_MAX) avatarBad.clear();
+        avatarBad.add(m.avatar);
+        img.remove();
+      }, { once: true });
+      av.appendChild(img);
+    }
+    return av;
+  }
+
+  // The parts of a member that change while the chip stays: who is speaking,
+  // their own mute and deafen, and "I turned them down" (localMute), which is a
+  // different fact from "they muted themselves" and must not share a marker:
+  // the glyph is theirs, the struck-through name is yours.
+  function applyMemberState(chip, m) {
+    chip.classList.toggle('is-speaking', !!m.speaking);
+    chip.classList.toggle('is-deaf', !!m.deaf);
+    chip.classList.toggle('is-muted', !!m.mute && !m.deaf);
+    chip.classList.toggle('is-local-muted', !!(chip.classList.contains('is-adjustable') && m.localMute));
+    const label = m.name || '';
+    const state = m.deaf ? t('discord_w_member_deaf', 'deafened') : m.mute ? t('discord_w_member_muted', 'muted') : '';
+    chip.title = state ? label + ' (' + state + ')' : label;
+  }
+
+  // What a chip is built from. A change here rebuilds the chips; anything else
+  // is applied to the chips that are already there.
+  function memberShape(m, adjustable) {
+    return (m.id || '') + '\u0001' + (m.name || '') + '\u0001' + (m.avatar || '') + '\u0001'
+      + (adjustable ? (openMember === m.id ? 'o' : 'a') : '');
+  }
+
+  function syncMemberStates(box, members) {
+    const byId = new Map(members.map(m => [m.id || '', m]));
+    box.querySelectorAll('.dc-member[data-member]').forEach((chip) => {
+      const m = byId.get(chip.dataset.member);
+      if (m) applyMemberState(chip, m);
+    });
   }
 
   // Fill a container with member chips for the current call.
   function fillMembers(box) {
     const members = callMembers();
-    const frag = document.createDocumentFragment();
-    members.forEach(m => frag.appendChild(memberChip(m, canAdjust(m))));
-    box.replaceChildren(frag);
+    const shape = members.map(m => memberShape(m, canAdjust(m))).join('\u0002') + '#' + (document.documentElement.lang || '');
+    if (box.dataset.dcShape !== shape) {
+      box.dataset.dcShape = shape;
+      const frag = document.createDocumentFragment();
+      members.forEach(m => frag.appendChild(memberChip(m, canAdjust(m))));
+      box.replaceChildren(frag);
+      return;
+    }
+    syncMemberStates(box, members);
   }
 
   // One row, no prose: a speaker you can tap to mute them just for you, a slider,
@@ -470,7 +553,7 @@
     // thumb locally, and the level is written once, when the finger lifts. The
     // flag also stops the SSE repaint from yanking the thumb out from under it.
     range.addEventListener('pointerdown', () => { dragging = true; });
-    range.addEventListener('input', () => { val.textContent = range.value; row.classList.remove('is-unknown'); });
+    range.addEventListener('input', () => { val.textContent = range.value; paintFill(range); row.classList.remove('is-unknown'); });
     const commit = () => {
       if (!dragging) return;
       dragging = false;
@@ -484,6 +567,12 @@
 
     row.append(mute, range, val);
     return row;
+  }
+
+  // The Liquid fader has no handle: it paints the level from --fill, a share of its range.
+  function paintFill(range) {
+    const share = (Number(range.value) / (Number(range.max) || 100)) * 100;
+    range.style.setProperty('--fill', `${Math.max(0, Math.min(100, share))}%`);
   }
 
   // Values only — called on every paint, including the SSE pushes, so the row
@@ -506,6 +595,7 @@
     const known = m.volume != null;
     row.classList.toggle('is-unknown', !known);
     range.value = String(known ? m.volume : 100);
+    paintFill(range);
     val.textContent = known ? String(m.volume) : '—';
   }
 
@@ -535,9 +625,10 @@
     const nTxt = mount.querySelector('.dc-notice-txt');
     if (nTxt) nTxt.textContent = t('twitch_not_connected', 'Connect in Settings → Streaming');
     const inLbl = mount.querySelector('.dc-vol-in .dc-vol-lbl');
-    if (inLbl) inLbl.textContent = t('deck_act_discordInputVol', '');
+    // Inside the Discord tile the name of the app goes without saying.
+    if (inLbl) inLbl.textContent = t('dc_vol_mic', 'Mic volume');
     const outLbl = mount.querySelector('.dc-vol-out .dc-vol-lbl');
-    if (outLbl) outLbl.textContent = t('deck_act_discordOutputVol', '');
+    if (outLbl) outLbl.textContent = t('dc_vol_out', 'Output volume');
     const audLbl = mount.querySelector('.dc-ctl-audio .dc-sec-label');
     if (audLbl) audLbl.textContent = t('layout_card_audio', 'Audio');
     mount.querySelectorAll('.dc-chip').forEach(chip => {
@@ -574,7 +665,10 @@
     // changed — paintChannels runs on every 6s roster tick and is usually identical.
     const sig = !linked ? 'x' : (!channels || !channels.length) ? 'e'
       : channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
-          + membersFor(c).map(m => (m.name || '') + (m.speaking ? 's' : '') + (m.mute ? 'm' : '') + (m.deaf ? 'd' : '')).join(',')
+          // Who is in each channel, not what they are doing: speaking and
+          // muting are applied to the chips in place below, so a voice push
+          // several times a second does not rebuild (and re-load) every avatar.
+          + membersFor(c).map(m => memberShape(m, false)).join(',')
         ).join('|')
       // The pinned list is part of what is drawn, so it belongs in the signature:
       // without it, starring a channel would change nothing until the next tick
@@ -583,7 +677,12 @@
       // Collapsing a server changes what is drawn and nothing else, so without
       // it in the signature the tap would repaint nothing until a member moved.
       + '#' + collapsedIds().join(',');
-    if (list.dataset.dcSig === sig) return;
+    if (list.dataset.dcSig === sig) {
+      if (linked && channels && channels.length) {
+        syncMemberStates(list, channels.flatMap(c => membersFor(c)));
+      }
+      return;
+    }
     list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
     if (!channels || !channels.length) {
@@ -782,6 +881,8 @@
     body.classList.toggle('is-masked', !!masked);
     txt.append(head, body);
     row.appendChild(txt);
+    const reply = replyButton(n);
+    if (reply) row.appendChild(reply);
     if (notif.hide && n.body) {
       row.classList.add('is-tappable');
       row.addEventListener('click', () => {
@@ -790,6 +891,48 @@
       });
     }
     return row;
+  }
+
+  // "Reply": bring Discord forward on this PC with that conversation open
+  // (server/discord-launch.js). Xenon cannot send the message itself, since
+  // Discord's local connection has no command for it, so this is the shortest
+  // honest path to answering. Only for a row that names its channel, and not on
+  // a paired phone: the button acts on the PC's Discord, and someone holding a
+  // phone answers in the Discord app in their hand.
+  function replyButton(n) {
+    if (!n.channelId) return null;
+    if (window.RemoteSurface && typeof window.RemoteSurface.isRemote === 'function' && window.RemoteSurface.isRemote()) return null;
+    const b = el('button', 'dc-notif-reply');
+    b.type = 'button';
+    b.title = t('discord_w_notif_reply_title', 'Open this conversation in Discord');
+    b.setAttribute('aria-label', b.title);
+    b.innerHTML = ICONS.reply;                       // static, trusted SVG
+    b.appendChild(el('span', 'dc-notif-reply-lbl', t('discord_w_notif_reply', 'Reply')));
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();                          // the row's own tap reveals hidden text
+      openConversation(b, n.channelId);
+    });
+    return b;
+  }
+
+  async function openConversation(btn, channelId) {
+    if (btn.disabled) return;
+    btn.disabled = true; btn.classList.remove('ok', 'err');
+    const r = await api('/stream/discord/open-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channelId }),
+    }).catch(() => null);
+    const ok = !!(r && r.ok);
+    btn.classList.add(ok && r.selected ? 'ok' : 'err');
+    // Said, not left to a red flash: either Discord came up without the chat,
+    // or it could not be started at all, and the user needs to know which.
+    if (window.XenonToast && !(ok && r.selected)) {
+      window.XenonToast.show({
+        type: ok ? 'info' : 'warn',
+        title: t(ok ? 'discord_w_notif_reply_partial' : 'discord_w_notif_reply_failed',
+          ok ? "Discord is open, but the conversation didn't open: find it there" : "Couldn't open Discord on this PC"),
+      });
+    }
+    setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1200);
   }
 
   // The Notifications tab: opt-in feed with deliberate states — off (points at

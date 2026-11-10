@@ -21,9 +21,9 @@
   // A small curated swatch row for one-tap colours; the picker covers the rest.
   const SWATCHES = ['#ff2b3b', '#ff7a1a', '#ffd23f', '#1ed760', '#19d3da', '#2b6cff', '#7c5cff', '#ffffff'];
 
-  // Only tiles actually placed on a dashboard page (a hidden/never-added widget
-  // sits in #widget-pool, outside any .pager-page).
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="lighting"]')).filter(x => x.closest('.pager-page')); }
+  // Only tiles actually placed on a dashboard page or a layer slot (a hidden or
+  // never-added widget sits in #widget-pool, outside both).
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="lighting"]')).filter(x => x.closest('.pager-page, .layer-slot')); }
 
   const st = { available: null, connected: false, enabled: false, manualColor: '', animation: { style: 'none', color: '#1ed760', palette: [] }, devices: [] };
   let seeded = false;
@@ -240,7 +240,11 @@
     row.appendChild(el('span', 'lgt-dev-dot'));
     row.appendChild(el('span', 'lgt-dev-name', d.name || d.id));
     const sel = document.createElement('select'); sel.className = 'lgt-mode';
-    MODES.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = t('deck_opt_' + m, m); sel.appendChild(o); });
+    // "My LED colours" only where there is a map to paint (Settings → Lighting),
+    // or to keep showing a mode the device is already in.
+    const hasMap = Array.isArray(d.segments) && d.segments.length > 0;
+    const modes = hasMap || d.mode === 'custom' ? MODES.concat('custom') : MODES;
+    modes.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = t('deck_opt_' + m, m); sel.appendChild(o); });
     sel.value = d.mode || 'follow';
     sel.addEventListener('change', () => setDeviceMode(d.id, sel.value));
     row.appendChild(sel);
@@ -261,7 +265,7 @@
     if (d.animation && typeof d.animation === 'object') st.animation = { style: d.animation.style || 'none', color: d.animation.color || '#1ed760', palette: Array.isArray(d.animation.palette) ? d.animation.palette : [] };
     if (Array.isArray(d.devices) || Array.isArray(d.providers)) {
       const out = [];
-      (d.devices || []).forEach(dv => out.push({ id: dv.id, name: dv.name || dv.id, mode: dv.mode || 'follow', modeColor: dv.modeColor || '' }));
+      (d.devices || []).forEach(dv => out.push({ id: dv.id, name: dv.name || dv.model || dv.id, mode: dv.mode || 'follow', modeColor: dv.modeColor || '' }));
       (d.providers || []).forEach(p => (p.devices || []).forEach(dv => out.push({ id: dv.id, name: (p.name ? p.name + ' · ' : '') + (dv.name || dv.id), mode: dv.mode || 'follow', modeColor: dv.modeColor || '' })));
       st.devices = out;
     }

@@ -43,7 +43,8 @@ function setEntries(name) {
   const start = SERVER.indexOf(`const ${name} = new Set([`);
   assert.ok(start > 0, `${name} not found`);
   const end = SERVER.indexOf('\n]);', start);
-  const body = SERVER.slice(start, end);
+  // Comments are prose: an apostrophe there is not a quote.
+  const body = SERVER.slice(start, end).replace(/\/\/.*$/gm, '');
   return new Set([...body.matchAll(/'([^']+)'/g)].map((m) => m[1]));
 }
 
@@ -168,4 +169,28 @@ test('the transfer settings block is redacted on the wire like a credential', ()
   assert.ok(chain.includes('redactTransferPaths('),
     'redactTransferPaths must be part of the composed chain, so it applies at every '
     + 'settings→browser exit point rather than the ones somebody remembered');
+});
+
+test('the arrival folder from the system dialog: on this PC only, validated, one writer', () => {
+  const src = branchSource('/api/transfer/settings/pick', 'POST');
+  assert.match(src, /isRemote \|\| !_captureHost\.has\('pick_folder'\)/,
+    'a paired phone must never open a dialog on the PC, and there is no dialog without the engine');
+  assert.match(src, /chooseTransferFolder\(\)/);
+  assert.match(src, /updateTransferSettings\(\{ inboxDir: r\.path \}\)/);
+  assert.ok(setEntries('CSRF_MUTATION_PATHS').has('/api/transfer/settings/pick'));
+  // The typed path and the dialog write through the same function.
+  assert.match(branchSource('/api/transfer/settings', 'POST'), /updateTransferSettings\(body\)/);
+  const writer = SERVER.slice(SERVER.indexOf('async function updateTransferSettings('));
+  assert.match(writer.slice(0, 1500), /withHubSettingsLock\(/);
+  // _captureFolder.choose runs the same validInboxDir a typed path gets.
+  assert.match(SERVER, /createCaptureFolder\(\{[\s\S]{0,200}validInboxDir\(/);
+  assert.match(branchSource('/api/transfer/settings', 'GET'), /canPick: _captureHost\.has\('pick_folder'\)/);
+});
+
+test('the transfer panel uses the dialog where there is one and the typed field elsewhere', () => {
+  const W = readFileSync(join(HERE, '..', 'js', 'transfer-widget.js'), 'utf8');
+  assert.match(W, /cfg\.canPick === true \? pickedFolderField\(\) : typedFolderField\(\)/);
+  assert.match(W, /'\/api\/transfer\/settings\/pick'/);
+  const I18N = readFileSync(join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  assert.equal((I18N.match(/\bxfer_folder_title:/g) || []).length, 11);
 });

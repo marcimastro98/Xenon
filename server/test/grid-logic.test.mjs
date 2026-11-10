@@ -197,3 +197,36 @@ test('addWidgetToPage returns the instance that now shows the widget', () => {
     globalThis.saveDashboardLayout = prev.save;
   }
 });
+
+// "When I add a widget it takes me to the first page, but the widget lands on
+// the right one." Whatever the re-layout does to the scroll meanwhile, the view
+// must end on the page the widget was put on: first placement and copy alike.
+test('addWidgetToPage shows the page the widget was put on', () => {
+  const DI = require('../js/dashboard-instances.js');
+  const layout = {
+    pages: [{ id: 'dashboard' }, { id: 'p2' }],
+    widgets: { custom: { visible: false, page: 'dashboard', x: 0, y: 0, w: 8, h: 6 } },
+    copies: [],
+    groups: {},
+  };
+  const shown = [];
+  const prev = { window: globalThis.window, get: globalThis.getDashboardLayout, save: globalThis.saveDashboardLayout };
+  globalThis.window = {
+    DashboardInstances: DI,
+    CustomWidget: { clearAssign: () => {} },
+    DashboardPager: { goToPage: (id) => shown.push(id) },
+  };
+  globalThis.getDashboardLayout = () => layout;
+  globalThis.saveDashboardLayout = () => {};
+  try {
+    g.addWidgetToPage('custom', 'p2');   // first placement
+    g.addWidgetToPage('custom', 'p2');   // a copy
+    assert.deepEqual(shown, ['p2', 'p2']);
+    g.addWidgetToPage('nope', 'p2');     // unknown widget: nothing placed, no move
+    assert.deepEqual(shown, ['p2', 'p2']);
+  } finally {
+    globalThis.window = prev.window;
+    globalThis.getDashboardLayout = prev.get;
+    globalThis.saveDashboardLayout = prev.save;
+  }
+});

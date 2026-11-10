@@ -86,3 +86,15 @@ test('the tiles really are translucent, which is why white leaked into them', ()
   assert.match(read('../styles/materials.css'),
     /background:\s*rgba\(var\(--oled-bg-rgb\), var\(--panel-alpha\)\)/);
 });
+
+test('the only transparent backing is the see-through window the user asked for', () => {
+  // Settings → Background, "See-through background" (see_through.rs) builds the
+  // window with no backing at all, so the desktop shows behind the tiles. That
+  // must stay an explicit, opt-in override of the dark backing above, never the
+  // backing everyone gets.
+  const all = [...LIB.matchAll(/\.background_color\(tauri::window::Color\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)\)/g)];
+  const clear = all.filter((m) => m[4] === '0');
+  assert.equal(clear.length, 1, 'one transparent backing, for the see-through window only');
+  const guard = LIB.slice(LIB.lastIndexOf('let builder = if', clear[0].index), clear[0].index);
+  assert.match(guard, /if see_through\.on \{/, 'the transparent backing is applied without the user asking');
+});

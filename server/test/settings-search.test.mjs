@@ -68,7 +68,7 @@ test('the search strings are translated in every language block', () => {
 });
 
 test('the palette categories only name widgets that exist', () => {
-  const src = read('../js/dashboard-palette.js');
+  const src = read('../js/palette-model.js');
   const ids = new Set(widgetIds());
   const block = src.match(/const WIDGET_CATEGORIES = \[([\s\S]*?)\n  \];/);
   assert.ok(block, 'WIDGET_CATEGORIES moved');
@@ -82,9 +82,9 @@ test('the page wires the search in the right order', () => {
   const field = HTML.indexOf('id="settings-search-input"');
   const list = HTML.indexOf('id="settings-nav-scroll"');
   assert.ok(nav > 0 && nav < field && field < list, 'search field between the nav and its list');
-  // Results are the first child of the content, with no category of their own,
-  // so settingsSetCategory never hides or shows them.
-  assert.match(HTML, /id="settings-content">\s*<div class="settings-search-results" id="settings-search-results"[^>]*hidden><\/div>/);
+  // Results come right after the page's name, with no category of their own, so
+  // settingsSetCategory never hides or shows them.
+  assert.match(HTML, /id="settings-content">\s*<h1 class="settings-page-title" id="settings-page-title"[^>]*><\/h1>\s*<div class="settings-search-results" id="settings-search-results"[^>]*hidden><\/div>/);
   const pos = (s) => HTML.indexOf(`<script src="js/${s}"></script>`);
   assert.ok(pos('fuzzy-find.js') > 0, 'fuzzy-find.js loaded');
   assert.ok(pos('fuzzy-find.js') < pos('settings-search.js'));
@@ -94,9 +94,6 @@ test('the page wires the search in the right order', () => {
 test('Esc clears a search before it closes anything', () => {
   const main = read('../js/main.js');
   const esc = main.slice(main.indexOf("if (e.key === 'Escape')"));
-  const palette = esc.indexOf('DashboardPalette.handleEscape()');
-  const editMode = esc.indexOf('setDashboardLayoutEditMode(false)');
-  assert.ok(palette > 0 && palette < editMode, 'the palette search is cleared before edit mode ends');
   const settings = esc.indexOf('SettingsSearch.handleEscape()');
   const close = esc.indexOf('closeSettings()');
   assert.ok(settings > 0 && settings < close, 'the settings search is cleared before Settings closes');
@@ -124,4 +121,95 @@ test('cards of the categories that are not open are indexed too', () => {
   const build = src.slice(src.indexOf('function build()'), src.indexOf('function ensureIndex('));
   assert.doesNotMatch(build, /reachable\(card\b/);
   assert.match(build, /reachable\(row, card\)/);
+});
+
+// ── Rows behind a switch, sections, keys ──────────────────────────────────────
+const SEARCH = read('../js/settings-search.js').replace(/\r\n/g, '\n');
+function inner(name) {
+  const m = new RegExp('^  function ' + name + '\\([\\s\\S]*?\\n  \\}', 'm').exec(SEARCH);
+  assert.ok(m, name);
+  return m[0];
+}
+
+// An element as these functions read it: parents, siblings, and whether it is on screen.
+function box({ hidden = false, display = '', shown = true, attrs = {}, row = false } = {}) {
+  const el = {
+    hidden, style: { display }, dataset: {}, parentElement: null, previousElementSibling: null,
+    hasAttribute: (k) => k in attrs,
+    getClientRects: () => (shown ? [{}] : []),
+    matches: () => row,
+    querySelector: () => null,
+    closest(sel) {
+      for (let n = el; n; n = n.parentElement) {
+        if (sel === ROW && n.matches()) return n;
+        if (sel === '[data-behind-switch]' && n.hasAttribute('data-behind-switch')) return n;
+        if (sel === '[data-settings-win-only]' && n.hasAttribute('data-settings-win-only')) return n;
+      }
+      return null;
+    },
+  };
+  return el;
+}
+const ROW = '.row';
+const under = (parent, child) => { child.parentElement = parent; return child; };
+
+function searchFns(ctx) {
+  const sandbox = { ROW_SEL: ROW, window: {}, ...ctx };
+  vm.createContext(sandbox);
+  vm.runInContext(['reachable', 'onScreen', 'landing'].map(inner).join('\n') + '\nthis.fns = { reachable, landing };', sandbox);
+  return sandbox.fns;
+}
+
+test('a row hidden for this PC is not a result, a row behind a switch of its own is', () => {
+  const { reachable } = searchFns({});
+  const card = box();
+  assert.equal(reachable(under(under(card, box({ hidden: true })), box()), card), false);
+  assert.equal(reachable(under(under(card, box({ display: 'none' })), box()), card), false);
+  const gate = under(card, box({ hidden: true, attrs: { 'data-behind-switch': 1 } }));
+  assert.equal(reachable(under(gate, box()), card), true);
+  assert.equal(reachable(under(card, box()), card), true);
+});
+
+test('a result behind a switch that is off lands on that switch', () => {
+  const root = box();
+  const master = under(root, box({ row: true }));
+  const input = under(master, box());
+  const gate = under(root, box({ shown: false, attrs: { 'data-behind-switch': 1 } }));
+  gate.dataset.behindSwitch = 'master';
+  const row = under(gate, box({ shown: false }));
+  const { landing } = searchFns({
+    content: () => root,
+    document: { getElementById: (id) => (id === 'master' ? input : null) },
+  });
+  assert.equal(landing(row), master);
+  assert.equal(landing(master), master, 'a row on screen is the place itself');
+});
+
+test('a row that went away with no switch named lands on the row before it', () => {
+  const root = box();
+  const before = under(root, box({ row: true }));
+  const gone = under(root, box({ shown: false }));
+  gone.previousElementSibling = before;
+  const { landing } = searchFns({ content: () => root, document: { getElementById: () => null } });
+  assert.equal(landing(gone), before);
+});
+
+test('every block behind a switch names a switch that is on the page', () => {
+  const named = [...HTML.matchAll(/data-behind-switch="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(named.length >= 4);
+  for (const id of named) assert.ok(HTML.includes('id="' + id + '"'), id);
+});
+
+test('sections and rows that open are entries, and a result says where it sits', () => {
+  assert.match(SEARCH, /const PLACE_SEL = 'details, \.settings-section';/);
+  assert.match(SEARCH, /card\.querySelectorAll\(PLACE_SEL\)\.forEach/);
+  assert.match(SEARCH, /const cardKey = placeOf\(row, card, headKey\);/);
+  assert.match(SEARCH, /const cardKey = placeOf\(btn, card, headKey\);/);
+});
+
+test('a key beside others in a row of keys is found by its own name', () => {
+  // Only rows that became entries hold their keys back.
+  const at = SEARCH.indexOf('inRow.add(row)');
+  assert.ok(at > SEARCH.indexOf('if (!labelKey || labelKey === headKey) return;'), 'a row with no name of its own is not one');
+  assert.match(SEARCH, /if \(\[\.\.\.inRow\]\.some\(\(r\) => r\.contains\(btn\)\) \|\| !reachable\(btn, card\)\) return;/);
 });

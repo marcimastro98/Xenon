@@ -769,7 +769,9 @@ test('normalizeDeckConfig validates the whole-device look enums', () => {
   const d = dm.normalizeDeckConfig({ capStyle: 'chrome', keyShape: 'hex', plate: 'wood' });
   assert.equal(d.capStyle, 'lcd');
   assert.equal(d.keyShape, 'rounded');
-  assert.equal(d.plate, 'graphite');
+  assert.equal(d.plate, 'theme');
+  // A saved Deck from before faceplates keeps the graphite it has always shown.
+  assert.equal(dm.normalizeDeckConfig({ plate: 'wood', profiles: [] }).plate, 'graphite');
 });
 
 test('an imported profile preserves only a valid install receipt id', () => {
@@ -795,7 +797,7 @@ test('profile looks are independent and inherit only missing fields', () => {
     activeProfile: 'comic',
   });
   assert.deepEqual(dm.effectiveDeckLook(cfg, 'comic'), {
-    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null,
+    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null, litRing: false, dimOff: false, themeColors: false,
   });
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').capStyle, 'neon');
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').wellImage.src, png);
@@ -1126,4 +1128,28 @@ test('addProfileFromTemplate threads the imported marker through', () => {
   // …and an own template stays unmarked.
   const out2 = dm.addProfileFromTemplate(target, { name: 'Own', root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'X' }] }] } });
   assert.equal('imported' in out2.profiles[out2.profiles.length - 1], false);
+});
+
+test('deckUsesState finds a live state on any profile, page or folder, and only there', () => {
+  const bound = (source) => ({ id: 'k1', state: { source } });
+  const empty = { pages: [{ keys: [null] }] };
+  const config = (root) => ({ profiles: [{ root: empty }, { root }] });
+  const onSecondPage = config({ pages: [{ keys: [] }, { keys: [null, bound('remoteActive')] }] });
+  assert.equal(dm.deckUsesState(onSecondPage, ['remoteConnected', 'remoteActive']), true);
+  assert.equal(dm.deckUsesState(onSecondPage, ['remoteConnected']), false);
+  const inFolder = config({ pages: [{ keys: [{ id: 'f', kind: 'folder', folder: { pages: [{ keys: [bound('remoteConnected')] }] } }] }] });
+  assert.equal(dm.deckUsesState(inFolder, ['remoteConnected']), true);
+  assert.equal(dm.deckUsesState(config({ pages: [{ keys: [{ ...bound('remoteActive'), kind: 'folder' }] }] }), ['remoteActive']), true, 'a folder key can show a state too');
+  // A cycle key shows its own step, never a bound state (keyStateBinding).
+  assert.equal(dm.deckUsesState(config({ pages: [{ keys: [{ ...bound('remoteActive'), mode: 'cycle' }] }] }), ['remoteActive']), false);
+});
+
+test('deckUsesState reads a stored config whatever its shape', () => {
+  const key = { id: 'k1', state: { source: 'remoteActive' } };
+  for (const bad of [null, undefined, 'x', 3, {}, { profiles: 'x' }, { profiles: [null] }, { profiles: [{}] }, { profiles: [{ root: { pages: 'x' } }] }, { profiles: [{ root: { pages: [null, { keys: 'x' }, { keys: [null, 4] }] } }] }]) {
+    assert.equal(dm.deckUsesState(bad, ['remoteActive']), false);
+  }
+  let folder = { pages: [{ keys: [key] }] };
+  for (let i = 0; i < 12; i++) folder = { pages: [{ keys: [{ kind: 'folder', folder }] }] };
+  assert.equal(dm.deckUsesState({ profiles: [{ root: folder }] }, ['remoteActive']), false, 'deeper than any real Deck, so not followed');
 });

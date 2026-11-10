@@ -16,27 +16,101 @@ $vramClockMHz = $null
 
 # GPU temperature via LibreHardwareMonitor - works for AMD, Intel, and NVIDIA without nvidia-smi.
 # LHM is already installed by INSTALL.bat for CPU temps, so no new dependency is introduced.
-function Get-LibreHardwareMonitorDll {
-  $candidates = @()
+# Which LibreHardwareMonitorLib.dll may be loaded, and from where. Add-Type runs
+# the library's code inside THIS process, and the startup task runs it elevated
+# once sensors are enabled, so two rules apply before anything is loaded:
+#
+# 1. Version 0.9.5 or newer. Earlier releases install and load the WinRing0
+#    kernel driver (CVE-2020-14979: it lets any local program read and write
+#    physical memory and MSRs), which Microsoft Defender flags. An older library
+#    is never opened: the result is the same as no LibreHardwareMonitor at all,
+#    and install.ps1 upgrades it.
+# 2. Location. Program Files (including winget's machine-wide Packages folder) is
+#    writable by administrators only. PATH, %LOCALAPPDATA%\Programs and winget's
+#    per-user Packages folder are writable by the user, so a DLL placed there
+#    would run with administrator rights here. Those are tried after the
+#    machine-wide copies (see Get-LibreHardwareMonitorDll for why they are
+#    still allowed).
+#    Program Files comes from the known-folder API, not from %ProgramFiles%,
+#    because environment variables are the user's to set.
+$script:LhmMinVersion = [Version]'0.9.5'
+
+function Test-LhmProcessElevated {
+  if ($null -ne $global:XenonIsAdmin) { return $global:XenonIsAdmin }
   try {
-    $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
-    if ($command) { $candidates += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll' }
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $global:XenonIsAdmin = ([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch {
+    $global:XenonIsAdmin = $false
+  }
+  return $global:XenonIsAdmin
+}
+
+function Test-LhmDllVersion([string]$Path) {
+  try {
+    $raw = '' + (Get-Item -LiteralPath $Path).VersionInfo.FileVersion
+    if ($raw -match '^\s*(\d+)\.(\d+)(?:\.(\d+))?') {
+      $build = if ($Matches[3]) { [int]$Matches[3] } else { 0 }
+      $v = New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], $build)
+      return ($v -ge $script:LhmMinVersion)
+    }
   } catch { }
-  if ($env:LOCALAPPDATA) {
-    $wingetPackages = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+  return $false
+}
+
+function Get-LibreHardwareMonitorDll {
+  $trusted = @()
+  foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::ProgramFilesX86)) {
     try {
-      $packageDirs = @(Get-ChildItem -Path $wingetPackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)
-      foreach ($packageDir in $packageDirs) {
-        $found = Get-ChildItem -Path $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { $candidates += $found.FullName }
+      $pf = [Environment]::GetFolderPath($sf)
+      if (-not $pf) { continue }
+      $trusted += Join-Path $pf 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll'
+      $machinePackages = Join-Path $pf 'WinGet\Packages'
+      foreach ($packageDir in @(Get-ChildItem -LiteralPath $machinePackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)) {
+        $found = Get-ChildItem -LiteralPath $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found) { $trusted += $found.FullName }
       }
     } catch { }
   }
-  if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'Programs\LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
-  if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
-  $x86 = ${env:ProgramFiles(x86)}
-  if ($x86) { $candidates += Join-Path $x86 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
-  return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
+
+  $userWritable = @()
+  # Per-user copies are still used when elevated, after the machine-wide ones:
+  # the normal install (elevated, winget portable) puts LibreHardwareMonitor
+  # exactly there, and refusing it blanked the sensors on most installs. While
+  # the startup task itself runs elevated files the user can write (the server
+  # and node), refusing this one DLL closes nothing; the fix for both is a
+  # sensor component installed under Program Files. The version rule above
+  # stays: no WinRing0 build is ever loaded.
+  if ($true) {
+    try {
+      $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
+      if ($command) { $userWritable += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll' }
+    } catch { }
+    if ($env:LOCALAPPDATA) {
+      $wingetPackages = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+      try {
+        $packageDirs = @(Get-ChildItem -Path $wingetPackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)
+        foreach ($packageDir in $packageDirs) {
+          $found = Get-ChildItem -Path $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($found) { $userWritable += $found.FullName }
+        }
+      } catch { }
+      $userWritable += Join-Path $env:LOCALAPPDATA 'Programs\LibreHardwareMonitor\LibreHardwareMonitorLib.dll'
+    }
+  }
+
+  foreach ($candidate in @($trusted + $userWritable)) {
+    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf) -and (Test-LhmDllVersion $candidate)) { return $candidate }
+  }
+  return $null
+}
+
+# When each GPU was last Update()d, so sensors.ps1 (Settings -> Sensor sources,
+# the SDK `sensors` stream) refreshes a card only when this collector has not
+# just done it. Keyed by LHM hardware identifier: one stamp per card.
+function Set-LhmUpdated($Hardware) {
+  if ($null -eq $global:XenonLhmUpdatedAt) { $global:XenonLhmUpdatedAt = @{} }
+  $global:XenonLhmUpdatedAt[[string]$Hardware.Identifier] = Get-Date
 }
 
 # Persistent LHM session (same pattern as cpu-temp.ps1): inside pwsh-worker the
@@ -48,7 +122,9 @@ function Get-GpuLhmComputer {
   $locationPushed = $false
   try {
     $dll = Get-LibreHardwareMonitorDll
-    if (-not $dll) { $global:XenonGpuLhmFailedAt = Get-Date; return $null }
+    # Checked again right here, next to Add-Type: an old (WinRing0) library is
+    # never loaded, so Computer.Open() never runs on it.
+    if (-not $dll -or -not (Test-LhmDllVersion $dll)) { $global:XenonGpuLhmFailedAt = Get-Date; return $null }
     Push-Location (Split-Path -Parent $dll)
     $locationPushed = $true
     Add-Type -Path $dll
@@ -64,6 +140,49 @@ function Get-GpuLhmComputer {
   } finally {
     try { if ($locationPushed) { Pop-Location } } catch { }
   }
+}
+
+# The ONE card the readings come from. Every field used to take the first value
+# any GPU offered, so a PC with two (a Ryzen 7000's integrated Radeon beside a
+# Radeon card is the common case) mixed them: the name from WMI, VRAM, clock and
+# watts from the integrated GPU, the fans from the card (Discord, Oct 2026: a
+# 9070 XT shown with 512 MB of VRAM and 2 W). The card WMI names wins, and WMI
+# is sorted by memory, so that is the discrete one; without a match, the most
+# dedicated memory, which an integrated GPU's small carve-out never beats.
+# Remembered per session: the cards do not change while it is open.
+function Read-LhmDedicatedMemoryMB($Hardware) {
+  foreach ($sensor in @($Hardware.Sensors)) {
+    try {
+      $sname = [string]$sensor.Name
+      if ($sensor.SensorType.ToString() -eq 'SmallData' -and $sname -match 'Memory Total' -and $sname -notmatch 'Shared' -and $null -ne $sensor.Value) {
+        return [double]$sensor.Value
+      }
+    } catch { }
+  }
+  return 0.0
+}
+
+function Select-LhmGpu {
+  param($Computer, [string]$Name)
+  $gpus = @($Computer.Hardware | Where-Object { $_.HardwareType.ToString() -match 'Gpu' })
+  if ($gpus.Count -le 1) { return ($gpus | Select-Object -First 1) }
+  $remembered = [string]$global:XenonGpuLhmPick
+  if ($remembered) {
+    $hit = $gpus | Where-Object { [string]$_.Identifier -eq $remembered } | Select-Object -First 1
+    if ($hit) { return $hit }
+  }
+  $pick = $null
+  if ($Name) { $pick = $gpus | Where-Object { ([string]$_.Name).Trim() -eq $Name.Trim() } | Select-Object -First 1 }
+  if (-not $pick) {
+    $best = -1.0
+    foreach ($candidate in $gpus) {
+      try { $candidate.Update(); Set-LhmUpdated $candidate } catch { }
+      $mb = Read-LhmDedicatedMemoryMB $candidate
+      if ($mb -gt $best) { $best = $mb; $pick = $candidate }
+    }
+  }
+  if ($pick) { $global:XenonGpuLhmPick = [string]$pick.Identifier }
+  return $pick
 }
 
 # NVIDIA fans read the way NvidiaGpu.Update() reads them (fan-cooler status,
@@ -128,16 +247,17 @@ function Get-LhmGpuReadings {
   $fans = @()
   $coreClock = $null
   $memClock = $null
+  $nvidiaTemp = $null
   try {
     $computer = Get-GpuLhmComputer
-    if ($null -eq $computer) { return @{ fans = $fans; coreClock = $null; memClock = $null } }
+    if ($null -eq $computer) { return @{ fans = $fans; coreClock = $null; memClock = $null; nvidiaTemp = $null } }
     foreach ($hardware in @($computer.Hardware)) {
       if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
       if ($FansOnly -and $hardware.HardwareType.ToString() -eq 'GpuNvidia') {
         $direct = Read-NvidiaFansDirect $hardware
         if ($null -ne $direct) { $fans += $direct; continue }
       }
-      try { $hardware.Update() } catch { }
+      try { $hardware.Update(); Set-LhmUpdated $hardware } catch { }
       foreach ($sensor in @($hardware.Sensors)) {
         try {
           if ($null -eq $sensor.Value) { continue }
@@ -155,6 +275,16 @@ function Get-LhmGpuReadings {
             elseif ($null -eq $memClock -and $cname -match 'Memory|VRAM') { $memClock = [int][Math]::Round($mhz) }
             continue
           }
+          # Only asked for when nvidia-smi gave no temperature, so only the
+          # NVIDIA card's own core reading counts, never an iGPU's.
+          if ($stype -eq 'Temperature') {
+            $celsius = [double]$sensor.Value
+            if ($null -eq $nvidiaTemp -and $hardware.HardwareType.ToString() -eq 'GpuNvidia' -and
+                [string]$sensor.Name -match 'Core' -and $celsius -gt 0 -and $celsius -lt 150) {
+              $nvidiaTemp = [int][Math]::Round($celsius)
+            }
+            continue
+          }
           if ($stype -ne 'Fan') { continue }
           $rpm = [int][Math]::Round([double]$sensor.Value)
           if ($rpm -lt 0 -or $rpm -gt 20000) { continue }
@@ -169,8 +299,60 @@ function Get-LhmGpuReadings {
     # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
     try { $global:XenonGpuLhm.Close() } catch { }
     $global:XenonGpuLhm = $null
+    $global:XenonGpuLhmPick = $null
   }
-  return @{ fans = $fans; coreClock = $coreClock; memClock = $memClock }
+  return @{ fans = $fans; coreClock = $coreClock; memClock = $memClock; nvidiaTemp = $nvidiaTemp }
+}
+
+# nvidia-smi numbers, whole or decimal. Driver 621.01 began printing
+# temperature.gpu as "52.56" where every earlier driver printed "52", and a
+# whole-number-only match turned that into "no temperature" on every NVIDIA
+# card. Any field may go the same way, so all of them take either form; "[N/A]"
+# and anything else that is not a number gives $null. nvidia-smi always writes a
+# dot, whatever the Windows locale, hence the invariant culture.
+function ConvertFrom-SmiNumber([string]$Text) {
+  if ($Text -notmatch '^\d+(\.\d+)?$') { return $null }
+  return [double]::Parse($Text, [Globalization.CultureInfo]::InvariantCulture)
+}
+
+function ConvertFrom-SmiWhole([string]$Text) {
+  $value = ConvertFrom-SmiNumber $Text
+  if ($null -eq $value) { return $null }
+  return [int64][Math]::Round($value, [MidpointRounding]::AwayFromZero)
+}
+
+# One line of the --query-gpu below. Split on commas rather than one
+# all-or-nothing regex: any field can be "[N/A]" on some cards/drivers, so each
+# is parsed independently. The name is LAST and rejoined in case a model name
+# ever contains a comma, so every new field goes BEFORE it and the count moves
+# with the query.
+function ConvertFrom-NvidiaSmiLine([string]$Line) {
+  $parts = $Line -split '\s*,\s*'
+  if ($parts.Count -lt 9) { return $null }
+  $out = @{
+    gpu     = ConvertFrom-SmiWhole $parts[0]
+    gpuTemp = ConvertFrom-SmiWhole $parts[1]
+    gpuName = ($parts[8..($parts.Count - 1)] -join ', ').Trim()
+  }
+  # nvidia-smi reports memory in MiB (nounits); convert to bytes so the client
+  # formats VRAM with the same helper it uses for RAM/disk.
+  $used = ConvertFrom-SmiNumber $parts[2]
+  if ($null -ne $used) { $out.vramUsed = [int64][Math]::Round($used * 1048576) }
+  $total = ConvertFrom-SmiNumber $parts[3]
+  if ($null -ne $total) { $out.vramTotal = [int64][Math]::Round($total * 1048576) }
+  # power.draw is in watts; fan.speed is a PERCENT (0-100).
+  $watts = ConvertFrom-SmiNumber $parts[4]
+  if ($null -ne $watts) { $out.gpuWatts = [Math]::Round($watts, 1) }
+  $fanPct = ConvertFrom-SmiWhole $parts[5]
+  if ($null -ne $fanPct) { $out.gpuFanPct = $fanPct }
+  # clocks.gr is the graphics/core clock, clocks.mem the memory clock, both in
+  # MHz. "[N/A]" on a card or driver that does not report one leaves the key
+  # absent, which the server reads as "no answer" rather than zero.
+  $coreMhz = ConvertFrom-SmiWhole $parts[6]
+  if ($null -ne $coreMhz) { $out.gpuClockMHz = $coreMhz }
+  $memMhz = ConvertFrom-SmiWhole $parts[7]
+  if ($null -ne $memMhz) { $out.vramClockMHz = $memMhz }
+  return $out
 }
 
 try {
@@ -182,50 +364,32 @@ try {
   }
   if ($global:XenonNvidiaSmiPath) {
     $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed,clocks.gr,clocks.mem,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    # The two clock fields (clocks.gr / clocks.mem) cost nothing: the same
+    # invocation was already reading temperature and power.
     if ($line) {
-      # Split on commas rather than one all-or-nothing regex: any field can be
-      # "[N/A]" on some cards/drivers, so each is parsed independently. The name is
-      # the last field (rejoined in case a model name ever contains a comma).
-      $parts = $line -split '\s*,\s*'
-      # The name is LAST and rejoined, so every new field goes BEFORE it and the
-      # count below moves with the query above. Two clock fields were added here
-      # (clocks.gr / clocks.mem): they cost nothing, being answered by the same
-      # invocation that was already reading temperature and power.
-      if ($parts.Count -ge 9) {
-        $out = @{
-          gpu     = $(if ($parts[0] -match '^\d+$') { [int]$parts[0] } else { $null })
-          gpuTemp = $(if ($parts[1] -match '^\d+$') { [int]$parts[1] } else { $null })
-          gpuName = ($parts[8..($parts.Count - 1)] -join ', ').Trim()
-        }
-        # nvidia-smi reports memory in MiB (nounits); convert to bytes so the client
-        # formats VRAM with the same helper it uses for RAM/disk.
-        if ($parts[2] -match '^\d+$') { $out.vramUsed  = [int64]$parts[2] * 1048576 }
-        if ($parts[3] -match '^\d+$') { $out.vramTotal = [int64]$parts[3] * 1048576 }
-        # power.draw is a float in watts; fan.speed is a PERCENT (0-100).
-        if ($parts[4] -match '^\d+(\.\d+)?$') { $out.gpuWatts  = [Math]::Round([double]$parts[4], 1) }
-        if ($parts[5] -match '^\d+$')         { $out.gpuFanPct = [int]$parts[5] }
+      $out = ConvertFrom-NvidiaSmiLine $line
+      if ($null -ne $out) {
         # Real per-fan RPM beats nvidia-smi's fan.speed, which is the fan curve's
         # TARGET rather than the fan itself: an idle card in zero-RPM mode reports
         # "32%" while both fans are stopped. LHM reads each fan's tachometer, so a
         # two-fan card shows two true readings instead of one aggregate guess.
-        # Read straight from NVAPI when nvidia-smi answered both clocks (well
-        # under 1 ms; a full LHM Update() was ~60-80 ms); gpuFanPct stays in the payload as the fallback for cards LHM
-        # exposes no fan sensors for.
+        # Read straight from NVAPI when nvidia-smi answered both clocks and the
+        # temperature (well under 1 ms; a full LHM Update() was ~60-80 ms);
+        # gpuFanPct stays in the payload as the fallback for cards LHM exposes no
+        # fan sensors for.
         # Always emitted, even empty: the server tells "no fans reported" (drop
         # the stale list) from "no read happened" (keep it) by the key's mere
         # presence, so omitting it on an empty result would freeze old RPM
         # forever on a card that genuinely stopped reporting.
-        # clocks.gr is the graphics/core clock, clocks.mem the memory clock, both
-        # in MHz. "[N/A]" on a card or driver that does not report one leaves the
-        # key absent, which the server reads as "no answer" rather than zero.
-        if ($parts[6] -match '^\d+$') { $out.gpuClockMHz  = [int]$parts[6] }
-        if ($parts[7] -match '^\d+$') { $out.vramClockMHz = [int]$parts[7] }
-        $haveClocks = ($null -ne $out.gpuClockMHz) -and ($null -ne $out.vramClockMHz)
-        $lhm = Get-LhmGpuReadings -FansOnly:$haveClocks
+        # The fans-only shortcut skips Update(), so it is taken only when
+        # nvidia-smi answered every reading LHM could fill in.
+        $haveRest = ($null -ne $out.gpuClockMHz) -and ($null -ne $out.vramClockMHz) -and ($null -ne $out.gpuTemp)
+        $lhm = Get-LhmGpuReadings -FansOnly:$haveRest
         $out.gpuFans = @($lhm.fans)
         # LHM only fills a gap here - nvidia-smi is the authority on an NVIDIA card.
-        if ($null -eq $out.gpuClockMHz  -and $null -ne $lhm.coreClock) { $out.gpuClockMHz  = $lhm.coreClock }
-        if ($null -eq $out.vramClockMHz -and $null -ne $lhm.memClock)  { $out.vramClockMHz = $lhm.memClock }
+        if ($null -eq $out.gpuClockMHz  -and $null -ne $lhm.coreClock)  { $out.gpuClockMHz  = $lhm.coreClock }
+        if ($null -eq $out.vramClockMHz -and $null -ne $lhm.memClock)   { $out.vramClockMHz = $lhm.memClock }
+        if ($null -eq $out.gpuTemp      -and $null -ne $lhm.nvidiaTemp) { $out.gpuTemp      = $lhm.nvidiaTemp }
         $out | ConvertTo-Json -Compress
         # `return` (not `exit`) ends the script for both the one-shot `-File` run and
         # the persistent worker's call-operator invocation, without killing the host.
@@ -250,9 +414,9 @@ try {
   $computer = Get-GpuLhmComputer
   if ($null -ne $computer) {
     try {
-      foreach ($hardware in @($computer.Hardware)) {
-        if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
-        try { $hardware.Update() } catch { }
+      foreach ($hardware in @(Select-LhmGpu -Computer $computer -Name $gpuName)) {
+        if ($null -eq $hardware) { continue }
+        try { $hardware.Update(); Set-LhmUpdated $hardware } catch { }
         foreach ($sensor in @($hardware.Sensors)) {
           try {
             $stype = $sensor.SensorType.ToString()
@@ -305,6 +469,7 @@ try {
       # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
       try { $computer.Close() } catch { }
       $global:XenonGpuLhm = $null
+      $global:XenonGpuLhmPick = $null
     }
   }
 } catch { }

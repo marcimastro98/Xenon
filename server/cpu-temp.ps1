@@ -48,33 +48,93 @@ function Test-SensorAdmin {
   return $global:XenonIsAdmin
 }
 
-function Get-LibreHardwareMonitorDll {
-  $candidates = @()
+# Which LibreHardwareMonitorLib.dll may be loaded, and from where. Add-Type runs
+# the library's code inside THIS process, and the startup task runs it elevated
+# once sensors are enabled, so two rules apply before anything is loaded:
+#
+# 1. Version 0.9.5 or newer. Earlier releases install and load the WinRing0
+#    kernel driver (CVE-2020-14979: it lets any local program read and write
+#    physical memory and MSRs), which Microsoft Defender flags. An older library
+#    is never opened: the result is the same as no LibreHardwareMonitor at all,
+#    and install.ps1 upgrades it.
+# 2. Location. Program Files (including winget's machine-wide Packages folder) is
+#    writable by administrators only. PATH, %LOCALAPPDATA%\Programs and winget's
+#    per-user Packages folder are writable by the user, so a DLL placed there
+#    would run with administrator rights here. Those are tried after the
+#    machine-wide copies (see Get-LibreHardwareMonitorDll for why they are
+#    still allowed).
+#    Program Files comes from the known-folder API, not from %ProgramFiles%,
+#    because environment variables are the user's to set.
+$script:LhmMinVersion = [Version]'0.9.5'
 
+function Test-LhmProcessElevated {
+  if ($null -ne $global:XenonIsAdmin) { return $global:XenonIsAdmin }
   try {
-    $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
-    if ($command) {
-      $candidates += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll'
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $global:XenonIsAdmin = ([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch {
+    $global:XenonIsAdmin = $false
+  }
+  return $global:XenonIsAdmin
+}
+
+function Test-LhmDllVersion([string]$Path) {
+  try {
+    $raw = '' + (Get-Item -LiteralPath $Path).VersionInfo.FileVersion
+    if ($raw -match '^\s*(\d+)\.(\d+)(?:\.(\d+))?') {
+      $build = if ($Matches[3]) { [int]$Matches[3] } else { 0 }
+      $v = New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], $build)
+      return ($v -ge $script:LhmMinVersion)
     }
   } catch { }
+  return $false
+}
 
-  if ($env:LOCALAPPDATA) {
-    $wingetPackages = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+function Get-LibreHardwareMonitorDll {
+  $trusted = @()
+  foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::ProgramFilesX86)) {
     try {
-      $packageDirs = @(Get-ChildItem -Path $wingetPackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)
-      foreach ($packageDir in $packageDirs) {
-        $found = Get-ChildItem -Path $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { $candidates += $found.FullName }
+      $pf = [Environment]::GetFolderPath($sf)
+      if (-not $pf) { continue }
+      $trusted += Join-Path $pf 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll'
+      $machinePackages = Join-Path $pf 'WinGet\Packages'
+      foreach ($packageDir in @(Get-ChildItem -LiteralPath $machinePackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)) {
+        $found = Get-ChildItem -LiteralPath $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found) { $trusted += $found.FullName }
       }
     } catch { }
   }
 
-  if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'Programs\LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
-  if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
-  $programFilesX86 = ${env:ProgramFiles(x86)}
-  if ($programFilesX86) { $candidates += Join-Path $programFilesX86 'LibreHardwareMonitor\LibreHardwareMonitorLib.dll' }
+  $userWritable = @()
+  # Per-user copies are still used when elevated, after the machine-wide ones:
+  # the normal install (elevated, winget portable) puts LibreHardwareMonitor
+  # exactly there, and refusing it blanked the sensors on most installs. While
+  # the startup task itself runs elevated files the user can write (the server
+  # and node), refusing this one DLL closes nothing; the fix for both is a
+  # sensor component installed under Program Files. The version rule above
+  # stays: no WinRing0 build is ever loaded.
+  if ($true) {
+    try {
+      $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
+      if ($command) { $userWritable += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll' }
+    } catch { }
+    if ($env:LOCALAPPDATA) {
+      $wingetPackages = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+      try {
+        $packageDirs = @(Get-ChildItem -Path $wingetPackages -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)
+        foreach ($packageDir in $packageDirs) {
+          $found = Get-ChildItem -Path $packageDir.FullName -Filter LibreHardwareMonitorLib.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($found) { $userWritable += $found.FullName }
+        }
+      } catch { }
+      $userWritable += Join-Path $env:LOCALAPPDATA 'Programs\LibreHardwareMonitor\LibreHardwareMonitorLib.dll'
+    }
+  }
 
-  return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
+  foreach ($candidate in @($trusted + $userWritable)) {
+    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf) -and (Test-LhmDllVersion $candidate)) { return $candidate }
+  }
+  return $null
 }
 
 function Update-HardwareTree {
@@ -191,7 +251,9 @@ function Get-CpuLhmComputer {
   $locationPushed = $false
   try {
     $dll = Get-LibreHardwareMonitorDll
-    if (-not $dll) { $global:XenonCpuLhmFailedAt = Get-Date; return $null }
+    # Checked again right here, next to Add-Type: an old (WinRing0) library is
+    # never loaded, so Computer.Open() never runs on it.
+    if (-not $dll -or -not (Test-LhmDllVersion $dll)) { $global:XenonCpuLhmFailedAt = Get-Date; return $null }
     Push-Location (Split-Path -Parent $dll)
     $locationPushed = $true
     Add-Type -Path $dll
@@ -402,6 +464,7 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
   $computer = Get-CpuLhmComputer
   if ($null -eq $computer) { return }
   $sawPsu = $false
+  $tempsBefore = @($script:tempCandidates).Count
   try {
     foreach ($hardware in @($computer.Hardware)) {
       $htype = $hardware.HardwareType.ToString()
@@ -428,6 +491,22 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
     # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
     try { $computer.Close() } catch { }
     $global:XenonCpuLhm = $null
+  }
+  # A session opened before the kernel driver could load (PawnIO installed or
+  # updated later, while Xenon was running) never gains it: its CPU readings
+  # stay empty until Xenon restarts (Discord, Oct 2026). Elevated and still no
+  # CPU temperature after 5 minutes, the session is rebuilt; while nothing
+  # changes that is one re-open every 5 minutes, the same pace as a failed init.
+  if (@($script:tempCandidates).Count -gt $tempsBefore) {
+    $global:XenonCpuLhmBlindSince = $null
+  } elseif ($global:XenonCpuLhm -and (Test-SensorAdmin)) {
+    if (-not $global:XenonCpuLhmBlindSince) {
+      $global:XenonCpuLhmBlindSince = Get-Date
+    } elseif (((Get-Date) - $global:XenonCpuLhmBlindSince).TotalSeconds -ge 300) {
+      try { $computer.Close() } catch { }
+      $global:XenonCpuLhm = $null
+      $global:XenonCpuLhmBlindSince = $null
+    }
   }
   # Only when LHM produced nothing itself - never open the same PSU twice.
   if (-not $sawPsu) { Add-CorsairPsuDirectSensors }
@@ -478,9 +557,12 @@ if ($script:tempCandidates.Count -eq 0) {
   Add-TempsFromWindowsThermalZones
 }
 
-$cpuTemp = $script:tempCandidates |
+# The winner's name travels too, so Settings -> Sensor sources can say which
+# sensor "Automatic" is showing (Tctl/Tdie, CPU Package...).
+$cpuTempPick = $script:tempCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
-  Select-Object -First 1 -ExpandProperty Value
+  Select-Object -First 1
+$cpuTemp = if ($cpuTempPick) { $cpuTempPick.Value } else { $null }
 
 $cpuWatts = $script:cpuWattCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
@@ -503,6 +585,7 @@ if ($global:XenonCpuLhm) { $sensorAccess = if (Test-SensorAdmin) { 'ok' } else {
 
 [pscustomobject]@{
   cpuTemp      = if ($null -ne $cpuTemp) { [double]$cpuTemp } else { $null }
+  cpuTempSource = if ($cpuTempPick) { [string]$cpuTempPick.Name } else { $null }
   fans         = @($script:fanReadings)
   cpuWatts     = if ($null -ne $cpuWatts) { [double]$cpuWatts } else { $null }
   psuWatts     = if ($null -ne $psuWatts) { [double]$psuWatts } else { $null }

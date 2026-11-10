@@ -1,0 +1,46 @@
+#cloud-config
+# A desktop in the ways that matter here: a user logged in on a real seat (udev's
+# uaccess needs one), polkit and logind's defaults, both signal tools.
+users:
+  - name: xenon
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: ALL=(ALL) NOPASSWD:ALL
+package_update: true
+packages:
+  - acl
+  - bluez
+  - bluez-test-tools
+  - curl
+  - dbus
+  - jq
+  - libglib2.0-bin
+  - polkitd
+  - sudo
+  - usbip
+write_files:
+  - path: /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --autologin xenon --noclear %I $TERM
+  # The CPU is emulated here, many times slower than a real PC.
+  - path: /etc/systemd/logind.conf.d/xenon-rgb-test.conf
+    content: |
+      [Login]
+      InhibitDelayMaxSec=60
+  - path: /etc/systemd/system/xenon-rgb-test.service
+    content: |
+      [Unit]
+      RequiresMountsFor=/mnt/share
+      After=getty@tty1.service
+      [Service]
+      ExecStart=/bin/bash /mnt/share/app/tools/linux-rgb-vm/guest-run.sh
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - systemctl enable xenon-rgb-test.service
+  - [sh, -c, "mkdir -p /mnt/share && echo 'LABEL=share /mnt/share ext4 defaults,nofail,commit=1 0 0' >> /etc/fstab && mount -a && touch /mnt/share/prepared-ok"]
+power_state:
+  mode: poweroff
+  condition: true

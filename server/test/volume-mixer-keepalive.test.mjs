@@ -129,8 +129,11 @@ test('the server route only re-arms the read: it reads and spawns nothing', () =
   assert.match(guard, /reqPath\.startsWith\('\/audio'\)/);
 });
 
-test('the volume card, the microphone panel and the "audio unavailable" notice are the surfaces', () => {
-  assert.match(VOLUME, /querySelectorAll\('\.volume-wrap, \.mic-panel, \[data-volf="vol-error"\]'\)/);
+test('the volume card, the microphone panel and tab, and the "audio unavailable" notice are the surfaces', () => {
+  assert.match(VOLUME, /querySelectorAll\('\.volume-wrap, \.mic-panel, \.system-mic-pane, \[data-volf="vol-error"\]'\)/);
+  // The Microphone tab of the System tile holds the mic's controls while the panel
+  // above stays hidden: on that tab the input level and the apps kept their first read.
+  assert.match(read('../index.html'), /class="system-mic-pane" id="sys-grid-mic"/);
   // The notice is the one that matters when the read fails: it is on screen while
   // the card inside the hidden audio block is not.
   assert.match(read('../index.html'), /class="audio-unavailable" data-volf="vol-error"/);

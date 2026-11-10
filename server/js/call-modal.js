@@ -23,7 +23,6 @@
     video: S('<path d="m23 7-7 5 7 5V7Z"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),
     bellOff: S('<path d="M8.7 3a6 6 0 0 1 9.3 5c0 3.5.7 5.7 1.5 7.1M6.3 6.3C6.1 6.8 6 7.4 6 8c0 7-3 9-3 9h14"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="m2 2 20 20"/>'),
     open: S('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
-    app: S('<rect x="3" y="3" width="18" height="18" rx="4"/>'),
   };
 
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -36,6 +35,7 @@
   let busy = '';             // the action in flight, so a double tap cannot double-answer
   let problem = '';          // the last failure, shown on the card
   let seeded = false;
+  let letGo = null;          // gives the keyboard back
 
   function callsCfg() {
     try {
@@ -98,6 +98,10 @@
     paint();
   }
 
+  function dismissCall() {
+    if (list[0]) act(list[0], 'dismiss');
+  }
+
   function errorText(code) {
     const map = {
       window_not_found: t('call_err_window', 'I could not find that app’s window.'),
@@ -143,23 +147,20 @@
     life.appendChild(fill);
     c.appendChild(life);
 
-    // Which app is ringing.
+    // Which app is ringing: its name alone when there is no picture. An empty
+    // box in its place reads as a broken card, and a URL can fail: seen on a real
+    // Discord ring, whose avatar did not resolve.
     const app = el('div', 'call-app');
-    const appIco = el('span', 'call-app-ico');
     const iconUrl = safeIcon(call.icon);
     if (iconUrl) {
+      const appIco = el('span', 'call-app-ico');
       const img = document.createElement('img');
       img.alt = ''; img.src = iconUrl;
-      // An icon URL that 404s or is blocked leaves an empty grey box, which
-      // reads as a broken card rather than as a missing picture — seen on a
-      // real Discord ring, whose avatar URL did not resolve. Fall back to the
-      // generic glyph the no-icon case already uses.
-      img.addEventListener('error', () => { appIco.innerHTML = ICONS.app; }, { once: true });
+      img.addEventListener('error', () => appIco.remove(), { once: true });
       appIco.appendChild(img);
-    } else {
-      appIco.innerHTML = ICONS.app;           // static SVG
+      app.appendChild(appIco);
     }
-    app.append(appIco, el('span', '', call.appName || ''));
+    app.appendChild(el('span', '', call.appName || ''));
     c.appendChild(app);
 
     // Who.
@@ -181,14 +182,15 @@
     const caps = call.caps || {};
     const stack = el('div', 'call-stack');
     const actions = el('div', 'call-actions');
+    // Decline left, Answer right: where phones put them, and this app's main key.
+    if (caps.decline) {
+      actions.appendChild(button('call-btn--decline', ICONS.hangup, t('call_decline', 'Decline'),
+        () => act(call, 'decline'), { disabled: !!busy }));
+    }
     if (caps.answer) {
       actions.appendChild(button('call-btn--answer', call.video ? ICONS.video : ICONS.phone,
         busy === 'answer' ? t('call_answering', 'Answering…') : t('call_answer', 'Answer'),
         () => act(call, 'answer'), { disabled: !!busy }));
-    }
-    if (caps.decline) {
-      actions.appendChild(button('call-btn--decline', ICONS.hangup, t('call_decline', 'Decline'),
-        () => act(call, 'decline'), { disabled: !!busy }));
     }
     if (actions.childElementCount) stack.appendChild(actions);
 
@@ -241,6 +243,10 @@
     }
     if (!overlay) {
       overlay = el('div', 'call-overlay');
+      overlay.tabIndex = -1;
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', t('call_incoming', 'Incoming call'));
       document.body.appendChild(overlay);
       // Freeze the dashboard behind the blur. This is the case the freeze
       // machinery exists for: a full-viewport backdrop-filter over a moving
@@ -249,6 +255,10 @@
       // freeze — see CallModal.css.
       freezeToken = 'call:' + call.id;
       if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, true);
+      // The keyboard lands on the window, never on a key: this opens while people
+      // type, and a stray Enter must not answer. Esc is Dismiss: the card goes, the
+      // call goes on in its app. The alerts window has no keyboard to hold.
+      if (window.DialogFocus) letGo = window.DialogFocus.hold(overlay, { onEsc: dismissCall });
     }
     overlay.replaceChildren(card(call));
     // The ring follows the card: it sounds while something is ringing and not
@@ -265,6 +275,7 @@
   function closeOverlay() {
     ring(false);
     if (!overlay) return;
+    if (letGo) { letGo(); letGo = null; }
     overlay.remove();
     overlay = null;
     if (freezeToken && typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, false);
@@ -288,10 +299,11 @@
   // A dashboard that opens mid-ring must show the card. The SSE seed covers the
   // normal path; this covers a surface that loads without one (and costs one
   // request, only when the feature is on).
+  // Not spent while calls look off: a surface whose settings arrive after it
+  // loaded (the on-screen alerts window) asks again once they have.
   async function seed() {
-    if (seeded) return;
+    if (seeded || callsCfg().enabled !== true) return;
     seeded = true;
-    if (callsCfg().enabled !== true) return;
     try {
       const d = await api('/api/calls');
       if (d && Array.isArray(d.calls) && d.calls.length) onCalls({ calls: d.calls });

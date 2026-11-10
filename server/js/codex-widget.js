@@ -31,7 +31,6 @@
   let refreshing = false;
   const deciding = new Set();
   let ticker = null;
-  let overlay = null;
   let topbarSig = '';
 
   const ARM_MS = 450;
@@ -40,9 +39,10 @@
   const SCROLLERS = ['.cx-livegrid', '.cx-usage', '.cx-decs', '.cx-dec-body', '.cx-dec-cmd', '.cx-list', '.cx-thread'];
   const arming = AK.createArming(ARM_MS, () => paint());
   const press = AK.createPressGuard('.codex-widget-mount, .cx-overlay, #clock-codex', () => renderNow());
+  const sheet = AK.createSheet({ className: 'cx-overlay', freeze: 'codex-approval', scrollers: SCROLLERS });
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="openaicodex"]')).filter((n) => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="openaicodex"]')).filter((n) => n.closest('.pager-page, .layer-slot'));
   }
   function isParked(tile) {
     const page = tile.closest('.pager-page');
@@ -182,30 +182,48 @@
   function key(cls, label, a, onTap) {
     const b = el('button', 'cx-key ' + cls, label);
     b.type = 'button';
+    b.dataset.keep = 'k-' + a.id + '-' + cls;
     b.disabled = deciding.has(a.id);
     b.addEventListener('click', () => { if (arming.isArmed(a.id)) onTap(); });
     return b;
   }
 
-  function decisionCard(a, big) {
-    const risks = Array.isArray(a.risks) ? a.risks : [];
-    const irreversible = risks.includes('irreversible');
-    const armed = arming.isArmed(a.id);
-    const card = el('section', 'cx-dec' + (big ? ' is-big' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
-    card.setAttribute('aria-live', 'polite');
-    const head = el('div', 'cx-dec-head');
-    head.appendChild(el('span', 'cx-dec-kind', t('codex_permission', 'Codex is asking')));
-    head.appendChild(el('span', 'cx-dec-where', [a.project, a.model].filter(Boolean).join(' · ')));
+  function timerOf(a) {
     const left = el('span', 'cx-dec-timer');
     left.dataset.cxExpiresAt = String(Date.now() + (a.expiresInMs || 0));
     left.dataset.tpl = t('claude_dec_left', '{t} left');
     left.textContent = left.dataset.tpl.replace('{t}', mmss(a.expiresInMs));
+    return left;
+  }
+
+  function tileHead(a) {
+    const head = el('div', 'cx-dec-head');
+    head.appendChild(el('span', 'cx-dec-kind', t('codex_permission', 'Codex is asking')));
+    head.appendChild(el('span', 'cx-dec-where', [a.project, a.model].filter(Boolean).join(' · ')));
+    const left = timerOf(a);
     left.title = t('codex_dec_expires', 'After this Codex asks you itself');
     head.appendChild(left);
-    card.appendChild(head);
+    return head;
+  }
 
+  function askedBy(a) {
+    if (!a.project) return t('codex_permission', 'Codex is asking');
+    return t('codex_asking_in', 'Codex is asking in {project}').replace('{project}', () => a.project);
+  }
+
+  function sheetFoot(a, keys) {
+    const others = approvals().filter((x) => x.urgent).length - 1;
+    return AK.sheetFoot({
+      timer: timerOf(a),
+      after: t('codex_dec_expires', 'After this Codex asks you itself'),
+      more: others > 0 ? t('claude_more_waiting', '{n} more waiting').replace('{n}', String(others)) : '',
+      keys,
+    });
+  }
+
+  function decisionBody(a, big, risks) {
     const body = el('div', 'cx-dec-body');
-    body.appendChild(el('div', 'cx-dec-what', intentOf(a)));
+    if (!big) body.appendChild(el('div', 'cx-dec-what', intentOf(a)));
     const ev = evidence(a);
     if (ev) body.appendChild(ev);
     if (a.detail && a.detail.note) body.appendChild(el('div', 'cx-dec-note', a.detail.note));
@@ -214,45 +232,49 @@
       risks.forEach((r) => { if (RISK_LABEL[r]) line.appendChild(el('span', 'cx-risk is-' + r, RISK_LABEL[r]())); });
       body.appendChild(line);
     }
-    card.appendChild(body);
+    return body;
+  }
 
+  // On the sheet the keys sit on the right and Tab follows the eye, the main one last.
+  function decisionKeys(a, big, irreversible) {
     const acts = el('div', 'cx-dec-acts');
-    acts.appendChild(key('is-deny', t('claude_deny', 'Deny'), a, () => decide(a.id, 'deny')));
-    acts.appendChild(key('is-quiet', t('codex_handback', 'Answer in Codex'), a, () => decide(a.id, 'handback')));
+    const deny = key('is-deny', t('claude_deny', 'Deny'), a, () => decide(a.id, 'deny'));
+    const quiet = key('is-quiet', t('codex_handback', 'Answer in Codex'), a, () => decide(a.id, 'handback'));
+    acts.append(...(big ? [quiet, deny] : [deny, quiet]));
     if (irreversible) {
       acts.appendChild(AK.holdButton({
         className: 'cx-key is-allow is-hold', label: t('claude_hold_allow', 'Hold to allow'),
-        pressAgain: t('claude_press_again', 'Press again to allow'), holdMs: HOLD_MS,
+        pressAgain: t('claude_press_again', 'Press again to allow'), holdMs: HOLD_MS, keep: 'k-' + a.id + '-hold',
         disabled: deciding.has(a.id), isArmed: () => arming.isArmed(a.id), onConfirm: () => decide(a.id, 'allow'),
       }));
     } else {
       acts.appendChild(key('is-allow', t('claude_allow', 'Allow'), a, () => decide(a.id, 'allow')));
     }
-    card.appendChild(acts);
+    return acts;
+  }
+
+  function decisionCard(a, big) {
+    const risks = Array.isArray(a.risks) ? a.risks : [];
+    const irreversible = risks.includes('irreversible');
+    const armed = arming.isArmed(a.id);
+    const card = el('section', 'cx-dec' + (big ? ' is-big ask-sheet' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
+    card.setAttribute('aria-live', 'polite');
+    card.appendChild(big ? AK.sheetHead({ mark: glyph(), title: intentOf(a), line: askedBy(a) }) : tileHead(a));
+    card.appendChild(decisionBody(a, big, risks));
+    const keys = decisionKeys(a, big, irreversible);
+    card.appendChild(big ? sheetFoot(a, keys) : keys);
     return card;
   }
 
   function syncOverlay() {
     if (press.pressing) { press.defer(); return; }
     const urgent = approvalsOn() ? approvals().filter((a) => a.urgent)[0] : null;
-    if (!urgent) { closeOverlay(); return; }
-    if (!overlay) {
-      overlay = el('div', 'cx-overlay');
-      overlay.setAttribute('role', 'dialog');
-      overlay.setAttribute('aria-modal', 'true');
-      document.body.appendChild(overlay);
-      // A full-screen backdrop: joins the freeze registry like every other one.
-      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('codex-approval', true);
-    }
-    const kept = AK.keepScroll(overlay, SCROLLERS);
-    overlay.replaceChildren(decisionCard(urgent, true));
-    AK.restoreScroll(overlay, SCROLLERS, kept);
-  }
-  function closeOverlay() {
-    if (!overlay) return;
-    overlay.remove();
-    overlay = null;
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('codex-approval', false);
+    if (!urgent) { sheet.close(); return; }
+    sheet.paint(decisionCard(urgent, true), {
+      label: askedBy(urgent),
+      // The quiet key's answer: Codex asks by itself, nothing runs.
+      esc: () => { if (arming.isArmed(urgent.id)) decide(urgent.id, 'handback'); },
+    });
   }
 
   // ── the plan's usage windows ──
@@ -329,6 +351,12 @@
     if (s.state === 'waiting') return t('codex_state_waiting', 'Waiting for you');
     if (s.state === 'running') return t('codex_state_running', 'Working');
     return t('codex_state_idle', 'Idle');
+  }
+  // Most conversations are history: one says a state only while it is doing something.
+  function threadStateLabel(th) {
+    if (th.status === 'waiting') return t('codex_state_waiting', 'Waiting for you');
+    if (th.status === 'active') return t('codex_state_running', 'Working');
+    return '';
   }
   // How long ago, coarse enough to read at a glance: minutes, then hours, then
   // days, then a date. "69g10h" was exact and unreadable.
@@ -443,22 +471,26 @@
     const box = el('div', 'cx-sessions');
     const list = sessions().filter((s) => !s.ended || s.ageMs < 10 * 60000);
     const threads = (app() && Array.isArray(app().threads)) ? app().threads : [];
-    const head = el('div', 'cx-sec-head');
-    head.appendChild(el('span', 'cx-sec-title', t('codex_sessions', 'Sessions')));
-    const working = list.filter((s) => s.state === 'running' || s.state === 'waiting').length;
-    if (working) head.appendChild(el('span', 'cx-sec-sum', t('codex_n_working', '{n} working').replace('{n}', String(working))));
-    box.appendChild(head);
+    const linked = !!(link() && link().linked);
+    // Connected with nothing running: a heading over an empty list says less than no heading.
+    if (list.length || !linked) {
+      const head = el('div', 'cx-sec-head');
+      head.appendChild(el('span', 'cx-sec-title', t('codex_sessions', 'Sessions')));
+      const working = list.filter((s) => s.state === 'running' || s.state === 'waiting').length;
+      if (working) head.appendChild(el('span', 'cx-sec-sum', t('codex_n_working', '{n} working').replace('{n}', String(working))));
+      box.appendChild(head);
+    }
     const scroll = el('div', 'cx-list');
     // Every row opens its conversation, the way a session row does on the
     // Claude tile.
-    const row = (cls, title, sub, open) => {
+    const row = (cls, title, sub, state, open) => {
       const r = el('button', 'cx-row ' + cls);
       r.type = 'button';
-      r.appendChild(el('span', 'cx-dot'));
       const main = el('span', 'cx-row-main');
       main.appendChild(el('span', 'cx-row-title', title));
-      main.appendChild(el('span', 'cx-row-sub', sub));
+      if (sub) main.appendChild(el('span', 'cx-row-sub', sub));
       r.appendChild(main);
+      if (state) r.appendChild(el('span', 'cx-row-state', state));
       r.addEventListener('click', open);
       return r;
     };
@@ -466,10 +498,10 @@
       list.slice(0, 6).forEach((s) => {
         const title = s.task || s.project || t('codex_session', 'Session');
         scroll.appendChild(row('is-' + (s.ended ? 'ended' : s.state), title,
-          [s.task ? s.project : '', s.model, stateLabel(s)].filter(Boolean).join(' · '),
+          [s.task ? s.project : '', s.model].filter(Boolean).join(' · '), stateLabel(s),
           () => openThread(s.id, title, s.project)));
       });
-    } else if (!(link() && link().linked)) {
+    } else if (!linked) {
       const n = el('div', 'cx-unlinked');
       n.appendChild(el('span', 'cx-muted', t('codex_live_unlinked', 'Connect Codex to see sessions working and approve their requests here.')));
       const b = el('button', 'cx-btn is-go', t('codex_connect', 'Connect'));
@@ -477,13 +509,17 @@
       b.addEventListener('click', () => { linkPanel = true; paint(); loadLink(true); });
       n.appendChild(b);
       scroll.appendChild(n);
+    } else if (!threads.length) {
+      scroll.appendChild(el('div', 'cx-muted', trustState() === 'on'
+        ? t('codex_link_ok', 'Connected. Codex runs the Xenon hooks: sessions and approvals appear here.')
+        : t('codex_link_trust', 'One step left: open Codex, type /hooks and trust the Xenon hooks. Until then Codex does not run them.')));
     }
     if (threads.length) {
       scroll.appendChild(el('div', 'cx-sub-title', t('codex_recent', 'Recent in Codex')));
       threads.slice(0, 6).forEach((th) => {
         const title = th.title || th.project || '—';
         scroll.appendChild(row('is-thread is-' + th.status, title,
-          [th.project, sourceLabel(th.source), th.updatedAt ? ago(th.updatedAt) : ''].filter(Boolean).join(' · '),
+          [th.project, sourceLabel(th.source), th.updatedAt ? ago(th.updatedAt) : ''].filter(Boolean).join(' · '), threadStateLabel(th),
           () => openThread(th.id, title, th.project)));
       });
     }
@@ -515,8 +551,9 @@
     wrap.appendChild(stats);
     const chart = el('div', 'cx-days');
     const max = Math.max(1, ...u.days.map((d) => d.tokens));
-    u.days.forEach((d) => {
-      const col = el('span', 'cx-day' + (d.tokens ? '' : ' is-zero'));
+    const today = u.days.length - 1;
+    u.days.forEach((d, i) => {
+      const col = el('span', 'cx-day' + (d.tokens ? '' : ' is-zero') + (i === today ? ' is-today' : ''));
       col.style.height = Math.max(2, Math.round((d.tokens / max) * 100)) + '%';
       col.title = d.date + ' · ' + hTok(d.tokens);
       chart.appendChild(col);
@@ -612,20 +649,24 @@
     const name = el('button', 'cx-name');
     name.type = 'button';
     const st = trustState();
-    name.appendChild(el('span', 'cx-link-mark is-' + st));
+    const stopped = planBlocked();
     name.appendChild(el('span', 'cx-name-t', 'Codex'));
+    if (!stopped && (st === 'untrusted' || st === 'unknown')) name.appendChild(el('span', 'cx-link-word', t('codex_connect', 'Connect')));
     name.title = st === 'on' ? t('codex_linked', 'Connected to Codex') : t('codex_link_title', 'Connect Codex');
     name.addEventListener('click', () => { linkPanel = true; paint(); loadLink(true); });
     top.appendChild(name);
-    const faces = el('div', 'cx-faces');
-    [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')]].forEach(([id, label]) => {
-      const b = el('button', 'cx-face' + (currentFace() === id ? ' is-on' : ''), label);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', currentFace() === id ? 'true' : 'false');
-      b.addEventListener('click', () => setFace(id));
-      faces.appendChild(b);
-    });
-    top.appendChild(faces);
+    // With no plan data both faces say the same sentence, so there is nothing to switch.
+    if (!stopped) {
+      const faces = el('div', 'cx-faces');
+      [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')]].forEach(([id, label]) => {
+        const b = el('button', 'cx-face' + (currentFace() === id ? ' is-on' : ''), label);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', currentFace() === id ? 'true' : 'false');
+        b.addEventListener('click', () => setFace(id));
+        faces.appendChild(b);
+      });
+      top.appendChild(faces);
+    }
     const r = el('button', 'cx-btn is-quiet cx-refresh', refreshing ? '…' : '↻');
     r.type = 'button';
     r.title = t('codex_refresh', 'Read again from Codex');
@@ -643,6 +684,12 @@
     refreshing = false;
     if (d) payload = d;
     paint();
+  }
+
+  // No plan data can come: not installed, signed out, not answering.
+  function planBlocked() {
+    const a = app();
+    return !a || a.state === 'missing' || a.state === 'signedOut' || a.state === 'error';
   }
 
   // The one sentence a tile with no data source says, instead of loading forever.
@@ -679,15 +726,15 @@
       const box = el('div', 'cx-decs');
       if (pend.length > 1) box.classList.add('is-pair');
       pend.slice(0, 2).forEach((a) => box.appendChild(decisionCard(a, false)));
-      if (pend.length > 2) box.appendChild(el('div', 'cx-muted', t('claude_more_waiting', '{n} more waiting').replace('{n}', String(pend.length - 2))));
+      const more = (n) => t('claude_more_waiting', '{n} more waiting').replace('{n}', String(n));
+      if (pend.length > 2) box.appendChild(el('div', 'cx-muted', more(pend.length - 2)));
+      // Stacked, the tile holds only the first card (CSS), so its count starts one earlier.
+      if (pend.length > 1) box.appendChild(el('div', 'cx-muted cx-decs-stacked', more(pend.length - 1)));
       wrap.appendChild(box);
     }
-    // No plan data can come (not installed, signed out, not answering): say so
-    // in one sentence. Sessions reported by the hooks still show, because they
+    // Say so in one sentence. Sessions reported by the hooks still show, because they
     // do not depend on the plan side, but the plan panel does not pretend to load.
-    const a = app();
-    const blocked = !a || a.state === 'missing' || a.state === 'signedOut' || a.state === 'error';
-    if (blocked) {
+    if (planBlocked()) {
       const line = appStateLine();
       if (!sessions().length) { wrap.appendChild(el('div', 'cx-state', line)); return wrap; }
       wrap.appendChild(el('div', 'cx-notice', line));
@@ -782,8 +829,18 @@
     if (pending) parts.push(t('codex_bar_waiting', 'Codex wants your OK'));
     if (working) parts.push(t('codex_bar_working', 'Codex is working'));
     chip.title = parts.join(' · ');
-    chip.setAttribute('role', 'img');
     chip.setAttribute('aria-label', chip.title);
+    // A tap takes you to the page that holds the Codex tile.
+    chip.setAttribute('role', 'button');
+    chip.tabIndex = 0;
+    const open = () => {
+      const tile = tiles()[0];
+      if (tile && window.DashboardPager) window.DashboardPager.goToPageOf(tile);
+    };
+    chip.addEventListener('click', open);
+    chip.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
+    });
     host.replaceChildren(chip);
   }
 
@@ -811,7 +868,7 @@
       if (threadTimer) { clearTimeout(threadTimer); threadTimer = null; }
       thread = null;
       // The overlay survives: a pending approval stays answerable from any page.
-      if (!approvals().length) closeOverlay();
+      if (!approvals().length) sheet.close();
       return;
     }
     paint();
@@ -824,7 +881,7 @@
     renderNow();
   }
   function onSettingsChanged() {
-    if (!approvalsOn()) closeOverlay();
+    if (!approvalsOn()) sheet.close();
     topbarSig = '';
     syncTopbar();
     paint();

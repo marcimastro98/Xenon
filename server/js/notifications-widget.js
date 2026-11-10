@@ -43,7 +43,7 @@
   const revealed = new Set();   // ids tapped open while "hide content" is on
   let view = 'feed';            // 'feed' | 'muted' (the muted-apps manager)
 
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="notifications"]')).filter(n => n.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="notifications"]')).filter(n => n.closest('.pager-page, .layer-slot')); }
 
   // Live settings win over the seed snapshot (the user may toggle mid-session).
   function wn() {
@@ -52,7 +52,11 @@
   }
 
   function persist(field, value) {
-    if (typeof updateWindowsNotifications === 'function') updateWindowsNotifications(field, value);
+    // A widget on the screen has read-only settings: this block goes alone to
+    // the server (utils.js saveTileSetting); the dashboard saves as before.
+    if (typeof isLayerPage === 'function' && isLayerPage() && typeof saveTileSetting === 'function') {
+      saveTileSetting({ windowsNotifications: { ...wn(), [field]: value } }).then(() => renderWidgets());
+    } else if (typeof updateWindowsNotifications === 'function') updateWindowsNotifications(field, value);
     seedFlags = { ...seedFlags, [field]: value };   // keep the fallback in step
   }
 
@@ -104,6 +108,8 @@
       iconUrl,
       duration: 6000,
     };
+    const open = window.NotificationOpen && window.NotificationOpen.toastAction(item);
+    if (open) opts.actions = [open];
     if (iconUrl) {
       iconAccent(iconUrl).then(rgb => { if (rgb) opts.rgb = rgb; window.XenonToast.show(opts); });
     } else {
@@ -194,6 +200,8 @@
     } else {
       if (n.title) txt.appendChild(el('div', 'wn-item-title', n.title));
       if (n.body) txt.appendChild(el('div', 'wn-item-body', n.body));
+      // A tap opens the app it came from (notification-open.js).
+      if (window.NotificationOpen) window.NotificationOpen.bind(txt, n);
     }
     row.appendChild(txt);
     // Per-app mute: one tap adds the app to the excluded list (the server prunes
@@ -268,7 +276,7 @@
     const flags = wn();
     if (!flags.enabled) {
       showState(list, 'wn_off', 'Mirror your PC\'s notifications here', {
-        hint: ['wn_off_hint', 'Read locally from Windows — nothing ever leaves this PC. Off by default.'],
+        hint: ['wn_off_hint', 'Read locally from Windows: nothing ever leaves this PC. Off by default.'],
         cta: ['wn_enable', 'Turn on'],
         onCta: () => { persist('enabled', true); items = null; paint(); },
       });
@@ -284,7 +292,7 @@
       // No reader on this OS at all is a different thing from a Windows build
       // too old for the listener, and saying the wrong one reads as a bug.
       if (!supported) showState(list, 'wn_unsupported_os', 'Notification mirroring is not available on this system');
-      else showState(list, 'wn_unavailable', 'Not available on this Windows version');
+      else showState(list, 'wn_unavailable', 'Not available on this PC');
       return;
     }
     if (items === null || srvState === 'starting' || srvState === 'off') {
@@ -292,7 +300,7 @@
       return;
     }
     if (!items.length) {
-      showState(list, 'wn_empty', 'No notifications — all caught up');
+      showState(list, 'wn_empty', 'No notifications: all caught up');
       return;
     }
     const frag = document.createDocumentFragment();
@@ -332,8 +340,9 @@
   }
 
   let seedInflight = false;
-  async function seed() {
-    if (!tiles().length || seedInflight) return;
+  // force: seed with no tile on the page (an Ambient scene showing the feed).
+  async function seed(force) {
+    if ((!tiles().length && !force) || seedInflight) return;
     seedInflight = true;
     try {
       const d = await api('/notifications/windows');
@@ -430,5 +439,23 @@
     }
   }, 10000);
 
-  window.NotificationsWidget = { renderWidgets, onState, onItem };
+  // Read side for the Ambient canvas (js/ambient-canvas.js), which can show the
+  // feed with no Notifications tile on the page. `items` is the live array: read
+  // it, never change it. null = not loaded yet.
+  function snapshot() {
+    const flags = wn();
+    return { enabled: !!flags.enabled, hide: !!flags.hide, state: srvState, supported, items };
+  }
+  function ensureSeeded() {
+    if (items === null && !seedInflight) seed(true);
+  }
+  // "Hide content until tapped": a tap on the scene shows it on the tile too.
+  function reveal(id) {
+    if (id == null) return;
+    revealed.add(id);
+    paint();
+  }
+  function isRevealed(id) { return revealed.has(id); }
+
+  window.NotificationsWidget = { renderWidgets, onState, onItem, snapshot, ensureSeeded, reveal, isRevealed };
 })();

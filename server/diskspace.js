@@ -1149,7 +1149,8 @@ function createDiskSpace(opts) {
   // Verified duplicates come from a background pass with a hash cache
   // (disk-dupes.js); the overview answers from what is already proven and is
   // updated, and the dashboard told, when the pass finds more.
-  const dupeVerifier = createDupeVerifier({ dataDir });
+  let held = false;   // a game is running: see hold()
+  const dupeVerifier = createDupeVerifier({ dataDir, held: () => held });
 
   // The last overview of each drive, persisted, so the widget has something
   // true to show while the index rebuilds after a restart (minutes on a big
@@ -1670,6 +1671,8 @@ function createDiskSpace(opts) {
     return out;
   }
 
+  function hold(on) { held = on === true; }
+
   // On shutdown: stop a running scan, cancel the clean loop so it opens no new
   // batches, and give any in-flight shell-delete child a moment to finish its
   // current move before killing it (the moves it already handed to Windows
@@ -1690,7 +1693,7 @@ function createDiskSpace(opts) {
 
   return {
     startScan, cancelScan, status, overview, browse, clean, cancelClean,
-    insights, stop, helperPresent, snapshot, reveal, trashUnder,
+    insights, hold, stop, helperPresent, snapshot, reveal, trashUnder,
   };
 }
 

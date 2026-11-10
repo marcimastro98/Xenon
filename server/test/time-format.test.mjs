@@ -14,6 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import vm from 'node:vm';
 
 const JS_DIR = new URL('../js/', import.meta.url);
 const read = (f) => readFileSync(new URL(f, JS_DIR), 'utf8');
@@ -91,4 +92,21 @@ test('12 and 24 both come out of the same call', () => {
   // …and the twelve-hour side keeps whatever each language actually says, which
   // is why it is not pinned to a single string here.
   assert.match(at(make('12', 'en-GB')), /12[:.]30\s?(AM|am)/);
+});
+
+test('an unpadded hour is the same choice as the padded one', () => {
+  const start = UTILS.indexOf('function timeParts(');
+  const end = UTILS.indexOf('function toDateInputValue(');
+  const hours = (twelve) => {
+    const box = { clockUses12h: () => twelve };
+    vm.runInNewContext(UTILS.slice(start, end) + '\nglobalThis.plainHourParts = plainHourParts;', box);
+    return box.plainHourParts;
+  };
+  const at = new Date(2000, 0, 1, 15, 5);
+  const text = (parts) => at.toLocaleTimeString('en-US', parts).replace(/\s/g, ' ');
+  assert.equal(text(hours(true)()), '3:05 PM');
+  assert.equal(text(hours(true)({ minutes: false })), '3 PM');
+  assert.equal(text(hours(false)()), '15:05');
+  const morning = new Date(2000, 0, 1, 9, 30).toLocaleTimeString('en-GB', hours(false)());
+  assert.equal(morning.replace(/^0/, ''), '9:30');
 });

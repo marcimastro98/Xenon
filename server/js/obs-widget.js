@@ -21,7 +21,7 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // probe OBS. Adding the widget makes it live on the next layout pass.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   const st = { streaming: false, recording: false, scene: '', mutes: {}, volumes: {}, inputs: [] };
@@ -80,8 +80,8 @@
     const head = el('div', 'obs-head');
     head.appendChild(el('span', 'obs-logo', 'OBS'));
     const pills = el('div', 'obs-pills');
-    const live = el('span', 'obs-pill obs-pill-live'); live.append(el('span', 'obs-pill-dot'), el('span', null, 'LIVE'));
-    const rec = el('span', 'obs-pill obs-pill-rec'); rec.append(el('span', 'obs-pill-dot'), el('span', null, 'REC'));
+    const live = el('span', 'obs-pill obs-pill-live'); live.append(el('span', 'obs-pill-dot'), el('span', null, t('stream_live', 'Live')));
+    const rec = el('span', 'obs-pill obs-pill-rec'); rec.append(el('span', 'obs-pill-dot'), el('span', null, t('obs_recording', 'Recording')));
     pills.append(live, rec);
     head.appendChild(pills);
     wrap.appendChild(head);
@@ -183,7 +183,12 @@
     return row;
   }
 
-  function updatePct(row, v) { const p = row.querySelector('.obs-audio-pct'); if (p) p.textContent = `${Math.round(v)}%`; }
+  // The number and the fader's level: the Liquid fader paints its fill from --fill.
+  function updatePct(row, v) {
+    const pct = `${Math.max(0, Math.min(100, Math.round(v)))}%`;
+    const p = row.querySelector('.obs-audio-pct'); if (p) p.textContent = pct;
+    const s = row.querySelector('.obs-audio-slider'); if (s) s.style.setProperty('--fill', pct);
+  }
 
   function paintAudio(mount) {
     const list = mount.querySelector('.obs-audio-list');

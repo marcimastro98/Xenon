@@ -1,5 +1,7 @@
 'use strict';
 
+const { AI_LANG_NAMES } = require('./ai/prompt-language.js');
+
 // ── Lyrics translation: prompt and reply ─────────────────────────────────────
 // Pure helpers, no I/O. The supporter Lyrics widget can show, under each line,
 // a translation into the dashboard language and a Latin-letter reading for
@@ -12,10 +14,9 @@ const MAX_UNIQUE_LINES = 300;
 const MAX_INPUT_CHARS = 12000;
 const MAX_OUT_CHARS = 400;
 
-const LANG_NAMES = Object.freeze({
-  it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Simplified Chinese',
-  es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch',
-});
+// The app's language names, with the script spelled out for Chinese: a
+// translation has to pick one, a chat reply does not.
+const LANG_NAMES = Object.freeze({ ...AI_LANG_NAMES, zh: 'Simplified Chinese' });
 
 // Kana, Hangul (syllables and jamo) and CJK ideographs: the scripts a reader
 // may not be able to sound out.
@@ -53,7 +54,10 @@ function maxTokensFor(count, reading) {
   return Math.min(8192, 256 + count * (reading ? 90 : 50));
 }
 
-function buildPrompt(unique, lang, reading) {
+// `sung` is a language the song is already known to be in (checked on this PC,
+// lyrics-language.js): said outright, because a small model told to "name the
+// language" has answered with the target's.
+function buildPrompt(unique, lang, reading, sung) {
   const target = langName(lang) || 'English';
   const fields = reading
     ? '"src": string, "tr": string[], "read": string[]'
@@ -62,6 +66,7 @@ function buildPrompt(unique, lang, reading) {
     `You translate song lyrics into ${target}, line by line, for on-screen captions.`,
     `Reply with ONLY a JSON object: {${fields}}.`,
     '"src" is the ISO 639-1 code of the language most of the lyrics are sung in (for example "en", "it", "ja").',
+    langName(sung) ? `These lyrics are sung in ${langName(sung)}: "src" is "${sung}" and "tr" is the translation.` : '',
     `When "src" is "${lang}", "tr" is an empty array.`,
     `Otherwise "tr" has exactly one natural ${target} translation per input line, in the same order.`,
     reading

@@ -14,9 +14,14 @@
 // while they're being played. The key is a SERVER-ONLY secret (football-creds.js).
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 
 const MAX_TEAMS = 20;              // favorite-teams cap (bounds fan-out + payload)
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
 const FETCH_CONCURRENCY = 4;       // TheSportsDB is per-team; keep the burst polite
 const FREE_KEY = '123';            // public keyless test key
@@ -184,6 +189,7 @@ function fetchJson(url, headers) {
     });
     req.on('timeout', () => { req.destroy(new Error('timeout')); });
     req.on('error', e => finish(reject, e));
+    armDeadline(req, FETCH_DEADLINE_MS);
   });
 }
 

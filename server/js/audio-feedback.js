@@ -1,14 +1,30 @@
 'use strict';
 
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// A WebKit built without Web Audio has neither: the page keeps working, in silence.
+const AudioEngine = window.AudioContext || window.webkitAudioContext;
+// Made at the first need and asleep between sounds: a running context holds an
+// output stream and a realtime thread open, during a game too.
+const SOUND_SLEEP_MS = 4000;
+let audioCtx = null;
+let soundSleepTimer = 0;
 
-function unlockAudio() {
-  if (!audioCtx || audioCtx.state === 'running') return;
-  try { audioCtx.resume().catch(() => {}); } catch { }
+// The context, awake, for a sound about to play. Null without Web Audio.
+function soundContext() {
+  if (!AudioEngine) return null;
+  if (!audioCtx) audioCtx = new AudioEngine();
+  if (audioCtx.state !== 'running') {
+    try { audioCtx.resume().catch(() => {}); } catch { }
+  }
+  clearTimeout(soundSleepTimer);
+  soundSleepTimer = setTimeout(() => {
+    try { audioCtx.suspend().catch(() => {}); } catch { }
+  }, SOUND_SLEEP_MS);
+  return audioCtx;
 }
 
+// WebKit lifts its autoplay block per context, on a gesture: the first one makes it.
 ['pointerdown', 'keydown', 'touchstart'].forEach(type => {
-  window.addEventListener(type, unlockAudio, { once: true, passive: true });
+  window.addEventListener(type, soundContext, { once: true, passive: true });
 });
 
 // Notification sounds honour the master Notifiche switch plus a dedicated
@@ -25,12 +41,13 @@ function notifSoundsOn() {
 }
 
 function playClick(toMuted) {
-  unlockAudio();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
+  const ctx = soundContext();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  const now = audioCtx.currentTime;
+  gain.connect(ctx.destination);
+  const now = ctx.currentTime;
   osc.type = 'sine';
   osc.frequency.setValueAtTime(toMuted ? 480 : 620, now);
   osc.frequency.exponentialRampToValueAtTime(toMuted ? 220 : 380, now + 0.08);
@@ -41,14 +58,14 @@ function playClick(toMuted) {
 }
 
 function playReminderBurst() {
-  unlockAudio();
-  if (!audioCtx) return;
-  const start = audioCtx.currentTime + 0.02;
+  const ctx = soundContext();
+  if (!ctx) return;
+  const start = ctx.currentTime + 0.02;
   const notes = [880, 660, 990, 740];
   notes.forEach((freq, index) => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
     const at = start + index * 0.16;
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, at);
@@ -60,7 +77,7 @@ function playReminderBurst() {
     gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.145);
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(ctx.destination);
     osc.start(at);
     osc.stop(at + 0.17);
   });
@@ -110,15 +127,16 @@ const NOTIFY_CUES = {
 };
 
 function playNotifyCue(type) {
-  if (!audioCtx || !notifSoundsOn()) return;
+  if (!notifSoundsOn()) return;
   const seq = NOTIFY_CUES[type];
   if (!seq) return;   // info / success / reminder → silent
-  unlockAudio();
-  const start = audioCtx.currentTime + 0.02;
+  const ctx = soundContext();
+  if (!ctx) return;
+  const start = ctx.currentTime + 0.02;
   seq.forEach(([offset, freq]) => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
     const at = start + offset;
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, at);
@@ -129,7 +147,7 @@ function playNotifyCue(type) {
     gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(ctx.destination);
     osc.start(at);
     osc.stop(at + 0.19);
   });
@@ -153,13 +171,13 @@ const RING_CYCLE_MS = 2600;
 let ringTimer = null;
 
 function ringOnce() {
-  if (!audioCtx) return;
-  unlockAudio();
-  const start = audioCtx.currentTime + 0.02;
+  const ctx = soundContext();
+  if (!ctx) return;
+  const start = ctx.currentTime + 0.02;
   for (const [offset, freq] of RING_PATTERN) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
     const at = start + offset;
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, at);
@@ -170,7 +188,7 @@ function ringOnce() {
     gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.34);
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(ctx.destination);
     osc.start(at);
     osc.stop(at + 0.38);
   }

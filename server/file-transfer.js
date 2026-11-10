@@ -62,7 +62,9 @@ const ID_RE = /^f[0-9a-f]{16}$/;
 const FILE_RE = /^f[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
 const EXT_RE = /^\.[a-z0-9]{1,8}$/;
 // Windows swallows these whole, extension and all, however they are spelled.
-const WIN_RESERVED_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+// Shared with the sound/icon pack validators (see win-reserved.js for the
+// forms covered: "con .txt", COM¹, CONIN$ …).
+const { WIN_RESERVED_RE } = require('./win-reserved');
 
 // The MIME a download is served with, keyed on the extension WE stored — never
 // on the `?mime=` the client declared. This is not cosmetic: iOS Safari routes
@@ -327,6 +329,7 @@ async function deliverToInbox(rec, inboxDir, opts) {
     try {
       await fh.close();
       await fsp.copyFile(src, dest);
+      await markFromInternet(dest, o.platform);
       return { ok: true, path: dest };
     } catch (e) {
       try { await fh.close(); } catch { /* already closed */ }
@@ -339,8 +342,20 @@ async function deliverToInbox(rec, inboxDir, opts) {
   const dest = path.join(inboxDir, `${base}-${rec.id}${ext}`);
   try {
     await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
+    await markFromInternet(dest, o.platform);
     return { ok: true, path: dest };
   } catch { return { ok: false, error: 'write_failed' }; }
+}
+
+// A file that arrived from another device gets the same mark Windows puts on
+// a download (the Zone.Identifier stream, zone 3). Opening it then goes
+// through SmartScreen and Office's Protected View like any file from the
+// internet, instead of running with no question asked. Best effort: a drive
+// that cannot hold the stream (FAT, exFAT, a network share) keeps the file.
+const ZONE_IDENTIFIER = '[ZoneTransfer]\r\nZoneId=3\r\n';
+async function markFromInternet(dest, platform) {
+  if ((platform || process.platform) !== 'win32') return;
+  try { await fsp.writeFile(dest + ':Zone.Identifier', ZONE_IDENTIFIER); } catch { /* no ADS here */ }
 }
 
 /**
@@ -818,6 +833,7 @@ function createFileTransfer(o) {
 }
 
 module.exports = {
+  markFromInternet, ZONE_IDENTIFIER,
   createFileTransfer,
   receiveStream,
   deliverToInbox,

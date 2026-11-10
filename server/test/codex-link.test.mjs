@@ -27,8 +27,8 @@ const USER_HOOK = { type: 'command', command: 'python3 ~/.codex/hooks/notes.py',
 
 test('hookCommand: cmd /C form on Windows, single-quoted on POSIX, spaces and accents survive', () => {
   assert.equal(
-    link.hookCommand('win32', 'C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\x\\Marci Progetti\\città\\server\\codex-hook.js', 'permission'),
-    '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\x\\Marci Progetti\\città\\server\\codex-hook.js" permission');
+    link.hookCommand('win32', 'C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\x\\Miei Progetti\\città\\server\\codex-hook.js', 'permission'),
+    '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\x\\Miei Progetti\\città\\server\\codex-hook.js" permission');
   assert.equal(
     link.hookCommand('darwin', '/opt/homebrew/bin/node', "/Users/o'neil/Xenon App/server/codex-hook.js", 'event'),
     "'/opt/homebrew/bin/node' '/Users/o'\\''neil/Xenon App/server/codex-hook.js' event");
@@ -118,6 +118,20 @@ test('an out-of-date handler is replaced where it stands, never moved', async ()
   assert.match(after.hooks.PermissionRequest[0].hooks[0].command, /codex-hook\.(js|cmd)/);
   assert.notEqual(after.hooks.PermissionRequest[0].hooks[0].command, j.hooks.PermissionRequest[0].hooks[0].command);
   assert.deepEqual(after.hooks.PermissionRequest[1], { hooks: [USER_HOOK] }, 'the user group keeps index 1');
+});
+
+test('repair leaves alone hooks another data folder linked', async () => {
+  const s = await sandbox();
+  await link.link(s.data, 3030);
+  const j = await read(s.file);
+  j.hooks.PermissionRequest[0].hooks[0].command = '"C:\old\node.exe" "C:\old\codex-hook.js" permission';
+  await fs.writeFile(s.file, JSON.stringify(j, null, 2));
+  const before = await fs.readFile(s.file, 'utf8');
+  const other = path.join(s.root, 'other-data');
+  await fs.mkdir(other, { recursive: true });
+  const r = await link.repairLink(other, 3031);
+  assert.equal(r.repaired, false);
+  assert.equal(await fs.readFile(s.file, 'utf8'), before);
 });
 
 test('repair never links an install the user did not link', async () => {

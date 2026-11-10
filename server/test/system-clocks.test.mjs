@@ -18,7 +18,7 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 test('the system payload carries all four readings', () => {
   const src = read('server/server.js');
-  const start = src.indexOf('async function getSystemInfo()');
+  const start = src.indexOf('async function getSystemInfo(');
   assert.ok(start > 0, 'getSystemInfo moved');
   const body = src.slice(start, src.indexOf('\n}\n', start));
   for (const key of ['cpuClockMHz:', 'gpuClockMHz:', 'vramClockMHz:', 'fps:']) {
@@ -118,7 +118,7 @@ test('the agenda stream really is unfiltered, as the guide promises', () => {
   // says so in as many words, and a doc promise nobody enforces is a doc
   // promise that goes stale — so the code is held to it here.
   const server = read('server/server.js');
-  assert.match(server, /broadcastSSE\('agenda', \{ events: safe \}\)/,
+  assert.match(server, /broadcastSSE\('agenda', \{ events: safe, seq: _eventsSeq \}\)/,
     'the agenda broadcast must send the whole list, not a windowed slice');
   assert.ok(!/upcomingLimits/.test(server),
     'the Upcoming limits belong to the tile — filtering the stream by them would silently shrink what every widget sees');

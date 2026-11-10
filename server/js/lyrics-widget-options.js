@@ -13,7 +13,7 @@
     openai: 'https://developers.openai.com/api/docs/pricing',
     anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
   };
-  const PROVIDER_NAMES = { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', ollama: 'Ollama', claudecode: 'Claude Code', codex: 'Codex' };
+  const PROVIDER_NAMES = { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', ollama: 'Ollama', claudecode: 'Claude Code', codex: 'Codex', get localapi() { return tr('ai_provider_localapi', 'Local server'); } };
   // Claude Code and Codex run on the user's subscription: no money per song,
   // but the plan's usage limits.
   const PLANS = { claudecode: 'Claude', codex: 'ChatGPT' };
@@ -32,9 +32,8 @@
   const settings = () => (typeof hubSettings === 'object' && hubSettings ? hubSettings : {});
 
   function save(patch) {
-    if (typeof saveHubSettings !== 'function' || typeof normalizeSettings !== 'function') return;
-    hubSettings = normalizeSettings({ ...hubSettings, ...patch });
-    saveHubSettings();
+    // Also from a widget on the screen, where the settings are read-only (utils.js).
+    if (typeof saveTileSetting === 'function') saveTileSetting(patch);
   }
 
   function toggleRow(label, hint, checked, onChange) {
@@ -110,8 +109,14 @@
     const box = el('div', 'lyo-cost');
     // A plan is not paid per token, and Codex's fixed instructions make a song
     // far bigger than "about two thousand": the plan paragraph below says it.
-    if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Xenon AI provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
+    if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Bit provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
     if (provider === 'ollama') box.appendChild(el('p', '', tr('lyrics_opt_cost_ollama', 'With Ollama it is free and stays on this PC.')));
+    else if (provider === 'localapi') box.appendChild(el('p', '', tr('lyrics_opt_cost_localapi', 'With your local server it is free and stays on this PC.')));
+    else if (provider === 'xenon') {
+      box.appendChild(el('p', '', tr('lyrics_opt_cost_xenon', 'With Bit on Sparks, translation runs on Haiku, the smallest model, and is paid in Sparks. When your Sparks run out it stops, and starts again as soon as you have more.')));
+      estimateLine = el('p', 'lyo-estimate', '');
+      box.appendChild(estimateLine);
+    }
     else if (provider === 'gemini') box.appendChild(el('p', '', tr('lyrics_opt_cost_gemini', 'Gemini uses its cheapest model (Flash-Lite). On Google\'s free tier you pay nothing, but Google may use what you send to improve its products.')));
     else if (PLANS[provider]) {
       // Filled once the model is known (refreshUsage), said before the switch is on.
@@ -165,6 +170,7 @@
     const e = u && u.estimate;
     estimateLine.replaceChildren();
     if (!e || !Number.isFinite(e.usd)) return;
+    if (provider === 'xenon') { paintSparks(e); return; }
     // Providers bill in US dollars: no conversion that would date faster than the price.
     const cost = new Intl.NumberFormat(locale(), { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumSignificantDigits: 2 }).format(e.usd);
     const day = new Date(String(e.checked) + 'T12:00:00');
@@ -175,6 +181,15 @@
       el('strong', '', tr('lyrics_opt_estimate', 'About {cost} per {songs} new songs.')
         .replace('{cost}', cost).replace('{songs}', String(e.songs))),
       document.createTextNode(' ' + basis));
+  }
+
+  // Bit on Sparks: the figure in Sparks (the server converts it), measured or typical.
+  function paintSparks(e) {
+    if (!Number.isFinite(e.sparks)) return;
+    estimateLine.append(
+      el('strong', '', tr('lyrics_opt_estimate_sparks', 'About {sparks} Sparks per {songs} new songs.')
+        .replace('{sparks}', e.sparks.toLocaleString(locale())).replace('{songs}', String(e.songs))),
+      document.createTextNode(' ' + tr(e.measured ? 'lyrics_opt_sparks_measured' : 'lyrics_opt_sparks_typical')));
   }
 
   async function refreshUsage() {
@@ -197,6 +212,7 @@
 
   function open(mount, onClose) {
     close(mount);
+    const back = document.activeElement;
     modelLine = null;
     estimateLine = null;
     planLine = null;
@@ -209,8 +225,21 @@
     head.appendChild(el('h3', 'lyo-title', tr('lyrics_opt_title', 'Lyrics options')));
     const done = el('button', 'lyw-btn is-accent', tr('lyrics_opt_done', 'Done'));
     done.type = 'button';
-    done.addEventListener('click', () => { close(mount); if (onClose) onClose(); });
+    const finish = () => {
+      close(mount);
+      if (back && back.isConnected) back.focus({ focusVisible: false });
+      if (onClose) onClose();
+    };
+    done.addEventListener('click', finish);
     head.appendChild(done);
+    // A tap on its empty space keeps the keyboard here, so Esc still answers. Not a blocking
+    // window: the page around the tile stays in use, so Tab walks on.
+    sheet.tabIndex = -1;
+    sheet.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();   // over Stage mode the first Esc closes only this
+      finish();
+    });
 
     const body = el('div', 'lyo-body');
     body.appendChild(toggleRow(tr('lyrics_opt_translate', 'Translate lines'),
@@ -232,7 +261,7 @@
     mount.appendChild(sheet);
     mount.classList.add('has-options');
     void refreshUsage();
-    done.focus();
+    done.focus({ focusVisible: false });
   }
 
   function close(mount) {

@@ -12,7 +12,7 @@
   min-height: 0;
   padding: 12px;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--text), transparent 76%) transparent;
   color: var(--text);

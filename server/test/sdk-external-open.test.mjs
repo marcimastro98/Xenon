@@ -138,12 +138,11 @@ test('onBridgeAction gates openUrl and reports a decline as declined', () => {
   );
 });
 
-// The two host-side prompts must not share a backdrop class: closeClipConfirm()
-// closes by querying '.cw-clip-backdrop', so a shared class would let one dialog
-// tear down the other and resolve the wrong promise.
+// The two host-side prompts keep a class each: the interrupt queue names them, and a
+// shared one would read as a single dialog.
 test('the external-open dialog does not share the clipboard backdrop class', () => {
   const block = SRC.slice(SRC.indexOf('function openExternalConfirm'), SRC.indexOf('function openClipboardConfirm'));
-  const backdrop = block.match(/el\('div', '([^']*backdrop[^']*)'\)/);
+  const backdrop = block.match(/className: '([^']*backdrop[^']*)'/);
   assert.ok(backdrop, 'external confirm backdrop element not found');
   assert.equal(backdrop[1], 'cw-ext-backdrop');
 });

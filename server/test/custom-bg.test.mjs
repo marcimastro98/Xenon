@@ -139,7 +139,7 @@ test('a malicious asset value cannot break out of the script element', () => {
   // of a VALID set must never contain a raw angle bracket.
   const html = buildSrcdoc('function draw(){}', { ok: PNG_1PX });
   const markerStart = html.indexOf(',__assetsJson=');
-  const markerEnd = html.indexOf(';(function(){', markerStart);
+  const markerEnd = html.indexOf(',__fps=', markerStart);
   const literal = html.slice(markerStart, markerEnd);
   assert.ok(!literal.includes('<') && !literal.includes('>'), 'no raw <> in the assets literal');
 });
@@ -178,4 +178,9 @@ test('the frame loop throttles paints to the embedded fps', () => {
     'early rAF ticks are skipped without painting');
   // Elapsed time stays on the real clock — skipping frames must not slow motion.
   assert.ok(html.includes('var el=(t-start)/1000'), 'elapsed seconds follow the rAF timestamp');
+});
+
+test('a background loses WebRTC before its code runs', () => {
+  const doc = buildSrcdoc('function draw(){}', {}, 30);
+  assert.ok(doc.indexOf('RTC') > 0 && doc.indexOf('RTC') < doc.indexOf('var __src='));
 });

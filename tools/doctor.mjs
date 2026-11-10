@@ -252,7 +252,33 @@ if (PLAT === 'darwin') {
   }
 }
 
-// ── 6) Capture (opt-in) ─────────────────────────────────────────────────────
+// ── 6) Motherboard lights (read-only: looks at the device node, never opens it) ──
+if (PLAT === 'linux') {
+  section('Motherboard lights');
+  const { list } = require(path.join(ROOT, 'server', 'hid', 'hid-linux.js'));
+  const P = require(path.join(ROOT, 'server', 'lighting-native', 'fusion2-protocol.js'));
+  const { accessCommand } = require(path.join(ROOT, 'server', 'lighting-native', 'linux-access.js'));
+  const chips = (await list({ vendorId: P.VENDOR_ID, productIds: P.PRODUCT_IDS, usagePage: P.USAGE_PAGE })).filter(d => d.usage === P.USAGE);
+  if (!chips.length) report('GIGABYTE RGB chip', { level: 'ok', summary: 'none on this PC' });
+  for (const chip of chips) {
+    let reachable = true;
+    try { fs.accessSync(chip.path, fs.constants.R_OK | fs.constants.W_OK); } catch { reachable = false; }
+    const name = `${chip.path} (${chip.productId.toString(16)})`;
+    report('GIGABYTE RGB chip', reachable
+      ? { level: 'ok', summary: `${name}, this user can reach it` }
+      : { level: 'warn', summary: `${name}, this user cannot reach it`, notes: ['Run once:', accessCommand()] });
+  }
+  if (chips.length) {
+    const inhibit = await which('systemd-inhibit');
+    const monitor = (await which('gdbus')) || (await which('dbus-monitor'));
+    const ready = inhibit && monitor;
+    report('Lights off at shutdown', ready
+      ? { level: 'ok', summary: `${path.basename(inhibit)} and ${path.basename(monitor)} found` }
+      : { level: 'warn', summary: 'the lights may stay on with the PC off', notes: ['Needs systemd-inhibit and one of gdbus, dbus-monitor.'] });
+  }
+}
+
+// ── 7) Capture (opt-in) ─────────────────────────────────────────────────────
 if (CAPTURE_DIR) {
   section(`Capturing raw output to ${CAPTURE_DIR}`);
   console.log(`       ${C.dim}These replace the synthetic fixtures in server/test/fixtures/.${C.off}`);

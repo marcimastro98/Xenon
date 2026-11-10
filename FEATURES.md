@@ -1,24 +1,24 @@
-# Xenon — Features
+# Xenon features
 
 The complete guide to everything Xenon can do. For installation see **[README.md](README.md)**; for the API and architecture see **[DEVELOPER.md](DEVELOPER.md)**.
 
-> **Built for any screen you can spare.** Every feature below works the same on a spare monitor, on a touchscreen, on a paired phone or tablet, and on a CORSAIR Xeneon Edge. Touch gestures have mouse/keyboard equivalents, and the layout reflows for landscape, portrait, large windows and short wide panels.
+> **Built for every screen you have.** The features below work as widgets on your desktop and over your games, as a full dashboard on a spare monitor or touchscreen, on a paired phone or tablet, and on a CORSAIR Xeneon Edge. Touch gestures have mouse and keyboard equivalents, and the layout reflows for landscape, portrait, large windows and short wide panels.
 
 ## Contents
 
+- [How you run it](#how-you-run-it)
 - [The dashboard](#the-dashboard)
 - [Multi-page & layout editor](#multi-page--layout-editor)
 - [Widget SDK (build your own)](#widget-sdk-build-your-own)
 - [System monitor](#system-monitor)
 - [Sensor history & PC Screen Time](#sensor-history--pc-screen-time)
-- [Network & in-game FPS](#network--in-game-fps)
-- [Fans (Ventole)](#fans-ventole)
-- [Energy (Energia)](#energy-energia)
-- [Batteries (Batterie)](#batteries-batterie)
+- [Fans](#fans)
+- [Energy](#energy)
+- [Batteries](#batteries)
 - [Media](#media)
 - [Audio](#audio)
 - [Microphone](#microphone)
-- [Xenon AI](#xenon-ai)
+- [Bit, the assistant](#bit-the-assistant)
 - [RGB lighting](#rgb-lighting)
 - [Deck](#deck)
 - [Calendar](#calendar)
@@ -28,14 +28,14 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Local search (Spotlight)](#local-search-spotlight)
 - [Disk space](#disk-space)
 - [Developer cleanup](#developer-cleanup)
-- [Phone access (Accesso dal telefono)](#phone-access-accesso-dal-telefono)
-- [Phone (Telefono)](#phone-telefono)
-- [File transfer (Trasferimento file)](#file-transfer-trasferimento-file)
+- [Phone access](#phone-access)
+- [Phone](#phone)
+- [File transfer](#file-transfer)
 - [Notifications](#notifications)
 - [Incoming calls](#incoming-calls)
 - [Weather](#weather)
-- [Stocks (Borsa)](#stocks-borsa)
-- [Football (Calcio)](#football-calcio)
+- [Stocks](#stocks)
+- [Football](#football)
 - [Claude Code](#claude-code)
 - [Codex](#codex)
 - [Ask ChatGPT](#ask-chatgpt)
@@ -45,11 +45,14 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [App switcher](#app-switcher)
 - [Browser](#browser)
 - [Second screen](#second-screen)
+- [On your main screen (widgets and the Xenon menu)](#on-your-main-screen-widgets-and-the-xenon-menu)
+- [Game performance](#game-performance)
+- [Capture (screenshots, recordings, Instant Replay)](#capture-screenshots-recordings-instant-replay)
 - [Smart Home (Home Assistant)](#smart-home-home-assistant)
 - [Cameras (UniFi Protect)](#cameras-unifi-protect)
-- [Streaming (Twitch, YouTube, OBS, Discord & Spotify)](#streaming-twitch-youtube-obs-discord--spotify)
+- [Streaming](#streaming)
 - [Remote PC control](#remote-pc-control)
-- [Share & import (themes, pages, Deck profiles)](#share--import-themes-pages-deck-profiles)
+- [Share & import](#share--import)
 - [Settings](#settings)
 - [Performance Mode](#performance-mode)
 - [Smart context profiles](#smart-context-profiles)
@@ -59,43 +62,63 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 
 ---
 
-## How you run it — one Xenon, four surfaces
+## How you run it
 
-A single local engine — started silently at every sign-in by a **per-logon startup task** (it runs in your session, which is what lets media detection, app launching, hotkeys and screen features work) — serves the dashboard, and every surface shows that same live UI:
+A single local engine serves everything, and every surface shows the same live UI. It starts silently at every sign-in through a **per-logon startup task**: it runs in your session, which is what lets media detection, app launching, hotkeys and screen features work.
 
-- **Native app** *(this is the main way to run Xenon)* — a full-screen, borderless kiosk that opens itself on the display you pick, with no browser or iCUE. Xenon asks which screen the first time it runs and lists the ones it can see; the answer lives in Settings → Schermo, and "my phone or tablet" is one of the answers, in which case nothing opens on the PC at all. It finds the chosen display among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically. Touching the Edge doesn't steal your mouse or your game: the cursor snaps back to the screen it was on the moment your finger lifts, and while a game is detected taps never take the game's focus (typing in the AI chat or notes still works normally) — both tray-toggleable, on by default. No other surface can do this — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports the cursor and takes the game's focus; only a real native window can tell Windows how to treat it. And when you need Windows itself, **swipe up, iPhone-style**: a quick flick up from the bottom of the screen tucks Xenon into a small floating button at the top of the screen and reveals the desktop underneath — the taskbar stays reachable the whole time — then a tap on the button brings the dashboard straight back (on by default, toggleable in Settings → General → Native app).
-- **Browser tab** — open `http://127.0.0.1:3030/` in any Chromium browser, on any monitor.
-- **iCUE iFrame** — alternative to the native app: embed the same URL as an iFrame widget on your iCUE dashboard, if you would rather keep Xenon inside iCUE.
-- **Native iCUE widget** — *in development.*
+- **Native app** *(this is the main way to run Xenon)*: a full-screen, borderless kiosk that opens itself on the display you pick, with no browser or iCUE. The first time it runs, Xenon asks one question, how you want to use it, and shows the screens it can see with the answer it recommends already selected. Settings → Display changes the screen later. The dashboard on your phone is one of the answers: then no dashboard window opens on the PC. It finds the chosen display among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI: it loads the same dashboard, so every feature and update appears here automatically. Touching the Edge doesn't steal your mouse or your game: the cursor snaps back to the screen it was on the moment your finger lifts, and while a game is detected taps never take the game's focus (typing in the chat with Bit or in notes still works normally), both tray-toggleable, on by default. No other surface can do this: on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports the cursor and takes the game's focus; only a real native window can tell Windows how to treat it. And when you need Windows itself, **swipe up, iPhone-style**: a quick flick up from the bottom of the screen tucks Xenon into a small floating button at the top of the screen and reveals the desktop underneath (the taskbar stays reachable the whole time), then a tap on the button brings the dashboard straight back (on by default, toggleable in Settings → General).
+- **Widgets on your main screen**: any tile or Store widget on the desktop or over a game, with or without a dashboard. See [On your main screen](#on-your-main-screen-widgets-and-the-xenon-menu).
+- **Phone or tablet**: the same dashboard in the device's browser over your Wi-Fi, with nothing to install. See [Phone access](#phone-access).
+- **Browser tab**: open `http://127.0.0.1:3030/` in any Chromium browser, on any monitor.
+- **iCUE iFrame**: an alternative to the native app. Embed the same URL as an iFrame widget on your iCUE dashboard if you would rather keep Xenon inside iCUE.
 
-Because it's one engine behind all four, they're always in sync — open whichever you like.
+One engine sits behind all of them, so they are always in sync.
 
 ---
 
+### After an update
+
+- **Major version:** What's New opens full screen, with Bit and one coloured sheet per big feature, each with a button to try it. One of them puts Liquid Glass on your own dashboard: your look is saved first, and one tap brings it back. It comes back at every start until you close it. Ask Bit or click the version number in Settings to see it again.
+- **Patch or minor:** a card lists what was fixed, once. Versions you skipped arrive as one list.
+- **Failed update:** a card says why it did not work.
+- **Widgets only:** the same cards appear at the top centre of the main screen, and wait while you play.
+- **Ask Bit:** say "show me what's new" to open What's New again, with the dashboard or without it.
+
+### Votes on what you use
+
+After three days and some hours on screen, Bit's card asks how many stars something from the Store gets: at most once a week, never during a game, never again once closed. The same vote sits on the entry's Store page, and Bit takes it by voice with a confirmation card. One to three stars can add a short reason. Ten seconds to undo, then it is final: one vote per PC, reinstalling gives no new one, paid packs need a real unlock. The average shows from five votes.
+
+### News from Bit
+
+- **One small card.** News, new creations in the Store, polls, low Sparks and the few one-time invitations all arrive as a card with Bit: at the top centre of the dashboard and of widgets only, at the bottom on a phone.
+- **It waits for you.** At most one new message a day, and never while you type, talk to Bit, play or sit in an Ambient scene. If you leave it, it folds to Bit's face in the corner.
+- **Everything happens in the card.** The picture and the text open in place, and a poll is answered with one tap.
+- **Big announcements** can fill the screen instead. In widgets only they start as the small card and open when you ask.
+- **Then it stays in the chat.** A message you read becomes something Bit said, with its picture and button, so you can reply to it. Read on one screen, it is gone from the others.
+- **Your choice.** Settings turns the news and the month's drops off, or ask Bit to.
+
 ## The dashboard
 
-![Dashboard overview](docs/images/overview.png)
+![The Xenon dashboard on a monitor](docs/images/home/monitor.webp)
 
-The home screen is a fully modular **Bento** grid you can shape around the panels you actually use. By default it shows three tidy **hub tiles**, each grouping related content as tabs:
+The home screen is a fully modular **Bento** grid you can shape around the panels you actually use. A new install starts with three tiles:
 
-- **Media** — Playback · Chat (Xenon AI)
-- **Agenda** — Calendar · Timer · Tasks · Notes
-- **System** — System (CPU/GPU/RAM/Disk + Network & Gaming) · Volume · Microphone
+- **Playback**, with **Agenda** (calendar, timers, tasks and notes) as its second tab
+- **Bit**, the chat with the assistant
+- **System**: CPU, GPU, RAM, disk, network and gaming, with **Volume** and **Microphone** as tabs
 
-When a hub is left with a single item inside, its tab bar hides automatically for a cleaner look.
+When a tile is left with a single item inside, its tab bar hides automatically for a cleaner look.
 
 
 All layout choices are saved automatically (locally and to the server), so the dashboard stays the way you left it after a refresh or restart. On upgrade the layout migrates automatically while preserving your other settings (theme, weather, API key…).
 
-**First run:** the very first time you open Xenon, a short **guided tour** spotlights the main controls one by one — Xenon AI, the Media tile, the layout editor, the pager and Settings. It's skippable, shows only once, and can be replayed any time from **Settings → Appearance → Tutorial**.
+**First run:** Xenon asks one question, how you want to use it, and then stays out of the way for the first day. The side rails peek out once so you can see them, Bit offers **Show me around** in its chat, and with widgets on, three starter widgets are already on your desktop. The guided tour starts only when you ask for it: **Show me around**, or **Settings → About → Tutorial**.
 
 ---
 
 ## Multi-page & layout editor
 
-![Multi-page dashboard with the horizontal pager](docs/images/layout.png)
-
-The dashboard is a horizontal **pager** — page 1 is your dashboard, and you can add more pages and place any module on any of them. Move between pages by:
+The dashboard is a horizontal **pager**: page 1 is your dashboard, and you can add more pages and place any module on any of them. Move between pages by:
 
 - **Swiping** sideways on the touchscreen
 - **Scrolling** horizontally (or holding **Shift** while scrolling the wheel)
@@ -111,22 +134,23 @@ Navigation is compositor-driven (CSS scroll-snap), so it stays smooth and inexpe
 
 Tap **Layout** in the top bar to edit. In Layout mode you can:
 
-- **Drag** a tile from anywhere on its surface to reposition it — the grid is fine-grained (24 columns, half-height rows), so tiles go almost exactly where you drop them, with an accent placeholder previewing the landing slot.
+- **Drag** a tile from anywhere on its surface to reposition it: the grid is fine-grained (24 columns, half-height rows), so tiles go almost exactly where you drop them, with an accent placeholder previewing the landing slot.
 - **Resize** from the corner chip at the bottom-right (snapped to the same fine grid).
 - **Hide** (👁) any tile, or **move it to another page** (⇄).
+- **Dress** a tile: its style key opens **Widget style**, which starts on **Material**: Theme, Liquid Glass, Clear, Frosted, Solid or No panel in one tap, with the colour of the glass below. Colours, Background, Decor and Controls are the next tabs. Bit does it from a sentence too: *"make the music widget purple glass"*.
 - Use the **"+"** drop-zone on any page to open a palette and add any available widget. The palette is organised into categories (Media, Productivity, System, Streaming) with an icon per widget.
-- **Reset** the layout of the page you're looking at: the stock page returns to its default arrangement, while custom pages are tidied up — never deleted.
+- **Reset** the layout of the page you're looking at: the stock page returns to its default arrangement, while custom pages are tidied up, never deleted.
 
-![Dashboard customization edit mode](docs/images/dashboard-customize.png)
+![Layout mode, with the dock at the bottom](docs/images/features/layout-mode.webp)
 
 ### Tab-grouping & duplication
 
 - **Group widgets into tabs:** drag one tile onto the centre of another to merge them into a single tabbed tile (e.g. Calendar + Music); drag a tab's ⤤ out to split it back.
-- **Duplicate any widget:** the "+" can add another copy of a module so it lives on several pages at once. Most copies are **live mirrors** of the same source — tick a task, type a note or change a track in one and every copy updates. **Deck, Browser, Remote, Discord and Custom-widget copies are independent instead:** each keeps its own keys, address, page or tab, so a second Deck starts empty rather than shadowing the first (see [Deck](#deck) for the one-tap way to copy a profile into it). Each copy has its own **×** to remove just that copy.
+- **Duplicate any widget:** the "+" can add another copy of a module so it lives on several pages at once. Most copies are **live mirrors** of the same source: tick a task, type a note or change a track in one and every copy updates. **Deck, Browser, Remote, Discord and Custom-widget copies are independent instead:** each keeps its own keys, address, page or tab, so a second Deck starts empty rather than shadowing the first (see [Deck](#deck) for the one-tap way to copy a profile into it). Each copy has its own **×** to remove just that copy.
 
 ### Layout presets
 
-Save arrangements you like and reuse them in one tap. In Layout mode every tile has a **bookmark** button that saves it as a reusable **preset** — for a single widget *or* a whole tab-group (e.g. your Calendar + System tab). A **Save page** action stores an entire page (all its tiles and their arrangement) as a template. Saved presets appear under **My presets** in the layout toolbar: tap one to drop it onto the current page (a saved page creates a brand-new page), or remove it with its **×**. Reinserting never disturbs what's already on screen — existing components are duplicated the same way the "+" duplicates them (live mirrors for most tiles, independent instances for Deck, Browser, Remote, Discord and Custom widgets) — so you can rebuild a deleted tab in one tap or reuse a favourite arrangement on another page. Presets are saved on the server, so they survive reloads and restarts.
+Save arrangements you like and reuse them in one tap. In Layout mode every tile has a **bookmark** button that saves it as a reusable **preset**, for a single widget *or* a whole tab-group (e.g. your Calendar + System tab). A **Save page** action stores an entire page (all its tiles and their arrangement) as a template. Saved presets appear under **My presets** in the layout toolbar: tap one to drop it onto the current page (a saved page creates a brand-new page), or remove it with its **×**. Reinserting never disturbs what's already on screen: existing components are duplicated the same way the "+" duplicates them (live mirrors for most tiles, independent instances for Deck, Browser, Remote, Discord and Custom widgets), so you can rebuild a deleted tab in one tap or reuse a favourite arrangement on another page. Presets are saved on the server, so they survive reloads and restarts.
 
 ### Pages
 
@@ -134,15 +158,13 @@ The page controls sit next to the **page dots** in the top bar and appear the mo
 
 Adding is always safe: the new page starts empty and nothing on your existing pages moves.
 
-Removing is not, quite. Single-instance tiles are only hidden and come straight back from the layout dock, but **tab groups and duplicated tiles on that page are deleted** — and a duplicated Deck takes its keys with it. If a Deck on the page you are about to remove holds work you want, copy its profile into another Deck first (see [Deck](#deck)); once the page is gone, so is it.
+Removing is not, quite. Single-instance tiles are only hidden and come straight back from the layout dock, but **tab groups and duplicated tiles on that page are deleted**, and a duplicated Deck takes its keys with it. If a Deck on the page you are about to remove holds work you want, copy its profile into another Deck first (see [Deck](#deck)); once the page is gone, so is it.
 
-**To reuse a page you already like, don't rebuild it.** In Layout mode open **My presets → Save page**, then tap the preset you just saved: a saved *page* always comes back as a brand-new page carrying the same tiles at the same sizes and positions, and takes you straight to it. Your original is untouched. That is the short way to "the same dashboard, then changed a bit" — one page for work hours, another for the rest of the day.
+**To reuse a page you already like, don't rebuild it.** In Layout mode open **My presets → Save page**, then tap the preset you just saved: a saved *page* always comes back as a brand-new page carrying the same tiles at the same sizes and positions, and takes you straight to it. Your original is untouched. That is the short way to "the same dashboard, then changed a bit": one page for work hours, another for the rest of the day.
 
-![layout-pages](docs/images/layout-pages.png)
+**Turn the page without touching the dashboard.** A second screen is something you glance at while working in something else, so reaching over to swipe it defeats the point. In **Settings → General → Page shortcuts** you can bind key combinations that work while any other application has focus: one per page, or **next / previous**, or **back to the last page**, which is what "flip between my two pages" actually means, and it keeps meaning it once there are three.
 
-**Turn the page without touching the dashboard.** A second screen is something you glance at while working in something else, so reaching over to swipe it defeats the point. In **Settings → General → Page shortcuts** you can bind key combinations that work while any other application has focus: one per page, or **next / previous**, or **back to the last page** — which is what "flip between my two pages" actually means, and it keeps meaning it once there are three.
-
-Each row says for itself whether the desktop gave it to you: a combination another app already owns (PowerToys Run famously owns Alt+Space) reads *already used by another app* on that row rather than failing quietly. The other rows keep working. On Windows and macOS this needs the **Xenon Helper**; on Linux the shortcut is added to your desktop's own list (GNOME), where you can see and remove it like any other. The press reaches **every screen watching** — the PC, the tablet on the desk, the phone — and each one turns to that page if it has it.
+Each row says for itself whether the desktop gave it to you: a combination another app already owns (PowerToys Run famously owns Alt+Space) reads *already used by another app* on that row rather than failing quietly. The other rows keep working. On Windows and macOS this needs the **Xenon Helper**; on Linux the shortcut is added to your desktop's own list (GNOME), where you can see and remove it like any other. The press reaches **every screen watching** (the PC, the tablet on the desk, the phone) and each one turns to that page if it has it.
 
 Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, Disk) and **audio sub-controls** (Volume, Speaker, Microphone) can each be reordered, resized, hidden, and restored.
 
@@ -150,26 +172,28 @@ Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, D
 
 ## Widget SDK (build your own)
 
-![Widget SDK](docs/images/widget-sdk.png)
+![Xenon Maker in the browser, building a widget](docs/images/home/maker.webp)
 
-The dashboard is now a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder — a `manifest.json` plus an HTML page — dropped into `server/data/widgets`.
+Xenon is a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder, a `manifest.json` plus an HTML page, dropped into `server/data/widgets`.
 
-- **Make your own — no code required.** A **"Create a widget"** wizard builds a real widget from a template without writing anything: pick **Clock**, **System monitor** (CPU/RAM/GPU as bars or rings), **Now playing**, **Label** or **Countdown**, adjust a few options (title, colour, font, which metrics…), watch a **live preview** update as you go, and install it with one tap. Widgets you make can be reopened and re-tweaked later. You're only filling in options, so there's no arbitrary code — the created widget runs under the exact same sandbox and permission rules as any other.
+- **Make your own with no code.** [Xenon Maker](https://xenon-app.com/maker/) builds widgets and themes in your browser, and Bit makes them with you. What you make runs under the exact same sandbox and permission rules as any other widget.
 - **Add one in seconds.** Every installed widget is an item of its own in the "+" panel and in "Add as tab", with its name and icon, in its group (Productivity, Media, System, Streaming) and under the **Installed** filter. Pick it and it is on the page; its permissions are asked the first time. Installing a widget also offers **Add to this page** right away. You can add the same widget more than once, and several different ones. Under **Installed** the panel also lists the bundled examples you have not installed yet, including the reference widget (live clock, CPU/GPU/RAM readout, media keys): one tap installs it and puts it on the page.
-- **Sandboxed and permission-gated by design.** Community widgets run in an isolated sandbox with **no network access and no reach into the dashboard** — they can't call the internet, read your settings, or touch anything outside their own tile. Everything goes through a small, versioned **message bridge**: a widget only *sees* the data streams you approve (system sensors, now playing, volume, status) and can only *do* the low-risk actions you allow (media keys, volume, mic mute, lighting, open a link), each re-checked by the server like a Deck key. Before a widget first renders, a clear **permission dialog** shows exactly what it requested — with a reminder to only install widgets from people you trust. Everything is off by default.
-- **Artwork a widget keeps, instead of re-downloading.** Widgets that show album covers, game art or video thumbnails can hand them to a picture element directly, and Xenon keeps the ones worth keeping on disk so they are still there after a restart. The address must be one the widget declared and you approved, exactly as before — this changes where an image is kept, never what a widget may reach. It stays a cache and not a hoard: bounded per widget and in total, oldest-unused thrown out first and really deleted, re-checked after a week, and removed entirely when you uninstall the widget.
-- **The numbers a monitoring widget actually needs.** The system data a widget can be granted carries the **CPU clock**, the **GPU core and memory clocks** and the **frames per second** in the game you are playing, alongside the temperatures, fan RPM, power draw and load it already had. Requested by a widget author who had run out of readings to draw. No extra permission: a widget you have already allowed to see system data gets them, one you have not still sees nothing. They cost nothing either — each rides a reading Xenon was already taking on the same tick, so a dashboard showing them does no more work than one that does not.
-- **Twitch and YouTube are open to widgets too.** Three data streams a widget can ask for: which channels you follow are **live** right now (plus what your Twitch tile is playing), the **chat** of the channel you are watching (already split into text and emotes, so a widget can draw it any way it likes), and your own **YouTube broadcast** (live, viewers, likes, health). Plus one action: **play a channel or a video** in the Twitch and YouTube tiles you already have, so a widget can be your own "my streamers" launcher. None of it opens a second connection to Twitch or YouTube — a widget gets a copy of what the builtin tile has already read, so it costs nothing extra while that tile is on the dashboard. Reading only: no sending chat messages, no starting a broadcast, no stream key.
-- **Dynamic Island Live Activities.** A widget may separately request a host-rendered activity in the Full or Minimal top bar: persistent text, progress, playback bars, selected Xenon readouts and up to two safe buttons, or a timed takeover that animates in for a goal/result and restores what was there. Widgets provide data, never HTML/CSS; Xenon validates and draws every block. Settings → Dynamic Island can disable any installed package or all takeovers without uninstalling anything.
-- **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised across all 11 languages.
+- **Sandboxed and permission-gated by design.** Community widgets run in an isolated sandbox with **no network access and no reach into the dashboard**: they can't call the internet, read your settings, or touch anything outside their own tile. Everything goes through a small, versioned **message bridge**: a widget only *sees* the data streams you approve (system sensors, now playing, volume, status) and can only *do* the low-risk actions you allow (media keys, volume, mic mute, lighting, open a link), each re-checked by the server like a Deck key. Before a widget first renders, a clear **permission dialog** shows exactly what it requested, with a reminder to only install widgets from people you trust. Everything is off by default.
+- **Artwork a widget keeps, instead of re-downloading.** Widgets that show album covers, game art or video thumbnails can hand them to a picture element directly, and Xenon keeps the ones worth keeping on disk so they are still there after a restart. The address must be one the widget declared and you approved, exactly as before: this changes where an image is kept, never what a widget may reach. It stays a cache and not a hoard: bounded per widget and in total, oldest-unused thrown out first and really deleted, re-checked after a week, and removed entirely when you uninstall the widget.
+- **The numbers a monitoring widget actually needs.** The system data a widget can be granted carries the **CPU clock**, the **GPU core and memory clocks** and the **frames per second** in the game you are playing, alongside the temperatures, fan RPM, power draw and load it already had. No extra permission: a widget you have already allowed to see system data gets them, and one you have not still sees nothing. They cost nothing either: each rides a reading Xenon was already taking on the same tick, so a dashboard showing them does no more work than one that does not.
+- **Twitch and YouTube are open to widgets too.** Three data streams a widget can ask for: which channels you follow are **live** right now (plus what your Twitch tile is playing), the **chat** of the channel you are watching (already split into text and emotes, so a widget can draw it any way it likes), and your own **YouTube broadcast** (live, viewers, likes, health). Plus one action: **play a channel or a video** in the Twitch and YouTube tiles you already have, so a widget can be your own "my streamers" launcher. None of it opens a second connection to Twitch or YouTube: a widget gets a copy of what the builtin tile has already read, so it costs nothing extra while that tile is on the dashboard. Reading only: no sending chat messages, no starting a broadcast, no stream key.
+- **Widgets can ask your AI.** A widget can ask for one more permission: to ask a question to the AI you set for Bit and show the answer. It uses your Sparks when Bit runs on Sparks, otherwise your own key, Ollama or your Claude or ChatGPT plan; the widget never chooses the AI and never sees a key. One question at a time, no tools, no history, and a daily number per widget that you pick under Settings → Bit → Widget questions (50 to start). In Xenon Maker the same thing is the **Ask Bit** step.
+- **Live activities in the top bar.** A widget may separately request a host-rendered activity in the Full or Minimal top bar: persistent text, progress, playback bars, selected Xenon readouts and up to two safe buttons, or a timed takeover that animates in for a goal/result and restores what was there. Widgets provide data, never HTML/CSS; Xenon validates and draws every block. Settings → Top bar can disable any installed package or all takeovers without uninstalling anything.
+- **Write one with Claude Code or Codex.** Connect your coding assistant in Settings → Widgets & sharing (one button each), or add the `xenon-mcp` MCP server to any other client. It reads the SDK, writes a starter, installs the widget on your page, reads the errors it hits while it runs and looks at a picture of its tile, then fixes it. The dashboard asks you once before it is allowed; it never approves a widget's permissions, only touches widgets you made and works only from the PC running Xenon. See **[packages/mcp](packages/mcp/README.md)**.
+- **Documented and versioned.** The full developer guide (package format, sandbox rules, the complete bridge protocol and the security model) lives in **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. Finished widgets reach everyone through the Store. Fully localised in all 11 languages.
 
 ---
 
 ## System monitor
 
-![System monitor with CPU, GPU, RAM and disk stats](docs/images/system-monitor.png)
+<img src="docs/images/features/system.webp" width="460" alt="System tile with CPU, GPU, RAM and disk">
 
-Real-time hardware readouts from Windows performance counters and LibreHardwareMonitor:
+Real-time hardware readouts, from performance counters and LibreHardwareMonitor on Windows and from the system's own sensors on macOS and Linux (Beta):
 
 | Metric | Details |
 |--------|---------|
@@ -180,7 +204,7 @@ Real-time hardware readouts from Windows performance counters and LibreHardwareM
 
 - Live **download / upload** throughput (MB/s) from the active adapter
 - **Ping** and **jitter** to a configurable target
-- **Real in-game FPS** — the actual frame rate of the running game, including **exclusive-fullscreen** titles, via **PresentMon** (installed by `INSTALL.bat`). Falls back to a DWM reading (windowed/borderless only) if PresentMon isn't present.
+- **Real in-game FPS**: the actual frame rate of the running game, including **exclusive-fullscreen** titles, via **PresentMon**, which setup downloads for you. Falls back to a DWM reading (windowed/borderless only) if PresentMon isn't present.
 
 
 The System tile compresses cards to share the available height so everything stays visible on the Edge's short screen, and fills tall desktop windows. Card order, size, visibility, tab order, and the remembered active tab all persist.
@@ -189,48 +213,54 @@ The System tile compresses cards to share the available height so everything sta
 
 ## Sensor history & PC Screen Time
 
-![system history](docs/images/system-history.png)
-![system history 2](docs/images/system-history-2.png)
-Turn on **Sensor history** (Settings → Performance) and the System tile gains a **History** tab — the "how has my PC been doing lately" view, with no AI required.
+Turn on **Sensor history** (Settings → Performance) and the System tile gains a **History** tab: the "how has my PC been doing lately" view, with no AI required.
 
-- **Trend charts.** Clean sparklines of **CPU and GPU temperature and load, and RAM usage** over the last **24 hours, 7 days or 30 days** — each chart marks its latest value and its peak, so you can see at a glance that (say) your GPU has run hotter this week than last.
-- **PC Screen Time.** A screen-time breakdown for the same period: your **most-used apps** as a ranked bar list with the time spent in each, a **total active time**, and how much of it was **gaming** (games are marked 🎮 and counted separately) — the "Screen Time for your PC". Measured from the app already in focus; time while the screen is locked doesn't count.
-- **Private and cheap.** It's **off by default**, costs almost nothing (one lightweight sample every few minutes of data the dashboard already reads), and **everything stays on your PC**. If you already use the AI **Guardian** feature, the same history simply appears in this tab. Fully localised (EN/IT/KO/JA/ZH).
+- **Trend charts.** Clean sparklines of **CPU and GPU temperature and load, and RAM usage** over the last **6 hours, 24 hours, 7 days or 30 days** (the 6 hours range shows every reading). Each chart marks its latest value and its peak, so you can see at a glance that (say) your GPU has run hotter this week than last.
+- **PC Screen Time.** A screen-time breakdown for the same period: your **most-used apps** as a ranked bar list with the time spent in each, a **total active time**, and how much of it was **gaming** (games are marked 🎮 and counted separately): the "Screen Time for your PC". Measured from the app already in focus; time while the screen is locked doesn't count.
+- **Energy used, in kWh.** The same readings add up what the PC draws: **kWh per hour** for the last 3 days and **per day** for the last 90. Ask Bit how much the PC used today or this month (give it your price per kWh and it works out the cost), or add a widget that shows it. With a power supply that reports its draw the figure is the **whole PC**; otherwise it is **CPU + GPU** only, and labelled so.
+- **Private and cheap.** It's **off by default**, costs almost nothing (one lightweight reading of data the dashboard already reads every 1, 2, 5, 10 or 15 minutes, 5 by default; a shorter interval catches short spikes), and **everything stays on your PC**. If you already use the AI **Guardian** feature, the same history simply appears in this tab. Fully localised in all 11 languages.
 
 ---
 
-## Fans (Ventole)
+## Fans
+
+<img src="docs/images/features/fans.webp" width="460" alt="Fans tile, grouped by where each fan sits">
 
 Add it from the **"+"** palette (System category). Shows the live RPM of every fan your PC exposes.
 
-- **Every fan, individually.** CPU and case fans (via LibreHardwareMonitor, the same sensor layer that reads your temperatures), plus **each** fan on your graphics card read from its own tachometer — a two-fan card shows two real readings instead of one aggregate percentage, and a card idling in zero-RPM mode correctly shows its fans stopped rather than the percentage its fan curve is merely aiming for.
-- **AIO coolers and fan hubs too.** NZXT Kraken, Aquacomputer Octo/Quadro/D5 Next, MSI CoreLiquid, Razer and Arctic controllers and more — the fans and pump that bypass the motherboard entirely and that no header-only scan can see.
-- **Grouped by where the fan physically is:** Scheda madre, Hub / AIO, Scheda video, Alimentatore. Each fan is a compact row (spinning impeller, name, speed bar, RPM), colour-coded by how hard it's working. A pump is scaled on its own faster range, so a healthy AIO pump doesn't read alarm-red.
-- **Rename any fan.** The motherboard genuinely cannot know what's plugged into "Fan #3" — only you do. Tap a fan's name to rename it ("Radiatore alto", "Case posteriore"). Names survive restarts, sync across screens, and clearing one brings the sensor's own name back.
-- **0 RPM is not drawn as a stopped fan.** Your board lists every header it physically has, plugged or not, so a zero there means "no tachometer signal" — an empty socket, or a fan that stopped — and the board can't tell which. Silent headers collapse into one quiet "No signal" line. On a graphics card or a PSU a zero *is* a genuinely stopped fan (the sensor exists because the fan does), so those stay full rows.
-- **Honest limits.** Fans on an unsupported hub (e.g. iCUE Link) or doubled on a splitter can't report — the widget says so plainly.
+- **Every fan, individually.** CPU and case fans (via LibreHardwareMonitor, the same sensor layer that reads your temperatures), plus **each** fan on your graphics card read from its own tachometer: a two-fan card shows two real readings instead of one aggregate percentage, and a card idling in zero-RPM mode correctly shows its fans stopped rather than the percentage its fan curve is merely aiming for.
+- **AIO coolers and fan hubs too.** NZXT Kraken, Aquacomputer Octo/Quadro/D5 Next, MSI CoreLiquid, Razer and Arctic controllers and more: the fans and pump that bypass the motherboard entirely and that no header-only scan can see.
+- **Grouped by where the fan physically is:** Motherboard, Hub / AIO, Graphics card, Power supply. Each fan is a compact row (spinning impeller, name, speed bar, RPM), colour-coded by how hard it's working. A pump is scaled on its own faster range, so a healthy AIO pump doesn't read alarm-red.
+- **Rename any fan.** The motherboard genuinely cannot know what's plugged into "Fan #3": only you do. Tap a fan's name to rename it ("Top radiator", "Rear case"). Names survive restarts, sync across screens, and clearing one brings the sensor's own name back.
+- **0 RPM is not drawn as a stopped fan.** Your board lists every header it physically has, plugged or not, so a zero there means "no tachometer signal" (an empty socket, or a fan that stopped) and the board can't tell which. Silent headers collapse into one quiet "No signal" line. On a graphics card or a PSU a zero *is* a genuinely stopped fan (the sensor exists because the fan does), so those stay full rows.
+- **Honest limits.** Fans on an unsupported hub (e.g. iCUE Link) or doubled on a splitter can't report: the widget says so plainly.
 
 ---
 
-## Energy (Energia)
+## Energy
+
+<img src="docs/images/features/power.webp" width="460" alt="Energy tile with live watts">
 
 Add it from the **"+"** palette (System category). A multi-source power panel.
 
-- **Your PC's live draw in watts** — CPU package and GPU. On a PSU that connects over USB (Corsair HXi/RMi and newer i-series), it also shows what the **whole machine** pulls: every rail, measured by the supply itself, not a CPU+GPU guess. When your PSU doesn't report one, the widget says so instead of silently hiding the card.
-- **What the number is, precisely.** It's the supply's **output** — what your PC consumes — not the reading at the wall socket, which conversion losses put roughly 10% higher and which no PSU here reports.
-- **Home Assistant power sensors** next to the PC cards: solar production, a metered smart plug, the home meter, a UPS — picked with a dedicated selector in Settings → Smart Home, independent from the Smart Home tile.
-- **Storico consumi.** With sensor history on, the last 24 hours of CPU and GPU draw as sparklines (the same charts also join the System tile's History tab).
+- **Your PC's live draw in watts**: CPU package and GPU. On a PSU that connects over USB (Corsair HXi/RMi and newer i-series), it also shows what the **whole machine** pulls: every rail, measured by the supply itself, not a CPU+GPU guess. When your PSU doesn't report one, the widget says so instead of silently hiding the card.
+- **What the number is, precisely.** It's the supply's **output** (what your PC consumes) not the reading at the wall socket, which conversion losses put roughly 10% higher and which no PSU here reports.
+- **Home Assistant power sensors** next to the PC cards (solar production, a metered smart plug, the home meter, a UPS), picked with a dedicated selector in Settings → Smart Home, independent from the Smart Home tile.
+- **Consumption history.** With sensor history on, the last 24 hours of CPU and GPU draw as sparklines (the same charts also join the System tile's History tab).
 - Reads alongside iCUE without disturbing it.
 
 ---
 
-## Batteries (Batterie)
+## Batteries
+
+<img src="docs/images/features/battery.webp" width="460" alt="Batteries tile with wireless devices">
 
 Add it from the **"+"** palette (System category). The charge of your wireless peripherals.
 
-- **Corsair mouse/keyboard/headset** through iCUE, **any paired Bluetooth device**, and the **system battery** of a laptop or a USB-connected UPS (the one source that also knows whether it's charging).
+- **Corsair mouse/keyboard/headset** through iCUE, **any paired Bluetooth device** (**AirPods and Beats** too, with their case, on Windows, and on macOS and Linux in Beta), **Logitech mice and keyboards on a USB dongle or cable** (Razer ones in Beta), **mice, keyboards, headsets and controllers of many other brands on their dongle, with no program of theirs installed** (Beta; on macOS too, with Input Monitoring; a Settings switch stops Xenon asking devices), and the **system battery** of a laptop or a USB-connected UPS. Dongle devices and the system battery also say whether they are charging.
+- On Linux, any brand the kernel reports shows up too (Beta); on macOS, Bluetooth devices.
 - Colour-coded levels, and devices that go to sleep fade out instead of freezing at a stale percent.
-- Like Fans and Energy, it degrades gracefully: no LibreHardwareMonitor, no iCUE, no Home Assistant — you get a friendly hint, never an error.
+- Like Fans and Energy, it degrades gracefully: with no LibreHardwareMonitor, no iCUE and no Home Assistant you get a friendly hint, never an error.
 
 > **One tap to switch your hardware sensors on.** LibreHardwareMonitor reads CPU temperature, fan RPM and CPU watts through a driver that only loads with administrator rights. If Xenon was installed by double-clicking the installer (as most people do), those sensors stay empty. The Fans and Energy widgets say exactly that and offer an **Enable sensors** button: one Windows prompt and Xenon repairs the startup task permanently, then restarts itself so the sensors come alive immediately. The same button lives in Settings → Performance → Hardware sensors.
 
@@ -238,33 +268,34 @@ Add it from the **"+"** palette (System category). The charge of your wireless p
 
 ## Media
 
-![Media panel with now-playing track and controls](docs/images/media.png)
+<img src="docs/images/features/media.webp" width="460" alt="Media tile with the track playing and its controls">
 
-The Media tile has two tabs — **Playback** and **Chat** (Xenon AI). It reads the currently playing track from **any SMTC-aware app** (Spotify, YouTube Music, Windows Media Player, Chrome, Edge…).
+The Media tile shows what is playing. **Agenda** is its second tab on a new install; installs from before 5.0.0 keep **Chat** there. It reads the current track from **any app that reports it to the system** (Spotify, YouTube Music, Windows Media Player, Chrome, Edge…).
 
 - Album artwork fetched automatically (the last known cover is kept if the track briefly drops it, so it never flickers to "No media")
 - Title and artist
 - **Play / Pause / Previous / Next** transport
+- **A progress line on Liquid Glass**: when the tile has room, a thin line under the title shows how far into the song you are, with the time at both ends. Tap or drag it to jump; if the player cannot jump, Xenon says so. A live stream or a radio, which has no length, shows no line
 - A **source badge** shows the official icon of where you're listening (Spotify/YouTube brand mark, or the app's real executable icon)
 - A **per-source volume slider** (with mute) controls the volume of the app currently playing, independently of master volume
-- **Spotify extras when the source is Spotify** — if you're listening on Spotify *and* have linked your account (Settings → Spotify), the Playback tab adds a tidy strip under the transport: a **seek bar**, **♥ save to Liked**, **shuffle**, **repeat**, and **Playlists** / **Devices** buttons that open a small in-place list (tap to play a playlist or move playback to another device). It appears only for a linked Spotify source, so the tile stays clean for everything else.
-- **A sound wave of what is actually playing**, if you want one. **Settings → Aspetto → Riquadro Media** offers **Nessuna / Minimal / Onda**. It is an addition and behaves like one: the tile itself is unchanged, the strip is added under the content and can never move or cover a control, and **Nessuna** — the default — draws nothing at all. **Minimal** is a thin line along the bottom edge that breathes with the music; **Onda** is the fuller strip. Both are tinted by the album cover, and both stay under the artwork rather than sitting on top of it.
+- **Spotify extras when the source is Spotify**: if you're listening on Spotify *and* have linked your account (Settings → Spotify), the Playback tab adds a tidy strip under the transport: a **seek bar**, **♥ save to Liked**, **shuffle**, **repeat**, and **Playlists** / **Devices** buttons that open a small in-place list (tap to play a playlist or move playback to another device). It appears only for a linked Spotify source, so the tile stays clean for everything else.
+- **A sound wave of what is actually playing**, if you want one. **Settings → Appearance → Media tile** offers **None / Minimal / Wave**. It is an addition and behaves like one: the tile itself is unchanged, the strip is added under the content and can never move or cover a control, and **None**, the default, draws nothing at all. **Minimal** is a thin line along the bottom edge that breathes with the music; **Wave** is the fuller strip. Both are tinted by the album cover, and both stay under the artwork rather than sitting on top of it.
 
-  It is not decoration: every bar is a real peak the app produced, and the strip is the last few seconds of them scrolling past — so a quiet passage looks quiet and a drop looks like a drop. It follows the *player's* level, so a Discord call or a game never makes your music dance.
+  It is not decoration: every bar is a real peak the app produced, and the strip is the last few seconds of them scrolling past, so a quiet passage looks quiet and a drop looks like a drop. It follows the *player's* level, so a Discord call or a game never makes your music dance.
 
-  Needs **Windows with Xenon Helper**: audio levels cannot be measured without it and there is no fallback, so on everything else the tile simply does not draw one rather than inventing motion. Picking Minimal or Onda is what starts the measurement; going back to Nessuna stops it.
+  Needs **Windows with Xenon Helper**: audio levels cannot be measured without it and there is no fallback, so on everything else the tile simply does not draw one rather than inventing motion. Picking Minimal or Wave starts the measurement; going back to None stops it.
 
-- When nothing is playing, the tile opens on the **Chat** tab so it is never empty. While music plays, the Chat tab keeps a compact mini player visible with the album art softly blurred behind the conversation
+- When nothing is playing, the tile opens on its other tab so it is never empty: the **Agenda** on a new install, the **Chat** on a dashboard that keeps it there. While music plays, the Chat tab keeps a compact mini player visible with the album art softly blurred behind the conversation
 
 ---
 
 ## Audio
 
-![Audio output device picker and volume slider](docs/images/audio.png)
+<img src="docs/images/features/audio.webp" width="460" alt="Audio tile with the output picker and the volume">
 
-- **Output device picker** — switch between speakers, headphones, and headsets in one tap
+- **Output device picker**: switch between speakers, headphones, and headsets in one tap
 - **Master volume slider** (0–100%) and **mute toggle**
-- **Per-app Audio Mixer** — when any app produces audio (Spotify, Discord, Chrome/YouTube, iCUE…), a compact mixer appears below the master slider. Each row shows the **real icon extracted from the executable**, a friendly name, an independent volume slider, a percentage, and a per-app mute toggle. The list matches the Windows 11 Volume Mixer one-to-one (only active sessions, no idle background apps), and hides automatically when nothing is producing audio.
+- **Per-app Audio Mixer**: when any app produces audio (Spotify, Discord, Chrome/YouTube, iCUE…), a compact mixer appears below the master slider. Each row shows the **real icon extracted from the executable**, a friendly name, an independent volume slider, a percentage, and a per-app mute toggle. The list matches the Windows 11 Volume Mixer one-to-one (only active sessions, no idle background apps), and hides automatically when nothing is producing audio.
 
 All changes take effect immediately via the bundled [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) (NirSoft, freeware).
 
@@ -272,35 +303,35 @@ All changes take effect immediately via the bundled [SoundVolumeView](https://ww
 
 ## Microphone
 
-![Microphone mute toggle and level meter](docs/images/microphone.png)
+<img src="docs/images/features/mic.webp" width="460" alt="Microphone tile with mute and level meter">
 
 - **One-click mute / unmute** with a clear visual indicator
 - Live input **level meter**
-- **Change the default mic device** from a drop-down — no need to open Windows Settings
-- **Per-app Mic Mixer** — when an app actively captures audio (Discord in a voice channel, Teams, OBS…), a section appears below the master controls with a per-app sensitivity slider and mute toggle. It hides automatically when no app is using the mic.
+- **Change the default mic device** from a drop-down, with no need to open Windows Settings
+- **Per-app Mic Mixer**: when an app actively captures audio (Discord in a voice channel, Teams, OBS…), a section appears below the master controls with a per-app sensitivity slider and mute toggle. It hides automatically when no app is using the mic.
 
 ---
 
-## Xenon AI
+## Bit, the assistant
 
-![Xenon AI chat panel](docs/images/xenon-ai.png)
-![Xenon AI chat panel](docs/images/xenon-ai-chat.png)
+<img src="docs/images/features/chat.webp" width="460" alt="The chat with Bit">
 
-
-A full **voice + vision + chat** assistant. Text chat lives in the **Media tile's Chat tab**; voice mode is started from the **Xenon** pill in the top bar, where the assistant is visualised as an animated **circular audio equaliser** that reacts to its three states (listening / thinking / speaking).
+A full **voice, vision and chat** assistant. Text chat has its own **Bit** tile on the first page of a new install (installs from before 5.0.0 keep it in the Media tile's Chat tab). Voice starts from the **Bit** key in the top bar, where Bit shows as an animated **circular audio equaliser** that reacts to its three states (listening, thinking, speaking).
 
 ### Pick your provider
 
-- **Gemini (cloud)** *(default)* — text & vision via Gemini, with natural neural voice replies. Needs a free [Gemini API key](https://aistudio.google.com).
-- **ChatGPT (OpenAI)** and **Claude (Anthropic)** — the same assistant with your own API key from those providers.
-- **Claude Code** and **Codex** *(your subscription, no API key)* — Xenon AI answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan. Xenon never sees or stores your credentials; Settings shows whether the program is installed and signed in, and what to run if it isn't, and lets you pick from the models the program itself offers your account today, so the list follows new releases on its own. The assistant keeps all its dashboard tools, which reach the program through a bridge that lives for one answer, while the program's own terminal and file tools stay off. Voice uses the free local speech, and Bit's automatic one-liners never spend your plan.
-- **Local (Ollama)** *(free, on-device)* — runs entirely on your PC with no API key: **Ollama** (chat & function-calling, e.g. Qwen 2.5, Gemma 4 12B), **Whisper.cpp** (speech-to-text), and **Microsoft Edge neural voices** (text-to-speech). It even has key-free web search via DuckDuckGo.
+- **Sparks** *(where a new install starts)*: Xenon's credits, with no key to set up. A new install gets 30 Sparks with its first message, valid for 7 days.
+- **Gemini (cloud)**: text and vision via Gemini, with natural neural voice replies. Needs a free [Gemini API key](https://aistudio.google.com).
+- **ChatGPT (OpenAI)** and **Claude (Anthropic)**: the same assistant with your own API key from those providers.
+- **Claude Code** and **Codex** *(your subscription, no API key)*: Bit answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan. Xenon never sees or stores your credentials; Settings shows whether the program is installed and signed in, and what to run if it isn't, and lets you pick from the models the program itself offers your account today, so the list follows new releases on its own. The assistant keeps all its dashboard tools, which reach the program through a bridge that lives for one answer, while the program's own terminal and file tools stay off. Voice uses the free local speech, and Bit's automatic one-liners never spend your plan.
+- **Local (Ollama)** *(free, on-device)*: runs entirely on your PC with no API key: **Ollama** (chat & function-calling, e.g. Qwen 2.5, Gemma 4 12B), **Whisper.cpp** (speech-to-text), and **Microsoft Edge neural voices** (text-to-speech). It even has key-free web search via DuckDuckGo.
+- **Local server** *(free, on this PC)*: for a program you already run a model with, if it offers an OpenAI-compatible API. Xenon looks for it on the usual ports and connects by itself; otherwise enter its address. Pick one of the models it lists or type a name, add a key only if it wants one, and say whether the model can see pictures. Xenon only connects: it installs and starts nothing, the address must be on this PC, and redirects are not followed, so your prompts and your key stay on the machine. Settings shows whether the server answers and why not. Bit keeps its dashboard tools when the model and the server handle them and the server has at least 32K of context; otherwise it answers without them and says why. Voice uses Whisper and the Edge voices, as with Ollama.
 
-Switch providers in **Settings → Xenon AI**. Choosing local opens a hardware-compatibility panel that scans RAM, VRAM, and CPU cores and **blocks the option on machines that aren't powerful enough** (restoring Gemini). You can pick a model tier (Auto / Light / Balanced / Powerful / Custom), check the live status of Ollama, Whisper, and the Edge voice, and download a model from Settings with a progress bar.
+Switch providers in **Settings → Bit**. Choosing local opens a hardware-compatibility panel that scans RAM, VRAM, and CPU cores and **blocks the option on machines that aren't powerful enough** (restoring Gemini). You can pick a model tier (Auto / Light / Balanced / Powerful / Custom), check the live status of Ollama, Whisper, and the Edge voice, and download a model from Settings with a progress bar.
 
 The local components are **not bundled or pre-downloaded** (so installation stays fast). When you switch to Local: **Whisper** downloads in-app with a progress bar ("Download Whisper"), **Ollama** is installed from its official page ("Install Ollama"), and the chat model is downloaded from the same panel.
 
-![Settings → Xenon AI with provider selector and hardware panel](docs/images/ai-local-settings.png)
+![Settings → Bit with the provider selector](docs/images/features/settings-bit.webp)
 
 ### What it can do
 
@@ -314,7 +345,7 @@ The local components are **not bundled or pre-downloaded** (so installation stay
 | **Tasks** | List tasks, create with priority |
 | **Calendar** | List upcoming events, create an event |
 | **Memory** | Remember a fact about you, recall it later, or forget it on request |
-| **PC history** *(with Guardian)* | Compare a sensor over time — today vs yesterday, last 24 h, weekly/monthly averages, the month's peak day |
+| **PC history** *(with Guardian)* | Compare a sensor over time: today vs yesterday, last 24 h, weekly/monthly averages, the month's peak day |
 | **Screen vision** | Capture and analyse any monitor in real time |
 | **Apps & web** | Open any app, website, or file; web search |
 | **Lighting** | Set colours/effects, toggle the RGB bridge |
@@ -323,116 +354,115 @@ The local components are **not bundled or pre-downloaded** (so installation stay
 | **Dashboard** | Open weather, settings, app switcher, Ambient mode; switch theme; navigate pages |
 | **System** | Lock the PC; get CPU/GPU/RAM stats; check weather |
 | **Spotify** *(when linked)* | Play/pause, next/previous, **play or queue any song/artist/album/playlist by name**, shuffle, repeat, like, volume, seek, switch device, read what's playing (Premium for playback) |
-| **Smart home** *(when connected)* | List devices, turn on/off/toggle, run scenes, and set details — **brightness, colour, temperature, fan speed, blind position** — on the right device by name/room |
+| **Smart home** *(when connected)* | List devices, turn on/off/toggle, run scenes, and set details (**brightness, colour, temperature, fan speed, blind position**) on the right device by name/room |
 | **Discord** *(when connected)* | Mute/unmute, deafen, push-to-talk, **join a voice channel by name**, leave, mic & output volume |
 
-Spotify, Smart Home and Discord commands become available to the assistant the moment you connect the matching integration (Settings → Spotify / Smart Home / Streaming). Every control runs through the same allowlisted dispatcher the Deck uses, and works with both the cloud (Gemini) and local (Ollama) providers.
+Spotify, Smart Home and Discord commands become available to the assistant the moment you connect the matching integration (Settings → Spotify / Smart Home / Streaming). Every control runs through the same allowlisted dispatcher the Deck uses, with cloud and local providers alike.
 
 ### How a voice session works
 
-1. Press the **Xenon** pill in the top bar. Activation is instant — Xenon starts listening right away, and a Siri-style animated border glows around the display.
+1. Press the **Bit** key in the top bar. Bit starts listening right away, and an animated border glows around the display.
 2. Ask your command (e.g. *"set a timer for 10 minutes"*). Master volume **ducks to 20%** while it listens or speaks, then restores.
-3. Xenon answers aloud, then **keeps listening for a few seconds** so you can follow up without pressing the button again. Stay silent and the session closes on its own with a soft chime.
+3. Bit answers aloud, then **keeps listening for a few seconds** so you can follow up without pressing the button again. Stay silent and the session closes on its own with a soft chime.
 
-Spoken replies **start almost immediately**: Xenon speaks the first sentence the moment it's ready and prepares the next one while that plays, instead of waiting for the whole answer to be turned into audio — so longer answers flow naturally rather than pausing up front. The music-ducking and on-screen text still appear cleanly as one, and tapping to interrupt still stops it instantly.
+Spoken replies **start almost immediately**: Bit speaks the first sentence the moment it's ready and prepares the next one while that plays, instead of waiting for the whole answer to be turned into audio, so longer answers flow naturally rather than pausing up front. The music-ducking and on-screen text still appear cleanly as one, and tapping to interrupt still stops it instantly.
 
-The mic re-opens only **after** Xenon finishes speaking, and near-silent or noise-only clips are discarded, so the assistant's own voice is never misheard as a command.
+The mic re-opens only **after** Bit finishes speaking, and near-silent or noise-only clips are discarded, so the assistant's own voice is never misheard as a command.
 
-**Tap to interrupt:** during the thinking/speaking phase a "· tap to stop" hint appears — tapping anywhere instantly stops playback and exits voice mode. You can also say "stop"/"basta", or just wait in silence.
+**Tap to interrupt:** during the thinking/speaking phase a "· tap to stop" hint appears: tapping anywhere instantly stops playback and exits voice mode. You can also say "stop"/"basta", or just wait in silence.
 
-**Hands-free with "Hey Xenon" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Xenon"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
+**Hands-free with "Hey Bit" (opt-in):** turn on the wake word in **Settings → Bit** and saying *"Hey Bit"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use, one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
 
-> **How to say it.** Say it **on its own, then pause** — *"Hey Xenon."* … the chat opens … *then* your request. Saying it as the start of a sentence (*"Hey Xenon, what's the weather?"*, all in one breath) is the one way to miss: anything longer than **3 seconds of unbroken speech** is treated as conversation rather than a wake phrase and thrown away, which is what stops music and a chat across the room from waking it. The **"Hey" is optional** — the name alone is enough.
+> **How to say it.** Say it **on its own, then pause**: *"Hey Bit."* … the chat opens … *then* your request. Saying it as the start of a sentence (*"Hey Bit, what's the weather?"*, all in one breath) is the one way to miss: anything longer than **3 seconds of unbroken speech** is treated as conversation rather than a wake phrase and thrown away, which is what stops music and a chat across the room from waking it. **The "Hey" is needed**: "bit" alone is an everyday word (*a bit*, *bit by bit*), so it never wakes Bit on its own.
 >
-> **Your accent does not matter.** The match is deliberately loose, because the local Whisper hears the name differently in every voice: *zenon*, *senon*, *sanon*, *zenone*, *xeneon* and a dozen more all count. There is no pronunciation to learn and no voice to train — say it the way it comes out.
+> **Your accent does not matter.** The match is deliberately loose, because the local Whisper hears the call differently in every voice: *ehi bit*, *hei bit*, *hej bit*, *hey beat* and *heybit* all count. There is no pronunciation to learn and no voice to train: say it the way it comes out. The old phrase, *"Hey Xenon"*, still works too.
 
-### Voce Live — real-time, talk-over-it voice (beta)
+### Live Voice: real-time, talk-over-it voice (beta)
 
-Turn on **Voce Live** in **Settings → Xenon AI** and the voice button opens a genuine **full-duplex** conversation instead of the turn-by-turn one. Xenon streams its reply as it speaks, and you can **cut in and talk over it at any moment** — it stops and listens instantly, with no button press and no waiting for it to finish. It's powered by Google's **Gemini Live** realtime model and still runs every dashboard command by voice (volume, timers, lighting, media, notes…), remembering you and keeping the conversation's context like the normal chat.
+Turn on **Live Voice** in **Settings → Bit** and the voice button opens a genuine **full-duplex** conversation instead of the turn-by-turn one. Bit streams its reply as it speaks, and you can **cut in and talk over it at any moment**: it stops and listens instantly, with no button press and no waiting for it to finish. It's powered by Google's **Gemini Live** realtime model and still runs every dashboard command by voice (volume, timers, lighting, media, notes…), remembering you and keeping the conversation's context like the normal chat.
 
-- **Off by default, clearly beta.** It needs a **Live-capable Gemini API key** and uses more of your Gemini quota, so it's opt-in. **Headphones give the best experience** — on open speakers the microphone can pick up the assistant's own voice.
-- **Never a dead end.** If the Live model isn't available on your key, or there's no microphone, Xenon **falls back automatically** to the normal turn-based voice (which stays the default). The mic is captured on the server side, so Voce Live works the same on a touchscreen as in a desktop browser.
-- Fully localised (EN/IT/KO/JA/ZH).
+- **Off by default, clearly beta.** It needs a **Live-capable Gemini API key** and uses more of your Gemini quota, so it's opt-in. **Headphones give the best experience**: on open speakers the microphone can pick up the assistant's own voice.
+- **Never a dead end.** If the Live model isn't available on your key, or there's no microphone, Bit **falls back automatically** to the normal turn-based voice (which stays the default). The mic is captured on the server side, so Live Voice works the same on a touchscreen as in a desktop browser.
+- Fully localised in all 11 languages.
 
 ### Chat
 
-The Chat tab renders **headings, bold/italic, lists, inline code, and links** as formatted HTML. A **New chat** button resets the conversation, and you can attach **images, PDFs, and text/code files** (TXT, Markdown, CSV, JSON, common code files). Without an API key (Gemini mode) it shows a clear "AI unavailable — add your API key" message, with an option to hide the Chat tab entirely.
+The chat renders **headings, bold/italic, lists, inline code, and links** as formatted text. A **New chat** button resets the conversation, and you can attach **images, PDFs, and text/code files** (TXT, Markdown, CSV, JSON, common code files).
 
-**Follow-up questions about a file you shared keep working.** Attach a document or image, and a follow-up like *"and what does the second page say?"* or *"translate that"* still refers to it for the next couple of turns — you don't have to re-attach it to keep talking about the same file.
+**Follow-up questions about a file you shared keep working.** Attach a document or image, and a follow-up like *"and what does the second page say?"* or *"translate that"* still refers to it for the next couple of turns: you don't have to re-attach it to keep talking about the same file.
 
-**One-tap undo for the AI's changes.** When Xenon changes something you might regret — overwriting your notes, clearing all your tasks or events, adding a task — a small **Undo** appears under its reply. Tap it and the previous state comes straight back. It's there for the moments that matter and quietly absent for harmless actions.
+**One-tap undo for what Bit changes.** When Bit changes something you might regret (overwriting your notes, clearing all your tasks or events, adding a task) a small **Undo** appears under its reply. Tap it and the previous state comes straight back. It's there for the moments that matter and quietly absent for harmless actions.
 
-**Multi-step requests finish in one turn.** Asking Xenon to do several things at once ("build me a streaming page and set up the deck for it") now has room to carry the whole request through to the end, with a firm time limit so it can never hang.
+**Multi-step requests finish in one turn.** Asking Bit to do several things at once ("build me a streaming page and set up the deck for it") has room to carry the whole request through to the end, with a firm time limit so it can never hang.
 
-### Memory — it remembers you
+### Memory: it remembers you
 
-Xenon can keep a small, private set of **facts about you** so it doesn't ask twice. Tell it *"remember that my main GPU is a 5080"* or *"da adesso ricorda che gioco su Steam"* and it stores the fact locally; ask *"what do you know about me?"* to recall the list, or *"forget that"* to drop one. Remembered facts travel with every conversation (chat and voice) so replies stay personal across sessions.
+Bit can keep a small, private set of **facts about you** so it doesn't ask twice. Tell it *"remember that my main GPU is a 5080"* or *"from now on remember that I play on Steam"* and it stores the fact locally; ask *"what do you know about me?"* to recall the list, or *"forget that"* to drop one. Remembered facts travel with every conversation (chat and voice) so replies stay personal across sessions.
 
-- **On by default, fully local.** Facts live only on your PC (`server/data/ai-memory.json`) — never uploaded. They ARE included in your configuration backup (Settings → Backup), so Xenon still remembers you after a restore on a new machine. Turn the whole feature off, or review and delete individual facts, in **Settings → Xenon AI**.
-- **Works with both providers** (Gemini and local Ollama).
+- **On by default, stored on your PC.** They are included in your configuration backup (Settings → General → Backup), so Bit still remembers you after a restore on a new machine. Turn the whole feature off, or review and delete individual facts, in **Settings → Bit**.
 
 ### Long conversations stay coherent
 
-Xenon used to simply forget the oldest turns once a chat grew long, losing the thread. Now, as a conversation grows, the earlier part is quietly **condensed into a running summary** that travels with the chat — so it keeps the context of a long back-and-forth instead of dropping it. It happens in the background and never slows your reply.
+As a conversation grows, the earlier part is quietly **condensed into a running summary** that travels with the chat, so it keeps the context of a long back-and-forth instead of dropping it. It happens in the background and never slows your reply.
 
 ### Advanced reasoning (opt-in)
 
-A switch in **Settings → Xenon AI → Advanced AI features** lets your **typed** questions use a stronger model when you want more careful answers to complex things. It's off by default and only affects text chat — **voice stays on the fast model** so spoken replies never lag — and if the stronger model isn't available on your key, Xenon quietly falls back to the fast one instead of failing.
+A switch in **Settings → Bit → Advanced AI features** lets your **typed** questions use a stronger model when you want more careful answers to complex things. It's off by default and only affects text chat (**voice stays on the fast model** so spoken replies never lag) and if the stronger model isn't available on your key, Bit quietly falls back to the fast one instead of failing.
 
 ### Advanced AI features (opt-in)
 
-A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks four extra capabilities. They are **all off by default** behind a master switch, because they use the AI actively (Gemini API quota, or compute on the local provider):
+A dedicated **Settings → Bit → Advanced AI features** group unlocks four extra capabilities. They are **all off by default** behind a master switch, because they use the AI actively (your provider's quota, or compute on a local provider):
 
-- **Genesis — AI-built pages.** Ask Xenon to *"build me a streaming page"* and it composes a new dashboard page with the most relevant widgets, arranged in a clean balanced grid, and switches to it. If you just say *"create a new dashboard"*, Genesis first asks what the page is for (gaming, work, music…) so it can pick the right modules. AI-created pages are normal pages: renameable, editable in Layout mode, removable.
+- **Genesis: AI-built pages.** Ask Bit to *"build me a streaming page"* and it composes a new dashboard page with the most relevant widgets, arranged in a clean balanced grid, and switches to it. If you just say *"create a new dashboard"*, Genesis first asks what the page is for (gaming, work, music…) so it can pick the right modules. AI-created pages are normal pages: renameable, editable in Layout mode, removable.
 - **Game Companion.** An in-game overlay with FPS, session time, and on-demand AI screen insights while you play.
-- **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself** — a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
-- **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on — including an **anomaly heads-up** that speaks up only when a sensor drifts unusually far from its own recent baseline (e.g. your GPU running hotter than it normally does at idle), learned per-metric and rate-limited so it never nags.
+- **Guardian: PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself**: a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
+- **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on, including an **anomaly heads-up** that speaks up only when a sensor drifts unusually far from its own recent baseline (e.g. your GPU running hotter than it normally does at idle), learned per-metric and rate-limited so it never nags.
 
-You can share and reuse your dashboard pages, Deck profiles and themes today — see [Share & import](#share--import-themes-pages-deck-profiles) and trade presets with others on the [Xenon Discord](https://discord.gg/MBVrw9kZyg).
+You can share and reuse your dashboard pages, Deck profiles and themes today: see [Share & import](#share--import) and trade presets with others on the [Xenon Discord](https://discord.gg/MBVrw9kZyg).
 
 ### Privacy
 
-The Gemini API key is stored **only on this PC** (`server/settings.json`) and is never sent to any other service. The local provider runs fully on-device.
+API keys are stored **only on this PC** and go only to the provider they belong to. Local providers run fully on-device.
 
 ---
 
 ## RGB lighting
 
-The dashboard can **drive your Corsair RGB devices from real data** — all from **Settings → Illuminazione (Lighting)**.
+The dashboard can **drive your Corsair RGB devices from real data**, all from **Settings → Lighting**.
 
-![Settings → Lighting configuration](docs/images/lighting.png)
+<img src="docs/images/features/lighting.webp" width="460" alt="Lighting tile">
 
 **Reactive effects:**
 
-- **CPU temperature → colour** — a cool blue → warm red gradient that follows your CPU temp
-- **Timer expiring → pulse** — a red pulse when a countdown finishes
-- **Album art → colour** — the current track's cover colour drives the LEDs (independent of the main bridge toggle; opt-in)
+- **CPU temperature → colour**: a cool blue → warm red gradient that follows your CPU temp
+- **Timer expiring → pulse**: a red pulse when a countdown finishes
+- **Album art → colour**: the current track's cover colour drives the LEDs (independent of the main bridge toggle; opt-in)
 
-**Ambient animations** add motion on top — eight styles: **Solid**, **Breathing**, **Rainbow**, **Wave** (a rainbow that scrolls across your per-LED devices), **Aurora** (a slow northern-lights drift through greens, blues and purples), **Candle** (a warm, organic flame flicker), and **Palette** (your own 2–5 colours blending in a loop, with an in-page palette editor). Every moving style has a speed slider, and Breathing/Candle have their own colour. They play in sync across all your lights (iCUE *and* external), and the render loop only runs while a moving animation is actually painting — zero idle overhead.
+**Ambient animations** add motion on top, in seven styles: **Solid**, **Breathing**, **Rainbow**, **Wave** (a rainbow that scrolls across your per-LED devices), **Aurora** (a slow northern-lights drift through greens, blues and purples), **Candle** (a warm, organic flame flicker), and **Palette** (your own 2–5 colours blending in a loop, with an in-page palette editor). Every moving style has a speed slider, and Breathing/Candle have their own colour. They play in sync across all your lights (iCUE *and* external), and the render loop only runs while a moving animation is actually painting: zero idle overhead.
 
 You can also set a **fixed manual colour** (name or hex) that overrides the effects until you reset it.
 
-**Event flashes:** the timer, notifications, and reminders can each flash the lights with a chosen colour (default red), style — **blink**, **pulse** (breathing), or **solid** — and **duration** (0.5–10 s per event type).
+**Event flashes:** the timer, notifications, and reminders can each flash the lights with a chosen colour (default red), style (**blink**, **pulse** or **solid**) and **duration** (0.5–10 s per event type).
 
-It is designed to **share control with iCUE**, not fight it: turn the bridge off (globally or per device) and it hands the LEDs straight back to your normal iCUE profile. It also **idles automatically while you game** (toggleable). Everything is opt-in and granular — a master switch, per-effect toggles, per-game pause, a brightness slider, and a per-device on/off list — and the bridge is **off by default**.
+It is designed to **share control with iCUE**, not fight it: turn the bridge off (globally or per device) and it hands the LEDs straight back to your normal iCUE profile. It also **idles automatically while you game** (toggleable). Everything is opt-in and granular: a master switch, per-effect toggles, per-game pause, a brightness slider, and a per-device on/off list, and the bridge is **off by default**.
 
-**Xenon AI** can control all of this by voice or chat: *"turn the lights red"*, *"enable the temperature effect"*, *"set the timer effect to a blue pulse"*, *"metti l'aurora sulle luci"*, *"cycle my lights through red, white and green"*, *"turn the lighting off"*.
+**Bit** can control all of this by voice or chat: *"turn the lights red"*, *"enable the temperature effect"*, *"set the timer effect to a blue pulse"*, *"put the aurora on the lights"*, *"cycle my lights through red, white and green"*, *"turn the lighting off"*.
 
 > **Requirements:** iCUE must be running with the **SDK enabled** (iCUE → Settings → enable the SDK). Without it, Lighting shows a friendly "iCUE not detected" notice and the rest of the dashboard is unaffected. The native binding (koffi + iCUE SDK) loads **only when you enable the bridge**, so users who never turn it on pay zero cost.
 
-**Smart lights beyond iCUE.** The hub also drives popular network lights — **Govee** (strips, lamps, monitor backlights), **LIFX** bulbs, **Yeelight** (Xiaomi Wi-Fi bulbs and strips), **WLED** controllers, **Philips Hue** (via the local bridge, on both the current and the legacy bridge API), **Nanoleaf** panels, and — through your existing **Home Assistant** integration — every colour light HA manages (IKEA, Zigbee, Tuya, …) — all from **Settings → Lighting → External systems**. Tap **Search the network** to discover them, or add one by IP; Hue and Nanoleaf pair with a button press; Home Assistant lights appear automatically once the Smart Home integration is configured. They follow the same colours, effects and animations as your iCUE devices, each with its own on/off and per-device mode. Everything is **local, key-free and conflict-free** — no cloud account, no extra software, and nothing that fights iCUE for your Corsair gear. Discovery only runs when you ask, so there's no background scanning.
+**Smart lights beyond iCUE.** The hub also drives popular network lights: **Govee** (strips, lamps, monitor backlights), **LIFX** bulbs, **Yeelight** (Xiaomi Wi-Fi bulbs and strips), **WLED** controllers, **Philips Hue** (via the local bridge, on both the current and the legacy bridge API), **Nanoleaf** panels, and (through your existing **Home Assistant** integration) every colour light HA manages (IKEA, Zigbee, Tuya, …), all from **Settings → Lighting → External systems**. Tap **Search the network** to discover them, or add one by IP; Hue and Nanoleaf pair with a button press; Home Assistant lights appear automatically once the Smart Home integration is configured. They follow the same colours, effects and animations as your iCUE devices, each with its own on/off and per-device mode. Everything is **local, key-free and conflict-free**: no cloud account, no extra software, and nothing that fights iCUE for your Corsair gear. Discovery only runs when you ask, so there's no background scanning.
 
-> **Hue:** the bridge is addressed by the **bridge id** it gave Xenon when you paired it, not just by its address on the network. Its certificate has to match that id or Xenon does not talk to it — so if your router ever hands the bridge's address to some other device, the bridge key stays here instead of going to it.
+> **Hue:** the bridge is addressed by the **bridge id** it gave Xenon when you paired it, not just by its address on the network. Its certificate has to match that id or Xenon does not talk to it, so if your router ever hands the bridge's address to some other device, the bridge key stays here instead of going to it.
 
 > **Govee / Yeelight:** enable *LAN Control* in the Govee Home / Yeelight app (per device) so the light listens on your network.
 
-**Razer Chroma.** Enable **Razer Chroma** (Settings → Illuminazione) and your Razer keyboard, mouse and headset join the hub like any other device — the same ambient, album-art and reactive effects light them up, tinted to your accent. It rides the local Razer Chroma SDK through Xenon's backend (no cloud, off until you turn it on), and hands control straight back to Synapse when you stop. You also get Deck keys and Widget-SDK actions to set any Razer device to a specific colour on demand. Requires **Razer Synapse** with Chroma running.
+**Razer Chroma.** Enable **Razer Chroma** (Settings → Lighting) and your Razer keyboard, mouse and headset join the hub like any other device: the same ambient, album-art and reactive effects light them up, tinted to your accent. It rides the local Razer Chroma SDK through Xenon's backend (no cloud, off until you turn it on), and hands control straight back to Synapse when you stop. You also get Deck keys and Widget-SDK actions to set any Razer device to a specific colour on demand. Requires **Razer Synapse** with Chroma running.
 
-**Elgato Wave Link.** Enable **Wave Link** (Settings → Streaming) to drive your Wave Link audio mixer from Xenon: Deck keys and Widget-SDK actions to set input/output volumes, mute a channel on the local or stream mix, flip monitoring and switch the monitor mix — with a live stream of the mixer so widgets can show real faders. Off by default; requires the **Wave Link** app running.
+**Elgato Wave Link.** Enable **Wave Link** (Settings → Streaming) to drive your Wave Link audio mixer from Xenon: Deck keys and Widget-SDK actions to set input/output volumes, mute a channel on the local or stream mix, flip monitoring and switch the monitor mix, with a live stream of the mixer so widgets can show real faders. Off by default; requires the **Wave Link** app running.
 
-**Voicemeeter.** Windows shows Voicemeeter's virtual cards like any other sound device, so picking one and setting its volume always worked — but everything *inside* the mixer was out of reach. Deck keys and Widget-SDK actions now reach it directly through the Remote API: mute a strip, set or nudge its gain, send a strip to a bus (the A1/A2/B1/B2 buttons), mute or set a bus, and press one of your own macro buttons. A Deck key can also set **any** named parameter the mixer has, which covers the EQ, the compressor, the gate, the patch and the recorder.
+**Voicemeeter.** Windows shows Voicemeeter's virtual cards like any other sound device, so picking one and setting its volume always worked, but everything *inside* the mixer was out of reach. Deck keys and Widget-SDK actions now reach it directly through the Remote API: mute a strip, set or nudge its gain, send a strip to a bus (the A1/A2/B1/B2 buttons), mute or set a bus, and press one of your own macro buttons. A Deck key can also set **any** named parameter the mixer has, which covers the EQ, the compressor, the gate, the patch and the recorder.
 
-The strip and bus pickers are filled from the mixer that is actually running, so the lists are as long as your edition and no longer: Voicemeeter has 3 strips and 2 buses, Banana 5 and 5, Potato 8 and 8. Buses are stored by **label** (A1, B2) rather than by number, because the number behind a label differs per edition — B1 is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato. A live `voicemeeter` stream carries mute, gain and the routing flags so a widget can draw real faders. No setting to switch on: having Voicemeeter installed is the whole opt-in, and on a PC without it nothing loads and the category is not offered. Windows only.
+The strip and bus pickers are filled from the mixer that is actually running, so the lists are as long as your edition and no longer: Voicemeeter has 3 strips and 2 buses, Banana 5 and 5, Potato 8 and 8. Buses are stored by **label** (A1, B2) rather than by number, because the number behind a label differs per edition: B1 is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato. A live `voicemeeter` stream carries mute, gain and the routing flags so a widget can draw real faders. No setting to switch on: having Voicemeeter installed is the whole opt-in, and on a PC without it nothing loads and the category is not offered. Windows only.
 
 **Advanced: OpenRGB.** Power users can also bridge **OpenRGB** (ASUS Aura, MSI, Gigabyte, Razer, RAM, motherboards…) from the collapsed *Advanced* group: run OpenRGB with its SDK Server enabled and add it by IP (it is never auto-scanned). Corsair devices are always skipped there, so OpenRGB and iCUE never fight over the same gear.
 
@@ -440,41 +470,42 @@ The strip and bus pickers are filled from the mixer that is actually running, so
 
 ## Deck
 
-A programmable, **Stream Deck-style key grid** you can add to any dashboard page (and duplicate like any other widget) — styled to look and feel like a real physical device.
+**Keys on your screen.** Any key can also sit on your screen as a small button, over your windows or on the desktop, with one monitor or several: press Put on the screen in the key editor, use Add in edit mode, or ask Bit. A key Bit placed shows every step and runs only after you allow it, and a key you change later asks again.
 
-![The programmable Deck key grid](docs/images/deck.png)
+A programmable, **Stream Deck-style key grid** you can add to any dashboard page (and duplicate like any other widget): styled to look and feel like a real physical device.
+
+<img src="docs/images/features/deck.webp" width="460" alt="The programmable Deck key grid">
 
 - **Tactile, lit keys:** glossy LCD caps in a matte chassis with a soft RGB underglow. Keys press in on tap, lift and brighten on hover, flash while an action runs, and light up and breathe when active.
 - **Key size that fits the tile:** an edit-mode toolbar (✎) offers **Small / Medium / Large** keys. With **Auto** on (default) the Deck shows exactly as many true-square keys as fit the tile (up to 8 columns, Stream Deck XL width); turn Auto off to set columns and rows by hand. Your keys are never dropped when the grid changes.
-- **Built-in music screen:** turn on **Musica** to dock a now-playing LCD-style screen under the keys — album art, title/artist, and transport, tinted by the cover's colours. When idle it shows a **Standby** face (output device + live volume meter).
+- **Built-in music screen:** turn on **Music** to dock a now-playing LCD-style screen under the keys: album art, title/artist, and transport, tinted by the cover's colours. When idle it shows a **Standby** face (output device + live volume meter).
 - **Build your own keys:** add a title, an emoji / vector icon / uploaded image (with fill/fit/icon sizing) and an accent colour; turn a key into a **folder**; add/remove **pages**; and pick a **tap feedback** effect (glow, press, hold, blink, off). A roomy editor with categorized, icon-labelled pickers makes it fast.
-- **Total key styling:** a key face can be a solid colour, a **two-colour gradient** (diagonal / vertical / radial, with one-tap preset pairs) or a **photo with an icon on top** — the picture sits behind the icon under an adjustable tinted scrim and optional blur, so it reads as a backlit cap. Colour the **icon** and the **label** independently, resize both, move the label (bottom / top / hidden), make it bold, and add an ambient **breathe** or **sheen** animation. Animated **GIFs** work as icons and backdrops, and **"Colors from image"** builds a matching gradient from your picture's dominant colours in one tap. A **live preview** beside the editor shows the finished cap as you go. Style once, reuse everywhere: **copy / paste a key's style** or repaint the **whole page** with it.
-- **Whole-device looks:** in edit mode, restyle the entire deck — cap theme (**LCD** gloss, **Flat** minimal, **Neon** rim-glow, **Glass** frost), key shape (**rounded / square / circle**) and faceplate finish (**graphite / carbon fiber / brushed steel / midnight / invisible**, which floats bare keys on the dashboard — and takes the title bar with it, leaving nothing but the keys. Hover the top edge, or tap it on a touchscreen, to bring the profile switcher and the pencil back for a moment; they stay put while you are editing).
+- **Total key styling:** a key face can be a solid colour, a **two-colour gradient** (diagonal / vertical / radial, with one-tap preset pairs) or a **photo with an icon on top**: the picture sits behind the icon under an adjustable tinted scrim and optional blur, so it reads as a backlit cap. Colour the **icon** and the **label** independently, resize both, move the label (bottom / top / hidden), make it bold, and add an ambient **breathe** or **sheen** animation. Animated **GIFs** work as icons and backdrops, and **"Colors from image"** builds a matching gradient from your picture's dominant colours in one tap. A **live preview** beside the editor shows the finished cap as you go. Style once, reuse everywhere: **copy / paste a key's style** or repaint the **whole page** with it.
+- **Whole-device looks:** in edit mode, restyle the entire deck: cap theme (**LCD** gloss, **Flat** minimal, **Neon** rim-glow, **Glass** frost), key shape (**rounded / square / circle**) and faceplate finish (**graphite / carbon fiber / brushed steel / midnight / invisible**, which floats bare keys on the dashboard, and takes the title bar with it, leaving nothing but the keys. Hover the top edge, or tap it on a touchscreen, to bring the profile switcher and the pencil back for a moment; they stay put while you are editing).
 - **Key Logic & Multi-Action:** one key can run a **tap / double-tap / hold** trigger, and each trigger can run a **sequence** of actions with delays (e.g. mute mic → wait → open an app).
 - **Live state:** keys can reflect a live state (mic muted, speaker muted, OBS recording/streaming, remote connected) with an accent ring; OBS keys glow green while recording / red while live, and a scene key shows a small live thumbnail of what's on air.
-- **Two faces on one key:** any key that reflects a state can carry a **second face** — a different icon, label and colour — shown while that state is ON. It lives in the key editor under **Effects → Look while active**, and the second icon is a real icon: pick it from the built-in library, upload a picture, or type an emoji, exactly as you would the key's normal one (an uploaded picture sits as a compact icon rather than taking over the cap, so the swap is a glyph changing and not the key changing shape). Beyond Xenon's own states, **any script on your PC can drive one**: bind the key to *Reflect a script state*, give the state a name, and end your script (`.bat`, PowerShell, AppleScript, Python...) with one line — `curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'`. The key flips face the instant the script runs, on the dashboard and in the Virtual Deck alike.
+- **Two faces on one key:** any key that reflects a state can carry a **second face** (a different icon, label and colour) shown while that state is ON. It lives in the key editor under **Effects → Look while active**, and the second icon is a real icon: pick it from the built-in library, upload a picture, or type an emoji, exactly as you would the key's normal one (an uploaded picture sits as a compact icon rather than taking over the cap, so the swap is a glyph changing and not the key changing shape). Beyond Xenon's own states, **any script on your PC can drive one**: bind the key to *Reflect a script state*, give the state a name, and end your script (`.bat`, PowerShell, AppleScript, Python...) with one line: `curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'`. The key flips face the instant the script runs, on the dashboard and in the Virtual Deck alike.
 - **Profiles:** keep separate key sets (streaming / work / gaming) as profiles. Switch instantly from the faceplate header; create, rename, and delete profiles in edit mode. Switch by voice too ("switch to my streaming profile").
-- **Reusing a profile on another Deck:** every Deck tile is independent — a new one starts empty precisely so that editing it can never disturb the first. To bring a set of keys across, tap the **profile name with the ▾** in the new Deck's header and pick one from **"From another Deck"**: it lands as a copy, keys, icons and look included, reshaped to the new grid, and editing it afterwards leaves the original alone. Only decks actually on your dashboard appear in that picker and in the share picker; if a duplicated Deck tile left profiles behind after you removed it, they show up under **"From a Deck no longer on the dashboard"**, and a one-tap **"Remove decks no longer present"** button in the profile menu (edit mode) clears the leftovers for good.
+- **Reusing a profile on another Deck:** every Deck tile is independent: a new one starts empty precisely so that editing it can never disturb the first. To bring a set of keys across, tap the **profile name with the ▾** in the new Deck's header and pick one from **"From another Deck"**: it lands as a copy, keys, icons and look included, reshaped to the new grid, and editing it afterwards leaves the original alone. Only decks actually on your dashboard appear in that picker and in the share picker; if a duplicated Deck tile left profiles behind after you removed it, they show up under **"From a Deck no longer on the dashboard"**, and a one-tap **"Remove decks no longer present"** button in the profile menu (edit mode) clears the leftovers for good.
 
-**Available actions:** open an app / file / URL · open a Microsoft Store (UWP) app · keyboard shortcut (hotkey, sent to the app behind the dashboard) · **window management (move to next/previous monitor · snap left/right · maximize / minimize / center)** · media controls · mic/speaker mute · per-app volume / mute · **output device (pick your speakers or headphones from a list of what is connected, or flip between two of them on one key, whose look follows the output that is really active)** · app mixer overlay · play sound (soundboard) · OBS (scene / record / stream / mute) · Twitch (clip / marker / ad) · YouTube broadcast · **Discord voice (mute / deafen / push-to-talk / join or leave a voice channel / mic & output volume / audio processing)** · **Home Assistant (toggle a device / activate a scene / call a service)** · Streamer.bot · Remote Control (disconnect / block / cycle monitor) · webhook (GET/POST any URL) · Xenon AI (send prompt / voice session / open chat) · RGB LED reactions. Every action runs through a single **allowlisted dispatcher** on the local server — no arbitrary commands — and a key **flashes red** if an action fails, so it's never a silent no-op.
+**Available actions:** open an app / file / URL · open a Microsoft Store (UWP) app · keyboard shortcut (hotkey, sent to the app behind the dashboard) · **window management (move to next/previous monitor · snap left/right · maximize / minimize / center)** · media controls · mic/speaker mute · per-app volume / mute · **output device (pick your speakers or headphones from a list of what is connected, or flip between two of them on one key, whose look follows the output that is really active)** · app mixer overlay · play sound (soundboard) · OBS (scene / record / stream / mute) · Twitch (clip / marker / ad) · YouTube broadcast · **Discord voice (mute / deafen / push-to-talk / join or leave a voice channel / mic & output volume / audio processing)** · **Home Assistant (toggle a device / activate a scene / call a service)** · Streamer.bot · Remote Control (disconnect / block / cycle monitor) · webhook (GET/POST any URL) · Bit (send prompt / voice session / open chat) · RGB LED reactions. Every action runs through a single **allowlisted dispatcher** on the local server (no arbitrary commands) and a key **flashes red** if an action fails, so it's never a silent no-op.
 
 ---
 
 ## Calendar
 
-![Calendar month view](docs/images/calendar.png)
-![Calendar day modal with event details](docs/images/calendar-2.png)
+<img src="docs/images/features/calendar.webp" width="460" alt="Calendar tile with the month and upcoming events">
 
 - Add, edit, and delete **events** directly on the widget
 - Tap any day to open the **Day Modal** with full event details
-- **Reminder toasts** pop up at the configured time — no external app needed
-- **All-day events** from a subscribed calendar stay in **Upcoming** for the whole day they cover — multi-day ones until their last day — and show *Giornata* rather than a time
-- Stored locally in `server/events.json`
-- **Upcoming events**, under the month grid: how many to list, how far ahead to look, and how many **columns** to lay them out in — all in **Settings → Calendar**. Columns is normally *Automatic*, which fits a second one only when it is wide enough to carry a whole event name; **One** and **Two** decide it yourself, which is what a wide, short panel like the Xeneon Edge tends to want.
+- **Reminder toasts** pop up at the configured time, no external app needed
+- **All-day events** from a subscribed calendar stay in **Upcoming** for the whole day they cover (multi-day ones until their last day) and show *All day* rather than a time
+- Stored on your PC
+- **Upcoming events**, under the month grid: how many to list, how far ahead to look, and how many **columns** to lay them out in, all in **Settings → Calendar**. Columns is normally *Automatic*, which fits a second one only when it is wide enough to carry a whole event name; **One** and **Two** decide it yourself, which is what a wide, short panel like the Xeneon Edge tends to want.
 
 ### External calendar sync (Outlook & Google)
 
-Show events from your real Outlook and Google calendars alongside your local ones. In **Settings → Calendari esterni**, paste each calendar's **iCal (`.ics`) link** (the panel gives step-by-step instructions for Google and Outlook). Each feed gets its own colour, an on/off switch, and an optional reminder toggle; feeds refresh automatically every 15 minutes.
+Show events from your real Outlook and Google calendars alongside your local ones. In **Settings → Calendar → External calendars**, paste each calendar's **iCal (`.ics`) link** (the panel gives step-by-step instructions for Google and Outlook). Each feed gets its own colour, an on/off switch, and an optional reminder toggle; feeds refresh automatically every 15 minutes.
 
 > External events are **read-only** (you can't edit them from the widget). Google's secret link can take hours to reflect changes (Google's side). The link is stored only on your PC. Works with any calendar that publishes an `.ics` link (iCloud, etc.), with no account or sign-in.
 
@@ -482,7 +513,7 @@ Show events from your real Outlook and Google calendars alongside your local one
 
 ## Tasks
 
-![Task tracker with priorities and recurrence](docs/images/tasks.png)
+<img src="docs/images/features/tasks.webp" width="460" alt="Tasks tile with priorities">
 
 Part of the **Agenda** hub (or pull it out into its own tile from the Layout editor).
 
@@ -490,13 +521,13 @@ Part of the **Agenda** hub (or pull it out into its own tile from the Layout edi
 - **Colour-coded priority dots** (red / amber / green) and action buttons (complete / undo / delete)
 - Completed tasks move to a separate section with strikethrough styling
 - Recurring tasks **reset themselves automatically** when their interval elapses
-- Stored locally in `server/tasks.json`
+- Stored on your PC
 
 ---
 
 ## Timers
 
-![Countdown timers with progress rings](docs/images/timers.png)
+<img src="docs/images/features/timer.webp" width="460" alt="Countdown timers with progress rings">
 
 Part of the **Agenda** hub (or its own tile). Create a timer by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
 
@@ -510,66 +541,73 @@ The duration field carries the whole vocabulary, so there is nothing else to lea
 
 A stopwatch shares every control with a countdown, because underneath it is the same clock running the other way: pause, resume, reset, keep and delete all behave identically. It never rings for having finished, since it has no end to reach, and it only interrupts you if you asked it to with `+`. A small mark before its name tells it from a countdown when both are paused, and a chiming one shows how often beside it.
 
-**The add field gets out of the way.** The line of format examples above appears while the row has focus — exactly while you are typing a duration — and is gone the rest of the time. The whole row folds away too: the chevron beside **+** collapses it to a slim **+ New timer** strip, one tap brings it back with the cursor already in the label box, Escape folds it again, and the choice is remembered across restarts. On a wide, short panel that band was a third of the widget for something used once per timer; the timer list gets the space instead.
+**The add field gets out of the way.** The line of format examples above appears while the row has focus (exactly while you are typing a duration) and is gone the rest of the time. The whole row folds away too: the chevron beside **+** collapses it to a slim **+ New timer** strip, one tap brings it back with the cursor already in the label box, Escape folds it again, and the choice is remembered across restarts. On a wide, short panel that band was a third of the widget for something used once per timer; the timer list gets the space instead.
 
-**On a Deck key it looks different, and it has to.** The tile reads one field because you are typing at the moment you start the clock. A Deck key is set up once and pressed weeks later, so it has to know what it starts before you press it — the choice lives in the action list rather than in text typed at press time. There are two:
+**On a Deck key it looks different, and it has to.** The tile reads one field because you are typing at the moment you start the clock. A Deck key is set up once and pressed weeks later, so it has to know what it starts before you press it: the choice lives in the action list rather than in text typed at press time. There are two:
 
 | Deck action | starts |
 | --- | --- |
 | **Start a timer** | a countdown, of the duration you set |
-| **Timer: start a stopwatch** | a stopwatch — leave *Chime every* empty for a silent one, or put a number in it to chime at that interval |
+| **Timer: start a stopwatch** | a stopwatch: leave *Chime every* empty for a silent one, or put a number in it to chime at that interval |
 
-So the `+5` shorthand belongs to the tile, and *Chime every* is the same thing on a key. Reported by someone who read the tile's rules and went looking for them in the Deck editor.
+So the `+5` shorthand belongs to the tile, and *Chime every* is the same thing on a key.
 
 - **SVG ring arc** shows real-time progress around each card
 - Countdown updates ~4×/second for a smooth readout
 - **Pause / Resume / Restart / Delete** on each card
 - **Toast** slides up when a timer finishes (and can flash your RGB lights)
 - **AI integration:** "set a 10-minute timer called Pasta" creates one instantly
-- Persists across server restarts (`server/timers.json`); up to 20 simultaneous timers
+- Persists across restarts; up to 20 simultaneous timers
 
 ---
 
 ## Notes
 
-![Notes scratchpad panel](docs/images/notes.png)
+<img src="docs/images/features/notes.webp" width="460" alt="Notes tile">
 
-- **Keep several notes** and switch between them from a row of tabs — a **＋** starts a new one, each tab titled automatically from its first line
+- **Keep several notes** and switch between them from a row of tabs: a **＋** starts a new one, each tab titled automatically from its first line
 - **Pin** an important note to keep it first; **delete** the current one when you're done
 - Live **word count** and a **saving / saved** indicator along the bottom
-- **Auto-saves** the instant you stop typing; survives server restarts, and Xenon AI and backups keep working with your notes
+- **Auto-saves** the instant you stop typing; survives restarts, and Bit and backups keep working with your notes
 - Plain text, no formatting needed
 
 ---
 
 ## Local search (Spotlight)
 
-Find any file on your PC by describing it the way you would say it — right from the dashboard, with no AI and no internet required.
+<img src="docs/images/features/search.webp" width="460" alt="Search tile with results for lake trip">
 
-- **Pull down to search.** Drag the top bar down and the clock capsule itself stretches and drips into a water drop that becomes the search pill — a short pull is just the effect (the capsule absorbs the drop back with a bounce), a full pull opens the search over the still-visible dashboard, dimmed softly around the pill. A 🔍 button in the top bar (both Full and Minimal) and a **Search** tile from the **"+" → Productivity** palette open the same surface; **Ctrl+Space** works from a keyboard.
-- **Natural phrases, understood offline.** "foto di dicembre", "big pdf", "contratto affitto", "file modificati ieri", "più di 100 mb" — Xenon's own parser turns the phrase into type, date and size filters plus search terms, in Italian and English, with no model involved. Every interpretation shows as a **removable chip**: if "dicembre" was meant as a file name and not a month, tap the chip and it searches as a word instead.
-- **The Living Index.** With the Xenon Helper, the companion keeps an in-memory index of every file under the roots you choose (**all of C:\ until you change it**) — built in seconds, kept current in **real time** by filesystem watchers, instant to query, and honest about its RAM cost. It covers what Windows' own index quietly skips; Windows Search still contributes matches on the **text inside documents**.
-- **Turning the index off is a real off.** The default root applies only until you edit the list: **empty it in Settings → Ricerca and it stays empty**, the index host shuts down and Xenon indexes nothing. Two consequences worth knowing before you do it: the **Disk space** widget reads those same roots, so its map goes empty too, and on Windows the search box still returns results from **Windows' own** search catalog, which is Microsoft's indexer and not Xenon's. Settings says so on the spot: with the list empty, the line under it reads "Indice vivo spento" instead of the file and RAM count. Ranking blends name-match quality, recency, **how often you open each result from Xenon** and folder affinity — signals that never leave your PC.
-- **Safe by construction.** Tapping a result opens it with its normal app; files that could run code (exe, scripts, shortcuts) deliberately refuse to open from search and offer **Show in folder** instead. Actions travel as opaque result ids — the browser never sends a path to the server.
-- **On your main PC too.** An optional **global shortcut** (default Alt+Space, configurable in Settings → Search & disk; needs the Xenon Helper) opens the search on your main monitor: with the **native app** running it is a floating, frameless, always-on-top pill in your exact theme; otherwise a themed window opens instead. Xenon AI uses the same engine by voice or chat: *"apri il contratto dell'affitto"*.
-- Everything is local: no query, file name or result ever leaves your PC. Fully localised in all 11 languages.
+Find any file on your PC by describing it the way you would say it: right from the dashboard, with no AI and no internet required.
+
+- **Pull down to search.** Drag the top bar down and the clock capsule itself stretches and drips into a water drop that becomes the search pill: a short pull is just the effect (the capsule absorbs the drop back with a bounce), a full pull opens the search over the still-visible dashboard, dimmed softly around the pill. A 🔍 button in the top bar (both Full and Minimal) and a **Search** tile from the **"+" → Productivity** palette open the same surface; **Ctrl+Space** works from a keyboard.
+- **Natural phrases, understood offline.** "big pdf", "photos from december", "files changed yesterday", "over 100 mb", "foto di dicembre": Xenon's own parser turns the phrase into type, date and size filters plus search terms, in Italian and English, with no model involved. Every interpretation shows as a **removable chip**: if "december" was meant as a file name and not a month, tap the chip and it searches as a word instead.
+- **The Living Index.** With the Xenon Helper, the companion keeps an in-memory index of every file under the roots you choose (**all of C:\ until you change it**): built in seconds, kept current in **real time** by filesystem watchers, instant to query, and honest about its RAM cost. It covers what Windows' own index quietly skips; Windows Search still contributes matches on the **text inside documents**.
+- **Turning the index off is a real off.** The default root applies only until you edit the list: **empty it in Settings → Search & disk and it stays empty**, the index host shuts down and Xenon indexes nothing. Two consequences worth knowing before you do it: the **Disk space** widget reads those same roots, so its map goes empty too, and on Windows the search box still returns results from **Windows' own** search catalog, which is Microsoft's indexer and not Xenon's. Settings says so on the spot: with the list empty, the line under it reads "Living index off" instead of the file and RAM count. Ranking blends name-match quality, recency, **how often you open each result from Xenon** and folder affinity: signals that never leave your PC.
+- **Safe by construction.** Tapping a result opens it with its normal app; files that could run code (exe, scripts, shortcuts) deliberately refuse to open from search and offer **Show in folder** instead. Actions travel as opaque result ids: the browser never sends a path to the server.
+- **On your main PC too.** An optional **global shortcut** (default Alt+Space, configurable in Settings → Search & disk; needs the Xenon Helper) opens the search on your main monitor: with the **native app** running it is a floating, frameless, always-on-top pill in your exact theme; otherwise a themed window opens instead. Bit uses the same engine by voice or chat: *"open the rental contract"*.
+- **Bit on the bar.** Bit sits on the search bar, on the Search tile and in the overlay, and reacts to what you do. Press him or Ctrl+B to open his chat with what you typed, or pick the last row, "Ask Bit", to send the phrase at once. Paste or attach a picture or a document, same assistant, same Sparks and same limits as everywhere else.
+- The search itself is local: no query, file name or result leaves your PC unless you send it to Bit. Fully localised in all 11 languages.
 
 ---
 
 ## Disk space
 
-Know what is eating your drive — live, with **no scan button**. Add the **Disk space** tile from the **"+" → System** palette (needs the Xenon Helper companion, like the Second screen).
+<img src="docs/images/features/disk.webp" width="460" alt="Disk tile with what fills the drive">
 
-- **One coherent live snapshot.** The widget reads the same **Living Index** the search uses: drives and folders appear as chips with their real volume name/model, letter and filesystem; tapping one composes capacity/free-space pressure, the **treemap** (tap through level by level), largest files, cleanup candidates and duplicate candidates in one bounded pass — not several competing full-index scans. Each level is opened through an opaque server id and includes both subfolders and files stored directly there, so a huge Desktop made mostly of loose files is explained instead of becoming an empty view. The snapshot is cached briefly and the index follows filesystem changes in real time; every destructive decision is still rechecked against the live filesystem. Add another drive with one tap; a "learning" badge shows progress while a new root is indexed, and **Index RAM** says plainly that the adjacent number is memory used to keep files searchable, not disk space.
-- **Safe-to-clean categories, closed by design.** Xenon classifies only what is genuinely safe to remove: temporary files, browser caches, package-manager caches (npm, pip, NuGet, Gradle…), old installers in Downloads, the Recycle Bin, and build folders (`node_modules`, `target`…) **only inside project folders you explicitly name** in Settings. Everything else is shown with its size and has **no delete button** — deleting the wrong file is the one mistake this feature refuses to risk.
-- **The Recycle Bin is the undo.** Every cleanup moves files to the Recycle Bin — never a permanent delete — and a confirmation first shows the count, total size and biggest items. The one exception is emptying the Bin itself, which is labelled as permanent before you confirm. While it works, the widget shows the real current phase — selection verification, move and filesystem verification, then map refresh — rather than a fake percentage. Afterwards it reports exactly what happened: how many files, how much space freed, and where they went.
+Know what is eating your drive: live, with **no scan button**. Add the **Disk space** tile from the **"+" → System** palette (needs the Xenon Helper companion, like the Second screen).
+
+- **One coherent live snapshot.** The widget reads the same **Living Index** the search uses: drives and folders appear as chips with their real volume name/model, letter and filesystem; tapping one composes capacity/free-space pressure, the **treemap** (tap through level by level), largest files, cleanup candidates and duplicate candidates in one bounded pass, not several competing full-index scans. Each level is opened through an opaque server id and includes both subfolders and files stored directly there, so a huge Desktop made mostly of loose files is explained instead of becoming an empty view. The snapshot is cached briefly and the index follows filesystem changes in real time; every destructive decision is still rechecked against the live filesystem. Add another drive with one tap; a "learning" badge shows progress while a new root is indexed, and **Index RAM** says plainly that the adjacent number is memory used to keep files searchable, not disk space.
+- **Safe-to-clean categories, closed by design.** Xenon classifies only what is genuinely safe to remove: temporary files, browser caches, package-manager caches (npm, pip, NuGet, Gradle…), old installers in Downloads, the Recycle Bin, and build folders (`node_modules`, `target`…) **only inside project folders you explicitly name** in Settings. Everything else is shown with its size and has **no delete button**: deleting the wrong file is the one mistake this feature refuses to risk.
+- **The Recycle Bin is the undo.** Every cleanup moves files to the Recycle Bin (never a permanent delete) and a confirmation first shows the count, total size and biggest items. The one exception is emptying the Bin itself, which is labelled as permanent before you confirm. While it works, the widget shows the real current phase (selection verification, move and filesystem verification, then map refresh) rather than a fake percentage. Afterwards it reports exactly what happened: how many files, how much space freed, and where they went.
 - **Real duplicates, not guesses.** Same-size files are verified byte-for-byte (SHA-256) before they are called duplicates; the widget shows the groups and how much space the extra copies waste.
-- **Xenon Storage Advisor + optional AI.** **Open analysis** opens a complete modal inside the Disk tile — never a chat tile that may not exist. Its private deterministic report works with AI disabled and includes drive pressure, human-readable cleanup decisions, a category chart, what every category is for, what happens after cleaning, how to reduce recurrence, verified duplicates, the largest folders/files and a clear “largest does not mean deletable” boundary. If you press **Deepen with AI**, the configured provider receives the selected read-only snapshot and can connect it to your apps, habits and hardware only when the separate **Complete brain for AI search and cleanup** setting is enabled. The request exposes no function tools, so an AI can neither complain that a `disk_insights` tool is missing nor perform an action. The AI **cannot delete anything**: the only thing that starts a deletion is your tap on the confirm button.
+- **Disk analysis, with Bit if you want it.** The Disk tile opens **Disk analysis**: one list that opens row by row. It is private, works with AI off, and shows how full the drive is, what you can free, what each category is for, what happens after cleaning, how to reduce recurrence, verified duplicates and the largest folders and files, with a clear line that the largest does not mean deletable. If you press **Ask Bit**, the provider you chose receives the selected read-only snapshot, and it can connect that to your apps, habits and hardware only when the separate **Full brain for AI cleanup** setting is on. The request exposes no function tools, so the AI cannot perform an action. The AI **cannot delete anything**: the only thing that starts a deletion is your tap on the confirm button.
 - Fully localised in all 11 languages.
 
 ---
 
 ## Developer cleanup
+
+<img src="docs/images/features/devclean.webp" width="460" alt="Developer cleanup tile">
 
 For supporters. On a development PC most of a full drive is not in your files, and the Disk space tile cannot see it: Docker images and build cache, local AI models, editor folders for projects deleted long ago, and the WSL and Docker virtual disks, which grow and never shrink by themselves. Add **Developer cleanup** from the **"+" → System** palette.
 
@@ -583,44 +621,49 @@ For supporters. On a development PC most of a full drive is not in your files, a
 
 ---
 
-## Phone access (Accesso dal telefono)
+## Phone access
 
-> **Beta in v4.11.0.** It works, and it is new. Settings says so where you turn it on.
+> **Beta.** Settings says so where you turn it on.
 
-Xenon has always needed a screen you were willing to give up. You already own one. Turn this on and the dashboard opens on your phone or tablet, on your own Wi-Fi, with nothing to install: **Settings → Telefono → Accesso dal telefono**. It is off until you switch it on.
+Turn this on and the dashboard opens on your phone or tablet, on your own Wi-Fi, with nothing to install: **Settings → Phone → Phone access**. It is off until you switch it on.
 
 - **Pairing is a QR code.** The PC shows one, you point the phone's camera at it, and the dashboard opens in the phone's browser. No account, no cloud, no app. If the camera is not an option, the same page shows the address and a short code to type.
 - **It is your dashboard, not a viewer.** Deck keys really fire on the PC, the music pauses, the settings you change there are the settings on the PC. A paired device may do what the dashboard on the PC does, apart from the handful of things that need somebody standing at that PC (installers, updates, the folder pickers).
-- **A layout made for a phone.** Xenon restacks the same dashboard into one column at phone width, with a bottom bar for the things you reach for most. The Dynamic Island is off there, because its pill is wider than a 390px screen.
+- **It runs what you built, not what it makes up.** Media, volume, lights, timers and the other everyday actions work as asked, and every Deck key you made on the PC presses from the phone. A key that opens a program or a file, runs a script, types text or sends a shortcut runs only if it matches one of your keys exactly, and the phone cannot add such a key to the Deck: it can move, rename or delete keys. The app switcher starts only your favourites and the apps on your Deck, and a phone can remove favourites or change their order but not add one, so a lost phone cannot turn itself into a way to start anything. Calls and texts through the phone paired to the PC, remote desktop setup, switching on PC control, and backups stay at the PC. A device unused for 90 days stops working until it is paired again, and the PC shows a notice whenever a new device pairs.
+- **A layout made for a phone.** Xenon restacks the same dashboard into one column at phone width, with a bottom bar for the things you reach for most. The top bar's capsule is off there, because it is wider than a 390px screen.
 - **Every device is listed and can be removed.** Each one shows its name and when it last connected, can be renamed, and can be revoked on its own or all at once. Revoking one hangs up on it immediately rather than waiting for it to notice, and there is a single switch that turns the whole door off.
-- **An encrypted door for outside the house, if you want it.** Plain Wi-Fi is fine on a network you trust, and it is also why a browser withholds some things from it: installing the page as an app, the microphone, and notifications all need HTTPS. **Accesso sicuro, anche fuori casa** serves the same dashboard over HTTPS on your Tailscale address, with a real certificate, and works from anywhere without opening a port on your router. The plain door is untouched for anyone who does not use Tailscale.
+- **An encrypted door for outside the house, if you want it.** Plain Wi-Fi is fine on a network you trust, and it is also why a browser withholds some things from it: installing the page as an app, the microphone, and notifications all need HTTPS. **Secure access, including away from home** serves the same dashboard over HTTPS on your Tailscale address, with a real certificate, and works from anywhere without opening a port on your router. The plain door is untouched for anyone who does not use Tailscale.
 - **Notifications, per device and off by default.** With the secure door on, each device can switch on its own notifications, so a timer that runs out reaches your pocket with the app closed. Only things you set up notify you. The text is encrypted end to end, and nothing from your calendar or your notes is ever put in it: a lock screen is a public surface.
 - **What it costs you, said on the switch.** A paired device is a way into this PC until you revoke it, which is what the per-device revoke and the kill switch are for. Pairings are tied to the address they were made on, so a device paired locally needs pairing once more on the secure address.
-- Fully localised in all 11 languages. Public guide: [xenonedge.app/phone](https://xenonedge.app/phone.html).
+- Fully localised in all 11 languages. Public guide: [xenon-app.com/phone](https://xenon-app.com/phone.html).
 
 ---
 
-## Phone (Telefono)
+## Phone
 
-The contacts, call history, keypad and messages of the phone paired to this PC over Bluetooth. It reads the phone the way a car does, over the standard Bluetooth profiles (PBAP for the phonebook and call log, MAP for messages), so the same code works with an iPhone and with an Android and there is nothing to install on the phone. Windows only for now. Off by default and switched on in Settings → **Telefono associato**; the **Telefono** tile comes from the **"+" → Productivity** palette.
+<img src="docs/images/features/phone.webp" width="460" alt="Phone tile with recents, contacts, keypad and messages">
 
-- **Recents, contacts, keypad, messages.** The call log tells received, dialled and missed apart, because the direction rides on each entry rather than needing four separate reads. The phonebook is searchable by name or number. The keypad places a real call through the phone. The Messaggi tab lists, opens and replies to text messages.
+The contacts, call history, keypad and messages of the phone paired to this PC over Bluetooth. It reads the phone the way a car does, over the standard Bluetooth profiles (PBAP for the phonebook and call log, MAP for messages), so the same code works with an iPhone and with an Android and there is nothing to install on the phone. Windows only for now. Off by default and switched on in Settings → Phone → **Paired phone**; the **Phone** tile comes from the **"+" → Productivity** palette.
+
+- **Recents, contacts, keypad, messages.** The call log tells received, dialled and missed apart, because the direction rides on each entry rather than needing four separate reads. The phonebook is searchable by name or number. The keypad places a real call through the phone. The Messages tab lists, opens and replies to text messages.
 - **A call announces itself as a fact.** For a phone call the incoming-call card uses the operating system's own signal instead of matching notification text against phrases in 11 languages, so it cannot miss a ring it did not recognise or fire on a message that merely mentioned one. The mirrored notification is left to supply the caller's name, and the two never produce two cards for one call.
 - **Nothing is stored.** Contacts and messages are read on demand, cached in memory, and never written to disk. Nothing is uploaded anywhere.
 - **Message text is hidden until you tap it**, and that is the default rather than a preference to find: an inbox is where one-time login codes arrive, and a dashboard sits on a desk in the open.
 - **Calling and texting ask first**, and the confirmation shows the number in full and the message in full. Neither can be taken back.
-- **By voice, and from the Deck.** Xenon AI has `phone_lookup`, `phone_call` and `phone_message`; the Deck gets **Chiama un numero** and **Manda un messaggio**. The AI may dial a dictated number, but it may only text somebody already in the phonebook: a wrong call is hung up in two seconds, a wrong text reaches a stranger permanently.
-- **What it cannot do, said where you would find out.** You cannot answer or hang up a call from the dashboard: the Bluetooth channel that would accept one is held by the operating system, and there is no public way to ask it to, so there is no button rather than one that does nothing. On Windows, "Collegamento al telefono" holds the message channel whenever it runs and relaunches itself when the phone does anything, so Xenon reports the channel as busy instead of taking it from software you are also using. Calling and texting are refused from a paired phone or tablet, because a call's audio comes out of the PC and a text goes out under your own number; reading works normally from anywhere.
+- **By voice, and from the Deck.** Bit has `phone_lookup`, `phone_call` and `phone_message`; the Deck gets **Call a number** and **Send a message**. Bit may dial a dictated number, but it may only text somebody already in the phonebook: a wrong call is hung up in two seconds, a wrong text reaches a stranger permanently.
+- **What it cannot do, said where you would find out.** You cannot answer or hang up a call from the dashboard: the Bluetooth channel that would accept one is held by the operating system, and there is no public way to ask it to, so there is no button rather than one that does nothing. On Windows, Phone Link holds the message channel whenever it runs and relaunches itself when the phone does anything, so Xenon reports the channel as busy instead of taking it from software you are also using. Calling and texting are refused from a paired phone or tablet, because a call's audio comes out of the PC and a text goes out under your own number; reading works normally from anywhere.
 - Fully localised in all 11 languages.
 
 ---
 
-## File transfer (Trasferimento file)
+## File transfer
 
-Move photos, videos and files between your phone and this PC over your own network, instead of sending them to yourself in a messaging app and downloading them again on the other side. Needs a paired phone or tablet (Settings → **Telefono**); the **Trasferimento file** tile comes from the **"+" → Productivity** palette.
+<img src="docs/images/features/transfer.webp" width="460" alt="File transfer tile">
 
-- **How it works, in the tile.** A **?** beside the title opens the steps: how to send from the phone (pair it in **Settings → Telefono → Aggiungi dispositivo**; the QR opens Xenon in the phone's browser, and adding it to the home screen turns it into an icon; then **Invia al PC** in the bottom bar), how to send the other way, where arriving files land, and the limits. It is on the phone sheet too. The tile had always invited you to “send them from your phone” without saying how — that answer lived here, in this file, which is not where anybody was looking.
-- **From the phone, in three taps.** Open Xenon on the paired device, tap **Foto e video** or **Altri file**, pick what you want. There are two buttons rather than one because a single file filter greys out perfectly ordinary files on Android and hides iCloud Drive on iPhone. On a phone the button is also in the bottom bar, so the tile does not have to be on your layout for you to use it.
+Move photos, videos and files between your phone and this PC over your own network, instead of sending them to yourself in a messaging app and downloading them again on the other side. Needs a paired phone or tablet (Settings → **Phone**); the **File transfer** tile comes from the **"+" → Productivity** palette.
+
+- **How it works, in the tile.** A **?** beside the title opens the steps: how to send from the phone (pair it in **Settings → Phone → Add device**; the QR opens Xenon in the phone's browser, and adding it to the home screen turns it into an icon; then **Send to PC** in the bottom bar), how to send the other way, where arriving files land, and the limits. It is on the phone sheet too.
+- **From the phone, in three taps.** Open Xenon on the paired device, tap **Photos and videos** or **Other files**, pick what you want. There are two buttons rather than one because a single file filter greys out perfectly ordinary files on Android and hides iCloud Drive on iPhone. On a phone the button is also in the bottom bar, so the tile does not have to be on your layout for you to use it.
 - **They land with their own names.** Files are copied into `Download/Xenon` by default, and you can point that anywhere from the PC. If a name is already taken Xenon adds a number: it never replaces a file you already had. Photos are not re-encoded and not resized.
 - **And back the other way.** Drag a file onto the tile from Explorer or Finder, or use the picker, and download it from the phone. Received files can be opened or shown in their folder from the PC; an executable refuses to open and offers to show you where it is instead, exactly like a search result.
 - **Nothing leaves your network.** The files go straight from one device to the other over the LAN, or over Tailscale if you set up the HTTPS door. No account, no relay, no third party.
@@ -632,238 +675,297 @@ Move photos, videos and files between your phone and this PC over your own netwo
 
 ## Notifications
 
-![Notifications](docs/images/notification.png)
-![Discord Notifications](docs/images/discord-notification.png)
+<img src="docs/images/features/notifications.webp" width="460" alt="Notifications tile">
 
 Xenon mirrors your whole PC's pings onto the dashboard so you never have to turn your head or Alt-Tab to see what just happened. Add the **Notifications** tile from the **"+" → Productivity** palette.
 
-- **Every Windows toast, on the dashboard.** WhatsApp, mail, Teams, Discord, game launchers — whatever Windows shows you appears as a live feed with the app's real icon, who wrote, the message and the time. Read **locally** (the same WinRT listener the OS uses) — nothing is installed and nothing ever leaves your PC, and the reader only runs while a dashboard is actually open.
+- **Every Windows toast, on the dashboard.** WhatsApp, mail, Teams, Discord, game launchers: whatever Windows shows you appears as a live feed with the app's real icon, who wrote, the message and the time. It is read **locally** (the same WinRT listener the OS uses): nothing is installed, nothing ever leaves your PC, and the reader only runs while a dashboard is actually open.
 - **Pop-up toasts, redesigned.** Each new notification also slides in as a premium **liquid-glass** toast, haloed by an accent colour pulled from the app's own icon, adapting to light/dark theme; you can **swipe it away** (or press-and-hold to keep reading). Reduced-motion is respected.
-- **Private by design.** One tap turns it on. An **eye button** hides content until you tap (shows only the app name — handy when others can see the panel), and every row has a **per-app mute** with a manager to unmute later. At most the last 30 notifications are kept.
-- **Discord DMs & mentions too.** The **Discord** widget has a **Notifications tab** that mirrors your Discord DMs, mentions and watched-channel messages, read from your own Discord desktop app over the same local connection the voice controls use — no bot, nothing installed.
-- **Works with or without the native helper.** The Xenon Helper reads notifications natively; without it a PowerShell fallback does the same. If Windows blocks notification access, the tile says so and points at the exact setting. One master switch in **Settings → Notifiche** turns pop-ups (or everything) off and stops the background readers. Fully localised (EN/IT/KO/JA/ZH).
+- **Private by design.** One tap turns it on. An **eye button** hides content until you tap (shows only the app name: handy when others can see the panel), and every row has a **per-app mute** with a manager to unmute later. At most the last 30 notifications are kept.
+- **Discord DMs & mentions too.** The **Discord** widget has a **Notifications tab** that mirrors your Discord DMs, mentions and watched-channel messages, read from your own Discord desktop app over the same local connection the voice controls use, with no bot and nothing installed. Each DM or mention has a **Reply** button that brings Discord to the front on the PC with that conversation open (Windows, macOS and Linux). Xenon cannot send the message itself: Discord's local connection has no command for it, and using the account token instead would be a self bot, which Discord bans.
+- **Tap a notification, open its app.** Tapping a row brings the app it came from to the front, or starts it when it is closed, and a new notification's pop-up has an **Open** button. It works for apps installed on the PC, on Windows and Linux; a notification from a web page brings the browser forward when it is open. From a paired phone the tap does nothing, since the app would open on the PC. A Deck key (**Open the notification's app**) and Bit do the same.
+- **Works with or without the native helper.** The Xenon Helper reads notifications natively; without it a PowerShell fallback does the same. If Windows blocks notification access, the tile says so and points at the exact setting. One master switch in **Settings → Notifications** turns pop-ups (or everything) off and stops the background readers. Fully localised in all 11 languages.
 
-> Notifications can also drive your **RGB lighting** — set a colour for the *Notifiche* event under Settings → Illuminazione → Effetti evento and your lights blink/pulse when a notification arrives (Windows or Discord), staying out of the way during full-screen gaming.
+> Notifications can also drive your **RGB lighting**: set a colour for the *Notifications* event under Settings → Lighting → Event effects and your lights blink/pulse when a notification arrives (Windows or Discord), staying out of the way during full-screen gaming.
 
 ---
 
 ## Incoming calls
 
-When a call comes in, the dashboard takes the screen: a full-screen card with who is calling, the app they are calling from, and the three things you might want to do about it — **Answer**, **Decline**, **Silence**. It rings on the Xeneon Edge, in the native app, in a browser tab and on a paired phone at the same time, and dealing with it on any one of them closes it everywhere. Turn it on in **Settings → Notifiche → Chiamate in arrivo**.
+When a call comes in, the dashboard takes the screen: a full-screen card with who is calling, the app they are calling from, and the three things you might want to do about it: **Answer**, **Decline**, **Silence**. It rings on the Xeneon Edge, in the native app, in a browser tab and on a paired phone at the same time, and dealing with it on any one of them closes it everywhere. Turn it on in **Settings → Notifications → Incoming calls**.
 
-- **Answering means different things, and Xenon only offers what is real.** Every card is drawn from a capability the server worked out for *your* machine, so you never get a button that does nothing. **Discord** is answered outright over the local connection the voice controls already use, on Windows, macOS and Linux alike, with no window jumping to the front. **Teams and Zoom** are answered the way you would by hand: Xenon brings their window forward and presses the shortcut each app documents (Teams `Ctrl/Cmd+Shift+S` for audio, `+Shift+A` for video, `+Shift+D` to decline; Zoom `Ctrl+Shift+A` and `Ctrl+Shift+D`, Control on macOS too). Where nothing can pick up — a phone call mirrored from Phone Link, WhatsApp, Slack — the card rings, silences and offers to **open the app**, and says so in one line rather than leaving a gap where a button should be.
+- **Answering means different things, and Xenon only offers what is real.** Every card is drawn from a capability the server worked out for *your* machine, so you never get a button that does nothing. **Discord** is answered outright over the local connection the voice controls already use, on Windows, macOS and Linux alike, with no window jumping to the front. **Teams and Zoom** are answered the way you would by hand: Xenon brings their window forward and presses the shortcut each app documents (Teams `Ctrl/Cmd+Shift+S` for audio, `+Shift+A` for video, `+Shift+D` to decline; Zoom `Ctrl+Shift+A` and `Ctrl+Shift+D`, Control on macOS too). Where nothing can pick up (a phone call mirrored from Phone Link, WhatsApp, Signal, Slack) the card rings, silences and offers to **open the app**, and says so in one line rather than leaving a gap where a button should be.
 - **It reaches you away from the desk.** A paired phone gets a push notification with the caller's name, so the call lands even with the screen off. The audio stays on the PC, though: answering from your phone means the *PC* picks up, which is what you want when your headset is on and you are mid-game, and not what you want from another room. Settings can turn the push off without turning the card off.
-- **How it knows, and where that is a guess.** Discord reports a ringing call directly over its local connection, so that path needs no guessing at all. Everything else is read from the notification mirror, because neither Windows nor Linux gives an application a way to ask whether a notification *is* a call — Windows exposes no toast scenario flag to a listener (measured). So outside Discord, Xenon reads the wording, in all eleven languages it speaks, and deliberately ignores anything that reads as a **missed**, **ended** or **declined** call so a card never appears for something you cannot act on. It can still miss a call or, occasionally, fire on a message that talks about one — which is why **every app has its own switch** in Settings and the card is always dismissible.
-- **A ringtone you can stop, and a card that knows when it is over.** It rings until you answer or silence it, and silencing on the phone silences the Edge too. When the caller hangs up, the same channel that announced the call announces its end, and the card goes immediately — it does not wait out the ring. If that message never arrives the card still closes itself once a real ring would have finished, so it can never sit there indefinitely.
+- **How it knows, and where that is a guess.** Discord reports a ringing call directly over its local connection, so that path needs no guessing at all. Everything else is read from the notification mirror, because neither Windows nor Linux gives an application a way to ask whether a notification *is* a call: Windows exposes no toast scenario flag to a listener (measured). So outside Discord, Xenon reads the wording, in all eleven languages it speaks, and deliberately ignores anything that reads as a **missed**, **ended** or **declined** call so a card never appears for something you cannot act on. It can still miss a call or, occasionally, fire on a message that talks about one, which is why **every app has its own switch** in Settings and the card is always dismissible.
+- **A ringtone you can stop, and a card that knows when it is over.** It rings until you answer or silence it, and silencing on the phone silences the Edge too. When the caller hangs up, the same channel that announced the call announces its end, and the card goes immediately: it does not wait out the ring. If that message never arrives the card still closes itself once a real ring would have finished, so it can never sit there indefinitely.
 - **Platform notes.** macOS gives no app a way to read another app's notifications, so on a Mac only Discord raises a card. Pressing a shortcut into another window needs the Xenon Helper allowed under **Accessibility** on macOS, and `xdotool` (X11) or `ydotool` (Wayland) on Linux; where that is missing, Settings says which permission or package is the reason instead of leaving you to guess at a missing button.
 
 ---
 
 ## Weather
 
-![Weather current conditions](docs/images/weather.png)
+<img src="docs/images/features/weather.webp" width="460" alt="Weather tile">
 
-- **Current conditions** — temperature, feels-like, humidity, wind speed/direction, pressure, visibility, UV index, cloud cover, precipitation
-- **Multi-day forecast** — daily high/low and condition summary; choose **1 to 7 days** in Settings → Weather (Open-Meteo/MET Norway cover the full week; wttr.in provides up to 3)
+- **Current conditions**: temperature, feels-like, humidity, wind speed/direction, pressure, visibility, UV index, cloud cover, precipitation
+- **Multi-day forecast**: daily high/low and condition summary; choose **1 to 7 days** in Settings → Weather (Open-Meteo/MET Norway cover the full week; wttr.in provides up to 3)
 - **8-hour hourly timeline** (scrollable)
 - Location **auto-detected via IP** or set manually to your city (your choice persists)
 - **°C / °F** toggle applies everywhere instantly
 - Tap the weather chip in the top bar to open the full detail modal
-- Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and multi-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). If the card takes more room than you want to give it, set **Current conditions → One line** in Settings → Weather: the card becomes a single row (icon and temperature, the condition with feels-like under it, wind and precipitation on the right) and the hours and days get the rest of the tile, so the tile can be made shorter. The row still opens the full weather view, and on a narrow tile it drops precipitation, then wind, but never feels-like. Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
-- **Choosable data source** (Settings → Weather): **Automatic** (recommended — tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)** — all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
-- Refreshed every 10 minutes; condition descriptions follow the widget language; **air quality via Open-Meteo** — air-quality index, PM2.5, PM10, NO₂, and **pollen** (where available, e.g. across Europe), each colour-coded by severity and individually toggleable
+- Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette, the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and multi-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). If the card takes more room than you want to give it, set **Current conditions → One line** in Settings → Weather: the card becomes a single row (icon and temperature, the condition with feels-like under it, wind and precipitation on the right) and the hours and days get the rest of the tile, so the tile can be made shorter. The row still opens the full weather view, and on a narrow tile it drops precipitation, then wind, but never feels-like. Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
+- **Choosable data source** (Settings → Weather): **Automatic** (recommended: tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)**, all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
+- Refreshed every 10 minutes; condition descriptions follow the widget language; **air quality via Open-Meteo**: air-quality index, PM2.5, PM10, NO₂, and **pollen** (where available, e.g. across Europe), each colour-coded by severity and individually toggleable
 
 ---
 
-## Stocks (Borsa)
+## Stocks
 
-![Borsa widget — live watchlist with sparklines](docs/images/stocks-widget.png)
-![Borsa detail — price chart with 1D/1W/1M/1Y ranges](docs/images/stocks-chart.png)
-![Scrolling ticker bar](docs/images/stocks-ticker.png)
+<img src="docs/images/features/stocks.webp" width="460" alt="Stocks tile with a live watchlist and sparklines">
 
-Track stocks, indices, crypto and currencies right on the dashboard. Add the **Borsa** tile from the **"+" → Productivity** palette.
+Track stocks, indices, crypto and currencies right on the dashboard. Add the **Stocks** tile from the **"+" → Productivity** palette.
 
-- **Live watchlist** — each row shows the name, price, day change (green up / red down) and a small **sparkline** of today's move. Tap a row for the detail view.
-- **Detail view with charts** — a clean SVG price chart with **1D / 1W / 1M / 1Y** ranges, a dashed baseline at the previous close, a hover crosshair, plus the **day range**, **52-week range** and exchange.
-- **Your order** — drag a row by the handle on its left to move it. The list is yours to arrange: the tile and the scrolling ticker both follow it, and the new order is saved as soon as you let go. The handle appears from two symbols up.
-- **Favorites & alerts** — add any symbol from the widget (e.g. `AAPL`, `ENI.MI`, `BTC-EUR`, `^GSPC`). When a favorite moves sharply during the day (past a threshold you set in **Settings → Borsa & Ticker**, 2% by default) Xenon pops a toast and can **flash your RGB lighting** — gated by the master **Notifiche** switch, and never repeating the same move twice a day.
-- **Scrolling ticker** — an opt-in bar (Settings → Borsa & Ticker) streams your stocks across the **bottom** edge (configurable to the top, or hidden, with adjustable speed). It **freezes automatically in Performance / Game mode** (and while a modal is open or the dashboard is idle), so it never competes with a game for the GPU.
-- **Data source** — works **keyless** with **Yahoo Finance** by default, covering **Borsa Italiana** (`.MI`), world indices, US stocks, crypto and FX. Optional free **Twelve Data** or **Finnhub** keys (Settings → Borsa & Ticker) unlock richer/official data; without a key everything still works.
-- **Ask Xenon** — the assistant answers "how's Apple / the FTSE MIB doing", reads your watchlist and adds favorites, by voice or text.
-- Deliberately light: no new dependencies, SVG charts, quotes fetched only while a dashboard is open and streamed over the live channel. Fully localised (EN/IT/KO/JA/ZH). *(A News feed for the same widget and ticker is coming next.)*
+- **Live watchlist**: each row shows the name, price, day change (green up / red down) and a small **sparkline** of today's move. Tap a row for the detail view.
+- **Detail view with charts**: a clean SVG price chart with **1D / 1W / 1M / 1Y** ranges, a dashed baseline at the previous close, a hover crosshair, plus the **day range**, **52-week range** and exchange.
+- **Your order**: drag a row by the handle on its left to move it. The list is yours to arrange: the tile and the scrolling ticker both follow it, and the new order is saved as soon as you let go. The handle appears from two symbols up.
+- **Favorites & alerts**: add any symbol from the widget (e.g. `AAPL`, `ENI.MI`, `BTC-EUR`, `^GSPC`). When a favorite moves sharply during the day (past a threshold you set in **Settings → Stocks, Football & News**, 2% by default) Xenon pops a toast and can **flash your RGB lighting**, gated by the master **Notifications** switch and never repeating the same move twice a day. Alerts run only when the ticker is on, the tile sits on a page or you picked your own list.
+- **Scrolling ticker**: an opt-in bar (Settings → Stocks, Football & News) streams your stocks across the **bottom** edge (configurable to the top, or hidden, with adjustable speed). It **freezes automatically in Performance / Game mode** (and while a modal is open or the dashboard is idle), so it never competes with a game for the GPU.
+- **Data source**: works **keyless** with **Yahoo Finance** by default, covering **Borsa Italiana** (`.MI`), world indices, US stocks, crypto and FX. Optional free **Twelve Data** or **Finnhub** keys (Settings → Stocks, Football & News) unlock richer/official data; without a key everything still works.
+- **Ask Bit**: it answers "how's Apple / the FTSE MIB doing", reads your watchlist and adds favorites, by voice or text.
+- Deliberately light: no new dependencies, SVG charts, quotes fetched only while a dashboard is open and streamed over the live channel. Fully localised in all 11 languages.
 
 ---
 
-## Football (Calcio)
-![Calcio widget — favorite teams with results and fixtures](docs/images/football-widget.png)
-![Calcio detail — match hero, results and league table](docs/images/football-detail.png)
+## Football
 
-Follow your football clubs right on the dashboard. Add the **Calcio** tile from the **"+" → Productivity** palette.
+<img src="docs/images/features/football.webp" width="460" alt="Football tile with the match that matters and the fixtures">
 
-- **The match that matters, up top** — the tile leads with one match chosen across everything you follow: the game in play, else the next kickoff, else the most recent result. Both crests, the score or the kickoff time, the competition, the matchday and the ground, tinted with the home club's own colours.
-- **Partite** — every followed team's and competition's fixtures merged into one list grouped by day (Oggi, Domani, then by date, with results underneath). A match between two clubs you follow appears once, not once per club, and the club that is yours is highlighted in the row.
-- **Classifica** — the league table as a tab of its own, with a chip per followed competition, your clubs highlighted, and each side's last five results as W/D/L.
-- **Notizie** — headlines about the clubs and competitions you follow, in your interface language, through the same RSS reader the News tile uses. Fetched only when you open the tab and reused for 15 minutes.
-- **Follow competitions too** — search **Champions League, Serie A, World Cup, Europa League, Premier League** (and the other top leagues and cups) and follow the *competition* itself: its matches join the same feed and its table joins the Classifica tab.
-- **Club identity, fetched once** — crest, club colours, ground, capacity and year founded are fetched per club and kept for a day, so a crest no longer depends on there being a fixture. With nothing scheduled (off-season, an international break) the tile shows your clubs as cards instead of an empty list.
-- **Team detail** — that identity, then the match **hero**, the last handful of **results**, the **upcoming fixtures**, and the **live league table** with your team highlighted.
-- **Add by searching** — the **+** next to the tabs opens the search: type a club or competition name ("Napoli", "Arsenal", "Champions League") and pick it from a live dropdown that shows whether it's a club or a competition. The same panel lists what you follow, for removing or opening.
-- **Goal & full-time alerts** — when a followed team scores or a match ends, Xenon pops a toast and can **flash your RGB lighting** — gated by the master **Notifiche** switch, never repeating and never spamming on startup.
-- **Scrolling ticker** — turn on the football source (Settings → Borsa & Ticker) and your teams' scores and next fixtures scroll across the ticker, with live matches highlighted.
-- **Data source** — works **keyless** with **TheSportsDB** by default (fixtures, results, crests, standings for Serie A and every major league). An optional **TheSportsDB Premium** key (Settings → Calcio) unlocks **live scores** during matches; without it everything else still works.
-- **Ask Xenon** — "how did Napoli do", "when does Inter play next", "read me the Serie A table", by voice or text.
-- Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. The tile adapts to its own size (the hero steps aside on a short layout, the form column on a narrow one), so it works on a phone and on the Edge. Fully localised (EN/IT/KO/JA/ZH/NL).
+Follow your football clubs right on the dashboard. Add the **Football** tile from the **"+" → Productivity** palette.
+
+- **The match that matters, up top**: the tile leads with one match chosen across everything you follow: the game in play, else the next kickoff, else the most recent result. Both crests, the score or the kickoff time, the competition, the matchday and the ground, tinted with the home club's own colours.
+- **Matches**: every followed team's and competition's fixtures merged into one list grouped by day (Today, Tomorrow, then by date, with results underneath). A match between two clubs you follow appears once, not once per club, and the club that is yours is highlighted in the row.
+- **Table**: the league table as a tab of its own, with a chip per followed competition, your clubs highlighted, and each side's last five results as W/D/L.
+- **News**: headlines about the clubs and competitions you follow, in your interface language, through the same RSS reader the News tile uses. Fetched only when you open the tab and reused for 15 minutes.
+- **Follow competitions too**: search **Champions League, Serie A, World Cup, Europa League, Premier League** (and the other top leagues and cups) and follow the *competition* itself: its matches join the same feed and its table joins the Table tab.
+- **Club identity, fetched once**: crest, club colours, ground, capacity and year founded are fetched per club and kept for a day, so a crest no longer depends on there being a fixture. With nothing scheduled (off-season, an international break) the tile shows your clubs as cards instead of an empty list.
+- **Team detail**: that identity, then the match **hero**, the last handful of **results**, the **upcoming fixtures**, and the **live league table** with your team highlighted.
+- **Add by searching**: the **+** next to the tabs opens the search: type a club or competition name ("Napoli", "Arsenal", "Champions League") and pick it from a live dropdown that shows whether it's a club or a competition. The same panel lists what you follow, for removing or opening.
+- **Goal & full-time alerts**: when a followed team scores or a match ends, Xenon pops a toast and can **flash your RGB lighting**, gated by the master **Notifications** switch, never repeating and never spamming on startup.
+- **Scrolling ticker**: turn on the football source (Settings → Stocks, Football & News) and your teams' scores and next fixtures scroll across the ticker, with live matches highlighted.
+- **Data source**: works **keyless** with **TheSportsDB** by default (fixtures, results, crests, standings for Serie A and every major league). An optional **TheSportsDB Premium** key (Settings → Stocks, Football & News) unlocks **live scores** during matches; without it everything else still works.
+- **Ask Bit**: "how did Napoli do", "when does Inter play next", "read me the Serie A table", by voice or text.
+- Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. The tile adapts to its own size (the hero steps aside on a short layout, the form column on a narrow one), so it works on a phone and on the Edge. Fully localised in all 11 languages.
+
+---
 
 ## Claude Code
 
+<img src="docs/images/features/claude.webp" width="460" alt="Claude Code tile">
+
 If you use **Claude Code** on your PC, this tile shows what your sessions are doing, answers them, and keeps your quota in view. Add the **Claude Code** tile from the **"+" → System** palette, then press **Connect Claude Code** on it. Token counts work before you connect; the real quota, exact session state, approvals and questions need the connection.
 
-- **Requests first** — when Claude Code asks permission to run a command or change a file, the card sits at the top of the tile with the exact command and **Allow** / **Deny**, and says what the request would reach: publishing your work (`git push`, `npm publish`), the network, a file outside the project folder, or something that cannot be undone. Those last ones take over the screen at once and are allowed by **holding** the button. Any request left for 25 seconds takes over the screen too; nothing is approved for you, and after nine minutes it goes back to the terminal.
-- **Questions from Claude** — a multiple-choice question appears with its options as buttons; your pick reaches the session and Claude carries on. **In the terminal** hands it back.
-- **Live** — a row for each session: its state (working, waiting for you, idle), the step it is on and for how long, its tool calls over the last ten minutes, its own plan, how full its context is, the sub-agents running and the lines it changed. Tap a row to read the conversation or send a follow-up.
-- **The real quota** — the 5-hour and 7-day windows of a Pro or Max plan, each with a countdown to its reset, a mark where an even pace would be now, and one sentence saying where the current pace ends. On an API key the tile measures a weekly budget you set instead.
-- **Usage** — the last 30 days: today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model.
-- **Ask and Deck keys** — start Claude Code in one of your projects from the tile or from a Deck key, and stop a run from the dashboard.
-- **The Xenon mod** — pressing **Connect Claude Code** also asks Claude Code to install a small mod from this project's GitHub page, at its next start. It adds each sub-agent's model to the tile, updates the context gauge and the limits the moment they change, and gives Claude Code a `/xenon` command that says whether Xenon hears the session, without using tokens. Under the prompt a line appears only when something needs you: Xenon closed or not linked, or an approval waiting on the dashboard. It sends numbers, model names and agent ids, never what you type or the content of your files. An option, off by default, also shows permission requests as cards on the dashboard for a wait you set (30 seconds unless changed); with no tap the terminal asks as usual, and a command longer than 800 characters is never sent. It needs a Claude Code that supports mods. To install by hand: `/plugin install xenon --marketplace marcimastro98/Xenon`. Disconnecting removes it.
-- **Local** — usage is read from Claude Code's own session files in `~/.claude`; live state arrives from Claude Code's hooks and status line on `127.0.0.1`, each report carrying a key Xenon created. Connecting backs up your `settings.json` first and keeps a status line you already had. Fully localised (11 languages).
+- **Requests first**: when Claude Code asks permission to run a command or change a file, the card sits at the top of the tile with the exact command and **Allow** / **Deny**, and says what the request would reach: publishing your work (`git push`, `npm publish`), the network, a file outside the project folder, or something that cannot be undone. Those last ones take over the screen at once and are allowed by **holding** the button. Any request left for 25 seconds takes over the screen too; nothing is approved for you, and after nine minutes it goes back to the terminal.
+- **Questions from Claude**: a multiple-choice question appears with its options as buttons; your pick reaches the session and Claude carries on. **In the terminal** hands it back.
+- **Live**: a row for each session with its state (working, waiting for you, idle), the step it is on and for how long, its tool calls over the last ten minutes, its own plan, how full its context is, the sub-agents running and the lines it changed. Tap a row to read the conversation or send a follow-up.
+- **The real quota**: the 5-hour and 7-day windows of a Pro or Max plan, each with a countdown to its reset, a mark where an even pace would be now, and one sentence saying where the current pace ends. On an API key the tile measures a weekly budget you set instead.
+- **Usage**: the last 30 days: today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model.
+- **Ask and Deck keys**: start Claude Code in one of your projects from the tile or from a Deck key, and stop a run from the dashboard.
+- **The Xenon mod**: pressing **Connect Claude Code** also asks Claude Code to install a small mod from this project's GitHub page, at its next start. It adds each sub-agent's model to the tile, updates the context gauge and the limits the moment they change, and gives Claude Code a `/xenon` command that says whether Xenon hears the session, without using tokens. Under the prompt a line appears only when something needs you: Xenon closed or not linked, or an approval waiting on the dashboard. It sends numbers, model names and agent ids, never what you type or the content of your files. An option, off by default, also shows permission requests as cards on the dashboard for a wait you set (30 seconds unless changed); with no tap the terminal asks as usual, and a command longer than 800 characters is never sent. It needs a Claude Code that supports mods. To install by hand: `/plugin install xenon --marketplace marcimastro98/Xenon`. Disconnecting removes it.
+- **Local**: usage is read from Claude Code's own session files in `~/.claude`; live state arrives from Claude Code's hooks and status line on `127.0.0.1`, each report carrying a key Xenon created. Connecting backs up your `settings.json` first and keeps a status line you already had. Fully localised (11 languages).
 
 ---
 
 ## Codex
 
+<img src="docs/images/features/openaicodex.webp" width="460" alt="Codex tile">
+
 If you use **OpenAI Codex**, in the ChatGPT desktop app, the Codex extension for your editor or the `codex` command, this tile shows your plan and the sessions working on this PC. Add the **Codex** tile from the **"+" → System** palette. The plan side works as soon as Codex is installed and signed in; sessions and approvals need **Codex → Connect** on the tile, then trusting the Xenon hooks once in Codex with `/hooks`.
 
-- **Requests first** — when a Codex session asks to run a command or change files, the card sits at the top of the tile with the command, or the list of files with the deletes marked, and **Allow**, **Deny** or **Answer in Codex**. It says what makes the request unusual (the network, publishing, outside the project, more access than the session has, or something that cannot be undone); a request that cannot be undone is allowed by **holding** the key. A request left for 25 seconds takes over the screen. While it waits here Codex shows no prompt of its own, so after 90 seconds it goes back to Codex (Settings → Codex). Nothing is approved for you.
-- **Plan usage** — the usage windows Codex reports for your plan, labelled by their real length (5 hours and a week on a paid plan, one 30-day window on Free), each with the time to its reset and a mark where an even pace would be now, plus credits when your plan has them.
-- **Live** — a row for each session the hooks report (what you asked, the model, working or waiting for you) and the conversations Codex lists, with where they ran: the ChatGPT app, the terminal or the editor.
-- **Usage** — tokens today, over 7 and 30 days and in total, and a column for each of the last 30 days. The numbers are your whole account's, as Codex reports them.
-- **How it works** — the plan side comes from `codex app-server`, the program the ChatGPT app and the editor extension use to talk to Codex, which Xenon runs only while the tile is on a dashboard and closes when it is not needed. The live side comes from five hooks in `~/.codex/hooks.json`, which run a small script on this PC and report to `127.0.0.1` with a key Xenon created. Connecting backs up `hooks.json` first and leaves your own hooks as they are; Xenon never marks a hook trusted for you. Fully localised (11 languages).
+- **Requests first**: when a Codex session asks to run a command or change files, the card sits at the top of the tile with the command, or the list of files with the deletes marked, and **Allow**, **Deny** or **Answer in Codex**. It says what makes the request unusual (the network, publishing, outside the project, more access than the session has, or something that cannot be undone); a request that cannot be undone is allowed by **holding** the key. A request left for 25 seconds takes over the screen. While it waits here Codex shows no prompt of its own, so after 90 seconds it goes back to Codex (Settings → Claude Code and Codex). Nothing is approved for you.
+- **Plan usage**: the usage windows Codex reports for your plan, labelled by their real length (5 hours and a week on a paid plan, one 30-day window on Free), each with the time to its reset and a mark where an even pace would be now, plus credits when your plan has them.
+- **Live**: a row for each session the hooks report (what you asked, the model, working or waiting for you) and the conversations Codex lists, with where they ran: the ChatGPT app, the terminal or the editor.
+- **Usage**: tokens today, over 7 and 30 days and in total, and a column for each of the last 30 days. The numbers are your whole account's, as Codex reports them.
+- **How it works**: the plan side comes from `codex app-server`, the program the ChatGPT app and the editor extension use to talk to Codex, which Xenon runs only while the tile is on a dashboard and closes when it is not needed. The live side comes from five hooks in `~/.codex/hooks.json`, which run a small script on this PC and report to `127.0.0.1` with a key Xenon created. Connecting backs up `hooks.json` first and leaves your own hooks as they are; Xenon never marks a hook trusted for you. Fully localised (11 languages).
 
 ---
 
 ## Ask ChatGPT
 
+<img src="docs/images/features/chatgpt.webp" width="460" alt="ChatGPT tile">
+
 A chat tile answered by your own **ChatGPT plan**, without an API key. Add **Ask ChatGPT** from the **"+" → Media** palette.
 
-- **How it answers** — ChatGPT has no way for another app to read or continue your chats, so the tile asks through OpenAI's **Codex** on this PC, signed in with your ChatGPT account: the official program, read-only, with no tools and no files. It needs Codex installed and signed in (the ChatGPT app, the Codex extension for your editor or the `codex` command) and says so when it is not.
-- **Conversations** — follow-ups carry the conversation so far. **Chats** lists them, opens one or deletes it, and holds the model picker (the list comes from Codex). Up to 40 conversations are kept on this PC; they do not appear in your ChatGPT history.
-- **While it thinks** — a line counts the seconds, with **Stop**. The answer arrives on every screen showing the tile, so you can ask from the phone and read on the Edge.
-- **The plan** — the header shows the busiest usage window of your plan (the same numbers as the Codex tile), since these answers count against it. Fully localised (11 languages).
+- **How it answers**: ChatGPT has no way for another app to read or continue your chats, so the tile asks through OpenAI's **Codex** on this PC, signed in with your ChatGPT account: the official program, read-only, with no tools and no files. It needs Codex installed and signed in (the ChatGPT app, the Codex extension for your editor or the `codex` command) and says so when it is not.
+- **Conversations**: follow-ups carry the conversation so far. **Chats** lists them, opens one or deletes it, and holds the model picker (the list comes from Codex). Up to 40 conversations are kept on this PC; they do not appear in your ChatGPT history.
+- **While it thinks**: a line counts the seconds, with **Stop**. The answer arrives on every screen showing the tile, so you can ask from the phone and read on the Edge.
+- **The plan**: the header shows the busiest usage window of your plan (the same numbers as the Codex tile), since these answers count against it. Fully localised (11 languages).
 
 ---
 
 ## News
-![News widget — headlines from followed outlets and topics](docs/images/news-widget.png)
+
+<img src="docs/images/features/news.webp" width="460" alt="News tile with headlines from followed outlets and topics">
 
 A single, time-sorted stream of headlines from the outlets and topics you follow. Add the **News** tile from the **"+" → Productivity** palette.
 
-- **Merged headline stream** — every followed feed in one list, newest first, each row with the **outlet**, relative time and (when available) a **thumbnail**. Tap to open the article.
-- **Follow outlets and topics** — open the manage panel (gear) and search a curated list of major outlets (ANSA, Repubblica, Corriere, Il Post, Sky TG24, Gazzetta, BBC, The Guardian, The Verge, TechCrunch…), or type any subject to follow it as a topic. Followed feeds show as removable chips.
-- **Data source** — works **keyless**: outlet **RSS** feeds and **Google News** (in your language) for topics. An optional **NewsData.io** key (Settings → News) enriches topics with more articles and images; without it everything still works.
-- **Scrolling ticker** — turn on the news source (Settings → Borsa & Ticker) and your latest headlines scroll across the ticker.
-- **Ask Xenon** — "what's in the news", "any news about AI", "latest headlines", by voice or text.
-- Deliberately light: no new dependencies (a small hand-rolled RSS reader), lazy thumbnails, article links opened only after an https check, data fetched only while a dashboard is open. Fully localised (EN/IT/KO/JA/ZH).
+- **Merged headline stream**: every followed feed in one list, newest first, each row with the **outlet**, relative time and (when available) a **thumbnail**. Tap to open the article.
+- **Follow outlets and topics**: open the manage panel (gear) and search a curated list of major outlets (ANSA, Repubblica, Corriere, Il Post, Sky TG24, Gazzetta, BBC, The Guardian, The Verge, TechCrunch…), or type any subject to follow it as a topic. Followed feeds show as removable chips.
+- **Data source**: works **keyless**: outlet **RSS** feeds and **Google News** (in your language) for topics. An optional **NewsData.io** key (Settings → Stocks, Football & News) enriches topics with more articles and images; without it everything still works.
+- **Scrolling ticker**: turn on the news source (Settings → Stocks, Football & News) and your latest headlines scroll across the ticker.
+- **Ask Bit**: "what's in the news", "any news about AI", "latest headlines", by voice or text.
+- Deliberately light: no new dependencies (a small hand-rolled RSS reader), lazy thumbnails, article links opened only after an https check, data fetched only while a dashboard is open. Fully localised in all 11 languages.
 
 ---
 
 ## Vitals
 
-![Vitals widget — pixel-art self-care HUD](docs/images/vitals-widget.png)
+<img src="docs/images/features/vitals.webp" width="460" alt="Vitals tile, a pixel-art self-care HUD">
 
 A retro game HUD for looking after yourself: pixel-art meters that drain the longer you sit at the PC, and refill when you tap them. Add the **Vitals** tile from the **"+" → Productivity** palette.
 
-- **Five vitals, game-style** — **Hydration 💧, Energy 🍗, Stamina 🚶, Focus 👀** (on by default) and an optional **Posture 🧘** meter, each a chunky 10-segment pixel bar with its own sprite. Levels are computed from real timestamps, so a reload or PC restart never resets your bars — and every new day starts fresh: at midnight all bars quietly refill.
-- **Tap for coaching, confirm to refill** — tapping a bar (or a top-bar chip, or a reminder toast) opens a small card explaining what the meter tracks and what actually helps (drink a glass of water now; the 20-20-20 eye rule; stand up and walk a couple of minutes…). Hit **"Done! +100"** once you've done it and the bar springs back to full with a pixel burst and a floating "+100".
-- **Fits any tile size** — the HUD compacts itself as you shrink the tile (smaller rows, then just the bars), down to a tiny at-a-glance strip.
-- **Fun reminders** — below 25% (and again at zero) a game-style toast nudges you ("Stamina drained — stand up and take a walk 🚶"). Reminders respect the master Notifiche switch and have their own toggle; each threshold fires once per drain.
-- **XP & level** — every refill earns +25 XP toward the widget's **LV badge** (with a LEVEL UP! toast), and the header shows a beating pixel heart plus your time at the PC this session.
-- **Top-bar mini chips** — an opt-in toggle puts tiny pixel icons with micro bars next to the clock and weather (they follow the minimal-topbar island too). Tap a chip to refill on the spot.
-- **Tunable** — per-vital on/off and drain interval (water every 45 min, food every 3 h, 20-20-20-style eye breaks…) in **Settings → Notifiche → Vitals**.
-- Deliberately light: no new dependencies, inline pixel-art SVG sprites, decay math riding the existing 1-second clock tick, cheap transform/opacity animations that respect "reduce motion". Fully localised (EN/IT/KO/JA/ZH).
+- **Five vitals, game-style**: **Hydration 💧, Energy 🍗, Stamina 🚶, Focus 👀** (on by default) and an optional **Posture 🧘** meter, each a chunky 10-segment pixel bar with its own sprite. Levels are computed from real timestamps, so a reload or PC restart never resets your bars, and every new day starts fresh: at midnight all bars quietly refill.
+- **Tap for coaching, confirm to refill**: tapping a bar (or a top-bar chip, or a reminder toast) opens a small card explaining what the meter tracks and what actually helps (drink a glass of water now; the 20-20-20 eye rule; stand up and walk a couple of minutes…). Hit **"Done! +100"** once you've done it and the bar springs back to full with a pixel burst and a floating "+100".
+- **Fits any tile size**: the HUD compacts itself as you shrink the tile (smaller rows, then just the bars), down to a tiny at-a-glance strip.
+- **Fun reminders**: below 25% (and again at zero) a game-style toast nudges you ("Stamina drained: stand up and take a walk 🚶"). Reminders respect the master Notifications switch and have their own toggle; each threshold fires once per drain.
+- **XP & level**: every refill earns +25 XP toward your self-care **Level** (with a LEVEL UP! toast), and the header shows a beating pixel heart plus your time at the PC today (time away does not count).
+- **A streak that forgives a slip**: refill at least one meter a day to keep your streak; one missed day is forgiven, two in a row start it again.
+- **Natural breaks**: after time away from the PC, Stamina and Focus refill by themselves when you come back, because you already took the break (on by default, needs the away pause).
+- **Top-bar mini chips**: an opt-in toggle puts tiny pixel icons with micro bars next to the clock and weather (they follow the minimal-topbar island too). Tap a chip to refill on the spot.
+- **Tunable**: per-vital on/off and drain interval (water every 45 min, food every 3 h, 20-20-20-style eye breaks…) in **Settings → Vitals**.
+- **Refill without tapping**: tell Bit ("I just drank", "I took a break"), press a Deck key (**Refill a vital**, Vitals group; any key can also show a meter live, or the emptiest one, under **Live value**), or use a widget: widgets made in the Xenon Maker and SDK widgets with the `vitals` stream can show the meters and fill them.
+- Deliberately light: no new dependencies, inline pixel-art SVG sprites, decay math riding the existing 1-second clock tick, cheap transform/opacity animations that respect "reduce motion". Fully localised in all 11 languages.
 
-### Bit — the pixel guardian
-<!--TODO-->
-<!-- SCREENSHOT: Bit's GAME OVER screen over the dashboard. Save as docs/images/vitals-pet.png -->
+### Bit, the pixel guardian
 
-An opt-in 8-bit tamagotchi (**Settings → Notifiche → Vitals → Bit**) that lives in a corner of the dashboard, mirrors your Vitals and *roasts* you — always in pixel style, whatever theme you run.
+An opt-in 8-bit tamagotchi (**Settings → Vitals**) that lives in a corner of the dashboard, mirrors your Vitals and *roasts* you: always in pixel style, whatever theme you run.
 
-- **Moods** — bouncy and green when you're fine, worried at low meters, furious (shaking, steam puffs) at zero, a floating ghost when every vital is dead. Tap him for a quick menu: worst meters, **Truce 30 min**, **Quiet for today**.
-- **250+ hand-written roasts** (IT/EN) served through a no-repeat shuffle, in three tones — **Gentle / Sarcastic / Savage** ("Hydration: 0%. You are officially freeze-dried.").
-- **An escalation ladder, every rung opt-in**: speech-bubble + toast nags → dashboard desaturation with glitch pulses (~5 min at zero) → full **CRT GAME OVER screen** (~8 min) → **pixel popups on your real monitors** (10 min; all screens when 3+ vitals are dead) → **minimize all windows** (15 min, 30 s warning, nothing is closed) → **lock the PC** (20 min, 60 s countdown; the normal Windows lock).
-- **Presence-aware and fail-safe** — the PC-invading rungs need *fresh keyboard/mouse input* (a system-idle probe in the persistent PowerShell worker; the touchscreen alone is not proof you're at the desk), every opt-in is re-checked server-side, and hard cooldowns cap the mayhem.
-- **Gamer truce** (default on) — silent and hands-off during games, with a post-match roast if a vital died mid-session. Refills flip him instantly to praise, with a tiny WebAudio chiptune fanfare.
+- **Moods**: bouncy and green when you're fine, worried at low meters, furious (shaking, steam puffs) at zero, a floating ghost when every vital is dead. Tap him for a quick menu: worst meters, **Truce 30 min**, **Quiet for today**.
+- **250+ hand-written roasts** (IT/EN) served through a no-repeat shuffle, in three tones: **Gentle / Sarcastic / Savage** ("Hydration: 0%. You are officially freeze-dried.").
+- **An escalation ladder, every rung opt-in**: speech-bubble + toast nags → dashboard desaturation with glitch pulses (~5 min at zero) → full **CRT GAME OVER screen** (~8 min) → **pixel popups on your real monitors** (10 min; all screens when 3+ vitals are dead) → **minimize all windows** (15 min, 30 s warning, nothing is closed) → **lock the PC** (20 min, 60 s countdown; the system's normal lock).
+- **macOS and Linux (Beta)**: the popup shows on the main screen through the Xenon app, or as a system notification; minimizing the windows works on macOS, Linux X11 and KDE, and is hidden with a reason on GNOME Wayland.
+- **Presence-aware and fail-safe**: the PC-invading rungs need *fresh keyboard/mouse input* (a system-idle probe in the persistent PowerShell worker; the touchscreen alone is not proof you're at the desk), every opt-in is re-checked server-side, and hard cooldowns cap the mayhem.
+- **Sleeping hours you choose**: Bit is quiet from 23:00 to 7:00 by default; pick your own hours (for example 18:00 to 9:00 to keep him quiet outside work). **Talk to Bit** in his menu opens the chat.
+- **AI roasts (opt-in)**: Bit asks the AI you chose for a one-liner about the moment and falls back to his own lines if it does not answer. With Sparks as the AI you pick how many Sparks a day he may spend (none by default); Claude Code and Codex plans are never spent on roasts.
+- **Gamer truce** (default on): silent and hands-off during games, with a post-match roast if a vital died mid-session. Refills flip him instantly to praise, with a tiny WebAudio chiptune fanfare.
 - Zero new dependencies; with Bit off, not a single timer runs.
 
 ---
 
 ## Ambient mode (screensaver)
 
-![Ambient mode with animated clock](docs/images/lock-screen.png)
+![An Ambient scene](docs/images/home/amb-forest.webp)
 
-The evolution of the Focus lock screen: a fullscreen, distraction-free view that is now also a real screensaver — separate from the Windows PC lock.
+A fullscreen, distraction-free view that is also a real screensaver, separate from the PC lock.
 
 - Activated via the **Ambient** button in the top bar (dismissed with the ✕ or Esc), or **automatically after 1–30 minutes of inactivity** (configurable in Settings → Ambient / Screensaver, off by default). It never starts over a game, an open dialog or an active voice chat, and the whole mode can be disabled
 - **Or make it the screen Xenon starts on.** **Open at startup** (same Settings section) opens your scene every time Xenon starts or restarts and keeps it up until you close it, so a dashboard that is mostly its Ambient scene no longer needs a tap on every boot. Unlike the inactivity start it is not a screensaver: using the PC does not close it. It waits for anything that needs an answer first (the greeting, a dialog), and on a start that is still asking the first-run questions it leaves the dashboard to them
-- The classic scene: **animated clock** (digits bounce on change), **Now Playing** (art, title, artist, controls), **Upcoming Events** (next 1–3) and a **Weather summary** — each independently toggleable; Now Playing alone expands to fill the screen
-- **Ambient scenes** — community-designed fullscreen scenes can replace the classic view: pick one in Settings, or find them in the Discover gallery. Scenes run in the same no-network sandbox as community widgets, see only the data feeds you approve, and are shared/imported like any theme (export codes, access-code protection, bundles)
+- The Classic scene: a large **Clock**, **Music** (art, title, artist, controls), your next **Events** and the **Weather**, each with its own switch under *What the Classic scene shows*. Music alone expands to fill the screen
+- **Ambient scenes**: community-designed fullscreen scenes can replace the Classic view: pick one in Settings, find more in the Store, or create your own in Xenon Maker. Scenes run in the same no-network sandbox as community widgets, see only the data feeds you approve, and are shared/imported like any theme (export codes, access-code protection, bundles)
 
 ---
 
 ## App switcher
 
-![App switcher window list](docs/images/app-switcher.png)
-![App switcher favorite shortcuts](docs/images/app-switcher-2.png)
-
 - Lists all currently **open top-level windows** with a live preview and icon
-- **Tap to bring any window to the foreground** — great for switching context from the touchscreen
+- **Tap to bring any window to the foreground**: great for switching context from the touchscreen
 - **Search** to filter the list by app name or window title, and **close a window** straight from its card (system-critical apps are safely refused)
-- **Keyboard navigation** — arrow keys move between windows, Enter opens the highlighted one (a real Alt+Tab feel on top of touch)
-- **Favorites quick-launch dock** — star your most-used apps and they sit in the top bar as a dock. Tap a running app to focus it, tap a closed one to **launch** it (a green dot marks what's open), and **drag to reorder**
-- **Favorites are saved on your PC** (with your dashboard settings), so a starred app stays starred across reboots and shows the same on every dashboard — existing stars migrate over automatically
+- **Keyboard navigation**: arrow keys move between windows, Enter opens the highlighted one (a real Alt+Tab feel on top of touch)
+- **Favorites quick-launch dock**: star your most-used apps and they sit in the top bar as a dock. Tap a running app to focus it, tap a closed one to **launch** it (a green dot marks what's open), and **drag to reorder**
+- **Favorites are saved on your PC** (with your dashboard settings), so a starred app stays starred across reboots and shows the same on every dashboard: existing stars migrate over automatically
 
 ---
 
 ## Browser
-![Browser](docs/images/browser.png)
-A live, **interactive web page inside a dashboard tile** — type an address and browse, tap links, scroll and type, right on the dashboard. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
 
-- **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood — the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
+<img src="docs/images/features/browser.webp" width="460" alt="Browser tile">
+
+A live, **interactive web page inside a dashboard tile**: type an address and browse, tap links, scroll and type, right on the dashboard. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
+
+- **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood: the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
 - **Toolbar:** address field, **Back / Forward / Reload**, an **expand-to-fullscreen** toggle, and a **hide-toolbar** button that collapses the tab strip, address bar and favorites so a maximized video fills the whole tile (a small button in the corner brings it back). The choice is remembered per Browser widget.
-- **Optional one-click ad-blocker.** A **Browser** section in Settings adds a single **Block ads** switch: flip it on and the dashboard downloads **uBlock Origin Lite** once (~10 MB) and loads it into the tile's browser — no manual install. It's **off by default** and applies to every Browser tile (they share one browser). It blocks the large majority of ads (banners, pop-ups, much of YouTube); it **can't** stop YouTube video ads or Twitch ads (Twitch stitches ads into the stream server-side). Toggling reloads open tiles instantly.
-- **Light by design:** a tile streams **only while it's actually on screen** — switch to another page and it stops immediately, and the background Edge **shuts itself down** once no Browser tile is open, so an added-but-unused tile costs nothing. It also **pauses while you game or optimize** (see [Performance Mode](#performance-mode)). Everything is local — the page stream never leaves your PC.
+- **Optional one-click ad-blocker.** A **Browser** section in Settings adds a single **Block ads** switch: flip it on and the dashboard downloads **uBlock Origin Lite** once (~10 MB) and loads it into the tile's browser, no manual install. It's **off by default** and applies to every Browser tile (they share one browser). It blocks the large majority of ads (banners, pop-ups, much of YouTube); it **can't** stop YouTube video ads or Twitch ads (Twitch stitches ads into the stream server-side). Toggling reloads open tiles instantly.
+- **Light by design:** a tile streams **only while it's actually on screen**: switch to another page and it stops immediately, and the background Edge **shuts itself down** once no Browser tile is open, so an added-but-unused tile costs nothing. It also **pauses while you game or optimize** (see [Performance Mode](#performance-mode)). Everything is local: the page stream never leaves your PC.
 
-> First version: needs **Microsoft Edge** (present on every Windows 11; the tile shows a clear message if it's missing) and the tile is **video only, no sound**.
+> Needs **Microsoft Edge** (present on every Windows 11; the tile shows a clear message if it's missing) and the tile is **video only, no sound**.
 
 ---
 
 ## Second screen
-![Second screen](docs/images/second-screen.png)
-A genuine **extra Windows desktop, live inside a dashboard tile** — drag any app onto it, then tap, scroll and type to drive it from the dashboard. Add it from a page's **+** menu (under *System*).
 
-- **One-click setup.** The tile installs a signed **virtual-display driver** and creates the extra monitor for you (just accept the Windows prompts). If a step can't be automated — winget missing, or a reboot needed to finish — it tells you exactly what to do rather than failing silently.
-- **Pick the resolution** in **Settings → Second screen** (along with smoothness/FPS and image quality). It applies **instantly** — no reinstall, no reboot — including ultra-wide modes like **2560×720** so the view fills a 32:9 bar with no side bars. The screen **persists across restarts** and is automatically restored to your chosen resolution the first time you view it (Windows otherwise resets a virtual monitor to a tiny default after a reboot).
-- **Fit toggle** on the tile — *fill the tile edge-to-edge* (cropping the overflow) or *show the whole screen* (letterboxed); your choice is remembered.
-- **Visible pointer** — the mouse cursor is drawn into the view, so you can always see where you're pointing.
-- **Natural touch** — by default a **swipe scrolls the dashboard** while a **tap clicks** in the virtual screen (so a large tile doesn't swallow your page swipes, yet you can still click things). A toolbar **toggle** switches to *full control* for dragging inside the screen (moving windows, sliders, selecting text); a mouse drives the screen directly in that mode.
+A genuine **extra Windows desktop, live inside a dashboard tile**: drag any app onto it, then tap, scroll and type to drive it from the dashboard. Add it from a page's **+** menu (under *System*).
+
+- **One-click setup.** The tile installs a signed **virtual-display driver** and creates the extra monitor for you (just accept the Windows prompts). If a step can't be automated (winget missing, or a reboot needed to finish) it tells you exactly what to do rather than failing silently.
+- **Pick the resolution** in **Settings → Second screen** (along with smoothness/FPS and image quality). It applies **instantly** (no reinstall, no reboot) including ultra-wide modes like **2560×720** so the view fills a 32:9 bar with no side bars. The screen **persists across restarts** and is automatically restored to your chosen resolution the first time you view it (Windows otherwise resets a virtual monitor to a tiny default after a reboot).
+- **Fit toggle** on the tile: *fill the tile edge-to-edge* (cropping the overflow) or *show the whole screen* (letterboxed); your choice is remembered.
+- **Visible pointer**: the mouse cursor is drawn into the view, so you can always see where you're pointing.
+- **Natural touch**: by default a **swipe scrolls the dashboard** while a **tap clicks** in the virtual screen (so a large tile doesn't swallow your page swipes, yet you can still click things). A toolbar **toggle** switches to *full control* for dragging inside the screen (moving windows, sliders, selecting text); a mouse drives the screen directly in that mode.
 - **Light by design:** it streams **only while on screen**, **pauses while you game or optimize** (see [Performance Mode](#performance-mode)), and the capture process **frees itself after sitting idle**. A static desktop barely sends any frames. Everything stays local.
-- **Remove cleanly** — **Settings → Second screen → Remove** takes the virtual monitor away (with a confirmation first).
+- **Remove cleanly**: **Settings → Second screen → Remove** takes the virtual monitor away (with a confirmation first).
 
-> First version: needs the **Xenon Helper** companion (installed by `INSTALL.bat`; the tile shows a clear message if it's missing), the live view is **video only, no sound**, and some hardware-accelerated/DRM-protected windows (certain video players) may show black — ordinary apps capture fine.
+> Needs the **Xenon Helper** companion (the tile shows a clear message if it's missing), the live view is **video only, no sound**, and some hardware-accelerated/DRM-protected windows (certain video players) may show black: ordinary apps capture fine.
+
+---
+
+## On your main screen (widgets and the Xenon menu)
+
+No second monitor needed: in the Xenon app, any tile or Store widget can sit on the screen you work on. Windows first; macOS and Linux as a Beta that has not been tried on real hardware yet.
+
+- **One question for a widget: when do you see it?** Always, On the desktop, In game or On an app, and the list in the Xenon menu is split by those answers. On the desktop means under your windows: it comes up with Win+D and steps aside while a maximized window fills that screen. Over everything, games in a borderless window included. Next to an app (Windows only): it follows that app's window and hides when the app is minimized or closed.
+- **Clicks go where you expect.** A click next to a widget reaches whatever is underneath, and clicking a widget does not take the focus from the window you were using.
+- **Light on memory.** Widgets on the same screen share one window, and almost every tile loads a lighter page that carries only what it needs, so a window of widgets uses less than half the memory of the dashboard.
+- **Arrange them by hand or by voice.** Ask Bit "put the weather on the desktop, top right", or press Edit the widgets on screen: drag to move (they pull to the edges and to each other, with a line you can see, and the size never changes), tap one for its choices in words, drag the corner of the one you tapped to resize. The Xenon menu has a map of your real screens that does the same, even from one monitor to another, and Undo takes back one change at a time. Tabs come from the widget's choices, never from a drag. Pages such as Work and Games switch with a tap, a Deck key or Bit, and a page marked When I play shows while a game runs.
+- **Widgets and pages that appear when you need them.** Open a widget in the Xenon menu, When it shows: always, only when, or except when, then one or more situations (a game, music, a live on OBS, a recording, a call, an app in front, an app open, a running timer, Do Not Disturb, the PC under load, the PC idle, low battery, the time of day and the days). One is enough. A widget page follows the same rule: it comes forward when the situation starts and gives back the page you were on. Bit can set it too: "show the music only while music plays". What this PC cannot read is not offered.
+- **Hide the overlay in one press.** Ctrl+Shift+F9 hides and shows the widgets over the game; the desktop ones stay. The keys stay free for other apps while nothing is over the game.
+- **The Xenon menu.** Alt+Shift+X opens one menu over any app, in a window that you move, resize and minimize, on top only while a game is on, with everything Xenon does on that screen: capture, widgets and where each one sits, shortcuts and macros (clashes with other apps named), look, and how you use Xenon. The dashboard has the same menu and the **Main screen** tile, so a second screen or a phone controls the main screen too.
+- **Widgets only.** Settings, General, How you use Xenon: Dashboard, Widgets only or Both. A new install asks once and recommends a choice from your screens; an update sets Both and moves nothing. With Widgets only there is no dashboard window at all; your widgets, the search shortcut, the pop-ups (captures, timers, reminders, calls), Bit's voice card, Game Companion and Performance Mode keep working.
+- **Wallpaper and screensaver.** Your Ambient scene can sit behind the desktop icons or start as the PC screensaver. Neither runs during a game or while a window fills the screen, and both start off.
+- **Glowing edges.** While you talk to Bit, the border of the screen lights up. It never takes a click, and on Windows it stays out of screenshots and recordings.
+
+Settings says why when something is missing on your PC, for example on GNOME with Wayland, where an app cannot put its windows under or over the others. The [CHANGELOG](CHANGELOG.md) has what each system can do.
+
+---
+
+## Game performance
+
+<img src="docs/images/readme/game-overlay.webp" width="640" alt="FPS, frame time and load over a game">
+
+- **Game performance tile.** The frame rate of the game you are playing, its 1% and 0.1% lows, the frame time, a line of the latest frames where a stutter shows as a spike, and CPU and GPU load with the GPU temperature. It updates four times a second, only while a game runs and the tile is on a screen. Put it over your game by asking Bit "show my FPS over the game".
+- **Choose what it shows.** Settings, Performance, Game performance has a switch for the 1% low, the 0.1% low, the frame time, the graph and the CPU and GPU row. Or ask Bit "hide the graph on the FPS tile".
+- **Games played, compared.** Each game you play for more than two minutes is remembered (average FPS, lows, length, load, peak temperatures). Settings, Performance, Games played lists the last ten, each against the time before in the same game, so a driver update or a patch shows up on its own. Ask Bit "did the driver update help?".
+- **Benchmark.** A Deck key, or Bit, records the time of every frame to a CSV file in Documents, Xenon, Benchmark, and stops when the game closes or after 30 minutes.
+- **Why does it stutter?** A Deck key and Bit answer with one cause and one next step, for example "Video memory full: lower texture quality or resolution". Fixed rules on your PC, no AI model, nothing sent anywhere.
+- **Exclusive full screen.** No window can show over a game in exclusive full screen: the tile says so, and a message suggests borderless or windowed full screen.
+
+Frame times come from PresentMon on Windows. On Linux the frame rate needs the game started with MangoHud; on macOS one app cannot read another's frame rate, and the tile says so.
+
+---
+
+## Capture (screenshots, recordings, Instant Replay)
+
+All of it runs on your PC with nothing uploaded, from the Deck keys in the Capture group, from the Xenon menu or by asking Bit. Windows first; macOS and Linux as a Beta, where what your system cannot do does not appear.
+
+- **Screenshot** of the screen, the window in front or an area picked on a frozen screen, saved as PNG and copied. On an HDR screen the colours come out as you see them.
+- **Record video** of the screen or one window: only that app's sound, the whole PC sound, your microphone on its own track (never on unless you choose it), or none. A webcam bubble can sit in a corner. A small pill shows the time and stops it; it never appears in the video. If Xenon closes mid-recording, the part already recorded plays.
+- **Instant Replay** keeps the last 15 seconds to 60 minutes on disk, not in memory. Ctrl+Shift+F10, a Deck key or "save the last 30 seconds" saves a clip in about a second. Off by default.
+- **Gallery** grouped by day and game: trim without encoding again, copy the file to paste into a chat, make a vertical 9:16 copy, a lighter copy that fits 10 to 100 MB or a GIF, and a transcript made by the local Whisper, with chapters written by Bit. A paired phone can look at and download your captures.
+- **Work tools:** copy text from the screen, pin a screenshot over your windows, cover e-mail addresses, IBANs and long numbers before sharing, colour picker and ruler, draw on the screen, timelapse, a step recorder that writes a procedure with a picture per click (never what you type), and a one-press bug report .zip.
+- **For widget makers:** a widget with the `capture` permission can start a screenshot, a recording or a replay save, and never sees the picture, the video or where they are saved.
 
 ---
 
 ## Smart Home (Home Assistant)
 
-Turn the dashboard into a **smart-home control panel** by connecting it to **[Home Assistant](https://www.home-assistant.io/)** — the free, open-source, local home-automation hub. Add the **Smart Home** tile from the **"+" → System** palette and it shows the devices you choose, grouped by room:
+<img src="docs/images/features/smarthome.webp" width="460" alt="Smart Home tile with rooms and devices">
 
-- **One-tap toggles** for lights, switches, fans, plugs, locks and covers — tap and the device responds instantly.
+Turn the dashboard into a **smart-home control panel** by connecting it to **[Home Assistant](https://www.home-assistant.io/)**: the free, open-source, local home-automation hub. Add the **Smart Home** tile from the **"+" → System** palette and it shows the devices you choose, grouped by room:
+
+- **One-tap toggles** for lights, switches, fans, plugs, locks and covers: tap and the device responds instantly.
 - **Run buttons** for scenes and scripts (movie night, good morning…).
 - **Media players** (soundbars, speakers, TVs) with a play/pause and what's playing.
-- **Live value cards** for temperature, humidity, power, air quality and any other sensor — updating the moment they change.
+- **Live value cards** for temperature, humidity, power, air quality and any other sensor: updating the moment they change.
 
-**Live and lightweight.** The dashboard holds a single connection to Home Assistant open **only while the tile is on screen**, and reacts to changes **as they happen** (a light flips, a door opens, the dryer finishes) instead of polling — so it's instant yet essentially free at rest, and disconnects entirely when the tile is hidden or Home Assistant isn't configured.
+**Live and lightweight.** The dashboard holds a single connection to Home Assistant open **only while the tile is on screen**, and reacts to changes **as they happen** (a light flips, a door opens, the dryer finishes) instead of polling, so it's instant yet essentially free at rest, and disconnects entirely when the tile is hidden or Home Assistant isn't configured.
 
-**Setup (Settings → Smart Home).** Paste your Home Assistant **address** (e.g. `http://homeassistant.local:8123`) and a **long-lived access token** (create one in Home Assistant → your profile → *Long-lived access tokens*), tap **Connect**, then pick the devices to show from a **searchable, room-grouped list**. Everything runs **locally** between your PC and Home Assistant — nothing goes to the cloud, and your **token never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup).
+**Setup (Settings → Smart Home).** Paste your Home Assistant **address** (e.g. `http://homeassistant.local:8123`) and a **long-lived access token** (create one in Home Assistant → your profile → *Long-lived access tokens*), tap **Connect**, then pick the devices to show from a **searchable, room-grouped list**. Everything runs **locally** between your PC and Home Assistant: nothing goes to the cloud, and your **token never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup).
 
 **On the Deck, too.** The Deck editor has a **Home Assistant** category: **toggle a device**, **activate a scene**, or **call any service** (advanced), with a picker that lists your real entities. The category stays locked with a hint until you connect.
 
@@ -871,87 +973,90 @@ Turn the dashboard into a **smart-home control panel** by connecting it to **[Ho
 
 ## Cameras (UniFi Protect)
 
+<img src="docs/images/features/unifi.webp" width="460" alt="Cameras tile with four live views">
+
 See your **[UniFi Protect](https://ui.com/camera-security)** security cameras right on the dashboard. Add the **Cameras** tile from the **"+" → System** palette and it shows a near-live view of each camera, refreshed continuously while you're looking at it:
 
-- **A glanceable grid** — one camera fills the tile, several arrange into a neat grid, each with its name and a green/red dot for online/offline.
-- **Tap to enlarge** — tap any camera for a full-screen view, tap again (or press Esc) to close.
-- **Pick your cameras** — choose exactly which cameras appear from a checklist of everything your console reports, so you can put just the front door and driveway up and leave the rest off.
+- **A glanceable grid**: one camera fills the tile, several arrange into a neat grid, each with its name and a green/red dot for online/offline.
+- **Tap to enlarge**: tap any camera for a full-screen view, tap again (or press Esc) to close.
+- **Pick your cameras**: choose exactly which cameras appear from a checklist of everything your console reports, so you can put just the front door and driveway up and leave the rest off.
 
 **Private and lightweight.** Your console **password never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup); the dashboard only fetches each camera frame through a **local proxy**. The tile pulls **nothing while it's hidden or while a game is running**, so an unused Cameras tile costs nothing at rest.
 
-**Setup (Settings → Cameras).** Enter your UniFi console's **local IP or hostname** (e.g. `192.168.1.1`) and a **username / password**, tap **Connect**, then pick the cameras to show. Works best with a **dedicated local Protect account** (Viewer role, two-factor turned off) created on the console. Everything runs **locally** between your PC and the console — nothing goes to the cloud.
+**Setup (Settings → Cameras).** Enter your UniFi console's **local IP or hostname** (e.g. `192.168.1.1`) and a **username / password**, tap **Connect**, then pick the cameras to show. Works best with a **dedicated local Protect account** (Viewer role, two-factor turned off) created on the console. Everything runs **locally** between your PC and the console: nothing goes to the cloud.
 
 ---
 
-## Streaming (Twitch, YouTube, OBS, Discord & Spotify)
+## Streaming
 
-![Twitch widget with live status and chat](docs/images/twitch.png)
-![OBS widget with program preview and scene switcher](docs/images/OBS.png)
-![Discord widget with voice controls, per-app volumes and audio processing](docs/images/discord.png)
-
+<img src="docs/images/features/twitch.webp" width="285" alt="Twitch Live tile with status and chat">
+<img src="docs/images/features/obs.webp" width="285" alt="OBS tile with preview and scene switcher">
+<img src="docs/images/features/discord.webp" width="285" alt="Discord tile with voice controls">
 
 Connect your **Twitch** and **YouTube** accounts to control your stream from the dashboard and Deck, use dedicated **OBS**, **Discord** and **Spotify** widgets, and drive **Discord** voice and **Spotify** playback from the Deck.
 
-- **Twitch Live widget** — for broadcasting. Live status (channel, viewers, game, title, or Offline), actions (Go live / End stream via OBS, mic mute, Clip / Marker / Ad), and a built-in **live chat** (read anonymously, with emotes drawn inline). Styled in Twitch purple.
-- **Twitch widget** — for watching, on the same connected account. The **Twitch player right in the tile** with a full-screen button whose controls fade out while you watch, fed by three tabs: **Followed** (the channels you follow that are on air, with live viewer counts), **Top** (the busiest channels right now) and **Search**. An optional **chat** card shows the chat of the channel you are watching (off by default): read anonymously and drawn by Xenon rather than embedded, with **emotes drawn inline**, a box to write in that sends through your connected account, an **emote picker** (the channel's own plus the global set) and a button that opens the full Twitch chat for channel points. Play, pause, volume and quality stay in Twitch's own player. Followed needs the `user:read:follows` permission, so a connection made before this widget existed asks to reconnect once; Top and Search work either way.
-- **YouTube widget** — for watching. A **video player right in the tile** (play/pause, previous/next, a draggable progress bar, mute, and a full-screen button) fed by your own library across four tabs — **Liked**, **Playlists**, **Subscriptions** (the newest uploads from the channels you follow) and **Search**. Tapping a video queues the rest of the list, so it keeps going on its own; a video whose uploader blocks embedding offers to open in your browser instead. On a wide short tile the list sits beside the video, on a tall one underneath it. Player and library are separate cards you can hide or reorder.
-- **YouTube Live widget** — for broadcasting, on the same connected account. **Create a live** from the dashboard: a title, who can watch, one button — it makes the broadcast and sets up your channel's streaming endpoint if you have never streamed, then goes on air by itself when OBS starts sending. Plus **Go live / End stream**, the **live chat** (read and write), live status with viewer count, total views/likes, **stream health** (Good/OK/Poor) and an **editable title**, a one-tap copy of the stream link, and your **stream key** for OBS — behind a Show button, and readable only on the PC itself, never from a paired phone.
-- **OBS widget** — a live **program preview**, **Go live / End stream** and **Record / Stop** buttons (with LIVE/REC indicators), and a **scene switcher** that highlights the current scene.
-- **Discord widget** — the voice channel you're in with its **members and a live highlight on whoever's speaking**, your **mute / deafen / push-to-talk** state, one-tap **mute, deafen, PTT, leave, mic & output volume** and **audio-processing** toggles, plus a **channel list grouped by server** to jump into any voice channel. Extra tabs add a **Soundboard** (tap a sound to play it into your current channel) and **Notifications** (your DMs and mentions — see [Notifications](#notifications)). Updates **in real time** (event-driven, not polled). Styled in Discord blurple.
-- **Spotify widget** — a full player: a **now-playing hero** (large art, a **draggable seek bar**, play/pause · prev · next · shuffle · repeat, a **♥ like**, and a **device volume slider**) over three tabs — **Up Next** (live queue with cover art), **Playlists** (tap to play) and **Spotify Connect devices** (tap to move playback). Styled in Spotify green.
+- **Twitch Live widget**: for broadcasting. Live status (channel, viewers, game, title, or Offline), actions (Go live / End stream via OBS, mic mute, Clip / Marker / Ad), and a built-in **live chat** (read anonymously, with emotes drawn inline). Styled in Twitch purple.
+- **Twitch widget**: for watching, on the same connected account. The **Twitch player right in the tile** with a full-screen button whose controls fade out while you watch, fed by three tabs: **Followed** (the channels you follow that are on air, with live viewer counts), **Top** (the busiest channels right now) and **Search**. An optional **chat** card shows the chat of the channel you are watching (off by default): read anonymously and drawn by Xenon rather than embedded, with **emotes drawn inline**, a box to write in that sends through your connected account, an **emote picker** (the channel's own plus the global set) and a button that opens the full Twitch chat for channel points. Play, pause, volume and quality stay in Twitch's own player. Followed needs the `user:read:follows` permission, so a connection made before this widget existed asks to reconnect once; Top and Search work either way.
+- **YouTube widget**: for watching. A **video player right in the tile** (play/pause, previous/next, a draggable progress bar, mute, and a full-screen button) fed by your own library across four tabs: **Liked**, **Playlists**, **Subscriptions** (the newest uploads from the channels you follow) and **Search**. Tapping a video queues the rest of the list, so it keeps going on its own; a video whose uploader blocks embedding offers to open in your browser instead. On a wide short tile the list sits beside the video, on a tall one underneath it. Player and library are separate cards you can hide or reorder.
+- **YouTube Live widget**: for broadcasting, on the same connected account. **Create a live** from the dashboard with a title, who can watch and one button. It makes the broadcast and sets up your channel's streaming endpoint if you have never streamed, then goes on air by itself when OBS starts sending. Plus **Go live / End stream**, the **live chat** (read and write), live status with viewer count, total views/likes, **stream health** (Good/OK/Poor) and an **editable title**, a one-tap copy of the stream link, and your **stream key** for OBS, behind a Show button and readable only on the PC itself, never from a paired phone.
+- **OBS widget**: a live **program preview**, **Go live / End stream** and **Record / Stop** buttons (with LIVE/REC indicators), and a **scene switcher** that highlights the current scene.
+- **Discord widget**: the voice channel you're in with its **members, each with their Discord avatar, Discord's green ring on whoever's speaking and a red microphone or headphones after the name of anyone muted or deafened**, your **mute / deafen / push-to-talk** state, one-tap **mute, deafen, PTT, leave, mic & output volume** and **audio-processing** toggles, plus a **channel list grouped by server** to jump into any voice channel. Extra tabs add a **Soundboard** (tap a sound to play it into your current channel) and **Notifications** (your DMs and mentions: see [Notifications](#notifications)). Updates **in real time** (event-driven, not polled). Styled in Discord blurple.
+- **Spotify widget**: a full player with a **now-playing hero** (large art, a **draggable seek bar**, play/pause · prev · next · shuffle · repeat, a **♥ like**, and a **device volume slider**) over three tabs: **Up Next** (live queue with cover art), **Playlists** (tap to play) and **Spotify Connect devices** (tap to move playback). Styled in Spotify green.
+- **Streamer.bot widget**: a live feed of follows, subs, raids, cheers, channel-point redemptions and hype trains, with your Streamer.bot global variables beside it. It only reads: the Deck owns the actions.
+- **Wave Link widget**: your Elgato Wave Link mixer on one surface, for Wave Link 2 and Wave Link 3: channels, your mixes as tabs, effects and the physical output. The Deck keys are under [RGB lighting](#rgb-lighting).
 
 ### Spotify
 
-Connect your **Spotify** account to see and steer your listening from the dashboard and Deck. It complements the Media tile rather than duplicating it — the Media tile shows Windows' now-playing for *any* app; the Spotify widget adds the Spotify-only things Windows can't expose.
+Connect your **Spotify** account to see and steer your listening from the dashboard and Deck. It complements the Media tile rather than duplicating it: the Media tile shows Windows' now-playing for *any* app; the Spotify widget adds the Spotify-only things Windows can't expose.
 
-- **Now-playing hero** — large album art, track/artist, and a **live seek bar** you can drag to scrub. Full transport: **play/pause, previous, next, shuffle, repeat** (off / all / one), a **♥ like** that fills when the track is in your Liked Songs, and a **volume slider** for the active device. A header **device chip** shows where playback is happening; the progress ticks smoothly between refreshes.
-- **Up Next** — the **live queue** with cover art.
-- **Playlists** — your playlists with covers; **tap one to start playing** it.
-- **Devices** — your **Spotify Connect** targets (this PC, phone, speakers…); **tap one to move playback** there, with the active device marked.
-- **Deck actions** — **play/pause, next, previous, shuffle, repeat, like, set/step volume, seek/restart, save to Liked, play a playlist** (link / URI / ID), and **switch device** (by name).
+- **Now-playing hero**: large album art, track/artist, and a **live seek bar** you can drag to scrub. Full transport: **play/pause, previous, next, shuffle, repeat** (off / all / one), a **♥ like** that fills when the track is in your Liked Songs, and a **volume slider** for the active device. A header **device chip** shows where playback is happening; the progress ticks smoothly between refreshes.
+- **Up Next**: the **live queue** with cover art.
+- **Playlists**: your playlists with covers; **tap one to start playing** it.
+- **Devices**: your **Spotify Connect** targets (this PC, phone, speakers…); **tap one to move playback** there, with the active device marked.
+- **Deck actions**: **play/pause, next, previous, shuffle, repeat, like, set/step volume, seek/restart, save to Liked, play a playlist** (link / URI / ID), and **switch device** (by name).
 
 It's **lightweight**: the widget only talks to Spotify while its tile is on screen (playback state refreshes on a gentle interval, with a local ticker keeping the seek bar smooth in between; playlists and devices load when you open their tab), and does nothing when hidden.
 
 Connect it from its own **Settings → Spotify** section, which explains what you get and walks you through setup. Spotify uses the modern **PKCE** flow, so you paste **only a Client ID** (no secret): create your own free Spotify app, add the redirect URI `http://127.0.0.1:3030/stream/spotify/callback` (shown with a one-tap **Copy** button in that section), paste the Client ID, tap **Connect**, and approve access in the Spotify tab that opens. Your token stays on your PC and is never sent to the browser.
 
-> Reading the queue, playlists and devices works on any account; **playback control** (play a playlist, shuffle, switch device) needs **Spotify Premium** — a Spotify API limitation.
+> Reading the queue, playlists and devices works on any account; **playback control** (play a playlist, shuffle, switch device) needs **Spotify Premium**: a Spotify API limitation.
 
-![Spotify Widget](docs/images/spotify.png)
+<img src="docs/images/features/spotify.webp" width="460" alt="Spotify tile">
 
 ### Discord voice control
 
-Control **Discord** voice from your Deck keys **or the Discord dashboard widget** — the same actions a Stream Deck plugin gives you, driven through Discord's own desktop app (no third-party plugin, and nothing leaves your PC):
+Control **Discord** voice from your Deck keys **or the Discord dashboard widget**, the same actions a Stream Deck plugin gives you, driven through Discord's own desktop app (no third-party plugin, and nothing leaves your PC):
 
 - **Mute / unmute** your mic, **deafen / undeafen**, and switch **push-to-talk** on or off.
-- **Join a voice channel** — pick any channel from your servers (in the Deck editor, or from the widget's channel list) and jump straight in — or **leave voice** to hang up.
+- **Join a voice channel**: pick any channel from your servers (in the Deck editor, or from the widget's channel list) and jump straight in, or **leave voice** to hang up.
 - Nudge your **microphone** and **output** volume up or down, and toggle **audio processing** (noise suppression, echo cancellation, automatic gain, QoS).
-- **Play a soundboard sound** — a **Discord: soundboard** Deck action (and the widget's **Soundboard** tab) fires one of your soundboard sounds into the voice channel you're in, the same as clicking it in Discord. Both the Deck picker and the tiles have a **▶ preview** that auditions a sound just for you (no channel needed). Because Discord doesn't officially document this, it's best-effort — a future Discord change would simply make it a no-op, never a crash.
+- **Play a soundboard sound**: a **Discord: soundboard** Deck action (and the widget's **Soundboard** tab) fires one of your soundboard sounds into the voice channel you're in, the same as clicking it in Discord. Both the Deck picker and the tiles have a **▶ preview** that auditions a sound just for you (no channel needed). Because Discord doesn't officially document this, it's best-effort: a future Discord change would simply make it a no-op, never a crash.
 
-The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in — with its members and who's talking — and your live mute/deafen/PTT state, and puts all of the above one tap away, across **Controls**, **Channels**, **Soundboard** and **Notifications** tabs. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
+The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in (with its members and who's talking) and your live mute/deafen/PTT state, and puts all of the above one tap away, across **Controls**, **Channels**, **Soundboard** and **Notifications** tabs. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
 
-**Collapse the servers you never join.** In the **Channels** tab each server is a heading you can tap to fold its voice channels away, with a count of what is inside it while it is shut. **Collapse all** / **Expand all** does the lot in one tap, and Xenon remembers what you closed — across a reload, a restart and every screen — so a dozen servers stop being a dozen screens of scrolling. **Favourites** is never folded: it is the shortcut past the scrolling.
+**Collapse the servers you never join.** In the **Channels** tab each server is a heading you can tap to fold its voice channels away, with a count of what is inside it while it is shut. **Collapse all** / **Expand all** does the lot in one tap, and Xenon remembers what you closed (across a reload, a restart and every screen) so a dozen servers stop being a dozen screens of scrolling. **Favourites** is never folded: it is the shortcut past the scrolling.
 
-**Two Discord tiles, two open tabs.** Add it a second time from the "+" palette and each tile keeps its own tab — notifications on top and the voice controls underneath, or the channel list beside the call you are in. Both are live and both read the same connection to your Discord app, so a second tile costs no extra polling.
+**Two Discord tiles, two open tabs.** Add it a second time from the "+" palette and each tile keeps its own tab: notifications on top and the voice controls underneath, or the channel list beside the call you are in. Both are live and both read the same connection to your Discord app, so a second tile costs no extra polling.
 
-Connect it from **Settings → Streaming** (Discord card). Because Discord has no cloud API for voice control, you register your own free Discord app and paste its **Client ID + Secret**, then tap **Connect** and click **Authorize** in the pop-up Discord shows you — your Discord desktop app just needs to be running. The Deck's Discord actions and the widget's controls stay inactive until you connect.
+Connect it from **Settings → Streaming** (Discord card). Because Discord has no cloud API for voice control, you register your own free Discord app and paste its **Client ID + Secret**, then tap **Connect** and click **Authorize** in the pop-up Discord shows you: your Discord desktop app just needs to be running. The Deck's Discord actions and the widget's controls stay inactive until you connect.
 
 > Playing a Discord **soundboard** sound is supported (Deck action + widget tab, best-effort over Discord's local channel). Thanks to the community on issue #61 for showing it was possible.
 
-**Connect from the dashboard:** **Settings → Streaming** has a card per service. Paste your app credentials right there (Twitch **Client ID**; YouTube and Discord **Client ID + Secret**), tap **Save**, then **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen). Your tokens stay on your PC (`server/stream-tokens.json`) and are never sent to the browser.
+**Connect from the dashboard:** **Settings → Streaming** has a card per service. Paste your app credentials right there (Twitch **Client ID**; YouTube and Discord **Client ID + Secret**), tap **Save**, then **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen). Your tokens stay on your PC and are never sent to the browser.
 
-> Each user registers their own free Twitch app and Google Cloud project — nothing is shared or hard-coded. See **[docs/streaming-setup.md](docs/streaming-setup.md)** for the one-time setup (including the easy-to-miss Google "test user" step).
+> Each user registers their own free Twitch app and Google Cloud project: nothing is shared or hard-coded. See **[docs/streaming-setup.md](docs/streaming-setup.md)** for the one-time setup (including the easy-to-miss Google "test user" step).
 
 ---
 
 ## Remote PC control
 
-![Remote PC control setup and status panel](docs/images/remote.png)
+<img src="docs/images/features/remote.webp" width="460" alt="Remote Control tile">
 
-Turn your phone into a full remote control of your PC — see the screen and use mouse and keyboard — **even when you're away from home**. Configured entirely from **Settings → Controllo Remoto**, and **off until you opt in**.
+Turn your phone into a full remote control of your PC (see the screen and use mouse and keyboard) **even when you're away from home**. Configured entirely from **Settings → Remote Control**, and **off until you opt in**.
 
-- **Command centre, not a reinvention:** the dashboard orchestrates two mature, free tools — **Sunshine** (open-source streaming host) and **Tailscale** (secure access with no open ports). On the phone you use the free **Moonlight** app.
-- **Guided, one-place setup:** install Sunshine and Tailscale (via Windows **winget**, official sources), sign in to Tailscale, configure Sunshine, and pair your phone with a **PIN** — all from the touchscreen.
-- **Private by design:** the dashboard's local server is **never exposed to the internet**. Your phone talks **directly to Sunshine over your encrypted Tailscale network** — no open ports, and the traffic never passes through the dashboard or any cloud.
+- **Command centre, not a reinvention:** the dashboard orchestrates two mature, free tools: **Sunshine** (open-source streaming host) and **Tailscale** (secure access with no open ports). On the phone you use the free **Moonlight** app.
+- **Guided, one-place setup:** install Sunshine and Tailscale (via Windows **winget**, official sources), sign in to Tailscale, configure Sunshine, and pair your phone with a **PIN**, all from the touchscreen.
+- **Private by design:** the dashboard's local server is **never exposed to the internet**. Your phone talks **directly to Sunshine over your encrypted Tailscale network**: no open ports, and the traffic never passes through the dashboard or any cloud.
 - **Always in control:** a one-tap **kill-switch** disconnects any device instantly; a live panel lets you choose which monitor is streamed, disconnect a session, and block/reactivate access without re-running setup.
 - **Addable widget & Deck actions:** add the Remote Control panel as a dashboard tile, and use Deck keys for disconnect / block / cycle-monitor (plus a connected-state indicator). All appear only once remote access is configured.
 
@@ -959,124 +1064,126 @@ Turn your phone into a full remote control of your PC — see the screen and use
 
 ---
 
-## Share & import (themes, pages, Deck profiles)
+## Share & import
 
-![share import](docs/images/share-import.png)
+![Settings → Widgets & sharing](docs/images/features/settings-sharing.webp)
 
-Send your look to a friend with a link — no accounts, no cloud. A **Share & Import** panel in **Settings → Widgets & sharing** lets you export and import six kinds of thing as a compact, self-contained **link** or a downloadable **.json** file — and **any of them can be protected with access codes** (encrypted on your machine so it only installs for the people you hand a code to):
+Send your look to a friend with a link, with no accounts and no cloud. A **Share & Import** panel in **Settings → Widgets & sharing** lets you export and import six kinds of thing as a compact, self-contained **link** or a downloadable **.json** file, and **any of them can be protected with access codes** (encrypted on your machine so it only installs for the people you hand a code to):
 
-- **Theme** — your whole look: colours, appearance, surface shape/glass and (when small enough) your custom font, plus any code-defined animated background. An imported theme applies instantly and is saved as its own card in the Themes gallery.
-- **Page** — a dashboard page with its widgets and arrangement (including each widget's per-tile styling). **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
-- **Deck profile** — a fully programmed Deck profile (keys, folders, styling, photo faces and all its actions), from a **Share** button next to each profile or the Share & Import panel. Because a profile *contains actions*, the recipient gets a **review step first** — the profile's name, key count, and exactly **which action types it contains** ("Open app ×2, Webhook ×1…") — with a reminder to only import from people they trust.
-- **Widget** — a single community widget on its own (its validated files, plus a note of what it can do). **Export widget** picks one of your installed widgets; the recipient sees its name and permissions first, and it installs the safe way — sandboxed, hidden and reaching nothing until they enable Community widgets and approve it.
-- **Background** — just a code-defined animated background, as its own compact code, so you can swap in someone's backdrop without importing a whole theme. Backgrounds can **bundle real images** (up to 6 PNG/JPEG/WebP/GIF files, added in Settings → Sfondo animato): the `draw()` code receives them as a fifth parameter and paints them with `ctx.drawImage(assets.name, …)` — pixel-art skylines, sprites, textures. The pictures travel *inside* the shared code, so an imported background keeps working forever (no image-host links to die), and the import preview shows how many images it carries.
-- **Package** — the whole setup in one code: your theme *plus* selected page layouts *plus* the community widgets you've installed. **Export package** opens a checklist to pick what goes in; the recipient sees a **what's-inside review first** (the theme, how many pages, and every widget named with what it can do) before anything is applied. Widgets in a package install the safe way — they stay hidden and reach nothing until the user enables the Community-widgets switch and approves each one's permissions.
+- **Theme**: your whole look: colours, appearance, surface shape/glass and (when small enough) your custom font, plus any code-defined animated background. An imported theme applies instantly and is saved as its own card in the Themes gallery.
+- **Page**: a dashboard page with its widgets and arrangement (including each widget's per-tile styling). **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
+- **Deck profile**: a fully programmed Deck profile (keys, folders, styling, photo faces and all its actions), from a **Share** button next to each profile or the Share & Import panel. Because a profile *contains actions*, the recipient gets a **review step first**: the profile's name, key count, and exactly **which action types it contains** ("Open app ×2, Webhook ×1…"), with a reminder to only import from people they trust.
+- **Widget**: a single community widget on its own (its validated files, plus a note of what it can do). **Export widget** picks one of your installed widgets; the recipient sees its name and permissions first, and it installs the safe way: sandboxed, hidden and reaching nothing until they enable Community widgets and approve it.
+- **Background**: just a code-defined animated background, as its own compact code, so you can swap in someone's backdrop without importing a whole theme. Backgrounds can **bundle real images** (up to 6 PNG/JPEG/WebP/GIF files, added in Settings → Background): the `draw()` code receives them as a fifth parameter and paints them with `ctx.drawImage(assets.name, …)`: pixel-art skylines, sprites, textures. The pictures travel *inside* the shared code, so an imported background keeps working forever (no image-host links to die), and the import preview shows how many images it carries.
+- **Package**: the whole setup in one code: your theme *plus* selected page layouts *plus* the community widgets you've installed. **Export package** opens a checklist to pick what goes in; the recipient sees a **what's-inside review first** (the theme, how many pages, and every widget named with what it can do) before anything is applied. Widgets in a package install the safe way: they stay hidden and reach nothing until the user enables the Community-widgets switch and approves each one's permissions.
 
-**Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours, shape and widget arrangement; a code-defined background runs only in the isolated sandbox (no network, no access to anything); every imported Deck profile is rebuilt from scratch through Xenon's own validators (unknown or malformed actions dropped, nothing auto-runs, each action re-checked by the server the moment its key is tapped); and every widget — standalone or in a package — is re-validated exactly like a fresh install and never auto-granted. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Presets that embed images (Deck photo faces, packaged widgets) share as a file rather than a link. Trade presets with other users on the **[Xenon Discord](https://discord.gg/MBVrw9kZyg)**.
+**Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours, shape and widget arrangement; a code-defined background runs only in the isolated sandbox (no network, no access to anything); every imported Deck profile is rebuilt from scratch through Xenon's own validators (unknown or malformed actions dropped, nothing auto-runs, each action re-checked by the server the moment its key is tapped); and every widget (standalone or in a package) is re-validated exactly like a fresh install and never auto-granted. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Presets that embed images (Deck photo faces, packaged widgets) share as a file rather than a link. Trade presets with other users on the **[Xenon Discord](https://discord.gg/MBVrw9kZyg)**.
 
 ---
 
 ## Settings
 
-![Settings panel with themes and customization](docs/images/settings.png)
-![Support the project — coffee and Discord, right inside Settings](docs/images/support.png)
+![Settings → Appearance](docs/images/features/settings-appearance.webp)
 
-- **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme (read reliably from the registry server-side) and updates within ~30s. Your accent colour applies to both schemes (Dark is the default).
-- **Dashboard style** — two complete visual languages: the default **Liquid Glass**, or **Pixel Retro** — a full '80s/'90s CRT console skin (terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own.
-- **Background effects** — two optional, GPU-light ambient layers: an elegant **depth scene** (a faint accent bloom, soft vignette and slow ambient light pools in your accent colour — only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
-- **Static background** — a premium look with **zero animation**: pick **Nebulosa**, **Prisma** or **Halo** and the composition is painted once and left still, so it costs about as much to run as a plain colour (nothing is animated to pause). Each tints to your accent, has a light-theme variant, and layers an invisible fine grain to keep the gradients smooth on a wide, dim panel. Choosing a static look automatically pauses the animated depth scene; set it back to **Nessuno** to return to the Aurora.
-- **Animated background (code)** — a live, code-driven backdrop, with **three ways in that need no coding**: pick one of **nine one-tap ready-made backgrounds** (drifting stars, flowing waves, pulsing neon dots, nebula, aurora bands, matrix rain, confetti, orbiting particles, plasma), **ask Xenon** to make one from a description ("uno sfondo con particelle blu che fluttuano"), or **import** one someone shared. For tinkerers the JavaScript editor is still there (`function draw(ctx, t, w, h, assets)`) with a built-in "how it works" guide and a live character counter (the code holds up to 60,000 characters). You can also **bundle your own images** — up to 6 PNG/JPEG/WebP/GIF files added right in the editor — and paint them with `ctx.drawImage(assets.name, …)`, so pixel-art skylines, sprites and textures are as easy as animating shapes; the pictures ride *inside* the background, so a shared one keeps working with no external links to break. However it's made, it runs in the **same locked-down sandbox as community widgets** — an isolated frame with no network and no access to the dashboard, your files or your settings, so even an imported or AI-written background can only draw pixels (images included — they're embedded, never fetched). It's saved like any other preference, self-pauses when the tab is hidden, and travels inside a **theme**, a **package**, or its own **background** code. Turning it on takes over the backdrop, so the aurora/grid/static controls show they're paused (import backgrounds only from people you trust).
-- **Color presets** — Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono — plus accent / text / background hex personalization with live preview.
-- **Accent from album art** — while music plays, the accent follows the cover (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your accent. On by default.
-- **Surface controls** — panel opacity down to 18%, background dim and blur, with readability protection for bright custom backgrounds.
-- **Language** — English / Italian / Korean / Japanese / Chinese, switchable on the fly.
-- **Clock format** — 12h / 24h, show or hide seconds.
-- **Weather** — automatic detection or a manual city; **°C / °F** unit.
-- **Background media** — upload a custom image (JPG/PNG/WebP/GIF) or video (MP4/WebM, up to 200 MB); MP4 is converted to WebM when FFmpeg is available.
-- **Lock Screen widgets** — enable/disable each tile individually.
-- **Xenon AI** — provider selector (Gemini / Local), API key, capabilities guide, TTS toggle.
-- **Widgets & sharing** — one place to both *extend* and *share*: enable the [Widget SDK](#widget-sdk-build-your-own) and manage community widgets, and export/import your theme, pages and Deck profiles ([Share & import](#share--import-themes-pages-deck-profiles)).
-- **Dynamic Island** — choose Full, Minimal or None; set automatic/12/24-hour time, show/hide built-in segments in both chromes, order and position the Minimal capsule, manage side rails, and enable or disable each installed widget/theme contribution. A separate switch blocks all timed takeovers while leaving persistent activities and badges available.
-- **Notifiche** — master switch for notifications and on-screen pop-ups (Windows + Discord).
-- **Browser** — the optional one-click ad-blocker for Browser tiles.
-- **Startup** — if you use Xenon in a normal browser, it can **open the dashboard automatically when Windows starts** (on by default under **Appearance → Startup**). It only ever sets this up from a real browser, so a native-app-only setup never gets a surprise tab — and the option is hidden there.
-- **Telefono**, **Performance**, **Illuminazione (Lighting)**, **Calendari esterni**, **Streaming**, **OBS**, **Controllo Remoto** — see their sections above. **Telefono** holds phone access and file transfer; **Controllo Remoto** is the Sunshine/Moonlight wizard, and they are different things.
+- **Theme**: **Light / Dark / Auto**. Auto follows your Windows app theme (read reliably from the registry server-side) and updates within ~30s. Your accent colour applies to both schemes (Dark is the default).
+- **Dashboard style**: complete visual languages: **Liquid Glass** (the default on new installs: real blur over the Dusk wallpaper), **Classic** (the look earlier versions shipped with, kept for everyone who already has it) or **Pixel Retro** (a full '80s/'90s CRT console skin: terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own. A fourth, **Comic Book** (a printed comic page: paper panels, thick ink outlines and a faint halftone), comes only with a theme that asks for it.
+- **Background effects**: two optional, GPU-light ambient layers: an elegant **depth scene** (a faint accent bloom, soft vignette and slow ambient light pools in your accent colour, only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
+- **Static background**: a premium look with **zero animation**: pick **Dusk**, **Nebula**, **Prism** or **Halo** and the composition is painted once and left still, so it costs about as much to run as a plain colour (nothing is animated to pause). Each tints to your accent, has a light-theme variant, and layers an invisible fine grain to keep the gradients smooth on a wide, dim panel. Choosing a static look automatically pauses the animated depth scene; set it back to **None** to return to the Aurora.
+- **Animated background (code)**: a live, code-driven backdrop, with **three ways in that need no coding**: pick one of **nine one-tap ready-made backgrounds** (drifting stars, flowing waves, pulsing neon dots, nebula, aurora bands, matrix rain, confetti, orbiting particles, plasma), **ask Bit** to make one from a description ("a background with floating blue particles"), or **import** one someone shared. For tinkerers the JavaScript editor is still there (`function draw(ctx, t, w, h, assets)`) with a built-in "how it works" guide and a live character counter (the code holds up to 60,000 characters). You can also **bundle your own images** (up to 6 PNG/JPEG/WebP/GIF files added right in the editor) and paint them with `ctx.drawImage(assets.name, …)`, so pixel-art skylines, sprites and textures are as easy as animating shapes; the pictures ride *inside* the background, so a shared one keeps working with no external links to break. However it's made, it runs in the **same locked-down sandbox as community widgets**: an isolated frame with no network and no access to the dashboard, your files or your settings, so even an imported or AI-written background can only draw pixels (images included: they're embedded, never fetched). It's saved like any other preference, self-pauses when the tab is hidden, and travels inside a **theme**, a **package**, or its own **background** code. Turning it on takes over the backdrop, so the aurora/grid/static controls show they're paused (import backgrounds only from people you trust).
+- **Color presets**: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono, plus accent / text / background hex personalization with live preview.
+- **Accent from album art**: while music plays, the accent follows the cover (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your accent. On by default.
+- **Surface controls**: panel opacity down to 18%, background dim and blur, with readability protection for bright custom backgrounds.
+- **Language**: English, Italian, Korean, Japanese, Chinese, Spanish, French, German, Portuguese, Russian and Dutch, switchable on the fly.
+- **Clock format**: 12h / 24h, show or hide seconds.
+- **Weather**: automatic detection or a manual city; **°C / °F** unit.
+- **Background media**: upload a custom image (JPG/PNG/WebP/GIF) or video (MP4/WebM, up to 200 MB); MP4 is converted to WebM when FFmpeg is available.
+- **See-through background** *(Xenon app on Windows, macOS and Linux)*: Settings → Background → **Show the desktop behind the panels** makes the app window transparent, so the desktop of that screen shows behind the tiles: a Wallpaper Engine scene, a video wallpaper, the regular wallpaper. Panel opacity and Background dim set how much shows through; Xenon's own backgrounds stay saved and return when it is off. Switching it restarts the app (a window can only be made transparent when it is created). Where it cannot be drawn the window stays solid and Settings explains why: on Windows when the screen is driven by a different graphics card from the one drawing the dashboard (it would render blank), on Linux when no compositor is running (it would render black; Wayland always has one, on X11 run one such as picom). Tip for Windows: if Wallpaper Engine pauses behind the full-screen app, add an Application rule for `xenon-native.exe` with **Keep running** (Wallpaper Engine → Settings → Performance).
+- **Ambient**: what the Classic scene shows, each with its own switch.
+- **Bit**: provider selector, API keys, capabilities guide and spoken replies.
+- **Widgets & sharing**: one place to both *extend* and *share*: enable the [Widget SDK](#widget-sdk-build-your-own) and manage community widgets, and export/import your theme, pages and Deck profiles ([Share & import](#share--import)).
+- **Top bar**: choose Full, Minimal or None; set automatic/12/24-hour time, show/hide built-in segments in both chromes, order and position the Minimal capsule, manage side rails, and enable or disable each installed widget/theme contribution. A separate switch blocks all timed takeovers while leaving persistent activities and badges available.
+- **Notifications**: master switch for notifications and on-screen pop-ups (Windows + Discord).
+- **Browser**: the optional one-click ad-blocker for Browser tiles.
+- **Startup**: if you use Xenon in a normal browser, it can **open the dashboard automatically when the PC starts** (on by default under **General → This PC**). It only ever sets this up from a real browser, so a native-app-only setup never gets a surprise tab, and the option is hidden there.
+- **Phone**, **Performance**, **Lighting**, **Calendar**, **Streaming**, **Remote Control**: see their sections above. **Phone** holds phone access and file transfer; **Remote Control** is the Sunshine/Moonlight wizard, and they are different things.
+- **Support Xenon**: plans, the code you saved, and Sparks.
 
 All preferences are stored under `xeneonedge.settings.v1` in `localStorage` and synced to the server.
 
 ### Performance Mode
 
-![performance button](docs/images/performance-button.png)
-![performance optimization](docs/images/performance-optimization.png)
+![Settings → Performance](docs/images/features/settings-performance.webp)
 
 An opt-in, transparent, reversible profile under **Settings → Performance** that optimizes your setup on demand.
 
-- **Game mode** *(on by default)* — when a real game runs full-screen, the animated background and the Xenon AI glow automatically pause and fade out, so the widget stops competing for the GPU; they resume when you exit. Detection keys on the **foreground full-screen window** (far more reliable than frame-rate guessing) — maximized desktop apps, the dashboard's own browser host, and iCUE/Corsair are all excluded. Needs no extra tools or admin rights.
-- **On-demand optimization** — it notices what you're doing (gaming / coding / writing) and can offer to optimize via a banner (games only by default; you choose which activities and apps trigger it). Trigger it any time with **Optimize now** or the **Optimize performance** button on the System tile.
-- **You confirm everything** — a confirmation sheet lets you tick exactly what to apply: pause animations (zero-risk), a high-performance power plan, a gentle **AboveNormal priority boost** for the active app, and which background apps to close (graceful — never force-killed; critical Windows processes always refused).
-- **Fully reversible** — it remembers your previous power plan, the boosted process, and closed apps, and restores everything on **Restore** or session end, even after a restart.
-- **Pauses heavy live tiles** *(on by default)* — the **Browser** and **Second screen** tiles stop streaming while a game is running **or** an optimization session is active, and resume on their own afterwards. Because the live stream is the costly part, this keeps an open tile from competing with your game. It's the *"Pause heavy tiles"* option — turn it off to keep those tiles live.
-- **Works with or without AI** — a toggle lets Xenon AI pre-select which background apps to close (with a one-line explanation) when configured, or keep decisions fully deterministic. You can also ask by voice/chat: "optimize performance" / "restore performance".
-- **Idle background rest** — the animated background (Aurora + neon grid) drifts continuously, which keeps the GPU drawing frames even when the picture barely changes. After about a minute without any touch/mouse/key input — or whenever the tab is hidden — the animation now **freezes in place** and resumes the instant you interact. It looks identical while you're using it; it just stops working the GPU when no one's watching. (On laptops where the dashboard is drawn by the discrete GPU but the Xeneon Edge is driven by the integrated GPU, this also stops the constant frame-copying between the two cards.)
-- **Rendering GPU panel** — a panel in **Settings → Performance** shows which graphics card your browser is actually drawing the dashboard on. If that's your discrete GPU (a common cause of the dashboard running hot on laptops), it explains the one-time Windows setting — Settings → System → Display → Graphics → set your browser to *Power saving* — that pins the browser to the integrated GPU. Purely informational; it never changes anything on its own.
+- **Game mode** *(on by default)*: when a real game runs full-screen, the animated background and Bit's glow automatically pause and fade out, so the widget stops competing for the GPU; they resume when you exit. Xenon's own background work gives way too: the file index and disk scans stop until the game ends, and the other checks slow down. Detection keys on the **foreground full-screen window** (far more reliable than frame-rate guessing): maximized desktop apps, the dashboard's own browser host, and iCUE/Corsair are all excluded, and so are the Claude and ChatGPT desktop apps. Any other app goes on the **Not games** list in one tap (the app in front), from a Deck key, a widget button or Bit, and game mode leaves it alone. Needs no extra tools or admin rights.
+- **On-demand optimization**: it notices what you're doing (gaming / coding / writing) and can offer to optimize via a banner (games only by default; you choose which activities and apps trigger it). Trigger it any time with **Optimize now** or the **Optimize performance** button on the System tile.
+- **You confirm everything**: a confirmation sheet lets you tick exactly what to apply: pause animations (zero-risk), a high-performance power plan, a gentle **AboveNormal priority boost** for the active app, keeping busy apps out of the game's way, and which background apps to close (graceful, never force-killed; critical Windows processes always refused).
+- **Fully reversible**: it remembers your previous power plan, the boosted process, and closed apps, and restores everything on **Restore** or session end, even after a restart.
+- **Keeps busy apps out of the game's way** *(on by default inside Performance Mode; Windows, macOS and Linux)*: if the processor stays near its limit during a game in a session, the heaviest other apps move to a few cores of their own (on Windows also a lower priority; on macOS background mode, since macOS has no way to pick cores) and the game keeps the rest. While the processor has room nothing moves. They go back when the game or the session ends, even after a crash. The game, what it started, its launcher, the system, background services, voice, streaming and overlay apps are never touched, and an app you bring to the front goes back at once. Games played in a session are marked in the game history with how many apps moved, so Bit can compare them with games played without it.
+- **Pauses heavy live tiles** *(on by default)*: the **Browser** and **Second screen** tiles stop streaming while a game is running **or** an optimization session is active, and resume on their own afterwards. Because the live stream is the costly part, this keeps an open tile from competing with your game. It's the *"Pause heavy tiles"* option: turn it off to keep those tiles live.
+- **Works with or without AI**: a toggle lets Bit pre-select which background apps to close (with a one-line explanation) when configured, or keep decisions fully deterministic. You can also ask by voice/chat: "optimize performance" / "restore performance".
+- **Idle background rest**: the animated background (Aurora + neon grid) drifts continuously, which keeps the GPU drawing frames even when the picture barely changes. After about a minute without any touch/mouse/key input (or whenever the tab is hidden) the animation now **freezes in place** and resumes the instant you interact. It looks identical while you're using it; it just stops working the GPU when no one's watching. (On laptops where the dashboard is drawn by the discrete GPU but the Xeneon Edge is driven by the integrated GPU, this also stops the constant frame-copying between the two cards.)
+- **Rendering GPU panel**: a panel in **Settings → Performance** shows which graphics card your browser is actually drawing the dashboard on. If that's your discrete GPU (a common cause of the dashboard running hot on laptops), it explains the one-time Windows setting (Settings → System → Display → Graphics → set your browser to *Power saving*) that pins the browser to the integrated GPU. Purely informational; it never changes anything on its own.
 
 ---
 
 ## Smart context profiles
 
-The dashboard can **switch itself to match your activity**. Set up a profile per activity — **gaming, coding, writing, streaming, content creation, meetings** — under **Settings → Performance → Context profiles**, with one dropdown each for **Page / Lighting / Deck / Style**:
+The dashboard can **switch itself to match your activity**. Set up a profile per activity (**gaming, coding, writing, streaming, content creation, meetings**) under **Settings → Performance → Context profiles**, with one dropdown each for **Page / Lighting / Deck / Style**:
 
-- When that activity starts, Xenon applies the profile automatically — it can **jump to a chosen page**, set a **lighting effect**, switch the active **Deck profile**, and even flip the whole **dashboard style**: pick **Pixel Retro** for gaming and the 8-bit CRT skin takes over the moment a game starts, returning to **Liquid Glass** when you quit. Start a game and your gaming page + RGB + retro look come up on their own; close it and everything goes back.
-- **It reverts when you're done and never fights you.** When the activity ends it restores what was showing before (after a short grace, so a quick Alt-Tab out of a game doesn't flip things back and forth). It only acts on transitions, so you can always swipe to another page or change lighting by hand — if you've moved something yourself, it leaves your choice alone.
-- It **reuses Performance Mode's activity detection** (including your custom "which apps count as gaming/coding/…" lists), so there's one consistent notion of what you're doing — no extra background monitoring. Each dimension is optional (leave Lighting on "—" to not touch your RGB), there's a one-tap **Clear profiles**, and the whole feature is **off by default** and fully localised (EN/IT/KO/JA/ZH).
+- When that activity starts, Xenon applies the profile automatically: it can **jump to a chosen page**, set a **lighting effect**, switch the active **Deck profile**, and even flip the whole **dashboard style**: pick **Pixel Retro** for gaming and the 8-bit CRT skin takes over the moment a game starts, returning to **Liquid Glass** when you quit. Start a game and your gaming page + RGB + retro look come up on their own; close it and everything goes back.
+- **It reverts when you're done and never fights you.** When the activity ends it restores what was showing before (after a short grace, so a quick Alt-Tab out of a game doesn't flip things back and forth). It only acts on transitions, so you can always swipe to another page or change lighting by hand. If you've moved something yourself, it leaves your choice alone.
+- It **reuses Performance Mode's activity detection** (including your custom "which apps count as gaming/coding/…" lists), so there's one consistent notion of what you're doing, with no extra background monitoring. Each dimension is optional (leave Lighting unset and your RGB stays as it is), there's a one-tap **Clear profiles**, and the whole feature is **off by default** and fully localised in all 11 languages.
 
 ---
 
 ## Proactive moments
 
-Xenon speaks up only when it's worth it — everything here is computed **locally** from data the dashboard already reads (**no AI required**, nothing leaves your PC), and each has its own switch under a **Proactive moments** group in **Settings → Performance**.
+Xenon speaks up only when it's worth it: everything here is computed **locally** from data the dashboard already reads (**no AI required**, nothing leaves your PC), and each has its own switch under a **Proactive moments** group in **Settings → Performance**.
 
-- **Game session recap** — close a game after a real session (10 minutes or more) and the dashboard greets you back with a one-glance summary: **how long you played, average and peak FPS** (when the FPS reader is installed), and the **highest CPU/GPU temperatures** the session reached. One toast per session, nothing while you're playing.
-- **Sustained heat alerts** — beyond the existing temperature-*spike* warning, Xenon now notices a GPU or CPU that has sat **above its safe threshold continuously for 15+ minutes** (a blocked fan, an airflow problem, a runaway app) and tells you plainly: *"GPU has been at 91°C for 16 minutes"*. Deliberately hard to nag: at most one alert per hour per sensor, only for heat actually observed.
-- **A smarter morning greeting** — the morning greeting splash includes **today's first calendar events** in a small glass card, and (with spoken Ambient presence on) Xenon reads your day ahead aloud: weather plus *"You have 3 events today. First up: …"*.
+- **Game session recap**: close a game after a real session (10 minutes or more) and the dashboard greets you back with a one-glance summary: **how long you played, average and peak FPS** (when the FPS reader is installed), and the **highest CPU/GPU temperatures** the session reached. One toast per session, nothing while you're playing.
+- **Sustained heat alerts**: beyond the existing temperature-*spike* warning, Xenon now notices a GPU or CPU that has sat **above its safe threshold continuously for 15+ minutes** (a blocked fan, an airflow problem, a runaway app) and tells you plainly: *"GPU has been at 91°C for 16 minutes"*. Deliberately hard to nag: at most one alert per hour per sensor, only for heat actually observed.
+- **A smarter morning greeting**: the morning greeting splash includes **today's first calendar events** on the greeting, and (with spoken Ambient presence on) Xenon reads your day ahead aloud: weather plus *"You have 3 events today. First up: …"*.
 
-Fully localised (EN/IT/KO/JA/ZH); zero cost while no dashboard is open.
+Fully localised in all 11 languages; zero cost while no dashboard is open.
 
 ---
 
 ## Daily greeting
 
-Once per part of the day, Xenon welcomes you with a **fullscreen cinematic greeting** — its own scenography for each moment: a warm rising sun at dawn, bright daylight in the afternoon, a glowing sunset in the evening, and a moonlit sky with twinkling stars at night.
+Once per part of the day, Xenon welcomes you with a **fullscreen greeting drawn in pixels**: a sunrise, a bright afternoon with clouds, a sunset and a moonlit night with stars, with **Bit** doing what it would do at that hour (coffee in the morning, sunglasses in the afternoon, a book in the evening, asleep at night).
 
-- The greeting **types itself in** letter by letter, followed by a friendly line, today's date, and — when available — a glass pill with the **current weather** (condition, temperature, city).
-- It **dismisses itself** after a few seconds (a thin progress line shows how long) or instantly with a tap anywhere.
+- Under the greeting, **one true line about your day** from your calendar: how many events are left and when the first is, or what tomorrow looks like. With nothing to say there is no line. Then today's date and, when available, the **current weather** (condition, temperature, city), and the first events of the morning.
+- It fills any screen, from a phone in portrait to the 32:9 Xeneon Edge, on a whole-pixel grid, and in all 11 languages.
+- It **dismisses itself** after a few seconds or instantly with a tap anywhere.
 - Fully respects the system **reduce-motion** preference, and never repeats the same part-of-day greeting after a reload.
 
-> With **Ambient presence** (an opt-in Xenon AI feature) the greeting can also be **spoken aloud**, alongside heads-up reminders before events and spoken Guardian alerts. See [Xenon AI → Advanced AI features](#advanced-ai-features-opt-in).
+> With **Ambient presence** (an opt-in feature of Bit) the greeting can also be **spoken aloud**, alongside heads-up reminders before events and spoken Guardian alerts. See [Bit → Advanced AI features](#advanced-ai-features-opt-in).
 
 ---
 
 ## Top bar
 
-![Top bar with clock and quick actions](docs/images/topbar.png)
+![The Full top bar](docs/images/features/topbar-full.webp)
 
-Designed for clarity on a touchscreen — every action is a clear **labelled button** (icon + text), collapsing to icons only on very narrow widths.
+Designed for clarity on a touchscreen: on a wide screen every action is a clear **labelled button** (icon and text), collapsing to icons as the window gets narrower.
 
-- **Big centred live clock** (configurable format **and size**) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript. **Settings → Dynamic Island → Clock** carries a slider for the time and a separate one for the date, 80–200% — they scale whatever size your screen already draws, so a Xeneon Edge or a laptop keeps its own smaller starting point. The **date format** sits beside them: *Full* (`Friday, 11 September`), *Medium* (`Fri 11 Sep`) or *Short* (`11/09`), each asked of your system so every language gets the short form it really uses
-- A prominent **weather chip** with a **live animated condition icon**, a large temperature, and a soft tint matching the current weather — tap to open the weather modal
-- **Lock** (Windows lock) · **Ambient** (fullscreen ambient/screensaver mode) on the left
-- **Page dots** · **Xenon** (AI voice) in the centre
-- **Layout** · **Settings** · **Apps** (open-window switcher + favourites) on the right
+- **Big centred live clock** (configurable format **and size**) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript. **Settings → Top bar → Clock** carries a slider for the time and a separate one for the date, 80–200%: they scale whatever size your screen already draws, so a Xeneon Edge or a laptop keeps its own smaller starting point. The **date format** sits beside them: *Full* (`Friday, 11 September`), *Medium* (`Fri 11 Sep`) or *Short* (`11/09`), each asked of your system so every language gets the short form it really uses
+- A **weather chip** with a **live condition icon** and the temperature: tap to open the weather modal
+- **Lock** (locks the PC) · **Ambient** (fullscreen ambient/screensaver mode) · **Bit** (voice) · **Search** on the left
+- The clock, the date, the weather, what is playing and the page dots in the centre
+- **Layout** · **Settings** · **Apps** (open-window switcher and favourites) on the right
 
 ### Minimal style
 
-![full screen with minimal top bar](docs/images/fullscreen-minimal.png)
-![minimal top bar](docs/images/minimal-topbar.png)
-Prefer more room for widgets? **Settings → Dynamic Island** switches the chrome from **Full** to **Minimal**, clearing almost the entire top of the screen.
+![The Minimal top bar, with both rails folded at the screen edges](docs/images/features/topbar-minimal.webp)
 
-- **Actions dock to the screen edges.** Lock, Ambient and Xenon slide into a slim glass rail on the **left**; Layout, Settings, App and your favourites into a matching rail on the **right** — vertically centred, icon-only, touch-sized. A small chevron pull collapses each rail to just its tab; whether it's open is remembered per device.
-- **Widgets reclaim the full height.** The chrome floats instead of taking a bar, so the dashboard runs edge-to-edge — the left- and right-most tiles stretch the entire height of the display. Only the tile directly under the clock is trimmed slightly at the top, so the capsule sits in clear space above it and never covers a header.
+New installs start on **Minimal**, which clears almost the entire top of the screen for your widgets. **Settings → Top bar** switches between **Full** and **Minimal**.
+
+- **Actions dock to the screen edges.** Lock, Ambient and Bit slide into a slim glass rail on the **left**; Layout, Settings, Apps and your favourites into a matching rail on the **right**, vertically centred, icon-only and touch-sized. A small grabber collapses each rail to just its tab; whether it's open is remembered per device.
+- **Widgets reclaim the full height.** The chrome floats instead of taking a bar, so the dashboard runs edge-to-edge: the left- and right-most tiles stretch the entire height of the display. Only the tile directly under the clock is trimmed slightly at the top, so the capsule sits in clear space above it and never covers a header.
 - **One tidy island.** Clock, date, weather chip and page dots merge into a single floating capsule at the top, each segment set off by a hairline.
-- **Make the island yours.** Under **Settings → Dynamic Island** you can show or hide every built-in segment (**time, date, weather, vitals, page dots, SDK badges and Claude**) in both Full and Minimal. In Minimal you can also **anchor the capsule left, centre or right** and drag those segments into any order. Trim it to just the clock, push weather to the front or remove a special-edition counter—synced across your dashboards.
+- **Make the island yours.** Under **Settings → Top bar** you can show or hide every built-in segment (**time, date, weather, vitals, page dots, SDK badges and Claude**) in both Full and Minimal. In Minimal you can also **anchor the capsule left, centre or right** and drag those segments into any order. Trim it to just the clock, push weather to the front or remove a special-edition counter, synced across your dashboards.
 - **Installed contributions, not mystery switches.** Claude, GitHub Stars, Teleprompter, a limited-edition theme and any future widget appear in the same settings list only if that package is installed and actually declares an island activity or badge. Each can be disabled without uninstalling it. Timed goal/result/track takeovers have one global opt-out.
-- Same controls, a fraction of the space — the layout editor previews the minimal bar too (its tools tuck below the clock island), and you can switch back to **Full** at any time.
+- Same controls, a fraction of the space: the layout editor previews the minimal bar too (its tools tuck below the clock island), and you can switch back to **Full** at any time.

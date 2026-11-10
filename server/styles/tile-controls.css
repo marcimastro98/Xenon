@@ -1,0 +1,70 @@
+/* A tile's own controls (style.controls → tile-controls.js)
+   --------------------------------------------------------------------------
+   applyTileStyle() sets --tb-* on the tile and one data-tb-* attribute per part
+   the user set, so each rule below only exists for a tile that asked for it.
+   Loaded after the theme contract and the skins: a colour picked for ONE tile
+   wins over the theme's and the skin's.
+
+   "Buttons" is deliberately broad, because widgets name their own: real
+   <button>s, role=button/tab, .ui-btn, and any class ending in -btn or -chip.
+   Deck keys are left out (the Deck has its own key editor), and so are range,
+   checkbox and colour inputs, which are not buttons. Content inside an SDK
+   widget's frame is a separate document and gets the tile's tokens instead. */
+
+.grid-stack-item[data-tb-bg] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input) {
+  background: var(--tb-bg);
+}
+.grid-stack-item[data-tb-text] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input) {
+  color: var(--tb-text);
+  /* Icons drawn with currentColor follow the text; filled SVGs too. */
+  --icon-color: var(--tb-text);
+}
+.grid-stack-item[data-tb-text] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input) :is(svg, svg *):not([fill="none"]) {
+  fill: currentColor;
+}
+.grid-stack-item[data-tb-border] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input) {
+  border-color: var(--tb-border);
+  border-style: solid;
+}
+.grid-stack-item[data-tb-bw] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input) {
+  border-width: var(--tb-bw);
+  border-style: solid;
+}
+.grid-stack-item[data-tb-radius] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "],
+    input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"]), select, textarea, .cs-trigger):not(.deck-key, .deck-key *) {
+  border-radius: var(--tb-radius);
+}
+.grid-stack-item[data-tb-hover] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):not(.deck-key, .deck-key *, .cs-trigger, input, :disabled, .is-active, .active, .is-on, [aria-selected="true"], [aria-pressed="true"]):hover {
+  background: var(--tb-hover);
+}
+
+/* The selected state: tabs, segments, toggled chips. */
+.grid-stack-item[data-tb-active] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(button, [role="button"], [role="tab"], .ui-btn, [class$="-btn"], [class*="-btn "], [class$="-chip"], [class*="-chip "]):is(.is-active, .active, .is-on, [aria-selected="true"], [aria-pressed="true"]):not(.deck-key, .deck-key *) {
+  color: var(--tb-active-text);
+  background: var(--tb-active-bg);
+  border-color: var(--tb-active-bg);
+  --icon-color: var(--tb-active-text);
+}
+
+/* Text fields, dropdowns and the shared dropdown's trigger. */
+.grid-stack-item[data-tb-field-bg] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]), select, textarea, .cs-trigger) {
+  background: var(--tb-field-bg);
+}
+.grid-stack-item[data-tb-field-text] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]), select, textarea, .cs-trigger) {
+  color: var(--tb-field-text);
+  caret-color: var(--tb-field-text);
+}
+.grid-stack-item[data-tb-field-border] > .grid-stack-item-content > :is(.panel, .dashboard-widget)
+  :is(input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]), select, textarea, .cs-trigger) {
+  border-color: var(--tb-field-border);
+}

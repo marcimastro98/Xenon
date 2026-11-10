@@ -33,7 +33,7 @@
   const press = AK.createPressGuard('.chatgpt-widget-mount', () => paint());
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="chatgpt"]')).filter((n) => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="chatgpt"]')).filter((n) => n.closest('.pager-page, .layer-slot'));
   }
   function isParked(tile) {
     const page = tile.closest('.pager-page');
@@ -125,9 +125,9 @@
     paint();
   }
   function setModel(m) {
-    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
-    hubSettings = normalizeSettings({ ...hubSettings, chatgptWidget: { model: m } });
-    saveHubSettings();
+    if (typeof saveTileSetting !== 'function') return;
+    // Also from a widget on the screen, where the settings are read-only (utils.js).
+    saveTileSetting({ chatgptWidget: { model: m } }).then((ok) => { if (!ok) paint(); });
     paint();
   }
 

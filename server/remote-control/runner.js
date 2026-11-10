@@ -1,6 +1,9 @@
 'use strict';
 
 const { execFile, spawn } = require('node:child_process');
+const fs = require('node:fs');
+const nodePath = require('node:path');
+const { psEscape, psQuote } = require('../ps-quote');
 
 /**
  * Start something and deliberately do NOT wait for it.
@@ -85,8 +88,101 @@ const PKEXEC_FAILED = 127;
  * cannot be drawn, which surfaces as a silent refusal.
  */
 function runElevatedPosix(file, args, timeoutMs) {
-  return run('pkexec', [String(file), ...args.map(String)], { timeoutMs })
+  // pkexec itself by absolute path: it is setuid root and lives in a system
+  // directory, so there is no reason to let $PATH pick which one runs.
+  const pkexec = findSystemBinary('pkexec') || 'pkexec';
+  return run(pkexec, [String(file), ...args.map(String)], { timeoutMs })
     .then(mapPkexecResult);
+}
+
+// ── What root may run ───────────────────────────────────────────────────────
+// Elevating a binary hands root whatever is at that path WHEN pkexec/osascript
+// gets to it. If the file, or any directory above it, is writable by the
+// (unprivileged) user, then any program running as that user can swap the
+// binary between our check and the password prompt and have root execute its
+// own code — a clean local privilege escalation that the user's password
+// "approves". Homebrew is the common case: /opt/homebrew/bin/tailscale and
+// /home/linuxbrew/... are owned by the user. So on macOS/Linux we only elevate
+// a file whose every path component (following symlinks, each hop checked) is
+// owned by root and not writable by group or others.
+//
+// A bare command name is resolved here against fixed system directories only,
+// never $PATH: a user-controlled ~/.local/bin earlier in PATH would otherwise
+// decide what `sh` or `systemctl` means for root.
+const SYSTEM_BIN_DIRS = ['/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/local/sbin', '/usr/local/bin'];
+
+function findSystemBinary(name, fsx = fs) {
+  for (const dir of SYSTEM_BIN_DIRS) {
+    const cand = nodePath.posix.join(dir, name);
+    try {
+      if (fsx.statSync(cand).isFile()) return cand;
+    } catch { /* not here */ }
+  }
+  return '';
+}
+
+// Returns null when every component is trustworthy, else a human-readable reason.
+function untrustedPathReason(p, fsx, depth = 0) {
+  if (depth > 16) return `${p}: too many symbolic links`;
+  const parts = nodePath.posix.normalize(p).split('/').filter(Boolean);
+  let cur = '/';
+  for (let i = 0; i <= parts.length; i++) {
+    if (i > 0) cur = nodePath.posix.join(cur, parts[i - 1]);
+    let st;
+    try { st = fsx.lstatSync(cur); } catch { return `${cur} does not exist`; }
+    if (st.uid !== 0) return `${cur} is not owned by root`;
+    if (st.isSymbolicLink()) {
+      // The link itself sits in a directory we already checked; now check
+      // where it leads, with the rest of the path appended.
+      let target;
+      try { target = fsx.readlinkSync(cur); } catch { return `${cur} cannot be read`; }
+      const next = nodePath.posix.join(nodePath.posix.resolve(nodePath.posix.dirname(cur), target), ...parts.slice(i));
+      return untrustedPathReason(next, fsx, depth + 1);
+    }
+    if (st.mode & 0o022) return `${cur} is writable by group or others`;
+    if (i === parts.length && !st.isFile()) return `${cur} is not a regular file`;
+  }
+  return null;
+}
+
+/**
+ * Decide whether `file` may be run as root. Resolves a bare name against the
+ * system directories. Returns { ok: true, path } or { ok: false, error }.
+ * `fsx` is injectable so tests can describe a filesystem without needing root.
+ */
+function checkElevatable(file, fsx = fs) {
+  const f = String(file || '');
+  if (!f) return { ok: false, error: 'no binary given' };
+  const abs = nodePath.posix.isAbsolute(f) ? f
+    : (f.includes('/') ? '' : findSystemBinary(f, fsx));
+  if (!abs) return { ok: false, error: `${f} was not found in a system directory` };
+  const why = untrustedPathReason(abs, fsx);
+  if (why) return { ok: false, error: why };
+  // Belt and braces: the kernel's own resolution must land somewhere that
+  // passes too (covers `..` after a symlink, which the lexical join above
+  // cannot model exactly).
+  let real = abs;
+  try { real = fsx.realpathSync(abs); } catch { return { ok: false, error: `${abs} cannot be resolved` }; }
+  if (real !== abs) {
+    const why2 = untrustedPathReason(real, fsx);
+    if (why2) return { ok: false, error: why2 };
+  }
+  return { ok: true, path: abs };
+}
+
+// The shape every caller already understands: a non-zero code with stderr is
+// reported as "failed" with that text; it is NOT UAC_CANCELLED, so nobody is
+// told the user said no.
+const UNTRUSTED_BINARY_CODE = 126;
+function refusedElevation(file, error) {
+  return {
+    code: UNTRUSTED_BINARY_CODE,
+    stdout: '',
+    stderr: `untrusted_binary: refusing to run ${file} as administrator (${error}). `
+      + 'Install it from the vendor package so it is owned by root, or run the step yourself.',
+    timedOut: false,
+    refused: 'untrusted_binary',
+  };
 }
 
 /** Pure, and exported, so the mapping can be stated without spawning pkexec. */
@@ -117,7 +213,7 @@ function runElevatedMac(file, args, timeoutMs) {
     .map((a) => `'${String(a).replace(/'/g, `'\\''`)}'`)
     .join(' ');
   const script = `do shell script "${osaQuote(shellCmd)}" with administrator privileges`;
-  return run('osascript', ['-e', script], { timeoutMs }).then(mapOsascriptResult);
+  return run('/usr/bin/osascript', ['-e', script], { timeoutMs }).then(mapOsascriptResult);
 }
 
 /** Pure, and exported, so the mapping can be stated without opening a dialog. */
@@ -128,11 +224,15 @@ function mapOsascriptResult(r) {
   return r;
 }
 
-function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
-  if (process.platform === 'darwin') return runElevatedMac(file, args, timeoutMs);
-  if (process.platform !== 'win32') return runElevatedPosix(file, args, timeoutMs);
-  const safeFile = String(file).replace(/'/g, "''");
-  const argList = args.map((a) => `'${String(a).replace(/'/g, "''")}'`).join(',');
+function runElevated(file, args = [], { timeoutMs = 600000, fsx = fs } = {}) {
+  if (process.platform !== 'win32') {
+    const trust = checkElevatable(file, fsx);
+    if (!trust.ok) return Promise.resolve(refusedElevation(String(file), trust.error));
+    if (process.platform === 'darwin') return runElevatedMac(trust.path, args, timeoutMs);
+    return runElevatedPosix(trust.path, args, timeoutMs);
+  }
+  const safeFile = psEscape(file);
+  const argList = args.map((a) => psQuote(a)).join(',');
   const start = argList
     ? `Start-Process -FilePath '${safeFile}' -ArgumentList ${argList} -Verb RunAs -Wait -PassThru`
     : `Start-Process -FilePath '${safeFile}' -Verb RunAs -Wait -PassThru`;
@@ -151,5 +251,5 @@ function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
 
 module.exports = {
   run, runElevated, spawnDetached, mapPkexecResult, mapOsascriptResult, osaQuote,
-  UAC_CANCELLED, PKEXEC_DISMISSED,
+  checkElevatable, findSystemBinary, UAC_CANCELLED, PKEXEC_DISMISSED,
 };

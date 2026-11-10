@@ -20,15 +20,22 @@
   let els = null;   // reparented topbar elements, captured once
   let ui = null;    // built-once minimal chrome: { pill, left, right }
 
-  // Auto-hide: after AUTO_HIDE_MS with no rail interaction the two edge rails
+  // Auto-hide: after the delay in autoHideMs() with no rail interaction the two edge rails
   // tuck away (class is-auto-hidden), leaving the dashboard clean but keeping the
   // slim handle peeking so there's a visible arrow to reopen them; a tap on that
   // handle — or anywhere in the screen-edge strip — brings them back and restarts
-  // the countdown. Opt-out via Settings → Dynamic Island (topbarRailsAutoHide=false),
+  // the countdown. Opt-out via Settings → Top bar (topbarRailsAutoHide=false),
   // which keeps them always on screen. Transient visual state only — it never
   // touches the persisted per-rail collapsed choice (topbarRails).
-  const AUTO_HIDE_MS = 10000;
+  // Settings → Top bar → Side rails sets it (topbarLook.railDelay, seconds).
+  const AUTO_HIDE_DEFAULT_S = 10;
+  function autoHideMs() {
+    const look = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.topbarLook : null;
+    const s = look && Number.isFinite(look.railDelay) ? look.railDelay : AUTO_HIDE_DEFAULT_S;
+    return s * 1000;
+  }
   let autoHideTimer = null;
+  let railsHeld = false;   // Settings → Top bar is open: the rails stay out (js/settings-bar-preview.js)
   // Per side, because a touch only ever means ONE side. A rail that is tucked away
   // because it was collapsed and one tucked away by the idle timer are drawn
   // identically (the 22px handle), so a touch that woke BOTH of them slid open
@@ -67,7 +74,7 @@
   // must also be added to the canonical list in normalizeTopbarClock (client
   // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
   // or it is dropped on the next settings save.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
 
   // The chrome BUTTONS, keyed the same way and carried by the same settings
   // object (topbarClock.actions). Selector per id, resolved against the whole
@@ -109,10 +116,12 @@
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget.js)
+    const clockPerf = clock.querySelector('.clock-perf'); // Performance Mode marker (js/perf-marker.js)
+    const clockBit = clock.querySelector('.clock-bit'); // Bit waiting with a message (js/bit-message-card.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude, clockCodex,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude, clockCodex, clockPerf, clockBit,
     };
     return els;
   }
@@ -129,6 +138,7 @@
       case 'badges': return els.clockBadges;
       case 'claude': return els.clockClaude;
       case 'codex': return els.clockCodex;
+      case 'perf': return els.clockPerf;
       default: return null;
     }
   }
@@ -136,9 +146,13 @@
   // Element for a chrome-button id, or null when that button is not in this
   // document (embed views, a future build, a phone). Looked up live: the button
   // may have been moved into the other container.
+  // A widget's own button (`sdk:<pkg>`, js/sdk-topbar-button.js) is found by
+  // its data-tb-id.
+  const SDK_ACTION_RE = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
   function actionEl(id) {
     const sel = ACTION_SELECTORS[id];
-    return sel ? document.querySelector(sel) : null;
+    if (sel) return document.querySelector(sel);
+    return typeof id === 'string' && SDK_ACTION_RE.test(id) ? document.querySelector('[data-tb-id="' + id + '"]') : null;
   }
 
   // Read the configured button list. Absent settings mean "canonical order, all
@@ -227,7 +241,7 @@
     // online indicator and has to stay, so instead the bare row stops taking a
     // row of its own (CSS below) and the face centres on the bar.
     if (els.clock) {
-      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex]
+      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf, els.clockBit]
         .some((el) => el && el.hidden !== true && !el.classList.contains('topbar-item-hidden'));
       els.clock.classList.toggle('clock-meta-bare', !metaAlive);
     }
@@ -260,6 +274,16 @@
       if (host && el.parentElement !== host) host.appendChild(el);
       el.style.order = String(index);
     });
+    // A widget button the user has not placed yet goes at the end of the left
+    // side; placing it in Settings saves it into the list above.
+    let next = items.length;
+    for (const el of document.querySelectorAll('.topbtn-sdk[data-tb-id]')) {
+      const id = el.getAttribute('data-tb-id');
+      if (items.some((it) => it && it.id === id)) continue;
+      el.classList.remove('topbar-item-hidden');
+      if (el.parentElement !== hosts.left) hosts.left.appendChild(el);
+      el.style.order = String(next++);
+    }
     // The page dots are the one thing sharing .top-actions that is NOT a button:
     // they are an island segment whose native home happens to be this container.
     // Ordering the buttons gives every one of them an `order`, and an unordered
@@ -267,7 +291,7 @@
     // the row the moment this feature shipped. In Full they belong last, exactly
     // where the markup puts them; in Minimal they live in the pill and the island
     // layout owns their order, so leave them alone there.
-    if (els.pagerDots && !active) els.pagerDots.style.order = String(items.length);
+    if (els.pagerDots && !active) els.pagerDots.style.order = String(next);
   }
 
   // ── Island morph ────────────────────────────────────────────────────────────
@@ -310,7 +334,12 @@
       // Nothing actually resized (e.g. the takeover is switched off, so a
       // play/pause only changed a glyph) — don't animate a box that isn't moving.
       if (Math.abs(to.width - from.width) < 2 && Math.abs(to.height - from.height) < 2) {
-        pill.classList.remove('mini-morph-dim');
+        // A morph cut short by this one never ran its own cleanup (its end timer was
+        // cleared above): hand the capsule back to content sizing here too.
+        pill.classList.remove('mini-morph-dim', 'mini-morphing');
+        pill.style.removeProperty('width');
+        pill.style.removeProperty('height');
+        reflowIsland();
         return;
       }
       pill.classList.add('mini-morphing');
@@ -378,6 +407,14 @@
     syncRail(left.rail, left.handle, state.left);
     syncRail(right.rail, right.handle, state.right);
     ui = { pill, left, right };
+    // Every size change of the pill moves the cutouts it makes in the tiles.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(scheduleReflow).observe(pill);
+    // A ResizeObserver never sees a transform. The pill recedes and returns by
+    // transform alone (notification, Spotlight bulge), so measure again once that
+    // settles: a pass that ran while it was scaled down left the cutout too small.
+    const settle = (e) => { if (e.target === pill) scheduleReflow(); };
+    pill.addEventListener('transitionend', settle);
+    pill.addEventListener('animationend', settle);
     return ui;
   }
 
@@ -402,8 +439,8 @@
   // Start (or restart) the idle countdown. No-op when disabled/inactive.
   function armAutoHide() {
     clearAutoHideTimer();
-    if (!active || !autoHideEnabled()) return;
-    autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, AUTO_HIDE_MS);
+    if (!active || !autoHideEnabled() || railsHeld) return;
+    autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, autoHideMs());
   }
 
   // A rail was touched (or summoned): reveal THAT side and restart the countdown.
@@ -473,6 +510,8 @@
       const el = islandSegEl(id);
       if (el) ui.pill.appendChild(el);
     });
+    // Not a segment: nobody sets it up, it is there only while Bit waits.
+    if (els.clockBit) ui.pill.appendChild(els.clockBit);
     document.body.classList.add('topbar-minimal');
     active = true;
     applyIslandLayout();
@@ -489,9 +528,9 @@
       el.style.removeProperty('order');
       el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
     });
-    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude · codex
+    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude · codex · perf · bit
     // (fixed original order — must match index.html)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex]
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex, els.clockPerf, els.clockBit]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the
@@ -501,6 +540,9 @@
     document.body.classList.remove('topbar-minimal');
     clearIslandTags();
     active = false;
+    arrived = false; // back to Minimal later, the island arrives again
+    if (ui && ui.pill) ui.pill.classList.remove('island-waiting', 'island-arriving');
+    stopPaging();
     applyIslandLayout();
     // Stop the idle countdown and clear the transient hidden state, so switching
     // back to minimal later starts from fully-visible rails.
@@ -508,83 +550,516 @@
     setRailsHidden(false);
   }
 
+  // ── Island notch ─────────────────────────────────────────────────────────
+  // A tile under the island keeps its full height and gets a cutout around the
+  // pill (js/island-notch.js has the shape). Three things per tile:
+  //   --island-clear  the old whole-content inset, still used while EDITING, where
+  //                   the edit bar and handles sit at the tile top;
+  //   --island-inset  how far the content starts below the tile top (run mode);
+  //   --island-notch  the clip, plus an <svg> hairline along the cutout.
+  // A cutout grows out of, and shrinks back into, its own centre, so the tile
+  // opens and closes around the island instead of popping.
+  const NOTCH_MS = 360;             // must match the transitions in TopbarMinimal.css
+  const notchState = new WeakMap(); // item -> { geo, line, key, leaving }
+
+  function notchEdge(item) {
+    let svg = item.querySelector(':scope > .island-notch-edge');
+    if (!svg) {
+      const ns = 'http://www.w3.org/2000/svg';
+      svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('class', 'island-notch-edge');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.appendChild(document.createElementNS(ns, 'path'));
+      item.appendChild(svg);
+    }
+    return svg.firstChild;
+  }
+
+  function drawNotch(item, geo, line) {
+    const N = window.IslandNotch;
+    item.style.setProperty('--island-notch', N.clipPath(geo));
+    item.style.setProperty('--island-notch-surface', N.surfaceClipPath(geo));
+    const d = N.edgePath(geo, line.width);
+    const path = notchEdge(item);
+    // CSS `d` animates together with the clip where supported; the attribute is
+    // the fallback for engines without it (WebKit), which then simply snap.
+    path.setAttribute('d', d);
+    path.style.setProperty('d', 'path("' + d + '")');
+    path.setAttribute('stroke', line.color);
+    path.setAttribute('stroke-width', String(line.width));
+  }
+
+  // A tab strip with room beside the cutout keeps its place at the tile top
+  // (island-notch.js besideBar); only what is under the strip moves down.
+  const BAR_PROPS = ['--island-bar-shift', '--island-bar-max', '--island-under'];
+  function setBar(item, bar) {
+    item.classList.toggle('island-beside', !!bar);
+    BAR_PROPS.forEach(p => item.style.removeProperty(p));
+    if (!bar) return;
+    if (bar.shift) item.style.setProperty('--island-bar-shift', bar.shift + 'px');
+    item.style.setProperty('--island-bar-max', bar.max + 'px');
+    if (bar.under) item.style.setProperty('--island-under', bar.under + 'px');
+  }
+
+  // The content where a closed cut leaves it (as releaseNotch does): at the tile
+  // top, a strip unshifted, so a soft opening has a place to slide from.
+  function shutContent(item, line, bar) {
+    item.style.setProperty('--island-inset', line.width + 'px');
+    setBar(item, bar ? { shift: 0, max: bar.max, under: 0 } : null);
+  }
+
+  // Where a group's tab strip may sit and what it needs, in the item's own px.
+  // Read only on a shown page outside editing: a rect read on a parked page
+  // renders the very subtree the parking skips, and while editing the content
+  // sits lower. A tile that cannot be read keeps what was read last.
+  const barRooms = new WeakMap(); // item -> { left, right, need, under }
+  function tabBarRoom(item, surface, cs, tile, top, readable) {
+    if (!surface.classList.contains('tabgroup')) return null;
+    if (!readable) return barRooms.get(item) || null;
+    const bar = surface.querySelector(':scope > .tabgroup-bar');
+    const body = surface.querySelector(':scope > .tabgroup-body');
+    if (!bar || !body) return null;
+    const px = (v) => parseFloat(v) || 0;
+    const bs = getComputedStyle(bar);
+    const border = px(cs.borderLeftWidth); // the top border's width once the strip stays up
+    const room = {
+      left: tile.margin + border + px(cs.paddingLeft) + px(bs.marginLeft),
+      right: tile.width - tile.margin - px(cs.borderRightWidth) - px(cs.paddingRight) - px(bs.marginRight),
+      need: bar.scrollWidth + 1,
+      under: body.getBoundingClientRect().top - top - (px(cs.borderTopWidth) - border),
+    };
+    barRooms.set(item, room);
+    return room;
+  }
+
+  function dropNotch(item) {
+    const st = notchState.get(item);
+    if (st && st.leaving) clearTimeout(st.leaving);
+    notchState.delete(item);
+    item.classList.remove('island-clear');
+    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-surface', ...SOFT_PROPS].forEach(p => item.style.removeProperty(p));
+    setBar(item, null);
+    const svg = item.querySelector(':scope > .island-notch-edge');
+    if (svg) svg.remove();
+  }
+
+  // Performance mode and a game hold the island's motion: the cuts then just
+  // appear. Not low-power-gpu: that pause is for loops that cost frames all
+  // session (native-bridge.js), and a cutout opening is one short transition.
+  const MOTION_HOLD = ['perf-mode', 'game-mode'];
+  function motionOk() {
+    if (MOTION_HOLD.some((c) => document.body.classList.contains(c))) return false;
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // A cutout appearing (a page settling, a widget added) opens slowly and evenly,
+  // the content with it: the shared ease-out (TopbarMinimal.css) does most of
+  // its travel in the first frames, which read as a snap for a whole cutout.
+  // The content slides on a CSS transition; the cut itself is written frame by
+  // frame (openSoftly), so it can head for a new shape mid-way when the island
+  // changes as the page arrives (retargetOpening) instead of jumping to it.
+  const SOFT_OPEN = { ms: 620, ease: 'cubic-bezier(.4, 0, .2, 1)' };
+  const SOFT_PROPS = ['--island-notch-ms', '--island-content-ms', '--island-ease'];
+  function softOpen(item) {
+    item.style.setProperty('--island-notch-ms', '0ms');
+    item.style.setProperty('--island-content-ms', SOFT_OPEN.ms + 'ms');
+    item.style.setProperty('--island-ease', SOFT_OPEN.ease);
+  }
+
+  // SOFT_OPEN.ease as a function of time (0..1): cubic-bezier(.4, 0, .2, 1),
+  // x solved by Newton steps, so the cut and the content keep one pace.
+  function softEase(t) {
+    const bez = (a, b, s) => 3 * a * s * (1 - s) * (1 - s) + 3 * b * s * s * (1 - s) + s * s * s;
+    let s = t;
+    for (let i = 0; i < 6; i++) {
+      const dx = 3 * 0.4 * (1 - s) * (1 - s) + 6 * (0.2 - 0.4) * s * (1 - s) + 3 * (1 - 0.2) * s * s;
+      if (Math.abs(dx) < 1e-6) break;
+      s = Math.min(1, Math.max(0, s - (bez(0.4, 0.2, s) - t) / dx));
+    }
+    return bez(0, 1, s);
+  }
+
+  // A cutout appearing: flat (island-notch.js flat), content at the top, then
+  // both open two frames later. A write in the very next frame lands before the
+  // closed state was ever styled, so there is nothing to transition from and it
+  // appears whole (measured after a page change).
+  function startSoftOpen(item, st) {
+    const N = window.IslandNotch;
+    st.opening = true;
+    softOpen(item);
+    shutContent(item, st.line, st.bar);
+    item.classList.add('island-clear');
+    drawNotch(item, N.flat(st.geo), st.line);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (notchState.get(item) !== st || !st.key) { st.opening = false; return; }
+      st.started = true;
+      openContent(item, st);
+      openSoftly(item, st, N.flat(st.geo));
+    }));
+  }
+
+  function openContent(item, st) {
+    item.style.setProperty('--island-inset', st.inset + 'px');
+    setBar(item, st.bar);
+  }
+
+  // The island changed while a cut was opening: a widget waking on the page it
+  // arrived with rewrites its line and the pill grows (measured: Meter Reading's
+  // cost). A direct draw cut the opening short and the whole cut appeared in one
+  // frame, so the opening heads for the new shape instead.
+  function retargetOpening(item, st, next) {
+    Object.assign(st, next);
+    if (st.started) openContent(item, st);
+  }
+
+  // Draw the cut from `from` to its shape over SOFT_OPEN.ms, toward st.geo as it
+  // is on each frame. It stops when the tile is redrawn, released or dropped
+  // (its state is no longer `st`).
+  function openSoftly(item, st, from) {
+    const N = window.IslandNotch;
+    const t0 = performance.now();
+    const step = (now) => {
+      if (notchState.get(item) !== st || !st.key) { st.opening = false; return; }
+      const t = Math.min(1, (now - t0) / SOFT_OPEN.ms);
+      drawNotch(item, N.between(from, st.geo, softEase(t)), st.line);
+      if (t < 1) requestAnimationFrame(step);
+      else st.opening = false;
+    };
+    requestAnimationFrame(step);
+  }
+
+  // Close a cutout into its centre, then take the tags off once it has.
+  function releaseNotch(item) {
+    const st = notchState.get(item);
+    if (!st || !st.geo || !motionOk() || document.body.classList.contains('layout-editing')) { dropNotch(item); return; }
+    if (st.leaving) return;
+    st.leaving = setTimeout(() => { if (notchState.get(item) === st) dropNotch(item); }, NOTCH_MS);
+    st.key = '';
+    SOFT_PROPS.forEach(p => item.style.removeProperty(p));
+    item.style.setProperty('--island-notch-ms', NOTCH_MS + 'ms'); // closes on its own clock while the box follows
+    item.style.setProperty('--island-inset', st.line.width + 'px');
+    setBar(item, null);
+    drawNotch(item, window.IslandNotch.collapsed(st.geo), st.line);
+  }
+
   function clearIslandTags() {
-    document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
-      item.classList.remove('island-clear');
-      item.style.removeProperty('--island-clear');
+    document.querySelectorAll('.grid-stack-item.island-clear').forEach(dropNotch);
+  }
+
+  // The pill changes size on its own (a badge appears, the clock gains a
+  // segment, a notification morphs it): follow it, one pass per frame.
+  let notchFrame = 0;
+  function scheduleReflow() {
+    if (notchFrame) return;
+    notchFrame = requestAnimationFrame(() => { notchFrame = 0; reflowIsland(); });
+  }
+
+  // An SDK line changing length resizes the capsule, and with it the cutout.
+  let watchedTenant = null;
+  function watchTenant(el) {
+    if (watchedTenant === el || typeof ResizeObserver !== 'function') return;
+    watchedTenant = el;
+    new ResizeObserver(scheduleReflow).observe(el);
+  }
+
+  const boxOf = (r, radius) => ({
+    left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height,
+    // A pill's radius is far past half its height; clamp it so it can be animated.
+    radius: Math.min(Number.isFinite(radius) ? radius : 0, r.height / 2),
+  });
+
+  // Where the island lives, in viewport px: the SDK capsule when a widget has
+  // taken it, else the pill. The cutouts wrap this box only: a notification
+  // (js/toast-island.js) grows out of it and floats OVER the tiles for its few
+  // seconds, so the tiles never change shape for one. The capsule is placed from
+  // its layout size and anchor, so it is never read mid-transform. The pill IS
+  // mid-transform while it returns from receding (a scale), so then its last box
+  // at rest stands in until it has settled. A notification grows out of and back
+  // into this box; `kind` tells it whether there is a pill to dim first.
+  let restBox = null;
+  function homeBox() {
+    if (!active || !ui) return null;
+    const body = document.body;
+    const cap = body.classList.contains('xisland-live') ? document.querySelector('.sdk-island') : null;
+    if (cap && cap.offsetWidth) {
+      watchTenant(cap);
+      const w = cap.offsetWidth, h = cap.offsetHeight;
+      const top = parseFloat(getComputedStyle(cap).top) || 0;
+      const align = body.dataset.topbarAlign;
+      const left = align === 'left' ? 12 : align === 'right' ? window.innerWidth - 12 - w : (window.innerWidth - w) / 2;
+      return { ...boxOf({ left, right: left + w, top, bottom: top + h, height: h }, parseFloat(getComputedStyle(cap).borderTopLeftRadius)), kind: 'sdk' };
+    }
+    const cs = getComputedStyle(ui.pill);
+    let scaled = false;
+    try { scaled = cs.transform !== 'none' && Math.abs(new DOMMatrixReadOnly(cs.transform).a - 1) > 0.001; } catch { /* unparsable: treat as at rest */ }
+    if (scaled && restBox) return { ...restBox, kind: 'pill' };
+    const box = boxOf(ui.pill.getBoundingClientRect(), parseFloat(cs.borderTopLeftRadius));
+    if (!scaled) restBox = box;
+    return { ...box, kind: 'pill' };
+  }
+
+  // ── Following a change of tenant ─────────────────────────────────────────────
+  // An SDK line takes the island's spot and gives it back: the cutouts must
+  // change shape with it. Tiles are redrawn every frame meanwhile
+  // (body.island-following turns their own transitions off; a tile that is
+  // leaving keeps its own, see releaseNotch). The capsule jumps, so the box is
+  // moved toward it on a critically damped spring: it starts and stops softly,
+  // never overshoots, and keeps its momentum mid-flight.
+  const FOLLOW_OMEGA = 18;    // 1/s, settles in about 0.3s
+  const FOLLOW_HOLD_MS = 600; // the pill takes ~0.35s to come back; measure after it
+  const BOX_KEYS = ['left', 'right', 'bottom', 'height', 'radius'];
+  const follow = { raf: 0, last: 0, until: 0, pos: null, vel: null };
+
+  function followStop() {
+    follow.pos = follow.vel = null;
+    document.body.classList.remove('island-following');
+  }
+
+  function followStep(now) {
+    follow.raf = 0;
+    if (!active || !ui || !follow.pos) { followStop(); return; }
+    const dt = Math.min(0.05, Math.max(0.001, (now - follow.last) / 1000));
+    follow.last = now;
+    const target = homeBox();
+    if (!target) { followStop(); return; }
+    const e = Math.exp(-FOLLOW_OMEGA * dt);
+    let moving = false;
+    BOX_KEYS.forEach((k) => {
+      const d = follow.pos[k] - target[k];
+      const t = (follow.vel[k] + FOLLOW_OMEGA * d) * dt;
+      follow.pos[k] = target[k] + (d + t) * e;
+      follow.vel[k] = (follow.vel[k] - FOLLOW_OMEGA * t) * e;
+      if (Math.abs(follow.pos[k] - target[k]) > 0.25 || Math.abs(follow.vel[k]) > 2) moving = true;
     });
+    if (moving || now < follow.until) {
+      reflowIsland();
+      follow.raf = requestAnimationFrame(followStep);
+      return;
+    }
+    followStop();
+    reflowIsland(); // the real box, with the tiles' own transitions back on
+  }
+
+  // ── Arrival ──────────────────────────────────────────────────────────────────
+  // The island comes in from a small dot at its centre, and the tiles take its
+  // shape as it grows: the cutout box rides the same spring from that dot, so no
+  // tile is cut before there is an island to cut around. Once per Minimal session
+  // (reload, or switching to Minimal), only when the screen can be seen.
+  const ARRIVE_HOLD_MS = 560; // the island's own entrance (TopbarMinimal.css)
+  let arrived = false;
+  let splashWait = false;
+  // Under Bit's boot splash the entrance would play unseen: hold the island out
+  // of sight (nothing cut either) and start it once the splash is gone.
+  function behindSplash() {
+    const splash = document.getElementById('boot-splash');
+    if (!splash || !splash.isConnected || !window.BootSplash) return false;
+    ui.pill.classList.add('island-waiting');
+    if (!splashWait) {
+      splashWait = true;
+      window.BootSplash.whenGone(() => { splashWait = false; scheduleReflow(); });
+    }
+    return true;
+  }
+  // true once arrived (with or without the entrance); false to wait: the page is
+  // hidden or the island not laid out yet, and nothing is cut meanwhile.
+  function arrive() {
+    if (arrived) return true;
+    if (document.hidden) {
+      document.addEventListener('visibilitychange', scheduleReflow, { once: true });
+      return false;
+    }
+    if (behindSplash()) return false;
+    const box = homeBox(); // at rest: the entrance has not scaled it yet
+    if (!box || !box.height) return false;
+    arrived = true;
+    ui.pill.classList.remove('island-waiting');
+    if (!motionOk() || document.body.classList.contains('layout-editing') || box.kind !== 'pill') return true;
+    const dot = box.height * 0.2;
+    const cx = (box.left + box.right) / 2, cy = box.bottom - box.height / 2;
+    follow.pos = { left: cx - dot, right: cx + dot, bottom: cy + dot, height: 2 * dot, radius: dot };
+    follow.vel = { left: 0, right: 0, bottom: 0, height: 0, radius: 0 };
+    follow.last = performance.now();
+    follow.until = follow.last + ARRIVE_HOLD_MS;
+    document.body.classList.add('island-following');
+    const pill = ui.pill;
+    const done = (e) => {
+      if (e && e.target !== pill) return;
+      pill.classList.remove('island-arriving');
+      pill.removeEventListener('animationend', done);
+    };
+    pill.addEventListener('animationend', done);
+    setTimeout(done, ARRIVE_HOLD_MS + 200); // an animation that never ran never ends
+    pill.classList.add('island-arriving');
+    if (!follow.raf) follow.raf = requestAnimationFrame(followStep);
+    return true;
+  }
+
+  // Call when the island's tenant changes. No-op without motion or a known
+  // starting box: the plain reflow then does the job.
+  function followIsland() {
+    if (!active || !ui) return;
+    const start = follow.pos || restBox;
+    if (!motionOk() || document.body.classList.contains('layout-editing') || !start) { reflowIsland(); return; }
+    follow.until = performance.now() + FOLLOW_HOLD_MS;
+    if (!follow.pos) {
+      follow.pos = { ...start };
+      follow.vel = { left: 0, right: 0, bottom: 0, height: 0, radius: 0 };
+      follow.last = performance.now();
+      document.body.classList.add('island-following');
+    }
+    if (!follow.raf) follow.raf = requestAnimationFrame(followStep);
+  }
+
+  // ── Paging ───────────────────────────────────────────────────────────────────
+  // Nothing on the tiles moves while a page slides: the page leaving keeps its
+  // cutouts (they ride along with their tiles) and the page coming in slides
+  // whole. Once the pager has settled with a page in place, the tiles under the
+  // island open softly around it (SOFT_OPEN). A finger held still mid-swipe has
+  // no page in place, so nothing changes until one is.
+  const PAGE_REST_MS = 120; // after the pager's own settle (dashboard-pager.js, 90ms)
+  const HOME_SLACK = 8;     // px a settled page may sit off the pager's edge (fractional scaling)
+  let paging = false;
+  let pageRestTimer = 0;
+  let pagerWatched = null;
+  function onPagerScroll() {
+    if (!active) return;
+    paging = true;
+    clearTimeout(pageRestTimer);
+    pageRestTimer = setTimeout(pageRest, PAGE_REST_MS);
+  }
+  function pageRest() {
+    stopPaging();
+    reflowIsland();
+  }
+  function stopPaging() {
+    clearTimeout(pageRestTimer);
+    paging = false;
+  }
+  function watchPager(el) {
+    if (!el || el === pagerWatched) return;
+    pagerWatched = el;
+    el.addEventListener('scroll', onPagerScroll, { passive: true });
   }
 
   // The grid keeps the full viewport height in minimal mode, so tiles can sit
   // level with the floating clock island. Every tile whose TOP ROW actually
-  // intersects the pill's span gets its content inset down (--island-clear) so
-  // its header clears the clock — tiles beside the pill keep the whole band.
-  // Grid-local coords keep this correct for off-screen pages, so paging never
-  // reveals an overlap. Called at the tail of fitGridHeights and from the grid
-  // change/dragstop throttle, so the preview tracks live edits.
+  // intersects the pill gets the notch above, on the page in place under it
+  // (see Paging above). Called at the tail of fitGridHeights, from the grid
+  // change/dragstop throttle and on every pill resize.
   function reflowIsland() {
-    if (!active || !ui || !ui.pill) { clearIslandTags(); return; }
+    if (!active || !ui || !ui.pill || !window.IslandNotch) { clearIslandTags(); return; }
+    if (!arrive()) { clearIslandTags(); return; }
+    if (paging) return; // the tiles hold still while a page slides; pageRest catches up
     try {
-      const pill = ui.pill.getBoundingClientRect();
-      if (!pill.height) { clearIslandTags(); return; }
+      const pill = follow.pos || homeBox();
+      if (!pill || !pill.height) { clearIslandTags(); return; }
       // Geometry is read ONCE, from a single rendered grid, and every tile is then
       // placed from its GridStack coords rather than its own DOM rect. Pager pages
       // sit side by side at the same size and vertical origin, so one measurement
       // answers for all of them. Two measured reasons, beyond being less work:
-      //   - A rect read inside a parked page (.is-parked → content-visibility:
+      //   - A rect read inside a parked page (.is-parked -> content-visibility:
       //     hidden) forces Chromium to render the very subtree the parking exists
       //     to skip, which is the "Rendering was performed in a subtree hidden by
       //     content-visibility" console flood.
-      //   - Interleaving per-tile reads with the --island-clear writes below
-      //     invalidated layout between them, so each read re-ran it: the 35-56ms
-      //     "Forced reflow while executing JavaScript" violations.
-      // Grid coords stay correct for off-screen pages, so paging still never
-      // reveals an overlap — that is why this must not simply skip parked pages.
+      //   - Interleaving per-tile reads with the writes below invalidated layout
+      //     between them, so each read re-ran it: the 35-56ms "Forced reflow while
+      //     executing JavaScript" violations. Every read happens before any write.
       const grids = Array.from(document.querySelectorAll('.pager-page .grid-stack'));
       const ref = grids.find(g => !g.closest('.pager-page.is-parked')) || grids[0];
       if (!ref) { clearIslandTags(); return; }
-      const g = ref.getBoundingClientRect();
+      const N = window.IslandNotch;
+      const home = ref.closest('.pager-page');
+      const pagerEl = document.getElementById('dashboard-pager');
+      watchPager(pagerEl);
+      const pagerLeft = pagerEl ? pagerEl.getBoundingClientRect().left : 0;
+      const span = pagerEl ? pagerEl.clientWidth : 0;
+      const g = N.gridInView(ref.getBoundingClientRect(), home && home.getBoundingClientRect(), pagerEl && pagerEl.getBoundingClientRect());
       if (!g.height || !g.width) { clearIslandTags(); return; }
       const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
       if (!clearance) { clearIslandTags(); return; }
-      // The pill is fixed to the viewport; express its span in page-local pixels so
-      // the same test applies to pages scrolled off to either side.
       const cols = (window.DashboardGrid && window.DashboardGrid.GRID_COLUMNS) || 24;
       const colWidth = g.width / cols;
-      const pillLeft = pill.left - g.left;
-      const pillRight = pill.right - g.left;
-      const want = new Map(); // item element -> clearance px string
+      const editing = document.body.classList.contains('layout-editing');
+      let margin = null;
+      let inPlace = !span; // a page sits under the island (no pager: the grid does)
+      const want = new Map(); // item -> { geo, line, inset, bar }
       grids.forEach(grid => {
+        // How far this page sits from the view (0 for the page in place). Its own
+        // box, not offsetLeft: that counts from the pager's offset parent.
+        const page = grid.closest('.pager-page');
+        const shift = page && pagerEl ? page.getBoundingClientRect().left - pagerLeft : 0;
+        if (span && Math.abs(shift) > HOME_SLACK) return;
+        inPlace = true;
+        const readable = !editing && !grid.closest('.pager-page.is-parked');
+        // Row height from GridStack, not a rect: the grid's own height bounds a
+        // tile when it is unknown. Feeds the clip's bottom (island-notch.js FAR).
+        const gs = grid.gridstack;
+        const cell = (gs && typeof gs.getCellHeight === 'function' && Number(gs.getCellHeight(true))) || 0;
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const n = item.gridstackNode;
-          if (!n) return;                                // not mounted yet
-          if ((n.y || 0) !== 0) return;                  // top row only
-          const left = (n.x || 0) * colWidth;
-          const right = left + (n.w || 0) * colWidth;
-          // Must genuinely sit under the pill (≥12px horizontal overlap) — with
-          // the fine 24-column grid more than one tile can straddle it.
-          const overlap = Math.min(right, pillRight) - Math.max(left, pillLeft);
-          if (overlap < 12) return;
-          want.set(item, clearance + 'px');
+          if (!n || (n.y || 0) !== 0) return;            // mounted, top row only
+          const content = item.querySelector(':scope > .grid-stack-item-content');
+          const surface = content && content.querySelector(':scope > .panel, :scope > .dashboard-widget');
+          if (!surface) return;
+          // GridStack's gutter is the same on every tile: read it once.
+          if (margin === null) margin = parseFloat(getComputedStyle(content).left) || 0;
+          const left = (n.x || 0) * colWidth + shift;
+          const cs = getComputedStyle(surface);
+          const height = cell > 0 ? (n.h || 1) * cell : g.height;
+          const tile = { width: (n.w || 0) * colWidth, height, margin, radius: parseFloat(cs.borderTopLeftRadius) || 0 };
+          const local = (b) => ({ left: b.left - g.left - left, right: b.right - g.left - left, bottom: b.bottom - g.top, height: b.height, radius: b.radius });
+          const geo = N.geometry({ ...tile, pill: local(pill) });
+          if (!geo) return;
+          const bar = N.besideBar(geo, tabBarRoom(item, surface, cs, tile, g.top, readable));
+          const inset = bar ? parseFloat(cs.borderLeftWidth) || 0 : geo.inset;
+          want.set(item, { geo, line: N.edgeLine(cs), inset, bar });
         });
       });
-      // Reconcile idempotently: fitGridHeights re-runs on every interaction, so
-      // only touch tiles whose state actually changes — re-tagging an already
-      // correct tile would restart layout work and make it bob on every touch.
+      // A finger held still mid-swipe: no page in place, so keep every cut as it is.
+      if (!inPlace) return;
+      // Writes. Reconcile idempotently: fitGridHeights re-runs on every
+      // interaction, so a tile whose cutout has not changed is not touched.
       document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
-        if (!want.has(item)) {
-          item.classList.remove('island-clear');
-          item.style.removeProperty('--island-clear');
+        if (!want.has(item)) releaseNotch(item);
+      });
+      // While a notification is out the pill is hidden, so a cut around it would
+      // wrap nothing: it closes into its centre and the tiles are whole again
+      // (body.xtoast-fold, js/toast.js; it lifts as the card heads home). The inset
+      // stays, so their content does not move for a notification.
+      const folded = document.body.classList.contains('xtoast-fold') && !editing;
+      const animate = motionOk();
+      want.forEach(({ geo, line, inset, bar }, item) => {
+        const prev = notchState.get(item);
+        const shape = folded ? N.collapsed(geo) : geo;
+        const beside = bar ? bar.shift + ',' + bar.max + ',' + bar.under : '';
+        const key = N.clipPath(shape) + '|' + inset + '|' + line.width + '|' + line.color + '|' + clearance + '|' + beside;
+        if (prev && !prev.leaving && prev.key === key && item.classList.contains('island-clear')) return;
+        if (prev && prev.leaving) { clearTimeout(prev.leaving); prev.leaving = 0; }
+        item.style.setProperty('--island-clear', clearance + 'px');
+        if (prev && prev.opening && !folded && item.classList.contains('island-clear')) {
+          retargetOpening(item, prev, { geo, line, key, inset, bar });
+          return;
+        }
+        const fresh = !prev || !item.classList.contains('island-clear');
+        SOFT_PROPS.forEach(p => item.style.removeProperty(p));
+        const st = { geo, line, key, inset, bar, leaving: 0 };
+        notchState.set(item, st);
+        if (fresh && animate && !folded) {
+          startSoftOpen(item, st);
+        } else {
+          item.style.setProperty('--island-inset', inset + 'px');
+          setBar(item, bar);
+          item.classList.add('island-clear');
+          drawNotch(item, shape, line);
         }
       });
-      want.forEach((clearance, item) => {
-        if (item.style.getPropertyValue('--island-clear') !== clearance) {
-          item.style.setProperty('--island-clear', clearance);
-        }
-        if (!item.classList.contains('island-clear')) item.classList.add('island-clear');
-      });
-    } catch (e) { /* never break the fit pass */ }
+    } catch (e) {
+      // Never break the fit pass, but say so once: a silent failure here leaves
+      // the island drawn over a tile with nothing in the console to explain it.
+      if (!islandWarned) { islandWarned = true; console.warn('[island] notch reflow failed:', e); }
+    }
   }
+  let islandWarned = false;
 
   // Idempotent; safe to call from every settings/layout apply pass. The minimal
   // chrome reflects the user's choice in every state — including while editing
@@ -622,7 +1097,33 @@
     // Pick up an auto-hide setting change even when already active (enable() would
     // have early-returned). Self-guards when inactive.
     configureAutoHide();
+    // Cards on the island move to the normal stack if the chrome stopped being minimal.
+    if (window.XenonToast && typeof window.XenonToast.refresh === 'function') window.XenonToast.refresh();
+    if (window.XenonBitCard) window.XenonBitCard.refit();
   }
 
-  window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout, morphIsland };
+  // Keep the rails out while the user is styling them; let go and the idle
+  // countdown starts over.
+  function holdRails(hold) {
+    railsHeld = hold === true;
+    if (railsHeld) { clearAutoHideTimer(); setRailsHidden(false); } else armAutoHide();
+  }
+
+  // The first-run tour points at buttons inside the rails, so it opens collapsed
+  // ones while it runs. Visual only: the stored open/closed choice is never
+  // written, and letting go puts each rail back exactly as it was on screen.
+  let peekedRails = null;
+  function peekRails(peek) {
+    if (!ui) return;
+    const sides = ['left', 'right'];
+    if (peek && !peekedRails) {
+      peekedRails = { left: ui.left.rail.classList.contains('is-collapsed'), right: ui.right.rail.classList.contains('is-collapsed') };
+      sides.forEach((sd) => syncRail(ui[sd].rail, ui[sd].handle, false));
+    } else if (!peek && peekedRails) {
+      sides.forEach((sd) => syncRail(ui[sd].rail, ui[sd].handle, peekedRails[sd]));
+      peekedRails = null;
+    }
+  }
+
+  window.TopbarMinimal = { apply, reflowIsland, followIsland, applyIslandLayout, morphIsland, homeBox, holdRails, peekRails };
 })();

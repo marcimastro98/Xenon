@@ -183,6 +183,49 @@ test('actionToServiceCall maps the value actions (setpoint, colour temperature, 
   assert.deepEqual(ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode: 'heat' }).data, { hvac_mode: 'heat' });
 });
 
+test('climate: an unknown or unoffered mode is refused, never turned into off', () => {
+  const ac = { entity_id: 'climate.ac', attributes: { hvac_modes: ['off', 'cool', 'heat_cool'], fan_modes: ['auto', 'low'], swing_modes: ['on', 'off'], preset_modes: ['eco'] } };
+  const hvac = (mode, st) => ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode }, st);
+  for (const mode of ['', 'bogus', undefined, 'OFF ']) assert.equal(hvac(mode, ac), null, String(mode));
+  assert.equal(hvac('heat', ac), null, 'the device does not offer heat');
+  assert.equal(hvac('heat', null).data.hvac_mode, 'heat', 'without the entity, a known mode still goes');
+  assert.deepEqual(hvac('heat_cool', ac).data, { hvac_mode: 'heat_cool' });
+  const range = (value) => ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode: 'range', value }, ac);
+  assert.deepEqual(range('20-24'), { domain: 'climate', service: 'set_temperature', target: { entity_id: 'climate.ac' }, data: { target_temp_low: 20, target_temp_high: 24 } });
+  assert.deepEqual(range('19,5 – 23').data, { target_temp_low: 19.5, target_temp_high: 23 });
+  assert.deepEqual(range('-2/4').data, { target_temp_low: -2, target_temp_high: 4 });
+  for (const bad of ['24-20', '21-21', '21', '', 'a-b']) assert.equal(range(bad), null, bad);
+  const opt = (mode, value) => ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode, value }, ac);
+  assert.deepEqual(opt('fan_mode', 'low'), { domain: 'climate', service: 'set_fan_mode', target: { entity_id: 'climate.ac' }, data: { fan_mode: 'low' } });
+  assert.deepEqual(opt('swing_mode', 'on').data, { swing_mode: 'on' });
+  assert.deepEqual(opt('preset', 'eco'), { domain: 'climate', service: 'set_preset_mode', target: { entity_id: 'climate.ac' }, data: { preset_mode: 'eco' } });
+  assert.equal(opt('fan_mode', 'turbo'), null, 'a value the device does not list');
+  assert.equal(ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode: 'preset', value: 'eco' }, null), null, 'no list to check against');
+  assert.deepEqual(opt('humidity', '55.4').data, { humidity: 55 });
+  assert.equal(opt('humidity', ''), null);
+});
+
+test('media: power, source, sound mode, seek, shuffle and repeat; an unknown command is refused', () => {
+  const tv = { entity_id: 'media_player.tv', attributes: { source_list: ['HDMI 1', 'TV'], sound_mode_list: ['Movie'], shuffle: true, repeat: 'all' } };
+  const m = (cmd, value, st = tv) => ha.actionToServiceCall({ type: 'haMedia', entity: 'media_player.tv', cmd, value }, st);
+  assert.equal(m('on').service, 'turn_on');
+  assert.equal(m('off').service, 'turn_off');
+  assert.deepEqual(m('source', 'HDMI 1'), { domain: 'media_player', service: 'select_source', target: { entity_id: 'media_player.tv' }, data: { source: 'HDMI 1' } });
+  assert.equal(m('source', 'HDMI 9'), null, 'a source the device does not list');
+  assert.equal(m('source', 'TV', null), null, 'no list to check against');
+  assert.deepEqual(m('sound_mode', 'Movie').data, { sound_mode: 'Movie' });
+  assert.equal(m('sound_mode', 'Stadium'), null);
+  assert.deepEqual(m('seek', '90.6').data, { seek_position: 91 });
+  assert.equal(m('seek', ''), null);
+  assert.deepEqual(m('shuffle', '').data, { shuffle: false }, 'empty flips the current state');
+  assert.deepEqual(m('shuffle', 'on').data, { shuffle: true });
+  assert.equal(m('shuffle', 'maybe'), null);
+  assert.deepEqual(m('repeat', '').data, { repeat: 'one' }, 'empty steps all → one');
+  assert.deepEqual(m('repeat', 'off').data, { repeat: 'off' });
+  assert.equal(m('repeat', 'twice'), null);
+  for (const cmd of ['', 'bogus', undefined]) assert.equal(m(cmd), null, 'never falls back to play/pause');
+});
+
 // ── settings: normalization + write-only token ───────────────────────────────
 test('normalizeHomeAssistant keeps a valid url, drops a bad one, filters entities', () => {
   const n = ha.normalizeHomeAssistant({ url: 'http://ha:8123', token: 'abc', entities: ['light.a', 'light.a', 'bad', 'switch.b'] });

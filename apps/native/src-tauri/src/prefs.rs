@@ -97,6 +97,34 @@ pub struct DisplayPrefs {
     /// environment option and cannot change without restarting (see `gpu::arm`).
     #[serde(default = "default_true")]
     pub gpu_pin: bool,
+    /// The main window held the "widgets only" driver page when last seen
+    /// (`monitor::set_driver`). Not a choice made here: the server owns the mode
+    /// and this only mirrors it, so a login start stays hidden instead of
+    /// flashing the splash before the server sends the window to the driver.
+    #[serde(default)]
+    pub widgets_only: bool,
+    /// Where the user left the Xenon menu's window: x, y, width, height in
+    /// physical pixels (`layers::menu_window`). Unset opens it in the middle of
+    /// the screen under the pointer.
+    #[serde(default)]
+    pub menu_rect: Option<[i32; 4]>,
+    /// Build the dashboard window see-through, so whatever is on the desktop
+    /// under it (a Wallpaper Engine scene, the Windows wallpaper) shows behind the
+    /// tiles. Fixed when the window is created, so changing it restarts the app
+    /// (see `see_through.rs`). Opt-in: a transparent window costs a little more
+    /// to compose and shows the desktop icons on that screen too.
+    #[serde(default)]
+    pub see_through: bool,
+    /// The dashboard's language, for the splash, which opens before the server
+    /// that holds the setting answers (`apps/native/splash`). Unset on a first
+    /// launch: the splash uses the system's.
+    #[serde(default)]
+    pub language: Option<String>,
+}
+
+/// A language code from the dashboard, or nothing: two lowercase letters.
+pub fn clean_language(raw: &str) -> Option<String> {
+    (raw.len() == 2 && raw.bytes().all(|b| b.is_ascii_lowercase())).then(|| raw.to_string())
 }
 
 fn default_true() -> bool {
@@ -136,6 +164,10 @@ impl Default for DisplayPrefs {
             swipe_home: true,
             hide_on_rdp: false,
             gpu_pin: true,
+            widgets_only: false,
+            menu_rect: None,
+            see_through: false,
+            language: None,
         }
     }
 }
@@ -220,4 +252,50 @@ pub fn update<F: FnOnce(&mut DisplayPrefs)>(app: &AppHandle, mutate: F) {
     let mut prefs = load(app);
     mutate(&mut prefs);
     save(app, &prefs);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn files_written_before_widgets_only_read_as_the_dashboard() {
+        let old: DisplayPrefs = serde_json::from_str(r#"{"fullscreen":true,"monitor":null}"#).unwrap();
+        assert!(!old.widgets_only);
+        assert!(old.fullscreen);
+        let now: DisplayPrefs =
+            serde_json::from_str(r#"{"fullscreen":false,"monitor":null,"widgets_only":true}"#).unwrap();
+        assert!(now.widgets_only);
+    }
+
+    #[test]
+    fn files_written_before_the_menu_window_open_it_in_the_middle() {
+        let old: DisplayPrefs = serde_json::from_str(r#"{"fullscreen":true,"monitor":null}"#).unwrap();
+        assert_eq!(old.menu_rect, None);
+        let now: DisplayPrefs =
+            serde_json::from_str(r#"{"fullscreen":true,"monitor":null,"menu_rect":[10,20,900,700]}"#).unwrap();
+        assert_eq!(now.menu_rect, Some([10, 20, 900, 700]));
+    }
+
+    #[test]
+    fn files_written_before_see_through_keep_an_opaque_window() {
+        let old: DisplayPrefs = serde_json::from_str(r#"{"fullscreen":true,"monitor":null}"#).unwrap();
+        assert!(!old.see_through);
+        let now: DisplayPrefs =
+            serde_json::from_str(r#"{"fullscreen":true,"monitor":null,"see_through":true}"#).unwrap();
+        assert!(now.see_through);
+    }
+}
+
+#[cfg(test)]
+mod language_tests {
+    use super::clean_language;
+
+    #[test]
+    fn takes_only_two_lowercase_letters() {
+        assert_eq!(clean_language("it").as_deref(), Some("it"));
+        for bad in ["", "i", "ita", "IT", "i1", "../"] {
+            assert_eq!(clean_language(bad), None, "{bad}");
+        }
+    }
 }

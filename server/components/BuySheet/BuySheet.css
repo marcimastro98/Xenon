@@ -1,0 +1,179 @@
+/* The window that sells a Store entry for Sparks (js/buy-sheet.js): the entry's own
+   paper and ink, its picture on top, the name large, and a stub with the price and
+   the button. A sheet from the bottom on a phone, two columns on a wide screen. */
+.preset-modal-overlay.buy-overlay { align-items: flex-end; padding: 0; }
+
+.buy-sheet {
+  --buy-soft: color-mix(in srgb, var(--buy-ink) 86%, var(--buy-paper));
+  --buy-edge: color-mix(in srgb, var(--buy-ink) 34%, var(--buy-paper));
+  --buy-well: color-mix(in srgb, var(--buy-ink) 9%, var(--buy-paper));
+  position: relative; width: 100%; max-height: calc(100% - 12px);
+  display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden auto; scrollbar-width: none;
+  background: var(--buy-paper); color: var(--buy-ink); border-radius: 10px 10px 0 0;
+  animation: buy-in 200ms steps(5, end) both;
+}
+.buy-sheet::-webkit-scrollbar { display: none; }
+.buy-sheet:focus { outline: none; }
+.buy-sheet [hidden] { display: none !important; }
+.buy-sheet button, .buy-sheet a { font: inherit; }
+.buy-sheet :focus-visible { outline: 2px solid var(--buy-ink); outline-offset: 2px; }
+@keyframes buy-in { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.buy-picture { position: relative; min-width: 0; }
+.buy-art { aspect-ratio: 2 / 1; width: 100%; overflow: hidden; background: color-mix(in srgb, var(--buy-paper) 70%, #000); }
+.buy-art img { display: block; width: 100%; height: 100%; max-width: none; object-fit: var(--buy-fit, cover); transform: scale(var(--buy-zoom, 1)); }
+.buy-art.is-empty img { display: none; }
+.buy-close {
+  position: absolute; z-index: 1; top: 10px; right: 10px; width: 44px; height: 44px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 6px; background: var(--buy-paper); color: var(--buy-ink); cursor: pointer;
+}
+.buy-close svg { width: 20px; height: 20px; }
+.buy-bit { position: absolute; right: 16px; bottom: 0; width: 88px; aspect-ratio: 18 / 17; transform: translateY(5.88%); pointer-events: none; }
+.buy-bit .xbit { display: block; width: 100%; height: 100%; }
+
+.buy-pitch { display: grid; gap: 6px; padding: 16px 20px 14px; min-width: 0; }
+.buy-kind { margin: 0; font-size: 15px; font-weight: 600; color: var(--buy-soft); }
+.buy-name { margin: 0; font-size: 38px; line-height: 1; font-weight: 800; letter-spacing: -0.012em; text-wrap: balance; overflow-wrap: anywhere; }
+.buy-line { margin: 2px 0 0; font-size: 16px; line-height: 1.32; color: var(--buy-soft); text-wrap: pretty; }
+
+.buy-stub {
+  display: grid; align-content: start; gap: 12px; min-width: 0; padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  border-top: 2px dashed var(--buy-edge);
+}
+.buy-stub.is-waiting > * { visibility: hidden; }
+.buy-block { display: grid; gap: 12px; min-width: 0; }
+
+.buy-price { margin: 0; display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.buy-price-spark { width: 45px; height: 45px; align-self: center; flex: none; display: block; }
+.buy-price-n { font-size: 46px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.buy-price-unit { font-size: 24px; line-height: 1; font-weight: 700; }
+.buy-price-usd { margin-left: auto; font-size: 18px; font-weight: 600; color: var(--buy-soft); font-variant-numeric: tabular-nums; }
+.buy-left { margin: -6px 0 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; text-wrap: pretty; }
+
+.buy-gets { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.buy-gets li { display: flex; align-items: center; gap: 10px; font-size: 16px; line-height: 1.2; }
+.buy-gets svg { width: 20px; height: 20px; flex: none; color: var(--buy-ink); }
+
+.buy-tick {
+  position: relative; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px; border-radius: 6px;
+  background: var(--buy-well); cursor: pointer; font-size: 14.5px; line-height: 1.25;
+}
+/* Past the app-wide checkbox rule in styles/controls.css, which keeps it in the flow. */
+.buy-sheet .buy-tick input[type="checkbox"] { position: absolute; width: 44px; height: 44px; left: 5px; top: 50%; margin: -22px 0 0; opacity: 0; cursor: pointer; }
+.buy-tick-face {
+  box-sizing: border-box; width: 34px; height: 34px; flex: none; display: grid; place-items: center;
+  border: 2px solid var(--buy-ink); border-radius: 4px; background: var(--buy-paper);
+}
+.buy-tick-face .xspark { display: none; width: 30px; height: 30px; }
+.buy-tick input:checked + .buy-tick-face .xspark { display: block; }
+.buy-tick input:focus-visible + .buy-tick-face { outline: 2px solid var(--buy-ink); outline-offset: 2px; }
+.buy-tick b { font-weight: 800; }
+.buy-tick.want { outline: 2px solid var(--buy-ink); outline-offset: 1px; }
+.buy-need { margin: -6px 0 0; font-size: 15px; font-weight: 700; }
+
+.buy-sheet .buy-main {
+  display: grid; place-items: center; box-sizing: border-box; width: 100%; min-height: 58px; padding: 6px 16px; border: 0; border-radius: 6px;
+  background: var(--buy-mark); color: var(--buy-mark-ink); font-size: 21px; font-weight: 800; line-height: 1.1; text-align: center;
+  text-decoration: none; cursor: pointer;
+}
+.buy-sheet .buy-main:hover { background: color-mix(in srgb, var(--buy-mark) 90%, var(--buy-ink)); }
+.buy-sheet .buy-main:active { transform: translateY(1px); }
+.buy-sheet .buy-main[disabled] { cursor: default; opacity: 0.8; }
+
+.buy-sheet .buy-alt {
+  display: flex; align-items: center; gap: 10px; box-sizing: border-box; width: 100%; min-height: 52px; padding: 6px 12px;
+  border: 2px solid var(--buy-edge); border-radius: 6px; background: transparent; color: var(--buy-ink); cursor: pointer;
+  font-size: 16px; font-weight: 700; line-height: 1.2; text-align: left; text-decoration: none;
+}
+.buy-alt-text { display: grid; gap: 1px; min-width: 0; }
+.buy-alt-text small { font-size: 15px; font-weight: 600; color: var(--buy-soft); font-variant-numeric: tabular-nums; }
+.buy-alt-spark { width: 30px; height: 30px; flex: none; display: block; }
+.buy-alt-go { margin-left: auto; width: 18px; height: 18px; flex: none; }
+
+.buy-note { margin: 0; font-size: 14.5px; line-height: 1.3; color: var(--buy-soft); }
+.buy-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; font-size: 14px; color: var(--buy-soft); flex-wrap: wrap; }
+.buy-sheet .buy-quiet {
+  min-height: 44px; min-width: 44px; margin: -8px 0 -8px auto; padding: 0; border: 0; background: none; color: var(--buy-ink); cursor: pointer;
+  font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px;
+}
+
+.buy-code { display: flex; gap: 8px; min-width: 0; }
+.buy-code-field { position: relative; flex: 1; min-width: 0; display: block; }
+.buy-code-field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.buy-code-field input {
+  box-sizing: border-box; width: 100%; min-height: 46px; margin: 0; padding: 0 10px; border: 2px solid var(--buy-edge); border-radius: 6px;
+  background: var(--buy-well); color: var(--buy-ink); font: inherit; font-size: 15px;
+}
+.buy-code-field input:focus { border-color: var(--buy-ink); }
+.buy-code-field input::placeholder { color: var(--buy-soft); }
+.buy-sheet .buy-code-go {
+  flex: none; min-height: 46px; padding: 0 14px; border: 2px solid var(--buy-ink); border-radius: 6px; background: transparent;
+  color: var(--buy-ink); font-size: 15px; font-weight: 700; cursor: pointer;
+}
+
+.buy-pass-head { margin: 0; font-size: 28px; line-height: 1.05; font-weight: 800; text-wrap: balance; }
+.buy-pass-line { margin: -4px 0 0; font-size: 16px; line-height: 1.3; }
+
+.buy-done-head { margin: 0; font-size: 96px; line-height: 0.95; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.buy-done-head.is-long { font-size: 60px; line-height: 1; }
+.buy-done-name { margin: -2px 0 0; font-size: 21px; line-height: 1.1; font-weight: 700; }
+.buy-done-line { margin: 0; font-size: 16px; line-height: 1.32; font-variant-numeric: tabular-nums; }
+.buy-done-foot { margin: 0; font-size: 14.5px; line-height: 1.3; color: var(--buy-soft); }
+.buy-sheet.is-done .buy-done-head { animation: buy-wipe 260ms steps(7, end) both; }
+@keyframes buy-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 -4% 0 0); } }
+.buy-sheet.is-done { grid-template-rows: auto 1fr; }
+.buy-sheet.is-done .buy-pitch { display: none; }
+.buy-sheet.is-done .buy-stub { border-top: 0; padding-top: 18px; align-content: center; }
+
+/* Sparks on their way from the price to Bit, above the sheet. */
+.buy-flight { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.buy-fly { position: absolute; left: 0; top: 0; width: 30px; height: 30px; }
+
+/* A low phone, or a phone with the browser's bars showing: everything tightens so
+   the button stays on screen. The Spark keeps a whole number of its pixels. */
+@media (max-height: 740px) and (max-width: 899px) {
+  .buy-art { aspect-ratio: 3 / 1; }
+  .buy-pitch { gap: 4px; padding: 12px 20px 10px; }
+  .buy-name { font-size: 30px; }
+  .buy-stub, .buy-block { gap: 9px; }
+  .buy-stub { padding-top: 10px; }
+  .buy-price-spark { width: 30px; height: 30px; }
+  .buy-price-n { font-size: 36px; }
+  .buy-price-unit { font-size: 19px; }
+  .buy-price-usd { font-size: 16px; }
+  .buy-left { margin-top: -3px; }
+}
+@media (min-width: 600px) and (max-width: 899px) {
+  .buy-sheet { width: min(100%, 560px); }
+}
+/* Wide screens: the Edge at 2560x720, any monitor. */
+@media (min-width: 900px) {
+  .preset-modal-overlay.buy-overlay { align-items: center; }
+  .buy-sheet {
+    width: min(1240px, calc(100% - 48px)); max-height: calc(100% - 24px); border-radius: 10px;
+    grid-template-columns: minmax(0, 1.52fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+  }
+  .buy-picture { grid-column: 1; grid-row: 1; }
+  .buy-pitch { grid-column: 1; grid-row: 2; padding: 18px 28px 22px; }
+  .buy-stub {
+    grid-column: 2; grid-row: 1 / span 2; border-top: 0; border-left: 2px dashed var(--buy-edge);
+    padding: 26px 26px 20px; align-content: center;
+  }
+  .buy-name { font-size: 54px; }
+  .buy-line { font-size: 17px; }
+  .buy-bit { width: 104px; right: 24px; }
+  .buy-sheet.is-done .buy-pitch { display: grid; }
+  .buy-sheet.is-done .buy-stub { padding-top: 26px; }
+}
+
+/* The dashboard behind freezes under this overlay; the sheet is what is on screen,
+   so its Spark keeps twinkling unless a real freeze asks for stillness. */
+@media (prefers-reduced-motion: no-preference) {
+  body.overlay-frozen:not(.ambient-idle, .game-mode, .low-power-gpu, .perf-mode) .buy-sheet .xspark:not(.xspark-still) .xspark-f0 { animation: xspark-rest 4.6s steps(1, end) infinite; }
+  body.overlay-frozen:not(.ambient-idle, .game-mode, .low-power-gpu, .perf-mode) .buy-sheet .xspark:not(.xspark-still) .xspark-f1 { animation: xspark-twinkle 4.6s steps(1, end) infinite; }
+  body.overlay-frozen:not(.ambient-idle, .game-mode, .low-power-gpu, .perf-mode) .buy-sheet .xspark:not(.xspark-still) .xspark-f2 { animation: xspark-blink 4.6s steps(1, end) infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .buy-sheet, .buy-sheet.is-done .buy-done-head { animation: none; }
+}
+body.low-power-gpu .buy-sheet, body.low-power-gpu .buy-sheet.is-done .buy-done-head { animation: none; }

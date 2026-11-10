@@ -210,7 +210,8 @@
 .is-phone .topbar .clock-sdkbadges,
 .is-phone .topbar .clock-claude,
 .is-phone .topbar .clock-codex,
-.is-phone .topbar .clock-date { display: none; }
+.is-phone .topbar .clock-date,
+.is-phone .topbar .clock-meta-sep { display: none; }
 .is-phone .topbar .quickbar,
 .is-phone .topbar .top-actions { gap: 4px; flex-wrap: nowrap; }
 .is-phone .topbar .topbtn { min-width: 34px; height: 34px; padding: 0 8px; font-size: 12px; }
@@ -304,6 +305,13 @@
 }
 .is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
 .is-stacked .stat-box { min-height: min-content; }
+/* The Volume tab is a SIZE container on the desktop grid (AudioSection.css), and
+   size containment makes its content count as zero height. Under the
+   content-sized block above that left the pane a few pixels tall: the card fell
+   into its one-line strip layout and the app list into a sliver, on any tall
+   screen. Reported from a vertically mounted display. Here the pane takes its
+   natural height and the tile scrolls the rest, like the stat cards. */
+.is-stacked body:not([data-panel]) .system-audio-pane:not([hidden]) { container: none; }
 
 /* Calendar. `minmax(0, 1fr)` rows are right on the Edge, where the tile is tall
    and the month should fill it; here they let a week row fall under the height of
@@ -440,14 +448,15 @@
   justify-content: center;
   gap: 3px;
   position: relative;         /* the mirrored indicator anchors to this */
-  /* Share the row evenly and shrink together, so one long caption cannot make
-     its own button wider than its neighbours. The max keeps a dock with only
-     two buttons from stretching them across half the screen. */
-  flex: 1 1 0;
+  /* Each key starts from its caption and they share what is left: "Bit" gives
+     up room to "Приложения" or "Einstellungen", which an even row cut at 360px.
+     The max keeps a dock with only two buttons from stretching them across half
+     the screen. */
+  flex: 1 1 auto;
   min-width: 44px;
   max-width: 84px;
   height: 52px;
-  padding: 5px 3px 4px;
+  padding: 5px 2px 4px;
 }
 .ph-ico {
   display: flex;
@@ -500,6 +509,10 @@
   animation: upd-dot-pulse 2s ease-in-out infinite;
 }
 .ph-dot[hidden] { display: none; }
+/* The Store's count from the gear (mirrorCount in phone-view.js): the gear's own
+   badge class, moved to the icon's corner; the app-update dot keeps the key's. */
+.ph-btn.ph-act .ph-count { top: 1px; left: calc(50% + 3px); right: auto; }
+.ph-btn.ph-act .ph-count[hidden] { display: none; }
 
 /* The pager's steps stay square: a chevron needs no caption, and the two of
    them are what buys the actions their width. */
@@ -537,15 +550,28 @@
    fallback is only for the frame before the first measurement.
    When you add something fixed to the bottom of the viewport, add it here —
    test/phone-dock-render.test.mjs scans the component CSS and fails if a
-   bottom-anchored floater is missing from this list. */
+   bottom-anchored floater is missing from this list.
+   A ticker strip at the bottom sits UNDER the dock (Ticker.css pads the shell
+   by its height), so everything lifted here climbs over it too. */
+.is-phone body { --ph-bottom-lift: 0px; }
+.is-phone body.xe-has-ticker.xe-ticker-bottom { --ph-bottom-lift: var(--xe-ticker-h, 34px); }
+.is-phone .bm-card,
 .is-phone .discord-invite,
 .is-phone .gc-pill,
-.is-phone .event-toast,
 .is-phone .deck-toast,
-.is-phone .perf-banner,
-.is-phone .perf-toast,
+.is-phone .wn-look,
 .is-phone .vpet {
-  bottom: calc(var(--ph-dock-h, 64px) + 12px);
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px);
+}
+/* TopbarMinimal.css pins the layout bar with state selectors a list entry cannot outweigh. */
+.is-phone body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px) !important;
+}
+/* The "Customize bar" sheet rises from the bottom too; it stays under the top
+   bar's own height instead of its usual 82vh. */
+.is-phone .tbp {
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 8px);
+  max-height: calc(100vh - var(--ph-dock-h, 64px) - var(--ph-bottom-lift, 0px) - 72px);
 }
 
 /* ── Things that do not belong on a phone ────────────────────────────────── */

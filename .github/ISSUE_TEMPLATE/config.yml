@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "🔒 Report a security vulnerability"
+    url: https://github.com/marcimastro98/Xenon/security/advisories/new
+    about: Please report security problems privately here, not in a public issue. Only the maintainer sees it.
+  - name: "💬 Questions and help"
+    url: https://discord.gg/MBVrw9kZyg
+    about: Ask on Discord for setup help and quick questions.

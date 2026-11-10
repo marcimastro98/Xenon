@@ -19,6 +19,14 @@
     productivity: 'palette_cat_productivity', media: 'palette_cat_media',
     system: 'palette_cat_system', streaming: 'palette_cat_streaming', other: 'palette_cat_other',
   };
+  // Built-in widgets by category, for this panel and the Xenon menu's Add list. An id
+  // in none of them lands in `other`, so nothing is lost.
+  const WIDGET_CATEGORIES = [
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
+    { labelKey: 'palette_cat_media', ids: ['media', 'lyrics', 'chat', 'chatgpt', 'browser', 'slideshow'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'perf', 'screen', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
+    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
+  ];
   // The Store's categories are a different vocabulary (they describe packs and
   // themes too), so a widget's catalog category is translated, never shown raw.
   const FROM_CATALOG = {
@@ -27,6 +35,28 @@
     style: 'other', fun: 'other',
   };
   const MANIFEST_CATEGORIES = ['productivity', 'media', 'system', 'streaming'];
+
+  // The tiles with a picture, for this panel and the Xenon menu's Add list. Each is drawn
+  // by the tile's real code (tools/tile-previews/shoot.mjs); a tile off this list keeps
+  // its icon.
+  const PREVIEW_TILES = Object.freeze([
+    'agenda', 'audio', 'battery', 'browser', 'calendar', 'chat', 'chatgpt', 'claude', 'deck', 'devclean',
+    'discord', 'disk', 'fans', 'football', 'lighting', 'lyrics', 'media', 'mic', 'news', 'notes',
+    'notifications', 'obs', 'openaicodex', 'perf', 'phone', 'power', 'remote', 'search', 'slideshow',
+    'smarthome', 'spotify', 'stocks', 'streamerbot', 'system', 'tasks', 'timer', 'transfer', 'twitch',
+    'twitchwatch', 'unifi', 'vitals', 'wavelink', 'weather', 'youtube', 'youtubelive',
+  ]);
+  const STORE_SHOTS = 'https://assets.xenon-app.com/community/shots/';
+
+  function previewPath(id) {
+    return PREVIEW_TILES.includes(id) ? `assets/tile-previews/${id}.webp` : null;
+  }
+
+  // A Store entry's first picture; a widget that never came from the Store has none.
+  function storeShot(entry) {
+    return entry && entry.id && (entry.shots || entry.screenshot)
+      ? STORE_SHOTS + encodeURIComponent(entry.id) + '.webp' : null;
+  }
 
   // A package's category: its own manifest first (the author knows best), then
   // the catalog entry it was installed from, then "other".
@@ -57,7 +87,7 @@
   }
 
   // A built-in widget's category from the panel's category table
-  // ([{ labelKey, ids }], WIDGET_CATEGORIES in dashboard-palette.js).
+  // ([{ labelKey, ids }], WIDGET_CATEGORIES above).
   function builtinCategory(id, table) {
     for (const c of Array.isArray(table) ? table : []) {
       if (c && Array.isArray(c.ids) && c.ids.includes(id)) {
@@ -148,8 +178,8 @@
   }
 
   return {
-    CATEGORIES, CATEGORY_KEY, FROM_CATALOG, MANIFEST_CATEGORIES,
-    packageCategory, catalogEntryForPackage, builtinCategory,
+    CATEGORIES, CATEGORY_KEY, WIDGET_CATEGORIES, FROM_CATALOG, PREVIEW_TILES,
+    previewPath, storeShot, packageCategory, catalogEntryForPackage, builtinCategory,
     buildEntries, placedBuiltins, filterEntries, availableFilters, groupByCategory,
   };
 });

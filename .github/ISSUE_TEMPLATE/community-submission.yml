@@ -33,6 +33,7 @@ body:
         - bundle (full package)
         - icons (Deck icon pack)
         - sounds (soundboard pack)
+        - topbar (top bar setup)
     validations:
       required: true
   - type: dropdown

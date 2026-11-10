@@ -10,7 +10,7 @@
         "key": "default.audio.sink",
         "type": "Spa:String:JSON",
         "value": {
-          "name": "bluez_output.00_A4_1C_C2_C9_F8.1"
+          "name": "bluez_output.00_00_5E_00_53_02.1"
         }
       },
       {

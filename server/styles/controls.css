@@ -123,6 +123,7 @@ input[type="checkbox"]:disabled { opacity: 0.45; cursor: default; }
    an option here, because settingsSetCategory() rewrites it on every element
    with data-settings-cat each time a category is opened. */
 #settings-sensors-hub:empty { display: none; }
+#settings-sensor-sources:empty { display: none; }
 .sa-btn {
   flex: 0 0 auto; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600;
   color: var(--text, #f0f3f1); padding: 5px 13px; border-radius: 999px;

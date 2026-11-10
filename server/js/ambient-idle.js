@@ -67,6 +67,13 @@
     catch { return false; }
   }
 
+  // A tile that re-rendered cancelled the loop on its old element. play() does not fail on that:
+  // it starts the loop again out of the page, where getAnimations() cannot see it and no sweep
+  // can stop it, asking for a frame on every vsync until the page reloads.
+  function stillFrozen(a) {
+    return a.playState === 'paused';
+  }
+
   // Pause every infinite decorative loop still running. Called right AFTER the
   // ambient-idle class is set, and a sync reflow is forced first, so the aurora/
   // grid/ticker the CSS just paused already read as 'paused' and are skipped —
@@ -77,6 +84,7 @@
   function freezeLoops() {
     if (typeof document.getAnimations !== 'function') return;
     void document.body.offsetHeight; // flush style so CSS-paused layers read paused
+    frozenAnims = frozenAnims.filter(stillFrozen); // each dead one pins its old tile until the wake
     for (const a of document.getAnimations()) {
       if (a.playState === 'running' && isInfinite(a)) {
         // The ticker marquee is live information, not decoration: on the Xeneon
@@ -85,13 +93,20 @@
         // freeze block (Ticker.css) likewise excludes ambient-idle.
         const target = a.effect && a.effect.target;
         if (target && typeof target.closest === 'function' && target.closest('#xe-ticker')) continue;
+        // Likewise a canvas Ambient scene: its motion is what the screensaver
+        // shows while nobody touches it (AmbientCanvas.css gates it otherwise).
+        if (target && typeof target.closest === 'function' && target.closest('#ambient-canvas-overlay')) continue;
         try { a.pause(); frozenAnims.push(a); } catch { /* inert animation */ }
       }
     }
   }
 
   function thawLoops() {
-    for (const a of frozenAnims) { try { a.play(); } catch { /* removed/finished */ } }
+    for (const a of frozenAnims) {
+      if (!stillFrozen(a)) continue;
+      if (window.DashboardPager && window.DashboardPager.holdIfParked(a)) continue;
+      try { a.play(); } catch { /* inert animation */ }
+    }
     frozenAnims = [];
   }
 
@@ -135,7 +150,6 @@
       lastRearm = 0; wake(); // resume + start a fresh countdown from now
     }
   }
-  window.AmbientIdle = { setEnabled };
 
   const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
   for (const ev of EVENTS) window.addEventListener(ev, wake, { passive: true });
@@ -144,14 +158,16 @@
   // of starts (a re-render can start dozens in one frame). animationstart bubbles
   // and fires for pseudo-elements too, which is where most of the loops live.
   let sweepQueued = false;
-  document.addEventListener('animationstart', () => {
+  function queueSweep() {
     if (!paused || sweepQueued) return;
     sweepQueued = true;
     setTimeout(() => {
       sweepQueued = false;
       if (paused) freezeLoops();
     }, 0);
-  }, true);
+  }
+  document.addEventListener('animationstart', queueSweep, true);
+  window.AmbientIdle = { setEnabled, sweep: queueSweep };
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

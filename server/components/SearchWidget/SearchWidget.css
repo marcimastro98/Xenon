@@ -1,6 +1,6 @@
 /* ── Search widget tile — the Spotlight engine embedded in a dashboard tile ──
    The tile hosts its own createSearchUI() instance (spotlight.js): a real
-   input, the parser chips, the result list and the AI mode all live INSIDE
+   input, the parser chips, the result list and Bit all live INSIDE
    the tile. The shared .spot-* rules (Spotlight.css) style the structure;
    everything here is the tile-scoped variant: compact bar, list that fills
    the tile, AI ring drawn around the bar instead of the overlay shell.
@@ -15,8 +15,8 @@
   min-height: 0;
 }
 
-/* The live surface: bar + body. State classes (spot-expanded, spot-loading,
-   spot-ai, spot-ai-thinking) land on THIS element, so the descendant rules in
+/* The live surface: bar + body. State classes (spot-expanded, spot-loading)
+   land on THIS element, so the descendant rules in
    Spotlight.css (.spot-expanded .spot-body, .spot-loading .spot-bar-icon, …)
    apply scoped to the tile. */
 .searchw-live {
@@ -40,8 +40,7 @@
 }
 .searchw-live .spot-bar-icon { width: 20px; height: 20px; }
 .searchw-live .spot-bar .spot-input { font-size: 15.5px; }
-.searchw-live .spot-ai-toggle { width: 32px; height: 32px; }
-.searchw-live .spot-ai-toggle svg { width: 17px; height: 17px; }
+.searchw-live .spot-bit { width: 40px; height: 40px; }
 .searchw-live .spot-filter-toggle { width: 32px; height: 32px; }
 .searchw-live .spot-filter-toggle svg { width: 15px; height: 15px; }
 
@@ -60,41 +59,6 @@
   max-height: none;
   flex: 1 1 auto;
   min-height: 0;
-}
-
-/* AI mode: the same conic accent→cyan→violet ring the overlay shell wears
-   (Spotlight.css registers --spot-ai-angle and the spot-ai-spin keyframes),
-   here hugging the bar. Per the freeze invariant, the infinite spin is gated
-   off in every frozen state below — the gradient stays, the motion stops. */
-.searchw-live.spot-ai .spot-bar { border-color: transparent; }
-.searchw-live.spot-ai .spot-bar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(from var(--spot-ai-angle),
-    rgb(var(--accent-rgb)), #7ad7ff 30%, #b69dff 60%, rgb(var(--accent-rgb)));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0.85;
-  animation: spot-ai-spin 6s linear infinite;
-}
-.searchw-live.spot-ai.spot-ai-thinking .spot-bar::after { animation-duration: 1.4s; opacity: 1; }
-/* A running animation beats a static declaration — pair the gates with
-   animation: none (freeze invariant: overlay-frozen, ambient-idle, game-mode,
-   low-power-gpu, plus reduced motion). */
-body.overlay-frozen .searchw-live.spot-ai .spot-bar::after,
-body.ambient-idle .searchw-live.spot-ai .spot-bar::after,
-body.game-mode .searchw-live.spot-ai .spot-bar::after,
-body.low-power-gpu .searchw-live.spot-ai .spot-bar::after {
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .searchw-live.spot-ai .spot-bar::after { animation: none; }
 }
 
 /* ── Idle content: quick chips + recent searches (hidden while results show) ── */

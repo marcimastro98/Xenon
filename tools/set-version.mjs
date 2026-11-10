@@ -10,7 +10,7 @@
  * `require('../package.json').version`, so the /version endpoint, self-update
  * check and the client all come from one place. But npm, Cargo and Tauri each
  * REQUIRE the version literally in their own manifest (you can't make them read
- * an external file at build time), and the README badge is plain text. So the
+ * an external file at build time). So the
  * value can't live in only one file — but it CAN be written to all of them from
  * one command that treats the root package.json as the source.
  *
@@ -116,12 +116,6 @@ patch('apps/native/src-tauri/Cargo.lock', (s) => {
     /(name = "xenon-native"\r?\nversion = ")[^"]*(")/,
     (_all, a, b) => a + version + b
   );
-});
-
-// README badge (shields.io) — plain-text version in the URL.
-patch('README.md', (s) => {
-  const m = s.match(/(badge\/version-)[^-]+(-informational)/);
-  return m ? s.replace(m[0], m[1] + version + m[2]) : null;
 });
 
 console.log('\nDone. Still to do by hand:');

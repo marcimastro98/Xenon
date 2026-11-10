@@ -133,10 +133,6 @@ function entryTier(entry, terms, exts, after, before, minBytes, maxBytes, opt) {
   return tier;
 }
 
-function entryMatches(entry, terms, exts, after, before, minBytes, maxBytes) {
-  return entryTier(entry, terms, exts, after, before, minBytes, maxBytes) >= 0;
-}
-
 const byTierThenNewest = (a, b) => (a.tier - b.tier) || (b.e.m - a.e.m);
 
 // Files, best first; and, when `q.dirs` asks for them on a plain name query,
@@ -373,6 +369,16 @@ function createLinuxIndex(o = {}) {
   let scanning = false;    // a walk is in flight — distinct from `building`, which is what a query reports
   let rescanTimer = null;
   let stopped = false;
+  let notBefore = Date.now() + (o.startDelayMs || 0);   // see living-index.js
+  let startTimer = null;
+  let held = false;
+  let waitingWalks = [];   // walks standing still until the game ends
+
+  const holdEnds = () => new Promise((resume) => { waitingWalks.push(resume); });
+
+  function resumeWalks() {
+    for (const resume of waitingWalks.splice(0)) resume();
+  }
 
   // false = this walk did not see the whole root (the entry cap stopped it, or
   // the scan was superseded). The caller records which roots those were, so the
@@ -399,6 +405,7 @@ function createLinuxIndex(o = {}) {
     rowFor(top, path.basename(top), topM);
     const stack = [{ dir: top, owner: top, depth: 0 }];
     while (stack.length) {
+      if (held) await holdEnds();
       if (token !== scanToken || stopped) return false;
       const { dir, owner, depth } = stack.pop();
       let dirents;
@@ -436,6 +443,7 @@ function createLinuxIndex(o = {}) {
     // machines with the most files — exactly the ones this has to survive.
     const stack = [root];
     while (stack.length) {
+      if (held) await holdEnds();
       if (token !== scanToken || stopped) return false;
       const dir = stack.pop();
       if (isSkippedPath(dir)) continue;
@@ -533,10 +541,19 @@ function createLinuxIndex(o = {}) {
       // forever, overview() stayed null, and the disk was walked continuously.
       // Skipping the tick is right rather than queueing one: the walk in flight
       // is already producing exactly the fresh index this tick wanted.
-      if (scanning) return;
+      if (scanning || held) return;
       rebuild().catch(() => {});
     }, rescanMs);
     if (rescanTimer.unref) rescanTimer.unref();
+  }
+
+  function walkWhenDue() {
+    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+    if (stopped || !roots.length) return;
+    const wait = notBefore - Date.now();
+    if (wait <= 0) { rebuild().catch(() => { building = false; }); return; }
+    startTimer = setTimeout(walkWhenDue, wait);
+    if (startTimer.unref) startTimer.unref();
   }
 
   function setRoots(next) {
@@ -552,13 +569,20 @@ function createLinuxIndex(o = {}) {
     ready = false;
     building = clean.length > 0;
     scheduleRescan();
-    if (roots.length) rebuild().catch(() => { building = false; });
+    walkWhenDue();
+  }
+
+  function hold(on) {
+    held = on === true;
+    if (!held) resumeWalks();
   }
 
   function available() { return roots.length > 0; }
 
   async function query(q) {
     if (!available()) return null;
+    notBefore = 0;   // someone is asking: nothing left to wait for
+    if (startTimer) walkWhenDue();
     try {
       return { ...queryIndex(entries, q || {}), building };
     } catch { return null; }
@@ -573,7 +597,7 @@ function createLinuxIndex(o = {}) {
       // module and not an external binary. The UI uses it to decide whether to
       // offer the index at all.
       helper: true,
-      ready, building,
+      ready, building, held,
       files: stats_.files, dirs: stats_.dirs, bytes: stats_.bytes, version,
       // Rough: the record plus its two strings, which is what actually grows.
       ramMB: Math.round(((entries.length + aggs.length) * 220) / (1024 * 1024)),
@@ -632,12 +656,14 @@ function createLinuxIndex(o = {}) {
     stopped = true;
     scanToken++;
     if (rescanTimer) { clearInterval(rescanTimer); rescanTimer = null; }
+    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+    hold(false);
     entries = [];
     aggs = [];
   }
 
   return {
-    available, query, stats, setRoots, stop,
+    available, query, stats, setRoots, hold, stop,
     overview, sizes, dirs, list, top, dupes,
     browse,
     _entryCount() { return entries.length; },
@@ -646,5 +672,5 @@ function createLinuxIndex(o = {}) {
 }
 
 module.exports = {
-  createLinuxIndex, queryEntries, queryIndex, entryMatches, overviewFrom, browseFrom, foldName, matchTier, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH,
+  createLinuxIndex, queryEntries, queryIndex, overviewFrom, browseFrom, foldName, matchTier, SKIP_DIRS, SKIP_PREFIXES, AGG_DEPTH,
 };

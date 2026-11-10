@@ -1,0 +1,97 @@
+/* Widget style editor: the Decor and Controls tabs, and the two field types
+   they add (tile-style-fields.js decorColorField / choiceField). The rest of
+   the editor's look lives in DashboardGrid.css next to the panel itself. */
+
+/* "Accent" beside a colour: the part follows the widget's accent. */
+.tsf-chip {
+  flex: 0 0 auto; min-height: 30px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--panel-border); border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 700;
+}
+.tsf-chip[hidden] { display: none; }
+.tsf-chip.active { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.18); color: var(--accent); }
+
+/* One button per option. */
+.tsf-choice { display: flex; flex-wrap: wrap; gap: 4px; }
+.tsf-choice-btn {
+  flex: 1 1 auto; min-height: 36px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--panel-border); border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04); color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.tsf-choice-btn:hover { background: var(--hover-bg); }
+.tsf-choice-btn.active { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.2); color: var(--accent); }
+
+/* Ready-made looks: a grid, so every look is in view (a sideways strip hid
+   the ones past the edge with nothing to say they were there). */
+.decor-looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
+.decor-look {
+  min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; cursor: pointer;
+  border: 0; background: none; color: var(--text); font: inherit;
+}
+.decor-look-art {
+  display: block; width: 100%; aspect-ratio: 3 / 2; border-radius: 9px;
+  border: 1px solid var(--panel-border);
+  background: center / 100% 100% no-repeat,
+    radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--look-c, var(--accent)) 30%, transparent), transparent 70%),
+    rgba(255, 255, 255, 0.04);
+}
+.decor-look.none .decor-look-art { background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0 6px, transparent 6px 12px); }
+.decor-look-name {
+  font-size: 11px; font-weight: 700; line-height: 1.2; text-align: center; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere;
+}
+.decor-look:hover .decor-look-art { border-color: rgba(var(--accent-rgb), 0.6); }
+.decor-look:active .decor-look-art { transform: scale(0.95); }
+
+/* Overlays: the tile's stickers, the selected one's tools and settings, the library. */
+.decor-ov-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.decor-ov-count { font-size: 12px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
+.decor-ov-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.decor-ov-strip { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.decor-ov-strip:empty { display: none; }
+.decor-ov-tools { display: flex; gap: 4px; }
+.decor-ov-tools[hidden] { display: none; }
+.decor-ov-act {
+  width: 38px; height: 38px; padding: 0; cursor: pointer;
+  border: 1px solid var(--panel-border); border-radius: 8px;
+  background: transparent; color: var(--text); font-size: 17px; font-weight: 700; line-height: 1;
+}
+.decor-ov-act:hover { background: var(--hover-bg); }
+.decor-ov-act.is-danger { color: var(--color-danger, #ff6b6b); }
+.decor-ov-slot:empty { display: none; }
+.decor-ov-settings {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px;
+  border: 1px solid var(--panel-border); border-radius: 12px; background: rgba(255, 255, 255, 0.03);
+}
+.decor-ov-settings .decor-pospad { margin-bottom: 6px; }
+.decor-library { display: flex; flex-direction: column; gap: 8px; }
+.decor-library[hidden] { display: none; }
+.decor-cats { padding: 0; min-height: 0; }
+.decor-cats .tsf-choice-btn { flex: 0 0 auto; }
+
+/* Pattern kinds, each drawn with the CSS the tile will use. */
+.decor-pattern-thumb { position: relative; overflow: hidden; }
+.decor-pattern-thumb .tile-decor-pattern { pointer-events: none; }
+
+/* Controls preview: the same --tb-* values the tile receives, over theme defaults. */
+.tsc-preview {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  border: 1px solid var(--panel-border); border-radius: 12px; background: var(--surface-alt);
+}
+.tsc-preview-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.tsc-btn, .tsc-field {
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px;
+  border-style: solid; border-width: var(--tb-bw, 1px);
+  border-radius: var(--tb-radius, 8px); font-size: 12.5px; font-weight: 700;
+}
+.tsc-btn { color: var(--tb-text, var(--text)); background: var(--tb-bg, var(--control-bg)); border-color: var(--tb-border, var(--line)); }
+.tsc-btn.is-hover { background: var(--tb-hover, var(--hover-bg)); }
+.tsc-btn.is-on {
+  color: var(--tb-active-text, var(--on-accent)); background: var(--tb-active-bg, var(--accent));
+  border-color: var(--tb-active-bg, var(--accent));
+}
+.tsc-field {
+  font-weight: 500; color: var(--tb-field-text, var(--text)); background: var(--tb-field-bg, var(--input-bg));
+  border-color: var(--tb-field-border, var(--line)); border-width: 1px;
+}

@@ -21,27 +21,63 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
 const { Readable } = require('stream');
 const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('./self-update');
 
 const HELPER_ASSET = 'xenon-helper.exe';
+// The macOS helper ships packed (release.yml: tar is the only way its executable
+// bit survived a release download for install.sh), so the signed hash is the
+// ARCHIVE's. Without this the updater could not ship it, and every Mac that
+// updated in-app kept the helper its installer first put there.
+const HELPER_ASSET_MAC = 'xenon-helper-macos.tar.gz';
+// The lowest macOS helper this server works with: the twin of MIN_MAC_HELPER in
+// install.sh and of helperVersion in helper-mac (a test holds the three equal).
+// A Mac helper is replaced only BELOW it, never because a new build hashes
+// differently: macOS ties Accessibility and Automation grants to the binary, so
+// swapping it at every release would make every Mac grant them again.
+const MIN_MAC_HELPER = '0.7.0';
+// By full path: the system's own tar, never whichever one PATH finds first.
+const TAR = process.platform === 'win32'
+  ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+  : '/usr/bin/tar';
+const CAPTURE_ASSET = 'xenon-capture.exe';
+// One universal (Apple silicon + Intel) binary; installed as `capture/xenon-capture`.
+const CAPTURE_ASSET_MAC = 'xenon-capture-macos';
+// x86-64 Linux; installed as `capture/xenon-capture`.
+const CAPTURE_ASSET_LINUX = 'xenon-capture-linux-x64';
 const SUMS_ASSET = 'SHA256SUMS';
 const SIG_ASSET = 'SHA256SUMS.sig';
 
 const normVer = (s) => String(s || '').trim().replace(/^v/i, '');
 
 // opts (deps injectable for tests): helperExe (abs path), helperDir, appVersion,
-// repo, fetchImpl, fsImpl, publicKeyPem, now.
+// repo, fetchImpl, fsImpl, publicKeyPem, now, platform. `asset` names another binary the
+// same release ships and the same signed SHA256SUMS covers (CAPTURE_ASSET, the
+// capture engine): the trust chain is the same, only the file differs.
 function createHelperUpdate(opts) {
   const o = opts || {};
   const helperExe = o.helperExe;
   const helperDir = o.helperDir || path.dirname(helperExe);
+  const asset = o.asset || HELPER_ASSET;
+  // Leftovers are named after the file on disk, which on macOS is not the asset's name.
+  const local = path.basename(helperExe);
+  const stem = local.replace(/\.exe$/i, '');
   const appVersion = normVer(o.appVersion);
   const repo = o.repo || SELF_UPDATE_REPO;
   const fetchImpl = o.fetchImpl || globalThis.fetch;
   const f = o.fsImpl || fs;
   const publicKeyPem = o.publicKeyPem || UPDATE_PUBKEY_PEM;
   const now = o.now || Date.now;
+  const platform = o.platform || process.platform;
+  const execFileImpl = o.execFileImpl || execFile;
+  // A packed asset holds one file named like the one on disk; the signed hash
+  // is the archive's, so the file is checked before, and unpacked after.
+  const packed = /\.tar\.gz$/i.test(asset);
+  // A minimum version replaces the hash test: the helper is current when it
+  // says it is at least this (o.minVersion; the macOS helper, see above).
+  const minVersion = normVer(o.minVersion);
+  const stageDir = path.join(helperDir, local + '.stage');
 
   async function _json(url) {
     const res = await fetchImpl(url, {
@@ -82,11 +118,44 @@ function createHelperUpdate(opts) {
   function _cleanupLeftovers() {
     try {
       for (const n of f.readdirSync(helperDir)) {
-        if (/^xenon-helper(\.exe)?\.old-/.test(n) || n === 'xenon-helper.exe.download') {
-          try { f.rmSync(path.join(helperDir, n), { force: true }); } catch { /* ignore */ }
+        if (n.startsWith(stem + '.exe.old-') || n.startsWith(stem + '.old-') || n === local + '.download'
+          || n === local + '.stage') {
+          try { f.rmSync(path.join(helperDir, n), { force: true, recursive: true }); } catch { /* ignore */ }
         }
       }
     } catch { /* ignore */ }
+  }
+
+  const _run = (file, args) => new Promise((resolve) => {
+    execFileImpl(file, args, { timeout: 10000, windowsHide: true },
+      (err, stdout) => resolve(err ? null : String(stdout || '')));
+  });
+
+  // Whether the installed helper is below minVersion. One that cannot say
+  // (broken, or too old to know --version) counts as below, as in install.sh.
+  async function _belowMin() {
+    const have = normVer(await _run(helperExe, ['--version']));
+    if (!/^\d+(\.\d+)*$/.test(have)) return true;
+    const a = have.split('.').map(Number), b = minVersion.split('.').map(Number);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) < (b[i] || 0);
+    }
+    return false;
+  }
+
+  // The one member of a verified archive, extracted into a folder of its own.
+  // Only a regular file counts: a link in its place would let the swap below
+  // install whatever it pointed at.
+  async function _unpack(archive) {
+    f.rmSync(stageDir, { recursive: true, force: true });
+    f.mkdirSync(stageDir, { recursive: true });
+    await new Promise((resolve, reject) => {
+      execFileImpl(TAR, ['-xzf', archive, '-C', stageDir, local], { timeout: 60000, windowsHide: true },
+        (err) => (err ? reject(err) : resolve()));
+    });
+    const out = path.join(stageDir, local);
+    if (!f.lstatSync(out).isFile()) throw new Error('not a file');
+    return out;
   }
 
   // Returns a status string; never throws. See server.js ensureHelperUpToDate for
@@ -118,6 +187,8 @@ function createHelperUpdate(opts) {
         return 'no-helper';
       }
       _cleanupLeftovers();
+      // Asked first and offline: a current Mac helper costs no network at all.
+      if (minVersion && !installing && !(await _belowMin())) return 'up-to-date';
 
       const rel = (installing && appVersion)
         ? await _json(`https://api.github.com/repos/${repo}/releases/tags/v${appVersion}`)
@@ -131,7 +202,7 @@ function createHelperUpdate(opts) {
 
       const sumsUrl = _assetUrl(rel, SUMS_ASSET);
       const sigUrl = _assetUrl(rel, SIG_ASSET);
-      const exeUrl = _assetUrl(rel, HELPER_ASSET);
+      const exeUrl = _assetUrl(rel, asset);
       if (!sumsUrl || !sigUrl || !exeUrl) return 'not-ready'; // CI still attaching assets
 
       const [sums, sigB64] = await Promise.all([_text(sumsUrl), _text(sigUrl)]);
@@ -144,7 +215,7 @@ function createHelperUpdate(opts) {
       } catch { sigOk = false; }
       if (!sigOk) return 'signature-invalid';
 
-      const expected = parseSumsEntry(sums, HELPER_ASSET);
+      const expected = parseSumsEntry(sums, asset);
       if (!expected) return 'not-ready'; // this release's signed sums don't cover the helper yet
 
       // Already the exact signed helper? Nothing to download.
@@ -172,6 +243,11 @@ function createHelperUpdate(opts) {
         try { f.rmSync(dl, { force: true }); } catch { /* ignore */ }
         return 'mismatch';
       }
+      let src = dl;
+      if (packed) {
+        try { src = await _unpack(dl); } catch { _cleanupLeftovers(); return 'error'; }
+        try { f.rmSync(dl, { force: true }); } catch { /* cleaned next run */ }
+      }
 
       // Install. A running server may hold the old exe mapped: deleting is blocked,
       // but RENAMING a running image is allowed — the fresh exe is picked up on the
@@ -186,19 +262,26 @@ function createHelperUpdate(opts) {
       // `no-helper` early return, because it is an updater and never an installer,
       // so the exe stays missing until someone re-runs the setup by hand. Observed
       // in the wild, with only a `xenon-helper.exe.old-<ts>` orphan left behind.
+      // A download is not executable on macOS and Linux until it is made so.
+      if (platform !== 'win32') f.chmodSync(src, 0o755);
       const aside = helperExe + '.old-' + now();
       let moved = false;
       try { f.renameSync(helperExe, aside); moved = true; }
       catch { try { f.rmSync(helperExe, { force: true }); } catch { /* gone already */ } }
       try {
-        f.renameSync(dl, helperExe);
+        f.renameSync(src, helperExe);
       } catch {
         // Put the working helper back before giving up: a retry later is fine,
         // a machine with no helper is not.
         if (moved) { try { f.renameSync(aside, helperExe); } catch { /* ignore */ } }
-        try { f.rmSync(dl, { force: true }); } catch { /* ignore */ }
+        try { f.rmSync(src, { force: true }); } catch { /* ignore */ }
+        if (packed) _cleanupLeftovers();
         return 'error';
       }
+      if (packed) _cleanupLeftovers();
+      // A quarantined unsigned binary never runs (install.sh strips it too).
+      // Node's own downloads carry no flag; this covers a shell that adds one.
+      if (platform === 'darwin') await _run('/usr/bin/xattr', ['-d', 'com.apple.quarantine', helperExe]);
       // Best effort: still mapped by a running child → cleaned on the next run.
       if (moved) { try { f.rmSync(aside, { force: true }); } catch { /* ignore */ } }
       return 'installed';
@@ -210,4 +293,4 @@ function createHelperUpdate(opts) {
   return { refresh, install };
 }
 
-module.exports = { createHelperUpdate, HELPER_ASSET };
+module.exports = { createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX };

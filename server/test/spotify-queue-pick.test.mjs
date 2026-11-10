@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-spq-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 
 // Picking a track out of Up Next.
 //
@@ -31,7 +35,7 @@ const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 // route can answer differently on the retry.
 function provider(routes) {
   const seen = [];
-  const file = path.join(os.tmpdir(), `xe-spq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
   const p = createSpotifyProvider({
     clientId: 'cid',
@@ -93,35 +97,48 @@ test('a picked track plays inside its playlist, so the rest of the list follows'
   assert.deepEqual(play[0].body, { context_uri: 'spotify:playlist:PL1', offset: { uri: 'spotify:track:T2' } });
 });
 
-test('a track the context never held still plays, on its own', async () => {
+test('a track the context never held still plays, inside its own album', async () => {
   // "Add to queue" puts a track in Up Next that belongs to no playlist, and
   // Spotify rejects an offset naming it. The API cannot tell us which rows those
-  // are, so the offset is attempted and the bare track is the fallback.
+  // are, so the offset is attempted and the track's own album is the fallback:
+  // a lone track shows "playing" on Spotify's desktop app and loads nothing.
   const { p, seen } = provider([
     { match: '/me/player/play', method: 'PUT', status: 400, json: { error: { message: 'Invalid offset' } }, once: true },
+    { match: '/tracks/QUEUED', method: 'GET', json: { uri: 'spotify:track:QUEUED', album: { uri: 'spotify:album:AL9' } } },
     { match: '/me/player/play', method: 'PUT', json: {} },
   ]);
   const r = await p.playUri('spotify:track:QUEUED', 'spotify:playlist:PL1');
   assert.deepEqual(r, { ok: true }, 'the tap must not fail silently');
   const play = seen.filter(x => x.url.includes('/me/player/play'));
-  assert.equal(play.length, 2, 'offset first, then the track alone');
-  assert.deepEqual(play[1].body, { uris: ['spotify:track:QUEUED'] });
+  assert.equal(play.length, 2, 'offset first, then the track in its album');
+  assert.deepEqual(play[1].body, { context_uri: 'spotify:album:AL9', offset: { uri: 'spotify:track:QUEUED' } });
 });
 
-test('with no context there is no second attempt to make', async () => {
-  const { p, seen } = provider([{ match: '/me/player/play', method: 'PUT', status: 400, json: {} }]);
+test('a refused play is never sent twice the same way', async () => {
+  const { p, seen } = provider([
+    { match: '/tracks/T2', method: 'GET', json: { uri: 'spotify:track:T2', album: { uri: 'spotify:album:AL2' } } },
+    { match: '/me/player/play', method: 'PUT', status: 400, json: {} },
+  ]);
   const r = await p.playUri('spotify:track:T2', '');
   assert.equal(r.ok, false);
-  assert.equal(seen.filter(x => x.url.includes('/me/player/play')).length, 1,
-    'retrying the identical request would just cost a call');
+  const bodies = seen.filter(x => x.url.includes('/me/player/play')).map(x => JSON.stringify(x.body));
+  assert.deepEqual(bodies, [
+    JSON.stringify({ context_uri: 'spotify:album:AL2', offset: { uri: 'spotify:track:T2' } }),
+    JSON.stringify({ uris: ['spotify:track:T2'] }),
+  ], 'its album, then the track alone; retrying the identical request would just cost a call');
 });
 
 test('an artist context is still dropped rather than playing the wrong song', async () => {
   // Spotify accepts an offset for albums and playlists only. That rule predates
   // this change and the fallback must not have become a way around it.
-  const { p, seen } = provider([{ match: '/me/player/play', method: 'PUT', json: {} }]);
+  const { p, seen } = provider([
+    { match: '/tracks/T2', method: 'GET', json: { uri: 'spotify:track:T2', album: { uri: 'spotify:album:AL2' } } },
+    { match: '/me/player/play', method: 'PUT', json: {} },
+  ]);
   await p.playUri('spotify:track:T2', 'spotify:artist:AR1');
-  assert.deepEqual(seen.filter(x => x.url.includes('/me/player/play'))[0].body, { uris: ['spotify:track:T2'] });
+  const play = seen.filter(x => x.url.includes('/me/player/play'));
+  assert.equal(play.length, 1);
+  assert.deepEqual(play[0].body, { context_uri: 'spotify:album:AL2', offset: { uri: 'spotify:track:T2' } });
 });
 
 test('the row is a button that asks to play itself', () => {

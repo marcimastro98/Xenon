@@ -41,5 +41,14 @@
     return url;
   }
 
-  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode, supportUrl };
+  // The hub's pass trial page in the app's language. The hub speaks the site's
+  // 7 languages and falls back on its own for the others.
+  const TRIAL_PAGE = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
+
+  function trialUrl(code) {
+    const base = String(code || '').toLowerCase().slice(0, 2);
+    return /^[a-z]{2}$/.test(base) ? TRIAL_PAGE + '?lang=' + base : TRIAL_PAGE;
+  }
+
+  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode, supportUrl, trialUrl };
 });

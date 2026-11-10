@@ -36,9 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -46,19 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Xenon pour Mac (beta) : Xeneon Edge, dashboard sur écran secondaire</title>
-<meta name="description" content="Xenon sur macOS (beta) : un dashboard gratuit pour un Xeneon Edge, un moniteur de rechange ou une tablette à côté de votre Mac. Fonctionnement, premier lancement, autorisations, désinstallation.">
+<meta name="theme-color" content="#0071E3">
+<title>Xenon pour Mac (bêta) : dashboard et widgets Xeneon Edge</title>
+<meta name="description" content="Xenon sur macOS 11 ou plus récent (bêta) : un dashboard pour un écran en plus ou un Xeneon Edge, les autorisations, le premier lancement, la désinstallation.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Xenon pour Mac (beta) : Xeneon Edge, dashboard sur écran secondaire">
-<meta property="og:description" content="Xenon sur macOS (beta) : un dashboard gratuit pour un Xeneon Edge, un moniteur de rechange ou une tablette à côté de votre Mac. Fonctionnement, premier lancement, autorisations, désinstallation.">
+<meta property="og:title" content="Xenon pour Mac (bêta) : dashboard et widgets Xeneon Edge">
+<meta property="og:description" content="Xenon sur macOS 11 ou plus récent (bêta) : un dashboard pour un écran en plus ou un Xeneon Edge, les autorisations, le premier lancement, la désinstallation.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/fr/mac.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="fr_FR">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon pour Mac (bêta) : dashboard et widgets Xeneon Edge">
+<meta name="twitter:description" content="Xenon sur macOS 11 ou plus récent (bêta) : un dashboard pour un écran en plus ou un Xeneon Edge, les autorisations, le premier lancement, la désinstallation.">
 <link rel="canonical" href="https://xenon-app.com/fr/mac.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html">
@@ -68,26 +67,13 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon fonctionne-t-il sur un Mac","acceptedAnswer":{"@type":"Answer","text":"Oui, en beta, sur macOS 11 ou ultérieur. Un fichier .dmg universel fonctionne sur Apple Silicon et Intel. Le dashboard, les widgets et les intégrations sont identiques à ceux de Windows ; certaines fonctionnalités système ne sont pas disponibles."}},{"@type":"Question","name":"Puis-je utiliser un Xeneon Edge avec un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Xenon demande quel écran utiliser lors de la première ouverture, et vous pouvez choisir le Xeneon Edge. macOS ne prend pas en charge nativement les écrans tactiles USB, il faut donc une application qui convertit les touches en clics. L'éclairage iCUE et le tactile compatible jeu sont exclusifs à Windows."}},{"@type":"Question","name":"Pourquoi macOS indique-t-il que Xenon ne peut pas être ouvert ?","acceptedAnswer":{"@type":"Answer","text":"L'application n'est pas encore notarisée par Apple. Sur macOS 15 et versions ultérieures, ouvrez Réglages Système, Confidentialité et sécurité, puis cliquez sur Ouvrir quand même à côté de Xenon. Sur macOS 11 à 14, faites un clic droit sur l'application et choisissez Ouvrir. Cette opération n'est requise qu'une fois par version."}},{"@type":"Question","name":"Quelles autorisations Xenon nécessite-t-il sur un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Le dashboard fonctionne sans aucune autorisation. L'accès complet au disque permet à la recherche et au widget de disque de voir votre dossier personnel et la Corbeille. L'accessibilité permet aux touches du Deck d'envoyer des raccourcis clavier. L'enregistrement de l'écran et le microphone sont destinés à la vision d'écran et à la voix de l'IA."}},{"@type":"Question","name":"Comment désinstaller Xenon sur un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Double-cliquez sur UNINSTALL.command dans ~/Library/Application Support/Xenon et saisissez REMOVE lorsqu'on vous le demande. Cela supprime l'application, l'élément de connexion, le serveur local, vos données et le dossier d'installation."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon fonctionne-t-il sur un Mac","acceptedAnswer":{"@type":"Answer","text":"Oui, en beta, sur macOS 11 ou ultérieur. Un fichier .dmg universel fonctionne sur Apple Silicon et Intel. Le dashboard, les widgets et les intégrations sont identiques à ceux de Windows ; certaines fonctionnalités système ne sont pas disponibles."}},{"@type":"Question","name":"Puis-je utiliser un Xeneon Edge avec un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Xenon demande quel écran utiliser lors de la première ouverture, et vous pouvez choisir le Xeneon Edge. macOS ne prend pas en charge nativement les écrans tactiles USB, il faut donc une application qui convertit les touches en clics. L'éclairage iCUE et le tactile compatible jeu sont exclusifs à Windows."}},{"@type":"Question","name":"Pourquoi macOS indique-t-il que Xenon ne peut pas être ouvert ?","acceptedAnswer":{"@type":"Answer","text":"Les versions jusqu'à la 4.11.13 n'étaient pas notarisées, donc macOS ne pouvait pas les vérifier. Depuis la 5.0, Xenon est notarisé par Apple : la première fois, macOS demande seulement si vous voulez ouvrir une application téléchargée sur Internet, et vous cliquez sur Ouvrir. Si macOS indique encore qu'il ne peut pas vérifier Xenon, cette copie est antérieure à la 5.0 : téléchargez le dernier .dmg."}},{"@type":"Question","name":"Quelles autorisations Xenon nécessite-t-il sur un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Le dashboard fonctionne sans aucune permission. L'accès complet au disque permet à la recherche et au widget de disque d'afficher votre dossier personnel et la Corbeille. L'accessibilité permet aux touches du Deck d'envoyer des raccourcis clavier et à l'enregistrement des étapes de nommer les boutons sur lesquels vous cliquez. L'enregistrement de l'écran sert aux captures d'écran, aux enregistrements, au Replay instantané et à la vision d'écran de l'IA. Le microphone sert à la saisie vocale et à votre voix dans les enregistrements, la caméra à la bulle de la webcam dans les enregistrements. La surveillance de l'entrée permet à l'enregistrement des étapes de voir vos clics et à Xenon de lire la batterie des souris et claviers sur un récepteur USB."}},{"@type":"Question","name":"Comment désinstaller Xenon sur un Mac ?","acceptedAnswer":{"@type":"Answer","text":"Double-cliquez sur UNINSTALL.command dans ~/Library/Application Support/Xenon et saisissez REMOVE lorsqu'on vous le demande. Cela supprime l'application, l'élément de connexion, le serveur local, vos données et le dossier d'installation."}}]}</script>
 
 <style>
-  .beta-pill {
-    display: inline-block; vertical-align: middle; margin-left: 12px;
-    font-family: var(--sans); font-size: 14px;
-    color: var(--beta-fg); background: var(--beta-bg);
-    border: 0; border-radius: 6px; padding: 4px 10px;
-  }
+  /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
   h3 { font-size: 17px; margin: 30px 0 8px; color: var(--text); }
-  .shot-edge { margin: 30px 0 6px; }
-  .shot-edge img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
-  .shot-edge figcaption { margin-top: 10px; font-size: 15px; line-height: 1.5; color: var(--muted); }
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 18px; }
-  .dl a.pick { display: block; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); text-decoration: none; color: var(--text); max-width: 420px; }
-  .dl a.pick:hover { border-color: var(--green); }
-  .dl .os { font-weight: 600; font-size: 16px; }
-  .dl .os small { font-family: var(--sans); font-size: 15px; color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font-family: var(--mono); font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 15px; color: var(--muted); }
+  /* One file: the card stays the width of one column. */
+  .dl a.pick { max-width: 420px; }
   pre { background: var(--g-2); border-radius: 10px; padding: 12px 14px; margin: 0 0 16px; }
   pre code { background: none; padding: 0; white-space: pre-wrap; overflow-wrap: break-word; }
   .tablewrap { margin: 18px 0 8px; }
@@ -102,18 +88,17 @@
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="apple">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
+    <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/fr/#support" data-xl="supporters">Supporters</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrez-moi un café</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>FR</span></summary><ul><li><a href="/mac.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/mac.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/mac.html" hreflang="fr" lang="fr" aria-current="page">Français <span>FR</span></a></li><li><a href="/it/mac.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/mac.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/mac.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/mac.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Télécharger</a>
@@ -122,10 +107,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Fermer</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/fr/#screens" data-xl="screens">Écrans</a></li><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/fr/#support" data-xl="supporters">Supporters</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/fr/#install" data-xl="install">Installer</a>
       <ul class="xh-mlinks">
@@ -139,13 +124,24 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/mac.html" aria-current="page" data-xl="f.mac">Xenon sur un Mac</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Xenon sur un Mac","item":"https://xenon-app.com/fr/mac.html"}]}</script><!-- /xenon:crumbs -->
-    <h1><span data-i18n="mac.h1">Xenon sur macOS</span><span class="beta-pill" data-i18n="mac.beta">Beta</span></h1>
-    <p class="lede" data-i18n="mac.lede">Xenon est un dashboard tactile gratuit pour l'écran situé à côté de votre ordinateur. Sur Mac, il exécute le même dashboard que sur Windows. Cette page répertorie ce qui fonctionne actuellement, ce qui ne fonctionne pas, ainsi que les méthodes d'installation et de désinstallation.</p>
-    <p class="updated" data-i18n="mac.updated">Dernière mise à jour : 27 septembre 2026</p>
-
-    <nav class="jump">
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/mac.html" aria-current="page" data-xl="f.mac">Xenon sur un Mac</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Xenon sur un Mac","item":"https://xenon-app.com/fr/mac.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h"><span data-i18n="mac.h1">Xenon sur macOS</span><span class="beta-pill" data-i18n="mac.beta">Beta</span></h1>
+        <p class="lede" data-i18n="mac.lede">Xenon affiche des widgets gratuits pour votre ordinateur sur tous vos écrans. Sur Mac, il est en beta : cette page répertorie ce qui fonctionne actuellement, ce qui ne fonctionne pas, ainsi que les méthodes d'installation et de désinstallation.</p>
+        <div class="pg-act">
+          <a class="pg-key" data-for="macos" href="#get" data-xl="ctamac">Télécharger pour macOS</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">Essayez-le dans le navigateur</a>
+        </div>
+        <p class="updated" data-i18n="mac.updated">Dernière mise à jour : 8 novembre 2026</p>
+      </div>
+      <figure class="pg-pic"><img src="/images/home/monitor.webp" width="1600" height="900" fetchpriority="high" decoding="async" alt="Le tableau de bord Xenon : musique, calendrier et graphiques système sur une seule page" data-i18n-alt="mac.pic.alt"><figcaption data-i18n="mac.pic.cap">Le tableau de bord dans la démo du navigateur. Ses valeurs sont des données d'exemple d'un PC Windows ; sur un Mac, les mêmes tuiles affichent les valeurs du Mac.</figcaption></figure>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">Sur cette page</p>
       <a href="#who" data-i18n="mac.jump.who">À qui s'adresse-t-il</a>
       <a href="#get" data-i18n="mac.jump.get">Télécharger</a>
       <a href="#first" data-i18n="mac.jump.first">Premier lancement</a>
@@ -154,15 +150,11 @@
       <a href="#perms" data-i18n="mac.jump.perms">Autorisations</a>
       <a href="#remove" data-i18n="mac.jump.remove">Désinstallation</a>
     </nav>
-
-    <figure class="shot-edge">
-      <img src="/images/home/edge-ocean-1440.webp" srcset="/images/home/edge-ocean-1440.webp 1440w, /images/home/edge-ocean.webp 2560w" sizes="(max-width: 860px) 92vw, 772px" width="2560" height="720" loading="lazy" decoding="async" alt="Le dashbnoard Xenon dashboard sur le Xeneon Edge, en taille 2560×720, avec la musique, un calendrier et les mesures système côte à côte" data-i18n-alt="mac.shot.alt">
-      <figcaption data-i18n="mac.shot.cap">Le dashboard sur le Xeneon Edge, en taille 2560×720, capturé à partir de la démonstration du navigateur. Ses valeurs sont des données d'exemple pour un PC Windows. Sur un Mac, les mêmes tuiles affichent les propres mesures du Mac.</figcaption>
-    </figure>
-
+    <div class="wrap">
     <h2 id="who" data-i18n="mac.h.who">À qui s'adresse ce produit</h2>
-    <p data-i18n="mac.who.p1">Cette page s’adresse aux propriétaires de Mac disposant d’un écran supplémentaire :</p>
+    <p data-i18n="mac.who.p1">Cette page s’adresse aux propriétaires de Mac qui veulent des widgets sur l'un de ces écrans :</p>
     <ul>
+      <li data-i18n-html="mac.who.desk"><strong>Votre bureau.</strong> Les widgets restent sur l’écran que vous avez déjà. Voir <a href="/fr/single-screen.html">Xenon sur un seul écran</a>.</li>
       <li data-i18n-html="mac.who.edge"><strong>Un CORSAIR Xeneon Edge.</strong> Xenon a été initialement conçu autour de sa résolution de 2560×720.</li>
       <li data-i18n-html="mac.who.monitor"><strong>Un moniteur de rechange.</strong> L'application Xenon s'ouvre sur l'écran de votre choix.</li>
       <li data-i18n-html="mac.who.tablet"><strong>Une tablette ou un téléphone.</strong> Il affiche le même dashboard dans son navigateur via votre Wi-Fi, sans rien y installer. L'accès par téléphone et tablette est également en beta. Voir <a href="/fr/phone.html">appairage d'un téléphone ou d'une tablette</a>.</li>
@@ -176,7 +168,7 @@
     </div>
     <ul>
       <li data-i18n-html="mac.req.os"><strong>macOS 11 ou version ultérieure</strong>, sur Apple Silicon ou Intel. Le fichier .dmg est une compilation universelle, il n'y a donc qu'un seul téléchargement pour les deux.</li>
-      <li data-i18n-html="mac.req.node"><strong>Node.js 18.15 ou ultérieur.</strong> S'il est manquant et que Homebrew est installé, l'installation le configure via Homebrew. Sinon, elle s'arrête et vous demande de l'installer depuis nodejs.org.</li>
+      <li data-i18n-html="mac.req.node"><strong>Node.js 22 ou ultérieur est recommandé.</strong> Node.js 18 et 20 font encore tourner Xenon, mais ne reçoivent plus de correctifs de sécurité, et Xenon écrit un avertissement dans son journal. Si Node.js est manquant et que Homebrew est installé, l'installation le configure via Homebrew. Sinon, elle s'arrête et vous demande de l'installer depuis nodejs.org.</li>
     </ul>
     <p data-i18n="mac.req.opt">Le reste est facultatif. Chaque outil ajoute une fonctionnalité, et l'installateur indique ceux que vous n'avez pas :</p>
     <ul>
@@ -186,14 +178,14 @@
     </ul>
 
     <h2 id="first" data-i18n="mac.h.first">Premier lancement</h2>
-    <h3 data-i18n="mac.h.notarized">Ouverture d'une application non certifiée</h3>
-    <p data-i18n="mac.nz.p1">Xenon n'est pas encore notarisé par Apple. La notarisation nécessite un abonnement payant au programme Apple Developer, dont ce projet ne dispose pas ; ainsi, lors de la première ouverture de Xenon, macOS indique qu'il ne peut pas vérifier l'application.</p>
+    <h3 data-i18n="mac.h.notarized">Ouvrir Xenon la première fois</h3>
+    <p data-i18n="mac.nz.p1">Depuis la version 5.0, Xenon est signé avec un Apple Developer ID et notarisé par Apple, donc macOS peut le vérifier avant de l'ouvrir.</p>
     <ol>
       <li data-i18n-html="mac.nz.1">Ouvrez le fichier .dmg et glissez <strong>Xenon</strong> dans <strong>Applications</strong>, puis lancez-le.</li>
-      <li data-i18n-html="mac.nz.2">Sur macOS 15 et versions ultérieures, si macOS refuse, ouvrez <strong>Réglages Système</strong>, puis <strong>Confidentialité et sécurité</strong>.</li>
-      <li data-i18n-html="mac.nz.3">Faites défiler jusqu'en bas et cliquez sur <strong>Ouvrir quand même</strong> à côté de Xenon.</li>
+      <li data-i18n-html="mac.nz.2">macOS demande une fois si vous voulez ouvrir une application téléchargée sur Internet. Cliquez sur <strong>Ouvrir</strong>.</li>
     </ol>
-    <p data-i18n-html="mac.nz.p2">Sur macOS 11 à 14, vous pouvez plutôt cliquer avec le bouton droit sur l'application, choisir <strong>Ouvrir</strong>, puis <strong>Ouvrir</strong> à nouveau. Apple a supprimé ce raccourci dans macOS 15. Dans tous les cas, cela ne se fait qu'une fois par version.</p>
+    <p data-i18n="mac.nz.p2">Si macOS indique qu'il ne peut pas vérifier Xenon, cette copie est antérieure à la 5.0. Téléchargez le dernier .dmg depuis cette page et ouvrez celui-ci.</p>
+    <p data-i18n-html="mac.nz.p3">Les versions jusqu'à la 4.11.13 étaient signées avec le propre certificat du projet et n'étaient pas notarisées. Comme la signature change avec la 5.0, après la mise à jour macOS peut redemander des autorisations que vous aviez déjà accordées, comme l'accès complet au disque, l'accessibilité et l'enregistrement de l'écran. Accordez-les à nouveau dans <strong>Réglages Système</strong>, <strong>Confidentialité et sécurité</strong>.</p>
 
     <h3 data-i18n="mac.h.setup">Configuration du moteur dashboard</h3>
     <p data-i18n="mac.setup.p1">Un fichier .dmg ne peut pas exécuter un installateur, c'est donc le premier lancement qui s'en charge. Xenon ne trouve aucun dashboard derrière lui et ouvre une fenêtre Terminal que vous pouvez lire et arrêter. Dans cette fenêtre, il :</p>
@@ -229,9 +221,9 @@
         <tr><td data-i18n="mac.row.hotkey">Raccourci clavier de recherche globale</td><td data-i18n="mac.st.helper">Fonctionne via l’Assistant Xenon.</td></tr>
         <tr><td data-i18n="mac.row.search">Recherche de fichiers, carte du disque et nettoyage</td><td data-i18n="mac.st.search">Fonctionne via l'Assistant Xenon. La recherche correspond aux noms de fichiers. Nécessite l'accès complet au disque pour inclure votre dossier personnel.</td></tr>
         <tr><td data-i18n="mac.row.type">Saisie de texte et déplacement des fenêtres depuis le dashboard</td><td data-i18n="mac.st.no">Non disponible sur Mac.</td></tr>
-        <tr><td data-i18n="mac.row.ai">Xenon Chat IA et actions, cloud et local</td><td data-i18n="mac.st.works">Fonctionne.</td></tr>
+        <tr><td data-i18n="mac.row.ai">Chat et actions de Bit, cloud et local</td><td data-i18n="mac.st.works">Fonctionne.</td></tr>
         <tr><td data-i18n="mac.row.voice">Saisie vocale et vision d’écran de l’IA</td><td data-i18n="mac.st.voice">Fonctionne. La voix nécessite ffmpeg.</td></tr>
-        <tr><td data-i18n="mac.row.wake">Commande vocale « Hey Xenon »</td><td data-i18n="mac.st.wake">Fonctionne avec ffmpeg et Whisper local gratuit, que Xenon AI installe via Homebrew dans les Paramètres.</td></tr>
+        <tr><td data-i18n="mac.row.wake">Commande vocale « Hey Bit »</td><td data-i18n="mac.st.wake">Fonctionne avec ffmpeg et Whisper local gratuit, que Réglages, Bit installe via Homebrew.</td></tr>
         <tr><td data-i18n="mac.row.lights">Éclairage réseau : WLED, Hue, Nanoleaf, OpenRGB</td><td data-i18n="mac.st.works">Fonctionne.</td></tr>
         <tr><td data-i18n="mac.row.icue">CORSAIR éclairage iCUE</td><td data-i18n="mac.st.win">Uniquement sur Windows.</td></tr>
         <tr><td data-i18n="mac.row.services">Streaming, Spotify, Discord, Home Assistant, Claude Code</td><td data-i18n="mac.st.works">Fonctionne.</td></tr>
@@ -247,7 +239,7 @@
     <p class="note" data-i18n-html="mac.works.doctor">Si une tuile est vide, exécutez <code>npm run doctor</code> dans le dossier d'installation. Il liste ce qui fonctionne, ce que votre matériel n'expose pas et ce qui est défectueux, et il ne modifie rien.</p>
 
     <h2 id="edge" data-i18n="mac.h.edge">Le Xeneon Edge sur un Mac</h2>
-    <p data-i18n-html="mac.edge.p1">La première fois que Xenon s'ouvre, il énumère les écrans qu'il détecte. Sélectionnez le Xeneon Edge et le dashboard s'y déplace. Vous pouvez le modifier ultérieurement dans <strong>Réglages, Affichage</strong>.</p>
+    <p data-i18n-html="mac.edge.p1">La première fois que Xenon s'ouvre, il énumère les écrans qu'il détecte. Sélectionnez le Xeneon Edge et le dashboard s'y déplace. Vous pouvez le modifier ultérieurement dans <strong>Réglages, Écran</strong>.</p>
     <p data-i18n="mac.edge.p2">Le tactile fonctionne différemment sur macOS que sur Windows. macOS ne prend pas en charge nativement les écrans tactiles USB, de sorte que des applications comme Touchscreen Gestures transforment chaque contact en clic souris et un appui long en clic droit. Xenon exécute l'action Hold des touches du Deck lors d'un clic droit, ce qui permet à Hold de fonctionner également dans cette configuration.</p>
     <p data-i18n="mac.edge.p3">Trois éléments restent sur Windows : le toucher sécurisé pour les jeux, qui maintient un jeu au premier plan pendant que vous touchez le Xeneon Edge ; l'éclairage iCUE CORSAIR ; et le second écran virtuel.</p>
 
@@ -255,9 +247,11 @@
     <p data-i18n="mac.perms.p">Le dashboard fonctionne sans aucun de ces éléments. Chacun active une fonctionnalité spécifique.</p>
     <ul>
       <li data-i18n-html="mac.perm.fda"><strong>Accès complet au disque, pour Xenon.</strong> Permet à la recherche et au widget disque de voir votre dossier personnel, la Corbeille et la plupart de <code>~/Library/Caches</code>. Sans cela, Xenon reste à l'écart de votre dossier personnel au lieu de demander l'accès au Bureau, aux Documents et aux Téléchargements un par un, et affiche une seule notification avec un bouton menant au panneau de paramètres approprié.</li>
-      <li data-i18n-html="mac.perm.ax"><strong>Accessibilité, pour Xenon Helper.</strong> Permet aux touches du Deck d'envoyer un raccourci clavier à l'application au premier plan. Tant que vous ne l'autorisez pas, ce type de touches du Deck est exclu de l'éditeur. Xenon vérifie cette autorisation au démarrage, donc quittez et rouvrez Xenon après l'avoir accordée.</li>
-      <li data-i18n-html="mac.perm.screen"><strong>Enregistrement de l'écran.</strong> Nécessaire lorsque l'IA prend une capture d'écran pour voir votre écran. Sans cette autorisation, la capture n'affiche que l'image de fond du bureau.</li>
-      <li data-i18n-html="mac.perm.mic"><strong>Microphone.</strong> Nécessaire pour la saisie vocale et le commande vocale « Hey Xenon ». Sans cela, Xenon ne trouve aucun microphone.</li>
+      <li data-i18n-html="mac.perm.ax"><strong>Accessibilité, pour Xenon Helper et pour Xenon.</strong> Pour Xenon Helper, elle permet aux touches du Deck d'envoyer un raccourci clavier à l'application au premier plan. Tant que vous ne l'autorisez pas, ce type de touches du Deck est exclu de l'éditeur. Xenon vérifie cette autorisation au démarrage, donc quittez et rouvrez Xenon après l'avoir accordée. Pour Xenon, elle permet à l'enregistrement des étapes de nommer les boutons sur lesquels vous cliquez ; sans elle, chaque étape montre l'endroit entouré.</li>
+      <li data-i18n-html="mac.perm.screen"><strong>Enregistrement de l'écran.</strong> Nécessaire pour les captures d'écran, les enregistrements, le Replay instantané et la vision d'écran de l'IA. Sans cette autorisation, la capture n'affiche que l'image de fond du bureau.</li>
+      <li data-i18n-html="mac.perm.mic"><strong>Microphone.</strong> Nécessaire pour la saisie vocale, la commande vocale « Hey Bit » et votre voix dans les enregistrements. Sans cela, Xenon ne trouve aucun microphone.</li>
+      <li data-i18n-html="mac.perm.cam"><strong>Caméra.</strong> Nécessaire pour la bulle de la webcam dans les enregistrements. Si aucune caméra ne répond, l'enregistrement continue sans elle.</li>
+      <li data-i18n-html="mac.perm.input"><strong>Surveillance de l'entrée.</strong> Permet à l'enregistrement des étapes de voir vos clics, et à Xenon de lire la batterie d'une souris ou d'un clavier sur un récepteur USB. L'enregistrement des étapes n'enregistre jamais ce que vous tapez, seulement le fait que vous avez tapé.</li>
       <li data-i18n-html="mac.perm.auto"><strong>Automatisation.</strong> Uniquement si l'assistant Xenon est manquant : le sélecteur d'applications bascule alors sur les scripts, ce à quoi macOS demande l'autorisation une fois par application.</li>
     </ul>
     <p data-i18n="mac.fda.h">Pour accorder l'accès complet au disque à Xenon :</p>
@@ -266,7 +260,7 @@
       <li data-i18n-html="mac.fda.2">Cliquez sur <strong>+</strong>, choisissez <strong>Xenon</strong> dans Applications, et vérifiez que son interrupteur est activé.</li>
       <li data-i18n="mac.fda.3">Fermez Xenon puis rouvrez-le. L'autorisation est lue au démarrage.</li>
     </ol>
-    <p data-i18n="mac.fda.p">Depuis la version 4.11.3, Xenon est signé avec son propre certificat, qui reste identique d'une version à l'autre, de sorte que l'autorisation est conservée lors des mises à jour. Si Xenon est répertorié mais que l'autorisation ne fonctionne manifestement pas, supprimez-le à l'aide du bouton moins puis ajoutez-le à nouveau.</p>
+    <p data-i18n="mac.fda.p">Depuis la version 5.0, Xenon est signé avec un Apple Developer ID, qui reste identique d'une version à l'autre, de sorte que l'autorisation est conservée lors des mises à jour. Seule la mise à jour vers la 5.0 peut la redemander, car la signature change à ce moment-là. Si Xenon est répertorié mais que l'autorisation ne fonctionne manifestement pas, supprimez-le à l'aide du bouton moins puis ajoutez-le à nouveau.</p>
 
     <h2 id="remove" data-i18n="mac.h.remove">Désinstallation</h2>
     <ol>
@@ -284,15 +278,16 @@
     <h2 id="faq" data-i18n="mac.h.faq">Questions</h2>
     <details><summary data-i18n="mac.faq.mac.q">Le Xenon fonctionne-t-il sur un Mac ?</summary><div class="body"><p data-i18n="mac.faq.mac.a">Oui, dans beta, sur macOS 11 ou version ultérieure. Un fichier .dmg universel fonctionne sur Apple Silicon et Intel. Le dashboard, les widgets et les intégrations sont identiques à ceux de Windows ; certaines fonctionnalités système ne sont pas disponibles.</p></div></details>
     <details><summary data-i18n="mac.faq.edge.q">Puis-je utiliser un Xeneon Edge avec un Mac ?</summary><div class="body"><p data-i18n="mac.faq.edge.a">Oui. Xenon demande quel écran utiliser lors de la première ouverture, et vous pouvez sélectionner le Xeneon Edge. macOS ne prend pas en charge nativement les écrans tactiles USB, il est donc nécessaire d'utiliser une application qui convertit les touches en clics. L'éclairage iCUE et le mode tactile sécurisé pour les jeux sont exclusifs à Windows.</p></div></details>
-    <details><summary data-i18n="mac.faq.open.q">Pourquoi macOS indique-t-il que Xenon ne peut pas être ouvert ?</summary><div class="body"><p data-i18n="mac.faq.open.a">L'application n'est pas encore notarisée par Apple. Sur macOS 15 et versions ultérieures, ouvrez Réglages Système, Confidentialité et sécurité, puis cliquez sur Ouvrir quand même à côté de Xenon. Sur macOS 11 à 14, faites un clic droit sur l'application et choisissez Ouvrir. Cette opération n'est requise qu'une fois par version.</p></div></details>
-    <details><summary data-i18n="mac.faq.perm.q">Quelles autorisations Xenon nécessite-t-il sur un Mac ?</summary><div class="body"><p data-i18n="mac.faq.perm.a">Le dashboard fonctionne sans aucune permission. L'accès complet au disque permet à la recherche et au widget de disque d'afficher votre dossier personnel et la Corbeille. L'accessibilité permet aux touches du Deck d'envoyer des raccourcis clavier. L'enregistrement de l'écran et le microphone sont destinés à la vision d'écran et à la voix de l'IA.</p></div></details>
+    <details><summary data-i18n="mac.faq.open.q">Pourquoi macOS indique-t-il que Xenon ne peut pas être ouvert ?</summary><div class="body"><p data-i18n="mac.faq.open.a">Les versions jusqu'à la 4.11.13 n'étaient pas notarisées, donc macOS ne pouvait pas les vérifier. Depuis la 5.0, Xenon est notarisé par Apple : la première fois, macOS demande seulement si vous voulez ouvrir une application téléchargée sur Internet, et vous cliquez sur Ouvrir. Si macOS indique encore qu'il ne peut pas vérifier Xenon, cette copie est antérieure à la 5.0 : téléchargez le dernier .dmg.</p></div></details>
+    <details><summary data-i18n="mac.faq.perm.q">Quelles autorisations Xenon nécessite-t-il sur un Mac ?</summary><div class="body"><p data-i18n="mac.faq.perm.a">Le dashboard fonctionne sans aucune permission. L'accès complet au disque permet à la recherche et au widget de disque d'afficher votre dossier personnel et la Corbeille. L'accessibilité permet aux touches du Deck d'envoyer des raccourcis clavier et à l'enregistrement des étapes de nommer les boutons sur lesquels vous cliquez. L'enregistrement de l'écran sert aux captures d'écran, aux enregistrements, au Replay instantané et à la vision d'écran de l'IA. Le microphone sert à la saisie vocale et à votre voix dans les enregistrements, la caméra à la bulle de la webcam dans les enregistrements. La surveillance de l'entrée permet à l'enregistrement des étapes de voir vos clics et à Xenon de lire la batterie des souris et claviers sur un récepteur USB.</p></div></details>
     <details><summary data-i18n="mac.faq.rm.q">Comment désinstaller Xenon sur un Mac ?</summary><div class="body"><p data-i18n="mac.faq.rm.a">Double-cliquez sur UNINSTALL.command dans ~/Library/Application Support/Xenon et saisissez REMOVE lorsqu'on vous le demande. Cela supprime l'application, l'élément de connexion, le serveur local, vos données et le dossier d'installation.</p></div></details>
 
     <div class="card accent">
       <h3 data-i18n="mac.cta.h">Télécharger Xenon pour Mac</h3>
       <p data-i18n-html="mac.cta.p"><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="mac_page_end">Télécharger Xenon-macOS-universal.dmg</a>, ou choisissez un autre système sur <a href="/fr/download.html">la page de téléchargement</a>. Pour vous familiariser d'abord, ouvrez <a href="/demo/">la démo</a> dans votre navigateur. Les questions sont à poser sur <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>.</p>
     </div>
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/single-screen.html" data-xl="f.onescreen">Xenon sur un seul écran</a></li><li><a href="/fr/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/fr/screen-recorder.html" data-xl="f.recorder">Enregistrer l’écran</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+    </div>
   </div>
 </main>
 
@@ -300,14 +295,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">Des widgets gratuits pour votre PC, sur tous vos écrans. Windows, avec macOS et Linux en beta.</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">Bit réside dans le widget Vitals et a des avis sur votre posture.</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/single-screen.html" data-xl="f.onescreen">Xenon sur un seul écran</a></li><li><a href="/fr/fps-overlay.html" data-xl="f.fps">Overlay FPS</a></li><li><a href="/fr/screen-recorder.html" data-xl="f.recorder">Enregistrer l’écran</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR. Les autres noms et logos appartiennent à leurs propriétaires.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

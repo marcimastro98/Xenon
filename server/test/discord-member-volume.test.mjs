@@ -36,7 +36,7 @@ const inCall = (selfId) => ({ channel: { id: 'c1', name: 'General' }, selfId, me
 test('everyone in the call gets controls', () => {
   const voice = inCall('111');
   const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)(voice);
-  assert.equal(fn({ id: '222', name: 'Forlin' }), true);
+  assert.equal(fn({ id: '222', name: 'Bianca' }), true);
 });
 
 test('your own row is not a button', () => {
@@ -55,7 +55,7 @@ test('nobody gets controls when you are not in a call', () => {
   // accepts these settings for someone in the channel you are in, and answers OK
   // for anyone else — a control that reports success and changes nothing.
   const fn = new Function('voice', `${lift('canAdjust')}; return canAdjust;`)({ channel: null, selfId: '111', members: [] });
-  assert.equal(fn({ id: '222', name: 'Forlin' }), false);
+  assert.equal(fn({ id: '222', name: 'Bianca' }), false);
   assert.match(RPC, /\{ ok: false, error: 'user_not_here' \}/);
 });
 
@@ -105,10 +105,14 @@ test('the labels survive as tooltips, so nothing is lost with the prose', () => 
 test('"I turned them down" is drawn differently from "they muted themselves"', () => {
   // Two different facts sharing one row. If they shared one marker, turning
   // someone down would look exactly like their own microphone being off.
-  assert.match(WIDGET, /chip\.classList\.toggle\('is-local-muted', !!m\.localMute\)/);
-  assert.match(WIDGET, /chip\.classList\.toggle\('is-muted', !!\(m\.mute \|\| m\.deaf\)\)/);
+  // Yours: a struck-through name. Theirs: the red microphone or headphones
+  // after the name (discord-member-avatars.test.mjs).
+  assert.match(WIDGET, /chip\.classList\.toggle\('is-local-muted', !!\(chip\.classList\.contains\('is-adjustable'\) && m\.localMute\)\)/);
+  assert.match(WIDGET, /chip\.classList\.toggle\('is-muted', !!m\.mute && !m\.deaf\)/);
+  assert.match(WIDGET, /chip\.classList\.toggle\('is-deaf', !!m\.deaf\)/);
   assert.match(CSS, /\.dc-member\.is-local-muted \{/);
-  assert.match(CSS, /\.dc-member\.is-muted \{/);
+  assert.match(CSS, /\.dc-member\.is-muted \.dc-state-mic/);
+  assert.match(CSS, /\.dc-member\.is-deaf \.dc-state-deaf/);
 });
 
 test('the panel is rebuilt on every paint, so it follows Discord', () => {

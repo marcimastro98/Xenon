@@ -140,21 +140,45 @@ Sub LogFailure(message)
   On Error Goto 0
 End Sub
 
+' Is anything listening on the engine's port? The table Get-NetTCPConnection
+' reads, asked through WMI: a PowerShell started only to find out cost about two
+' seconds at every sign-in, kill and wait included, and at sign-in the answer is
+' nearly always no. A question WMI cannot answer counts as yes, so such a PC
+' takes the road below exactly as it always did. RemotePort=0 is what marks a
+' listener: the raw State number is not the one the docs give (0 here, not 2).
+Function PortInUse()
+  Dim rows, found
+  PortInUse = True
+  On Error Resume Next
+  Err.Clear
+  Set rows = CreateObject("WbemScripting.SWbemLocator").ConnectServer(".", "root\StandardCimv2").ExecQuery( _
+    "SELECT OwningProcess FROM MSFT_NetTCPConnection WHERE LocalPort=3030 AND RemotePort=0")
+  found = rows.Count
+  If Err.Number = 0 Then PortInUse = (found > 0)
+  On Error Goto 0
+End Function
+
 ' Stop any existing widget server on port 3030 before launching a new one.
 ' Runs synchronously (last arg = True) so we wait for the kill + sleep before
 ' handing off to node, avoiding an EADDRINUSE race on fast machines. Skipped
 ' rather than fatal when powershell.exe is not where it belongs: the kill is a
-' precaution, the start is the job.
+' precaution, the start is the job. The listener is found the way PortInUse()
+' finds it, by RemotePort 0: on Windows 11 build 26300 the State column changes
+' from one read to the next, and -State Listen missed the engine about half the
+' time (or named a closing connection, owner 0), so the old engine stayed and
+' the new one gave up on the port.
 Dim ps, psKill
-ps = sys32 & "\WindowsPowerShell\v1.0\powershell.exe"
-If Exists(ps) Then
-  psKill = Chr(34) & ps & Chr(34) & " -NoProfile -ExecutionPolicy Bypass -Command " & _
-      Chr(34) & "try{" & _
-      "$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue).OwningProcess;" & _
-      "if($p){Stop-Process -Id $p -Force -ErrorAction SilentlyContinue};" & _
-      "Start-Sleep -Milliseconds 800" & _
-      "}catch{}" & Chr(34)
-  shell.Run psKill, 0, True
+If PortInUse() Then
+  ps = sys32 & "\WindowsPowerShell\v1.0\powershell.exe"
+  If Exists(ps) Then
+    psKill = Chr(34) & ps & Chr(34) & " -NoProfile -ExecutionPolicy Bypass -Command " & _
+        Chr(34) & "try{" & _
+        "$p=(Get-NetTCPConnection -LocalPort 3030 -RemotePort 0 -ErrorAction SilentlyContinue).OwningProcess;" & _
+        "if($p){Stop-Process -Id $p -Force -ErrorAction SilentlyContinue};" & _
+        "Start-Sleep -Milliseconds 800" & _
+        "}catch{}" & Chr(34)
+    shell.Run psKill, 0, True
+  End If
 End If
 
 Dim nodeExe

@@ -76,11 +76,17 @@
     if (projects.length > 1) {
       const sel = el('select', 'cw-hist-proj');
       sel.setAttribute('aria-label', h.t('claude_hist_project', 'Project'));
+      // The app's own dropdown: the native list is drawn by the OS, light on a
+      // dark theme and unreadable. Fixed, so the list is not clipped by the tile.
+      sel.setAttribute('data-cs-fixed', '');
       sel.appendChild(new Option(h.t('claude_hist_all', 'All projects'), ''));
       projects.forEach((p) => sel.appendChild(new Option(p, p)));
       sel.value = project;
       sel.addEventListener('change', () => { project = sel.value; confirming = false; h.paint(); });
       top.appendChild(sel);
+      if (typeof window.initCustomSelect === 'function') {
+        requestAnimationFrame(() => { try { window.initCustomSelect(sel); } catch { /* the native select still works */ } });
+      }
     }
     const refresh = el('button', 'cw-hist-icon', '↻');
     refresh.type = 'button';

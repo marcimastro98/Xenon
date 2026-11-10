@@ -36,9 +36,7 @@
 <script src="/consent.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
@@ -46,21 +44,20 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Xeneon Edge のウィジェット一覧: Xenon の全45種類</title>
-<meta name="description" content="Xenon に内蔵された45種類のウィジェットと、それぞれの機能。システムモニター、メディア、カレンダー、Deck キー、OBS など。Xeneon Edge、PC のモニター、タッチスクリーンで使えます。">
+<meta name="theme-color" content="#5865F2">
+<title>Xenonウィジェット一覧: 内蔵ウィジェットのすべて</title>
+<meta name="description" content="Xenonに内蔵された各ウィジェットとその機能: システムモニター、メディア、カレンダー、Deck、OBS、Home Assistantなど。カタログのウィジェットも。">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Xeneon Edge のウィジェット一覧: Xenon の全45種類">
-<meta property="og:description" content="Xenon に内蔵された45種類のウィジェットと、それぞれの機能。システムモニター、メディア、カレンダー、Deck キー、OBS など。Xeneon Edge、PC のモニター、タッチスクリーンで使えます。">
+<meta property="og:title" content="Xenonウィジェット一覧: 内蔵ウィジェットのすべて">
+<meta property="og:description" content="Xenonに内蔵された各ウィジェットとその機能: システムモニター、メディア、カレンダー、Deck、OBS、Home Assistantなど。カタログのウィジェットも。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/ja/widgets.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Xeneon Edge のウィジェット一覧: Xenon の全45種類">
-<meta name="twitter:description" content="Xenon に内蔵された45種類のウィジェットと、それぞれの機能。システムモニター、メディア、カレンダー、Deck キー、OBS など。Xeneon Edge、PC のモニター、タッチスクリーンで使えます。">
+<meta name="twitter:title" content="Xenonウィジェット一覧: 内蔵ウィジェットのすべて">
+<meta name="twitter:description" content="Xenonに内蔵された各ウィジェットとその機能: システムモニター、メディア、カレンダー、Deck、OBS、Home Assistantなど。カタログのウィジェットも。">
 <meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 <link rel="canonical" href="https://xenon-app.com/ja/widgets.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html">
@@ -71,7 +68,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon にはウィジェットがいくつありますか？","acceptedAnswer":{"@type":"Answer","text":"45 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"ウィジェットを使うには Xeneon Edge が必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。"}},{"@type":"Question","name":"1つのタイルに複数のウィジェットを入れられますか？","acceptedAnswer":{"@type":"Answer","text":"はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。"}},{"@type":"Question","name":"Xenon のダッシュボードには何ページまで作れますか？","acceptedAnswer":{"@type":"Answer","text":"最大8ページで、それぞれ24列のグリッドです。"}},{"@type":"Question","name":"自分でウィジェットを作れますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使って HTML ページとしてウィジェットを書くと、Xenon がそれをサンドボックスの中で動かします。使えるのは、ユーザーが承認したデータと操作だけです。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon にはウィジェットがいくつありますか？","acceptedAnswer":{"@type":"Answer","text":"47 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"ウィジェットを使うには Xeneon Edge が必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。"}},{"@type":"Question","name":"1つのタイルに複数のウィジェットを入れられますか？","acceptedAnswer":{"@type":"Answer","text":"はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。"}},{"@type":"Question","name":"Xenon のダッシュボードには何ページまで作れますか？","acceptedAnswer":{"@type":"Answer","text":"最大8ページで、それぞれ24列のグリッドです。"}},{"@type":"Question","name":"自分でウィジェットを作れますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使って HTML ページとしてウィジェットを書くと、Xenon がそれをサンドボックスの中で動かします。使えるのは、ユーザーが承認したデータと操作だけです。"}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -83,25 +80,24 @@
   figure.shot { margin: 26px 0 8px; }
   figure.shot img, figure.shot video {
     display: block; width: 100%; height: auto;
-    border: 1px solid var(--line); border-radius: 12px; background: var(--g-1);
+    border: 1px solid var(--line); border-radius: 10px; background: var(--g-1);
   }
   figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
   .jump + .note { margin-top: 26px; }
 </style>
 <script src="/chrome.js" defer></script>
 </head>
-<body>
+<body data-sheet="blurple">
 
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
-        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
-        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
-        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/widgets.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/widgets.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/widgets.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/widgets.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/widgets.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/widgets.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/widgets.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
@@ -110,10 +106,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">閉じる</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ja/#install" data-xl="install">インストール</a>
       <ul class="xh-mlinks">
@@ -127,13 +123,24 @@
 <!-- /xenon:header -->
 
 <main>
-  <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/widgets.html" aria-current="page" data-xl="f.widgets">すべてのウィジェット</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"すべてのウィジェット","item":"https://xenon-app.com/ja/widgets.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="wg.h1">Xenon のすべてのウィジェット</h1>
-    <p class="lede" data-i18n="wg.lede">Xenon は、PC の横に置く画面のための無料のタッチダッシュボードです。CORSAIR Xeneon Edge、余っているモニター、タッチスクリーンのほか、ベータとしてスマートフォンやタブレットでも使えます。内蔵ウィジェットは45種類です。ここではそれぞれの機能を紹介し、そのあとで配置の方法と、ほかのウィジェットを入手する方法を説明します。</p>
-    <p class="updated" data-i18n="wg.updated">最終更新: 2026年9月27日</p>
-
-    <nav class="jump" aria-label="On this page">
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/widgets.html" aria-current="page" data-xl="f.widgets">すべてのウィジェット</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"すべてのウィジェット","item":"https://xenon-app.com/ja/widgets.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="wg.h1">Xenon のすべてのウィジェット</h1>
+        <p class="lede" data-i18n="wg.lede">Xenon は、どの画面でも使える無料のPCウィジェットです。デスクトップ、ゲーム画面の上、CORSAIR Xeneon Edge、余っているモニター、タッチスクリーンのほか、ベータとしてスマートフォンやタブレットでも使えます。内蔵ウィジェットは47種類です。ここではそれぞれの機能を紹介し、そのあとで配置の方法と、ほかのウィジェットを入手する方法を説明します。</p>
+        <div class="pg-act">
+          <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Windows版をダウンロード</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">ブラウザで試す</a>
+        </div>
+        <p class="updated" data-i18n="wg.updated">最終更新: 2026年9月27日</p>
+      </div>
+      <figure class="pg-pic"><img src="/images/home/screen-monitor.webp" width="1200" height="675" fetchpriority="high" decoding="async" alt="Xenon のウィジェットのページ。音楽、カレンダー、メモ、システムのグラフ" data-i18n-alt="wg.pic.alt"></figure>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">このページの内容</p>
       <a href="#productivity" data-i18n="wg.jump.prod">生産性</a>
       <a href="#media" data-i18n="wg.jump.media">メディア</a>
       <a href="#system" data-i18n="wg.jump.system">システム</a>
@@ -143,7 +150,7 @@
       <a href="#own" data-i18n="wg.jump.own">自分で作るウィジェット</a>
       <a href="#faq" data-i18n="wg.jump.faq">質問</a>
     </nav>
-
+    <div class="wrap">
     <p class="note" data-i18n="wg.platforms">Xenon は Windows 10 と 11 で動き、macOS と Linux はベータです。一覧は3つのシステムで同じですが、セカンドスクリーンだけは Windows のみです。システムがウィジェットにデータを渡せない場合はタイルにそう表示され、プラットフォームごとの制限は一覧に記載しています。</p>
 
     <h2 id="productivity" data-i18n="wg.h.prod">生産性</h2>
@@ -165,7 +172,7 @@
       <li data-i18n-html="wg.w.phone"><strong>電話。</strong> Bluetooth で PC とペアリングした iPhone や Android スマートフォンの連絡先、通話履歴、キーパッド、メッセージです。Windows、ベータ。</li>
     </ul>
     <figure class="shot">
-      <img src="/images/home/crop-calendar.webp" width="836" height="572" loading="lazy" decoding="async" alt="カレンダーのタブを開いた予定のタイル。2026年9月の月表示と今後の予定3件があり、上にタスク、タイマー、メモのタブが並んでいる" data-i18n-alt="wg.shot.cal">
+      <img src="/images/home/crop-calendar.webp" width="1400" height="1065" loading="lazy" decoding="async" alt="カレンダーのタブを開いた予定のタイル。月表示と今後の予定5件があり、上にタスク、タイマー、メモのタブが並んでいる" data-i18n-alt="wg.shot.cal">
       <figcaption data-i18n="wg.cap.cal">予定のタイル。カレンダー、タスク、タイマー、メモがタブになっています。</figcaption>
     </figure>
 
@@ -173,7 +180,7 @@
     <p data-i18n="wg.media.intro">6種類。</p>
     <ul class="wlist">
       <li data-i18n-html="wg.w.media"><strong>再生。</strong> PC のメディアアプリで再生中のものを、カバー、再生と一時停止、前へ、次へとともに表示します。</li>
-      <li data-i18n-html="wg.w.chat"><strong>チャット。</strong> Xenon AI のテキストチャットです。質問したり、画像、PDF、テキストファイルを添付したり、ダッシュボードの変更を頼んだりできます。</li>
+      <li data-i18n-html="wg.w.chat"><strong>チャット。</strong> Bit のテキストチャットです。質問したり、画像、PDF、テキストファイルを添付したり、ダッシュボードの変更を頼んだりできます。</li>
       <li data-i18n-html="wg.w.chatgpt"><strong>ChatGPT に質問。</strong> PC の OpenAI Codex を通じて、あなたの ChatGPT プランが答えるチャットです。API キーは不要です。会話は PC に保存され、ChatGPT の履歴には残りません。</li>
       <li data-i18n-html="wg.w.browser"><strong>ブラウザ。</strong> タブ、アドレスバー、戻る、進むを備えた、タイルの中の Web ページです。PC 上の Chromium ブラウザが動かすので、埋め込みを拒否するサイトも開けます。</li>
       <li data-i18n-html="wg.w.slideshow"><strong>スライドショー。</strong> 追加した写真やアニメーション GIF、または PC 上のフォルダーの画像を順番に表示します。タップで一時停止したり、手動で送ったりできます。</li>
@@ -184,17 +191,19 @@
       <figcaption data-i18n="wg.cap.lyrics">サポーター限定の歌詞ウィジェット。各行をイタリア語に翻訳しています。曲はこの動画のための架空のものです。</figcaption>
     </figure>
     <figure class="shot">
-      <img src="/images/home/crop-media.webp" width="836" height="572" loading="lazy" decoding="async" alt="メディアのタイルの再生タブ。カバー付きの Spotify の曲、前へ、一時停止、次へのボタン、音量スライダーがあり、横にチャットのタブがある" data-i18n-alt="wg.shot.media">
+      <img src="/images/home/crop-media.webp" width="1386" height="1012" loading="lazy" decoding="async" alt="メディアのタイルの再生タブ。カバー付きの Spotify の曲、前へ、一時停止、次へのボタン、音量スライダーがあり、横にチャットのタブがある" data-i18n-alt="wg.shot.media">
       <figcaption data-i18n="wg.cap.media">再生とチャットは、最初から1つのタイルにまとまっています。</figcaption>
     </figure>
 
     <h2 id="system" data-i18n="wg.h.system">システム</h2>
-    <p data-i18n="wg.system.intro">15種類。</p>
+    <p data-i18n="wg.system.intro">17種類。</p>
     <ul class="wlist">
       <li data-i18n-html="wg.w.system"><strong>システム。</strong> CPU、GPU、メモリ、ディスクの使用率、CPU と GPU の温度、ネットワーク速度、ping、プレイ中のゲームのフレームレートを、リアルタイムのグラフで表示します。ゲーム内のフレームレートは Windows と、Linux では MangoHud で起動したゲームで使えます。</li>
+      <li data-i18n-html="wg.w.perf"><strong>ゲームパフォーマンス。</strong> プレイ中の FPS、1% と 0.1% の Low 値、フレーム時間、CPU と GPU の負荷。フレームレートは Windows と、Linux では MangoHud で起動したゲームで使えます。macOS では CPU と GPU の負荷を表示します。</li>
+      <li data-i18n-html="wg.w.screen"><strong>メイン画面。</strong> ダッシュボードから Xenon メニューをひと目で確認できます。クイック操作、メイン画面のウィジェット、メニュー全体を開くボタン。</li>
       <li data-i18n-html="wg.w.fans"><strong>ファン。</strong> センサーが報告するすべてのファンの回転数を、マザーボード、ハブまたは AIO、グラフィックカード、電源ユニットに分けて表示します。名前は変更できます。Windows と Linux。</li>
       <li data-i18n-html="wg.w.power"><strong>エネルギー。</strong> CPU と GPU の消費電力をワットで表示します。電源ユニットが報告する場合は PC 全体の消費電力も表示し、横に Home Assistant の電力センサーも並べられます。PC の値は Windows のみで、Home Assistant の値はどのシステムでも使えます。</li>
-      <li data-i18n-html="wg.w.battery"><strong>バッテリー。</strong> iCUE 経由のワイヤレスの CORSAIR デバイス、Bluetooth デバイス、ノート PC のバッテリーや USB 接続の UPS の残量を表示します。Windows。</li>
+      <li data-i18n-html="wg.w.battery"><strong>バッテリー。</strong> iCUE 経由のワイヤレスの CORSAIR デバイス、Bluetooth デバイス、USB ドングルの Logitech のマウスとキーボード、Razer 製品とほかの多くのブランドのマウス、キーボード、ヘッドセット、コントローラー(ベータ)、ノート PC のバッテリーや USB 接続の UPS の残量を表示します。Windows。macOS は Bluetooth デバイス、Linux はシステムが報告する内容を読み取ります(ベータ)。</li>
       <li data-i18n-html="wg.w.disk"><strong>ディスク容量。</strong> 各ドライブを何が占めているかのマップです。大きいファイル、検証済みの重複ファイル、安全に削除できるカテゴリーの決まった一覧を表示し、削除したものはごみ箱に移ります。</li>
       <li data-i18n-html="wg.w.devclean"><strong>開発者向けクリーンアップ。</strong> サポーター限定。Docker のイメージとビルドキャッシュ、Ollama のモデル、削除済みプロジェクトのエディタ用フォルダ、WSL と Docker の仮想ディスクが使っている容量を表示し、解放します。Docker 標準の prune、モデルの削除、フォルダのごみ箱への移動に加え、Windows では 10 GB 以上の仮想ディスクを圧縮するボタンがあります。</li>
       <li data-i18n-html="wg.w.audio"><strong>音量。</strong> マスター音量とミュート、出力デバイスと入力デバイス、音を出している各アプリのスライダーです。アプリごとのスライダーは Windows と Linux で使えます。</li>
@@ -208,7 +217,7 @@
       <li data-i18n-html="wg.w.codex"><strong>Codex。</strong> ChatGPT アプリ、エディター、ターミナルの OpenAI Codex 向け。プランの使用量ウィンドウと1日ごとのトークンを表示し、タイルから Codex を接続すると、実行中の各セッションとタイルから答えられる依頼も表示します。</li>
     </ul>
     <figure class="shot">
-      <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="システムのタイル。CPU、GPU、RAM、ディスク C のグラフに続いて ping、FPS、レイテンシ、ネットワーク速度があり、上に音量とマイクのタブが並んでいる" data-i18n-alt="wg.shot.sys">
+      <img src="/images/home/w-system.webp" width="1400" height="1048" loading="lazy" decoding="async" alt="システムのタイル。CPU、GPU、RAM、ディスク C のグラフに続いて ping、レイテンシ、ネットワーク速度があり、上に音量とマイクのタブが並んでいる" data-i18n-alt="wg.shot.sys">
       <figcaption data-i18n="wg.cap.sys">システムのタイル。音量とマイクがタブになっています。</figcaption>
     </figure>
 
@@ -245,7 +254,7 @@
     <p data-i18n-html="wg.own.p3"><a href="/create/">作り方ガイド</a>はゼロから始めて、テーマ、ページ、Deck プロファイル、ウィジェットを扱います。<a href="/create/#sdk">ウィジェット SDK リファレンス</a>には、プロトコルの全体が載っています。</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">質問</h2>
-    <details><summary data-i18n="wg.faq.count.q">Xenon にはウィジェットがいくつありますか？</summary><div class="body"><p data-i18n="wg.faq.count.a">内蔵ウィジェットは45種類で、生産性、メディア、システム、配信の4つのグループに分かれています。コミュニティのカタログのウィジェットや自分で作ったウィジェットも、+ パネルでそれらと並んで表示されます。</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Xenon にはウィジェットがいくつありますか？</summary><div class="body"><p data-i18n="wg.faq.count.a">内蔵ウィジェットは47種類で、生産性、メディア、システム、配信の4つのグループに分かれています。コミュニティのカタログのウィジェットや自分で作ったウィジェットも、+ パネルでそれらと並んで表示されます。</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">ウィジェットを使うには Xeneon Edge が必要ですか？</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。<a href="/ja/xeneon-edge-widgets.html">Xeneon Edge で使う Xenon</a>と<a href="/ja/tablet-dashboard.html">タブレットやスマートフォンをダッシュボードにする方法</a>をご覧ください。</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">1つのタイルに複数のウィジェットを入れられますか？</summary><div class="body"><p data-i18n="wg.faq.tabs.a">はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。タブを外へドラッグすると、また分かれます。</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">ダッシュボードには何ページまで作れますか？</summary><div class="body"><p data-i18n="wg.faq.pages.a">最大8ページで、それぞれ24列のグリッドです。新しいページは空の状態から始まり、ほかのページはそのまま残ります。</p></div></details>
@@ -255,7 +264,8 @@
       <h3 data-i18n="wg.cta.h">Xenon をダウンロード</h3>
       <p data-i18n-html="wg.cta.p">個人利用は無料で、アカウントは不要です。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows 版 Xenon をダウンロード</a>するか、<a href="/ja/download.html">ダウンロードページ</a>で macOS 版と Linux 版を入手してください。まず<a href="/demo/">ブラウザのデモ</a>でダッシュボードを試すこともできます。デモはシミュレーションのデータで動きます。</p>
     </div>
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/fps-overlay.html" data-xl="f.fps">FPSオーバーレイ</a></li><li><a href="/ja/screen-recorder.html" data-xl="f.recorder">画面録画</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+    </div>
   </div>
 </main>
 
@@ -263,14 +273,15 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
-      <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">どの画面でも使える無料のPCウィジェット。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+      <div class="xf-bit"><img src="/images/bit.svg" width="36" height="36" alt="" loading="lazy"><span data-xl="bit">BitはVitalsウィジェットに住んでいて、あなたの姿勢にひとこと言います。</span></div>
     </div>
-    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/fps-overlay.html" data-xl="f.fps">FPSオーバーレイ</a></li><li><a href="/ja/screen-recorder.html" data-xl="f.recorder">画面録画</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
-    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。その他の名称とロゴは各所有者に帰属します。</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->

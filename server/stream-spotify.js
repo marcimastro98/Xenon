@@ -58,6 +58,7 @@ function b64url(buf) {
 function createSpotifyProvider(deps) {
   const d = deps || {};
   const _fetch = d.fetch || ((...a) => fetch(...a));
+  const _sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
   const clientId = d.clientId || '';
   const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
@@ -637,14 +638,29 @@ function createSpotifyProvider(deps) {
     return apiResult(r, 'playback_failed');
   }
 
+  // The Connect device that is THIS computer. On Windows and Linux the desktop
+  // app names itself after the hostname, which picks it out even when a phone or
+  // a speaker is listed too. A Mac uses its friendly name instead, so the
+  // fallback is a computer that was not listed before the app was started.
+  function thisComputer(devices, hostname, knownIds) {
+    const host = String(hostname || '').trim().toLowerCase();
+    const known = knownIds instanceof Set ? knownIds : new Set();
+    return (host && devices.find(x => x.type === 'computer' && x.name.toLowerCase() === host))
+      || devices.find(x => x.type === 'computer' && x.id && !known.has(x.id))
+      || null;
+  }
+
   // Wake an available Spotify Connect device and start playback: transfer to it with
   // play:true (which resumes the last track/context). If there is nothing to resume
   // (a cold-but-open app), fall back to starting the user's first playlist — so the
   // "Play" button always gets music going rather than erroring on no-active-device.
-  async function startPlayback() {
+  // `opts.deviceId` goes first, for the "open Spotify and play" path.
+  async function startPlayback(opts) {
     const dv = await getDevices();
     if (!dv.ok || !dv.devices.length) return { ok: false, error: 'no_active_device' };
-    const target = dv.devices.find(x => x.active) || dv.devices.find(x => x.type === 'computer') || dv.devices[0];
+    const wanted = opts && opts.deviceId;
+    const target = (wanted && dv.devices.find(x => x.id === wanted))
+      || dv.devices.find(x => x.active) || dv.devices.find(x => x.type === 'computer') || dv.devices[0];
     if (!target || !target.id) return { ok: false, error: 'no_active_device' };
     const r = await apiRequest('PUT', '/me/player', { device_ids: [target.id], play: true });
     if (r.ok) return { ok: true };
@@ -653,6 +669,29 @@ function createSpotifyProvider(deps) {
     const uri = (pls.ok && Array.isArray(pls.playlists) && pls.playlists[0]) ? pls.playlists[0].uri : '';
     if (uri) return apiResult(await apiRequest('PUT', '/me/player/play?device_id=' + encodeURIComponent(target.id), { context_uri: uri }), 'play_failed');
     return apiResult(r, 'play_failed');
+  }
+
+  // The ids of the computers listed now, taken BEFORE starting the app, so
+  // playWhenReady can tell the new one apart.
+  async function computerIds() {
+    const dv = await getDevices();
+    return new Set(dv.ok ? dv.devices.filter(x => x.type === 'computer' && x.id).map(x => x.id) : []);
+  }
+
+  // After the desktop app was started on this computer: wait for it to show up as
+  // a Connect device (it takes a few seconds to sign in), then play there. Gives
+  // up after ~24 s with 'not_started'; a missing login ends the wait at once.
+  const READY_TRIES = 12;
+  const READY_INTERVAL_MS = 2000;
+  async function playWhenReady(hostname, knownIds) {
+    for (let i = 0; i < READY_TRIES; i++) {
+      await _sleep(READY_INTERVAL_MS);
+      const dv = await getDevices();
+      if (!dv.ok && (dv.error === 'not_connected' || dv.error === 'forbidden')) return { ok: false, error: dv.error };
+      const pc = dv.ok ? thisComputer(dv.devices, hostname, knownIds) : null;
+      if (pc) return startPlayback({ deviceId: pc.id });
+    }
+    return { ok: false, error: 'not_started' };
   }
 
   // Skip to next/previous. Like PLAY, a 404 means there's no ACTIVE device even
@@ -745,17 +784,48 @@ function createSpotifyProvider(deps) {
     };
   }
 
-  // Search for the top match and start playing it. A track plays via `uris`; an
-  // album/artist/playlist plays as a `context_uri`. Requires Premium (403 →
-  // premium_required, like every other playback control).
+  // Search for the top match and start playing it. A track plays inside its
+  // album (playTrackAlone); an album/artist/playlist plays as a `context_uri`.
+  // Requires Premium (403 → premium_required, like every other playback control).
   async function playSearch(query, type) {
     const s = await search(query, type, 1);
     if (!s.ok) return s;
     const hit = s.results[0];
     if (!hit || !hit.uri) return { ok: false, error: 'not_found' };
-    const body = s.type === 'track' ? { uris: [hit.uri] } : { context_uri: hit.uri };
-    const r = apiResult(await apiRequest('PUT', '/me/player/play', body), 'play_failed');
+    const sent = s.type === 'track'
+      ? await playTrackAlone(hit.uri)
+      : await apiRequest('PUT', '/me/player/play', { context_uri: hit.uri });
+    const r = apiResult(sent, 'play_failed');
     return r.ok ? { ok: true, playing: hit } : r;
+  }
+
+  // Spotify's desktop app answers a lone track (`uris: [track]`) with "playing"
+  // and then loads nothing: seen on the Microsoft Store build 1.308.620 in
+  // November 2026, while the same track inside its album starts at once. The
+  // API answers 204 either way, so the failure cannot be seen and retried: a
+  // track with no list of its own plays inside its album, from that track on,
+  // and goes alone only when that is refused or the album cannot be read.
+  const TRACK_RE = /^spotify:track:([A-Za-z0-9]{1,40})$/;
+  const ALBUM_RE = /^spotify:album:[A-Za-z0-9]{1,40}$/;
+  async function albumOf(trackUri) {
+    const id = TRACK_RE.exec(trackUri);
+    if (!id) return null;
+    const r = await apiRequest('GET', '/tracks/' + id[1] + '?market=from_token');
+    const data = r.ok && r.data && typeof r.data === 'object' ? r.data : null;
+    const album = data && data.album ? String(data.album.uri || '') : '';
+    if (!ALBUM_RE.test(album)) return null;
+    // A track relinked for this account's country comes back as the copy its
+    // album holds, so the offset names that copy and the two always match.
+    const copy = String(data.uri || '');
+    return { album, track: TRACK_RE.test(copy) ? copy : trackUri };
+  }
+  async function playTrackAlone(trackUri) {
+    const home = await albumOf(trackUri);
+    if (home) {
+      const r = await apiRequest('PUT', '/me/player/play', { context_uri: home.album, offset: { uri: home.track } });
+      if (r.ok) return r;
+    }
+    return apiRequest('PUT', '/me/player/play', { uris: [trackUri] });
   }
 
   // Add the top-matching track to the current playback queue.
@@ -932,42 +1002,43 @@ function createSpotifyProvider(deps) {
   }
 
   // Start a specific Spotify URI. The four kinds a browser needs, and no others:
-  // a `context` for the collections, `uris` for a single track, which is the
+  // a `context` for the collections, a track for a single song, which is the
   // distinction Spotify's own play endpoint draws.
   //
   // `contextUri` is what you were listening INSIDE. Playing a track by its own
-  // URI replaces whatever was playing with a queue of exactly one song, so
-  // tapping a track in an album played it and then stopped — the rest of the
-  // album gone. Reported by the widget author who moved a Spotify browser onto
-  // the SDK and lost the surrounding context in the move.
+  // URI used to replace whatever was playing with a queue of exactly one song,
+  // so tapping a track in a playlist played it and then stopped — the rest of
+  // the list gone. Reported by the widget author who moved a Spotify browser
+  // onto the SDK and lost the surrounding context in the move.
   //
-  // With a context, the same tap becomes "play this album, starting here", which
-  // is what Spotify's own clients do and what the queue afterwards should look
-  // like.
+  // With a context, the same tap becomes "play this playlist, starting here",
+  // which is what Spotify's own clients do and what the queue afterwards should
+  // look like. Without one, the track plays inside its own album
+  // (playTrackAlone), because a lone track loads nothing on the desktop app.
   const URI_RE = /^spotify:(track|album|artist|playlist):[A-Za-z0-9]{1,40}$/;
   const CONTEXT_RE = /^spotify:(album|playlist|artist):[A-Za-z0-9]{1,40}$/;
   async function playUri(uri, contextUri) {
     const u = String(uri || '');
     if (!URI_RE.test(u)) return { ok: false, error: 'bad_uri' };
     const ctx = String(contextUri || '');
+    const isTrack = u.startsWith('spotify:track:');
     // A context is only meaningful for a track — it is the thing the track sits
     // in. Spotify accepts an offset for album and playlist contexts only, so an
     // artist context cannot start at a chosen song; rather than silently playing
     // a DIFFERENT track from the one that was tapped, the context is dropped and
-    // the named track plays on its own. That is the old behaviour, which is a
-    // smaller surprise than the wrong song.
-    const usable = ctx && CONTEXT_RE.test(ctx) && u.startsWith('spotify:track:') && !ctx.startsWith('spotify:artist:');
-    const bare = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
-    const body = usable ? { context_uri: ctx, offset: { uri: u } } : bare;
-    let r = await apiRequest('PUT', '/me/player/play', body);
+    // the named track plays as a track with no context does. That is a smaller
+    // surprise than the wrong song.
+    const usable = isTrack && CONTEXT_RE.test(ctx) && !ctx.startsWith('spotify:artist:');
+    let r = null;
+    if (usable) r = await apiRequest('PUT', '/me/player/play', { context_uri: ctx, offset: { uri: u } });
     // A queue holds tracks the CONTEXT does not: anything added with "add to
     // queue" sits in Up Next while belonging to no playlist, and Spotify rejects
     // an offset naming a track its context has never heard of. The API gives us no
     // way to tell those rows apart beforehand, so the offset is attempted and the
-    // named track is played on its own if it is refused — a tap always plays the
+    // named track plays without it if it is refused — a tap always plays the
     // song that was tapped, and only loses the "carry on through the list" part
     // that could not have applied anyway.
-    if (!r.ok && usable) r = await apiRequest('PUT', '/me/player/play', bare);
+    if (!r || !r.ok) r = isTrack ? await playTrackAlone(u) : await apiRequest('PUT', '/me/player/play', { context_uri: u });
     return r.ok ? { ok: true } : { ok: false, error: r.error || 'play_failed', status: r.status || 0 };
   }
 
@@ -977,6 +1048,7 @@ function createSpotifyProvider(deps) {
     normalizeQueue,   // pure, and exported so the wrap rules can be pinned without an account
     saveCurrent, playPlaylist, playSearch, queueSearch, setShuffle, transferDevice, transferToId,
     playPause, skipNext, skipPrev, setRepeat, toggleLike, setVolume, seek, runAction,
+    computerIds, playWhenReady,
   };
 }
 

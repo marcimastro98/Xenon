@@ -1,0 +1,567 @@
+/* The Store at full screen (js/community-gallery.js): a rail of views, a spotlight
+   and shelves beside it, one page per entry.
+   The pictures carry the colour here, so the page stays neutral: no border on a
+   card, no tinted shelves, one green key per screen. Corners follow the brand's
+   4/6/10 scale. The keys and modals other windows share stay in SettingsModal.css. */
+.cst-overlay,
+.settings-overlay { --cols: 5; }
+
+.cgal-overlay.cst-overlay { padding: 0; }
+.preset-modal.cst {
+  position: relative;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--cst-text);
+  background: var(--cst-page);
+  backdrop-filter: blur(40px);
+}
+body.low-power-gpu .preset-modal.cst { backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) { .preset-modal.cst { backdrop-filter: none; } }
+.cst button { font-family: inherit; }
+.cst h1, .cst h2, .cst h3 { letter-spacing: 0; color: inherit; }
+
+.cst-close {
+  position: absolute; top: 18px; right: 22px; z-index: 3;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 10px;
+  color: var(--cst-text); background: var(--cst-well);
+  cursor: pointer;
+}
+.cst-close:hover { background: var(--cst-on); }
+.cst-close .cgal-ic { font-size: 20px; }
+
+/* ── The rail ── */
+.cst-rail {
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 0; overflow-y: auto;
+  padding: 22px 14px 18px;
+  background: var(--cst-rail);
+  scrollbar-width: none;
+}
+.cst-rail-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 0 10px; }
+.cst-rail-title { margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; }
+.cst-refresh { color: var(--cst-muted); background: none; border: 0; }
+.cst-find {
+  display: flex; align-items: center; gap: 8px;
+  flex: none; height: 40px; padding: 0 12px;
+  border-radius: 10px;
+  color: var(--cst-muted); background: var(--cst-well);
+}
+.cst-find .cgal-ic { flex: none; font-size: 18px; }
+.cst .cst-find input.cst-search[type] {
+  flex: 1; min-width: 0; height: 100%; padding: 0;
+  border: 0; border-radius: 0; outline: 0; box-shadow: none;
+  font-size: 15px; color: var(--cst-text); background: none;
+}
+.cst .cst-find input.cst-search::placeholder { color: var(--cst-muted); opacity: 1; }
+.cst .cst-find input.cst-search::-webkit-search-cancel-button { display: none; }
+.cst-find:focus-within { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+.cst-rail-list { display: flex; flex-direction: column; gap: 2px; }
+.cst-rail-own { padding-top: 12px; border-top: 1px solid var(--cst-sep); }
+.cst-railrow {
+  display: flex; align-items: center; gap: 12px;
+  flex: none; width: 100%; height: 42px; padding: 0 10px;
+  border: 0; border-radius: 10px;
+  font-size: 15px; font-weight: 600; text-align: left;
+  color: var(--cst-muted); background: none;
+  cursor: pointer;
+}
+.cst-railrow:hover { color: var(--cst-text); background: var(--cst-well); }
+.cst-railrow.on { color: var(--cst-text); background: var(--cst-on); }
+.cst-railrow:focus-visible { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+.cst-railrow .cgal-ic { flex: none; font-size: 19px; }
+.cst-railrow .cgal-ic [data-xspark] { width: 19px; height: 19px; }
+.cst-railrow-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cst-railrow-count { margin-left: auto; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cst-railrow-count.is-update { color: var(--cst-danger); }
+.cst-rail-make {
+  margin-top: auto; padding: 10px;
+  font-size: 13.5px; font-weight: 600;
+  color: var(--cst-muted); text-decoration: none;
+}
+.cst-rail-make:hover { color: var(--cst-text); }
+
+/* ── The main side ── */
+.cgal-scroll.cst-main {
+  min-height: 0;
+  padding: 22px 32px 32px;
+  overflow-x: hidden; overflow-y: auto;
+  container: cst-main / inline-size;
+}
+.cst-view, .cst-page { display: flow-root; }
+.cst-view[hidden], .cst-page[hidden] { display: none; }
+.cst-host { display: flex; flex-direction: column; gap: 34px; }
+.cst-listhead {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 40px; margin-bottom: 16px; padding-right: 54px;
+}
+.cst-listhead[hidden] { display: none; }
+.cst-listhead h2 { margin: 0; font-size: 26px; font-weight: 700; }
+.cst-listhead .cgal-select[hidden] { display: none; }
+
+/* ── The spotlight ── */
+.cst-spot { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+.cst-spot.is-solo { grid-template-columns: minmax(0, 1fr); padding-right: 54px; }
+.cst-hero {
+  --cst-hero-h: 400px;
+  display: flex; min-width: 0; min-height: 280px; max-height: var(--cst-hero-h);
+  border-radius: 10px; overflow: hidden;
+  color: var(--cst-text); background: var(--cst-well);
+  cursor: pointer;
+}
+.cst-hero.is-paper { color: var(--cst-ink); background: var(--cst-paper); }
+.cst-hero-words {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 10px;
+  padding: 32px;
+}
+.cst-hero-kind { font-size: 14px; font-weight: 600; opacity: 0.72; }
+.cst-name { margin: 0; font-size: clamp(38px, 3.4vw, 60px); line-height: 1; font-weight: 700; overflow-wrap: anywhere; }
+.cst-hero-line {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  margin: 0 0 8px; font-size: 16px; line-height: 1.4; opacity: 0.86;
+}
+.cst-hero-key {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 26px;
+  border: 0; border-radius: 10px;
+  font-size: 16px; font-weight: 700;
+  color: var(--cst-page); background: var(--cst-text);
+  cursor: pointer;
+}
+.cst-hero.is-paper .cst-hero-key { color: var(--cst-paper); background: var(--cst-ink); }
+.cst-hero-key:disabled { opacity: 0.5; cursor: default; }
+.cst-hero-key.cgal-installed { cursor: default; }
+.cst-hero-key .cgal-ic { font-size: 18px; }
+/* The picture keeps its proportions and the hero follows it: nothing is cropped,
+   and no band of paper is left above or below it on a narrower window. */
+.cst-hero .cgal-media { display: contents; }
+.cst-hero .cgal-media img {
+  position: static; flex: none; align-self: center;
+  width: auto; height: auto; max-width: 68%; max-height: var(--cst-hero-h);
+}
+.cst-hero:has(canvas), .cst-hero:has(.cgal-preview) { height: var(--cst-hero-h); }
+.cst-hero .cgal-media canvas, .cst-hero .cgal-media .cgal-preview {
+  position: relative; inset: auto; flex: 0 0 46%; height: 100%;
+}
+.cst-side { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; min-width: 0; padding-top: 46px; }
+
+/* ── Cards ── */
+.cst-card { display: block; min-width: 0; color: inherit; cursor: pointer; }
+.cst-card.dim { opacity: 0.55; }
+.cgal-clickable:focus-visible { outline: 2px solid var(--cst-key, var(--accent)); outline-offset: 3px; border-radius: 10px; }
+.cgal-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--cst-sheet);
+}
+.cgal-media img, .cgal-media canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+/* The hero has the room to show a very wide picture whole, on its own colour. On a
+   card that would be a thin strip in a box, so a card fills its frame. */
+.cgal-media.from-left img { object-position: left center; }
+.cst-hero .cgal-media.is-wide img { object-fit: contain; }
+.cgal-preview { position: absolute; inset: 0; }
+.cgal-preview-frame { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+.cst-card-name {
+  margin-top: 9px;
+  font-size: 15.5px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cst-card-line {
+  display: flex; justify-content: space-between; gap: 8px;
+  margin-top: 2px;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--cst-muted);
+}
+.cst-card-kind { display: inline-flex; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.cst-card-price { display: inline-flex; align-items: center; gap: 4px; flex: none; white-space: nowrap; }
+.cst-card-price [data-xspark] { width: 14px; height: 14px; }
+.cst-card .cgal-stars { margin: 0; color: inherit; font-weight: 500; }
+.cst-card .cgal-stars:empty { display: none; }
+.cst-side-item { display: grid; grid-template-columns: 136px minmax(0, 1fr); grid-template-rows: 1fr auto auto 1fr; column-gap: 12px; align-items: center; }
+.cst-side-item .cgal-media { grid-row: 1 / -1; }
+.cst-side-item .cst-card-name { grid-column: 2; grid-row: 2; margin-top: 0; white-space: normal; line-height: 1.15; }
+.cst-side-item .cst-card-line { grid-column: 2; grid-row: 3; flex-direction: column; gap: 0; }
+
+/* ── Shelves ── */
+/* The keys on the right stay clear of the close key while the page scrolls under it. */
+.cst-shelf-head { display: flex; align-items: center; gap: 12px; min-height: 34px; margin-bottom: 12px; padding-right: 54px; }
+.cst-shelf-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 22px; font-weight: 700; }
+.cst-shelf-lead { margin: -6px 0 12px; font-size: 14.5px; color: var(--cst-muted); }
+.cst-more {
+  flex: none; height: 34px; padding: 0 4px;
+  border: 0; background: none;
+  font-size: 14px; font-weight: 600; color: var(--cst-muted);
+  cursor: pointer;
+}
+.cst-more:hover { color: var(--cst-text); }
+.cst-keys { display: flex; flex: none; gap: 4px; }
+.cst-keys[hidden] { display: none; }
+.cst-step {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 6px;
+  color: var(--cst-text); background: var(--cst-well);
+  cursor: pointer;
+}
+.cst-step:hover:not(:disabled) { background: var(--cst-on); }
+.cst-step:disabled { opacity: 0.35; cursor: default; }
+.cst-step .cgal-ic { font-size: 18px; }
+.cst-row {
+  display: grid; grid-auto-flow: column;
+  grid-auto-columns: calc((100% - (var(--cols) - 1) * 16px) / var(--cols));
+  gap: 16px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.cst-row::-webkit-scrollbar { display: none; }
+.cst-row > * { scroll-snap-align: start; }
+.cst-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 22px 16px; }
+.cst-shelf.is-history .cst-shelf-head h2 { color: var(--cst-muted); }
+
+/* A rail of cards the Sparks view shows too. */
+.cgal-hrail {
+  display: grid; grid-auto-flow: column;
+  grid-auto-columns: calc((100% - (var(--cols) - 1) * 16px) / var(--cols));
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.cgal-hrail > .cst-card { scroll-snap-align: start; }
+
+/* ── Supporters: the packs on their own paper, the offer, the Sparks ── */
+.cst-stage { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cst-stage .cst-shelf-head h2 { font-size: clamp(26px, 2.2vw, 34px); }
+.cst-stage .cst-row, .cst-stage .cst-grid { --cols: var(--cst-poster-cols, 3); }
+.cst-offer { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: -6px 0 16px; }
+.cst-host > .cst-offer { margin-top: 0; }
+.cst-offer p { margin: 0; min-width: 0; font-size: 16px; color: var(--cst-muted); }
+.cst-band-keys { display: flex; align-items: center; flex: none; gap: 18px; }
+.cst-poster {
+  display: flex; flex-direction: column; min-width: 0;
+  border-radius: 10px; overflow: hidden;
+  color: var(--cst-text); background: var(--cst-well);
+  cursor: pointer;
+}
+.cst-poster.is-paper { color: var(--cst-ink); background: var(--cst-paper); }
+.cst-poster.dim { opacity: 0.55; }
+.cst-poster:hover { background: var(--cst-on); }
+.cst-poster.is-paper:hover { background: color-mix(in srgb, var(--cst-paper) 90%, var(--cst-ink)); }
+.cst-poster:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 3px; }
+.cst-poster .cgal-media { aspect-ratio: 16 / 9; border-radius: 0; background: none; }
+.cst-poster-words { display: flex; flex-direction: column; flex: 1; gap: 4px; min-width: 0; padding: 14px 18px 18px; }
+.cst-poster-line { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; opacity: 0.72; }
+.cst-poster-name { margin: 0; font-size: clamp(24px, 1.9vw, 30px); line-height: 1.1; font-weight: 700; overflow-wrap: anywhere; }
+.cst-poster-text {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  margin: 2px 0 0; font-size: 15px; line-height: 1.35; opacity: 0.86;
+}
+.cst-sparks-band {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 16px 28px;
+  width: 100%; padding: 18px 24px;
+  border: 0; border-radius: 10px;
+  text-align: left; color: var(--cst-text);
+  background: color-mix(in srgb, var(--cst-key) 12%, var(--cst-solid));
+  cursor: pointer;
+}
+.cst-stage + .cst-sparks-band { margin-top: 16px; }
+.cst-sparks-band:hover { background: color-mix(in srgb, var(--cst-key) 18%, var(--cst-solid)); }
+.cst-sparks-band:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 3px; }
+.cst-sparks-band > [data-xspark] { flex: none; width: 52px; height: 52px; }
+.cst-sparks-band > [data-xspark] svg { display: block; width: 100%; height: 100%; }
+.cst-sparks-words { display: flex; flex-direction: column; flex: 1; gap: 2px; min-width: 0; }
+.cst-sparks-words b { font-size: clamp(24px, 1.9vw, 30px); line-height: 1.1; font-weight: 700; }
+.cst-sparks-words span { font-size: 15px; line-height: 1.35; color: var(--cst-muted); }
+.cst-sparks-packs { display: flex; flex: none; gap: 28px; }
+.cst-sparks-pack { display: flex; flex-direction: column; gap: 2px; font-size: 14.5px; color: var(--cst-muted); }
+.cst-sparks-pack b { display: flex; align-items: center; gap: 5px; font-size: 19px; font-weight: 700; color: var(--cst-text); }
+.cst-sparks-pack svg { flex: none; width: 17px; height: 17px; }
+.cst-sparks-go { flex: none; font-size: 15px; font-weight: 700; }
+.cst-key {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  flex: none; height: 44px; padding: 0 22px;
+  border: 0; border-radius: 10px;
+  font-size: 15.5px; font-weight: 700; text-decoration: none;
+  color: var(--cst-key-ink); background: var(--cst-key);
+  cursor: pointer;
+}
+.cst-key:hover:not(:disabled) { filter: brightness(1.06); }
+.cst-key:disabled { opacity: 0.5; cursor: default; }
+.cst-key.is-wide { width: 100%; height: 48px; }
+.cst-key .cgal-ic { font-size: 18px; }
+.cst-key.cgal-installed { color: var(--cst-text); background: var(--cst-well); cursor: default; }
+.cst-plain {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 0 4px;
+  border: 0; background: none;
+  font-size: 14.5px; font-weight: 600; text-align: center; text-decoration: none;
+  color: var(--cst-muted);
+  cursor: pointer;
+}
+.cst-plain:hover:not(:disabled) { color: var(--cst-text); }
+.cst-plain .cgal-ic { font-size: 16px; }
+
+/* Limited stock. */
+.cst-meter { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 320px; }
+.cst-meter-bar { height: 6px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, currentColor 18%, transparent); }
+.cst-meter-fill { height: 100%; background: currentColor; }
+.cst-meter-left { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cgal-until { font-size: 13.5px; font-weight: 600; opacity: 0.86; }
+
+/* ── An entry's page ── */
+.cst-detail { display: flex; flex-direction: column; gap: 12px; }
+.cst-back {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  height: 40px; padding: 0 8px 0 0;
+  border: 0; background: none;
+  font-size: 15px; font-weight: 600; color: var(--cst-muted);
+  cursor: pointer;
+}
+.cst-back:hover { color: var(--cst-text); }
+.cst-back .cgal-ic { font-size: 20px; }
+/* The gallery is as wide as the window's height lets it be, its thumbnails included,
+   so on a low screen picture, name and key are all there with no scrolling. */
+.cst-detail-grid {
+  --cst-gal-w: calc((100dvh - 110px) * 1.5);
+  display: grid; grid-template-columns: minmax(0, var(--cst-gal-w)) minmax(380px, 1fr); gap: 32px;
+  align-items: start; padding-right: 54px;
+}
+.cst-detail-words { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 640px; }
+.cst-kind { font-size: 14px; font-weight: 600; color: var(--cst-muted); }
+.cst-detail .cst-name { font-size: clamp(32px, 2.6vw, 46px); line-height: 1.05; }
+.cst-by { margin-bottom: 8px; font-size: 14.5px; color: var(--cst-muted); }
+.cst-by a { color: inherit; }
+.cst-tier { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 600; color: var(--cst-muted); }
+.cst-tier .cgal-ic { font-size: 16px; }
+.cst-detail .cgal-detail-cta { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.cst-detail .cgal-detail-cta:empty { display: none; }
+.cst-detail .cgal-detail-desc { margin: 8px 0 0; font-size: 15px; line-height: 1.45; color: var(--cst-text); opacity: 0.88; }
+.cgal-detail-perfnote { margin: 0; font-size: 14px; line-height: 1.4; color: var(--cst-muted); }
+.cst-offer-line { margin: 0; font-size: 15px; line-height: 1.35; color: var(--cst-muted); }
+.cst-detail .cgal-detail-changelog { margin: 0; padding: 12px 14px; border: 0; border-radius: 10px; background: var(--cst-well); }
+.cst-overlay .cst-detail .cgal-detail-changelog .cgal-changelog-label { font-size: 13.5px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--cst-muted); }
+.cst-detail .cgal-changelog-text { font-size: 14.5px; color: var(--cst-text); }
+.cst-overlay .cgal-authorstar { color: var(--cst-muted); }
+
+/* A search that found nothing: Bit, and the way to ask. */
+.cst-ask { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 56px 16px; text-align: center; }
+.cst-ask h3 { margin: 0; font-size: 24px; font-weight: 700; }
+.cst-ask p { margin: 0 0 12px; font-size: 16px; color: var(--cst-muted); }
+.cst-ask-face { width: 64px; height: 64px; margin-bottom: 8px; }
+.cst-ask-face svg { display: block; width: 100%; height: 100%; }
+.cst-facts {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  margin: 10px 0 0; padding-top: 12px;
+  border-top: 1px solid var(--cst-sep);
+}
+.cst-fact:has(.cgal-installs:empty) { display: none; }
+.cst-facts dt { font-size: 13px; color: var(--cst-muted); }
+.cst-facts dd { margin: 2px 0 0; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; color: inherit; }
+.cst-detail-more:not(:empty) { margin-top: 24px; }
+.cst-detail .cgal-gal { min-width: 0; }
+.cst-detail .cgal-gal-stage { border: 0; border-radius: 10px; aspect-ratio: 16 / 9; background: var(--cst-paper, var(--cst-sheet)); }
+.cst-detail .cgal-gal-thumb { flex: 0 0 calc((100% - 50px) / 6); width: auto; height: auto; aspect-ratio: 16 / 10; border: 0; border-radius: 6px; opacity: 0.62; }
+.cst-detail .cgal-gal-thumb:not(.on) { opacity: 0.78; }
+.cst-detail .cgal-gal-thumb:hover { opacity: 1; }
+.cst-detail .cgal-gal-thumb.on { border: 0; opacity: 1; }
+
+/* ── Loading ── */
+.cst-card.cgal-skel { cursor: default; pointer-events: none; }
+.cst-card.cgal-skel .cgal-skel-line { background: var(--cst-well); }
+.cst-card.cgal-skel .cgal-skel-line.w70 { margin-top: 12px; }
+
+/* The keys a limited drop and the lists share, on the page's own terms. */
+.cst .cgal-btn {
+  min-height: 44px; padding: 0 18px;
+  border: 0; border-radius: 10px; box-shadow: none;
+  font-size: 15px; font-weight: 700;
+  color: var(--cst-text); background: var(--cst-well);
+}
+.cst .cgal-btn:hover:not(:disabled) { background: var(--cst-on); }
+.cst .cgal-claim { color: var(--cst-key-ink); background: var(--cst-key); }
+.cst .cgal-claim:hover:not(:disabled) { background: var(--cst-key); filter: brightness(1.06); }
+.cst .cgal-havecode { min-height: 36px; font-size: 14.5px; font-weight: 600; color: var(--cst-muted); background: none; }
+.cst .cgal-havecode:hover:not(:disabled) { color: var(--cst-text); background: none; }
+.cst .cgal-limited-buttons { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.cst .cgal-soldout {
+  display: grid; place-items: center;
+  height: 48px;
+  border: 0; border-radius: 10px;
+  font-size: 15.5px; font-weight: 700; letter-spacing: 0; text-transform: none;
+  color: var(--cst-muted); background: var(--cst-well);
+}
+.cst .cgal-loadmore { margin: 24px 0 0; }
+.cst .cgal-status { padding: 56px 16px; font-size: 16px; text-align: center; color: var(--cst-muted); }
+.cst .cgal-stale { padding: 0 0 12px; font-size: 14.5px; text-align: left; }
+
+/* Installed and Sparks clear the close key. */
+.cst-view.is-own { padding-right: 54px; }
+
+/* Installed: rows on the page's wells, the keys quiet. One filled key per page, the
+   next thing to do (Update all, or the first row waiting on you); removing is words in red. */
+.cst-overlay .cst-view.is-own .inst-chip {
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: 6px;
+  font-size: 14.5px; color: var(--cst-muted); background: none;
+}
+.cst-overlay .cst-view.is-own .inst-chip:hover { color: var(--cst-text); background: var(--cst-well); }
+.cst-overlay .cst-view.is-own .inst-chip.active { color: var(--cst-text); background: var(--cst-on); }
+.cst-overlay .cst-view.is-own .inst-row { padding: 12px 16px; border: 0; border-radius: 10px; background: var(--cst-well); }
+.cst-overlay .cst-view.is-own .inst-thumb { border: 0; border-radius: 6px; }
+.cst-overlay .cst-view.is-own .inst-thumb.is-glyph { color: var(--cst-muted); background: var(--cst-on); }
+.cst-overlay .cst-view.is-own .inst-row-name { font-size: 15.5px; color: var(--cst-text); }
+.cst-overlay .cst-view.is-own .inst-row-meta { font-size: 13.5px; color: var(--cst-muted); }
+.cst-overlay .cst-view.is-own .inst-row-state { font-size: 14px; color: var(--cst-text); }
+.cst-overlay .cst-view.is-own .inst-row-changelog { font-size: 13.5px; color: var(--cst-muted); }
+.cst-overlay .cst-view.is-own :is(.inst-kind, .inst-origin, .inst-activity) {
+  padding: 0; border: 0; border-radius: 0;
+  font-size: 13.5px; font-weight: 500; letter-spacing: 0; text-transform: none;
+  background: none;
+}
+.cst-overlay .cst-view.is-own :is(.inst-kind, .inst-origin) { color: var(--cst-muted); }
+.cst-overlay .cst-view.is-own :is(.inst-updbar, .inst-issues, .inst-rejected) { border: 0; border-radius: 10px; }
+.cst-overlay .cst-view.is-own .inst-updbar { background: var(--cst-well); }
+.cst-overlay .cst-view.is-own .inst-foot { border-top: 1px solid var(--cst-sep); }
+.cst-overlay .cst-view.is-own .inst-foot .cgal-status { font-size: 14px; color: var(--cst-muted); }
+.cst-overlay .cst-view.is-own .settings-btn {
+  min-height: 38px; padding: 0 14px;
+  border: 0; border-radius: 6px; box-shadow: none;
+  font-size: 14px; font-weight: 600;
+  color: var(--cst-text); background: var(--cst-on);
+}
+.cst-overlay .cst-view.is-own .settings-btn.primary { color: var(--cst-key-ink); background: var(--cst-key); }
+.cst-overlay .cst-view.is-own .settings-btn.danger { color: var(--cst-danger); background: none; }
+.cst-overlay .cst-view.is-own .settings-btn.danger:hover { background: var(--cst-on); }
+
+/* Sparks in the Store: the same wells, no tinted frames. Green stays on the key. */
+.cst-view .sparks-shop { max-width: none; }
+.cst-view :is(.sparks-hero, .sparks-pack, .sparks-plan, .sparks-use) {
+  border: 0; border-radius: 10px;
+  background: var(--cst-well);
+}
+.cst-view .sparks-shop .sparks-pack:hover { border: 0; background: var(--cst-on); }
+.cst-view .sparks-shop .sparks-pack.is-best { border: 0; background: var(--cst-on); }
+.cst-view .sparks-plan-btn { border: 0; border-radius: 10px; color: var(--cst-key-ink); background: var(--cst-key); }
+
+/* Supporters: the sheet for a PC with no code. Real packs on top, the price under
+   them, what a month buys in two columns, the one green key. */
+.cst-overlay .cgal-detail-scrim { background: rgba(4, 6, 9, 0.5); backdrop-filter: none; }
+.cst-info {
+  position: relative;
+  display: flex; flex-direction: column;
+  width: min(860px, 100%); max-height: 100%;
+  border-radius: 10px; overflow: hidden;
+  color: var(--cst-text); background: var(--cst-solid);
+}
+.cst-info .cst-close { top: 12px; right: 12px; background: var(--cst-solid); }
+.cst-info .cst-close:hover { background: var(--cst-on); }
+.cst-info-shots { display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cst-info-shots .cgal-media { aspect-ratio: 16 / 9; border-radius: 0; }
+.cst-info-body { display: flex; flex-direction: column; gap: 18px; min-height: 0; overflow-y: auto; padding: 24px 28px; }
+.cst-info-name { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; }
+.cst-info-line { margin: -12px 0 0; font-size: 17px; line-height: 1.35; color: var(--cst-text); }
+.cst-info-perks {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 32px;
+  margin: 0; padding: 0; list-style: none;
+}
+.cst-info-perks li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; font-size: 14.5px; line-height: 1.4; color: var(--cst-muted); }
+.cst-info-perks .cgal-ic, .cst-info-perks [data-xspark] { flex: none; width: 18px; height: 18px; margin-top: 1px; font-size: 18px; }
+.cst-info-tick { color: var(--cst-text); }
+.cst-info-keys { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 22px; }
+.cst-info-keys .cst-key { min-width: 200px; }
+.cst-info-note { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--cst-muted); }
+.cst-info-note a { color: var(--cst-text); }
+
+/* ── Columns follow the room the main side really has ── */
+@container cst-main (min-width: 1900px) { .cst-view, .cst-page { --cols: 6; } }
+@container cst-main (max-width: 1180px) { .cst-view, .cst-page { --cols: 4; } }
+@container cst-main (max-width: 900px) { .cst-view, .cst-page { --cols: 3; --cst-poster-cols: 2; } }
+@container cst-main (max-width: 900px) {
+  .cst-spot { grid-template-columns: minmax(0, 1fr); padding-right: 0; }
+  .cst-side { display: none; }
+  .cst-detail-grid { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; padding-right: 0; }
+}
+
+/* The Edge: a wide, low screen. One band of picture, more cards across. */
+@media (max-height: 760px) and (min-width: 1500px) {
+  .cst-view, .cst-page { --cols: 7; }
+  .cgal-scroll.cst-main { padding-top: 16px; }
+  .cst-host { gap: 20px; }
+  .cst-spot { grid-template-columns: minmax(0, 1fr) 420px; }
+  .cst-hero { --cst-hero-h: 330px; }
+  .cst-side { padding-top: 0; padding-right: 54px; }
+  .cst-rail { gap: 10px; padding-top: 14px; padding-bottom: 10px; }
+  .cst-railrow { height: 42px; }
+  .cst-stage { gap: 12px; }
+  .cst-offer { margin-bottom: 12px; }
+  .cst-poster { flex-direction: row; }
+  .cst-poster .cgal-media { flex: 0 0 56%; aspect-ratio: 16 / 9; }
+  .cst-poster-words { justify-content: center; padding: 14px 16px; }
+  .cst-poster-text { -webkit-line-clamp: 3; }
+}
+
+/* A phone: the rail is a row of words over one column. */
+@media (max-width: 640px) {
+  .preset-modal.cst { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .cst-rail { gap: 10px; padding: 14px 16px 8px; overflow: visible; background: none; }
+  .cst-rail-top { padding: 0 52px 0 0; }
+  .cst-rail-title { font-size: 24px; }
+  .cst-refresh, .cst-rail-make { display: none; }
+  .cst-rail-list, .cst-rail-list.cst-rail-own { flex-direction: row; gap: 4px; }
+  .cst-rail-list { overflow-x: auto; scrollbar-width: none; }
+  .cst-rail { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .cst-rail-top, .cst-find, .cst-rail-list:not(.cst-rail-own) { grid-column: 1 / -1; }
+  .cst-rail-list:not(.cst-rail-own) { grid-column: 1; }
+  .cst-rail-own { grid-column: 2; padding: 0 0 0 4px; border: 0; border-left: 1px solid var(--cst-sep); }
+  .cst-railrow { width: auto; height: 44px; gap: 6px; padding: 0 12px; }
+  .cst-railrow > .cgal-ic { display: none; }
+  .cst-railrow-count:empty { display: none; }
+  .cst-close { top: 10px; right: 12px; width: 44px; height: 44px; }
+  .cgal-scroll.cst-main { padding: 8px 16px 24px; }
+  .cst-host { gap: 24px; }
+  .cst-view, .cst-page { --cols: 2; }
+  .cst-row, .cgal-hrail { --cols: 1.6; }
+  .cst-keys { display: none; }
+  .cst-listhead { padding-right: 0; }
+  .cst-hero { flex-direction: column-reverse; min-height: 0; max-height: none; }
+  .cst-hero:has(canvas), .cst-hero:has(.cgal-preview) { height: auto; }
+  .cst-hero-words { flex: none; padding: 18px; }
+  .cst-hero .cgal-media img { width: 100%; max-width: none; max-height: none; }
+  .cst-hero .cgal-media canvas, .cst-hero .cgal-media .cgal-preview { flex: none; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .cst-name { font-size: 34px; }
+  .cst-shelf-head { padding-right: 0; }
+  .cst-stage .cst-row { --cols: 1.15; }
+  .cst-overlay .cst-view.is-own .settings-btn { min-height: 44px; }
+  .cst-offer { flex-direction: column; align-items: stretch; gap: 12px; }
+  .cst-band-keys { justify-content: space-between; }
+  .cst-sparks-band { grid-template-columns: auto minmax(0, 1fr); padding: 16px; }
+  .cst-sparks-packs, .cst-sparks-go { grid-column: 1 / -1; }
+  .cst-sparks-packs { justify-content: space-between; gap: 12px; }
+  .cst-info-shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cst-info-shots .cgal-media:nth-child(3) { display: none; }
+  .cst-info-body { padding: 18px 16px; }
+  .cst-info-name { font-size: 28px; }
+  .cst-info-perks { grid-template-columns: minmax(0, 1fr); }
+  .cst-info-keys { align-items: stretch; flex-direction: column; }
+  .cst-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .cst-view.is-own { padding-right: 0; }
+  /* The key stays in reach while the page scrolls under it. */
+  .cst-detail .cgal-detail-cta:not(:empty) {
+    position: sticky; bottom: -24px; z-index: 2;
+    margin: 0 -16px; padding: 10px 16px;
+    background: var(--cst-page);
+  }
+}

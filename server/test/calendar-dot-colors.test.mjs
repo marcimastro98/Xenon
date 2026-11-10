@@ -80,7 +80,7 @@ test('the month grid draws one dot per colour, the Upcoming dot and the day list
 
 test('the dots take the colour from --dot, glow included, and keep the accent when there is none', () => {
   assert.doesNotMatch(CSS, /\.day-cell\.has-events::after/, 'the single pseudo-element dot is gone');
-  assert.match(CSS, /\.day-dots \{\n  position: absolute;\n  left: 50%;\n  bottom: 3px;\n  display: flex;\n  gap: 3px;/);
+  assert.match(CSS, /\.day-dots \{\n  position: absolute;\n  left: 50%;\n  bottom: 2px;\n  display: flex;\n  gap: 3px;/);
   assert.match(CSS, /\.day-dot \{[^}]*background: var\(--dot, var\(--green\)\);[^}]*box-shadow: 0 0 10px color-mix\(in srgb, var\(--dot, var\(--accent\)\) 55%, transparent\);/s);
   const up = CSS.slice(CSS.indexOf('.upcoming-dot {'), CSS.indexOf('}', CSS.indexOf('.upcoming-dot {')));
   assert.match(up, /background: var\(--dot, var\(--green\)\);/);

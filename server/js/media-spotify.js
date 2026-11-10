@@ -88,9 +88,9 @@
     let msg = '';
     if (e === 'premium_required') msg = t('spotify_w_premium', 'Spotify Premium required for playback control');
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
-    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
+    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device: start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
-    else if (e === 'rate_limited') msg = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    else if (e === 'rate_limited') msg = t('spotify_w_busy', 'Spotify is busy: retrying shortly');
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
   }
 

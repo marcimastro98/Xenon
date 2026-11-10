@@ -12,6 +12,7 @@ const PERF_ACTION_CATALOG = [
   { type: 'closeApp',    params: [{ name: 'id',    kind: 'id'   }] },
   { type: 'launchApp',   params: [{ name: 'path',  kind: 'path' }] },
   { type: 'setPriority', params: [{ name: 'name',  kind: 'proc' }, { name: 'level', kind: 'select', options: ['high', 'normal'] }] },
+  { type: 'isRunning',   params: [{ name: 'name',  kind: 'proc' }] },
 ];
 
 function perfActionSpec(type) {

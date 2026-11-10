@@ -16,7 +16,7 @@
   // Word-by-word light-up; the moments are estimated in LyricsCore.wordStarts.
   const WORD_FADE_MS = 180;
   const WORD_KEYFRAMES = [{ opacity: 0.4 }, { opacity: 1 }];
-  const FROZEN = '.overlay-frozen, .game-mode, .low-power-gpu';
+  const FROZEN = '.overlay-frozen, .game-mode, .perf-mode, .low-power-gpu';
 
   const t = (k) => (typeof window.t === 'function' ? window.t(k) : k);
   const el = (tag, cls, txt) => {
@@ -307,7 +307,7 @@
     follow.addEventListener('click', () => setFollowing(true));
     statusBtn.addEventListener('click', () => {
       if (!snap) return;
-      if (snap.state === 'off') { if (typeof openSettings === 'function') openSettings('appearance'); }
+      if (snap.state === 'off') { if (typeof openSettingsCategory === 'function') openSettingsCategory('appearance'); }
       else window.LyricsCore.retry();
     });
 

@@ -50,7 +50,7 @@ const deps = (over = {}) => ({
 });
 
 test('requirements: winget missing → manual guided step, not ready', async () => {
-  const ss = createSecondScreen(deps({ inst: { winget: false } }));
+  const ss = createSecondScreen(deps({ dir: '', inst: { winget: false } }));
   const r = await ss.requirements();
   assert.equal(r.ready, false);
   assert.equal(r.steps[0].action, 'manual');
@@ -58,11 +58,24 @@ test('requirements: winget missing → manual guided step, not ready', async () 
 });
 
 test('requirements: VDD not installed → install actions for vdd + display', async () => {
-  const ss = createSecondScreen(deps({ inst: { vdd: false } }));
+  const ss = createSecondScreen(deps({ dir: '', inst: { vdd: false } }));
   const r = await ss.requirements();
   assert.equal(r.ready, false);
   assert.equal(r.steps.find((s) => s.id === 'vdd').action, 'install');
   assert.equal(r.steps.find((s) => s.id === 'display').code, 'display_missing');
+});
+
+test('requirements: the package folder answers without running winget', async () => {
+  const d = deps({ inst: { winget: false, vdd: false }, displayActive: true });
+  const r = await createSecondScreen(d).requirements();
+  assert.equal(r.ready, true);
+  assert.equal(r.vddInstalled, true);
+  assert.equal(d.installer.calls.length, 0);
+});
+
+test('requirements: no folder, and winget still finds a driver installed for the machine', async () => {
+  const r = await createSecondScreen(deps({ dir: '', inst: { vdd: true }, displayActive: true })).requirements();
+  assert.equal(r.ready, true);
 });
 
 test('requirements: driver installed but no display → display step needs creating', async () => {

@@ -98,6 +98,32 @@ if [ "$REMOVE_ROOT" = 1 ] && [ -e "$ROOT_DIR/.git" ]; then
   ROOT_SKIP='kept: this is a git checkout, not an install'
 fi
 
+# The folder is removed with `rm -rf`, and ROOT_DIR is only "the parent of the
+# directory this script sits in". Copied or symlinked somewhere unexpected (or
+# run from a broken tree), that can be /, the home folder, or something that is
+# not Xenon at all. Refuse unless it is a real directory that is visibly ours:
+# not /, not $HOME, not empty, and holding Xenon's own package.json.
+root_dir_is_removable() { # $1 = dir; echoes the reason and fails when it is not
+  local dir="$1" real home
+  [ -n "$dir" ] || { echo 'the install path is empty'; return 1; }
+  real="$(cd "$dir" 2>/dev/null && pwd -P)" || { echo 'the install path cannot be resolved'; return 1; }
+  [ -n "$real" ] && [ "$real" != '/' ] || { echo 'the install path is the filesystem root'; return 1; }
+  if [ -n "${HOME:-}" ]; then
+    home="$(cd "$HOME" 2>/dev/null && pwd -P)"
+    if [ -n "$home" ] && { [ "$real" = "$home" ] || [ "$real" = "$(dirname "$home")" ]; }; then
+      echo 'the install path is the home folder'; return 1
+    fi
+  fi
+  [ -f "$real/package.json" ] && [ -f "$real/server/server.js" ] \
+    && grep -q '"name"[[:space:]]*:[[:space:]]*"xenon-edge-widget"' "$real/package.json" 2>/dev/null \
+    || { echo "no Xenon package.json in it"; return 1; }
+  return 0
+}
+if [ "$REMOVE_ROOT" = 1 ] && ! ROOT_UNSAFE="$(root_dir_is_removable "$ROOT_DIR")"; then
+  REMOVE_ROOT=0
+  ROOT_SKIP="kept: refusing to delete it ($ROOT_UNSAFE)"
+fi
+
 # ── Finding the app ──────────────────────────────────────────────────────────
 # macOS: the bundle identifier is the test, never the name or the location. A
 # folder called Xenon.app that is not ours must survive this, and one of ours
@@ -592,7 +618,12 @@ if [ "$REMOVE_ROOT" = 1 ]; then
     # to a detached copy that waits for this process to exit first and then
     # removes itself.
     SELF_DEL="$(mktemp -t xenon-selfdelete.XXXXXX 2>/dev/null)"
-    if [ -z "$SELF_DEL" ]; then
+    # Re-checked right before scheduling: the tree may have changed since the
+    # decision at the top.
+    if ! ROOT_UNSAFE="$(root_dir_is_removable "$ROOT_DIR")"; then
+      warn "not removing $ROOT_DIR: $ROOT_UNSAFE"
+      rm -f "$SELF_DEL" 2>/dev/null
+    elif [ -z "$SELF_DEL" ]; then
       warn "could not schedule the folder delete — remove it by hand: $ROOT_DIR"
     else
       {
@@ -607,6 +638,8 @@ while kill -0 "$parent" 2>/dev/null && [ "$waited" -lt 60 ]; do
   sleep 1
   waited=$((waited + 1))
 done
+# Last guard, in the copy that actually runs rm -rf: never / or an empty path.
+case "$target" in ''|/|//*) rm -f "$self"; exit 1 ;; esac
 attempt=0
 while [ -d "$target" ] && [ "$attempt" -lt 15 ]; do
   rm -rf "$target" 2>/dev/null

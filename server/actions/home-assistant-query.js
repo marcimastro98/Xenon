@@ -11,7 +11,7 @@
 // none (no state_class). Either way the widget gets the same shape:
 //   { ok, hours, series: { "<entity_id>": { source, points: [{ t, avg, max }] } } }
 
-const { isEntityId, isCameraEntity } = require('./home-assistant');
+const { isEntityId, isCameraEntity, isMediaPlayerEntity } = require('./home-assistant');
 
 const HISTORY_MAX_IDS = 12;
 const HISTORY_MAX_HOURS = 72;
@@ -24,23 +24,38 @@ const HISTORY_CACHE_MAX = 200;
 const HISTORY_TIMEOUT_MS = 20 * 1000;
 const CAMERA_MAX_BYTES = 2 * 1024 * 1024;
 
+const ARTWORK_CACHE_MAX = 16;
+
+// The image formats a cover may come back in, told by their magic bytes rather
+// than HA's Content-Type, so nothing else ever becomes a data: URL.
+function imageMime(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return '';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.readUInt32BE(0) === 0x89504e47) return 'image/png';
+  if (buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  if (buf.toString('latin1', 0, 4) === 'GIF8') return 'image/gif';
+  return '';
+}
+
 // Validate a widget's request against the user's selection. Returns
-// { ids, hours } or { error }. Only ids present in `allowed` survive.
+// { ids, hours, skipped } or { error }. Only ids present in `allowed` survive:
+// one the user has since unticked is left out and named in `skipped` (Home
+// Assistant is never asked about it), so a widget keeps the rest of its charts.
 function normalizeHistoryRequest(rawIds, rawHours, allowed) {
   const allow = new Set(Array.isArray(allowed) ? allowed : []);
   const list = Array.isArray(rawIds) ? rawIds : String(rawIds == null ? '' : rawIds).split(',');
   const ids = [];
+  const skipped = [];
   for (const raw of list) {
     const id = String(raw == null ? '' : raw).trim().toLowerCase();
-    if (!isEntityId(id) || ids.includes(id)) continue;
-    if (!allow.has(id)) return { error: 'not_selected' };
-    ids.push(id);
+    if (!isEntityId(id) || ids.includes(id) || skipped.includes(id)) continue;
+    if (allow.has(id)) ids.push(id); else skipped.push(id);
   }
-  if (!ids.length) return { error: 'bad_ids' };
-  if (ids.length > HISTORY_MAX_IDS) return { error: 'too_many_ids' };
+  if (!ids.length) return { error: skipped.length ? 'not_selected' : 'bad_ids' };
+  if (ids.length + skipped.length > HISTORY_MAX_IDS) return { error: 'too_many_ids' };
   const h = rawHours == null || rawHours === '' ? HISTORY_DEFAULT_HOURS : Number(rawHours);
   if (!Number.isInteger(h) || h < 1 || h > HISTORY_MAX_HOURS) return { error: 'bad_hours' };
-  return { ids, hours: h };
+  return { ids, hours: h, skipped };
 }
 
 // HA has sent statistic timestamps both as ISO strings and as epoch ms.
@@ -176,12 +191,37 @@ function createHaQuery(ha) {
     return { ok: true, src: 'data:image/jpeg;base64,' + jpeg.toString('base64'), at: Date.now() };
   }
 
-  return { history, cameraFrame };
+  // A media player's cover art, as a data: URL for the same CSP reason as a
+  // camera frame. Cached per player until HA's entity_picture changes (it carries
+  // a hash of the art), so a playing track costs one fetch, not one per second.
+  const artCache = new Map(); // id → { key, result }
+  async function artwork(entityId, allowed) {
+    const id = String(entityId == null ? '' : entityId).trim().toLowerCase();
+    if (!isMediaPlayerEntity(id)) return { ok: false, error: 'bad_media_player' };
+    if (!(Array.isArray(allowed) && allowed.includes(id))) return { ok: false, error: 'not_selected' };
+    const key = ha.artworkKey(id);
+    if (!key) return { ok: false, error: 'no_artwork' };
+    const hit = artCache.get(id);
+    if (hit && hit.key === key) return hit.result;
+    const img = await ha.mediaArtwork(id);
+    if (!Buffer.isBuffer(img) || !img.length) return { ok: false, error: 'no_artwork' };
+    if (img.length > CAMERA_MAX_BYTES) return { ok: false, error: 'artwork_too_large' };
+    const mime = imageMime(img);
+    if (!mime) return { ok: false, error: 'bad_image' };
+    const result = { ok: true, src: 'data:' + mime + ';base64,' + img.toString('base64'), at: Date.now() };
+    artCache.delete(id);
+    if (artCache.size >= ARTWORK_CACHE_MAX) artCache.delete(artCache.keys().next().value);
+    artCache.set(id, { key, result });
+    return result;
+  }
+
+  return { history, cameraFrame, artwork };
 }
 
 module.exports = {
   createHaQuery,
   normalizeHistoryRequest,
+  imageMime,
   pointsFromStatistics,
   pointsFromHistory,
   HISTORY_MAX_IDS,

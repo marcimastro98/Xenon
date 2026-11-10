@@ -38,6 +38,13 @@ test('gemini: only the models we can actually drive survive classification', () 
   assert.deepEqual([...new Set(entries.map(e => e.kind))].sort(), ['chat', 'live', 'tts']);
 });
 
+test('gemini: models that answer generateContent but cannot run the chat are not offered', () => {
+  for (const id of ['gemini-nano-banana-2.1', 'gemini-omni-1.1-flash', 'gemini-omni-flash-preview', 'gemini-3.5-transcribe']) {
+    assert.equal(gemini.classify({ name: 'models/' + id, supportedGenerationMethods: ['generateContent'] }), null, id);
+  }
+  assert.equal(gemini.classify({ name: 'models/gemini-4-argon', supportedGenerationMethods: ['generateContent'] }).kind, 'chat');
+});
+
 test('gemini: family beats version parsing on the ids that look alike', () => {
   const by = Object.fromEntries(geminiEntries().map(e => [e.id, e]));
   assert.equal(by['gemini-3.7-flash'].family, 'flash');

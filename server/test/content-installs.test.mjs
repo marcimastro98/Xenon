@@ -84,3 +84,26 @@ test('sourceVersion survives only in strict numeric-dotted shape (fail-closed)',
   assert.equal(rec('').sourceVersion, undefined);
   assert.equal(rec(12).sourceVersion, undefined);
 });
+
+test('a bought copy keeps its number on the receipt, and its widgets read it back', () => {
+  const base = { id: ID, name: 'Culprit', kind: 'widget', source: 'catalog', sourceId: 'alibi', resources: { widgetIds: ['alibi'] } };
+  const [kept] = ci.normalizeContentInstalls([{ ...base, copyNo: 42 }]);
+  assert.equal(kept.copyNo, 42);
+  for (const junk of [0, -3, 2.5, '42', 1e7, null]) {
+    const [r] = ci.normalizeContentInstalls([{ ...base, copyNo: junk }]);
+    assert.equal('copyNo' in r, false, String(junk));
+  }
+  // Only a Store install has a number: an import someone shared never does.
+  const [shared] = ci.normalizeContentInstalls([{ ...base, source: 'import', copyNo: 42 }]);
+  assert.equal('copyNo' in shared, false);
+  const installs = ci.normalizeContentInstalls([
+    { ...base, copyNo: 42 },
+    // A later update of the same entry, written without the number: the number stays.
+    { ...base, id: 'xi_m5abc123deadbee2', sourceVersion: '1.3.0' },
+    { ...base, id: 'xi_m5abc123deadbee3', sourceId: 'other', resources: { widgetIds: ['other'] } },
+  ]);
+  assert.equal(ci.editionOf(installs, 'alibi'), 42);
+  assert.equal(ci.editionOf(installs, 'other'), null);
+  assert.equal(ci.editionOf(installs, 'missing'), null);
+  assert.equal(ci.editionOf(null, 'alibi'), null);
+});

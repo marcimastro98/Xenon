@@ -8,7 +8,7 @@
 
 // ── Panel routing ─────────────────────────────────────────────
 const panelParam = (new URLSearchParams(window.location.search).get('panel') || '').toLowerCase();
-const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio'];
+const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio', 'sheet'];
 const activePanel = VALID_PANELS.includes(panelParam) ? panelParam : 'full';
 if (activePanel !== 'full') document.body.dataset.panel = activePanel;
 
@@ -91,10 +91,38 @@ function startWeatherPolling() {
 }
 window.startWeatherPolling = startWeatherPolling;
 if (need.system) { fetchWeather(); startWeatherPolling(); }
-if (need.events) { loadCalendarEvents(); loadExternalEvents(); setInterval(loadExternalEvents, 5 * 60 * 1000); setInterval(checkReminders, 15000); }
+// Reminders are decided by the server (SSE calendar_reminder, wired in
+// initDataStream); a layer window stays quiet and never shows them.
+if (need.events) { loadCalendarEvents(); loadExternalEvents(); setInterval(loadExternalEvents, 5 * 60 * 1000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
 if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
+
+// Server-pushed alerts are worded in js/alert-toasts.js, shared with the
+// on-screen alerts window of "Solo widget", so both say the same thing.
+function alertToastCtx() {
+  return { t, hwF: typeof hwTempIsF === 'function' && hwTempIsF() };
+}
+// Routine alerts follow the master Notifiche switch, like every other pop-up.
+function showAlertToast(toast) {
+  const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+  if (!toast || !window.XenonToast || !window.AlertToasts.popupsAllowed(master)) return;
+  window.XenonToast.show(toast);
+}
+
+// The automatic update's last minute (server/auto-update.js): one card, closed
+// when the countdown ends any other way. A layer window stays quiet.
+let autoUpdateToastId = 0;
+function onAutoUpdate(d) {
+  if (!window.XenonToast || !window.AlertToasts || isLayerPage()) return;
+  if (d && d.phase === 'failed' && window.XenonUpdate) window.XenonUpdate.showNotices();
+  if (autoUpdateToastId) window.XenonToast.dismiss(autoUpdateToastId);
+  const toast = window.AlertToasts.autoUpdate(d, alertToastCtx(), postponeAutoUpdate);
+  autoUpdateToastId = toast ? window.XenonToast.show(toast) : 0;
+}
+function postponeAutoUpdate() {
+  fetch(SERVER + '/update/auto/postpone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+}
 
 // Real-time data (status, media, system, audio) uses Server-Sent Events.
 // Falls back to conventional polling if EventSource is unavailable or the
@@ -153,6 +181,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
   function connect() {
     if (es) { try { es.close(); } catch {} }
     es = new EventSource('/sse');
+    // A layer window follows the edit mode of the widget layers.
+    if (window.LayerHost) window.LayerHost.listen(es);
+    // Claude Code / Codex building widgets: pairings and their questions.
+    if (window.McpDev) window.McpDev.listen(es);
 
     let lastFgProcess = null;
     es.addEventListener('status', e => {
@@ -178,7 +210,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Performance Mode: suggest optimizing on a foreground-activity change.
       step(() => {
         if (!hasGameInfo || !window.PerfMode) return;
-        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true);
+        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true, data.gameProcess);
         else if (typeof window.PerfMode.onGaming === 'function') window.PerfMode.onGaming(!!data.gaming);
       });
       // Game Companion (opt-in): the pill follows the game being RUNNING (alive in
@@ -197,6 +229,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // it never fires while the user is active on another screen (only the
       // dashboard window's own events would otherwise be seen).
       step(() => { if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') window.AmbientMode.onStatus(data); });
+      // The same idle time and game state open or close the Ambient scene on
+      // the other screens (wallpaper, screensaver: js/layers-shell.js).
+      step(() => { if (window.LayersShell && typeof window.LayersShell.onStatus === 'function') window.LayersShell.onStatus(data); });
       // Greeting splash: same whole-PC idle signal decides PRESENCE, so a
       // day-part boundary crossed while nobody is there holds the greeting
       // instead of spending it on an empty room.
@@ -260,13 +295,143 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         applySystem(d);
+        if (window.BootSplash) window.BootSplash.ready('data');
         if (window.FansWidget) window.FansWidget.onSSE(d);
         if (window.PowerWidget) window.PowerWidget.onSSE(d);
+        if (window.PerfWidget) window.PerfWidget.onSystem(d);
         // Deck keys with a live 'sensor' badge (fan RPM / watts / temps).
         if (window.Deck && window.DeckModel && window.DeckModel.sensorsFromSystem) {
           window.Deck.refreshStates({ sensors: window.DeckModel.sensorsFromSystem(d) });
         }
         if (window.CustomWidget) window.CustomWidget.onData('system', d);
+      } catch {}
+    });
+    // The live frame rate (server/perf-stream.js): only while a game runs and a
+    // perf tile is in use or a package holds the `perf` grant.
+    es.addEventListener('perf', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.PerfWidget) window.PerfWidget.onPerf(d);
+        if (window.CustomWidget) window.CustomWidget.onData('perf', d);
+      } catch {}
+    });
+    // Ping and packet loss, when the tile was told to show them (server/perf-net.js).
+    es.addEventListener('perf_net', e => {
+      try {
+        if (window.PerfWidget) window.PerfWidget.onNet(JSON.parse(e.data));
+      } catch {}
+    });
+    // A benchmark started or ended (server/benchmark.js): one toast each.
+    es.addEventListener('benchmark', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates({ benchmarkRunning: !!(d && d.running) });
+        if (window.PerfWidget && !d.seed) window.PerfWidget.onBenchmark(d);
+      } catch {}
+    });
+    // Drawing on the screen opened or closed (macOS, Linux): the shell's sheet.
+    es.addEventListener('screen_draw', e => {
+      try { if (window.LayersShell && typeof window.LayersShell.onDraw === 'function') window.LayersShell.onDraw(JSON.parse(e.data)); } catch {}
+    });
+    // The Xenon menu opened or closed over the screen: the shell's /menu window.
+    es.addEventListener('screen_menu', e => {
+      try { if (window.XenonSheet) window.XenonSheet.onMenu(JSON.parse(e.data)); } catch {}
+      try { if (window.LayersShell && typeof window.LayersShell.onMenu === 'function') window.LayersShell.onMenu(JSON.parse(e.data)); } catch {}
+    });
+    // Bit's vitals popup on this PC (macOS, Linux): the on-screen alerts window.
+    es.addEventListener('vitals_nag', e => {
+      try { if (window.LayersShell && typeof window.LayersShell.onVitalsPopup === 'function') window.LayersShell.onVitalsPopup(JSON.parse(e.data)); } catch {}
+    });
+    // What the Xenon menu shows changed: its panel and the "Main screen" tile
+    // read it again (js/xenon-menu-panel.js, js/screen-tile.js).
+    ['settings', 'captures', 'replay', 'recording', 'deck'].forEach((name) => {
+      es.addEventListener(name, () => window.dispatchEvent(new Event('xenon-menu-changed')));
+    });
+    // The Xenon menu asked for with no shell to draw it over the screen (a
+    // browser, a phone's dashboard): the same menu as a panel here. Never on a
+    // layer page; a phone opens it only from its own Deck key (js/deck.js
+    // runClientAction) or tile.
+    es.addEventListener('xenon_menu_panel', e => {
+      try {
+        if (!window.XenonMenuPanel || window.__xenonRemote || isLayerPage()) return;
+        window.XenonMenuPanel.open((JSON.parse(e.data) || {}).section);
+      } catch {}
+    });
+    // "Why does it stutter?" answered (Deck key or Bit): one toast.
+    es.addEventListener('stutter_why', e => {
+      try { if (window.PerfWidget) window.PerfWidget.onStutterWhy(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('exclusive_hint', e => {
+      try { if (window.PerfWidget) window.PerfWidget.onExclusiveHint(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('capture', e => {
+      try { if (window.CaptureToast) window.CaptureToast.onCapture(JSON.parse(e.data)); } catch {}
+      if (window.CaptureGallery) window.CaptureGallery.changed();
+    });
+    es.addEventListener('capture_marker', e => {
+      try { if (window.CaptureToast && window.CaptureToast.onMarker) window.CaptureToast.onMarker(JSON.parse(e.data)); } catch {}
+    });
+    // A capture deleted or trimmed (from this screen, the phone or the voice):
+    // an open gallery shows it.
+    es.addEventListener('captures', () => {
+      if (window.CaptureGallery) window.CaptureGallery.changed();
+    });
+    // A video being written down (capture-transcripts.js): ids and numbers only.
+    es.addEventListener('transcript', e => {
+      try { if (window.CaptureGallery) window.CaptureGallery.onTranscript(JSON.parse(e.data)); } catch {}
+    });
+    // A copy of a video being made (capture-export.js): ids and numbers only.
+    es.addEventListener('capture_export', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.CaptureGallery) window.CaptureGallery.onExport(d);
+        if (window.CaptureToast && window.CaptureToast.onExport) window.CaptureToast.onExport(d);
+      } catch {}
+    });
+    // "Open the gallery" from Xenon AI or a Virtual Deck key. It opens on the
+    // PC's screens: a paired phone opens it from its own Deck key instead of
+    // having it pop up while the voice is used at the PC.
+    es.addEventListener('gallery_open', e => {
+      try {
+        if (!window.CaptureGallery || window.__xenonRemote) return;
+        const d = JSON.parse(e.data) || {};
+        window.CaptureGallery.open({ filter: d.filter, id: d.id });
+      } catch {}
+    });
+    // "Open the Game Companion" from a Deck key, its shortcut or the voice. On
+    // the PC's screens only, like the gallery.
+    es.addEventListener('game_companion', e => {
+      try {
+        if (!window.GameCompanion || window.__xenonRemote || isLayerPage()) return;
+        window.GameCompanion.show(JSON.parse(e.data) || {});
+      } catch {}
+    });
+    // A recording started or ended (server/recorder.js): the Deck key lights, the
+    // "Recording" card shows while it runs.
+    es.addEventListener('recording', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck && window.DeckModel) window.Deck.refreshStates(window.DeckModel.recordingStates(d));
+        if (window.CaptureToast) window.CaptureToast.onRecording(d);
+      } catch {}
+    });
+    // The steps recorder started, counted a step or ended (server/steps-recorder.js):
+    // the Deck key lights, the "Recording steps" card shows while it runs.
+    es.addEventListener('steps', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates({ stepsOn: !!(d && d.on) });
+        if (window.CaptureToast) window.CaptureToast.onSteps(d);
+      } catch {}
+    });
+    // Instant Replay on or off, saving, or failing (server/replay.js): the Deck
+    // key lights while it keeps; Settings shows the line under the switch.
+    es.addEventListener('replay', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates({ replayOn: !!(d && d.on) });
+        if (window.CaptureToast) window.CaptureToast.onReplay(d);
+        window.dispatchEvent(new CustomEvent('xenon:replay', { detail: d }));
       } catch {}
     });
     es.addEventListener('battery', e => {
@@ -288,6 +453,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('processes', e => {
       try {
         if (window.CustomWidget) window.CustomWidget.onData('processes', JSON.parse(e.data));
+      } catch {}
+    });
+    // Every hardware sensor by name. Widget-only and demand-driven like
+    // `processes`: sent only while some package holds the `sensors` grant.
+    es.addEventListener('sensors', e => {
+      try {
+        if (window.CustomWidget) window.CustomWidget.onData('sensors', JSON.parse(e.data));
       } catch {}
     });
     es.addEventListener('audio', e => {
@@ -381,6 +553,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.CustomWidget) window.CustomWidget.onData('wavelink', d);
       } catch {}
     });
+    // Voicemeeter mixer state → sandboxed SDK widgets granted the `voicemeeter`
+    // stream (no built-in tile draws it).
+    es.addEventListener('voicemeeter', e => {
+      try { if (window.CustomWidget) window.CustomWidget.onData('voicemeeter', JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('stocks', e => {
       // Live stock quotes → the Borsa widget and the ticker bar.
       try {
@@ -394,19 +571,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // A watched symbol crossed ±alertPercent → a toast (gated by the master
       // Notifiche switch, like every other pop-up). The server handles the LED.
       try {
-        const d = JSON.parse(e.data);
-        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
-        if (master && (master.enabled === false || master.popups === false)) return;
-        if (!window.XenonToast) return;
-        const pct = (Number(d.changePct) >= 0 ? '+' : '') + (Number(d.changePct) || 0).toFixed(2) + '%';
-        const arrow = d.dir === 'up' ? '▲' : '▼';
-        window.XenonToast.show({
-          type: 'notification',
-          kicker: t('stocks_alert_kicker', 'Borsa'),
-          title: (d.name || d.symbol) + '  ' + arrow + ' ' + pct,
-          message: d.dir === 'up' ? t('stocks_alert_up', 'Up sharply today') : t('stocks_alert_down', 'Down sharply today'),
-          duration: 6000,
-        });
+        showAlertToast(window.AlertToasts && window.AlertToasts.stocks(JSON.parse(e.data), alertToastCtx()));
       } catch {}
     });
     es.addEventListener('unifi_event', e => {
@@ -417,19 +582,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         if (window.UnifiProtect && typeof window.UnifiProtect.onNotification === 'function') window.UnifiProtect.onNotification(d);
-        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
-        if (master && (master.enabled === false || master.popups === false)) return;
-        if (!window.XenonToast) return;
-        // The kind→label map lives in unifi-widget.js (NOTIFY_KINDS) — one source.
-        const title = (window.UnifiProtect && window.UnifiProtect.kindLabel)
-          ? window.UnifiProtect.kindLabel(d.kind) : String(d.kind || '');
-        window.XenonToast.show({
-          type: 'notification',
-          kicker: t('unifi_notify_kicker', 'Cameras'),
-          title,
-          message: d.name || d.camId,
-          duration: 6000,
-        });
+        showAlertToast(window.AlertToasts && window.AlertToasts.unifi(d, alertToastCtx()));
       } catch {}
     });
     es.addEventListener('football', e => {
@@ -461,18 +614,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // A followed team scored or the match ended → a toast (gated by the master
       // Notifiche switch). The server handles the LED reaction.
       try {
-        const d = JSON.parse(e.data);
-        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
-        if (master && (master.enabled === false || master.popups === false)) return;
-        if (!window.XenonToast) return;
-        const score = (d.homeScore != null && d.awayScore != null) ? d.home + ' ' + d.homeScore + '–' + d.awayScore + ' ' + d.away : d.home + ' vs ' + d.away;
-        window.XenonToast.show({
-          type: 'notification',
-          kicker: t('football_alert_kicker', 'Calcio'),
-          title: score,
-          message: d.status === 'ft' ? t('football_alert_ft', 'Full time') : t('football_alert_goal', 'Score update'),
-          duration: 6000,
-        });
+        showAlertToast(window.AlertToasts && window.AlertToasts.football(JSON.parse(e.data), alertToastCtx()));
       } catch {}
     });
     es.addEventListener('news', e => {
@@ -483,7 +625,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     // widgets (the dashboard's own tiles keep their local state). Notes ALSO
     // live-sync the real notes widget: without it a long-lived surface (the
     // Xeneon Edge kiosk) showed its boot-time snapshot forever (GitHub #72).
-    es.addEventListener('tasks', e => { try { if (window.CustomWidget) window.CustomWidget.onData('tasks', JSON.parse(e.data)); } catch {} });
+    // The Tasks tile and the calendar repaint from these too: a task or event
+    // added on a phone, another screen or by the assistant shows up here, and
+    // this screen's next edit no longer works from an old list.
+    es.addEventListener('tasks', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof applyServerTasks === 'function' && d && Array.isArray(d.tasks)) applyServerTasks(d.tasks, d.seq);
+        if (window.CustomWidget) window.CustomWidget.onData('tasks', d);
+      } catch {}
+    });
     es.addEventListener('notes', e => {
       try {
         const d = JSON.parse(e.data);
@@ -491,7 +642,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.CustomWidget) window.CustomWidget.onData('notes', d);
       } catch {}
     });
-    es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('agenda', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof applyServerEvents === 'function' && d && Array.isArray(d.events)) applyServerEvents(d.events, d.seq);
+        if (window.CustomWidget) window.CustomWidget.onData('agenda', d);
+      } catch {}
+    });
+    if (need.events && !isLayerPage()) {
+      es.addEventListener('calendar_reminder', e => { try { showReminder(JSON.parse(e.data)); } catch {} });
+    }
     es.addEventListener('transfer', e => {
       // The whole transfer list, not a delta: a surface that reconnects is then
       // correct with no replay, and a file that arrives while this tile is
@@ -522,15 +682,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Guardian (opt-in): server-side threshold alert → friendly toast.
       try {
         if (typeof aiFeatureEnabled === 'function' && !aiFeatureEnabled('guardian')) return;
-        const d = JSON.parse(e.data);
-        const key = d.type === 'gpu' ? 'guardian_alert_gpu' : d.type === 'mem' ? 'guardian_alert_mem' : 'guardian_alert_cpu';
-        // The RAM alert's {v} is a percentage, not a temperature: only the two
-        // thermal ones go through the unit conversion.
-        const text = d.type === 'mem'
-          ? t(key).replace('{v}', String(d.value))
-          : fillTemps(t(key), { v: d.value });
-        if (typeof showHubToast === 'function') showHubToast('Guardian', text, '');
-        if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(text);
+        const toast = window.AlertToasts && window.AlertToasts.guardian(JSON.parse(e.data), alertToastCtx());
+        if (toast && window.XenonToast) window.XenonToast.show(toast);
+        if (toast && window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(toast.title);
       } catch {}
     });
     es.addEventListener('briefing', e => {
@@ -540,6 +694,46 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.Ambient && typeof window.Ambient.onBriefingMoment === 'function') window.Ambient.onBriefingMoment(JSON.parse(e.data));
       } catch {}
     });
+    // A device was just paired. Shown on every open screen of the PC, so a
+    // pairing nobody here asked for does not go unnoticed (the code alone
+    // decides who pairs, and whoever types it first wins).
+    // A file with the user's setup could not be read at this boot and was put
+    // back from its daily copy (store-snapshots.js), or could not be put back.
+    // Told once per boot on each screen.
+    es.addEventListener('store_recovery', e => {
+      try {
+        const d = JSON.parse(e.data) || {};
+        const seenKey = 'xenonStoreRecoverySeen';
+        let seen = '';
+        try { seen = localStorage.getItem(seenKey) || ''; } catch { /* storage off: show it */ }
+        if (String(d.at) === seen || !Array.isArray(d.stores) || !d.stores.length) return;
+        try { localStorage.setItem(seenKey, String(d.at)); } catch { /* best effort */ }
+        const tr = (k, fb) => (typeof t === 'function' && t(k)) || fb;
+        const lost = d.stores.find((s) => s.state === 'unrecoverable');
+        const back = d.stores.find((s) => s.state === 'restored');
+        if (typeof showHubToast !== 'function') return;
+        if (back) {
+          const m = String(back.from || '').match(/(\d{4})-(\d{2})-(\d{2})\.json$/);
+          let day = m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+          try { if (m) day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(tr('locale', undefined) || undefined, { day: 'numeric', month: 'long' }); } catch { /* keep the plain date */ }
+          showHubToast('Xenon', tr('store_restored_title', 'A saved copy was put back'), tr('store_restored', '').replace('{day}', day));
+        }
+        if (lost) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_unreadable', ''));
+        const aside = d.stores.find((s) => s.state === 'set_aside');
+        if (aside) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_set_aside', ''));
+      } catch {}
+    });
+    es.addEventListener('remote_paired', e => {
+      try {
+        if (window.__xenonRemote) return;          // a phone does not need to be told about itself
+        const d = JSON.parse(e.data) || {};
+        const tr = (k, fb) => (typeof t === 'function' && t(k)) || fb;
+        if (typeof showHubToast === 'function') {
+          showHubToast('Xenon', tr('ra_paired_toast_title', 'New device paired'),
+            String(d.name || '').slice(0, 60) + '. ' + tr('ra_paired_toast_hint', 'If you did not pair it, remove it in Settings, Phone.'));
+        }
+      } catch {}
+    });
     es.addEventListener('deck', e => {
       // Another open dashboard saved a Deck change — adopt the server copy live,
       // so two clients can never drift apart between reloads.
@@ -547,6 +741,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const d = JSON.parse(e.data);
         if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
       } catch {}
+    });
+    es.addEventListener('bit-messages', () => {
+      if (window.BitMessages) window.BitMessages.check();
+      if (window.BitTold) window.BitTold.sync();
     });
     es.addEventListener('settings', e => {
       // Another surface (Edge screen / browser / native app) saved the settings —
@@ -598,6 +796,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // surface's frames of that package so they re-read it (GitHub #109).
       try { if (window.CustomWidget && typeof window.CustomWidget.onStoreChanged === 'function') window.CustomWidget.onStoreChanged(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('sdk_options', e => {
+      // A widget's own options were changed in the Xenon menu: its frames get the values.
+      try { if (window.CustomWidget && typeof window.CustomWidget.onOptionsChanged === 'function') window.CustomWidget.onOptionsChanged(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('update_auto', e => { try { onAutoUpdate(JSON.parse(e.data)); } catch {} });
     es.addEventListener('widget_auto_updated', e => {
       // The server updated Store widgets by itself, or found one that needs the
       // user's approval (server/widget-auto-update.js).
@@ -605,7 +808,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('calls', e => {
       // Incoming calls: the whole ringing list, replaced wholesale, so a call
-      // answered on another surface closes the card here too.
+      // answered on another surface closes the card here too. A layer window
+      // has no card to show and would ring a second time.
+      if (isLayerPage()) return;
       try { if (window.CallModal && typeof window.CallModal.onCalls === 'function') window.CallModal.onCalls(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('phone', e => {
@@ -641,8 +846,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       } catch {}
     });
     es.addEventListener('wake', () => {
-      // The server heard "Hey Xenon" — open the voice session (no-op when one
+      // The server heard "Hey Bit" — open the voice session (no-op when one
       // is already live; the server-side 409 guard covers multi-tab races).
+      // Never from a layer window: the main dashboard opens it.
+      if (isLayerPage()) return;
       if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
     });
     es.addEventListener('page_hotkey', (e) => {
@@ -657,20 +864,49 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         pager.navigate(JSON.parse(e.data).target);
       } catch {}
     });
+    es.addEventListener('deck_shortcut', (e) => {
+      // A Deck key's keyboard shortcut reached a step only a dashboard can do
+      // (sound, AI chat, mixer). The first dashboard on this PC to claim it runs
+      // it; the server refuses the claim to paired devices. A layer window is a
+      // second copy of this PC's dashboard, so it never claims.
+      if (isLayerPage() || typeof window.DeckClientRun !== 'function') return;
+      let data;
+      try { data = JSON.parse(e.data); } catch { return; }
+      const base = typeof SERVER !== 'undefined' ? SERVER : '';
+      fetch(base + '/deck/shortcut-claim', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nonce: data && data.nonce }),
+      }).then((r) => (r.ok ? r.json() : null)).then((r) => {
+        if (r && r.ok) window.DeckClientRun(data.action);
+      }).catch(() => { /* another dashboard, or nobody: the server reports it */ });
+    });
+    // What Bit asked to play in a Twitch, YouTube or Browser tile (js/tile-play.js).
+    // Layer windows take part: the tile may live on the screen, not the dashboard.
+    if (window.TilePlay) window.TilePlay.listen(es);
+    es.addEventListener('xenon_menu_failed', (e) => {
+      if (isLayerPage() || typeof window.XenonMenuFailed !== 'function') return;
+      try { window.XenonMenuFailed(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('deck_shortcut_failed', (e) => {
+      if (isLayerPage() || typeof window.DeckShortcutFailed !== 'function') return;
+      try { window.DeckShortcutFailed(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('spotlight_hotkey', () => {
       // Global search hotkey. Only the NATIVE kiosk can host the frameless
       // Tauri Spotlight window: it claims the hotkey (suppressing the server's
       // Edge-popup fallback) and asks the shell to open it via the same
       // scheme channel every other shell interaction uses. Browser tabs
       // ignore the event — the fallback popup covers them.
+      // A layer window runs inside the shell too, but only the main window may
+      // claim the hotkey, or the shell is asked to open Spotlight twice.
       const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
-      if (!isNative) return;
+      if (!isNative || isLayerPage()) return;
       try {
         // keepalive: the scheme navigation below starts (then gets cancelled
         // by the shell hook) — a plain fetch could be aborted by that race and
         // the server would open the Edge fallback ON TOP of the native window.
         fetch('/spotlight/claimed', { method: 'POST', keepalive: true }).catch(() => {});
-        window.location.href = 'xenon-app:spotlight-open';
+        // With this launch's nonce, or the shell drops it (see native-bridge.js).
+        window.location.href = (window.__xenonSignal || String)('xenon-app:spotlight-open');
       } catch { /* the Edge fallback fires */ }
     });
     es.addEventListener('speak_start', () => {
@@ -711,6 +947,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       if (typeof window._reconcileSettingsAfterReconnect === 'function') {
         window._reconcileSettingsAfterReconnect();
       }
+      if (window.LayersShell && typeof window.LayersShell.onStream === 'function') window.LayersShell.onStream();
     };
 
     es.onerror = () => {
@@ -735,13 +972,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
 }());
 
 // ── Remote state for Deck live-state keys ────────────────────
-// Deck keys can bind to remoteConnected/remoteActive. /remote/status runs a
-// real check (winget + Tailscale CLI + Sunshine HTTP), so it is NOT cheap.
-// Therefore: do ONE check at startup and only keep polling if the remote
-// feature is actually installed — users who never set up remote control pay
-// nothing beyond that single call. Only on the full dashboard (single-panel
-// embeds never host a Deck).
+// Deck keys can bind to remoteConnected/remoteActive. /remote/status runs a real
+// check on the PC (Tailscale CLI, sc.exe, Sunshine HTTP, winget the first time), so
+// only a key showing that state pays for it: the tick looks at the Deck and asks
+// nothing while no key needs the answer, so one added later starts it. A machine
+// with neither tool stops asking until the next load, and so does a hidden tab.
+// Only on the full dashboard (single-panel embeds never host a Deck).
 if (activePanel === 'full') {
+  const REMOTE_POLL_MS = 15000;
+  const REMOTE_STATES = ['remoteConnected', 'remoteActive'];
+  let remoteToolsAbsent = false;
   function applyRemoteSnapshot(st) {
     if (!st || !window.Deck || typeof window.Deck.refreshStates !== 'function') return;
     const remoteConnected = !!(Array.isArray(st.connectedClients) && st.connectedClients.length > 0);
@@ -751,17 +991,16 @@ if (activePanel === 'full') {
   function fetchRemoteStatus() {
     return fetch('/remote/status').then(r => (r.ok ? r.json() : null)).catch(() => null);
   }
-  (async () => {
+  async function pollRemoteState() {
+    if (remoteToolsAbsent || document.hidden) return;
+    if (!window.Deck || !window.Deck.usesState(REMOTE_STATES)) return;
     const st = await fetchRemoteStatus();
+    if (!st) return;
     applyRemoteSnapshot(st);
-    // If neither tool is installed the feature isn't in use — never start the
-    // recurring poll (avoids winget/CLI spawns for users without remote control).
-    const installed = st && st.installed && (st.installed.sunshine || st.installed.tailscale);
-    if (!installed) return;
-    // The check spawns winget/Tailscale/Sunshine processes server-side, so don't
-    // run it while the tab is hidden — nobody's watching the remote-state pill.
-    setInterval(() => { if (!document.hidden) fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
-  })();
+    remoteToolsAbsent = !(st.installed && (st.installed.sunshine || st.installed.tailscale));
+  }
+  pollRemoteState();
+  setInterval(pollRemoteState, REMOTE_POLL_MS);
 }
 
 // ── Init app favorites buttons ───────────────────────────────
@@ -784,11 +1023,10 @@ if (window.DashboardPages) window.DashboardPages.init();
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    // A search typed in the "+" palette is cleared first; the palette (and
-    // then edit mode) close on the following presses.
-    if (window.DashboardPalette && DashboardPalette.handleEscape()) {
+    // The style window goes first: it sits over layout mode, and leaving layout
+    // mode under it left the window open on a dashboard no longer being edited.
+    if (typeof window.closeTileStyleEditor === 'function' && window.closeTileStyleEditor()) {
       e.preventDefault();
-      e.stopPropagation();
       return;
     }
     if (document.body.classList.contains('layout-editing') && typeof setDashboardLayoutEditMode === 'function') {
@@ -796,15 +1034,11 @@ document.addEventListener('keydown', e => {
       setDashboardLayoutEditMode(false);
       return;
     }
+    // The canvas scene editor handles its own Escape (deselect, close a panel).
+    if (window.AmbientCanvasEditor && AmbientCanvasEditor.isOpen()) return;
     if (window.AmbientMode && AmbientMode.isOpen()) {
       e.preventDefault();
       AmbientMode.close();
-      return;
-    }
-    const weatherOverlay = document.getElementById('weather-overlay');
-    if (weatherOverlay && !weatherOverlay.hidden) {
-      e.preventDefault();
-      closeWeatherDetails();
       return;
     }
     const settingsOverlay = document.getElementById('settings-overlay');
@@ -833,9 +1067,11 @@ document.addEventListener('keydown', e => {
 // ── Sync language across iframes via storage event ────────────
 window.addEventListener('storage', e => {
   const storageLang = normalizeLangCode(e.newValue);
-  if (e.key === 'uiLang' && storageLang && storageLang !== lang && i18n[storageLang]) {
-    lang = storageLang;
-    applyTranslations();
+  if (e.key === 'uiLang' && storageLang && storageLang !== lang) {
+    // This page may not hold that language yet (/layer-i18n.js): fetch it first.
+    const follow = () => { if (i18n[storageLang] && lang !== storageLang) { lang = storageLang; applyTranslations(); } };
+    if (i18n[storageLang]) follow();
+    else if (window.I18nLoad) window.I18nLoad.ensure([storageLang]).then(follow);
   }
   if (e.key === 'appFavorites') {
     appFavorites = parseAppFavorites(e.newValue || '[]');

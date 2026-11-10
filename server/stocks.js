@@ -14,9 +14,14 @@
 // Yahoo's endpoints are unofficial (no SLA); a keyed provider is the fallback.
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 
 const MAX_SYMBOLS = 30;            // watchlist / ticker cap (bounds fan-out + payload)
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
 const FETCH_CONCURRENCY = 6;       // Yahoo is per-symbol; keep the burst polite
 
@@ -70,6 +75,14 @@ const DEFAULT_STOCKS = Object.freeze({
   tile: Object.freeze({ chart: true, sparklines: true }),
 });
 
+// True while the person has not chosen what to watch: same symbols as a new install.
+function isDefaultWatchlist(list) {
+  const symbols = (entries) => entries.map((w) => w && w.symbol).sort();
+  const mine = symbols(Array.isArray(list) ? list : []);
+  const base = symbols(DEFAULT_STOCKS.watchlist);
+  return mine.length === base.length && mine.every((s, i) => s === base[i]);
+}
+
 function normalizeStocks(value) {
   const src = value && typeof value === 'object' ? value : {};
   const provider = PROVIDERS.has(src.provider) ? src.provider : DEFAULT_STOCKS.provider;
@@ -121,20 +134,24 @@ function fetchJson(url, headers) {
         res.resume();
         return finish(reject, new Error('HTTP ' + res.statusCode));
       }
-      let body = '';
+      // Collected as buffers and decoded once, so a multi-byte character split
+      // across chunks is not corrupted.
+      const chunks = [];
       let size = 0;
       res.on('data', chunk => {
         size += chunk.length;
         if (size > MAX_BODY_BYTES) { req.destroy(new Error('body too large')); return; }
-        body += chunk;
+        chunks.push(chunk);
       });
       res.on('end', () => {
-        try { finish(resolve, JSON.parse(body)); }
+        try { finish(resolve, JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
         catch (e) { finish(reject, e); }
       });
+      res.on('error', e => finish(reject, e));
     });
     req.on('timeout', () => { req.destroy(new Error('timeout')); });
     req.on('error', e => finish(reject, e));
+    armDeadline(req, FETCH_DEADLINE_MS);
   });
 }
 
@@ -402,6 +419,7 @@ module.exports = {
   MAX_SYMBOLS,
   RANGES,
   DEFAULT_STOCKS,
+  isDefaultWatchlist,
   normalizeStocks,
   normalizeWatchlist,
   cleanSymbol,

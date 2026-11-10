@@ -15,6 +15,16 @@
 // shipped routes for no user-visible gain, so it stays and is stated here.
 
 const fs = require('fs');
+const { pipeline } = require('stream');
+
+// stream.pipeline rather than .pipe(): when the client goes away mid-download
+// (a seek on a <video> aborts the previous range request every time), .pipe()
+// leaves the read stream open and its file descriptor leaks. pipeline destroys
+// both sides on either side's error or early close. The error itself is
+// expected (the client left) and there is nobody left to tell.
+function streamFile(abs, res, opts) {
+  pipeline(fs.createReadStream(abs, opts), res, () => {});
+}
 
 /**
  * @param {string|undefined} header the raw Range header
@@ -70,13 +80,13 @@ function serveFileRange(req, res, abs, stat, baseHeaders) {
       'Content-Length': String(parsed.end - parsed.start + 1),
     });
     if (headOnly) { res.end(); return; }
-    fs.createReadStream(abs, { start: parsed.start, end: parsed.end }).pipe(res);
+    streamFile(abs, res, { start: parsed.start, end: parsed.end });
     return;
   }
 
   res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
   if (headOnly) { res.end(); return; }
-  fs.createReadStream(abs).pipe(res);
+  streamFile(abs, res);
 }
 
 module.exports = { parseByteRange, serveFileRange };

@@ -42,21 +42,20 @@ test('a saved value above the old cap survives, and one above the new cap does n
 });
 
 test('the zoom row carries its search words, and every language has them in its own words', () => {
-  assert.match(read('../index.html'), /<label class="settings-row full" data-search-kw="settings_native_zoom_kw">\n\s+<span class="settings-label-line"><span data-i18n="settings_native_zoom_label">/);
+  assert.match(read('../index.html'), /<label class="settings-row full" id="settings-native-zoom-row" data-search-kw="settings_native_zoom_kw">\n\s+<span class="settings-label-line"><span data-i18n="settings_native_zoom">/);
   for (const l of LANGS) {
     const v = i18n[l].settings_native_zoom_kw;
     assert.ok(typeof v === 'string' && v.trim(), `${l}: no search words`);
     if (l !== 'en') assert.notEqual(v, i18n.en.settings_native_zoom_kw, `${l}: still English`);
-    assert.notEqual(i18n[l].settings_native_zoom_hint, 'dashboard zoom', `${l}: the old hint is left`);
   }
 });
 
 test('the five languages that showed the English row now have their own', () => {
   for (const l of ['es', 'fr', 'de', 'pt', 'ru']) {
-    for (const k of ['settings_native_zoom', 'settings_native_zoom_label', 'settings_native_zoom_note', 'settings_native_zoom_remote']) {
+    for (const k of ['settings_native_zoom', 'settings_native_zoom_note', 'settings_native_zoom_remote']) {
       const v = i18n[l][k];
       assert.ok(v, `${l}.${k}`);
-      if (k !== 'settings_native_zoom_label') assert.notEqual(v, i18n.en[k], `${l}.${k} is still English`);
+      assert.notEqual(v, i18n.en[k], `${l}.${k} is still English`);
     }
   }
 });
@@ -70,10 +69,9 @@ function indexFor(currentLang) {
     {
       id: 'zoom',
       fields: [
-        ...rowFields('settings_native_zoom_label', 1, { fuzzy: true }),
-        ...rowFields('settings_native_zoom_hint', 0.4),
+        ...rowFields('settings_native_zoom', 1, { fuzzy: true }),
+        ...rowFields('settings_native_zoom_note', 0.4),
         ...rowFields('settings_native_zoom_kw', 0.8, { fuzzy: true }),
-        ...rowFields('settings_native_zoom', 0.6, { mainOnly: true }),
       ],
     },
     decoy('font', 'settings_font_upload'),

@@ -56,8 +56,13 @@
 
 .lyrics-widget-mount p { margin: 0; }
 
-/* The view sizes its type from this tile, not from the Media tile. */
-.lyrics-panel .lyv { --lyv-size: clamp(18px, 6.2cqi, 40px); }
+/* The view sizes its type from this tile, not from the Media tile: from its
+   width AND its height. Width alone gave a wide, short tile 30-40px lines in a
+   viewport that holds barely one of them, so the sung line sat cut under the
+   header's fade; most visible with the app zoomed, where the header keeps its
+   size and the tile shrinks around it (Discord, Oct 2026, macOS at 150%).
+   12cqb keeps two to three lines in view below the header at any height. */
+.lyrics-panel .lyv { --lyv-size: clamp(16px, min(6.2cqi, 12cqb), 40px); }
 
 .lyw-head {
   display: flex;
@@ -115,6 +120,9 @@
 .lyw-step:disabled { opacity: 0.4; cursor: default; transform: none; }
 
 .lyw-offset-val {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 4.2em;
   min-height: 36px;
   padding: 0 4px;
@@ -161,6 +169,26 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 
 .lyw-icon:active { transform: scale(0.95); }
 
+/* Cover beside the song name: a plain square, same corner as the buttons. */
+.lyw-cover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+  background: var(--floating-ui-bg);
+}
+.lyw-cover[hidden] { display: none; }
+
+.lyw-transport-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.lyw-transport-row[hidden] { display: none; }
+.lyw-icon.lyw-transport svg { fill: currentColor; stroke: none; }
+
 /* Translation state ("after 20 s of listening", limit reached…). */
 .lyw-trstat {
   flex: 0 0 auto;
@@ -187,6 +215,21 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 
 .lyw-trial[hidden] { display: none; }
 .lyw-trial a { color: var(--accent); font-weight: 730; text-underline-offset: 3px; }
+.lyw-trial a[hidden], .lyw-trial-unlock[hidden] { display: none; }
+/* Same weight as the join link it replaces, with a real touch target. */
+.lyw-trial-unlock {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 730;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.lyw-trial-unlock:disabled { opacity: .6; cursor: default; }
 
 .lyw-body {
   display: flex;
@@ -196,8 +239,14 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 }
 
 /* Small tile: the nudge is a fine-tuning control, the lyrics come first. */
-@container (max-width: 300px) {
+@container (max-width: 420px) {
   .lyw-head .lyw-offset { display: none; }
+}
+@container (max-width: 380px) {
+  .lyw-head .lyw-cover { display: none; }
+}
+@container (max-width: 300px) {
+  .lyw-head .lyw-transport-row .lyw-icon:not(:nth-child(2)) { display: none; }
 }
 
 /* ── Stage: the tile fills the screen (js/lyrics-stage.js) ────────────────
@@ -214,6 +263,15 @@ body.lyw-has-stage .shell { z-index: 70; }
   margin: 0;
   border-radius: 0;
   background: var(--bg, #070808);
+}
+
+/* A fixed child is clipped by an ancestor's clip-path: the island notch on the
+   grid item (dropped in TopbarMinimal.css while a tile covers the screen) and a
+   tile shape on the panel, dropped here, together with the island's border band
+   (or a 46 px strip stays blank at the top). */
+.lyrics-panel.lyw-staged {
+  clip-path: none !important;
+  border-width: 0 !important;
 }
 
 .lyrics-panel.lyw-staged .lyrics-widget-mount { padding: 22px clamp(18px, 6vw, 96px) 16px; }
@@ -269,7 +327,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 12px;
 }
 
-.lyo-title { margin: 0; font-size: 15px; font-weight: 760; }
+.lyo-title { margin: 0; font-size: 16px; font-weight: 800; }
 
 .lyo-body {
   display: flex;
@@ -278,7 +336,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 12px;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .lyo-row {
@@ -290,11 +348,18 @@ body.lyw-has-stage .shell { z-index: 70; }
 
 .lyo-row.is-static { align-items: center; justify-content: space-between; cursor: default; }
 
-.lyo-check { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+/* Weighted over the global checkbox: its faint border is lost on a tile's glass. */
+.lyo-row .lyo-check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  border-color: color-mix(in srgb, var(--text), transparent 52%);
+}
 
 .lyo-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
-.lyo-label { font-size: 13px; font-weight: 700; }
-.lyo-hint { color: var(--muted-text); font-size: 11.5px; line-height: 1.4; }
+.lyo-label { font-size: 14px; font-weight: 700; }
+.lyo-hint { color: var(--muted-text); font-size: 12.5px; line-height: 1.4; }
 
 .lyo-cost {
   display: flex;
@@ -302,7 +367,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 6px;
   margin-left: 30px;
   color: var(--muted-text);
-  font-size: 11.5px;
+  font-size: 12.5px;
   line-height: 1.45;
 }
 
@@ -314,19 +379,22 @@ body.lyw-has-stage .shell { z-index: 70; }
 .lyo-link { color: var(--accent); font-weight: 680; text-underline-offset: 3px; }
 .lyrics-panel.has-cover .lyo-link { color: var(--text); }
 
-.lyo-usage { margin-left: 30px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: pre-line; }
+.lyo-usage { margin-left: 30px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: pre-line; }
 .lyo-usage:empty { display: none; }
+
+.lyo-row .lyw-step { width: 44px; height: 44px; }
+.lyo-row .lyw-offset-val { min-height: 44px; }
 
 .lyo-select {
   flex: none;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--floating-ui-border);
   border-radius: var(--radius-control);
   background: var(--floating-ui-bg);
   color: inherit;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 @container (max-height: 180px) {
@@ -342,7 +410,7 @@ body.lyw-has-stage .shell { z-index: 70; }
   gap: 10px;
   min-height: 100%;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .lyw-badge {

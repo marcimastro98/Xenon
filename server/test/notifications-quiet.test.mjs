@@ -44,9 +44,9 @@ for (const [side, src] of [['server', SERVER], ['client', CLIENT]]) {
 
   test(`${side}: the existing switches are untouched by the new field`, () => {
     const N = loadNormalizer(src);
-    assert.deepEqual(N({ enabled: false, popups: false, sounds: false, quiet: 'off' }),
-      { enabled: false, popups: false, sounds: false, quiet: 'off' });
-    assert.deepEqual(N({}), { enabled: true, popups: true, sounds: true, quiet: 'auto' });
+    assert.deepEqual(N({ enabled: false, popups: false, sounds: false, quiet: 'off', onScreen: false }),
+      { enabled: false, popups: false, sounds: false, quiet: 'off', onScreen: false });
+    assert.deepEqual(N({}), { enabled: true, popups: true, sounds: true, quiet: 'auto', onScreen: true });
   });
 }
 
@@ -55,6 +55,12 @@ test('toast.js never lets do-not-disturb swallow a failure or a user alarm', () 
   assert.ok(m, 'QUIET_EXEMPT not found in toast.js');
   const exempt = (m[1].match(/'([^']+)'/g) || []).map(s => s.slice(1, -1)).sort();
   assert.deepEqual(exempt, ['error', 'reminder', 'timer', 'warning']);
+});
+
+test('while the first question is open only a failure or an alarm may speak', () => {
+  // A stock alert from a watchlist nobody chose went up over the first thing a new install asks.
+  const gate = TOAST.slice(TOAST.indexOf('if (QUIET_EXEMPT.has(type)) return false;'));
+  assert.match(gate.slice(0, 200), /classList\.contains\('first-run-asking'\)\) return true;/);
 });
 
 test('the important escape hatch is strict — only a literal true bypasses', () => {

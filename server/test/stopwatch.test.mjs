@@ -28,7 +28,10 @@ function load(name, extra = '') {
   return SERVER.slice(start, end + 2) + extra;
 }
 const KINDS = "const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);\n";
-const normalize = new Function(KINDS + load('_normalizeTimer') + '; return _normalizeTimer;')();
+// _normalizeTimer also checks the id's shape and mints a fresh one when needed.
+const ID_RE = SERVER.match(/^const SAFE_ITEM_ID_RE = .*$/m)[0] + '\n';
+const LABEL_MAX = 'const SCOPED_LABEL_MAX = 67;\n';
+const normalize = new Function(KINDS + ID_RE + LABEL_MAX + load('_timerId') + load('_normalizeTimer') + '; return _normalizeTimer;')();
 const remaining = new Function(load('_getTimerRemaining') + '; return _getTimerRemaining;')();
 const elapsed = new Function(load('_getTimerElapsed') + '; return _getTimerElapsed;')();
 
@@ -194,10 +197,9 @@ test('a chime fires once per interval, and a sleeping machine wakes to one', () 
 test('resetting the clock resets the chimes with it', () => {
   // Otherwise a stopwatch reset after an hour would sit silent for another
   // hour, waiting to pass a count that belongs to a run that already ended.
-  const patch = SERVER.slice(SERVER.indexOf("} else if (action === 'reset')"));
-  assert.match(patch.slice(0, 700), /t\.chimes = 0/);
-  const stop = SERVER.slice(SERVER.indexOf("} else if (action === 'stop')"));
-  assert.match(stop.slice(0, 300), /t\.chimes = 0/);
+  const actions = readFileSync(new URL('../timer-actions.js', import.meta.url), 'utf8');
+  const branch = actions.slice(actions.indexOf("} else if (action === 'reset' || action === 'stop')"));
+  assert.match(branch.slice(0, 300), /t\.chimes = 0/);
 });
 
 test('one leading character, on a grammar that already existed', () => {

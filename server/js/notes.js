@@ -62,7 +62,20 @@ const _NOTES_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3l5
 const _NOTES_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Z"/></svg>';
 const _NOTES_ADD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>';
 
+// Delegated from the document so a cloned Notes tile (cloneNode copies
+// attributes, not listeners) selects notes exactly like the primary one.
+let _notesTabsWired = false;
+function _wireNotesTabs() {
+  if (_notesTabsWired) return;
+  _notesTabsWired = true;
+  document.addEventListener('click', (e) => {
+    const tab = e.target && e.target.closest ? e.target.closest('.notes-tab[data-note-id]') : null;
+    if (tab) notesSelect(tab.dataset.noteId);
+  });
+}
+
 function renderNotesInto(root) {
+  _wireNotesTabs();
   const note = activeNote();
   const hasNotes = notesState.notes.length > 0;
   root.textContent = '';
@@ -99,8 +112,10 @@ function renderNotesInto(root) {
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'notes-tab' + (note && n.id === note.id ? ' active' : '') + (n.pinned ? ' pinned' : '');
+    // Selected through the document-level listener (_wireNotesTabs), which reads
+    // data-note-id. An inline onclick="notesSelect('<id>')" made the id part of
+    // a script, and a quote in it (a restored backup's notes) ran as code.
     tab.dataset.noteId = n.id;
-    tab.setAttribute('onclick', `notesSelect('${n.id}')`);
     if (n.pinned) {
       const pin = document.createElement('span');
       pin.className = 'notes-tab-pin';
@@ -233,7 +248,7 @@ function _applyNotesState(next) {
   const note = activeNote();
   notesRoots().forEach(root => {
     notesState.notes.forEach(n => {
-      const tab = root.querySelector(`.notes-tab[data-note-id="${n.id}"] .notes-tab-title`);
+      const tab = root.querySelector(`.notes-tab[data-note-id="${cssId(n.id)}"] .notes-tab-title`);
       if (tab) tab.textContent = noteTitle(n.body);
     });
     const count = root.querySelector('[data-notesf="count"]');
@@ -412,7 +427,7 @@ function onNotesInput(srcEl) {
   // Live-update peripheral UI across all instances without touching the editor
   // the user is typing in.
   notesRoots().forEach(root => {
-    const tab = root.querySelector(`.notes-tab[data-note-id="${note.id}"] .notes-tab-title`);
+    const tab = root.querySelector(`.notes-tab[data-note-id="${cssId(note.id)}"] .notes-tab-title`);
     if (tab) tab.textContent = noteTitle(val);
     const count = root.querySelector('[data-notesf="count"]');
     if (count) count.textContent = notesCountLabel(val);
@@ -479,4 +494,11 @@ function scheduleNotesIdleBlur() {
     const ae = document.activeElement;
     if (ae && ae.matches && ae.matches('[data-notesf="area"]')) ae.blur();
   }, NOTES_IDLE_BLUR_MS);
+}
+
+// An id inside a CSS attribute selector: a stray quote (a restored backup)
+// must not make querySelector throw on every tick.
+function cssId(v) {
+  const s = String(v == null ? '' : v);
+  return (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }

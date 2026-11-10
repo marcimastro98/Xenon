@@ -218,7 +218,7 @@
     // a phrase. "ma", "e", "in", "the", "my" all parsed to zero terms and zero
     // filters, and the search then answered "no results" — on every surface, for
     // a query the user was still in the middle of writing. Stopword stripping
-    // exists to make a whole sentence work ("trovami i file di marci"); applying
+    // exists to make a whole sentence work ("trovami i file di giulia"); applying
     // it to a one-word query throws away the only thing the user typed.
     // Deliberately narrow: only when the query is one token AND nothing at all
     // was extracted from it, so a real phrase of stopwords stays a phrase and a

@@ -8,11 +8,12 @@
 //  - NEVER a shell. `claude` is a real executable and is spawned with an argv
 //    array, so a prompt containing quotes, semicolons or backticks is one
 //    argument and cannot become syntax. See the spawn invariant in CLAUDE.md.
-//  - NEVER a path from the wire. The caller picks a project by ID from
-//    listProjects(); the directory itself comes from Claude Code's own
-//    transcripts, which is to say from places the user already works in. The
-//    same shape as the Slideshow folder source: enumerate server-side, address
-//    by index.
+//  - NEVER a path from the wire into a run. The caller picks a project by ID
+//    from listProjects(); the directory itself comes from Claude Code's own
+//    transcripts (places the user already works in) or from a folder the user
+//    added with addFolder(). That one takes a path, but only to validate it
+//    (absolute, an existing directory, not a drive root) and keep it in the
+//    list: the run itself still goes by id, and the endpoint is loopback-only.
 //  - NEVER a permission bypass. A run starts in the user's own default mode,
 //    or in one of RUN_MODES picked on the tile: `manual` (ask for everything),
 //    `acceptEdits` or `plan`. Whatever still needs a person goes through the
@@ -29,11 +30,14 @@ const path = require('path');
 const fsp = require('fs').promises;
 const { spawn, execFile } = require('child_process');
 const crypto = require('crypto');
+const { writeFileAtomic } = require('./atomic-write');
 
 const MAX_PROMPT = 4000;          // one touchscreen dictation, generously
 const MAX_RUNS = 2;               // concurrent; the quota is shared and finite
 const MAX_OUTPUT_CHARS = 24000;   // per run, oldest text dropped first
 const MAX_PROJECTS = 40;
+const MAX_FOLDERS = 20;           // folders the user added by hand
+const MAX_FOLDER_PATH = 500;
 const RUN_TTL_MS = 30 * 60 * 1000;
 const PROJECT_TTL_MS = 60 * 1000; // project list cache
 const HEAD_BYTES = 65536;         // how much of a transcript we read to find cwd
@@ -199,6 +203,8 @@ function createRunner(opts) {
   const now = typeof o.now === 'function' ? o.now : () => Date.now();
   const onChange = typeof o.onChange === 'function' ? o.onChange : () => {};
   const projectsDirOf = typeof o.projectsDir === 'function' ? o.projectsDir : () => '';
+  const foldersFile = typeof o.foldersFile === 'string' ? o.foldersFile : '';
+  let extraFolders = null;    // [{ path, at }] added by hand, loaded on first use
 
   const runs = new Map();     // id -> record
   let seq = 0;
@@ -209,6 +215,42 @@ function createRunner(opts) {
     if (emitScheduled) return;
     emitScheduled = true;
     setImmediate(() => { emitScheduled = false; try { onChange(); } catch { /* never let a listener break a run */ } });
+  }
+
+  async function loadFolders() {
+    if (extraFolders) return extraFolders;
+    extraFolders = [];
+    if (!foldersFile) return extraFolders;
+    try {
+      const raw = JSON.parse(await fsp.readFile(foldersFile, 'utf8'));
+      for (const f of Array.isArray(raw) ? raw : []) {
+        if (f && typeof f.path === 'string' && path.isAbsolute(f.path)) {
+          extraFolders.push({ path: f.path, at: Number(f.at) || 0 });
+        }
+      }
+    } catch { /* no file yet, or unreadable: start with none */ }
+    extraFolders = extraFolders.slice(-MAX_FOLDERS);
+    return extraFolders;
+  }
+
+  // A folder the user typed in: kept only if it is an absolute path to a real
+  // directory that is not a filesystem root. Returns the project it becomes.
+  async function addFolder(raw) {
+    const text = str(raw, MAX_FOLDER_PATH).replace(/^"(.*)"$/, '$1');
+    if (!text || !path.isAbsolute(text)) return { ok: false, error: 'bad_folder' };
+    const dir = path.resolve(text);
+    if (path.parse(dir).root === dir) return { ok: false, error: 'bad_folder' };
+    if (!(await isDir(dir))) return { ok: false, error: 'folder_missing' };
+    const list = await loadFolders();
+    const key = dir.toLowerCase();
+    const rest = list.filter(f => f.path.toLowerCase() !== key);
+    extraFolders = rest.concat([{ path: dir, at: now() }]).slice(-MAX_FOLDERS);
+    if (foldersFile) {
+      try { await writeFileAtomic(foldersFile, JSON.stringify(extraFolders)); }
+      catch { return { ok: false, error: 'save_failed' }; }
+    }
+    projectCache = { at: 0, list: [] };
+    return { ok: true, id: projectId(dir), name: path.basename(dir) || dir, path: dir };
   }
 
   async function listProjects(force) {
@@ -236,6 +278,12 @@ function createRunner(opts) {
         out.push({ id: projectId(cwd), name: path.basename(cwd) || cwd, path: cwd, lastAt });
         if (out.length >= MAX_PROJECTS) break;
       }
+    }
+    const seenPaths = new Set(out.map(p => p.path.toLowerCase()));
+    for (const f of await loadFolders()) {
+      if (seenPaths.has(f.path.toLowerCase()) || !(await isDir(f.path))) continue;
+      seenPaths.add(f.path.toLowerCase());
+      out.push({ id: projectId(f.path), name: path.basename(f.path) || f.path, path: f.path, lastAt: f.at });
     }
     out.sort((a, b) => b.lastAt - a.lastAt);     // most recently worked in first
     projectCache = { at: t, list: out };
@@ -481,7 +529,7 @@ function createRunner(opts) {
       }));
   }
 
-  return { listProjects, start, stop, stopAll, snapshot, _runs: runs };
+  return { listProjects, addFolder, start, stop, stopAll, snapshot, _runs: runs };
 }
 
 module.exports = {

@@ -367,10 +367,12 @@ async function link(dataDir, port, opts) {
 // chaining, same precise entries. Only a link that EXISTS is repaired; this can
 // never connect Claude Code on its own. Hooks are read by Claude Code when a
 // session starts, so a repair reaches sessions opened after it, and the widget
-// says so.
+// says so. The link must also be THIS data folder's (it has a linkedAt): a second
+// Xenon on another port or data folder would otherwise take the user's hooks over
+// with its own port and token.
 async function repairLink(dataDir, port) {
   const st = await status(dataDir, port);
-  if (!st.linked || st.complete) return { ...st, repaired: false };
+  if (!st.linked || st.complete || !st.linkedAt) return { ...st, repaired: false };
   const next = await link(dataDir, port, { mod: false });
   return { ...next, repaired: true, repairedMissing: st.missing, repairedOutdated: st.outdated };
 }

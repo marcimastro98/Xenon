@@ -23,10 +23,9 @@
 # Trust model: the source zip is verified against the pinned Ed25519 public key
 # below - the SAME key server/self-update.js and server/helper-update.js pin
 # (rotating the signing key means updating ALL THREE copies; see the rotation
-# checklist in self-update.js). Node.js itself is fetched over TLS only: on a
-# first install there is nothing local to anchor more trust to. That gap is
-# known and accepted until the Authenticode code-signing certificate lands -
-# identical to the INSTALL.bat path users have always used.
+# checklist in self-update.js). Node.js comes from winget, or, failing that,
+# from the official MSI, which is run only with a valid OpenJS Foundation
+# Authenticode signature (see the Node.js step below).
 #
 # This console IS the UI: every failure prints one clear line and pauses.
 # -----------------------------------------------------------------------------
@@ -118,12 +117,16 @@ function Show-LogHint {
 }
 
 function Write-Step($m) { Write-Host "==> $m" -ForegroundColor Cyan }
-function Fail($m) {
+# -Plain drops the "retry the setup" footer, for the failures where retrying
+# this same setup is exactly what would NOT help.
+function Fail([string]$m, [switch]$Plain) {
   Write-Host ''
   Write-Host "  $m" -ForegroundColor Red
-  Write-Host '  Nothing was changed on your PC beyond the Xenon app itself.' -ForegroundColor Gray
-  Write-Host '  You can retry by running the Xenon setup again, or install manually:' -ForegroundColor Gray
-  Write-Host "  https://github.com/$Repo#readme" -ForegroundColor Gray
+  if (-not $Plain) {
+    Write-Host '  Nothing was changed on your PC beyond the Xenon app itself.' -ForegroundColor Gray
+    Write-Host '  You can retry by running the Xenon setup again, or install manually:' -ForegroundColor Gray
+    Write-Host "  https://github.com/$Repo#readme" -ForegroundColor Gray
+  }
   Show-LogHint
   Write-Host ''
   Stop-Log
@@ -151,8 +154,11 @@ trap {
 function Done($m) {
   Write-Host ''
   Write-Host "  $m" -ForegroundColor Green
-  Write-Host '  If the dashboard still does not appear, restart your PC - the' -ForegroundColor Gray
-  Write-Host '  Xenon engine starts automatically when you sign in.' -ForegroundColor Gray
+  # Every Done is reached with the engine answering on 3030 (an installed engine
+  # that does not answer goes through the start-and-repair path below instead),
+  # so the app hands over on its own. This used to say "restart your PC", which
+  # on an engine that would not start led straight back to the same screen.
+  Write-Host '  The dashboard opens in the Xenon app by itself.' -ForegroundColor Gray
   Show-LogHint
   Write-Host ''
   Stop-Log
@@ -209,15 +215,115 @@ Write-Host ''
 # The probe is decided OUTSIDE its try on purpose: `catch { }` here swallows
 # everything, so bailing out from inside it would turn a redirected-stdin
 # failure into "carry on and install a second backend".
+function Test-EnginePort {
+  $answered = $false
+  try {
+    $tcp = New-Object Net.Sockets.TcpClient
+    $probe = $tcp.BeginConnect('127.0.0.1', 3030, $null, $null)
+    $answered = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
+    $tcp.Close()
+  } catch { }
+  return $answered
+}
+
 $taskPresent = Test-BackendTask
-$portTaken = $false
-try {
-  $tcp = New-Object Net.Sockets.TcpClient
-  $probe = $tcp.BeginConnect('127.0.0.1', 3030, $null, $null)
-  $portTaken = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
-  $tcp.Close()
-} catch { }
+$portTaken = Test-EnginePort
 $backendPresent = $taskPresent -or $portTaken
+
+# Runs the startup task and waits up to a minute for the engine to answer. A
+# task that refuses to run (switched off, broken) answers at once instead of
+# after a minute of waiting for nothing.
+function Start-EngineAndWait {
+  $exe = Join-Path $env:SystemRoot 'System32\schtasks.exe'
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & $exe /Run /TN $TaskName 2>&1 | Out-Null } catch { return $false }
+  finally { $ErrorActionPreference = $prev }
+  if ($LASTEXITCODE -ne 0) { return $false }
+  for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Seconds 2
+    if (Test-EnginePort) { return $true }
+  }
+  return $false
+}
+
+# The engine's own account of why it did not start (startup-log.js writes it,
+# and start-hidden.vbs when node.exe cannot be found). Printed here it also
+# lands in setup.log, so the one file people send carries the cause.
+function Show-EngineLog {
+  $engineLog = Join-Path $LogDir 'server.log'
+  if (-not (Test-Path -LiteralPath $engineLog)) {
+    Write-Host '  The engine wrote nothing at all, so it never ran.' -ForegroundColor Gray
+    return
+  }
+  Write-Host '  The engine wrote down why:' -ForegroundColor Gray
+  try {
+    Get-Content -LiteralPath $engineLog -Tail 8 -ErrorAction Stop |
+      ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  } catch { }
+}
+
+# The folder the startup task actually starts the engine from. It need not be
+# $InstallRoot: INSTALL.bat installs from wherever it was unzipped.
+function Get-TaskEngineRoot {
+  try {
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+    $vbs = ([string]$task.Actions[0].Arguments).Trim().Trim('"')
+    if (-not $vbs) { return '' }
+    return (Split-Path -Parent (Split-Path -Parent $vbs))
+  } catch { return '' }
+}
+
+# An engine that is alive but never got to listening (hung at start) still holds
+# its files open, and the reinstall below would then fail to copy over them.
+# Only node processes running THIS install's server.js are touched.
+function Stop-StuckEngine([string]$Root) {
+  $serverJs = Join-Path $Root 'server\server.js'
+  try {
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction Stop |
+      Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($serverJs, [StringComparison]::OrdinalIgnoreCase) -ge 0 } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  } catch { }
+}
+
+function Test-SamePath([string]$a, [string]$b) {
+  try {
+    return ([IO.Path]::GetFullPath($a).TrimEnd('\') -ieq [IO.Path]::GetFullPath($b).TrimEnd('\'))
+  } catch { return $false }
+}
+
+# Installed, switched on, and silent: the state the app used to present as "not
+# installed", and this script then answered "already installed - restart your
+# PC", which led straight back to the same screen (reported on Discord, Oct
+# 2026). Start it; when it will not start, say why and install the engine again
+# over itself, which keeps server\data.
+$repair = $false
+if ($taskPresent -and -not $portTaken) {
+  Write-Step 'Xenon is installed but not running. Starting it...'
+  if (Start-EngineAndWait) {
+    Done 'Xenon is running again.'
+  }
+  Write-Host ''
+  Write-Host '  Xenon did not start.' -ForegroundColor Yellow
+  Show-EngineLog
+  $engineRoot = Get-TaskEngineRoot
+  if ($engineRoot -and -not (Test-SamePath $engineRoot $InstallRoot)) {
+    # Installed by INSTALL.bat somewhere else. Reinstalling into $InstallRoot
+    # would leave that copy's settings behind, so this is the one case that
+    # sends the user back to their own folder rather than repairing here.
+    if (Test-Path -LiteralPath (Join-Path $engineRoot 'INSTALL.bat')) {
+      Fail ("Xenon on this PC was installed from $engineRoot. Run INSTALL.bat in that " +
+        'folder again to repair it: your settings, layouts and notes there are kept.') -Plain
+    }
+    Write-Host "  The folder Xenon ran from is gone: $engineRoot" -ForegroundColor Yellow
+    Write-Host '  Installing it again here.' -ForegroundColor Gray
+  } else {
+    Write-Host '  Installing the engine again. Your settings, layouts, notes and Deck keys are kept.' -ForegroundColor Gray
+    Stop-StuckEngine $InstallRoot
+  }
+  Write-Host ''
+  $repair = $true
+}
 
 # WHICH version is already here. "A backend exists" used to end this script on
 # the spot, and that is how a setup named after a version could leave a PC on an
@@ -261,6 +367,16 @@ $headers = @{ 'User-Agent' = 'XenonBootstrap'; 'Accept' = 'application/vnd.githu
 $tmp = Join-Path $env:TEMP 'xenon-bootstrap'
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
+# Windows PowerShell 5.1's Remove-Item -Recurse fails on a path holding an 8.3
+# short name ("An object at the specified path C:\Users\MARIO~1.ROS does not
+# exist"), and %TEMP% is one whenever the user name has a dot or is long. The
+# extract folder a run left behind then stopped every later run before the
+# install, with no sensors, PresentMon or startup task ever set up. .NET's
+# Directory.Delete goes straight to the file system and takes either form.
+function Remove-DirectoryTree([string]$Path) {
+  if ([IO.Directory]::Exists($Path)) { [IO.Directory]::Delete($Path, $true) }
+}
+
 # -- 1) Locate the latest release ---------------------------------------------
 Write-Step 'Looking up the latest Xenon release...'
 try {
@@ -269,6 +385,10 @@ try {
   # A machine that already HAS a backend used to never get this far, and must
   # not be handed a red failure for it now: unreachable GitHub with Xenon
   # already installed is "nothing to do", exactly as before.
+  if ($repair) {
+    Fail ("Xenon does not start, and repairing it means downloading it again, but GitHub could " +
+      "not be reached ($($_.Exception.Message)). Check your connection and run the repair again.") -Plain
+  }
   if ($backendPresent) {
     Done 'The Xenon backend is already installed. (Could not reach GitHub to check for a newer one.)'
   }
@@ -280,7 +400,8 @@ Write-Step "Latest release: $tag"
 
 # Now the decision this script used to make before it knew anything: leave an
 # existing backend alone, or replace it because it is behind.
-if ($backendPresent) {
+# A repair reinstalls whatever the version: the files on disk are what failed.
+if ($backendPresent -and -not $repair) {
   if (-not $installedVersion) {
     Done 'The Xenon backend is already installed - nothing to do.'
   }
@@ -331,14 +452,54 @@ function Get-NodePath {
   return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
 }
 
+# -- Minimum Node.js version -----------------------------------------------------
+# Xenon's backend is a local HTTP server, so the Node.js running it matters.
+# CVE-2026-111497 ("Node2Shell", a flaw in the Brotli decoder) is fixed in
+# 22.23.4, 24.22.1 and 26.12.1; Node 18 and 20 are end of life and get no fixes
+# at all, and odd-numbered lines (23, 25) are short-lived and end of life too.
+# Anything below that is upgraded rather than used as found. Same rule as
+# install.ps1 (Test-NodeVersionSupported); keep the two in lockstep.
+function Get-NodeVersion([string]$Path) {
+  try {
+    $vi = (Get-Item -LiteralPath $Path).VersionInfo
+    foreach ($raw in @($vi.ProductVersion, $vi.FileVersion)) {
+      if (('' + $raw) -match '^\s*v?(\d+)\.(\d+)\.(\d+)') {
+        return New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
+      }
+    }
+  } catch { }
+  return $null
+}
+
+function Test-NodeVersionSupported([string]$Path) {
+  $v = Get-NodeVersion $Path
+  if (-not $v) { return $false }
+  switch ($v.Major) {
+    22 { return ($v -ge [Version]'22.23.4') }
+    24 { return ($v -ge [Version]'24.22.1') }
+    26 { return ($v -ge [Version]'26.12.1') }
+  }
+  # Below 22, or 23 / 25: unsupported. A future major (27+) is accepted.
+  return ($v.Major -ge 27)
+}
+
 $nodePath = Get-NodePath
-if (-not $nodePath) {
+$nodeUpgrade = $false
+if ($nodePath -and -not (Test-NodeVersionSupported $nodePath)) {
+  $nodeUpgrade = $true
+  Write-Host ''
+  Write-Host "  Node.js $(Get-NodeVersion $nodePath) at $nodePath is too old for Xenon." -ForegroundColor Yellow
+  Write-Host '  It has a known security flaw (CVE-2026-111497) or is end of life. Updating it now...' -ForegroundColor Yellow
+}
+if (-not $nodePath -or $nodeUpgrade) {
   Write-Step 'Installing Node.js LTS (required by Xenon)...'
   $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
   if ($winget) {
+    # upgrade for an existing winget install, install for a fresh one.
+    $verb = if ($nodeUpgrade) { 'upgrade' } else { 'install' }
     for ($attempt = 1; $attempt -le 2; $attempt++) {
       $p = Start-Process -FilePath $winget.Source -ArgumentList @(
-        'install', '--id', 'OpenJS.NodeJS.LTS', '--exact', '--source', 'winget',
+        $verb, '--id', 'OpenJS.NodeJS.LTS', '--exact', '--source', 'winget',
         '--accept-package-agreements', '--accept-source-agreements', '--silent'
       ) -Wait -PassThru
       if ($p.ExitCode -eq 0) { break }
@@ -346,23 +507,51 @@ if (-not $nodePath) {
     }
     $nodePath = Get-NodePath
   }
-  if (-not $nodePath) {
+  if (-not $nodePath -or -not (Test-NodeVersionSupported $nodePath)) {
     # No winget (or it failed): fetch the official LTS MSI directly.
+    #
+    # msiexec runs it ELEVATED, so the MSI is held to more than TLS:
+    #   - it lands in a folder with a random name, not a predictable one under
+    #     %TEMP% that anything running as the user could prepare in advance;
+    #   - it must carry a valid Authenticode signature from the OpenJS
+    #     Foundation (Node.js's publisher), or it is deleted and never run;
+    #   - a read-only handle that denies writers is held from before that check
+    #     until msiexec has finished, so the file that was checked is the file
+    #     that runs.
+    $msiDir = Join-Path $env:TEMP ('xenon-node-' + (New-Guid).Guid)
+    $msiLock = $null
     try {
       Write-Step 'Downloading Node.js LTS from nodejs.org...'
       $index = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json' -TimeoutSec 30
       $lts = $index | Where-Object { $_.lts } | Select-Object -First 1
       if (-not $lts) { throw 'no LTS entry in the Node.js release index' }
-      $msi = Join-Path $tmp "node-$($lts.version)-x64.msi"
-      Invoke-WebRequest -Uri "https://nodejs.org/dist/$($lts.version)/node-$($lts.version)-x64.msi" -OutFile $msi -TimeoutSec 300 -UseBasicParsing
+      $ltsVer = [string]$lts.version
+      if ($ltsVer -notmatch '^v\d+\.\d+\.\d+$') { throw "unexpected Node.js version '$ltsVer' in the release index" }
+      New-Item -ItemType Directory -Path $msiDir -Force | Out-Null
+      $msi = Join-Path $msiDir "node-$ltsVer-x64.msi"
+      Invoke-WebRequest -Uri "https://nodejs.org/dist/$ltsVer/node-$ltsVer-x64.msi" -OutFile $msi -TimeoutSec 300 -UseBasicParsing
+      $msiLock = [IO.File]::Open($msi, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+      $sig = Get-AuthenticodeSignature -LiteralPath $msi
+      $signer = if ($sig.SignerCertificate) { [string]$sig.SignerCertificate.Subject } else { '' }
+      if ($sig.Status -ne 'Valid' -or $signer -notmatch 'OpenJS Foundation') {
+        throw "the Node.js installer is not validly signed by the OpenJS Foundation (status $($sig.Status))"
+      }
       # Per-machine MSI -> one UAC prompt.
       Start-Process -FilePath (Join-Path $env:WINDIR 'System32\msiexec.exe') -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Verb RunAs -Wait
       $nodePath = Get-NodePath
     } catch {
       Fail "Node.js could not be installed automatically ($($_.Exception.Message)). Install it from https://nodejs.org and run the Xenon setup again."
+    } finally {
+      if ($msiLock) { $msiLock.Dispose() }
+      Remove-DirectoryTree $msiDir
     }
   }
   if (-not $nodePath) { Fail 'Node.js was installed but node.exe was not found yet. Restart Windows, then run the Xenon setup again.' }
+  if (-not (Test-NodeVersionSupported $nodePath)) {
+    Write-Host ''
+    Write-Host "  Node.js at $nodePath is still version $(Get-NodeVersion $nodePath)." -ForegroundColor Yellow
+    Write-Host '  Please update it to the current LTS from https://nodejs.org (22.23.4, 24.22.1 or 26.12.1 or newer).' -ForegroundColor Yellow
+  }
 }
 Write-Step "Node.js: $nodePath"
 
@@ -409,7 +598,10 @@ Write-Step 'Signature verified.'
 # -- 5) Extract into the install root (merge, never a directory mirror) -------
 Write-Step "Installing to $InstallRoot..."
 $extract = Join-Path $tmp 'extract'
-if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+# A leftover that still cannot go (a file held open) must not block the install
+# forever: extract beside it instead.
+try { Remove-DirectoryTree $extract }
+catch { $extract = Join-Path $tmp ('extract-' + [guid]::NewGuid().ToString('N')) }
 Expand-Archive -Path $zipPath -DestinationPath $extract -Force
 $top = @(Get-ChildItem -Path $extract -Directory)
 if ($top.Count -ne 1) { Fail 'The downloaded archive has an unexpected layout.' }
@@ -443,7 +635,7 @@ try {
   Move-Item -LiteralPath "$manifestPath.tmp" -Destination $manifestPath -Force
 } catch { }
 
-Remove-Item -Path $extract -Recurse -Force -ErrorAction SilentlyContinue
+try { Remove-DirectoryTree $extract } catch { }
 Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
 
 # -- 6) Run the normal backend installer --------------------------------------
@@ -464,13 +656,39 @@ $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
 # transcript, so this one lets go for the duration and appends again after.
 $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native', '-SkipNativeApp', '-LogPath', "`"$LogPath`"")
 $ranInstaller = $false
+# On an account that is NOT an administrator, UAC asks for ANOTHER account's
+# password, and the elevated installer then runs AS that account: it registers
+# the startup task for the administrator, so it never fires when this user
+# signs in. The install works today and is gone after the next restart, and the
+# app offers setup again - an install loop. Such an account installs without
+# elevation instead (CPU temperature on some systems is all it costs).
+function Test-UserIsAdmin {
+  $exe = Join-Path $env:SystemRoot 'System32\whoami.exe'
+  if (-not (Test-Path -LiteralPath $exe)) { return $true } # unknown: ask, as before
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { $groups = (& $exe /groups /fo csv 2>$null) -join "`n" } catch { return $true }
+  finally { $ErrorActionPreference = $prev }
+  if (-not $groups) { return $true }
+  # The Administrators group by SID, never by name (names are localised). An
+  # administrator's limited token still lists it, as "used for deny only".
+  return ($groups -match 'S-1-5-32-544')
+}
+$elevate = Test-UserIsAdmin
+if (-not $elevate) {
+  Write-Host '  This Windows account is not an administrator, so Xenon installs for it without' -ForegroundColor Yellow
+  Write-Host '  administrator rights (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+}
 Stop-Log
 try {
+  if (-not $elevate) { throw 'not an administrator' }
   Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $psArgs -Wait -ErrorAction Stop
   $ranInstaller = $true
 } catch {
   Resume-Log
-  Write-Host '  Administrator rights declined - continuing without them (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+  if ($elevate) {
+    Write-Host '  Administrator rights declined - continuing without them (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+  }
   Stop-Log
   try {
     Start-Process -FilePath $psExe -ArgumentList $psArgs -Wait -ErrorAction Stop
@@ -485,8 +703,8 @@ if (-not $ranInstaller) { Fail 'The Xenon installer did not run.' }
 
 Write-Host ''
 Write-Host '  ---------------------------------------------------' -ForegroundColor DarkGray
-Write-Host '  Xenon is installed. The app on your Xeneon Edge will' -ForegroundColor Green
-Write-Host '  come alive in a moment; the dashboard is also at:' -ForegroundColor Green
+Write-Host '  Xenon is installed. The Xenon app comes alive in a' -ForegroundColor Green
+Write-Host '  moment; the dashboard is also at:' -ForegroundColor Green
 Write-Host "    $DashUrl" -ForegroundColor White
 Write-Host '  ---------------------------------------------------' -ForegroundColor DarkGray
 Show-LogHint

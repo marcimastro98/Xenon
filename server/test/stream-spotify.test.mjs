@@ -1,15 +1,19 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-sp-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
 const { createSpotifyProvider, normalizeStreamSpotify } = require('../stream-spotify.js');
 const { createRegistry } = require('../actions/registry.js');
 
 function tmpTokens() {
-  return path.join(os.tmpdir(), `xe-sp-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
 }
 // Match by URL substring, in array order (put the more specific path first). A
 // route may set `status` (204 → no JSON body, like most Spotify control calls).
@@ -52,21 +56,21 @@ test('exchangeCode persists tokens + login and never leaks them in status()', as
   const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([
       { match: '/api/token', json: { access_token: 'AT', refresh_token: 'RT', expires_in: 3600 } },
-      { match: '/me', json: { id: 'u1', display_name: 'Marci' } },
+      { match: '/me', json: { id: 'u1', display_name: 'Alex' } },
     ]) });
   const r = p.buildAuthUrl('http://127.0.0.1:3030/stream/spotify/callback');
   const ex = await p.exchangeCode('CODE', r.state);
   assert.equal(ex.ok, true);
-  assert.equal(ex.login, 'Marci');
+  assert.equal(ex.login, 'Alex');
   const stt = await p.status();
-  assert.deepEqual(stt, { connected: true, login: 'Marci', configured: true });
+  assert.deepEqual(stt, { connected: true, login: 'Alex', configured: true });
   assert.equal('accessToken' in stt, false);
   assert.equal(await p.getAccessToken(), 'AT');
 });
 
 test('getAccessToken refreshes when expired and keeps the stored refresh token', async () => {
   const file = tmpTokens();
-  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'Marci', userId: 'u1' } }));
+  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 1, login: 'Alex', userId: 'u1' } }));
   const calls = [];
   const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([{ match: '/api/token', calls, json: { access_token: 'NEW', expires_in: 3600 } }]) });
@@ -376,16 +380,20 @@ test('search trims the requested bucket and requires a query', async () => {
   assert.deepEqual(await p.search('  '), { ok: false, error: 'no_query' });
 });
 
-test('playSearch plays the top TRACK via uris[] and the top CONTEXT via context_uri', async () => {
+test('playSearch plays the top TRACK inside its album and the top CONTEXT via context_uri', async () => {
+  // A lone track (`uris: [track]`) shows "playing" on Spotify's desktop app
+  // and loads nothing, so the track starts inside its own album.
   const calls = [];
   const pt = loggedIn([
     { match: '/me/player/play', calls, status: 204 },
+    { match: '/tracks/1', json: { uri: 'spotify:track:1', album: { uri: 'spotify:album:A1' } } },
     { match: '/search', json: { tracks: { items: [{ name: 'Song', uri: 'spotify:track:1', artists: [{ name: 'A' }] }] } } },
   ]);
   const r = await pt.playSearch('song', 'track');
   assert.equal(r.ok, true);
   assert.equal(r.playing.uri, 'spotify:track:1');
-  assert.deepEqual(JSON.parse(calls[0].init.body), { uris: ['spotify:track:1'] });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { context_uri: 'spotify:album:A1', offset: { uri: 'spotify:track:1' } });
 
   const calls2 = [];
   const pp = loggedIn([
@@ -417,4 +425,53 @@ test('queueSearch adds the top track to the queue and reports a device hint on 4
     { match: '/search', json: { tracks: { items: [{ name: 'S', uri: 'spotify:track:7' }] } } },
   ]);
   assert.deepEqual(await p403.queueSearch('song'), { ok: false, error: 'no_active_device' });
+});
+
+// ── "Open Spotify and play": wait for THIS computer, then play there ─────────
+
+function readyProvider(deviceLists, calls) {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
+  let n = 0;
+  return createSpotifyProvider({ clientId: 'cid', tokensFile: file, sleep: async () => {},
+    fetch: async (url, init) => {
+      const u = String(url);
+      calls.push({ url: u, init });
+      if (u.includes('/me/player/devices')) {
+        const devices = deviceLists[Math.min(n++, deviceLists.length - 1)];
+        return { ok: true, status: 200, json: async () => ({ devices }) };
+      }
+      return { ok: true, status: 204, json: async () => null };
+    } });
+}
+const dev = (id, name, type, active) => ({ id, name, type, is_active: !!active });
+
+test('playWhenReady waits for this computer and transfers there, not to the active phone', async () => {
+  const calls = [];
+  const phone = dev('ph', 'Pixel', 'Smartphone', true);
+  const p = readyProvider([[phone], [phone, dev('pc', 'NON_PROVARCI', 'Computer')]], calls);
+  assert.deepEqual(await p.playWhenReady('non_provarci', new Set()), { ok: true });
+  const transfer = calls.find((c) => c.init && c.init.method === 'PUT' && c.url.endsWith('/me/player'));
+  assert.deepEqual(JSON.parse(transfer.init.body).device_ids, ['pc']);
+});
+
+test('playWhenReady on a Mac: a computer that was not listed before counts as this one', async () => {
+  const calls = [];
+  const laptop = dev('old', 'Work laptop', 'Computer');
+  const p = readyProvider([[laptop], [laptop, dev('mac', "Alex's MacBook Pro", 'Computer')]], calls);
+  assert.deepEqual(await p.playWhenReady('alexs-macbook-pro.local', new Set(['old'])), { ok: true });
+  const transfer = calls.find((c) => c.init && c.init.method === 'PUT' && c.url.endsWith('/me/player'));
+  assert.deepEqual(JSON.parse(transfer.init.body).device_ids, ['mac']);
+});
+
+test('playWhenReady gives up with not_started when the app never signs in', async () => {
+  const calls = [];
+  const p = readyProvider([[]], calls);
+  assert.deepEqual(await p.playWhenReady('pc', new Set()), { ok: false, error: 'not_started' });
+  assert.equal(calls.filter((c) => c.url.includes('/me/player/devices')).length, 12);
+});
+
+test('computerIds lists only computers', async () => {
+  const p = readyProvider([[dev('a', 'PC', 'Computer'), dev('b', 'Echo', 'Speaker')]], []);
+  assert.deepEqual([...(await p.computerIds())], ['a']);
 });

@@ -17,7 +17,7 @@ test('worker collectors never call Get-Counter', () => {
   // Measured 2.8-13 s per call on the GPU Engine set, longer than the 5 s tick:
   // on every machine without nvidia-smi the worker never rested. Raw
   // ReadCategory() deltas give the same figure in a few ms.
-  for (const file of ['server/gpu.ps1', 'server/processes.ps1', 'server/cpu-temp.ps1', 'server/network.ps1']) {
+  for (const file of ['server/gpu.ps1', 'server/processes.ps1', 'server/cpu-temp.ps1', 'server/network.ps1', 'server/sensors.ps1']) {
     assert.doesNotMatch(code(read(file)), /Get-Counter/i, `${file} calls Get-Counter`);
   }
 });
@@ -28,10 +28,10 @@ test('gpu.ps1 diffs raw engine counters against the previous call', () => {
   assert.match(src, /\$global:XenonGpuEnginePrev\b/);
 });
 
-test('NVIDIA fans skip the full LHM Update() when nvidia-smi gave the clocks', () => {
+test('NVIDIA fans skip the full LHM Update() when nvidia-smi gave the clocks and the temperature', () => {
   // Update() refreshed every sensor of the card (~60-80 ms) for two RPM values.
   const src = code(read('server/gpu.ps1'));
-  assert.match(src, /Get-LhmGpuReadings -FansOnly:\$haveClocks/);
+  assert.match(src, /Get-LhmGpuReadings -FansOnly:\$haveRest/);
   assert.match(src, /GetFanCoolersStatus/);
   // Anything unexpected must fall back to Update(), never to "no fans".
   const fansOnly = src.slice(src.indexOf('if ($FansOnly'), src.indexOf('$hardware.Update()', src.indexOf('if ($FansOnly')));

@@ -1,6 +1,6 @@
 {
   "ja": {
-    "meta.title": "xenon.exe は安全？ Xenon が Windows で実行するプロセス",
+    "meta.title": "xenon.exe は安全？ XenonのWindowsプロセス",
     "meta.desc": "Xenon は xenon.exe という名前のファイルをインストールしません。Windows で実際に実行するもの、各ファイルの場所、署名付きチェックサムでの確認方法を説明します。",
     "exe.h1": "xenon.exe",
     "exe.lede": "PC で見慣れないプロセスを見つけて名前を検索したのなら、たいていの場合に当てはまる答えを先に書きます。それはおそらく Xenon のものではありません。",
@@ -24,7 +24,7 @@
     "exe.row.node": "ダッシュボードのエンジンです。Xenon はローカルの Web アプリなので、それを配信しているのは <code>127.0.0.1:3030</code> で待ち受ける普通の Node.js です。このアドレスにはこの PC からしか接続できません。設定で「スマホからのアクセス」をオンにすると、ローカルネットワークでも待ち受け、ペアリングしたスマートフォンやタブレットから接続できるようになります。",
     "exe.list.where": "ファイルはユーザープロファイルの下にある2つのフォルダーに置かれ、Windows 本体の中に置かれることはありません: <code>%LOCALAPPDATA%\\Xenon</code> と <code>%LOCALAPPDATA%\\Programs\\Xenon</code> です。ログオンごとのスケジュールされたタスクが、サインイン時にあなた自身のアカウントでエンジンを起動します。セットアップ時に管理者の確認を承認した場合、このタスクは管理者権限で動き、それによって温度を読み取れます。Windows サービスとしてインストールされるものはありません。",
     "exe.list.tools": "このほかに、特定の機能のために Xenon が実行するツールがあります。どれもこのプロジェクトではなく、それぞれの開発元が作ったもので、必要とする機能がオンのときだけ実行されます:",
-    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong> と <strong>PawnIO</strong> は winget でインストールされ、CPU とディスクの温度を読み取ります。PawnIO は署名付きのカーネルドライバーで、WinRing0 の後継です。WinRing0 は、古いハードウェア監視ツールの誤検出の多くの原因になっているドライバーです。Xenon が WinRing0 を同梱したことはなく、今後もありません。",
+    "exe.tool.lhm": "<strong>LibreHardwareMonitor</strong> と <strong><a href=\"pawnio.html\">PawnIO</a></strong> は winget でインストールされ、CPU とディスクの温度を読み取ります。PawnIO は署名付きのカーネルドライバーで、WinRing0 の後継です。WinRing0 は、古いハードウェア監視ツールの誤検出の多くの原因になっているドライバーです。Xenon が WinRing0 を同梱したことはなく、今後もありません。",
     "exe.tool.presentmon": "<strong>PresentMon</strong> は Intel のフレームタイム計測ツールで、ゲーム内の実際の FPS カウンターのために Xenon 自身のフォルダーにダウンロードされます。",
     "exe.tool.ffmpeg": "<strong>FFmpeg</strong> は音声入力と読み上げのために使い、<strong>Ollama</strong> はアシスタントを無料のローカルプロバイダーに切り替えた場合だけ使います。インストーラーはどちらもダウンロードしません。必要になったときに設定から導入します。",
     "exe.tool.sunshine": "<strong>Sunshine</strong> と <strong>Tailscale</strong> は、PC のリモート操作をオンにした場合だけ使います。",

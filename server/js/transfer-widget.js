@@ -51,6 +51,7 @@
   let cancelled = false;
   let activeXhr = null;
   let sheet = null;
+  const SHEET_MARK = 'xferSheet';
   // The last delete, while it can still be taken back. The server holds the
   // record (and its file) for a few seconds and tells us how many; this is only
   // the offer. Module-level so it survives the repaint the delete itself causes.
@@ -59,7 +60,7 @@
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="transfer"]'))
-      .filter((n) => n.closest('.pager-page'));
+      .filter((n) => n.closest('.pager-page, .layer-slot'));
   }
   const isRemote = () => !!(typeof window !== 'undefined' && window.__xenonRemote);
   const onPhone = () => !!(window.PhoneView && window.PhoneView.isActive());
@@ -76,12 +77,22 @@
     return Number(state.maxBytes) || (Number(settings().maxFileMb || 2048) * 1024 * 1024);
   }
 
+  // Intl writes the unit in the app's language, so no language reads "1 g" but Italian.
+  function fmtUnit(value, unit) {
+    try {
+      const lang = document.documentElement.lang || 'en';
+      return new Intl.NumberFormat(lang, { style: 'unit', unit, unitDisplay: 'short' }).format(value);
+    } catch {
+      return value + ' ' + unit;
+    }
+  }
+
   function fmtAge(at) {
     const s = Math.max(0, Math.floor((Date.now() - (at || 0)) / 1000));
     if (s < 60) return t('xfer_now', 'ora');
-    if (s < 3600) return Math.floor(s / 60) + ' min';
-    if (s < 86400) return Math.floor(s / 3600) + ' h';
-    return Math.floor(s / 86400) + ' g';
+    if (s < 3600) return fmtUnit(Math.floor(s / 60), 'minute');
+    if (s < 86400) return fmtUnit(Math.floor(s / 3600), 'hour');
+    return fmtUnit(Math.floor(s / 86400), 'day');
   }
 
   // ── sending ────────────────────────────────────────────────────────────────
@@ -284,6 +295,9 @@
     inFiles.type = 'file';
     inFiles.multiple = true;
     inFiles.className = 'xfer-input';
+    // Driven by the two keys: in the Tab order they would be two invisible stops.
+    inPhotos.tabIndex = -1;
+    inFiles.tabIndex = -1;
 
     for (const [btn, input] of [[bPhotos, inPhotos], [bFiles, inFiles]]) {
       btn.addEventListener('click', () => { armPreparing(mount); input.click(); });
@@ -477,7 +491,7 @@
     const body = el('div', 'xfer-body');
     const name = el('div', 'xfer-name', item.name);   // off the network: textContent
     name.title = item.name;
-    const meta = el('div', 'xfer-meta', [formatBytes(item.size), fmtAge(item.at), from].filter(Boolean).join(' · '));
+    const meta = el('div', 'xfer-meta', [formatBytes(item.size), fmtAge(item.at), from].filter(Boolean).join(', '));
     body.append(name, meta);
 
     const acts = el('div', 'xfer-row-acts');
@@ -582,7 +596,7 @@
       body.append(el('div', 'xfer-meta xfer-bad', why));
     } else {
       const pct = rec.size ? Math.min(100, Math.round((rec.sent / rec.size) * 100)) : 0;
-      body.append(el('div', 'xfer-meta', pct + '% · ' + formatBytes(rec.size)));
+      body.append(el('div', 'xfer-meta', pct + '%, ' + formatBytes(rec.size)));
       const bar = el('div', 'xfer-bar');
       const fill = el('div', 'xfer-bar-fill');
       fill.style.width = pct + '%';
@@ -679,6 +693,10 @@
     if (sheet) return;
     const backdrop = el('div', 'xfer-sheet-backdrop');
     const panel = el('div', 'xfer-sheet');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', t('xfer_send', 'Invia al PC'));
+    panel.tabIndex = -1;
     const bar = el('div', 'xfer-sheet-bar');
     const title = el('div', 'xfer-sheet-title', t('xfer_send', 'Invia al PC'));
     // The sheet hides the tile's own header (CSS), so the ? lives here. It
@@ -687,12 +705,15 @@
       () => toggleHelp(panel.querySelector('.transfer-widget-mount')));
     help.classList.add('xfer-help-btn');
     help.setAttribute('aria-expanded', 'false');
-    const close = iconBtn(ICONS.close, t('xfer_close', 'Chiudi'), closeSheet);
+    const close = iconBtn(ICONS.close, t('xfer_close', 'Chiudi'), () => closeSheet());
     bar.append(title, help, close);
     const mount = el('div', 'transfer-widget-mount');
     const notes = el('div', 'xfer-notes');
     for (const line of sheetNotes()) notes.append(el('p', 'xfer-note-line', line));
-    panel.append(bar, mount, notes);
+    const body = el('div', 'xfer-sheet-body');
+    body.append(mount, notes);
+    const foot = el('div', 'xfer-sheet-foot');
+    panel.append(bar, body, foot);
     backdrop.appendChild(panel);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeSheet(); });
     document.body.appendChild(backdrop);
@@ -703,15 +724,94 @@
     sheet._freezeToken = 'xfer-sheet-' + Math.random().toString(16).slice(2, 8);
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheet._freezeToken, true);
     paintInto(mount);
+    // The two keys leave the panel for the foot, the main one last, as on every sheet.
+    // The tile keeps them where they are.
+    const keys = mount.querySelector('.xfer-actions');
+    keys.append(keys.querySelector('.xfer-btn-primary'));
+    foot.append(keys);
+    sheet._letGo = window.DialogFocus.hold(panel, { onEsc: stepBack });
+    armPull(panel, bar);
+    markHistory();
     if (!seeded) refresh();
   }
 
-  function closeSheet() {
+  // Pulled down by its title bar, the sheet goes, as a phone's own sheets do. Only where it
+  // stands on the bottom edge (the CSS breakpoint): the centred dialog has no edge to go to.
+  const PULL_CLOSE_SHARE = 0.25;   // of the sheet's height
+  const PULL_FLICK = 0.5;          // px per ms: a quick flick closes from a short pull
+  const PULL_FLICK_MIN = 24;       // px: a tap that jitters is not a flick
+  const PULL_FLICK_FRESH = 100;    // ms: a finger that stopped before lifting threw nothing
+  function armPull(panel, bar) {
+    let pull = null;
+    bar.addEventListener('pointerdown', (e) => {
+      if ((e.button != null && e.button !== 0) || e.target.closest('button')) return;
+      if (!window.matchMedia || !window.matchMedia('(max-width: 699.98px)').matches) return;
+      pull = { y: e.clientY, dy: 0, at: Date.now(), speed: 0 };
+      panel.classList.add('is-pulled');
+      try { bar.setPointerCapture(e.pointerId); } catch { /* older engine */ }
+    });
+    bar.addEventListener('pointermove', (e) => {
+      if (!pull) return;
+      const dy = Math.max(0, e.clientY - pull.y);
+      const now = Date.now();
+      pull.speed = (dy - pull.dy) / Math.max(1, now - pull.at);
+      pull.dy = dy;
+      pull.at = now;
+      panel.style.setProperty('--xfer-pull', dy + 'px');
+    });
+    const letGo = (canClose) => {
+      if (!pull) return;
+      const { dy } = pull;
+      const speed = Date.now() - pull.at > PULL_FLICK_FRESH ? 0 : pull.speed;
+      pull = null;
+      panel.classList.remove('is-pulled');
+      const tall = panel.getBoundingClientRect().height || 400;
+      if (canClose && (dy > tall * PULL_CLOSE_SHARE || (dy > PULL_FLICK_MIN && speed > PULL_FLICK))) { closeSheet(); return; }
+      panel.style.removeProperty('--xfer-pull');
+    };
+    bar.addEventListener('pointerup', () => letGo(true));
+    // The system took the finger (a scroll, a call): the sheet goes back, never away.
+    bar.addEventListener('pointercancel', () => letGo(false));
+  }
+
+  // fromHistory: the phone's Back already popped our entry.
+  function closeSheet(fromHistory = false) {
     if (!sheet) return;
+    sheet._letGo();
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze(sheet._freezeToken, false);
     sheet.remove();
     sheet = null;
+    if (!fromHistory && history.state && history.state[SHEET_MARK]) history.back();
   }
+
+  // A phone's Back would leave the page: one step in the history keeps it in the sheet.
+  function markHistory() {
+    try { history.pushState({ [SHEET_MARK]: true }, ''); } catch { /* no history here: the X still works */ }
+  }
+
+  function helpShown(mount) {
+    const box = mount.querySelector('.xfer-help');
+    return !!box && !box.hidden;
+  }
+
+  // One Esc, one step: the help goes first, the sheet after it.
+  function stepBack() {
+    const mount = sheet.querySelector('.transfer-widget-mount');
+    if (helpShown(mount)) toggleHelp(mount, false);
+    else closeSheet();
+  }
+
+  // Back is the same step. It has already spent our history entry, so a sheet that
+  // stays open takes a new one.
+  function onBack() {
+    if (!sheet) return;
+    const mount = sheet.querySelector('.transfer-widget-mount');
+    if (!helpShown(mount)) { closeSheet(true); return; }
+    toggleHelp(mount, false);
+    markHistory();
+  }
+
+  window.addEventListener('popstate', onBack);
 
   // The boundaries, said where they would otherwise be discovered.
   function sheetNotes() {
@@ -802,13 +902,7 @@
   // is a path on THIS PC, so it is not in the settings blob a phone receives
   // and cannot be edited from one.
   //
-  // The markup deliberately reuses the `.ra-*` classes of the device list this
-  // block sits directly under, rather than growing a second vocabulary for the
-  // same controls. RemoteAccessSettings.css says why in its own header: the two
-  // are one scroll and must not read as two different products. Without the
-  // `.ra-page` column the block also inherited the settings pane's full width,
-  // so its text ran the whole way across a 4K screen while the panel above it
-  // stayed in a 560px column.
+  // One section of the same rows as every Settings page (SettingsPage.css).
   let cfg = null;
   let settingsBox = null;
   let pushInfo = { supported: false, secure: false };
@@ -820,8 +914,8 @@
     if (isRemote()) {
       // Rather than spend a request to be told no. The panel is not hidden —
       // saying where it lives is more useful than pretending it does not exist.
-      const page = el('div', 'ra-page xfer-page');
-      page.append(sectionHead(), el('p', 'ra-toggle-hint', t('xfer_settings_pc_only', 'La cartella di arrivo si sceglie dal PC.')));
+      const page = sectionPage();
+      page.append(el('p', 'settings-note', t('xfer_settings_pc_only', 'La cartella di arrivo si sceglie dal PC.')));
       box.replaceChildren(page);
       return;
     }
@@ -837,13 +931,12 @@
     renderSettings();
   }
 
-  function sectionHead() {
-    const head = el('div', 'ra-head');
-    const row = el('div', 'ra-title-row');
-    row.append(el('h3', 'ra-title', t('xfer_settings_title', 'Trasferimento file')));
-    head.append(row, el('p', 'ra-sub', t('xfer_settings_intro',
-      'Manda foto e file dal telefono a questo PC, e da questo PC al telefono. I file passano dalla tua rete, non da internet.')));
-    return head;
+  function sectionPage() {
+    const page = el('section', 'settings-section');
+    page.append(el('div', 'settings-section-title', t('xfer_settings_title', 'Trasferimento file')),
+      el('p', 'settings-note', t('xfer_settings_intro',
+        'Manda foto e file dal telefono a questo PC, e da questo PC al telefono. I file passano dalla tua rete, non da internet.')));
+    return page;
   }
 
   async function saveSettings(patch) {
@@ -858,8 +951,7 @@
 
   function renderSettings() {
     if (!settingsBox || !cfg) return;
-    const page = el('div', 'ra-page xfer-page');
-    page.append(sectionHead());
+    const page = sectionPage();
 
     page.append(toggleRow('enabled', t('xfer_settings_enabled', 'Attiva il trasferimento file'),
       t('xfer_settings_enabled_hint', 'Da spento, il riquadro e il tasto sul telefono spariscono.')));
@@ -869,7 +961,7 @@
     // that asks to be filled in and then does nothing — the same reason the
     // device list above hides its own body when access is off.
     if (cfg.enabled !== false) {
-      page.append(folderGroup());
+      page.append(...folderRows());
 
       // Hidden entirely rather than shown broken: a toggle that cannot work is
       // worse than an absent one. Push needs the HTTPS door AND a phone that
@@ -879,7 +971,7 @@
           t('xfer_settings_notify_hint', 'Solo per i file che metti qui dal PC. L’avviso non contiene il nome del file.')));
       }
 
-      page.append(el('p', 'ra-sub xfer-set-foot', t('xfer_settings_devices',
+      page.append(el('p', 'settings-note', t('xfer_settings_devices',
         'Possono mandare file i telefoni e i tablet che hai già associato qui sopra. Per fermarne uno, rimuovilo dall’elenco.')));
     }
 
@@ -889,14 +981,84 @@
   // The arrival folder: where the copy goes, and whether a copy is made at all.
   // The two belong in one group because the second answers "and what is that
   // folder for" — split apart, the toggle read as an unrelated third setting.
-  function folderGroup() {
-    const group = el('div', 'xfer-set-group');
-    group.append(el('div', 'ra-devices-title', t('xfer_settings_folder', 'Cartella di arrivo')));
-    group.append(toggleRow('autoDeliver', t('xfer_settings_deliver', 'Copia i file in quella cartella'),
-      t('xfer_settings_deliver_hint', 'Da spento i file restano solo nell’elenco di Xenon, e li apri o li salvi da lì.')));
-    if (cfg.autoDeliver === false) return group;
+  function folderRows() {
+    const deliver = toggleRow('autoDeliver', t('xfer_settings_deliver', 'Copia i file in quella cartella'),
+      t('xfer_settings_deliver_hint', 'Da spento i file restano solo nell’elenco di Xenon, e li apri o li salvi da lì.'));
+    if (cfg.autoDeliver === false) return [deliver];
+    return [deliver, cfg.canPick === true ? pickedFolderField() : typedFolderField()];
+  }
 
-    const field = el('div', 'xfer-set-field');
+  function folderError(code) {
+    return {
+      not_found: t('xfer_folder_not_found', 'Questa cartella non esiste.'),
+      not_absolute: t('xfer_folder_not_absolute', 'Serve il percorso completo.'),
+      not_a_dir: t('xfer_folder_not_a_dir', 'Questo non è una cartella.'),
+      inside_data: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
+      inside_app: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
+      symlink: t('xfer_folder_symlink', 'Questo è un collegamento. Indica la cartella vera.'),
+      picking: t('settings_folder_busy', 'A folder window is already open'),
+    }[code] || t('xfer_folder_failed', 'Non ho potuto usarla.');
+  }
+
+  function folderHint() {
+    return el('p', 'settings-hint', t('xfer_settings_folder_hint',
+      'I file arrivano qui con il loro nome. Se un nome esiste già, Xenon aggiunge un numero e non sostituisce mai niente.'));
+  }
+
+  function folderName(detail) {
+    const words = el('span', 'settings-label-line');
+    words.append(el('span', null, t('xfer_settings_folder', 'Cartella di arrivo')));
+    if (detail) words.append(detail);
+    return words;
+  }
+
+  // Where the capture engine runs (Windows), the folder comes from the
+  // system's own folder dialog, the same one Settings → Recording uses: no
+  // path to type, and the server checks the answer like a typed one.
+  function pickedFolderField() {
+    const field = el('div', 'settings-row xfer-set-field');
+    const shown = el('span', 'settings-hint xfer-set-path', cfg.inboxDir || '');
+    const status = el('div', 'xfer-set-status');
+    const pick = el('button', 'settings-btn', t('settings_capture_pick', 'Cambia'));
+    pick.type = 'button';
+    const reset = el('button', 'settings-btn', t('xfer_settings_folder_default', 'Torna a Download'));
+    reset.type = 'button';
+    const sync = () => {
+      shown.textContent = cfg.inboxDir || '';
+      reset.hidden = !cfg.inboxDir || cfg.inboxDir === cfg.inboxDefault;
+    };
+    sync();
+
+    pick.addEventListener('click', async () => {
+      pick.disabled = true;
+      status.textContent = '';
+      status.className = 'xfer-set-status';
+      const out = await api(server() + '/api/transfer/settings/pick', { method: 'POST' });
+      pick.disabled = false;
+      if (out && out.ok && out.cancelled) return;
+      if (out && out.ok) {
+        cfg = { ...cfg, ...out };
+        sync();
+        status.textContent = t('settings_saved', 'Salvato');
+        status.className = 'xfer-set-status is-ok';
+        return;
+      }
+      status.className = 'xfer-set-status is-bad';
+      status.textContent = folderError(out && out.error);
+    });
+    reset.addEventListener('click', async () => {
+      const res = await saveSettings({ inboxDir: '' });
+      if (res.ok) { status.textContent = ''; status.className = 'xfer-set-status'; sync(); }
+    });
+
+    const actions = el('div', 'xfer-set-actions');
+    actions.append(pick, reset);
+    field.append(folderName(shown), actions, status, folderHint());
+    return field;
+  }
+
+  function typedFolderField() {
+    const field = el('div', 'settings-row xfer-set-field');
     // A text field rather than a native directory picker: a browser's folder
     // picker returns a file list, not a path, and Xenon needs the path. The
     // server validates it and refuses anything inside its own directories.
@@ -906,15 +1068,15 @@
     // printed twice, which reads as a bug rather than as confirmation.
     const edit = document.createElement('input');
     edit.type = 'text';
-    edit.className = 'xfer-set-input';
+    edit.className = 'settings-text-input xfer-set-input';
     edit.value = cfg.inboxDir || '';
     edit.spellcheck = false;
     edit.setAttribute('aria-label', t('xfer_settings_folder', 'Cartella di arrivo'));
 
     const status = el('div', 'xfer-set-status');
-    const apply = el('button', 'ra-btn primary small', t('xfer_settings_folder_save', 'Usa questa cartella'));
+    const apply = el('button', 'settings-btn', t('xfer_settings_folder_save', 'Usa questa cartella'));
     apply.type = 'button';
-    const reset = el('button', 'ra-btn ghost small', t('xfer_settings_folder_default', 'Torna a Download'));
+    const reset = el('button', 'settings-btn', t('xfer_settings_folder_default', 'Torna a Download'));
     reset.type = 'button';
 
     // Save is live only while the field differs from what is stored, so the
@@ -931,14 +1093,7 @@
         status.className = 'xfer-set-status is-ok';
       } else {
         status.className = 'xfer-set-status is-bad';
-        status.textContent = {
-          not_found: t('xfer_folder_not_found', 'Questa cartella non esiste.'),
-          not_absolute: t('xfer_folder_not_absolute', 'Serve il percorso completo.'),
-          not_a_dir: t('xfer_folder_not_a_dir', 'Questo non è una cartella.'),
-          inside_data: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
-          inside_app: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
-          symlink: t('xfer_folder_symlink', 'Questo è un collegamento. Indica la cartella vera.'),
-        }[res.error] || t('xfer_folder_failed', 'Non ho potuto usarla.');
+        status.textContent = folderError(res.error);
       }
       sync();
     });
@@ -949,18 +1104,15 @@
 
     const actions = el('div', 'xfer-set-actions');
     actions.append(apply, reset);
-    field.append(edit, actions, status, el('p', 'ra-toggle-hint', t('xfer_settings_folder_hint',
-      'I file arrivano qui con il loro nome. Se un nome esiste già, Xenon aggiunge un numero e non sostituisce mai niente.')));
-    group.append(field);
-    return group;
+    field.append(folderName(), edit, actions, status, folderHint());
+    return field;
   }
 
-  // The same switch the device list above uses, down to the knob: two controls
-  // that do the same kind of thing, one under the other, in one scroll.
   function toggleRow(key, labelText, hint) {
-    const row = el('label', 'ra-toggle-row');
+    const row = el('label', 'settings-toggle-row');
     const input = document.createElement('input');
     input.type = 'checkbox';
+    input.className = 'settings-check';
     // Default-off keys read `=== true`, default-on keys read `!== false`, the
     // same split normalizeFileTransfer uses on the server.
     input.checked = key === 'notifyPhone' ? cfg[key] === true : cfg[key] !== false;
@@ -972,10 +1124,10 @@
       // rather than left showing controls the new state does not have.
       if (key === 'enabled' || key === 'autoDeliver') renderSettings();
     });
-    const text = el('span', 'ra-toggle-text');
-    text.append(el('strong', null, labelText));
-    if (hint) text.append(el('span', 'ra-toggle-hint', hint));
-    row.append(input, el('span', 'ra-toggle-knob'), text);
+    const text = el('span', 'settings-label-line');
+    text.append(el('span', null, labelText));
+    if (hint) text.append(el('span', 'settings-hint', hint));
+    row.append(input, text);
     return row;
   }
 

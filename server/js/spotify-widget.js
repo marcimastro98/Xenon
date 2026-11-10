@@ -45,7 +45,7 @@
 
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it does no polling.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   // Tiles the user is actually looking at. The pager keeps off-screen pages
   // mounted, so a tile parked on page 2 still passes document.hidden and would
   // otherwise keep burning Spotify API quota invisibly — gate polling on this.
@@ -110,12 +110,11 @@
     { id: 'playlists', labelKey: 'spotify_w_playlists', fb: 'Playlists' },
     { id: 'devices', labelKey: 'spotify_w_devices', fb: 'Devices' },
   ];
-  let activeTab = 'queue';   // shared across this widget's tiles (session-scoped)
+  // Shared across this widget's tiles, and remembered across reloads (TileTabMemory).
+  let activeTab = window.TileTabMemory ? TileTabMemory.get('spotify', TABS.map((tb) => tb.id), 'queue') : 'queue';
 
   function openSpotifySettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('spotify');
+    openSettingsCategory('spotify');
   }
 
   // mm:ss for a millisecond duration (— when unknown).
@@ -133,7 +132,7 @@
     let msg = '';
     if (e === 'premium_required') msg = t('spotify_w_premium', 'Spotify Premium required for playback control');
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
-    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
+    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device: start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
     else if (e === 'rate_limited') msg = busyLine();
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
@@ -314,7 +313,7 @@
     now.appendChild(panel);
 
     // Empty state shown inside the hero when linked but nothing is playing. Carries
-    // an action button: Play (Spotify is open → resume) or Open Spotify (app closed).
+    // an action button: Play (Spotify is open → resume) or Open Spotify and play (app closed).
     const empty = el('div', 'sp-now-empty');
     const eIco = el('span', 'sp-now-empty-ico'); eIco.innerHTML = ICONS.note;   // static, trusted SVG
     const emptyBtn = el('button', 'sp-now-empty-btn'); emptyBtn.type = 'button'; emptyBtn.hidden = true;
@@ -351,6 +350,7 @@
   // Switch the active internal tab and lazy-load its data the first time it opens.
   function selectTab(id) {
     activeTab = id;
+    if (window.TileTabMemory) TileTabMemory.set('spotify', id);
     if (id === 'queue' && queue === null && connected) loadQueue().then(paint);
     else if (id === 'playlists' && playlists === null && connected) loadPlaylists().then(paint);
     else if (id === 'devices' && devices === null && connected) loadDevices().then(paint);
@@ -446,13 +446,13 @@
         eLbl.textContent = closed ? t('spotify_w_closed', 'No active Spotify device') : t('spotify_w_nothing', 'Nothing playing right now');
         eBtn.hidden = has || spotifyOpen === null;
         eBtn.querySelector('.sp-now-empty-btn-ico').innerHTML = closed ? ICONS.logo : ICONS.play_s;   // static, trusted SVG
-        eBtn.querySelector('.sp-now-empty-btn-lbl').textContent = closed ? t('spotify_w_open', 'Open Spotify') : t('spotify_w_play', 'Play');
+        eBtn.querySelector('.sp-now-empty-btn-lbl').textContent = closed ? t('spotify_w_open_play', 'Open Spotify and play') : t('spotify_w_play', 'Play');
         eBtn.classList.toggle('is-open', closed);   // green filled for Open, subtle for Play
       }
       if (eHint) {
         eHint.hidden = !(forbidden || closed);
         eHint.textContent = forbidden
-          ? t('spotify_w_perm_hint', 'Reconnect in Settings → Spotify (Disconnect, then Connect) and approve access — the current login is missing playback permission.')
+          ? t('spotify_w_perm_hint', 'Reconnect in Settings → Spotify (Disconnect, then Connect) and approve access: the current login is missing playback permission.')
           : (closed ? t('spotify_w_closed_hint', 'If Spotify is already open, play something once so it shows up here.') : '');
       }
     }
@@ -543,7 +543,7 @@
     // often doesn't match what actually plays next — say so rather than showing a
     // wrong "next" as fact (the "random music shows the next song wrong" report).
     if (!queueReliable) {
-      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate — Spotify only knows the exact order inside a playlist or album')));
+      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate: Spotify only knows the exact order inside a playlist or album')));
     }
     queue.forEach(tk => frag.appendChild(trackRow(tk, queueContext)));
     panel.replaceChildren(frag);
@@ -619,14 +619,14 @@
   // So the wait is named once it is long enough to be worth naming.
   function busyLine() {
     const mins = Math.round(rateLimitMs / 60000);
-    if (mins >= 2) return t('spotify_w_busy_for', 'Spotify is busy — about {m} min').replace('{m}', String(mins));
-    return t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    if (mins >= 2) return t('spotify_w_busy_for', 'Spotify is busy: about {m} min').replace('{m}', String(mins));
+    return t('spotify_w_busy', 'Spotify is busy: retrying shortly');
   }
 
   function problemLine(problem) {
     if (problem === 'rate_limited') return busyLine();
     if (problem === 'not_connected') return t('spotify_w_notlinked', 'Not linked');
-    return t('spotify_w_unreachable', 'Could not reach Spotify — retrying');
+    return t('spotify_w_unreachable', 'Could not reach Spotify: retrying');
   }
 
   function emptyState(iconSvg, label) {
@@ -725,11 +725,14 @@
     } else { spotifyOpen = null; }
   }
 
-  // Launch the Spotify desktop app, then re-check a few times so the empty state
-  // switches from "Open Spotify" to Play (or the hero) once the app is up.
+  // Spotify is closed: start the desktop app on the PC and play there, in one tap
+  // (asked for on Discord). The server waits for the app to sign in, up to ~25 s,
+  // and answers once playback started; then re-check a few times so the hero
+  // fills in when Spotify reports the track.
   async function openSpotifyApp(btn) {
     if (btn) btn.disabled = true;
-    await api('/stream/spotify/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+    const r = await api('/stream/spotify/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ play: true }) });
+    launchToast(r);
     let tries = 0;
     const recheck = () => {
       if (!tiles().length) { if (btn) btn.disabled = false; return; }
@@ -740,7 +743,17 @@
         else if (btn) btn.disabled = false;
       });
     };
-    setTimeout(recheck, 2500);
+    setTimeout(recheck, 1000);
+  }
+
+  function launchToast(r) {
+    if (r && r.ok) return;
+    const e = (r && r.error) || 'launch_failed';
+    let msg = '';
+    if (e === 'launch_failed') msg = t('spotify_w_launch_failed', 'Could not open Spotify on the PC. Is the desktop app installed?');
+    else if (e === 'not_started') msg = t('spotify_w_not_started', 'Spotify is opening but not ready yet. Press play once it is.');
+    if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
+    else controlToast(r);
   }
   function loadQueue() {
     return api('/stream/spotify/queue')
@@ -796,7 +809,12 @@
   async function seed() {
     if (!tiles().length) return;
     await loadStatus();
-    if (connected) { await loadPlayer(); if (activeTab === 'queue') await loadQueue(); }
+    if (connected) {
+      await loadPlayer();
+      if (activeTab === 'queue') await loadQueue();
+      else if (activeTab === 'playlists') await loadPlaylists();
+      else if (activeTab === 'devices') await loadDevices();
+    }
     else { player = null; queue = null; playlists = null; devices = null; playlistsProblem = ''; devicesProblem = ''; }
     lastRefreshAt = Date.now();   // the first tick's reveal edge must not repeat this round
     paint();

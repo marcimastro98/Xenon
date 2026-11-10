@@ -16,7 +16,7 @@
     "tab.how.p2": "보이는 것은 리모컨이 아니라 진짜 대시보드입니다. 모니터에서와 같은 타일, 같은 테마, 같은 페이지가 태블릿의 형태에 맞게 다시 배치됩니다. 터치 영역은 손가락에 맞는 크기입니다.",
     "tab.h.setup": "설정하기",
     "tab.setup.1": "PC에서 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\">Xenon-Setup-x64.exe</a>를 내려받아 실행하고, 앱이 물어보면 <strong>Complete setup</strong>(설정 완료) 버튼을 누르세요. 한 번만 하면 됩니다.",
-    "tab.setup.2": "설정 → <strong>원격 제어</strong> → <strong>휴대폰에서 접속</strong>을 열고, <strong>다른 기기의 접속 허용</strong>을 켠 다음 <strong>기기 추가</strong>를 누르세요. PC에 QR 코드가 나타납니다.",
+    "tab.setup.2": "설정 → <strong>휴대폰</strong> → <strong>휴대폰에서 접속</strong>을 열고, <strong>다른 기기의 접속 허용</strong>을 켠 다음 <strong>기기 추가</strong>를 누르세요. PC에 QR 코드가 나타납니다.",
     "tab.setup.3": "태블릿 카메라로 코드를 비추세요. 태블릿의 브라우저에서 대시보드가 열립니다. 전체 화면으로 쓰고 싶다면 홈 화면에 추가하세요.",
     "tab.setup.4": "PC에 남는 모니터가 전혀 없다면, 처음 실행할 때 PC에는 아무것도 표시하지 않도록 Xenon에 알려 주세요. 그러면 태블릿이 유일한 화면이 됩니다.",
     "tab.setup.more": "<a href=\"phone.html\">휴대폰 가이드</a>에 같은 단계가 스크린샷과 함께 있고, 집 밖에서 대시보드에 접속하는 선택 사항도 설명되어 있습니다.",
@@ -36,8 +36,8 @@
     "tab.faq.a5": "네. 유료 버전도, 계정도, 광고도 없습니다. 소스는 비상업적 라이선스로 GitHub에 있습니다.",
     "tab.cta.h": "Xenon 다운로드",
     "tab.cta.p": "설치 프로그램은 하나이고 계정은 필요 없으며, 설정은 PC에 저장됩니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS와 Linux 베타 빌드</a>를 받으세요. 질문은 <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>에서 받습니다.",
-    "meta.title": "오래된 태블릿이나 휴대폰을 PC 대시보드로 | Xenon",
-    "meta.desc": "오래된 태블릿이나 휴대폰을 PC용 터치 패널로 바꾸세요. 온도, 미디어, 마이크 음소거, 오디오 전환, 키 그리드. 무료이고 기기에는 아무것도 설치하지 않습니다.",
+    "meta.title": "오래된 태블릿을 PC 대시보드로: 온도, 미디어, 매크로",
+    "meta.desc": "오래된 태블릿이나 휴대폰 브라우저에서 PC 온도, 미디어, 마이크 음소거, Deck 키를 사용합니다. 확장 모니터는 아닙니다.",
     "ld.q1": "태블릿에 앱이 필요한가요?",
     "ld.a1": "아닙니다. 브라우저만 있으면 됩니다. 대시보드는 PC가 내 Wi-Fi를 통해 제공합니다.",
     "ld.q2": "오래된 iPad나 Android 태블릿에서도 되나요?",
@@ -47,6 +47,7 @@
     "ld.q4": "태블릿 대신 휴대폰을 써도 되나요?",
     "ld.a4": "네, 방법은 같습니다. 레이아웃이 휴대폰 화면에 맞게 다시 배치됩니다.",
     "ld.q5": "Xenon은 무료인가요?",
-    "ld.a5": "네. 유료 버전도, 계정도, 광고도 없습니다. 소스는 비상업적 라이선스로 GitHub에 있습니다."
+    "ld.a5": "네. 유료 버전도, 계정도, 광고도 없습니다. 소스는 비상업적 라이선스로 GitHub에 있습니다.",
+    "tab.pic.alt": "태블릿의 Xenon 대시보드: 음악, 가사, 시스템 그래프, Deck 키 격자"
   }
 }

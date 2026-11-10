@@ -221,3 +221,46 @@ test('two streamed writes to different names do not serialize behind each other'
   assert.equal(readFileSync(join(dir, 'b.bin'), 'utf8'), 'bbb');
   rmSync(dir, { recursive: true, force: true });
 });
+
+// ── POSIX permissions / symlink hardening ────────────────────────────────────
+// Stores hold tokens and keys: they must come out owner-only whatever the
+// umask, and a symlink planted at the temp name must never be followed.
+const posixOnly = { skip: process.platform === 'win32' };
+
+test('writeFileAtomic creates the store 0600 even under umask 022', posixOnly, async () => {
+  const dir = freshDir();
+  const prev = process.umask(0o022);
+  try {
+    const file = join(dir, 'tokens.json');
+    await writeFileAtomic(file, '{"secret":1}');
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  } finally { process.umask(prev); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a symlink planted at the temp name is replaced, not followed', posixOnly, async () => {
+  const dir = freshDir();
+  try {
+    const file = join(dir, 'store.json');
+    const victim = join(dir, 'victim.txt');
+    writeFileSync(victim, 'untouched');
+    fs.symlinkSync(victim, `${file}.${process.pid}.tmp`);
+    await writeFileAtomic(file, 'data');
+    assert.equal(readFileSync(victim, 'utf8'), 'untouched');
+    assert.equal(readFileSync(file, 'utf8'), 'data');
+    assert.equal(fs.lstatSync(file).isSymbolicLink(), false);
+    assert.deepEqual(readdirSync(dir).sort(), ['store.json', 'victim.txt']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('openAtomicWriteStream temp and result are 0600', posixOnly, async () => {
+  const dir = freshDir();
+  const prev = process.umask(0o022);
+  try {
+    const file = join(dir, 'upload.bin');
+    const w = await openAtomicWriteStream(file);
+    assert.equal(fs.statSync(w.tmp).mode & 0o777, 0o600);
+    w.stream.write('x');
+    await w.commit();
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  } finally { process.umask(prev); rmSync(dir, { recursive: true, force: true }); }
+});

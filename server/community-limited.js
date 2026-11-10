@@ -6,11 +6,16 @@
 
 const https = require('https');
 const { HUB_BASE } = require('./supporter-redeem');
+const { armDeadline } = require('./net-guard');
 
 const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
 const MAX_IDS = 100;
 const MAX_RESPONSE_BYTES = 128 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` is an idle timeout only; a hub that trickles bytes would hold the
+// request, and the single-flight read waiting on it, open forever. This bounds
+// the whole request (net-guard.armDeadline).
+const FETCH_DEADLINE_MS = 15000;
 const CACHE_TTL_MS = 10 * 1000;
 const CACHE_MAX = 20;
 
@@ -55,6 +60,7 @@ function requestJson(url) {
     }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', () => resolve({ ok: false, error: 'network' }));
+    armDeadline(req, FETCH_DEADLINE_MS);
     req.end();
   });
 }

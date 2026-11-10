@@ -20,9 +20,9 @@
   // Conditions this client knows how to evaluate. A message carrying any other
   // key matches NOBODY: a filter the client cannot read is a filter it must not
   // assume it satisfies. Without this, a condition added to the feed format
-  // later (say `supporter`) would be ignored by every dashboard that shipped
-  // before it, and a message meant for supporters would reach everyone.
-  const KNOWN_MATCH_KEYS = Object.freeze(['minVersion', 'maxVersion', 'os', 'lang', 'hasEntry']);
+  // later would be ignored by every dashboard that shipped before it. `supporter`
+  // came that way: on 4.x a message meant for supporters reaches no one, not everyone.
+  const KNOWN_MATCH_KEYS = Object.freeze(['minVersion', 'maxVersion', 'os', 'lang', 'hasEntry', 'supporter']);
   const KNOWN = new Set(KNOWN_MATCH_KEYS);
 
   // Numeric, part by part, shorter side zero-padded so '4.9' equals '4.9.0'.
@@ -42,8 +42,9 @@
     return 0;
   }
 
-  // ctx: { version, os, lang, installed } where `installed` is a Set (or array)
-  // of catalog entry ids this dashboard has receipts for.
+  // ctx: { version, os, lang, installed, supporter } where `installed` is a Set (or
+  // array) of catalog entry ids this dashboard has receipts for and `supporter` says
+  // whether this machine holds a pass, undefined when that could not be read.
   function matches(msg, ctx) {
     const m = msg && msg.match;
     if (!m) return true;                      // no conditions → everyone
@@ -66,6 +67,8 @@
     // "has any of these", not all: a note about a family of widgets is for
     // anyone running one of them.
     if (m.hasEntry && !(Array.isArray(m.hasEntry) && m.hasEntry.some(has))) return false;
+    // Strict on purpose: with the pass unreadable, neither side's message is shown.
+    if (m.supporter !== undefined && c.supporter !== m.supporter) return false;
     return true;
   }
 

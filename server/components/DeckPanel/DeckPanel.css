@@ -26,7 +26,7 @@
    .deck-root INSIDE this tile, and a custom property does not flow upward. It is
    its own property rather than --deck-plate-alpha because the "Nessuna" faceplate
    drops the mount outright, whatever the slider says. */
-.panel.tabgroup.deck-tab-active {
+.panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) {
   --mount-mix: calc(var(--deck-mount-alpha, 1) * 100%);
   background:
     repeating-linear-gradient(90deg, color-mix(in srgb, rgba(255,255,255,.012) var(--mount-mix), transparent) 0 1px, transparent 1px 3px),
@@ -39,7 +39,7 @@
     inset 0 1.5px 0 color-mix(in srgb, rgba(255, 255, 255, 0.07) var(--mount-mix), transparent),
     var(--panel-drop);
 }
-.panel.tabgroup.deck-tab-active .tabgroup-bar {
+.panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-bar {
   background: rgba(0, 0, 0, 0.32);
   border-color: rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -47,8 +47,8 @@
 /* The chassis is a dark island in BOTH appearances (like the deck itself) —
    pin the tab labels to light-on-dark so a light-theme --dim-text/--accent
    never lands dark-on-dark on the graphite bar. */
-.panel.tabgroup.deck-tab-active .tabgroup-tab { color: rgba(231, 233, 238, 0.55); }
-.panel.tabgroup.deck-tab-active .tabgroup-tab.active {
+.panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab { color: rgba(231, 233, 238, 0.55); }
+.panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab.active {
   color: #e7e9ee;
   background: rgba(255, 255, 255, 0.10);
 }
@@ -68,6 +68,8 @@
 .deck-toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px);
   z-index: 70; padding: 10px 16px; border-radius: 12px;
+  /* left:50% alone caps a shrink-to-fit width at half the screen. */
+  width: max-content; max-width: calc(100vw - 32px); text-align: center;
   background: rgba(20, 24, 32, .92); color: #e7e9ee; font-size: 13px; font-weight: 600;
   border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 12px 36px rgba(0, 0, 0, .5);
   opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none;
@@ -812,6 +814,7 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-root[data-shape="circle"] .deck-key { border-radius: 50%; }
 .deck-root[data-shape="circle"] .deck-key-del { top: 9%; left: 9%; }
 .deck-root[data-shape="circle"] .deck-key-trig { right: 13%; bottom: 11%; }
+.deck-root[data-shape="circle"] .deck-key-cycle { left: 13%; bottom: 11%; }
 .deck-root[data-shape="circle"] .deck-key .deck-label { max-width: 78%; }
 .deck-root[data-shape="circle"] .deck-key.has-image .deck-label { left: 11%; right: 11%; }
 
@@ -837,6 +840,58 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
   background: linear-gradient(180deg, #0c0e13, #08090d);
   box-shadow: 0 24px 50px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .05);
 }
+/* Glass: a clear slab. Light falls through it from the top, the rim catches it,
+   and the dashboard shows behind. No backdrop blur: that is a per-frame GPU cost
+   on every screen the Deck sits on (invariants-rendering-gpu). */
+.deck-root[data-plate="glass"] .deck-device { --plate-edge: rgba(255, 255, 255, .2); }
+.deck-root[data-plate="glass"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 34%, rgba(255, 255, 255, .025)),
+    rgba(14, 18, 26, .32);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, .35),
+    inset 0 1px 0 rgba(255, 255, 255, .38),
+    inset 0 -1px 0 rgba(255, 255, 255, .08),
+    inset 0 0 0 1px rgba(255, 255, 255, .04);
+}
+.deck-root[data-plate="glass"] .deck-device::before {
+  background: linear-gradient(115deg, rgba(255, 255, 255, .12), transparent 38%);
+}
+.deck-root[data-plate="glass"] .deck-well {
+  background: rgba(0, 0, 0, calc(.16 * var(--deck-well-alpha, 1)));
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, calc(.3 * var(--deck-well-alpha, 1))), inset 0 0 0 1px rgba(255, 255, 255, .05);
+}
+/* Theme: the body is the dashboard's own tile surface (the same --panel colour,
+   border, top line and drop shadow as every other tile, and its corner radius), so
+   it changes with the theme and with the tile opacity setting. Inside a tab group
+   the group tile already is that surface, so the body steps aside there. */
+.deck-root[data-plate="theme"] .deck-device { border-radius: var(--radius-tile, 18px); }
+.deck-root[data-plate="theme"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.028 * var(--panel-alpha, 1))), rgba(255, 255, 255, 0) 42%),
+    var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: inset 0 1px 0 var(--panel-topline), var(--panel-drop);
+}
+.deck-root[data-plate="theme"] .deck-device::before { display: none; }
+.deck-root[data-plate="theme"] .deck-well {
+  background: rgba(0, 0, 0, calc(.2 * var(--deck-well-alpha, 1)));
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, calc(.35 * var(--deck-well-alpha, 1)));
+}
+.tabgroup-body > .deck-panel .deck-root[data-plate="theme"] .deck-device::after {
+  background: none; border-color: transparent; box-shadow: none;
+}
+/* Theme colours: the key well picks up a little of the accent (the keys and the
+   music strip get it in deck.js, as their own accent). */
+.deck-root[data-themecolors="1"]:not([data-plate="none"]):not([data-capstyle="vivid"]) .deck-well {
+  --well-tint: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent, #7aa2ff) calc(14% * var(--deck-well-alpha, 1)), transparent),
+    color-mix(in srgb, var(--accent, #7aa2ff) calc(6% * var(--deck-well-alpha, 1)), transparent));
+  background-image: var(--well-tint), linear-gradient(180deg,
+    color-mix(in srgb, #070810 var(--well-mix), transparent),
+    color-mix(in srgb, #0a0c12 var(--well-mix), transparent));
+}
+.deck-root[data-themecolors="1"][data-plate="theme"]:not([data-capstyle="vivid"]) .deck-well { background-image: var(--well-tint); }
 /* None: the chassis disappears — bare keys floating on the dashboard. It is the
    end point of the transparency slider, reached by dropping the whole layer. */
 .deck-root[data-plate="none"] .deck-device { padding: 2px; }
@@ -1051,43 +1106,66 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
   border: 1px solid rgba(255, 255, 255, .16); border-radius: 7px; background: transparent;
 }
 .deck-decor-swatch[disabled] { opacity: .35; cursor: default; }
-.deck-decor-gradchk { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent, #1ed760); flex: 0 0 auto; }
 /* "Customize" button in the toolbar → opens the appearance modal. */
 .deck-customize { font-weight: 700; }
 .deck-customize.deck-pill { background: rgba(var(--accent-rgb), .16); border-color: rgba(var(--accent-rgb), .4); color: var(--accent); }
 .deck-customize.deck-pill:hover { background: rgba(var(--accent-rgb), .24); }
 
-/* ── Deck appearance modal (theme/shape/plate + background + music) ──────────
-   A dialog with a LIVE preview of the deck and its music bar so colour/gradient
-   picks are visible while you make them. */
+/* ── The four Deck windows: key editor, mixer, Deck look, Smart Profiles ──────
+   One plate and one set of colours. A skin changes these tokens and nothing else;
+   --ded-on is a selected tab or segment, with its text in --ded-on-ink. */
+.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw {
+  --ded-text: var(--text, #e7e9ee);
+  --ded-muted: var(--text-dim, #9aa1b1);
+  --ded-well: rgba(255, 255, 255, .05);
+  --ded-well-hover: rgba(255, 255, 255, .1);
+  --ded-line: rgba(255, 255, 255, .12);
+  --ded-on: var(--accent, #2b6cff);
+  --ded-on-ink: var(--on-accent, #fff);
+  --ded-lift: 0 26px 70px rgba(0, 0, 0, .6);
+  color: var(--ded-text);
+  background: var(--panel-solid, #14171c);
+  border: 1px solid var(--ded-line);
+  border-radius: var(--radius-modal, 20px);
+  box-shadow: var(--ded-lift);
+}
+:is(.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw):focus { outline: none; }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 40px; height: 40px; padding: 0; cursor: pointer;
+  border: 0; border-radius: var(--radius-control, 10px);
+  background: none; color: var(--ded-muted);
+}
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) svg { width: 20px; height: 20px; }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close):hover { background: var(--ded-well); color: var(--ded-text); }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close):focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 1px; }
+
+/* ── Deck look: theme, shape, plate, background, music ────────────────────────
+   Title on top, the deck on the left where it stays in view while the controls
+   scroll on their own beside it: picks show the moment they are made. */
+/* One scrim for the four windows, so none reads lighter than the others on a skin
+   that does not bring its own. */
+.deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal {
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+}
 .deck-style-modal {
   position: fixed; inset: 0; z-index: 4000; display: flex;
   align-items: center; justify-content: center; padding: 20px;
-  background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px);
 }
 .deck-style-dialog {
-  width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px; padding: 16px;
-  background: var(--panel-solid, #14171c); color: var(--text, #e7e9ee);
-  border: 1px solid rgba(255, 255, 255, .1); border-radius: 16px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .5);
+  width: min(920px, 100%); height: min(680px, 100%); overflow: hidden;
+  display: grid; gap: 16px 22px; padding: 18px 16px 18px 22px;
+  grid-template: "head head" auto "preview body" minmax(0, 1fr) / minmax(0, 1fr) 380px;
 }
-.deck-style-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.deck-style-title { font-size: 15px; font-weight: 800; }
-.deck-style-close {
-  width: 30px; height: 30px; flex: 0 0 auto; cursor: pointer; font-size: 15px; line-height: 1;
-  border-radius: 8px; border: 1px solid rgba(255, 255, 255, .12);
-  background: rgba(255, 255, 255, .05); color: var(--text, #e7e9ee);
-}
-.deck-style-close:hover { background: rgba(255, 255, 255, .1); }
-/* Preview surface — a neutral, checkered backdrop so the deck reads on any theme. */
+.deck-style-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.deck-style-title { font-size: 20px; font-weight: 800; }
 .deck-style-preview {
-  display: flex; justify-content: center; align-items: flex-start;
-  flex: 0 0 auto; max-height: min(48vh, 360px);
-  padding: 16px; border-radius: 12px; overflow: auto;
-  background:
-    linear-gradient(rgba(0, 0, 0, .18), rgba(0, 0, 0, .18)),
-    conic-gradient(#2a2f38 0 25%, #232830 0 50%, #2a2f38 0 75%, #232830 0) 0 0 / 22px 22px;
+  grid-area: preview; min-height: 0; overflow: auto;
+  display: flex; justify-content: center; align-items: center;
+  padding: 16px; border-radius: var(--radius-control, 10px);
+  background: var(--ded-well);
 }
 .deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; height: auto !important; }
 /* The real deck's caps are sized from the WELL via size container queries (100cqh),
@@ -1096,20 +1174,54 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
    and the well contains its grid so the music bar stacks cleanly below it. */
 .deck-style-preview-root .deck-well {
   flex: 0 0 auto !important;
-  height: calc(var(--deck-rows, 2) * 74px) !important;
+  height: calc(var(--deck-rows, 2) * 84px) !important;
 }
 .deck-style-preview-root .deck-device { flex: none; width: 100%; gap: 8px; }
-.deck-style-body { display: flex; flex-direction: column; gap: 12px; }
+.deck-style-body {
+  grid-area: body; min-height: 0; overflow-y: auto; padding-right: 6px;
+  display: flex; flex-direction: column; gap: 14px;
+  scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
+}
 .deck-style-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.deck-style-cap {
-  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--text-dim, #8b91a1); min-width: 70px;
-}
+.deck-style-grp:has(> .deck-seg) { flex-direction: column; align-items: flex-start; }
+.deck-style-cap { font-size: 13px; color: var(--ded-muted); min-width: 84px; }
 .deck-style-subhead {
-  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
-  opacity: .72; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .07);
+  font-size: 14px; font-weight: 700; color: var(--ded-text);
+  margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--ded-line);
 }
+.deck-style-subhead-first { margin-top: 0; padding-top: 0; border-top: 0; }
+.deck-style-hint { font-size: 12px; line-height: 1.4; color: var(--ded-muted); margin-top: -6px; }
+/* `hidden` has to win over the flex/inline-block display these controls set. */
+.deck-style-dialog [hidden] { display: none !important; }
+/* The deck's own toolbar controls, at the size of a window. */
+.deck-style-dialog .deck-seg { flex-wrap: wrap; gap: 3px; padding: 3px; border: 0; border-radius: var(--radius-control, 10px); background: var(--ded-well); }
+.deck-style-dialog .deck-seg button { min-height: 36px; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--ded-muted); }
+.deck-style-dialog .deck-seg button:hover { color: var(--ded-text); }
+.deck-style-dialog .deck-seg button.active { color: var(--ded-on-ink); background: var(--ded-on); box-shadow: none; }
+.deck-style-dialog .deck-seg button svg { width: 18px; height: 18px; }
+.deck-style-dialog .deck-pill { min-height: 36px; padding: 6px 14px; font-size: 13px; color: var(--ded-text); border-color: var(--ded-line); background: var(--ded-well); }
+.deck-style-dialog .deck-pill::before { display: none; }
+.deck-style-dialog .deck-step { width: 36px; height: 36px; border-radius: 8px; border-color: var(--ded-line); color: var(--ded-text); background: var(--ded-well); }
+.deck-style-dialog .deck-step svg { width: 16px; height: 16px; }
+.deck-style-dialog .deck-decor-swatch { width: 44px; height: 36px; border-radius: 8px; border-color: var(--ded-line); }
+/* Inline on/off switch: the same knob as the key editor's switch rows, on a
+   44px-tall hit area. */
+.deck-style-toggle {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  min-width: 44px; min-height: 44px; margin: -10px 0; padding: 0;
+  background: none; border: 0; cursor: pointer; color: inherit;
+}
+.deck-style-toggle[aria-checked="true"] .deck-ed-switch { background: var(--accent, #2b6cff); }
+.deck-style-toggle[aria-checked="true"] .deck-ed-switch::after { transform: translateX(16px); }
+.deck-style-toggle:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; border-radius: 8px; }
 .deck-style-range { flex: 1 1 120px; min-width: 110px; accent-color: var(--accent, #7aa2ff); }
+@media (max-width: 760px) {
+  .deck-style-modal { padding: 12px; }
+  .deck-style-dialog {
+    width: 100%; height: 100%; gap: 12px; padding: 12px 10px 14px 16px;
+    grid-template: "head" auto "preview" minmax(0, 34vh) "body" minmax(0, 1fr) / minmax(0, 1fr);
+  }
+}
 .deck-step-val {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);
@@ -1243,102 +1355,85 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-np-btn.primary:hover { background: #fff; }
 .deck-np-btn.primary svg { width: 16px; height: 16px; }
 
-/* ── Key editor: a wide two-pane studio — live preview rail on the left, a
-   tabbed form (Actions · Look · Effects) on the right, save bar always docked.
-   Replaces the old single 460px column the whole form used to scroll inside. ── */
+/* ── Key editor: the preview on the left, the form in tabs on the right, and the keys
+   that end the job always in view. ── */
 .deck-ed-backdrop {
   position: fixed; inset: 0; z-index: 60;
-  background: rgba(8, 10, 14, .55);
-  -webkit-backdrop-filter: blur(22px) saturate(120%);
-  backdrop-filter: blur(22px) saturate(120%);
   display: flex; align-items: center; justify-content: center; padding: 14px;
   animation: deck-ed-fade .18s ease;
 }
 @keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
 .deck-ed-modal {
-  width: min(880px, 96vw); height: min(660px, 94vh);
-  display: flex; flex-direction: column; overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
-    linear-gradient(180deg, rgba(28, 32, 42, .97), rgba(16, 18, 24, .97));
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 22px; padding: 0;
-  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
-  color: var(--text, #e7e9ee);
+  width: min(960px, 100%); height: min(720px, 100%);
+  display: flex; flex-direction: column; overflow: hidden; padding: 0;
   animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
 }
+/* A macro from the Xenon menu: one short page. More options brings the whole editor back. */
+.deck-ed-modal.deck-ed-modal--simple { width: min(560px, 100%); height: auto; max-height: min(720px, 100%); }
+.deck-ed-modal--simple .deck-ed-pane { margin-right: 0; padding-right: 0; scrollbar-gutter: auto; }
+.deck-ed-modal--simple .deck-ed-side,
+.deck-ed-modal--simple .deck-ed-tabs,
+.deck-ed-modal--simple .deck-ed-advanced { display: none; }
+.deck-ed-more { align-self: flex-start; margin-top: 4px; }
 @keyframes deck-ed-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
 /* Header: title + close, fixed above the panes. */
 .deck-ed-head {
   flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 14px 18px 12px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+  padding: 12px 14px 12px 22px; border-bottom: 1px solid var(--ded-line);
 }
-.deck-ed-title { margin: 0; padding: 0; border: 0; font-size: 16px; font-weight: 700; }
-.deck-ed-close {
-  width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; cursor: pointer;
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text, #e7e9ee); font-size: 17px; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s ease;
-}
-.deck-ed-close:hover { background: rgba(255, 255, 255, .12); }
+.deck-ed-title { margin: 0; padding: 0; border: 0; font-size: 20px; font-weight: 800; }
 /* Body: side rail + tabbed main, each scrolling on its own. */
 .deck-ed-body { flex: 1; min-height: 0; display: flex; }
 .deck-ed-side {
-  flex: 0 0 216px; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
-  padding: 16px 14px;
-  border-right: 1px solid rgba(255, 255, 255, .07);
-  background: rgba(0, 0, 0, .18);
+  flex: 0 0 252px; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 18px 14px;
+  border-right: 1px solid var(--ded-line);
 }
 /* One thin-scrollbar recipe for every scroll region in the editor. */
-.deck-ed-side, .deck-ed-pane, .deck-ed-pickscroll {
-  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent;
+.deck-ed-side, .deck-ed-pickscroll {
+  scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
+}
+.deck-ed-pane::-webkit-scrollbar { width: 10px; }
+.deck-ed-pane::-webkit-scrollbar-thumb {
+  border: 2px solid transparent; border-radius: 8px;
+  background: var(--ded-line); background-clip: padding-box;
 }
 .deck-ed-main {
   flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
-  padding: 14px 18px 12px;
+  padding: 16px 22px 0;
 }
 .deck-ed-main > .deck-ed-field { flex: 0 0 auto; }
 /* Tab bar: fixed under the name field; only the active pane scrolls. */
 .deck-ed-tabs {
-  flex: 0 0 auto; display: flex; gap: 3px; padding: 3px; margin-bottom: 14px;
-  background: rgba(8, 11, 18, .6); border: 1px solid rgba(255, 255, 255, .07);
-  border-radius: 12px;
+  flex: 0 0 auto; display: flex; gap: 3px; padding: 3px; margin-bottom: 16px;
+  background: var(--ded-well); border-radius: var(--radius-control, 10px);
 }
 .deck-ed-tab {
-  flex: 1; padding: 9px 12px; border: 0; border-radius: 9px; cursor: pointer;
-  background: none; color: var(--text-dim, #9aa1b1);
-  font-size: 12.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+  flex: 1; min-height: 38px; padding: 7px 12px; border: 0; border-radius: 8px; cursor: pointer;
+  background: none; color: var(--ded-muted);
+  font-size: 14px; font-weight: 600; white-space: nowrap;
   transition: background .15s ease, color .15s ease;
 }
-.deck-ed-tab.active {
-  color: #fff;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #2b6cff) 78%, #fff 0%), var(--accent, #2b6cff));
-  box-shadow: 0 1px 8px rgba(var(--accent-rgb, 43, 108, 255), .45);
-}
+.deck-ed-tab:hover { color: var(--ded-text); }
+.deck-ed-tab.active { color: var(--ded-on-ink); background: var(--ded-on); font-weight: 800; }
 .deck-ed-pane {
-  flex: 1; min-height: 0; overflow-y: auto; padding: 2px 6px 8px 2px;
+  flex: 1; min-height: 0; overflow-y: auto;
+  margin-right: -14px; padding: 2px 4px 14px 0;
   scrollbar-gutter: stable;
 }
-/* Each section reads as its own quiet card — bigger labels, clear boundaries. */
-.deck-ed-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-.deck-ed-pane > .deck-ed-field {
-  padding: 12px; margin-bottom: 10px; border-radius: 13px;
-  background: rgba(255, 255, 255, .025); border: 1px solid rgba(255, 255, 255, .06);
-}
-.deck-ed-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim, #9aa1b1); }
+/* Sections are told apart by their name and the room around them: the sheet is the
+   only frame, a box per section would be boxes in boxes. */
+.deck-ed-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.deck-ed-label { font-size: 13px; font-weight: 700; color: var(--ded-muted); }
 .deck-ed-input {
-  width: 100%; box-sizing: border-box; padding: 9px 11px;
-  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 10px; color: var(--text, #e7e9ee); font-size: 13px;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  width: 100%; box-sizing: border-box; min-height: 40px; padding: 9px 11px;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  border-radius: var(--radius-control, 10px); color: var(--ded-text); font-size: 14px;
+  transition: border-color .15s ease;
 }
-.deck-ed-input:focus {
-  outline: none; border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 43, 108, 255), .14);
-}
+.deck-ed-input:focus { outline: none; border-color: var(--accent, #2b6cff); }
 /* Selects re-apply the shared chevron (the .deck-ed-input `background` shorthand
    above would otherwise clear it) so they match every other dropdown in the app. */
 select.deck-ed-input {
@@ -1352,23 +1447,28 @@ select.deck-ed-input {
 .deck-ed-colorrow .deck-ed-input[type="color"] { flex: 1; }
 .deck-ed-input[type="color"].is-unset { opacity: .4; }
 .deck-ed-colorclear {
-  width: 40px; height: 40px; border-radius: 10px; cursor: pointer; flex: 0 0 auto;
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text-dim, #8b91a1); font-size: 13px;
+  width: 40px; height: 40px; border-radius: var(--radius-control, 10px); cursor: pointer; flex: 0 0 auto;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  color: var(--ded-muted); font-size: 13px;
 }
-.deck-ed-colorclear:hover { background: rgba(255, 255, 255, .1); color: var(--text, #e7e9ee); }
+.deck-ed-colorclear:hover { background: var(--ded-well-hover); color: var(--ded-text); }
 /* Native <select> popup: force a dark, readable option list (Chromium/WebView). */
 .deck-ed-input option { background: #12161f; color: #e7e9ee; }
 .deck-ed-params { display: flex; flex-direction: column; }
 
 /* Icon picker: emoji / built-in icons / image toggle, category grids, upload */
-.deck-ed-seg { display: flex; gap: 6px; margin-bottom: 8px; }
+.deck-ed-seg {
+  display: flex; width: fit-content; max-width: 100%; box-sizing: border-box;
+  gap: 3px; padding: 3px; margin-bottom: 8px;
+  border-radius: var(--radius-control, 10px); background: var(--ded-well);
+}
 .deck-ed-segbtn {
-  width: 40px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 17px;
-  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12); color: inherit;
+  width: 40px; height: 38px; border-radius: 8px; cursor: pointer; font-size: 17px;
+  background: none; border: 0; color: var(--ded-muted);
   display: flex; align-items: center; justify-content: center;
 }
-.deck-ed-segbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
+.deck-ed-segbtn:hover { color: var(--ded-text); }
+.deck-ed-segbtn.active { color: var(--ded-on-ink); background: var(--ded-on); }
 .deck-ed-segbtn-icon svg { width: 18px; height: 18px; fill: currentColor; }
 /* Text segments (Colore/Gradiente, label position, size presets): the base
    segbtn is a fixed 40px square built for the emoji/icon tabs, so word labels
@@ -1376,7 +1476,7 @@ select.deck-ed-input {
 .deck-ed-seg-text { width: 100%; }
 .deck-ed-seg-text .deck-ed-segbtn {
   flex: 1; width: auto; min-width: 0; padding: 0 10px;
-  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
 }
 /* Scrollable picker body so a large emoji/icon library never blows up the modal. */
 .deck-ed-pickscroll {
@@ -1384,64 +1484,59 @@ select.deck-ed-input {
   padding-right: 4px;
 }
 .deck-ed-pickscroll::-webkit-scrollbar { width: 8px; }
-.deck-ed-pickscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 8px; }
-.deck-ed-cat {
-  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--text-dim, #aeb4c2); opacity: .8;
-  margin: 8px 2px 5px; position: sticky; top: 0;
-  background: linear-gradient(180deg, #181b23 72%, transparent);
-  padding-bottom: 3px; z-index: 1;
-}
+.deck-ed-pickscroll::-webkit-scrollbar-thumb { background: var(--ded-line); border-radius: 8px; }
+.deck-ed-cat { margin: 10px 2px 6px; font-size: 12px; font-weight: 700; color: var(--ded-muted); }
 .deck-ed-cat:first-child { margin-top: 0; }
 .deck-ed-emojis {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px;
 }
 .deck-ed-emoji {
-  aspect-ratio: 1; border-radius: 9px; cursor: pointer; font-size: 17px; line-height: 1;
-  background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); color: inherit;
+  aspect-ratio: 1; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1;
+  background: var(--ded-well); border: 1px solid transparent; color: inherit;
   display: flex; align-items: center; justify-content: center;
   transition: background .12s ease, border-color .12s ease, transform .08s ease;
 }
-.deck-ed-emoji:hover { background: rgba(255, 255, 255, .09); transform: translateY(-1px); }
-.deck-ed-emoji.sel { border-color: rgba(var(--accent-rgb, 43, 108, 255), .7); background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
+.deck-ed-emoji:hover { background: var(--ded-well-hover); }
+.deck-ed-emoji.sel { color: var(--ded-on-ink); background: var(--ded-on); }
 .deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
 /* Installed icon-pack cells: bitmap/SVG files served by /icon-pack/, same cell
    geometry as the built-in vector icons. */
 .deck-ed-packicon img { width: 20px; height: 20px; object-fit: contain; pointer-events: none; }
 .deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
 .deck-ed-file { display: none; }
-/* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for
-   launch keys. Accent-tinted so it reads as the recommended one-tap option. */
+/* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for launch keys. */
 .deck-ed-appicon-row { margin: 8px 0 2px; }
-.deck-ed-appicon-btn {
-  width: 100%;
-  border-color: rgba(var(--accent-rgb, 43, 108, 255), .45);
-  background: rgba(var(--accent-rgb, 43, 108, 255), .12);
-}
-.deck-ed-appicon-btn:hover { background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
+.deck-ed-appicon-btn { width: 100%; }
 .deck-ed-appicon-btn:disabled { opacity: .6; cursor: default; }
 .deck-ed-imgprev {
-  width: 44px; height: 44px; border-radius: 9px; object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, .14);
+  width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+  border: 1px solid var(--ded-line);
 }
 
-/* Footer save bar: docked under the panes, always visible (no more scrolling to
-   the bottom of a long form to find Save). */
+/* Footer: docked under the panes, always in view. Save is the last key, as on every
+   sheet of the app; Delete stands apart on the far side, a red word. */
 .deck-ed-actions {
-  flex: 0 0 auto; display: flex; gap: 8px;
-  padding: 12px 18px 14px; border-top: 1px solid rgba(255, 255, 255, .08);
-  background: rgba(0, 0, 0, .14);
+  flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 22px 14px; border-top: 1px solid var(--ded-line);
 }
 .deck-ed-btn {
-  flex: 1; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .05);
-  color: var(--text, #e7e9ee); font-size: 13px;
+  flex: 1; min-height: 40px; padding: 9px 12px; border-radius: var(--radius-control, 10px); cursor: pointer; font-weight: 600;
+  border: 1px solid var(--ded-line); background: var(--ded-well);
+  color: var(--ded-text); font-size: 14px;
   transition: filter .15s ease, background .15s ease;
 }
-.deck-ed-btn:hover { background: rgba(255, 255, 255, .1); }
-.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: var(--on-accent, #fff); }
+.deck-ed-btn:hover { background: var(--ded-well-hover); }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: var(--on-accent, #fff); font-weight: 700; }
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
-.deck-ed-btn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .4); flex: 0 0 auto; padding: 10px 14px; }
+.deck-ed-btn.danger { color: var(--color-danger); }
+.deck-ed-actions > .deck-ed-btn { flex: 0 0 auto; min-width: 104px; min-height: 44px; padding: 8px 18px; }
+.deck-ed-actions > .deck-ed-btn.danger { min-width: 0; margin-right: auto; padding: 8px 10px; background: none; border-color: transparent; }
+.deck-ed-actions > .deck-ed-btn.danger:hover { background: var(--ded-well); }
+/* On a phone the keys share the row evenly, a long label on two lines. */
+@media (max-width: 520px) {
+  .deck-ed-actions { padding: 10px 14px 12px; }
+  .deck-ed-actions > .deck-ed-btn { flex: 1 1 0; min-width: 0; padding: 6px 8px; line-height: 1.15; }
+}
 
 /* discordSound param: the sound dropdown + a preview (▶) button that auditions the
    selected sound locally. Row keeps the (enhanced) select filling the width and the
@@ -1454,26 +1549,23 @@ select.deck-ed-input {
 }
 .deck-ed-sound-preview svg { width: 15px; height: 15px; }
 
-/* Saved key presets strip at the top of the editor: load a saved key into the form. */
-.deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.deck-ed-presets-label {
-  width: 100%; font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
-  color: var(--text-dim, #aeb4c2);
-}
+/* Saved key presets: rows in the rail, each loads a saved key into the form. */
+.deck-ed-presets { display: flex; flex-direction: column; gap: 2px; }
+.deck-ed-presets-label { padding: 0 10px 4px; font-size: 13px; font-weight: 700; color: var(--ded-muted); }
 .deck-ed-preset-chip {
-  position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
-  padding: 5px 26px 5px 10px; cursor: pointer;
-  border: 1px solid rgba(var(--accent-rgb, 43,108,255), .4); border-radius: 999px;
-  background: rgba(var(--accent-rgb, 43,108,255), .12); color: var(--text, #e7e9ee);
-  font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  position: relative; display: block; width: 100%; min-height: 40px;
+  padding: 8px 40px 8px 10px; cursor: pointer; text-align: left;
+  border: 0; border-radius: 8px; background: none; color: var(--ded-text);
+  font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.deck-ed-preset-chip:hover { background: rgba(var(--accent-rgb, 43,108,255), .2); }
+.deck-ed-preset-chip:hover { background: var(--ded-well); }
 .deck-ed-preset-del {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
-  color: #ff6b6b; font-size: 13px; font-weight: 700; line-height: 1;
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px;
+  color: var(--ded-muted);
 }
-.deck-ed-preset-del:hover { background: rgba(255, 107, 107, .2); }
+.deck-ed-preset-del svg { width: 16px; height: 16px; }
+.deck-ed-preset-del:hover { background: var(--ded-well-hover); color: var(--color-danger); }
 
 /* Confirmation is a soft glow that swells then fades — no scale/brightness punch, so
    it never fights the press depression (the key handles that itself). This is the
@@ -1546,17 +1638,61 @@ select.deck-ed-input {
    effect (Stay pressed / Blink / Dark / Glow) and the LED reaction — so the default
    accent dot + border + breathing no longer overrides those deliberate choices. */
 
+/* The opt-in lit-face extras (Key editor → On tab): dim while off, a glowing ring
+   and a motion that plays only while on. All in --key-on, the lit colour. */
+/* The same two cues set once for the whole deck (Aspetto Deck → Tasti accesi)
+   reach every key that follows a state (.is-stateful). */
+.deck-key.dim-off:not(.is-on),
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) { filter: saturate(.45) brightness(.62); }
+.deck-key.dim-off:not(.is-on) .deck-ico, .deck-key.dim-off:not(.is-on) .deck-label,
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) .deck-ico,
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) .deck-label { opacity: .7; }
+.deck-key .deck-key-onfx {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit;
+  pointer-events: none; opacity: 0; transition: opacity .18s ease;
+}
+.deck-key.is-on .deck-key-onfx { opacity: 1; }
+.deck-key .deck-key-onfx.has-ring,
+.deck-root[data-litring="1"] .deck-key .deck-key-onfx {
+  box-shadow:
+    inset 0 0 0 2px var(--key-on),
+    inset 0 0 14px color-mix(in srgb, var(--key-on) 55%, transparent);
+}
+.deck-key.is-on .deck-key-onfx[data-anim="pulse"] { animation: deck-key-on-pulse 1.4s ease-in-out infinite; }
+.deck-key.is-on .deck-key-onfx[data-anim="breathe"] { animation: deck-key-breathe 2.8s ease-in-out infinite; }
+.deck-key.is-on .deck-key-onfx[data-anim="blink"] { animation: deck-key-on-blink 1s steps(1, end) infinite; }
+/* Without a ring the motion still needs something to move: a soft wash. */
+.deck-root:not([data-litring="1"]) .deck-key .deck-key-onfx[data-anim]:not(.has-ring) { background: color-mix(in srgb, var(--key-on) 26%, transparent); }
+@keyframes deck-key-on-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes deck-key-on-blink { 0% { opacity: 1; } 50% { opacity: .15; } }
+@media (prefers-reduced-motion: reduce) { .deck-key.is-on .deck-key-onfx { animation: none; } }
+body.perf-mode .deck-key.is-on .deck-key-onfx,
+body.overlay-frozen .deck-key.is-on .deck-key-onfx,
+body.ambient-idle .deck-key.is-on .deck-key-onfx,
+body.game-mode .deck-key.is-on .deck-key-onfx,
+body.low-power-gpu .deck-key.is-on .deck-key-onfx { animation: none; }
+
+/* Confirm keys: the first tap arms the key and asks for a second one. */
+.deck-key.is-arming { box-shadow: inset 0 0 0 2px #f5b14c, 0 0 0 1px rgba(0, 0, 0, .6) !important; }
+.deck-key .deck-key-confirm {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-items: center;
+  padding: 4px; border-radius: inherit; pointer-events: none;
+  background: rgba(20, 12, 0, .78); color: #ffd28a;
+  font-weight: 700; font-size: max(9px, calc(var(--deck-cell, 76px) * .14)); line-height: 1.1;
+}
+
 /* Key Logic: trigger buttons (name + the action assigned to that gesture) */
 .deck-ed-trigbtn {
-  flex: 1; padding: 7px 6px; border-radius: 9px; cursor: pointer; position: relative;
-  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text, #e7e9ee);
-  display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2;
+  flex: 1; min-height: 48px; padding: 6px; border-radius: 8px; cursor: pointer; position: relative;
+  background: none; border: 0;
+  color: var(--ded-text);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.2;
 }
-.deck-ed-trigbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
-.deck-ed-trigname { font-size: 12px; }
-.deck-ed-trigact { font-size: 9px; color: var(--text-dim, #8b91a1); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deck-ed-trigbtn.active .deck-ed-trigact { color: var(--text, #e7e9ee); }
+.deck-ed-trigbtn:hover:not(.active) { background: var(--ded-well); }
+.deck-ed-trigbtn.active { color: var(--ded-on-ink); background: var(--ded-on); }
+.deck-ed-trigname { font-size: 13px; font-weight: 600; }
+.deck-ed-trigact { font-size: 12px; color: var(--ded-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-ed-trigbtn.active .deck-ed-trigact { color: inherit; }
 
 /* On-key gesture hints (bottom-right): double = two dots, hold = a bar */
 .deck-key-trig { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 4px; align-items: center; opacity: .6; pointer-events: none; }
@@ -1567,6 +1703,10 @@ select.deck-ed-input {
 .deck-key-trig .tind-double::before { left: 0; }
 .deck-key-trig .tind-double::after { right: 0; }
 .deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
+/* A cycle key's states (bottom-left): one dot each, the current one lit */
+.deck-key-cycle { position: absolute; left: 4px; bottom: 4px; display: flex; gap: 3px; align-items: center; pointer-events: none; }
+.deck-key-cycle .pip { width: 4px; height: 4px; border-radius: 50%; background: var(--text-dim, #8b91a1); opacity: .45; }
+.deck-key-cycle .pip.is-at { opacity: 1; background: var(--text, #e7e9ee); }
 
 /* ── Live value badge (timer countdown / SDK widget state text) ── */
 .deck-key-live {
@@ -1612,22 +1752,38 @@ select.deck-ed-input {
 .deck-key.is-slider .deck-label { z-index: 2; }
 
 /* ── Smart Profiles dialog (app → profile auto-switch rules) ── */
-.deck-asw { max-width: 420px; width: min(92vw, 420px); display: flex; flex-direction: column; gap: 10px; }
-.deck-asw-row { display: flex; align-items: center; gap: 8px; }
-.deck-asw-enable { cursor: pointer; user-select: none; }
-.deck-asw-enable input { width: 18px; height: 18px; accent-color: var(--accent, #2b6cff); }
-.deck-asw-rules { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
-.deck-asw-rule { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+.deck-asw {
+  width: min(560px, 100%); max-height: 100%; min-height: 0;
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 22px 16px;
+}
+.deck-asw-head { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-right: -8px; }
+.deck-asw-words { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.deck-asw-words .deck-ed-hint { margin: 0; font-size: 14px; }
+.deck-asw-row { display: flex; flex-direction: column; gap: 8px; }
+.deck-asw-rules { flex: 0 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent; }
+.deck-asw-rules:empty { display: none; }
+.deck-asw-rule { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
+.deck-asw-remove {
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0; cursor: pointer;
+  border: 0; border-radius: var(--radius-control, 10px); background: none; color: var(--ded-muted);
+}
+.deck-asw-remove svg { width: 18px; height: 18px; }
+.deck-asw-remove:hover { background: var(--ded-well); color: var(--color-danger); }
+.deck-asw-remove:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 1px; }
+.deck-asw .deck-ed-addstep { flex: 0 0 auto; align-self: flex-start; }
+.deck-asw .deck-ed-actions { padding: 12px 0 0; }
 .deck-pmenu-add.is-on { color: var(--accent, #2b6cff); }
+.deck-pmenu-maker { display: block; text-align: center; text-decoration: none; }
 
 /* Accent preset palette */
 .deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 6px; }   /* ≥32px: finger-sized swatches */
-.deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid rgba(255, 255, 255, .15); }
-.deck-ed-swatch.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
+.deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid var(--ded-line); }
+.deck-ed-swatch.sel { outline: 2px solid var(--ded-text); outline-offset: 2px; }
 .deck-ed-swatch-none {
-  background: rgba(255, 255, 255, .05); color: var(--text-dim, #8b91a1);
-  display: flex; align-items: center; justify-content: center; font-size: 11px;
+  background: var(--ded-well); color: var(--ded-muted);
+  display: flex; align-items: center; justify-content: center;
 }
+.deck-ed-swatch-none svg { width: 60%; height: 60%; }
 
 /* ── Gradient face controls ── */
 .deck-ed-gradwrap { display: flex; flex-direction: column; gap: 7px; }
@@ -1635,12 +1791,13 @@ select.deck-ed-input {
 .deck-ed-gradchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
 .deck-ed-gradchip {
   height: 30px; border-radius: 8px; cursor: pointer; padding: 0;
-  border: 1px solid rgba(255, 255, 255, .18);
+  border: 1px solid var(--ded-line);
 }
-.deck-ed-gradchip.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
+.deck-ed-gradchip.sel { outline: 2px solid var(--ded-text); outline-offset: 2px; }
 
 /* Backdrop-picture controls: preview trash + dim slider + auto-tint. */
-.deck-ed-imgdel { flex: 0 0 auto; width: 34px; padding: 8px 0; font-size: 15px; line-height: 1; }
+.deck-ed-imgdel { flex: 0 0 auto; display: grid; place-items: center; width: 40px; padding: 0; }
+.deck-ed-imgdel svg { width: 18px; height: 18px; }
 .deck-ed-dimrow { display: flex; align-items: center; gap: 10px; }
 .deck-ed-dimrow .deck-ed-label { flex: 0 0 auto; }
 .deck-ed-range { flex: 1; accent-color: var(--accent, #2b6cff); min-width: 0; }
@@ -1656,57 +1813,137 @@ select.deck-ed-input {
   flex: 0 0 auto; width: 100%;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
-.deck-ed-preview-caption {
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em;
-  color: var(--text-dim, #8b91a1);
-}
-.deck-ed-preview-stage {
-  padding: clamp(10px, 3vh, 20px); border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
-    linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
-  border: 1px solid rgba(0, 0, 0, .6);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, .5), inset 0 1.5px 0 rgba(255, 255, 255, .08);
-}
+.deck-ed-preview-caption { align-self: flex-start; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--ded-muted); }
 /* The preview cap is sized off a fixed footprint (no grid to derive it from). */
 .deck-ed-preview-root { --ed-cap: clamp(84px, 24vh, 132px); --deck-key-min: var(--ed-cap); }
 .deck-ed-preview-root .deck-key { width: var(--ed-cap); height: var(--ed-cap); cursor: default; }
 /* No edit-mode jiggle / hover lift in a static preview. */
 .deck-ed-preview-root .deck-key:hover { transform: none; filter: none; }
 
-/* Style clipboard: copy / paste / apply-to-page — stacked in the side rail. */
-.deck-ed-styletools { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.deck-ed-styletools .deck-ed-btn { flex: 0 0 auto; width: 100%; }
+/* A key that can light up previews both faces, off and on, side by side. */
+.deck-ed-preview-pair { display: flex; gap: 10px; align-items: flex-start; }
+.deck-ed-preview-pair .deck-ed-preview-root { --ed-cap: clamp(64px, 17vh, 88px); }
+.deck-ed-preview-fig { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.deck-ed-preview-tag { font-size: 12px; font-weight: 600; color: var(--ded-muted); }
+/* Either face can be tapped to edit it in Look; the one being edited is marked. */
+.deck-ed-preview-fig.is-pickable { cursor: pointer; padding: 4px; border-radius: 12px; border: 1px solid transparent; }
+.deck-ed-preview-fig.is-face { border-color: var(--ded-line); background: var(--ded-well); }
+.deck-ed-preview-fig.is-face .deck-ed-preview-tag { color: var(--ded-text); }
+.deck-ed-preview-fig:focus-visible { outline: 2px solid var(--accent, #7aa2ff); outline-offset: 2px; }
+
+/* Look edits one face at a time (Off / On): the other face's cards step aside. */
+.deck-ed-pane[data-face="on"] > .deck-ed-off-face,
+.deck-ed-pane[data-face="off"] > .deck-ed-on-face { display: none; }
+/* A cycle key's further state: only the state picker and that state's cards. */
+.deck-ed-pane[data-face="cycle"] > :not(.deck-ed-faceseg):not(.deck-ed-cycleface) { display: none; }
+.deck-ed-faceseg { margin-bottom: 16px; }
+.deck-ed-faceseg .deck-ed-segbtn { min-width: 64px; }
+/* Word segments that do not fit one row (fit-row.js sets data-fit) become an
+   even grid: two equal columns, an odd last button across the row. Never a
+   ragged wrap with buttons of random widths. */
+.deck-ed-seg-text .deck-ed-segbtn { overflow: hidden; text-overflow: ellipsis; }
+.deck-ed-seg-text[data-fit="1"], .deck-ed-seg-text[data-fit="2"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.deck-ed-seg-text:is([data-fit="1"]:not(.deck-ed-modeseg, .deck-ed-faceseg), [data-fit="2"]) > .deck-ed-segbtn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* Behaviour: five choices in one row; when they do not fit, three over two
+   (each row filled edge to edge), then the two-column grid above. */
+.deck-ed-modeseg .deck-ed-segbtn { min-height: 40px; height: auto; padding: 4px 10px; line-height: 1.2; }
+.deck-ed-modeseg[data-fit="1"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.deck-ed-modeseg[data-fit="1"] > .deck-ed-segbtn { grid-column: span 2; }
+.deck-ed-modeseg[data-fit="1"] > .deck-ed-segbtn:nth-child(n+4) { grid-column: span 3; }
+/* Cycle faces (up to eight): equal cells in rows of four when one row is too narrow. */
+.deck-ed-faceseg[data-fit="1"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.deck-ed-numpair { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0 14px; }
+.deck-ed-numwrap { display: flex; align-items: center; gap: 8px; }
+.deck-ed-numwrap .deck-ed-num { width: 96px; }
+.deck-ed-unit { font-size: 13px; color: var(--ded-muted); }
+.deck-ed-stepper { display: flex; align-items: center; gap: 10px; }
+.deck-ed-stepper .deck-ed-stepbtn { width: 44px; height: 40px; font-size: 18px; }
+.deck-ed-stepper .deck-ed-stepbtn:disabled { opacity: .35; cursor: default; }
+.deck-ed-stepcount { min-width: 20px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Gestures: a cycle key has one per state, so the row wraps. */
+.deck-ed-trigseg { flex-wrap: wrap; width: 100%; }
+.deck-ed-trigseg .deck-ed-trigbtn { min-width: 76px; }
+.deck-ed-facebtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.deck-ed-facebtns .deck-ed-facego { margin-top: 0; }
+
+/* On tab: what lights the key, in one line at the top. */
+.deck-ed-statesum {
+  margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius-control, 10px);
+  font-size: 14px; line-height: 1.4; background: var(--ded-well);
+}
+.deck-ed-statesum.is-idle { color: var(--color-warn, #f5b14c); }
+/* Follow the state the action brings, or keep one face: set apart from the fields under it. */
+.deck-ed-follow { margin-bottom: 12px; }
+/* Under the preview: one look or off and on, the same choice as in State. */
+.deck-ed-facecount { margin-top: 10px; width: 100%; }
+
+/* On/off rows (switch, confirm, ring, dim). */
+.deck-ed-switches { display: flex; flex-direction: column; gap: 2px; }
+.deck-ed-switchrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 44px; padding: 6px 0; border: 0; border-radius: 8px; cursor: pointer;
+  background: none; color: var(--ded-text); font-size: 14px; text-align: left;
+}
+.deck-ed-switchtxt { flex: 1; min-width: 0; }
+.deck-ed-switch {
+  position: relative; flex: 0 0 auto; width: 38px; height: 22px; border-radius: 11px;
+  background: var(--ded-well-hover); transition: background .15s ease;
+}
+.deck-ed-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; transition: transform .15s ease;
+}
+.deck-ed-switchrow[aria-checked="true"] .deck-ed-switch { background: var(--accent, #2b6cff); }
+.deck-ed-switchrow[aria-checked="true"] .deck-ed-switch::after { transform: translateX(16px); }
+.deck-ed-switchrow:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; }
+
+/* Things to do with this key: plain rows in the side rail, the sheet is their frame. */
+.deck-ed-styletools { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.deck-ed-styletools .deck-ed-btn { flex: 0 0 auto; width: 100%; padding: 8px 10px; text-align: left; background: none; border-color: transparent; }
+.deck-ed-styletools .deck-ed-btn:hover:not(:disabled) { background: var(--ded-well); }
 .deck-ed-styletools .deck-ed-btn:disabled { opacity: .4; cursor: default; }
-/* Saved key presets live in the rail too: full-width chips under the preview. */
+/* Saved key presets live in the rail too, under the preview. */
 .deck-ed-side .deck-ed-presets { width: 100%; margin: 0; }
 
-/* Narrow viewport: the rail folds into a compact horizontal strip above the
-   form — the preview stays visible, presets/tools scroll beside it. */
 @media (max-width: 760px) {
-  .deck-ed-modal { width: 96vw; height: 94vh; }
+  .deck-ed-modal { width: 100%; height: 100%; }
+  :is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) { width: 44px; height: 44px; }
+  .deck-ed-head { padding: 8px 8px 8px 16px; }
+  .deck-ed-title { font-size: 18px; }
+  .deck-ed-main { padding: 12px 16px 0; }
+  .deck-ed-pane { margin-right: 0; padding-right: 0; scrollbar-gutter: auto; }
+}
+/* Upright, the rail folds into a strip above the form: the preview stays in view with
+   its tools beside it as plain words, the presets scroll on their own row. A phone on
+   its side has no height for a strip, so it keeps the rail, narrower. */
+@media (max-width: 760px) and (max-height: 520px) {
+  .deck-ed-side { flex-basis: 200px; padding: 12px 10px; }
+}
+@media (max-width: 760px) and (min-height: 521px) {
   .deck-ed-body { flex-direction: column; }
   .deck-ed-side {
-    flex: 0 0 auto; flex-direction: row; align-items: center; gap: 12px;
-    padding: 10px 14px; overflow-x: auto; overflow-y: hidden;
-    border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .07);
+    flex: 0 0 auto; flex-flow: row wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; overflow: hidden;
+    border-right: 0; border-bottom: 1px solid var(--ded-line);
   }
-  .deck-ed-side .deck-ed-presets { width: auto; flex: 0 0 auto; flex-wrap: nowrap; }
+  .deck-ed-side .deck-ed-presets { order: 2; flex: 1 0 100%; width: 100%; flex-direction: row; gap: 6px; overflow-x: auto; }
+  .deck-ed-presets-label { display: none; }
+  .deck-ed-preset-chip { flex: 0 0 auto; width: auto; max-width: 180px; background: var(--ded-well); }
   .deck-ed-preview { width: auto; }
   .deck-ed-preview-caption { display: none; }
-  .deck-ed-preview-stage { padding: 8px; border-radius: 14px; }
   .deck-ed-preview-root { --ed-cap: 64px; }
-  .deck-ed-styletools { flex-direction: row; width: auto; }
-  .deck-ed-styletools .deck-ed-btn { width: auto; }
+  .deck-ed-preview-pair .deck-ed-preview-root { --ed-cap: 54px; }
+  .deck-ed-styletools { order: 1; flex: 1 1 0; min-width: 0; width: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 2px; }
+  .deck-ed-styletools .deck-ed-btn { min-height: 40px; padding: 4px 10px; font-size: 14px; line-height: 1.15; text-align: left; background: none; }
 }
 /* Short viewports (the Xeneon Edge is wide but low): trim the chrome so the
    panes keep usable height. */
 @media (max-height: 520px) {
   .deck-ed-backdrop { padding: 8px; }
-  .deck-ed-modal { height: 96vh; border-radius: 16px; }
-  .deck-ed-head { padding: 10px 16px 8px; }
+  .deck-ed-modal { height: 100%; }
+  .deck-ed-head { padding: 6px 10px 6px 16px; }
   .deck-ed-actions { padding: 8px 16px 10px; }
-  .deck-ed-main { padding: 10px 16px 8px; }
+  .deck-ed-main { padding: 10px 16px 0; }
   .deck-ed-tabs { margin-bottom: 10px; }
 }
 
@@ -1718,45 +1955,45 @@ select.deck-ed-input {
 /* Multi-Action: a list of step cards inside a trigger's action editor */
 /* Custom-select dropdowns inside the editor: fill the field and match the inputs
    (the styled trigger replaces the hidden native <select>). */
-.deck-ed-modal .cs-wrap { width: 100%; }
+:is(.deck-ed-modal, .deck-asw) .cs-wrap { width: 100%; }
 .deck-ed-step-head .cs-wrap { flex: 1; width: auto; min-width: 0; }
-.deck-ed-modal .cs-trigger {
-  width: 100%; min-width: 0;
-  padding: 9px 11px; font-size: 13px; font-weight: 500;
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 10px; color: var(--text, #e7e9ee);
+:is(.deck-ed-modal, .deck-asw) .cs-trigger {
+  width: 100%; min-width: 0; min-height: 40px;
+  padding: 9px 11px; font-size: 14px; font-weight: 500;
+  background: var(--ded-well);
+  border: 1px solid var(--ded-line);
+  border-radius: var(--radius-control, 10px); color: var(--ded-text);
 }
-.deck-ed-modal .cs-trigger:hover { border-color: rgba(var(--accent-rgb, 43, 108, 255), .4); }
-.deck-ed-modal .cs-wrap.cs-open .cs-trigger {
-  border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 43, 108, 255), .14);
-}
-.deck-ed-modal .cs-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+:is(.deck-ed-modal, .deck-asw) .cs-trigger:hover { background: var(--ded-well-hover); }
+:is(.deck-ed-modal, .deck-asw) .cs-wrap.cs-open .cs-trigger { border-color: var(--accent, #2b6cff); box-shadow: none; }
+:is(.deck-ed-modal, .deck-asw) .cs-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
 .deck-ed-steps { display: flex; flex-direction: column; gap: 8px; }
-.deck-ed-step { border: 1px solid rgba(255, 255, 255, .1); border-radius: 11px; padding: 9px; background: rgba(255, 255, 255, .025); }
+.deck-ed-step { border: 1px solid var(--ded-line); border-radius: var(--radius-control, 10px); padding: 10px; background: var(--ded-well); }
 .deck-ed-step-head { display: flex; gap: 8px; align-items: center; }
 .deck-ed-step-head .deck-ed-input { flex: 1; }
 .deck-ed-step-tools { display: flex; gap: 4px; flex: 0 0 auto; }
 .deck-ed-stepbtn {
-  width: 34px; height: 36px; border-radius: 8px; cursor: pointer;   /* touch-sized reorder/remove */
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
+  display: grid; place-items: center; width: 36px; height: 38px; padding: 0; border-radius: 8px; cursor: pointer;   /* touch-sized reorder/remove */
+  background: var(--ded-well); border: 1px solid transparent; color: var(--ded-text);
 }
+.deck-ed-stepbtn:hover:not([disabled]) { background: var(--ded-well-hover); }
+.deck-ed-stepbtn svg { width: 16px; height: 16px; }
 .deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
-.deck-ed-stepbtn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
+.deck-ed-stepbtn.danger { color: var(--color-danger); }
 .deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .deck-ed-step .deck-ed-params { margin-top: 8px; }
 .deck-ed-addstep {
-  padding: 9px; border-radius: 10px; cursor: pointer; font-weight: 600;
-  background: rgba(var(--accent-rgb, 43, 108, 255), .14); border: 1px dashed rgba(var(--accent-rgb, 43, 108, 255), .5);
-  color: var(--text, #e7e9ee);
+  min-height: 40px; padding: 8px 14px; border-radius: var(--radius-control, 10px); cursor: pointer; font-size: 14px; font-weight: 600;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  color: var(--ded-text);
 }
-.deck-ed-addstep:hover { background: rgba(var(--accent-rgb, 43, 108, 255), .22); }
+.deck-ed-addstep::before { content: '+ '; }   /* in CSS: a language change rewrites the text */
+.deck-ed-addstep:hover { background: var(--ded-well-hover); }
 
 /* LED reaction editor section: tighter sub-rows + a muted hint line. */
 .deck-ed-subfield { margin-top: 8px; }
-.deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }
+.deck-ed-hint { margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--ded-muted); }
 
 /* Hotkey composer: modifier toggle chips + a single main-key capture field + a live
    preview of the resulting combo. Chips avoid having to physically hold Win, which
@@ -1764,68 +2001,56 @@ select.deck-ed-input {
 .deck-ed-hotkey { display: flex; flex-direction: column; gap: 8px; }
 .deck-ed-hotkey-mods { display: flex; gap: 6px; flex-wrap: wrap; }
 .deck-ed-hotkey-mod {
-  flex: 1 1 0; min-width: 56px; padding: 8px 6px; border-radius: 10px; cursor: pointer;
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text-dim, #8b91a1); font-weight: 600; font-size: 13px;
-  transition: background .15s, border-color .15s, color .15s;
+  flex: 1 1 0; min-width: 56px; min-height: 40px; padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  background: var(--ded-well); border: 1px solid transparent;
+  color: var(--ded-muted); font-weight: 600; font-size: 13px;
+  transition: background .15s, color .15s;
 }
-.deck-ed-hotkey-mod:hover { color: var(--text, #e7e9ee); border-color: rgba(255, 255, 255, .22); }
-.deck-ed-hotkey-mod.active {
-  background: rgba(var(--accent-rgb, 43, 108, 255), .18);
-  border-color: rgba(var(--accent-rgb, 43, 108, 255), .55);
-  color: var(--text, #e7e9ee);
-}
+.deck-ed-hotkey-mod:hover { color: var(--ded-text); background: var(--ded-well-hover); }
+.deck-ed-hotkey-mod.active { color: var(--ded-on-ink); background: var(--ded-on); }
 .deck-ed-hotkey-row { display: flex; gap: 8px; align-items: stretch; }
 .deck-ed-hotkey-input { flex: 1; cursor: pointer; text-align: center; text-transform: uppercase; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .deck-ed-hotkey-input:focus { caret-color: transparent; }
 .deck-ed-hotkey-clear {
-  flex: 0 0 auto; width: 38px; border-radius: 10px; cursor: pointer;
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text-dim, #8b91a1); font-size: 13px;
+  flex: 0 0 auto; display: grid; place-items: center; width: 40px; padding: 0; border: 0;
+  border-radius: var(--radius-control, 10px); cursor: pointer;
+  background: none; color: var(--ded-muted);
 }
-.deck-ed-hotkey-clear:hover { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
+.deck-ed-hotkey-clear svg { width: 18px; height: 18px; }
+.deck-ed-hotkey-clear:hover { color: var(--color-danger); background: var(--ded-well); }
 .deck-ed-hotkey-preview {
   text-align: center; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums;
-  padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, .04);
-  color: var(--text, #e7e9ee); text-transform: uppercase; font-size: 13px;
+  padding: 6px; border-radius: 8px; background: var(--ded-well);
+  color: var(--ded-text); text-transform: uppercase; font-size: 13px;
 }
-.deck-ed-hotkey-preview.is-empty { color: var(--text-dim, #8b91a1); font-weight: 500; text-transform: none; letter-spacing: 0; }
+/* Keyboard shortcut card: one button that records the combination. */
+.deck-ed-shortcut-rec { min-height: 44px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.deck-ed-shortcut-rec.is-recording { color: var(--ded-on-ink); background: var(--ded-on); border-color: transparent; }
+.deck-ed-shortcut-rec:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; }
+.deck-ed-hotkey-clear[hidden] { display: none; }
+.deck-ed-shortcut-state.is-bad { color: var(--color-danger); opacity: 1; }
+.deck-ed-hotkey-preview.is-empty { color: var(--ded-muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
 
 /* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
-/* Mirrors the editor's glass modal; faders are enlarged from the compact audio
-   panel rows so they're comfortable on the Xeneon touchscreen. */
+/* Faders are enlarged from the compact audio panel rows so they're comfortable on a
+   touchscreen. */
 .deck-mix-backdrop {
   position: fixed; inset: 0; z-index: 62;
-  background: rgba(8, 10, 14, .55);
-  -webkit-backdrop-filter: blur(22px) saturate(120%);
-  backdrop-filter: blur(22px) saturate(120%);
   display: flex; align-items: center; justify-content: center; padding: 16px;
   opacity: 0; transition: opacity .18s ease;
 }
 .deck-mix-backdrop.visible { opacity: 1; }
 .deck-mix-modal {
-  width: min(420px, 95vw); max-height: 86vh; overflow-y: auto;
-  background:
-    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
-    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 22px; padding: 18px 20px 20px;
-  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
-  color: var(--text, #e7e9ee);
+  width: min(520px, 100%); max-height: 100%; overflow-y: auto;
+  padding: 14px 14px 22px 22px;
   transform: translateY(10px) scale(.97); transition: transform .22s cubic-bezier(.2, .8, .2, 1);
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
 }
 .deck-mix-backdrop.visible .deck-mix-modal { transform: none; }
-.deck-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.deck-mix-title { margin: 0; font-size: 15px; font-weight: 700; }
-.deck-mix-close {
-  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex: 0 0 auto;
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
-  color: var(--text, #e7e9ee); font-size: 14px; line-height: 1;
-}
-.deck-mix-close:hover { background: rgba(255, 255, 255, .12); }
-.deck-mix-apps { display: flex; flex-direction: column; gap: 14px; }
-.deck-mix-empty { padding: 24px 8px; text-align: center; font-size: 13px; opacity: .6; }
+.deck-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.deck-mix-title { margin: 0; font-size: 20px; font-weight: 800; }
+.deck-mix-apps { display: flex; flex-direction: column; gap: 14px; padding-right: 8px; }
+.deck-mix-empty { padding: 24px 8px; text-align: center; font-size: 14px; color: var(--ded-muted); }
 /* Enlarge the reused .app-mix-* rows for touch inside the overlay. */
 .deck-mix-apps .app-mix-row { grid-template-columns: 30px minmax(60px, 110px) 1fr auto 36px; gap: 12px; }
 .deck-mix-apps .app-mix-icon { width: 30px; height: 30px; border-radius: 8px; }

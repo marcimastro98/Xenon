@@ -51,7 +51,8 @@
     { id: 'activity', labelKey: 'sbw_tab_activity', fb: 'Activity' },
     { id: 'globals', labelKey: 'sbw_tab_globals', fb: 'Globals' },
   ];
-  let activeTab = 'activity';
+  // Remembered across reloads (TileTabMemory).
+  let activeTab = window.TileTabMemory ? TileTabMemory.get('streamerbot', TABS.map((tb) => tb.id), 'activity') : 'activity';
 
   let configured = null;   // null = unknown
   let connected = false;
@@ -59,12 +60,10 @@
   let events = [];         // most-recent first, capped EVT_MAX
   let seeded = false;
 
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="streamerbot"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="streamerbot"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
 
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // "RewardRedemption" → "Reward Redemption"; keeps acronyms readable enough.
@@ -106,7 +105,11 @@
     TABS.forEach(tb => {
       const b = el('button', 'sbw-tab', t(tb.labelKey, tb.fb));
       b.type = 'button'; b.dataset.stab = tb.id;
-      b.addEventListener('click', () => { activeTab = tb.id; paint(); });
+      b.addEventListener('click', () => {
+        activeTab = tb.id;
+        if (window.TileTabMemory) TileTabMemory.set('streamerbot', tb.id);
+        paint();
+      });
       tabs.appendChild(b);
     });
     wrap.appendChild(tabs);
@@ -157,7 +160,7 @@
     if (!feed) return;
     if (!events.length) {
       const msg = configured === false ? t('sbw_setup_short', 'Not connected')
-        : !connected ? t('sbw_offline_hint', 'Streamer.bot isn\'t reachable — open it and start Servers/Clients → WebSocket Server (it reconnects on its own).')
+        : !connected ? t('sbw_offline_hint', 'Streamer.bot isn\'t reachable: open it and start Servers/Clients → WebSocket Server (it reconnects on its own).')
           : t('sbw_waiting', 'Waiting for events…');
       feed.replaceChildren(el('div', 'sbw-empty', msg));
       return;

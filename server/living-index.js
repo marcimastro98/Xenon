@@ -14,9 +14,15 @@
 // restart the host (the index rebuilds — cheap enough to be the simple,
 // correct answer). Without the helper exe everything answers null and the
 // callers keep their fallbacks.
+//
+// Two things keep the walk out of the way, because it is the heaviest work Xenon
+// does: it starts `startDelayMs` after the server (the PC is still starting, and
+// the first search opens the way at once), and `hold()` stands it still while a
+// game runs. Callers already read both as "still building".
 
 const { spawn } = require('child_process');
 const fs = require('fs');
+const { lowerPriority } = require('./child-priority');
 
 const RETRY_MS = 15 * 1000;
 const REQ_TIMEOUT_MS = 30000;
@@ -25,6 +31,7 @@ const OVERVIEW_TIMEOUT_MS = 120000; // one consistent pass over as many as 2M en
 function createLivingIndex(opts) {
   const o = opts || {};
   const helperExe = o.helperExe;
+  const spawnHost = o.spawn || spawn;
 
   const host = {
     proc: null, buf: '', nextId: 1, pending: new Map(), diedAt: 0,
@@ -34,6 +41,10 @@ function createLivingIndex(opts) {
   };
   let wantedRoots = [];
   let testRunner = null;  // test seam: replaces the whole round-trip
+  let notBefore = Date.now() + (o.startDelayMs || 0);
+  let startTimer = null;
+  let held = false;
+  let stopped = false;
 
   function helperPresent() {
     try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
@@ -61,15 +72,28 @@ function createLivingIndex(opts) {
     proc.once('exit', () => clearTimeout(force));
   }
 
+  function startWhenDue() {
+    if (startTimer) return;
+    startTimer = setTimeout(() => { startTimer = null; ensure(); }, Math.max(0, notBefore - Date.now()));
+    startTimer.unref();
+  }
+
+  function startNow() {
+    notBefore = 0;
+    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+  }
+
   function ensure() {
     if (host.proc) return host.proc;
-    if (!wantedRoots.length || !helperPresent()) return null;
+    if (stopped || held || !wantedRoots.length || !helperPresent()) return null;
     if (Date.now() - host.diedAt < RETRY_MS) return null;
+    if (Date.now() < notBefore) { startWhenDue(); return null; }
     let proc;
     try {
-      proc = spawn(helperExe, ['index-serve', ...wantedRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+      proc = spawnHost(helperExe, ['index-serve', ...wantedRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
     } catch { return null; }
     host.proc = proc;
+    lowerPriority(proc.pid);
     host.roots = wantedRoots.slice();
     host.ready = false;
     host.progress = { files: 0 };
@@ -134,6 +158,7 @@ function createLivingIndex(opts) {
 
   async function query(q) {
     if (!available()) return null;
+    startNow();   // someone is asking: nothing left to wait for
     try {
       const out = await request('query', {
         terms: q.terms || [], exts: q.exts || null,
@@ -205,7 +230,7 @@ function createLivingIndex(opts) {
       const s = await request('stats', {}, 5000);
       return {
         on: true, helper: true,
-        ready: s.ready === true, building: s.building === true,
+        ready: s.ready === true, building: s.building === true, held,
         files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
         // Moves on every change the index applies (absent on an older helper).
         // diskspace.js reuses a disk snapshot for as long as it stands still.
@@ -231,8 +256,22 @@ function createLivingIndex(opts) {
         progress: host.progress,
       };
     } catch {
-      return { on: true, helper: helperPresent(), ready: false, building: true, starting: true, roots: wantedRoots, progress: host.progress };
+      return startingStats();
     }
+  }
+
+  function startingStats() {
+    return { on: true, helper: helperPresent(), ready: false, building: true, starting: true, held, roots: wantedRoots, progress: host.progress };
+  }
+
+  // The host goes on answering from what it holds; only its walking and repairing
+  // stand still. An older host refuses the op and simply carries on as before.
+  function hold(on) {
+    const next = on === true;
+    if (next === held) return;
+    held = next;
+    if (host.proc || testRunner) request('hold', { on: held }).catch(() => {});
+    else if (!held) ensure();
   }
 
   // Roots come from settings (searchSettings.indexRoots). A change restarts
@@ -264,10 +303,14 @@ function createLivingIndex(opts) {
     if (wantedRoots.length) ensure();
   }
 
-  function stop() { retire('shutdown'); }
+  function stop() {
+    stopped = true;
+    startNow();
+    retire('shutdown');
+  }
 
   return {
-    available, query, overview, browse, sizes, dirs, list, top, dupes, stats, setRoots, stop,
+    available, query, overview, browse, sizes, dirs, list, top, dupes, stats, setRoots, hold, stop,
     _setTestRunner(fn) { testRunner = typeof fn === 'function' ? fn : null; },
     _running() { return !!host.proc; },
   };

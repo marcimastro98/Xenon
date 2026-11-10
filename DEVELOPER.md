@@ -10,7 +10,7 @@ Xenon is a **local-only** Node.js web app for Windows. The server is a single HT
 
 There is no build step for the web widget — the browser loads the ES modules in `server/js/` directly.
 
-- **Runtime:** Node.js ≥ 18.15, Windows x64 only
+- **Runtime:** Node.js LTS (the exact floor is `engines` in `package.json`) on Windows, macOS and Linux
 - **Server:** `http://127.0.0.1:3030` (loopback only)
 - **Dependencies:** `koffi` (FFI for the iCUE RGB bridge), `msedge-tts` (local Edge TTS). Do not add more without agreement.
 
@@ -68,19 +68,21 @@ packages/core/          @xenon/core — surface-agnostic shared code, the SINGLE
                         exports via CommonJS for Node/tests/iCUE packaging) — so NO surface
                         moves to ES modules and there is NO browser build step.
 packages/design-system/ Shared design spec/tokens.
+packages/mcp/           xenon-mcp, the MCP server (stdio, zero deps) that lets Claude Code,
+                        Codex or any MCP client build widgets: npm package, Claude Code
+                        plugin (.claude-plugin/, skills/) and MCP registry server.json.
 apps/native/            The native Tauri kiosk app (see below).
 server/                 Backend + dashboard UI (unchanged home; all runtime paths preserved).
 widget/                 Native iCUE widget (in development) — consumes the same packages/core
                         via its packaging step; its only widget-specific layer is the iCUE
                         lifecycle/adapter.
-service/                Retired Windows-service host, kept for migration (see below).
 ```
 
 **How the browser reaches `packages/core` without a build:** a Windows directory junction `server/shared → packages/core` (created by `npm run link:shared`, also `postinstall`, and self-healed at server boot) exposes the files at `/shared/*`, served by the existing static handler (`shared` is on its allowlist; the loopback traversal guard is unchanged because `path.normalize` is lexical). `server/js` consumes them as plain `<script>` includes with inline fallbacks, so the dashboard still boots byte-identically if `/shared` is briefly unavailable. The iCUE packaging step *copies* `packages/core/src` into the package instead of relying on the junction. The junctions are git-ignored.
 
-### Backend startup (`service/` is retired)
+### Backend startup
 
-The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). The launcher looks nothing up on `PATH`: `install.ps1` records the `node.exe` it verified in `%LOCALAPPDATA%\Xenon\node-path.txt` and `start-hidden.vbs` starts that one, falling back to the usual install folders and then to a `PATH` scan it walks itself, and writing into `%LOCALAPPDATA%\Xenon\server.log` when there is no `node.exe` at all — the logon task's environment is not the installer's, and a start that fails there has no console to fail in. An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task; `service/` keeps only the uninstall script (used by that migration and by `uninstall.ps1`) — see `service/README.md`. There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
+The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). The launcher looks nothing up on `PATH`: `install.ps1` records the `node.exe` it verified in `%LOCALAPPDATA%\Xenon\node-path.txt` and `start-hidden.vbs` starts that one, falling back to the usual install folders and then to a `PATH` scan it walks itself, and writing into `%LOCALAPPDATA%\Xenon\server.log` when there is no `node.exe` at all — the logon task's environment is not the installer's, and a start that fails there has no console to fail in. An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task, and `uninstall.ps1` does the same (both with `sc.exe`; the old `service/` folder is gone). There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
 
 ### Native app (`apps/native/`)
 
@@ -106,7 +108,7 @@ A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `spla
 | `lighting-external.js` | External-provider coordinator |
 | `lighting-providers/` | Per-system drivers: `wled.js`, `openrgb.js`, `hue.js`, `nanoleaf.js` |
 | `ai-local.js` | Local Xenon AI — Ollama (chat) + Whisper.cpp (STT) + Edge neural TTS |
-| `wakeword.js` | Local "Hey Xenon" wake-word listener — on-device Whisper, off by default, runs only while a dashboard is open; opens a voice session via the `wake_word` SSE event. No audio leaves the PC |
+| `wakeword.js` | Local "Hey Bit" wake-word listener — on-device Whisper, off by default, runs only while a dashboard is open; opens a voice session via the `wake_word` SSE event. No audio leaves the PC |
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
 | `fps-monitor.js` | Picks the platform's FPS backend and presents one interface to `server.js` |
 | `fpsmon.js` | PresentMon ETW FPS reader, Windows (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
@@ -292,6 +294,20 @@ together.
 | `GET` | `/api/ai-local/status` | Live status of Ollama / Whisper / Edge voice. |
 | `POST` | `/api/ai-local/pull` | Download a local model (progress). |
 
+### Widget authors (xenon-mcp, loopback only, never from a paired device)
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/mcp/dev/pair` | A bridge asks to connect. Body: `{ name }`. The dashboard shows the allow dialog. |
+| `POST` | `/api/mcp/dev/pair/poll` | The bridge waits for the answer. Body: `{ pairId }`. The token comes back once. |
+| `POST` | `/api/mcp/dev/pair/answer` | The dashboard answers. Body: `{ id, allow }`. |
+| `GET` | `/api/mcp/dev/pairs` | Pairings still waiting, for a dashboard that opens late. |
+| `POST` | `/api/mcp/dev/call` | One tool op. Header `X-Xenon-Mcp-Token`. Body: `{ op, args }` (`server/mcp-dev-tools.js`). |
+| `POST` | `/api/mcp/dev/report` | The dashboard answers a `mcp_dev_query`. Body: `{ reqId, data }`. |
+| `GET` | `/api/mcp/dev/clients` | Connected tools (name, dates; never the token). |
+| `POST` | `/api/mcp/dev/revoke` | Remove a connected tool. Body: `{ id }`. |
+| `POST` | `/api/mcp/dev/connect` | Run `claude`/`codex mcp add xenon-widgets`. Body: `{ provider }`. |
+
 ### Remote Control
 
 | Method | Endpoint | Purpose |
@@ -334,7 +350,7 @@ Both upgrade on the same server and are rejected unless the request passes the l
 
 ### SSE events
 
-`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, `script_states`, plus integration streams such as `homeassistant`, `streamerbot_event`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
+`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, `script_states`, plus integration streams such as `homeassistant`, `streamerbot_event`, the widget-author events `mcp_dev_pair`, `mcp_dev_pair_done`, `mcp_dev_clients` and `mcp_dev_query`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
 
 ---
 
@@ -393,7 +409,7 @@ Xenon/
 
 ### Runtime data files (auto-created, gitignored — do not edit by hand)
 
-All user data lives in **`server/data/`**: `settings.json` (incl. `geminiApiKey`, `aiProvider`, `lighting`, `remoteControl`), `events.json`, `tasks.json`, `timers.json`, `deck.json`, `notes.txt`, `stream-config.json`, `stream-tokens.json`, and `uploads/`.
+All user data lives in **`server/data/`**: `settings.json` (incl. `geminiApiKey`, `aiProvider`, `lighting`, `remoteControl`), `events.json`, `mcp-clients.json` (connected widget-author tools, token hashes only), `tasks.json`, `timers.json`, `deck.json`, `notes.txt`, `stream-config.json`, `stream-tokens.json`, and `uploads/`.
 
 Paths are centralized via the `DATA_DIR` constant in `server.js`. On startup a one-time migration moves any legacy loose files (from earlier versions that stored them directly in `server/`) into `server/data/`, skipping any file that already exists in the new location so it never clobbers current data.
 
@@ -421,7 +437,7 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - The RGB bridge must **never call the iCUE SDK synchronously on the event loop** — a sync FFI call inside the SDK callback can deadlock and freeze the whole server. Run SDK calls off-thread (`.async`) with a hard timeout, and never re-enter the SDK from its own callback.
 - **Self-update is verified, fail-closed, before extraction** — `self-update.js` refuses to unzip a download unless the release's Ed25519-signed `SHA256SUMS` verifies against the pinned public key and the zip hash matches. Never make the signature optional or move verification after extraction.
 - **Widget SDK isolation** — community widgets get no network and no DOM/data access; every data stream and action goes through the versioned bridge in `sdk-widgets.js`, gated by the user's approved permissions and re-checked server-side per action. See [WIDGET_SDK.md](docs/WIDGET_SDK.md).
-- **Server-only secrets** — `obsPassword`/`streamerbotPassword` (via `stream-creds.js`), the Home Assistant token, and remote-control credentials are preserved on save and redacted on the wire; never send them to the browser or a backup export.
+- **Server-only secrets** — `obsPassword`/`streamerbotPassword` (via `stream-creds.js`), the Home Assistant token, and remote-control credentials are preserved on save and redacted on the wire; never send them to the browser or a backup export. The top-level and nested secret keys live in one list, `server/js/settings-secrets.js`, shared by the server redactors and the dashboard's localStorage mirror. A secret tied to an address (HA token, UniFi / OBS / Streamer.bot passwords) is preserved only while that address is unchanged, and the `/test` routes reuse a stored one only for the stored address. Private calendar (.ics) links are redacted on the wire too (`urlSet` + host), but do travel in a backup, which is why the export note tells the user to keep the file private.
 
 ### Code signing and antivirus false positives
 
@@ -533,4 +549,4 @@ XENON_CALLS_TEST=1 node server/server.js
 
 ## Native iCUE widget (`widget/`)
 
-A separate, in-development native widget package. Consult the offline SDK mirror before relying on web docs: `WidgetBuilder/docs/`, `WidgetBuilder/references/`, `WidgetBuilder/skill.md`. Many features (mic mute, audio, network, app switcher) require the companion server and aren't available via native SDK plugins alone. Keep the widget identity stable; package with `npm run icue:package`.
+A separate, in-development native widget package. Check the official iCUE widget SDK documentation before relying on a behavior. Many features (mic mute, audio, network, app switcher) require the companion server and aren't available via native SDK plugins alone. Keep the widget identity stable; package with `npm run icue:package`.

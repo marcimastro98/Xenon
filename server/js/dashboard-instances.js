@@ -65,12 +65,16 @@ const TILE_OVERLAY_ANCHORS = ['top-left', 'top', 'top-right', 'left', 'center', 
 const _TDP = (typeof window !== 'undefined' && window.TileDecorPresets)
   || (() => { try { return require('./tile-decor-presets.js'); } catch { return null; } })();
 const TILE_FRAME_PRESETS = _TDP ? _TDP.TILE_DECOR_FRAMES.map(f => f.id) : [];
+// Colour, glow, motion, pattern, glow and edge bar, plus the tile's controls.
+// Absent (a stale page), those fields are dropped rather than trusted.
+const _TDS = (typeof window !== 'undefined' && window.TileDecorSchema)
+  || (() => { try { return require('./tile-decor-schema.js'); } catch { return null; } })();
 const TILE_OVERLAY_PRESETS = _TDP ? _TDP.TILE_DECOR_OVERLAYS.map(o => o.id) : [];
 // Per-image char caps (a data URI is ~1.37× the byte size). Generous but bounded.
 const TILE_BG_MAX_CHARS = 1500000;      // ~1.1 MB background picture
 const TILE_OVERLAY_MAX_CHARS = 900000;  // ~660 KB per overlay/frame
 const TILE_DECOR_TOTAL_MAX = 3500000;   // whole-decor inline-bytes budget
-const TILE_MAX_OVERLAYS = 4;
+const TILE_MAX_OVERLAYS = 8;
 // svg+xml is accepted only as a base64 data: URI used as a CSS/border image — the
 // browser renders it in secure static mode (no scripts, no external fetches), so
 // pasted SVG decor is safe. Never route these into innerHTML.
@@ -199,6 +203,7 @@ function normalizeTileDecor(src) {
     }
     if (frame.preset || frame.src) {
       const w = _tileNum(src.frame.width, 0, 40); if (w != null) frame.width = Math.round(w);
+      if (_TDS) _TDS.tileFrameExtras(src.frame, frame);
       out.frame = frame;
     }
   }
@@ -231,13 +236,44 @@ function normalizeTileDecor(src) {
       const op = _tileNum(raw.opacity, 0, 100); if (op != null) ov.opacity = Math.round(op);
       const rot = _tileNum(raw.rotate, -180, 180); if (rot != null && Math.round(rot) !== 0) ov.rotate = Math.round(rot);
       if (raw.flip === true) ov.flip = true;
+      if (_TDS) _TDS.tileOverlayExtras(raw, ov);
       overlays.push(ov); spend(osrc);
     }
     if (overlays.length) out.overlays = overlays;
   }
 
+  if (_TDS) {
+    const pattern = _TDS.normalizeTilePattern(src.pattern); if (pattern) out.pattern = pattern;
+    const glow = _TDS.normalizeTileGlow(src.glow); if (glow) out.glow = glow;
+    const bar = _TDS.normalizeTileBar(src.bar); if (bar) out.bar = bar;
+  }
+
   // Over the inline-bytes budget → refuse wholesale (a hard, safe boundary).
   if (bytes > TILE_DECOR_TOTAL_MAX) return null;
+  return Object.keys(out).length ? out : null;
+}
+
+// A tab group's own tab colours: the bar, and each tab by its member id. Only
+// what the user set is stored; an empty tab entry is dropped.
+const TILE_TAB_COLOR_KEYS = ['bg', 'text', 'activeBg', 'activeText'];
+const TILE_TABS_MAX = 24;
+const TILE_TAB_MEMBER_RE = /^[A-Za-z0-9_-]{1,48}(?:~[A-Za-z0-9_-]{1,16})?$/;
+const TILE_TAB_RESERVED = new Set(['__proto__', 'constructor', 'prototype']);
+function normalizeTileTabs(src) {
+  if (!src || typeof src !== 'object') return null;
+  const out = {};
+  const barBg = _tileHex(src.barBg);
+  if (barBg) out.barBg = barBg;
+  const items = {};
+  const raw = src.items && typeof src.items === 'object' && !Array.isArray(src.items) ? src.items : {};
+  Object.keys(raw).filter(mid => TILE_TAB_MEMBER_RE.test(mid) && !TILE_TAB_RESERVED.has(mid))
+    .slice(0, TILE_TABS_MAX).forEach(mid => {
+      const one = raw[mid] && typeof raw[mid] === 'object' ? raw[mid] : {};
+      const entry = {};
+      TILE_TAB_COLOR_KEYS.forEach(k => { const v = _tileHex(one[k]); if (v) entry[k] = v; });
+      if (Object.keys(entry).length) items[mid] = entry;
+    });
+  if (Object.keys(items).length) out.items = items;
   return Object.keys(out).length ? out : null;
 }
 
@@ -288,6 +324,12 @@ function normalizeTileStyle(src) {
   // without recolouring it. Added before the "empty" check so it counts.
   const decor = normalizeTileDecor(src.decor);
   if (decor) out.decor = decor;
+  // The widget's own buttons and fields, also independent of the colour mode.
+  const controls = _TDS ? _TDS.normalizeTileControls(src.controls) : null;
+  if (controls) out.controls = controls;
+  // A tab group's tab colours, also independent of the colour mode.
+  const tabs = normalizeTileTabs(src.tabs);
+  if (tabs) out.tabs = tabs;
   // A style that only says "inherit" with nothing set carries no information.
   if (out.mode === 'inherit' && Object.keys(out).length === 1) return null;
   return out;
@@ -360,8 +402,8 @@ const _tileDecorExports = {
   normalizeWidgetIcon,
 };
 if (typeof window !== 'undefined') {
-  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };
+  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, normalizeTileTabs, TILE_TAB_COLOR_KEYS, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };
+  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, normalizeTileTabs, TILE_TAB_COLOR_KEYS, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };
 }

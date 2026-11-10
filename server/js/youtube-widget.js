@@ -46,7 +46,7 @@
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // poll the YouTube API. Adding the widget moves it into a page → polling starts
   // on the next layout pass; removing it parks it back → polling stops.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtube"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtube"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let poll = null;
@@ -64,7 +64,7 @@
     search: () => t('youtube_tab_search', 'Search'),
   };
   const lib = {
-    tab: 'liked',
+    tab: window.TileTabMemory ? TileTabMemory.get('youtube', TABS, 'liked') : 'liked',   // remembered across reloads
     data: { liked: null, playlists: null, subs: null, search: null },   // null = never loaded
     loading: '',
     error: '',
@@ -123,9 +123,7 @@
   // The notice below is what remains, and it is the way in: tapping it lands on
   // the page where the account is connected.
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   function showActionErr(btn, reason) {
@@ -143,6 +141,12 @@
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
     const mm = h ? String(m).padStart(2, '0') : String(m);
     return (h ? h + ':' : '') + mm + ':' + String(r).padStart(2, '0');
+  }
+
+  // The Liquid progress line has no handle: the watched part is painted from --fill.
+  function paintSeekFill(seek) {
+    const share = (Number(seek.value) / (Number(seek.max) || 1000)) * 100;
+    seek.style.setProperty('--fill', `${Math.max(0, Math.min(100, share))}%`);
   }
 
   // Open a URL where the user can see it: a visible Browser tile first (which
@@ -456,7 +460,7 @@
     const seek = document.createElement('input');
     seek.type = 'range'; seek.className = 'yt-seek'; seek.min = '0'; seek.max = '1000'; seek.value = '0';
     seek.setAttribute('aria-label', t('youtube_seek', 'Seek'));
-    seek.addEventListener('input', () => { seek.dataset.ytDrag = '1'; });
+    seek.addEventListener('input', () => { seek.dataset.ytDrag = '1'; paintSeekFill(seek); });
     seek.addEventListener('change', () => {
       seek.dataset.ytDrag = '';
       if (player.duration > 0) {
@@ -498,7 +502,7 @@
   // through his library for one that would work (#126).
   function blockedText() {
     if (player.errCode === 153) {
-      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video — open it in the browser.');
+      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video: open it in the browser.');
     }
     return t('youtube_no_embed', 'This video cannot be played inside apps.');
   }
@@ -526,6 +530,7 @@
       b.append(ico, el('span', 'yt-tab-lbl', TAB_LABEL[id]()));
       b.addEventListener('click', () => {
         lib.tab = id; lib.openPl = null; lib.plItems = null; lib.error = '';
+        if (window.TileTabMemory) TileTabMemory.set('youtube', id);
         paintLibrary();
         loadTab(id);
       });
@@ -659,7 +664,7 @@
       const title = card.querySelector('.yt-now-title');
       const sub = card.querySelector('.yt-now-sub');
       title.textContent = v ? (v.title || '') : '';
-      sub.textContent = v ? [v.channel || '', player.queue.length > 1 ? (player.qi + 1) + '/' + player.queue.length : ''].filter(Boolean).join(' · ') : '';
+      setWordParts(sub, v ? [v.channel || '', player.queue.length > 1 ? (player.qi + 1) + '/' + player.queue.length : ''] : []);
 
       const pp = card.querySelector('.yt-playpause');
       setIcon(pp, playing ? 'pause' : 'play', playing ? ICONS.pause : ICONS.play);
@@ -685,6 +690,7 @@
       const dur = player.duration > 0 ? player.duration : (v && v.seconds) || 0;
       seek.disabled = !(dur > 0);
       if (seek.dataset.ytDrag !== '1') seek.value = String(dur > 0 ? Math.round((player.time / dur) * 1000) : 0);
+      paintSeekFill(seek);
       card.querySelector('.yt-time-cur').textContent = fmtTime(player.time);
       card.querySelector('.yt-time-dur').textContent = fmtTime(dur);
 

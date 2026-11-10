@@ -12,70 +12,25 @@
 # fetches catalog.json and codes/<id>.txt over HTTPS from xenon-app.com, never
 # from disk (see CATALOG_BASE in server/community-catalog.js).
 #
-# NOTE: do not export-ignore all of docs/. server/ai-knowledge.js reads
-# docs/WIDGET_SDK.md from disk to serve the AI's sdk_reference tool; excluding
-# it degrades that tool to 'docs_unavailable'. The .md files at the root of
-# docs/ are deliberately kept.
+# The rule below drops ALL of docs/ and puts back only the .md files at its
+# root: server/ai-knowledge.js reads docs/WIDGET_SDK.md from disk to serve the
+# AI's sdk_reference tool (excluding it degrades that tool to
+# 'docs_unavailable'), and README.md links the other guides there. It used to
+# be a list of site paths, and the list fell behind the site (docs/fr/, the
+# guide pages) until they shipped to every install. A docs file the app reads
+# at runtime belongs as a .md at the root of docs/ (git archive skips a whole
+# ignored folder, so re-including a file inside one needs a -export-ignore line
+# for that file AND each folder above it), and goes in RUNTIME_DOCS of
+# server/test/update-archive-contents.test.mjs, which checks both directions.
 
-# Website payload — images, gallery pages, community catalog + preset codes
-docs/images/                    export-ignore
-docs/community/                 export-ignore
-docs/catalog/                   export-ignore
-docs/create/                    export-ignore
-docs/get/                       export-ignore
-docs/submit/                    export-ignore
-# Generated in CI and git-ignored, so it should never reach an archive anyway —
-# this is the belt to that pair of braces: if it is ever force-added, the release
-# zip the self-updater unpacks still stays clean.
-docs/demo/                      export-ignore
+# Website payload: every page and translation, images, fonts, scripts, the
+# gallery, community catalog + preset codes, Pages/DNS plumbing, search-console
+# and IndexNow tokens, and docs/demo/ (built in CI, git-ignored).
+docs/**                         export-ignore
+docs/*.md                       -export-ignore
 
-# Site root: entry page, analytics, Pages/DNS plumbing, search-console token
-docs/index.html                 export-ignore
-# The shared token/type layer and the self-hosted OFL faces (PANEL, 2026-08).
-# Nothing on a user's machine reads either; without these lines every install
-# would carry ~260 KB of webfonts it never renders.
-docs/site.css                   export-ignore
-docs/fonts/                     export-ignore
-docs/analytics.js               export-ignore
-docs/consent.js                 export-ignore
-docs/privacy.html               export-ignore
-docs/phone.html                 export-ignore
-docs/CNAME                      export-ignore
-docs/.nojekyll                  export-ignore
-docs/google1e9e2b8c85c56502.html export-ignore
-# IndexNow ownership proof — must stay reachable at the site root, and has no
-# business in the tree users download. tools/indexnow.mjs finds it by name.
-docs/ffe1471367022be0d335321cee3c19ec.txt export-ignore
-
-# Site data + maintainer notes, not read by the app
-docs/supporters.json            export-ignore
-docs/supporters-overrides.json  export-ignore
-docs/whatsnew-shotlist.md       export-ignore
-# Pages added after the list above was written. None of them is read by the app
-# at runtime (only docs/WIDGET_SDK.md is), so they never belong in an install.
-docs/it/                        export-ignore
-docs/es/                        export-ignore
-docs/ja/                        export-ignore
-docs/ko/                        export-ignore
-docs/zh/                        export-ignore
-docs/creators/                  export-ignore
-docs/theme.js                   export-ignore
-docs/promo.js                   export-ignore
-docs/download-flow.js           export-ignore
-docs/chrome.js                  export-ignore
-docs/thanks.html                export-ignore
-docs/faq.html                   export-ignore
-docs/download.html              export-ignore
-docs/linux.html                 export-ignore
-docs/tablet-dashboard.html      export-ignore
-docs/xeneon-edge-widgets.html   export-ignore
-docs/xenon-exe.html             export-ignore
-docs/llms.txt                   export-ignore
-docs/sitemap.xml                export-ignore
-docs/robots.txt                 export-ignore
-
-# Offline iCUE SDK documentation mirror — development reference only
-WidgetBuilder/                  export-ignore
+# Maintainer notes, not read by the app
+tools/whats-new-media/README.md export-ignore
 
 # ── Development-only trees ───────────────────────────────────────────────────
 # Same reasoning as the website payload above: an install carries whatever the
@@ -89,12 +44,14 @@ WidgetBuilder/                  export-ignore
 #   server/sdk-example/   served by server.js (the SDK's example widgets)
 #   docs/*.md at root     ai-knowledge.js reads docs/WIDGET_SDK.md for the AI
 #   packages/core/        IS server/shared (junction created on postinstall)
+#   packages/mcp/         the xenon-mcp bridge Settings connects Claude Code / Codex to
 #   tools/                link-shared.mjs runs on npm postinstall
 #   CHANGELOG.md          the thing users actually read after an update
 
 # Unit tests — never run on an install (~1 MB, the single biggest win here)
 server/test/                    export-ignore
 packages/core/test/             export-ignore
+packages/mcp/test/              export-ignore
 
 # Tauri shell sources. The kiosk app ships as its own signed setup exe; the
 # NSIS hook and xenon-bootstrap.ps1 are bundled INTO that installer (a Tauri
@@ -116,12 +73,6 @@ icue-widget/                    export-ignore
 # CI workflows
 .github/                        export-ignore
 
-# Retired Windows-service artifacts. Both callers of service/uninstall-service.ps1
-# (install.ps1, uninstall.ps1) already guard with Test-Path and fall back to
-# `sc.exe stop/delete XenonEdgeService`, which does the same job — keep that
-# fallback if you ever touch those scripts.
-service/                        export-ignore
-
 # Shell scripts must stay LF in the working tree on EVERY platform. This repo is
 # developed on Windows with core.autocrlf=true, and a CRLF checkout of a .sh dies
 # on macOS/Linux with "bad interpreter: /bin/bash^M" — before printing anything
@@ -133,3 +84,10 @@ service/                        export-ignore
 # platform it exists for.
 *.sh                            text eol=lf
 *.command                       text eol=lf
+
+# Batch files the other way round: cmd.exe can miss a goto/call label in an
+# LF-only .bat, and GitHub builds the tag zip with no autocrlf, so without these
+# lines INSTALL.bat would reach users with LF. The blobs stay LF in the repo;
+# checkouts and archives get CRLF.
+*.bat                           text eol=crlf
+*.cmd                           text eol=crlf

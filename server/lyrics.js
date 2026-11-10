@@ -18,9 +18,14 @@
 //     one at a time with a short gap.
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 
 const API = 'https://lrclib.net/api';
 const FETCH_TIMEOUT_MS = 10000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 20000;
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_REQUESTS = 4;            // per track, sequential
 const REQUEST_GAP_MS = 300;        // LRCLIB asks for 200–500 ms between requests
@@ -86,6 +91,12 @@ function validDuration(media) {
   return Number.isFinite(d) && d >= MIN_DURATION_S && d <= MAX_DURATION_S ? Math.round(d) : 0;
 }
 
+// Read from the sound: the song and the artist are known, the length and the place in it
+// are not. The words are found by name, and shown without following them.
+function heardOnly(media) {
+  return Boolean(media) && media.fallback === true && !validDuration(media);
+}
+
 // Stable identity of the playing track for the cache: what the host reported,
 // folded, plus the rounded duration (a radio edit and the album cut differ).
 function trackKey(media) {
@@ -102,7 +113,7 @@ function trackKey(media) {
 // part of the left side; the app players report clean fields, so for them the
 // fields as given come first and the split is a fallback.
 function buildQueries(media) {
-  if (!validDuration(media)) return [];
+  if (!validDuration(media) && !heardOnly(media)) return [];
   const rawTitle = cleanTrackTitle(media && media.title);
   if (!rawTitle) return [];
   const rawArtist = cleanText(media && media.artist);
@@ -130,7 +141,8 @@ function buildQueries(media) {
   const base = out[0] || { track: rawTitle, artist };
   add(stripFeat(base.track), firstArtist(base.artist));
   if (!out.length || !out.some(q => q.artist)) add(rawTitle, '');
-  return out.slice(0, 3);
+  // With no duration to check it against, a title alone could be any song.
+  return (heardOnly(media) ? out.filter(q => q.artist) : out).slice(0, 3);
 }
 
 // ── LRC parsing ──────────────────────────────────────────────────────────────
@@ -192,19 +204,26 @@ function nameMatches(resultName, queryName) {
   return !!a && !!b && (a.includes(b) || b.includes(a));
 }
 
+// With no duration (0) the artist does the checking, and timed lines are only words.
+function sameTrack(row, query, duration) {
+  if (!nameMatches(row.trackName, query.track)) return false;
+  if (!duration) return nameMatches(row.artistName, query.artist);
+  const d = Number(row.duration);
+  return Number.isFinite(d) && Math.abs(d - duration) <= DURATION_TOLERANCE_S;
+}
+
 // One LRCLIB row → our result, or null if it is not this track.
 function toResult(row, query, duration) {
-  if (!row || typeof row !== 'object') return null;
-  const d = Number(row.duration);
-  if (!Number.isFinite(d) || Math.abs(d - duration) > DURATION_TOLERANCE_S) return null;
-  if (!nameMatches(row.trackName, query.track)) return null;
+  if (!row || typeof row !== 'object' || !sameTrack(row, query, duration)) return null;
   const id = Number.isSafeInteger(row.id) ? row.id : null;
-  if (row.instrumental === true) return { state: 'instrumental', matchId: id, diff: Math.abs(d - duration) };
+  const diff = duration ? Math.abs(Number(row.duration) - duration) : 0;
+  if (row.instrumental === true) return { state: 'instrumental', matchId: id, diff };
   const lines = parseLrc(row.syncedLyrics);
-  if (lines.some(l => l.text)) return { state: 'synced', lines, matchId: id, diff: Math.abs(d - duration) };
+  if (duration && lines.some(l => l.text)) return { state: 'synced', lines, matchId: id, diff };
   const plain = parsePlain(row.plainLyrics);
-  if (plain.length) return { state: 'plain', plain, matchId: id, diff: Math.abs(d - duration) };
-  return null;
+  if (plain.length) return { state: 'plain', plain, matchId: id, diff };
+  const words = lines.map(l => l.text).filter(Boolean);
+  return words.length ? { state: 'plain', plain: words, matchId: id, diff } : null;
 }
 
 const RANK = { synced: 3, plain: 2, instrumental: 1 };
@@ -258,6 +277,7 @@ function request(url, userAgent) {
     });
     req.on('timeout', () => { req.destroy(new Error('timeout')); });
     req.on('error', e => finish(reject, e));
+    armDeadline(req, FETCH_DEADLINE_MS);
   });
 }
 
@@ -288,7 +308,7 @@ async function lookup(media, opts = {}) {
   const userAgent = opts.userAgent || 'Xenon (https://github.com/marcimastro98/Xenon)';
 
   const steps = [{ kind: 'search', q: queries[0] }];
-  if (queries[0].artist) steps.push({ kind: 'get', q: queries[0] });
+  if (queries[0].artist && duration) steps.push({ kind: 'get', q: queries[0] });
   for (const q of queries.slice(1)) steps.push({ kind: 'search', q });
 
   let best = null;
@@ -320,7 +340,7 @@ async function lookup(media, opts = {}) {
     if (res.status !== 200) { failed = true; continue; }
     const hit = step.kind === 'get' ? toResult(res.body, step.q, duration) : pickBest(res.body, step.q, duration);
     best = better(best, hit);
-    if (best && best.state === 'synced') break;
+    if (best && (best.state === 'synced' || !duration)) break;
   }
   if (best) {
     const { diff, ...out } = best;

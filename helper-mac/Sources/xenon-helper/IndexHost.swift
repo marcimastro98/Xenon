@@ -182,6 +182,7 @@ enum IndexHost {
             var since = 0
             var truncated = false
             while let url = e.nextObject() as? URL {
+                if out.count & 1023 == 0 { waitWhileHeld() }
                 if out.count >= FileIndex.maxEntries { capped = true; truncated = true; break }
                 guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
                 // Never descend through a link: it would make the walk unbounded
@@ -274,6 +275,10 @@ enum IndexHost {
         let all = index.snapshot()
 
         switch op {
+        case "hold":
+            setHeld((req["on"] as? Bool) == true)
+            answer(id, [("held", .b(isHeld))])
+
         case "stats":
             let files = all.filter { !$0.isDir }
             let bytes = files.reduce(Int64(0)) { $0 + $1.size }
@@ -283,6 +288,7 @@ enum IndexHost {
             answer(id, [
                 ("ready", .b(!index.isBuilding)),
                 ("building", .b(index.isBuilding)),
+                ("held", .b(isHeld)),
                 ("files", .i(files.count)),
                 ("dirs", .i(all.count - files.count)),
                 ("bytes", .n(Double(bytes))),
@@ -637,6 +643,25 @@ enum IndexHost {
 
     static var refreshPending = false
     static let refreshLock = NSLock()
+
+    // While a game runs the walk stands still, and with it every refresh, since
+    // they all go through walk(). Requests keep being answered from what the
+    // index holds, on their own thread.
+    private static var heldNow = false
+    private static let heldLock = NSLock()
+
+    static var isHeld: Bool {
+        heldLock.lock(); defer { heldLock.unlock() }
+        return heldNow
+    }
+
+    static func setHeld(_ on: Bool) {
+        heldLock.lock(); heldNow = on; heldLock.unlock()
+    }
+
+    static func waitWhileHeld() {
+        while isHeld { Thread.sleep(forTimeInterval: 0.5) }
+    }
 
     // Coalesced: a rebuild is expensive and a burst of events must cost one.
     static func scheduleRefresh(full: Bool) {

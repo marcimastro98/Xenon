@@ -161,10 +161,20 @@ function childEnv(provider) {
 
 // An empty folder of our own: no project files, no CLAUDE.md or AGENTS.md for
 // the program to pick up, nothing of the user's for it to wander into.
+//
+// Created once per run of the server with mkdtemp (a random name, mode 0700),
+// never a fixed name in the shared temp folder: on a machine with several
+// users another one could create /tmp/xenon-ai-cli first and plant a
+// CLAUDE.md, AGENTS.md or .claude/settings.json the assistant would obey, or
+// read the pictures attached to a question.
+let _workDir = null;
 async function workDir() {
-  const dir = path.join(os.tmpdir(), 'xenon-ai-cli');
-  await fsp.mkdir(dir, { recursive: true });
-  return dir;
+  if (_workDir) {
+    try { if ((await fsp.stat(_workDir)).isDirectory()) return _workDir; } catch { /* removed: make another */ }
+  }
+  _workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'xenon-ai-cli-'));
+  try { await fsp.chmod(_workDir, 0o700); } catch { /* Windows: the user's own temp folder */ }
+  return _workDir;
 }
 
 // `abortOn`: a pattern in the output that means waiting longer is pointless.
@@ -671,6 +681,29 @@ async function chat({ provider, model, systemText, history, tools, executeTool, 
   }
 }
 
+// Settings, "Build widgets with Claude Code / Codex": registers the xenon-mcp
+// bridge in the program's own user config, exactly what the person would type
+// (`claude mcp add` / `codex mcp add`). argv only, never a shell. The name is
+// not "xenon": that one is Bit's own per-turn server, and a user-level entry
+// with the same name could stand in for it.
+const MCP_SERVER_NAME = 'xenon-widgets';
+function mcpAddArgs(provider, launch) {
+  const tail = ['--'].concat(launch.map(String));
+  return provider === 'claudecode'
+    ? ['mcp', 'add', '--scope', 'user', MCP_SERVER_NAME].concat(tail)
+    : ['mcp', 'add', MCP_SERVER_NAME].concat(tail);
+}
+async function addMcpServer(provider, launch) {
+  if (!isCliProvider(provider)) return { ok: false, error: 'bad_provider' };
+  if (!Array.isArray(launch) || !launch.length) return { ok: false, error: 'bad_launch' };
+  const exe = await resolveExe(provider);
+  if (!exe) return { ok: false, error: 'not_installed' };
+  const r = await run(exe, mcpAddArgs(provider, launch), { timeoutMs: STATUS_TIMEOUT_MS, env: childEnv(provider), cwd: await workDir() });
+  if (r.code === 0) return { ok: true };
+  if (/already exists/i.test(r.stderr + r.stdout)) return { ok: true, already: true };
+  return { ok: false, error: r.timedOut ? 'timeout' : 'failed' };
+}
+
 // `onUsage(totalTokens, { input, output })`, when given, hears what the run used.
 async function oneShot({ provider, model, systemText, userText, effort, onUsage }) {
   const r = await chat({ provider, model, systemText, effort, history: [{ role: 'user', parts: [{ text: String(userText || '') }] }] });
@@ -683,7 +716,7 @@ module.exports = {
   PROVIDERS, CLAUDE_MODELS, TIMEOUT_MS,
   isCliProvider, sanitizeModel, status, models, lightModel, chat, oneShot, CliError,
   resolveCodex, childEnv, workDir,
-  configure, handleMcp,
+  configure, handleMcp, addMcpServer, MCP_SERVER_NAME,
   // exposed for unit tests
-  _internal: { run, buildPrompt, latestImages, claudeImageInput, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseClaudeInit, parseCodexLogin, parseCodexModels, statusCache, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
+  _internal: { run, buildPrompt, latestImages, claudeImageInput, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseClaudeInit, parseCodexLogin, parseCodexModels, statusCache, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE, mcpAddArgs },
 };

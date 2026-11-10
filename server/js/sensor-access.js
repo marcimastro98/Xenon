@@ -145,7 +145,9 @@
     const head = el('div', 'settings-group-head');
     head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
     group.appendChild(head);
-    group.appendChild(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
+    const repair = group.appendChild(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
+    // Same block as the tiles, but on this page the key looks like every other key.
+    repair.querySelector('.sa-btn').className = 'settings-btn primary';
     host.replaceChildren(group);
   }
 

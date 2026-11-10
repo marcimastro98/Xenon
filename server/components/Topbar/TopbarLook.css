@@ -1,0 +1,230 @@
+/* ── Top bar look (Settings → Top bar, js/topbar-look.js) ─────────────────────
+   Every rule here sits behind a :root[data-tb-*] attribute, and js/topbar-look.js
+   sets an attribute only for a value that differs from the default. With the
+   default look none of this file applies, so the bar is drawn exactly as before.
+   Loaded after the Comic and Retro skins: a look the user picked on purpose
+   wins over the one a style paints by default.
+
+   The plates are every surface the bar floats on: the Full bar's buttons, the
+   Minimal capsule, a widget's capsule and the edge rails. The quiet Settings and
+   Layout buttons and the accent button keep their own look (see Topbar.css). */
+
+/* Surface: one plate colour for every piece of the bar. */
+:root[data-tb-surface="solid"] {
+  --tb-plate: rgba(var(--tb-color, var(--panel-rgb)), var(--tb-alpha, 0.7));
+  --tb-plate-blur: none;
+}
+:root[data-tb-surface="glass"] {
+  --tb-plate: rgba(var(--tb-color, var(--panel-rgb)), var(--tb-alpha, 0.7));
+  --tb-plate-blur: blur(var(--tb-blur, 10px)) saturate(140%);
+}
+:root[data-tb-surface="clear"] {
+  --tb-plate: transparent;
+  --tb-plate-blur: none;
+}
+:root[data-tb-surface] :is(
+  .topbar .topbtn:not(.qbtn-settings):not(.qbtn-layout):not(.topbtn-xenon):not(.tb-accent),
+  .topbar .qbtn,
+  .topbar-mini,
+  .sdk-island,
+  .edge-rail-body,
+  .edge-rail-handle
+) {
+  background: var(--tb-plate);
+  -webkit-backdrop-filter: var(--tb-plate-blur);
+  backdrop-filter: var(--tb-plate-blur);
+}
+:root[data-tb-surface] .topbar :is(.topbtn, .qbtn):not(.qbtn-settings):not(.qbtn-layout):not(.topbtn-xenon):not(.tb-accent):hover {
+  background: linear-gradient(rgba(255, 255, 255, 0.07) 0 0), var(--tb-plate);
+}
+:root[data-tb-surface="clear"] :is(.topbar .topbtn, .topbar .qbtn, body.topbar-minimal:not([data-panel]) .topbar-mini, body.xisland-live:not([data-panel]) .sdk-island, .edge-rail-body, .edge-rail-handle) {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Border */
+:root[data-tb-border="none"] :is(.topbar .topbtn, .topbar .qbtn, body.topbar-minimal:not([data-panel]) .topbar-mini, body.xisland-live:not([data-panel]) .sdk-island, .edge-rail-body, .edge-rail-handle) {
+  border-color: transparent;
+}
+:root[data-tb-border="accent"] :is(.topbar .topbtn:not(.qbtn-settings):not(.qbtn-layout), .topbar .qbtn, .topbar-mini, .sdk-island, .edge-rail-body, .edge-rail-handle) {
+  border-color: rgba(var(--accent-rgb), 0.55);
+}
+
+/* Shadow */
+:root[data-tb-shadow="none"] :is(.topbar .topbtn, .topbar .qbtn, body.topbar-minimal:not([data-panel]) .topbar-mini, body.xisland-live:not([data-panel]) .sdk-island, .edge-rail-body, .edge-rail-handle) {
+  box-shadow: none;
+}
+
+/* Shape: rounded is the default; square and pill change every plate together. */
+:root[data-tb-shape="square"] :is(.topbar .topbtn, .topbar .qbtn, .edge-rail-handle, body.topbar-minimal .edge-rail .topbtn) { border-radius: 5px; }
+:root[data-tb-shape="square"] :is(body.topbar-minimal:not([data-panel]) .topbar-mini, body.xisland-live:not([data-panel]) .sdk-island, .edge-rail-body) { border-radius: 8px; }
+:root[data-tb-shape="pill"] :is(.topbar .topbtn, .topbar .qbtn, .edge-rail-body, body.topbar-minimal .edge-rail .topbtn) { border-radius: 999px; }
+
+/* Size. Never on a phone: its compact bar and dock are sized for the thumb. */
+:root[data-tb-size="compact"]:not(.is-phone) .topbar .topbtn { height: 30px; padding: 0 10px; gap: 6px; font-size: 12px; }
+:root[data-tb-size="compact"]:not(.is-phone) .topbar .topbtn svg { width: 14px; height: 14px; }
+:root[data-tb-size="compact"]:not(.is-phone) .topbar.topbar-squeezed .topbtn { width: 30px; padding: 0; }
+:root[data-tb-size="compact"]:not(.is-phone) body.topbar-minimal .edge-rail .topbtn { width: 36px; height: 36px; }
+:root[data-tb-size="compact"]:not(.is-phone) body.topbar-minimal:not([data-panel]) .topbar-mini { padding: 5px 11px 5px 15px; }
+:root[data-tb-size="large"]:not(.is-phone) .topbar .topbtn { height: 44px; padding: 0 18px; gap: 9px; font-size: 14px; }
+:root[data-tb-size="large"]:not(.is-phone) .topbar .topbtn svg { width: 19px; height: 19px; }
+:root[data-tb-size="large"]:not(.is-phone) .topbar.topbar-squeezed .topbtn { width: 44px; padding: 0; }
+:root[data-tb-size="large"]:not(.is-phone) body.topbar-minimal .edge-rail .topbtn { width: 48px; height: 48px; }
+:root[data-tb-size="large"]:not(.is-phone) body.topbar-minimal .edge-rail .topbtn svg { width: 21px; height: 21px; }
+:root[data-tb-size="large"]:not(.is-phone) body.topbar-minimal:not([data-panel]) .topbar-mini { padding: 10px 16px 10px 22px; }
+@media (max-width: 1180px) {
+  :root[data-tb-size="compact"]:not(.is-phone) .topbar .topbtn { width: 30px; padding: 0; }
+  :root[data-tb-size="large"]:not(.is-phone) .topbar .topbtn { width: 44px; padding: 0; }
+}
+
+/* Button style: ghost buttons show no plate until touched, like Settings and
+   Layout do by default. */
+:root[data-tb-button-style="ghost"] .topbar .topbtn:not(.topbtn-xenon):not(.tb-accent):not(.tb-btn-bg):not(.active) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-tb-button-style="ghost"] .topbar .topbtn:not(.topbtn-xenon):not(.tb-accent):not(.tb-btn-bg):not(.active):hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* Labels on the Full bar. "Always" lifts the narrow-screen rule that turns the
+   buttons into icons; when there is truly no room, js/topbar-fit.js still
+   squeezes them, so a label never pushes the clock off the bar. A phone's bar
+   has room for icons only, so there the buttons stay icons whatever the choice. */
+:root[data-tb-labels="never"] .topbar .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
+:root[data-tb-labels="never"] .topbar .topbtn { padding: 0; width: 36px; justify-content: center; }
+@media (max-width: 1180px) {
+  :root[data-tb-labels="always"]:not(.is-phone) .topbar:not(.topbar-squeezed) .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: inline; }
+  :root[data-tb-labels="always"]:not(.is-phone) .topbar:not(.topbar-squeezed) .topbtn { width: auto; padding: 0 14px; }
+}
+
+/* The same choice, one button at a time (it wins over the bar-wide one). */
+.topbar .topbtn.tb-label-never span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
+.topbar .topbtn.tb-label-never { padding: 0; width: 36px; justify-content: center; }
+@media (max-width: 1180px) {
+  :root:not(.is-phone) .topbar:not(.topbar-squeezed) .topbtn.tb-label-always span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: inline; }
+  :root:not(.is-phone) .topbar:not(.topbar-squeezed) .topbtn.tb-label-always { width: auto; padding: 0 14px; }
+}
+:root[data-tb-labels="never"]:not(.is-phone) .topbar .topbtn.tb-label-always span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: inline; }
+:root[data-tb-labels="never"]:not(.is-phone) .topbar .topbtn.tb-label-always { width: auto; padding: 0 14px; }
+
+/* The accent button. Xenon carries it by default; moving it (or turning it off)
+   gives Xenon a plain plate and puts the accent fill on the chosen button. */
+:root[data-tb-accent] .topbtn.topbtn-xenon:not(.tb-accent) {
+  color: var(--muted-text);
+  background: var(--tb-plate, var(--floating-ui-bg));
+  border-color: var(--floating-ui-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+:root[data-tb-accent] .topbtn.topbtn-xenon:not(.tb-accent):hover { color: var(--text); }
+:root[data-tb-accent] .topbtn.topbtn-xenon:not(.tb-accent)::after { display: none; }
+:root[data-tb-accent] body.topbar-minimal .edge-rail .topbtn.topbtn-xenon:not(.tb-accent) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.topbtn.tb-accent,
+.topbtn.tb-accent:hover,
+body.topbar-minimal .edge-rail .topbtn.tb-accent {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 2px 14px rgba(var(--accent-rgb), 0.42);
+}
+.topbtn.tb-accent svg { color: var(--on-accent); filter: none; }
+
+/* One button's own colours. */
+.topbtn.tb-btn-fg,
+.topbtn.tb-btn-fg:hover { color: var(--tb-btn-fg); }
+.topbtn.tb-btn-fg svg { color: inherit; }
+.topbtn.tb-btn-bg,
+body.topbar-minimal .edge-rail .topbtn.tb-btn-bg {
+  background: var(--tb-btn-bg);
+  border-color: transparent;
+}
+.topbtn.tb-btn-bg:hover,
+body.topbar-minimal .edge-rail .topbtn.tb-btn-bg:hover {
+  background: linear-gradient(rgba(255, 255, 255, 0.1) 0 0), var(--tb-btn-bg);
+}
+/* A Deck icon in place of the built-in one sizes like it. */
+.topbtn > svg.tb-icon { fill: currentColor; }
+.topbtn > svg.tb-icon-off { display: none; }
+/* A widget button's text glyph steps aside for a Deck icon the user picked. */
+.topbtn > svg.tb-icon ~ .topbtn-sdk-glyph { display: none; }
+
+/* Clock */
+:root[data-tb-clock-font="mono"] :is(.clock-h, .clock-m) {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0;
+}
+:root[data-tb-clock-font="light"] :is(.clock-h, .clock-m) { font-weight: 300; letter-spacing: -1px; }
+:root[data-tb-colon-blink="off"] .clock-sep { animation: none; opacity: 1; }
+
+/* Island separators: a hairline by default, a dot, or nothing. */
+:root[data-tb-separator="dot"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before {
+  width: 4px;
+  height: 4px;
+  left: -2px;
+  border-radius: 50%;
+}
+:root[data-tb-separator="dot"] body.topbar-minimal .topbar-mini .clock-meta-sep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+:root[data-tb-separator="dot"] body.topbar-minimal .topbar-mini .clock-meta,
+:root[data-tb-separator="none"] body.topbar-minimal .topbar-mini .clock-meta { border-left-color: transparent; }
+:root[data-tb-separator="none"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before,
+:root[data-tb-separator="none"] body.topbar-minimal .topbar-mini .clock-meta-sep { background: transparent; }
+
+/* Spacing between the pieces of the bar. */
+:root[data-tb-gap="tight"] :is(.quickbar, .top-actions) { gap: 4px; }
+:root[data-tb-gap="tight"] body.topbar-minimal:not([data-panel]) .topbar-mini { gap: 9px; }
+:root[data-tb-gap="tight"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg:not(.island-seg-lead) { padding-left: 10px; }
+:root[data-tb-gap="wide"] :is(.quickbar, .top-actions) { gap: 11px; }
+:root[data-tb-gap="wide"] body.topbar-minimal:not([data-panel]) .topbar-mini { gap: 20px; }
+:root[data-tb-gap="wide"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg:not(.island-seg-lead) { padding-left: 21px; }
+
+/* Where notifications appear. Any choice but "auto" keeps them out of the
+   Minimal capsule (js/toast.js reads the attribute) and in the stack, placed
+   here. A phone keeps its own placement. */
+:root[data-tb-toast-place]:not(.is-phone) body .xtoast-stack { top: 74px; }
+:root[data-tb-toast-place="top-left"]:not(.is-phone) .xtoast-stack { left: 16px; right: auto; transform: none; }
+:root[data-tb-toast-place="top-right"]:not(.is-phone) .xtoast-stack { left: auto; right: 16px; transform: none; }
+:root:is([data-tb-toast-place="bottom-left"], [data-tb-toast-place="bottom-right"]):not(.is-phone) body .xtoast-stack {
+  top: auto;
+  bottom: 16px;
+  transform: none;
+  flex-direction: column-reverse;
+}
+:root[data-tb-toast-place="bottom-left"]:not(.is-phone) .xtoast-stack { left: 16px; right: auto; }
+:root[data-tb-toast-place="bottom-right"]:not(.is-phone) .xtoast-stack { left: auto; right: 16px; }
+
+/* ── Edge rails (Minimal and None) ──────────────────────────────────────────
+   A rail switched off goes away only while it holds neither Settings nor
+   Layout: those two cannot be hidden, so whichever side they are on keeps its
+   rail whatever the look says. Checked live with :has(), like the empty-rail
+   rule in TopbarMinimal.css, so moving a button between sides is enough. */
+:root[data-tb-rail-left="off"] body.topbar-minimal:not([data-panel]) .edge-rail-left:not(:has(.qbtn-settings, #layout-edit-toggle)),
+:root[data-tb-rail-right="off"] body.topbar-minimal:not([data-panel]) .edge-rail-right:not(:has(.qbtn-settings, #layout-edit-toggle)) { display: none; }
+
+/* Height on the screen edge. */
+:root[data-tb-rail-align="top"] body.topbar-minimal:not([data-panel]) .edge-rail { top: 88px; --rail-y: 0px; }
+:root[data-tb-rail-align="bottom"] body.topbar-minimal:not([data-panel]) .edge-rail { top: auto; bottom: 24px; --rail-y: 0px; }
+
+/* How a rail goes away and comes back. */
+:root[data-tb-rail-motion="fade"] .edge-rail-body { transition: opacity 0.32s ease; }
+:root[data-tb-rail-motion="fade"] body.topbar-minimal .edge-rail:is(.is-collapsed, .is-auto-hidden) .edge-rail-body { opacity: 0; }
+:root[data-tb-rail-motion="instant"] body.topbar-minimal:not([data-panel]) .edge-rail { transition: none; }
+
+/* Once it has hidden itself, nothing is left on the edge; a touch there brings
+   it back (js/topbar-minimal.js, onEdgePointerDown). A rail the user closed by
+   hand keeps its handle: that is the only way it opens again. */
+:root[data-tb-rail-peek="edge"] body.topbar-minimal .edge-rail.is-auto-hidden { --rail-hide-peek: 0px; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-tb-rail-motion="fade"] .edge-rail-body { transition: none; }
+}

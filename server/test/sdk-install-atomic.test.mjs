@@ -36,3 +36,10 @@ test('the swap verifies the package really loaded at the version it claims', () 
   const body = installWidgetPayloadBody();
   assert.match(body, /scan\.packages\.some\(\(p\) => p\.id === v\.id && p\.version === v\.manifest\.version\)/);
 });
+
+test('a widget install is refused to cross-site and sandboxed callers, as pack installs are', () => {
+  // Same reason as /icon-pack: an Origin:null frame or a page on another site
+  // must not write a widget folder behind the user's back.
+  const csrf = SRC.slice(SRC.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
+  assert.ok(csrf.slice(0, csrf.indexOf(']);')).includes("'/sdk/install'"));
+});

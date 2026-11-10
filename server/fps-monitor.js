@@ -41,6 +41,12 @@ if (process.platform === 'linux') {
     // repeating `fps` twice under two names: a widget that gets `displayFps: null`
     // knows this platform cannot tell it, instead of being told they are equal.
     getFpsDetail: () => ({ fps: impl.getCurrentFps(), presentFps: impl.getCurrentFps(), displayFps: null }),
+    // MangoHud's log rows are averages over its logging interval, not single
+    // frames, so a 1% low computed from them would describe the averages. No
+    // number rather than a wrong one; the catalog hides what needs it.
+    getFrameStats: () => null,
+    getFrameWindow: () => null,
+    getFramesSince: () => null,
     setForegroundPid: () => { /* MangoHud only ever sees the game it launched */ },
     getGamingProcess: () => impl.getGamingProcess(),
     isGaming: () => impl.isGaming(),

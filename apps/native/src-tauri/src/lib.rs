@@ -1,6 +1,7 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod crash_log;
+mod embed_nav;
 #[cfg(windows)]
 mod cursor_guard;
 #[cfg(windows)]
@@ -9,14 +10,35 @@ mod edge_swipe;
 mod focus_guard;
 #[cfg(windows)]
 mod gpu;
+mod layers;
+#[cfg(windows)]
+pub use layers::{pad_reader, PAD_READER_ARG};
+#[cfg(windows)]
+mod login_task;
+mod memory_level;
 mod monitor;
+mod monitor_names;
+mod nav_policy;
+#[cfg(desktop)]
+mod page_load;
 mod prefs;
+mod see_through;
+mod show_desktop;
 mod spotlight_window;
 mod tray;
 #[cfg(windows)]
 mod twitch_login;
 #[cfg(target_os = "linux")]
 mod webview_guard;
+
+/// A Windows system tool by its absolute path in System32. A bare name is
+/// looked up in the app's own folder first, which is per-user and writable,
+/// so a planted schtasks.exe or reg.exe there would run instead.
+#[allow(dead_code)]
+pub(crate) fn system32_exe(name: &str) -> std::path::PathBuf {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
+    std::path::Path::new(&root).join("System32").join(name)
+}
 
 /// WebView2 browser arguments shared by EVERY webview in this process.
 ///
@@ -93,7 +115,10 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   document.addEventListener('keydown', function (e) {
     if (e.key === 'F11') {
       e.preventDefault();
-      window.location.href = 'xenon-fullscreen:toggle';
+      // Signals carry the launch nonce (nav_policy.rs); __xenonSignal is
+      // defined by a later initialization script, before any key can be pressed.
+      var sig = 'xenon-fullscreen:toggle';
+      window.location.href = typeof window.__xenonSignal === 'function' ? window.__xenonSignal(sig) : sig;
     }
   });
 })();
@@ -189,12 +214,19 @@ pub(crate) fn display_state_js(state: &serde_json::Value) -> String {
 #[cfg(desktop)]
 pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
     use tauri_plugin_autostart::ManagerExt;
+    // A development build leaves the login entries alone: one run from the build
+    // folder would point the PC at an unoptimized shell at every sign-in.
+    if cfg!(debug_assertions) {
+        return;
+    }
     // macOS is the exception and not a compromise: there the login item starts
     // the APP, and the app is what spawns the backend so it inherits Full Disk
     // Access (see spawn_backend_nudge). Not launching it would either leave the
     // backend down or hand it a far smaller view of the disk.
     let want = prefs::load(app).shows_on_this_pc() || cfg!(target_os = "macos");
     let manager = app.autolaunch();
+    #[cfg(windows)]
+    login_task::sync(want);
     if want {
         // Idempotent, and it REWRITES the entry — which is what migrates an
         // existing registration onto the new `--autostart` argument.
@@ -601,7 +633,7 @@ fn decode_console_bytes(bytes: &[u8]) -> String {
 fn backend_task_state() -> TaskState {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let out = std::process::Command::new("schtasks")
+    let out = std::process::Command::new(system32_exe("schtasks.exe"))
         .args(["/Query", "/TN", BACKEND_TASK, "/XML"])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
@@ -631,9 +663,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             // for them) and turning it back on is a decision, not a repair we
             // make behind their back. Tell the splash, which offers the switch.
             if !backend_answers_once(port) {
-                if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.eval("try{window.__XENON_TASK_DISABLED__=true;}catch(e){}");
-                }
+                tell_splash(&handle, "try{window.__XENON_TASK_DISABLED__=true;}catch(e){}");
             }
             return;
         }
@@ -645,21 +675,84 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             // Someone running `node server/server.js` by hand answers it and is
             // left alone.
             if !backend_answers_once(port) {
-                // Best-effort, like every other push into the page: the splash
-                // may still be loading, in which case its own timer covers us.
-                if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.eval("try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
-                }
+                tell_splash(&handle, "try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
             }
             return; // no task to nudge
         }
-        if backend_answers(port) {
+        // Installed and switched on. The splash must know this before its own
+        // timer runs out: without it, an engine that is merely slow (or failed
+        // to start) was shown as "Xenon isn't finished installing", whose setup
+        // then answered "already installed, restart your PC" — round and round
+        // (reported on Discord, Oct 2026). Its own thread, because the probe
+        // below takes up to a minute and the splash needs this now.
+        {
+            let h = handle.clone();
+            std::thread::spawn(move || {
+                tell_splash(&h, "try{window.__XENON_BACKEND_INSTALLED__=true;}catch(e){}");
+            });
+        }
+        // At sign-in the logon task is starting the engine at this very moment,
+        // and a cold boot can keep node from listening for well over the usual
+        // 16s. `/Run` then re-runs start-hidden.vbs, which stops whatever has
+        // just started listening and starts a second node — a slower start, not
+        // a faster one. So the app's own sign-in launch waits longer first.
+        let autostarted = std::env::args().any(|a| a == "--autostart");
+        let tries = if autostarted { LOGON_PROBE_TRIES } else { PROBE_TRIES };
+        if backend_answers_within(port, tries) {
             return; // backend is up — nothing to heal
         }
-        let _ = std::process::Command::new("schtasks")
+        let _ = std::process::Command::new(system32_exe("schtasks.exe"))
             .args(["/Run", "/TN", BACKEND_TASK])
             .creation_flags(CREATE_NO_WINDOW)
             .status();
+    });
+}
+
+/// How many times a flag is pushed into the splash, and how far apart. An eval
+/// sent before the page has loaded is simply lost, and these flags decide which
+/// panel the user sees; a lost one used to leave the splash on its timer alone.
+/// Re-sending is harmless: each one only sets a property the page reads.
+#[cfg(windows)]
+const SPLASH_TELL_TIMES: u32 = 10;
+#[cfg(windows)]
+const SPLASH_TELL_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
+
+#[cfg(windows)]
+fn tell_splash(handle: &tauri::AppHandle, js: &str) {
+    for _ in 0..SPLASH_TELL_TIMES {
+        if let Some(win) = handle.get_webview_window("main") {
+            let _ = win.eval(js);
+        }
+        std::thread::sleep(SPLASH_TELL_EVERY);
+    }
+}
+
+/// The splash's "Start Xenon" button, routed through `xenon-setup:start`: the
+/// engine is installed and its task is on, it is just not running. Never fired
+/// at an engine that answers, because start-hidden.vbs stops whatever listens
+/// on the port before it starts node.
+#[cfg(windows)]
+fn start_backend_task(app: &tauri::AppHandle, port: u16) {
+    let handle = app.clone();
+    // Off the WebView UI thread: called from the navigation hook, which runs on
+    // it, and the probe plus process creation block.
+    std::thread::spawn(move || {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        if backend_answers_once(port) {
+            return;
+        }
+        let started = std::process::Command::new(system32_exe("schtasks.exe"))
+            .args(["/Run", "/TN", BACKEND_TASK])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !started {
+            if let Some(win) = handle.get_webview_window("main") {
+                let _ = win.eval("try{window.__XENON_START_FAILED__=true;}catch(e){}");
+            }
+        }
     });
 }
 
@@ -681,7 +774,7 @@ fn repair_startup_task(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let enabled = std::process::Command::new("schtasks")
+        let enabled = std::process::Command::new(system32_exe("schtasks.exe"))
             .args(["/Change", "/TN", BACKEND_TASK, "/ENABLE"])
             .creation_flags(CREATE_NO_WINDOW)
             .status()
@@ -709,7 +802,7 @@ fn repair_startup_task(app: &tauri::AppHandle) {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
         if enabled {
-            let _ = std::process::Command::new("schtasks")
+            let _ = std::process::Command::new(system32_exe("schtasks.exe"))
                 .args(["/Run", "/TN", BACKEND_TASK])
                 .creation_flags(CREATE_NO_WINDOW)
                 .status();
@@ -1208,19 +1301,52 @@ fn run_in_terminal(script: &std::path::Path) -> bool {
         let Ok(mut child) = command.args(*prefix).arg("bash").arg(script).spawn() else {
             continue;
         };
-        // ~1.5s: long enough for a loader error to land, short enough that the
-        // splash's own setup button is still responsive behind it.
-        for _ in 0..15 {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            match child.try_wait() {
-                Ok(Some(status)) if !status.success() => break,
-                Ok(Some(_)) | Ok(None) => return true,
-                Err(_) => return true,
-            }
+        let failed = terminal_failed(|| match child.try_wait() {
+            Ok(None) => None,
+            Ok(Some(status)) => Some(status.success()),
+            Err(_) => Some(true),
+        });
+        if !failed {
+            return true;
         }
-        // Fell out of the loop: it exited non-zero. Nothing was shown — next.
+        // It exited non-zero. Nothing was shown, so the next one is tried.
     }
     false
+}
+
+/// Whether a terminal died with an error in its first ~1.5s: long enough for a
+/// loader error to land, short enough that the splash's own setup button is still
+/// responsive behind it. `poll` is `None` while it runs, `Some(clean)` once gone.
+#[cfg(target_os = "linux")]
+fn terminal_failed(mut poll: impl FnMut() -> Option<bool>) -> bool {
+    for _ in 0..15 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        if let Some(clean) = poll() {
+            return !clean;
+        }
+    }
+    false
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod terminal_tests {
+    use super::terminal_failed;
+
+    #[test]
+    fn a_terminal_that_dies_after_the_first_look_has_failed() {
+        let mut looks = 0;
+        assert!(terminal_failed(|| {
+            looks += 1;
+            (looks == 5).then_some(false)
+        }));
+        assert_eq!(looks, 5);
+    }
+
+    #[test]
+    fn a_clean_exit_or_a_running_terminal_counts_as_opened() {
+        assert!(!terminal_failed(|| Some(true)));
+        assert!(!terminal_failed(|| None));
+    }
 }
 
 /// A `Command` for a HOST binary, with the AppImage's environment stripped back
@@ -1288,12 +1414,28 @@ fn backend_answers_once(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
 }
 
-/// True once the local backend accepts a connection. Polls for ~8–16s so a
+/// Probe rounds before healing a backend that does not answer: ~8–16s, so a
 /// normally-starting backend is never interfered with.
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+const PROBE_TRIES: u32 = 4;
+/// The same when the app itself was launched at sign-in, where the logon task
+/// is starting the engine alongside it and a cold boot is slow: ~25–50s.
+#[cfg(windows)]
+const LOGON_PROBE_TRIES: u32 = 12;
+
+/// True once the local backend accepts a connection, polling for the usual
+/// ~8–16s.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn backend_answers(port: u16) -> bool {
+    backend_answers_within(port, PROBE_TRIES)
+}
+
+/// True once the local backend accepts a connection within `tries` probe rounds
+/// (one connection attempt of up to 2s, then a 2s pause).
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+fn backend_answers_within(port: u16, tries: u32) -> bool {
     use std::time::Duration;
-    for _ in 0..4 {
+    for _ in 0..tries {
         if backend_answers_once(port) {
             return true;
         }
@@ -1385,14 +1527,11 @@ fn prefer_host_graphics_libs() {
     ];
 
     // Per-user and per-boot: the symlinks must be refreshed after a host library
-    // upgrade, and they must never be writable by another user.
-    let shim = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir)
-        .join("xenon-host-libs");
-    if std::fs::create_dir_all(&shim).is_err() {
+    // upgrade, and they must never be writable by another user. See
+    // `host_libs_shim_dir` for why the old fixed /tmp fallback was dangerous.
+    let Some(shim) = host_libs_shim_dir() else {
         return;
-    }
+    };
 
     let mut linked = 0;
     for soname in HOST_OWNED_LIBS {
@@ -1439,6 +1578,168 @@ fn prefer_host_graphics_libs() {
 
 #[cfg(not(target_os = "linux"))]
 fn prefer_host_graphics_libs() {}
+
+/// The directory of soname symlinks that LD_LIBRARY_PATH will point at FIRST.
+///
+/// Whoever controls this directory controls what code the loader maps into
+/// Xenon, so it must be ours alone. The old code fell back to a fixed
+/// `/tmp/xenon-host-libs` and happily reused an existing one: another local
+/// user could create that directory first (or a symlink by that name) and fill
+/// it with a `libEGL.so.1` of their own, which we would then load.
+///
+/// `$XDG_RUNTIME_DIR` is used only when it really is a private per-user
+/// directory: a real directory (not a symlink), owned by our uid, mode 0700.
+/// Otherwise a fresh, randomly named 0700 directory is created under the temp
+/// dir; `create` (never `create_dir_all`) fails if the name already exists, so
+/// we never adopt somebody else's. Either way the result is checked with
+/// lstat before use. Returns None to skip the repair (fail closed).
+#[cfg(target_os = "linux")]
+fn host_libs_shim_dir() -> Option<std::path::PathBuf> {
+    extern "C" {
+        fn getuid() -> u32;
+    }
+    // SAFETY: getuid(2) takes no arguments, has no preconditions and cannot fail.
+    let uid = unsafe { getuid() };
+    shim_dir_in(
+        std::env::var_os("XDG_RUNTIME_DIR").map(std::path::PathBuf::from),
+        std::env::temp_dir(),
+        uid,
+    )
+}
+
+/// lstat-based: a symlink, a directory owned by someone else, or one that
+/// group/others can enter or write is not private.
+#[cfg(target_os = "linux")]
+fn is_private_dir(p: &std::path::Path, uid: u32) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match std::fs::symlink_metadata(p) {
+        Ok(m) => m.file_type().is_dir() && m.uid() == uid && (m.mode() & 0o777) == 0o700,
+        Err(_) => false,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn shim_dir_in(
+    runtime: Option<std::path::PathBuf>,
+    tmp: std::path::PathBuf,
+    uid: u32,
+) -> Option<std::path::PathBuf> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+
+    if let Some(rt) = runtime.filter(|rt| rt.is_absolute() && is_private_dir(rt, uid)) {
+        // Inside a private runtime dir nobody else can have created the shim,
+        // so reusing it across launches is safe (and avoids litter).
+        let shim = rt.join("xenon-host-libs");
+        match std::fs::DirBuilder::new().mode(0o700).create(&shim) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                // A shim made by an older build may be 0755: ours, so tighten it.
+                if let Ok(m) = std::fs::symlink_metadata(&shim) {
+                    if m.file_type().is_dir() && m.uid() == uid && (m.mode() & 0o777) != 0o700 {
+                        let _ = std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o700));
+                    }
+                }
+            }
+            Err(_) => return None,
+        }
+        return is_private_dir(&shim, uid).then_some(shim);
+    }
+
+    // No trustworthy runtime dir: a brand-new directory with an unguessable
+    // name. It must outlive this process's exec (the loader and Mesa resolve
+    // through it for the app's whole life), so it is left for the OS's temp
+    // cleanup rather than removed.
+    let mut rnd = [0u8; 12];
+    getrandom::fill(&mut rnd).ok()?;
+    let suffix: String = rnd.iter().map(|b| format!("{b:02x}")).collect();
+    let shim = tmp.join(format!("xenon-host-libs-{suffix}"));
+    std::fs::DirBuilder::new().mode(0o700).create(&shim).ok()?;
+    is_private_dir(&shim, uid).then_some(shim)
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod host_libs_shim_tests {
+    use super::*;
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let mut rnd = [0u8; 8];
+        getrandom::fill(&mut rnd).unwrap();
+        let name: String = rnd.iter().map(|b| format!("{b:02x}")).collect();
+        let d = std::env::temp_dir().join(format!("xenon-shim-test-{tag}-{name}"));
+        std::fs::DirBuilder::new().mode(0o700).create(&d).unwrap();
+        d
+    }
+
+    fn me(p: &std::path::Path) -> u32 {
+        std::fs::metadata(p).unwrap().uid()
+    }
+
+    #[test]
+    fn private_runtime_dir_is_used_and_shim_is_0700() {
+        let rt = scratch("rt");
+        let tmp = scratch("tmp");
+        let uid = me(&rt);
+        let shim = shim_dir_in(Some(rt.clone()), tmp.clone(), uid).unwrap();
+        assert_eq!(shim, rt.join("xenon-host-libs"));
+        assert!(is_private_dir(&shim, uid));
+        // Reused on the next launch.
+        assert_eq!(shim_dir_in(Some(rt.clone()), tmp.clone(), uid).unwrap(), shim);
+        let _ = std::fs::remove_dir_all(&rt);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn an_old_0755_shim_in_our_runtime_dir_is_tightened() {
+        let rt = scratch("rt755");
+        let tmp = scratch("tmp755");
+        let uid = me(&rt);
+        let old = rt.join("xenon-host-libs");
+        std::fs::create_dir(&old).unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(shim_dir_in(Some(rt.clone()), tmp.clone(), uid).unwrap(), old);
+        assert!(is_private_dir(&old, uid));
+        let _ = std::fs::remove_dir_all(&rt);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn shared_or_symlinked_runtime_dir_falls_back_to_a_fresh_private_dir() {
+        let tmp = scratch("tmpfb");
+        let uid = me(&tmp);
+        let open = scratch("open");
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o1777)).unwrap();
+        let a = shim_dir_in(Some(open.clone()), tmp.clone(), uid).unwrap();
+        assert!(a.starts_with(&tmp), "a world-writable runtime dir is not trusted");
+        assert!(is_private_dir(&a, uid));
+
+        let real = scratch("real");
+        let link = tmp.join("rt-link");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let b = shim_dir_in(Some(link), tmp.clone(), uid).unwrap();
+        assert!(b.starts_with(&tmp) && b != a, "a symlinked runtime dir is not trusted; names are unique");
+
+        // Relative or missing values are ignored too.
+        assert!(shim_dir_in(Some("relative".into()), tmp.clone(), uid).unwrap().starts_with(&tmp));
+        assert!(shim_dir_in(None, tmp.clone(), uid).unwrap().starts_with(&tmp));
+        for d in [&tmp, &open, &real] {
+            let _ = std::fs::remove_dir_all(d);
+        }
+    }
+
+    #[test]
+    fn a_runtime_dir_owned_by_someone_else_is_never_used() {
+        let rt = scratch("other");
+        let tmp = scratch("tmpother");
+        let uid = me(&rt);
+        // Pretend we are another uid: neither the runtime dir nor the fresh
+        // directory passes the ownership check, so the repair is skipped.
+        assert!(shim_dir_in(Some(rt.clone()), tmp.clone(), uid.wrapping_add(1)).is_none());
+        assert!(!rt.join("xenon-host-libs").exists());
+        let _ = std::fs::remove_dir_all(&rt);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
 
 /// On a Wayland compositor that offers explicit sync (Hyprland, and so Omarchy,
 /// among others) WebKitGTK's DMABUF renderer can make the compositor drop the
@@ -1563,10 +1864,45 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 use std::sync::atomic::Ordering;
+                // A cancelled `xenon-app:` signal also ends in a page-load event
+                // (src/page_load.rs): none of the work below is for it.
+                let started = matches!(_payload.event(), tauri::webview::PageLoadEvent::Started);
                 let is_dashboard = matches!(
                     _payload.url().host_str(),
                     Some("127.0.0.1") | Some("localhost")
-                );
+                ) && page_load::real(_webview.label(), started);
+                // "Widgets only" (server/js/usage-mode.js): the server sends the
+                // main window to the driver page instead of the dashboard. The
+                // URL alone says which one loaded, so the window hides before the
+                // driver paints and comes back when the dashboard loads. Only the
+                // main webview's loads count: this hook also fires for every
+                // widget-layer window, whose page is `/` too. Nor does the splash:
+                // it is not the dashboard leaving the driver.
+                if is_dashboard
+                    && _webview.label() == "main"
+                    && nav_policy::is_backend_page(_payload.url(), monitor::backend_port())
+                {
+                    if let Some(win) = _webview.app_handle().get_webview_window("main") {
+                        let url = _payload.url();
+                        let full = url.query_pairs().any(|(k, v)| k == "full" && v == "1");
+                        let on_driver = url.path() == monitor::DRIVER_PATH;
+                        if monitor::set_driver(&win, on_driver, full) {
+                            let app = _webview.app_handle().clone();
+                            std::thread::spawn(move || layers::driver_left(&app));
+                        }
+                        // Not on `Started`: that one still has the address before
+                        // the server's redirect to the driver.
+                        if !started && monitor::opened_to_nothing(on_driver) {
+                            let app = _webview.app_handle().clone();
+                            std::thread::spawn(move || monitor::show_now(&app));
+                        }
+                        // A window that starts hidden (phone mode, a login
+                        // start) never passed through `hide_window`.
+                        if !win.is_visible().unwrap_or(true) {
+                            memory_level::set_low(&win, true);
+                        }
+                    }
+                }
                 if is_dashboard && !UPDATE_CHECK_STARTED.swap(true, Ordering::SeqCst) {
                     spawn_update_check(_webview.app_handle().clone());
                 }
@@ -1623,6 +1959,12 @@ pub fn run() {
             );
             #[cfg(not(windows))]
             let gpu_flag: Option<&'static str> = None;
+            // See-through window (see_through.rs): after the pin, because whether a
+            // transparent webview is visible depends on which adapter draws it.
+            let see_through = see_through::decide(
+                &display_prefs,
+                monitor::initial_screen_name(app.handle(), &display_prefs).as_deref(),
+            );
             // Runtime-only capabilities merged over the shim's literal caps: the
             // dashboard's update orchestrator needs the shell's own version (to
             // know whether the exe is outdated too) and whether this shell
@@ -1639,7 +1981,13 @@ pub fn run() {
             // A user who double-clicks Xenon must always SEE it, even in phone
             // mode: an app that opens and shows nothing reads as broken.
             let autostarted = std::env::args().any(|a| a == "--autostart");
-            let start_hidden = !display_prefs.shows_on_this_pc() && autostarted;
+            // "Widgets only" last time: a login start shows no splash either.
+            monitor::seed_driver(&display_prefs);
+            if !autostarted {
+                monitor::started_by_hand();
+            }
+            let start_hidden =
+                (!display_prefs.shows_on_this_pc() || display_prefs.widgets_only) && autostarted;
             // A deliberate launch in phone mode must SHOW the window: nothing is
             // written, so the next login is hidden again as chosen. Without this
             // the window is built visible and then hidden a moment later by
@@ -1658,36 +2006,92 @@ pub fn run() {
             // `displays` is a snapshot: the window does not exist yet at this
             // point, so `display.active` is deliberately absent here and arrives
             // with the first push (on page load, on placement, on replug).
+            //
+            // Linux draws layers only on X11 with a compositor (layers/linux.rs);
+            // `layersWhy` tells the dashboard what is missing, so it can say so.
+            #[cfg(target_os = "linux")]
+            let layers_why = layers::linux::probe();
+            #[cfg(not(target_os = "linux"))]
+            let layers_why: Option<&str> = None;
+            let caps = serde_json::json!({
+                "shellVersion": app.package_info().version.to_string(),
+                "updateEvents": true,
+                "shellSelfUpdate": shell_self_update(),
+                "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
+                "displayPicker": true,
+                // "Sign in to Twitch" in the Twitch tile (xenon-app:twitch-login).
+                // Windows only: WebKit blocks the third-party cookie the
+                // player embed would need, so elsewhere it could not work.
+                "twitchLogin": cfg!(windows),
+                // The interface scale as WKWebView page zoom (xenon-zoom:set).
+                // macOS only: there the dashboard's CSS `zoom` reaches into
+                // the sandboxed widget frames without shrinking their
+                // viewport, so SDK widgets came out enlarged, blurry and
+                // cropped (Discord, Oct 2026). WebView2 keeps the CSS path:
+                // it resets native zoom on every cancelled signal navigation.
+                "nativePageZoom": cfg!(target_os = "macos"),
+                // The monitor list, injected BEFORE the page loads. It used
+                // to arrive only with the first `push_display_state`, after
+                // the dashboard had loaded — so the first-run screen picker
+                // opened with no screens on it and, if that push never
+                // landed, stayed that way: a question about which screen to
+                // use, asked without offering one. The snapshot has no
+                // `display.active` (no window exists yet); that half still
+                // comes with the push.
+                "displays": monitor::display_list_json(app.handle()),
+                "phoneMode": !display_prefs.shows_on_this_pc(),
+                // Widget layers on the desktop and in the overlay
+                // (xenon-app:layers-sync): Windows, macOS and Linux on X11.
+                // Anchoring to an app is Windows only (`draws` per backend).
+                "layers": layers_why.is_none(),
+                "layersWhy": layers_why,
+                // Xenon AI's edge glow on other screens (xenon-app:ai-glow):
+                // native windows wherever layer windows can be drawn, so
+                // on Linux not on GNOME Wayland or X11 without a compositor.
+                "aiGlow": layers_why.is_none(),
+                // The Ambient scene as animated wallpaper and screensaver
+                // (layers/scene.rs), in the same layers-sync, where layer
+                // windows can be drawn at all.
+                "scene": layers_why.is_none() && layers::draws_scene(),
+                // "Draw on screen" as a layer window (draw.html, the
+                // `draw:` surface) where the capture engine has no sheet.
+                "draw": layers_why.is_none() && layers::draws_sheet(),
+                // The Xenon menu over the main screen (menu.html, the
+                // `menu:` surface) and its global shortcut.
+                "menu": layers_why.is_none() && layers::draws_menu(),
+                // A widget that follows one app's window (`anchor:` surfaces).
+                "anchor": layers_why.is_none() && layers::draws_anchor(),
+                // It says which virtual desktop is shown (layers/desks.rs).
+                "desks": layers_why.is_none() && layers::desks::supported(),
+                // Holding View + Menu on a controller opens the Xenon menu
+                // (layers/pad.rs).
+                "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),
+                // Widget windows can be kept out of screenshots and recordings
+                // (`set_content_protected`: WDA_EXCLUDEFROMCAPTURE on Windows,
+                // sharingType none on macOS, where Xenon's capture engine also
+                // leaves those windows out by name, since ScreenCaptureKit on
+                // macOS 15 may not), so "show them in captures" is a real choice.
+                // Linux has no such flag.
+                "outOfCaptures": layers_why.is_none() && cfg!(any(windows, target_os = "macos")),
+                // Linux stacks the wallpaper under the windows, not behind
+                // the icons a desktop may draw (layers/linux.rs).
+                "wallpaperBehindIcons": !cfg!(target_os = "linux"),
+                // The see-through window (see_through.rs, xenon-app:see-through-*).
+                // `seeThroughOn`: this window was built transparent, so the
+                // dashboard paints no backdrop of its own. `seeThroughWanted`:
+                // the user's switch. `seeThroughReady`: it could be built
+                // transparent here; when not, `seeThroughWhy` says why
+                // ("gpu" on Windows, "compositor" on Linux).
+                "seeThrough": cfg!(any(windows, target_os = "macos", target_os = "linux")),
+                "seeThroughOn": see_through.on,
+                "seeThroughWhy": see_through.why,
+                "seeThroughWanted": display_prefs.see_through,
+                "seeThroughReady": see_through.ready,
+                "splashLang": display_prefs.language.clone().unwrap_or_default(),
+            });
+            layers::set_menu_caps(&caps);
             let caps_js = format!(
-                "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
-                serde_json::json!({
-                    "shellVersion": app.package_info().version.to_string(),
-                    "updateEvents": true,
-                    "shellSelfUpdate": shell_self_update(),
-                    "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
-                    "displayPicker": true,
-                    // "Sign in to Twitch" in the Twitch tile (xenon-app:twitch-login).
-                    // Windows only: WebKit blocks the third-party cookie the
-                    // player embed would need, so elsewhere it could not work.
-                    "twitchLogin": cfg!(windows),
-                    // The interface scale as WKWebView page zoom (xenon-zoom:set).
-                    // macOS only: there the dashboard's CSS `zoom` reaches into
-                    // the sandboxed widget frames without shrinking their
-                    // viewport, so SDK widgets came out enlarged, blurry and
-                    // cropped (Discord, Oct 2026). WebView2 keeps the CSS path:
-                    // it resets native zoom on every cancelled signal navigation.
-                    "nativePageZoom": cfg!(target_os = "macos"),
-                    // The monitor list, injected BEFORE the page loads. It used
-                    // to arrive only with the first `push_display_state`, after
-                    // the dashboard had loaded — so the first-run screen picker
-                    // opened with no screens on it and, if that push never
-                    // landed, stayed that way: a question about which screen to
-                    // use, asked without offering one. The snapshot has no
-                    // `display.active` (no window exists yet); that half still
-                    // comes with the push.
-                    "displays": monitor::display_list_json(app.handle()),
-                    "phoneMode": !display_prefs.shows_on_this_pc(),
-                })
+                "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{caps});}}catch(e){{}}"
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
             // Whether the splash may offer "Complete setup" at all: release
@@ -1702,7 +2106,12 @@ pub fn run() {
                 "try{{window.__XENON_SETUP_AVAILABLE__={};}}catch(e){{}}",
                 setup_available
             );
-            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}");
+            // The nonce every signal URL from this window must carry, and the
+            // script that hands it to the top-level page of our own origins only
+            // (nav_policy.rs explains why widget frames must never see it).
+            let signal_nonce = nav_policy::new_nonce();
+            let nonce_js = nav_policy::nonce_script(&signal_nonce, port);
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}\n{nonce_js}");
             // Size and full-screen state both come from the screen that will host
             // it, by the same rule `place_now` is about to apply (see
             // monitor::initial_window). The literal 2560×720 that used to be here
@@ -1747,14 +2156,21 @@ pub fn run() {
                 .visible(!start_hidden)
                 .focused(!start_hidden)
                 .center();
-            // `transparent` is not on the macOS builder at all: it is gated
-            // behind the `macos-private-api` feature, which `macOSPrivateApi` in
-            // tauri.conf.json now switches on — for `background_color` above
-            // rather than for transparency (see that comment). The window stays
-            // opaque either way; false is the default everywhere, so the intent
-            // is stated only on the platforms where the method exists.
-            #[cfg(not(target_os = "macos"))]
-            let builder = builder.transparent(false);
+            // On macOS `transparent` exists only behind the `macos-private-api`
+            // feature, which `macOSPrivateApi` in tauri.conf.json switches on —
+            // first for `background_color` above, and now for this too. The
+            // window is opaque unless the user asked for it see-through and this
+            // machine can draw it (see_through.rs).
+            let builder = builder.transparent(see_through.on);
+            // The one exception to the dark backing above: a window the user asked
+            // to be see-through (see_through.rs) has none at all, the layer
+            // windows' recipe. The splash and the dashboard paint their own ground
+            // until the dashboard hands it over to the desktop.
+            let builder = if see_through.on {
+                builder.background_color(tauri::window::Color(0, 0, 0, 0))
+            } else {
+                builder
+            };
             // Borderless + native fullscreen is a combination macOS does not
             // have. `toggleFullScreen:` needs NSWindowStyleMaskTitled, and on a
             // window built with `decorations(false)` the transition dereferences
@@ -1786,7 +2202,25 @@ pub fn run() {
                 // taskbar and Alt-Tab — it runs quietly in the background.
                 .skip_taskbar(true)
                 .initialization_script(&init_script)
-                .on_navigation(move |url| {
+                .on_navigation(move |raw| {
+                    // Every `xenon-*` scheme is a signal, and a signal is obeyed
+                    // only with this launch's nonce (nav_policy.rs): on macOS and
+                    // Linux this hook also sees navigations inside the sandboxed
+                    // widget frames, which must not be able to restart the app,
+                    // move it between screens or run the updater. A signal without
+                    // it is dropped here, never passed on to the OS opener below.
+                    let checked;
+                    let url: &tauri::Url = if nav_policy::is_signal(raw) {
+                        match nav_policy::verified_signal(raw, &signal_nonce) {
+                            Some(u) => {
+                                checked = u;
+                                &checked
+                            }
+                            None => return false,
+                        }
+                    } else {
+                        raw
+                    };
                     let scheme = url.scheme();
                     // The update toast taps navigate here: install the pending
                     // update and relaunch. Never a real navigation.
@@ -1827,10 +2261,43 @@ pub fn run() {
                                 let h = nav_handle.clone();
                                 std::thread::spawn(move || spotlight_window::open(&h));
                             }
+                            // The language the splash speaks at the next launch.
+                            "splash-language" => {
+                                let code = url.query_pairs().find(|(k, _)| k == "l")
+                                    .and_then(|(_, v)| prefs::clean_language(&v));
+                                if let Some(code) = code {
+                                    prefs::update(&nav_handle, |p| p.language = Some(code));
+                                }
+                            }
                             // The Twitch tile's "Sign in to Twitch": twitch.tv's own
                             // sign-in page in this profile, so the player embed
                             // in the dashboard reads the session (twitch_login.rs).
                             // A plain thread for the same reason as above.
+                            // The dashboard's widget placements changed (or it just
+                            // loaded): open, move and close the layer windows to
+                            // match (layers/mod.rs). A plain thread, like above.
+                            "layers-sync" => {
+                                let h = nav_handle.clone();
+                                let u = url.clone();
+                                std::thread::spawn(move || layers::sync(&h, &u));
+                            }
+                            // Xenon AI's voice state changed: light or dim the
+                            // edges of the other screens (layers/glow.rs).
+                            "ai-glow" => {
+                                let h = nav_handle.clone();
+                                let u = url.clone();
+                                std::thread::spawn(move || layers::glow(&h, &u));
+                            }
+                            // Settings → Background, "See-through background":
+                            // remember it, and relaunch when the window has to be
+                            // rebuilt (see_through.rs). A plain thread: it writes
+                            // display.json, and a restart from there runs the
+                            // normal Exit path.
+                            "see-through-on" | "see-through-off" => {
+                                let want = url.path() == "see-through-on";
+                                let h = nav_handle.clone();
+                                std::thread::spawn(move || see_through::set_from_dashboard(&h, want));
+                            }
                             #[cfg(windows)]
                             "twitch-login" => {
                                 let h = nav_handle.clone();
@@ -1849,11 +2316,16 @@ pub fn run() {
                     if scheme == "xenon-setup" {
                         #[cfg(windows)]
                         match url.path() {
+                            // Also the "Repair Xenon" button: the same script
+                            // starts an installed engine first and reinstalls
+                            // it only when it still does not start.
                             "run" => run_backend_bootstrap(&nav_handle),
                             // The other half of the same panel: the engine IS
                             // installed here, its startup task is simply
                             // switched off (see spawn_backend_nudge).
                             "enable-task" => repair_startup_task(&nav_handle),
+                            // Installed and switched on, just not running.
+                            "start" => start_backend_task(&nav_handle, port),
                             _ => {}
                         }
                         return false;
@@ -2016,17 +2488,26 @@ pub fn run() {
                     if matches!(scheme, "tauri" | "data" | "blob" | "about") {
                         return true;
                     }
-                    let loopback = matches!(
-                        url.host_str(),
-                        Some("127.0.0.1") | Some("localhost") | Some("::1") | Some("tauri.localhost")
-                    );
-                    if matches!(scheme, "http" | "https") && loopback {
+                    // Loopback only on the port this shell's backend listens on:
+                    // any other local service is not our page, and is treated
+                    // like any other site below.
+                    if nav_policy::is_own_page(url, port) {
                         return true;
                     }
-                    // Anything else (external http/https, mailto, tel, …) is handed
-                    // to the default browser and the in-webview navigation cancelled.
-                    use tauri_plugin_opener::OpenerExt;
-                    let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
+                    // The YouTube player in a tile navigates inside its own iframe.
+                    if embed_nav::is_youtube_embed(url) {
+                        return true;
+                    }
+                    // External http/https, mailto and tel go to the default
+                    // browser (or mail/phone app) and the in-webview navigation is
+                    // cancelled. Every other scheme is dropped: handing it to the
+                    // OS opener launches whatever handler is registered for it
+                    // (search-ms:, ms-*:, vscode://, smb://, file:), and a widget
+                    // frame can name any of them. Same list as the layer windows.
+                    if nav_policy::opens_externally(url) {
+                        use tauri_plugin_opener::OpenerExt;
+                        let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
+                    }
                     false
                 });
 
@@ -2069,6 +2550,12 @@ pub fn run() {
             monitor::apply_rdp_hide_now(&window);
             monitor::start_watchdog(app.handle().clone());
 
+            // Win+D raises the desktop over every ordinary window, the kiosk on
+            // its own screen included (issue #143). Lift it above the desktop
+            // while the desktop is in front, without focusing it.
+            #[cfg(windows)]
+            show_desktop::start(app.handle());
+
             // Remember where the desktop mouse is so it can be put back after a
             // touch on the kiosk yanks it onto the Edge (tray-toggleable).
             #[cfg(windows)]
@@ -2079,12 +2566,26 @@ pub fn run() {
             #[cfg(windows)]
             {
                 focus_guard::start(&window);
-                window.on_window_event(|event| {
+                let focused = window.clone();
+                window.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(true) = event {
                         focus_guard::on_focused();
+                        // Safety net for a show that bypassed `monitor::show_window`.
+                        memory_level::set_low(&focused, false);
                     }
                 });
             }
+
+            // The X of a dashboard visited from "widgets only" ends the visit: the
+            // widgets stay and the app must not quit with them on the screen.
+            let visited = window.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if monitor::end_visit(&visited) {
+                        api.prevent_close();
+                    }
+                }
+            });
 
             // WebKit renders the page in its own process; when that one dies the
             // window keeps its last frame, every timer in the page stops, and the

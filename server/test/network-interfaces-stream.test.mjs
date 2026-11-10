@@ -52,7 +52,7 @@ test('all three platforms answer with the same shape', () => {
   for (const [name, src] of [['linux', read('../linux-collectors.js')], ['darwin', DARWIN]]) {
     assert.match(src, /kind: real \? 'physical' : 'virtual'/, name);
     assert.match(src, /rxBytes: irx, txBytes: itx/, name);
-    assert.match(src, /return \{ ping, latency, rxBytes: rx, txBytes: tx, interfaces,/, name + ' network()');
+    assert.match(src, /return \{ ping, latency, pingSent: .*, pingLost: .*, rxBytes: rx, txBytes: tx, interfaces,/, name + ' network()');
   }
   // Windows is a PowerShell collector, so the same contract is asserted on it.
   assert.match(PS1, /id\s+= \[string\]\$nic\.Id/);

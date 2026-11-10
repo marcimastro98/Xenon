@@ -11,163 +11,6 @@
   margin: 0 auto;
 }
 
-/* ── Intro box ─────────────────────────────────────────────────── */
-.remote-intro {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(var(--accent-rgb), 0.06);
-  border: 1px solid rgba(var(--accent-rgb), 0.12);
-}
-
-.remote-intro-title {
-  font-weight: 700;
-  font-size: 0.95em;
-  margin-bottom: 6px;
-}
-
-.remote-intro-body {
-  font-size: 0.88em;
-  line-height: 1.5;
-  opacity: 0.85;
-}
-
-.remote-intro-body p {
-  margin: 0 0 5px;
-}
-
-.remote-intro-body p:last-child {
-  margin-bottom: 0;
-}
-
-/* ── Warning box ───────────────────────────────────────────────── */
-.remote-warnings {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(240, 160, 40, 0.09);
-  border: 1px solid rgba(240, 160, 40, 0.22);
-}
-
-.remote-warnings-title {
-  font-weight: 700;
-  font-size: 0.88em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.75;
-  margin-bottom: 6px;
-}
-
-.remote-warnings ul {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.88em;
-  line-height: 1.55;
-  opacity: 0.88;
-}
-
-.remote-warnings li {
-  margin-bottom: 3px;
-}
-
-/* ── Consent button ────────────────────────────────────────────── */
-.remote-consent-row {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.remote-consent-btn {
-  border: 0;
-  border-radius: 10px;
-  cursor: pointer;
-  padding: 10px 20px;
-  min-height: 42px;
-  font: inherit;
-  font-weight: 700;
-  background: rgba(var(--accent-rgb), 0.22);
-  color: inherit;
-  transition: background 0.15s;
-}
-
-.remote-consent-btn:hover:not(:disabled) {
-  background: rgba(var(--accent-rgb), 0.36);
-}
-
-/* ── Wizard ────────────────────────────────────────────────────── */
-.remote-wizard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Step header */
-.remote-step {
-  border-radius: 12px;
-  background: rgba(var(--accent-rgb), 0.05);
-  border: 1px solid rgba(var(--accent-rgb), 0.10);
-  overflow: hidden;
-}
-
-.remote-step-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92em;
-}
-
-.remote-step-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(var(--accent-rgb), 0.18);
-  font-weight: 700;
-  font-size: 0.82em;
-  flex: 0 0 auto;
-}
-
-.remote-step-head.done .remote-step-num {
-  background: rgba(76, 175, 120, 0.3);
-  color: #4caf78;
-}
-
-.remote-step-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 14px 12px;
-}
-
-/* ── Install row (tool pill + install btn) ─────────────────────── */
-.remote-install-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  min-height: 44px;
-  background: rgba(var(--accent-rgb), 0.06);
-}
-
-.remote-tool-label {
-  font-weight: 600;
-  font-size: 0.9em;
-}
-
-.remote-tool-status {
-  font-size: 0.84em;
-  opacity: 0.75;
-}
-
-.remote-tool-ok {
-  font-size: 0.84em;
-  font-weight: 600;
-  color: #4caf78;
-}
-
 /* ── Action buttons ────────────────────────────────────────────── */
 .remote-btn {
   border: 0;
@@ -208,31 +51,6 @@
   background: rgba(220, 60, 60, 0.32);
 }
 
-/* ── PIN input row ─────────────────────────────────────────────── */
-.remote-pin-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.remote-pin-input {
-  flex: 1;
-  padding: 8px 12px;
-  min-height: 40px;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--accent-rgb), 0.3);
-  background: rgba(var(--accent-rgb), 0.08);
-  color: inherit;
-  font: inherit;
-  font-size: 1em;
-  letter-spacing: 0.12em;
-}
-
-.remote-pin-input::placeholder {
-  opacity: 0.45;
-  letter-spacing: 0;
-}
-
 /* ── Status / feedback area ────────────────────────────────────── */
 .remote-status {
   font-size: 0.86em;
@@ -251,13 +69,6 @@
 .remote-status.error {
   background: rgba(220, 60, 60, 0.12);
   color: #e05555;
-}
-
-/* ── Status summary (Step 5 — Ready) ──────────────────────────── */
-.remote-ready-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .remote-ready-row {
@@ -284,56 +95,11 @@
   color: #4caf78;
 }
 
-.remote-clients-list {
-  margin-top: 4px;
-  font-size: 0.86em;
-  opacity: 0.8;
-  padding-left: 10px;
-}
-
-/* ── Controls section (kill-switch + disable/enable) ──────────── */
-.remote-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.remote-controls-title {
-  font-size: 0.78em;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.6;
-  margin: 4px 2px 0;
-}
-
 .remote-controls-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-/* ── On-demand startup toggle ──────────────────────────────────── */
-.remote-ondemand-row {
-  margin-top: 2px;
-}
-
-.remote-ondemand-btn.active {
-  background: rgba(var(--accent-rgb), 0.42);
-  font-weight: 700;
-}
-
-.remote-ondemand-btn.active:hover:not(:disabled) {
-  background: rgba(var(--accent-rgb), 0.54);
-}
-
-.remote-ondemand-hint {
-  font-size: 0.8em;
-  line-height: 1.45;
-  opacity: 0.62;
-  margin: 2px 2px 0;
 }
 
 /* ── Section titles ────────────────────────────────────────────── */
@@ -344,14 +110,6 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.6;
-}
-
-/* ── Hint / note text ──────────────────────────────────────────── */
-.remote-hint {
-  font-size: 0.84em;
-  opacity: 0.7;
-  line-height: 1.45;
-  padding: 0 2px;
 }
 
 /* ── Control panel ─────────────────────────────────────────────── */
@@ -381,9 +139,11 @@
 .remote-panel-screen-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
   min-height: 38px;
+  padding: 0 10px;
 }
 
 .remote-panel-label {
@@ -425,18 +185,6 @@
   border-top: 1px solid rgba(var(--accent-rgb), 0.10);
 }
 
-/* Secondary button variant — outlined / lower emphasis             */
-.remote-btn-secondary {
-  background: transparent;
-  border: 1px solid rgba(var(--accent-rgb), 0.28);
-  font-weight: 500;
-  font-size: 0.88em;
-}
-
-.remote-btn-secondary:hover:not(:disabled) {
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
 /* ── Dashboard widget ──────────────────────────────────────────────── */
 /* Outer container makes the control panel fill the tile. */
 .remote-panel { display: flex; }
@@ -468,3 +216,36 @@
   max-width: none;
   padding: 10px;
 }
+
+/* ── Settings → Remote control ─────────────────────────────────────── */
+/* The same sections and rows as every Settings page; the tile keeps the rules above. */
+#settings-overlay .remote-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; max-width: none; margin: 0; padding: 0; }
+#settings-overlay .remote-panel-section { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+#settings-overlay .remote-section-title { margin: 0; color: var(--cst-text); font-size: 17px; font-weight: 700; letter-spacing: 0; text-transform: none; opacity: 1; }
+#settings-overlay :is(.remote-ready-row, .remote-panel-screen-row) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 52px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+#settings-overlay :is(.remote-ready-label, .remote-panel-label) { margin: 0; color: var(--cst-text); font-size: 15px; font-weight: 600; opacity: 1; }
+#settings-overlay .remote-ready-val { color: var(--cst-muted); font-size: 14.5px; font-weight: 500; }
+#settings-overlay .remote-ready-val.ok { color: var(--color-success); }
+#settings-overlay .remote-state-blocked { color: var(--cst-danger); }
+#settings-overlay .remote-controls-row { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 12px; margin: 0; padding: 12px 16px; border: 0; }
+#settings-overlay .remote-status { margin: 0; padding: 0 16px 12px; font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+#settings-overlay .settings-step-body .remote-status { padding: 0; }
+
+.remote-warn-list { display: grid; gap: 6px; margin: 0; padding: 12px 16px; list-style: none; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.45; }
+.remote-pin-row { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+#settings-overlay .remote-pin-input { width: 120px; }

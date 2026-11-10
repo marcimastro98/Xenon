@@ -48,7 +48,10 @@ function createVhdxSource({ run, platform = process.platform, env = process.env,
   let ids = new Map(); // opaque id -> absolute .vhdx path
   let job = null;      // { id, state, before, after, error, startedAt }
   let pollTimer = null;
-  const statusPath = path.join(os.tmpdir(), STATUS_FILE);
+  // In server\data, not the shared temp folder: compact-vhdx.ps1 (elevated)
+  // writes only to a status file directly inside that folder, so the path a
+  // caller hands it cannot aim an administrator's write anywhere else.
+  const statusPath = path.join(__dirname, 'data', STATUS_FILE);
 
   async function listDisks() {
     const disks = [];

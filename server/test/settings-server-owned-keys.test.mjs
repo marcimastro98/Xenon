@@ -68,6 +68,10 @@ const SERVER_OWNED = {
   // the identity of the install it replaced, disarming the check for every other
   // surface. See settingsMirrorIsForeign in js/settings.js.
   storeId: 'incoming.storeId = prev.storeId;',
+  // Recording options: `folder` names a folder on THIS PC and is blanked on the
+  // wire like fileTransfer.inboxDir (capture-settings.js), so without the guard
+  // a save from any surface would send the recordings back to Videos.
+  capture: 'incoming.capture = prev.capture;',
 };
 
 test('every settings key the browser does not send is kept from the persisted copy', () => {

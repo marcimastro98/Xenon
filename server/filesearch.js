@@ -8,7 +8,8 @@
 // with its persisted open-frequency log.
 //
 // Security shape (mirrors the Slideshow folder source): a search RESPONSE
-// carries paths as display text, but no request ever accepts one. Results get
+// carries paths as display text, but no request ever ACTS on one. A path pasted
+// as the query is only stat'ed, and comes back as an ordinary result. Results get
 // an opaque id; /search/open and /search/reveal resolve the id against THIS
 // module's bounded cache, then open through the same rules as the Deck's
 // openFile (BLOCKED_OPEN_EXT from actions/registry.js + existence check).
@@ -22,11 +23,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const crypto = require('crypto');
 const SearchQuery = require('./search-query');
 const SearchRank = require('./search-rank');
 const { writeFileAtomic } = require('./atomic-write');
 const { isBlockedOpenPath } = require('./actions/registry');
+const { pastedPath } = require('./search-pasted-path');
 
 const HOST_IDLE_MS = 5 * 60 * 1000;   // retire the PS host after 5 min without queries
 const HOST_RETRY_MS = 10 * 1000;      // after a host death, wait before respawning
@@ -38,6 +41,8 @@ const CATALOG_STASH_MS = 15000;      // a catalog answer is collectable this lon
 const CATALOG_STASH_MAX = 20;
 const FOLDERS_MAX = 8;                // folder results asked of the index
 const POOL_MAX = 12;                  // usage-log files re-checked per query
+const QUERY_MAX = 200;                // typed queries; a pasted path may be longer
+const PASTED_STAT_MS = 1500;          // a mapped drive that does not answer is not a result
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -292,64 +297,33 @@ function createFileSearch(opts) {
   async function search(rawQuery, options) {
     const opt = options || {};
     const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    const q = SearchQuery.parseQuery(rawQuery, { now, disable: opt.disable });
+    const pasted = await pastedTarget(rawQuery);
+    if (pasted && pasted.hit) {
+      return { ok: true, chips: [], terms: [], wds: 'ok', index: 'ready', apps: [], pasted: true, results: [publicResult(pasted.hit, [])] };
+    }
+    const q = SearchQuery.parseQuery(queryText(rawQuery, pasted), { now, disable: opt.disable });
     return execQuery(q, opt, now);
   }
 
-  // AI mode: the provider translated the phrase into a structured spec. The
-  // spec is UNTRUSTED model output — explicit known-key rebuild at this
-  // boundary (anything malformed is dropped, never thrown), then the exact
-  // same engine as a typed query. Chips are rebuilt from what SURVIVED, so
-  // the UI shows precisely the filter that will run.
-  function normalizeStructured(spec) {
-    const s = (spec && typeof spec === 'object' && !Array.isArray(spec)) ? spec : {};
-    const q = { terms: [], kind: null, exts: null, after: null, before: null, minBytes: null, maxBytes: null, chips: [] };
-    for (const term of Array.isArray(s.terms) ? s.terms.slice(0, 8) : []) {
-      if (typeof term !== 'string') continue;
-      const v = term.trim().slice(0, 80);
-      if (v.length >= 2) q.terms.push(v);
-    }
-    if (typeof s.kind === 'string' && SearchQuery.KIND_EXTS[s.kind]) q.kind = s.kind;
-    // "app": the AI understood the user wants an installed APPLICATION (the
-    // offline parser never sets this) — forces the Applications tier on even
-    // though an exts filter would normally read as a files-only query.
-    if (s.app === true) q.wantApps = true;
-    if (Array.isArray(s.exts)) {
-      const list = [...new Set(s.exts
-        .filter((e) => typeof e === 'string')
-        .map((e) => e.trim().toLowerCase().replace(/^\./, ''))
-        .filter((e) => /^[a-z0-9]{1,6}$/.test(e)))].slice(0, 8);
-      if (list.length) q.exts = list;
-    }
-    // Dates arrive as YYYY-MM-DD (local midnight) or epoch ms; a string
-    // `before` means "through that day", so its bound is end-of-day exclusive.
-    const toMs = (v) => {
-      if (Number.isFinite(v) && v > 0) return v;
-      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        const [y, m, d] = v.split('-').map(Number);
-        const t = new Date(y, m - 1, d).getTime();
-        return Number.isFinite(t) ? t : null;
-      }
-      return null;
+  // A pasted path: the item itself when it exists. When it does not (moved,
+  // renamed folder, a path from another PC) the search goes on with its last
+  // part, the file's name, which is how a moved file is still found.
+  async function pastedTarget(rawQuery) {
+    const abs = pastedPath(rawQuery, { platform: PLATFORM, home: o.home || os.homedir() });
+    if (!abs) return null;
+    const P = PLATFORM === 'win32' ? path.win32 : path.posix;
+    let st = null;
+    try { st = await withTimeout(fs.promises.stat(abs).catch(() => null), PASTED_STAT_MS); } catch { st = null; }
+    if (!st) return { name: P.basename(abs) };
+    const folder = st.isDirectory();
+    return {
+      name: P.basename(abs),
+      hit: { path: abs, name: P.basename(abs), dir: P.dirname(abs), size: folder ? 0 : st.size, mtime: st.mtimeMs, folder },
     };
-    q.after = toMs(s.after);
-    q.before = toMs(s.before);
-    if (q.before != null && typeof s.before === 'string') q.before += 86400000;
-    const toBytes = (v) => (Number.isFinite(v) && v > 0) ? Math.round(v) : null;
-    q.minBytes = toBytes(s.minBytes);
-    q.maxBytes = toBytes(s.maxBytes);
-    if (q.minBytes != null) q.chips.push({ type: 'size', dir: 'min', bytes: q.minBytes });
-    if (q.maxBytes != null) q.chips.push({ type: 'size', dir: 'max', bytes: q.maxBytes });
-    if (q.after != null || q.before != null) q.chips.push({ type: 'date', key: 'range', after: q.after, before: q.before });
-    if (q.exts) q.chips.push({ type: 'ext', exts: q.exts.slice() });
-    if (q.kind) q.chips.push({ type: 'kind', kind: q.kind });
-    return q;
   }
 
-  async function searchStructured(spec, options) {
-    const opt = options || {};
-    const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    return execQuery(normalizeStructured(spec), opt, now);
+  function queryText(rawQuery, pasted) {
+    return pasted ? pasted.name : String(rawQuery == null ? '' : rawQuery).slice(0, QUERY_MAX);
   }
 
   // ── The catalog half, decoupled from the answer ──────────────────────────
@@ -475,11 +449,9 @@ function createFileSearch(opts) {
     const plain = content && !q.exts && !q.kind
       && q.after == null && q.before == null && q.minBytes == null && q.maxBytes == null;
     // Applications: only for plain name queries (a kind/date/size filter means
-    // the user is after FILES), unless the AI explicitly said the user wants
-    // an installed application (q.wantApps). Matching quality gates at
-    // word/prefix level — a bare substring must not surface half the app list.
-    const wantApps = q.wantApps === true ? q.terms.length > 0 : plain;
-    const appsPromise = (wantApps && typeof appsProvider === 'function')
+    // the user is after FILES). Matching quality gates at word/prefix level:
+    // a bare substring must not surface half the app list.
+    const appsPromise = (plain && typeof appsProvider === 'function')
       ? Promise.resolve().then(() => appsProvider()).catch(() => [])
       : Promise.resolve([]);
     const catalogP = startCatalog(q);
@@ -556,7 +528,9 @@ function createFileSearch(opts) {
   async function catalog(rawQuery, options) {
     const opt = options || {};
     const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    const q = SearchQuery.parseQuery(rawQuery, { now, disable: opt.disable });
+    const pasted = await pastedTarget(rawQuery);
+    if (pasted && pasted.hit) return { ok: true, results: [], wds: 'ok' };   // search() already answered with it
+    const q = SearchQuery.parseQuery(queryText(rawQuery, pasted), { now, disable: opt.disable });
     const hasFilter = q.terms.length || q.exts || q.kind || q.after != null || q.before != null || q.minBytes != null || q.maxBytes != null;
     if (!hasFilter) return { ok: true, results: [], wds: 'ok' };
     const [wdsOut, u] = await Promise.all([startCatalog(q), loadUsage()]);
@@ -718,7 +692,7 @@ function createFileSearch(opts) {
   }
 
   return {
-    search, searchStructured, catalog, recent, thumbTarget, warm, open, reveal, iconTarget, usageSnapshot, stop,
+    search, catalog, recent, thumbTarget, warm, open, reveal, iconTarget, usageSnapshot, stop,
     _setHostRunner(fn) { hostRunner = typeof fn === 'function' ? fn : null; },
     _resultsCacheSize() { return results.size; },
   };

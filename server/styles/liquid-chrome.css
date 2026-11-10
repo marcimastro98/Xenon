@@ -1,0 +1,249 @@
+/* Liquid Glass, the functional layer: the island, the top bar, the side rails and the glass a
+   notification grows from. One material for all of them: on Apple's Materials page glass is
+   for controls and navigation, and the tiles below stay a calm sheet.
+   Everything sits behind :root[data-style="liquid"], and this file loads before TopbarLook.css,
+   so a look chosen in Settings wins. The rim is two inset shadows, not a masked ring: they
+   follow any radius, cost nothing and survive the box changing shape under the island. */
+:root[data-style="liquid"] {
+  --lg-fill: rgba(14, 15, 24, 0.38);
+  --lg-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 60%);
+  --lg-edge: rgba(255, 255, 255, 0.1);
+  --lg-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.26), inset -1px -1px 0 rgba(255, 255, 255, 0.1);
+  --lg-lift: 0 12px 32px rgba(3, 4, 10, 0.32);
+  --lg-blur: blur(24px) saturate(1.8);
+  --lg-line: rgba(255, 255, 255, 0.16);
+  --lg-hover: rgba(255, 255, 255, 0.1);
+  --lg-mark: var(--accent);
+  --lg-grabber: rgba(255, 255, 255, 0.62);
+  --lg-grabber-edge: rgba(6, 7, 14, 0.28);
+}
+:root[data-style="liquid"][data-appearance="light"] {
+  --lg-fill: rgba(255, 255, 255, 0.5);
+  --lg-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0) 60%);
+  --lg-edge: rgba(255, 255, 255, 0.5);
+  --lg-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.82), inset -1px -1px 0 rgba(255, 255, 255, 0.4);
+  --lg-lift: 0 10px 28px rgba(40, 44, 70, 0.16);
+  --lg-line: rgba(24, 26, 44, 0.14);
+  --lg-hover: rgba(24, 26, 44, 0.07);
+  --lg-mark: var(--accent-ink);
+  --lg-grabber: rgba(24, 26, 44, 0.46);
+  --lg-grabber-edge: rgba(255, 255, 255, 0.5);
+}
+/* No blur on the slow path: a thin fill would leave tiles sharp behind the words. */
+:root[data-style="liquid"] body.low-power-gpu {
+  --lg-fill: rgba(var(--panel-rgb), 0.86);
+  --lg-blur: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style="liquid"] body {
+    --lg-fill: rgba(var(--panel-rgb), 0.94);
+    --lg-sheen: none;
+    --lg-blur: none;
+  }
+}
+
+:root[data-style="liquid"] :is(
+  body.topbar-minimal:not([data-panel]) .topbar-mini,
+  body.xisland-live:not([data-panel]) .sdk-island,
+  .xisland-skin--pill,
+  .edge-rail-body
+) {
+  border-color: var(--lg-edge);
+  background: var(--lg-sheen), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+}
+
+/* The notification carries the panel colour over the same glass: it holds sentences, and
+   thicker material reads better. */
+:root[data-style="liquid"] :is(.xisland-skin--card, .xtoast-stack > .xtoast) {
+  border-color: var(--lg-edge);
+  background: linear-gradient(rgba(var(--panel-rgb), var(--xt-fill)) 0 0), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+}
+
+/* ── The island: large, heavy text, read from across the room (Apple, Live Activities) ── */
+:root[data-style="liquid"] body.topbar-minimal .topbar-mini .clock-date {
+  --clock-base: 13.5px;
+  color: var(--text);
+}
+:root[data-style="liquid"] body.topbar-minimal .topbar-mini .clock-meta { border-left-color: var(--lg-line); }
+:root[data-style="liquid"] body.topbar-minimal .topbar-mini .clock-meta-sep,
+:root[data-style="liquid"] body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before {
+  background: var(--lg-line);
+}
+
+/* One page has nowhere to go: the dot only looked like a status light. */
+:root[data-style="liquid"] .pager-dots:has(> .pager-dot:only-child) { display: none; }
+
+/* ── The rails ── */
+/* Concentric with the capsule: 12 = its 19 less the 7 of padding. */
+:root[data-style="liquid"] body.topbar-minimal .edge-rail .topbtn {
+  border-radius: 12px;
+  color: var(--text);
+}
+:root[data-style="liquid"] body.topbar-minimal .edge-rail .topbtn:hover { background: var(--lg-hover); }
+:root[data-style="liquid"] :is(.topbtn.qbtn-focus, .topbtn.qbtn-apps) svg { color: inherit; }
+:root[data-style="liquid"] body.topbar-minimal .edge-rail .app-favorites:not(:empty) { border-top-color: var(--lg-line); }
+
+/* The mark stands on the glass by itself, in its own colour (Apple: a logo without a
+   container). */
+:root[data-style="liquid"] body.topbar-minimal .edge-rail .topbtn.topbtn-xenon,
+:root[data-style="liquid"] .topbar .topbtn.topbtn-xenon {
+  color: var(--lg-mark);
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-style="liquid"] body.topbar-minimal .edge-rail .topbtn.topbtn-xenon:hover,
+:root[data-style="liquid"] .topbar .topbtn.topbtn-xenon:hover {
+  color: var(--lg-mark);
+  background: var(--lg-hover);
+  box-shadow: none;
+}
+:root[data-style="liquid"] .topbtn.topbtn-xenon::after { content: none; }
+
+/* A grabber instead of a box with an arrow. It keeps the 22 x 62 target and the dark ring
+   keeps it visible on a light tile. */
+:root[data-style="liquid"] .edge-rail-handle {
+  border-color: transparent;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-style="liquid"] .edge-rail-handle svg { display: none; }
+:root[data-style="liquid"] .edge-rail-handle::before {
+  content: "";
+  width: 5px;
+  height: 44px;
+  border-radius: 3px;
+  background: var(--lg-grabber);
+  box-shadow: 0 0 0 1px var(--lg-grabber-edge);
+  transition: height 0.16s ease, background-color 0.16s ease;
+}
+:root[data-style="liquid"] .edge-rail-handle:hover::before {
+  height: 54px;
+  background: var(--text);
+}
+
+/* ── The full bar: the same glass in three groups on the wallpaper, one line high, in place
+   of a panel across the screen. Ghost in Settings takes the glass away; a chosen surface
+   brings the old panel and each button's own plate back. topbar-fit.js drops the labels
+   when the groups come close to the clock. ── */
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar {
+  padding: 2px 7px;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+:root[data-style="liquid"]:not([data-tb-surface]):not([data-tb-button-style="ghost"]) body:not(.topbar-minimal):not([data-panel]) .topbar > :is(.quickbar, .top-actions, .clock) {
+  border: 1px solid var(--lg-edge);
+  border-radius: 15px;
+  background: var(--lg-sheen), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+}
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar > :is(.quickbar, .top-actions) {
+  width: fit-content;
+  gap: 2px;
+  padding: 3px;
+}
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .topbtn:not(.active):not(.topbtn-xenon),
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .qbtn {
+  color: var(--text);
+}
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .topbtn:not(.active),
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .qbtn {
+  border-color: transparent;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .topbtn:not(.active):hover,
+:root[data-style="liquid"]:not([data-tb-surface]) body:not(.topbar-minimal):not([data-panel]) .topbar .qbtn:hover {
+  background: var(--lg-hover);
+}
+
+/* Everything in this group moved to the dock on a phone: glass around nothing is a smudge. */
+:root[data-style="liquid"].is-phone body:not(.topbar-minimal):not([data-panel]) .topbar > .top-actions { display: none; }
+:root[data-style="liquid"].is-phone:not([data-tb-surface]):not([data-tb-button-style="ghost"]) body:not(.topbar-minimal):not([data-panel]) .topbar > .clock { padding: 2px 12px; }
+
+/* The phone's dock is the bottom of the same layer. A tab bar's keys need no plates, and the
+   words under them go up to a size a thumb's owner can read. */
+:root[data-style="liquid"] .ph-dock {
+  border-top-color: var(--lg-edge);
+  background: var(--lg-sheen), var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+}
+:root[data-style="liquid"] .ph-btn:not(.ph-btn-action) {
+  border-color: transparent;
+  background: transparent;
+}
+:root[data-style="liquid"] .ph-btn:not(.ph-btn-action):active { background: var(--lg-hover); }
+:root[data-style="liquid"] .ph-lab {
+  font-size: 10.5px;
+  color: var(--text);
+}
+
+/* The clock reads as the island does: one line, hairlines between its parts. A phone keeps
+   its own row (PhoneView.css). */
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar > .clock {
+  flex: 0 1 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-self: center;
+  width: fit-content;
+  margin-inline: auto;
+  max-width: 100%;
+  gap: 14px;
+  min-height: 44px;
+  padding: 0 16px;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar :is(.clock-h, .clock-m) {
+  --clock-base: 25px;
+  font-weight: 800;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-sep { --clock-base: 22px; margin-bottom: 0; }
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-ampm {
+  --clock-base: 10.5px;
+  align-self: center;
+  margin-top: 0;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-meta {
+  gap: 12px;
+  padding-left: 14px;
+  border-left: 1px solid var(--lg-line);
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-date {
+  --clock-base: 13.5px;
+  color: var(--text);
+  text-shadow: none;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-meta-sep {
+  align-self: center;
+  width: 1px;
+  height: 15px;
+  background: var(--lg-line);
+  color: transparent;
+  font-size: 0;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .clock-weather {
+  height: auto;
+  padding: 0;
+  gap: 5px;
+  border: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+:root[data-style="liquid"]:not(.is-phone) body:not(.topbar-minimal):not([data-panel]) .topbar .tbm-txt { text-align: start; }
+/* The light sheet dims weather glyphs so a cloud shows on white, which turned the sun olive. */
+:root[data-style="liquid"][data-appearance="light"] .clock-weather .weather-mini-icon.state-sun { filter: hue-rotate(-18deg) saturate(1.3) brightness(0.92); }
+/* Online is the normal state: only a problem earns a mark. */
+:root[data-style="liquid"] .clock-meta .status-dot-inline:not(.offline) { display: none; }

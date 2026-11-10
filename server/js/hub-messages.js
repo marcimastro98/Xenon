@@ -1,22 +1,18 @@
 'use strict';
-// Hub messages — the dashboard's side of the announcement channel.
+// Hub messages: the app's side of the announcement channel, filed as Bit's
+// messages (js/bit-messages.js). It runs on the dashboard and in the alerts window
+// of "widgets only", the two places that show them.
 //
 // The server proxies a static feed (server/community-messages.js) that every
 // install receives WHOLE. Targeting happens here, on this machine, against what
-// the dashboard already knows about itself: its version, its platform, its
-// language, and which catalog entries it has installed. Nothing is sent to
-// receive a targeted message, which is the entire reason the channel is shaped
-// this way — see the correlation note in server/version-ping.js. If you ever
-// find yourself wanting to POST "what I have" to pick messages server-side, that
-// is the thing this design exists to avoid.
-//
-// Presentation follows catalog-drop.js, which is the house pattern for a
-// non-nagging surface: once a day at most, permanent opt-out honoured forever,
-// never over another overlay, and every string rendered through makeEl
-// (textContent) because this text arrives from a document the dashboard did not
-// write. Only `level: 'modal'` takes an interruption slot; a toast does not.
+// the app already knows about itself: its version, its platform, its language,
+// and which catalog entries it has installed. Nothing is sent to receive a
+// targeted message, which is the entire reason the channel is shaped this way:
+// see the correlation note in server/version-ping.js. If you ever find yourself
+// wanting to POST "what I have" to pick messages server-side, that is the thing
+// this design exists to avoid. The inbox on this PC keeps what matched and never
+// leaves it.
 (function () {
-  const el = makeEl;                 // shared DOM factory (textContent-safe) from utils.js
   const api = apiJson;               // shared fetch-JSON helper from utils.js
   const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return (v === k && fb != null) ? fb : v; };
 
@@ -24,10 +20,9 @@
   // preset-share.js): `hubSettings` is a global that may not exist yet.
   const HS = () => { try { return (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {}; } catch { return {}; } };
 
-  const DAY = 24 * 3600 * 1000;
   const CHECK_EVERY = 3 * 3600 * 1000;   // how often it asks for the feed while open
   const K_MUTED = 'xeneonedge.hubMessagesMuted';  // '1' once the user opts out
-  const K_CHECK = 'xeneonedge.hubMessageCheck';   // last-check timestamp (daily throttle)
+  const K_CHECK = 'xeneonedge.hubMessageCheck';   // last-check timestamp
 
   // Off when the Settings switch says so, or when this device carries the legacy
   // per-device flag from before v4.9.0 (Settings clears that one when you switch
@@ -36,17 +31,22 @@
     if (HS().hubMessages === false) return true;
     try { return localStorage.getItem(K_MUTED) === '1'; } catch { return false; }
   };
-  // Persist through the normal settings path so the choice follows the user to
-  // every surface. The local flag is also written as a fallback: if the save
-  // never reaches the server, the mute must still hold on this device.
-  const mute = () => {
+
+  // First-class opt-out, honoured forever: a channel the user cannot switch off
+  // is a channel they resent. Persisted through the normal settings path so the
+  // choice follows the user to every surface; the local flag holds it on this
+  // device if the save never reaches the server.
+  function mute() {
     try { localStorage.setItem(K_MUTED, '1'); } catch { /* ignore */ }
     try { if (typeof updateHubMessages === 'function') updateHubMessages(false); } catch { /* ignore */ }
-  };
+    if (window.XenonToast) {
+      window.XenonToast.show({ type: 'info', important: true, duration: 5000, title: t('hubmsg_muted_toast', 'Done, no more announcements. You can turn them back on in Settings.') });
+    }
+  }
 
-  // Catalog entry ids this dashboard has installed. Receipts live in hub
-  // settings and record where each install came from; only catalog installs
-  // carry a sourceId, which is the entry id the feed's hasEntry names.
+  // Catalog entry ids this install has. Receipts live in hub settings and record
+  // where each install came from; only catalog installs carry a sourceId, which is
+  // the entry id the feed's hasEntry names.
   function installedEntryIds() {
     try {
       const raw = HS().contentInstalls;
@@ -68,336 +68,74 @@
     } catch { return 'en'; }
   }
 
-  // ── Media ──────────────────────────────────────────────────────────────────
-  // The host allowlist and the type/extension agreement are settled server-side
-  // (community-messages.js); by the time a media block reaches here it is one of
-  // exactly two shapes. What this decides is how it behaves on a dashboard that
-  // may be a 2560x720 touchscreen: a fixed aspect box so the card does not jump
-  // when the file lands, and a clip that plays like a GIF — muted, looping,
-  // inline, no controls — because it is decoration and a control bar invites a
-  // tap that does nothing useful.
-  function mediaNode(media) {
-    if (!media || !media.url) return null;
-    const frame = el('div', 'hubmsg-media');
-    let node;
-    if (media.type === 'video') {
-      // A reader who asked the system for less motion gets the still frame. A
-      // looping clip is decoration, so honouring that costs nothing and ignoring
-      // it puts unstoppable movement in front of exactly the people who said no
-      // to it — the rest of this card already respects the same preference.
-      let still = false;
-      try { still = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch { /* assume motion is fine */ }
-      node = document.createElement('video');
-      node.src = media.url;
-      node.muted = true;
-      node.loop = !still;
-      node.autoplay = !still;
-      node.playsInline = true;
-      node.preload = 'metadata';
-      node.setAttribute('aria-hidden', 'true');
-      if (media.poster) node.poster = media.poster;
-      // Autoplay can still be refused (a user-level policy, not just tab focus).
-      // The poster or the first frame stays on screen, which is a still picture —
-      // the same thing an image message shows — so there is nothing to report.
-      if (!still) {
-        try { const p = node.play(); if (p && p.catch) p.catch(() => {}); } catch { /* ignore */ }
-      }
-    } else {
-      node = document.createElement('img');
-      node.src = media.url;
-      node.alt = media.alt || '';
-      node.loading = 'lazy';
-      node.decoding = 'async';
-    }
-    // A file that never arrives must not leave an empty framed box above the
-    // title: the message reads fine without it, so the frame removes itself.
-    node.addEventListener('error', () => { frame.remove(); }, { once: true });
-    frame.appendChild(node);
-    return frame;
+  const matchContext = (context) => ({
+    version: (context && context.version) || '',
+    os: (context && context.os) || '',
+    supporter: context ? context.supporter : undefined,
+    lang: uiLang(),
+    installed: installedEntryIds(),
+  });
+
+  // The server checks every field again (server/bit-messages.js).
+  function messageFor(m) {
+    const expires = Date.parse(m.activeUntil || '');
+    return {
+      id: 'hub:' + m.id,
+      kind: 'hub',
+      title: m.title,
+      line: window.BitMessages.firstLine(m.body),
+      body: m.body,
+      where: m.where,
+      entryId: m.entryId,
+      media: m.media,
+      action: m.action,
+      poll: m.poll,
+      expires: Number.isFinite(expires) ? expires : undefined,
+    };
   }
 
-  // ── Presentation ───────────────────────────────────────────────────────────
-  let overlay = null;
-  let onKey = null;
-  let msgSeq = 0;   // per-instance ambientFreeze tokens, as in catalog-drop.js
-
-  async function runAction(msg) {
-    const a = msg.action;
-    if (!a || a.type === 'dismiss') return;
-    if (a.type === 'store') {
-      // Always through the Store, never applying anything directly — the one
-      // import boundary. openEntry wants the catalog entry itself, so resolve
-      // the id against the (TTL-cached) catalog; if it has since been retired,
-      // open the Store rather than doing nothing.
-      if (!window.CommunityGallery) return;
-      let entry = null;
-      try {
-        const cat = await api('/api/community/catalog');
-        if (cat && cat.ok && Array.isArray(cat.entries)) {
-          entry = cat.entries.find((e) => e && e.id === msg.entryId) || null;
-        }
-      } catch { /* fall through to the plain Store */ }
-      CommunityGallery.openEntry(entry);
-      return;
-    }
-    if (a.type === 'url' && a.url) {
-      // Host-allowlisted server-side; opened in the user's browser, never in a tile.
-      try { window.open(a.url, '_blank', 'noopener,noreferrer'); } catch { /* popup blocked */ }
-    }
-  }
-
-  function close(muted) {
-    if (!overlay) return;
-    if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
-    overlay.classList.add('closing');
-    const node = overlay; overlay = null;
-    setTimeout(() => {
-      node.remove();
-      if (node._freezeToken && typeof window.ambientFreeze === 'function') window.ambientFreeze(node._freezeToken, false);
-    }, 200);
-    if (muted && window.XenonToast) {
-      window.XenonToast.show({
-        type: 'info',
-        title: t('hubmsg_muted_toast', 'Done, no more announcements. You can turn them back on in Settings.'),
-        duration: 5000,
-      });
-    }
-  }
-
-  function showModal(msg) {
-    close();
-    const bd = el('div', 'hubmsg-overlay');
-    bd._freezeToken = 'hub-message:' + (++msgSeq);
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(bd._freezeToken, true);
-
-    const card = el('div', 'hubmsg-card');
-    const x = el('button', 'hubmsg-close');
-    x.type = 'button';
-    x.setAttribute('aria-label', t('close', 'Close'));
-    x.textContent = '×';
-    x.addEventListener('click', () => close());
-    card.appendChild(x);
-
-    const media = mediaNode(msg.media);
-    // The frame is full-bleed against the card's top edge, so the card drops its
-    // own top padding rather than the media inheriting an inset it would fight.
-    if (media) { card.classList.add('has-media'); card.appendChild(media); }
-    if (msg.kicker) card.appendChild(el('div', 'hubmsg-kicker', msg.kicker));
-    card.appendChild(el('h2', 'hubmsg-title', msg.title));
-    if (msg.body) card.appendChild(el('p', 'hubmsg-body', msg.body));
-
-    // A poll replaces the action row: the options ARE the buttons. One tap
-    // answers and closes — there is no confirm step, because a second tap to
-    // confirm an opinion is friction nobody accepts, and no cancel, because the
-    // X and Escape already do that without voting.
-    if (msg.poll) {
-      const opts = el('div', 'hubmsg-poll');
-      msg.poll.options.forEach((opt) => {
-        const b = el('button', 'hubmsg-btn ghost', opt.label);
-        b.type = 'button';
-        b.addEventListener('click', () => { answerPoll(msg, opt.id); });
-        opts.appendChild(b);
-      });
-      card.appendChild(opts);
-      // Still offer the permanent opt-out below, same as any other message.
-      const offPoll = el('button', 'hubmsg-optout', t('hubmsg_optout', "Don't show announcements"));
-      offPoll.type = 'button';
-      offPoll.addEventListener('click', () => { mute(); close(true); });
-      card.appendChild(offPoll);
-      bd.appendChild(card);
-      bd.addEventListener('click', (e) => { if (e.target === bd) close(); });
-      onKey = (e) => { if (e.key === 'Escape') close(); };
-      document.addEventListener('keydown', onKey);
-      document.body.appendChild(bd);
-      overlay = bd;
-      return;
-    }
-
-    const actions = el('div', 'hubmsg-actions');
-    if (msg.action && msg.action.type !== 'dismiss') {
-      const go = el('button', 'hubmsg-btn primary', msg.action.label);
-      go.type = 'button';
-      go.addEventListener('click', () => { runAction(msg); close(); });
-      actions.appendChild(go);
-    }
-    const later = el('button', 'hubmsg-btn ghost', t('hubmsg_dismiss', 'Close'));
-    later.type = 'button';
-    later.addEventListener('click', () => close());
-    actions.appendChild(later);
-    card.appendChild(actions);
-
-    // First-class opt-out, honoured forever — the same promise catalog-drop.js
-    // makes. A channel the user cannot switch off is a channel they resent.
-    const off = el('button', 'hubmsg-optout', t('hubmsg_optout', "Don't show announcements"));
-    off.type = 'button';
-    off.addEventListener('click', () => { mute(); close(true); });
-    card.appendChild(off);
-
-    bd.appendChild(card);
-    bd.addEventListener('click', (e) => { if (e.target === bd) close(); });
-    onKey = (e) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.appendChild(bd);
-    overlay = bd;
-  }
-
-  // Send one answer, then close. Fire-and-forget on purpose: the vote is worth
-  // nothing to the user, so a network failure must not leave them looking at a
-  // spinner or an error for an opinion they already gave, and the thank-you is
-  // shown either way.
-  //
-  // Answering records the message as seen straight away rather than relying on
-  // the one written when it was displayed. There is only ever one write of that
-  // set, so this is belt and braces for the case where the display-time write was
-  // lost (storage full or blocked, which markSeen swallows by design) — without
-  // it the same poll could be re-shown tomorrow and answered twice.
-  function answerPoll(msg, optionId) {
-    try { window.XenonInterrupts.markSeen([msg.id]); } catch { /* ignore */ }
-    try {
-      fetch('/api/community/poll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId: msg.id, optionId }),
-      }).catch(() => {});
-    } catch { /* ignore */ }
-    close();
-    if (window.XenonToast) {
-      window.XenonToast.show({
-        type: 'success',
-        title: t('hubmsg_poll_thanks', 'Thanks, your answer was counted.'),
-        duration: 4000,
-      });
-    }
-  }
-
-  function showToast(msg) {
-    if (!window.XenonToast) return;
-    window.XenonToast.show({
-      type: 'info',
-      kicker: msg.kicker || 'Xenon',
-      title: msg.title,
-      message: msg.body || '',
-      duration: 9000,
-      onClick: (msg.action && msg.action.type !== 'dismiss') ? () => runAction(msg) : undefined,
-    });
-  }
-
-  // ── Daily check ────────────────────────────────────────────────────────────
+  // ── The check ──────────────────────────────────────────────────────────────
   const STAMP = () => { try { localStorage.setItem(K_CHECK, String(Date.now())); } catch { /* ignore */ } };
-
-  // A poll is always a modal, whatever the feed declared: its options are
-  // buttons, and a toast has nowhere to put them — the question would appear with
-  // no way to answer it. Every place that asks "is this a modal?" has to agree,
-  // or the choice of which message gets the day's slot depends on feed order.
-  const isModalLevel = (m) => m.level === 'modal' || !!m.poll;
-
-  function present(msg) {
-    const I = window.XenonInterrupts;
-    if (isModalLevel(msg)) {
-      I.whenIdle(() => {
-        if (isMuted()) return;                  // muted from another surface while waiting
-        // Claim the day's interruption slot HERE, not before queueing: another
-        // channel may have taken it during the wait, and a slot burned on a modal
-        // that never appeared is a slot the user never got to see used.
-        if (!I.claimDaily('hub-messages')) return;
-        showModal(msg);
-        // Marked seen only once it is actually on screen. Recording it at queue
-        // time loses the announcement for good when the wait expires (game mode
-        // for five minutes is enough) — the same failure catalog-drop.js documents
-        // at its own markSeen call.
-        I.markSeen([msg.id]);
-      }, { priority: I.PRIORITY.message });
-      return;
-    }
-    // Toasts do not interrupt: they stack in the corner and expire on their own,
-    // so they are on screen the moment this returns.
-    showToast(msg);
-    I.markSeen([msg.id]);
-  }
 
   async function checkDaily() {
     try {
-      if (isMuted()) return;
+      if (isMuted() || !window.BitMessages) return;
       let last = 0; try { last = Number(localStorage.getItem(K_CHECK) || 0); } catch { /* ignore */ }
-      // Asks every few hours, not once a day: the daily budget (claimDaily) and
-      // the shared seen set are what keep it to one modal a day and each message
-      // to once, so a message published after the dashboard opened is no longer
-      // held until the next reload.
       if (Date.now() - last < CHECK_EVERY) return;
 
       const out = await api('/api/community/messages');
-      if (!out || !out.ok || !Array.isArray(out.messages)) return;   // offline → retry next load
+      if (!out || !out.ok || !Array.isArray(out.messages)) return;   // offline → retry next look
 
-      const I = window.XenonInterrupts;
-      const ctx = {
-        version: (out.context && out.context.version) || '',
-        os: (out.context && out.context.os) || '',
-        lang: uiLang(),
-        installed: installedEntryIds(),
-      };
-
-      // Anything already announced by ANY channel is skipped: the shared set is
-      // why a hub note about a drop cannot repeat what the drop modal showed.
-      // Read once into a Set — hasSeen re-parses the stored list on every call,
-      // and this asks twice per message.
-      const seen = new Set(I.readSeen());
-      const fresh = out.messages.filter((m) => HubMatch.matches(m, ctx) && !seen.has(m.id) && !(m.entryId && seen.has(m.entryId)));
-      if (!fresh.length) { STAMP(); return; }   // nothing for us → don't refetch today
-
-      STAMP();
-      // At most ONE modal, and it goes first so the day's interruption is spent
-      // on the loudest thing there is. Any other modal-shaped message waits for
-      // another day rather than degrading to a toast: it was declared important,
-      // and a poll has nowhere to put its buttons in a toast anyway.
-      const modal = fresh.find(isModalLevel);
-      if (modal) present(modal);
-      for (const m of fresh) {
-        if (m === modal || m.level === 'banner' || isModalLevel(m)) continue;
-        present(m);
-      }
-    } catch { /* best-effort — never surface an error for an announcement */ }
+      const ctx = matchContext(out.context);
+      const fresh = out.messages.filter((m) => HubMatch.matches(m, ctx));
+      // Everything still in the feed stays; what left it is withdrawn if unread.
+      const live = { hub: fresh.map((m) => 'hub:' + m.id) };
+      if (await window.BitMessages.file(fresh.map(messageFor), live)) STAMP();
+    } catch { /* best-effort: never surface an error for an announcement */ }
   }
 
   // ── Local testing seams ────────────────────────────────────────────────────
-  // Underscore-prefixed like the server modules' _setTransport/_resetCache: not
-  // part of the feature, just the only way to see this channel without
-  // publishing to the live site first. Both take data you typed yourself, so
-  // they bypass the feed and its validation on purpose — what they exercise is
-  // the matching and the rendering, which is the part with the bugs.
+  // Underscore-prefixed like the server modules' _setTransport/_resetCache: the
+  // only way to see this channel without publishing to the live site first.
   //
-  //   HubMessages._preview({level:'modal', title:'Hi', body:'…'})
-  //   HubMessages._simulate({messages:[…]})   → what WOULD be shown, and shows it
+  //   HubMessages._preview({title:'Hi', body:'…'})  → the card, on screen now
+  //   HubMessages._simulate({messages:[…]})         → what WOULD be filed
   function _preview(msg) {
-    const m = Object.assign({ id: 'preview', level: 'modal', title: 'Preview' }, msg || {});
-    if (m.level === 'modal' || m.poll) showModal(m); else showToast(m);
-    return m;
+    return window.BitMessages ? window.BitMessages.preview(messageFor({ id: 'preview', title: 'Preview', ...msg })) : null;
   }
 
-  // Runs the real selection path (match → dedup → present) against a feed you
-  // supply, ignoring the once-a-day throttle so it can be run repeatedly.
-  // Returns what matched, so a filter can be checked without waiting to see it.
   function _simulate(feed, ctxOver) {
     const messages = (feed && feed.messages) || [];
-    const ctx = Object.assign({
-      version: (feed && feed.context && feed.context.version) || '',
-      os: (feed && feed.context && feed.context.os) || '',
-      lang: uiLang(),
-      installed: installedEntryIds(),
-    }, ctxOver || {});
+    const ctx = { ...matchContext(feed && feed.context), ...(ctxOver || {}) };
     const matched = messages.filter((m) => HubMatch.matches(m, ctx));
-    const modal = matched.find((m) => m.level === 'modal' || m.poll);
-    if (modal) _preview(modal);
-    matched.forEach((m) => { if (m !== modal && m.level !== 'banner') showToast(m); });
-    return { ctx: { version: ctx.version, os: ctx.os, lang: ctx.lang, installed: [...ctx.installed] }, matched, skipped: messages.filter((m) => !matched.includes(m)) };
+    return { ctx: { version: ctx.version, os: ctx.os, lang: ctx.lang, supporter: ctx.supporter, installed: [...ctx.installed] }, matched, skipped: messages.filter((m) => !matched.includes(m)) };
   }
 
-  window.HubMessages = { checkDaily, close, _preview, _simulate };
-  // After catalog-drop's own check, so the paid-drop modal gets first claim on
-  // the day's interruption slot: a limited edition running out of copies is more
-  // time-critical than an announcement.
-  // Then a look every half hour while the dashboard stays open (a kiosk can stay
-  // open for days), and one when it comes back into view. A chain of timeouts,
-  // not setInterval, so nothing here competes with the interrupt queue's ticker.
+  window.HubMessages = { checkDaily, mute, _preview, _simulate };
+  // A look 35 seconds after the page opens, then every half hour while it stays
+  // open (a kiosk can stay open for days), and one when it comes back into view.
+  // A chain of timeouts, not setInterval. A layer window shows no messages.
+  if (window.BitMessages && window.BitMessages.surface !== 'screen' && typeof isLayerPage === 'function' && isLayerPage()) return;
   const look = () => { try { checkDaily(); } catch { /* ignore */ } };
   const loop = () => setTimeout(() => { look(); loop(); }, 30 * 60 * 1000);
   setTimeout(() => { look(); loop(); }, 35000);

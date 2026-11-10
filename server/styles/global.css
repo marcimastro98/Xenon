@@ -58,7 +58,7 @@
      roles hands them back to the palette. Comic keeps its own override.
      Caveat: an alias is substituted at computed-value time HERE, so it freezes
      to this element's --dim-text and does not track a DESCENDANT override of it
-     (the light .media-panel island and .weather-panel both redefine --dim-text).
+     (the light .media-panel island redefines --dim-text).
      No --text-dim user sits inside those today; if one ever does, re-declare the
      alias in that scope too. Same-element overrides (skins on :root) are fine. */
   --text-dim: var(--dim-text);
@@ -77,6 +77,9 @@
   --color-warn: #f0b84f;
   --color-danger: #ff6268;
   --color-info: #62cbea;
+  /* Up and down in Stocks, the ticker and football: reserved, always with an arrow or a label. */
+  --xe-stock-up: var(--color-success);
+  --xe-stock-down: var(--color-danger);
   --success-rgb: 69, 212, 131;
   --warning-rgb: 240, 184, 79;
   --danger-rgb: 255, 98, 104;
@@ -174,8 +177,9 @@ body {
   background: var(--bg);
   color: var(--text);
   /* --user-font-family is set by applyUiFont() when a custom typeface is uploaded;
-     when unset it falls back to Inter, so the default look is unchanged. */
-  font-family: var(--user-font-family, 'Inter'), 'Inter', 'Segoe UI', system-ui, sans-serif;
+     when unset it is the brand face, Sofia Sans, sized to Inter's metrics in
+     fonts.css. Inter stays next for the glyphs Sofia Sans lacks (Vietnamese). */
+  font-family: var(--user-font-family, 'Sofia Sans'), 'Sofia Sans', 'Inter', 'Segoe UI', system-ui, sans-serif;
   user-select: none;
   -webkit-font-smoothing: antialiased;
 }
@@ -236,7 +240,6 @@ input[type="range"] { touch-action: none; }
 /* ── Tabular figures for data ────────────────────────────────
    Numbers in stats, volume, timers and the clock must not jitter. */
 .clock-h, .clock-m,
-.lock-time-h, .lock-time-m,
 .stat-value, .bw-value, .stat-unit,
 .vol-value, .mic-vol-value,
 .weather-temp { font-variant-numeric: tabular-nums; }
@@ -285,3 +288,11 @@ input[type="range"] { touch-action: none; }
 }
 .svg-paste-btn:active { transform: scale(0.96); }
 .svg-paste-btn.primary { border-color: transparent; background: var(--accent); color: var(--on-accent); }
+
+/* The slow melt of the whole page (js/view-melt.js): longer than a page change, so the new look
+   is what gets seen. The class is on <html> only while it runs. */
+html.xenon-melting::view-transition-old(root),
+html.xenon-melting::view-transition-new(root) {
+  animation-duration: 0.6s;
+  animation-timing-function: ease;
+}

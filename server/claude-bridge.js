@@ -80,12 +80,13 @@ const APPROVAL_TTL_MS = 9 * 60 * 1000;
 // An unanswered request older than this escalates from the tile to a fullscreen
 // overlay: at that point the user plainly hasn't noticed the tile.
 const URGENT_AFTER_MS = 25 * 1000;
-// A question waits like a permission does — Claude Code is genuinely blocked on
-// it — but shorter, because the same question is also sitting in the terminal
-// and the user may well answer it there. When this runs out we return no
-// decision, which lets the tool proceed and ask in the terminal exactly as it
+// A question waits as long as a permission does. Claude Code is blocked on it,
+// and the terminal draws nothing while the hook holds it (PreToolUse runs
+// before the prompt), so the tile is the only place it can be answered; "In
+// the terminal" on the card hands it over sooner. When this runs out we return
+// no decision, which lets the tool proceed and ask in the terminal exactly as it
 // would have without us.
-const QUESTION_TTL_MS = 4 * 60 * 1000;
+const QUESTION_TTL_MS = APPROVAL_TTL_MS;
 // A follow-up typed on the dashboard is delivered when the current turn ends.
 // If that turn never ends (the session was killed, or it went quiet without a
 // Stop) the text must not sit in a queue forever pretending to be on its way.
@@ -105,6 +106,10 @@ const MAX_INPUT_CHARS = 800;  // tool-input preview clamp
 const MAX_TODOS = 12;         // the plan lane; a longer list is scrolled, not stored
 const MAX_ACTIVITY = 30;      // per-session ring of finished tool calls
 const MAX_SUBAGENTS = 8;
+// A finished subagent stays on the tile this long, so its result can be read.
+const AGENT_DONE_MS = 2 * 60 * 1000;
+const MAX_AGENT_LAST = 200;
+const MAX_AGENT_TOKENS = 10_000_000;
 // The tile's box takes 4000 characters; the paths of up to six attached files
 // ride along after them.
 const MAX_FOLLOWUP_CHARS = 6000;
@@ -160,21 +165,91 @@ function projectName(cwd) {
 // A short, human description of what a tool call is about to do. Built from the
 // tool's own input shape; falls back to nothing rather than dumping raw JSON,
 // because this line is what the user reads before tapping Allow.
-function describeTool(toolName, input) {
+// `allFields`: for an approval card. An unknown or MCP tool then shows every
+// argument ("key: value" per line) rather than the first string, whose order
+// the model controls: a card showing a harmless first field while a second
+// one held the real payload asked the user to approve something unseen.
+function describeTool(toolName, input, max = MAX_INPUT_CHARS, allFields = false) {
   const t = str(toolName, 60);
   const i = (input && typeof input === 'object') ? input : {};
-  if (t === 'Bash') return str(i.command, MAX_INPUT_CHARS);
-  if (t === 'Read' || t === 'Write' || t === 'Edit' || t === 'NotebookEdit') return str(i.file_path || i.notebook_path, MAX_INPUT_CHARS);
-  if (t === 'Glob' || t === 'Grep') return str(i.pattern, MAX_INPUT_CHARS);
-  if (t === 'WebFetch') return str(i.url, MAX_INPUT_CHARS);
-  if (t === 'WebSearch') return str(i.query, MAX_INPUT_CHARS);
-  if (t === 'Agent' || t === 'Task') return str(i.description || i.prompt, MAX_INPUT_CHARS);
-  // Unknown/MCP tool: show the first short string field, if any.
+  if (t === 'Bash') return str(i.command, max);
+  if (t === 'Read' || t === 'Write' || t === 'Edit' || t === 'NotebookEdit') return str(i.file_path || i.notebook_path, max);
+  if (t === 'Glob' || t === 'Grep') return str(i.pattern, max);
+  if (t === 'WebFetch') return str(i.url, max);
+  if (t === 'WebSearch') return str(i.query, max);
+  // On an approval card a subagent shows its whole brief, not only the short
+  // description: the prompt is what it will act on.
+  if (t === 'Agent' || t === 'Task') {
+    if (allFields) return str([i.description, i.prompt].filter((v) => typeof v === 'string' && v.trim()).join('\n'), max);
+    return str(i.description || i.prompt, max);
+  }
+  if (allFields) {
+    const lines = [];
+    for (const k of Object.keys(i)) {
+      const v = i[k];
+      if (v == null || v === '') continue;
+      lines.push(k + ': ' + (typeof v === 'string' ? v.trim() : JSON.stringify(v)));
+    }
+    return str(lines.join('\n'), max);
+  }
+  // Unknown/MCP tool, for an activity line: the first short string field, if any.
   for (const k of Object.keys(i)) {
     const v = i[k];
-    if (typeof v === 'string' && v.trim()) return str(v, MAX_INPUT_CHARS);
+    if (typeof v === 'string' && v.trim()) return str(v, max);
   }
   return '';
+}
+
+// What a file edit changed, for the tile to draw as the terminal does: removed
+// lines, then added lines, trimmed to the part that really differs. Bounded in
+// lines and width, because it rides in the live payload every client receives.
+// Files that usually hold secrets get no body at all (counts only), since the
+// payload also reaches paired devices.
+const MAX_DIFF_LINES = 16;
+const MAX_DIFF_WIDTH = 140;
+const MAX_DIFFS_WITH_LINES = 4;
+const SECRET_FILE = /(^|[\\/])(\.env(\..*)?|.*\.(pem|key|pfx|p12|keystore)|id_(rsa|ed25519|ecdsa)|.*(secret|credential|token|password)s?[^\\/]*)$/i;
+
+function diffLines(oldText, newText) {
+  const a = oldText ? oldText.replace(/\r\n/g, '\n').split('\n') : [];
+  const b = newText ? newText.replace(/\r\n/g, '\n').split('\n') : [];
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++;
+  return { del: a.slice(head, a.length - tail), add: b.slice(head, b.length - tail) };
+}
+
+function describeChange(toolName, input) {
+  const i = (input && typeof input === 'object') ? input : {};
+  const file = str(i.file_path, 400);
+  if (!file) return null;
+  let del = [];
+  let add = [];
+  if (toolName === 'Edit' && typeof i.old_string === 'string' && typeof i.new_string === 'string') {
+    ({ del, add } = diffLines(i.old_string, i.new_string));
+  } else if (toolName === 'MultiEdit' && Array.isArray(i.edits)) {
+    for (const e of i.edits.slice(0, 20)) {
+      if (!e || typeof e.old_string !== 'string' || typeof e.new_string !== 'string') continue;
+      const d = diffLines(e.old_string, e.new_string);
+      del = del.concat(d.del);
+      add = add.concat(d.add);
+    }
+  } else if (toolName === 'Write' && typeof i.content === 'string') {
+    add = i.content.replace(/\r\n/g, '\n').split('\n');
+  } else {
+    return null;
+  }
+  if (!del.length && !add.length) return null;
+  const out = { file: file.split(/[\\/]/).filter(Boolean).pop(), del: del.length, add: add.length, lines: [] };
+  if (SECRET_FILE.test(file)) return out;
+  const clip = (l) => (l.length > MAX_DIFF_WIDTH ? l.slice(0, MAX_DIFF_WIDTH) + '…' : l);
+  const room = MAX_DIFF_LINES;
+  const showDel = del.slice(0, Math.ceil(room / 2));
+  const showAdd = add.slice(0, room - showDel.length);
+  showDel.forEach((l) => out.lines.push({ k: '-', t: clip(l) }));
+  showAdd.forEach((l) => out.lines.push({ k: '+', t: clip(l) }));
+  return out;
 }
 
 // AskUserQuestion carries the question and its options in the tool input. The
@@ -419,6 +494,19 @@ function createBridge(opts) {
   const sessions = new Map();   // session_id → live session record
   const pending = new Map();    // approval id → { …, resolve, timer }
   let limits = null;            // latest rate-limit reading (account-wide)
+  // The mod version each session last reported. Header commands need 0.4.0: an
+  // older mod would submit "/effort high" as a message to Claude.
+  const modVersions = new Map();
+  // The slash commands each session's mod listed (0.5.0+): [{ name, desc }].
+  const modCommandLists = new Map();
+  // When each session's mod last spoke, so the two maps above are dropped with
+  // the session; and the sessions already asked for their list since this boot.
+  const modLastAt = new Map();
+  const commandsAsked = new Set();
+  const modCommands = (id) => {
+    const m = /^(\d+)\.(\d+)/.exec(modVersions.get(id) || '');
+    return !!m && (Number(m[1]) > 0 || Number(m[2]) >= 4);
+  };
   let modSeen = null;           // { at, version } of the mod's last message
   const handBacks = new Map();  // `session|tool` → when a mod approval was handed back
   let seq = 0;                  // approval id counter (ids are per-boot)
@@ -445,7 +533,9 @@ function createBridge(opts) {
         // widget could not explain, and an unexplained wait is indistinguishable
         // from a hang.
         waitFor: null,
-        todos: [], plan: '', subagents: [], activity: [],
+        // plan: the last plan Claude wrote for approval (ExitPlanMode), kept after
+        // it was approved so the tile can still show what the session is following.
+        todos: [], plan: '', planAt: 0, subagents: [], agentDescs: [], activity: [],
         compacting: false, permissionMode: '', effort: '',
         // The last mode seen that was not plan, and whether auto mode has been
         // seen at all: what a plan card needs to offer the same first choice
@@ -491,10 +581,27 @@ function createBridge(opts) {
     s.waitFor = null;
     if (s.state === 'waiting') s.state = 'running';
   }
+  // A question that left the tile unanswered (time ran out, or "In the
+  // terminal") is now drawn in the terminal, and the session is still blocked
+  // on it. Keep saying so, with the question, until the tool runs: the
+  // Notification Claude Code raises next says only "needs your permission".
+  function waitInTerminal(s, rec) {
+    if (!s) return;
+    const q = rec.questions && rec.questions[0];
+    setWait(s, 'question', q && q.question);
+    s.waitFor.inTerminal = true;
+  }
 
   function pushActivity(s, entry) {
     if (!s) return;
     s.activity.push(entry);
+    // The payload is rebroadcast on every event: only the newest few edits keep
+    // their lines, older ones keep the +/- counts.
+    let withLines = 0;
+    for (let k = s.activity.length - 1; k >= 0; k--) {
+      const c = s.activity[k].change;
+      if (c && c.lines.length && ++withLines > MAX_DIFFS_WITH_LINES) c.lines = [];
+    }
     if (s.activity.length > MAX_ACTIVITY) s.activity.splice(0, s.activity.length - MAX_ACTIVITY);
   }
 
@@ -563,23 +670,63 @@ function createBridge(opts) {
   // arguments or file content. It enriches the records the hooks keep; it never
   // creates a session state of its own. Its one other message is the outcome of
   // a tile message it took from the inbox, as a code: the text never comes back.
+  // A subagent's entry, found or started: the hook and the mod each may come
+  // first. Over the cap a finished agent goes before a running one.
+  function agentEntry(s, agentId, type) {
+    let a = s.subagents.find((x) => x.id === agentId);
+    if (a) { if (type && !a.type) a.type = type; return a; }
+    a = { id: agentId, type: type || '', desc: '', status: 'running', model: '', effort: '', tools: 0, tool: '', detail: '', tokens: 0, at: now(), endedAt: 0, last: '' };
+    const i = s.agentDescs.findIndex((x) => !x.type || !type || x.type === type);
+    if (i >= 0) a.desc = s.agentDescs.splice(i, 1)[0].desc;
+    s.subagents.push(a);
+    while (s.subagents.length > MAX_SUBAGENTS) {
+      const done = s.subagents.findIndex((x) => x.status !== 'running');
+      s.subagents.splice(done >= 0 ? done : 0, 1);
+    }
+    return a;
+  }
+  function endAgent(a, lastMessage) {
+    if (a.status === 'running') { a.status = 'done'; a.endedAt = now(); a.tool = ''; a.detail = ''; }
+    const line = str(String(lastMessage || '').split('\n').find((l) => l.trim()) || '', MAX_AGENT_LAST);
+    if (line) a.last = line;
+  }
+
   function applyMod(data) {
     const d = (data && typeof data === 'object') ? data : {};
     if (d.v !== 1) return false;
     const id = str(d.sessionId, 80);
     if (!id) return false;
     modSeen = { at: now(), version: str(d.version, 20) || (modSeen ? modSeen.version : '') };
+    if (str(d.version, 20)) modVersions.set(id, str(d.version, 20));
+    modLastAt.set(id, now());
 
     switch (d.kind) {
       case 'hello': {
         const model = str(d.model, 60);
-        touchSession(id, model ? { model } : {});
+        // The effort is what the session's last model request used, so it is
+        // newer than any hook payload this server has kept (a restart loses those).
+        const effort = EFFORT_LEVELS.has(str(d.effort, 20)) ? str(d.effort, 20) : '';
+        touchSession(id, Object.assign(model ? { model } : {}, effort ? { effort } : {}));
         emit();
         return true;
       }
       case 'measure':
         // Same figures the statusline posts, in the mod's units; one reader.
         return applyStatus(modMeasureAsStatus(id, d));
+      case 'commands': {
+        const list = [];
+        const seen = new Set();
+        for (const c of Array.isArray(d.commands) ? d.commands : []) {
+          const name = str(c && c.name, 80);
+          if (!MOD_COMMAND_NAME.test(name) || seen.has(name) || NEVER_FROM_TILE.has(name)) continue;
+          seen.add(name);
+          list.push({ name, desc: str(c.description, 140) });
+          if (list.length >= MAX_MOD_COMMANDS) break;
+        }
+        modCommandLists.set(id, { list, at: now() });
+        emit();
+        return true;
+      }
       case 'agent': {
         const agentId = str(d.agentId, 60);
         const model = str(d.model, 60);
@@ -587,12 +734,28 @@ function createBridge(opts) {
         const s = touchSession(id, {});
         // The spawn can land before or after the SubagentStart hook: fill the
         // entry that exists, or start it so the hook finds it by id.
-        const known = s.subagents.find((a) => a.id === agentId);
-        if (known) known.model = model;
-        else {
-          s.subagents.push({ id: agentId, type: str(d.type, 40), model, at: now() });
-          if (s.subagents.length > MAX_SUBAGENTS) s.subagents.shift();
-        }
+        const a = agentEntry(s, agentId, str(d.type, 40));
+        a.model = model;
+        const desc = str(d.description, 80);
+        if (desc) a.desc = desc;
+        emit();
+        return true;
+      }
+      case 'agentStat': {
+        // Numbers and levels only, as the mod promises.
+        const agentId = str(d.agentId, 60);
+        const s = agentId ? sessions.get(id) : null;
+        if (!s) return false;
+        // A report from an agent started before a restart opens its entry; a
+        // late 'done' for one already gone does not bring it back.
+        let a = s.subagents.find((x) => x.id === agentId);
+        if (!a && d.done === true) return false;
+        if (!a) a = agentEntry(s, agentId, '');
+        const effort = str(d.effort, 10);
+        if (EFFORT_LEVELS.has(effort)) a.effort = effort;
+        const tokens = num(d.tokens);
+        if (tokens != null && tokens > 0) a.tokens = Math.min(Math.round(tokens), MAX_AGENT_TOKENS);
+        if (d.done === true) endAgent(a, '');
         emit();
         return true;
       }
@@ -665,6 +828,8 @@ function createBridge(opts) {
         touchSession(id, {
           project: projectName(d.cwd), state: 'idle', tool: '', toolDetail: '',
           startedAt: now(), endedAt: 0, endedReason: '', waitFor: null, turnOver: true,
+          // A cleared or fresh session starts with no plan; a resumed one keeps its own.
+          ...(d.source === 'resume' || d.source === 'compact' ? {} : { plan: '', planAt: 0 }),
           // `source` tells resume/compact apart from a genuinely new session, so
           // a resumed one does not present itself as starting from nothing.
           startSource: str(d.source, 30),
@@ -696,18 +861,38 @@ function createBridge(opts) {
           toolAt: now(),
           state: 'running',
           turnOver: false,
+          // A tool starting proves no compaction is running, whether or not the
+          // PostCompact hook ever arrived.
+          compacting: false,
         });
         // A tool starting means Claude is moving again, so whatever notification
         // it raised is over. A permission or a question is NOT over — those are
         // settled by their own path, and clearing them here would un-block a
         // session that is still blocked.
         clearWait(s, 'notification');
+        if (s.waitFor && s.waitFor.inTerminal) clearWait(s, 'question');
+        if (tool === 'ExitPlanMode') {
+          const plan = str(d.tool_input && d.tool_input.plan, MAX_PLAN_CHARS);
+          if (plan) { s.plan = plan; s.planAt = now(); }
+        }
+        // The label of a subagent about to start: SubagentStart carries only
+        // its type, so the description waits here for it.
+        if ((tool === 'Agent' || tool === 'Task') && !d.agent_id) {
+          const input = d.tool_input || {};
+          const desc = str(input.description, 80);
+          if (desc) s.agentDescs = s.agentDescs.concat([{ type: str(input.subagent_type, 40), desc }]).slice(-MAX_SUBAGENTS);
+        }
+        // A tool call inside an agent this server never saw start (it began
+        // before a Xenon restart, or SubagentStart was missed) still opens its entry.
+        const inAgent = d.agent_id ? agentEntry(s, str(d.agent_id, 60), str(d.agent_type, 40)) : null;
+        if (inAgent) { inAgent.tool = tool; inAgent.detail = describeTool(tool, d.tool_input); }
         break;
       }
       case 'PostToolUse':
       case 'PostToolUseFailure': {
         const tool = str(d.tool_name, 60);
         const s = touchSession(id, { tool: '', toolDetail: '' });
+        if (tool === 'AskUserQuestion' && s.waitFor && s.waitFor.inTerminal) clearWait(s, 'question');
         // TodoWrite is not an action to log, it IS the plan. Read it here rather
         // than on PreToolUse so the lane only ever shows a list that was really
         // written.
@@ -718,12 +903,20 @@ function createBridge(opts) {
         pushActivity(s, {
           tool,
           detail: describeTool(tool, d.tool_input),
+          // Only for an edit that went through: a failed one changed nothing.
+          change: ev === 'PostToolUse' ? describeChange(tool, d.tool_input) : null,
           ok: ev !== 'PostToolUseFailure',
           // Claude Code sends the real figure; no pairing with PreToolUse needed.
           ms: num(d.duration_ms),
           at: now(),
           agent: str(d.agent_type || d.agent_id, 40),
         });
+        const byAgent = d.agent_id ? agentEntry(s, str(d.agent_id, 60), str(d.agent_type, 40)) : null;
+        if (byAgent) {
+          byAgent.tools += 1;
+          byAgent.tool = tool;
+          byAgent.detail = describeTool(tool, d.tool_input);
+        }
         // NOT a state write. A tool finishing says nothing about whether the
         // session is waiting on the user — this line used to force 'running' and
         // was the reason a blocked session kept claiming to be working.
@@ -747,22 +940,22 @@ function createBridge(opts) {
         // sessions were actually working. An idle session is idle.
         const s = touchSession(id, {});
         if (s && s.turnOver) break;
+        if (s && s.waitFor && s.waitFor.inTerminal) break;
         setWait(s, 'notification', d.message);
         break;
       }
       case 'SubagentStart': {
         const s = touchSession(id, {});
         const agentId = str(d.agent_id, 60);
-        if (agentId && !s.subagents.some((a) => a.id === agentId)) {
-          s.subagents.push({ id: agentId, type: str(d.agent_type, 40), at: now() });
-          if (s.subagents.length > MAX_SUBAGENTS) s.subagents.shift();
-        }
+        if (agentId) agentEntry(s, agentId, str(d.agent_type, 40));
         break;
       }
       case 'SubagentStop': {
         const s = touchSession(id, {});
         const agentId = str(d.agent_id, 60);
-        s.subagents = s.subagents.filter((a) => a.id !== agentId);
+        const a = agentId ? s.subagents.find((x) => x.id === agentId) : null;
+        // Kept a little while as finished, with the first line of its report.
+        if (a) endAgent(a, d.last_assistant_message);
         break;
       }
       case 'PreCompact':
@@ -826,6 +1019,37 @@ function createBridge(opts) {
     return !!(s.handed && !s.handed.started && t - s.handed.at < HANDED_TTL_MS);
   }
 
+  // The few commands the tile's header may run in an open session. The mod
+  // (0.4.0) recognises the same shape and runs them with $.command.run; any
+  // other "/" text is still just a message. Kept narrow on purpose: a model
+  // name, an effort level, or a compact with optional focus text.
+  const TILE_COMMAND = /^\/(?:(?:model|effort)[ ]+[A-Za-z0-9][A-Za-z0-9._\-\[\]]{0,39}|compact(?:[ ]+[^\r\n]{1,200})?)$/;
+  // Any other command runs only when this session's own mod listed it (0.5.0+
+  // sends the terminal's typeahead list), and never one that ends the session.
+  const OTHER_COMMAND = /^\/([A-Za-z0-9][A-Za-z0-9_.:-]{0,79})(?:[ ][^\r\n]{1,200})?$/;
+  const MOD_COMMAND_NAME = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/;
+  const NEVER_FROM_TILE = new Set(['exit', 'quit', 'logout', 'login']);
+  const EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+  const MAX_MOD_COMMANDS = 300;
+  const isTileCommand = (id, text) => {
+    if (TILE_COMMAND.test(text)) return true;
+    const m = OTHER_COMMAND.exec(text);
+    const have = modCommandLists.get(id);
+    return !!(m && have && !NEVER_FROM_TILE.has(m[1]) && have.list.some((c) => c.name === m[1]));
+  };
+  // Ask a session's mod for its command list once per boot: a mod whose host has
+  // no list (or an empty one) would otherwise be asked on every hello.
+  function wantsCommandList(sessionId) {
+    const id = str(sessionId, 80);
+    if (!id || modCommandLists.has(id) || commandsAsked.has(id)) return false;
+    commandsAsked.add(id);
+    return true;
+  }
+  function commandListFor(sessionId) {
+    const have = modCommandLists.get(str(sessionId, 80));
+    return have ? have.list.slice() : null;
+  }
+
   function queueFollowUp(sessionId, text) {
     const s = sessions.get(str(sessionId, 80));
     if (!s) return { ok: false, error: 'unknown_session' };
@@ -833,16 +1057,23 @@ function createBridge(opts) {
     const t = str(text, MAX_FOLLOWUP_CHARS);
     if (!t) return { ok: false, error: 'empty' };
     if (s.queued || inFlight(s, now())) return { ok: false, error: 'already_queued' };
+    // Without a value these open a picker in the terminal that nobody here sees.
+    if (/^\/(?:model|effort)\s*$/.test(t)) return { ok: false, error: 'needs_value' };
     const busy = s.state === 'running' || s.state === 'waiting';
+    const command = isTileCommand(s.id, t);
+    if (command && !modCommands(s.id)) return { ok: false, error: 'mod_old' };
+    // A command runs between turns, so it must never be delivered as a reply
+    // inside the turn. While one is running it waits for the turn to end and
+    // the mod takes it then; with no mod listening nothing could ever run it.
+    if (command && busy && !terminal(s.id)) return { ok: false, error: 'busy_command' };
     // The turn ended while the text was being typed: queued, it would wait for
     // a Stop that already happened.
     if (!busy && !terminal(s.id)) return { ok: false, error: 'session_idle' };
-    // The mod hands text in as a message (prompt.submit), never as a command
-    // (command.run), so a "/" command would not run as one. Commands are typed
-    // in the session itself.
-    if (!busy && t.startsWith('/')) return { ok: false, error: 'slash_command' };
-    const via = busy ? 'turn' : 'terminal';
-    s.queued = { text: t, at: now(), via };
+    // Any other "/" text would reach the session as a message, not run as a
+    // command; those are typed in the session itself.
+    if (!busy && !command && t.startsWith('/')) return { ok: false, error: 'slash_command' };
+    const via = busy && !command ? 'turn' : 'terminal';
+    s.queued = { text: t, at: now(), via, command };
     s.undelivered = null;
     emit();
     return { ok: true, via };
@@ -862,6 +1093,8 @@ function createBridge(opts) {
   function takeFollowUp(sessionId) {
     const s = sessions.get(str(sessionId, 80));
     if (!s || !s.queued) return '';
+    // A command waits for the end of the turn, for the mod to run it.
+    if (s.queued.command) return '';
     const { text, at } = s.queued;
     s.queued = null;
     // Too old to still be what the user meant: they typed it, walked away, and
@@ -881,10 +1114,14 @@ function createBridge(opts) {
   function takeForTerminal(sessionId) {
     const s = sessions.get(str(sessionId, 80));
     if (!s || s.endedAt || !s.queued) return '';
-    if (s.state === 'running' || s.state === 'waiting') return '';
-    const { text, at } = s.queued;
+    // A command may go while a dialog waits: Claude Code runs it once the session is idle.
+    if (s.state === 'running' || (s.state === 'waiting' && !s.queued.command)) return '';
+    const { text, at, command } = s.queued;
     s.queued = null;
     if (now() - at > FOLLOWUP_TTL_MS) { emit(); return ''; }
+    // A command starts no turn, so nothing would ever mark it as arrived: it is
+    // not "on its way" and not offered back.
+    if (command) { emit(); return text; }
     s.handed = { text, at: now(), started: false };
     emit();
     return text;
@@ -937,8 +1174,16 @@ function createBridge(opts) {
     const d = (data && typeof data === 'object') ? data : {};
     const sessionId = str(d.session_id, 80);
     const tool = str(d.tool_name, 60) || 'tool';
-    const detail = describeTool(tool, d.tool_input);
+    const isPlanTool = tool === 'ExitPlanMode';
     const questions = tool === 'AskUserQuestion' ? describeQuestions(d.tool_input) : null;
+    // What is being approved, in full. When it does not fit on the card, the
+    // card would show a harmless start while the rest ran unseen (an 800
+    // character `echo` followed by `; curl … | sh`), so the decision goes
+    // back to Claude Code's own terminal prompt, which shows all of it. The
+    // risk labels and the hold-to-confirm judge the full text, never the cut.
+    const full = describeTool(tool, d.tool_input, Number.MAX_SAFE_INTEGER, true);
+    if (!isPlanTool && !questions && full.length > MAX_INPUT_CHARS) return null;
+    const detail = full;
 
     // Too many already waiting → refuse to queue another. The caller hands this
     // back to the terminal rather than letting the tile become a backlog.
@@ -1039,10 +1284,9 @@ function createBridge(opts) {
       model: (s && s.model) || '',
       createdAt,
       expiresAt: createdAt + QUESTION_TTL_MS,
-      // A question never seizes the whole screen. It blocks Claude, but it is
-      // not destructive and it is also sitting in the terminal — hijacking the
-      // display over a choice of approach is out of proportion.
-      urgentAt: Infinity,
+      // Unanswered after the grace window, it takes the screen like a
+      // permission does: nowhere else shows it while the hook holds it.
+      urgentAt: createdAt + URGENT_AFTER_MS,
       resolve: null,
       timer: null,
     };
@@ -1051,7 +1295,7 @@ function createBridge(opts) {
     rec.timer = setTimeout(() => {
       if (pending.get(id) !== rec) return;
       pending.delete(id);
-      clearWait(s, 'question');
+      waitInTerminal(sessions.get(rec.sessionId), rec);
       rec.resolve({ verdict: 'skip' });
       emit();
     }, QUESTION_TTL_MS);
@@ -1093,7 +1337,7 @@ function createBridge(opts) {
     if (!rec || rec.kind !== 'question') return false;
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
-    clearWait(sessions.get(rec.sessionId), 'question');
+    waitInTerminal(sessions.get(rec.sessionId), rec);
     rec.resolve({ verdict: 'skip' });
     emit();
     return true;
@@ -1178,6 +1422,26 @@ function createBridge(opts) {
   // in sessions the hook feed cannot know about and retires ones whose process
   // is gone. Everything a hook told us wins over everything a file says, because
   // the hook came from the session itself and this is a snapshot on disk.
+  // Sessions that say they are working, with when the turn began, for the
+  // interrupt check (an Esc fires no Stop hook).
+  function workingSessions() {
+    const out = [];
+    for (const s of sessions.values()) {
+      if (!s.endedAt && s.state === 'running' && !s.compacting && s.turnAt) out.push({ id: s.id, since: s.turnAt });
+    }
+    return out;
+  }
+
+  // The turn was interrupted in the terminal: nothing is running any more.
+  function markInterrupted(sessionId) {
+    const s = sessions.get(str(sessionId, 80));
+    if (!s || s.endedAt || s.state !== 'running') return false;
+    s.state = 'idle'; s.tool = ''; s.toolDetail = ''; s.turnOver = true;
+    if (s.waitFor && !hasPendingFor(s.id)) s.waitFor = null;
+    emit();
+    return true;
+  }
+
   function mergeRegistry(rows) {
     if (!Array.isArray(rows) || !rows.length) return false;
     let moved = false;
@@ -1272,6 +1536,13 @@ function createBridge(opts) {
       // Past their window these would say something no longer true.
       if (s.handed && t - s.handed.at >= HANDED_TTL_MS) s.handed = null;
       if (s.undelivered && t - s.undelivered.at >= UNDELIVERED_TTL_MS) s.undelivered = null;
+      if (s.subagents.some((a) => a.endedAt && t - a.endedAt > AGENT_DONE_MS)) {
+        s.subagents = s.subagents.filter((a) => !a.endedAt || t - a.endedAt <= AGENT_DONE_MS);
+      }
+    }
+    for (const [k, at] of modLastAt) {
+      if (sessions.has(k) || t - at <= SESSION_STALE_MS) continue;
+      modLastAt.delete(k); modVersions.delete(k); modCommandLists.delete(k); commandsAsked.delete(k);
     }
   }
 
@@ -1303,9 +1574,11 @@ function createBridge(opts) {
         toolForMs: s.toolAt ? t - s.toolAt : null,
         state: s.state,
         // Why it is waiting, when it is — never a bare "waiting".
-        waitFor: s.waitFor ? { kind: s.waitFor.kind, text: s.waitFor.text, forMs: t - s.waitFor.at } : null,
+        waitFor: s.waitFor ? { kind: s.waitFor.kind, text: s.waitFor.text, forMs: t - s.waitFor.at, inTerminal: s.waitFor.inTerminal === true } : null,
         todos: s.todos,
-        subagents: s.subagents,
+        plan: s.plan,
+        planAt: s.planAt,
+        subagents: s.subagents.map((a) => ({ ...a, ageMs: t - a.at, endedMs: a.endedAt ? t - a.endedAt : 0 })),
         activity: s.activity,
         compacting: s.compacting,
         permissionMode: s.permissionMode,
@@ -1332,6 +1605,10 @@ function createBridge(opts) {
         // The Xenon mod is listening in this session right now
         // (claude-inbox.js), so a message for it while idle goes into it.
         terminal: !s.endedAt && terminal(s.id),
+        // That mod is new enough (0.4.0) to run /model, /effort and /compact.
+        modCommands: modCommands(s.id),
+        // When the mod last listed this session's slash commands (0: it never has).
+        commandsAt: (modCommandLists.get(s.id) || { at: 0 }).at,
         queued: queuedView(s, t),
         // A tile message that did not get in, offered back once on the tile.
         undelivered: s.undelivered ? { text: s.undelivered.text, reason: s.undelivered.reason, at: s.undelivered.at } : null,
@@ -1382,11 +1659,11 @@ function createBridge(opts) {
         s.id, s.state, s.tool, s.toolDetail,
         s.waitFor ? s.waitFor.kind : '',
         s.todos.map(x => x.status).join(''),
-        s.subagents.map(a => a.model || '-').join('/'), s.activity.length,
+        s.subagents.map(a => [a.id, a.status, a.model, a.effort, a.tools, a.tool, a.detail, Math.round(a.tokens / 1000), a.desc, a.last ? 1 : 0].join('~')).join('/'), s.activity.length,
         s.queued ? 'q' + s.queued.via + (s.queued.handed ? 'h' : '') : '', s.ended ? 'e' : '', s.resting ? 1 : 0,
         s.terminal ? 't' : '', s.undelivered ? 'u' + s.undelivered.at : '',
-        s.contextPct == null ? '' : Math.round(s.contextPct), s.model || '',
-        s.linesAdded || 0, s.linesRemoved || 0,
+        s.contextPct == null ? '' : Math.round(s.contextPct), s.model || '', s.effort || '', s.planAt || 0,
+        s.linesAdded || 0, s.linesRemoved || 0, s.commandsAt || 0,
       ].join(':')).join(',')
         + '|' + approvals.map(a => a.id + (a.urgent ? '!' : '')).join(',')
         + '|' + (limits ? `${limits.fiveHour && limits.fiveHour.pct}/${limits.sevenDay && limits.sevenDay.pct}` : '')
@@ -1442,7 +1719,7 @@ function createBridge(opts) {
 
   return {
     applyStatus, applyHook, applyMod, modStatus, requestPermission, takeHandBack, askQuestion, answer, skipQuestion,
-    decide, cancel, snapshot, stop, cwdFor, mergeRegistry,
+    decide, cancel, snapshot, stop, cwdFor, mergeRegistry, workingSessions, markInterrupted, commandListFor, wantsCommandList,
     queueFollowUp, cancelFollowUp, takeFollowUp, takeForTerminal, terminalGone, replyModeFor,
     get pendingCount() { return pending.size; },
   };
@@ -1452,6 +1729,7 @@ module.exports = {
   describeRisk,
   createBridge,
   describeTool,
+  describeChange,
   describeTodos,
   buildAnswers,
   joinAnswer,

@@ -36,9 +36,9 @@ test('add stores a fact and returns it', async () => {
   const dir = freshDir();
   try {
     const mem = createAiMemory({ dataDir: dir, now: clock() });
-    const r = await mem.add('The user is Marcello');
+    const r = await mem.add('The user is Luca');
     assert.equal(r.ok, true);
-    assert.equal(r.text, 'The user is Marcello');
+    assert.equal(r.text, 'The user is Luca');
     assert.equal(mem.count(), 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -73,7 +73,7 @@ test('remove works by id, by loose key and by substring', async () => {
   const dir = freshDir();
   try {
     const mem = createAiMemory({ dataDir: dir, now: clock() });
-    const a = await mem.add('The user is Marcello');
+    const a = await mem.add('The user is Luca');
     await mem.add('The user has an RTX 4090');
     await mem.add('The user supports Napoli');
     // by id
@@ -106,10 +106,10 @@ test('formatForPrompt is empty with no facts and lists facts otherwise', async (
   try {
     const mem = createAiMemory({ dataDir: dir, now: clock() });
     assert.equal(mem.formatForPrompt(), '');
-    await mem.add('The user is Marcello');
+    await mem.add('The user is Luca');
     const p = mem.formatForPrompt();
     assert.match(p, /PERSISTENT MEMORY/);
-    assert.match(p, /- The user is Marcello/);
+    assert.match(p, /- The user is Luca/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -117,13 +117,13 @@ test('facts persist to disk and reload in a new instance', async () => {
   const dir = freshDir();
   try {
     const mem1 = createAiMemory({ dataDir: dir, now: clock() });
-    await mem1.add('The user is Marcello');
+    await mem1.add('The user is Luca');
     await mem1.add('The user has an RTX 4090');
     // new instance, same dir → loads from disk
     const mem2 = createAiMemory({ dataDir: dir, now: clock() });
     const list = mem2.list();
     assert.equal(list.length, 2);
-    assert.deepEqual(list.map(f => f.text), ['The user is Marcello', 'The user has an RTX 4090']);
+    assert.deepEqual(list.map(f => f.text), ['The user is Luca', 'The user has an RTX 4090']);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -146,7 +146,7 @@ test('importFacts (backup restore) replaces the store with normalized facts', as
     const mem = createAiMemory({ dataDir: dir, now: clock() });
     await mem.add('An old fact to be replaced');
     const r = await mem.importFacts([
-      { id: 'f1', text: '  The user is   Marcello ', ts: 5 },
+      { id: 'f1', text: '  The user is   Luca ', ts: 5 },
       { text: 'The user has an RTX 4090', ts: 6 },
       { text: '', ts: 7 },              // empty → dropped
       'plain string fact',              // legacy shape → normalized
@@ -155,7 +155,7 @@ test('importFacts (backup restore) replaces the store with normalized facts', as
     assert.equal(r.count, 3);
     const list = mem.list();
     assert.deepEqual(list.map(f => f.text),
-      ['The user is Marcello', 'The user has an RTX 4090', 'plain string fact']);
+      ['The user is Luca', 'The user has an RTX 4090', 'plain string fact']);
     // Survives a reload from disk in a fresh instance.
     const mem2 = createAiMemory({ dataDir: dir, now: clock() });
     assert.equal(mem2.count(), 3);

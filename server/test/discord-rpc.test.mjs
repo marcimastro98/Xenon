@@ -65,10 +65,10 @@ test('parseSoundRef splits guild|sound and tolerates a bare id', () => {
 
 test('normNotification projects a NOTIFICATION_CREATE payload to the client-safe shape', () => {
   assert.deepEqual(dc.normNotification({
-    title: 'marci (#general, Xenon)', body: 'ciao!',
+    title: 'luca (#general, Xenon)', body: 'ciao!',
     icon_url: 'https://cdn.discordapp.com/avatars/1/a.png', channel_id: '199737254929760257',
   }), {
-    title: 'marci (#general, Xenon)', body: 'ciao!',
+    title: 'luca (#general, Xenon)', body: 'ciao!',
     icon: 'https://cdn.discordapp.com/avatars/1/a.png', channelId: '199737254929760257',
     // A plain message notification carries no message object, so there is no
     // type to report. null, not absent: the Calls classifier reads this field
@@ -82,8 +82,8 @@ test('normNotification carries the message TYPE, which is how a ringing call is 
   // anywhere in the product — everything else reads notification wording — so
   // the projection must keep it, and must keep nothing else of the message.
   const n = dc.normNotification({
-    title: 'marci', body: '', channel_id: '199737254929760257',
-    message: { type: 3, id: '9', content: 'private', author: { id: '1', username: 'marci' } },
+    title: 'luca', body: '', channel_id: '199737254929760257',
+    message: { type: 3, id: '9', content: 'private', author: { id: '1', username: 'luca' } },
   });
   assert.equal(n.messageType, 3);
   assert.equal(n.channelId, '199737254929760257', 'the channel is what answering needs');
@@ -352,6 +352,57 @@ test('provider.runAction drives the full handshake + SET over a mocked pipe', as
   p.close();
 });
 
+// A provider whose access token has expired, so the next use goes through a refresh.
+function expiredProvider(answer) {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'old', refreshToken: 'r', expiresAt: Date.now() - 1000, username: 'me' } }));
+  return dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    fetch: async () => answer,
+    connect: () => Promise.resolve(fakePipe(() => ({}))),
+  });
+}
+const tokenAnswer = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+for (const [name, answer] of [
+  ['a server error', tokenAnswer(503, null)],
+  ['a rate limit', tokenAnswer(429, { message: 'You are being rate limited.' })],
+  ['a rejected client', tokenAnswer(401, { error: 'invalid_client' })],
+  ['an answer with no token', tokenAnswer(200, {})],
+]) {
+  test(`a failed refresh keeps the Discord link on ${name}`, async () => {
+    const p = expiredProvider(answer);
+    assert.equal((await p.runAction({ type: 'discordMute', mode: 'mute' })).ok, false);
+    assert.equal((await p.status()).connected, true);
+    p.close();
+  });
+}
+
+test('a revoked refresh token unlinks Discord', async () => {
+  const p = expiredProvider(tokenAnswer(400, { error: 'invalid_grant' }));
+  assert.equal((await p.runAction({ type: 'discordMute', mode: 'mute' })).ok, false);
+  assert.equal((await p.status()).connected, false);
+  p.close();
+});
+
+test('the voice watch stays linked through a failed refresh, and retries', async () => {
+  const p = expiredProvider(tokenAnswer(503, null));
+  const seen = [];
+  const stop = p.watchVoice((voice) => seen.push(voice));
+  assert.ok(await waitFor(() => seen.length > 0));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(seen.some((voice) => voice.connected === false), false);
+  stop();
+});
+
+test('the voice watch reports unlinked once the refresh token is revoked', async () => {
+  const p = expiredProvider(tokenAnswer(400, { error: 'invalid_grant' }));
+  const seen = [];
+  const stop = p.watchVoice((voice) => seen.push(voice));
+  assert.ok(await waitFor(() => seen.some((voice) => voice.connected === false)));
+  stop();
+});
+
 test('provider.voiceState reads settings + channel into a client-safe shape', async () => {
   const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
   fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
@@ -404,10 +455,10 @@ test('channelMembers maps voice_states to a client-safe member list', () => {
   };
   const m = dc.channelMembers(ch);
   assert.equal(m.length, 2);
-  assert.deepEqual(m[0], { id: '10', name: 'Bobby', mute: true, deaf: false, volume: 60, localMute: false, speaking: false });  // nick wins, self_mute → mute
+  assert.deepEqual(m[0], { id: '10', name: 'Bobby', avatar: '', mute: true, deaf: false, volume: 60, localMute: false, speaking: false });  // nick wins, self_mute → mute; '10' is no snowflake, so no avatar
   // Discord reported no local settings for ann: volume stays null rather than a
   // guessed 100, so a widget slider can't open at a value the machine isn't at.
-  assert.deepEqual(m[1], { id: '11', name: 'ann', mute: false, deaf: true, volume: null, localMute: false, speaking: false });
+  assert.deepEqual(m[1], { id: '11', name: 'ann', avatar: '', mute: false, deaf: true, volume: null, localMute: false, speaking: false });
   assert.deepEqual(dc.channelMembers(null), []);
   assert.equal(dc.channelMembers({ voice_states: Array.from({ length: 80 }, (_, i) => ({ user: { id: String(i), username: 'u' + i } })) }).length, 50);  // capped
 });
@@ -593,7 +644,7 @@ test('provider.voiceRoster lists each voice channel with its current members', a
   assert.equal(general.name, 'General');
   assert.equal(general.guild, 'Server One');
   assert.equal(general.members.length, 1);
-  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', mute: true, deaf: false, volume: null, localMute: false, speaking: false });
+  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', avatar: '', mute: true, deaf: false, volume: null, localMute: false, speaking: false });
   assert.deepEqual(r.channels.find((c) => c.id === '102').members, []);   // nobody inside
   p.close();
 });
@@ -765,14 +816,14 @@ test('watchVoice subscribes NOTIFICATION_CREATE when wanted and delivers project
   });
   const got = [];
   const stop = p.watchVoice(() => {}, (n) => got.push(n));
-  await new Promise((r) => setTimeout(r, 40));
+  for (let i = 0; i < 200 && p.notifStatus() !== 'ok'; i++) await new Promise((r) => setTimeout(r, 10));
   assert.ok(subs.includes('NOTIFICATION_CREATE'));
   assert.equal(p.notifStatus(), 'ok');
   sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'NOTIFICATION_CREATE', data: {
-    title: 'marci', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
+    title: 'luca', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
   } }));
   await new Promise((r) => setTimeout(r, 10));
-  assert.deepEqual(got, [{ title: 'marci', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
+  assert.deepEqual(got, [{ title: 'luca', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
   stop();
   p.close();
 });
@@ -1014,4 +1065,75 @@ test('a rejected AUTHENTICATE whose refresh hard-fails clears creds and reports 
   assert.deepEqual(r, { ok: false, error: 'not_connected' });
   assert.equal((await p.status()).connected, false);   // creds actually cleared
   p.close();
+});
+
+// ── Member avatars (asked for on Discord: "show their avatar with their name") ──
+// The address is built here from two checked values, never taken from the
+// wire: it lands in an <img src> on the dashboard.
+test('avatarUrl builds Discord CDN addresses from a checked id and hash', () => {
+  const id = '80351110224678912';
+  const hash = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  assert.equal(dc.avatarUrl({ id, avatar: hash }), `https://cdn.discordapp.com/avatars/${id}/${hash}.png?size=64`);
+  // Animated: the .png is the still first frame, calmer on a dashboard.
+  assert.equal(dc.avatarUrl({ id, avatar: 'a_' + hash }), `https://cdn.discordapp.com/avatars/${id}/a_${hash}.png?size=64`);
+});
+
+test('avatarUrl falls back to Discord\'s own default avatar', () => {
+  const id = '80351110224678912';
+  // New usernames: (id >> 22) % 6. Legacy discriminators: discriminator % 5.
+  assert.equal(dc.avatarUrl({ id, avatar: null, discriminator: '0' }),
+    `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(id) >> 22n) % 6n)}.png`);
+  assert.equal(dc.avatarUrl({ id, discriminator: '1337' }), 'https://cdn.discordapp.com/embed/avatars/2.png');
+});
+
+test('avatarUrl never passes along what it was not built from', () => {
+  for (const bad of [null, {}, { id: '12' }, { id: '../../x', avatar: 'a'.repeat(32) }, { id: 'javascript:alert(1)' }]) {
+    assert.equal(dc.avatarUrl(bad), '', JSON.stringify(bad));
+  }
+  // A malformed hash is not interpolated: the default avatar is used instead.
+  for (const hash of ['"><img src=x onerror=alert(1)>', '../../../evil', 'A'.repeat(32), 'a'.repeat(31)]) {
+    const url = dc.avatarUrl({ id: '80351110224678912', avatar: hash });
+    assert.match(url, /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/, hash);
+  }
+});
+
+test('channelMembers carries each member\'s avatar', () => {
+  const [m] = dc.channelMembers({ voice_states: [
+    { user: { id: '80351110224678912', username: 'bob', avatar: 'a1b2c3d4e5f60718293a4b5c6d7e8f90' } },
+  ] });
+  assert.equal(m.avatar, 'https://cdn.discordapp.com/avatars/80351110224678912/a1b2c3d4e5f60718293a4b5c6d7e8f90.png?size=64');
+});
+
+// A discord-ipc-N in a shared /tmp could have been created by another local
+// user to receive our RPC handshake and OAuth token: only our own socket counts.
+test('trustedIpcSocket accepts only a real socket owned by our uid', () => {
+  const st = (over) => ({ isSocket: () => true, uid: 1000, ...over });
+  const getuid = () => 1000;
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st(), getuid }), true);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st({ uid: 1001 }), getuid }), false);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st({ isSocket: () => false }), getuid }), false);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => { throw Object.assign(new Error('x'), { code: 'ENOENT' }); }, getuid }), false);
+});
+
+test('trustedIpcSocket against the real filesystem: our socket yes, a regular file no', { skip: process.platform === 'win32' }, async () => {
+  const net = await import('node:net');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-ipc-'));
+  const sockPath = path.join(dir, 'discord-ipc-0');
+  const server = net.createServer(() => {});
+  await new Promise((r) => server.listen(sockPath, r));
+  try {
+    assert.equal(dc.trustedIpcSocket(sockPath), true);
+    const f = path.join(dir, 'discord-ipc-1');
+    fs.writeFileSync(f, '');
+    assert.equal(dc.trustedIpcSocket(f), false);
+    const l = path.join(dir, 'discord-ipc-2');
+    fs.symlinkSync(sockPath, l);
+    assert.equal(dc.trustedIpcSocket(l), false, 'a symlink is not the socket itself');
+  } finally {
+    await new Promise((r) => server.close(r));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

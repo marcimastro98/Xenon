@@ -1,0 +1,23 @@
+/* Performance Mode in the top bar (js/perf-marker.js). Sized and spaced like the
+   Claude and Codex marks beside it. The state is said in words and in colour:
+   the accent while a session runs, the bar's own text colour when the button
+   only offers to start one. */
+.clock-perf { display: inline-flex; align-items: center; }
+.clock-perf[hidden] { display: none; }
+.perf-tb {
+  appearance: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 3px 7px; min-height: 28px; min-width: 28px; border-radius: 999px;
+  font: inherit; font-size: 11.5px; font-weight: 700;
+  color: var(--muted-text);
+  background: transparent; border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.perf-tb:hover { background: rgba(255, 255, 255, 0.09); }
+.perf-tb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.perf-tb:disabled { cursor: progress; opacity: 0.6; }
+.perf-tb.is-on { color: var(--accent); }
+.perf-tb-mark { width: 16px; height: 16px; display: block; flex: 0 0 auto; fill: currentColor; }
+.perf-tb-label { white-space: nowrap; }
+/* A 390px bar has no room for the words; the gauge and its colour stay, and the
+   title and the pressed state still say it to a screen reader. */
+.is-phone .topbar .perf-tb-label { display: none; }

@@ -1,0 +1,29 @@
+/* The desktop scene page (scene.html): the Ambient scene as the animated
+   wallpaper or the screensaver. Nothing on it is a control. The wallpaper
+   sits under the desktop icons; on the screensaver any input ends it, so a
+   tap must never also press a lock-screen button (play/pause, weather). */
+[data-desktop-scene] .lockscreen-exit { display: none !important; }
+
+[data-desktop-scene] .lockscreen-overlay *,
+[data-desktop-scene] .ambient-canvas-overlay * { pointer-events: none !important; }
+
+/* This page has no wallpaper of its own, and the glass of the clock and the cards needs
+   something to look through. The picture of a new install, in both appearances. */
+[data-desktop-scene] .lockscreen-overlay {
+  background: #161c30 url("../../assets/wallpapers/dusk.webp") center / cover no-repeat;
+}
+:root[data-appearance="light"][data-desktop-scene] .lockscreen-overlay {
+  background: #e4e7ee url("../../assets/wallpapers/dusk-light.webp") center / cover no-repeat;
+}
+
+/* In the menu's scaled preview the clock's glass lost its clip and showed as a box
+   behind the digits. The light fill alone reads the same at that size. */
+html[data-scene="preview"] .lock-digits-glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* A saved theme's animated background, in the dashboard's own sandboxed frame. */
+[data-desktop-scene] #custom-bg-layer { position: fixed; inset: 0; pointer-events: none; }
+[data-desktop-scene] #custom-bg-layer iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+/* The screensaver hides the pointer, as every screensaver does. */
+html[data-scene="saver"],
+html[data-scene="saver"] * { cursor: none !important; }

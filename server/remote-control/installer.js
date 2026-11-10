@@ -2,6 +2,7 @@
 
 const os = require('node:os');
 const defaultRunner = require('./runner');
+const { SUNSHINE_SERVICE, TAILSCALE_SERVICE } = require('./service');
 
 // The account the server runs as, which is the one that needs to be able to
 // drive tailscaled. Sanitised to the shell-safe shape a username has anyway,
@@ -12,6 +13,9 @@ function currentUser() {
   try { name = os.userInfo().username || ''; } catch { name = process.env.USER || ''; }
   return /^[A-Za-z0-9._-]+$/.test(name) ? name : '';
 }
+
+// The Windows service each tool registers when it installs.
+const WIN_SERVICES = { sunshine: SUNSHINE_SERVICE, tailscale: TAILSCALE_SERVICE };
 
 const PACKAGES = {
   sunshine: 'LizardByte.Sunshine',
@@ -97,8 +101,8 @@ const LINUX_PACKAGES = {
 // tap, which an earlier version of this table got wrong — but no Mac has run
 // them. Every failure here lands on the manual-instructions path.
 const MAC_PACKAGES = {
-  // `brew services` needs root to install a daemon into /Library/LaunchDaemons,
-  // which is why this one step is elevated while `brew install` is not.
+  // `brew services` would need root to install a daemon into
+  // /Library/LaunchDaemons, but brew is never run as root (see installMac).
   tailscale: { brew: 'tailscale', service: 'tailscaled' },
   sunshine: { brew: 'sunshine', tap: 'LizardByte/homebrew' },
   // A cask, not a formula: it installs Chromium.app into /Applications, which
@@ -187,12 +191,20 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     const id = resolveId(name);
     const hit = installedCache.get(name);
     if (hit && (hit.value || Date.now() - hit.at < NOT_INSTALLED_TTL_MS)) return hit.value;
-    const value = isWin ? await installedWin(id) : await installedPosix(name);
+    const value = isWin ? await installedWin(name, id) : await installedPosix(name);
     installedCache.set(name, { value, at: Date.now() });
     return value;
   }
 
-  async function installedWin(id) {
+  // Both tools register a service when they install. Reading the service list costs a
+  // few ms where `winget list` costs a second of CPU, so winget is left to answer only
+  // for what the list does not show.
+  async function installedWin(name, id) {
+    const service = WIN_SERVICES[name];
+    if (service) {
+      const s = await runner.run('sc.exe', ['query', service]).catch(() => null);
+      if (s && s.code === 0) return true;
+    }
     const r = await runner.run('winget', ['list', '-e', '--id', id]);
     return r.code === 0 && r.stdout.includes(id);
   }
@@ -254,9 +266,21 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     // brew prefix, so this — and only this — raises the admin dialog. Its
     // failure is not the install's failure: the package is there either way,
     // and the setup re-probes.
+    //
+    // NOT elevated any more, on purpose. Homebrew's prefix (/opt/homebrew) is
+    // owned by the user, so running `brew` as root means root executes Ruby and
+    // binaries that any program running as the user could have rewritten — a
+    // local privilege escalation dressed up as a password prompt (and brew
+    // itself refuses to run as root for the same reason). runner.runElevated
+    // now refuses user-owned binaries outright. So the service is started as
+    // the user; if tailscaled needs root on this Mac, the panel re-probes and
+    // the user gets the documented `sudo brew services start` hint instead.
     if (spec.service) {
-      await runner.runElevated('brew', ['services', 'start', spec.brew], { timeoutMs: 5 * 60 * 1000 })
+      const sr = await runner.run('brew', ['services', 'start', spec.brew], { timeoutMs: 5 * 60 * 1000 })
         .catch(() => null);
+      if (!sr || sr.code !== 0) {
+        return { ...r, serviceHint: `sudo brew services start ${spec.brew}` };
+      }
     }
     return r;
   }
@@ -301,7 +325,126 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     return runner.runElevated('sh', ['-c', cmd], { timeoutMs: 15 * 60 * 1000 });
   }
 
-  return { isWingetAvailable, canInstall, isInstalled, install };
+  // ── Sunshine must be patched before remote control is switched on ─────────
+  // CVE-2026-32253 (critical: the web UI / pairing certificate check could be
+  // bypassed) and the September 2026 advisories are fixed in v2026.914.233613.
+  // An older Sunshine is a remotely reachable desktop-control service with a
+  // known bypass, so enabling remote control on top of one is refused.
+  //
+  // Version sources, in order of reliability: the package manager that
+  // installed it (winget / brew / flatpak), then the binary itself —
+  // `sunshine --version` logs "Sunshine version: vX.Y.Z" at startup and exits.
+  async function sunshineVersion() {
+    const pick = (text, re) => {
+      const m = String(text || '').match(re);
+      return m ? m[1] : '';
+    };
+    const VER = '(\\d+\\.\\d+\\.\\d+)';
+    let v = '';
+    if (isWin) {
+      const r = await runner.run('winget', ['list', '-e', '--id', PACKAGES.sunshine]).catch(() => null);
+      if (r && r.code === 0) v = pick(r.stdout, new RegExp('LizardByte\\.Sunshine\\s+v?' + VER, 'i'));
+      if (!v) {
+        const b = await runner.run('C:\\Program Files\\Sunshine\\sunshine.exe', ['--version'], { timeoutMs: 15000 }).catch(() => null);
+        if (b) v = pick(`${b.stdout}\n${b.stderr}`, new RegExp('version:?\\s*v?' + VER, 'i'));
+      }
+      return v;
+    }
+    if (isMac) {
+      if (await which('brew')) {
+        const r = await runner.run('brew', ['list', '--versions', 'sunshine']).catch(() => null);
+        if (r && r.code === 0) v = pick(r.stdout, new RegExp('^sunshine\\s+v?' + VER, 'im'));
+      }
+    } else if (LINUX_PACKAGES.sunshine.flatpak && await which('flatpak')) {
+      const r = await runner.run('flatpak', ['info', LINUX_PACKAGES.sunshine.flatpak]).catch(() => null);
+      if (r && r.code === 0) v = pick(r.stdout, new RegExp('^\\s*Version:\\s*v?' + VER, 'im'));
+    }
+    if (!v) {
+      const bin = await which('sunshine');
+      if (bin) {
+        const b = await runner.run(bin, ['--version'], { timeoutMs: 15000 }).catch(() => null);
+        if (b) v = pick(`${b.stdout}\n${b.stderr}`, new RegExp('version:?\\s*v?' + VER, 'i'));
+      }
+    }
+    return v;
+  }
+
+  // Upgrade through whichever route installed it. A hand-installed native
+  // package on Linux has no route we can drive, so it is left to the user.
+  async function upgradeSunshine() {
+    if (isWin) {
+      return runner.runElevated('winget', [
+        'upgrade', '-e', '--id', PACKAGES.sunshine,
+        '--silent', '--accept-package-agreements', '--accept-source-agreements',
+      ]);
+    }
+    if (isMac) {
+      if (!(await which('brew'))) return manual('Homebrew is not installed');
+      // As the user, never elevated: see installMac.
+      return runner.run('brew', ['upgrade', 'sunshine'], { timeoutMs: 15 * 60 * 1000 });
+    }
+    const fp = LINUX_PACKAGES.sunshine.flatpak;
+    if (fp && await which('flatpak')) {
+      const info = await runner.run('flatpak', ['info', fp]).catch(() => null);
+      if (info && info.code === 0) {
+        return runner.run('flatpak', ['update', '-y', '--noninteractive', fp], { timeoutMs: 15 * 60 * 1000 });
+      }
+    }
+    return manual('Sunshine was not installed through a package manager Xenon can update');
+  }
+
+  /**
+   * Resolve { ok: true, version } when Sunshine is absent or at least
+   * SUNSHINE_MIN_VERSION (upgrading it first when it is older), otherwise
+   * { ok: false, error: 'sunshine_outdated' | 'sunshine_version_unknown', ... }.
+   * Callers must not enable remote control on ok:false.
+   */
+  async function ensureSunshineCurrent() {
+    if (!(await isInstalled('sunshine'))) return { ok: true, installed: false, version: '' };
+    let version = await sunshineVersion();
+    if (version && !versionLess(version, SUNSHINE_MIN_VERSION)) return { ok: true, installed: true, version };
+    const up = await upgradeSunshine().catch((e) => ({ code: 1, stderr: String((e && e.message) || e) }));
+    installedCache.delete('sunshine');
+    whichCache.clear();
+    version = await sunshineVersion();
+    if (version && !versionLess(version, SUNSHINE_MIN_VERSION)) {
+      return { ok: true, installed: true, version, upgraded: true };
+    }
+    const error = version ? 'sunshine_outdated' : 'sunshine_version_unknown';
+    return {
+      ok: false,
+      error,
+      version,
+      required: SUNSHINE_MIN_VERSION,
+      cancelled: !!(up && up.code === defaultRunner.UAC_CANCELLED),
+      message: version
+        ? `Sunshine ${version} has known critical vulnerabilities (CVE-2026-32253); update it to ${SUNSHINE_MIN_VERSION} or newer before enabling remote control.`
+        : `Could not read the installed Sunshine version; update it to ${SUNSHINE_MIN_VERSION} or newer before enabling remote control.`,
+      detail: String((up && up.stderr) || '').slice(0, 400),
+    };
+  }
+
+  return { isWingetAvailable, canInstall, isInstalled, install, sunshineVersion, ensureSunshineCurrent };
 }
 
-module.exports = { createInstaller, PACKAGES, LINUX_PACKAGES, MAC_PACKAGES, LINUX_PM };
+// First Sunshine release with the fixes for CVE-2026-32253 and the September
+// 2026 advisories.
+const SUNSHINE_MIN_VERSION = '2026.914.233613';
+
+// Numeric, field by field: "2026.914.233613" vs "2025.1001.5". Old semver
+// releases (0.23.1) compare lower because their first field is 0.
+function parseVersion(v) {
+  const m = String(v || '').match(/(\d+)\.(\d+)\.(\d+)/);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+function versionLess(a, b) {
+  const x = parseVersion(a);
+  const y = parseVersion(b);
+  if (!x || !y) return true;   // unknown is never treated as new enough
+  for (let i = 0; i < 3; i++) {
+    if (x[i] !== y[i]) return x[i] < y[i];
+  }
+  return false;
+}
+
+module.exports = { createInstaller, PACKAGES, LINUX_PACKAGES, MAC_PACKAGES, LINUX_PM, SUNSHINE_MIN_VERSION, versionLess };

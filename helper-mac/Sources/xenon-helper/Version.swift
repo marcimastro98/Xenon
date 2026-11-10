@@ -31,4 +31,8 @@
 //           taking the rest down with it. This is what the dashboard page
 //           shortcuts are bound through, so an older binary leaves every one of
 //           them dead. Matches helper/XenonHelper.csproj 0.14.0.
-let helperVersion = "0.6.0"
+//   0.7.0 = index-serve takes `hold`: while a game runs its walk stands still and
+//           requests keep being answered; stats gains held. hotkey-serve also
+//           reports a key let go (`release`), for a widget shown while held.
+//           Matches helper/XenonHelper.csproj 0.16.0.
+let helperVersion = "0.7.0"

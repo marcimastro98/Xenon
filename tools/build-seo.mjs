@@ -20,15 +20,33 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { headerHtml, footerHtml } from './site-chrome.mjs';
+import { createRequire } from 'node:module';
+import { BIT_PATHS, headerHtml, footerHtml } from './site-chrome.mjs';
 import { LANG_PAGES, HOME_LANGS, langsOf, pathOf } from './lang-pages.mjs';
+import { LIMITS } from './page-meta.mjs';
+import { trialCovers } from './trial-covers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
 const SITE = 'https://xenon-app.com';
 const SHOTS = 'https://assets.xenon-app.com/community/shots/';
-const REPO = 'https://github.com/marcimastro98/Xenon';
 const DISCORD = 'https://discord.gg/MBVrw9kZyg';
+// Five USD a month is sold on the membership page, not on the one-off coffee page.
+const SUPPORT = 'https://www.buymeacoffee.com/marcimastro98/membership';
+const TRIAL = 'https://xenon-supporter-hub.xenonedge.workers.dev/trial';
+// Catalog entries come from the supporter hub, so their links and colours are
+// checked here as the app checks them (server/community-catalog.js): a
+// "reserve" link must be https on Discord, a preview colour a hex value. An
+// esc()'d javascript: URL would still run, and a raw style value could load
+// an outside url().
+const RESERVE_HOSTS = new Set(['discord.gg', 'discord.com', 'www.discord.com']);
+function safeReserve(u) {
+  try {
+    const x = new URL(String(u || ''));
+    return x.protocol === 'https:' && RESERVE_HOSTS.has(x.hostname) ? x.href : DISCORD;
+  } catch { return DISCORD; }
+}
+const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
 // Screenshots are uploaded as .webp with a .png fallback the catalog resolves at
 // runtime (see shotUrl in docs/catalog/index.html). A social scraper cannot do
@@ -46,6 +64,27 @@ const esc = (s) => String(s == null ? '' : s)
 // first "</script" in the raw text. Escaping "<" keeps a description that
 // contains markup from truncating the whole graph.
 const ld = (obj) => JSON.stringify(obj, null, 2).replace(/</g, '\\u003c');
+// An optional line left out of a template stays behind as spaces; a page keeps no trailing ones.
+const noBlankIndent = (html) => html.replace(/^[ \t]+$/gm, '');
+
+// Store descriptions are a small Markdown subset; the shared parser in
+// @xenon/core decides their shape here too, so a page reads like the Store.
+const richText = createRequire(import.meta.url)('../packages/core/src/rich-text.js');
+const plainDesc = (s) => richText.plain(s);
+const inlineHtml = (nodes) => nodes.map((n) => {
+  if (n.t === 'text') return esc(n.v);
+  if (n.t === 'code') return `<code>${esc(n.v)}</code>`;
+  const tag = n.t === 'b' ? 'strong' : 'em';
+  return `<${tag}>${inlineHtml(n.c)}</${tag}>`;
+}).join('');
+// Every piece of text goes through esc(); only the parser's own elements are written.
+function descHtml(text) {
+  return richText.parse(text).map((blk) => {
+    if (blk.type === 'p') return `<p>${blk.lines.map(inlineHtml).join('<br>')}</p>`;
+    if (blk.type === 'h') return `<p><strong>${inlineHtml(blk.c)}</strong></p>`;
+    return `<${blk.type}>${blk.items.map((it) => `<li>${inlineHtml(it)}</li>`).join('')}</${blk.type}>`;
+  }).join('');
+}
 
 // Collapse to a single line and cut on a word boundary — meta descriptions are
 // truncated around 160 chars, and a clean cut reads better than an ellipsis
@@ -100,121 +139,106 @@ const CAT_LABEL = {
   system: 'System', style: 'Style', fun: 'Fun', tools: 'Tools',
 };
 
+const SHEET_BAR = { violet: '#B4A0FF', yellow: '#FFD75E' };
+const BIT = `<svg class="pg-bit" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true">${BIT_PATHS}</svg>`;
+
 // A widget, Deck profile or package is software; a theme, background or ambient
 // scene is not. Claiming SoftwareApplication for a colour palette would be a
 // structured-data mismatch, and mismatches are what get a site's rich results
 // pulled — so the type follows what the thing actually is.
 const SOFTWARE_KINDS = new Set(['widget', 'deck', 'bundle']);
 
-// One sentence per kind, saying what installing it actually changes on the
-// dashboard. Pages of the same kind share theirs, which is fine: it is the
+// One sentence per kind, saying what installing it actually changes in Xenon.
+// Pages of the same kind share theirs, which is fine: it is the
 // paragraph that lets a page answer "what is a Xenon ambient scene" at all,
 // and the name, description, palette, tags and related list around it are what
 // keep the page distinct from its siblings.
 const KIND_BLURB = {
-  theme: 'A theme repaints the whole dashboard: accent, background, surfaces and text, ' +
-    'on every screen the dashboard is open on. It changes nothing about which widgets you run.',
-  bg: 'A background replaces the dashboard\'s backdrop with an animated scene that draws behind ' +
-    'your tiles. It runs locally on your own machine, with no video file to download.',
-  page: 'A page is a ready-made dashboard layout: which widgets sit where, at what size, ' +
+  theme: 'A theme repaints all of Xenon: accent, background, surfaces and text, ' +
+    'on every screen Xenon is open on. It changes nothing about which widgets you run.',
+  bg: 'A background replaces Xenon\'s backdrop with an animated scene that draws behind ' +
+    'your widgets. It runs locally on your own machine, with no video file to download.',
+  page: 'A page is a ready-made layout: which widgets sit where, at what size, ' +
     'across the grid. Importing it adds the page alongside the ones you already have.',
   deck: 'A Deck profile is a set of touch keys for apps, files, sites, media controls and macros, ' +
     'laid out ready to press. You can edit every key after importing it.',
-  widget: 'A widget is a tile that lives on your dashboard grid. It runs sandboxed, with no ' +
+  widget: 'A widget is a tile you place where you want it in Xenon. It runs sandboxed, with no ' +
     'network access unless its manifest asks for named hosts and you approve them at install.',
   bundle: 'A package installs several pieces at once, usually a theme, a background and one ' +
-    'or more widgets built to look like each other, so the whole dashboard changes in one paste.',
-  ambient: 'An ambient scene takes over the full screen when the dashboard goes idle, and steps ' +
-    'aside the moment you touch it. It works like a screensaver for the dashboard.',
+    'or more widgets built to look like each other, so the whole look changes in one paste.',
+  ambient: 'An ambient scene takes over the full screen when Xenon goes idle, and steps ' +
+    'aside the moment you touch it. It works like a screensaver.',
   icons: 'An icon pack replaces the artwork on your Deck keys, so a profile can look like one ' +
     'thing rather than a grid of defaults.',
-  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds: key presses, alerts ' +
+  sounds: 'A sound pack replaces Xenon\'s own feedback sounds: key presses, alerts ' +
     'and the voice session chimes.',
 };
 
 /* ── the per-entry page ──────────────────────────────────────────────────── */
 
-// These 47 pages are linked straight from the rebuilt catalog, so they carried
-// the whole pre-PANEL palette one click away from it: #070808, #1ed760 and
-// Inter, on every entry. The tokens below are now only a fallback for the
-// moment before /site.css lands — every page emitted here links it (see
-// PAGE_HEAD), and being linked last it wins. Do not re-add a colour here that
-// site.css does not have: this is the one template that can put the old site
-// back on the internet 47 times.
+// Entry and creator pages open on a sheet like every other page: /site.css draws
+// the sheet and /guide.css the text, both linked before this block, so it holds
+// only what these pages alone have. Do not add a colour here that site.css does
+// not have: this template writes more pages than any other on the site.
+// Under this a description reads as a fragment in a result: tools/site-review/seo.mjs
+// warns at the same figure.
+const MIN_SNIPPET = 70;
+
 const PAGE_CSS = `
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--ink:var(--g-0);--panel:var(--g-1);--line:var(--rule);
---green:var(--bone-0);--text:var(--bone-0);--muted:var(--bone-1);--dim:var(--bone-2);
---sans:'Archivo','Archivo Fallback',system-ui,-apple-system,'Segoe UI',sans-serif}
-html{-webkit-text-size-adjust:100%}
-body{font-family:var(--sans);background:var(--ink);color:var(--text);line-height:1.6;font-size:16px;
--webkit-font-smoothing:antialiased}
-a{color:inherit}
-img{max-width:100%;display:block}
-:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:4px}
-.wrap{width:100%;max-width:880px;margin-inline:auto;padding:0 24px}
-header.top{border-bottom:1px solid var(--line)}
-header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
-/* The wordmark is site.css's job (it is linked after this block and would win
-   anyway); a second spelling here is how it ended up drawn six different ways
-   across the site. Nothing about it belongs in this file. */
-.top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
-.top-cta:hover{color:var(--text)}
-nav.crumb{font-size:15px;color:var(--muted);padding:22px 0 0}
-nav.crumb a{color:var(--muted);text-decoration:none}
-nav.crumb a:hover{color:var(--green)}
-main{padding-bottom:72px}
-.tier{display:inline-block;font-size:15px;font-weight:700;
-color:var(--green);margin:26px 0 10px}
-.tier.locked{color:var(--gold)}
-.tier.limited{color:var(--iris)}
-h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:800}
-.by{color:var(--muted);margin-top:10px;font-size:15px}
-.by b{color:var(--text);font-weight:600}
-.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
-font-size:14px;color:var(--muted)}
-.desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
-.shots{margin-top:28px;display:grid;gap:14px}
-.shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
-.sec{margin-top:34px}
-.sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
-.sec p{color:var(--bone-1);max-width:66ch}
+.pg h1{overflow-wrap:anywhere}
+.pg-pic.ent-pic{min-height:calc(min(100vw,1440px)/5)}
+.pg-pic.ent-pic img{width:auto;max-width:100%;max-height:min(66vh,560px);margin-inline:0}
+.ent{display:grid;grid-template-columns:minmax(0,var(--maxw)) minmax(0,340px);column-gap:clamp(48px,7vw,112px);justify-content:space-between;align-items:start}
+.ent-main>:first-child,.ent-main>section:first-child h2{margin-top:0}
+.ent-side{position:sticky;top:calc(96px + var(--strip-h,0px))}
+.ent-side h2{margin:0 0 6px;font-size:24px}
+.desc p,.desc ul,.desc ol{margin:0 0 .7em}
+.desc>:last-child{margin-bottom:0}
+.shots{display:grid;gap:16px;margin-top:32px}
+.shots img{display:block;width:100%;height:auto;border-radius:var(--r-2)}
 .sw{display:flex;flex-wrap:wrap;gap:14px}
-.sw span{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
-.sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
-.tags{display:flex;flex-wrap:wrap;gap:8px}
-.tags span{font-size:15px;color:var(--muted)}
-.cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
-font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
-.btn.fill{background:var(--green);border-color:var(--green);color:var(--g-0)}
-.btn:hover{border-color:var(--rule-2)}
-.note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
-.steps{margin:0;padding-left:22px;color:var(--bone-1);max-width:66ch}
-.steps li{margin-bottom:7px}
-.steps li:last-child{margin-bottom:0}
-.facts{list-style:none;margin:0;padding:0;color:var(--bone-1);max-width:66ch}
-.facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.sw span{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw i{display:block;width:16px;height:16px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--line)}
+.facts{list-style:none;margin:0;padding:0}
+.facts li{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;margin:0;padding:10px 0;border-bottom:1px solid var(--line);font-size:16px;line-height:1.45}
 .facts li:last-child{border-bottom:0}
-.facts b{font-weight:700;color:var(--muted);flex:0 0 148px;font-size:15px}
-/* Without a basis the long value ("Runs on") wrapped under its own label while
-   every short row stayed beside it, so the column read as broken every few rows.
-   Below 560px the label goes on its own line for all of them, together. */
-.facts li>span{flex:1 1 220px;min-width:0}
-@media(max-width:559px){.facts b{flex-basis:100%}}
-.rel{display:grid;gap:10px;grid-template-columns:1fr}
-.rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
-background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
-.rel a:hover{border-color:var(--rule-2)}
-.rel .n{font-weight:600;font-size:15px}
-.rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
-@media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
-footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
-footer a{color:var(--muted);text-decoration:none}
-footer a:hover{color:var(--green)}
-@media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}
+.facts a,.ent-more .note a{display:inline-flex;align-items:center;min-height:24px}
+@media(pointer:coarse){.facts a,.ent-more .note a{min-height:44px}}
+.ent-more h2{margin-top:0}
+.cr-sum{display:flex;flex-wrap:wrap;gap:16px 40px;margin-top:24px;font-size:16px;line-height:1.35}
+.cr-sum div{max-width:27ch}
+.cr-sum b{display:block;font:800 clamp(34px,3vw,44px)/1.1 var(--display);font-variant-numeric:tabular-nums}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:32px 20px}
+.cr-card{display:flex;flex-direction:column;gap:4px;color:inherit;text-decoration:none}
+.cr-shot{display:block;aspect-ratio:16/9;margin-bottom:8px;border-radius:var(--r-2);overflow:hidden;background:var(--g-1)}
+.cr-shot img{display:block;width:100%;height:100%;object-fit:cover}
+.cr-n{font:700 20px/1.25 var(--display)}
+.cr-card:hover .cr-n{text-decoration:underline;text-underline-offset:.18em}
+.cr-k,.cr-d,.cr-live{font-size:16px;line-height:1.4;color:var(--muted)}
+.cr-live{display:flex;gap:12px;min-height:1.4em;font-variant-numeric:tabular-nums}
+@media(max-width:1000px){.ent{grid-template-columns:minmax(0,1fr)}.ent-side{position:static;margin-top:48px}}
 `.trim();
+
+// One item as a card, on a creator's page and under an entry. The box keeps its 16/9
+// whether or not the picture lands, so a missing screenshot leaves a tinted rectangle
+// instead of collapsing the card and reflowing the grid under the reader's cursor.
+function itemCard(e, { eager = false, full = false } = {}) {
+  const locked = e.locked === true || e.supportersOnly === true;
+  const kind = (KIND_LABEL[e.kind] || e.kind) + (locked ? ' for supporters' : '');
+  const desc = full && e.description ? clamp(plainDesc(e.description), 140) : '';
+  const thumb = Number.isInteger(e.shots) && e.shots > 0
+    ? `<img src="${esc(shotUrl(e.id, 1))}" alt="${esc(e.name)} running in Xenon"` +
+      ` loading="${eager ? 'eager' : 'lazy'}" decoding="async"` +
+      ` onerror="this.onerror=function(){this.style.display='none'};this.src='${esc(shotUrl(e.id, 1, 'png'))}'">`
+    : '';
+  return `      <a class="cr-card" href="/catalog/${encodeURIComponent(e.id)}/">
+        <span class="cr-shot">${thumb}</span>
+        <span class="cr-n">${esc(e.name)}</span>
+        <span class="cr-k">${esc(kind)}</span>
+        ${desc ? `<span class="cr-d">${esc(desc)}</span>` : ''}
+        ${full ? `<span class="cr-live"><span data-iid="${esc(e.id)}"></span><span data-rid="${esc(e.id)}"></span></span>` : ''}
+      </a>`;
+}
 
 // Every entry page used to link only to /, /catalog/ and the two evergreen
 // pages, which made the catalog a star: one hub and 45 leaves with nothing
@@ -231,7 +255,7 @@ function relatedFor(e, live) {
   const mine = new Set((e.tags || []).map((t) => String(t).toLowerCase()));
   const scored = [];
   for (const o of live) {
-    if (o.id === e.id) continue;
+    if (o.id === e.id || !(o.shots > 0)) continue;
     const theirs = (o.tags || []).map((t) => String(t).toLowerCase());
     // A shared tag is the strongest signal the catalog carries: it is the only
     // field an author writes about what the thing IS rather than what it is.
@@ -249,7 +273,7 @@ function relatedFor(e, live) {
   if (out.length < 4) {
     const have = new Set([e.id, ...out.map((o) => o.id)]);
     const rest = live
-      .filter((o) => !have.has(o.id))
+      .filter((o) => !have.has(o.id) && o.shots > 0)
       .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) ||
         (a.id < b.id ? -1 : 1));
     out.push(...rest.slice(0, 4 - out.length));
@@ -269,11 +293,16 @@ function entryPage(e, indexable, live = []) {
   const modified = isoDay(e.updatedAt) || published;
 
   const title = `${e.name}: ${kindLabel} for Xenon`;
+  // A creator's line can be a few words: too short to stand as a result's snippet,
+  // so it leads and the plain facts follow it.
+  const own = plainDesc(e.description);
+  const about = `a ${kindLabel.toLowerCase()} for Xenon by ${e.author}`;
   const description = clamp(
-    e.description ||
-    `${e.name}, a ${kindLabel.toLowerCase()} for the Xenon dashboard by ${e.author}. Import it into your local Xenon in one paste.`
+    !own ? `${e.name}, ${about}. Import it into your local Xenon in one paste.`
+      : own.length < MIN_SNIPPET ? `${own.replace(/\.$/, '')}. ${e.name}, ${about}.`
+        : own
   );
-  const image = shots > 0 ? shotUrl(e.id, 1) : `${SITE}/images/overview.png`;
+  const image = shots > 0 ? shotUrl(e.id, 1) : `${SITE}/images/home/og-card.png`;
 
   /* ── structured data ── */
   const graph = [];
@@ -282,7 +311,7 @@ function entryPage(e, indexable, live = []) {
     '@id': url + '#item',
     name: e.name,
     url,
-    description: (e.description || description).replace(/\s+/g, ' ').trim(),
+    description: (plainDesc(e.description) || description).replace(/\s+/g, ' ').trim(),
     inLanguage: 'en',
     author: { '@type': 'Person', name: e.author },
     isPartOf: { '@id': `${SITE}/catalog/#catalog` },
@@ -340,49 +369,53 @@ function entryPage(e, indexable, live = []) {
       // at runtime, plus the removal, because a broken-image icon sitting in the
       // layout looks worse than the gap it leaves.
       `<img src="${esc(shotUrl(e.id, i))}" alt="${esc(e.name)}, screenshot ${i} of ${shots}"` +
-      ` loading="${i === 1 ? 'eager' : 'lazy'}" decoding="async"` +
+      ` loading="${i === 1 ? 'eager' : 'lazy'}"${i === 1 ? ' fetchpriority="high"' : ''} decoding="async"` +
       ` onerror="this.onerror=function(){this.remove()};this.src='${esc(shotUrl(e.id, i, 'png'))}'">`
     );
   }
 
-  const chips = [];
-  if (e.version) chips.push(`v${esc(e.version)}`);
-  if (catLabel) chips.push(esc(catLabel));
-  if (e.appVersionMin) chips.push(`Xenon ${esc(e.appVersionMin)}+`);
-  if (published) chips.push(`Added ${esc(published)}`);
+  const [firstShot, ...moreShots] = shotTags;
 
   const swatches = e.preview
     ? ['accent', 'bg', 'text']
         .filter((k) => e.preview[k])
+        .filter((k) => HEX_COLOR.test(String(e.preview[k])))
         .map((k) => `<span><i style="background:${esc(e.preview[k])}"></i>${esc(e.preview[k])}</span>`)
         .join('')
     : '';
 
-  const tier = limited ? 'limited' : locked ? 'locked' : '';
-  const tierText = limited ? 'Limited edition' : locked ? 'Supporters' : kindLabel;
+  const what = limited ? `Limited edition ${kindLabel.toLowerCase()} for Xenon`
+    : locked ? `${kindLabel} for Xenon supporters`
+    : `${kindLabel} for Xenon`;
+  const sheet = limited || locked ? 'yellow' : 'violet';
 
   // Internal links stay root-relative so the page is correct on the production
   // domain, on the github.io mirror and in a local preview alike.
   const inCatalog = `/catalog/#${encodeURIComponent(e.id)}`;
   let buttons, note;
   if (limited && soldOut) {
-    buttons = `<a class="btn" href="${inCatalog}">See it in the catalog</a>`;
+    buttons = `<a class="pg-alt" href="${inCatalog}">See it in the catalog</a>`;
     note = `Sold out: all ${esc(limited.total)} copies of this drop are claimed.`;
   } else if (limited) {
     buttons =
-      `<a class="btn fill" href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve on Discord</a>` +
-      `<a class="btn" href="${inCatalog}">Open in the catalog</a>`;
+      `<a class="pg-key" href="${esc(safeReserve(limited.reserveUrl))}" rel="noopener">Reserve on Discord</a>` +
+      `<a class="pg-alt" href="${inCatalog}">Open in the catalog</a>`;
     note = `A limited drop: ${esc(limited.total)} copies, ` +
       `${Math.max(0, Number(limited.total) - Number(limited.claimed))} left. ` +
       `Discord verifies your account and sends a personal access code.`;
   } else if (locked) {
-    buttons = `<a class="btn fill" href="${inCatalog}">Open in the catalog</a>`;
-    note = `A supporters' item. Unlock it in the catalog, then paste the code into ` +
-      `Xenon under Settings → Widgets &amp; sharing → Import.`;
+    buttons =
+      `<a class="pg-key" href="${SUPPORT}" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="catalog_item">Become a supporter</a>` +
+      `<a class="pg-alt" href="${inCatalog}">I have a code</a>`;
+    note = `Included for supporters, 5 USD a month. Unlock it in the catalog with your code, ` +
+      `then paste it into Xenon under Settings → Widgets &amp; sharing → Import.`;
+    if (trialCovers(e, Date.now())) {
+      note += ` Or <a href="${TRIAL}" target="_blank" rel="noopener" data-track="trial_click" data-track-location="catalog_item">try it free for 7 days</a>, once per PC, with no card.`;
+    }
   } else {
     buttons =
-      `<a class="btn fill" href="${inCatalog}">Copy the code in the catalog</a>` +
-      `<a class="btn" href="/">Get Xenon</a>`;
+      `<a class="pg-key" href="${inCatalog}">Copy the code in the catalog</a>` +
+      `<a class="pg-alt" href="/">Get Xenon</a>`;
     note = `Free. Copy the share code, then paste it into Xenon under ` +
       `Settings → Widgets &amp; sharing → Import. Everything stays on your machine.`;
   }
@@ -399,21 +432,23 @@ function entryPage(e, indexable, live = []) {
     );
   } else {
     if (limited) {
-      steps.push(`<a href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve a copy on Discord</a>. ` +
+      steps.push(`<a href="${esc(safeReserve(limited.reserveUrl))}" rel="noopener">Reserve a copy on Discord</a>. ` +
         `Discord verifies your account and sends you a personal access code.`);
     } else if (locked) {
+      steps.push(`<a href="${SUPPORT}" target="_blank" rel="noopener">Become a supporter</a>, 5 USD a month, ` +
+        `and you get a personal code.`);
       steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and unlock it with your ` +
-        `supporter code. One code unlocks it on up to three machines.`);
+        `code. One code unlocks it on up to three machines.`);
     } else {
       steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and press Copy code.`);
     }
     steps.push(`In Xenon, open <b>Settings → Widgets &amp; sharing → Import</b> and paste the code.`);
     steps.push(`Xenon shows you what the code contains before anything is applied. Confirm, and ` +
-      `${esc(e.name)} is on your dashboard.`);
+      `${esc(e.name)} is in Xenon.`);
     steps.push(e.appVersionMin
       ? `This one needs <a href="/">Xenon ${esc(e.appVersionMin)} or later</a>. An older install ` +
         `refuses the code rather than importing half of it.`
-      : `Do not have Xenon yet? <a href="/">It is free</a>, with its source on GitHub, for Windows, macOS and Linux.`);
+      : `Do not have Xenon yet? <a href="/">It is free</a>, with its source on GitHub, for Windows, with macOS and Linux in beta.`);
   }
 
   // A plain facts table. Every row is a field the catalog already carries, and
@@ -421,25 +456,25 @@ function entryPage(e, indexable, live = []) {
   // the interactive catalog and clicking through.
   const facts = [['Type', esc(kindLabel)]];
   if (catLabel) facts.push(['Category', esc(catLabel)]);
-  facts.push(['Made by', `<a href="/creators/${creatorSlug(e.author)}/">${esc(e.author)}</a>` + (e.authorSupporter ? ' (supporter)' : '')]);
+  facts.push(['Made by', `<a href="/creators/${creatorSlug(e.author)}/">${esc(authorName(e.author))}</a>` + (isSupporter(e) ? ' (supporter)' : '')]);
   if (e.version) facts.push(['Version', 'v' + esc(e.version)]);
   facts.push(['Needs', e.appVersionMin ? `Xenon ${esc(e.appVersionMin)} or later` : 'Any recent Xenon']);
-  facts.push(['Runs on', 'Windows, macOS and Linux, on a second monitor, a Xeneon Edge, ' +
+  facts.push(['Runs on', 'Windows, with macOS and Linux in beta, on any screen: a monitor, a Xeneon Edge, ' +
     'a tablet or a paired phone']);
-  facts.push(['Price', limited ? 'Reserved on Discord' : locked ? 'Supporters' : 'Free']);
+  facts.push(['Price', limited ? 'Reserved on Discord' : locked ? 'Included for supporters, 5 USD a month' : 'Free']);
   if (published) facts.push(['Added', esc(published)]);
   if (modified && modified !== published) facts.push(['Updated', esc(modified)]);
+  if (Array.isArray(e.tags) && e.tags.length) facts.push(['Tags', e.tags.map((t) => '#' + esc(t)).join(' ')]);
 
   const related = relatedFor(e, live);
   const relatedBlock = related.length
-    ? `<section class="sec"><h2>More from the catalog</h2>
-      <div class="rel">
-${related.map((o) =>
-      `        <a href="/catalog/${encodeURIComponent(o.id)}/"><span class="n">${esc(o.name)}</span>` +
-      `<span class="k">${esc(KIND_LABEL[o.kind] || o.kind)}</span></a>`).join('\n')}
-      </div>
-      <p class="note"><a href="/catalog/">See all community items →</a></p>
-    </section>`
+    ? `<section class="pg-body ent-more" aria-labelledby="more-h">
+  <h2 id="more-h">More from the catalog</h2>
+  <div class="cr-grid">
+${related.map((o) => itemCard(o)).join('\n')}
+  </div>
+  <p class="note"><a href="/catalog/">See all community items</a></p>
+</section>`
     : '';
 
   return `<!DOCTYPE html>
@@ -453,15 +488,12 @@ ${related.map((o) =>
 <meta name="robots" content="${indexable
     ? 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
     : 'noindex, follow'}">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${SHEET_BAR[sheet]}">
 <link rel="icon" type="image/png" href="/images/favicon.png">
 
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <script src="/chrome.js" defer></script>
 
@@ -472,66 +504,65 @@ ${related.map((o) =>
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${esc(image)}">
-<meta property="og:image:alt" content="${esc(e.name)} running in the Xenon dashboard">
+<meta property="og:image:alt" content="${esc(e.name)} running in Xenon">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">
 
 <link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
-<style>${PAGE_CSS}</style>
-<!-- AFTER the inline block on purpose: /site.css owns the palette, the type and
-     the motion for the whole site, and later wins. Without this line these 47
-     pages are the only place the pre-PANEL design is still on the internet, one
-     click from the catalog that links them. -->
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>${PAGE_CSS}</style>
 <script type="application/ld+json">
 ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </script>
 </head>
-<body>
+<body data-sheet="${sheet}">
 
 ${headerHtml()}
 
-<div class="wrap">
-  <nav class="crumb" aria-label="Breadcrumb">
-    <a href="/">Xenon</a> / <a href="/catalog/">Community catalog</a> / ${esc(e.name)}
-  </nav>
+<main>
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w${firstShot ? ' wide' : ''}">
+    <div class="pg-copy">
+      <nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/catalog/">Catalog</a></li><li><a href="/catalog/${encodeURIComponent(e.id)}/" aria-current="page">${esc(e.name)}</a></li></ol></nav>
+      <h1 id="pg-h">${esc(e.name)}</h1>
+      <p class="lede">${esc(what)}, by <a href="/creators/${creatorSlug(e.author)}/">${esc(authorName(e.author))}</a></p>
+      <div class="pg-act">${buttons}</div>
+      <p class="updated">${note}</p>
+    </div>
+    ${firstShot ? `<figure class="pg-pic ent-pic">${firstShot}</figure>` : BIT}
+  </div>
+</section>
 
-  <main>
-    <p class="tier${tier ? ' ' + tier : ''}">${esc(tierText)}</p>
-    <h1>${esc(e.name)}</h1>
-    <p class="by">${esc(kindLabel)} for the Xenon dashboard, by <a href="/creators/${creatorSlug(e.author)}/"><b>${esc(e.author)}</b></a></p>
-    ${chips.length ? `<div class="meta">${chips.map((c) => `<span class="chip">${c}</span>`).join('')}</div>` : ''}
-    ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
-    ${shotTags.length ? `<div class="shots">${shotTags.join('')}</div>` : ''}
-    ${e.changelog ? `<section class="sec"><h2>What's in it</h2><p>${esc(e.changelog)}</p></section>` : ''}
-    ${KIND_BLURB[e.kind]
-      ? `<section class="sec"><h2>What a ${esc(kindLabel.toLowerCase())} does</h2><p>${KIND_BLURB[e.kind]}</p></section>`
-      : ''}
-    ${swatches ? `<section class="sec"><h2>Palette</h2><div class="sw">${swatches}</div></section>` : ''}
-    ${Array.isArray(e.tags) && e.tags.length
-      ? `<section class="sec"><h2>Tags</h2><div class="tags">${e.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div></section>`
-      : ''}
+<div class="pg-body ent">
+  <div class="ent-main">
+    ${e.description ? `<div class="desc">${descHtml(e.description)}</div>` : ''}
     ${e.perfWarning
       ? `<p class="note">This one asks a little more of the machine than most, which is worth knowing before you load it onto a small screen.</p>`
       : ''}
-    <div class="cta">${buttons}</div>
-    <p class="note">${note}</p>
+    ${moreShots.length ? `<div class="shots">${moreShots.join('')}</div>` : ''}
+    ${e.changelog ? `<section><h2>What's in it</h2><p>${esc(e.changelog)}</p></section>` : ''}
+    ${KIND_BLURB[e.kind]
+      ? `<section><h2>What a ${esc(kindLabel.toLowerCase())} does</h2><p>${KIND_BLURB[e.kind]}</p></section>`
+      : ''}
+    ${swatches ? `<section><h2>Palette</h2><div class="sw">${swatches}</div></section>` : ''}
     ${steps.length
-      ? `<section class="sec"><h2>How to install it</h2><ol class="steps">` +
+      ? `<section><h2>How to install it</h2><ol>` +
         steps.map((s) => `<li>${s}</li>`).join('') + `</ol></section>`
       : ''}
-    <section class="sec"><h2>At a glance</h2>
-      <ul class="facts">
-${facts.map(([k, v]) => `        <li><b>${k}</b><span>${v}</span></li>`).join('\n')}
-      </ul>
-    </section>
-    ${relatedBlock}
-  </main>
+  </div>
+  <aside class="ent-side" aria-labelledby="ent-facts">
+    <h2 id="ent-facts">At a glance</h2>
+    <ul class="facts">
+${facts.map(([k, v]) => `      <li><b>${k}</b><span>${v}</span></li>`).join('\n')}
+    </ul>
+  </aside>
 </div>
+${relatedBlock}
+</main>
 
-${modified ? `<p class="wrap updated">Updated ${esc(modified)}</p>` : ''}
 ${footerHtml()}
 
 </body>
@@ -554,6 +585,11 @@ function creatorSlug(author) {
   return String(author || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
 
+// The project signs its own packs in two spellings, and does not support itself.
+const OWN_SLUG = 'xenon';
+const authorName = (author) => (creatorSlug(author) === OWN_SLUG ? 'Xenon' : author);
+const isSupporter = (e) => e.authorSupporter === true && creatorSlug(e.author) !== OWN_SLUG;
+
 // Group live entries by creator. Author strings vary in case ("xenon" and
 // "Xenon" are one person); the slug decides identity and the most-used spelling
 // is the one shown.
@@ -569,8 +605,8 @@ function creators(live) {
   }
   return [...groups.values()].map((g) => ({
     slug: g.slug,
-    name: [...g.names.entries()].sort((a, b) => b[1] - a[1])[0][0],
-    supporter: g.entries.some((e) => e.authorSupporter === true),
+    name: authorName([...g.names.entries()].sort((a, b) => b[1] - a[1])[0][0]),
+    supporter: g.entries.some(isSupporter),
     entries: g.entries,
   })).sort((a, b) => b.entries.length - a.entries.length || a.name.localeCompare(b.name));
 }
@@ -579,14 +615,16 @@ function creatorPage(c) {
   const url = `${SITE}/creators/${c.slug}/`;
   const n = c.entries.length;
   const kinds = [...new Set(c.entries.map((e) => KIND_LABEL[e.kind] || e.kind))];
-  const title = `${c.name} on Xenon: ${n} ${n === 1 ? 'creation' : 'creations'} for the dashboard`;
+  const count = `${n} ${n === 1 ? 'creation' : 'creations'}`;
+  const fullTitle = `${c.name} on Xenon: ${count} you can install`;
+  const title = fullTitle.length > LIMITS.title ? `${c.name} on Xenon: ${count}` : fullTitle;
   const description = clamp(
-    `${n === 1 ? 'One creation' : n + ' creations'} by ${c.name} for the Xenon dashboard: ` +
+    `${n === 1 ? 'One creation' : n + ' creations'} by ${c.name} for Xenon: ` +
     kinds.map((k) => k.toLowerCase()).join(', ') + '. Install any of them into your own Xenon in one paste.'
   );
   const image = (() => {
     const withShot = c.entries.find((e) => Number.isInteger(e.shots) && e.shots > 0);
-    return withShot ? shotUrl(withShot.id, 1) : `${SITE}/images/overview.png`;
+    return withShot ? shotUrl(withShot.id, 1) : `${SITE}/images/home/og-card.png`;
   })();
   const ids = c.entries.map((e) => e.id);
 
@@ -623,33 +661,10 @@ function creatorPage(c) {
     },
   ];
 
-  const cards = c.entries.map((e, i) => {
-    const kindLabel = KIND_LABEL[e.kind] || e.kind;
-    const locked = e.locked === true || e.supportersOnly === true;
-    const desc = e.description ? clamp(e.description, 140) : '';
-    const shots = Number.isInteger(e.shots) ? e.shots : 0;
-
-    // The first shot, webp then png then gone — the same two-step the catalog
-    // does at runtime. The box keeps its 16/9 whether or not the image lands,
-    // so a missing screenshot leaves a tinted rectangle instead of collapsing
-    // the card and reflowing the grid under the reader's cursor. The first two
-    // load eagerly because they are above the fold on a phone; the rest wait.
-    const thumb = shots > 0
-      ? `<img src="${esc(shotUrl(e.id, 1))}" alt="${esc(e.name)} running in Xenon"` +
-        ` loading="${i < 2 ? 'eager' : 'lazy'}" decoding="async"` +
-        ` onerror="this.onerror=function(){this.style.display='none'};this.src='${esc(shotUrl(e.id, 1, 'png'))}'">`
-      : '';
-
-    return `      <a class="cr-card" href="/catalog/${encodeURIComponent(e.id)}/">
-        <span class="cr-shot">${thumb}</span>
-        <span class="cr-body">
-          <span class="cr-k">${esc(kindLabel)}${locked ? ' · supporters' : ''}</span>
-          <span class="cr-n">${esc(e.name)}</span>
-          ${desc ? `<span class="cr-d">${esc(desc)}</span>` : ''}
-          <span class="cr-live"><span data-iid="${esc(e.id)}"></span><span data-rid="${esc(e.id)}"></span></span>
-        </span>
-      </a>`;
-  }).join('\n');
+  // Pictures first, so an entry without one never opens a row. The first two load eagerly
+  // because they are above the fold on a phone; the rest wait.
+  const cards = [...c.entries].sort((a, b) => (b.shots > 0) - (a.shots > 0))
+    .map((e, i) => itemCard(e, { eager: i < 2, full: true })).join('\n');
 
   return `<!DOCTYPE html>
 <!-- generated: creator page (tools/build-seo.mjs) — do not edit by hand -->
@@ -661,12 +676,9 @@ function creatorPage(c) {
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(url)}">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${SHEET_BAR.violet}">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
-<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
-<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
 <script src="/theme.js" defer></script>
 <script src="/chrome.js" defer></script>
 <meta property="og:type" content="profile">
@@ -681,56 +693,48 @@ function creatorPage(c) {
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">
 <link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
-<style>${PAGE_CSS}
-.cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
-.cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
-.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
-.cr-card:hover{border-color:var(--green)}
-.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
-.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
-.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
-.cr-k{font-size:15px;font-weight:700;color:var(--muted)}
-.cr-n{font-weight:600;font-size:16px}
-.cr-d{font-size:15px;color:var(--muted);line-height:1.45}
-.cr-live{display:flex;gap:12px;margin-top:6px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:1.2em}
-.cr-own{margin-top:30px;padding:16px 18px;border-left:2px solid var(--green);color:var(--muted);font-size:14.5px}
-</style>
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>${PAGE_CSS}</style>
 <script type="application/ld+json">
 ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </script>
 </head>
-<body>
+<body data-sheet="violet">
 
 ${headerHtml()}
 
-<div class="wrap">
-  <nav class="crumb" aria-label="Breadcrumb">
-    <a href="/">Xenon</a> / <a href="/catalog/">Community catalog</a> / ${esc(c.name)}
-  </nav>
-
-  <main>
-    <p class="tier">Creator${c.supporter ? ' · supporter' : ''}</p>
-    <h1>${esc(c.name)}</h1>
-    <p class="by">${n === 1 ? 'One creation' : n + ' creations'} for the Xenon dashboard: ${esc(kinds.join(', ').toLowerCase())}.</p>
-
-    <div class="cr-sum">
-      <div><b id="cr-installs">…</b>installs, reported by the people who chose to count</div>
-      <div><b id="cr-rating">…</b>average rating</div>
-      <div><b>${n}</b>in the catalog</div>
+<main>
+<section class="pg" aria-labelledby="pg-h">
+  <div class="pg-w">
+    <div class="pg-copy">
+      <nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/catalog/">Catalog</a></li><li><a href="/creators/${c.slug}/" aria-current="page">${esc(c.name)}</a></li></ol></nav>
+      <h1 id="pg-h">${esc(c.name)}</h1>
+      <p class="lede">${n === 1 ? 'One creation' : n + ' creations'} for Xenon: ${esc(kinds.join(', ').toLowerCase())}.${c.supporter ? ` ${esc(c.name)} supports Xenon.` : ''}</p>
+      <div class="cr-sum">
+        <div><b id="cr-installs">…</b>installs, reported by the people who chose to count</div>
+        <div><b id="cr-rating">…</b>average rating</div>
+        <div><b>${n}</b>in the catalog</div>
+      </div>
     </div>
+    ${BIT}
+  </div>
+</section>
 
-    <div class="cr-grid">
+<div class="pg-body">
+  <div class="cr-grid">
 ${cards}
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h2>Made these?</h2>
+      <p>This page is yours to link. It is what people find when they search your name next to Xenon, and the numbers on it are live.</p>
+      <p>To publish something new, <a href="/submit/">the submission form</a> takes a share code and two or three screenshots.</p>
     </div>
-
-    <p class="cr-own">Made these? This page is yours to link. It is what people find when they search your name next to Xenon, and the numbers on it are live.
-      Want to publish something new? <a href="/submit/">The submission form</a> takes a share code and up to three screenshots.</p>
-
-    <p class="note"><a href="/catalog/">See everything in the catalog →</a></p>
-  </main>
+    <p class="note"><a href="/catalog/">See everything in the catalog</a></p>
+  </div>
 </div>
+</main>
 
 ${footerHtml()}
 
@@ -802,7 +806,7 @@ function catalogGraph(live) {
         '@id': `${SITE}/catalog/#catalog`,
         url: `${SITE}/catalog/`,
         name: 'Xenon community catalog',
-        description: 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, ' +
+        description: 'Themes, animated backgrounds, pages, Deck profiles, widgets, ' +
           'ambient scenes and full packages made and shared by the Xenon community.',
         inLanguage: 'en',
         isPartOf: { '@id': `${SITE}/#website` },
@@ -867,6 +871,7 @@ const STATIC_ROUTES = [
   // the app's users and had no findable page at all until these existed.
   { loc: '/es/', file: 'docs/es/index.html', priority: '0.9', changefreq: 'weekly' },
   { loc: '/it/', file: 'docs/it/index.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/fr/', file: 'docs/fr/index.html', priority: '0.9', changefreq: 'weekly' },
   { loc: '/ko/', file: 'docs/ko/index.html', priority: '0.8', changefreq: 'weekly' },
   { loc: '/ja/', file: 'docs/ja/index.html', priority: '0.8', changefreq: 'weekly' },
   { loc: '/zh/', file: 'docs/zh/index.html', priority: '0.8', changefreq: 'weekly' },
@@ -888,6 +893,9 @@ const STATIC_ROUTES = [
   // people who found an unfamiliar process and want a straight answer, which the
   // home page is the wrong shape to give them.
   { loc: '/xenon-exe.html', file: 'docs/xenon-exe.html', priority: '0.7', changefreq: 'monthly' },
+  // The driver Xenon installs for temperatures: people meet the name in an
+  // installer prompt, a driver list or an anti-cheat message and search it.
+  { loc: '/pawnio.html', file: 'docs/pawnio.html', priority: '0.6', changefreq: 'monthly' },
   // "xenon download" and "xenon linux": 74 impressions in Search Console and
   // no clicks, because the home page's title carried neither word.
   { loc: '/download.html', file: 'docs/download.html', priority: '0.9', changefreq: 'weekly' },
@@ -906,6 +914,12 @@ const STATIC_ROUTES = [
   { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/codex.html', file: 'docs/codex.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
+  // Xenon without a second monitor: widgets on the desktop, the game overlay, capture.
+  { loc: '/single-screen.html', file: 'docs/single-screen.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/fps-overlay.html', file: 'docs/fps-overlay.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/screen-recorder.html', file: 'docs/screen-recorder.html', priority: '0.8', changefreq: 'monthly' },
+  // What is new in 5.0, one sheet per new thing.
+  { loc: '/5.html', file: 'docs/5.html', priority: '0.8', changefreq: 'monthly' },
 ];
 
 // Every page published in several languages lists all of them, each URL
@@ -957,8 +971,7 @@ function main() {
   const now = Date.now();
 
   const pageOf = (loc) => {
-    const m = /^\/(?:(es|it|ja|ko|zh)\/)?(.*)$/.exec(loc);
-    const file = m ? m[2] : '';
+    const file = loc.replace(new RegExp(`^/(?:(?:${HOME_LANGS.join('|')})/)?`), '');
     return file === '' ? 'index.html' : file;
   };
   const urls = STATIC_ROUTES.concat(languageRoutes()).map((r) => ({
@@ -1004,7 +1017,7 @@ function main() {
   for (const { e, isLive } of usable) {
     const dir = path.join(DOCS, 'catalog', e.id);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'index.html'), entryPage(e, isLive, live));
+    fs.writeFileSync(path.join(dir, 'index.html'), noBlankIndent(entryPage(e, isLive, live)));
   }
 
   // An entry pulled from catalog.json leaves a page behind that says something
@@ -1030,7 +1043,7 @@ function main() {
   for (const c of made) {
     const dir = path.join(creatorsDir, c.slug);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'index.html'), creatorPage(c));
+    fs.writeFileSync(path.join(dir, 'index.html'), noBlankIndent(creatorPage(c)));
     keep.add(c.slug);
     urls.push({ loc: `/creators/${c.slug}/`, lastmod: '', changefreq: 'monthly', priority: '0.5' });
   }

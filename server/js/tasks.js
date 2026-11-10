@@ -1,52 +1,84 @@
 'use strict';
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
-const RECURRENCE_MS = { daily: 86_400_000, weekly: 7 * 86_400_000 };
 
 // ── Persistence ────────────────────────────────────────────────
+//
+// Each tap sends one edit, applied by the server to the list it has
+// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// list the server broadcasts. Repeating tasks reopen on the server's clock.
+
+let _tasksLoaded = false;
+let _tasksLoadRetry = null;
+let _tasksSyncInst = null;
+// The number of the newest list shown (the server's `seq`, higher for every
+// write), and a broadcast that arrived while an edit was on its way, held
+// until that edit's answer says which of the two is newer.
+let _tasksSeq = 0;
+let _tasksHeld = null;
+function _tasksSync() {
+  if (!_tasksSyncInst) {
+    _tasksSyncInst = window.ListSync.create({
+      url: '/tasks',
+      listKey: 'tasks',
+      onList: (list, answer) => {
+        const held = _tasksHeld;
+        _tasksHeld = null;
+        if (!list) { loadTasks(); return; }   // the edit was refused: show what is saved
+        const seq = (answer && Number(answer.seq)) || 0;
+        if (held && held.seq > seq) _showTasks(held.list, held.seq);
+        else _showTasks(list, seq);
+      },
+    });
+  }
+  return _tasksSyncInst;
+}
+
+// Show a list unless a newer one is already on screen. A list without a
+// number (an older server) is always shown.
+function _showTasks(list, seq) {
+  if (seq && seq < _tasksSeq) return;
+  if (seq) _tasksSeq = seq;
+  tasksData = list;
+  _tasksLoaded = true;
+  renderTasks();
+}
 
 async function loadTasks() {
   try {
     const res = await fetch('/tasks');
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
-    tasksData = Array.isArray(data.tasks) ? data.tasks : [];
-    if (checkTaskRecurrence()) await saveTasks();
-    renderTasks();
+    _tasksLoaded = true;
+    // An edit still on its way would be undone on screen by this list; its
+    // own answer brings the list in a moment.
+    if (!(_tasksSyncInst && _tasksSyncInst.busy())) _showTasks(Array.isArray(data.tasks) ? data.tasks : [], Number(data.seq) || 0);
+    else renderTasks();
   } catch {
     renderTasks();
+    // Keep asking until the list arrives. An edit made meanwhile is safe: it
+    // goes to the list on the PC, never over it.
+    if (!_tasksLoaded && !_tasksLoadRetry) {
+      _tasksLoadRetry = setTimeout(() => { _tasksLoadRetry = null; if (!_tasksLoaded) loadTasks(); }, 5000);
+    }
   }
   syncTasksWidgetPlacement();
 }
 
-async function saveTasks() {
-  try {
-    await fetch('/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: tasksData }),
-    });
-  } catch { /* non-critical — next save will retry */ }
+// The list another screen, a phone, a Deck key or the assistant just saved
+// (the `tasks` event, with its `seq`).
+function applyServerTasks(list, seq) {
+  if (!Array.isArray(list)) return;
+  const n = Number(seq) || 0;
+  if (_tasksSyncInst && _tasksSyncInst.busy()) {
+    if (!_tasksHeld || n >= _tasksHeld.seq) _tasksHeld = { list, seq: n };
+    return;
+  }
+  _showTasks(list, n);
 }
 
-// ── Recurrence ────────────────────────────────────────────────
-
-function checkTaskRecurrence() {
-  const now = Date.now();
-  let changed = false;
-  for (const task of tasksData) {
-    if (!task.completed || !task.completedAt) continue;
-    let interval = 0;
-    if (task.recurrence === 'daily') interval = RECURRENCE_MS.daily;
-    else if (task.recurrence === 'weekly') interval = RECURRENCE_MS.weekly;
-    else if (task.recurrence === 'custom') interval = (task.recurrenceDays || 1) * RECURRENCE_MS.daily;
-    if (interval > 0 && now - new Date(task.completedAt).getTime() >= interval) {
-      task.completed = false;
-      task.completedAt = null;
-      changed = true;
-    }
-  }
-  return changed;
+function sendTaskEdit(op) {
+  return _tasksSync().send(op);
 }
 
 // ── Render ─────────────────────────────────────────────────────
@@ -150,33 +182,33 @@ function recurrenceBadgeLabel(task) {
 
 // ── Actions ────────────────────────────────────────────────────
 
-async function tickTask(id) {
+function tickTask(id) {
   const task = tasksData.find(t => t.id === id);
   if (!task) return;
   task.completed = true;
   task.completedAt = new Date().toISOString();
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'update', id, patch: { completed: true, completedAt: task.completedAt } });
 }
 
-async function undoTask(id) {
+function undoTask(id) {
   const task = tasksData.find(t => t.id === id);
   if (!task) return;
   task.completed = false;
   task.completedAt = null;
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'update', id, patch: { completed: false, completedAt: null } });
 }
 
-async function deleteTask(id) {
+function deleteTask(id) {
   const idx = tasksData.findIndex(t => t.id === id);
   if (idx === -1) return;
   tasksData.splice(idx, 1);
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'delete', id });
 }
 
-async function addTask() {
+function addTask() {
   const input = document.getElementById('tasks-new-input');
   const prioritySel = document.getElementById('tasks-priority-select');
   const recurSel = document.getElementById('tasks-recur-select');
@@ -206,7 +238,7 @@ async function addTask() {
   input.value = '';
   onTaskRecurrenceChange();
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'add', item: task });
 }
 
 // ── Input helpers ──────────────────────────────────────────────
@@ -221,7 +253,10 @@ function onTaskInput(e) {
  */
 function syncTasksWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.tasks ? layout.widgets.tasks.visible : false;
+  // No dashboard layout (a light layer page): that page places the tabs itself
+  // (layer-lite-tiles.js), and loadTasks() must not move them back.
+  if (!layout) return;
+  const visible = layout.widgets.tasks ? layout.widgets.tasks.visible : false;
 
   const calPane = document.getElementById('cal-pane-tasks');
   const standalone = document.querySelector('[data-dashboard-widget="tasks"]:not([data-dashboard-instance])');
@@ -247,7 +282,8 @@ function syncTasksWidgetPlacement() {
 // standalone notes panel and the tab button hides.
 function syncNotesWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.notes ? layout.widgets.notes.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.notes ? layout.widgets.notes.visible : false;
 
   const calPane = document.getElementById('cal-pane-notes');
   const standalone = document.querySelector('[data-dashboard-widget="notes"]:not([data-dashboard-instance])');
@@ -265,24 +301,14 @@ function syncNotesWidgetPlacement() {
   }
 }
 
-// First agenda tab still living inside the hub (its widget isn't extracted).
-// Maps 1:1 to the calendar/tasks/timer/notes widget ids. Used to choose a
-// sensible active tab after an item is pulled out or put back.
-function firstInHubAgendaTab() {
-  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  if (!layout) return 'calendar';
-  const inHub = ['calendar', 'tasks', 'timer', 'notes']
-    .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
-  return inHub[0] || null;
-}
-
 // Calendar lives as the "Calendario" tab inside the Agenda hub by default; when
 // extracted (calendar widget visible) its content moves into the standalone
 // calendar panel and the tab button hides. The active-tab fallback is handled
 // centrally by applyDashboardCalendarTabs.
 function syncCalendarWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.calendar ? layout.widgets.calendar.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.calendar ? layout.widgets.calendar.visible : false;
 
   const calPane = document.getElementById('cal-pane-calendar');
   const standalone = document.querySelector('[data-dashboard-widget="calendar"]:not([data-dashboard-instance])');
@@ -303,7 +329,8 @@ function syncCalendarWidgetPlacement() {
 // syncCalendarWidgetPlacement for the timer widget.
 function syncTimerWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.timer ? layout.widgets.timer.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.timer ? layout.widgets.timer.visible : false;
 
   const calPane = document.getElementById('cal-pane-timer');
   const standalone = document.querySelector('[data-dashboard-widget="timer"]:not([data-dashboard-instance])');

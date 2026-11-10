@@ -147,3 +147,16 @@ test('the hand-off happens once and only from a non-resumed run', () => {
   assert.ok(PS1.indexOf('$handoff = Invoke-UpdaterHandoff') < PS1.indexOf('end of the steps a resumed run skips'),
     'the call is inside the non-resumed branch');
 });
+
+// A run handed over from 4.11.x stopped the engine with that version's Stop-Server,
+// which keyed on `-State Listen`: on Windows 11 build 26300 the state of the same
+// listener reads Listen, Closed or FinWait1 from one call to the next (measured
+// 10 Nov 2026 updating 4.11.13 to 5.0.0-rc.1), so the old engine could still hold
+// the port and koffi's native module. This version stops it again, its own way,
+// before npm and before the new engine starts, on both paths.
+test('the engine is stopped again before npm, after the hand-off branch', () => {
+  const after = PS1.slice(PS1.indexOf('end of the steps a resumed run skips'), PS1.indexOf("$script:phase = 'npm_install'"));
+  assert.match(code(after), /^\s*Stop-Server\s*$/m, 'Stop-Server runs between the branch and npm');
+  const stop = PS1.match(/function Stop-Server \{[\s\S]*?\n\}/)[0];
+  assert.match(stop, /-RemotePort 0/, 'with the listener found by RemotePort 0');
+});

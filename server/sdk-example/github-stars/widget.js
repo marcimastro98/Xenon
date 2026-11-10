@@ -136,7 +136,7 @@
       text: fmtCount(count),
       icon: '★',
       color: STAR_GOLD,
-      tooltip: repo + ' — GitHub stars',
+      tooltip: repo + ' · GitHub stars',
     });
   }
 

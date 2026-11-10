@@ -94,3 +94,25 @@ test('createBatteryMonitor: merges live sources and sorts by name', async () => 
   assert.equal(out.sources.corsair, true);
   assert.equal(out.sources.bluetooth, true);
 });
+
+test('the PC pack from power/ shows where battery.ps1 cannot run, never twice on Windows', async () => {
+  const lighting = { getBatteryLevels: async () => ({ ok: false }) };
+  const pack = async () => ({ percent: 64, plugged: true, charging: false, minutesLeft: null });
+  // macOS/Linux: no PowerShell, the PC pack comes from power/.
+  const posix = createBatteryMonitor({ runScript: async () => { throw new Error('no pwsh'); }, lighting, systemBattery: pack });
+  const a = await posix.getDevices();
+  assert.deepEqual(a.devices, [{ id: 'battery', name: 'Battery', percent: 64, charging: true, source: 'system' }]);
+  // Windows: battery.ps1 already reported the pack, power/ is not asked.
+  let asked = 0;
+  const win = createBatteryMonitor({
+    runScript: async () => ({ devices: [{ name: 'Internal battery', percent: 70, charging: false, type: 'system' }] }),
+    lighting,
+    systemBattery: async () => { asked++; return { percent: 70, plugged: false }; },
+  });
+  const b = await win.getDevices();
+  assert.equal(asked, 0);
+  assert.deepEqual(b.devices.map((d) => d.name), ['Internal battery']);
+  // A desktop: no pack anywhere.
+  const desk = createBatteryMonitor({ runScript: async () => ({ devices: [] }), lighting, systemBattery: async () => null });
+  assert.deepEqual((await desk.getDevices()).devices, []);
+});

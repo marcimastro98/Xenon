@@ -51,7 +51,7 @@
    that does not exist. */
 .tww-cards {
   flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
-  overflow-y: auto; overscroll-behavior: contain;
+  overflow-y: auto; overscroll-behavior-y: contain;
 }
 .tww-cards::-webkit-scrollbar { width: 6px; }
 .tww-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
@@ -103,6 +103,8 @@ body.layout-editing .tww-card--player.is-vacant { display: flex; }
 .tww-now { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .tww-now-title { font-size: 0.86rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tww-now-sub { font-size: 0.7rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Game, title and viewers are separate spans (setWordParts); a dot sets them apart here, space or a line on Liquid. */
+:root:not([data-style="liquid"]) :is(.tww-now-sub, .tww-row-sub) > span + span::before { content: '\00a0· '; }
 
 .tww-transport { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; }
 .tww-ib {
@@ -213,7 +215,7 @@ body.layout-editing .tww-card--player.is-vacant { display: flex; }
    two or three under a picture or across an idle tile, so a wide tile shows more
    channels instead of stretching three rows across empty space. */
 .tww-list {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   align-content: start; gap: 6px;
 }
@@ -299,7 +301,7 @@ body.layout-editing .tww-card--chat.is-empty { display: flex; flex: 0 0 auto; mi
    for the conversation. */
 .tww-chat-log {
   flex: 1 1 auto; width: 100%; min-height: 0;
-  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
   display: flex; flex-direction: column; gap: 4px; padding-right: 4px;
   font-size: 0.8rem; line-height: 1.4; scrollbar-width: thin;
 }
@@ -309,7 +311,12 @@ body.layout-editing .tww-card--chat.is-empty { display: flex; flex: 0 0 auto; mi
    them at the top of an empty box. */
 .tww-chat-log > :first-child { margin-top: auto; }
 .tww-chat-line { word-break: break-word; flex: 0 0 auto; }
-.tww-chat-user { font-weight: 800; color: #a970ff; }
+.tww-chat-user { font-weight: 800; color: var(--name, #a970ff); }
+/* The colour a viewer chose was picked against Twitch's dark chat. On a light surface
+   it keeps its hue and only loses lightness, as Twitch's own readable colours do. */
+@supports (color: oklch(from red l c h)) {
+  :root[data-appearance="light"] .tww-chat-user { color: oklch(from var(--name, #a970ff) min(l, 0.5) c h); }
+}
 .tww-chat-text { color: var(--text, #e7e9ee); opacity: 0.92; }
 
 /* Writing. The reader above is an anonymous socket and cannot speak, so this
@@ -500,7 +507,7 @@ body.tww-expanded .tww-tile-expanded {
 .tww-emopick.is-open {
   display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
   position: absolute; left: 8px; right: 8px; bottom: 54px; z-index: 3;
-  max-height: 190px; overflow-y: auto; overscroll-behavior: contain;
+  max-height: 190px; overflow-y: auto; overscroll-behavior-y: contain;
   padding: 8px; border-radius: 12px;
   background: rgba(10,10,14,0.96); border: 1px solid rgba(255,255,255,0.1);
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);

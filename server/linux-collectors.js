@@ -28,9 +28,11 @@
 const { execFile } = require('child_process');
 const fsp = require('fs').promises;
 const os = require('os');
+const { createAppIcons } = require('./linux-app-icons.js');
 // Shared with darwin-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
+const { parsePingCounts, countsFromFailure } = require('./packet-loss');
 
 // --- Memory: /proc/meminfo, because os.freemem() means something else here ---
 // os.freemem() is MemFree, which excludes the page cache the kernel would hand
@@ -275,20 +277,33 @@ async function sysfsGpu() {
   return best;
 }
 
-async function gpu() {
+// A PC with no NVIDIA driver has no nvidia-smi. Remembered for a while, so an AMD or
+// Intel machine does not try the spawn at every sensor read.
+const NVIDIA_SMI_RETRY_MS = 5 * 60 * 1000;
+let nvidiaSmiMissingAt = 0;
+
+async function nvidiaGpu() {
+  if (Date.now() - nvidiaSmiMissingAt < NVIDIA_SMI_RETRY_MS) return null;
   try {
     return parseGpu(await run('nvidia-smi',
       ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.gr,clocks.mem,name',
        '--format=csv,noheader,nounits'], 5000));
-  } catch {
-    // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
-    // files, which is the whole AMD story and half of the Intel one.
-    try {
-      const fromSysfs = await sysfsGpu();
-      if (fromSysfs) return fromSysfs;
-    } catch { /* fall through to empty */ }
-    return { ...EMPTY_GPU };
+  } catch (err) {
+    if (err && err.code === 'ENOENT') nvidiaSmiMissingAt = Date.now();
+    return null;
   }
+}
+
+async function gpu() {
+  const nvidia = await nvidiaGpu();
+  if (nvidia) return nvidia;
+  // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
+  // files, which is the whole AMD story and half of the Intel one.
+  try {
+    const fromSysfs = await sysfsGpu();
+    if (fromSysfs) return fromSysfs;
+  } catch { /* fall through to empty */ }
+  return { ...EMPTY_GPU };
 }
 
 // --- Disks: df, matching getAllDisksInfo()'s drive object shape --------------
@@ -323,7 +338,7 @@ function parseDisks(out) {
     const c = line.trim().split(/\s+/);
     if (c.length < 6) continue;
     // Parse from BOTH ends, never by fixed index. `df` prints the mount point
-    // with its literal spaces, so a drive at /media/marci/My Passport shifted
+    // with its literal spaces, so a drive at /media/alex/My Passport shifted
     // every column after it: Number(c[3]) was NaN and `!(total > 0)` discarded
     // the row without a word. Source is first, the size/used/avail trio and the
     // fstype are last, and whatever sits between them IS the mount point. (A
@@ -625,12 +640,136 @@ async function cpuTemp() {
         try { label = await readText(`${dir}/temp${i}_label`); } catch { /* unlabelled */ }
         if (/Tctl|Tdie|Tccd|Package|Core 0/i.test(label) || i === 1) {
           const milli = Number(raw);
-          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, fans, cpuClockMHz };
+          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, cpuTempSource: label || `temp${i}`, fans, cpuClockMHz };
         }
       }
     }
   } catch { /* no hwmon, or unreadable */ }
   return { cpuTemp: null, fans, cpuClockMHz };
+}
+
+// --- Sensor catalog: every hwmon reading, for Settings → Sensor sources -------
+// The same shape sensors.ps1 gives on Windows ({ id, hw, hwKind, type, name,
+// value }). An id names the chip by its driver AND the device it is bound to —
+// hwmon/k10temp@0000:00:18.3/temp1 — because hwmonN is renumbered on every boot
+// and the device is not. Ids are matched against this walk only: one sent back
+// by the browser never becomes a path (see readSensors).
+const HWMON_FILE_RE = /^(temp|fan|power|freq)(\d{1,2})_(input|average)$/;
+const HWMON_TYPES = { temp: 'temperature', fan: 'fan', power: 'power', freq: 'clock' };
+const HWMON_KINDS = [
+  [/^(k10temp|coretemp|zenpower|cpu[_-]thermal)$/, 'cpu'],
+  [/^(amdgpu|radeon|nouveau|i915|xe)$/, 'gpu'],
+  [/^(nvme|drivetemp)$/, 'storage'],
+  [/^(spd5118|jc42)$/, 'memory'],
+  [/^corsairpsu$/, 'psu'],
+  [/^(nzxt|kraken|aquacomputer|corsair-cpro|d5next|octo|quadro)/, 'cooler'],
+  [/^(nct|it8|f71|w83|asus|gigabyte|dell_smm|thinkpad|applesmc|acpitz)/, 'board'],
+];
+const HWMON_CHIPS_MAX = 32;
+
+function hwmonKind(chip) {
+  for (const [re, kind] of HWMON_KINDS) if (re.test(chip)) return kind;
+  return 'other';
+}
+
+// The part of the device path that names it (a PCI address, nct6775.656,
+// nvme0), cut to the characters an id may carry.
+function hwmonDevKey(realDevicePath) {
+  const base = String(realDevicePath || '').split('/').filter(Boolean).pop() || 'virtual';
+  return base.replace(/[^A-Za-z0-9_.:+-]/g, '_').slice(0, 48);
+}
+
+// Pure: one hwmon file's reading as a catalog entry, or null. Kernel units are
+// millidegrees, RPM, microwatts and Hz; the catalog's are °C, RPM, W and MHz.
+function parseHwmonReading(chip, devKey, file, raw, label) {
+  const m = HWMON_FILE_RE.exec(file);
+  if (!m || (m[3] === 'average' && m[1] !== 'power')) return null;
+  const [, kind, idx] = m;
+  let value = isNum(raw) ? Number(raw) : null;
+  if (value !== null) {
+    if (kind === 'temp') value = value > 200 ? value / 1000 : value;   // see parseSysfsGpu
+    else if (kind === 'power' || kind === 'freq') value /= 1e6;
+    value = Math.round(value * 10) / 10;
+  }
+  return {
+    id: `hwmon/${chip}@${devKey}/${kind}${idx}`,
+    hw: chip,
+    hwKind: hwmonKind(chip),
+    type: HWMON_TYPES[kind],
+    name: String(label || '').trim() || `${kind}${idx}`,
+    value,
+  };
+}
+
+// id → where it was found in the last walk, so a read touches only the files
+// asked for. Some of these reads reach real hardware (drivetemp asks the disk),
+// which is why read mode never re-walks every chip on each tick.
+let _hwmonIndex = new Map();
+let _hwmonIndexAt = 0;
+const HWMON_INDEX_TTL_MS = 60 * 1000;
+const HWMON_REWALK_MIN_MS = 5000;
+
+async function readChipFiles(dir, chip, devKey, index, out) {
+  let files = [];
+  try { files = (await fsp.readdir(dir)).filter((f) => HWMON_FILE_RE.test(f)); } catch { return; }
+  // Every `_input` before any `_average`, so a chip offering both for one
+  // sensor keeps the live reading; then natural order (temp2 before temp10).
+  files.sort((a, b) => (a.endsWith('_average') - b.endsWith('_average')) || a.localeCompare(b, 'en', { numeric: true }));
+  for (const f of files) {
+    let raw;
+    try { raw = await readText(`${dir}/${f}`); } catch { continue; }
+    let label = '';
+    try { label = await readText(`${dir}/${f.replace(/_(input|average)$/, '')}_label`); } catch { /* unlabelled */ }
+    const e = parseHwmonReading(chip, devKey, f, raw, label);
+    if (!e || index.has(e.id)) continue;
+    index.set(e.id, { file: `${dir}/${f}`, chip, devKey, label, hw: chip });
+    out.push(e);
+  }
+}
+
+async function listSensors() {
+  const out = [];
+  const index = new Map();
+  const base = '/sys/class/hwmon';
+  let dirs = [];
+  try { dirs = (await fsp.readdir(base)).slice(0, HWMON_CHIPS_MAX); } catch { return out; }
+  for (const d of dirs) {
+    const dir = `${base}/${d}`;
+    let chip = '';
+    try { chip = (await readText(`${dir}/name`)).replace(/[^A-Za-z0-9_.+-]/g, '_').slice(0, 32); } catch { continue; }
+    if (!chip) continue;
+    let devKey = 'virtual';
+    try { devKey = hwmonDevKey(await fsp.realpath(`${dir}/device`)); } catch { /* a virtual chip has no device */ }
+    await readChipFiles(dir, chip, devKey, index, out);
+  }
+  // Two chips of one driver (two NVMe drives) carry their device in the name,
+  // so the picker can tell them apart.
+  const devices = new Map();
+  for (const meta of index.values()) devices.set(meta.chip, (devices.get(meta.chip) || new Set()).add(meta.devKey));
+  for (const e of out) {
+    const meta = index.get(e.id);
+    if (devices.get(meta.chip).size > 1) { meta.hw = `${meta.chip} ${meta.devKey}`; e.hw = meta.hw; }
+  }
+  _hwmonIndex = index;
+  _hwmonIndexAt = Date.now();
+  return out;
+}
+
+async function readSensors(ids) {
+  const wanted = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string');
+  if (!wanted.length) return [];
+  const stale = Date.now() - _hwmonIndexAt > HWMON_INDEX_TTL_MS || wanted.some((id) => !_hwmonIndex.has(id));
+  if (stale && Date.now() - _hwmonIndexAt > HWMON_REWALK_MIN_MS) await listSensors();
+  const out = [];
+  for (const id of wanted) {
+    const meta = _hwmonIndex.get(id);
+    if (!meta) continue;
+    let raw;
+    try { raw = await readText(meta.file); } catch { continue; }
+    const e = parseHwmonReading(meta.chip, meta.devKey, meta.file.split('/').pop(), raw, meta.label);
+    if (e) out.push({ ...e, hw: meta.hw });
+  }
+  return out;
 }
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----
@@ -690,6 +829,7 @@ async function readNetBytes() {
 }
 // ping's summary line gives min/avg/max/mdev; ping=avg, latency=jitter (max-min),
 // the same two numbers network.ps1 derives from its three echoes.
+const PING_ECHOES = 3;
 function parsePing(out) {
   const m = String(out || '').match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
   if (!m) return { ping: null, latency: null };
@@ -697,14 +837,15 @@ function parsePing(out) {
 }
 async function pingStats() {
   try {
-    return parsePing(await run('ping', ['-c', '3', '-W', '1', '-n', '1.1.1.1'], 5000));
-  } catch {
-    return { ping: null, latency: null };
+    const out = await run('ping', ['-c', String(PING_ECHOES), '-W', '1', '-n', '1.1.1.1'], 5000);
+    return { ...parsePing(out), counts: parsePingCounts(out) };
+  } catch (err) {
+    return { ping: null, latency: null, counts: countsFromFailure(err, PING_ECHOES) };
   }
 }
 async function network() {
-  const [{ ping, latency }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
-  return { ping, latency, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
+  const [{ ping, latency, counts }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
+  return { ping, latency, pingSent: counts ? counts.sent : 0, pingLost: counts ? counts.lost : 0, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
 }
 
 // --- Open windows / app switcher: wmctrl + xdotool (X11) --------------------
@@ -831,6 +972,8 @@ async function listRowsViaXprop() {
   return rows;
 }
 
+const appIcon = createAppIcons();
+
 async function listWindows() {
   const [raw, activeRaw] = await Promise.all([
     runX('wmctrl', ['-lp'], 5000),
@@ -867,9 +1010,10 @@ async function listWindows() {
       path: r.exe.path,
       active: r.active,
       minimized: p.minimized,
-      icon: null, // no icon extraction on Linux; the UI falls back to an initial
+      icon: null, // filled below from the app's .desktop file; a name alone when there is none
     });
   });
+  await Promise.all(windows.map(async (w) => { w.icon = await appIcon(w.app); }));
 
   // Re-sort on the final labels (WM_CLASS is nicer than the binary name), which
   // is the ordering the PowerShell path emits: active first, then app, then title.
@@ -996,6 +1140,7 @@ function parsePwDump(raw) {
       binary: p['application.process.binary'] || '',
       pid: p['application.process.id'] || '',
       mediaName: p['media.name'] || '',
+      running: info.state === 'running',
       volume,
       muted,
     };
@@ -1060,10 +1205,28 @@ function buildAudioRows(n) {
   return rows;
 }
 
+// A stopped stream is an app with its output open and no sound: paused, as on Windows.
+function markStopped(rows, outStreams) {
+  const stopped = new Set(outStreams.filter((stream) => !stream.running).map((stream) => String(stream.id)));
+  return rows.map((row) => {
+    if (row[F.TYPE] !== 'Application' || row[F.DIR] !== 'Render' || !stopped.has(row[F.CLI_ID])) return row;
+    const copy = [...row];
+    copy[F.STATE] = 'Inactive';
+    return copy;
+  });
+}
+
 // Rows are rebuilt at most this often: several dashboard surfaces can ask for
 // audio on the same tick, and each rebuild forks pw-dump.
 const AUDIO_ROWS_TTL_MS = 900;
 let audioRowsCache = { rows: null, at: 0 };
+
+// A paused player keeps its stream open and the mixer still lists it; only a running
+// stream is sound coming out.
+async function soundingRows() {
+  const nodes = await pwNodes();
+  return markStopped(buildAudioRows(nodes), nodes.outStreams);
+}
 
 async function audioRows() {
   const now = Date.now();
@@ -1257,6 +1420,65 @@ async function sendKeys(combo) {
   catch { return { ok: false, error: 'ydotool_failed' }; }
 }
 
+// --- Showing the desktop: Bit's "I'll hide your windows" (vitals-nag.js) -----
+// X11 has a standard for it: _NET_SHOWING_DESKTOP, which `wmctrl -k on` sets on
+// every EWMH window manager (GNOME, KDE, Xfce, Cinnamon, MATE…). Wayland has no
+// protocol for one app to hide the others; KDE's KWin still answers its own
+// global shortcut over D-Bus ("Show Desktop", Meta+D, src/useractions.cpp), so
+// Plasma works there too. GNOME on Wayland exposes nothing an app may call, so
+// it is the one desktop where this is not possible.
+function linuxSession(env = process.env) {
+  const wayland = !!(env.WAYLAND_DISPLAY || String(env.XDG_SESSION_TYPE || '').toLowerCase() === 'wayland');
+  const desktop = String(env.XDG_CURRENT_DESKTOP || env.DESKTOP_SESSION || '').toLowerCase();
+  return { wayland, kde: /kde|plasma/.test(desktop) };
+}
+
+// → 'wmctrl' | 'kwin' | '' (cannot here), given which tools answer.
+function pickHideTool(session, has) {
+  if (!session.wayland && has.wmctrl) return 'wmctrl';
+  if (session.kde && has.dbusSend) return 'kwin';
+  return '';
+}
+
+let _hideProbe = null;
+// Why it cannot, when it cannot: 'wayland' (no desktop API) or 'needs_wmctrl'.
+async function hideWindowsTool() {
+  if (_hideProbe) return _hideProbe;
+  const session = linuxSession();
+  const answers = async (bin, args) => {
+    try { await run(bin, args, 3000); return true; } catch { return false; }
+  };
+  const has = {
+    wmctrl: !session.wayland && await answers('wmctrl', ['-m']),
+    dbusSend: session.kde && await answers('dbus-send', ['--version']),
+  };
+  const tool = pickHideTool(session, has);
+  _hideProbe = { tool, reason: tool ? '' : (session.wayland ? 'wayland' : 'needs_wmctrl') };
+  return _hideProbe;
+}
+
+async function hideWindows() {
+  const { tool, reason } = await hideWindowsTool();
+  if (tool === 'wmctrl') {
+    if (await runX('wmctrl', ['-k', 'on'], 5000) === null) throw new Error('wmctrl_failed');
+    return;
+  }
+  if (tool === 'kwin') {
+    await run('dbus-send', ['--session', '--type=method_call', '--dest=org.kde.kglobalaccel', '/component/kwin',
+      'org.kde.kglobalaccel.Component.invokeShortcut', 'string:Show Desktop'], 5000);
+    return;
+  }
+  const err = new Error(reason);
+  err.code = reason;
+  throw err;
+}
+
+// A desktop notification: the fallback for Bit's popup when no Xenon app window
+// can draw it. notify-send is libnotify's, on every common desktop.
+async function notify(title, text) {
+  await run('notify-send', ['--app-name=Xenon', '--', String(title), String(text)], 5000);
+}
+
 // --- Per-process CPU/RAM for the `processes` stream -------------------------
 // One read of /proc/<pid>/stat per process carries BOTH the cumulative CPU time
 // and the resident set, so this needs no external tool and no second file.
@@ -1282,7 +1504,7 @@ function parseProcStat(text) {
   const name = line.slice(open + 1, close);
   if (!Number.isInteger(pid) || pid <= 0 || !name) return null;
   // After the closing paren the first token is field 3 (state), so field N sits
-  // at index N-3: utime=14 -> 11, stime=15 -> 12, rss=24 -> 21.
+  // at index N-3: ppid=4 -> 1, utime=14 -> 11, stime=15 -> 12, starttime=22 -> 19, rss=24 -> 21.
   const rest = line.slice(close + 1).trim().split(/\s+/);
   const utime = Number(rest[11]);
   const stime = Number(rest[12]);
@@ -1290,7 +1512,9 @@ function parseProcStat(text) {
   if (!Number.isFinite(utime) || !Number.isFinite(stime)) return null;
   return {
     pid,
+    ppid: Number(rest[1]) || 0,
     name,
+    startTicks: Number(rest[19]) || 0,
     cpuMs: ((utime + stime) / USER_HZ) * 1000,
     rssPages: Number.isFinite(rssPages) && rssPages > 0 ? rssPages : 0,
   };
@@ -1332,6 +1556,24 @@ async function sampleProcesses() {
     if (row) sample.set(row.pid, { name: row.name, cpuMs: row.cpuMs, rss: row.rssPages * size });
   });
   return sample.size ? sample : null;
+}
+
+// Every process for Performance Mode, the rows process-table-windows.js gives. The owner
+// is the uid: a process of another user is not this person's to move.
+async function processTable() {
+  const size = await pageSize();
+  let entries = [];
+  try { entries = await fsp.readdir('/proc'); } catch { return null; }
+  const rows = [];
+  await mapLimit(entries.filter((e) => /^\d+$/.test(e)), 64, async (dir) => {
+    let raw = null;
+    let info = null;
+    try { [raw, info] = await Promise.all([fsp.readFile('/proc/' + dir + '/stat', 'utf8'), fsp.stat('/proc/' + dir)]); } catch { return; }
+    const row = parseProcStat(raw);
+    if (!row) return;
+    rows.push({ pid: row.pid, ppid: row.ppid, name: row.name.toLowerCase(), cpuMs: row.cpuMs, memBytes: row.rssPages * size, startedAt: row.startTicks, owner: info.uid });
+  });
+  return rows.length ? rows : null;
 }
 
 const PROC_STALE_MS = 30000;
@@ -1398,7 +1640,21 @@ function parseLoginctlIdle(text, nowMs) {
   const now = Number.isFinite(nowMs) ? nowMs : Date.now();
   return Math.max(0, Math.floor((now * 1000 - sinceUs) / 1e6));
 }
+// On X11 `xprintidle` (when installed) reads the XScreenSaver extension: the
+// exact time since the last input, in milliseconds. Not on Wayland, where it
+// would only see the XWayland apps.
+function parseXprintidle(text) {
+  const t = String(text || '').trim();
+  if (!/^\d{1,15}$/.test(t)) return null;
+  return Math.floor(Number(t) / 1000);
+}
 async function idleSeconds() {
+  if (process.env.DISPLAY && process.env.XDG_SESSION_TYPE !== 'wayland' && !process.env.WAYLAND_DISPLAY) {
+    try {
+      const sec = parseXprintidle(await run('xprintidle', [], 4000));
+      if (sec != null) return sec;
+    } catch { /* not installed: logind below */ }
+  }
   const uid = typeof process.getuid === 'function' ? process.getuid() : null;
   if (uid == null) return null;
   try {
@@ -1407,14 +1663,24 @@ async function idleSeconds() {
   } catch { return null; }
 }
 
+// The machine's own id, for pc-id.js. Containers often have only the dbus copy.
+async function machineId() {
+  for (const file of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+    const id = await fsp.readFile(file, 'utf8').then((t) => t.trim()).catch(() => '');
+    if (/^[0-9a-f]{32}$/i.test(id)) return id.toLowerCase();
+  }
+  return '';
+}
+
 module.exports = {
-  gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  sendKeys, keysAvailable, processes, idleSeconds, parseLoginctlIdle,
+  machineId,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, soundingRows, audioCommand, audioAvailable, lock,
+  sendKeys, keysAvailable, hideWindows, hideWindowsTool, notify, processes, processTable, idleSeconds, parseLoginctlIdle, parseXprintidle,
   // exported for unit tests
   parseProcStat,
-  parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseHwmonReading, hwmonDevKey, hwmonKind, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseDiskstats, parseMountsFor,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
-  parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
-  ydotoolArgs,
+  parsePwDump, buildAudioRows, markStopped, resolveTargets, cubicToLinear,
+  ydotoolArgs, linuxSession, pickHideTool,
 };

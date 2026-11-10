@@ -47,3 +47,10 @@ test('isTextualContentType', () => {
     assert.equal(proxy.isTextualContentType(ct), false, ct);
   }
 });
+
+// ── size caps: widget API calls get room, images keep the asset-cache budget ──
+
+test('fetch cap is 4 MB, image cap stays 1 MB', () => {
+  assert.equal(proxy.PROXY_MAX_FETCH_BYTES, 4 * 1024 * 1024);
+  assert.equal(proxy.PROXY_MAX_RESPONSE_BYTES, 1024 * 1024);
+});

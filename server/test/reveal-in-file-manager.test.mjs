@@ -48,7 +48,7 @@ function reveal(platform, target, dir) {
   return { calls, child, warnings };
 }
 
-const WIN_PATH = 'C:\\Users\\marce\\Desktop\\Marci Progetti\\xenon-suite\\xenon\\tools\\wavelink-probe.mjs';
+const WIN_PATH = 'C:\\Users\\luca\\Desktop\\Miei Progetti\\xenon-suite\\xenon\\tools\\wavelink-probe.mjs';
 
 test('Windows quotes the PATH, not the whole /select token', () => {
   const { calls } = reveal('win32', WIN_PATH);

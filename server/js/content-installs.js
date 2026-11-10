@@ -10,9 +10,11 @@
   const FONT_URL_RE = /^\/uploads\/[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i;
   // Kind list mirrors PRESET_KINDS in preset-share.js (and the catalog kind
   // lists in community-catalog.js + docs) — keep them in step.
-  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds']);
+  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds', 'topbar']);
   const MAX_INSTALLS = 64;
   const MAX_RESOURCE_IDS = 64;
+  const MAX_COPY_NO = 1000000;
+  const cleanCopyNo = (v) => (Number.isInteger(v) && v > 0 && v <= MAX_COPY_NO ? v : 0);
 
   function cleanText(value, max) {
     return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -103,9 +105,44 @@
       // junk never survives, so it can never produce a false update badge.
       const sourceVersion = cleanText(raw.sourceVersion, 20);
       if (sourceVersion && /^[0-9]+(\.[0-9]+)*$/.test(sourceVersion)) record.sourceVersion = sourceVersion;
+      // The number of a copy bought with Sparks (the hub's copyNo), which its
+      // widgets get as init.edition. Only a Store install has one.
+      const copyNo = cleanCopyNo(raw.copyNo);
+      if (record.source === 'catalog' && copyNo) record.copyNo = copyNo;
+      // Installed with the 7-day pass trial: it comes off when the trial ends
+      // (js/trial-pass-ui.js), back to the theme that was on before it.
+      if (raw.trial === true) {
+        record.trial = true;
+        const prevThemeId = cleanText(raw.prevThemeId, 80);
+        if (prevThemeId && RESOURCE_ID_RE.test(prevThemeId)) record.prevThemeId = prevThemeId;
+      }
       out.unshift(record);
     }
     return out;
+  }
+
+  // The copy number a widget came with, or null: from any Store receipt that lists
+  // it, so an update written later without the number does not lose it.
+  function editionOf(installs, widgetId) {
+    const list = Array.isArray(installs) ? installs : [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const r = list[i];
+      const ids = r && r.source === 'catalog' && r.resources && Array.isArray(r.resources.widgetIds) ? r.resources.widgetIds : [];
+      if (ids.includes(widgetId) && cleanCopyNo(r.copyNo)) return r.copyNo;
+    }
+    return null;
+  }
+
+  // The import marker a new theme card gets. A look saved on top of an imported
+  // animated background is still that import (tweaking one colour must not make
+  // its code yours): the card keeps the background's marker, so it is not
+  // re-shared and leaves when that content is removed, the end of a pass trial
+  // included.
+  function themeCardMark(snapshot, opts) {
+    const bg = snapshot && snapshot.bgCustom && snapshot.bgCustom.imported === true ? snapshot.bgCustom : null;
+    if (!(opts && opts.imported === true) && !bg) return {};
+    const installId = String((opts && opts.installId) || (bg && bg.installId) || '');
+    return INSTALL_ID_RE.test(installId) ? { imported: true, installId } : { imported: true };
   }
 
   const api = {
@@ -115,6 +152,8 @@
     normalizeResources,
     normalizeContentInstalls,
     resourceCount,
+    themeCardMark,
+    editionOf,
   };
   if (root && typeof root === 'object') root.ContentInstalls = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

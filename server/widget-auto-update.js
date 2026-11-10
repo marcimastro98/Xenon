@@ -23,7 +23,7 @@
 //     pull one that turned out wrong; hiding the entry stops it reaching anyone.
 //   - NEVER when the new version asks for anything the user has not already
 //     approved: a new stream, action, host, hook, handler, capability or address
-//     slot, or a changed surface. Approving is a decision, and it stays manual:
+//     slot, a new or changed shared store group, or a changed surface. Approving is a decision, and it stays manual:
 //     the update is offered as always and the user is told it is waiting.
 //   - A widget the user suspended stays exactly as it is.
 //   - The package identity is re-checked after decoding: the entry's pkgId must be
@@ -70,7 +70,10 @@ function exceedsGrants(manifest, grants, prev) {
   if (list(m, 'hosts').some((h) => !list(g, 'hosts').includes(h))) return 'hosts';
   if (list(m, 'hooks').some((h) => !list(g, 'hooks').includes(h))) return 'hooks';
   if (handlers.some((h) => !list(g, 'handlers').includes(h))) return 'handlers';
-  for (const flag of ['storage', 'secrets', 'island', 'islandDynamic', 'islandFull', 'badge', 'badgeAction', 'mini', 'clipboard', 'accent', 'expand']) {
+  // A shared store group is part of the approval (whose data the widget reads),
+  // so a version that adds or changes one waits for the user like a new host.
+  if (typeof m.storageGroup === 'string' && m.storageGroup !== '' && g.storageGroup !== m.storageGroup) return 'storageGroup';
+  for (const flag of ['storage', 'secrets', 'island', 'islandDynamic', 'islandFull', 'badge', 'badgeAction', 'mini', 'topbarButton', 'clipboard', 'accent', 'expand']) {
     if (m[flag] === true && g[flag] !== true) return flag;
   }
   if (prev && typeof prev === 'object') {

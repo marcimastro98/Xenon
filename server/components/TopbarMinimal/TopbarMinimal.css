@@ -16,13 +16,14 @@ body.topbar-minimal:not([data-panel]) .topbar { display: none; }
    can tell before pressing Done whether a shortened tile clears the clock/weather.
    The editor's dock floats over the grid instead of displacing it — as a compact
    capsule (NOT edge-to-edge: a full-width bar buried the top row of tiles and
-   their controls). It starts collapsed to its slim header bar, centred below the
-   clock island, and can be dragged anywhere by that bar (free position persisted
-   per device by dashboard-layout.js; inline top/left then override the centring). */
+   their controls). It starts collapsed to its slim header bar, centred at the
+   bottom: every tile's edit bar sits at the tile's top, so down there it covers no
+   control. It can be dragged anywhere by that bar (free position persisted per
+   device by dashboard-layout.js; inline top/left then override the centring). */
 body.topbar-minimal:not([data-panel]) .shell { grid-template-rows: minmax(0, 1fr); }
 body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
   position: fixed;
-  top: 58px;              /* clears the floating clock island (pill: top 9 + height) */
+  bottom: 14px;
   left: 0;
   right: 0;
   width: fit-content;
@@ -30,21 +31,120 @@ body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
   margin: 0 auto;
   z-index: 56;            /* over tiles, under the pill (57) / rails (58) / modals */
 }
+/* A ticker along the bottom keeps its row. */
+body.topbar-minimal.xe-has-ticker.xe-ticker-bottom.layout-editing:not([data-panel]) .layout-dock { bottom: 52px; }
 
 /* The grid keeps the FULL viewport height: tiles may sit level with the clock
-   island, using the whole top band at the pill's sides. Only a tile that
-   actually lies UNDER the pill insets its content down (--island-clear, set per
-   tile in js/topbar-minimal.js on every fit pass) so its header clears the
-   clock while the tile box — and its neighbours — stay full height. The old
-   full-width `.pager { padding-top: 54px }` reserve kept the whole band
-   off-limits on every page, which wasted the top strip on the fixed-height
-   Xeneon Edge; the known cost of the per-tile inset is that on a screen where a
-   page scrolls vertically the inset scrolls with the tile (cosmetic, and the
-   kiosk never scrolls). No transition on the inset: it's recomputed on every
-   layout fit, so animating it would make the tile bob on each interaction. */
-body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
+   island, using the whole top band at the pill's sides. A tile that actually
+   lies UNDER the pill is not shrunk: the island bites into its top edge, like a
+   notch, and the tile wraps around it (shape and measuring in js/island-notch.js
+   and js/topbar-minimal.js, recomputed on every fit pass and every pill resize).
+     - the item is clipped to the cutout (the clip runs 48px past the tile so
+       its drop shadow survives);
+     - the panel's top border becomes a transparent band as deep as the cutout,
+       so the content starts under it while the background still fills it;
+     - an SVG hairline redraws the tile border along the cutout.
+   The values only change when the cutout really changes (the writes are
+   reconciled), so the transitions never make a tile bob on ordinary fits.
+   While EDITING the tile keeps the old whole-content inset instead: the edit
+   bar and the resize handles live at the tile's top edge. */
+body.topbar-minimal.layout-editing .grid-stack-item.island-clear > .grid-stack-item-content {
   top: var(--island-clear, 0px);
 }
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear {
+  clip-path: var(--island-notch, none);
+  transition: clip-path var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+/* A glass tile cannot take the clip on the item: an ancestor's clip-path is the
+   backdrop root of everything inside it, so the panel's backdrop-filter blurred
+   an empty backdrop and the tile showed no glass at all (measured: a 40px blur
+   left the wallpaper behind the Lyrics tile pixel-sharp). The same cutout,
+   expressed in the content box, goes on the painted surfaces instead. A shaped
+   tile keeps its own silhouette there (DashboardGrid.css). */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile-glass] {
+  clip-path: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile-glass]:not([data-tile-shape]):not(:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged)) > .grid-stack-item-content
+  > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays, .tile-decor-above) {
+  clip-path: var(--island-notch-surface, none);
+  /* One shorthand per element: this rule outranks the content inset's below, so
+     it carries that slide too, or a glass tile's content dropped in one frame. */
+  transition:
+    clip-path var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1)),
+    border-top-width var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+/* A tile covering the whole screen (full-screen Twitch/YouTube, an expanded SDK
+   widget, the Lyrics stage) is `position: fixed` INSIDE this item, and an
+   ancestor's clip-path clips a fixed child to the item's own box: the player
+   showed as a strip, the dashboard around it. Those tiles mark the panel, not
+   the item, so the item is found with :has(). */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged) {
+  clip-path: none;
+  transition: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged) > .island-notch-edge {
+  display: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  --panel-topline: transparent;
+  border-top-color: transparent;
+  border-top-width: var(--island-inset, 1px);
+  background-origin: border-box;
+  transition: border-top-width var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+/* A group whose tabs fit beside the cutout keeps them at the tile top
+   (.island-beside, js/island-notch.js besideBar): the strip moves sideways out of
+   the cutout if it has to, and only the open member starts below it. Without
+   room the whole tile starts under the cutout, as above. */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
+  translate: var(--island-bar-shift, none);
+  transition: translate var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-beside > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
+  max-width: var(--island-bar-max, none);
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-body {
+  padding-top: var(--island-under, 0px);
+  transition: padding-top var(--island-content-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+/* A mounted SDK widget draws its own look edge to edge (CustomWidget.css,
+   .cw-mounted), so the band above would be the host card showing through: a
+   flat strip across the top of the art with the island sitting in it, which
+   reads as the bar lying ON the widget. The guest keeps the full height and the
+   cutout bites into the art itself, the way a shaped tile's silhouette does. */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .custom-panel:has(.cw-wrap.cw-mounted) {
+  border-top-width: 0;
+}
+/* While the box is being moved frame by frame (js/topbar-minimal.js followIsland)
+   the tiles are redrawn every frame, so their own transitions would only lag it.
+   A tile that is closing sets its own value inline and keeps its transition.
+   The content still slides on its own clock (--island-content-ms): a tile the
+   growing cut reaches mid-way would otherwise drop its content in one frame.
+   A cutout that appears opens on a slower, even clock set inline (softOpen). */
+body.island-following { --island-notch-ms: 0ms; }
+.island-notch-edge { display: none; }
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+  fill: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge path {
+  transition: d var(--island-notch-ms, 360ms) var(--island-ease, cubic-bezier(.32, .72, 0, 1));
+}
+/* Every cutout transition above runs on this one clock, so reduced motion stops
+   them all at once (a list of `transition: none` rules lost to their :not() on
+   specificity, and the glass surfaces were never on it). */
+@media (prefers-reduced-motion: reduce) {
+  body.topbar-minimal { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
+}
+/* Performance mode and a game hold it too (js/topbar-minimal.js MOTION_HOLD). */
+body.topbar-minimal:is(.perf-mode, .game-mode) { --island-notch-ms: 0ms; --island-content-ms: 0ms; }
 
 /* ── Island pill — floating capsule, top centre ───────────────
    Segments (time · date · weather · page dots) read left→right, each set off
@@ -84,6 +184,20 @@ body.topbar-minimal:not([data-panel]) .topbar-mini {
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+/* The island's entrance (js/topbar-minimal.js arrive): it grows out of a dot at
+   its centre while the tiles under it open their cutouts on the same beat. Only
+   added when motion is allowed. */
+body.topbar-minimal:not([data-panel]) .topbar-mini.island-arriving {
+  animation: island-arrive 560ms cubic-bezier(.32, .72, 0, 1) both;
+}
+/* Held out of sight while Bit's boot splash still covers the screen. */
+body.topbar-minimal .topbar-mini.island-waiting { opacity: 0; }
+@keyframes island-arrive {
+  from { opacity: 0; transform: translateX(var(--mini-tx)) scale(.2); }
+  40% { opacity: 1; }
+  to { opacity: 1; transform: translateX(var(--mini-tx)) scale(1); }
 }
 
 /* Left / right anchor the island to that screen edge (12px inset) instead of
@@ -171,6 +285,9 @@ body.topbar-minimal .topbar-mini .clock-weather {
   gap: 5px;
   background: none;
   border: 0;
+  border-radius: 0;
+  /* The chip's own clip cut the hairline before it down to a smudge. */
+  overflow: visible;
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -213,13 +330,27 @@ body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before {
 body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead { padding-left: 0; }
 body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead::before { display: none; }
 body.topbar-minimal .topbar-mini > .island-seg-hidden { display: none !important; }
+/* A vertical screen scaled up (an Edge at 150-200%) is narrower than the
+   island's ~540px: the date goes first, then the weather, rather than the
+   page dots and markers running off the edge. Both stay one tap away in the
+   weather modal and the calendar. */
+@media (max-width: 600px) {
+  .is-portrait body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-date { display: none; }
+}
+@media (max-width: 420px) {
+  .is-portrait body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-weather { display: none; }
+}
 
 /* ── Notification island ──────────────────────────────────────
-   A heads-up notification takes the clock island's place (Apple Dynamic-Island):
-   the toast stack drops onto the pill's exact spot, and while one is showing
-   (body.xtoast-island, set by js/toast.js) the pill recedes so the card appears to
-   expand straight out of it. The capsule→card morph itself lives in Toast.css. */
+   A heads-up notification takes the clock island's place (Apple Dynamic-Island).
+   js/toast-island.js first fades the pill's contents (.mini-yield), then puts a
+   glass of the pill's exact box and look in its place and grows it into the card;
+   the pill steps aside in that same frame (body.xtoast-island, rule below) and
+   comes back in the frame the glass has shrunk onto it again. The glass and the
+   card live in Toast.css. The stack keeps the pill's spot for the rare case a
+   card is already up in it when the chrome turns minimal. */
 body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
+body.topbar-minimal:not([data-panel]) .topbar-mini.mini-yield > * { opacity: 0; }
 
 .topbar-mini {
   transition:
@@ -249,16 +380,20 @@ body.topbar-minimal:not([data-panel]) .topbar-mini.mini-morphing {
 @media (prefers-reduced-motion: reduce) {
   body.topbar-minimal:not([data-panel]) .topbar-mini > * { transition: none; }
 }
-body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
 body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini {
   opacity: 0;
   transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
   pointer-events: none;
 }
+/* Instant both ways, never faded: the notification's glass is standing exactly
+   where the pill is, so any fade would show two of them. */
+body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
+  visibility: hidden;
+  pointer-events: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .topbar-mini { transition: opacity 0.2s ease; }
-  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
   body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini { transform: translateX(var(--mini-tx)); }
 }
 
@@ -339,14 +474,11 @@ body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="right"] .s
 .sdk-island.is-leaving.exit-morph { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-5px) scale(0.78); }
 .sdk-island.is-leaving.exit-slide { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-14px); }
 .sdk-island.is-leaving.exit-fade { opacity: 0; }
-/* System toast wins: recede exactly like the pill while a toast is up. */
+/* System toast wins: the capsule steps aside exactly like the pill while a
+   notification's glass holds its place (instant, for the same reason). */
 body.xtoast-island:not([data-panel]) .sdk-island {
-  opacity: 0;
-  transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
+  visibility: hidden;
   pointer-events: none;
-  transition:
-    opacity 0.3s ease,
-    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
 }
 
 /* Text flows as stacked sentence rows (js/sdk-island.js): dimmed past row,
@@ -550,10 +682,6 @@ body.low-power-gpu .sdk-island-bars.is-animated > i { animation: none; }
 .sdk-island-spacer.is-large { width: 14px; }
 @media (prefers-reduced-motion: reduce) {
   body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island { animation: none; }
-  body.xtoast-island:not([data-panel]) .sdk-island {
-    transition: opacity 0.2s ease;
-    transform: translateX(var(--mini-tx));
-  }
   .sdk-island-flow { transition: none; }
   .sdk-island-row { transition: none; animation: none; }
   .sdk-island-bars.is-animated > i { animation: none; }
@@ -572,7 +700,8 @@ body.topbar-minimal:not([data-panel]) .edge-rail {
   display: flex;
   align-items: center;
   gap: 4px;
-  transform: translateY(-50%);
+  /* --rail-y and --rail-hide-peek are set only by a chosen look (TopbarLook.css). */
+  transform: translateY(var(--rail-y, -50%));
   transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
@@ -603,8 +732,8 @@ body.topbar-minimal:not([data-panel]) .edge-rail:not(:has(
   .edge-rail-body .topbar-mini-slot:not([hidden]):not(.topbar-item-hidden)
 )) { display: none; }
 
-body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
-body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }
+body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), var(--rail-y, -50%)); }
 
 /* Auto-hidden after ~10s idle (js/topbar-minimal.js): tuck the rail body off the
    edge but leave the 22px handle peeking — same as .is-collapsed — so there's a
@@ -612,8 +741,8 @@ body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(10
    strip, reveals it). Fully hiding the handle left no discoverable way to reopen.
    Listed after .is-collapsed so it wins when a rail is both (equal specificity →
    source order); both land on the same peek, so the transition stays smooth. */
-body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + 22px), -50%); }
-body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - 22px), -50%); }
+body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
 
 .edge-rail-body {
   display: flex;

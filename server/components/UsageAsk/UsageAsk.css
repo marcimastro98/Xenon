@@ -1,0 +1,310 @@
+/* "How do you want to use Xenon?" (usage-ask.js): the first thing a new install shows, the
+   same whatever theme is on, because here Xenon is speaking and not a tile of the dashboard.
+   The wallpaper fills the screen; on it stand the person's real screens with real pictures
+   of what the answer does, and the question sits on one sheet of glass beside them.
+
+   Sized for the worst screens first: all of it fits a 2560x720 Edge without scrolling,
+   and below 900px wide the picture goes on top. */
+
+.ua-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 580px);
+  align-items: center;
+  gap: clamp(24px, 3.4vw, 60px);
+  width: min(max(1500px, 84vw), 2240px, 100%);
+  color: var(--sp-text);
+  font-family: var(--wn-body);
+  text-align: left;
+}
+
+/* ── The desk ─────────────────────────────────────────────── */
+.ua-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ua-stage { position: relative; display: flex; justify-content: center; }
+.ua-map {
+  --stage-h: min(760px, 66dvh);
+  position: relative;
+  width: min(100%, calc(var(--stage-h) * var(--ratio, 1.78)));
+  aspect-ratio: var(--ratio, 1.78);
+}
+.ua-hint {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--sp-text);
+  visibility: hidden;
+}
+.ua-hint.is-on { visibility: visible; }
+
+.ua-screen {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.ua-screen:disabled { cursor: default; }
+.ua-screen:focus-visible { outline: 2px solid var(--sp-focus); outline-offset: 1px; border-radius: 10px; }
+
+/* The true shape of the screen, whatever room the name below leaves: a picture stays whole. */
+.ua-face {
+  position: relative;
+  flex: 1 1 0;
+  align-self: center;
+  aspect-ratio: var(--shape, 1.78);
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  container-type: size;
+  border-radius: 8px;
+  background: #161c30;
+  box-shadow: 0 0 0 1px var(--sp-line), 0 16px 40px rgba(3, 4, 10, 0.5);
+  transition: box-shadow 0.18s ease;
+}
+.ua-screen:not(:disabled):not(.is-dash):hover .ua-face { box-shadow: 0 0 0 2px var(--sp-text), 0 16px 40px rgba(3, 4, 10, 0.5); }
+.ua-chin {
+  flex: none;
+  padding: 6px 8px 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--sp-text);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ua-screen.is-dash .ua-chin { font-weight: 700; }
+
+.ua-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.26s ease;
+}
+.ua-layer > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* A picture that arrives late fades in. Above .ua-w, which keeps its own turn. */
+.ua-pic { opacity: 0; transition: opacity 0.26s ease; }
+.ua-pic.is-in { opacity: 1; }
+.ua-desk, .ua-widgets { opacity: 1; }
+.ua-screen[data-show="window"] .ua-windowed,
+.ua-screen[data-show="dash"] .ua-full { opacity: 1; }
+
+/* The first widgets land one after the other, where the plan places them. */
+.ua-widgets {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1.6cqmin;
+  padding: 2.4cqmin;
+  pointer-events: none;
+}
+.ua-layer > .ua-w {
+  flex: none;
+  width: auto;
+  height: calc((100cqh - 12cqmin) / 3);   /* above the taskbar */
+  object-fit: contain;
+  opacity: 0;
+  transform: translateY(1.6cqmin) scale(0.97);
+  transition: opacity 0.26s ease, transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ua-screen[data-show="widgets"] .ua-w {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(var(--i) * 60ms);
+}
+@container (aspect-ratio > 2.2) {
+  .ua-widgets { flex-direction: row; justify-content: flex-end; }
+  .ua-layer > .ua-w { height: calc(100cqh - 5cqmin); }
+}
+
+/* One screen: the dashboard is a window on the desktop. */
+.ua-window {
+  position: absolute;
+  inset: 5.8% 7%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.6cqmin;
+  box-shadow: 0 2cqmin 8cqmin rgba(0, 0, 0, 0.5);
+}
+.ua-window-bar { flex: none; height: 4.4cqmin; background: #262a38; }
+.ua-window img { display: block; flex: 1; min-height: 0; width: 100%; object-fit: cover; }
+
+/* The phone, leaning in front of the screen, where it hides no widget. */
+.ua-phone-shape {
+  position: absolute;
+  left: 3%;
+  bottom: -3%;
+  width: 15%;
+  aspect-ratio: 9 / 19;
+  padding: 3px;
+  border-radius: 14px;
+  background: #12141c;
+  box-shadow: 0 0 0 1px var(--sp-line), 0 12px 30px rgba(3, 4, 10, 0.6);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.26s ease, transform 0.26s ease;
+}
+.ua-phone-shape.is-on { opacity: 1; transform: none; }
+.ua-phone-shape img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 11px; }
+
+/* ── The question ─────────────────────────────────────────── */
+.ua-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(18px, 2vw, 30px);
+  border-radius: 16px;
+  background: var(--sp-sheen), var(--sp-glass);
+  -webkit-backdrop-filter: var(--sp-blur);
+  backdrop-filter: var(--sp-blur);
+  box-shadow: var(--sp-rim), var(--sp-lift);
+}
+.ua-head { display: flex; align-items: center; gap: 14px; }
+.ua-head h2 {
+  margin: 0;
+  font-family: var(--wn-display);
+  font-size: clamp(27px, 2.5vw, 36px);
+  font-weight: 700;
+  line-height: 1.08;
+  color: var(--sp-text);
+}
+.ua-sub {
+  margin: 12px 0 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--sp-muted);
+}
+.ua-key { white-space: nowrap; color: var(--sp-text); }
+
+.ua-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: clamp(12px, 2vh, 20px);
+}
+.ua-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--sp-well);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.ua-card:hover { background: var(--sp-well-hover); }
+/* The row starts with the focus, for the arrows and for a screen reader; the ring waits for
+   the first key, or it would be one more mark on the row that already shows it is chosen. */
+.ua-card:focus-visible { outline: none; }
+.ua-overlay.is-keyed .ua-card:focus-visible { outline: 2px solid var(--sp-focus); outline-offset: 2px; }
+.ua-card.is-on { background: var(--sp-on); }
+
+/* The chosen row: a green disc with a tick. */
+.ua-ring {
+  position: relative;
+  flex: none;
+  order: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--sp-line);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.ua-card.is-on .ua-ring { background: var(--wn-main); box-shadow: none; }
+.ua-card.is-on .ua-ring::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--wn-main-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+}
+
+.ua-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ua-row-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.ua-row-title b { font-size: 16.5px; font-weight: 700; color: var(--sp-text); }
+.ua-rec { font-size: 13.5px; font-weight: 600; color: var(--wn-main); }
+.ua-body { font-size: 14px; line-height: 1.4; color: var(--sp-muted); overflow-wrap: anywhere; }
+
+.ua-go {
+  align-self: stretch;
+  min-height: 48px;
+  margin-top: clamp(12px, 2vh, 20px);
+  border: 0;
+  border-radius: 10px;
+  background: var(--wn-main);
+  color: var(--wn-main-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ua-go:hover { filter: brightness(1.06); }
+.ua-go:focus-visible { outline: 2px solid var(--sp-focus); outline-offset: 2px; }
+
+.ua-phone {
+  display: none;
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--sp-muted);
+}
+.ua-phone.is-on { display: block; }
+.ua-phone-go {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--sp-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.ua-phone-go:focus-visible { outline: 2px solid var(--sp-focus); outline-offset: 2px; border-radius: 4px; }
+
+/* A window as short as an Edge: everything a little closer. */
+@media (max-height: 760px) and (min-width: 901px) {
+  .ua-map { --stage-h: min(560px, 78dvh); }
+  .ua-card { padding: 9px 12px; }
+  .ua-go { min-height: 44px; }
+}
+
+@media (max-width: 900px) {
+  .ua-box { grid-template-columns: 1fr; }
+  .ua-map { --stage-h: 230px; }
+}
+
+/* A monitor on its side: the picture above, where it has the room. */
+@media (orientation: portrait) and (min-width: 901px) {
+  .ua-box { grid-template-columns: minmax(0, 860px); justify-content: center; }
+  .ua-map { --stage-h: 40dvh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ua-layer, .ua-pic, .ua-layer > .ua-w, .ua-face, .ua-phone-shape, .ua-card, .ua-ring { transition: none; }
+  .ua-layer > .ua-w, .ua-phone-shape { transform: none; }
+}

@@ -112,3 +112,37 @@ test('no timeline: no request at all', async () => {
   assert.equal((await lookup({ ...MEDIA, duration: 0 }, opts)).state, 'none');
   assert.equal(calls.length, 0);
 });
+
+// A read from the sound rows knows the song and the artist, not how long it is or where
+// it has got to: the words are found by name and shown without following them.
+const HEARD = { title: 'Glass Harbor', artist: 'Nova Reyes', duration: 0, fallback: true };
+
+test('a song read from the sound alone still finds its words, as plain text', async () => {
+  const { calls, opts } = transport([{ status: 200, body: [row({ duration: 187, syncedLyrics: SYNCED, plainLyrics: 'first made-up line\nsecond made-up line' })] }]);
+  const out = await lookup(HEARD, opts);
+  assert.equal(out.state, 'plain');
+  assert.deepEqual(out.plain, ['first made-up line', 'second made-up line']);
+  assert.equal(calls.some((u) => u.includes('/get?')), false, 'the exact lookup needs a duration');
+});
+
+test('with only timed words they are shown too, without the times', async () => {
+  const { opts } = transport([{ status: 200, body: [row({ syncedLyrics: SYNCED })] }]);
+  assert.deepEqual((await lookup(HEARD, opts)).plain, ['first made-up line', 'second made-up line']);
+});
+
+test('read from the sound, a same-named song by someone else is not this one', async () => {
+  const { opts } = transport([{ status: 200, body: [row({ artistName: 'Someone Else', syncedLyrics: SYNCED })] }]);
+  assert.equal((await lookup(HEARD, opts)).state, 'none');
+});
+
+test('read from the sound with no artist there is nothing to go on: no search goes out', async () => {
+  const { calls, opts } = transport([]);
+  assert.equal((await lookup({ title: 'Clip.mp4', artist: '', duration: 0, fallback: true }, opts)).state, 'none');
+  assert.equal(calls.length, 0);
+});
+
+test('a real stream with no duration is still not looked up', async () => {
+  const { calls, opts } = transport([]);
+  assert.equal((await lookup({ title: 'Radio Three', artist: 'Station', duration: 0 }, opts)).state, 'none');
+  assert.equal(calls.length, 0);
+});

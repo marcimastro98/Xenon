@@ -69,6 +69,17 @@ test('closeApp passes the validated id to the injected window helper', async () 
   assert.deepEqual(await createPerfRegistry({}).run({ type: 'closeApp', id: '1' }), { ok: false, error: 'unavailable' });
 });
 
+test('isRunning asks the injected lookup, and a broken one is no answer', async () => {
+  const names = [];
+  const deps = { isRunning: (name) => { names.push(name); return Promise.resolve({ ok: true, running: true }); } };
+  assert.deepEqual(await createPerfRegistry(deps).run({ type: 'isRunning', name: 'cs2.exe' }), { ok: true, running: true });
+  assert.deepEqual(names, ['cs2'], 'bare, as the table names it');
+  assert.deepEqual(await createPerfRegistry({}).run({ type: 'isRunning', name: 'cs2' }), { ok: false, error: 'unavailable' });
+  const broken = { isRunning: () => Promise.resolve(null) };
+  assert.deepEqual(await createPerfRegistry(broken).run({ type: 'isRunning', name: 'cs2' }), { ok: false, error: 'lookup_failed' });
+  assert.equal((await createPerfRegistry(deps).run({ type: 'isRunning', name: 'a b/c' })).ok, false, 'a name that is not a process name is refused');
+});
+
 test('setPriority passes the validated name + level to the injected helper', async () => {
   const calls = [];
   const deps = { setPriority: (name, level) => { calls.push([name, level]); return Promise.resolve({ ok: true, count: 1 }); } };

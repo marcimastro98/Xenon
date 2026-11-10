@@ -294,6 +294,10 @@ else
     || fail "Copying Xenon into $INSTALL_ROOT failed."
 fi
 mkdir -p "$INSTALL_ROOT/server/data"
+# Owner-only: server/data holds API keys, OAuth tokens and pairing secrets, and
+# under the common umask 022 it would otherwise be readable by every local user.
+# Re-applied each time this step runs, so an older install is tightened too.
+chmod 700 "$INSTALL_ROOT/server/data" 2>/dev/null || true
 
 # Seed the installed-file manifest so the FIRST self-update can already clean up
 # files a newer version drops (see remove_stale_app_files in update-apply.sh).

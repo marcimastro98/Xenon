@@ -56,7 +56,8 @@ function renderMediaSourcePicker(data) {
     if (preferredMediaSource && !seenSources.has(preferredMediaSource)) {
       preferredMediaSource = '';
       localStorage.removeItem(MEDIA_SOURCE_STORAGE_KEY);
-      postPreferredMediaSource('');
+      // The dashboard clears the server's choice; a layer window would only repeat it.
+      if (!(typeof isLayerPage === 'function' && isLayerPage())) postPreferredMediaSource('');
     }
     return;
   }
@@ -135,6 +136,7 @@ function initMediaChat() {
   // primary input row even if a stale mirror was somehow added to the pane first.
   const inputRow = document.querySelector('.ai-input-row:not([data-chatf])');
   if (inputRow && inputRow.parentElement !== pane) pane.appendChild(inputRow);
+  if (window.BitChat) BitChat.mountHeads();
   if (typeof _aiRenderWelcomeIfEmpty === 'function') _aiRenderWelcomeIfEmpty();
   updateMediaChatKeyState();
   applyMediaChatVisibility();
@@ -146,8 +148,8 @@ function initMediaChat() {
 }
 
 // Auto-switch tabs with media state until the user manually picks a tab:
-// playing → Riproduzione, idle → Chat.
-// Seeded media-group nicety: auto-select Riproduzione/Chat by playback state.
+// playing → Playback, idle → the other tab, the Agenda (the Chat on a layout
+// from before 5.0.0, which keeps it there).
 function mediaAutoTab() {
   if (window._mediaTabUserPicked) return; // user manually chose a tab — don't fight them
   if (typeof getDashboardLayout !== 'function' || !window.DashboardTabGroups) return;
@@ -155,7 +157,7 @@ function mediaAutoTab() {
   const g = layout.groups && layout.groups['media-group'];
   if (!g || !g.autoTabByMedia) return;
   const playing = typeof hasActiveMedia === 'function' && hasActiveMedia();
-  const want = playing ? 'media' : 'chat';
+  const want = playing ? 'media' : (g.members.includes('chat') ? 'chat' : 'agenda');
   if (g.members.includes(want) && g.active !== want) window.DashboardTabGroups.setGroupActive('media-group', want, false);
 }
 
@@ -164,11 +166,22 @@ function _aiHasKey() {
   // Provider-aware readiness (mirrors ai.js _aiProviderReady): local always ok;
   // ChatGPT/Claude use the server-only *Set flags; Gemini uses its browser key.
   const p = hubSettings.aiProvider;
-  if (p === 'ollama') return true;
+  if (p === 'ollama' || p === 'localapi') return true;
   if (p === 'claudecode' || p === 'codex') return true;   // the program's own sign-in
+  if (p === 'xenon') return !window.XenonCredits || XenonCredits.canAnswer();
   if (p === 'openai') return !!hubSettings.openaiApiKeySet;
   if (p === 'anthropic') return !!hubSettings.anthropicApiKeySet;
   return geminiKeyReady(hubSettings);
+}
+
+// The Sparks were read after the chat was drawn: on Bit they decide whether it can
+// answer, so the notice follows them. Only on a change, as this function syncs them.
+let _chatCouldAnswer = null;
+function followXenonCredits() {
+  const can = _aiHasKey();
+  if (can === _chatCouldAnswer) return;
+  _chatCouldAnswer = can;
+  updateMediaChatKeyState();
 }
 
 // Show the "AI unavailable" notice + hide the chat log/input when no API key is set.
@@ -180,7 +193,13 @@ function updateMediaChatKeyState() {
   const inputRow = document.querySelector('.ai-input-row');
   if (chat) chat.hidden = !hasKey;
   if (inputRow) inputRow.hidden = !hasKey;
+  // A provider that just became ready (a key saved, Bit picked) opens on the
+  // welcome, not on an empty log; it only fills a chat that is still empty.
+  if (hasKey && typeof _aiRenderWelcomeIfEmpty === 'function') _aiRenderWelcomeIfEmpty();
   mirrorChatCopies();
+  // The AI settings may have changed: the credits chips follow, and a supporter
+  // whose assistant cannot answer gets Xenon AI.
+  if (window.XenonCredits) XenonCredits.sync();
 }
 
 // ── Chat duplication (mirror) ────────────────────────────────────
@@ -197,6 +216,7 @@ function mirrorChatCopies() {
   // treating the primary pane as a copy and inserting mirror elements before the real
   // chat elements — which would break the visual order.
   if (!primaryPane) return;
+  if (window.BitChat) BitChat.mountHeads(); // a copy made since gets its own live Bit
   document.querySelectorAll('[data-chatf="pane"]').forEach(pane => {
     if (pane === primaryPane) return; // primary keeps the live session
     syncChatCopyPane(pane);
@@ -204,6 +224,8 @@ function mirrorChatCopies() {
   // Fill any strip this pass created: the pending attachments are a singleton, so
   // one render pass paints the primary and every copy with the same list.
   if (typeof _aiUpdateAttachPreview === 'function') _aiUpdateAttachPreview();
+  // A copy's log has its own height, so Bit's welcome is fitted in each one.
+  if (window.BitWelcome) BitWelcome.fit();
 }
 
 function syncChatCopyPane(pane) {
@@ -276,8 +298,13 @@ function buildChatCopyInput() {
   send.type = 'button';
   send.className = 'ai-send-btn';
   send.title = (typeof t === 'function' ? t('tip_send') : 'Invia');
-  send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
-  send.addEventListener('click', () => sendChatFromCopy(input));
+  send.innerHTML = '<svg class="ai-send-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>'
+    + '<svg class="ai-stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
+  // While a reply is on its way the button is the shared turn's stop (ai.js).
+  send.addEventListener('click', () => {
+    if (typeof aiTurnRunning === 'function' && aiTurnRunning()) aiStopTurn();
+    else sendChatFromCopy(input);
+  });
   row.append(input, send);
   return row;
 }
@@ -290,13 +317,13 @@ function sendChatFromCopy(input) {
   const pending = typeof _aiPendingImages !== 'undefined' ? _aiPendingImages.length : 0;
   if (!text && pending === 0) return;
   input.value = '';
+  if (window.BitComposer) BitComposer.sync();
   if (typeof aiSendMessage === 'function') aiSendMessage(text, false); // shared session, no TTS
 }
 
 // Chat visibility is now governed by the layout (the chat atom / its group), not
-// a Media-tile tab. Kept as no-ops for any legacy caller.
+// a Media-tile tab. Kept as a no-op for any legacy caller.
 function applyMediaChatVisibility() { /* no-op — chat is its own atom now */ }
-function hideMediaChat() { /* no-op — hide/extract the Chat atom via Layout mode */ }
 
 // Mini now-playing preview shown at the top of the Chat tab while music plays,
 // plus the blurred album cover behind the chat. Shown whenever there is active
@@ -383,6 +410,8 @@ function applyAlbumColor(pair) {
 // ignores it when the bridge is off or the musicAlbum effect is disabled, so
 // it's safe to send unconditionally; we only skip repeats of the same colours.
 function pushAlbumToLighting(pair) {
+  // The dashboard feeds the LEDs; a layer window showing the same cover would send it twice.
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;
   const color = (pair && pair.led) || null;
   const palette = (pair && Array.isArray(pair.ledPalette) && pair.ledPalette.length >= 2) ? pair.ledPalette : null;
   const key = color ? color + '|' + (palette ? palette.join(',') : '') : null;
@@ -447,6 +476,7 @@ function eachMedia(fn) {
 // Update ONE media tile instance's display from a prepared context object.
 function applyMediaInto(root, ctx) {
   root.classList.remove('spotify', 'youtube', 'twitch');
+  root.classList.toggle('is-empty', !!ctx.empty);
   const app = mf(root, 'media-app'), title = mf(root, 'media-title'), artist = mf(root, 'media-artist');
   const art = mf(root, 'media-art'), bg = mf(root, 'media-bg');
   const pi = mf(root, 'play-icon'), pa = mf(root, 'pause-icon');
@@ -573,8 +603,11 @@ function applyMedia(data) {
   if (!active) {
     refreshMediaEmpty(); // also clears the topbar segment
     if (!hasPanel) return;
-    calendarAutoShown = preferredMediaView() !== 'calendar';
-    showCalendar(true, true);
+    // The agenda is calendar.js, absent from the light layer page.
+    if (typeof showCalendar === 'function') {
+      calendarAutoShown = preferredMediaView() !== 'calendar';
+      showCalendar(true, true);
+    }
     updateCalendarMiniPlayer();
     mediaAutoTab();
     updateMediaChatPreview();
@@ -633,6 +666,7 @@ function applyMedia(data) {
   updateMediaChatPreview();
   updateMediaSource();
   if (window.MediaSpotify) window.MediaSpotify.sync();
+  if (window.MediaProgress) window.MediaProgress.sync();
 }
 
 function hasActiveMedia() {
@@ -680,6 +714,7 @@ function refreshMediaEmpty() {
   syncLockMediaPlaybackIcon(false);
   updateMediaSource();
   if (window.MediaSpotify) window.MediaSpotify.sync();
+  if (window.MediaProgress) window.MediaProgress.sync();
 }
 
 // ── Source icon + per-app volume ──────────────────────────────────
@@ -804,11 +839,27 @@ function findMediaAppSession() {
   }
   const candidates = tokens.concat([raw, raw.replace(/\s+/g, '')]);
   const norm = value => String(value || '').toLowerCase().replace(/\.exe$/, '');
-  return apps.find(app => {
+  // The best match, not the first: "msedge" is inside "msedgewebview2", the
+  // process of Xenon's own window and of every other WebView2 app, so a first
+  // match could follow a silent window and leave the Media wave flat while
+  // YouTube played in Edge. Reported on Discord as "Media tile sound wave not
+  // showing up any more". An exact process name wins over a partial one, and a
+  // browser whose window names the service ("YouTube") wins over the rest.
+  const score = (app) => {
     const proc = norm(app.proc);
     const name = norm(app.name);
-    return candidates.some(token => token && (proc.includes(token) || name.includes(token)));
-  }) || null;
+    if (!candidates.some(token => token && (proc.includes(token) || name.includes(token)))) return 0;
+    const exact = candidates.some(token => token && proc === token);
+    const titled = !!(raw && app.win && String(app.win).toLowerCase().includes(raw));
+    return 1 + (exact ? 2 : 0) + (titled ? 1 : 0);
+  };
+  let best = null;
+  let bestScore = 0;
+  for (const app of apps) {
+    const s = score(app);
+    if (s > bestScore) { best = app; bestScore = s; }
+  }
+  return best;
 }
 
 function updateMediaSourceIcon(session) {
@@ -916,6 +967,7 @@ async function mediaAction(action) {
       const at = currentMediaPositionMs();
       mediaData.playbackStatus = playing ? 'Paused' : 'Playing';
       _mediaClock = { ..._mediaClock, posMs: at, at: performance.now(), playing: !playing, leads: [], epoch: _mediaClock.epoch + 1 };
+      if (window.MediaProgress) window.MediaProgress.sync();
       updateCalendarMiniPlayer();
       syncLockMediaPlaybackIcon(!playing);
       if (typeof refreshLockScreen === 'function') refreshLockScreen();

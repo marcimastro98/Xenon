@@ -72,7 +72,6 @@
 .qbtn:hover { background: rgba(4,8,10,0.52); color: var(--text); }
 .qbtn:active { background: rgba(4,8,10,0.62); }
 .qbtn svg { width: 16px; height: 16px; fill: currentColor; filter: var(--icon-readability-filter); }
-.qbtn-tabs  { color: var(--green); }
 .qbtn-focus { color: var(--green); }
 .qbtn-apps  { color: var(--green); }
 /* .qbtn-ai accent styling is in AIPanel.css */
@@ -123,13 +122,9 @@
   color: var(--text);
 }
 /* Layout editing is a MODE you are inside, so while it is on the button comes
-   back to full strength — that is a state worth seeing, unlike the resting one. */
-.topbtn.qbtn-layout.active,
-body.layout-editing .topbtn.qbtn-layout {
-  border-color: var(--floating-ui-border);
-  background: var(--floating-ui-bg);
-  color: var(--accent);
-}
+   back to full strength (the accent fill further down, the same one the edge
+   rail uses). It used to be an outline here AND a fill there; the outline won the
+   background and the fill won the icon, which drew a dark icon on a dark plate. */
 
 .topbtn svg {
   width: 16px;
@@ -137,6 +132,21 @@ body.layout-editing .topbtn.qbtn-layout {
   fill: currentColor;
   flex-shrink: 0;
   filter: var(--icon-readability-filter);
+}
+/* A widget's own button (js/sdk-topbar-button.js). Its manifest icon keeps the
+   outline drawing the package asked for; a text glyph sits where an icon would.
+   An <i>, not a <span>, so the narrow-bar rules that hide labels leave it on screen. */
+.topbtn.topbtn-sdk > svg[fill="none"] { fill: none; }
+.topbtn-sdk-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 .topbtn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: rgba(255,255,255,0.16); }
 .topbtn:active { transform: scale(0.97); }
@@ -164,6 +174,9 @@ body.layout-editing .topbtn.qbtn-layout {
   box-shadow: 0 2px 22px rgba(var(--accent-rgb), 0.7);
 }
 .topbtn.topbtn-xenon svg { fill: currentColor; stroke: none; filter: none; }
+/* Bit is the icon itself, in the button's ink with its face cut out, a
+   touch larger than the line icons because a pixel glyph reads smaller. */
+.topbtn.topbtn-xenon svg.topbtn-bit { width: 19px; height: 19px; }
 .topbtn.topbtn-xenon span,
 .topbtn.topbtn-xenon svg { position: relative; z-index: 1; }
 /* slow diagonal light sweep across the pill */
@@ -198,11 +211,33 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 }
 .topbtn.qbtn-layout.active svg { color: var(--on-accent); filter: none; }
 
-/* Narrow widths: collapse labels to icons so nothing wraps */
+/* Not enough room beside the clock for the labels (js/topbar-fit.js): icons
+   only, same targets. The dots keep their place, the settings dot stays. */
+.topbar.topbar-squeezed .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
+.topbar.topbar-squeezed .topbtn { padding: 0; width: 36px; justify-content: center; }
+
+/* Narrow widths: collapse labels to icons so nothing wraps. The dots stay:
+   they are the only sign that something is waiting behind the icon. */
 @media (max-width: 1180px) {
-  .topbtn span { display: none; }
+  .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
   .topbtn { padding: 0; width: 36px; justify-content: center; }
 }
+
+/* A vertical screen (html.is-portrait, js/phone-view.js): the narrow-width
+   fallback stacks the three parts one per row, left-aligned, which left the
+   buttons scattered around an off-centre clock. Both button groups share the
+   first row instead, and the clock sits centred under them with its meta row
+   wrapping rather than running off a scaled-up screen. */
+.is-portrait body:not([data-panel]) .topbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "quick actions" "clock clock";
+  justify-items: stretch;
+  row-gap: 6px;
+}
+.is-portrait body:not([data-panel]) .topbar > .quickbar { grid-area: quick; flex-wrap: nowrap; }
+.is-portrait body:not([data-panel]) .topbar > .top-actions { grid-area: actions; }
+.is-portrait body:not([data-panel]) .topbar > .clock { grid-area: clock; justify-self: center; text-align: center; }
+.is-portrait body:not([data-panel]) .topbar .clock-meta { flex-wrap: wrap; justify-content: center; }
 
 /* The width cap is NOT scoped to a side: since v4.11.4 the user can move this strip
    between the two ends of the bar, and a cap that applied on only one of them
@@ -354,7 +389,9 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   text-align: center;
 }
 
-/* Accent colon with smooth blink animation */
+/* Accent colon with a soft blink. In steps: a smooth opacity loop repaints the whole
+   window at the display's rate for one small glyph, ten changes a second look the same
+   (measured at 240 Hz: 229 presents a second down to 22, GPU process time nearly halved). */
 .clock-sep {
   --clock-base: 37px;
   font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
@@ -364,7 +401,7 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   padding: 0 1px;
   margin-bottom: 2px;
   align-self: center;
-  animation: clock-colon-blink 1s ease-in-out infinite;
+  animation: clock-colon-blink 1s steps(5, jump-none) infinite;
   will-change: opacity;
   contain: layout style;
 }

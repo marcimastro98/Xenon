@@ -35,6 +35,20 @@ function unescapeDbus(s) {
   return String(s).replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
 }
 
+// The hints dict prints the key and its value on two lines:
+//   string "desktop-entry"
+//   variant             string "org.telegram.desktop"
+// Only that one key is read; any other hint stays unread.
+const DESKTOP_ENTRY_VALUE = /^\s*variant\s+string\s+"([A-Za-z0-9][\w.-]{0,119})"\s*$/;
+function desktopEntryHint(lines) {
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (!/^\s*string\s+"desktop-entry"\s*$/.test(lines[i])) continue;
+    const m = DESKTOP_ENTRY_VALUE.exec(lines[i + 1]);
+    return m && !m[1].includes('..') ? m[1] : '';
+  }
+  return '';
+}
+
 // One dbus-monitor block into the item shape winnotif.js projects. Returns null
 // when the block is not a usable notification, which includes the ones with no
 // text at all: an app that notifies with only an icon has nothing to show.
@@ -56,6 +70,9 @@ function parseNotifyBlock(block) {
     // There is no AUMID on Linux; the app name is the only identity the spec
     // gives, and the exclusion list matches on it either way.
     aumid: '',
+    // The "desktop-entry" hint names the app's .desktop file, which is what
+    // lets a tap on the notification start the app (notification-open/).
+    desktopEntry: desktopEntryHint(lines),
     title: (summary || '').trim(),
     body: (body || '').trim(),
     at: Date.now(),
@@ -119,4 +136,4 @@ function findDbusMonitor() {
   return null;
 }
 
-module.exports = { parseNotifyBlock, splitBlocks, isNotifyCall, unescapeDbus, findDbusMonitor, MONITOR_ARGS, STRING_LINE };
+module.exports = { parseNotifyBlock, desktopEntryHint, splitBlocks, isNotifyCall, unescapeDbus, findDbusMonitor, MONITOR_ARGS, STRING_LINE };

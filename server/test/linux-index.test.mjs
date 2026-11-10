@@ -383,6 +383,71 @@ test('overviewFrom: a trailing slash on the root does not lose the tree', () => 
   assert.equal(li.overviewFrom(TREE, '/r/', {}).total, 1000);
 });
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function smallTree() {
+  const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-hold-'));
+  fs.mkdirSync(join(tmp, 'deep'));
+  fs.writeFileSync(join(tmp, 'a.txt'), 'a');
+  fs.writeFileSync(join(tmp, 'deep', 'b.txt'), 'b');
+  return tmp;
+}
+
+test('the walk waits for its start time, and a search opens the way at once', { skip: NEEDS_POSIX }, async () => {
+  const tmp = smallTree();
+  try {
+    const idx = li.createLinuxIndex({ startDelayMs: 40 });
+    idx.setRoots([tmp]);
+    await wait(5);
+    assert.equal((await idx.stats()).files, 0, 'nothing walked while the PC is starting');
+    await wait(120);
+    assert.equal((await idx.stats()).ready, true);
+    idx.stop();
+
+    const asked = li.createLinuxIndex({ startDelayMs: 60000 });
+    asked.setRoots([tmp]);
+    await asked.query({ terms: ['a'] });
+    await wait(60);
+    assert.equal((await asked.stats()).ready, true);
+    asked.stop();
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('a walk stands still during a hold and finishes when it ends', { skip: NEEDS_POSIX }, async () => {
+  const tmp = smallTree();
+  try {
+    const idx = li.createLinuxIndex();
+    idx.hold(true);
+    idx.setRoots([tmp]);
+    await wait(40);
+    let st = await idx.stats();
+    assert.equal(st.held, true);
+    assert.equal(st.files, 0, 'not one folder read');
+    assert.equal(st.building, true);
+    idx.hold(false);
+    await wait(60);
+    st = await idx.stats();
+    assert.equal(st.ready, true);
+    assert.equal(st.files, 2);
+    idx.stop();
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('no rescan starts during a hold, and stop frees a walk that stands still', { skip: NEEDS_POSIX }, async () => {
+  const tmp = smallTree();
+  try {
+    const idx = li.createLinuxIndex({ rescanMs: 25 });
+    idx.setRoots([tmp]);
+    do { await wait(1); } while ((await idx.stats()).building);
+    idx.hold(true);
+    await wait(80);
+    assert.equal((await idx.stats()).building, false, 'no walk starts, and search does not read "building"');
+    const walk = idx._rebuild();
+    idx.stop();
+    await walk;
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('list: only the files directly inside the directory, no descent', { skip: NEEDS_POSIX }, async () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-list-'));
   try {

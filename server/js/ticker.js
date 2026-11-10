@@ -110,7 +110,7 @@
       track.replaceChildren();
       const empty = document.createElement('span');
       empty.className = 'xe-tick xe-tick--flat';
-      empty.textContent = t('ticker_empty', 'Live ticker — add stocks to your Borsa watchlist');
+      empty.textContent = t('ticker_empty', 'Live ticker: add stocks to your Borsa watchlist');
       track.appendChild(empty);
       track.style.animation = 'none';
       return;
