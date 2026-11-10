@@ -2,6 +2,30 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "frieren-ispired-bundle",
+      "kind": "bundle",
+      "name": "Frieren ispired Bundle",
+      "author": "Clarette",
+      "description": "A Frieren-inspired theme featuring liquid glass-style windows and a deck designed for creative productivity and gaming. Includes a dedicated page for PC performance monitoring, system vitals, and deck controls; a dashboard with weather, calendar, and notes; and a page for music playback controls and Discord integration.",
+      "category": "style",
+      "tags": [
+        "frieren",
+        "clear",
+        "productivity",
+        "anime",
+        "liquidglass"
+      ],
+      "version": "1.0.0",
+      "preview": {
+        "accent": "#00f8ff",
+        "bg": "#070808",
+        "text": "#ffffff"
+      },
+      "shots": 2,
+      "addedAt": "2026-11-10",
+      "codeFile": true
+    },
+    {
       "id": "alibi",
       "kind": "widget",
       "name": "Culprit",
