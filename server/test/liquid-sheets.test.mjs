@@ -93,6 +93,16 @@ test('the slow paths leave no thin fill without a blur', () => {
   assert.match(solid, /--sheet-card: rgb\(var\(--panel-rgb\)\)/);
 });
 
+// A widget window on the desktop is see-through and has nothing to blur: a widget's permission
+// question sat on the desktop's own windows, unreadable. Its sheets go solid there.
+test('in a widget window on the desktop the sheets are solid, with no blur', () => {
+  const layer = bodyOf(`${SKIN}[data-layer] body`);
+  assert.match(layer, /--sheet-fill: rgba\(var\(--panel-rgb\), 0\.97\)/);
+  assert.match(layer, /--sheet-card: rgba\(var\(--panel-rgb\), 0\.97\)/);
+  assert.match(layer, /--sheet-blur: none/);
+  assert.match(layer, /--sheet-scrim-blur: none/);
+});
+
 test('it loads last of the Liquid sheets, and in the alerts window', () => {
   const html = read('../index.html');
   const at = (name) => {

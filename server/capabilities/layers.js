@@ -15,6 +15,7 @@ const LayerWhen = require('../js/layer-when.js');
 const DeckShortcuts = require('../js/deck-shortcuts.js');
 const LayerPages = require('../layer-pages.js');
 const { previewPath } = require('../tile-previews.js');
+const WidgetOptions = require('../widget-options/options.js');
 
 function available(host) {
   return !!(host && typeof host.available === 'function' && host.available());
@@ -49,6 +50,8 @@ function describe(w, catalog, cur) {
   if (w.when) out.when = LayerWhen.format(w.when);
   const page = cur && w.page ? cur.pages.find(p => p.id === w.page) : null;
   if (page) out.page = LayerPages.pageLabel(cur, page);
+  const pkg = w.kind === 'sdk' ? pkgs.find(p => p.id === w.pkg) : null;
+  if (pkg && Array.isArray(pkg.options) && pkg.options.length) out.options = WidgetOptions.describe(pkg.options, pkg.optionValues);
   return out;
 }
 
@@ -153,6 +156,9 @@ async function group(d, action) {
     target = findPlaced(cur.widgets, action.with, catalog);
     if (target.error) return { ok: false, error: target.error, ids: target.ids };
   }
+  // A widget sized by its own content (manifest `fit`) has no box to share.
+  const fits = (w) => w.kind === 'sdk' && !!(catalog.packages.find(p => p.id === w.pkg) || {}).fit;
+  if (!leave && (fits(source.widget) || fits(target.widget))) return { ok: false, error: 'sized_by_itself' };
   const res = await d.layers.update(now => (leave
     ? LayersModel.ungroupWidget(now, source.widget.id)
     : LayersModel.groupWidgets(now, target.widget.id, source.widget.id)));

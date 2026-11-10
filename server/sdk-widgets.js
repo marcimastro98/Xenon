@@ -48,6 +48,7 @@ const DeckShortcuts = require('./js/deck-shortcuts.js');
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.
 const { normalizeTileShape, normalizeWidgetIcon } = require('./js/dashboard-instances.js');
+const WidgetOptions = require('./widget-options/options.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -489,7 +490,8 @@ const HANDLER_ARG_TEXT_MAX = 200;
 const MAX_MACRO_STEP_DELAY_MS = 5000;
 
 // Proxy request limits (enforced again by the /sdk/fetch handler).
-const PROXY_BODY_MAX_BYTES = 256 * 1024;
+// Every limit a widget can meet lives in sdk-limits/limits.js and reaches it in init.limits.
+const { SDK_LIMITS, limitFor, FETCH_BODY_MAX_BYTES: PROXY_BODY_MAX_BYTES } = require('./sdk-limits/limits.js');
 const PROXY_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
 // Request headers a widget may set through the proxy: the usual API-auth and
 // content-negotiation names plus custom x-* — never cookie/host/origin.
@@ -976,6 +978,13 @@ function normalizeManifest(raw, folderId) {
       // shape instead of the default span (js/dashboard-grid.js spanForSize).
       // Cosmetic like the category; anything else is dropped.
       size: TILE_SIZES.includes(raw.size) && raw.surface !== 'ambient' ? raw.size : null,
+      // The widget's own choices, set by the person in the Xenon menu's panel of it and
+      // handed back in `init.options` (widget-options/). They only shape what the widget
+      // draws, so no grant; an entry that is not right is dropped.
+      options: raw.surface === 'ambient' ? [] : WidgetOptions.normalizeDeclared(raw.options),
+      // On the screen its box takes the size the widget asks for (`layer` message `fit`),
+      // so the menu offers no size of its own. Cosmetic, no grant.
+      fit: raw.fit === true && raw.surface !== 'ambient',
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
@@ -1579,6 +1588,8 @@ async function readPackagePayload(rootDir, id) {
 module.exports = {
   TILE_SIZES,
   SDK_API_VERSION,
+  SDK_LIMITS,
+  limitFor,
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,

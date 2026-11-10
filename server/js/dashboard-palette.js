@@ -272,6 +272,13 @@
     const S = _search;
     const q = S.input.value;
     if (!q.trim()) { S.results = []; S.render(); return; }
+    // Names match in every language: the page holds only some (/layer-i18n.js),
+    // so the first search fetches the rest and runs again.
+    if (window.I18nLoad) {
+      window.I18nLoad.ensureAll().then((added) => {
+        if (added && _search === S) { S.index = null; renderResults(); }
+      });
+    }
     if (!S.index) S.index = window.FuzzyFind.createIndex(S.entries());
     const res = window.FuzzyFind.search(S.index, q, { limit: 40 });
     const pop = S.pop;

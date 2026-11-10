@@ -53,7 +53,8 @@ function createLayersHost({ now = Date.now } = {}) {
     // them there is a real choice (capabilities/layer-captures.js).
     const layers = src.layers === true;
     report = {
-      layers, scene: layers && src.scene === true, draw: layers && src.draw === true, menu: layers && src.menu === true, anchor: layers && src.anchor === true, desks: layers && src.desks === true, pad: layers && src.menu === true && src.pad === true, hide: layers && src.hide === true, monitors, at: now(),
+      layers, scene: layers && src.scene === true, draw: layers && src.draw === true, menu: layers && src.menu === true, anchor: layers && src.anchor === true, desks: layers && src.desks === true, pad: layers && src.menu === true && src.pad === true, hide: layers && src.hide === true, monitors,
+      dashboard: monitors.some(m => m.key === src.dashboard) ? src.dashboard : '', at: now(),
     };
     return { ok: true, layers: report.layers, monitors: monitors.length };
   }
@@ -114,6 +115,12 @@ function createLayersHost({ now = Date.now } = {}) {
     return r ? r.monitors.slice() : [];
   }
 
+  // The screen the dashboard is on: '' in "widgets only" or when it is not known.
+  function dashboard() {
+    const r = fresh();
+    return r ? r.dashboard : '';
+  }
+
   // POST /layers/desk, already validated: integers 0..64 (0 = a desktop with no
   // number, such as a full-screen Space on the Mac).
   function setDesk(current, count) {
@@ -124,7 +131,7 @@ function createLayersHost({ now = Date.now } = {}) {
     return desks() && desk ? { ...desk } : null;
   }
 
-  return { accept, available, scenes, draws, menus, anchors, desks, pads, hides, setDesk, shownDesk, secondMonitor, monitors };
+  return { accept, available, scenes, draws, menus, anchors, desks, pads, hides, setDesk, shownDesk, secondMonitor, monitors, dashboard };
 }
 
 module.exports = { createLayersHost, REPORT_TTL_MS };

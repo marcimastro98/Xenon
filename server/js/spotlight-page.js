@@ -58,8 +58,10 @@ let hubSettings = {};
     T.applyMaterial(el, hs, palette, skin);
     T.applyFont(document, hs.uiFont);
     const next = normalizeLangCode(hs.language);
-    const changed = !!next && !!i18n[next] && next !== lang;
-    if (changed) lang = next;
+    // This page holds the languages it was served with (/layer-i18n.js): a new
+    // one it lacks comes with the reload that follows (refreshLook).
+    const changed = !!next && next !== lang;
+    if (changed && i18n[next]) lang = next;
     el.lang = lang;
     return changed;
   }

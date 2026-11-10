@@ -74,6 +74,7 @@ mod menu_window;
 mod roll;
 #[cfg(windows)]
 mod scene;
+mod shield;
 mod spec;
 #[cfg(windows)]
 mod win32;
@@ -105,6 +106,8 @@ struct Live {
     /// The native window: its HWND, its NSWindow on macOS, its GtkWindow on Linux.
     handle: isize,
     surface: Surface,
+    /// Whether it stays out of captures, as told and as wanted (shield.rs).
+    shield: shield::Shield,
     /// Where the menu's window opened (`menu_window`); nothing for the others.
     #[cfg(windows)]
     opened_at: menu_window::Rect,
@@ -166,7 +169,6 @@ static SAVER_DONE: AtomicBool = AtomicBool::new(false);
 /// The menu stepped aside for a one-shot function: a sync must not bring it back.
 static MENU_ASIDE: AtomicBool = AtomicBool::new(false);
 
-#[cfg(windows)]
 fn menu_aside() -> bool {
     MENU_ASIDE.load(Ordering::Relaxed)
 }
@@ -318,9 +320,10 @@ pub fn sync(app: &AppHandle, url: &tauri::Url) {
         }
     }
     let mut plans = Vec::with_capacity(live.len());
-    for l in live.iter() {
-        if let Some(win) = app.get_webview_window(&l.label) {
-            let _ = win.set_content_protected(spec::out_of_captures(&l.surface.key, &spec));
+    for l in live.iter_mut() {
+        let aside = l.surface.kind == Kind::Menu && menu_aside();
+        if let Some(out) = l.shield.want(spec::out_of_captures(&l.surface.key, &spec), aside) {
+            tell_captures(app, l, out);
         }
         plans.push(plan(app, l));
     }
@@ -381,6 +384,24 @@ pub fn driver_left(app: &AppHandle) {
     }
     let plans: Vec<backend::Plan> = live.iter().map(|l| plan(app, l)).collect();
     let _ = app.run_on_main_thread(move || backend::apply(plans));
+}
+
+/// Keep a window out of captures, or let it in (shield.rs says when). LIVE held.
+fn tell_captures(app: &AppHandle, l: &mut Live, out: bool) {
+    let Some(win) = app.get_webview_window(&l.label) else { return };
+    if win.set_content_protected(out).is_ok() {
+        l.shield.told(out);
+    }
+}
+
+/// The menu is back from aside: it hears what a sync kept from it. Plain
+/// thread: `sync` can hold LIVE while it waits on the main thread.
+fn menu_back(app: &AppHandle, label: &str) {
+    let Ok(mut live) = LIVE.lock() else { return };
+    let Some(l) = live.iter_mut().find(|l| l.label == label) else { return };
+    if let Some(out) = l.shield.due(false) {
+        tell_captures(app, l, out);
+    }
 }
 
 /// `xenon-app:saver-done` from a screensaver page: the user is back. Close
@@ -652,6 +673,7 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
                 label,
                 handle,
                 surface: s.clone(),
+                shield: shield::Shield::default(),
                 #[cfg(windows)]
                 opened_at: menu_at.map(|at| at.rect).unwrap_or_default(),
             })
@@ -749,6 +771,8 @@ fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str,
                 if back {
                     let _ = win.show();
                     let _ = win.set_focus();
+                    let (h, own) = (app.clone(), label.to_string());
+                    std::thread::spawn(move || menu_back(&h, &own));
                 } else {
                     let _ = win.hide();
                 }

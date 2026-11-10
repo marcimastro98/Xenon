@@ -390,6 +390,36 @@ test('a dialog a tile opens is shown and clickable while it is drawn', () => {
   assert.equal(b.signals.at(-1), 'xenon-app:layer-rects?d=' + encodeURIComponent('0,0,450,225'), 'closed: only the tile again');
 });
 
+// Reported 9 Nov 2026: in edit mode, Remove on a built-in tile (a press in its
+// slot) parked the tile on the body inside the sheet watch, which took it for a
+// dialog: it was drawn at the page's top left and its rectangle kept on screen.
+test('a tile removed right after a press in its slot is parked hidden, never taken for a sheet', () => {
+  const observers = [];
+  class Observer {
+    constructor(fn) { this.fn = fn; observers.push(this); }
+    observe() {}
+    disconnect() {}
+  }
+  const perf = W({ widget: 'perf', surface: 'overlay' });
+  const b = boot('?layer=overlay:', { enabled: true, widgets: [perf] }, { shell: true, Observer });
+  const tile = Object.assign(b.atom('perf'), { nodeType: 1 });
+  b.host.place();
+  const slot = slotsOf(b.document)[0];
+  slot._rect = { width: 300, height: 150 };
+  tile._rect = { width: 300, height: 150 };
+  const bodyKids = observers[1];
+
+  b.document.getElementById('layer-root')._handlers.pointerdown.forEach((fn) => fn({ target: tile }));
+  b.ctx.hubSettings.layers = { enabled: true, widgets: [] };
+  b.host.place();
+  assert.equal(tile.parentNode, b.document.body, 'parked in the page');
+  bodyKids.fn([{ type: 'childList', addedNodes: [tile], removedNodes: [] }]);
+  b.flush();
+  assert.equal(tile.hasAttribute('data-layer-sheet'), false, 'a parked tile stays hidden (LayerHost.css)');
+  assert.equal(tile.dataset.dashboardHidden, 'true');
+  assert.equal(b.signals.at(-1), 'xenon-app:layer-rects?d=', 'nothing left on the window');
+});
+
 // The light page (layer-lite.html) runs Store widgets only. A page that finds
 // itself the wrong one for what is placed on its surface reloads, and the
 // server (same rule, LayersModel.needsDashboard) hands over the other one.

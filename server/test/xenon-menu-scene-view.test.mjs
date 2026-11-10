@@ -77,3 +77,23 @@ test('another page drops the frame, so no scene keeps running unseen', () => {
   view.settle();
   assert.equal(frames()[0].isConnected, false);
 });
+
+test('a screen with the PC\'s own wallpaper shows no preview, not even an empty box; pointing a scene shows it', async () => {
+  const { body, view, frames } = rig();
+  const row = view.slot('');
+  body.appendChild(row.box);
+  view.settle();
+  const [frame] = frames();
+  assert.equal(row.box.hidden, true);
+  assert.equal(frame.hidden, true);
+  assert.equal(frame.src, '', 'nothing loads');
+  const chip = node('button');
+  row.follow(chip, 'builtin');
+  chip.fire('pointerenter');
+  await wait();
+  assert.equal(row.box.hidden, false);
+  assert.match(frame.src, /scene=builtin$/);
+  chip.fire('pointerleave');
+  await wait();
+  assert.equal(row.box.hidden, true);
+});

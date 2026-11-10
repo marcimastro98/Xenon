@@ -18,6 +18,7 @@
     desktop: [[62, 6, 26, 18, 'widget'], [14, 10, 56, 34, 'win']],
     game: [[6, 34, 84, 2, 'ground'], [30, 22, 6, 12, 'ground'], [70, 6, 20, 12, 'widget']],
     anchor: [[14, 8, 66, 38, 'win'], [14, 8, 66, 7, 'bar'], [56, 30, 20, 12, 'widget']],
+    moments: [[14, 10, 56, 34, 'win'], [62, 6, 26, 18, 'faint']],
   });
 
   function figure(kind) {
@@ -71,12 +72,14 @@
     function chip(r, o) {
       const here = o.value === r.value;
       // While the list is open, "On an app" is what the person is doing.
-      const on = picking === r.id ? !o.act : here;
+      const on = picking === r.id ? !o.act && !o.press : here;
       const b = button(r.cards ? 'xm-seecard' : 'xm-choice', r.cards ? null : say(o.label));
       if (r.cards) b.append(figure(o.value), el('b', '', say(o.label)), el('span', 'xm-sub', say(o.sub)));
       b.setAttribute('aria-pressed', String(on));
       b.dataset.keep = `${r.id}:${o.value}`;
       b.addEventListener('click', () => {
+        // A card the page around it answers itself (the widget's own screen).
+        if (o.press) { close(); o.press(here); return; }
         if (!o.act) { if (picking === r.id) { close(); redraw(); } else askApps(r); return; }
         close();
         if (here) redraw();

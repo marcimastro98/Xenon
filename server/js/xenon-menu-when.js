@@ -249,8 +249,10 @@
       return box;
     }
 
+    // `start`: the person already said "at certain moments", so the situations are open
+    // with "only when" until one is picked; nothing is saved before that.
     function draw(r) {
-      const rule = ruleOf(r);
+      const rule = ruleOf(r) || (r.start ? { any: [] } : null);
       const li = rowShell(r, 'xm-row--stack xm-row--place');
       li.appendChild(modeChips(r, rule));
       if (rule) li.appendChild(situations(r, rule));

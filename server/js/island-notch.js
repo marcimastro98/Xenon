@@ -17,12 +17,15 @@
   const GAP = 8;        // ring of wallpaper between the island and the tile
   const SHOULDER = 12;  // radius where the tile's top edge turns into the cutout
   const SPILL = 48;     // clip reaches this far past the tile, so its shadow stays
-  const FAR = 10000;    // "the rest of the tile": right/bottom need no measuring
+  // Bottom of the clip when the tile height is unknown. Chromium sizes a glass
+  // tile's clip mask to the whole path, so a far-off bottom cost a 36 MB mask per
+  // tile under the island; callers pass the tile's height instead.
+  const FAR = 10000;
   const MIN_OVERLAP = 12;
 
   const r1 = (n) => Math.round(n * 2) / 2; // half-pixel steps: stable strings, no churn
 
-  // in: { width, margin, radius, pill: { left, right, bottom, height, radius? } }, every
+  // in: { width, height?, margin, radius, pill: { left, right, bottom, height, radius? } }, every
   //     number in item-local px (pill already translated into this item's space).
   // out: null when the island does not sit on this tile, else the cutout:
   //     left/right walls, bottom, corner radii, which sides run off the tile, and
@@ -30,6 +33,7 @@
   function geometry(m) {
     if (!m || !m.pill) return null;
     const width = Number(m.width) || 0;
+    const height = Math.max(0, Number(m.height) || 0);
     const margin = Math.max(0, Number(m.margin) || 0);
     const radius = Math.max(0, Number(m.radius) || 0);
     const p = m.pill;
@@ -55,7 +59,7 @@
       shoulderL: openLeft ? 0 : SHOULDER,
       shoulderR: openRight ? 0 : SHOULDER,
       openLeft, openRight,
-      width, margin, radius,
+      width, height: Math.ceil(height), margin, radius,
       inset: Math.ceil(depth),
     };
   }
@@ -78,7 +82,7 @@
     const s = Number(shift) || 0;
     const { cornerR: R, shoulderL: fl, shoulderR: fr } = g;
     const a = g.left - s, b = g.right - s, d = g.bottom - s, m = g.margin - s, w = g.width - s;
-    const out = -SPILL - s, far = FAR - s;
+    const out = -SPILL - s, far = (g.height > 0 ? g.height + SPILL : FAR) - s;
     return 'path("'
       + `M ${out} ${out} H ${a - fl} V ${m} A ${fl} ${fl} 0 0 1 ${a} ${m + fl}`
       + ` V ${d - R} A ${R} ${R} 0 0 0 ${a + R} ${d} H ${b - R} A ${R} ${R} 0 0 0 ${b} ${d - R}`

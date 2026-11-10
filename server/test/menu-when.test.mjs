@@ -132,6 +132,17 @@ test('one tap on a situation saves it as a rule; a second tap takes it away and 
   assert.ok(byText(d.now(), 'xmenu_sit_music'), 'still open to pick another one');
 });
 
+// The widget's screen opens it from its "at certain moments" card: one tap less.
+test('opened from the moments card: only when is already chosen, nothing saved until a situation is', async () => {
+  const d = drawer();
+  d.open({ ...row(), answered: true, start: true });
+  assert.deepEqual(pressed(d.now()), ['xmenu_when_only']);
+  assert.ok(byText(d.now(), 'xmenu_sit_music'));
+  assert.deepEqual(d.sent, []);
+  await d.click('xmenu_sit_music');
+  assert.equal(d.sent.at(-1).when, 'music');
+});
+
 test('three situations show first, Altre opens the rest and the reasons, one in the rule stays in sight', async () => {
   const d = drawer();
   const open = { ...row(), missing: [{ key: 'xmenu_when_no_game' }] };

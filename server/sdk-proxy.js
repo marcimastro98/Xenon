@@ -130,4 +130,4 @@ function isTextualContentType(ct) {
     || v.startsWith('image/svg');
 }
 
-module.exports = { proxyFetch, isBlockedAddress, literalHostBlocked, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES, PROXY_MAX_FETCH_BYTES };
+module.exports = { proxyFetch, isBlockedAddress, literalHostBlocked, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES, PROXY_MAX_FETCH_BYTES, PROXY_DEADLINE_MS };

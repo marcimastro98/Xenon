@@ -12,6 +12,7 @@ const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/i
 const { createLayersHost } = require('../layers-host.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SCENE_SRC = readFileSync(new URL('../capabilities/desktop-scene.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function fakeSettings(start = { wallpaper: false, saverMinutes: 0 }) {
   const state = { ...start };
@@ -74,7 +75,8 @@ test('scene: by id from the menu, by name from Bit, only what is in the list', a
   assert.deepEqual(await scene.setScene(d, { scene: 'com.x.night' }), { ok: true, scene: 'Nocturne' });
   assert.deepEqual(await scene.setScene(d, { scene: ' lake ' }), { ok: true, scene: 'Lake' });
   assert.deepEqual(await scene.setScene(d, { scene: 'classic' }), { ok: true, scene: 'Classic' });
-  assert.deepEqual(settings.calls, [{ sceneId: 'com.x.night' }, { sceneId: 'canvas:a' }, { sceneId: 'builtin' }]);
+  assert.deepEqual(settings.calls.map((c) => c.sceneId), ['com.x.night', 'canvas:a', 'builtin'], 'no screen named: the Ambient, and every screen showing a scene');
+  assert.deepEqual(settings.calls[0].everywhere, { id: 'com.x.night', kinds: ['wallpaper', 'saver'] });
   const nope = await scene.setScene(d, { scene: 'nothing' });
   assert.equal(nope.error, 'unknown_scene');
   assert.deepEqual(nope.choices, ['Classic', 'Nocturne', 'Lake']);
@@ -84,7 +86,7 @@ test('scene: by id from the menu, by name from Bit, only what is in the list', a
 
 test('a scene is chosen, never placed: server.js keeps them out of the widget list', () => {
   assert.match(SERVER, /packages: all\.filter\(p => p\.surface !== 'ambient'\)/);
-  assert.match(SERVER, /if \(patch\.sceneId\) ambient\.sceneId = patch\.sceneId;/);
+  assert.match(SCENE_SRC, /if \(patch\.sceneId\) next\.sceneId = patch\.sceneId;/);
   assert.equal(CAPABILITIES.find((c) => c.type === 'desktopScene').hidden, true);
 });
 
@@ -132,7 +134,8 @@ test('server.js: one writer under the settings lock, the toggle read inside it',
   assert.ok(at > 0);
   const fn = SERVER.slice(at, SERVER.indexOf('\n}\n', at));
   assert.match(fn, /return withHubSettingsLock\(async \(\) => \{\n\s+const cur = await readHubSettingsForUpdate\(\)/);
-  assert.match(fn, /if \(patch\.wallpaper === 'toggle'\) ambient\.wallpaper = !ambient\.wallpaper;/);
+  assert.match(fn, /const ambient = require\('\.\/capabilities\/desktop-scene\.js'\)\.applyPatch\(normalizeAmbientMode\(cur\.ambientMode\), patch\);/, 'the toggle is decided on what is saved, inside the lock');
+  assert.equal(scene.applyPatch({ wallpaper: true, byScreen: {} }, { wallpaper: 'toggle' }).wallpaper, false);
   assert.match(fn, /ambientMode: normalizeAmbientMode\(ambient\)/, 'normalized like every other save');
   assert.match(fn, /broadcastSSE\('settings', \{ rev: saved\.rev \}\)/, 'the dashboard and the driver re-sync the windows');
 });
@@ -165,9 +168,12 @@ test('screens are chosen by number, 1 being the main one, and only real ones', a
 
 test('Bit can choose the screens, and the saved list survives both normalizers', () => {
   assert.deepEqual(aiAction('set_desktop_scene_screens', { screens: '1,3' }), { type: 'desktopScreens', screens: '1,3' });
-  assert.match(SERVER, /if \(patch\.screens\) ambient\.screens = patch\.screens;/);
+  assert.deepEqual(scene.applyPatch({ screens: [], byScreen: { a: { wallpaper: 'builtin', saver: '' } } }, { screens: ['a'] }), { screens: ['a'], byScreen: {} }, 'chosen screens: one scene for all of them again');
   const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-  for (const src of [SERVER, CLIENT]) assert.match(src, /screens: Array\.isArray\(source\.screens\)/);
+  for (const src of [SERVER, CLIENT]) {
+    assert.match(src, /screens: ScreenSceneModel\.normalizeScreens\(source\.screens\)/);
+    assert.match(src, /byScreen: ScreenSceneModel\.normalizeByScreen\(source\.byScreen, isScene\)/);
+  }
 });
 
 test('the Classic scene shows the parts it is told, and only real ones', async () => {
@@ -183,8 +189,9 @@ test('the Classic scene shows the parts it is told, and only real ones', async (
 
 test('the menu offers the parts only under the Classic scene, and a tap flips one', () => {
   const { compose } = require('../xenon-menu.js');
-  const parts = (id) => compose({ probes: { scene: true }, scene: { id, canvases: [{ id: 'mine', name: 'Mine' }], parts: { clock: true, weather: false, media: true, calendar: true } } })
-    .sections.find((x) => x.id === 'look').rows.find((r) => r.id === 'sceneParts');
+  const parts = (id) => compose({ probes: { scene: true }, monitors: [{ key: 'm', primary: true }], scene: { id, dashboard: 'm', canvases: [{ id: 'mine', name: 'Mine' }], parts: { clock: true, weather: false, media: true, calendar: true } } })
+    .sections.find((x) => x.id === 'look').rows.find((r) => r.kind === 'screens')
+    .screens[0].tabs.flatMap((t) => t.rows).find((r) => r.id === 'sceneParts-1');
   const row = parts('builtin');
   assert.deepEqual(row.options.map((o) => o.on), [true, false, true, true]);
   assert.equal(row.options[1].act.run.show, 'clock,weather,media,calendar');

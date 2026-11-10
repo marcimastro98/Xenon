@@ -75,6 +75,18 @@ test('the item clip is unchanged by the surface variant', () => {
   assert.equal(N.surfaceClipPath(null), '');
 });
 
+// Chromium sizes a glass tile's clip mask to the whole path: a bottom 10000px
+// down cost 36 MB per tile under the island. The clip ends one spill under the tile.
+test('the clip ends just under the tile when its height is known', () => {
+  const last = (p) => Number(p.match(/V (-?[\d.]+) H -?[\d.]+ Z"\)$/)[1]);
+  const g = N.geometry({ ...base, height: 652 });
+  assert.equal(g.height, 652);
+  assert.equal(last(N.clipPath(g)), 652 + 48);
+  assert.equal(last(N.surfaceClipPath(g)), 652 + 48 - base.margin);
+  assert.equal(last(N.clipPath(N.collapsed(g))), 652 + 48); // the closing shape keeps it
+  assert.equal(last(N.clipPath(N.geometry(base))), 10000);  // unknown height: the old reach
+});
+
 test('the line along the cutout carries on the tile border, and a tile without one gets none', () => {
   assert.deepEqual(N.edgeLine({ borderLeftWidth: '1px', borderLeftColor: 'rgb(60, 60, 60)' }), { width: 1, color: 'rgb(60, 60, 60)' });
   assert.deepEqual(N.edgeLine({ borderLeftWidth: '0.667px', borderLeftColor: 'rgb(60, 60, 60)' }), { width: 1, color: 'rgb(60, 60, 60)' });

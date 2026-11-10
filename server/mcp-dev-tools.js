@@ -146,7 +146,24 @@ async function opCheck(args, deps) {
     permissions: permissionsOf(v.manifest),
     sandbox: sourceIssues(payload.files, deps),
     critique: checked ? checked.critique : null,
+    ...menuOf(payload.files, v.manifest),
   };
+}
+
+// The widget's card in the Xenon menu: the options the app keeps, the ones it
+// drops (an entry that is not right is left out, never guessed) and whether the
+// box takes the widget's own size.
+function menuOf(files, manifest) {
+  const kept = (manifest.options || []).map((o) => o.id);
+  const file = files.find((f) => f && f.path === 'manifest.json');
+  let raw = [];
+  try { raw = JSON.parse(fromB64(file && file.data)).options; } catch { raw = []; }
+  const declared = Array.isArray(raw) ? raw.map((o, i) => (o && typeof o.id === 'string' ? o.id : '#' + i)) : [];
+  const dropped = declared.filter((id) => !kept.includes(id));
+  const menu = { options: kept, dropped, fit: manifest.fit === true };
+  return dropped.length
+    ? { menu, menuHint: 'Some options never reach the user (Options in the Store and the Xenon menu): see sdk_reference section "options" (ids, kinds, 2 to 8 choices).' }
+    : { menu };
 }
 
 function permissionsOf(m) {

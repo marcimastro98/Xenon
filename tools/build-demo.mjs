@@ -170,6 +170,12 @@ log('materialized shared/src from packages/core');
   html = cutOnce(html, '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
     '</script>', 'Edge fractional-DPR block');
 
+  // 4d'. The app loads its strings from the server (/layer-i18n.js, one
+  //     language); a static site has no server, so the demo loads the whole
+  //     file, every language in it.
+  html = patchOnce(html, '<script src="layer-i18n.js"></script>',
+    '<script src="js/i18n.js"></script>', 'whole strings file in place of /layer-i18n.js');
+
   // 4e. Head metadata. <html lang> is left alone: i18n.js sets it from the
   //     seeded language.
   html = patchOnce(html, '<title>', '<link rel="canonical" href="https://xenon-app.com/demo/">\n'

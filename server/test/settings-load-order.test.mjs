@@ -192,7 +192,7 @@ test('the news table is above the line, and its builder can be below it', () => 
 //
 // The check above is static, so it can be wrong in both directions. This one
 // actually LOADS settings.js the way the page does — against the real utils.js,
-// state.js, i18n.js, theme-palette.js, theme-tokens.js, topbar-look.js, layer-tiles.js, layers-model.js and perf-settings.js it depends on — with a settings blob
+// state.js, i18n.js, theme-palette.js, theme-tokens.js, topbar-look.js, layer-tiles.js, layers-model.js, perf-settings.js and screen-scene-model.js it depends on — with a settings blob
 // already in storage, and asks the only question that matters: did the settings
 // survive.
 //
@@ -205,7 +205,7 @@ test('the news table is above the line, and its builder can be below it', () => 
 // "Cannot access 'SDK_PACKAGE_ID_RE' before initialization", for every user with
 // a community widget on a tile.
 
-const DEPS = ['local-server-fields.js', 'utils.js', 'toast.js', 'state.js', 'i18n.js', 'theme-palette.js', 'theme-tokens.js', 'topbar-look.js', 'layer-tiles.js', 'layers-model.js', 'perf-settings.js'];
+const DEPS = ['local-server-fields.js', 'utils.js', 'toast.js', 'state.js', 'i18n.js', 'theme-palette.js', 'theme-tokens.js', 'topbar-look.js', 'layer-tiles.js', 'layers-model.js', 'perf-settings.js', 'screen-scene-model.js'];
 const DEP_SRC = DEPS.map((f) => [f, readFileSync(join(HERE, '..', 'js', f), 'utf8')]);
 
 /** A sandbox with the handful of browser globals this chain touches. */

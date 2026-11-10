@@ -26,7 +26,8 @@ person's own dashboard, so you can see it run and fix it.
 
 - No inline code: `<script>` blocks and `onclick=` never run. Scripts are files, events use `addEventListener`.
 - No remote scripts, styles or fonts. Ship them in the folder. Network calls go through the SDK `fetch` message to
-  hosts listed in the manifest.
+  hosts listed in the manifest. Size requests from `init.limits` (fetch, store and secret caps, Xenon 5.0+),
+  never by probing or by a Xenon version.
 - Say `hello` first, then wait for `init` before reading data.
 - Fill the tile at every size: `container-type: size` on the root and `cqmin` units, no fixed pixel layout.
 - Put text on the page with `textContent`, never `innerHTML`.

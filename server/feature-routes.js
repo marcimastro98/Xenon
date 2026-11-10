@@ -9,6 +9,7 @@
 const FEATURES = Object.freeze([
   require('./net-path/routes.js'),
   require('./sensor-history/routes.js'),
+  require('./app-strings/routes.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

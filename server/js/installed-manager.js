@@ -623,6 +623,8 @@
       });
       btns.appendChild(add);
     }
+    // The widget's own options, on every surface (widget-options-panel.js).
+    if (row.pkg && window.WidgetOptionsPanel) WidgetOptionsPanel.attach(row.pkg, info, btns);
     // An installed-but-ungranted package is an installed DEAD package, and this
     // list was the one place that showed it without offering the fix. Placing a
     // tile used to be the only way to reach the dialog — impossible for a widget

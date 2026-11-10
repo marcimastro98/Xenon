@@ -92,6 +92,28 @@ test('check_widget: package errors come back with a hint, good ones with permiss
   assert.deepEqual(good.critique, { notes: [] });
 });
 
+// An option the app drops never reaches the Xenon menu: the author learns
+// which one here, instead of looking for it there.
+test('check_widget: says which Xenon menu options are kept, which dropped, and fit', async () => {
+  const { d } = deps();
+  const files = starter();
+  const m = JSON.parse(Buffer.from(files[0].data, 'base64').toString('utf8'));
+  m.options = [
+    { id: 'compact', kind: 'toggle', label: 'Compact', default: false },
+    { id: 'Bad id', kind: 'toggle', label: 'Bad' },
+    { id: 'look', kind: 'select', label: 'Look', choices: [{ value: 'a', label: 'A' }] },
+  ];
+  m.fit = true;
+  files[0] = { path: 'manifest.json', data: Buffer.from(JSON.stringify(m)).toString('base64') };
+  const r = await T.runOp('check_widget', { id: 'clock', files }, d);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.menu, { options: ['compact'], dropped: ['Bad id', 'look'], fit: true });
+  assert.match(r.menuHint, /options/);
+  const plain = await T.runOp('check_widget', { id: 'clock', files: starter() }, d);
+  assert.deepEqual(plain.menu, { options: [], dropped: [], fit: false });
+  assert.equal(plain.menuHint, undefined);
+});
+
 test('install_widget: installs as the person\'s own and places it', async () => {
   const { d, calls } = deps();
   const r = await T.runOp('install_widget', { id: 'clock', files: starter() }, d);

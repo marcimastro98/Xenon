@@ -66,6 +66,15 @@
   --sheet-blur: none;
   --sheet-lift: 0 0 0 transparent;
 }
+/* A widget window on the desktop is see-through too: behind a sheet there are the
+   desktop's own windows, sharp, so a thin fill leaves the words unreadable. */
+:root[data-style="liquid"][data-layer] body {
+  --sheet-card: rgba(var(--panel-rgb), 0.97);
+  --sheet-fill: rgba(var(--panel-rgb), 0.97);
+  --sheet-blur: none;
+  --sheet-scrim: rgba(6, 7, 14, 0.62);
+  --sheet-scrim-blur: none;
+}
 
 /* ── Cards ─────────────────────────────────────────────────────── */
 :root[data-style="liquid"] :is(.bm-card, .rn-corner:not(.rn-corner-major), .rn-card) {

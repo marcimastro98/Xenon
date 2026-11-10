@@ -264,6 +264,7 @@
   const BADGE_ICON_MAX = 8;             // badge glyph cap — same bound as a deck state's icon meta
   const TOPBAR_BUTTON_LABEL_MAX = 24;   // bar button label: the same cap the user's own label has (TopbarLook)
   const CLIP_MIN_INTERVAL_MS = 1200;    // per-instance clipboard-request rate limit (a copy needs a human tap anyway)
+  const OPTION_MIN_INTERVAL_MS = 200;   // a switch a second is plenty; a loop is not
   const CLIP_TEXT_MAX = 4096;           // max chars a single copy may carry
   const CLIP_LABEL_MAX = 64;            // the short "what is this" label shown in the confirm prompt
 
@@ -328,8 +329,11 @@
     // Wh per hour for 72 h and per day for 90 days, by source (cpu, gpu and
     // psu, the power supply's own figure for the whole PC) with the seconds
     // each covers, and the last reading in W. It changes once per sample, so a
-    // long TTL. Rebuilt field by field.
-    energy: Object.freeze({ ttl: 60000, load: async () => {
+    // long TTL. Rebuilt field by field. outOfSight: a background service frame
+    // may ask for it too (a kWh chip by the clock with no tile anywhere): the read
+    // is the server's own history, and the TTL keeps it to one a minute however
+    // many frames ask.
+    energy: Object.freeze({ ttl: 60000, outOfSight: true, load: async () => {
       const d = await api('/api/energy');
       if (!d || typeof d !== 'object' || d.ok !== true) {
         return { ok: false, error: d && (d.error === 'not_granted' || d.error === 'unavailable') ? d.error : 'failed' };
@@ -508,6 +512,24 @@
 
   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
   let pkgFetchPromise = null; // in-flight /sdk/widgets fetch (shared by callers)
+
+  // The host limits /sdk/widgets sends (server/sdk-limits/limits.js), kept to the
+  // groups and numbers a widget is told about in init.limits; null if absent.
+  const LIMIT_KEYS = {
+    fetch: ['maxResponseBytes', 'maxRequestBytes', 'minIntervalMs', 'maxInFlight', 'timeoutMs'],
+    store: ['maxKeys', 'maxValueBytes', 'maxTotalBytes'],
+    secrets: ['maxCount', 'maxValueBytes'],
+  };
+  function hostLimits(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const out = {};
+    for (const [group, keys] of Object.entries(LIMIT_KEYS)) {
+      const src = raw[group] && typeof raw[group] === 'object' ? raw[group] : {};
+      out[group] = {};
+      for (const k of keys) if (Number.isFinite(src[k]) && src[k] >= 0) out[group][k] = src[k];
+    }
+    return out;
+  }
   // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState, ambient? }.
   // Ambient entries are fullscreen scene frames registered by AmbientMode under
   // a reserved id — they are not tiles, so every tile-driven cleanup below must
@@ -691,6 +713,31 @@
     return list.find(p => p && p.id === id) || null;
   }
 
+  // ── The widget's own options (manifest `options`, v5.0.0) ──────────────────
+  // Set in the Xenon menu, resolved by the server (widget-options/) and carried by
+  // the package list. A change is announced (`sdk_options`): the list is read again,
+  // without reloading any frame, and the live frames of that package get the values.
+  function optionValuesOf(pkgId) {
+    const pkg = packageById(pkgId);
+    const v = pkg && pkg.optionValues;
+    return v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {};
+  }
+  async function onOptionsChanged(payload) {
+    const pkgId = payload && typeof payload.pkg === 'string' ? payload.pkg : '';
+    if (!pkgId) return;
+    try {
+      const d = await api('/sdk/widgets');
+      if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
+    } catch (e) {
+      console.warn('[custom-widget] options changed, list not read again', e);
+      return;
+    }
+    const values = optionValuesOf(pkgId);
+    for (const entry of frames.values()) {
+      if (entry.pkgId === pkgId && entry.ready) post(entry, { type: 'options', values });
+    }
+  }
+
   // In-flight /sdk/widgets fetch is SHARED, not dropped: awaiting callers
   // (getPackages, the post-install rescan) must resolve with real data, and a
   // FORCED call that lands mid-flight still gets its fresh pass afterwards —
@@ -718,7 +765,7 @@
     pkgFetchPromise = (async () => {
       try {
         const d = await api('/sdk/widgets');
-        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0 };
+        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0, limits: hostLimits(d.limits) };
         else if (!pkgCache) pkgCache = { packages: [], invalid: [], skipped: 0 };
       } finally { pkgFetchPromise = null; }
     })();
@@ -1256,8 +1303,9 @@
     }
   }
 
-  function entryCanRefreshLocalStream(entry) {
-    if (!entry || entry.service || document.hidden || !entry.frame || !entry.frame.isConnected) return false;
+  function entryCanRefreshLocalStream(entry, stream) {
+    if (!entry || document.hidden || !entry.frame || !entry.frame.isConnected) return false;
+    if (entry.service) return LOCAL_STREAM_LOADERS[stream].outOfSight === true;
     if (entry.ambient) return true;
     try { return onVisiblePage(entry.frame) && entry.frame.getClientRects().length > 0; }
     catch { return false; }
@@ -1486,7 +1534,7 @@
       post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: err });
       return;
     }
-    if (!entryCanRefreshLocalStream(entry)) {
+    if (!entryCanRefreshLocalStream(entry, stream)) {
       post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'not_visible' });
       return;
     }
@@ -1659,7 +1707,7 @@
       body: JSON.stringify({ pkg: entry.pkgId, url: msg.url, method: msg.method, headers: msg.headers, body: msg.body }),
     });
     if (!d) { reply({ ok: false, error: 'offline' }); return; }
-    reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error });
+    reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error, limit: Number.isFinite(d.limit) ? d.limit : undefined });
   }
 
   // Persistent store relay: the sandboxed frame has no localStorage, so the host
@@ -2127,11 +2175,44 @@
   function onBridgeLayer(entry, msg) {
     const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
     const reply = (ok, error) => post(entry, { type: 'layer_result', id: reqId, ok, error });
-    if (typeof msg.through !== 'boolean') { reply(false, 'bad_request'); return; }
     if (entry.service || entry.ambient || !window.LayerHost || !window.LayerHost.active) { reply(false, 'not_in_layer'); return; }
+    if (msg.fit !== undefined) { onBridgeFit(entry, msg.fit, reply); return; }
+    if (typeof msg.through !== 'boolean') { reply(false, 'bad_request'); return; }
     entry.frame.toggleAttribute('data-layer-through', msg.through);
     layerRectsChanged();
     reply(true);
+  }
+
+  // A widget whose manifest says `fit` sizes its own box on the screen (js/layer-fit.js):
+  // the menu offers no size for it, so this is the only way it gets one.
+  function onBridgeFit(entry, fit, reply) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.fit !== true) { reply(false, 'not_allowed'); return; }
+    const error = window.LayerFit ? window.LayerFit.request(entry.frame, fit) : 'unavailable';
+    reply(!error, error || undefined);
+  }
+
+  // ── Its own options (`option` message, v5.0.0) ───────────────────────────
+  // A widget may change one of the options its manifest declares, from a settings
+  // page of its own, as the Xenon menu does: the server checks the option and the
+  // value, saves them, and every copy of the widget is told (`options`). Only its
+  // own package, only what it declared: no grant.
+  let lastOptionAt = 0;
+  async function onBridgeOption(entry, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (ok, error) => post(entry, { type: 'option_result', id: reqId, ok, error });
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || !Array.isArray(pkg.options) || !pkg.options.length) { reply(false, 'not_allowed'); return; }
+    if (typeof msg.option !== 'string' || typeof msg.value !== 'string') { reply(false, 'bad_request'); return; }
+    const now = Date.now();
+    if (now - lastOptionAt < OPTION_MIN_INTERVAL_MS) { reply(false, 'rate_limited'); return; }
+    lastOptionAt = now;
+    const d = await api('/actions/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'widgetOption', widget: entry.pkgId, option: msg.option.slice(0, 32), value: msg.value.slice(0, 32) }),
+    });
+    reply(!!(d && d.ok), d && d.ok ? undefined : (d && d.error) || 'failed');
   }
 
   // ── Dashboard accent tint (`accent` capability) ──────────────────────────
@@ -2316,6 +2397,9 @@
       post(entry, {
         type: 'init',
         api: 1,
+        // Every limit the host enforces on this widget (fetch, store, secrets), so it
+        // can size its requests without a test fetch. Null before the list loaded (v5.0.0).
+        limits: pkgCache ? pkgCache.limits : null,
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
         // Which copy of the tile this frame is ("custom", "custom~k3x9"), stable
         // across reloads, so two copies of one widget can keep two layouts in
@@ -2358,6 +2442,8 @@
         placement,
         // On a paired phone or tablet (v5.0.0). Some actions only make sense on the
         // PC itself and are refused from there, so a widget hides those buttons.
+        // Its own options as the person set them in the Xenon menu (v5.0.0).
+        options: optionValuesOf(entry.pkgId),
         remote: !!(window.RemoteSurface && typeof window.RemoteSurface.isRemote === 'function' && window.RemoteSurface.isRemote()),
       });
       // History first, then the latest value: a widget building a chart gets the
@@ -2418,6 +2504,8 @@
       if (entry.ready) onBridgeExpand(entry, grant, d);
     } else if (d.type === 'layer') {
       if (entry.ready) onBridgeLayer(entry, d);
+    } else if (d.type === 'option') {
+      if (entry.ready) onBridgeOption(entry, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
     } else if (d.type === 'ai') {
@@ -4290,7 +4378,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onAutoUpdated, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onOptionsChanged, onAutoUpdated, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,

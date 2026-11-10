@@ -184,7 +184,7 @@ test('the page loads only what a Store widget needs, in order', () => {
   const html = read('../layer-lite.html');
   assert.match(html, /<html lang="en" data-layer-lite>/);
   const order = ['js/skin-fonts.js', 'shared/src/constants.js', 'js/live-stream.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js', 'js/theme-palette.js',
-    'js/theme-tokens.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/layer-drag.js', 'js/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/layer-pin.js', 'js/layer-key.js', 'js/layer-host.js', 'js/layer-lite-tiles.js', 'js/tile-play.js', 'js/layer-lite.js'];
+    'js/theme-tokens.js', 'js/layer-tiles.js', 'js/layer-when.js', 'js/layers-model.js', 'js/layer-drag.js', 'js/layer-see.js', 'js/native-bridge.js', 'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/layer-pin.js', 'js/layer-fit.js', 'js/layer-key.js', 'js/layer-host.js', 'js/layer-lite-tiles.js', 'js/tile-play.js', 'js/layer-lite.js'];
   const at = order.map((src) => html.indexOf('src="' + src + '"'));
   assert.ok(at.every((i) => i > 0), 'a script is missing');
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'scripts out of order');

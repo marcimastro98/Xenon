@@ -31,8 +31,12 @@
       return f;
     }
 
+    // No scene ('': the screen keeps the computer's own wallpaper): nothing to show,
+    // not even the empty box.
     function load(id) {
-      if (!frame || frame.dataset.scene === id) return;
+      if (frame) frame.hidden = !id;
+      if (box) box.hidden = !id;
+      if (!frame || !id || frame.dataset.scene === id) return;
       frame.dataset.scene = id;
       frame.classList.remove('is-ready');
       frame.src = previewUrl(server, id);

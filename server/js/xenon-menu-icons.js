@@ -33,6 +33,7 @@
     timelapse: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
     steps: 'M4 6h3v3H4zM4 15h3v3H4zM11 7.5h9M11 16.5h9',
     text: 'M5 6V4h14v2M12 4v16M9 20h6',
+    lines: 'M4 6.5h16M4 12h16M4 17.5h10',
     colour: 'M14 6l4 4M5 19l1-4 8.5-8.5 3 3L9 18l-4 1zM13 4l7 7',
     ruler: 'M3 16 16 3l5 5L8 21zM7 12l2 2M10 9l3 3M13 6l2 2',
     draw: 'M4 20l1-4L16 5l3 3L8 19l-4 1zM14 7l3 3',

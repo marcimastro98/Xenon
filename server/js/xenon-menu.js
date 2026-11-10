@@ -30,14 +30,23 @@
     return String(str).replace(/\{(\w+)\}/g, (m, name) => (vars && vars[name] != null ? String(vars[name]) : m));
   }
 
-  // A row text: { key, vars }, { text }, or a list of those joined by commas.
+  // A row text: { key, vars }, { text }, { langs } (a Store widget's own words, by
+  // language), or a list of those joined by commas.
   function text(x, tt) {
     if (!x) return '';
     if (Array.isArray(x)) return x.map((y) => text(y, tt)).filter(Boolean).join(', ');
     if (typeof x.text === 'string') return x.text;
+    if (x.langs && typeof x.langs === 'object') return ownWords(x.langs, tt);
     if (typeof x.key === 'string') return fill(tt(x.key), x.vars);
     if (Array.isArray(x.pair)) return x.pair.map((y) => text(y, tt)).join(': ');
     return '';
+  }
+
+  // The widget's words in the menu's language, else English, else the first it wrote.
+  function ownWords(langs, tt) {
+    const lang = String(tt('locale') || '').slice(0, 2).toLowerCase();
+    const pick = langs[lang] != null ? langs[lang] : langs.en != null ? langs.en : Object.values(langs)[0];
+    return typeof pick === 'string' ? pick : '';
   }
 
   // Facts about one thing as a sentence: only the first keeps its capital. Names
@@ -393,6 +402,11 @@
       el, button, say, tt, fill, factLine, icon, switchFor, perform, redraw: () => draw(), server, DRAW, Place, Palette, pageEdit, peek, main, clearFind, show,
     }) : null;
     if (widgets) DRAW.widget = widgets.drawRow;
+    const Screens = (typeof window !== 'undefined' && window.XenonMenuScreens) || null;
+    if (Screens) {
+      const live = sceneView ? { slot: sceneView.slot, hold: sceneView.hold, settle: sceneView.settle } : {};
+      DRAW.screens = Screens.create({ el, button, say, DRAW, rowShell, perform, icon, ...live }).draw;
+    }
 
     // ── Key recording ──
     const clearable = (r) => !!r.combo && !r.noClear;

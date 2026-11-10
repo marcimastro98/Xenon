@@ -16,6 +16,7 @@ const { onlyOwn, GAME_NAME, BUSY_NAME } = require('../../tools/perf/shield-proof
 const { allowedCpus, sameState } = require('../../tools/perf/shield-proof/real-state.cjs');
 const { containerScript, framesLine, shieldHelped } = await import('../../tools/perf/shield-proof/index.mjs');
 const { isOurGame, loadThreads, nextStep, parseArgs, stillSpent, stopLoad } = await import('../../tools/perf/shield-proof/game-load.mjs');
+const IndexWalk = await import('../../tools/perf/index-walk.mjs');
 
 test('spawns group by command, in the order they first ran', () => {
   const groups = groupSpawns([
@@ -215,4 +216,14 @@ test('stopping the load twice ends both times: the tool stops it in the game and
   await stopLoad(child);
   assert.notEqual(child.signalCode, null);
   await stopLoad(null);
+});
+
+test('index-walk reads the host lines and its arguments, and never starts a host on import', () => {
+  const line = 'XEIDX ' + Buffer.from(JSON.stringify({ event: 'ready' })).toString('base64');
+  assert.deepEqual(IndexWalk.decodeLine(line), { event: 'ready' });
+  assert.equal(IndexWalk.decodeLine('progress 12'), null);
+  assert.equal(IndexWalk.decodeLine('XEIDX not-json'), null);
+  const args = IndexWalk.parseArgs(['--runs', '3', '--exe', 'x.exe', 'C:/', 'D:/']);
+  assert.deepEqual(args, { exe: 'x.exe', runs: 3, roots: ['C:/', 'D:/'] });
+  assert.equal(IndexWalk.parseArgs(['--runs', 'x', 'C:/']).runs, 1);
 });

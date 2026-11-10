@@ -110,6 +110,9 @@
   function markSheet(node) {
     if (!node || node.nodeType !== 1 || node.parentNode !== document.body || sheets.has(node)) return;
     if (node === root || node.id === 'picker-overlay' || /^(SCRIPT|STYLE|LINK|DATALIST|A)$/.test(node.tagName)) return;
+    // A tile parked here when its slot goes (place) is not a sheet: Remove in
+    // edit mode is a press in the slot, and the tile showed at the top left.
+    if (node.hasAttribute('data-dashboard-widget')) return;
     node.setAttribute('data-layer-sheet', '');
     sheets.add(node);
     if (sheetSeen) sheetSeen.observe(node, { attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });

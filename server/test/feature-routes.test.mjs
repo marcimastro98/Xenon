@@ -14,6 +14,8 @@ const { createRead } = require('../net-path/routes.js');
 const CLASSIFIED = Object.freeze({
   'GET /api/net-path': { remote: true },
   'GET /api/energy': { remote: true },
+  // The app's own strings: the dashboard on a paired phone fetches them too.
+  'GET /i18n-langs.json': { remote: true },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

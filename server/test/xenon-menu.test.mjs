@@ -56,6 +56,10 @@ const full = (over = {}) => ({
 const LAPTOP = { battery: { percent: 18, plugged: false, charging: false, minutesLeft: 75 }, saver: false, mode: 'balanced', modes: ['saver', 'balanced', 'performance'], canSet: true };
 const section = (out, id) => out.sections.find((s) => s.id === id);
 const row = (out, sec, id) => section(out, sec).rows.find((r) => r.id === id);
+// Look keeps its rows inside the screens row: in each screen's tabs, and what is kept for
+// every screen in `tune`.
+const lookRows = (out) => section(out, 'look').rows.flatMap((r) => (r.kind === 'screens' ? [...r.tune, ...r.screens.flatMap((v) => v.tabs.flatMap((t) => t.rows))] : [r]));
+const lookRow = (out, id) => lookRows(out).find((r) => r.id === id);
 const tuneOf = (out, sec, widget, id) => row(out, sec, widget).tune.find((r) => r.id === widget + ':' + id);
 const hudTune = (out, id) => tuneOf(out, 'widgets', 'lw_perf01', id);
 const hudItems = (out) => hudTune(out, 'parts').groups.flatMap((g) => g.items);
@@ -122,8 +126,9 @@ test('the rows a person would not understand from the name carry a line', () => 
   for (const id of ['recordAudio', 'recordWebcam', 'replayOn', 'replayLength', 'all']) assert.ok(row(out, 'capture', id).sub, id);
   assert.ok(row(out, 'mode', 'alerts').sub);
   assert.ok(row(out, 'capture', 'gallery').sub);
-  assert.equal(row(out, 'look', 'scene').label.key, 'xmenu_scene');
   assert.ok(row(out, 'now', 'replayState').sub);
+  const one = Menu.compose(full({ monitors: [{ key: 'm', primary: true }], scene: { wallpaper: true, saverMinutes: 10, id: 'builtin', dashboard: 'm' } }));
+  for (const id of ['dashBg-1', 'ambient-1', 'wall-1', 'saver-1', 'saver']) assert.ok(lookRow(one, id).sub, id);
 });
 
 test('a line under a tile is short enough to read at a glance', () => {
@@ -365,7 +370,8 @@ test('every placed widget gets the same adjustments: the HUD is not a thing apar
   const out = Menu.compose(full());
   const ids = (id, sec) => row(out, sec, id).tune.filter((r) => r.kind !== 'tunehead').map((r) => r.id.split(':')[1]);
   assert.deepEqual(ids('lw_wthr01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'bare', 'tabs']);
-  assert.deepEqual(ids('lw_perf01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'parts', 'layout', 'tabs']);
+  // Tabs come before what it shows: that part is drawn on the widget's screen itself.
+  assert.deepEqual(ids('lw_perf01', 'widgets'), ['place', 'page', 'corner', 'when', 'size', 'opacity', 'tabs', 'parts', 'layout']);
   const size = tuneOf(out, 'widgets', 'lw_wthr01', 'size');
   assert.equal(size.label.key, 'xmenu_size');
   assert.deepEqual(size.options.map((o) => o.value), ['small', 'medium', 'large']);
@@ -557,10 +563,10 @@ test('"Keys": saving the replay sits under Capture, right after Record, with its
 });
 
 test('"Look": a screensaver time chosen in Settings stays among the choices', () => {
-  const saver = row(Menu.compose(full()), 'look', 'saver');
+  const saver = lookRow(Menu.compose(full()), 'saver');
   assert.deepEqual(saver.options.map((o) => o.value), ['0', '5', '15', '30', '10']);
   assert.equal(saver.value, '10');
-  assert.equal(row(Menu.compose(full({ probes: { layers: true } })), 'look', 'saver'), undefined);
+  assert.equal(lookRow(Menu.compose(full({ probes: { layers: true } })), 'saver'), undefined);
 });
 
 test('"Mode": three modes; screen alerts only in widgets only; "open the dashboard" only over the screen', () => {
@@ -586,14 +592,14 @@ test('"Keys": a new macro opens the key editor in the menu window, not the dashb
 });
 
 test('"Look": the scene is chosen right there, and the row says more come from the Store, Bit, the Maker', () => {
-  const out = Menu.compose(full({ scenes: [{ id: 'night', name: 'Night' }], scene: { wallpaper: true, saverMinutes: 10, id: 'night', canvases: [{ id: 'a', name: 'Lake' }] } }));
-  const scene = row(out, 'look', 'scene');
-  assert.equal(scene.kind, 'choice');
-  assert.equal(scene.value, 'night');
-  assert.equal(scene.sub.key, 'xmenu_sub_scene', 'one choice for the wallpaper and the screensaver');
-  assert.deepEqual(scene.options.map((o) => o.label), [{ key: 'ambient_scene_builtin' }, { text: 'Night' }, { text: 'Lake' }]);
-  assert.deepEqual(scene.options[2].act.run, { type: 'desktopScene', scene: 'canvas:a' });
-  const more = row(out, 'look', 'moreScenes');
+  const out = Menu.compose(full({ monitors: [{ key: 'm', primary: true }], scenes: [{ id: 'night', name: 'Night' }], scene: { wallpaper: true, saverMinutes: 10, id: 'night', canvases: [{ id: 'a', name: 'Lake' }] } }));
+  const wall = lookRow(out, 'wall-1');
+  assert.equal(wall.kind, 'choice');
+  assert.equal(wall.value, 'night', 'one screen, no dashboard on it: the scene is its wallpaper');
+  assert.deepEqual(wall.options.map((o) => o.label), [{ key: 'xmenu_scr_own_wallpaper' }, { key: 'ambient_scene_builtin' }, { text: 'Night' }, { text: 'Lake' }]);
+  assert.deepEqual(wall.options[3].act.run, { type: 'desktopScene', screen: '1', for: 'wallpaper', scene: 'canvas:a' });
+  assert.deepEqual(wall.options[0].act.run, { type: 'desktopScene', screen: '1', for: 'wallpaper', scene: 'none' });
+  const more = lookRow(out, 'moreScenes');
   assert.deepEqual(more.actions.map((a) => a.act.open || a.act.run.type), ['store:ambient', 'chat', 'openUrl', 'settings:ambient']);
   assert.deepEqual(more.actions.map((a) => !!a.closes), [true, true, false, true], 'the Maker is a link: the menu stays');
   assert.equal(more.actions[1].icon, 'bit');
@@ -646,6 +652,15 @@ test('the tile: no "0 on screen" next to "No widgets yet", labels break between 
   const label = css.match(/\.scr-quick-label \{[^}]*\}/)[0];
   assert.doesNotMatch(label, /overflow-wrap: anywhere/, '"Screensh/ot" in a narrow tile');
   assert.match(css, /\.scr-quick \{[^}]*auto-fit/, 'empty tracks collapse on a wide tile');
+});
+
+test("view helpers: a Store widget's own words follow the menu language, then English, then its first", () => {
+  const it = (k) => (k === 'locale' ? 'it-IT' : k);
+  const ko = (k) => (k === 'locale' ? 'ko-KR' : k);
+  assert.equal(View.text({ langs: { en: 'Memory', it: 'Memoria' } }, it), 'Memoria');
+  assert.equal(View.text({ langs: { en: 'Memory', it: 'Memoria' } }, ko), 'Memory');
+  assert.equal(View.text({ langs: { de: 'Speicher' } }, it), 'Speicher');
+  assert.equal(View.text({ langs: { it: 5 } }, it), '');
 });
 
 test('view helpers: texts join with commas, vars fill, a bad shape is empty', () => {
@@ -845,29 +860,62 @@ test('every button row has a name on the left and a short action on the right', 
   }
 });
 
-test('"Look": any mix of screens, Automatic is the rest, one screen asks nothing', () => {
-  const monitors = [{ key: 'left', width: 1920, height: 1080 }, { key: 'main', primary: true, width: 2560, height: 1440 }, { key: 'edge', width: 2560, height: 720 }];
-  const screens = (list) => row(Menu.compose(full({ monitors, scene: { wallpaper: true, saverMinutes: 0, id: 'builtin', screens: list } })), 'look', 'sceneScreens');
-  const auto = screens([]);
-  assert.equal(auto.multi, true);
-  assert.deepEqual(auto.options.map((o) => o.on), [true, false, false, false]);
-  assert.equal(auto.options[0].act, null, 'already there: nothing to do');
-  assert.deepEqual(auto.options[1].act.run, { type: 'desktopScreens', screens: '1' }, 'the main screen is number 1');
-  const two = screens(['main', 'edge']);
-  assert.deepEqual(two.options.map((o) => o.on), [false, true, false, true]);
-  assert.deepEqual(two.options[2].act.run, { type: 'desktopScreens', screens: '1,2,3' }, 'adds one');
-  assert.deepEqual(two.options[3].act.run, { type: 'desktopScreens', screens: '1' }, 'takes one away');
-  assert.deepEqual(two.options[0].act.run, { type: 'desktopScreens', screens: 'auto' });
-  assert.deepEqual(screens(['edge']).options[3].act.run, { type: 'desktopScreens', screens: 'auto' }, 'the last one off goes back to Automatic');
-  assert.deepEqual(screens(['gone']).options.map((o) => o.on), [true, false, false, false], 'an unplugged screen is not shown as chosen');
-  const one = Menu.compose(full({ monitors: monitors.slice(1, 2), scene: { wallpaper: true, saverMinutes: 0, id: 'builtin' } }));
-  assert.equal(one.sections.find((x) => x.id === 'look').rows.some((r) => r.id === 'sceneScreens'), false);
+// The setup that asked for it: Ambient on the Edge with the dashboard, Windows' own
+// wallpaper on the two monitors, the Edge's background from the theme.
+const DESK = [{ key: 'pg', primary: true, name: 'PG32UCDM', width: 3840, height: 2160 }, { key: 'edge', name: 'XENEON EDGE', width: 2560, height: 720 }, { key: 'side', name: 'D27-30', width: 1920, height: 1080 }];
+const desk = (scene, over = {}) => full({ monitors: DESK, scenes: [{ id: 'joyride', name: 'Joyride Scene' }], ...over, scene: { id: 'joyride', wallpaper: false, saverMinutes: 0, dashboard: 'edge', ...scene } });
+const screensRow = (out) => row(out, 'look', 'sceneScreens');
+const viewOf = (out, key) => screensRow(out).screens.find((s) => s.key === key);
+const said = (view) => view.says.map((l) => [l.label.key, l.value.key || l.value.text]);
+const rowsOf = (view) => view.tabs.flatMap((t) => t.rows);
+const tabsOf = (view) => view.tabs.map((t) => [t.id, t.value.key || t.value.text]);
+
+test('"Look": every screen says what it shows, the dashboard\'s Ambient apart from the monitors\' wallpaper', () => {
+  const out = Menu.compose(desk({}));
+  const r = screensRow(out);
+  assert.equal(r.kind, 'screens');
+  assert.deepEqual(r.screens.map((s) => s.key), ['pg', 'edge', 'side'], 'the main screen first, as the actions number them');
+  assert.deepEqual(said(viewOf(out, 'edge')), [['xmenu_scr_ambient_short', 'Joyride Scene']], 'one line: it fits the shortest screen');
+  assert.deepEqual(said(viewOf(out, 'pg')), [['xmenu_scr_wallpaper', 'xmenu_scr_own_wallpaper']], 'Joyride is not the monitors\' wallpaper');
+  assert.deepEqual(said(viewOf(out, 'side')), [['xmenu_scr_wallpaper', 'xmenu_scr_own_wallpaper']]);
+  assert.deepEqual(tabsOf(viewOf(out, 'edge')), [['ambient', 'Joyride Scene'], ['dash', 'xmenu_scr_theme_bg']], 'each tab says what it is set to');
+  assert.deepEqual(rowsOf(viewOf(out, 'edge')).map((x) => x.id), ['ambient-2', 'dashBg-2']);
+  assert.deepEqual(rowsOf(viewOf(out, 'edge'))[0].options.find((o) => o.value === 'joyride').act.run, { type: 'desktopScene', screen: '2', for: 'ambient', scene: 'joyride' });
+  assert.deepEqual(tabsOf(viewOf(out, 'pg')), [['wall', 'xmenu_scr_own_wallpaper'], ['saver', 'xmenu_scr_no_saver']]);
+  assert.deepEqual(rowsOf(viewOf(out, 'pg')).map((x) => x.id), ['wall-1', 'saver'], 'no screensaver time yet: only the time to pick');
+  assert.equal(rowsOf(viewOf(out, 'pg'))[0].value, '', 'their own wallpaper');
+  assert.deepEqual(rowsOf(viewOf(out, 'edge'))[1].act, { open: 'settings:appearance' });
+  assert.deepEqual(r.tune.map((x) => x.id), ['theme', 'saver', 'moreScenes'], 'search still finds what every screen shares');
+  assert.equal(section(out, 'look').rows.length, 1, 'the theme and more scenes go with the screens');
+});
+
+test('"Look": each screen shows its own scene, and a paused wallpaper reads as the PC\'s own', () => {
+  const byScreen = { side: { wallpaper: 'builtin', saver: 'joyride' } };
+  const out = Menu.compose(desk({ wallpaper: true, saverMinutes: 15, byScreen }));
+  assert.deepEqual(said(viewOf(out, 'side')), [['xmenu_scr_wallpaper', 'ambient_scene_builtin']]);
+  assert.deepEqual(tabsOf(viewOf(out, 'side')), [['wall', 'ambient_scene_builtin'], ['saver', 'Joyride Scene']]);
+  assert.deepEqual(viewOf(out, 'side').tabs[1].rows.map((x) => x.id), ['saver', 'saver-3'], 'the time, then the scene of this screen');
+  assert.deepEqual(said(viewOf(out, 'pg')), [['xmenu_scr_wallpaper', 'xmenu_scr_own_wallpaper']], 'a scene on one screen is not on the others');
+  assert.deepEqual(viewOf(out, 'side').tabs[0].rows.map((x) => x.id), ['wall-3', 'sceneParts-3'], 'Classic as wallpaper: its parts in that tab');
+  const paused = Menu.compose(desk({ wallpaper: false, saverMinutes: 0, byScreen }));
+  assert.deepEqual(said(viewOf(paused, 'side')), [['xmenu_scr_wallpaper', 'xmenu_scr_own_wallpaper']]);
+  const legacy = Menu.compose(desk({ wallpaper: true, id: 'joyride' }));
+  assert.deepEqual(said(viewOf(legacy, 'pg')), [['xmenu_scr_wallpaper', 'Joyride Scene']], 'before any screen of its own: the one scene on the screens without the dashboard');
+});
+
+test('"Look": one screen is drawn too, with every tab it has', () => {
+  const one = Menu.compose(full({ monitors: [DESK[0]], scene: { wallpaper: true, saverMinutes: 5, id: 'builtin', dashboard: 'pg' } }));
+  const view = viewOf(one, 'pg');
+  assert.deepEqual(view.tabs.map((t) => t.id), ['ambient', 'dash', 'wall', 'saver'], 'the dashboard and the desktop share the screen');
+  assert.deepEqual(view.tabs.map((t) => t.rows.map((x) => x.id)), [['ambient-1', 'sceneParts-1'], ['dashBg-1'], ['wall-1', 'sceneParts-1'], ['saver', 'saver-1', 'sceneParts-1']], 'the parts of Classic in every tab that uses it');
+  const none = Menu.compose(full({ monitors: [], scene: { id: 'builtin' } }));
+  assert.deepEqual(section(none, 'look').rows.map((r) => r.id), ['theme', 'moreScenes', 'saver'], 'no screen known yet: nothing to pick on');
 });
 
 test('"Look": a scene with no name is never a blank button, a removed one reads as the built-in', () => {
-  const scene = (sc, scenes) => row(Menu.compose(full({ scene: sc, scenes })), 'look', 'scene');
-  assert.deepEqual(scene({ id: 'canvas:a', canvases: [null, { id: 'a' }] }).options[1].label, { key: 'ambient_editor_untitled' });
-  assert.equal(scene({ id: 'gone' }, []).value, 'builtin');
+  const wall = (sc, scenes) => lookRow(Menu.compose(full({ monitors: [DESK[0]], scene: { wallpaper: true, ...sc }, scenes })), 'wall-1');
+  assert.deepEqual(wall({ id: 'canvas:a', canvases: [null, { id: 'a' }] }).options[2].label, { key: 'ambient_editor_untitled' });
+  assert.equal(wall({ id: 'gone' }, []).value, 'builtin');
 });
 
 test('what people look for comes first: a new macro above the functions, the gallery above the options', () => {
@@ -1041,6 +1089,38 @@ test('the adjustments come in three named groups', () => {
   assert.equal(tune[0].kind, 'tunehead');
 });
 
+test("a Store widget's own options are its Content rows; one sized by itself loses Size and tabs", () => {
+  const options = [
+    { id: 'form', kind: 'select', label: { en: 'Shape', it: 'Forma' }, default: 'row', choices: [{ value: 'min', label: 'Min' }, { value: 'row', label: 'Row' }] },
+    { id: 'net', kind: 'group', label: { en: 'Network' } },
+    { id: 'fps', kind: 'toggle', label: 'FPS', default: true },
+    { id: 'ping', kind: 'toggle', label: 'Ping', default: false, group: 'net' },
+  ];
+  const packages = [{ id: 'com.x.clock', name: 'Clock X', fit: true, options, optionValues: { form: 'min', fps: true, ping: false } }];
+  const out = Menu.compose(full({ packages }));
+  const tune = row(out, 'widgets', 'lw_clck01').tune;
+  const ids = tune.filter((r) => r.kind !== 'tunehead').map((r) => r.id.split(':')[1]);
+  assert.ok(!ids.includes('size') && !ids.includes('tabs'), ids.join());
+  assert.deepEqual(ids.slice(-2), ['opt-form', 'opt-shows']);
+  assert.equal(tune.filter((r) => r.kind === 'tunehead').pop().label.key, 'xmenu_tune_what');
+  const form = tuneOf(out, 'widgets', 'lw_clck01', 'opt-form');
+  assert.deepEqual(form.label, { langs: { en: 'Shape', it: 'Forma' } });
+  assert.equal(form.value, 'min');
+  assert.deepEqual(form.options[1].act.run, { type: 'widgetOption', widget: 'com.x.clock', option: 'form', value: 'row' });
+  const shows = tuneOf(out, 'widgets', 'lw_clck01', 'opt-shows');
+  assert.deepEqual(shows.groups.map((g) => g.id), ['main', 'net']);
+  assert.deepEqual(shows.groups[1].label, { langs: { en: 'Network' } });
+  const ping = shows.groups[1].items[0];
+  assert.equal(ping.on, false);
+  assert.deepEqual(ping.acts.on.run, { type: 'widgetOption', widget: 'com.x.clock', option: 'ping', value: 'on' });
+  // Nor is it offered as a tab to the others.
+  const tabs = tuneOf(out, 'widgets', 'lw_wthr01', 'tabs');
+  assert.ok(tabs && !tabs.options.some((o) => o.value === 'lw_clck01'), JSON.stringify(tabs && tabs.options.map((o) => o.value)));
+  const plain = Menu.compose(full());
+  assert.ok(tuneOf(plain, 'widgets', 'lw_clck01', 'size'), 'a widget without fit keeps its size');
+  assert.equal(tuneOf(plain, 'widgets', 'lw_clck01', 'opt-shows'), undefined);
+});
+
 test('the webcam row says where the bubble shows once a corner is picked', () => {
   const probes = { ...full().probes, captureWebcam: true };
   const line = (recordWebcam) => row(Menu.compose(full({ probes, capture: { ...full().capture, recordWebcam } })), 'capture', 'recordWebcam').sub.key;
@@ -1194,7 +1274,7 @@ test('what comes back from a function is marked: one-shots return, lasting ones 
 });
 
 test('"Look": a chosen scene that is not approved says so and leads to the approval', () => {
-  const waiting = Menu.compose(full({ scenes: [{ id: 'night', name: 'Night' }], scene: { id: 'night', waiting: true } }));
+  const waiting = Menu.compose(full({ scenes: [{ id: 'night', name: 'Night' }], scene: { id: 'night', waiting: ['night'] } }));
   const r = row(waiting, 'look', 'sceneWait');
   assert.equal(r.sub.key, 'ambient_scene_wait');
   assert.deepEqual(r.act, { open: 'settings:ambient' });

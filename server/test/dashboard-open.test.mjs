@@ -75,7 +75,7 @@ test('the Xenon menu opens the dashboard or one Settings category, never a made-
   assert.deepEqual(parse('?open=settings'), { open: 'settings' });
   assert.equal(query({ open: 'settings', cat: 'appearance' }), '&open=settings&cat=appearance');
   // Every category the menu opens is one the dashboard and the shell accept.
-  const menu = read('../xenon-menu.js');
+  const menu = read('../xenon-menu.js') + read('../menu-look.js');
   const spec = read('../../apps/native/src-tauri/src/layers/spec.rs');
   const cats = [...menu.matchAll(/open\('settings:([a-z]+)'\)/g)].map((m) => m[1]);
   assert.ok(cats.length >= 2);
@@ -345,7 +345,9 @@ test('a tile Set up button opens Settings, from a widget on the screen in the me
   }
 });
 
-test('the import dialog opens empty: nothing from the address reaches it', () => {
+// The Xenon menu's Widgets section is the only one that asks for it: what is imported there
+// goes on the screen at once (js/place-installed.js), as its Add list does.
+test('the import dialog opens empty, set to place what it installs: nothing from the address reaches it', () => {
   const { parse, sheetAddress, run } = DashboardOpen;
   const opened = [];
   globalThis.window = { PresetShare: { openImport: (...args) => opened.push(args) } };
@@ -353,7 +355,7 @@ test('the import dialog opens empty: nothing from the address reaches it', () =>
     assert.deepEqual(parse('?open=import&id=abc&kind=theme'), { open: 'import' });
     assert.equal(sheetAddress({ open: 'import' }), '/?panel=sheet&open=import');
     assert.equal(run({ open: 'import' }), true);
-    assert.deepEqual(opened, [[]]);
+    assert.deepEqual(opened, [[undefined, { place: true }]]);
     window.PresetShare = undefined;
     assert.equal(run({ open: 'import' }), false, 'no dialog on this page: said, not pretended');
   } finally { delete globalThis.window; }

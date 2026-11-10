@@ -413,6 +413,20 @@ test('grouping names what is wrong and writes nothing', async () => {
   assert.equal(byId.ok, true, 'an id from the list picks the copy');
 });
 
+// A widget sized by its own content (manifest `fit`) has no box to share: Bit
+// gets a reason instead of a tab group the screen could not draw.
+test('a widget sized by itself is never a tab, on either side', async () => {
+  const catalog = { tiles: ['weather', 'media', 'system'], packages: [{ id: 'alibi', name: 'Alibi', fit: true }] };
+  const L = fakeLayers(undefined, catalog);
+  const run = runner(L);
+  await run.run({ type: 'layerPlace', widget: 'weather' });
+  await run.run({ type: 'layerPlace', widget: 'Alibi' });
+  const writes = L.state.writes;
+  assert.equal((await run.run({ type: 'layerGroup', widget: 'Alibi', with: 'weather' })).error, 'sized_by_itself');
+  assert.equal((await run.run({ type: 'layerGroup', widget: 'weather', with: 'Alibi' })).error, 'sized_by_itself');
+  assert.equal(L.state.writes, writes);
+});
+
 test('"move the weather bottom left, bigger": position and size by name, or kept', async () => {
   const L = fakeLayers();
   const run = runner(L);
@@ -564,7 +578,7 @@ test('server.js wires edit mode: read-only GET, the SSE event, kept open by edit
   // The hidden surfaces come back hidden only if the user chose nothing meanwhile.
   assert.match(SERVER, /onEnd: \(hidden\) => \{\s*updateLayersSetting\(\(cur\) => \{\s*const now = LayersModel\.normalize\(cur\);\s*if \(now\.hidden\.length\) return \{ error: 'unchanged' \};/);
   assert.match(SERVER, /'\/layers\/edit'[\s\S]{0,300}json\(\{ on: layersEdit\.get\(\), peek: layersPeek\.get\(\) \}\)/);
-  assert.match(SERVER, /function updateLayersSetting[\s\S]{0,600}layersEdit\.touch\(\)/);
+  assert.match(SERVER, /function updateLayersSetting[\s\S]{0,600}layersEdit\.touch\(saved\.layers\)/);
   assert.match(SERVER, /function _gracefulShutdown\(\) \{[\s\S]{0,1500}layersEdit\.stop\(\)/);
 });
 

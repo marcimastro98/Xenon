@@ -7,6 +7,8 @@
 // It turns itself off after IDLE_MS without an edit, so a window left in edit
 // mode (the user walked away, the "Done" button is on another screen) never
 // keeps blocking the desktop or a game.
+const LayersModel = require('./js/layers-model.js');
+
 const IDLE_MS = 10 * 60 * 1000;
 const MAX_STEPS = 40;
 
@@ -67,9 +69,13 @@ function createLayersEdit({ broadcast = () => {}, onEnd = () => {}, onOff = () =
     past = [];
   }
 
-  // An edit made while editing keeps the mode open for another IDLE_MS.
-  function touch() {
-    if (on) arm();
+  // An edit made while editing keeps the mode open for another IDLE_MS. One that
+  // leaves no widget on any screen ends it, as Done would: the Done bar lives in
+  // the layer windows, and none is left to draw it.
+  function touch(layers) {
+    if (!on) return;
+    if (layers && LayersModel.surfaceKeys(layers).length === 0) set(false, true);
+    else arm();
   }
 
   return { get: () => on, set, touch, keep, remember, earlier: () => before, step, back: () => past.pop() || null, forget, steps: () => past.length, stop: stopTimer };

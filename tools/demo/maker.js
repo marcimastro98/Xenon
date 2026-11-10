@@ -68,6 +68,8 @@
       key: surface === 'tile' ? keySuggestion(m.key) : null,
       category: CATEGORIES.includes(m.category) ? m.category : null,
       size: surface === 'tile' && TILE_SIZES.includes(m.size) ? m.size : null,
+      // No Xenon menu in the preview to set them: the widget runs on its own defaults.
+      options: [], fit: false,
       entry: 'index.html',
       streams: list(m.streams, LIST_ITEM_RE), actions: list(m.actions, LIST_ITEM_RE),
       hosts: list(m.hosts, HOST_RE).slice(0, 8),

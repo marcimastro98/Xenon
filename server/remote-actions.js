@@ -49,6 +49,8 @@ const FREE = new Set([
   'timerStart', 'stopwatchStart', 'timerToggle', 'timerCancel', 'vitalsRefill',
   'taskAdd', 'taskToggle', 'taskDelete', 'dashboardPage', 'deckState', 'lockWorkstation',
   'xenonMenu', 'dnd', 'notifications', 'screenAlerts', 'layerList', 'layersToggle', 'layerPage',
+  // A widget's own options: only what it declared, checked by the server.
+  'widgetOption', 'widgetOptionList',
   'claudeStop',
   // Performance readouts and captures the phone already shows.
   'perfStats', 'stutterWhy', 'gameSessions', 'gameSessionsCompare', 'perfHud', 'benchmark',

@@ -85,7 +85,7 @@ function rig(over = {}) {
   const main = node('main');
   main.scrollTop = 40;
   main.querySelectorAll = () => all(main).filter((n) => n.dataset.keep);
-  const DRAW = Object.fromEntries(['status', 'toggle', 'checks', 'choice', 'pages', 'mode', 'button', 'key', 'pageEdit', 'place', 'guide', 'tunehead', 'when'].map((k) => [k, (r) => node('row', k, r.id)]));
+  const DRAW = Object.fromEntries(['status', 'toggle', 'checks', 'choice', 'pages', 'mode', 'button', 'key', 'pageEdit', 'place', 'guide', 'tunehead', 'when'].map((k) => [k, (r) => Object.assign(node('row', k, r.id), { row: r })]));
   const widgets = create({
     el: node,
     button: (cls, label) => node('button', cls, label),
@@ -158,9 +158,21 @@ test('where the menu may not hold it up, its screen says it is hidden', () => {
   assert.equal(paint(s).sub.text, 'hidden');
 });
 
-test('the screen keeps every choice the picture does not already carry, in server order', () => {
-  const ids = View.choiceParts(widget('w1', 'p1')).map((x) => x.id);
-  assert.deepEqual(ids, ['w1:place', 'w1:when', 'w1:h-look', 'w1:opacity']);
+test('each row goes in its tab, in server order, with the headings left to the tabs', () => {
+  const tune = [
+    { kind: 'tunehead', id: 'w1:h-where' }, { kind: 'place', id: 'w1:place' }, { kind: 'choice', id: 'w1:screen' },
+    { kind: 'choice', id: 'w1:corner' }, { kind: 'when', id: 'w1:when' },
+    { kind: 'tunehead', id: 'w1:h-look' }, { kind: 'choice', id: 'w1:opacity' }, { kind: 'toggle', id: 'w1:bare' },
+    { kind: 'tunehead', id: 'w1:h-keys' }, { kind: 'key', id: 'w1:key' }, { kind: 'key', id: 'w1:fn-next' },
+    { kind: 'choice', id: 'w1:tabs' }, { kind: 'choice', id: 'w1:brandnew' },
+    { kind: 'tunehead', id: 'w1:h-what' }, { kind: 'choice', id: 'w1:opt-form' }, { kind: 'checks', id: 'w1:opt-shows' },
+  ];
+  const ids = (list) => list.map((x) => x.id);
+  const parts = View.tabParts(widget('w1', 'p1', { tune }));
+  assert.deepEqual(ids(parts.when), ['w1:place', 'w1:when', 'w1:key']);
+  assert.deepEqual(ids(parts.where), ['w1:screen', 'w1:corner', 'w1:tabs']);
+  assert.deepEqual(ids(parts.look), ['w1:opacity', 'w1:bare', 'w1:brandnew'], 'a row not known yet still shows');
+  assert.deepEqual(ids(parts.what), ['w1:fn-next', 'w1:opt-form', 'w1:opt-shows'], 'a function key goes with what it does');
   assert.equal(View.partOf(widget('w1', 'p1'), 'corner').value, 'top-right');
   assert.equal(View.partOf(widget('w1', 'p1'), 'nope'), undefined);
 });
@@ -243,28 +255,91 @@ test('opening a widget goes to its screen, Back and Esc return with the focus on
 const mapRow = { kind: 'map', id: 'map', label: { key: 'show-me' }, screens: [{ key: '', label: { text: 'Dell' }, width: 1600, height: 900, x: 0, y: 0 }, { key: 'b', label: { text: 'Edge' }, width: 800, height: 225, x: 0, y: 900 }] };
 const withMap = (rows = []) => { const s = twoPages(rows); return { ...s, rows: [mapRow, ...s.rows] }; };
 
-test('the widget screen: the map and the question first, every other choice under one row, and it can be taken off', async () => {
-  const { widgets, log, paint, main } = rig();
+const tabKeep = (main, name) => all(main).find((n) => n.dataset.keep === 'w1:tab-' + name);
+const openW1 = (rigged, s) => { named(rigged.widgets.drawRow(widget('w1', 'p1')), 'w1').on.click(); rigged.paint(s); };
+
+test('the widget screen: the map beside four tabs, When open first, and it can be taken off from Look', async () => {
+  const rigged = rig();
+  const { log, paint, main } = rigged;
   const s = withMap();
-  named(widgets.drawRow(widget('w1', 'p1')), 'w1').on.click();
-  paint(s);
+  openW1(rigged, s);
   assert.equal(all(main).filter((n) => n.cls.startsWith('xm-corner')).length, 0, 'a free widget has no corner buttons');
   assert.equal(all(main).filter((n) => n.cls === 'xm-mapscreen').length, 2);
   assert.ok(all(main).some((n) => n.cls.includes('xm-mapw') && n.cls.includes('is-picked')));
-  assert.equal(all(main).filter((n) => n.cls === 'xm-mapgrip').length, 1, 'a corner to pull, only on the widget in view');
   assert.ok(named(main, 'see_drag_hint'));
-  assert.ok(!named(main, 'w1:h-where') && !named(main, 'w1:corner') && !named(main, 'w1:screen'), 'nothing said twice');
+  const tabs = all(main).filter((n) => n.attrs.role === 'tab').map((n) => n.dataset.keep);
+  assert.deepEqual(tabs, ['w1:tab-when', 'w1:tab-where', 'w1:tab-look'], 'no "what it shows" without options');
+  assert.equal(tabKeep(main, 'when').attrs['aria-selected'], 'true');
   assert.ok(named(main, 'w1:place'));
-  assert.ok(!named(main, 'w1:when') && !named(main, 'w1:opacity') && !named(main, 'xmenu_remove_widget'), 'closed at first');
-  const more = () => all(main).find((n) => n.dataset.keep === 'w1:more');
-  assert.equal(more().attrs['aria-expanded'], 'false');
-  more().on.click();
+  assert.ok(!named(main, 'w1:when'), 'the situations wait for their card');
+  assert.ok(!named(main, 'w1:opacity') && !named(main, 'w1:h-where'), 'one tab at a time, no headings');
+  tabKeep(main, 'look').on.click();
   paint(s);
-  assert.equal(more().attrs['aria-expanded'], 'true');
-  assert.ok(named(main, 'w1:when') && named(main, 'w1:opacity'));
+  assert.equal(tabKeep(main, 'look').attrs['aria-selected'], 'true');
+  assert.ok(named(main, 'w1:opacity') && !named(main, 'w1:place'));
   await named(main, 'xmenu_remove_widget').on.click();
   assert.deepEqual(log.acts.at(-1), { run: { remove: 'w1' } });
   assert.equal(paint(s).title.key, 'w', 'back on the list');
+});
+
+test('the tab stays as it was left, per widget, and Where carries the screen and the corner', () => {
+  const rigged = rig();
+  const { paint, main } = rigged;
+  const s = withMap();
+  openW1(rigged, s);
+  tabKeep(main, 'where').on.click();
+  paint(s);
+  assert.ok(named(main, 'w1:screen') && named(main, 'w1:corner'), 'a tap for those who do not drag');
+  rigged.widgets.stepBack();
+  paint(s);
+  openW1(rigged, s);
+  assert.equal(tabKeep(main, 'where').attrs['aria-selected'], 'true');
+});
+
+test('"at certain moments" is a fifth card: it opens the situations, another card closes them', () => {
+  const rigged = rig();
+  const { log, paint, main } = rigged;
+  const opts = ['always', 'desktop'].map((v) => ({ value: v, label: { key: v }, act: { run: { see: v } } }));
+  const s = withMap();
+  const w1 = s.rows.find((r) => r.id === 'w1');
+  w1.tune = w1.tune.map((x) => (x.kind === 'place' ? { ...x, value: 'desktop', options: opts } : x));
+  openW1(rigged, s);
+  const place = () => named(main, 'w1:place').row;
+  assert.deepEqual(place().options.map((o) => o.value), ['always', 'desktop', 'moments']);
+  assert.equal(place().value, 'desktop');
+  place().options[2].press(false);
+  paint(s);
+  assert.equal(place().value, 'moments');
+  assert.equal(named(main, 'w1:when').row.start, true, 'open with "only when", nothing saved yet');
+  assert.equal(log.acts.length, 0);
+  place().options[1].press(false);
+  paint(s);
+  assert.deepEqual(log.acts.at(-1), { run: { see: 'desktop' } });
+  assert.ok(!named(main, 'w1:when'));
+  w1.tune = w1.tune.map((x) => (x.kind === 'place' ? { ...x, value: 'other' } : x));
+  paint(s);
+  assert.equal(place().value, 'moments', 'a widget with a situation shows them at once');
+  assert.ok(named(main, 'w1:when'));
+});
+
+test('a card with its own answer is answered by the page, not sent', () => {
+  const Place = require('../js/xenon-menu-place.js');
+  const sent = [];
+  const got = [];
+  const place = Place.create({
+    el: node, button: (cls, label) => node('button', cls, label), say, tt: (k) => k, rowShell: () => node('li', 'xm-row'),
+    perform: (_r, act) => sent.push(act), post: async () => ({}), showError: () => {}, redraw: () => {},
+  });
+  const r = { id: 'w1:place', label: { key: 'q' }, value: 'm', options: [
+    { value: 'a', label: { text: 'A' }, act: { run: 'a' } },
+    { value: 'm', label: { text: 'M' }, press: (here) => got.push(here) },
+  ] };
+  const li = place.draw(r);
+  assert.equal(named(li, 'M').attrs['aria-pressed'], 'true');
+  named(li, 'M').on.click();
+  named(li, 'A').on.click();
+  assert.deepEqual(got, [true]);
+  assert.deepEqual(sent, [{ run: 'a' }]);
 });
 
 test('the list: the map on top, the widgets under the answer they gave, what shows now counted', () => {

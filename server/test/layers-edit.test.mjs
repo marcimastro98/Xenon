@@ -63,6 +63,27 @@ test('an edit keeps it open for another full wait; off or stop leaves no timer',
   assert.equal(timers.size, 0);
 });
 
+// Reported 9 Nov 2026: Remove on the last widget left the mode on with no layer
+// window to draw its Done bar, and the menu waiting aside for it.
+test('an edit that leaves no widget on any screen ends the mode, as Done would', () => {
+  const offs = [];
+  const timers = new Map();
+  const edit = createLayersEdit({ onOff: (byHand) => offs.push(byHand), setTimer: (fn) => { timers.set(1, fn); return 1; }, clearTimer: () => timers.clear() });
+  const W = { id: 'lw_aaaa0001', kind: 'sdk', pkg: 'alibi', surface: 'overlay', rect: { x: 0.7, y: 0, w: 0.2, h: 0.2 } };
+  edit.set(true);
+  edit.touch({ enabled: true, widgets: [W] });
+  assert.equal(edit.get(), true, 'a widget is left: still editing');
+  edit.touch({ enabled: true, widgets: [] });
+  assert.equal(edit.get(), false);
+  assert.deepEqual(offs, [true], 'by hand: the menu comes back');
+  assert.equal(timers.size, 0, 'no idle timer left');
+  edit.set(true);
+  edit.touch({ enabled: false, widgets: [W] });
+  assert.equal(edit.get(), false, 'layers switched off: no window either');
+  edit.touch({ enabled: true, widgets: [] });
+  assert.deepEqual(offs, [true, true], 'already off: nothing more');
+});
+
 test('what was kept when it went on comes back once when it goes off, by hand or by the timer', () => {
   const ended = [];
   const timers = [];

@@ -30,6 +30,7 @@ function closeSettings() { /* no settings panel here */ }
   const KEY = new URLSearchParams(window.location.search).get('key') || '';
   if (!window.ScreenSceneModel || !ScreenSceneModel.isSceneKey(KEY)) return;
   const KIND = KEY.slice(0, KEY.indexOf(':'));
+  const MONITOR = KEY.slice(KEY.indexOf(':') + 1);
   // The menu's preview (js/xenon-menu-scene-view.js) names the scene it shows.
   const PREVIEW_SCENE = KIND === 'preview' ? new URLSearchParams(window.location.search).get('scene') : null;
   const IN_SHELL = window.__XENON_LAYER_SHELL__ === true;
@@ -59,9 +60,10 @@ function closeSettings() { /* no settings panel here */ }
   }
 
   // ── The scene ──────────────────────────────────────────────────
+  // Each screen may show its own scene (js/screen-scene-model.js sceneFor).
   function ambient() {
     const cfg = (hubSettings && hubSettings.ambientMode) || {};
-    return PREVIEW_SCENE ? { ...cfg, sceneId: PREVIEW_SCENE } : cfg;
+    return { ...cfg, sceneId: PREVIEW_SCENE || ScreenSceneModel.sceneFor(hubSettings, KIND, MONITOR) };
   }
   function sdkEnabled() {
     const sdk = hubSettings.sdkWidgets || {};

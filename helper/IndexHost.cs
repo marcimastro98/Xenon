@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1709,22 +1710,17 @@ internal static class IndexHost
         long emitted = 0;
         var lastProgress = Environment.TickCount64;
         var batch = new List<(string dir, string name, long size, long mtime)>(LockBatch);
-        IEnumerable<FileInfo> files;
+        IEnumerable<(string dir, string name, long size, long mtime)> files;
         // The enumeration never started, so this walk is evidence of nothing.
         // Reporting it as complete would let a repair sweep every entry under a
         // momentarily unreadable root out of the index.
-        try { files = new DirectoryInfo(root).EnumerateFiles("*", opts); }
+        try { files = WalkEntries(root, opts); }
         catch { return false; }
-        foreach (var fi in files)
+        foreach (var file in files)
         {
             WaitWhileHeld();
             if (Cancelled) return false;
-            long len, mt;
-            string? dir;
-            try { len = fi.Length; mt = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(); dir = fi.DirectoryName; }
-            catch { continue; }
-            if (dir == null) continue;
-            batch.Add((dir, fi.Name, len, mt));
+            batch.Add(file);
             if (batch.Count >= LockBatch && !FlushWalkBatch(batch, gen)) return false;
             emitted++;
             var now = Environment.TickCount64;
@@ -1739,6 +1735,26 @@ internal static class IndexHost
             }
         }
         return FlushWalkBatch(batch, gen);
+    }
+
+    // Every file under `root`, read straight from the directory listing the
+    // kernel returns. FileInfo cost a full path, a name and a folder string per
+    // file plus the object itself; here a file costs its name, and its folder
+    // is one string shared by every file in it (the listing hands them over
+    // folder by folder, which is also what InternDirLocked counts on).
+    private static FileSystemEnumerable<(string dir, string name, long size, long mtime)> WalkEntries(string root, EnumerationOptions opts)
+    {
+        string? lastDir = null;
+        return new FileSystemEnumerable<(string dir, string name, long size, long mtime)>(root,
+            (ref FileSystemEntry e) =>
+            {
+                var dir = e.Directory;
+                if (lastDir == null || !dir.SequenceEqual(lastDir)) lastDir = dir.ToString();
+                return (lastDir, e.FileName.ToString(), e.Length, e.LastWriteTimeUtc.ToUnixTimeMilliseconds());
+            }, opts)
+        {
+            ShouldIncludePredicate = (ref FileSystemEntry e) => !e.IsDirectory,
+        };
     }
 
     // false = the entry cap stopped the walk.

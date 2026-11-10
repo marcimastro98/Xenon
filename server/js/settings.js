@@ -1055,10 +1055,10 @@ function normalizeAmbientMode(value) {
   // customThemes. Anything else resets to the default so a stale reference can't
   // strand the picker.
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
-  const isCanvas = typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(raw) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(raw);
-  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas || AMBIENT_THEME_REF_RE.test(raw)) ? raw : defaults.sceneId;
-  // The scene behind the desktop icons and the screensaver of the screens
-  // without the dashboard (js/screen-scene-model.js). Both off by default.
+  const isScene = (id) => id === 'builtin' || AMBIENT_SCENE_ID_RE.test(id) || (typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(id) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(id)) || AMBIENT_THEME_REF_RE.test(id);
+  const sceneId = isScene(raw) ? raw : defaults.sceneId;
+  // The animated wallpaper and the screensaver, per screen (js/screen-scene-model.js,
+  // loaded before this file). Both off by default.
   const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
@@ -1066,10 +1066,8 @@ function normalizeAmbientMode(value) {
     sceneId,
     wallpaper: source.wallpaper === true,
     saverMinutes: saverMinutes(source.saverMinutes),
-    // None chosen: the screens without the dashboard (js/screen-scene-model.js).
-    screens: Array.isArray(source.screens)
-      ? [...new Set(source.screens.filter((id) => typeof id === 'string' && /^[\x20-\x7e]{1,64}$/.test(id)))].slice(0, 8)
-      : [],
+    screens: ScreenSceneModel.normalizeScreens(source.screens),
+    byScreen: ScreenSceneModel.normalizeByScreen(source.byScreen, isScene),
     openOnStartup: source.openOnStartup === true,
   };
 }

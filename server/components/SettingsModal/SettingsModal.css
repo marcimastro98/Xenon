@@ -1603,6 +1603,19 @@ a.settings-btn { display: inline-flex; align-items: center; justify-content: cen
 .inst-activity.is-heavy { color: var(--red, #ff5b6a); background: rgba(255, 91, 106, 0.1); border-color: rgba(255, 91, 106, 0.32); }
 .inst-activity.is-paused { color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.08); border-style: dashed; }
 .inst-row-btns { display: flex; align-items: center; gap: 8px; flex: none; }
+/* A widget's own options (widget-options-panel.js), opened under its name. */
+.inst-opts { display: flex; flex-direction: column; gap: 4px; max-width: 560px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--glass-border); }
+/* Open, the row grows down: thumbnail and keys stay at its top instead of its middle. */
+@media (min-width: 561px) {
+  .inst-row:has(> .inst-row-info > .inst-opts:not([hidden])) { align-items: flex-start; }
+}
+.inst-opts[hidden] { display: none; }
+.inst-opt-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 7px; font-size: 12.5px; font-weight: 850; color: var(--text); }
+.inst-opt-name { min-width: 0; overflow-wrap: anywhere; }
+.inst-opt-line .settings-select { flex: 0 1 auto; max-width: 60%; }
+.inst-opt-group { margin: 6px 7px 0; font-size: 0.76rem; font-weight: 650; color: var(--text-dim); }
+.inst-opt-switches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.inst-opt-reset { align-self: flex-start; margin-top: 4px; }
 /* What the row waits on from you (installed-manager.js needsYou): full ink and
    weight among the dim lines, so a scan of the list finds it. */
 .inst-row-state { font-size: 0.8rem; line-height: 1.35; font-weight: 600; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }

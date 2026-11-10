@@ -821,6 +821,41 @@ const CAPABILITIES = [
       },
     },
   },
+  // One of a Store widget's own options (manifest `options`), as its panel in the Xenon
+  // menu sets it. The server checks both against what the widget declared.
+  {
+    type: 'widgetOption', group: 'xenon', hidden: true, labelKey: 'deck_act_widgetOption',
+    params: [
+      { name: 'widget', kind: 'text', maxLen: 48 },
+      { name: 'option', kind: 'text', maxLen: 32 },
+      { name: 'value', kind: 'text', maxLen: 32 },
+    ],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'widgetOptions',
+      ai: {
+        name: 'set_widget_option',
+        description: 'Change one of the choices an installed Store widget offers about itself, the same switches and lists its panel in the Xenon menu and its Options in the Store (Installed) show: which readings a counter shows, its shape, its mode, a part shown or hidden. It works wherever the widget is, a dashboard tile included. list_widget_options gives every widget’s options with their ids, choices and current values. A switch takes "on" or "off", a list one of its choice values. Error "bad_option": that widget has no such option or value; "unknown_widget": no installed widget with that id.',
+        params: {
+          widget: 'The installed widget package id, e.g. "alibi"',
+          option: 'The option id, as list_widget_options gives it',
+          value: '"on" or "off" for a switch, or one of the choice values for a list',
+        },
+      },
+    },
+  },
+  // The options every installed Store widget offers, wherever it is shown.
+  {
+    type: 'widgetOptionList', group: 'xenon', hidden: true, labelKey: 'deck_act_widgetOptionList',
+    params: [],
+    capability: {
+      domain: 'layers', risk: 'safe', requires: 'widgetOptions',
+      ai: {
+        name: 'list_widget_options',
+        description: 'List the installed Store widgets that offer choices about themselves (switches and lists: which parts or readings they show, their shape, their mode), with each option’s id, kind, choices and current value. Call it before set_widget_option, and for "what can I change in my widget" or "hide the title of my widget".',
+        params: {},
+      },
+    },
+  },
   {
     type: 'layerMove', group: 'xenon', hidden: true, labelKey: 'deck_act_layerMove',
     params: [
@@ -1139,7 +1174,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'scene',
       ai: {
         name: 'set_desktop_wallpaper',
-        description: 'Turn the animated desktop wallpaper on or off: the Ambient scene (the one picked in Settings, Ambient) drawn behind the desktop icons on the screens without the dashboard, or on the only screen. It stops by itself while a game runs, with a full-screen window and on battery. mode: toggle (default), on or off. Use it for "animated wallpaper", "put the scene on my desktop", "turn off the moving background".',
+        description: 'Turn the animated desktop wallpaper on or off: the scene each screen chose (chosen per screen in the Xenon menu, Look, or with set_desktop_scene) drawn behind the desktop icons; with none chosen, the Ambient scene on the screens without the dashboard, or on the only screen. It stops by itself while a game runs, with a full-screen window and on battery. mode: toggle (default), on or off. Use it for "animated wallpaper", "put the scene on my desktop", "turn off the moving background".',
         params: { mode: 'toggle (default), on or off' },
       },
     },
@@ -1151,7 +1186,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'scene',
       ai: {
         name: 'set_pc_screensaver',
-        description: 'Set the PC screensaver: the Ambient scene full screen on the screens without the dashboard (or the only screen) after the PC sits idle for this many minutes, never during a game, while an app keeps the screen on (a video player does) or while a window is full screen; any key, click or mouse move ends it. minutes: 0 (off), 5, 10, 15, 30 or 60. Use it for "start the screensaver after 10 minutes", "turn off the screensaver".',
+        description: 'Set the PC screensaver: the screensaver scene each screen chose (picked per screen in the Xenon menu or with set_desktop_scene; with none chosen, the Ambient scene on the screens without the dashboard, or the only screen) full screen after the PC sits idle for this many minutes, never during a game, while an app keeps the screen on (a video player does) or while a window is full screen; any key, click or mouse move ends it. minutes: 0 (off), 5, 10, 15, 30 or 60. Use it for "start the screensaver after 10 minutes", "turn off the screensaver".',
         params: { minutes: '0 (off), 5, 10, 15, 30 or 60' },
       },
     },
@@ -1160,13 +1195,16 @@ const CAPABILITIES = [
   // could not offer them: the Xenon menu and Bit choose.
   {
     type: 'desktopScene', group: 'xenon', hidden: true, labelKey: 'deck_act_desktopScene',
-    params: [{ name: 'scene', kind: 'text', maxLen: 80 }, { name: 'show', kind: 'text', maxLen: 40 }],
+    params: [
+      { name: 'scene', kind: 'text', maxLen: 80 }, { name: 'show', kind: 'text', maxLen: 40 },
+      { name: 'screen', kind: 'text', maxLen: 2 }, { name: 'for', kind: 'select', options: ['wallpaper', 'saver', 'ambient'] },
+    ],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'scene',
       ai: {
         name: 'set_desktop_scene',
-        description: 'Choose the scene the animated wallpaper and the PC screensaver show: Classic, a scene installed from the Store, one the user made, or the animated background of one of their saved themes. scene: its name. Error "unknown_scene" comes with the names in "choices". Use it for "use Nocturne as my wallpaper", "change the screensaver scene". A scene not installed yet comes from the Store, or Bit can make one. To choose what the Classic scene shows, send show instead of scene.',
-        params: { scene: 'The scene name, or Classic for the built-in one', show: 'all, none, or any of clock, weather, media, calendar separated by commas' },
+        description: 'Choose a scene: Classic, a scene installed from the Store, one the user made, or the animated background of one of their saved themes. Each screen has its own: its animated wallpaper (for: wallpaper), its PC screensaver (for: saver); the screen with the dashboard has its Ambient instead (for: ambient), the scene that opens on the dashboard. screen: its number, 1 being the main screen; a pick on the dashboard\'s screen sets its Ambient. Without screen, every screen that shows a scene switches to this one. scene "none" leaves that screen with the computer\'s own wallpaper, or no screensaver. Picking a wallpaper or screensaver for a screen also turns it on. Error "unknown_scene" comes with the names in "choices". Use it for "use Nocturne as my wallpaper on screen 2", "put Joyride on the Edge", "change the screensaver scene". A scene not installed yet comes from the Store, or Bit can make one. To choose what the Classic scene shows, send show instead of scene.',
+        params: { scene: 'The scene name, Classic for the built-in one, or none', show: 'all, none, or any of clock, weather, media, calendar separated by commas', screen: 'Screen number, 1 the main one; leave out for every screen', for: 'wallpaper (default), saver or ambient' },
       },
     },
   },
@@ -1179,7 +1217,7 @@ const CAPABILITIES = [
       domain: 'layers', risk: 'safe', requires: 'scene',
       ai: {
         name: 'set_desktop_scene_screens',
-        description: 'Choose the screens the animated wallpaper and the PC screensaver appear on. By number, 1 being the main screen; "all" for every screen; "auto" for the screens without the dashboard.',
+        description: 'Put one scene, the dashboard\'s Ambient, as animated wallpaper and PC screensaver on these screens, replacing what each screen had of its own. By number, 1 being the main screen; "all" for every screen; "auto" for the screens without the dashboard. To give one screen its own scene use set_desktop_scene with screen.',
         params: { screens: 'auto, all, or screen numbers separated by commas, for example 1,3' },
       },
     },

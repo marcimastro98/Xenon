@@ -801,6 +801,10 @@
       const want = new Map(); // item -> { geo, line, inset, bar }
       grids.forEach(grid => {
         const readable = !editing && !grid.closest('.pager-page.is-parked');
+        // Row height from GridStack, not a rect: the grid's own height bounds a
+        // tile when it is unknown. Feeds the clip's bottom (island-notch.js FAR).
+        const gs = grid.gridstack;
+        const cell = (gs && typeof gs.getCellHeight === 'function' && Number(gs.getCellHeight(true))) || 0;
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const n = item.gridstackNode;
           if (!n || (n.y || 0) !== 0) return;            // mounted, top row only
@@ -811,7 +815,8 @@
           if (margin === null) margin = parseFloat(getComputedStyle(content).left) || 0;
           const left = (n.x || 0) * colWidth;
           const cs = getComputedStyle(surface);
-          const tile = { width: (n.w || 0) * colWidth, margin, radius: parseFloat(cs.borderTopLeftRadius) || 0 };
+          const height = cell > 0 ? (n.h || 1) * cell : g.height;
+          const tile = { width: (n.w || 0) * colWidth, height, margin, radius: parseFloat(cs.borderTopLeftRadius) || 0 };
           const local = (b) => ({ left: b.left - g.left - left, right: b.right - g.left - left, bottom: b.bottom - g.top, height: b.height, radius: b.radius });
           const geo = N.geometry({ ...tile, pill: local(pill) });
           if (!geo) return;

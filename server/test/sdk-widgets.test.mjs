@@ -19,10 +19,19 @@ test('manifest: valid minimal manifest normalizes', () => {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
     badgeAction: false, mini: false, topbarButton: false,
-    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, ai: false, accent: false, expand: false, shape: null, icon: null, key: null, category: null, size: null, options: [], fit: false, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
+});
+
+test('manifest: options are checked, and fit opts in only on true and never for a scene', () => {
+  const m = sdk.normalizeManifest({ api: 1, name: 'X', fit: true, options: [{ id: 'fps', kind: 'toggle', label: 'FPS', default: true }, { id: 'bad id', kind: 'toggle', label: 'x' }] }, 'o1').manifest;
+  assert.deepEqual(m.options, [{ id: 'fps', kind: 'toggle', label: 'FPS', default: true }]);
+  assert.equal(m.fit, true);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', fit: 'true' }, 'o2').manifest.fit, false);
+  const scene = sdk.normalizeManifest({ api: 1, name: 'X', surface: 'ambient', fit: true, options: [{ id: 'a', kind: 'toggle', label: 'A' }] }, 'o3').manifest;
+  assert.deepEqual([scene.fit, scene.options], [false, []]);
 });
 
 test('manifest: accent defaults off, opts in only on the exact true literal', () => {

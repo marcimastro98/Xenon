@@ -6,9 +6,16 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SERVER_DIR, resolveFile } from '../toast-gallery/serve.mjs';
+
+// The app's strings as the real server sends them (/layer-i18n.js), with every
+// language in, so a scene's setLang() takes effect at once.
+const require = createRequire(import.meta.url);
+const LayerStrings = require('../../server/layer-strings.js');
+const { SUPPORTED_LANGS } = require('../../packages/core/src/constants.js');
 
 const TYPES = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -36,6 +43,11 @@ export function startApp(port = 0) {
       return;
     }
     if (req.method !== 'GET') { res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":false}'); return; }
+    if (p === '/layer-i18n.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
+      res.end(await LayerStrings.scriptFor([...SUPPORTED_LANGS].sort()));
+      return;
+    }
     const file = appFile(p);
     if (file) {
       try {

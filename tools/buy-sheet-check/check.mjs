@@ -17,6 +17,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..', 'server');
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'xenon-buy-sheet'));
 const { encodePreset } = createRequire(import.meta.url)(path.join(ROOT, 'js', 'preset-share.js'));
+// The app's strings as the real server sends them (/layer-i18n.js), every
+// language in, so setLang() switches at once between shots.
+const LayerStrings = createRequire(import.meta.url)(path.join(ROOT, 'layer-strings.js'));
+const { SUPPORTED_LANGS } = createRequire(import.meta.url)(path.join(ROOT, 'shared', 'src', 'constants.js'));
 
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 const SIZES = [
@@ -107,6 +111,9 @@ async function fence(page, world, host) {
     }
     const isApi = /^\/(api|sdk|events)/.test(url.pathname);
     if (url.host !== host && !isApi) return route.abort();
+    if (url.pathname === '/layer-i18n.js') {
+      return route.fulfill({ status: 200, contentType: 'text/javascript', body: await LayerStrings.scriptFor([...SUPPORTED_LANGS].sort()) });
+    }
     if (!isApi) return route.continue();
     if (url.pathname === '/api/community/buy' && world.delayMs) await new Promise((r) => setTimeout(r, world.delayMs));
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(apiAnswer(world, url.pathname, request)) }).catch(() => {});

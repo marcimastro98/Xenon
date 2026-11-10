@@ -17,6 +17,7 @@ const perf = require('./perf.js');
 const stutterWhy = require('./stutter-why.js');
 const gameSessions = require('./game-sessions.js');
 const perfHud = require('./perf-hud.js');
+const widgetOption = require('./widget-option.js');
 const benchmark = require('./benchmark.js');
 const screenshot = require('./screenshot.js');
 const screenText = require('./screen-text.js');
@@ -161,6 +162,8 @@ function createCapabilities(deps) {
       scene: desktopScene.available(d.layersHost),
       widgetPages: layerPages.hasPages(d.layers),
       gameCompanion: !!d.companion,
+      // A Store widget's own options (widget-options/).
+      widgetOptions: !!d.widgetOptions,
       shortcuts: typeof d.shortcutsAvailable === 'function' ? !!d.shortcutsAvailable() : false,
     };
   }
@@ -198,6 +201,8 @@ function createCapabilities(deps) {
       case 'gameSessionsCompare': return gameSessions.compare(d, action);
       case 'gameSessionsSet': return gameSessions.manage(d, action);
       case 'perfHud': return perfHud.run(d, action);
+      case 'widgetOption': return widgetOption.run(d, action);
+      case 'widgetOptionList': return widgetOption.list(d);
       case 'benchmark': return benchmark.run(d, action);
       case 'powerMode': return power.setMode(d, action);
       case 'powerStatus': return power.status(d);

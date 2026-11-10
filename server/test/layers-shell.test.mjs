@@ -247,6 +247,7 @@ test('a display push with the same screens sends nothing: the shell pushes after
   b.shell.onDisplays();
   b.flush();
   assert.equal(b.signals.length, 3, 'the dashboard moved: re-sent');
+  assert.equal(b.posts.at(-1).body.dashboard, '\\\\.\\DISPLAY2', 'the server learns where the dashboard is now');
 });
 
 test('the report carries where each screen stands, for the map', async () => {
@@ -267,7 +268,7 @@ test('the report names the screens the shell sees, and repeats with a self-heali
   await Promise.resolve();
   assert.equal(b.posts.length, 1);
   assert.equal(b.posts[0].url, 'http://127.0.0.1:3030/layers/host');
-  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, hide: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true, name: '' }, { key: '\\\\.\\DISPLAY2', primary: false, name: '' }] });
+  assert.deepEqual(b.posts[0].body, { layers: true, scene: false, draw: false, menu: false, anchor: false, desks: false, pad: false, hide: false, monitors: [{ key: '\\\\.\\DISPLAY1', primary: true, name: '' }, { key: '\\\\.\\DISPLAY2', primary: false, name: '' }], dashboard: '' });
   b.shell.sync();
   b.flush();
   b.intervals[0]();

@@ -1,8 +1,9 @@
 'use strict';
 
-// One widget's screen in the Xenon menu: the map of the screens with it picked out, or
-// on an app that app's window with corners to press, and "When do you see it?" beside the
-// picture. That is all it shows at first; every other choice waits under one row.
+// One widget's screen in the Xenon menu: the picture of the screens (or, on an app, that
+// app's window with corners to press) stays in place on one side, and the choices sit in
+// four named tabs beside it: when it shows, where, what it shows, how it looks. Each tab
+// is short, so nothing waits under a closed row and the picture never scrolls away.
 // The screen around it comes from js/xenon-menu-widgets.js; every row still draws through
 // the menu's own DRAW map, so a choice works the same here and in the search results.
 (function (root, factory) {
@@ -11,8 +12,17 @@
   if (root) root.XenonMenuWidgetView = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const CORNERS = Object.freeze([['top-left', 'c-tl'], ['top-right', 'c-tr'], ['bottom-left', 'c-bl'], ['bottom-right', 'c-br']]);
-  // What the picture already says, so these rows are not drawn again beside it.
-  const ON_PICTURE = new Set(['h-where', 'corner', 'screen']);
+  const TABS = Object.freeze([['when', 'timelapse'], ['where', 'screens'], ['what', 'lines'], ['look', 'palette']]);
+  // Which tab a row of the server goes in, by the part of its id after the widget's.
+  // The headings of the server are left out: the tab already names its part.
+  const PART_TAB = Object.freeze({
+    place: 'when', when: 'when', key: 'when', keymode: 'when', keyoffer: 'when',
+    screen: 'where', page: 'where', corner: 'where', leave: 'where', tabs: 'where',
+    size: 'look', opacity: 'look', bare: 'look',
+  });
+  const HEADS = new Set(['h-where', 'h-look', 'h-what', 'h-keys']);
+  // A place answer that is not one of the cards: a situation, or a mix of them.
+  const MOMENTS = new Set(['other', 'custom']);
   // The window of an app is drawn at this size, so a widget's pixels show to scale.
   const APP_W = 1280;
   const APP_H = 800;
@@ -20,6 +30,7 @@
 
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
   const partOf = (r, name) => (r.tune || []).find((x) => x.id === `${r.id}:${name}`);
+  const nameOf = (r, x) => x.id.slice(r.id.length + 1);
 
   // Where the widget sits on the window of its app, in percent of it.
   function spot(at) {
@@ -38,15 +49,29 @@
     return [{ transformOrigin: '0 0', transform }, { transformOrigin: '0 0', transform: 'none' }];
   }
 
-  // Everything else on the widget's screen, in the order the server gives it.
-  const choiceParts = (r) => (r.tune || []).filter((x) => !ON_PICTURE.has(x.id.slice(r.id.length + 1)));
-  const moreParts = (r) => choiceParts(r).filter((x) => x !== partOf(r, 'place'));
+  // The rows of each tab, in the server's order. What the widget shows starts at the
+  // server's "what" heading; a key for one of its functions goes with it too.
+  function tabParts(r) {
+    const out = { when: [], where: [], what: [], look: [] };
+    let inWhat = false;
+    for (const x of r.tune || []) {
+      const name = nameOf(r, x);
+      if (name === 'h-what') inWhat = true;
+      if (HEADS.has(name)) continue;
+      // A row this file does not know yet still shows, with the looks.
+      const tab = inWhat || name.startsWith('fn-') ? 'what' : PART_TAB[name] || 'look';
+      out[tab].push(x);
+    }
+    return out;
+  }
 
   // ctx: { el, button, say, tt, perform, redraw, DRAW, Place, thumb, icon, removed, map }
   function create(ctx) {
     const { el, button, say, tt, perform, redraw, DRAW, Place, thumb, icon, removed, map } = ctx;
     let last = { id: '', at: null };
-    const opened = new Map();   // widget id -> "More options" as the person left it
+    const chosenTab = new Map();   // widget id -> the tab the person left open
+    let moments = '';              // the widget whose "at certain moments" card was pressed
+    let shown = '';                // the widget on screen, so another one starts closed
 
     function shapes(cls, n) {
       const box = el('span', cls);
@@ -111,58 +136,94 @@
     function picture(r, screens, rows) {
       const col = el('div', 'xm-detail-pic');
       if (!r.at.corner) {
-        col.append(el('p', 'xm-tap', tt('see_drag_hint')), map.draw(screens, rows, r.id));
+        col.append(map.draw(screens, rows, r.id), el('p', 'xm-cap', tt('see_drag_hint')));
         return col;
       }
-      col.appendChild(el('p', 'xm-tap', tt('xmenu_tap_corner')));
       col.appendChild(stage(r));
+      col.appendChild(el('p', 'xm-cap', tt('xmenu_tap_corner')));
       if (underStrip(r)) col.appendChild(el('p', 'xm-cap', tt('xmenu_anchor_top_caption')));
       return col;
     }
 
     const drawn = (x) => (DRAW[x.kind] || DRAW.choice)(x);
 
-    function question(r) {
-      const box = el('div', 'xm-tune');
-      const place = partOf(r, 'place');
-      if (place) box.appendChild(drawn(place));
-      return box;
+    // "When do you see it?" with a fifth card of the page's own: at certain moments. It
+    // opens the situations under the cards; any other card closes them again.
+    const momentsOpen = (r, place) => place.value !== 'anchor' && (moments === r.id || MOMENTS.has(place.value));
+
+    function placeRow(r, place, open) {
+      const choose = (o) => (here) => {
+        moments = '';
+        if (here) redraw();
+        else perform(place, o.act);
+      };
+      const cards = (place.options || []).map((o) => (o.act ? { ...o, press: choose(o) } : o));
+      cards.push({
+        value: 'moments', label: { key: 'see_moments' }, sub: { key: 'see_moments_sub' },
+        press: () => { moments = r.id; redraw(); },
+      });
+      return drawn({ ...place, options: cards, value: open ? 'moments' : place.value });
     }
 
-    function moreChoices(r) {
-      const box = el('div', 'xm-tune xm-moreparts');
-      box.append(...moreParts(r).map(drawn));
+    function whenTab(r, parts) {
+      const place = partOf(r, 'place');
+      const open = !!place && momentsOpen(r, place);
+      return parts.flatMap((x) => {
+        if (x === place) return [placeRow(r, place, open)];
+        // Named after the card that opened it: "other situations" would ask which others.
+        if (x.kind === 'when') return open ? [drawn({ ...x, start: true, label: { key: 'see_moments' } })] : [];
+        return [drawn(x)];
+      });
+    }
+
+    function lookTab(r, parts) {
       const gone = button('ui-btn ui-btn--secondary xm-act xm-remove', tt('xmenu_remove_widget'));
       gone.dataset.keep = `${r.id}:remove`;
       gone.addEventListener('click', () => perform(r, r.act, removed));
-      box.appendChild(gone);
-      return box;
+      return [...parts.map(drawn), gone];
     }
 
-    // Open by itself only when the answer is in there: a widget of "other situations".
-    function more(r) {
-      const open = opened.has(r.id) ? opened.get(r.id) : r.group === 'other';
-      const b = button('xm-moreopen');
-      b.dataset.keep = `${r.id}:more`;
-      b.setAttribute('aria-expanded', String(open));
-      b.append(el('span', '', tt('xmenu_more_options')), icon('chevron') || '');
-      b.addEventListener('click', () => { opened.set(r.id, !open); redraw(); });
-      const box = el('div', 'xm-more');
-      box.appendChild(b);
-      if (open) box.appendChild(moreChoices(r));
-      return box;
+    function tabBar(r, tabs, current) {
+      const bar = el('div', 'xm-wtabs');
+      bar.setAttribute('role', 'tablist');
+      bar.append(...tabs.map(([name, pic]) => {
+        const b = button('xm-wtab');
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', String(name === current));
+        b.dataset.keep = `${r.id}:tab-${name}`;
+        b.append(icon(pic) || '', el('span', '', tt('xmenu_tab_' + name)));
+        b.addEventListener('click', () => { chosenTab.set(r.id, name); redraw(); });
+        return b;
+      }));
+      return bar;
+    }
+
+    // The tabs with something in them: "what it shows" only where the widget has options.
+    function choices(r) {
+      const parts = tabParts(r);
+      const tabs = TABS.filter(([name]) => name === 'look' || parts[name].length);
+      const want = chosenTab.get(r.id);
+      const current = tabs.some(([name]) => name === want) ? want : tabs[0][0];
+      const body = { when: whenTab, look: lookTab }[current] || ((_r, list) => list.map(drawn));
+      const panel = el('div', 'xm-tune xm-wpanel');
+      panel.setAttribute('role', 'tabpanel');
+      panel.append(...body(r, parts[current]));
+      const col = el('div', 'xm-detail-choices');
+      col.append(tabBar(r, tabs, current), panel);
+      return col;
     }
 
     function detail(r, screens, rows) {
+      if (shown !== r.id) { moments = ''; shown = r.id; }
       const grid = el('div', 'xm-detail');
-      grid.append(picture(r, screens, rows), question(r));
+      grid.append(picture(r, screens, rows), choices(r));
       const box = el('div', 'xm-detailbox');
-      box.append(grid, more(r));
+      box.appendChild(grid);
       return box;
     }
 
     return { detail };
   }
 
-  return { create, spot, partOf, glideFrames, choiceParts, moreParts };
+  return { create, spot, partOf, glideFrames, tabParts };
 });

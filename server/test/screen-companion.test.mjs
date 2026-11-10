@@ -237,9 +237,11 @@ test('the alerts window routes the event and counts the card as clickable', () =
 
 // Tauri's content protection is WDA_EXCLUDEFROMCAPTURE on Windows and
 // sharingType none on macOS. Set when the window opens, and every sync keeps
-// it whatever the user's exclude setting says.
+// it whatever the user's exclude setting says. A sync tells a window only a
+// change (layers/shield.rs): resent to the hidden menu it drew a white frame.
 test('the alerts window stays out of screenshots, so Bit never sees its own card', () => {
   const mod = read('../../apps/native/src-tauri/src/layers/mod.rs');
   assert.match(mod, /if alerts \{\s*let _ = win\.set_content_protected\(true\);/);
-  assert.match(mod, /win\.set_content_protected\(spec::out_of_captures\(&l\.surface\.key, &spec\)\)/);
+  assert.match(mod, /l\.shield\.want\(spec::out_of_captures\(&l\.surface\.key, &spec\), aside\)/);
+  assert.match(mod, /fn tell_captures[\s\S]{0,200}win\.set_content_protected\(out\)/);
 });

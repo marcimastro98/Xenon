@@ -11,6 +11,7 @@ const { SIZE_PX } = require('./capabilities/layer-anchor.js');
 const { widgetWhenRow } = require('./menu-when.js');
 const { screenName } = require('./js/screen-name.js');
 const { widgetKeyRows } = require('./menu-widget-keys.js');
+const { optionRows, fitsItself } = require('./menu-widget-options.js');
 
 const CORNERS = Object.freeze(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
 const OPACITIES = Object.freeze([100, 80, 60, 40]);
@@ -160,11 +161,14 @@ function tuneRows(w, st) {
   if (free) rows.push({ ...widgetWhenRow(id('when'), box, st), label: k('see_other'), answered: true });
   else rows.push(...anchorRows(w, id));
   rows.push(head('look', 'xmenu_tune_look'));
-  if (free && w.widget !== LayersModel.PIN && !LayersModel.isKey(w)) rows.push(sizeRow(id('size'), box, move, k(hud ? 'xmenu_hud_text' : 'xmenu_size'), hud ? TEXT_SIZES : BOX_SIZES));
+  // A widget sized by its own content (`fit`) has its shape among its options.
+  if (free && w.widget !== LayersModel.PIN && !LayersModel.isKey(w) && !fitsItself(w, st)) rows.push(sizeRow(id('size'), box, move, k(hud ? 'xmenu_hud_text' : 'xmenu_size'), hud ? TEXT_SIZES : BOX_SIZES));
   rows.push(choiceRow(id('opacity'), k('xmenu_hud_opacity'), Math.round(box.opacity * 100), OPACITIES.map((o) => [o, { text: o + '%' }]), (v) => move({ opacity: String(v) })));
   if (hasPanel(w)) rows.push(toggleRow(id('bare'), k('xmenu_bare_on'), !!box.bare, move({ bare: 'on' }), move({ bare: 'off' })));
   if (free) rows.push(...widgetKeyRows(w, st, id));
-  return isPerf(w) ? rows.concat(head('what', 'xmenu_tune_what'), hudRows(id, st)) : rows;
+  if (isPerf(w)) return rows.concat(head('what', 'xmenu_tune_what'), hudRows(id, st));
+  const own = optionRows(w, st, id);
+  return own.length ? rows.concat(head('what', 'xmenu_tune_what'), own) : rows;
 }
 
 module.exports = { tuneRows, screenFact, screenLabel, screensOf, leadOf, ratioOf, isHud };

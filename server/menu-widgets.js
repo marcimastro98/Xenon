@@ -9,6 +9,7 @@ const PaletteModel = require('./js/palette-model.js');
 const { previewPath } = require('./tile-previews.js');
 const { ANCHOR_CORNERS, HUD_PLACE, k, run, open, heading, cornerKey, spotOf, comboText, keyName, widgetName } = require('./menu-rows.js');
 const { tuneRows, screenFact, screenLabel, screensOf, leadOf, ratioOf, isHud } = require('./menu-tune.js');
+const { fitsItself } = require('./menu-widget-options.js');
 const { pageWhenRow, whenFact, pageFact } = require('./menu-when.js');
 const { functionRow } = require('./menu-keys.js');
 const { FUNCTIONS, keyFor } = require('./menu-functions.js');
@@ -91,11 +92,21 @@ function atOf(w, st) {
   };
 }
 
+// Tabs go before what the widget shows, so they land in the Where tab of the
+// widget's screen (js/xenon-menu-widget-view.js), not in What it shows.
+function withTabs(rows, tabs, id) {
+  const what = rows.findIndex((r) => r.id === `${id}:h-what`);
+  return what < 0 ? [...rows, ...tabs] : [...rows.slice(0, what), ...tabs, ...rows.slice(what)];
+}
+
 // Tabs come from here and from the same button on the screen, never from a drag.
 function tabsRow(w, st) {
   const box = leadOf(w, st.layers.widgets);
-  const others = LayersModel.boxes(st.layers.widgets).filter((b) => b.lead.id !== box.id && b.lead.surface !== 'anchor');
-  if (w.surface === 'anchor' || !others.length) return [];
+  // A box sized by its own content cannot hold tabs (menu-widget-options.js),
+  // so it is neither offered here nor given any.
+  const others = LayersModel.boxes(st.layers.widgets)
+    .filter((b) => b.lead.id !== box.id && b.lead.surface !== 'anchor' && !fitsItself(b.lead, st));
+  if (w.surface === 'anchor' || !others.length || fitsItself(w, st)) return [];
   return [{
     kind: 'choice', id: `${w.id}:tabs`, label: k('see_tabs'), value: '',
     options: others.map((b) => ({ value: b.lead.id, label: widgetName(b.lead, st), act: run({ type: 'layerGroup', widget: w.id, with: b.lead.id, mode: 'join' }) })),
@@ -118,7 +129,7 @@ function widgetRow(w, st) {
     ...(now.says ? { now: now.says } : {}),
     // What its own screen says instead, while the menu holds it up (layers-peek.js).
     ...(now.peek ? { peek: now.peek } : {}),
-    tune: [...tuneRows(w, st), ...tabsRow(w, st)],
+    tune: withTabs(tuneRows(w, st), tabsRow(w, st), w.id),
     act: run({ type: 'layerRemove', target: w.id }),
   };
 }

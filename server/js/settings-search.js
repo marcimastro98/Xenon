@@ -384,7 +384,19 @@
   // ── Wiring ──
   function onInput(ev) {
     query = ev.target.value || '';
+    if (query.trim()) loadEveryLanguage();
     schedulePaint();
+  }
+
+  // The page holds only some languages (/layer-i18n.js); a word in any of them
+  // should find its setting, so the first search fetches the rest and runs again.
+  function loadEveryLanguage() {
+    if (!window.I18nLoad) return;
+    window.I18nLoad.ensureAll().then((added) => {
+      if (!added) return;
+      index = null;
+      if (query.trim()) schedulePaint();
+    });
   }
 
   function onKey(ev) {

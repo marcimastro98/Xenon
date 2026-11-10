@@ -796,6 +796,10 @@ function postponeAutoUpdate() {
       // surface's frames of that package so they re-read it (GitHub #109).
       try { if (window.CustomWidget && typeof window.CustomWidget.onStoreChanged === 'function') window.CustomWidget.onStoreChanged(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('sdk_options', e => {
+      // A widget's own options were changed in the Xenon menu: its frames get the values.
+      try { if (window.CustomWidget && typeof window.CustomWidget.onOptionsChanged === 'function') window.CustomWidget.onOptionsChanged(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('update_auto', e => { try { onAutoUpdate(JSON.parse(e.data)); } catch {} });
     es.addEventListener('widget_auto_updated', e => {
       // The server updated Store widgets by itself, or found one that needs the
@@ -1063,9 +1067,11 @@ document.addEventListener('keydown', e => {
 // ── Sync language across iframes via storage event ────────────
 window.addEventListener('storage', e => {
   const storageLang = normalizeLangCode(e.newValue);
-  if (e.key === 'uiLang' && storageLang && storageLang !== lang && i18n[storageLang]) {
-    lang = storageLang;
-    applyTranslations();
+  if (e.key === 'uiLang' && storageLang && storageLang !== lang) {
+    // This page may not hold that language yet (/layer-i18n.js): fetch it first.
+    const follow = () => { if (i18n[storageLang] && lang !== storageLang) { lang = storageLang; applyTranslations(); } };
+    if (i18n[storageLang]) follow();
+    else if (window.I18nLoad) window.I18nLoad.ensure([storageLang]).then(follow);
   }
   if (e.key === 'appFavorites') {
     appFavorites = parseAppFavorites(e.newValue || '[]');

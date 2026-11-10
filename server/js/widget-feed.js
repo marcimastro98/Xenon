@@ -27,6 +27,7 @@
     codex: (cw, d) => { if (d && d.sdk) cw.onData('codex', d.sdk); },
     discord_notification: (cw, d) => cw.onDiscordNotification(d),
     sdk_store: (cw, d) => cw.onStoreChanged(d),
+    sdk_options: (cw, d) => cw.onOptionsChanged(d),
     widget_auto_updated: (cw, d) => cw.onAutoUpdated(d),
   });
 

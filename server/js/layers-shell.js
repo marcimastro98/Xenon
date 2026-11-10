@@ -206,6 +206,8 @@
         body: JSON.stringify({
           layers: true, scene: caps().scene === true, draw: caps().draw === true, menu: caps().menu === true, anchor: caps().anchor === true,
           desks: caps().desks === true, pad: caps().pad === true, hide: caps().outOfCaptures === true, monitors,
+          // The screen with the dashboard, so the menu can say it has its own Ambient.
+          dashboard: isDriver() ? '' : String((caps().display || {}).active || ''),
         }),
       });
     } catch (e) {

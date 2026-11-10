@@ -163,7 +163,7 @@ const MenuStore = require('./menu-store.js');
 const LAYER_TILE_EXCLUDED = new Set(['custom', 'secondscreen', 'screen']);
 async function _layerCatalog() {
   const all = ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
-    .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, category: p.category }));
+    .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, category: p.category, fit: p.fit, options: p.options, optionValues: widgetOptionsStore.valuesFor(p) }));
   return {
     tiles: DASHBOARD_WIDGET_IDS.filter(id => !LAYER_TILE_EXCLUDED.has(id)),
     // A scene fills a whole screen: it is chosen as the wallpaper, never placed as a widget.
@@ -222,6 +222,8 @@ const capabilityRunner = capabilities.createCapabilities({
     get: () => normalizeNotifications(_serverHubSettings && _serverHubSettings.notifications),
     set: (change) => updateNotificationsSetting(change),
   },
+  // A Store widget's own options, from the menu (capabilities/widget-option.js).
+  widgetOptions: { set: (pkg, option, value) => widgetOptionsStore.set(pkg, option, value), list: () => widgetOptionsStore.list() },
   // kWh from the sensor history (capabilities/energy.js); guardian is defined later.
   energy: { summary: () => guardian.getEnergySummary() },
   // Tap a notification, get its app (notification-open/).
@@ -2308,7 +2310,7 @@ async function recordWidgetOrigin(id, origin, catalogVersion) {
 const _sdkFetchGate = new Map();   // pkgId → { last, inflight }
 function sdkFetchGateAcquire(pkgId) {
   const g = _sdkFetchGate.get(pkgId) || { last: 0, inflight: 0 };
-  if (g.inflight >= 2 || Date.now() - g.last < 250) return null;
+  if (g.inflight >= sdkWidgets.SDK_LIMITS.fetch.maxInFlight || Date.now() - g.last < 250) return null;
   g.last = Date.now();
   g.inflight++;
   _sdkFetchGate.set(pkgId, g);
@@ -7893,6 +7895,9 @@ async function findFfplay() {
 }
 
 const perfSession = createPerfSession({ collectors: nativeCollectors, dataDir: DATA_DIR });
+const widgetOptionsStore = require('./widget-options/index.js').createWidgetOptions({
+  dataDir: DATA_DIR, packages: async () => (await sdkPackagesCached()).packages, announce: (pkg) => broadcastSSE('sdk_options', { pkg }),
+});
 
 // The sheet's numbers from the process table. PowerShell only answers when the table
 // cannot be read.
@@ -10652,10 +10657,9 @@ function normalizeAmbientMode(value) {
   // ambientScenes or a "theme:<id>" one into customThemes — anything else resets
   // to the default.
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
-  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || AMBIENT_CANVAS_REF_RE.test(raw) || AMBIENT_THEME_REF_RE.test(raw))
-    ? raw : defaults.sceneId;
-  // The scene behind the desktop icons and the screensaver of the screens
-  // without the dashboard (js/screen-scene-model.js). Both off by default.
+  const isScene = (id) => id === 'builtin' || AMBIENT_SCENE_ID_RE.test(id) || AMBIENT_CANVAS_REF_RE.test(id) || AMBIENT_THEME_REF_RE.test(id);
+  const sceneId = isScene(raw) ? raw : defaults.sceneId;
+  // The animated wallpaper and the screensaver, per screen (js/screen-scene-model.js). Both off by default.
   const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
@@ -10663,10 +10667,8 @@ function normalizeAmbientMode(value) {
     sceneId,
     wallpaper: source.wallpaper === true,
     saverMinutes: saverMinutes(source.saverMinutes),
-    // None chosen: the screens without the dashboard (js/screen-scene-model.js).
-    screens: Array.isArray(source.screens)
-      ? [...new Set(source.screens.filter((id) => typeof id === 'string' && /^[\x20-\x7e]{1,64}$/.test(id)))].slice(0, 8)
-      : [],
+    screens: ScreenSceneModel.normalizeScreens(source.screens),
+    byScreen: ScreenSceneModel.normalizeByScreen(source.byScreen, isScene),
     // Mirror of js/settings.js — dropped here, the toggle would snap back off
     // on the next hydrate.
     openOnStartup: source.openOnStartup === true,
@@ -12523,7 +12525,7 @@ async function updateLayersSetting(edit) {
     const saved = await writeHubSettings({ ...cur, layers: res.layers, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
-    layersEdit.touch();
+    layersEdit.touch(saved.layers);
     // A rule just written acts now, not on the next tick.
     setImmediate(broadcastStatusNow);
     // The first overlay widget arms the overlay shortcut, the last one frees it;
@@ -12684,7 +12686,7 @@ async function _xenonMenuState() {
     pageKeys,
     deck: _deckShortcuts.list.map((x) => ({ keyId: x.keyId, instance: x.instance, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
     usageMode: UsageMode.normalize(hs.usageMode) || '',
-    scene: { ...ScreenSceneModel.settingsOf(hs), id: (hs.ambientMode || {}).sceneId, parts: normalizeLockWidgets(hs.lockWidgets), canvases: hs.ambientScenes, themes: hs.customThemes, waiting: require('./capabilities/desktop-scene').sceneWaiting(hs, catalog.scenes) },
+    scene: { ...ScreenSceneModel.settingsOf(hs), id: (hs.ambientMode || {}).sceneId, parts: normalizeLockWidgets(hs.lockWidgets), canvases: hs.ambientScenes, themes: hs.customThemes, waiting: require('./capabilities/desktop-scene').scenesWaiting(hs, catalog.scenes), dashboard: layersHost.dashboard() },
     alertsOn: !(hs.notifications && hs.notifications.onScreen === false),
     quiet: hs.notifications && hs.notifications.quiet,
     companionOn: !!(hs.aiFeatures && hs.aiFeatures.enabled === true && hs.aiFeatures.gameCompanion === true),
@@ -12724,12 +12726,7 @@ async function updateAiEdgeGlowSetting(mode) {
 async function updateDesktopSceneSetting(patch) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
-    const ambient = normalizeAmbientMode(cur.ambientMode);
-    if (patch.wallpaper === 'toggle') ambient.wallpaper = !ambient.wallpaper;
-    else if (patch.wallpaper === 'on' || patch.wallpaper === 'off') ambient.wallpaper = patch.wallpaper === 'on';
-    if (patch.saverMinutes != null) ambient.saverMinutes = patch.saverMinutes;
-    if (patch.sceneId) ambient.sceneId = patch.sceneId;
-    if (patch.screens) ambient.screens = patch.screens;
+    const ambient = require('./capabilities/desktop-scene.js').applyPatch(normalizeAmbientMode(cur.ambientMode), patch);
     const lockWidgets = normalizeLockWidgets(patch.lockWidgets || cur.lockWidgets);
     const saved = await writeHubSettings({ ...cur, lockWidgets, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
@@ -17492,11 +17489,11 @@ const handleRequest = async (req, res) => {
     await sendPage(await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8'));
 
   } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
-    // The light layer page's strings: the saved language and the browser's, plus
-    // English. no-store, so a window reloaded after a language change gets it.
+    // Every page's strings: the saved language and the browser's, plus English.
+    // no-store, so a window reloaded after a language change gets it.
     try {
       const langs = LayerI18n.wantedLanguages(_serverHubSettings.language, req.headers['accept-language']);
-      const js = await LayerI18n.scriptFor(langs);
+      const js = await LayerI18n.scriptFor(langs, _serverHubSettings.language);
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(js);
     } catch (e) {
@@ -24746,17 +24743,19 @@ const handleRequest = async (req, res) => {
     // decorated (copy — the cached scan stays undecorated) with its origin +
     // exportable flag so the UI can limit exports to the user's own creations.
     const scan = await refreshSdkScan();
+    await widgetOptionsStore.load();
     const packages = scan.packages.map(p => ({
       ...p,
       origin: widgetOriginOf(p.id),
       exportable: widgetExportable(p.id),
       catalogVersion: widgetCatalogVersionOf(p.id),
+      optionValues: widgetOptionsStore.valuesFor(p),
     }));
     // `skipped` is how many installed packages this scan did not load because
     // MAX_PACKAGES was already reached. It travels with the list because a
     // shorter list is indistinguishable from a smaller library — which is
     // exactly how a widget came to be installed, working and unfindable.
-    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid, skipped: scan.skipped || 0 });
+    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, limits: sdkWidgets.SDK_LIMITS, packages, invalid: scan.invalid, skipped: scan.skipped || 0 });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
     // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
@@ -24782,7 +24781,7 @@ const handleRequest = async (req, res) => {
       // manifest could have declared itself.
       const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
       const v = sdkWidgets.validateProxyRequest(pkg, body, filled.hosts);
-      if (!v.ok) { json({ ok: false, error: v.error }); return; }
+      if (!v.ok) { json({ ok: false, error: v.error, limit: sdkWidgets.limitFor(v.error) }); return; }
       // Server-side consent: the manifest is the authority for WHICH hosts are
       // reachable, but the user's per-package grant is the authority for whether
       // they approved this one. Enforce it here too, not only in the client bridge
@@ -24818,7 +24817,7 @@ const handleRequest = async (req, res) => {
         });
       } catch (e) {
         const msg = String((e && e.message) || 'fetch_failed');
-        json({ ok: false, error: ['timeout', 'blocked_address', 'response_too_large'].includes(msg) ? msg : 'fetch_failed' });
+        json({ ok: false, error: ['timeout', 'blocked_address', 'response_too_large'].includes(msg) ? msg : 'fetch_failed', limit: sdkWidgets.limitFor(msg) });
       } finally {
         release();
       }
