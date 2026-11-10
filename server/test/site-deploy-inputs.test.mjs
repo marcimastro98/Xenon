@@ -1,4 +1,4 @@
-// The Pages workflow redeploys the site only when a path in its push `paths`
+// The website workflow redeploys the site only when a path in its push `paths`
 // filter changes. The builders it runs before the upload import other tools/
 // modules (home-bake, page-meta, trial-covers...), and a change to one of those
 // published nothing until some unrelated commit touched docs/. Every module the
@@ -21,7 +21,7 @@ function pathFilter(yml) {
 
 // The scripts the job runs to build docs/, before the artifact is uploaded.
 function builders(yml) {
-  const build = yml.slice(0, yml.indexOf('upload-pages-artifact'));
+  const build = yml.slice(0, yml.indexOf('wrangler@'));
   return [...build.matchAll(/run: node (tools\/[\w.-]+\.mjs)/g)].map((m) => m[1]);
 }
 
