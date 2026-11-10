@@ -376,6 +376,9 @@ Step 'Removing startup tasks & legacy service'
 Remove-TaskSafe $appName
 Remove-TaskSafe 'Xenon Edge Dashboard'
 Remove-TaskSafe 'XenonInstallNativeOnce'
+# The native app's own sign-in task (apps/native login_task.rs); the app's
+# uninstaller below cannot take it, so it would fire at a missing exe.
+Remove-TaskSafe 'Xenon App'
 
 $serviceUninstall = Join-Path (Join-Path $root 'service') 'uninstall-service.ps1'
 if ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -or (Test-Path $serviceUninstall)) {

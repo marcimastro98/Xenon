@@ -108,6 +108,10 @@ test('the uninstaller removes every logon task anything registers', () => {
   // … and the optional browser one, registered by the server at runtime.
   const browser = SERVER.match(/const BROWSER_TASK_NAME\s*=\s*'([^']+)'/)[1];
   assert.ok(removed.has(browser), `uninstall.ps1 leaves the "${browser}" task behind`);
+  // … and the native app's sign-in task, which its own uninstaller leaves behind.
+  const shell = readFileSync(path('../../apps/native/src-tauri/src/login_task.rs'), 'utf8')
+    .match(/const TASK_NAME: &str = "([^"]+)"/)[1];
+  assert.ok(removed.has(shell), `uninstall.ps1 leaves the "${shell}" task behind`);
 });
 
 test('the docs say how to clear the leftovers on a folder that is already gone', () => {
