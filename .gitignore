@@ -138,3 +138,7 @@ docs/maker/
 
 # Copied in by `npm pack`/`npm publish` (prepack); the repo LICENSE is the only source.
 packages/mcp/LICENSE
+
+# PowerShell drops its module analysis cache here when a tool runs it with the
+# repo as its profile folder; machine-local, never part of the project.
+/Microsoft/

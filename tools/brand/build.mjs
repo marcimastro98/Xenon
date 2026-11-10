@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { encodePng } from '../bit-export/png.mjs';
 import { encodeIco } from './ico.mjs';
 import { loaderFiles } from './loader.mjs';
-import { PALETTE, iconRgba, iconSvg, lockupSvg, markRgba, markSvg } from './mark.mjs';
+import { MARK_H, MARK_W, PALETTE, iconRgba, iconSvg, lockupSvg, markRgba, markSvg } from './mark.mjs';
 import { createRequire } from 'node:module';
 
 const sparkEngine = createRequire(import.meta.url)('../../packages/core/src/bit-spark.js');
@@ -85,6 +85,28 @@ export const FIXED_PATHS = Object.freeze({
   'server/public/images/logo/logo-mark.png': () => iconRgba(256),
   // Android draws a notification badge from its alpha only: Bit white, face cut out.
   'server/public/images/logo/badge.png': () => iconRgba(96, { body: '#ffffff', face: null }),
+  // The iCUE widget's listing icon, panel logo and favicon.
+  'icue-widget/resources/icon.png': () => iconRgba(256),
+  // The old X logo's paths, no longer linked from any page, but emails sent
+  // before the new brand still load them (logo-x.png at 26x20): Bit, in the
+  // same canvas, so they show the new mark instead of a broken image.
+  'docs/images/logo.png': () => markOnCanvas(384, 256),
+  'docs/images/logo-x.png': () => markOnCanvas(170, 134),
+});
+
+// Bit as large as fits, centred on a transparent canvas of another shape.
+function markOnCanvas(width, height) {
+  const mark = markRgba(Math.floor(Math.min(width / MARK_W, height / MARK_H)));
+  const data = new Uint8Array(width * height * 4);
+  const ox = Math.floor((width - mark.width) / 2), oy = Math.floor((height - mark.height) / 2);
+  const row = mark.width * 4;
+  for (let y = 0; y < mark.height; y++) data.set(mark.data.subarray(y * row, (y + 1) * row), ((y + oy) * width + ox) * 4);
+  return { width, height, data };
+}
+
+// The same, for files that are SVG (the on-hold widget/ package's icon).
+export const FIXED_SVG_PATHS = Object.freeze({
+  'widget/resources/icon.svg': () => iconSvg(),
 });
 
 // Where the app and the native splash load the loader from (tools/brand/loader.mjs).
@@ -97,6 +119,7 @@ export const LOADER_DIRS = Object.freeze({
 /** The fixed-path files as { name, bytes }, name relative to the repo root. */
 export function fixedPathFiles() {
   const files = Object.entries(FIXED_PATHS).map(([name, draw]) => ({ name, bytes: encodePng(draw()) }));
+  for (const [name, draw] of Object.entries(FIXED_SVG_PATHS)) files.push({ name, bytes: Buffer.from(draw(), 'utf8') });
   const loaders = loaderFiles();
   for (const [dir, only] of Object.entries(LOADER_DIRS)) {
     for (const f of loaders) if (!only || only.includes(f.name)) files.push({ name: `${dir}/${f.name}`, bytes: f.bytes });
