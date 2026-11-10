@@ -26,6 +26,7 @@
  * Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98). See LICENSE.
  */
 
+import { withoutSparks } from './supporters-sparks.mjs';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -251,15 +252,17 @@ function displayName(rawName) {
       process.exit(0);
     }
   }
-  // Memberships and extra purchases are best-effort: a missing/unsupported endpoint
-  // must not blank the wall, so each falls back to an empty list on error.
+  // Memberships are best-effort: a missing/unsupported endpoint must not blank the
+  // wall. The extras only tell a Sparks purchase from a support
+  // (supporters-sparks.mjs): buying Sparks is not supporting, so it never reaches
+  // the wall, and without that list the wall is left as it is.
   const members = hasBmc
     ? await fetchAllPages('subscriptions')
         .catch((e) => { console.error(`subscriptions fetch skipped: ${e.message}`); return []; })
     : [];
   const extras = hasBmc
-    ? await fetchAllPages('extra-purchases')
-        .catch((e) => { console.error(`extra-purchases fetch skipped: ${e.message}`); return []; })
+    ? await fetchAllPages('extras')
+        .catch((e) => { console.error(`extras fetch skipped: ${e.message}`); return null; })
     : [];
   // GitHub Sponsors are optional and best-effort — a failure never blanks the wall.
   const ghSponsors = await fetchGitHubSponsors()
@@ -278,6 +281,11 @@ function displayName(rawName) {
   const memberNames = new Set();
   const addUsd = (name, usd) => totals.set(name, (totals.get(name) || 0) + (Number(usd) || 0));
 
+  if (hasBmc && extras === null) {
+    console.error('BMC extras did not load: leaving supporters.json unchanged.');
+    process.exit(0);
+  }
+  oneOff = withoutSparks(oneOff, extras);
   for (const s of oneOff) addUsd(payerOf(s), bmcUsd(s.support_coffees, s.support_coffee_price, s.support_currency));
   for (const s of members) {
     if (!isActiveSubscription(s)) continue;
@@ -293,7 +301,6 @@ function displayName(rawName) {
     const periodDays = /year|annual/i.test(s.subscription_duration_type || '') ? YEAR_DAYS : MONTH_DAYS;
     addUsd(payerOf(s), perPeriodUsd * periodsCharged(s.subscription_created_on, periodDays));
   }
-  for (const s of extras) addUsd(payerOf(s), bmcUsd(s.support_coffees || s.purchase_quantity, s.support_coffee_price, s.support_currency));
   for (const s of ghSponsors) {
     const ent = s.sponsorEntity;
     if (!ent) continue;
