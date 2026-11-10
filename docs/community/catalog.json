@@ -14,9 +14,9 @@
       "tags": [
         "gaming",
         "fps",
-        "network",
         "ping",
-        "lag"
+        "lag",
+        "overlay"
       ],
       "version": "1.2.0",
       "pkgId": "alibi",
