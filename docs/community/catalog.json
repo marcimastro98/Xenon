@@ -142,8 +142,10 @@
         "text": "#E6DCC8"
       },
       "shots": 4,
+      "active": false,
       "addedAt": "2026-10-22",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-10"
     },
     {
       "id": "haunted-house-all",
