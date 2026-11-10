@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### 🐛 Fixed
 - **The website's banner for an item sold with Sparks says its price.** The banner for Culprit read "A widget for Xenon supporters" with an Unlock key, but no pass opens it: it is bought. It now says "A widget for 300 Sparks" with a Buy key, in every language of the site.
 - **Closing a banner on the website hides it for that visit only.** Before, a banner closed once never came back, so a visitor who closed one missed every later drop shown in the same place. The next visit shows the current banners again, and the card in the corner now appears after the first screen instead of after half the page.
+- **A supporter code on a drop sold for Sparks.** Some drops, like Culprit, are bought with Sparks and are not opened by the supporter pass. Trying the pass on one said "This code doesn’t unlock this drop" and stopped there. Now Xenon says the pass doesn’t open it and shows the purchase, which the Sparks on your pass can pay for.
 - **A Sparks code next to your supporter code.** If you bought Sparks with a different email from your supporter one, the Sparks code (XC-…) we mail you had nowhere to go in Settings once your supporter code was saved. The box now stays open for it, says what it is for, and adds those Sparks to yours when you save.
 
 ## [v5.0.0] - 10-11-2026
