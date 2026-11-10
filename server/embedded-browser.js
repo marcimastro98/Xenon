@@ -304,6 +304,12 @@ function createEmbeddedBrowser(opts) {
   const cmdTimeoutMs = Number.isFinite(o.cmdTimeoutMs) ? o.cmdTimeoutMs : 30000;
   const navTimeoutMs = Number.isFinite(o.navTimeoutMs) ? o.navTimeoutMs : 60000;
   const probeTimeoutMs = Number.isFinite(o.probeTimeoutMs) ? o.probeTimeoutMs : 5000;
+  // How long a started screencast may go without painting a frame (issue #144,
+  // still seen on 5.0). Edge can keep answering every command while it draws
+  // nothing: a lost frame ack holds the stream forever, or the renderer stops
+  // compositing. Nothing failed, so the tile sat on its spinner with no error.
+  // A healthy Edge paints the forced frame in well under a second.
+  const frameWaitMs = Number.isFinite(o.frameWaitMs) ? o.frameWaitMs : 15000;
   // Called fresh at each Edge launch → returns the unpacked extension dirs to load
   // (e.g. the opt-in ad-blocker). Read at launch time so a settings toggle takes
   // effect on the next relaunch without touching this module's state.
@@ -339,6 +345,7 @@ function createEmbeddedBrowser(opts) {
     pending.forEach((p) => p.reject(new Error(reason || 'browser_closed')));
     pending.clear();
     tiles.forEach(clearResizeSettle);
+    tiles.forEach(releaseFrameWaiters);
     tiles.clear();
     bySession.clear();
     initialTargetId = null;
@@ -559,7 +566,10 @@ function createEmbeddedBrowser(opts) {
       else { const tm = setTimeout(ack, dueAt - now); tm.unref && tm.unref(); }
       // Only the tile's active page paints the tile (a backgrounded opener under a
       // popup must not fight the popup for the canvas).
-      if (tile && tile.onFrame && sessionId === activeSession(tile)) tile.onFrame(params.data, params.metadata || {});
+      if (tile && sessionId === activeSession(tile)) {
+        releaseFrameWaiters(tile);
+        if (tile.onFrame) tile.onFrame(params.data, params.metadata || {});
+      }
       return;
     }
     if ((method === 'Page.frameNavigated' && params.frame && !params.frame.parentId) ||
@@ -824,7 +834,7 @@ function createEmbeddedBrowser(opts) {
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       // A tile owns a STACK of pages: the base page plus any popups layered on top.
       // The last entry is the active page (streamed + driven); see activeSession().
-      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false, nextAckAt: 0, settleTimer: null };
+      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false, nextAckAt: 0, settleTimer: null, frameWaiters: new Set(), recovering: false };
       tiles.set(tileId, tile);
       bySession.set(sessionId, tileId);
     } finally { pendingAdoption.delete(targetId); }
@@ -903,14 +913,12 @@ function createEmbeddedBrowser(opts) {
     // which is why they always worked. Retry until the page is attached again.
     for (let attempt = 0; attempt < 20; attempt++) {
       if (!tile.streaming || !tiles.has(tileId)) return;   // stopped/closed meanwhile
+      let painted = null;
       try {
-        await send('Page.startScreencast', {
-          // quality 85 (not 70): the stream is loopback so bandwidth is free, and the
-          // lower setting left visible JPEG softness/ringing on text-heavy pages.
-          format: 'jpeg', quality: 85,
-          maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
-          everyNthFrame: 1,
-        }, activeSession(tile));
+        // Watched from before the start: Edge may push the first frame ahead of
+        // the command's own answer.
+        painted = nextFrame(tile, frameWaitMs);
+        await send('Page.startScreencast', screencastParams(tile), activeSession(tile));
         // `Page.startScreencast` only pushes frames on a compositor change. On an
         // already-painted, static page — the common case after the tile flips
         // hidden→visible, or after a resize that landed while streaming was off —
@@ -921,11 +929,70 @@ function createEmbeddedBrowser(opts) {
         await forceFrame(tile);
         tile.audible = true;     // this is now the visible/active tab — let it be heard
         applyAudio(tile);
+        if (!(await painted)) await recoverStalledStream(tileId, tile);
         return;
       } catch (e) {
+        painted.cancel();
         if (!/not attached/i.test(String((e && e.message) || e))) throw e;
         await new Promise((r) => { const tm = setTimeout(r, 150); tm.unref && tm.unref(); });
       }
+    }
+  }
+
+  function screencastParams(tile) {
+    return {
+      // quality 85 (not 70): the stream is loopback so bandwidth is free, and the
+      // lower setting left visible JPEG softness/ringing on text-heavy pages.
+      format: 'jpeg', quality: 85,
+      maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
+      everyNthFrame: 1,
+    };
+  }
+
+  // Resolves true on the tile's next painted frame, false after `ms` without one.
+  // `cancel()` drops the watch when the start it guarded failed.
+  function nextFrame(tile, ms) {
+    let done = null;
+    const p = new Promise((resolve) => {
+      done = (got) => { clearTimeout(tm); tile.frameWaiters.delete(done); resolve(got); };
+      const tm = setTimeout(() => done(false), ms);
+      tm.unref && tm.unref();
+      tile.frameWaiters.add(done);
+    });
+    p.cancel = () => done(true);
+    return p;
+  }
+
+  // A stop, a close or a teardown is not a stall: wake the waiters as "painted".
+  function releaseFrameWaiters(tile) {
+    if (tile && tile.frameWaiters) [...tile.frameWaiters].forEach((done) => done(true));
+  }
+
+  // The stream started but never painted (#144). Restarting it clears a lost frame
+  // ack, which holds every later frame; if that paints nothing either, the
+  // renderer itself is stuck while Edge still answers, so Edge is restarted. The
+  // error names a closed browser, which the tile retries on a fresh Edge.
+  async function recoverStalledStream(tileId, tile) {
+    if (tile.recovering) return;   // a concurrent start is already on it
+    tile.recovering = true;
+    try {
+      console.warn('[embedded-browser] a page stopped sending frames: restarting its stream');
+      const session = activeSession(tile);
+      await send('Page.stopScreencast', {}, session).catch(() => {});
+      if (!tile.streaming || tiles.get(tileId) !== tile) return;
+      tile.nextAckAt = 0;
+      const painted = nextFrame(tile, frameWaitMs);
+      try {
+        await send('Page.startScreencast', screencastParams(tile), session);
+      } catch (e) { painted.cancel(); throw e; }
+      await forceFrame(tile);
+      if (await painted) return;
+      if (!tile.streaming || tiles.get(tileId) !== tile) return;
+      console.warn('[embedded-browser] Edge stopped drawing pages: restarting it');
+      killBrowser('stalled_closed');
+      throw new Error('stalled_closed');
+    } finally {
+      tile.recovering = false;
     }
   }
 
@@ -947,6 +1014,7 @@ function createEmbeddedBrowser(opts) {
     const tile = tiles.get(tileId);
     if (!tile || !tile.streaming) return;
     tile.streaming = false;
+    releaseFrameWaiters(tile);
     tile.audible = false;        // no longer the viewed tab — silence it
     applyAudio(tile);
     await send('Page.stopScreencast', {}, activeSession(tile)).catch(() => {});
@@ -1032,6 +1100,7 @@ function createEmbeddedBrowser(opts) {
     if (!tile) return;
     tiles.delete(tileId);
     clearResizeSettle(tile);
+    releaseFrameWaiters(tile);
     // Close every page in the stack (base + any lingering popups).
     for (const p of tile.pages) {
       bySession.delete(p.sessionId);

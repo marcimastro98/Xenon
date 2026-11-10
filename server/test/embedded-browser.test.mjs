@@ -609,7 +609,94 @@ test('the reasons a hung Edge fails with are ones the tile retries on', () => {
   const src = require('node:fs').readFileSync(new URL('../embedded-browser.js', import.meta.url), 'utf8');
   assert.match(src, /reject\(new Error\('cdp_timeout'\)\)/);
   assert.match(src, /killBrowser\('hung_closed'\)/);
-  assert.ok(retried.test('cdp_timeout') && retried.test('hung_closed'));
+  assert.match(src, /killBrowser\('stalled_closed'\)/);
+  assert.ok(retried.test('cdp_timeout') && retried.test('hung_closed') && retried.test('stalled_closed'));
   assert.match(require('node:fs').readFileSync(new URL('../js/browser-tile.js', import.meta.url), 'utf8'),
     /return \/timeout\|connect\|launch\|exited\|closed\|port\|socket\|failed\/i\.test/);
+});
+
+// An Edge that answers every command but paints nothing (#144 after 5.0): a lost
+// frame ack holds the stream, or the renderer stops compositing. Nothing fails, so
+// the tile sat on its spinner. A started stream must now paint within frameWaitMs.
+
+// Like makeFakeWS(true), but Page.startScreencast pushes a frame only from the
+// `state.paintFrom`-th start on (Infinity = never paints).
+function makeStallingWS(state) {
+  const Base = makeFakeWS(false);
+  return class StallingWS extends Base {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === 'Page.startScreencast') {
+        state.starts += 1;
+        if (state.starts >= state.paintFrom) {
+          setTimeout(() => this._emit('message', { data: JSON.stringify({
+            method: 'Page.screencastFrame', sessionId: m.sessionId,
+            params: { data: 'BBBB', metadata: {}, sessionId: state.starts },
+          }) }), 0);
+        }
+      }
+      return super.send(raw);
+    }
+  };
+}
+
+function stallingHost(state, counts) {
+  return eb.createEmbeddedBrowser({
+    WebSocketImpl: makeStallingWS(state), idleMs: 10000, frameWaitMs: 40,
+    launch: async () => { counts.launches += 1; return { proc: { on() {}, kill() { counts.kills += 1; }, unref() {} }, wsUrl: 'ws://x' }; },
+  });
+}
+
+test('a stream that never paints is restarted, and Edge is kept when that works (#144)', async () => {
+  const state = { starts: 0, paintFrom: 2 };
+  const counts = { launches: 0, kills: 0 };
+  const host = stallingHost(state, counts);
+  try {
+    let frames = 0;
+    await host.open('a', 'example.com', 400, 300, 1, () => { frames += 1; });
+    await host.startScreencast('a');
+    assert.equal(state.starts, 2, 'the silent stream was started again');
+    assert.equal(frames, 1, 'the restarted stream painted the tile');
+    assert.equal(counts.kills, 0, 'Edge was not restarted');
+  } finally { host.shutdown(); }
+});
+
+test('Edge that paints nothing even after a stream restart is restarted, with an error the tile retries on (#144)', async () => {
+  const state = { starts: 0, paintFrom: Infinity };
+  const counts = { launches: 0, kills: 0 };
+  const host = stallingHost(state, counts);
+  try {
+    await host.open('a', 'example.com', 400, 300, 1, () => {});
+    await assert.rejects(host.startScreencast('a'), /stalled_closed/);
+    assert.equal(counts.kills, 1, 'the stuck Edge was killed');
+    assert.equal(host._tiles.size, 0);
+
+    await delay(80);   // the tile retries after a pause, once the old socket is gone
+    state.paintFrom = 0;
+    await host.open('b', 'example.com', 400, 300, 1, () => {});
+    await host.startScreencast('b');
+    assert.equal(counts.launches, 2, 'the retried open runs on a fresh Edge');
+  } finally { host.shutdown(); }
+});
+
+test('a stream stopped or closed before its first frame is not a stall (#144)', async () => {
+  const state = { starts: 0, paintFrom: Infinity };
+  const counts = { launches: 0, kills: 0 };
+  const host = stallingHost(state, counts);
+  try {
+    await host.open('a', 'example.com', 400, 300, 1, () => {});
+    const started = host.startScreencast('a');
+    await delay(5);
+    await host.stopScreencast('a');
+    await started;
+
+    await host.open('b', 'example.com', 400, 300, 1, () => {});
+    const startedB = host.startScreencast('b');
+    await delay(5);
+    await host.closeTile('b');
+    await startedB;
+    await delay(100);
+    assert.equal(state.starts, 2, 'no stream was restarted');
+    assert.equal(counts.kills, 0, 'Edge was kept');
+  } finally { host.shutdown(); }
 });
