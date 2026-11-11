@@ -2417,6 +2417,7 @@
     const grant = grantsFor(entry.pkgId);
     if (d.type === 'hello') {
       entry.ready = true;
+      if (entry.service) { clearTimeout(entry.helloTimer); entry.helloTimer = null; serviceRetries.delete(hit.instId); }
       // A widget that starts again takes clicks until it asks otherwise.
       if (entry.frame.hasAttribute('data-layer-through')) {
         entry.frame.removeAttribute('data-layer-through');
@@ -2910,6 +2911,40 @@
   // page of someone else's code (4 until v5.1); torn down when the grant or
   // the package goes away (the sweep runs on every package/grant refresh).
   const SERVICE_FRAMES_MAX = 8;
+  // A background frame that never says hello is dead, not slow: most often it was
+  // mounted while the engine was restarting, so it holds the browser's error page
+  // and nothing in it will ever try again. Its bar chip then kept its last number
+  // for good, or went once the frame was rebuilt. It is mounted again after these
+  // waits, and at once when the stream comes back (onStreamBack).
+  const SERVICE_HELLO_WAITS_MS = [15000, 30000, 60000, 120000, 300000];
+  const serviceRetries = new Map();   // 'svc:<id>' -> remounts since its last hello
+  function serviceHelloWait(attempt) {
+    return SERVICE_HELLO_WAITS_MS[Math.min(Math.max(0, attempt), SERVICE_HELLO_WAITS_MS.length - 1)];
+  }
+  function watchServiceHello(key, entry) {
+    entry.helloTimer = setTimeout(() => {
+      entry.helloTimer = null;
+      if (entry.ready || frames.get(key) !== entry) return;
+      serviceRetries.set(key, (serviceRetries.get(key) || 0) + 1);
+      remountService(key, entry);
+    }, serviceHelloWait(serviceRetries.get(key) || 0));
+  }
+  function remountService(key, entry) {
+    clearTimeout(entry.helloTimer);
+    entry.helloTimer = null;
+    try { entry.frame.remove(); } catch { /* gone */ }
+    frames.delete(key);
+    syncServiceFrames();
+  }
+  // The live stream reopened after a drop: the engine is back, so a background
+  // frame still waiting for its first hello is mounted again now.
+  function onStreamBack() {
+    for (const [key, entry] of Array.from(frames)) {
+      if (!key.startsWith('svc:') || entry.ready) continue;
+      serviceRetries.delete(key);
+      remountService(key, entry);
+    }
+  }
   function serviceHost() {
     let host = document.getElementById('sdk-service-frames');
     if (!host) {
@@ -2976,20 +3011,27 @@
     // Tear down service frames no longer wanted.
     for (const [key, entry] of Array.from(frames)) {
       if (!key.startsWith('svc:')) continue;
-      if (!wanted.has(key)) { try { entry.frame.remove(); } catch {} frames.delete(key); }
+      if (!wanted.has(key)) {
+        clearTimeout(entry.helloTimer);
+        serviceRetries.delete(key);
+        try { entry.frame.remove(); } catch {}
+        frames.delete(key);
+      }
     }
     // Mount the missing ones.
     for (const [key, pkg] of wanted) {
       const existing = frames.get(key);
       if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) continue;
-      if (existing) { try { existing.frame.remove(); } catch {} frames.delete(key); }
+      if (existing) { clearTimeout(existing.helloTimer); try { existing.frame.remove(); } catch {} frames.delete(key); }
       const frame = document.createElement('iframe');
       frame.className = 'cw-frame cw-frame--service';
       frame.setAttribute('sandbox', 'allow-scripts');
       frame.setAttribute('referrerpolicy', 'no-referrer');
       frame.title = pkg.name;
       frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
-      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
+      const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion };
+      frames.set(key, entry);
+      watchServiceHello(key, entry);
       // A background frame has no tile to explain itself in: it just stops.
       guardFrame(frame, () => {
         leftPage.set(key, pkg.id);
@@ -4446,6 +4488,7 @@
     serviceFramesMax: SERVICE_FRAMES_MAX,
     // Re-plan them now: Settings switched a package's bar contribution on or off.
     syncBackground: () => syncServiceFrames(),
+    onStreamBack,
     // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
     // Installed list and the after-install prompt all use these.
     addToPage, addAsTab, bindPackages, placeCreated,

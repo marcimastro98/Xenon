@@ -315,7 +315,11 @@ const elevatedHere = () => {
   try { return execFileSync(whoami, ['/groups'], { windowsHide: true, encoding: 'utf8' }).includes(HIGH_INTEGRITY); } catch { return true; }
 };
 
-test('a Windows box runs the service once into a scratch folder', { skip: process.platform !== 'win32' || elevatedHere() }, () => {
+// The real service installed on this PC holds the global lock, which a normal
+// account cannot open: the scratch run would be refused, not tested.
+const realServiceHere = () => existsSync(join(process.env.ProgramFiles || 'C:\\Program Files', 'Xenon Sensors', 'sensor-service.ps1'));
+
+test('a Windows box runs the service once into a scratch folder', { skip: process.platform !== 'win32' || elevatedHere() || realServiceHere() }, () => {
   const root = mkdtempSync(join(tmpdir(), 'xenon-sensor-run-'));
   try {
     const out = join(root, 'out');
