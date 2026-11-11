@@ -64,7 +64,8 @@
         "lag",
         "overlay"
       ],
-      "version": "1.2.0",
+      "version": "1.3.0",
+      "changelog": "The row keeps a short reason beside the culprit while the trouble lasts, and the whole reason comes back every 30 seconds. Loading stutters with nothing at its limit now light yellow, not red.",
       "pkgId": "alibi",
       "appVersionMin": "5.0.0",
       "preview": {
@@ -76,8 +77,8 @@
       "activeFrom": "2026-11-10T00:00:00+01:00",
       "activeUntil": "2026-12-10T23:59:59+01:00",
       "addedAt": "2026-11-10",
-      "updatedAt": "2026-11-10",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-11"
     },
     {
       "id": "sports",
