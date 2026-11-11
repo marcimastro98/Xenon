@@ -97,7 +97,7 @@
       if (btn.disabled) return;
       btn.disabled = true;
       say('', install
-        ? t('sensors_install_busy', 'Confirm the Windows prompt. Installing takes a minute or two…')
+        ? t('sensors_install_busy', 'Confirm the Windows prompt. Installing can take a few minutes…')
         : t('sensors_enable_busy', 'Confirm the Windows prompt…'));
 
       let res = null;
