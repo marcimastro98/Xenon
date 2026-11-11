@@ -32,6 +32,8 @@ mod windows;
 
 #[cfg(windows)]
 pub use uninstall::run as uninstall;
+#[cfg(windows)]
+pub use windows::keep_task_for_phone;
 
 #[cfg(target_os = "linux")]
 use linux as platform;
@@ -167,7 +169,8 @@ fn has_engine(root: &Path) -> bool {
 /// True when an engine's files are already in the root an install would use.
 /// The shell only installs on its own where there is none: an existing engine
 /// whose login entry went missing is repaired on the user's click, never behind
-/// their back.
+/// their back. The one exception is phone mode on Windows, where no window is
+/// there to click on (windows::keep_task_for_phone).
 pub fn engine_on_disk() -> bool {
     target_root().map(|r| has_engine(&r)).unwrap_or(false)
 }

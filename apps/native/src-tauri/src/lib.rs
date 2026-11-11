@@ -247,6 +247,10 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
     login_task::sync(want);
     #[cfg(windows)]
     engine_install::keep_one_entry();
+    #[cfg(windows)]
+    if !want {
+        engine_install::keep_task_for_phone();
+    }
     if want {
         // Idempotent, and it REWRITES the entry — which is what migrates an
         // existing registration onto the new `--autostart` argument.

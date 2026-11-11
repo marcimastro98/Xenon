@@ -348,3 +348,15 @@ mod uninstall_tests {
         assert!(target.join("keep.txt").is_file(), "the junction's target is untouched");
     }
 }
+
+#[cfg(windows)]
+#[test]
+fn phone_mode_puts_back_only_a_missing_task_of_a_carried_engine() {
+    use crate::TaskState;
+    assert!(windows::task_needs_putting_back(true, TaskState::Missing));
+    // Switched off by the user: a decision, not a repair.
+    assert!(!windows::task_needs_putting_back(true, TaskState::Disabled));
+    assert!(!windows::task_needs_putting_back(true, TaskState::Enabled));
+    // An engine installed some other way: its task is not ours to write.
+    assert!(!windows::task_needs_putting_back(false, TaskState::Missing));
+}

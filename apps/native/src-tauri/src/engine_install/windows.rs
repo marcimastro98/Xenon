@@ -224,6 +224,32 @@ pub fn register(root: &Path, version: &str) -> io::Result<()> {
     write_mode_marker(root)
 }
 
+/// Phone mode: nothing of this app starts at sign-in, so the engine's task is
+/// the only thing that brings Xenon up for the paired phone. A task that went
+/// missing (a cleanup tool, a failed registration) left the phone with nothing
+/// and no window on this PC to say so. Choosing the phone, and every launch
+/// while it is chosen, puts the task back. Only for an engine this app
+/// installed, whose task it knows how to write; a task switched OFF is the
+/// user's decision and stays off.
+pub fn keep_task_for_phone() {
+    std::thread::spawn(|| {
+        let Ok(root) = super::target_root() else { return };
+        let carried = super::has_engine(&root) && super::uninstall::is_carried(&root) && runtime_node(&root).is_file();
+        if !task_needs_putting_back(carried, crate::backend_task_state()) {
+            return;
+        }
+        let version = super::installed_version(&root).or_else(|| super::placed_version(&root)).unwrap_or_default();
+        match register(&root, &version) {
+            Ok(()) => super::log("phone mode: the engine's login task was missing and is back"),
+            Err(e) => super::log(&format!("phone mode: putting the engine's login task back failed: {e}")),
+        }
+    });
+}
+
+pub(super) fn task_needs_putting_back(carried: bool, state: crate::TaskState) -> bool {
+    carried && state == crate::TaskState::Missing
+}
+
 /// Through the task, exactly as a sign-in would: start-hidden.vbs owns the
 /// launch (port, logs, the one-engine rule).
 pub fn start(_root: &Path, _port: u16) -> io::Result<()> {
