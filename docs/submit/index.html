@@ -268,6 +268,7 @@
 <script src="identity.js"></script>
 <script src="tags.js"></script>
 <script src="prefill.js"></script>
+<script src="manifest.js"></script>
 </head>
 <body data-sheet="violet" data-own-key data-track-view="submit_start">
 <!-- xenon:header -->
@@ -1356,6 +1357,18 @@
   // id, and the theme palette. Mirrors previewFromEnvelope in the admin panel, so
   // an imported file and a portal submission produce the same entry.
   var derivedPkgId = '';
+  // The package's own version, description and category, into the fields still empty.
+  function fillFromManifest(env) {
+    var catSel = document.getElementById('category');
+    var cats = Array.prototype.map.call(catSel.options, function (o) { return o.value; }).filter(Boolean);
+    var m = window.XenonSubmitManifest.read(env, cats);
+    var versionEl = document.getElementById('version');
+    var descEl = document.getElementById('description');
+    if (m.version && !versionEl.value.trim()) versionEl.value = m.version;
+    if (m.description && !descEl.value.trim()) descEl.value = m.description;
+    if (m.category && !catSel.value) catSel.value = m.category;
+  }
+
   function syncFromCode() {
     var env = parseEnvelope(codeEl.value);
     if (!env) { palHint.textContent = ''; palHint.className = 'hint'; resetAudit(); return; }
@@ -1364,6 +1377,7 @@
     }
     derivedPkgId = (env.kind === 'widget' || env.kind === 'ambient') && env.data && typeof env.data.id === 'string'
       ? env.data.id : '';
+    fillFromManifest(env);
     scheduleAudit(codeEl.value.trim());
     var theme = env.kind === 'theme' ? env.data
       : (env.kind === 'bundle' && env.data && env.data.theme ? env.data.theme : null);

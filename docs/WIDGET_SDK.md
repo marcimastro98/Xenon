@@ -498,6 +498,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `tasks` — `{ tasks: [...] }`, the user's to-do list; pushed on every change
 - `notes` — `{ v, activeId, notes: [...] }`, the user's notes (privacy note: this is your private scratchpad text — grant it deliberately); pushed on save
 - `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change. **Every event, not the slice the Upcoming tile shows.** That tile has its own count and horizon in Settings → Calendar, and they are display settings for the tile alone: what reaches you here is unfiltered, so filter and sort it yourself rather than assuming a window
+- `weather` — the weather the dashboard shows: `{ ok, code, condition, tempC, feelsC, humidity, windKph, windDir, pressure, visibility, uv, cloudCover, precipMM, location, region, country, lat, lon, sunrise, sunset, hourly:[…], forecast:[…], updatedAt }`. Always Celsius and km/h (show them in the unit `tempUnit` names, §3d-bis); any reading the source lacks is `null`. `condition` is already in the user's language, `code` is one of `113` clear, `116` partly cloudy, `119` cloudy, `248` fog, `266` drizzle, `302` rain, `356` showers, `338` snow, `200` storm. `location`, `region` and `country` name the place the user set; `lat`/`lon` are its coordinates (`null` when the source gave none), so a map or radar can centre on where the user is instead of a place you chose. `hourly` holds the next 8 hours (`time`, `code`, `tempC`, `rain` %), `forecast` the coming days (`date`, `code`, `minC`, `maxC`, `sunrise`, `sunset`). `stale: true` means the last good reading, served while the source is unreachable
 - `battery` — wireless peripheral battery levels (see *Hardware sensors*)
 - `processes` — **which apps are using the CPU, memory and GPU right now**. See *Which apps are busy* below; like `audioLevels`, this one has conditions
 - `sensors` (v5.0.0) — **every hardware sensor by name**: each temperature, fan, power and clock reading the PC exposes. See *Every sensor, and which one the user chose* below
@@ -4091,6 +4092,11 @@ L.tileLayer(tileUrl('https://tile.example.com/{z}/{x}/{y}.png'), { … });
 // (build the concrete tile URL first, then wrap it — or template {z}/{x}/{y}
 //  through the encoder in your layer.)
 ```
+
+**Centre it where the user is.** Request the `weather` stream and centre the map
+on its `lat` / `lon`: the place the user set for their weather, so a radar shows
+their rain on any dashboard. Keep a place of your own only as the fallback for
+the moment before the weather arrives, or a dashboard where `lat` is `null`.
 
 The tile host must be in your manifest `hosts` (and granted), exactly like the
 fetch proxy — same allowlist, same SSRF guard (loopback/link-local unreachable),
