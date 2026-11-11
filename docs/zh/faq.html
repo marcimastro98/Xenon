@@ -183,12 +183,12 @@
 
     <details>
       <summary data-i18n="f.q.cheat">反作弊会标记它或让我被封号吗？</summary>
-      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon 从不向游戏注入代码，也从不挂钩游戏进程。它在上方绘制自己的窗口，通过 PresentMon 从系统读取帧时间，所以游戏内部没有任何东西可供反作弊标记。</p><p>唯一工作在驱动层的部分是读取温度的 <a href="/zh/pawnio.html">PawnIO</a>，它也在游戏之外运行。FACEIT 的反作弊曾拦截 2.1.0 之前的 PawnIO 版本：如果它提到 <code>PawnIO.sys</code>，请运行 <code>winget upgrade namazso.PawnIO</code> 或重新运行 Xenon 安装程序。并非所有反作弊都测试过，如果有哪个报错，请在 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上说明。</p></div>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon 从不向游戏注入代码，也从不挂钩游戏进程。它在上方绘制自己的窗口，通过 PresentMon 从系统读取帧时间，所以游戏内部没有任何东西可供反作弊标记。</p><p>唯一工作在驱动层的部分是读取温度的 <a href="/zh/pawnio.html">PawnIO</a>，它也在游戏之外运行。FACEIT 的反作弊曾拦截 2.1.0 之前的 PawnIO 版本：如果它提到 <code>PawnIO.sys</code>，请运行 <code>winget upgrade namazso.PawnIO</code>。并非所有反作弊都测试过，如果有哪个报错，请在 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上说明。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">能显示温度和游戏帧率吗？</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>可以。在 Windows 上，安装程序会设置温度读取（需要确认一次管理员提示），PresentMon 提供运行中游戏的真实帧率，包括全屏游戏；如果缺少，<strong>设置 &rarr; 性能 &rarr; 游戏模式</strong>可以安装它。<a href='/zh/fps-overlay.html'>FPS 叠加层</a>在无边框全屏或窗口模式的游戏上方显示。macOS 上的温度和 GPU 负载来自 <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）。Linux 上的游戏内 FPS 需要 MangoHud，并通过它启动游戏。</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>可以。在 Windows 上，“风扇”或“能耗”小组件中的<strong>安装传感器</strong>会设置温度读取（需要确认一次管理员提示），PresentMon 提供运行中游戏的真实帧率，包括全屏游戏；如果缺少，<strong>设置 &rarr; 性能 &rarr; 游戏模式</strong>可以安装它。<a href='/zh/fps-overlay.html'>FPS 叠加层</a>在无边框全屏或窗口模式的游戏上方显示。macOS 上的温度和 GPU 负载来自 <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）。Linux 上的游戏内 FPS 需要 MangoHud，并通过它启动游戏。</p></div>
     </details>
 
     <details>
@@ -240,7 +240,7 @@
 
     <details>
       <summary data-i18n="f.q.temp">看不到 CPU 温度</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>在 Windows 上，重新运行安装程序并接受管理员提示：读取温度需要 LibreHardwareMonitor 和 PawnIO，它们包含驱动层组件，这就是提示的用途。拒绝的话其他功能都正常，只是没有温度。在 macOS 上，请安装 <code>macmon</code>。有些笔记本和主板完全不提供传感器，这时小组件会直接说明，而不是显示编造的数字。</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>在 Windows 上，在“风扇”或“能耗”小组件中，或在<strong>设置 &rarr; 性能</strong>中，按<strong>安装传感器</strong>并接受管理员提示：读取温度需要 LibreHardwareMonitor 和 PawnIO（包含驱动层组件），以及一个替 Xenon 读取它们的小型服务，这就是提示的用途。Xenon 本身仍以普通权限运行。拒绝的话其他功能都正常，只是没有温度。在 macOS 上，请安装 <code>macmon</code>。有些笔记本和主板完全不提供传感器，这时小组件会直接说明，而不是显示编造的数字。</p></div>
     </details>
 
     <details>

@@ -24,7 +24,7 @@
     "mac.dl.beta": "测试版",
     "mac.dl.req": "macOS 11 或更高版本。一个文件同时支持 Apple 芯片和 Intel。",
     "mac.req.os": "<strong>macOS 11 或更高版本</strong>，Apple 芯片或 Intel 均可。.dmg 是通用版本，所以两者只需下载同一个文件。",
-    "mac.req.node": "<strong>推荐使用 Node.js 22 或更高版本。</strong>Node.js 18 和 20 仍能运行 Xenon，但它们已不再获得安全修复，Xenon 会在日志中写入一条警告。如果缺少 Node.js 而电脑上装有 Homebrew，设置程序会用 Homebrew 安装它。否则它会停下来，请你从 nodejs.org 安装。",
+    "mac.req.node": "<strong>无需事先安装任何东西。</strong>应用自带 Node.js，所以使用 Xenon 不需要 Node.js，也不需要 Homebrew。",
     "mac.req.opt": "其余都是可选的。每个工具增加一项功能，安装程序会列出你缺少的那些：",
     "mac.opt.macmon": "<code>brew install vladkens/tap/macmon</code>：用于读取温度和 GPU 负载，仅在 Xenon Helper 读不到时需要。",
     "mac.opt.switch": "<code>brew install switchaudio-osx</code>：用于切换输出设备。",

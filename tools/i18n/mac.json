@@ -24,7 +24,7 @@
     "mac.dl.beta": "beta",
     "mac.dl.req": "macOS 11 or later. Apple Silicon and Intel in one file.",
     "mac.req.os": "<strong>macOS 11 or later</strong>, on Apple Silicon or Intel. The .dmg is a universal build, so there is one download for both.",
-    "mac.req.node": "<strong>Node.js 22 or later is recommended.</strong> Node.js 18 and 20 still run Xenon, but they no longer get security fixes, and Xenon writes a warning in its log. If Node.js is missing and Homebrew is installed, the setup installs it with Homebrew. Otherwise it stops and asks you to install it from nodejs.org.",
+    "mac.req.node": "<strong>Nothing to install first.</strong> The app carries its own Node.js, so you do not need Node.js or Homebrew to run Xenon.",
     "mac.req.opt": "The rest is optional. Each tool adds one thing, and the installer names the ones you do not have:",
     "mac.opt.macmon": "<code>brew install vladkens/tap/macmon</code> for temperature and GPU load, only if the Xenon Helper cannot read them.",
     "mac.opt.switch": "<code>brew install switchaudio-osx</code> for switching the output device.",

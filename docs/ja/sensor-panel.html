@@ -67,7 +67,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"AIDA64 や HWiNFO は必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。"}},{"@type":"Question","name":"CPU の温度が表示されないのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"Windows では、たいてい Xenon が管理者権限なしで動いていて、センサーのドライバーを読み込めないことが原因です。ファンかエネルギーのウィジェット、または設定のパフォーマンスにあるハードウェア センサーで「センサーを有効にする」を押し、Windows の確認を承認してください。"}},{"@type":"Question","name":"Xeneon Edge にセンサーを表示できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。システムのタイルはカードの間で高さを分け合うので、Edge の 2560×720 の画面にすべて収まります。どのモニターでも、タブレットでも、ペアリングしたスマートフォンでも動きます。スマートフォンからのアクセスはベータです。"}},{"@type":"Question","name":"自分でセンサーパネルをデザインできますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使います。システムの値へのアクセスを承認すると、ウィジェットは使用率、温度、クロック、ファンの回転数、ワット数、FPS を読み取れます。"}},{"@type":"Question","name":"macOS と Linux でも動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい。どちらもベータです。CPU と GPU の温度と GPU の使用率は両方で動きます。ファンの回転数と、MangoHud によるゲーム内の FPS は Linux では動きますが、macOS では動きません。CPU と GPU のワット数を読み取るのは Windows だけです。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"AIDA64 や HWiNFO は必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。"}},{"@type":"Question","name":"CPU の温度が表示されないのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"Windows では、たいていセンサーの読み取りがまだ準備されていないことが原因です。ファンかエネルギーのウィジェット、または設定、パフォーマンス、ハードウェア センサーで「センサーをインストール」か「センサーを有効にする」を押し、Windows の確認を承認してください。"}},{"@type":"Question","name":"Xeneon Edge にセンサーを表示できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。システムのタイルはカードの間で高さを分け合うので、Edge の 2560×720 の画面にすべて収まります。どのモニターでも、タブレットでも、ペアリングしたスマートフォンでも動きます。スマートフォンからのアクセスはベータです。"}},{"@type":"Question","name":"自分でセンサーパネルをデザインできますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使います。システムの値へのアクセスを承認すると、ウィジェットは使用率、温度、クロック、ファンの回転数、ワット数、FPS を読み取れます。"}},{"@type":"Question","name":"macOS と Linux でも動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい。どちらもベータです。CPU と GPU の温度と GPU の使用率は両方で動きます。ファンの回転数と、MangoHud によるゲーム内の FPS は Linux では動きますが、macOS では動きません。CPU と GPU のワット数を読み取るのは Windows だけです。"}}]}</script>
 
 <style>
   /* Sub-headings and the two source tables. */
@@ -176,7 +176,7 @@
     <p data-i18n="sens.system.p4">温度は「温度の単位」の設定に従って、°C か °F で表示されます。この設定は天気だけでなく、CPU と GPU のヘッダーと高温の警告にも反映されます。履歴のグラフは °C のままです。</p>
 
     <h3 data-i18n="sens.h.fps">ゲーム内の実際の FPS</h3>
-    <p data-i18n="sens.fps.p1">Windows では、FPS のカードは PresentMon の値を読みます。PresentMon はセットアップが Xenon のフォルダーにダウンロードします。ゲームが Windows に渡すフレームをイベントトレースで数えるので、排他的フルスクリーンのゲームも計測できます。セットアップが求める管理者権限が必要です。</p>
+    <p data-i18n="sens.fps.p1">Windows では、FPS のカードは PresentMon の値を読みます。PresentMon は「設定 → パフォーマンス → ゲームモード」からインストールします。ゲームが Windows に渡すフレームをイベントトレースで数えるので、排他的フルスクリーンのゲームも計測できます。センサーを有効にすると、次のサインインから Windows がそのフレームの読み取りを許可します。Xenon 自体は通常の権限のままです。</p>
     <p data-i18n="sens.fps.p2">PresentMon がない場合、Xenon は Windows のデスクトップコンポジターの値を使いますが、これはウィンドウモードとボーダーレスのゲームでしか使えません。PresentMon がある場合、ゲームが動いていないときは数値の代わりに「なし」と表示されます。</p>
     <p data-i18n="sens.fps.p3">フレーム生成がオンのときは、PresentMon が報告する範囲で、画面に実際に表示されるフレームをカードが追います。そのため、渡されたフレームの多いほうの数ではなく、ほかの FPS オーバーレイと同じ値になります。</p>
     <p data-i18n-html="sens.fps.p4">Linux では、MangoHud で起動したゲームのフレームレートを MangoHud から取得します（Steam の起動オプションに <code>mangohud %command%</code>）。macOS にはフレームレートの取得元がないため、カードは空のままです。</p>
@@ -189,12 +189,12 @@
         <tr>
           <td data-i18n="sens.win.cpu">CPU の温度、クロック、ワット数</td>
           <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">セットアップが PawnIO ドライバーと一緒にインストールします。管理者権限が必要です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">「センサーをインストール」が PawnIO ドライバーと一緒に追加します。Windows の確認は1回です。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.fans">マザーボード、AIO、電源ユニットのファン</td>
           <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">セットアップが PawnIO ドライバーと一緒にインストールします。管理者権限が必要です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">「センサーをインストール」が PawnIO ドライバーと一緒に追加します。Windows の確認は1回です。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.nvidia">NVIDIA GPU の使用率、温度、ビデオメモリ、ワット数、クロック</td>
@@ -204,12 +204,12 @@
         <tr>
           <td data-i18n="sens.win.amd">AMD と Intel の GPU の温度、ビデオメモリ、ワット数、クロック</td>
           <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">セットアップがインストールします。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">「センサーをインストール」が追加します。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpufans">グラフィックカードの各ファン（RPM）</td>
           <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">セットアップがインストールします。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">「センサーをインストール」が追加します。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpuload">nvidia-smi がない場合の GPU 使用率</td>
@@ -224,12 +224,12 @@
         <tr>
           <td data-i18n="sens.win.fps">ゲーム内の FPS</td>
           <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.presentmon">PresentMon</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.presentmon">セットアップがダウンロードします。管理者権限が必要です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.presentmon">設定からインストールします。センサーの有効化が必要です。</span></td>
         </tr>
       </tbody>
     </table></div>
     <p data-i18n-html="sens.win.p2">LibreHardwareMonitor と <a href="/ja/pawnio.html">PawnIO</a> は winget でインストールされるので、ファイルは Microsoft のパッケージマネージャーを通じて、それぞれの開発元から届きます。PawnIO は署名付きのドライバーです。Xenon が WinRing0 を同梱したことはありません。WinRing0 は、ハードウェア監視ツールに対するウイルス対策の警告の多くの原因になっている古いドライバーです。</p>
-    <p data-i18n-html="sens.win.p3">ドライバーは管理者権限があるときだけ読み込まれます。セットアップ中に Windows の確認を拒否した場合、ファンとワット数の値は空のままで、CPU の温度が表示されないこともあります。その場合、ファンとエネルギーのウィジェットに <strong>センサーを有効にする</strong> ボタンが表示されます。Windows の確認1回で、Xenon のスタートアップタスクがそれ以降管理者権限で動くよう設定され、Xenon が再起動します。それでもセンサーが空のままなら、ウィジェットが PC の再起動を求めます。同じボタンは「設定 → パフォーマンス → ハードウェア センサー」にもあります。</p>
+    <p data-i18n-html="sens.win.p3">ドライバーには管理者権限が必要ですが、Xenon 自体が管理者権限で動くことはありません。センサーがない場合、ファンとエネルギーのウィジェットに <strong>センサーをインストール</strong> ボタンが表示されます。Windows の確認1回で、LibreHardwareMonitor、PawnIO、小さなセンサーサービスがインストールされます。サービスのファイルは管理者しか書き込めない Program Files に置かれ、センサーを読むだけで、その値を Xenon に渡します。LibreHardwareMonitor がすでに PC にある場合、ボタンは <strong>センサーを有効にする</strong> になり、サービスだけを追加します。それでもセンサーが空のままなら、ウィジェットが PC の再起動を求めます。同じボタンは「設定 → パフォーマンス → ハードウェア センサー」にもあります。</p>
     <p data-i18n="sens.win.p4">LibreHardwareMonitor がない場合、Xenon は、マザーボードが提供していれば Windows が報告するサーマルゾーンの温度を使います。取得できない値は、作ったゼロを表示するのではなく、空欄のままにするか「--」と表示します。</p>
 
     <h2 id="linux-mac" data-i18n="sens.h.linuxmac">Linux と macOS での温度</h2>
@@ -306,8 +306,8 @@
     <p data-i18n="sens.games.p5">「ゲーム中は重いタイルを一時停止」のオプションは標準でオンで、ゲームの実行中や最適化が有効な間、ブラウザ、セカンドスクリーン、カメラのタイルのストリーミングも止めます。</p>
 
     <h2 id="faq" data-i18n="sens.h.faq">質問</h2>
-    <details><summary data-i18n="sens.faq.aida.q">AIDA64 や HWiNFO は必要ですか？</summary><div class="body"><p data-i18n="sens.faq.aida.a">いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。LibreHardwareMonitor と PresentMon は、Windows のセットアップがインストールします。</p></div></details>
-    <details><summary data-i18n="sens.faq.temp.q">CPU の温度が表示されないのはなぜですか？</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">Windows では、たいてい Xenon が管理者権限なしで動いていて、センサーのドライバーを読み込めないことが原因です。ファンかエネルギーのウィジェット、または「設定 → パフォーマンス → ハードウェア センサー」で <strong>センサーを有効にする</strong> を押し、Windows の確認を承認してください。LibreHardwareMonitor がまったくインストールされていない場合は、Xenon のフォルダーで <code>INSTALL.bat</code> をもう一度実行し、確認を承認してください。</p></div></details>
+    <details><summary data-i18n="sens.faq.aida.q">AIDA64 や HWiNFO は必要ですか？</summary><div class="body"><p data-i18n="sens.faq.aida.a">いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。Windows では、LibreHardwareMonitor と PresentMon をそれぞれ1クリックで Xenon がインストールします。</p></div></details>
+    <details><summary data-i18n="sens.faq.temp.q">CPU の温度が表示されないのはなぜですか？</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">Windows では、たいていセンサーの読み取りがまだ準備されていないことが原因です。ファンかエネルギーのウィジェット、または「設定 → パフォーマンス → ハードウェア センサー」で <strong>センサーをインストール</strong> か <strong>センサーを有効にする</strong> を押し、Windows の確認を承認してください。それでも値が空のままなら、PC を再起動してください。</p></div></details>
     <details><summary data-i18n="sens.faq.edge.q">Xeneon Edge にセンサーを表示できますか？</summary><div class="body"><p data-i18n-html="sens.faq.edge.a">はい。システムのタイルはカードの間で高さを分け合うので、Edge の 2560×720 の画面にすべて収まります。同じダッシュボードは、どのモニターでも、タブレットでも、<a href="/ja/phone.html">Wi-Fi でペアリングしたスマートフォン</a>でも動きます。スマートフォンからのアクセスはベータです。</p></div></details>
     <details><summary data-i18n="sens.faq.own.q">自分でセンサーパネルをデザインできますか？</summary><div class="body"><p data-i18n-html="sens.faq.own.a">はい。ベータのウィジェット SDK を使います。システムの値へのアクセスを承認すると、ウィジェットは使用率、温度、クロック、ファンの回転数、ワット数、FPS を読み取れます。システムのタイルが表示しない値も含まれます。始めるなら<a href="/create/">作成のページ</a>からです。</p></div></details>
     <details><summary data-i18n="sens.faq.os.q">macOS と Linux でも動きますか？</summary><div class="body"><p data-i18n="sens.faq.os.a">はい。どちらもベータです。CPU と GPU の温度と GPU の使用率は両方で動きます。ファンの回転数と、MangoHud によるゲーム内の FPS は Linux では動きますが、macOS では動きません。CPU と GPU のワット数を読み取るのは Windows だけです。</p></div></details>

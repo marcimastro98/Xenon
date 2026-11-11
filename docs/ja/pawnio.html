@@ -141,12 +141,12 @@
     <p data-i18n="pio.winring0.p2">LibreHardwareMonitor、Fan Control、OpenRGB などは PawnIO に移行しました。Xenon が WinRing0 を同梱したことは一度もありません。</p>
 
     <h2 id="xenon" data-i18n="pio.h.xenon">Xenon が PawnIO を入れる理由</h2>
-    <p data-i18n-html="pio.xenon.p1">Windows では、Xenon は LibreHardwareMonitor を通して CPU とディスクの温度を読みます。LibreHardwareMonitor がセンサーに届くには PawnIO が必要です。Xenon のインストーラーは Microsoft のパッケージマネージャー winget から <code>namazso.PawnIO</code> というパッケージとして PawnIO を入手するので、ファイルは私たちではなく開発者本人から届きます。</p>
-    <p data-i18n="pio.xenon.p2">ドライバーのインストールには管理者の確認が必要です。拒否しても Xenon は動き、温度が表示されないだけです。古い PawnIO がすでに入っている場合、インストーラーが更新します。古いバージョンでは CPU の一部の値が空になるためです。</p>
+    <p data-i18n-html="pio.xenon.p1">Windows では、Xenon は LibreHardwareMonitor を通して CPU とディスクの温度を読みます。LibreHardwareMonitor がセンサーに届くには PawnIO が必要です。<strong>センサーをインストール</strong> を押すと、Xenon は Microsoft のパッケージマネージャー winget から <code>namazso.PawnIO</code> というパッケージとして PawnIO を入手するので、ファイルは私たちではなく開発者本人から届きます。</p>
+    <p data-i18n="pio.xenon.p2">ドライバーのインストールには管理者の確認が必要です。拒否しても Xenon は動き、温度が表示されないだけです。Xenon 自体が管理者として動くことはなく、小さなサービスがセンサーを読んでその値を渡します。古い PawnIO がすでに入っている場合は winget upgrade namazso.PawnIO で更新してください。古いバージョンでは CPU の一部の値が空になるためです。</p>
     <p data-i18n-html="pio.xenon.p3">macOS と Linux には PawnIO はありません。Mac では <code>macmon</code> から、Linux ではカーネル自身のセンサーから温度を読みます。</p>
 
     <h2 id="anticheat" data-i18n="pio.h.anticheat">PawnIO とアンチチート</h2>
-    <p data-i18n-html="pio.anticheat.p1">PawnIO はゲームの外にあり、ゲームのメモリを読むことはありません。それでも FACEIT のアンチチートは 2.1.0 より前の PawnIO をブロックしていました。<code>PawnIO.sys</code> と表示されたら、<code>winget upgrade namazso.PawnIO</code> でドライバーを更新するか、Xenon のインストーラーをもう一度実行してください。すべてのアンチチートを試したわけではありません。問題が出たら <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> で教えてください。</p>
+    <p data-i18n-html="pio.anticheat.p1">PawnIO はゲームの外にあり、ゲームのメモリを読むことはありません。それでも FACEIT のアンチチートは 2.1.0 より前の PawnIO をブロックしていました。<code>PawnIO.sys</code> と表示されたら、<code>winget upgrade namazso.PawnIO</code> でドライバーを更新してください。すべてのアンチチートを試したわけではありません。問題が出たら <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> で教えてください。</p>
 
     <h2 id="remove" data-i18n="pio.h.remove">PawnIO を削除するには</h2>
     <p data-i18n-html="pio.remove.p1">Xenon をアンインストールするとき、PawnIO を削除する前に確認があり、初期設定では残します。PC 上のほかのモニタリングアプリが使っているかもしれないからです。自分で削除するには <code>winget uninstall namazso.PawnIO</code> を実行します。PawnIO を通して温度を読んでいたアプリは、もう一度インストールするまで温度を表示しなくなります。</p>

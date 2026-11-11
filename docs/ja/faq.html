@@ -183,12 +183,12 @@
 
     <details>
       <summary data-i18n="f.q.cheat">アンチチートで BAN される?</summary>
-      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon はゲームにコードを注入せず、ゲームのプロセスをフックすることもありません。自分のウィンドウを上に描き、PresentMon でシステムからフレームタイムを読むだけなので、ゲームの中にアンチチートが検出するものはありません。</p><p>ドライバーレベルで動くのは温度を読む <a href="/ja/pawnio.html">PawnIO</a> だけで、これもゲームの外で動きます。FACEIT のアンチチートは 2.1.0 より前の PawnIO をブロックしていました。<code>PawnIO.sys</code> と表示されたら、<code>winget upgrade namazso.PawnIO</code> を実行するか、Xenon のインストーラーをもう一度実行してください。すべてのアンチチートを試したわけではないので、問題が出たら <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で教えてください。</p></div>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon はゲームにコードを注入せず、ゲームのプロセスをフックすることもありません。自分のウィンドウを上に描き、PresentMon でシステムからフレームタイムを読むだけなので、ゲームの中にアンチチートが検出するものはありません。</p><p>ドライバーレベルで動くのは温度を読む <a href="/ja/pawnio.html">PawnIO</a> だけで、これもゲームの外で動きます。FACEIT のアンチチートは 2.1.0 より前の PawnIO をブロックしていました。<code>PawnIO.sys</code> と表示されたら、<code>winget upgrade namazso.PawnIO</code> を実行してください。すべてのアンチチートを試したわけではないので、問題が出たら <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で教えてください。</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">温度やゲームの FPS は表示できる?</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>はい。Windows ではインストーラーが温度の読み取りを設定し（管理者の確認が一度必要です）、PresentMon が実行中のゲームの実際のフレームレートを、フルスクリーンのタイトルも含めて取得します。ない場合は <strong>設定 &rarr; パフォーマンス &rarr; ゲームモード</strong> からインストールできます。<a href='/ja/fps-overlay.html'>FPS オーバーレイ</a>はボーダーレスまたはウィンドウ表示のゲームの上に数値を表示します。macOS の温度と GPU 負荷は <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）から取得します。Linux のゲーム内 FPS には MangoHud が必要で、ゲームをそれ経由で起動します。</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>はい。Windows ではファンかエネルギーのウィジェットの <strong>センサーをインストール</strong> が温度の読み取りを設定し（管理者の確認が一度必要です）、PresentMon が実行中のゲームの実際のフレームレートを、フルスクリーンのタイトルも含めて取得します。ない場合は <strong>設定 &rarr; パフォーマンス &rarr; ゲームモード</strong> からインストールできます。<a href='/ja/fps-overlay.html'>FPS オーバーレイ</a>はボーダーレスまたはウィンドウ表示のゲームの上に数値を表示します。macOS の温度と GPU 負荷は <code>macmon</code>（<code>brew install vladkens/tap/macmon</code>）から取得します。Linux のゲーム内 FPS には MangoHud が必要で、ゲームをそれ経由で起動します。</p></div>
     </details>
 
     <details>
@@ -240,7 +240,7 @@
 
     <details>
       <summary data-i18n="f.q.temp">CPU の温度が表示されない</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>Windows では、インストーラーをもう一度実行して管理者の確認を許可してください。温度の読み取りには LibreHardwareMonitor と PawnIO が必要で、これらにはドライバーレベルの部分が含まれるため確認が出ます。拒否しても温度以外はすべて動きます。macOS では <code>macmon</code> をインストールしてください。センサーをまったく公開しないノート PC やマザーボードもあり、その場合ウィジェットは作り物の数値を出さず、その旨を表示します。</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>Windows では、ファンかエネルギーのウィジェット、または <strong>設定 &rarr; パフォーマンス</strong> で <strong>センサーをインストール</strong> を押し、管理者の確認を許可してください。温度の読み取りには LibreHardwareMonitor と PawnIO が必要で、これらにはドライバーレベルの部分が含まれます。さらにそれを Xenon の代わりに読む小さなサービスも必要で、確認はそのためのものです。Xenon 自体は通常の権限のまま動きます。拒否しても温度以外はすべて動きます。macOS では <code>macmon</code> をインストールしてください。センサーをまったく公開しないノート PC やマザーボードもあり、その場合ウィジェットは作り物の数値を出さず、その旨を表示します。</p></div>
     </details>
 
     <details>
