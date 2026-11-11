@@ -32,8 +32,6 @@ mod windows;
 
 #[cfg(windows)]
 pub use uninstall::run as uninstall;
-#[cfg(windows)]
-pub use uninstall::run_elevated_part as uninstall_elevated;
 
 #[cfg(target_os = "linux")]
 use linux as platform;

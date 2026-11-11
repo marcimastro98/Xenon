@@ -16,10 +16,6 @@ fn main() {
     if std::env::args().nth(1).as_deref() == Some(xenon_native_lib::UNINSTALL_ARG) {
         std::process::exit(xenon_native_lib::uninstall());
     }
-    #[cfg(windows)]
-    if std::env::args().nth(1).as_deref() == Some(xenon_native_lib::UNINSTALL_ELEVATED_ARG) {
-        std::process::exit(xenon_native_lib::uninstall_elevated());
-    }
     // CI installs the packaged engine into a throwaway folder and checks it
     // answers, without a window and without touching the login entries.
     if std::env::args().nth(1).as_deref() == Some(xenon_native_lib::ENGINE_SELFTEST_ARG) {

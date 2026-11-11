@@ -5,10 +5,11 @@
 // sensors (CPU temperature, fans, CPU and PSU watts, CPU clock) come from the
 // readings that service writes to "%ProgramData%\Xenon Sensors".
 //
-// The service reads only while asked: the engine rewrites
-// %LOCALAPPDATA%\Xenon\sensor-want (its content is the refresh interval) each
-// time it wants a reading, at most every few seconds. No dashboard looking, no
-// touch, no hardware reads.
+// The service reads only while asked: the engine touches
+// "%ProgramData%\Xenon Sensors\want\want-<ms>" (the name is the refresh
+// interval) each time it wants a reading, at most every few seconds. The
+// service, which runs as SYSTEM, only lists that folder and never opens a file
+// in it. No dashboard looking, no touch, no hardware reads.
 //
 // When the service is not installed or not running (heartbeat older than a
 // minute), every function answers null and the caller reads the sensors itself
@@ -31,11 +32,11 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const WAKING = Object.freeze({ cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: 'ok' });
 
 function createSensorService({ env = process.env, serverDir = path.join(__dirname, '..'), platform = process.platform, now = Date.now, fsp = fs.promises } = {}) {
-  const enabled = platform === 'win32' && !!env.LOCALAPPDATA;
+  const enabled = platform === 'win32' && !!env.ProgramData;
   const readingsDir = path.join(env.ProgramData || 'C:\\ProgramData', SERVICE_NAME);
-  const wantFile = enabled ? path.join(env.LOCALAPPDATA, 'Xenon', 'sensor-want') : null;
+  const wantDir = path.join(readingsDir, 'want');
   let wantedAt = 0;
-  let wantedRate = 0;
+  let wantedFile = null;
   let localHash;
   let lastCpu = null;
 
@@ -66,15 +67,17 @@ function createSensorService({ env = process.env, serverDir = path.join(__dirnam
     return localHash;
   }
 
+  // Whole seconds, so at most ten names ever exist; the service takes the newest.
+  const wantFile = (rateMs) => path.join(wantDir, 'want-' + Math.min(10000, Math.max(1000, Math.round((Number(rateMs) || 5000) / 1000) * 1000)));
+
   async function want(rateMs) {
-    const rate = Math.min(10000, Math.max(1000, Math.round(Number(rateMs) || 5000)));
-    if (now() - wantedAt < WANT_EVERY_MS && rate === wantedRate) return;
+    const file = wantFile(rateMs);
+    if (now() - wantedAt < WANT_EVERY_MS && file === wantedFile) return;
     wantedAt = now();
-    wantedRate = rate;
-    try {
-      await fsp.mkdir(path.dirname(wantFile), { recursive: true });
-      await fsp.writeFile(wantFile, String(rate));
-    } catch { /* the service then idles, and the caller sees stale readings */ }
+    wantedFile = file;
+    // The folder is the service's (enable-sensors.ps1 makes it, letting this
+    // user add files): never created here.
+    try { await fsp.writeFile(file, ''); } catch { /* the service then idles, and the caller sees stale readings */ }
   }
 
   // A reading the service wrote, as long as it is recent: { data } or null.
@@ -119,7 +122,7 @@ function createSensorService({ env = process.env, serverDir = path.join(__dirnam
     return { running: true, outdated: !!mine && typeof beat.hash === 'string' && beat.hash !== mine };
   }
 
-  return { cpu, mergeSensors, state, readingsDir, wantFile };
+  return { cpu, mergeSensors, state, readingsDir, wantDir, wantFile };
 }
 
 // The one the engine uses: server.js reads through it, routes.js reports its state.

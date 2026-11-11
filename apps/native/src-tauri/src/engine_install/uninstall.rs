@@ -88,30 +88,42 @@ fn unregister() {
 /// task still raised (unregister() already deleted it when it was not). One
 /// visible prompt, only when one of them is there, never a silent leftover that
 /// runs a missing script at every sign-in. False when the engine task is still there.
+///
+/// What runs elevated is System32's cmd.exe with fixed commands, never this
+/// program: it sits in a folder the user can write, beside DLLs it would load.
 fn remove_elevated_parts() -> bool {
     let present = task_exists(BACKEND_TASK) || task_exists(SENSOR_SERVICE) || sensor_service_dirs().iter().any(|d| d.exists());
     if present {
-        if let Ok(exe) = std::env::current_exe() {
-            api::run_elevated(&exe, crate::UNINSTALL_ELEVATED_ARG);
+        if let Some((cmd, line)) = api::known_folder(&api::FOLDERID_SYSTEM).and_then(|sys| elevated_command(&sys, &sensor_service_dirs())) {
+            api::run_elevated(&cmd, &line);
         }
     }
     !task_exists(BACKEND_TASK)
 }
 
-/// The elevated half, `--uninstall-elevated`: this same program, started by
-/// remove_elevated_parts() behind the prompt. Fixed names only, folders from
-/// the known-folder API.
-pub fn run_elevated_part() -> i32 {
-    let _ = quiet("schtasks.exe").args(["/End", "/TN", SENSOR_SERVICE]).status();
-    for task in [SENSOR_SERVICE, BACKEND_TASK] {
-        let _ = quiet("schtasks.exe").args(["/Delete", "/TN", task, "/F"]).status();
+/// `cmd.exe /d /c` (no AutoRun from the user's registry) running schtasks and
+/// ping by full path: end and delete the sensor task, delete the engine task,
+/// wait for the service's PowerShell to let go, remove both folders (`rd /s`
+/// removes a link inside as a link). None when a path holds a character cmd
+/// would read as syntax, which a known folder never should.
+pub(super) fn elevated_command(system: &Path, dirs: &[PathBuf]) -> Option<(PathBuf, String)> {
+    let safe = |p: &Path| {
+        let s = p.to_string_lossy().into_owned();
+        (!s.is_empty() && !s.contains(['"', '%', '^', '!', '\r', '\n'])).then_some(s)
+    };
+    let sys = safe(system)?;
+    let schtasks = format!("\"{sys}\\schtasks.exe\"");
+    let mut steps = vec![
+        format!("{schtasks} /End /TN \"{SENSOR_SERVICE}\""),
+        format!("{schtasks} /Delete /TN \"{SENSOR_SERVICE}\" /F"),
+        format!("{schtasks} /Delete /TN \"{BACKEND_TASK}\" /F"),
+        format!("\"{sys}\\PING.EXE\" -n 3 127.0.0.1"),
+    ];
+    for dir in dirs {
+        steps.push(format!("rd /s /q \"{}\"", safe(dir)?));
     }
-    // The service's PowerShell lets go of its folder a moment after /End.
-    std::thread::sleep(Duration::from_millis(1500));
-    for dir in sensor_service_dirs() {
-        let _ = remove_tree(&dir);
-    }
-    0
+    // The outer quotes are the ones cmd strips from a /c line.
+    Some((system.join("cmd.exe"), format!("/d /c \"{} >nul 2>&1\"", steps.join(" >nul 2>&1 & "))))
 }
 
 fn sensor_service_dirs() -> Vec<PathBuf> {

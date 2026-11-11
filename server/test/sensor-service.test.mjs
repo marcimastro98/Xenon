@@ -21,7 +21,7 @@ function rig({ now = 1_000_000 } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'xenon-sensor-svc-'));
   const env = { ProgramData: join(root, 'pd'), LOCALAPPDATA: join(root, 'lad') };
   const readings = join(env.ProgramData, 'Xenon Sensors');
-  mkdirSync(readings, { recursive: true });
+  mkdirSync(join(readings, 'want'), { recursive: true }); // enable-sensors.ps1 makes both
   const serverDir = join(root, 'server');
   mkdirSync(serverDir);
   for (const f of SCRIPTS) writeFileSync(join(serverDir, f), 'script ' + f);
@@ -38,7 +38,7 @@ test('no service: every answer is null and the engine reads on its own', async (
     assert.equal(await r.svc.state(), null);
     const raw = { ok: true, lhm: true, sensors: [{ id: '/gpu/0/temperature/0' }] };
     assert.equal(await r.svc.mergeSensors(raw, null), raw);
-    assert.equal(existsSync(r.svc.wantFile), false, 'nothing asked of a service that is not there');
+    assert.equal(existsSync(r.svc.wantFile(5000)), false, 'nothing asked of a service that is not there');
   } finally { r.done(); }
 });
 
@@ -58,7 +58,7 @@ test('a running service answers the CPU reading and is asked for the next one', 
     r.put('cpu.json', { at: r.clock.t - 1000, data: { cpuTemp: 51.5, fans: [], sensorAccess: 'ok' } });
     const data = await r.svc.cpu(2000);
     assert.equal(data.cpuTemp, 51.5);
-    assert.equal(readFileSync(r.svc.wantFile, 'utf8'), '2000', 'the refresh interval goes in the want file');
+    assert.ok(existsSync(join(r.readings, 'want', 'want-2000')), 'the refresh interval is the name of the entry');
   } finally { r.done(); }
 });
 
@@ -67,11 +67,22 @@ test('the interval in the want file is clamped to what the service accepts', asy
   try {
     r.put('service.json', { v: 1, hash: 'x', pid: 1, at: r.clock.t });
     await r.svc.cpu(50);
-    assert.equal(readFileSync(r.svc.wantFile, 'utf8'), '1000');
+    assert.ok(existsSync(join(r.readings, 'want', 'want-1000')));
     r.clock.t += 6000;
     r.put('service.json', { v: 1, hash: 'x', pid: 1, at: r.clock.t });
     await r.svc.cpu(999999);
-    assert.equal(readFileSync(r.svc.wantFile, 'utf8'), '10000');
+    assert.ok(existsSync(join(r.readings, 'want', 'want-10000')));
+    assert.equal(r.svc.wantFile(2499), join(r.readings, 'want', 'want-2000'), 'whole seconds: at most ten names');
+  } finally { r.done(); }
+});
+
+test('the engine never makes the want folder: it is the service\'s, with its rules', async () => {
+  const r = rig();
+  try {
+    rmSync(join(r.readings, 'want'), { recursive: true });
+    r.put('service.json', { v: 1, hash: 'x', pid: 1, at: r.clock.t });
+    await r.svc.cpu(5000);
+    assert.equal(existsSync(join(r.readings, 'want')), false);
   } finally { r.done(); }
 });
 
@@ -209,7 +220,8 @@ const INSTALL = read('install.ps1');
 
 test('the service runs elevated only from its Program Files folder, with a clean environment', () => {
   assert.match(SERVICE, /if \(\$elevated\) \{[\s\S]*?ProgramFiles\)\) 'Xenon Sensors'[\s\S]*?exit 2/);
-  assert.match(SERVICE, /\$OutDir = \$null\s+\$WantFile = \$null/, 'an elevated run takes no folder from its arguments');
+  assert.match(SERVICE, /\$OutDir = \$null\s+\}/, 'an elevated run takes no folder from its arguments');
+  assert.doesNotMatch(SERVICE, /LocalApplicationData|LOCALAPPDATA|WantFile/, 'nothing from the user\'s profile');
   assert.match(SERVICE, /\$env:PATH = \$sys/);
   assert.match(SERVICE, /\$env:PSModulePath = Join-Path \$sys/);
   assert.match(SERVICE, /\$global:XenonTrustedLhmOnly = \$true/);
@@ -217,10 +229,16 @@ test('the service runs elevated only from its Program Files folder, with a clean
   assert.doesNotMatch(SERVICE, /Invoke-Expression|iex |Start-Process|-EncodedCommand/);
 });
 
-test('the service reads only a timestamp and a clamped number from the user', () => {
-  assert.match(SERVICE, /\$fi\.Length -gt 64/);
-  assert.match(SERVICE, /\[Math\]::Min\(10000, \[Math\]::Max\(1000, \$n\)\)/);
-  assert.match(SERVICE, /ReparsePoint/, 'never writes through a link');
+test('the service takes only a listed name and its time from the user, never opening a file', () => {
+  const want = SERVICE.slice(SERVICE.indexOf('function Get-WantedInterval'), SERVICE.indexOf('function Test-OutDir'));
+  assert.match(want, /\.EnumerateFiles\('want-\*'\)/, 'from the directory listing');
+  assert.match(want, /\^want-\(\\d\{4,5\}\)\$/);
+  assert.match(want, /\[Math\]::Min\(10000, \[Math\]::Max\(1000,/);
+  assert.match(want, /ReparsePoint/, 'a link is skipped');
+  assert.doesNotMatch(SERVICE, /ReadAllText|Get-Content|\[IO\.File\]::Open|OpenRead/, 'no file but its own is read');
+  const out = SERVICE.slice(SERVICE.indexOf('function Test-OutDir'));
+  assert.match(out, /S-1-5-32-544/, 'writes only into an admin-owned folder');
+  assert.match(out, /S-1-5-18/);
 });
 
 test('cpu-temp.ps1 never loads a user-writable LibreHardwareMonitor in the service', () => {
@@ -232,7 +250,8 @@ test('cpu-temp.ps1 never loads a user-writable LibreHardwareMonitor in the servi
 test('enable-sensors.ps1 never raises the engine task, and lowers it', () => {
   assert.doesNotMatch(ENABLE, /\/RL HIGHEST/);
   assert.match(ENABLE, /\/Change \/TN \$TaskName \/RL LIMITED/);
-  assert.match(ENABLE, /-LogonType S4U -RunLevel Highest/, 'the service, not the engine, holds the rights');
+  assert.match(ENABLE, /-UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest/, 'the service runs as SYSTEM, never with the user\'s environment');
+  assert.doesNotMatch(ENABLE, /S4U/);
   assert.match(ENABLE, /Add-LocalGroupMember -SID 'S-1-5-32-559'/, 'PresentMon without administrator rights');
 });
 
@@ -242,12 +261,29 @@ test('install.ps1 registers the engine task at normal rights only', () => {
   assert.match(INSTALL, /\/RL LIMITED/);
 });
 
-test('the readings folder is made with its own rules from the first instant', () => {
-  const m = ENABLE.slice(ENABLE.indexOf('function New-ReadingsFolder'), ENABLE.indexOf('function Register-SensorTask'));
-  assert.match(m, /SetAccessRuleProtection\(\$true, \$false\)/, 'nothing inherited from ProgramData');
-  assert.match(m, /'S-1-5-32-545', 'ReadAndExecute'/, 'Users read only');
-  assert.match(m, /\[IO\.Directory\]::CreateDirectory\(\$Path, \$acl\)/, 'created with the ACL, no window in between');
+test('the readings folders are made with their own rules and renamed into place', () => {
+  const acl = ENABLE.slice(ENABLE.indexOf('function New-FolderAcl'), ENABLE.indexOf('function New-AdminFolder'));
+  assert.match(acl, /SetAccessRuleProtection\(\$true, \$false\)/, 'nothing inherited from ProgramData');
+  assert.match(acl, /'S-1-5-32-545', 'ReadAndExecute'/, 'Users read only');
+  assert.match(acl, /'CreateFiles'/, 'the user adds files to want, never folders or junctions');
+  assert.match(acl, /'InheritOnly'/);
+  assert.doesNotMatch(acl, /CreateDirectories/);
+  const m = ENABLE.slice(ENABLE.indexOf('function New-AdminFolder'), ENABLE.indexOf('function Register-SensorTask'));
+  assert.match(m, /NewGuid\(\)/, 'made under a name nobody can guess');
+  assert.match(m, /\[IO\.Directory\]::CreateDirectory\(\$tmp, \$acl\)/, 'with its ACL from the first instant');
+  assert.match(m, /\[IO\.Directory\]::Move\(\$tmp, \$Path\)/, 'a rename never lands on something already there');
+  assert.match(m, /Test-AdminOwned/);
   assert.match(m, /Remove-TreeNoFollow \$Path/, 'a folder someone else made first is removed');
+  assert.match(ENABLE, /New-AdminFolder \(Join-Path \$readings 'want'\) \$Sid/);
+});
+
+test('the elevated PowerShell loads modules and programs from system folders only', () => {
+  const cmd = ENABLE.slice(ENABLE.indexOf('function New-ElevatedCommand'));
+  const first = cmd.indexOf('$env:PSModulePath=');
+  assert.ok(first > 0 && first < cmd.indexOf('ReadAllBytes'), 'before anything else runs');
+  assert.match(cmd, /\$env:PATH=/);
+  const already = ENABLE.slice(ENABLE.indexOf('if (Test-Elevated) {'));
+  assert.match(already.slice(0, 1500), /\$env:PSModulePath = /, 'the migration path too');
 });
 
 // An elevated run (a CI runner is administrator) refuses any folder but its own.
@@ -261,10 +297,11 @@ test('a Windows box runs the service once into a scratch folder', { skip: proces
   try {
     const out = join(root, 'out');
     mkdirSync(out);
-    writeFileSync(join(root, 'want'), '2000');
+    mkdirSync(join(out, 'want'), { recursive: true });
+    writeFileSync(join(out, 'want', 'want-2000'), '');
     const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     const script = new URL('sensor-service.ps1', SERVER);
-    execFileSync(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '-OutDir', out, '-WantFile', join(root, 'want'), '-Once'], { windowsHide: true, timeout: 90000 });
+    execFileSync(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '-OutDir', out, '-Once'], { windowsHide: true, timeout: 90000 });
     const beat = JSON.parse(readFileSync(join(out, 'service.json'), 'utf8'));
     assert.equal(beat.v, 1);
     assert.match(beat.hash, /^[0-9a-f]{64}$/);

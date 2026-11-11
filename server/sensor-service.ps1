@@ -7,25 +7,29 @@
 # file there and be handed administrator rights at the next sign-in. This script
 # is copied, with cpu-temp.ps1 and sensors.ps1, to "%ProgramFiles%\Xenon Sensors"
 # by enable-sensors.ps1 (after one UAC prompt) and started by the "Xenon Sensors"
-# scheduled task. Only administrators can change those files.
+# scheduled task, as SYSTEM: an account whose environment, profile and registry
+# the user cannot touch (a task as the user, even elevated, loads the user's
+# environment, and with it, for example, a .NET profiler DLL). Only
+# administrators can change those files.
 #
-# It reads nothing from the engine but two things: the time the engine last
-# touched %LOCALAPPDATA%\Xenon\sensor-want (no touch for 30 s = nobody is
-# looking, nothing is read) and the refresh interval written in it (a number,
-# clamped). It writes three files to "%ProgramData%\Xenon Sensors", a folder
-# enable-sensors.ps1 creates with Users read-only:
+# It takes nothing from the engine but the NAME and time of the newest entry in
+# "%ProgramData%\Xenon Sensors\want" (want-<ms>, touched by the engine while
+# someone looks; nothing for 30 s = nobody is looking, nothing is read). Both
+# come from the folder listing: no file the user can write is ever opened, so no
+# link can lead this process anywhere. It writes three files to
+# "%ProgramData%\Xenon Sensors", which enable-sensors.ps1 creates owned by
+# Administrators with Users read-only (in its want folder this user may add files):
 #   cpu.json      {"at": <ms>, "data": <cpu-temp.ps1 output>}
 #   sensors.json  {"at": <ms>, "data": <sensors.ps1 list output>}
 #   service.json  {"v": 1, "hash": <sha256 of the three scripts>, "pid", "at", "wanted"}
 # The engine reads them (server/sensor-service/reader.js) and compares the hash
 # with its own copies of the scripts to tell an out-of-date service.
 #
-# -OutDir, -WantFile and -Once exist for the tests, which run unelevated. An
-# elevated run is accepted only from the Program Files folder.
+# -OutDir and -Once exist for the tests, which run unelevated. An elevated run
+# is accepted only from the Program Files folder, with its fixed folder.
 
 param(
   [string]$OutDir,
-  [string]$WantFile,
   [switch]$Once
 )
 
@@ -48,10 +52,9 @@ if ($elevated) {
   $expected = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)) 'Xenon Sensors'
   if (-not [string]::Equals($here.TrimEnd('\'), $expected, [StringComparison]::OrdinalIgnoreCase)) { exit 2 }
   $OutDir = $null
-  $WantFile = $null
 }
 if (-not $OutDir) { $OutDir = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)) 'Xenon Sensors' }
-if (-not $WantFile) { $WantFile = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'Xenon\sensor-want' }
+$WantDir = Join-Path $OutDir 'want'
 
 # Nothing from the user's environment decides what this process loads: system
 # folders only on PATH and the module path, and its own folder as the current one.
@@ -84,21 +87,33 @@ function Get-ScriptsHash {
 function Get-NowMs { return [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
 
 # The interval the engine asked for, while it keeps asking: $null = not wanted.
+# Name, time and attributes come from the directory listing (FindFirstFile
+# data): nothing is opened, so an entry that is a link leads nowhere, and one
+# is skipped anyway.
 function Get-WantedInterval {
   try {
-    $fi = New-Object IO.FileInfo $WantFile
-    if (-not $fi.Exists -or $fi.Length -gt 64) { return $null }
-    if (([DateTime]::UtcNow - $fi.LastWriteTimeUtc).TotalMilliseconds -gt $WantedForMs) { return $null }
-    $n = 0
-    if (-not [int]::TryParse(([IO.File]::ReadAllText($WantFile)).Trim(), [ref]$n)) { $n = 5000 }
-    return [Math]::Min(10000, [Math]::Max(1000, $n))
+    $di = New-Object IO.DirectoryInfo $WantDir
+    if (-not $di.Exists -or ($di.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $null }
+    $best = $null
+    foreach ($fi in $di.EnumerateFiles('want-*')) {
+      if ($fi.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+      if ($fi.Name -notmatch '^want-(\d{4,5})$') { continue }
+      if (-not $best -or $fi.LastWriteTimeUtc -gt $best.LastWriteTimeUtc) { $best = $fi }
+    }
+    if (-not $best -or ([DateTime]::UtcNow - $best.LastWriteTimeUtc).TotalMilliseconds -gt $WantedForMs) { return $null }
+    return [Math]::Min(10000, [Math]::Max(1000, [int]$best.Name.Substring(5)))
   } catch { return $null }
 }
 
+# Elevated, the folder must still be the one enable-sensors.ps1 made: no link,
+# owned by Administrators or SYSTEM (a folder the user made could hold links).
 function Test-OutDir {
   try {
     $di = New-Object IO.DirectoryInfo $OutDir
-    return ($di.Exists -and -not ($di.Attributes -band [IO.FileAttributes]::ReparsePoint))
+    if (-not $di.Exists -or ($di.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $false }
+    if (-not $elevated) { return $true }
+    $owner = $di.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier]).Value
+    return ($owner -eq 'S-1-5-32-544' -or $owner -eq 'S-1-5-18')
   } catch { return $false }
 }
 
@@ -106,6 +121,9 @@ function Write-Snapshot([string]$Leaf, [string]$Json) {
   if (-not (Test-OutDir)) { return }
   $dest = Join-Path $OutDir $Leaf
   $tmp = "$dest.tmp"
+  # A leftover .tmp is deleted, never written through: deleting a link removes
+  # the link itself.
+  if ([IO.File]::Exists($tmp)) { [IO.File]::Delete($tmp) }
   [IO.File]::WriteAllText($tmp, $Json, $utf8NoBom)
   if ([IO.File]::Exists($dest)) { [IO.File]::Replace($tmp, $dest, $null) } else { [IO.File]::Move($tmp, $dest) }
 }

@@ -236,6 +236,24 @@ mod uninstall_tests {
     }
 
     #[test]
+    fn the_elevated_uninstall_runs_system_tools_with_fixed_commands() {
+        use super::super::uninstall::elevated_command;
+        let sys = Path::new(r"C:\Windows\System32");
+        let dirs = [std::path::PathBuf::from(r"C:\Program Files\Xenon Sensors"), std::path::PathBuf::from(r"C:\ProgramData\Xenon Sensors")];
+        let (exe, line) = elevated_command(sys, &dirs).expect("a command");
+        assert_eq!(exe, sys.join("cmd.exe"), "never this program, which sits in a folder the user can write");
+        assert!(line.starts_with("/d /c \""), "no AutoRun from the user's registry");
+        assert!(line.contains(r#""C:\Windows\System32\schtasks.exe" /Delete /TN "Xenon Sensors" /F"#));
+        assert!(line.contains(r#""C:\Windows\System32\schtasks.exe" /Delete /TN "Xenon Edge Widget" /F"#));
+        assert!(line.contains(r#"rd /s /q "C:\Program Files\Xenon Sensors""#));
+        assert!(line.contains(r#"rd /s /q "C:\ProgramData\Xenon Sensors""#));
+        // A path cmd would read as syntax is never put on the line.
+        for bad in [r#"C:\x"y"#, r"C:\%TEMP%", r"C:\a^b"] {
+            assert!(elevated_command(sys, &[std::path::PathBuf::from(bad)]).is_none(), "{bad}");
+        }
+    }
+
+    #[test]
     fn every_language_says_every_line_and_english_is_the_fallback() {
         for (id, w) in ALL {
             for line in [w.title, w.ask, w.done, w.done_kept, w.done_all, w.partial, w.not_ours, w.task_left] {

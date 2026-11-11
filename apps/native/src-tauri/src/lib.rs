@@ -26,16 +26,6 @@ pub fn engine_selftest(args: &[String]) -> i32 {
 /// First argument of the "Installed apps" entry: remove Xenon (Windows).
 pub const UNINSTALL_ARG: &str = "--uninstall";
 
-/// The administrator half of the uninstall: the sensor service and a raised
-/// engine task, started by `--uninstall` behind one prompt (Windows).
-pub const UNINSTALL_ELEVATED_ARG: &str = "--uninstall-elevated";
-
-/// Runs that half (`engine_install::uninstall_elevated`) and returns the exit code.
-#[cfg(windows)]
-pub fn uninstall_elevated() -> i32 {
-    engine_install::uninstall_elevated()
-}
-
 /// Removes the engine this app installed, then the app (`engine_install::uninstall`).
 #[cfg(windows)]
 pub fn uninstall() -> i32 {

@@ -9,9 +9,10 @@
 # change:
 #   - "%ProgramFiles%\Xenon Sensors": sensor-service.ps1, cpu-temp.ps1, sensors.ps1
 #   - "%ProgramData%\Xenon Sensors": where the service writes its readings,
-#     created with SYSTEM and Administrators full control, Users read only
-#   - the "Xenon Sensors" scheduled task: at this user's sign-in, highest rights,
-#     run whether or not the user is signed in (S4U), so no console ever shows
+#     created with SYSTEM and Administrators full control, Users read only; in
+#     its "want" folder this user may add files (the engine's "please read")
+#   - the "Xenon Sensors" scheduled task: at this user's sign-in, as SYSTEM, so
+#     no console ever shows and nothing of the user's environment comes along
 #   - this user in Performance Log Users, so PresentMon reads FPS without
 #     administrator rights (from the next sign-in)
 #   - LibreHardwareMonitor (machine-wide) and the PawnIO driver when missing,
@@ -179,8 +180,10 @@ function ConvertTo-PsLiteral([string]$Value) {
 # those bytes. $global:XenonSensorFiles hands the same bytes to Install-SensorService.
 function New-ElevatedCommand([string]$Dir, [hashtable]$Hashes, [string]$Sid) {
   $pairs = ($Hashes.Keys | Sort-Object | ForEach-Object { (ConvertTo-PsLiteral $_) + '=' + (ConvertTo-PsLiteral $Hashes[$_]) }) -join ';'
+  # First, before any command can load a module: system folders only, so no
+  # module or program from the user's folders runs with these rights.
   $lines = @(
-    "`$ErrorActionPreference='Stop'"
+    "`$ErrorActionPreference='Stop';`$y=[Environment]::SystemDirectory;`$env:PSModulePath=`$y+'\WindowsPowerShell\v1.0\Modules';`$env:PATH=`$y+';'+[Environment]::GetFolderPath('Windows')"
     "`$d=" + (ConvertTo-PsLiteral $Dir) + ";`$h=@{" + $pairs + "};`$f=@{}"
     "foreach(`$k in `$h.Keys){`$b=[IO.File]::ReadAllBytes((Join-Path `$d `$k));`$s=[Security.Cryptography.SHA256]::Create();if(([BitConverter]::ToString(`$s.ComputeHash(`$b)) -replace '-','') -ne `$h[`$k]){exit 3};`$f[`$k]=`$b}"
     "`$global:XenonSensorFiles=`$f"
@@ -200,34 +203,64 @@ function Remove-TreeNoFollow([string]$Path) {
   if ($item.PSIsContainer) { [IO.Directory]::Delete($Path) } else { $item.Attributes = 'Normal'; [IO.File]::Delete($Path) }
 }
 
-# %ProgramData% lets every user create folders, so the readings folder is made
-# here with its own rules from the first instant (SYSTEM and Administrators full,
-# Users read, nothing inherited) and a folder someone else made first is removed.
-function New-ReadingsFolder([string]$Path) {
-  $admins = New-Object Security.Principal.SecurityIdentifier 'S-1-5-32-544'
-  if (Test-Path -LiteralPath $Path) {
-    $item = Get-Item -LiteralPath $Path -Force
-    $owner = $item.GetAccessControl().GetOwner([Security.Principal.SecurityIdentifier])
-    if ((Test-IsLink $item) -or -not ($owner.Equals($admins) -or $owner.Value -eq 'S-1-5-18')) { Remove-TreeNoFollow $Path }
-  }
+function Test-AdminOwned([string]$Path) {
+  $owner = [IO.Directory]::GetAccessControl($Path, [Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier]).Value
+  return ($owner -eq 'S-1-5-32-544' -or $owner -eq 'S-1-5-18')
+}
+
+# SYSTEM and Administrators full, Users read, nothing inherited; $Writer (the
+# user's SID) may also add files and write them, never folders or links.
+function New-FolderAcl([string]$Writer) {
   $acl = New-Object Security.AccessControl.DirectorySecurity
   $acl.SetAccessRuleProtection($true, $false)
-  $acl.SetOwner($admins)
-  $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'
+  $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier 'S-1-5-32-544'))
+  $both = [Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'
   $none = [Security.AccessControl.PropagationFlags]::None
   foreach ($rule in @(@('S-1-5-18', 'FullControl'), @('S-1-5-32-544', 'FullControl'), @('S-1-5-32-545', 'ReadAndExecute'))) {
     $sid = New-Object Security.Principal.SecurityIdentifier $rule[0]
-    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, $rule[1], $inherit, $none, 'Allow')))
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, $rule[1], $both, $none, 'Allow')))
   }
-  if (Test-Path -LiteralPath $Path) { (Get-Item -LiteralPath $Path -Force).SetAccessControl($acl) } else { [void][IO.Directory]::CreateDirectory($Path, $acl) }
+  if ($Writer) {
+    $sid = New-Object Security.Principal.SecurityIdentifier $Writer
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, 'CreateFiles', 'None', $none, 'Allow')))
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, 'Write', 'ObjectInherit', 'InheritOnly', 'Allow')))
+  }
+  return $acl
+}
+
+# %ProgramData% lets every user create folders, and a folder made there by the
+# user would let them plant links inside. So the folder is made under a random
+# name with its rules from the first instant and renamed into place (a rename
+# never lands on something already there); one someone else made first is
+# removed, never trusted. One that is already ours is emptied: the service
+# writes everything again.
+function New-AdminFolder([string]$Path, [string]$Writer) {
+  $acl = New-FolderAcl $Writer
+  for ($i = 0; $i -lt 3; $i++) {
+    if (Test-Path -LiteralPath $Path) {
+      $item = Get-Item -LiteralPath $Path -Force
+      if (-not (Test-IsLink $item) -and (Test-AdminOwned $Path)) {
+        $item.SetAccessControl($acl)
+        foreach ($child in @(Get-ChildItem -LiteralPath $Path -Force)) { Remove-TreeNoFollow $child.FullName }
+        return
+      }
+      Remove-TreeNoFollow $Path
+    }
+    $tmp = Join-Path (Split-Path -Parent $Path) ('.xenon-' + [Guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($tmp, $acl)
+    try { [IO.Directory]::Move($tmp, $Path); return } catch { Remove-TreeNoFollow $tmp }
+  }
+  throw 'The readings folder could not be created.'
 }
 
 function Register-SensorTask([string]$Dir, [string]$Account) {
   $ps = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
   $script = Join-Path $Dir 'sensor-service.ps1'
   $action = New-ScheduledTaskAction -Execute $ps -WorkingDirectory $Dir -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $script + '"')
+  # At this user's sign-in, but as SYSTEM: the service never runs with the
+  # user's environment, profile or registry.
   $trigger = New-ScheduledTaskTrigger -AtLogOn -User $Account
-  $principal = New-ScheduledTaskPrincipal -UserId $Account -LogonType S4U -RunLevel Highest
+  $principal = New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable
   $settings.Hidden = $true
   [void](Register-ScheduledTask -TaskName $ServiceTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force)
@@ -247,7 +280,9 @@ function Install-SensorService([string]$Sid) {
   [void][IO.Directory]::CreateDirectory($pfDir)
   foreach ($f in $ServiceFiles) { [IO.File]::WriteAllBytes((Join-Path $pfDir $f), $files[$f]) }
 
-  New-ReadingsFolder (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)) $ServiceTask)
+  $readings = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)) $ServiceTask
+  New-AdminFolder $readings $null
+  New-AdminFolder (Join-Path $readings 'want') $Sid
   Register-SensorTask $pfDir $account
   try { Add-LocalGroupMember -SID 'S-1-5-32-559' -Member $Sid -ErrorAction Stop } catch { }
   & $schtasks /Run /TN $ServiceTask 2>&1 | Out-Null
@@ -262,7 +297,10 @@ if (-not $Elevated) {
   $UserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   if (Test-Elevated) {
     # Already admin: an engine started elevated before 5.1.0. Do the work here,
-    # from bytes read once, and restart that engine with normal rights.
+    # from bytes read once, and restart that engine with normal rights. The
+    # engine's environment is the user's: system folders only from here on.
+    $env:PSModulePath = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\Modules'
+    $env:PATH = [Environment]::SystemDirectory + ';' + [Environment]::GetFolderPath('Windows')
     $global:XenonSensorFiles = @{}
     foreach ($f in $ServiceFiles) { $global:XenonSensorFiles[$f] = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $f)) }
     $RestartEngine = -not $NoRestart
