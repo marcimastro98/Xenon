@@ -21,7 +21,7 @@ test('no setting reads them all as words', () => {
   assert.deepEqual(SettingsAi.current(SETTINGS), {
     lyrics: 'on', lyrics_translate: 'off', visualizer: 'off', hardware_temp_unit: 'auto',
     date_format: 'full', pause_when_idle: 'on', startup_logo: 'on', battery_ask_devices: 'on', ambient: 'off', ambient_after: '0',
-    announcements: 'on', monthly_drops: 'on',
+    announcements: 'on', monthly_drops: 'on', weather_style: null,
   });
 });
 
@@ -42,6 +42,15 @@ test('apply: top-level and nested fields, siblings kept, unchanged = no patch', 
   assert.deepEqual(SettingsAi.apply(SETTINGS, { name: 'date_format', word: 'full' }), { patch: null, before: 'full' });
   assert.deepEqual(SettingsAi.apply({}, { name: 'ambient', word: 'off' }).patch, { ambientMode: { enabled: false } });
   assert.equal(SettingsAi.apply({}, { name: 'ambient', word: 'on' }).patch, null, 'a missing switch reads as its default');
+});
+
+// weather.tile.look is three levels down: the city and the other tile choices ride along.
+test('apply: the weather style keeps the city and the rest of the tile', () => {
+  const cur = { weather: { city: 'Example', tile: { hero: 'compact', look: 'new', metrics: false } } };
+  const out = SettingsAi.apply(cur, SettingsAi.plan({ setting: 'weather_style', value: 'Classic' }));
+  assert.deepEqual(out, { patch: { weather: { city: 'Example', tile: { hero: 'compact', look: 'classic', metrics: false } } }, before: 'new' });
+  assert.equal(SettingsAi.apply(cur, { name: 'weather_style', word: 'new' }).patch, null);
+  assert.equal(SettingsAi.plan({ setting: 'weather_style', value: 'custom' }).error, 'bad_value');
 });
 
 test('the switch defaults match DEFAULT_HUB_SETTINGS', () => {

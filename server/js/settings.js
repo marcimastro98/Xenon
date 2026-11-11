@@ -38,6 +38,7 @@ const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 // (icon, temperature, feels-like) so hours and days get the space (GitHub #130).
 // Mirrored in server.js normalizeSettingsWeather.
 const WEATHER_TILE_HEROES = Object.freeze(['full', 'compact']);
+const WEATHER_TILE_LOOKS = Object.freeze(['new', 'classic']); // the 5.x tile or the 4.11 cards
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail
 // metrics. Hiding one removes it from both the dashboard tile and the modal.
 const WEATHER_FIELD_IDS = Object.freeze([
@@ -404,7 +405,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // (the topbar chip + modal are unaffected). All on by default. `fields`
     // toggles individual detail chips/metrics and applies to the tile AND modal.
     // `hero` is 'full' (the big card) or 'compact' (a single line).
-    tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
+    tile: Object.freeze({ hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // 'auto' | 'c' | 'f' — CPU/GPU temperatures, Guardian and briefing lines.
@@ -1101,7 +1102,7 @@ function sanitizeWeatherCity(value) {
 function normalizeWeatherTile(value) {
   const src = value && typeof value === 'object' ? value : {};
   const def = DEFAULT_HUB_SETTINGS.weather.tile;
-  const out = { hero: WEATHER_TILE_HEROES.includes(src.hero) ? src.hero : def.hero };
+  const out = { hero: WEATHER_TILE_HEROES.includes(src.hero) ? src.hero : def.hero, look: WEATHER_TILE_LOOKS.includes(src.look) ? src.look : def.look };
   WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
   const srcFields = src.fields && typeof src.fields === 'object' ? src.fields : {};
   const fields = {};
@@ -9854,6 +9855,7 @@ function syncWeatherSettingsControls() {
     // Guarded updateWeatherForecastDays neutralizes this label-sync 'change' dispatch.
     daysSelect.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  if (window.WeatherLook) window.WeatherLook.sync();
   document.querySelectorAll('.settings-weather-hero[data-weather-hero]').forEach(btn => {
     const active = btn.dataset.weatherHero === weather.tile.hero;
     btn.classList.toggle('active', active);

@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
-// The Weather tile: one thing that changes next, the hours as a line, the days with their
+// The Weather tile: one thing that changes next, the hours as columns, the days with their
 // real temperatures, and the details that matter. It sits on the tile's sheet with no sky of
 // its own, because the painted card is what people called a waste of the space (GitHub #130).
 
@@ -62,40 +62,6 @@ test('the hour under way is known, also just after midnight', () => {
   assert.equal(Outlook.isCurrentHour(1380, 1439), true);
   assert.equal(Outlook.isCurrentHour(1380, 5), false);
   assert.equal(Outlook.isCurrentHour(null, 600), false);
-});
-
-test('the line sits inside the plot and a flat day stays flat', () => {
-  const points = Outlook.chartPoints([10, 20, 15]);
-  assert.equal(points.length, 3);
-  for (const [x, y] of points) { assert.ok(x > 0 && x < 100); assert.ok(y >= 0 && y <= 100); }
-  assert.ok(points[1][1] < points[0][1], 'warmer is higher');
-  const flat = Outlook.chartPoints([18, 18.5, 18]);
-  assert.ok(Math.abs(flat[0][1] - flat[1][1]) < 10);
-});
-
-test('a hole in the hours draws no line rather than inventing one', () => {
-  assert.deepEqual(Outlook.chartPoints([10, null, 12]), []);
-  assert.deepEqual(Outlook.chartPoints([10, '', 12]), []);
-  assert.deepEqual(Outlook.chartPoints([10]), []);
-});
-
-test('a number steps off the line that would cross it', () => {
-  const lean = (temps) => {
-    const points = Outlook.chartPoints(temps);
-    return points.map((_, i) => Outlook.labelLean(points, i));
-  };
-  assert.deepEqual(lean([22, 22, 17, 17]), [0, 0, 1, 0], 'coming down into a point: it steps right');
-  assert.deepEqual(lean([17, 17, 22, 22]), [0, -1, 0, 0], 'climbing away from a point: it steps left');
-  assert.deepEqual(lean([17, 22, 17]), [-1, 0, 1], 'nothing crosses a peak');
-  assert.deepEqual(lean([22, 17, 22]), [0, 0, 0], 'a valley has the line on both sides');
-  assert.deepEqual(lean([18, 18.5, 18]), [0, 0, 0], 'a flat day stays centred');
-});
-
-test('the dark hours become runs, and a chart all in the dark has none', () => {
-  assert.deepEqual(Outlook.nightRuns([false, true, true, false]), [{ from: 0.25, to: 0.75 }]);
-  assert.deepEqual(Outlook.nightRuns([true, false, false, true]), [{ from: 0, to: 0.25 }, { from: 0.75, to: 1 }]);
-  assert.deepEqual(Outlook.nightRuns([true, true]), []);
-  assert.deepEqual(Outlook.nightRuns([false, false]), []);
 });
 
 test('a temperature always has a colour, and hot is not cold', () => {
@@ -208,7 +174,7 @@ test('the dashboard and a widget window both load everything the tile needs', ()
   }
   assert.ok(INDEX.includes('href="components/WeatherTile/WeatherTile.css"'));
   const line = read('js', 'layer-tiles.js').split('\n').find((l) => /^\s*weather: \{/.test(l));
-  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/spark-path.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js']) {
+  for (const part of ['components/WeatherTile/WeatherTile.css', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js']) {
     assert.ok(line.includes(part), part);
   }
 });
@@ -232,13 +198,37 @@ test('nothing data-driven reaches innerHTML', () => {
   assert.deepEqual(uses.map((line) => line.trim()), ['art.innerHTML = WeatherArt.svg(state, night);']);
 });
 
-test('days and details leave whole, never half a row', () => {
-  for (const rule of ['.weather-forecast--rows', '.weather-facts']) {
+test('days leave whole, never half a row', () => {
+  for (const rule of ['.weather-forecast--rows']) {
     const body = CSS.slice(CSS.indexOf(`\n${rule} {`), CSS.indexOf('}', CSS.indexOf(`\n${rule} {`)));
     assert.match(body, /flex-flow: column wrap/, rule);
     assert.match(body, /overflow: hidden/, rule);
     assert.match(body, /min-height: var\(--wx-/, rule);
   }
+});
+
+// A grid one row high (hours) or as many rows as its height holds (details): what does not fit
+// lands in rows of no height and is clipped, so an hour or a detail is whole or gone.
+test('hours and details leave whole, never cut', () => {
+  const body = (rule) => {
+    const at = CSS.indexOf(`\n${rule} {`);
+    return CSS.slice(at, CSS.indexOf('}', at));
+  };
+  const hours = body('.weather-hours');
+  assert.ok(hours.includes('grid-template-columns: repeat(auto-fit, minmax(var(--wx-col), 1fr));'));
+  assert.ok(hours.includes('grid-auto-rows: 0;'));
+  assert.ok(hours.includes('overflow: hidden;'));
+  const facts = body('.weather-facts');
+  assert.ok(facts.includes('grid-template-rows: repeat(auto-fit, var(--wx-fact));'));
+  assert.ok(facts.includes('grid-auto-rows: 0;'));
+  assert.ok(facts.includes('overflow: hidden;'));
+  assert.ok(facts.includes('min-height: var(--wx-fact);'), 'never shorter than one whole row');
+});
+
+test('a detail reads label over value, in columns wide enough for its label', () => {
+  const fact = CSS.slice(CSS.indexOf('\n.weather-fact {'), CSS.indexOf('}', CSS.indexOf('\n.weather-fact {')));
+  assert.ok(fact.includes('flex-direction: column;'));
+  assert.ok(CSS.includes('grid-template-columns: repeat(auto-fill, minmax(min(118px, 100%), 1fr));'));
 });
 
 test('white pictures get a darker sky on a light sheet', () => {

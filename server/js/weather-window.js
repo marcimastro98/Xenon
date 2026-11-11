@@ -48,9 +48,9 @@ function buildWeatherWindowBody(data) {
   main.append(...[
     buildWeatherWindowNow(data),
     buildWeatherWindowBlock('hours', 'weather_hourly', buildWeatherHours(data)),
+    buildWeatherWindowBlock('days', 'weather_forecast', days),
   ].filter(Boolean));
   side.append(...[
-    buildWeatherWindowBlock('days', 'weather_forecast', days),
     buildWeatherWindowBlock('facts', 'weather_details_title', buildWeatherFacts(data, weatherSunFacts(data))),
   ].filter(Boolean));
   return [main, side];

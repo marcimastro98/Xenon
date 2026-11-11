@@ -20,6 +20,7 @@ const PREFS = Object.freeze({
   announcements: { path: ['hubMessages'], values: ON_OFF, def: true, about: "Bit's messages with news from Xenon" },
   monthly_drops: { path: ['monthlyDrops'], values: ON_OFF, def: true, about: "Bit's messages about the month's new creations in the Store" },
   ambient: { path: ['ambientMode', 'enabled'], values: ON_OFF, def: true, about: 'the Ambient scene (full-screen clock, music and weather)' },
+  weather_style: { path: ['weather', 'tile', 'look'], values: ['new', 'classic'], about: 'how the Weather tile looks: new, or classic (the separate cards of Xenon 4.11)' },
   ambient_after: { path: ['ambientMode', 'idleMinutes'], values: ['0', '1', '2', '5', '10', '15', '30'], about: 'minutes without use before the Ambient scene opens by itself; 0 never' },
 });
 
@@ -59,16 +60,24 @@ function plan(args) {
   return { name, word };
 }
 
+// The object at path with key set to value, every level above copied, so the
+// patch carries whole top-level blocks (weather.tile.look keeps weather.city).
+function withValue(obj, path, value) {
+  const [key, ...rest] = path;
+  if (!rest.length) return { ...obj, [key]: value };
+  const inner = obj && typeof obj[key] === 'object' && obj[key] ? obj[key] : {};
+  return { ...obj, [key]: withValue(inner, rest, value) };
+}
+
 // Pure: the settings with the change → { patch } (a top-level key to write) or
 // { patch: null } when it already has that value.
 function apply(settings, p) {
   const pref = PREFS[p.name];
-  const [top, sub] = pref.path;
+  const top = pref.path[0];
   const before = wordOf(pref, read(settings, pref.path));
   if (before === p.word) return { patch: null, before };
   const value = storedOf(pref, p.word);
-  const patch = sub ? { [top]: { ...(settings[top] || {}), [sub]: value } } : { [top]: value };
-  return { patch, before };
+  return { patch: { [top]: withValue(settings || {}, pref.path, value)[top] }, before };
 }
 
 module.exports = { PREFS, NAMES, current, plan, apply };

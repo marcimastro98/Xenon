@@ -73069,6 +73069,107 @@ Object.assign(i18n.nl, {
   guardian_game: 'Game',
 });
 
+// The Weather tile's Style setting, and the classic look's small captions (weather-classic.js, from 4.11.13).
+Object.assign(i18n.it, {
+  settings_weather_look: 'Stile', settings_weather_look_new: 'Nuovo', settings_weather_look_classic: 'Classico',
+  weather_rain_short: 'Pioggia',
+  weather_metric_humidity_sub: 'aria relativa',
+  weather_metric_pressure_sub: 'livello mare',
+  weather_metric_visibility_sub: 'orizzonte',
+  weather_metric_uv_sub: 'radiazione',
+  weather_metric_clouds_sub: 'copertura',
+});
+Object.assign(i18n.en, {
+  settings_weather_look: 'Style', settings_weather_look_new: 'New', settings_weather_look_classic: 'Classic',
+  weather_rain_short: 'Rain',
+  weather_metric_humidity_sub: 'relative air',
+  weather_metric_pressure_sub: 'sea level',
+  weather_metric_visibility_sub: 'horizon',
+  weather_metric_uv_sub: 'radiation',
+  weather_metric_clouds_sub: 'cover',
+});
+Object.assign(i18n.ko, {
+  settings_weather_look: '스타일', settings_weather_look_new: '새 디자인', settings_weather_look_classic: '클래식',
+  weather_rain_short: '비',
+  weather_metric_humidity_sub: '상대 습도',
+  weather_metric_pressure_sub: '해수면 기준',
+  weather_metric_visibility_sub: '수평선',
+  weather_metric_uv_sub: '복사량',
+  weather_metric_clouds_sub: '운량',
+});
+Object.assign(i18n.ja, {
+  settings_weather_look: 'スタイル', settings_weather_look_new: '新デザイン', settings_weather_look_classic: 'クラシック',
+  weather_rain_short: '雨',
+  weather_metric_humidity_sub: '相対湿度',
+  weather_metric_pressure_sub: '海面気圧',
+  weather_metric_visibility_sub: '地平線',
+  weather_metric_uv_sub: '放射量',
+  weather_metric_clouds_sub: '雲量',
+});
+Object.assign(i18n.zh, {
+  settings_weather_look: '样式', settings_weather_look_new: '新版', settings_weather_look_classic: '经典',
+  weather_rain_short: '雨',
+  weather_metric_humidity_sub: '相对湿度',
+  weather_metric_pressure_sub: '海平面',
+  weather_metric_visibility_sub: '地平线',
+  weather_metric_uv_sub: '辐射',
+  weather_metric_clouds_sub: '覆盖率',
+});
+Object.assign(i18n.es, {
+  settings_weather_look: 'Estilo', settings_weather_look_new: 'Nuevo', settings_weather_look_classic: 'Clásico',
+  weather_rain_short: 'Lluvia',
+  weather_metric_humidity_sub: 'aire relativo',
+  weather_metric_pressure_sub: 'nivel del mar',
+  weather_metric_visibility_sub: 'horizonte',
+  weather_metric_uv_sub: 'radiación',
+  weather_metric_clouds_sub: 'cobertura',
+});
+Object.assign(i18n.fr, {
+  settings_weather_look: 'Style', settings_weather_look_new: 'Nouveau', settings_weather_look_classic: 'Classique',
+  weather_rain_short: 'Pluie',
+  weather_metric_humidity_sub: 'air relatif',
+  weather_metric_pressure_sub: 'niveau de la mer',
+  weather_metric_visibility_sub: 'horizon',
+  weather_metric_uv_sub: 'rayonnement',
+  weather_metric_clouds_sub: 'couverture',
+});
+Object.assign(i18n.de, {
+  settings_weather_look: 'Stil', settings_weather_look_new: 'Neu', settings_weather_look_classic: 'Klassisch',
+  weather_rain_short: 'Regen',
+  weather_metric_humidity_sub: 'relative Luft',
+  weather_metric_pressure_sub: 'Meereshöhe',
+  weather_metric_visibility_sub: 'Horizont',
+  weather_metric_uv_sub: 'Strahlung',
+  weather_metric_clouds_sub: 'Bedeckung',
+});
+Object.assign(i18n.pt, {
+  settings_weather_look: 'Estilo', settings_weather_look_new: 'Novo', settings_weather_look_classic: 'Clássico',
+  weather_rain_short: 'Chuva',
+  weather_metric_humidity_sub: 'ar relativo',
+  weather_metric_pressure_sub: 'nível do mar',
+  weather_metric_visibility_sub: 'horizonte',
+  weather_metric_uv_sub: 'radiação',
+  weather_metric_clouds_sub: 'cobertura',
+});
+Object.assign(i18n.ru, {
+  settings_weather_look: 'Стиль', settings_weather_look_new: 'Новый', settings_weather_look_classic: 'Классический',
+  weather_rain_short: 'Дождь',
+  weather_metric_humidity_sub: 'отн. воздуха',
+  weather_metric_pressure_sub: 'ур. моря',
+  weather_metric_visibility_sub: 'горизонт',
+  weather_metric_uv_sub: 'излучение',
+  weather_metric_clouds_sub: 'покрытие',
+});
+Object.assign(i18n.nl, {
+  settings_weather_look: 'Stijl', settings_weather_look_new: 'Nieuw', settings_weather_look_classic: 'Klassiek',
+  weather_rain_short: 'Regen',
+  weather_metric_humidity_sub: 'relatieve luchtvochtigheid',
+  weather_metric_pressure_sub: 'zeeniveau',
+  weather_metric_visibility_sub: 'horizon',
+  weather_metric_uv_sub: 'straling',
+  weather_metric_clouds_sub: 'bedekking',
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

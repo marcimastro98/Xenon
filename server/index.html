@@ -2306,6 +2306,13 @@
             </div>
           </div>
           <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_look">Stile</span><span class="settings-hint" data-i18n="settings_weather_hero_hint">Solo widget dashboard</span></span>
+            <div class="settings-segmented" role="group" aria-label="Stile" data-i18n-aria-label="settings_weather_look">
+              <button class="settings-segment-btn" type="button" data-weather-look="new" aria-pressed="true" data-i18n="settings_weather_look_new">Nuovo</button>
+              <button class="settings-segment-btn" type="button" data-weather-look="classic" aria-pressed="false" data-i18n="settings_weather_look_classic">Classico</button>
+            </div>
+          </div>
+          <div class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_weather_hero">Condizioni attuali</span><span class="settings-hint" data-i18n="settings_weather_hero_hint">Solo widget dashboard</span></span>
             <div class="settings-segmented" role="group" aria-label="Condizioni attuali" data-i18n-aria-label="settings_weather_hero">
               <button class="settings-weather-hero settings-segment-btn" type="button" data-weather-hero="full" onclick="updateWeatherTileHero('full')" aria-pressed="true" data-i18n="settings_weather_hero_full">Scheda grande</button>
@@ -5021,6 +5028,7 @@
 <script src="js/weather-art.js"></script>
 <script src="js/weather-outlook.js"></script>
 <script src="js/weather-tile.js"></script>
+<script src="js/weather-look.js"></script>
 <script src="js/weather-window.js"></script>
 <script src="js/lock-digits.js"></script>
 <script src="js/greeting.js"></script>

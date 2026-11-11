@@ -90,7 +90,8 @@ test('now, the hours, the days, the details, in that order', () => {
   assert.equal(r.ids['weather-modal-updated'].textContent, 'Updated 10:00');
   assert.deepEqual(r.content.children.map((node) => node.className), ['weather-win-main', 'weather-win-side']);
   assert.equal(r.all('weather-win-temp')[0].textContent, '21°');
-  assert.deepEqual(r.content.children[1].children.map((node) => node.className), ['weather-win-block weather-win-days', 'weather-win-block weather-win-facts']);
+  assert.deepEqual(r.content.children[0].children.map((node) => node.className), ['weather-win-now', 'weather-win-block weather-win-days']);
+  assert.deepEqual(r.content.children[1].children.map((node) => node.className), ['weather-win-block weather-win-facts']);
 });
 
 test('the window takes the tile\'s parts, so the two cannot disagree', () => {
@@ -119,10 +120,34 @@ test('the day column takes the longest name, and stops at a third of the row', (
   }
 });
 
-test('the word for now is not cut on the hour axis', () => {
-  const css = read('components', 'WeatherTile', 'WeatherTile.css');
-  assert.ok(css.includes('.weather-hours-axis span:first-child { overflow: visible;'));
-  assert.ok(css.includes('.weather-hours-axis span:nth-child(even) { visibility: hidden; }'), 'the room it takes is the hidden label beside it');
+const atHour = (offset) => {
+  const at = new Date(Date.now() + offset * 3600e3);
+  return `${String(at.getHours()).padStart(2, '0')}:00`;
+};
+const HOURLY = [0, 1, 2, 3].map((i) => ({ time: atHour(i), tempC: 18 - i, rain: [0, 5, 40, 80][i] }));
+
+test('every hour is a column: its time, its sky, its temperature', () => {
+  const r = rig({ data: { ...FINE, hourly: HOURLY } });
+  r.ctx.renderWeatherDetails();
+  const cells = r.all('weather-hour');
+  assert.equal(cells.length, 4);
+  assert.deepEqual(cells[1].children.slice(0, 3).map((node) => node.className), ['weather-hour-time', 'weather-hour-art', 'weather-hour-temp']);
+  assert.equal(cells[0].children[0].textContent, 'weather_now');
+  assert.equal(cells[0].children[2].textContent, '21°', 'now carries the reading, as the big number does');
+  assert.equal(cells[2].children[2].textContent, '16°');
+  assert.ok(cells[0].classList.contains('is-now'));
+  assert.ok(!cells[1].classList.contains('is-now'));
+});
+
+test('the rain line is there for every hour or none, and says nothing under 10%', () => {
+  const wet = rig({ data: { ...FINE, hourly: HOURLY } });
+  wet.ctx.renderWeatherDetails();
+  assert.ok(wet.all('weather-hours')[0].classList.contains('has-rain'));
+  assert.deepEqual(wet.all('weather-hour-rain').map((node) => node.textContent), ['', '', '40%', '80%']);
+  const dry = rig({ data: { ...FINE, hourly: HOURLY.map((hour) => ({ ...hour, rain: 5 })) } });
+  dry.ctx.renderWeatherDetails();
+  assert.equal(dry.all('weather-hour-rain').length, 0);
+  assert.ok(!dry.all('weather-hours')[0].classList.contains('has-rain'));
 });
 
 test('a day keeps its condition readable on its row', () => {
