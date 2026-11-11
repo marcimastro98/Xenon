@@ -2,6 +2,28 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "radar-europe",
+      "kind": "widget",
+      "name": "Radar Europe",
+      "author": "FenrirDuHof",
+      "description": "Weather map",
+      "category": "system",
+      "tags": [
+        "weather"
+      ],
+      "version": "1",
+      "pkgId": "radar-europe-m9vsmy",
+      "appVersionMin": "4.11.8",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-11-11",
+      "codeFile": true
+    },
+    {
       "id": "frieren-ispired-bundle",
       "kind": "bundle",
       "name": "Frieren ispired Bundle",
