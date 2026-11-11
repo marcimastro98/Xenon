@@ -36,6 +36,7 @@ const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const startupLog = require('./startup-log.js');
 
 const TASK_NAME = 'Xenon Edge Widget';
 // Task Scheduler's XML spelling for "no limit". Same value New-ScheduledTaskSettingsSet
@@ -129,13 +130,55 @@ function run(args, opts) {
   });
 }
 
-async function readTaskXml() {
-  const out = await run(['/Query', '/TN', TASK_NAME, '/XML', 'ONE'], { encoding: 'buffer' });
+async function readTaskXml(name = TASK_NAME) {
+  const out = await run(['/Query', '/TN', name, '/XML', 'ONE'], { encoding: 'buffer' });
   return decodeSchtasksOutput(out);
 }
 
+// ── The app's login task, left behind by removing only the app ───────────────
+// The Windows app registers "Xenon App" to start itself at sign-in. The
+// installer's own uninstaller cannot remove a scheduled task (no NSIS hooks, by
+// decision), so uninstalling the app beside an engine installed on its own left
+// a task that tried to start a missing program at every sign-in. The engine
+// outlives the app there and is the one thing left that can notice. Both the
+// program and the uninstaller beside it must be gone: an app update rewrites
+// them in place, so one of them missing for a moment never reads as removed.
+const APP_TASK_NAME = 'Xenon App';
+const APP_EXE = 'xenon-native.exe';
+
+const XML_ENTITIES = { '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&amp;': '&' };
+
+/** The program a task definition starts, entities decoded and quotes off. Pure. */
+function taskCommand(xml) {
+  const m = /<Exec>[\s\S]*?<Command>([^<]*)<\/Command>/.exec(String(xml || ''));
+  if (!m) return '';
+  return m[1].replace(/&(lt|gt|quot|apos|amp);/g, (e) => XML_ENTITIES[e]).trim().replace(/^"(.*)"$/, '$1');
+}
+
+/** True only for this app's program, by absolute path, with it and its uninstaller gone. */
+function appTaskOrphaned(command, exists = fs.existsSync) {
+  const win = path.win32;
+  if (!command || !win.isAbsolute(command) || win.basename(command).toLowerCase() !== APP_EXE) return false;
+  return !exists(command) && !exists(win.join(win.dirname(command), 'uninstall.exe'));
+}
+
+/** Deletes "Xenon App" when the app it starts was uninstalled. True when it did. */
+async function removeOrphanAppTask() {
+  if (process.platform !== 'win32') return false;
+  let xml = '';
+  try { xml = await readTaskXml(APP_TASK_NAME); } catch { return false; }   // no such task: the usual case
+  if (!appTaskOrphaned(taskCommand(xml))) return false;
+  try {
+    await run(['/Delete', '/TN', APP_TASK_NAME, '/F']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Look at the startup task and put back what is ours to put back.
+ * Look at the startup task and put back what is ours to put back. First removes
+ * the app's login task when the app it starts is gone (see above).
  * Answers { checked, found, problems, repaired, failed } — never throws, never
  * runs off Windows, and a machine with no such task (a dev checkout, a portable
  * run, the native app on another platform) is simply `found: false`.
@@ -144,6 +187,9 @@ async function checkStartupTask({ dataDir, repair = true } = {}) {
   const answer = { checked: false, found: false, problems: [], repaired: [], failed: '' };
   if (process.platform !== 'win32') return answer;
   answer.checked = true;
+  if (await removeOrphanAppTask()) {
+    startupLog.write('startup task: removed "' + APP_TASK_NAME + '", left behind when the app was uninstalled.');
+  }
   let xml = '';
   try { xml = await readTaskXml(); } catch { return answer; }   // no task registered
   const state = parseTaskXml(xml);
@@ -169,6 +215,7 @@ async function checkStartupTask({ dataDir, repair = true } = {}) {
 }
 
 module.exports = {
-  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE,
+  TASK_NAME, NO_TIME_LIMIT, REPAIRABLE, APP_TASK_NAME,
   parseTaskXml, taskProblems, repairTaskXml, decodeSchtasksOutput, checkStartupTask,
+  taskCommand, appTaskOrphaned,
 };
