@@ -38,7 +38,7 @@ const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 // (icon, temperature, feels-like) so hours and days get the space (GitHub #130).
 // Mirrored in server.js normalizeSettingsWeather.
 const WEATHER_TILE_HEROES = Object.freeze(['full', 'compact']);
-const WEATHER_TILE_LOOKS = Object.freeze(['new', 'classic']); // the 5.x tile or the 4.11 cards
+const WEATHER_TILE_LOOKS = Object.freeze(['new', 'classic', 'custom']); // the 5.x tile, the 4.11 cards, or a widget of the user's
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail
 // metrics. Hiding one removes it from both the dashboard tile and the modal.
 const WEATHER_FIELD_IDS = Object.freeze([
@@ -2573,7 +2573,7 @@ function normalizeSdkWidgets(value) {
   if (v.assign && typeof v.assign === 'object') {
     for (const key of Object.keys(v.assign)) {
       if (n >= 32) break;
-      if (!/^custom(~[a-z0-9]+)?$/.test(key)) continue;
+      if (!/^(custom|weather)(~[a-z0-9]+)?$/.test(key)) continue;   // weather: a Weather tile on Style 'Your widget'
       const pkg = String(v.assign[key] || '');
       if (!SDK_PACKAGE_ID_RE.test(pkg)) continue;
       assign[key] = pkg; n++;

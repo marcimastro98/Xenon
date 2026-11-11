@@ -1,12 +1,13 @@
 // Which look the Weather tile wears: the 5.x tile (js/weather-tile.js) or the
-// separate cards of Xenon 4.11 (js/weather-classic.js), Settings → Weather → Style
+// separate cards of Xenon 4.11 (js/weather-classic.js), or a widget of the user's that
+// reads the weather (custom: js/custom-widget.js hosts it), Settings → Weather → Style
 // and Bit's change_setting weather_style. The classic files load the first time
 // someone picks it, so nobody else downloads them; if they cannot load, the tile
 // stays on the new look and says nothing worse than that.
 (() => {
   'use strict';
 
-  const LOOKS = ['new', 'classic'];
+  const LOOKS = ['new', 'classic', 'custom'];
   const CLASSIC_JS = 'js/weather-classic.js';
   const CLASSIC_CSS = 'components/WeatherTile/WeatherClassic.css';
   let classicLoad = null;
@@ -44,10 +45,39 @@
     return classicLoad;
   }
 
-  // True when the classic look drew the tile; false leaves it to the new one.
-  // A first call starts the load and draws again once it is in.
+  const HOST = 'custom-widget-mount';
+  const hasHost = (mount) => !!(mount.firstElementChild && mount.firstElementChild.classList.contains(HOST));
+
+  // Custom: each mount holds one .custom-widget-mount, and js/custom-widget.js
+  // treats the Weather tile as a widget tile (chooser, permission, frame, paused
+  // states). The host is kept across weather refreshes so the widget is not
+  // reloaded every time; where custom-widget.js is not loaded (a desktop widget
+  // page) the tile stays on the new look.
+  function renderCustom(mounts) {
+    const cw = window.CustomWidget;
+    if (!cw || typeof cw.renderWidgets !== 'function') return false;
+    let added = false;
+    mounts.forEach((mount) => {
+      if (hasHost(mount)) return;
+      const host = document.createElement('div');
+      host.className = HOST;
+      mount.replaceChildren(host);
+      added = true;
+    });
+    if (added) cw.renderWidgets();
+    return true;
+  }
+
+  // True when the classic look or the user's widget drew the tile; false leaves
+  // it to the new one. A first classic call starts the load and draws again once
+  // it is in.
   function render(mounts, data, sec) {
-    if (current() !== 'classic') return false;
+    const look = current();
+    if (look === 'custom' && renderCustom(mounts)) return true;
+    // Leaving custom: the new or classic tile replaces the host; then the widget
+    // frame is let go.
+    if (Array.prototype.some.call(mounts, hasHost) && window.CustomWidget) queueMicrotask(() => window.CustomWidget.renderWidgets());
+    if (look !== 'classic') return false;
     if (!window.WeatherClassic) {
       loadClassic()
         .then(() => { if (typeof renderWeatherTile === 'function') renderWeatherTile(); })

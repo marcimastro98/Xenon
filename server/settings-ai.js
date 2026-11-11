@@ -20,7 +20,7 @@ const PREFS = Object.freeze({
   announcements: { path: ['hubMessages'], values: ON_OFF, def: true, about: "Bit's messages with news from Xenon" },
   monthly_drops: { path: ['monthlyDrops'], values: ON_OFF, def: true, about: "Bit's messages about the month's new creations in the Store" },
   ambient: { path: ['ambientMode', 'enabled'], values: ON_OFF, def: true, about: 'the Ambient scene (full-screen clock, music and weather)' },
-  weather_style: { path: ['weather', 'tile', 'look'], values: ['new', 'classic'], about: 'how the Weather tile looks: new, or classic (the separate cards of Xenon 4.11)' },
+  weather_style: { path: ['weather', 'tile', 'look'], values: ['new', 'classic', 'custom'], about: 'how the Weather tile looks: new, classic (the separate cards of Xenon 4.11), or custom (one of the user widgets that reads the weather, made with Bit or Xenon Maker or from the Store, chosen in the tile)' },
   ambient_after: { path: ['ambientMode', 'idleMinutes'], values: ['0', '1', '2', '5', '10', '15', '30'], about: 'minutes without use before the Ambient scene opens by itself; 0 never' },
 });
 

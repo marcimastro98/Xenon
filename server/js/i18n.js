@@ -73069,9 +73069,13 @@ Object.assign(i18n.nl, {
   guardian_game: 'Game',
 });
 
-// The Weather tile's Style setting, and the classic look's small captions (weather-classic.js, from 4.11.13).
+// The Weather tile's Style setting (new, classic, the user's own widget in the tile), and the classic look's
+// small captions (weather-classic.js, from 4.11.13).
 Object.assign(i18n.it, {
   settings_weather_look: 'Stile', settings_weather_look_new: 'Nuovo', settings_weather_look_classic: 'Classico',
+  settings_weather_look_custom: 'Il tuo widget',
+  cw_pick_weather: 'Scegli il tuo widget meteo', cw_pick_weather_none: 'Non hai ancora un widget che legge il meteo. Creane uno con Bit o in Xenon Maker, o prendine uno dallo Store.',
+  cw_weather_bit: 'Crealo con Bit', cw_weather_bit_prompt: 'Creami un widget per il riquadro Meteo che legga il meteo.', cw_weather_maker: 'Apri Xenon Maker',
   weather_rain_short: 'Pioggia',
   weather_metric_humidity_sub: 'aria relativa',
   weather_metric_pressure_sub: 'livello mare',
@@ -73081,6 +73085,9 @@ Object.assign(i18n.it, {
 });
 Object.assign(i18n.en, {
   settings_weather_look: 'Style', settings_weather_look_new: 'New', settings_weather_look_classic: 'Classic',
+  settings_weather_look_custom: 'Your widget',
+  cw_pick_weather: 'Choose your weather widget', cw_pick_weather_none: 'No widget of yours reads the weather yet. Make one with Bit or in Xenon Maker, or get one from the Store.',
+  cw_weather_bit: 'Make one with Bit', cw_weather_bit_prompt: 'Make me a widget for my Weather tile that reads the weather.', cw_weather_maker: 'Open Xenon Maker',
   weather_rain_short: 'Rain',
   weather_metric_humidity_sub: 'relative air',
   weather_metric_pressure_sub: 'sea level',
@@ -73090,6 +73097,9 @@ Object.assign(i18n.en, {
 });
 Object.assign(i18n.ko, {
   settings_weather_look: '스타일', settings_weather_look_new: '새 디자인', settings_weather_look_classic: '클래식',
+  settings_weather_look_custom: '내 위젯',
+  cw_pick_weather: '날씨 위젯 선택', cw_pick_weather_none: '아직 날씨를 읽는 위젯이 없습니다. Bit나 Xenon Maker로 만들거나 Store에서 받으세요.',
+  cw_weather_bit: 'Bit로 만들기', cw_weather_bit_prompt: '날씨를 읽는 날씨 타일용 위젯을 만들어 줘.', cw_weather_maker: 'Xenon Maker 열기',
   weather_rain_short: '비',
   weather_metric_humidity_sub: '상대 습도',
   weather_metric_pressure_sub: '해수면 기준',
@@ -73099,6 +73109,9 @@ Object.assign(i18n.ko, {
 });
 Object.assign(i18n.ja, {
   settings_weather_look: 'スタイル', settings_weather_look_new: '新デザイン', settings_weather_look_classic: 'クラシック',
+  settings_weather_look_custom: '自分のウィジェット',
+  cw_pick_weather: '天気ウィジェットを選ぶ', cw_pick_weather_none: '天気を読むウィジェットがまだありません。Bit や Xenon Maker で作るか、Store から入手してください。',
+  cw_weather_bit: 'Bit で作る', cw_weather_bit_prompt: '天気タイル用に、天気を読むウィジェットを作って。', cw_weather_maker: 'Xenon Maker を開く',
   weather_rain_short: '雨',
   weather_metric_humidity_sub: '相対湿度',
   weather_metric_pressure_sub: '海面気圧',
@@ -73108,6 +73121,9 @@ Object.assign(i18n.ja, {
 });
 Object.assign(i18n.zh, {
   settings_weather_look: '样式', settings_weather_look_new: '新版', settings_weather_look_classic: '经典',
+  settings_weather_look_custom: '我的小组件',
+  cw_pick_weather: '选择你的天气小组件', cw_pick_weather_none: '你还没有读取天气的小组件。用 Bit 或 Xenon Maker 制作一个，或从 Store 获取。',
+  cw_weather_bit: '用 Bit 制作', cw_weather_bit_prompt: '帮我为天气磁贴做一个读取天气的小组件。', cw_weather_maker: '打开 Xenon Maker',
   weather_rain_short: '雨',
   weather_metric_humidity_sub: '相对湿度',
   weather_metric_pressure_sub: '海平面',
@@ -73117,6 +73133,9 @@ Object.assign(i18n.zh, {
 });
 Object.assign(i18n.es, {
   settings_weather_look: 'Estilo', settings_weather_look_new: 'Nuevo', settings_weather_look_classic: 'Clásico',
+  settings_weather_look_custom: 'Tu widget',
+  cw_pick_weather: 'Elige tu widget del tiempo', cw_pick_weather_none: 'Aún no tienes ningún widget que lea el tiempo. Crea uno con Bit o en Xenon Maker, o consíguelo en la Store.',
+  cw_weather_bit: 'Crearlo con Bit', cw_weather_bit_prompt: 'Créame un widget para el panel del Tiempo que lea el tiempo.', cw_weather_maker: 'Abrir Xenon Maker',
   weather_rain_short: 'Lluvia',
   weather_metric_humidity_sub: 'aire relativo',
   weather_metric_pressure_sub: 'nivel del mar',
@@ -73126,6 +73145,9 @@ Object.assign(i18n.es, {
 });
 Object.assign(i18n.fr, {
   settings_weather_look: 'Style', settings_weather_look_new: 'Nouveau', settings_weather_look_classic: 'Classique',
+  settings_weather_look_custom: 'Votre widget',
+  cw_pick_weather: 'Choisissez votre widget météo', cw_pick_weather_none: 'Aucun de vos widgets ne lit encore la météo. Créez-en un avec Bit ou dans Xenon Maker, ou trouvez-en un dans le Store.',
+  cw_weather_bit: 'Le créer avec Bit', cw_weather_bit_prompt: 'Crée-moi un widget pour la tuile Météo qui lit la météo.', cw_weather_maker: 'Ouvrir Xenon Maker',
   weather_rain_short: 'Pluie',
   weather_metric_humidity_sub: 'air relatif',
   weather_metric_pressure_sub: 'niveau de la mer',
@@ -73135,6 +73157,9 @@ Object.assign(i18n.fr, {
 });
 Object.assign(i18n.de, {
   settings_weather_look: 'Stil', settings_weather_look_new: 'Neu', settings_weather_look_classic: 'Klassisch',
+  settings_weather_look_custom: 'Dein Widget',
+  cw_pick_weather: 'Wähle dein Wetter-Widget', cw_pick_weather_none: 'Noch keines deiner Widgets liest das Wetter. Erstelle eines mit Bit oder in Xenon Maker, oder hol dir eines im Store.',
+  cw_weather_bit: 'Mit Bit erstellen', cw_weather_bit_prompt: 'Erstelle mir ein Widget für die Wetter-Kachel, das das Wetter liest.', cw_weather_maker: 'Xenon Maker öffnen',
   weather_rain_short: 'Regen',
   weather_metric_humidity_sub: 'relative Luft',
   weather_metric_pressure_sub: 'Meereshöhe',
@@ -73144,6 +73169,9 @@ Object.assign(i18n.de, {
 });
 Object.assign(i18n.pt, {
   settings_weather_look: 'Estilo', settings_weather_look_new: 'Novo', settings_weather_look_classic: 'Clássico',
+  settings_weather_look_custom: 'Seu widget',
+  cw_pick_weather: 'Escolha seu widget de clima', cw_pick_weather_none: 'Nenhum widget seu lê o clima ainda. Crie um com o Bit ou no Xenon Maker, ou pegue um na Store.',
+  cw_weather_bit: 'Criar com o Bit', cw_weather_bit_prompt: 'Crie para mim um widget para o bloco Clima que leia o clima.', cw_weather_maker: 'Abrir o Xenon Maker',
   weather_rain_short: 'Chuva',
   weather_metric_humidity_sub: 'ar relativo',
   weather_metric_pressure_sub: 'nível do mar',
@@ -73153,6 +73181,9 @@ Object.assign(i18n.pt, {
 });
 Object.assign(i18n.ru, {
   settings_weather_look: 'Стиль', settings_weather_look_new: 'Новый', settings_weather_look_classic: 'Классический',
+  settings_weather_look_custom: 'Ваш виджет',
+  cw_pick_weather: 'Выберите виджет погоды', cw_pick_weather_none: 'У вас пока нет виджета, который читает погоду. Создайте его с Bit или в Xenon Maker либо возьмите в Store.',
+  cw_weather_bit: 'Создать с Bit', cw_weather_bit_prompt: 'Сделай мне виджет для плитки «Погода», который читает погоду.', cw_weather_maker: 'Открыть Xenon Maker',
   weather_rain_short: 'Дождь',
   weather_metric_humidity_sub: 'отн. воздуха',
   weather_metric_pressure_sub: 'ур. моря',
@@ -73162,6 +73193,9 @@ Object.assign(i18n.ru, {
 });
 Object.assign(i18n.nl, {
   settings_weather_look: 'Stijl', settings_weather_look_new: 'Nieuw', settings_weather_look_classic: 'Klassiek',
+  settings_weather_look_custom: 'Jouw widget',
+  cw_pick_weather: 'Kies je weerwidget', cw_pick_weather_none: 'Nog geen van je widgets leest het weer. Maak er een met Bit of in Xenon Maker, of haal er een uit de Store.',
+  cw_weather_bit: 'Maken met Bit', cw_weather_bit_prompt: 'Maak een widget voor mijn Weer-tegel die het weer leest.', cw_weather_maker: 'Xenon Maker openen',
   weather_rain_short: 'Regen',
   weather_metric_humidity_sub: 'relatieve luchtvochtigheid',
   weather_metric_pressure_sub: 'zeeniveau',

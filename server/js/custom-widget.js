@@ -576,7 +576,15 @@
   function tiles() {
     const layerOnly = (window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest(scope));
+    // A Weather tile set to Style "Your widget" holds a .custom-widget-mount of its
+    // own (js/weather-look.js) and hosts a package like a custom tile does.
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
+      .filter(n => n.closest(scope) && (n.getAttribute('data-dashboard-widget') === 'custom' || n.querySelector('.custom-widget-mount')));
+  }
+
+  // The tile kind an instance belongs to: 'custom', or 'weather' for a Weather host.
+  function hostKindOf(instId) {
+    return String(instId || '').split('~')[0];
   }
 
   // Identity comes from the ATOM (data-dashboard-instance, set on every
@@ -588,7 +596,7 @@
   // Standalone tiles are unaffected: a primary's gs-id IS the base id and a
   // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
   function instanceIdOf(tile) {
-    return tile.getAttribute('data-dashboard-instance') || 'custom';
+    return tile.getAttribute('data-dashboard-instance') || tile.getAttribute('data-dashboard-widget') || 'custom';
   }
 
   // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
@@ -3638,10 +3646,29 @@
     return hits.length ? hits : ['other'];
   }
 
+  // A Weather tile's chooser also says where a weather widget comes from: Bit
+  // (where its chat is on this screen) and Xenon Maker, beside the Store.
+  const MAKER_URL = 'https://xenon-app.com/maker/';
+  function appendWeatherMakers(row) {
+    if (!window.__xenonRemote && typeof window.aiAsk === 'function') {
+      const bit = el('button', 'cw-btn', t('cw_weather_bit', 'Make one with Bit'));
+      bit.type = 'button';
+      bit.addEventListener('click', () => window.aiAsk(t('cw_weather_bit_prompt', 'Make me a widget for my Weather tile that reads the weather.')));
+      row.appendChild(bit);
+    }
+    const maker = el('a', 'cw-btn', t('cw_weather_maker', 'Open Xenon Maker'));
+    maker.href = MAKER_URL; maker.target = '_blank'; maker.rel = 'noopener noreferrer';
+    row.appendChild(maker);
+  }
+
   // Untrusted manifest text (name/author/description) → textContent only.
   function paintPicker(body, instId) {
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('div', 'cw-pick-title', t('cw_pick', 'Choose a widget for this tile')));
+    // A Weather tile offers only the widgets that read the weather.
+    const forWeather = hostKindOf(instId) === 'weather';
+    frag.appendChild(el('div', 'cw-pick-title', forWeather
+      ? t('cw_pick_weather', 'Choose your weather widget')
+      : t('cw_pick', 'Choose a widget for this tile')));
 
     // One flat model for both installed packages and not-yet-installed bundled
     // examples, so search and chips treat them identically.
@@ -3649,6 +3676,7 @@
     // Settings → Ambient, so keep them out of the tile picker.
     const items = (pkgCache.packages || [])
       .filter(pkg => pkg && pkg.surface !== 'ambient')
+      .filter(pkg => !forWeather || (Array.isArray(pkg.streams) && pkg.streams.includes('weather')))
       .map(pkg => ({
         kind: 'pkg',
         pkg,
@@ -3658,7 +3686,7 @@
         desc: pkg.description || '',
         cats: pickCatsOf(pkg.streams),
       }))
-      .concat(missingExamples().map(ex => ({
+      .concat((forWeather ? [] : missingExamples()).map(ex => ({
         kind: 'example',
         ex,
         group: t('cw_pick_examples', 'Xenon · Examples'),
@@ -3689,7 +3717,9 @@
       ));
       const rows = document.createDocumentFragment();
       if (!shown.length) {
-        rows.appendChild(el('div', 'cw-pick-empty', t('cw_pick_none', 'No widget matches this search.')));
+        rows.appendChild(el('div', 'cw-pick-empty', forWeather && !items.length
+          ? t('cw_pick_weather_none', 'No widget of yours reads the weather yet. Make one with Bit or in Xenon Maker, or get one from the Store.')
+          : t('cw_pick_none', 'No widget matches this search.')));
       }
       // Named packs first (alphabetical); widgets with no author fall through
       // last with no header. Group text is untrusted → el() sets textContent.
@@ -3729,6 +3759,7 @@
       storeBtn.type = 'button';
       storeBtn.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); });
       createRow.appendChild(storeBtn);
+      if (forWeather) appendWeatherMakers(createRow);
       rows.appendChild(createRow);
       list.replaceChildren(rows);
     };
@@ -3943,7 +3974,7 @@
       const cfg = sdk();
       const assignedId = assignedIdOf(cfg, instId);
       const pkg = assignedId ? packageById(assignedId) : null;
-      if (titleEl) titleEl.textContent = pkg ? pkg.name : t('cw_title', 'Custom widget');
+      if (titleEl) titleEl.textContent = pkg ? pkg.name : (hostKindOf(instId) === 'weather' ? t('weather_title', 'Weather') : t('cw_title', 'Custom widget'));
       if (swapBtn) {
         // A layer placement is changed from its editor, never from the tile.
         swapBtn.hidden = !assignedId || layerAssign.has(instId);

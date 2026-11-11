@@ -10698,7 +10698,7 @@ function normalizeSettingsWeather(value) {
   const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
   const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
   // Mirrors of WEATHER_TILE_HEROES and WEATHER_TILE_LOOKS in js/settings.js.
-  const tile = { hero: ['full', 'compact'].includes(srcTile.hero) ? srcTile.hero : defTile.hero, look: ['new', 'classic'].includes(srcTile.look) ? srcTile.look : defTile.look };
+  const tile = { hero: ['full', 'compact'].includes(srcTile.hero) ? srcTile.hero : defTile.hero, look: ['new', 'classic', 'custom'].includes(srcTile.look) ? srcTile.look : defTile.look };
   ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
   const srcFields = srcTile.fields && typeof srcTile.fields === 'object' ? srcTile.fields : {};
   const fields = {};

@@ -176,6 +176,13 @@ The user sees exactly what you request in a permission dialog and can decline.
 Request only what you need — an empty `streams`/`actions` widget renders with a
 "nothing" permission summary, which users trust most.
 
+**Your widget in the Weather tile (v5.1.0).** When the user sets Settings →
+Weather → Style to *Your widget*, the Weather tile hosts one of their widgets
+instead of Xenon's own. Its chooser lists only packages whose `streams` include
+`weather`, so a weather widget needs nothing else: request `weather`, and it
+runs there under the same permission dialog, sandbox and paused states as in a
+custom tile.
+
 ## The sandbox (what your widget can and cannot do)
 
 - Your page runs in `<iframe sandbox="allow-scripts">` and every asset is served

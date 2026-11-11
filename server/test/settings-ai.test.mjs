@@ -50,7 +50,7 @@ test('apply: the weather style keeps the city and the rest of the tile', () => {
   const out = SettingsAi.apply(cur, SettingsAi.plan({ setting: 'weather_style', value: 'Classic' }));
   assert.deepEqual(out, { patch: { weather: { city: 'Example', tile: { hero: 'compact', look: 'classic', metrics: false } } }, before: 'new' });
   assert.equal(SettingsAi.apply(cur, { name: 'weather_style', word: 'new' }).patch, null);
-  assert.equal(SettingsAi.plan({ setting: 'weather_style', value: 'custom' }).error, 'bad_value');
+  assert.equal(SettingsAi.plan({ setting: 'weather_style', value: 'mine' }).error, 'bad_value');
 });
 
 test('the switch defaults match DEFAULT_HUB_SETTINGS', () => {

@@ -141,7 +141,7 @@ test('the style survives both normalizers, and anything else is the new look', (
   assert.equal(s({}).tile.look, 'new');
   assert.equal(c({ look: 'classic' }).look, 'classic');
   assert.equal(s({ tile: { look: 'classic' } }).tile.look, 'classic');
-  for (const bad of ['custom', '', null, 1, { look: 'classic' }]) {
+  for (const bad of ['mine', '', null, 1, { look: 'classic' }]) {
     assert.equal(c({ look: bad }).look, 'new');
     assert.equal(s({ tile: { look: bad } }).tile.look, 'new');
   }
