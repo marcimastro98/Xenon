@@ -68,6 +68,16 @@ jobs:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.ref }}
 
+      # Same trap as release.yml's native job: on the signing PC System32's
+      # bash.exe (WSL's launcher) comes first in PATH, and dtolnay/rust-toolchain
+      # runs `shell: bash`. Put Git's bash in front for every later step.
+      - name: Prefer Git Bash over WSL's bash.exe
+        shell: pwsh
+        run: |
+          $git = 'C:\Program Files\Git\bin'
+          if (-not (Test-Path (Join-Path $git 'bash.exe'))) { throw "Git for Windows not found at $git" }
+          Add-Content -Path $env:GITHUB_PATH -Value $git
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
