@@ -15,10 +15,14 @@ const LANGS = ['es', 'fr', 'it', 'ja', 'ko', 'zh'];
 // Served on xenon-app.com but not from docs/: Xenon Maker is built in its own
 // private repo. It must be live before the home that links it is published.
 const NOT_IN_DOCS = new Set(['/maker/']);
+// Built at deploy and gitignored: tools/build-demo.mjs writes docs/demo/, so a
+// fresh checkout has no file there. The link holds while its builder exists.
+const BUILT_AT_DEPLOY = new Map([['/demo/', 'tools/build-demo.mjs']]);
 
 // A site path is served by a file, a folder's index.html, or a published
 // folder (catalog/creator pages are generated into folders of their own).
 function exists(urlPath) {
+  if (BUILT_AT_DEPLOY.has(urlPath)) return fs.existsSync(path.join(DOCS, '..', BUILT_AT_DEPLOY.get(urlPath)));
   const p = path.join(DOCS, decodeURIComponent(urlPath));
   if (urlPath.endsWith('/')) return fs.existsSync(path.join(p, 'index.html'));
   return fs.existsSync(p) || fs.existsSync(path.join(p, 'index.html'));
