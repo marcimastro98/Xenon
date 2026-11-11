@@ -93,3 +93,45 @@ test('every new string is in all 11 languages', () => {
     assert.equal(defs.length, 11, `${key} should be translated in all 11 languages`);
   }
 });
+
+// The Weather window (top bar, tile, lock screen, Bit) and the Ambient weather open
+// the same widget: asked for so that "the top bar's weather and the Ambient one open
+// my widget when I tap them".
+test('the Weather window shows the widget, in a host of its own that keeps the tile\'s choice', () => {
+  const WINDOW = read('js', 'weather-window.js');
+  const SYSTEM = read('js', 'system.js');
+  const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
+  assert.match(extractFunction(WINDOW, 'renderWeatherDetails'),
+    /if \(window\.WeatherLook && window\.WeatherLook\.renderWindow\(content\)\) return;/);
+  // Closing lets the frame go: nothing runs behind a hidden window.
+  assert.match(extractFunction(SYSTEM, 'closeWeatherDetails'), /window\.WeatherLook\.releaseWindow\(\$\('weather-content'\)\)/);
+  assert.match(extractFunction(LOOK, 'renderWindow'), /view\.dataset\.cwHost = 'weather@view';/);
+  assert.match(extractFunction(LOOK, 'renderWindow'), /if \(content\.querySelector\(`:scope > \.\$\{VIEW\}`\)\) return true;/, 'an open window is not reloaded');
+  assert.match(MODAL_CSS, /\.weather-own-view \{/);
+  // Never a [data-dashboard-widget] the layout would claim.
+  assert.doesNotMatch(extractFunction(LOOK, 'renderWindow'), /dashboardWidget|data-dashboard-widget/);
+  assert.match(extractFunction(CW, 'tiles'), /\[data-cw-host="\$\{WEATHER_VIEW_ID\}"\]/);
+  assert.match(extractFunction(CW, 'instanceIdOf'), /^[^]*getAttribute\('data-cw-host'\) \|\|/);
+});
+
+test('the window reads and writes the Weather tile\'s assignment, with a frame of its own', () => {
+  const id = CW.match(/const WEATHER_VIEW_ID = '([^']+)';/)[1];
+  const assignKeyOf = new Function('WEATHER_VIEW_ID', `${extractFunction(CW, 'assignKeyOf')}; return assignKeyOf;`)(id);
+  assert.equal(assignKeyOf(id), 'weather');
+  assert.equal(assignKeyOf('weather'), 'weather');
+  assert.equal(assignKeyOf('custom~ab12'), 'custom~ab12');
+  assert.match(extractFunction(CW, 'assignedIdOf'), /cfg\.assign\[assignKeyOf\(instId\)\]/);
+  assert.match(CW, /patch\.assign = \{ \.\.\.\(cur\.assign \|\| \{\}\), \[assignKeyOf\(instId\)\]: pkg\.id \};/);
+  assert.match(CW, /delete assign\[assignKeyOf\(instId\)\];/);
+});
+
+test('a tap on the Ambient weather leaves the scene for the window, only on that style', () => {
+  const AC = read('js', 'ambient-canvas.js');
+  assert.match(AC, /if \(WL && WL\.current\(\) === 'custom' && document\.getElementById\('weather-overlay'\)\) \{\s+body\.dataset\.acTouch = '';\s+body\.dataset\.acAct = 'weather-open';/);
+  const run = extractFunction(AC, 'runTouch');
+  const branch = run.slice(run.indexOf("act === 'weather-open'"));
+  assert.match(branch, /if \(!overlay \|\| !overlay\.hidden \|\| !open\) return;/, 'never toggles an open window shut');
+  assert.ok(branch.indexOf('AmbientMode.close()') < branch.indexOf('open();'), 'the scene closes first');
+  // The built-in Ambient (the lock-screen scene) already opens the same window.
+  assert.match(read('js', 'lockscreen.js'), /function openWeatherFromLockScreen\(\) \{\s+closeWidgetLockScreen\(\);\s+toggleWeatherDetails\(\);/);
+});

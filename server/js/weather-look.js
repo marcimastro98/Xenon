@@ -88,6 +88,34 @@
     return true;
   }
 
+  // The Weather window (the top bar's weather, the tile, the lock screen, Bit) on
+  // the same style shows the user's widget instead of Xenon's details: a host
+  // custom-widget.js keys as 'weather@view', with its own frame and the Weather
+  // tile's choice. Kept while the window is open so a weather update does not
+  // reload it; let go on close so nothing runs behind a hidden window.
+  const VIEW = 'weather-own-view';
+  function renderWindow(content) {
+    const cw = window.CustomWidget;
+    if (current() !== 'custom' || !cw || typeof cw.renderWidgets !== 'function') return releaseWindow(content);
+    if (content.querySelector(`:scope > .${VIEW}`)) return true;
+    const view = document.createElement('section');
+    view.className = VIEW;
+    view.dataset.cwHost = 'weather@view';
+    const host = document.createElement('div');
+    host.className = HOST;
+    view.appendChild(host);
+    content.replaceChildren(view);
+    cw.renderWidgets();
+    return true;
+  }
+  function releaseWindow(content) {
+    const view = content && content.querySelector(`:scope > .${VIEW}`);
+    if (!view) return false;
+    view.remove();
+    if (window.CustomWidget) window.CustomWidget.renderWidgets();
+    return false;
+  }
+
   function sync() {
     const look = current();
     document.querySelectorAll('[data-weather-look]').forEach((btn) => {
@@ -113,5 +141,5 @@
     if (btn) set(btn.dataset.weatherLook);
   });
 
-  window.WeatherLook = { LOOKS, current, render, set, sync };
+  window.WeatherLook = { LOOKS, current, render, renderWindow, releaseWindow, set, sync };
 })();

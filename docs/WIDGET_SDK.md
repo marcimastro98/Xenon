@@ -181,7 +181,9 @@ Weather → Style to *Your widget*, the Weather tile hosts one of their widgets
 instead of Xenon's own. Its chooser lists only packages whose `streams` include
 `weather`, so a weather widget needs nothing else: request `weather`, and it
 runs there under the same permission dialog, sandbox and paused states as in a
-custom tile.
+custom tile. The Weather window (the top bar's weather, the lock screen, Ambient)
+then shows the same widget, in a second frame that starts when the window opens
+and stops when it closes: read `size` rather than assuming the tile's.
 
 ## The sandbox (what your widget can and cannot do)
 

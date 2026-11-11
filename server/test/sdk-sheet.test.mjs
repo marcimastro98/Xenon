@@ -80,6 +80,7 @@ function widgets(over = {}) {
       ? { ok: true, value: String(raw).trim() }
       : { ok: false, error: 'empty' }),
     sdk: () => ({ grants: {}, assign: {} }),
+    assignKeyOf: (id) => id,
     persist: (patch) => saved.push(patch),
     paint: () => {},
     syncServiceFrames: () => {},

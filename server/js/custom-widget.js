@@ -578,13 +578,24 @@
     const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
     // A Weather tile set to Style "Your widget" holds a .custom-widget-mount of its
     // own (js/weather-look.js) and hosts a package like a custom tile does.
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
+    const onPages = Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
       .filter(n => n.closest(scope) && (n.getAttribute('data-dashboard-widget') === 'custom' || n.querySelector('.custom-widget-mount')));
+    // The Weather window on the same style shows that widget too, in a host of its
+    // own outside the grid (never a [data-dashboard-widget] the layout would claim).
+    return onPages.concat(Array.from(document.querySelectorAll(`[data-cw-host="${WEATHER_VIEW_ID}"]`))
+      .filter(n => n.querySelector('.custom-widget-mount')));
+  }
+
+  // The Weather window's host: its own frame, the Weather tile's assignment.
+  const WEATHER_VIEW_ID = 'weather@view';
+  // The sdkWidgets.assign key an instance reads and writes.
+  function assignKeyOf(instId) {
+    return instId === WEATHER_VIEW_ID ? 'weather' : instId;
   }
 
   // The tile kind an instance belongs to: 'custom', or 'weather' for a Weather host.
   function hostKindOf(instId) {
-    return String(instId || '').split('~')[0];
+    return String(assignKeyOf(instId) || '').split('~')[0];
   }
 
   // Identity comes from the ATOM (data-dashboard-instance, set on every
@@ -596,7 +607,7 @@
   // Standalone tiles are unaffected: a primary's gs-id IS the base id and a
   // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
   function instanceIdOf(tile) {
-    return tile.getAttribute('data-dashboard-instance') || tile.getAttribute('data-dashboard-widget') || 'custom';
+    return tile.getAttribute('data-cw-host') || tile.getAttribute('data-dashboard-instance') || tile.getAttribute('data-dashboard-widget') || 'custom';
   }
 
   // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
@@ -609,7 +620,7 @@
   // The package assigned to a custom-widget instance, or null.
   function assignedIdOf(cfg, instId) {
     if (layerAssign.has(instId)) return layerAssign.get(instId);
-    return (cfg.assign && typeof cfg.assign === 'object') ? (cfg.assign[instId] || null) : null;
+    return (cfg.assign && typeof cfg.assign === 'object') ? (cfg.assign[assignKeyOf(instId)] || null) : null;
   }
 
   function safeModeOn() {
@@ -3503,7 +3514,7 @@
       const patch = {
         grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, storageGroup: wantsStorage ? storageGroup : '', secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
       };
-      if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
+      if (instId != null) patch.assign = { ...(cur.assign || {}), [assignKeyOf(instId)]: pkg.id };
       if (turnsOn) patch.enabled = true;
       if (typeof isLayerPage === 'function' && isLayerPage()) approveFromScreen(pkg, patch, uh.values);
       else persist(patch);
@@ -3982,7 +3993,7 @@
         swapBtn.onclick = () => {
           const cur = sdk();
           const assign = { ...(cur.assign || {}) };
-          delete assign[instId];
+          delete assign[assignKeyOf(instId)];
           persist({ assign });
           const entry = frames.get(instId);
           if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }

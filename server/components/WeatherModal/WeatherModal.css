@@ -231,6 +231,18 @@
   overflow-y: auto;
 }
 .weather-content:has(> .weather-win-trouble) { grid-template-columns: minmax(0, 1fr); }
+/* Style "Your widget": the user's widget fills the window (js/weather-look.js). */
+.weather-content:has(> .weather-own-view) { display: flex; overflow: hidden; }
+.weather-own-view {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  height: min(640px, calc(100dvh - 150px));
+  min-height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--wx-well);
+}
 .weather-win-main,
 .weather-win-side {
   display: flex;
