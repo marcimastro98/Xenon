@@ -3,13 +3,16 @@
 // reads the weather (custom: js/custom-widget.js hosts it), Settings → Weather → Style
 // and Bit's change_setting weather_style. The classic files load the first time
 // someone picks it, so nobody else downloads them; if they cannot load, the tile
-// stays on the new look and says nothing worse than that.
+// stays on the new look and says nothing worse than that. The Weather window follows the
+// same Style: Classic brings back 4.11.13's full view (js/weather-classic-window.js).
 (() => {
   'use strict';
 
   const LOOKS = ['new', 'classic', 'custom'];
   const CLASSIC_JS = 'js/weather-classic.js';
   const CLASSIC_CSS = 'components/WeatherTile/WeatherClassic.css';
+  const CLASSIC_WINDOW_JS = 'js/weather-classic-window.js';
+  const CLASSIC_WINDOW_CSS = 'components/WeatherModal/WeatherClassicWindow.css';
   let classicLoad = null;
 
   function current() {
@@ -25,21 +28,29 @@
     });
   }
 
-  // Both files, stylesheet first, so the cards never draw unstyled.
-  function loadClassic() {
-    if (window.WeatherClassic) return Promise.resolve();
-    if (classicLoad) return classicLoad;
+  function sheet(href) {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
-    css.href = CLASSIC_CSS;
+    css.href = href;
+    return css;
+  }
+  function script(src) {
     const js = document.createElement('script');
-    js.src = CLASSIC_JS;
-    const ready = Promise.all([loaded(css), loaded(js)]);
-    document.head.append(css, js);
+    js.src = src;
+    js.async = false;   // in order: the window reuses the tile's cards
+    return js;
+  }
+
+  // The tile's and the window's files, stylesheets first, so nothing draws unstyled.
+  function loadClassic() {
+    if (window.WeatherClassic && window.WeatherClassicWindow) return Promise.resolve();
+    if (classicLoad) return classicLoad;
+    const files = [sheet(CLASSIC_CSS), sheet(CLASSIC_WINDOW_CSS), script(CLASSIC_JS), script(CLASSIC_WINDOW_JS)];
+    const ready = Promise.all(files.map(loaded));
+    document.head.append(...files);
     classicLoad = ready.catch((err) => {
       classicLoad = null;
-      css.remove();
-      js.remove();
+      files.forEach((node) => node.remove());
       throw err;
     });
     return classicLoad;
@@ -95,8 +106,14 @@
   // reload it; let go on close so nothing runs behind a hidden window.
   const VIEW = 'weather-own-view';
   function renderWindow(content) {
+    const look = current();
+    if (look === 'classic') {
+      releaseWindow(content);
+      return renderClassicWindow(content);
+    }
+    if (window.WeatherClassicWindow) window.WeatherClassicWindow.release(content);
     const cw = window.CustomWidget;
-    if (current() !== 'custom' || !cw || typeof cw.renderWidgets !== 'function') return releaseWindow(content);
+    if (look !== 'custom' || !cw || typeof cw.renderWidgets !== 'function') return releaseWindow(content);
     if (content.querySelector(`:scope > .${VIEW}`)) return true;
     const view = document.createElement('section');
     view.className = VIEW;
@@ -108,6 +125,26 @@
     cw.renderWidgets();
     return true;
   }
+  // Classic: 4.11.13's window. While its files load (they normally came in with the tile)
+  // the new window shows, then this one replaces it. Still fetching with nothing to show:
+  // the new window's waiting line.
+  function renderClassicWindow(content) {
+    const data = typeof weatherData === 'undefined' ? null : weatherData;
+    const waiting = !data && typeof fetchingWeather !== 'undefined' && fetchingWeather;
+    if (window.WeatherClassicWindow && window.WeatherClassic && !waiting) {
+      window.WeatherClassicWindow.render(content, data);
+      return true;
+    }
+    if (window.WeatherClassicWindow) window.WeatherClassicWindow.release(content);
+    if (!waiting) {
+      loadClassic()
+        .then(() => { if (typeof renderWeatherDetails === 'function') renderWeatherDetails(); })
+        .catch((err) => console.warn('[weather] classic window unavailable, showing the new one:', err.message));
+    }
+    return false;
+  }
+
+  // Also on close: the user's widget frame goes, so nothing runs behind a hidden window.
   function releaseWindow(content) {
     const view = content && content.querySelector(`:scope > .${VIEW}`);
     if (!view) return false;

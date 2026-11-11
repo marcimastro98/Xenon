@@ -3,7 +3,9 @@
    hours and the next days on the panel's glass. Every rule starts with
    .weather-tile-root.weather-tile-root--classic: the current tile (WeatherTile.css) shares the
    mount and some class names, so this file must not reach it, and the two classes together
-   outrank its unscoped rules whatever order the two files load in.
+   outrank its unscoped rules whatever order the two files load in. The animated sky is shared
+   with the classic Weather window (.weather-classic-window, WeatherModal/WeatherClassicWindow.css),
+   whose :is() keeps the same weight.
    The sky loops, so it stops with every other dashboard loop: reduced motion, perf mode,
    game mode, idle, a frosted overlay and a low-power GPU (see the end of this file).
    Sizes follow the mount, which is the size container (container-type: size). */
@@ -81,7 +83,7 @@
 .weather-tile-root.weather-tile-root--classic .weather-tile-card.is-night      { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
 
 /* ── Animated sky (top right of the hero) ── */
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual {
   position: absolute;
   top: clamp(8px, 4cqmin, 24px);
   right: clamp(6px, 3cqmin, 18px);
@@ -93,10 +95,10 @@
   pointer-events: none;
   transform: translateZ(0);
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual span { position: absolute; display: block; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-sky { opacity: 0; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual span { position: absolute; display: block; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-sky { opacity: 0; }
 
-.weather-tile-root.weather-tile-root--classic .weather-viz-celestial {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-celestial {
   --wxc-x: 0px;
   --wxc-y: 0px;
   --wxc-scale: 1;
@@ -117,7 +119,7 @@
   50%      { transform: translate(var(--wxc-x), calc(var(--wxc-y) - 8px)) scale(var(--wxc-scale-float)); }
 }
 
-.weather-tile-root.weather-tile-root--classic .weather-viz-ring {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-ring {
   width: 140px;
   height: 140px;
   border: 1px solid rgba(255,255,255,0.20);
@@ -128,11 +130,11 @@
   0%   { transform: scale(0.60); opacity: 0.38; }
   100% { transform: scale(1.42); opacity: 0; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-sun .weather-viz-ring { opacity: 1; animation: wxc-ring-pulse 3.8s ease-out infinite; }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-sun .weather-viz-ring-b { animation-delay: 1.8s; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-sun .weather-viz-ring { opacity: 1; animation: wxc-ring-pulse 3.8s ease-out infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-sun .weather-viz-ring-b { animation-delay: 1.8s; }
 
 /* Moon, and no warm halo at night. */
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-moon, .is-night) .weather-viz-celestial {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-moon, .is-night) .weather-viz-celestial {
   background:
     radial-gradient(circle at 65% 34%, rgba(8,16,36,0.97) 0 30%, transparent 31%),
     radial-gradient(circle at 38% 38%, #f8f8f2, #e2ecff 55%, #b4ccf2 100%);
@@ -140,10 +142,10 @@
     0 0 26px rgba(185,212,255,0.55),
     0 0 90px rgba(100,155,255,0.20);
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.is-night .weather-viz-ring { opacity: 0; animation: none; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.is-night .weather-viz-ring { opacity: 0; animation: none; }
 
 /* Clouds */
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud {
   width: 100px;
   height: 40px;
   border-radius: 999px;
@@ -151,23 +153,23 @@
   opacity: 0;
   filter: drop-shadow(0 5px 18px rgba(0,0,0,0.14));
 }
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud::before,
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud::after {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud::before,
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud::after {
   content: '';
   position: absolute;
   border-radius: 50%;
   background: inherit;
 }
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud::before { width: 46px; height: 46px; left: 16px; top: -22px; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud::after  { width: 58px; height: 58px; right: 9px; top: -30px; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud-a { left: 90px; bottom: 60px; transform: scale(1.04); animation: wxc-cloud-drift 8s ease-in-out infinite; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-cloud-b { left: 24px; bottom: 92px; transform: scale(0.66); animation: wxc-cloud-drift 10s ease-in-out reverse infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud::before { width: 46px; height: 46px; left: 16px; top: -22px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud::after  { width: 58px; height: 58px; right: 9px; top: -30px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud-a { left: 90px; bottom: 60px; transform: scale(1.04); animation: wxc-cloud-drift 8s ease-in-out infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-cloud-b { left: 24px; bottom: 92px; transform: scale(0.66); animation: wxc-cloud-drift 10s ease-in-out reverse infinite; }
 @keyframes wxc-cloud-drift {
   0%, 100% { translate: -10px 0; }
   50%      { translate: 14px -4px; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-cloud, .state-rain, .state-storm, .state-snow, .state-fog) .weather-viz-cloud { opacity: 1; }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-cloud, .state-rain, .state-storm, .state-snow, .state-fog) .weather-viz-celestial {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-cloud, .state-rain, .state-storm, .state-snow, .state-fog) .weather-viz-cloud { opacity: 1; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-cloud, .state-rain, .state-storm, .state-snow, .state-fog) .weather-viz-celestial {
   --wxc-x: 42px;
   --wxc-y: -32px;
   --wxc-scale: 0.78;
@@ -176,27 +178,27 @@
 }
 
 /* Rain */
-.weather-tile-root.weather-tile-root--classic .weather-viz-rain {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-rain {
   width: 2px;
   height: 36px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(180,222,255,0), rgba(180,222,255,0.90));
   opacity: 0;
 }
-.weather-tile-root.weather-tile-root--classic .weather-viz-rain-a { left: 108px; bottom: 32px; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-rain-b { left: 144px; bottom: 22px; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-rain-c { left: 178px; bottom: 38px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-rain-a { left: 108px; bottom: 32px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-rain-b { left: 144px; bottom: 22px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-rain-c { left: 178px; bottom: 38px; }
 @keyframes wxc-rain-fall {
   from { transform: translateY(-12px) rotate(12deg); opacity: 0; }
   25%  { opacity: 1; }
   to   { transform: translateY(24px) rotate(12deg); opacity: 0; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain { opacity: 1; transform: rotate(12deg); animation: wxc-rain-fall 0.95s linear infinite; }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain-b { animation-delay: 0.18s; }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain-c { animation-delay: 0.36s; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain { opacity: 1; transform: rotate(12deg); animation: wxc-rain-fall 0.95s linear infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain-b { animation-delay: 0.18s; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual:is(.state-rain, .state-storm) .weather-viz-rain-c { animation-delay: 0.36s; }
 
 /* Lightning */
-.weather-tile-root.weather-tile-root--classic .weather-viz-bolt {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-bolt {
   left: 140px;
   bottom: 44px;
   width: 28px;
@@ -210,10 +212,10 @@
   0%, 68%, 100% { opacity: 0; }
   69%, 76%      { opacity: 1; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-storm .weather-viz-bolt { opacity: 1; animation: wxc-flash 2s steps(1, end) infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-storm .weather-viz-bolt { opacity: 1; animation: wxc-flash 2s steps(1, end) infinite; }
 
 /* Snow */
-.weather-tile-root.weather-tile-root--classic .weather-viz-snow {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-snow {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -221,18 +223,18 @@
   box-shadow: 32px 16px 0 rgba(255,255,255,0.70), 68px 4px 0 rgba(255,255,255,0.82);
   opacity: 0;
 }
-.weather-tile-root.weather-tile-root--classic .weather-viz-snow-a { left: 90px; bottom: 56px; }
-.weather-tile-root.weather-tile-root--classic .weather-viz-snow-b { left: 124px; bottom: 32px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-snow-a { left: 90px; bottom: 56px; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-snow-b { left: 124px; bottom: 32px; }
 @keyframes wxc-snow-fall {
   from { transform: translateY(-14px); opacity: 0; }
   30%  { opacity: 1; }
   to   { transform: translateY(30px); opacity: 0; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-snow .weather-viz-snow { opacity: 1; animation: wxc-snow-fall 3.2s ease-in-out infinite; }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-snow .weather-viz-snow-b { animation-delay: 1.3s; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-snow .weather-viz-snow { opacity: 1; animation: wxc-snow-fall 3.2s ease-in-out infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-snow .weather-viz-snow-b { animation-delay: 1.3s; }
 
 /* Fog */
-.weather-tile-root.weather-tile-root--classic .weather-viz-fog {
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-viz-fog {
   left: 56px;
   right: 16px;
   bottom: 52px;
@@ -245,11 +247,11 @@
   0%, 100% { transform: translateX(-10px); opacity: 0.40; }
   50%      { transform: translateX(10px); opacity: 0.70; }
 }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-fog .weather-viz-fog { opacity: 0.55; animation: wxc-fog-slide 5.5s ease-in-out infinite; }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-fog .weather-viz-fog { opacity: 0.55; animation: wxc-fog-slide 5.5s ease-in-out infinite; }
 
 /* Offline: a grey ghost of the sun and a cloud. */
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-offline .weather-viz-celestial { opacity: 0.18; filter: grayscale(1); }
-.weather-tile-root.weather-tile-root--classic .weather-hero-visual.state-offline .weather-viz-cloud { opacity: 0.22; filter: grayscale(1); }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-offline .weather-viz-celestial { opacity: 0.18; filter: grayscale(1); }
+:is(.weather-tile-root.weather-tile-root--classic, .weather-classic-window) .weather-hero-visual.state-offline .weather-viz-cloud { opacity: 0.22; filter: grayscale(1); }
 
 /* ── Hero text ── */
 .weather-tile-root.weather-tile-root--classic :is(.weather-hero-place, .weather-hero-temp, .weather-hero-condition, .weather-hero-meta) {

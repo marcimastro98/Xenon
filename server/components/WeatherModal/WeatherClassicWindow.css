@@ -1,0 +1,387 @@
+/* The classic Weather window (js/weather-classic-window.js): 4.11.13's full view, shown when
+   Settings → Weather → Style is Classic. The painted sky card on the left, the Details cards,
+   the next hours and the next days on the right; one column on a narrow window.
+   The panel is a dark island on every theme, as it was: the sky and the white text on it
+   need a dark ground, so .weather-panel--classic owns its palette. The 4.11.13 glass was a
+   56px backdrop blur; here the ground is nearly opaque, which reads the same over the scrim
+   without re-blurring the dashboard every frame. The sky's animation rules are shared with
+   the classic tile (WeatherTile/WeatherClassic.css); every rule here is scoped to the window. */
+
+/* ── Panel ── */
+:root .weather-overlay > .weather-panel.weather-panel--classic {
+  --text: #ffffff;
+  --muted-text: rgba(255,255,255,0.72);
+  --dim-text: rgba(255,255,255,0.55);
+  --color-success: var(--color-success-ondark, #45d483);
+  --color-warn: var(--color-warn-ondark, #f0b84f);
+  --color-danger: var(--color-danger-ondark, #ff6268);
+  --color-info: var(--color-info-ondark, #62cbea);
+  width: min(1320px, 100%);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 28px;
+  background: linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.24), 0 44px 130px rgba(0,0,0,0.65);
+  color: #fff;
+}
+/* A faint cast of the sky through the glass. */
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-sun"]   { background: radial-gradient(ellipse at 68% 10%, rgba(255,195,40,0.10), transparent 52%), linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31); border-color: rgba(255,215,80,0.26); }
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-moon"]  { background: radial-gradient(ellipse at 68% 10%, rgba(80,128,240,0.12), transparent 52%), linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31); border-color: rgba(110,155,255,0.22); }
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-rain"]  { background: radial-gradient(ellipse at 68% 10%, rgba(80,160,255,0.10), transparent 52%), linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31); border-color: rgba(120,184,255,0.22); }
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-storm"] { background: radial-gradient(ellipse at 68% 10%, rgba(90,70,160,0.16), transparent 52%), linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31); border-color: rgba(255,218,58,0.18); }
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-snow"]  { background: radial-gradient(ellipse at 68% 10%, rgba(160,212,255,0.10), transparent 52%), linear-gradient(150deg, rgba(255,255,255,0.08) 0%, transparent 24%), rgb(20, 24, 31); border-color: rgba(200,230,255,0.22); }
+:root .weather-overlay > .weather-panel.weather-panel--classic[data-wx-state="state-offline"] .weather-hero-card { filter: grayscale(0.4); }
+
+.weather-panel--classic .weather-panel-head { border-bottom: 1px solid rgba(255,255,255,0.07); }
+.weather-panel--classic .weather-panel-title { color: #fff; font-size: 20px; font-weight: 600; }
+.weather-panel--classic .weather-icon-btn { color: rgba(255,255,255,0.72); }
+.weather-panel--classic .weather-icon-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* ── Layout: the sky card left, the sections right ── */
+.weather-content:has(> .weather-classic-window) {
+  display: block;
+  padding: 13px 14px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.14) transparent;
+}
+.weather-classic-window {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.86fr) minmax(0, 1.14fr);
+  gap: 10px;
+  color: #fff;
+}
+.weather-classic-window .weather-classic-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ── Sky card ── */
+.weather-classic-window .weather-hero-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  align-content: end;
+  min-height: 380px;
+  padding: 20px 24px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24px;
+  background: linear-gradient(165deg, #3a4048 0%, #23272d 52%, #14171b 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.weather-classic-window .weather-hero-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, transparent 42%, rgba(0,0,0,0.50) 100%);
+  pointer-events: none;
+}
+.weather-classic-window.state-sun   .weather-hero-card { background: linear-gradient(165deg, #5cb3f0 0%, #2479c4 52%, #0f4a82 100%); }
+.weather-classic-window.state-moon  .weather-hero-card { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
+.weather-classic-window.state-cloud .weather-hero-card { background: linear-gradient(165deg, #74828f 0%, #4c5763 52%, #2c333d 100%); }
+.weather-classic-window.state-rain  .weather-hero-card { background: linear-gradient(165deg, #51687d 0%, #324658 52%, #1b2836 100%); }
+.weather-classic-window.state-storm .weather-hero-card { background: linear-gradient(165deg, #3c3656 0%, #241f3a 52%, #120e20 100%); }
+.weather-classic-window.state-snow  .weather-hero-card { background: linear-gradient(165deg, #9ab4cd 0%, #647a96 52%, #3a4a5e 100%); }
+.weather-classic-window.state-fog   .weather-hero-card { background: linear-gradient(165deg, #828a94 0%, #585f69 52%, #353a42 100%); }
+.weather-classic-window .weather-hero-card.is-stale { opacity: 0.85; }
+
+.weather-classic-window .weather-hero-card .weather-hero-visual {
+  top: 24px;
+  right: 16px;
+  width: min(260px, 52%);
+}
+.weather-classic-window :is(.weather-hero-place, .weather-hero-temp, .weather-hero-condition, .weather-hero-meta) {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+.weather-classic-window .weather-hero-place {
+  overflow: hidden;
+  color: rgba(255,255,255,0.70);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.weather-classic-window .weather-hero-temp {
+  margin-top: 4px;
+  color: #fff;
+  font-size: clamp(82px, 8.5vw, 124px);
+  font-weight: 200;
+  letter-spacing: -3px;
+  line-height: 0.88;
+}
+.weather-classic-window .weather-hero-condition {
+  margin-top: 10px;
+  overflow: hidden;
+  color: rgba(255,255,255,0.88);
+  font-size: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-classic-window .weather-hero-meta {
+  margin-top: 5px;
+  color: rgba(255,255,255,0.56);
+  font-size: 12px;
+  font-weight: 500;
+}
+.weather-classic-window .weather-hero-meta:empty { display: none; }
+.weather-classic-window .weather-hero-chips {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+.weather-classic-window .weather-hero-chips span {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px 9px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.12);
+}
+.weather-classic-window .weather-hero-chips b {
+  overflow: hidden;
+  color: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-classic-window .weather-hero-chips em {
+  overflow: hidden;
+  color: rgba(255,255,255,0.60);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.55px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Sections ── */
+.weather-classic-window :is(.weather-hourly-block, .weather-forecast-block) {
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.weather-classic-window .weather-section-title {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* Details: wide enough for "68.8 μg/m³" whole. */
+.weather-classic-window .weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.weather-classic-window .weather-metric {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  gap: 5px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.weather-classic-window :is(.weather-metric--good, .weather-metric--moderate, .weather-metric--bad)::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+.weather-classic-window .weather-metric--good::before     { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.55); }
+.weather-classic-window .weather-metric--moderate::before { background: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.55); }
+.weather-classic-window .weather-metric--bad::before      { background: #f87171; box-shadow: 0 0 12px rgba(248,113,113,0.55); }
+.weather-classic-window .weather-metric--good .weather-metric-value     { color: var(--color-success); }
+.weather-classic-window .weather-metric--moderate .weather-metric-value { color: var(--color-warn); }
+.weather-classic-window .weather-metric--bad .weather-metric-value      { color: var(--color-danger); }
+.weather-classic-window :is(.weather-metric-label, .weather-metric-value, .weather-metric-sub) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-classic-window .weather-metric-label {
+  color: rgba(255,255,255,0.55);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+.weather-classic-window .weather-metric-value {
+  color: #fff;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+.weather-classic-window .weather-metric-sub {
+  color: rgba(255,255,255,0.50);
+  font-size: 11px;
+  font-weight: 500;
+}
+/* The failure card explains why in a sentence: as wide as the grid, and it wraps. */
+.weather-classic-window .weather-metric--explain { grid-column: 1 / -1; }
+.weather-classic-window .weather-metric--explain :is(.weather-metric-value, .weather-metric-sub) { white-space: normal; line-height: 1.35; }
+.weather-classic-window .weather-metric--explain .weather-metric-value { font-size: 16px; }
+.weather-classic-window .weather-metric--explain .weather-win-key { justify-self: start; }
+
+/* Next hours: equal columns, a sideways scroll only when they do not fit. */
+.weather-classic-window .weather-hourly {
+  display: grid;
+  grid-auto-columns: minmax(76px, 1fr);
+  grid-auto-flow: column;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.14) transparent;
+}
+.weather-classic-window .weather-hour {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 74px;
+  padding: 8px 7px;
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.13);
+  text-align: center;
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+/* The current tile styles these class names too: the old line boxes come back here. */
+.weather-classic-window :is(.weather-hour-time, .weather-hour-temp, .weather-hour-rain) { min-height: 0; line-height: normal; }
+.weather-classic-window .weather-hour-time {
+  color: rgba(255,255,255,0.58);
+  font-size: 11px;
+  font-weight: 600;
+}
+.weather-classic-window .weather-hour-temp {
+  color: #fff;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.weather-classic-window .weather-hour .weather-mini-icon { box-shadow: none; }
+.weather-classic-window .weather-hour-rain {
+  color: var(--color-info);
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* Next days: cards, three across. */
+.weather-classic-window .weather-forecast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.weather-classic-window .weather-day {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 42px 10px 12px;
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+.weather-classic-window .weather-day-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.weather-classic-window .weather-day-range {
+  color: rgba(255,255,255,0.72);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.weather-classic-window .weather-day-icon { position: absolute; right: 10px; bottom: 9px; }
+.weather-classic-window .weather-day-condition {
+  overflow: hidden;
+  color: rgba(255,255,255,0.58);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .weather-classic-window .weather-metric:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.22); }
+  .weather-classic-window :is(.weather-hour, .weather-day):hover { transform: translateY(-2px); background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.18); }
+}
+
+/* ── Sizes ── */
+/* A short landscape screen: a smaller sky card, the same two columns. */
+@media (max-height: 620px) and (min-width: 900px) {
+  .weather-classic-window .weather-hero-card { min-height: 300px; padding: 18px; }
+  .weather-classic-window .weather-hero-card .weather-hero-visual { width: min(210px, 50%); right: 0; top: 14px; }
+  .weather-classic-window .weather-hero-temp { font-size: clamp(66px, 6.5vw, 98px); }
+  .weather-classic-window .weather-hero-condition { font-size: 17px; }
+  .weather-classic-window .weather-hero-chips span { padding: 7px 9px; }
+  .weather-classic-window .weather-metric { min-height: 60px; padding: 9px 11px; }
+  .weather-classic-window .weather-metric-value { font-size: 18px; }
+  .weather-classic-window .weather-hour { min-height: 68px; padding: 7px 5px; }
+}
+/* A narrow window: one column, the sky on top. */
+@container wxwin (max-width: 820px) {
+  .weather-classic-window { grid-template-columns: minmax(0, 1fr); }
+  .weather-classic-window .weather-hero-card { min-height: 300px; }
+  .weather-classic-window .weather-hero-card .weather-hero-visual { width: 240px; top: 6px; right: 6px; transform: scale(0.8) translateZ(0); transform-origin: top right; }
+}
+@container wxwin (max-width: 479px) {
+  .weather-content:has(> .weather-classic-window) { padding: 10px; }
+  .weather-classic-window .weather-hero-card { min-height: 260px; padding: 16px 18px; }
+  /* The sky's parts sit at fixed offsets: the whole picture shrinks rather than its box. */
+  .weather-classic-window .weather-hero-card .weather-hero-visual { width: 220px; top: 4px; right: 4px; transform: scale(0.62) translateZ(0); transform-origin: top right; }
+  .weather-classic-window .weather-hero-temp { font-size: 76px; }
+  .weather-classic-window .weather-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .weather-classic-window .weather-forecast { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Motion off: the sky holds still with the dashboard's other loops. The window is the
+   frosted overlay, so the overlay hold (body.overlay-frozen) does not stop it. ── */
+:is(body.ambient-idle, body.game-mode, body.low-power-gpu, body.perf-mode) .weather-classic-window .weather-hero-visual span { animation: none; }
+:is(body.ambient-idle, body.game-mode, body.low-power-gpu, body.perf-mode) .weather-classic-window .weather-hero-visual .weather-viz-ring { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .weather-classic-window .weather-hero-visual span { animation: none; }
+  .weather-classic-window .weather-hero-visual .weather-viz-ring { opacity: 0; }
+  .weather-classic-window :is(.weather-metric, .weather-hour, .weather-day) { transition: none; }
+  .weather-classic-window :is(.weather-hour, .weather-day):hover { transform: none; }
+}
