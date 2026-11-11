@@ -379,6 +379,14 @@ Remove-TaskSafe 'XenonInstallNativeOnce'
 # The native app's own sign-in task (apps/native login_task.rs); the app's
 # uninstaller below cannot take it, so it would fire at a missing exe.
 Remove-TaskSafe 'Xenon App'
+# The sensor service (enable-sensors.ps1): its task, then its two folders. Both
+# folders come from the known-folder API and are removed without following links.
+if (-not $DryRun) { Stop-ScheduledTask -TaskName 'Xenon Sensors' -ErrorAction SilentlyContinue }
+Remove-TaskSafe 'Xenon Sensors'
+foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::CommonApplicationData)) {
+  $base = [Environment]::GetFolderPath($sf)
+  if ($base) { Remove-PathNoFollowSafe (Join-Path $base 'Xenon Sensors') 'the sensor service' }
+}
 
 $serviceUninstall = Join-Path (Join-Path $root 'service') 'uninstall-service.ps1'
 if ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -or (Test-Path $serviceUninstall)) {

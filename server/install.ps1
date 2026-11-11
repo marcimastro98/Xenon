@@ -949,8 +949,8 @@ function Test-LibreHardwareMonitorPathTrusted([string]$MonitorPath) {
 }
 
 function Install-LibreHardwareMonitorIfNeeded {
-  # An elevated install registers the startup task at Highest, so the sensor
-  # scripts will run elevated and accept LibreHardwareMonitor only from Program
+  # An elevated install also installs the sensor service (enable-sensors.ps1),
+  # which runs elevated and accepts LibreHardwareMonitor only from Program
   # Files. winget installs this portable package per user unless told otherwise.
   $scopeArgs = @()
   if (Test-IsElevated) { $scopeArgs = @('--scope', 'machine') }
@@ -1156,7 +1156,10 @@ function Register-StartupTask {
 
   $taskUser = Get-CurrentTaskUserId
   $isElevated = Test-IsElevated
-  $runLevel = if ($isElevated) { 'Highest' } else { 'Limited' }
+  # Always normal rights: the engine's files are the user's to change, so an
+  # elevated task would hand administrator rights to whatever changed them. The
+  # sensors that need those rights come from the sensor service instead.
+  $runLevel = 'Limited'
   if (-not $isElevated) {
     Write-Host 'CPU temperature sensors on some systems require elevated access.' -ForegroundColor Yellow
     Write-Host 'For full automatic CPU temperature support, run INSTALL.bat once as Administrator.' -ForegroundColor Yellow
@@ -1192,8 +1195,7 @@ function Register-StartupTask {
 
     $schtasks = Join-Path $env:WINDIR 'System32\schtasks.exe'
     $taskRun = '"{0}" "{1}"' -f (Join-Path $env:WINDIR 'System32\wscript.exe'), $runner
-    $schtasksRunLevel = if ($isElevated) { 'HIGHEST' } else { 'LIMITED' }
-    & $schtasks /Create /TN $appName /TR $taskRun /SC ONLOGON /RL $schtasksRunLevel /F | Out-Host
+    & $schtasks /Create /TN $appName /TR $taskRun /SC ONLOGON /RL LIMITED /F | Out-Host
     if ($LASTEXITCODE -ne 0) {
       throw "schtasks.exe could not register the startup task (exit code $LASTEXITCODE)."
     }
@@ -1917,6 +1919,12 @@ Invoke-ComponentRetryPass
 # installs off the service first, then register the task and start the backend.
 Remove-BackendServiceIfPresent | Out-Null
 Register-StartupTask
+# Elevated: the sensors that need administrator rights get their own service,
+# under Program Files; the engine itself stays at normal rights.
+if ($installerElevated) {
+  try { & (Join-Path $PSScriptRoot 'enable-sensors.ps1') -NoRestart | Out-Null }
+  catch { Write-Host "The sensor service could not be installed: $($_.Exception.Message)" -ForegroundColor Yellow }
+}
 Register-UninstallEntry
 Start-WidgetServer -RestartExisting:$installerElevated
 

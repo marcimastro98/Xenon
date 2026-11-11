@@ -3,9 +3,11 @@
 //! data or not), then: the login tasks go, whatever runs from Xenon's folders
 //! stops, the engine's files go, and the app's own uninstaller finishes
 //! silently. No console, no PowerShell, no administrator prompt: everything
-//! here is the user's own, except an engine task "Install sensors" raised to
-//! run as administrator, which asks once. An engine installed with INSTALL.bat keeps its
-//! UNINSTALL.bat, which also undoes what that installer did as administrator.
+//! here is the user's own, except the sensor service ("Enable sensors": a task
+//! and two folders only an administrator can remove) and an engine task raised
+//! to run as administrator before 5.1.0, which ask once together. An engine
+//! installed with INSTALL.bat keeps its UNINSTALL.bat, which also undoes what
+//! that installer did as administrator.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -13,9 +15,11 @@ use std::time::Duration;
 use super::uninstall_words::{self as words, Words};
 use super::win_api::{self as api, is_inside};
 use super::windows::{local_app_data, quiet, UNINSTALL_KEY};
-use crate::{system32_exe, BACKEND_TASK};
+use crate::BACKEND_TASK;
 
 const APP_TASK: &str = "Xenon App";
+/// enable-sensors.ps1's task and folder name (under Program Files and ProgramData).
+const SENSOR_SERVICE: &str = "Xenon Sensors";
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 const APP_DATA_DIR: &str = "com.marcimastro98.xenon";
 
@@ -35,7 +39,7 @@ pub fn run() -> i32 {
     };
     let shell = std::env::current_exe().ok();
     unregister();
-    if !remove_raised_task() {
+    if !remove_elevated_parts() {
         say(words, &words.task_left.replace("{task}", BACKEND_TASK), api::MB_ICONWARNING);
     }
     stop_processes(engine, shell.as_deref());
@@ -80,25 +84,46 @@ fn unregister() {
     let _ = quiet("reg.exe").args(["delete", UNINSTALL_KEY, "/f"]).status();
 }
 
-/// "Install sensors" raises the engine task to run as administrator, and only
-/// an administrator can delete a task raised that way. One visible prompt then,
-/// never a silent leftover that runs a missing script at every sign-in.
-/// False when the task is still there.
-fn remove_raised_task() -> bool {
-    if !task_exists(BACKEND_TASK) {
-        return true;
+/// What only an administrator can remove: the sensor service and an engine
+/// task still raised (unregister() already deleted it when it was not). One
+/// visible prompt, only when one of them is there, never a silent leftover that
+/// runs a missing script at every sign-in. False when the engine task is still there.
+fn remove_elevated_parts() -> bool {
+    let present = task_exists(BACKEND_TASK) || task_exists(SENSOR_SERVICE) || sensor_service_dirs().iter().any(|d| d.exists());
+    if present {
+        if let Ok(exe) = std::env::current_exe() {
+            api::run_elevated(&exe, crate::UNINSTALL_ELEVATED_ARG);
+        }
     }
-    api::run_elevated(&system32_exe("schtasks.exe"), &delete_task_parameters(BACKEND_TASK));
     !task_exists(BACKEND_TASK)
+}
+
+/// The elevated half, `--uninstall-elevated`: this same program, started by
+/// remove_elevated_parts() behind the prompt. Fixed names only, folders from
+/// the known-folder API.
+pub fn run_elevated_part() -> i32 {
+    let _ = quiet("schtasks.exe").args(["/End", "/TN", SENSOR_SERVICE]).status();
+    for task in [SENSOR_SERVICE, BACKEND_TASK] {
+        let _ = quiet("schtasks.exe").args(["/Delete", "/TN", task, "/F"]).status();
+    }
+    // The service's PowerShell lets go of its folder a moment after /End.
+    std::thread::sleep(Duration::from_millis(1500));
+    for dir in sensor_service_dirs() {
+        let _ = remove_tree(&dir);
+    }
+    0
+}
+
+fn sensor_service_dirs() -> Vec<PathBuf> {
+    [api::FOLDERID_PROGRAM_FILES, api::FOLDERID_PROGRAM_DATA]
+        .iter()
+        .filter_map(api::known_folder)
+        .map(|dir| dir.join(SENSOR_SERVICE))
+        .collect()
 }
 
 fn task_exists(task: &str) -> bool {
     quiet("schtasks.exe").args(["/Query", "/TN", task]).output().is_ok_and(|out| out.status.success())
-}
-
-/// schtasks' own command line: the name is a constant with spaces, quoted.
-pub(super) fn delete_task_parameters(task: &str) -> String {
-    format!("/Delete /TN \"{task}\" /F")
 }
 
 /// What the engine and its installer write beside the app (start-hidden.vbs

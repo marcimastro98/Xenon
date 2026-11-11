@@ -221,15 +221,18 @@ fn the_unit_quotes_paths_with_spaces() {
 
 #[cfg(windows)]
 mod uninstall_tests {
-    use super::super::uninstall::{delete_task_parameters, leftovers, remove_all_but, remove_tree};
+    use super::super::uninstall::{leftovers, remove_all_but, remove_tree};
     use super::super::uninstall_words::{for_language, ALL};
     use super::super::win_api::is_inside;
     use super::{write, Scratch};
     use std::path::Path;
 
     #[test]
-    fn the_raised_task_is_deleted_by_its_whole_quoted_name() {
-        assert_eq!(delete_task_parameters("Xenon Edge Widget"), r#"/Delete /TN "Xenon Edge Widget" /F"#);
+    fn known_folders_come_from_windows_not_the_environment() {
+        let pf = super::super::win_api::known_folder(&super::super::win_api::FOLDERID_PROGRAM_FILES).expect("Program Files");
+        let pd = super::super::win_api::known_folder(&super::super::win_api::FOLDERID_PROGRAM_DATA).expect("ProgramData");
+        assert!(pf.is_absolute() && pd.is_absolute());
+        assert_ne!(pf, pd);
     }
 
     #[test]

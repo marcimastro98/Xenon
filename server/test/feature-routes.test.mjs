@@ -19,6 +19,8 @@ const CLASSIFIED = Object.freeze({
   // Whether FFmpeg is there may be read anywhere; installing it is the PC's call.
   'GET /api/ffmpeg/status': { remote: true },
   'POST /api/ffmpeg/install': { remote: false },
+  // Whether the sensor service runs and is current: a read, like /system.
+  'GET /api/sensor-service': { remote: true },
 });
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

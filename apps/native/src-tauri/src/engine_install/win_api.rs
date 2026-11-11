@@ -84,6 +84,34 @@ const _: () = assert!(std::mem::size_of::<ShellExecuteInfoW>() == if cfg!(target
 #[link(name = "shell32")]
 extern "system" {
     fn ShellExecuteExW(info: *mut ShellExecuteInfoW) -> i32;
+    fn SHGetKnownFolderPath(id: *const Guid, flags: u32, token: Handle, path: *mut *mut u16) -> i32;
+}
+
+#[link(name = "ole32")]
+extern "system" {
+    fn CoTaskMemFree(memory: *mut core::ffi::c_void);
+}
+
+#[repr(C)]
+pub struct Guid(u32, u16, u16, [u8; 8]);
+
+pub const FOLDERID_PROGRAM_FILES: Guid = Guid(0x905e_63b6, 0xc1bf, 0x494e, [0xb2, 0x9c, 0x65, 0xb7, 0x32, 0xd3, 0xd2, 0x1a]);
+pub const FOLDERID_PROGRAM_DATA: Guid = Guid(0x62ab_5d82, 0xfdc1, 0x4dc3, [0xa9, 0xdd, 0x07, 0x0d, 0x1d, 0x49, 0x5d, 0x97]);
+
+/// A system folder from the known-folder API, never from an environment
+/// variable: an elevated process must not let the user's environment pick
+/// what it deletes.
+pub fn known_folder(id: &Guid) -> Option<PathBuf> {
+    let mut raw: *mut u16 = std::ptr::null_mut();
+    let hr = unsafe { SHGetKnownFolderPath(id, 0, 0, &mut raw) };
+    let path = (hr == 0 && !raw.is_null()).then(|| {
+        let len = (0..).take_while(|&i| unsafe { *raw.add(i) } != 0).count();
+        PathBuf::from(String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(raw, len) }))
+    });
+    if !raw.is_null() {
+        unsafe { CoTaskMemFree(raw.cast()) };
+    }
+    path.filter(|p| p.is_absolute())
 }
 
 fn wide(text: &str) -> Vec<u16> {

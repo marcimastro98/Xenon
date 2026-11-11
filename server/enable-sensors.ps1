@@ -1,52 +1,53 @@
-# Raise Xenon's startup task to run elevated, so LibreHardwareMonitor can load
-# its kernel driver and the CPU temperature / fan RPM / CPU-watt sensors work.
+# Turn on the hardware sensors Windows protects (CPU temperature, fans, CPU and
+# PSU watts, CPU clock) with ONE administrator prompt, launched from the
+# dashboard (POST /system/enable-sensors).
 #
-# Why this exists: install.ps1 registers the per-logon task with
-# RunLevel = Highest ONLY when INSTALL.bat itself was run as administrator.
-# Double-clicking the .bat (the common case) registers it Limited, and NOTHING
-# repairs that afterwards - update-apply.ps1 never touches the task, so the level
-# stays frozen for the life of the install and those users silently never get CPU
-# temperature. Re-running the installer as admin fixes it; this is the one-tap
-# equivalent, launched from the dashboard (POST /system/enable-sensors).
+# Since 5.1.0 the engine never runs elevated. It lives in a folder the user can
+# write (node, the server, start-hidden.vbs), so an elevated startup task would
+# hand administrator rights to any program that changed a file there. Instead the
+# elevated step installs a small sensor service that only administrators can
+# change:
+#   - "%ProgramFiles%\Xenon Sensors": sensor-service.ps1, cpu-temp.ps1, sensors.ps1
+#   - "%ProgramData%\Xenon Sensors": where the service writes its readings,
+#     created with SYSTEM and Administrators full control, Users read only
+#   - the "Xenon Sensors" scheduled task: at this user's sign-in, highest rights,
+#     run whether or not the user is signed in (S4U), so no console ever shows
+#   - this user in Performance Log Users, so PresentMon reads FPS without
+#     administrator rights (from the next sign-in)
+#   - LibreHardwareMonitor (machine-wide) and the PawnIO driver when missing,
+#     through winget with fixed ids
+# and sets the engine's own task to normal rights. An engine that still runs
+# elevated (enabled before 5.1.0) is restarted through that task.
 #
-# The script relaunches ITSELF through UAC when it isn't already elevated: the
-# backend deliberately runs unelevated in the user's session (see the process
-# invariant in .claude/CLAUDE.md), so the prompt is the only way up. Everything it
-# runs is a fixed command - no value from the request reaches a command line.
+# The elevated PowerShell never runs a file it reads after the prompt. The
+# unelevated copy hashes the four scripts; the elevated one gets a short command
+# (-EncodedCommand) holding those hashes, reads each file ONCE into memory,
+# refuses any that changed, runs this script from those bytes and copies the
+# service files from the same bytes. Values travel as checked, quoted literals.
 #
-# The elevated copy is the text of THIS script as it was already loaded, handed
-# over in -EncodedCommand, never `-File <this path>`: the install folder is
-# writable by the user, and a file swapped between the UAC prompt and the moment
-# the elevated PowerShell opened it would run as administrator with nobody the
-# wiser. The task name travels inside that text as a checked, quoted literal.
-#
-# Since 5.1.0 the setup no longer installs LibreHardwareMonitor or the PawnIO
-# driver, so the elevated step also adds whichever of the two is missing, through
-# winget with fixed package ids (winget checks each installer against the hash in
-# its manifest). LHM goes machine-wide, under Program Files: cpu-temp.ps1 runs it
-# elevated and prefers copies only administrators can write.
-#
-# The elevated copy reports back through one status file in server\data, written
-# the way compact-vhdx.ps1 writes its own (fixed name, no link on the way, created
-# fresh). Its console is hidden and unreadable from here, and the install can take
-# minutes, so the task's run level alone no longer says when it has finished.
+# The elevated copy reports back through one status file in server\data (fixed
+# name, no link on the way, created fresh): its console is hidden and the install
+# can take minutes.
 
 param(
   [string]$TaskName = 'Xenon Edge Widget',
   [string]$DataDir,
-  [switch]$Elevated
+  [string]$UserSid,
+  [switch]$Elevated,
+  [switch]$RestartEngine,
+  [switch]$NoRestart
 )
-
-# Captured first, before any prompt can be shown: this is what the elevated copy
-# will run (see above).
-$selfText = $null
-try { $selfText = $MyInvocation.MyCommand.ScriptBlock.ToString() } catch { }
 
 $ErrorActionPreference = 'Stop'
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $utf8NoBom
 $OutputEncoding = $utf8NoBom
+
+$ServiceTask = 'Xenon Sensors'
+$ServiceFiles = @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1')
+# A local or domain account (S-1-5-21-...) or a Microsoft Entra one (S-1-12-1-...).
+$SidPattern = '^S-1-(5-21|12-1)(-\d{1,10}){4}$'
 
 function Out-Result($ok, $status, $message) {
   [pscustomobject]@{ ok = $ok; status = $status; message = $message } | ConvertTo-Json -Compress
@@ -102,7 +103,7 @@ function Get-PawnIoDriver {
 }
 
 # A LibreHardwareMonitorLib.dll of 0.9.5 or newer (no WinRing0) under Program
-# Files, the copy cpu-temp.ps1 tries first.
+# Files: the only copy the sensor service loads.
 function Test-MachineLhm {
   foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::ProgramFilesX86)) {
     $pf = [Environment]::GetFolderPath($sf)
@@ -155,6 +156,11 @@ function Test-Elevated {
   } catch { return $false }
 }
 
+function Get-Sha256Hex([byte[]]$Bytes) {
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace '-', '') } finally { $sha.Dispose() }
+}
+
 # A value as a PowerShell single-quoted literal. Inside single quotes only the
 # quote character is special, and PowerShell accepts four Unicode quote marks
 # (U+2018 to U+201B) as that character too, so every one of the five is doubled.
@@ -168,83 +174,120 @@ function ConvertTo-PsLiteral([string]$Value) {
   return "'" + $sb.ToString() + "'"
 }
 
-# This script's own text with its comments taken out (the parser decides what a
-# comment is, so nothing inside a string is touched): the encoded command is
-# limited by the 32767-character command line, and comments are most of it.
-function Get-ElevationScriptText([string]$Text) {
-  if (-not $Text) { return $null }
-  $tokens = $null; $errors = $null
-  [void][System.Management.Automation.Language.Parser]::ParseInput($Text, [ref]$tokens, [ref]$errors)
-  if ($errors -and $errors.Count) { return $null }
-  $sb = New-Object System.Text.StringBuilder $Text
-  foreach ($t in @($tokens | Where-Object { $_.Kind -eq 'Comment' } | Sort-Object { $_.Extent.StartOffset } -Descending)) {
-    [void]$sb.Remove($t.Extent.StartOffset, $t.Extent.EndOffset - $t.Extent.StartOffset)
-  }
-  return $sb.ToString()
+# The command the elevated PowerShell runs: read each script once, refuse it
+# unless its hash is the one taken before the prompt, then run this script from
+# those bytes. $global:XenonSensorFiles hands the same bytes to Install-SensorService.
+function New-ElevatedCommand([string]$Dir, [hashtable]$Hashes, [string]$Sid) {
+  $pairs = ($Hashes.Keys | Sort-Object | ForEach-Object { (ConvertTo-PsLiteral $_) + '=' + (ConvertTo-PsLiteral $Hashes[$_]) }) -join ';'
+  $lines = @(
+    "`$ErrorActionPreference='Stop'"
+    "`$d=" + (ConvertTo-PsLiteral $Dir) + ";`$h=@{" + $pairs + "};`$f=@{}"
+    "foreach(`$k in `$h.Keys){`$b=[IO.File]::ReadAllBytes((Join-Path `$d `$k));`$s=[Security.Cryptography.SHA256]::Create();if(([BitConverter]::ToString(`$s.ComputeHash(`$b)) -replace '-','') -ne `$h[`$k]){exit 3};`$f[`$k]=`$b}"
+    "`$global:XenonSensorFiles=`$f"
+    "`$t=[Text.Encoding]::UTF8.GetString(`$f['enable-sensors.ps1']).TrimStart([char]0xFEFF)"
+    "& ([ScriptBlock]::Create(`$t)) -TaskName " + (ConvertTo-PsLiteral $TaskName) + ' -DataDir ' + (ConvertTo-PsLiteral $DataDir) + ' -UserSid ' + (ConvertTo-PsLiteral $Sid) + ' -Elevated'
+  )
+  return ($lines -join "`n")
 }
 
-# Task names are plain: refuse anything else before it goes near a prompt or a
-# schtasks command line.
+# Deletes a file or folder without ever following a link inside it: a link is
+# removed as a link, so nothing outside the folder can be reached.
+function Remove-TreeNoFollow([string]$Path) {
+  $item = Get-Item -LiteralPath $Path -Force
+  if ($item.PSIsContainer -and -not (Test-IsLink $item)) {
+    foreach ($child in @(Get-ChildItem -LiteralPath $Path -Force)) { Remove-TreeNoFollow $child.FullName }
+  }
+  if ($item.PSIsContainer) { [IO.Directory]::Delete($Path) } else { $item.Attributes = 'Normal'; [IO.File]::Delete($Path) }
+}
+
+# %ProgramData% lets every user create folders, so the readings folder is made
+# here with its own rules from the first instant (SYSTEM and Administrators full,
+# Users read, nothing inherited) and a folder someone else made first is removed.
+function New-ReadingsFolder([string]$Path) {
+  $admins = New-Object Security.Principal.SecurityIdentifier 'S-1-5-32-544'
+  if (Test-Path -LiteralPath $Path) {
+    $item = Get-Item -LiteralPath $Path -Force
+    $owner = $item.GetAccessControl().GetOwner([Security.Principal.SecurityIdentifier])
+    if ((Test-IsLink $item) -or -not ($owner.Equals($admins) -or $owner.Value -eq 'S-1-5-18')) { Remove-TreeNoFollow $Path }
+  }
+  $acl = New-Object Security.AccessControl.DirectorySecurity
+  $acl.SetAccessRuleProtection($true, $false)
+  $acl.SetOwner($admins)
+  $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'
+  $none = [Security.AccessControl.PropagationFlags]::None
+  foreach ($rule in @(@('S-1-5-18', 'FullControl'), @('S-1-5-32-544', 'FullControl'), @('S-1-5-32-545', 'ReadAndExecute'))) {
+    $sid = New-Object Security.Principal.SecurityIdentifier $rule[0]
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, $rule[1], $inherit, $none, 'Allow')))
+  }
+  if (Test-Path -LiteralPath $Path) { (Get-Item -LiteralPath $Path -Force).SetAccessControl($acl) } else { [void][IO.Directory]::CreateDirectory($Path, $acl) }
+}
+
+function Register-SensorTask([string]$Dir, [string]$Account) {
+  $ps = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+  $script = Join-Path $Dir 'sensor-service.ps1'
+  $action = New-ScheduledTaskAction -Execute $ps -WorkingDirectory $Dir -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $script + '"')
+  $trigger = New-ScheduledTaskTrigger -AtLogOn -User $Account
+  $principal = New-ScheduledTaskPrincipal -UserId $Account -LogonType S4U -RunLevel Highest
+  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable
+  $settings.Hidden = $true
+  [void](Register-ScheduledTask -TaskName $ServiceTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force)
+}
+
+# The service, its folders and its task. Every file comes from the bytes checked
+# before the prompt ($global:XenonSensorFiles), never from a second read.
+function Install-SensorService([string]$Sid) {
+  $files = $global:XenonSensorFiles
+  foreach ($f in $ServiceFiles) { if (-not $files -or -not $files[$f]) { throw "The sensor service file $f is missing." } }
+  $account = (New-Object Security.Principal.SecurityIdentifier $Sid).Translate([Security.Principal.NTAccount]).Value
+  $schtasks = Join-Path ([Environment]::SystemDirectory) 'schtasks.exe'
+  if (Get-ScheduledTask -TaskName $ServiceTask -ErrorAction SilentlyContinue) { & $schtasks /End /TN $ServiceTask 2>&1 | Out-Null; Start-Sleep -Milliseconds 800 }
+
+  $pfDir = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)) $ServiceTask
+  if ((Test-Path -LiteralPath $pfDir) -and (Test-IsLink (Get-Item -LiteralPath $pfDir -Force))) { Remove-TreeNoFollow $pfDir }
+  [void][IO.Directory]::CreateDirectory($pfDir)
+  foreach ($f in $ServiceFiles) { [IO.File]::WriteAllBytes((Join-Path $pfDir $f), $files[$f]) }
+
+  New-ReadingsFolder (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)) $ServiceTask)
+  Register-SensorTask $pfDir $account
+  try { Add-LocalGroupMember -SID 'S-1-5-32-559' -Member $Sid -ErrorAction Stop } catch { }
+  & $schtasks /Run /TN $ServiceTask 2>&1 | Out-Null
+}
+
 if ($TaskName -notmatch '^[A-Za-z0-9 ._()-]{1,128}$') {
   Out-Result $false 'failed' 'Invalid task name.'
   return
 }
 
-# Nothing to raise if the task was never registered (a dev/manual `node
-# server/server.js`, or an install that never completed). Say so plainly instead
-# of throwing a UAC prompt that cannot help.
-$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if (-not $task) {
-  Out-Result $false 'no_task' 'The Xenon startup task is not registered on this PC.'
-  return
-}
-
 if (-not $Elevated) {
+  $UserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   if (Test-Elevated) {
-    # Already admin (rare: the whole hub was started elevated) - do the work here.
+    # Already admin: an engine started elevated before 5.1.0. Do the work here,
+    # from bytes read once, and restart that engine with normal rights.
+    $global:XenonSensorFiles = @{}
+    foreach ($f in $ServiceFiles) { $global:XenonSensorFiles[$f] = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $f)) }
+    $RestartEngine = -not $NoRestart
   } else {
-    $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $body = Get-ElevationScriptText $selfText
-    if (-not $body) {
-      Out-Result $false 'failed' 'The elevated step could not be prepared.'
-      return
-    }
-    if (-not (Test-StatusPath)) {
+    if (-not $PSScriptRoot -or -not (Test-StatusPath)) {
       Out-Result $false 'failed' 'The Xenon data folder is not where it should be.'
       return
     }
-    Remove-Item -LiteralPath $Status -Force -ErrorAction SilentlyContinue
-    $command = "& {`n" + $body + "`n} -TaskName " + (ConvertTo-PsLiteral $TaskName) +
-      ' -DataDir ' + (ConvertTo-PsLiteral $DataDir) + ' -Elevated'
+    $hashes = @{}
+    foreach ($f in @('enable-sensors.ps1') + $ServiceFiles) { $hashes[$f] = Get-Sha256Hex ([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $f))) }
+    $command = New-ElevatedCommand $PSScriptRoot $hashes $UserSid
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
-    if ($encoded.Length -gt 30000) {
-      Out-Result $false 'failed' 'The elevated step is too large to start.'
-      return
-    }
-    # NOT $args - that is an automatic variable; shadowing it is a trap for the
-    # next reader even where it happens to work.
+    Remove-Item -LiteralPath $Status -Force -ErrorAction SilentlyContinue
+    $psExe = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
     $psArgs = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
     try {
-      # -Verb RunAs raises the UAC prompt; a decline throws, and is reported as
-      # such rather than swallowed - the dashboard must tell "declined" from
-      # "failed".
-      #
-      # Do NOT wait on the child. An unelevated process cannot get SYNCHRONIZE
-      # access to an ELEVATED child's process object, so Start-Process's own -Wait
-      # blocked indefinitely here: the parent was observed still waiting minutes
-      # after the elevated child had already exited having done the work, which
-      # left the dashboard stuck on "waiting for the prompt" while the change had
-      # in fact succeeded. Start and move on; the poll below is the real
-      # completion signal, and it needs no rights we don't have.
+      # -Verb RunAs raises the UAC prompt; a decline throws and is reported as
+      # such. Never wait on the child: an unelevated process cannot get
+      # SYNCHRONIZE access to an elevated one, so -Wait blocked for good. The
+      # status file below is the completion signal.
       $child = Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $psArgs -WindowStyle Hidden -PassThru -ErrorAction Stop
     } catch {
       Out-Result $false 'declined' 'The administrator prompt was declined.'
       return
     }
-
-    # The child's console is hidden and unreadable, so its answer comes through
-    # the status file. Whether it is still running is read by id, which needs no
-    # rights over an elevated process. Installing can take minutes.
     $deadline = (Get-Date).AddMinutes(9)
     $goneAt = $null
     do {
@@ -267,53 +310,40 @@ if (-not (Test-Elevated)) {
   Out-Result $false 'not_elevated' 'This step needs administrator rights.'
   return
 }
+if ($UserSid -notmatch $SidPattern) {
+  Write-Status $false 'failed' 'The Windows account could not be read.'
+  Out-Result $false 'failed' 'The Windows account could not be read.'
+  return
+}
 
 try {
   $parts = 'ok'
   try { $parts = Install-SensorParts } catch { $parts = 'install_failed' }
+  Install-SensorService $UserSid
 
-  $schtasks = Join-Path $env:WINDIR 'System32\schtasks.exe'
-  # Raise the level unconditionally, even when an install failed: it is the
-  # permanent half of the fix and must survive even if the restart goes wrong.
-  & $schtasks /Change /TN $TaskName /RL HIGHEST | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    Write-Status $false 'failed' "schtasks could not change the task run level (exit $LASTEXITCODE)."
-    Out-Result $false 'failed' "schtasks could not change the task run level (exit $LASTEXITCODE)."
-    return
-  }
-  if ($parts -ne 'ok') {
-    Write-Status $false $parts 'The sensor reader could not be installed.'
-  } else {
-    Write-Status $true 'raised' 'The Xenon startup task now runs with administrator rights.'
-  }
-  # Time for the waiting copy to read the answer and the server to send it,
-  # before that server is stopped below.
+  # The engine's own task back to normal rights, whatever it was before.
+  $schtasks = Join-Path ([Environment]::SystemDirectory) 'schtasks.exe'
+  $engineTask = [bool](Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue)
+  if ($engineTask) { & $schtasks /Change /TN $TaskName /RL LIMITED 2>&1 | Out-Null }
+
+  if ($parts -ne 'ok') { Write-Status $false $parts 'The sensor reader could not be installed.' }
+  else { Write-Status $true 'service' 'The Xenon sensor service is installed.' }
+  # Without its task (a manual `node server.js`) nothing could start the engine
+  # again, so it is left running as it is.
+  if (-not $RestartEngine -or -not $engineTask) { Out-Result ($parts -eq 'ok') $(if ($parts -eq 'ok') { 'service' } else { $parts }) 'The Xenon sensor service is installed.'; return }
+
+  # An elevated engine keeps its token until it restarts. Stop it, then start
+  # it through its task, now at normal rights. Stop first, never the reverse: a
+  # second engine cannot bind the port, and the loser keeps settings.json open.
   Start-Sleep -Milliseconds 1500
-
-  # Raising the task does nothing for the backend that is ALREADY running - it
-  # keeps the unelevated token it was born with, so the sensors stay dark and the
-  # user is told to "restart Xenon" with no way to know which restart counts:
-  # closing the native app doesn't restart the backend (the task does, at logon),
-  # and relaunching it by hand starts it unelevated all over again. So finish the
-  # job here, where we still hold the rights: stop the backend and start it THROUGH
-  # the task, which now hands it an elevated token.
-  #
-  # Stop-then-start, in that order and never the reverse: a second backend cannot
-  # bind port 3030, and the loser lingers holding settings.json open, which makes
-  # every settings save fail with EPERM. Same shape as update-apply.ps1's
-  # Stop-Server/Start-Server.
   try {
     $owner = (Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue).OwningProcess
     if ($owner) { Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue }
   } catch { }
   Start-Sleep -Milliseconds 900
-
-  & $schtasks /Run /TN $TaskName | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    Out-Result $false 'raised_no_restart' 'Administrator rights are enabled, but Xenon could not be restarted automatically.'
-    return
-  }
-  Out-Result $true 'raised' 'The Xenon startup task now runs with administrator rights.'
+  & $schtasks /Run /TN $TaskName 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) { Out-Result $false 'raised_no_restart' 'The sensor service is installed, but Xenon could not be restarted automatically.'; return }
+  Out-Result $true 'restarting' 'The sensor service is installed and Xenon restarted with normal rights.'
 } catch {
   try { Write-Status $false 'failed' $_.Exception.Message } catch { }
   Out-Result $false 'failed' $_.Exception.Message

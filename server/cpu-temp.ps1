@@ -49,7 +49,7 @@ function Test-SensorAdmin {
 }
 
 # Which LibreHardwareMonitorLib.dll may be loaded, and from where. Add-Type runs
-# the library's code inside THIS process, and the startup task runs it elevated
+# the library's code inside THIS process, and the sensor service runs it elevated
 # once sensors are enabled, so two rules apply before anything is loaded:
 #
 # 1. Version 0.9.5 or newer. Earlier releases install and load the WinRing0
@@ -60,9 +60,9 @@ function Test-SensorAdmin {
 # 2. Location. Program Files (including winget's machine-wide Packages folder) is
 #    writable by administrators only. PATH, %LOCALAPPDATA%\Programs and winget's
 #    per-user Packages folder are writable by the user, so a DLL placed there
-#    would run with administrator rights here. Those are tried after the
-#    machine-wide copies (see Get-LibreHardwareMonitorDll for why they are
-#    still allowed).
+#    would run with administrator rights in the sensor service. The service
+#    loads only the machine-wide copies; the engine's own unelevated worker
+#    may also use the per-user ones (see Get-LibreHardwareMonitorDll).
 #    Program Files comes from the known-folder API, not from %ProgramFiles%,
 #    because environment variables are the user's to set.
 $script:LhmMinVersion = [Version]'0.9.5'
@@ -106,14 +106,13 @@ function Get-LibreHardwareMonitorDll {
   }
 
   $userWritable = @()
-  # Per-user copies are still used when elevated, after the machine-wide ones:
-  # the normal install (elevated, winget portable) puts LibreHardwareMonitor
-  # exactly there, and refusing it blanked the sensors on most installs. While
-  # the startup task itself runs elevated files the user can write (the server
-  # and node), refusing this one DLL closes nothing; the fix for both is a
-  # sensor component installed under Program Files. The version rule above
-  # stays: no WinRing0 build is ever loaded.
-  if ($true) {
+  # Per-user copies are for the engine's own worker, which runs with the user's
+  # rights, so a DLL there can do nothing the user could not. The sensor service
+  # (sensor-service.ps1, under Program Files, run elevated) sets
+  # $global:XenonTrustedLhmOnly and never looks here: a file the user can write
+  # must not run with administrator rights. The version rule above applies to
+  # both: no WinRing0 build is ever loaded.
+  if (-not $global:XenonTrustedLhmOnly) {
     try {
       $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
       if ($command) { $userWritable += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll' }

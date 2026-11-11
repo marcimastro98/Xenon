@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { stageNodeRuntime } from './node-runtime.mjs';
 import {
   addKoffiPlatforms, archiveTree, assertNoSymlinks, installDependencies,
-  manifestFiles, removeSymlinks, verifyDependencies, writeBundleInfo,
+  manifestFiles, dropMuslBinaries, removeSymlinks, verifyDependencies, writeBundleInfo,
 } from './engine-files.mjs';
 import { writeTauriOverlay } from './tauri-overlay.mjs';
 
@@ -58,6 +58,7 @@ async function main() {
   });
   installDependencies(appDir, runtimeDir, opts.platform);
   if (opts.platform === 'darwin') addKoffiPlatforms(appDir, runtimeDir, 'darwin', ['arm64', 'x64'], work);
+  if (opts.platform === 'linux') dropMuslBinaries(appDir);
   const links = removeSymlinks(appDir);
   assertNoSymlinks(opts.out);
   verifyDependencies(appDir, runtimeDir, opts.platform);

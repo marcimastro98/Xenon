@@ -95,6 +95,27 @@ export function addKoffiPlatforms(appDir, runtimeDir, platform, arches, workDir)
   }
 }
 
+/**
+ * koffi's Linux package also carries a musl build (musl_x64/, musl_arm64/).
+ * The bundled node is the glibc one, so it never loads it, but linuxdeploy
+ * walks every ELF in the AppImage and stops on that one's libc.musl. Linux only.
+ */
+export function dropMuslBinaries(appDir) {
+  const scope = join(appDir, 'node_modules', '@koromix');
+  if (!existsSync(scope)) return 0;
+  let removed = 0;
+  for (const pkg of readdirSync(scope)) {
+    if (!pkg.startsWith('koffi-linux-')) continue;
+    for (const entry of readdirSync(join(scope, pkg), { withFileTypes: true })) {
+      if (entry.isDirectory() && entry.name.startsWith('musl_')) {
+        rmSync(join(scope, pkg, entry.name), { recursive: true, force: true });
+        removed++;
+      }
+    }
+  }
+  return removed;
+}
+
 /** Loads the three runtime dependencies with the bundled node, as the engine will. */
 export function verifyDependencies(appDir, runtimeDir, platform) {
   const node = nodeBinary(runtimeDir, platform);

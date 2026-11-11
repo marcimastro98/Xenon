@@ -4,9 +4,11 @@
 // tool, the package config, and the updater never touching the runtime.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from '../../tools/engine-bundle/cli.mjs';
-import { manifestFiles } from '../../tools/engine-bundle/engine-files.mjs';
+import { dropMuslBinaries, manifestFiles } from '../../tools/engine-bundle/engine-files.mjs';
 import { nodeArchiveName, pinnedHash } from '../../tools/engine-bundle/node-runtime.mjs';
 import { tauriOverlay } from '../../tools/engine-bundle/tauri-overlay.mjs';
 
@@ -101,4 +103,19 @@ test('the package that carries the engine is never committed', () => {
   const ignore = read('.gitignore');
   assert.match(ignore, /^apps\/native\/src-tauri\/engine\/$/m);
   assert.match(ignore, /^apps\/native\/src-tauri\/tauri\.engine\.conf\.json$/m);
+});
+
+// linuxdeploy stopped the AppImage on koffi's musl build (libc.musl-x86_64.so.1).
+test('the Linux bundle keeps koffi glibc builds and drops the musl ones', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'engine-musl-'));
+  try {
+    const pkg = join(dir, 'node_modules', '@koromix', 'koffi-linux-x64');
+    for (const d of ['linux_x64', 'musl_x64']) { mkdirSync(join(pkg, d), { recursive: true }); writeFileSync(join(pkg, d, 'koffi.node'), ''); }
+    writeFileSync(join(pkg, 'package.json'), '{}');
+    assert.equal(dropMuslBinaries(dir), 1);
+    assert.equal(existsSync(join(pkg, 'musl_x64')), false);
+    assert.equal(existsSync(join(pkg, 'linux_x64', 'koffi.node')), true);
+    assert.equal(existsSync(join(pkg, 'package.json')), true);
+    assert.equal(dropMuslBinaries(join(dir, 'none')), 0, 'no koffi, nothing to do');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

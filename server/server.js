@@ -1218,9 +1218,8 @@ const HELPER_EXE = path.join(__dirname, 'helper',
 // did before macOS had a media path at all.
 const MEDIAREMOTE_DIR = path.join(__dirname, 'mediaremote');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
-// Raises the startup task to RunLevel Highest via UAC — the repair for
-// sensorAccess: 'needs_admin'. Elevates itself; never runs on the pwsh worker.
-const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1');
+const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1'); // one UAC prompt: the sensor service
+const sensorService = require('./sensor-service/reader.js').instance();
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const DISK_IO_SCRIPT = path.join(__dirname, 'disk-io.ps1');
@@ -5156,7 +5155,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = nativeCollectors ? await nativeCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      const data = nativeCollectors ? await nativeCollectors.cpuTemp() : ((await sensorService.cpu(sensorRateMs())) || await runCollector(CPU_TEMP_SCRIPT, [], 10000));
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
@@ -5247,7 +5246,7 @@ async function collectSensors(ids) {
   if (!POWERSHELL_SUPPORTED) return { known: true, sensors: [] };
   // The worker only: sensors.ps1 walks the LHM sessions that live there, so a
   // one-shot spawn would answer an empty list that looks like a sensorless PC.
-  const raw = parseJsonOutput(await runPowerShellWorker(SENSORS_SCRIPT, ids ? ['read', ids.join('|')] : ['list'], 8000));
+  const raw = await sensorService.mergeSensors(parseJsonOutput(await runPowerShellWorker(SENSORS_SCRIPT, ids ? ['read', ids.join('|')] : ['list'], 8000)), ids);
   if (!raw || raw.ok !== true) return { known: false, sensors: [] };
   const list = Array.isArray(raw.sensors) ? raw.sensors : (raw.sensors ? [raw.sensors] : []);
   return { known: raw.lhm === true, sensors: SensorSources.normalizeSensorCatalog(list) };
@@ -17592,10 +17591,10 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
-    // One tap for `sensorAccess` 'needs_admin' or 'missing': through one UAC prompt,
-    // install LHM + PawnIO if missing and raise the startup task to Highest, so the
-    // kernel driver loads. Fixed argv, no request value reaches a command line; the
-    // prompt is the real gate. POST-only, never JSONP, in CSRF_MUTATION_PATHS.
+    // One tap for `sensorAccess` 'needs_admin' or 'missing', or an outdated sensor
+    // service: one UAC prompt installs LHM + PawnIO if missing and the sensor service.
+    // Fixed argv, no request value reaches a command line; the prompt is the real
+    // gate. POST-only, never JSONP, in CSRF_MUTATION_PATHS.
     try {
       const out = await runPowerShellScript(ENABLE_SENSORS_SCRIPT, [], 600000); // may install LHM + PawnIO first
       json(out && typeof out === 'object' ? out : { ok: false, status: 'failed', message: 'no result' });
@@ -26536,6 +26535,7 @@ function _startListen(host) {
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
     setTimeout(() => { try { ensureCaptureEngine(); } catch { /* ignore */ } }, 12000);
+    setTimeout(() => { require('./sensor-service/migrate.js').migrateElevatedEngine({ dataDir: DATA_DIR, version: APP_VERSION, script: ENABLE_SENSORS_SCRIPT }).catch(() => {}); }, 15000);
     // After the engine's first look, so what it can do is known. Not there yet = next start.
     setTimeout(() => { capabilityRunner.seedKeys().catch((e) => console.warn('[keys] defaults failed:', e && e.message)); }, 20000);
     // Its first look is two minutes in: the dashboard's own startup comes first.
