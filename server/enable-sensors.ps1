@@ -126,11 +126,25 @@ function Test-MachineLhm {
   return $false
 }
 
+# winget.exe from its own package under Program Files\WindowsApps, which only
+# the system can change. Never through PATH: the usual winget.exe is an alias in
+# the user's own WindowsApps folder, and this runs as administrator.
+function Get-WingetPath {
+  try {
+    $pkg = @(Get-AppxPackage -Name 'Microsoft.DesktopAppInstaller' -ErrorAction Stop) | Sort-Object Version -Descending | Select-Object -First 1
+    $pf = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    if (-not $pkg -or -not $pkg.InstallLocation -or -not $pkg.InstallLocation.StartsWith($pf + '\WindowsApps\', [StringComparison]::OrdinalIgnoreCase)) { return $null }
+    $exe = Join-Path $pkg.InstallLocation 'winget.exe'
+    if (Test-Path -LiteralPath $exe -PathType Leaf) { return $exe }
+  } catch { }
+  return $null
+}
+
 function Invoke-Winget([string[]]$WingetArgs) {
-  $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+  $winget = Get-WingetPath
   if (-not $winget) { return }
   $common = @('--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--silent')
-  $p = Start-Process -FilePath $winget.Source -ArgumentList ($WingetArgs + $common) -WindowStyle Hidden -PassThru
+  $p = Start-Process -FilePath $winget -ArgumentList ($WingetArgs + $common) -WindowStyle Hidden -PassThru
   if (-not $p.WaitForExit(300000)) { try { $p.Kill() } catch { } }
 }
 
@@ -140,7 +154,7 @@ function Install-SensorParts {
   $needPawn = -not (Get-PawnIoDriver)
   $needLhm = -not (Test-MachineLhm)
   if (-not $needPawn -and -not $needLhm) { return 'ok' }
-  if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) { return $(if ($needLhm) { 'no_winget' } else { 'ok' }) }
+  if (-not (Get-WingetPath)) { return $(if ($needLhm) { 'no_winget' } else { 'ok' }) }
   if ($needPawn) { Invoke-Winget @('install', '--id', 'namazso.PawnIO') }
   if ($needLhm) {
     Invoke-Winget @('install', '--id', 'LibreHardwareMonitor.LibreHardwareMonitor', '--scope', 'machine')
@@ -178,7 +192,7 @@ function ConvertTo-PsLiteral([string]$Value) {
 # The command the elevated PowerShell runs: read each script once, refuse it
 # unless its hash is the one taken before the prompt, then run this script from
 # those bytes. $global:XenonSensorFiles hands the same bytes to Install-SensorService.
-function New-ElevatedCommand([string]$Dir, [hashtable]$Hashes, [string]$Sid) {
+function New-ElevatedCommand([string]$Dir, [hashtable]$Hashes, [string]$Sid, [switch]$Restart) {
   $pairs = ($Hashes.Keys | Sort-Object | ForEach-Object { (ConvertTo-PsLiteral $_) + '=' + (ConvertTo-PsLiteral $Hashes[$_]) }) -join ';'
   # First, before any command can load a module: system folders only, so no
   # module or program from the user's folders runs with these rights.
@@ -188,7 +202,7 @@ function New-ElevatedCommand([string]$Dir, [hashtable]$Hashes, [string]$Sid) {
     "foreach(`$k in `$h.Keys){`$b=[IO.File]::ReadAllBytes((Join-Path `$d `$k));`$s=[Security.Cryptography.SHA256]::Create();if(([BitConverter]::ToString(`$s.ComputeHash(`$b)) -replace '-','') -ne `$h[`$k]){exit 3};`$f[`$k]=`$b}"
     "`$global:XenonSensorFiles=`$f"
     "`$t=[Text.Encoding]::UTF8.GetString(`$f['enable-sensors.ps1']).TrimStart([char]0xFEFF)"
-    "& ([ScriptBlock]::Create(`$t)) -TaskName " + (ConvertTo-PsLiteral $TaskName) + ' -DataDir ' + (ConvertTo-PsLiteral $DataDir) + ' -UserSid ' + (ConvertTo-PsLiteral $Sid) + ' -Elevated'
+    "& ([ScriptBlock]::Create(`$t)) -TaskName " + (ConvertTo-PsLiteral $TaskName) + ' -DataDir ' + (ConvertTo-PsLiteral $DataDir) + ' -UserSid ' + (ConvertTo-PsLiteral $Sid) + ' -Elevated' + $(if ($Restart) { ' -RestartEngine' } else { '' })
   )
   return ($lines -join "`n")
 }
@@ -296,14 +310,28 @@ if ($TaskName -notmatch '^[A-Za-z0-9 ._()-]{1,128}$') {
 if (-not $Elevated) {
   $UserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   if (Test-Elevated) {
-    # Already admin: an engine started elevated before 5.1.0. Do the work here,
-    # from bytes read once, and restart that engine with normal rights. The
-    # engine's environment is the user's: system folders only from here on.
+    # Already admin: an engine started elevated before 5.1.0 (migrate.js, or its
+    # Enable sensors button). The engine's environment is the user's: system
+    # folders only from here on.
     $env:PSModulePath = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\Modules'
     $env:PATH = [Environment]::SystemDirectory + ';' + [Environment]::GetFolderPath('Windows')
+    if (-not $NoRestart) {
+      # This process sits in Node's kill-on-close job and dies with the engine it
+      # must stop, so the work goes to a PowerShell started from here, which
+      # leaves that job (silent breakaway): the same short command the UAC path
+      # runs, files read once and checked. Never detached from Node: a console-
+      # less powershell exits without running anything (VM, 11 Nov 2026).
+      $hashes = @{}
+      foreach ($f in @('enable-sensors.ps1') + $ServiceFiles) { $hashes[$f] = Get-Sha256Hex ([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $f))) }
+      $command = New-ElevatedCommand $PSScriptRoot $hashes $UserSid -Restart
+      $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+      $psExe = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+      Start-Process -FilePath $psExe -ArgumentList @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) -WindowStyle Hidden
+      Out-Result $true 'restarting' 'The sensor service is being installed and Xenon restarts with normal rights.'
+      return
+    }
     $global:XenonSensorFiles = @{}
     foreach ($f in $ServiceFiles) { $global:XenonSensorFiles[$f] = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $f)) }
-    $RestartEngine = -not $NoRestart
   } else {
     if (-not $PSScriptRoot -or -not (Test-StatusPath)) {
       Out-Result $false 'failed' 'The Xenon data folder is not where it should be.'
@@ -359,10 +387,16 @@ try {
   try { $parts = Install-SensorParts } catch { $parts = 'install_failed' }
   Install-SensorService $UserSid
 
-  # The engine's own task back to normal rights, whatever it was before.
+  # The engine's own task back to normal rights, whatever it was before. Through
+  # the task object, never `schtasks /Change`: on a task that runs as a user it
+  # waits for that user's password on a console nobody sees (VM, 11 Nov 2026).
   $schtasks = Join-Path ([Environment]::SystemDirectory) 'schtasks.exe'
-  $engineTask = [bool](Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue)
-  if ($engineTask) { & $schtasks /Change /TN $TaskName /RL LIMITED 2>&1 | Out-Null }
+  $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+  $engineTask = [bool]$task
+  if ($task -and $task.Principal.RunLevel -ne 'Limited') {
+    $task.Principal.RunLevel = 'Limited'
+    [void](Set-ScheduledTask -InputObject $task)
+  }
 
   if ($parts -ne 'ok') { Write-Status $false $parts 'The sensor reader could not be installed.' }
   else { Write-Status $true 'service' 'The Xenon sensor service is installed.' }

@@ -45,8 +45,10 @@ async function migrateElevatedEngine({ dataDir, version, script, env = process.e
   if (marker && marker.version === version) return 'done_before';
   await writeFileAtomic(path.join(dataDir, MARKER), JSON.stringify({ version, at: Date.now() }));
   const ps = path.join(sys, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-  // Detached: the step stops this engine before starting it again.
-  const child = start(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { detached: true, stdio: 'ignore', windowsHide: true });
+  // Never detached: a console-less powershell exits without running the script.
+  // The script itself hands the work to a PowerShell outside this engine's job,
+  // since it stops this engine before starting it again.
+  const child = start(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { stdio: 'ignore', windowsHide: true });
   child.on('error', () => { /* the next version tries again */ });
   child.unref();
   return 'started';

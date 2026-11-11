@@ -153,7 +153,10 @@ jobs:
         run: |
           set -euo pipefail
           DEB=$(ls apps/native/src-tauri/target/release/bundle/deb/*.deb | head -1)
-          dpkg-deb -c "$DEB" | grep -q '/engine/bundle.json' || { echo "::error::the deb carries no engine"; exit 1; }
+          # List to a file first: grep -q stops reading early and, under pipefail,
+          # the SIGPIPE on dpkg-deb would fail the step although the engine is there.
+          dpkg-deb -c "$DEB" > "$RUNNER_TEMP/deb-list.txt"
+          grep -q '/engine/bundle.json' "$RUNNER_TEMP/deb-list.txt" || { echo "::error::the deb carries no engine"; exit 1; }
 
       - name: Keep the engine log
         if: always()

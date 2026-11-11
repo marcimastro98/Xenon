@@ -125,7 +125,8 @@ function Write-Snapshot([string]$Leaf, [string]$Json) {
   # the link itself.
   if ([IO.File]::Exists($tmp)) { [IO.File]::Delete($tmp) }
   [IO.File]::WriteAllText($tmp, $Json, $utf8NoBom)
-  if ([IO.File]::Exists($dest)) { [IO.File]::Replace($tmp, $dest, $null) } else { [IO.File]::Move($tmp, $dest) }
+  # NullString: Windows PowerShell passes a plain $null to a [string] as "", which Replace rejects.
+  if ([IO.File]::Exists($dest)) { [IO.File]::Replace($tmp, $dest, [Management.Automation.Language.NullString]::Value) } else { [IO.File]::Move($tmp, $dest) }
 }
 
 function Write-Reading([string]$Leaf, [string]$Script, [object[]]$ScriptArgs) {

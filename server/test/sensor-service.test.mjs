@@ -190,7 +190,9 @@ test('an elevated engine with its task moves to the sensor service once per vers
     assert.equal(s.started.length, 1);
     assert.match(s.started[0].file, /System32[\\/]WindowsPowerShell[\\/]v1\.0[\\/]powershell\.exe$/);
     assert.deepEqual(s.started[0].args.slice(-2), ['-File', 'C:\\x\\server\\enable-sensors.ps1']);
-    assert.equal(s.started[0].opts.detached, true, 'it outlives the engine it restarts');
+    // A console-less (detached) powershell exits without running anything: the
+    // migration never happened on the VM (11 Nov 2026).
+    assert.notEqual(s.started[0].opts.detached, true);
     assert.equal(JSON.parse(readFileSync(join(dataDir, MARKER), 'utf8')).version, '5.1.0');
     assert.equal(await migrateElevatedEngine(opts), 'done_before', 'never a restart loop');
     assert.equal(s.started.length, 1);
@@ -249,10 +251,20 @@ test('cpu-temp.ps1 never loads a user-writable LibreHardwareMonitor in the servi
 
 test('enable-sensors.ps1 never raises the engine task, and lowers it', () => {
   assert.doesNotMatch(ENABLE, /\/RL HIGHEST/);
-  assert.match(ENABLE, /\/Change \/TN \$TaskName \/RL LIMITED/);
+  // Through the task object: `schtasks /Change` on a user's task waited for a
+  // password on a hidden console and the prompt never came back (VM, 11 Nov 2026).
+  assert.match(ENABLE, /\$task\.Principal\.RunLevel = 'Limited'\s+\[void\]\(Set-ScheduledTask -InputObject \$task\)/);
+  assert.doesNotMatch(ENABLE, /&\s*\$schtasks\s+\/Change/);
   assert.match(ENABLE, /-UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest/, 'the service runs as SYSTEM, never with the user\'s environment');
   assert.doesNotMatch(ENABLE, /S4U/);
   assert.match(ENABLE, /Add-LocalGroupMember -SID 'S-1-5-32-559'/, 'PresentMon without administrator rights');
+});
+
+test('the elevated step finds winget in its own package, never on the user\'s PATH', () => {
+  const find = ENABLE.slice(ENABLE.indexOf('function Get-WingetPath'), ENABLE.indexOf('function Invoke-Winget'));
+  assert.match(find, /Get-AppxPackage -Name 'Microsoft\.DesktopAppInstaller'/);
+  assert.match(find, /StartsWith\(\$pf \+ '\\WindowsApps\\'/, 'only under Program Files\\WindowsApps');
+  assert.doesNotMatch(ENABLE, /Get-Command winget/, 'the alias lives in a folder the user can write');
 });
 
 test('install.ps1 registers the engine task at normal rights only', () => {
@@ -286,6 +298,17 @@ test('the elevated PowerShell loads modules and programs from system folders onl
   assert.match(already.slice(0, 1500), /\$env:PSModulePath = /, 'the migration path too');
 });
 
+test('an engine already elevated hands the work to a PowerShell that outlives it', () => {
+  const already = ENABLE.slice(ENABLE.indexOf('if (Test-Elevated) {'), ENABLE.indexOf('} else {', ENABLE.indexOf('if (Test-Elevated) {')));
+  // Started from PowerShell, it leaves Node's kill-on-close job; it runs the
+  // same checked command as the UAC path, plus the restart.
+  assert.match(already, /New-ElevatedCommand \$PSScriptRoot \$hashes \$UserSid -Restart/);
+  assert.match(already, /Start-Process -FilePath \$psExe -ArgumentList @\([^)]*'-EncodedCommand', \$encoded\)/);
+  assert.doesNotMatch(already, /-Verb RunAs/, 'already elevated: no prompt');
+  assert.match(already, /Out-Result \$true 'restarting'/);
+  assert.match(ENABLE, /' -Elevated' \+ \$\(if \(\$Restart\) \{ ' -RestartEngine' \}/);
+});
+
 // An elevated run (a CI runner is administrator) refuses any folder but its own.
 const elevatedHere = () => {
   const whoami = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'whoami.exe');
@@ -301,8 +324,15 @@ test('a Windows box runs the service once into a scratch folder', { skip: proces
     writeFileSync(join(out, 'want', 'want-2000'), '');
     const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     const script = new URL('sensor-service.ps1', SERVER);
-    execFileSync(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '-OutDir', out, '-Once'], { windowsHide: true, timeout: 90000 });
+    const runOnce = () => execFileSync(ps, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '-OutDir', out, '-Once'], { windowsHide: true, timeout: 90000 });
+    runOnce();
+    const first = JSON.parse(readFileSync(join(out, 'service.json'), 'utf8'));
+    // The second run replaces files that exist: a plain $null backup name became
+    // "" in Windows PowerShell and every heartbeat after the first was lost (VM, 11 Nov 2026).
+    runOnce();
     const beat = JSON.parse(readFileSync(join(out, 'service.json'), 'utf8'));
+    assert.ok(beat.at > first.at, 'the heartbeat is replaced, not stuck at the first one');
+    assert.equal(existsSync(join(out, 'service.json.tmp')), false, 'no .tmp left behind');
     assert.equal(beat.v, 1);
     assert.match(beat.hash, /^[0-9a-f]{64}$/);
     assert.equal(beat.wanted, true);
