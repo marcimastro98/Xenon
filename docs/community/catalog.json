@@ -596,7 +596,7 @@
         "cpu",
         "on-screen"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "pkgId": "workload",
       "appVersionMin": "4.11.0",
       "preview": {
@@ -606,8 +606,8 @@
       },
       "shots": 2,
       "addedAt": "2026-09-28",
-      "updatedAt": "2026-11-04",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-12"
     },
     {
       "id": "aracne",
