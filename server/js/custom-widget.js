@@ -850,15 +850,29 @@
   // the hex it was set as. normalizeHex only reads hex, so a tile's own accent
   // or background fell back to the global one before reaching the widget.
   // Turned back into #rrggbb here; anything else passes through unchanged.
-  function computedHex(value) {
+  // A see-through colour is laid over `under` (a #rrggbb) when one is given: on
+  // Liquid Glass a tile's line, cards and keys are white or black at 8-16%
+  // (liquid-tiles.css), and with the alpha simply dropped a widget drew solid
+  // white lines and buttons on every tile.
+  function computedHex(value, under) {
     const raw = String(value || '').trim();
-    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+%?))?\s*\)$/i.exec(raw);
+    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)(%?))?\s*\)$/i.exec(raw);
     if (!m) return raw;
+    const alpha = m[4] == null ? 1 : Math.min(1, parseFloat(m[4]) / (m[5] ? 100 : 1));
     // Fully transparent has no colour to hand over: let the fallback apply.
-    if (m[4] != null && parseFloat(m[4]) === 0) return '';
+    if (alpha === 0) return '';
+    const base = /^#[0-9a-f]{6}$/i.test(under || '')
+      ? [1, 3, 5].map((i) => parseInt(under.slice(i, i + 2), 16))
+      : null;
     return '#' + [m[1], m[2], m[3]]
-      .map((v) => Math.max(0, Math.min(255, Math.round(Number(v)))).toString(16).padStart(2, '0'))
+      .map((v, i) => (base && alpha < 1 ? Number(v) * alpha + base[i] * (1 - alpha) : Number(v)))
+      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
       .join('');
+  }
+  // The dashboard's look by name, which `skin` deliberately folds into two:
+  // 'liquid' (Liquid Glass), 'glass' (Classic), 'retro' or 'comic'.
+  function lookMode(hs) {
+    return ['liquid', 'glass', 'retro', 'comic'].includes(hs.styleMode) ? hs.styleMode : 'glass';
   }
 
   function themePayload(entry) {
@@ -891,38 +905,48 @@
     if (entry && entry.frame && window.ThemePalette) {
       try {
         const cs = getComputedStyle(entry.frame);
-        const read = (name, fallback) => ThemePalette.normalizeHex(computedHex(cs.getPropertyValue(name)), fallback);
+        const read = (name, fallback, under) => ThemePalette.normalizeHex(computedHex(cs.getPropertyValue(name), under), fallback);
+        const num = (name) => { const v = parseFloat(cs.getPropertyValue(name)); return Number.isFinite(v) ? v : null; };
         const base = p || ThemePalette.derive({
           accent: hs.accent, background: hs.background, text: hs.text,
           contrastGuard: hs.contrastGuard,
         }, surfaceAppearance());
+        const background = read('--bg', base.background);
+        const surface = read('--surface', base.surface, background);
+        // Every other role sits on the tile, so a see-through one is laid over it.
+        const onTile = (name, fallback) => read(name, fallback, surface);
         const local = {
-          tone: ThemePalette.toneFor(read('--surface', base.surface)),
+          tone: ThemePalette.toneFor(surface),
           guard: base.guard,
-          background: read('--bg', base.background),
-          surface: read('--surface', base.surface),
-          surfaceAlt: read('--surface-alt', base.surfaceAlt),
-          control: read('--control-bg', base.control),
-          text: read('--text', base.text),
-          muted: read('--muted-text', base.muted),
-          dim: read('--dim-text', base.dim),
-          line: read('--line', base.line),
-          accent: read('--accent', base.accent),
-          onAccent: read('--on-accent', base.onAccent),
-          success: read('--color-success', base.success),
-          onSuccess: read('--on-success', base.onSuccess),
-          warning: read('--color-warn', base.warning),
-          onWarning: read('--on-warning', base.onWarning),
-          danger: read('--color-danger', base.danger),
-          onDanger: read('--on-danger', base.onDanger),
-          info: read('--color-info', base.info),
-          onInfo: read('--on-info', base.onInfo),
+          background,
+          surface,
+          surfaceAlt: onTile('--surface-alt', base.surfaceAlt),
+          control: onTile('--control-bg', base.control),
+          text: onTile('--text', base.text),
+          muted: onTile('--muted-text', base.muted),
+          dim: onTile('--dim-text', base.dim),
+          line: onTile('--line', base.line),
+          accent: onTile('--accent', base.accent),
+          onAccent: onTile('--on-accent', base.onAccent),
+          success: onTile('--color-success', base.success),
+          onSuccess: onTile('--on-success', base.onSuccess),
+          warning: onTile('--color-warn', base.warning),
+          onWarning: onTile('--on-warning', base.onWarning),
+          danger: onTile('--color-danger', base.danger),
+          onDanger: onTile('--on-danger', base.onDanger),
+          info: onTile('--color-info', base.info),
+          onInfo: onTile('--on-info', base.onInfo),
           // Panel opacity ("Opacità pannelli"): the nested-card surface already
           // carrying the user's alpha (surfaceAlt at --panel-soft-alpha), plus the
           // raw factor — so a widget can make its own cards follow it like a native
           // tile does. rgba string / 0..1 number; null when unavailable.
           surfaceSoft: (cs.getPropertyValue('--panel-soft').trim() || null),
-          panelAlpha: (() => { const a = parseFloat(cs.getPropertyValue('--panel-soft-alpha')); return Number.isFinite(a) ? a : null; })(),
+          panelAlpha: num('--panel-soft-alpha'),
+          // The tile's own edge (#153): the colour as the host resolved it (the
+          // user's Panel border dial, light tone, Retro's accent, Comic's ink) and
+          // the dial's alpha alone. A frame inherits neither from the tile.
+          panelBorder: (cs.getPropertyValue('--panel-border').trim() || null),
+          panelBorderAlpha: num('--panel-border-alpha'),
         };
         p = local;
         const tile = entry.frame.closest('.grid-stack-item');
@@ -942,12 +966,15 @@
         // Optional (present when the tile's tokens were readable): a card surface
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
+        // Optional: the tile's edge colour and the user's Panel border alpha.
+        panelBorder: p.panelBorder || null, panelBorderAlpha: (typeof p.panelBorderAlpha === 'number' ? p.panelBorderAlpha : null),
       };
-      return { appearance: p.tone, skin: skinMode(), overrides, controls, clock12, dateFormat, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), look: lookMode(hs), overrides, controls, clock12, dateFormat, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
       skin: skinMode(),
+      look: lookMode(hs),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',

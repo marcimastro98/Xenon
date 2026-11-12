@@ -40,7 +40,8 @@ on their own. Use `var(--surface-alt)` when a surface must stay fully solid
 regardless. The Pixel Retro and Comic skins keep solid cards by design, and at
 the default opacity the glass surface is near-solid, so nothing looks different
 until the user turns it down. SDK widgets receive the same thing as
-`palette.surfaceSoft` / `palette.panelAlpha` — see
+`palette.surfaceSoft` / `palette.panelAlpha`, and the tile's edge (Panel border)
+as `palette.panelBorder` / `palette.panelBorderAlpha` — see
 [WIDGET_SDK.md](WIDGET_SDK.md#4-theme--host--widget).
 
 ## Minimal and complete themes
