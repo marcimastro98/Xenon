@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v5.1.0] - 12-11-2026
+
 ### ✨ Changed
 - **One installer, nothing else to do.** The Xenon setup now carries everything Xenon needs to run. Install it, Xenon opens and finishes setting itself up in a minute or two, with a progress bar in your language. No black windows, no Terminal, no "allow changes" prompt and nothing to download before it starts, on Windows, macOS and Linux. On Windows and macOS the Xenon Helper (search, temperatures, the app switcher) follows on its own a moment later, checked like every update. If something stops it, it says so plainly and a Try again button starts over without touching your files or settings. Xenon already on your computer is left exactly as it is and keeps updating as before.
 - **One Xenon in Installed apps, removed in one step.** On Windows, Xenon installed with the new setup shows one entry in Settings → Apps instead of two. Uninstall asks one question in your language, whether to keep your settings, notes and widgets for a later install, and then removes everything, with no black window and no "allow changes" prompt. Xenon installed with INSTALL.bat keeps its UNINSTALL.bat as before.
@@ -16,7 +18,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **A creation sent back by the review comes back filled in.** When a reviewer asks for changes or turns a submission down, the creator now gets an email with a link that opens the website's submit form already filled in with what they sent: name, description, tags, colours and, while it is still waiting, the share code and screenshots. Every field can still be changed. The new version takes the old one's place in the queue, even if its name changed.
 - **The submit form reads the version, description and category from the widget itself.** Paste a widget or Ambient scene, or send it from Xenon Maker, and the empty Version, Description and Category fields fill in from what the package already says, so the Store listing matches the widget and its updates arrive as they should. Anything you already typed stays as it is.
 - **The Widget SDK guide now lists what the weather stream carries**, including the place the user set and its coordinates, so a weather map or radar can show the rain where the person is instead of a city the creator chose. Nothing changes in the app: the fields were already there.
-
 - **Widgets can match the tile's edge and the Liquid Glass look** ([#153](https://github.com/marcimastro98/Xenon/issues/153)). A widget now receives the edge of its own tile as you set it with Panel border, in the colour the look gives it (white, the accent on Pixel Retro, ink on Comic), and the name of the look: Liquid Glass, Classic, Pixel Retro or Comic. Before, a widget could only guess the edge, and could not tell Liquid Glass from Classic, where cards have no outline. The Widget SDK guide explains both.
 
 ### 🔒 Security

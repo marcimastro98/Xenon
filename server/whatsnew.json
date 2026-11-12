@@ -449,34 +449,342 @@
       "news": [
         {
           "title": {
-            "it": "Un solo installer",
-            "en": "One installer",
-            "es": "Un solo instalador",
-            "fr": "Un seul installeur",
-            "de": "Ein einziger Installer",
-            "pt": "Um só instalador",
-            "ru": "Один установщик",
-            "nl": "Eén installer",
-            "ko": "설치 프로그램 하나",
-            "ja": "インストーラーはひとつ",
-            "zh": "一个安装程序"
+            "it": "Il Meteo come preferisci",
+            "en": "Weather the way you like it",
+            "es": "El tiempo a tu manera",
+            "fr": "La météo comme tu l’aimes",
+            "de": "Das Wetter, wie du es magst",
+            "pt": "O tempo à sua maneira",
+            "ru": "Погода так, как вам нравится",
+            "nl": "Het weer zoals jij het wilt",
+            "ko": "원하는 방식의 날씨",
+            "ja": "好きなスタイルで天気を",
+            "zh": "按你喜欢的方式看天气"
           },
           "text": {
-            "it": "Chi installa Xenon da zero ora fa un solo passaggio: niente finestre nere, niente da scaricare prima di partire, e la barra di avanzamento parla la sua lingua.",
-            "en": "Anyone installing Xenon from scratch now takes one step: no black windows, nothing to download before it starts, and the progress bar speaks their language.",
-            "es": "Quien instala Xenon desde cero ahora da un solo paso: sin ventanas negras, nada que descargar antes de empezar, y la barra de progreso habla su idioma.",
-            "fr": "Installer Xenon depuis zéro tient maintenant en une étape : pas de fenêtres noires, rien à télécharger avant le démarrage, et la barre de progression parle ta langue.",
-            "de": "Wer Xenon neu installiert, braucht jetzt nur einen Schritt: keine schwarzen Fenster, nichts herunterzuladen vor dem Start, und der Fortschrittsbalken spricht deine Sprache.",
-            "pt": "Quem instala o Xenon de raiz agora faz um só passo: sem janelas pretas, nada para transferir antes de arrancar, e a barra de progresso fala a sua língua.",
-            "ru": "Новая установка Xenon теперь занимает один шаг: никаких чёрных окон, ничего не нужно скачивать перед запуском, а индикатор прогресса говорит на вашем языке.",
-            "nl": "Wie Xenon nieuw installeert, doet nu één stap: geen zwarte vensters, niets te downloaden voor de start, en de voortgangsbalk spreekt je taal.",
-            "ko": "처음부터 Xenon을 설치할 때 이제 한 단계면 됩니다. 검은 창도, 시작 전에 내려받을 것도 없고, 진행 막대는 사용 중인 언어로 표시됩니다.",
-            "ja": "Xenon を新しくインストールする手順はひとつだけになりました。黒いウィンドウも、起動前のダウンロードもなく、進行状況バーはあなたの言語で表示されます。",
-            "zh": "全新安装 Xenon 现在只需一步：没有黑色窗口，启动前无需下载任何内容，进度条使用你的语言。"
+            "it": "In Impostazioni, Meteo, Stile scegli tra Nuovo, Classico e Il tuo widget. Classico è il Meteo della 4.11, Nuovo mette le prossime ore in colonne e si legge al volo, Il tuo widget mette nel riquadro uno dei tuoi widget.",
+            "en": "In Settings, Weather, Style you pick New, Classic or Your widget. Classic is the Weather of 4.11, New puts the next hours in columns you read at a glance, and Your widget puts one of your own widgets in the tile.",
+            "es": "En Ajustes, Tiempo, Estilo eliges entre Nuevo, Clásico y Tu widget. Clásico es el Tiempo de la 4.11, Nuevo pone las próximas horas en columnas que se leen de un vistazo y Tu widget pone uno de tus widgets en el panel.",
+            "fr": "Dans Réglages, Météo, Style, tu choisis Nouveau, Classique ou Votre widget. Classique est la Météo de la 4.11, Nouveau met les prochaines heures en colonnes qui se lisent d’un coup d’œil, Votre widget met un de tes widgets dans la tuile.",
+            "de": "Unter Einstellungen, Wetter, Stil wählst du Neu, Klassisch oder Dein Widget. Klassisch ist das Wetter aus 4.11, Neu zeigt die nächsten Stunden in Spalten, die man auf einen Blick liest, und Dein Widget setzt eines deiner Widgets in die Kachel.",
+            "pt": "Em Definições, Meteorologia, Estilo escolhe entre Novo, Clássico e Seu widget. Clássico é a Meteorologia da 4.11, Novo mostra as próximas horas em colunas fáceis de ler e Seu widget põe um dos seus widgets no mosaico.",
+            "ru": "В Настройки, Погода, Стиль можно выбрать Новый, Классический или Ваш виджет. Классический это Погода из 4.11, Новый показывает ближайшие часы столбцами, которые читаются с одного взгляда, а Ваш виджет ставит в плитку один из ваших виджетов.",
+            "nl": "In Instellingen, Weer, Stijl kies je Nieuw, Klassiek of Jouw widget. Klassiek is het Weer van 4.11, Nieuw zet de komende uren in kolommen die je in één oogopslag leest, en Jouw widget zet een van je eigen widgets in de tegel.",
+            "ko": "설정, 날씨, 스타일에서 새 디자인, 클래식, 내 위젯 중에서 고를 수 있습니다. 클래식은 4.11의 날씨이고, 새 디자인은 다음 시간대를 한눈에 읽히는 열로 보여 주며, 내 위젯은 직접 고른 위젯을 타일에 넣습니다.",
+            "ja": "設定の天気、スタイルで、新デザイン、クラシック、自分のウィジェットから選べます。クラシックは 4.11 の天気、新デザインはこの先の時間をひと目で読める列で表示し、自分のウィジェットはタイルにあなたのウィジェットを置きます。",
+            "zh": "在设置、天气、样式中可以选择新版、经典或我的小组件。经典就是 4.11 的天气，新版把接下来几小时排成一眼就能看懂的列，我的小组件则把你自己的一个小组件放进磁贴。"
+          }
+        },
+        {
+          "title": {
+            "it": "Sensori senza diritti di amministratore",
+            "en": "Sensors without administrator rights",
+            "es": "Sensores sin derechos de administrador",
+            "fr": "Capteurs sans droits d’administrateur",
+            "de": "Sensoren ohne Administratorrechte",
+            "pt": "Sensores sem direitos de administrador",
+            "ru": "Датчики без прав администратора",
+            "nl": "Sensoren zonder beheerdersrechten",
+            "ko": "관리자 권한 없이 센서 사용",
+            "ja": "管理者権限なしでセンサー",
+            "zh": "无需管理员权限即可读取传感器"
+          },
+          "text": {
+            "it": "Su Windows, con temperature e ventole attive Xenon partiva come amministratore. Ora gira con i diritti normali e le letture arrivano da un piccolo servizio dei sensori. Il passaggio avviene da solo dopo l'aggiornamento.",
+            "en": "On Windows, with temperatures and fans on, Xenon used to start as administrator. It now runs with normal rights and a small sensor service hands it the readings. The move happens by itself after this update.",
+            "es": "En Windows, con las temperaturas y los ventiladores activados, Xenon arrancaba como administrador. Ahora funciona con derechos normales y un pequeño servicio de sensores le pasa las lecturas. El cambio se hace solo tras esta actualización.",
+            "fr": "Sous Windows, avec les températures et les ventilateurs activés, Xenon démarrait en administrateur. Il tourne maintenant avec des droits normaux et un petit service de capteurs lui transmet les mesures. Le passage se fait tout seul après cette mise à jour.",
+            "de": "Unter Windows startete Xenon mit eingeschalteten Temperaturen und Lüftern als Administrator. Jetzt läuft es mit normalen Rechten, und ein kleiner Sensordienst liefert ihm die Werte. Die Umstellung passiert nach diesem Update von selbst.",
+            "pt": "No Windows, com as temperaturas e as ventoinhas ativas, o Xenon arrancava como administrador. Agora funciona com direitos normais e um pequeno serviço de sensores entrega-lhe as leituras. A mudança acontece sozinha depois desta atualização.",
+            "ru": "В Windows при включённых температурах и вентиляторах Xenon запускался от имени администратора. Теперь он работает с обычными правами, а показания ему передаёт небольшая служба датчиков. Переход происходит сам после этого обновления.",
+            "nl": "Op Windows startte Xenon met temperaturen en ventilatoren aan als beheerder. Nu draait het met gewone rechten en geeft een kleine sensordienst het de metingen. De overstap gebeurt vanzelf na deze update.",
+            "ko": "Windows에서 온도와 팬을 켜면 Xenon이 관리자 권한으로 시작되었습니다. 이제는 일반 권한으로 실행되고, 작은 센서 서비스가 값을 전달합니다. 이 업데이트 후 전환은 자동으로 이루어집니다.",
+            "ja": "Windows で温度とファンをオンにすると、Xenon は管理者として起動していました。今は通常の権限で動き、小さなセンサーサービスが値を渡します。切り替えはこのアップデートのあと自動で行われます。",
+            "zh": "在 Windows 上，开启温度和风扇后 Xenon 以前会以管理员身份启动。现在它以普通权限运行，由一个小型传感器服务把读数交给它。更新后会自动完成切换。"
+          }
+        },
+        {
+          "title": {
+            "it": "Widget in tinta con Liquid Glass",
+            "en": "Widgets that match Liquid Glass",
+            "es": "Widgets a juego con Liquid Glass",
+            "fr": "Des widgets assortis à Liquid Glass",
+            "de": "Widgets passend zu Liquid Glass",
+            "pt": "Widgets a condizer com o Liquid Glass",
+            "ru": "Виджеты в тон Liquid Glass",
+            "nl": "Widgets die bij Liquid Glass passen",
+            "ko": "Liquid Glass에 어울리는 위젯",
+            "ja": "Liquid Glass になじむウィジェット",
+            "zh": "与 Liquid Glass 相配的小组件"
+          },
+          "text": {
+            "it": "I widget ricevono i colori del riquadro come li vedi e il suo bordo: niente più linee e tasti bianchi sul vetro.",
+            "en": "Widgets now get the tile's colours as you see them, and its edge: no more white lines and white buttons on the glass.",
+            "es": "Los widgets reciben ahora los colores del panel tal como los ves, y su borde: se acabaron las líneas y los botones blancos sobre el cristal.",
+            "fr": "Les widgets reçoivent maintenant les couleurs de la tuile telles que tu les vois, et son bord : plus de lignes ni de boutons blancs sur le verre.",
+            "de": "Widgets bekommen jetzt die Farben der Kachel so, wie du sie siehst, und ihren Rand: keine weißen Linien und Knöpfe mehr auf dem Glas.",
+            "pt": "Os widgets recebem agora as cores do mosaico tal como as vê, e o seu contorno: acabaram as linhas e os botões brancos sobre o vidro.",
+            "ru": "Виджеты теперь получают цвета плитки такими, какими вы их видите, и её рамку: больше никаких белых линий и кнопок на стекле.",
+            "nl": "Widgets krijgen nu de kleuren van de tegel zoals jij ze ziet, en de rand ervan: geen witte lijnen en knoppen meer op het glas.",
+            "ko": "위젯이 이제 타일의 색을 보이는 그대로, 테두리까지 받습니다. 유리 위에 흰 선과 흰 버튼이 더는 생기지 않습니다.",
+            "ja": "ウィジェットはタイルの色を見たままの形で、枠と一緒に受け取るようになりました。ガラスの上に白い線や白いボタンが出なくなります。",
+            "zh": "小组件现在会按你看到的样子获得磁贴的颜色和边框，玻璃上不再出现白线和白色按钮。"
+          }
+        },
+        {
+          "title": {
+            "it": "Musica più tranquilla",
+            "en": "A quieter music tile",
+            "es": "Un panel de música más tranquilo",
+            "fr": "Une tuile musique plus calme",
+            "de": "Eine ruhigere Musikkachel",
+            "pt": "Um mosaico de música mais calmo",
+            "ru": "Плитка музыки спокойнее",
+            "nl": "Een rustigere muziektegel",
+            "ko": "더 조용한 음악 타일",
+            "ja": "静かになった音楽タイル",
+            "zh": "更安静的音乐磁贴"
+          },
+          "text": {
+            "it": "Quando non suona niente, il riquadro della musica mostra solo la copertina e i tasti.",
+            "en": "When nothing is playing, the music tile shows only the picture and the play keys.",
+            "es": "Cuando no suena nada, el panel de música muestra solo la imagen y los botones.",
+            "fr": "Quand rien ne joue, la tuile musique n’affiche que l’image et les touches de lecture.",
+            "de": "Wenn nichts läuft, zeigt die Musikkachel nur das Bild und die Wiedergabetasten.",
+            "pt": "Quando nada está a tocar, o mosaico de música mostra só a imagem e as teclas.",
+            "ru": "Когда ничего не играет, плитка музыки показывает только картинку и кнопки.",
+            "nl": "Als er niets speelt, toont de muziektegel alleen de afbeelding en de afspeelknoppen.",
+            "ko": "재생 중인 음악이 없으면 음악 타일에 그림과 재생 버튼만 표시됩니다.",
+            "ja": "何も再生していないとき、音楽タイルには画像と再生ボタンだけが表示されます。",
+            "zh": "没有播放时，音乐磁贴只显示图片和播放按键。"
           }
         }
       ],
       "fixes": [
+        {
+          "area": {
+            "it": "Dashboard",
+            "en": "Dashboard",
+            "es": "Panel",
+            "fr": "Tableau de bord",
+            "de": "Dashboard",
+            "pt": "Painel",
+            "ru": "Панель",
+            "nl": "Dashboard",
+            "ko": "대시보드",
+            "ja": "ダッシュボード",
+            "zh": "仪表板"
+          },
+          "text": {
+            "it": "Su un PC lento la dashboard non compare più a metà dopo l'avvio: Bit resta finché è pronta.",
+            "en": "On a slow PC the dashboard no longer shows up half built: Bit stays until it is ready.",
+            "es": "En un PC lento el panel ya no aparece a medio hacer: Bit se queda hasta que está listo.",
+            "fr": "Sur un PC lent, le tableau de bord n’apparaît plus à moitié construit : Bit reste jusqu’à ce qu’il soit prêt.",
+            "de": "Auf einem langsamen PC erscheint das Dashboard nicht mehr halb fertig: Bit bleibt, bis es bereit ist.",
+            "pt": "Num PC lento o painel já não aparece a meio: o Bit fica até estar pronto.",
+            "ru": "На медленном ПК панель больше не появляется наполовину собранной: Bit остаётся, пока она не готова.",
+            "nl": "Op een trage pc verschijnt het dashboard niet meer half opgebouwd: Bit blijft tot het klaar is.",
+            "ko": "느린 PC에서 대시보드가 반쯤 만들어진 채로 나타나지 않습니다. 준비될 때까지 Bit가 기다립니다.",
+            "ja": "遅い PC でダッシュボードが作りかけのまま表示されなくなりました。準備ができるまで Bit が待ちます。",
+            "zh": "在较慢的电脑上，仪表板不再以半成品的样子出现：Bit 会一直等到它准备好。"
+          }
+        },
+        {
+          "area": {
+            "it": "Scrivania",
+            "en": "Desktop",
+            "es": "Escritorio",
+            "fr": "Bureau",
+            "de": "Desktop",
+            "pt": "Ambiente de trabalho",
+            "ru": "Рабочий стол",
+            "nl": "Bureaublad",
+            "ko": "바탕 화면",
+            "ja": "デスクトップ",
+            "zh": "桌面"
+          },
+          "text": {
+            "it": "Dopo lo swipe verso la scrivania i riquadri tornano a riempire lo schermo, senza saltare, e lo swipe funziona anche sulle pagine che scorrono.",
+            "en": "After a swipe to the desktop the tiles fill the screen again without jumping, and the swipe works on pages that scroll too.",
+            "es": "Tras deslizar al escritorio los paneles vuelven a llenar la pantalla sin saltos, y el gesto funciona también en páginas con desplazamiento.",
+            "fr": "Après un balayage vers le bureau, les tuiles remplissent de nouveau l’écran sans sauter, et le geste marche aussi sur les pages qui défilent.",
+            "de": "Nach einem Wischen zum Desktop füllen die Kacheln wieder den Bildschirm, ohne zu springen, und die Geste geht auch auf Seiten, die scrollen.",
+            "pt": "Depois de deslizar para o ambiente de trabalho, os mosaicos voltam a encher o ecrã sem saltos, e o gesto funciona também em páginas que deslizam.",
+            "ru": "После свайпа на рабочий стол плитки снова заполняют экран без прыжков, а жест работает и на прокручиваемых страницах.",
+            "nl": "Na een veeg naar het bureaublad vullen de tegels het scherm weer zonder te springen, en de veeg werkt ook op pagina's die scrollen.",
+            "ko": "바탕 화면으로 스와이프한 뒤 타일이 튀지 않고 다시 화면을 채우며, 스크롤되는 페이지에서도 스와이프가 동작합니다.",
+            "ja": "デスクトップへのスワイプのあと、タイルが跳ねずに画面を埋め直し、スクロールするページでもスワイプが効きます。",
+            "zh": "滑到桌面后，磁贴会重新铺满屏幕且不再跳动，可滚动的页面上也能滑动。"
+          }
+        },
+        {
+          "area": {
+            "it": "Browser",
+            "en": "Browser",
+            "es": "Navegador",
+            "fr": "Navigateur",
+            "de": "Browser",
+            "pt": "Navegador",
+            "ru": "Браузер",
+            "nl": "Browser",
+            "ko": "브라우저",
+            "ja": "ブラウザー",
+            "zh": "浏览器"
+          },
+          "text": {
+            "it": "Il riquadro Browser non resta più fermo sull'animazione di caricamento.",
+            "en": "The Browser tile no longer stays stuck on its loading animation.",
+            "es": "El panel Navegador ya no se queda atascado en la animación de carga.",
+            "fr": "La tuile Navigateur ne reste plus bloquée sur son animation de chargement.",
+            "de": "Die Browser-Kachel bleibt nicht mehr in der Ladeanimation hängen.",
+            "pt": "O mosaico Navegador já não fica preso na animação de carregamento.",
+            "ru": "Плитка браузера больше не зависает на анимации загрузки.",
+            "nl": "De Browser-tegel blijft niet meer hangen op de laadanimatie.",
+            "ko": "브라우저 타일이 로딩 애니메이션에서 더는 멈추지 않습니다.",
+            "ja": "ブラウザータイルが読み込みアニメーションのまま止まらなくなりました。",
+            "zh": "浏览器磁贴不再卡在加载动画上。"
+          }
+        },
+        {
+          "area": {
+            "it": "Layout",
+            "en": "Layout",
+            "es": "Diseño",
+            "fr": "Disposition",
+            "de": "Layout",
+            "pt": "Disposição",
+            "ru": "Макет",
+            "nl": "Indeling",
+            "ko": "레이아웃",
+            "ja": "レイアウト",
+            "zh": "布局"
+          },
+          "text": {
+            "it": "Le schede dentro i widget funzionano di nuovo mentre modifichi il layout, e la barra del layout si vede bene.",
+            "en": "Tabs inside widgets work again while you edit the layout, and the layout bar is easy to see.",
+            "es": "Las pestañas dentro de los widgets vuelven a funcionar mientras editas el diseño, y la barra del diseño se ve bien.",
+            "fr": "Les onglets des widgets fonctionnent de nouveau pendant que tu modifies la disposition, et la barre de disposition se voit bien.",
+            "de": "Tabs in Widgets funktionieren wieder, während du das Layout bearbeitest, und die Layout-Leiste ist gut zu sehen.",
+            "pt": "Os separadores dentro dos widgets voltam a funcionar enquanto edita a disposição, e a barra da disposição vê-se bem.",
+            "ru": "Вкладки внутри виджетов снова работают при правке макета, а панель макета хорошо видна.",
+            "nl": "Tabbladen in widgets werken weer terwijl je de indeling bewerkt, en de indelingsbalk is goed te zien.",
+            "ko": "레이아웃을 편집하는 동안 위젯 안의 탭이 다시 동작하고, 레이아웃 막대가 잘 보입니다.",
+            "ja": "レイアウトの編集中もウィジェット内のタブが再び使え、レイアウトバーも見やすくなりました。",
+            "zh": "编辑布局时，小组件里的标签页又能用了，布局栏也清楚可见。"
+          }
+        },
+        {
+          "area": {
+            "it": "Widget",
+            "en": "Widgets",
+            "es": "Widgets",
+            "fr": "Widgets",
+            "de": "Widgets",
+            "pt": "Widgets",
+            "ru": "Виджеты",
+            "nl": "Widgets",
+            "ko": "위젯",
+            "ja": "ウィジェット",
+            "zh": "小组件"
+          },
+          "text": {
+            "it": "I widget nella barra in alto non si bloccano più dopo un riavvio di Xenon, e fino a 8 widget restano attivi con il riquadro chiuso.",
+            "en": "Widgets in the top bar no longer freeze after Xenon restarts, and up to 8 widgets keep running with their tile closed.",
+            "es": "Los widgets de la barra superior ya no se congelan cuando Xenon se reinicia, y hasta 8 widgets siguen activos con su panel cerrado.",
+            "fr": "Les widgets de la barre du haut ne se figent plus après un redémarrage de Xenon, et jusqu’à 8 widgets continuent de tourner tuile fermée.",
+            "de": "Widgets in der oberen Leiste frieren nach einem Neustart von Xenon nicht mehr ein, und bis zu 8 Widgets laufen bei geschlossener Kachel weiter.",
+            "pt": "Os widgets da barra superior já não congelam depois de o Xenon reiniciar, e até 8 widgets continuam a funcionar com o mosaico fechado.",
+            "ru": "Виджеты в верхней панели больше не замирают после перезапуска Xenon, а до 8 виджетов продолжают работать с закрытой плиткой.",
+            "nl": "Widgets in de bovenbalk bevriezen niet meer na een herstart van Xenon, en tot 8 widgets blijven draaien met hun tegel dicht.",
+            "ko": "Xenon이 다시 시작된 뒤 상단 막대의 위젯이 멈추지 않으며, 타일을 닫아도 최대 8개의 위젯이 계속 동작합니다.",
+            "ja": "Xenon の再起動後に上部バーのウィジェットが止まらなくなり、タイルを閉じても最大 8 個のウィジェットが動き続けます。",
+            "zh": "Xenon 重启后，顶栏里的小组件不再卡住，关闭磁贴时最多 8 个小组件仍会继续运行。"
+          }
+        },
+        {
+          "area": {
+            "it": "Schermi",
+            "en": "Screens",
+            "es": "Pantallas",
+            "fr": "Écrans",
+            "de": "Bildschirme",
+            "pt": "Ecrãs",
+            "ru": "Экраны",
+            "nl": "Schermen",
+            "ko": "화면",
+            "ja": "画面",
+            "zh": "屏幕"
+          },
+          "text": {
+            "it": "Con uno switch KVM le altre finestre non restano più sopra la dashboard.",
+            "en": "With a KVM switch, other windows no longer stay on top of the dashboard.",
+            "es": "Con un conmutador KVM, las demás ventanas ya no se quedan encima del panel.",
+            "fr": "Avec un commutateur KVM, les autres fenêtres ne restent plus par-dessus le tableau de bord.",
+            "de": "Mit einem KVM-Switch bleiben andere Fenster nicht mehr über dem Dashboard.",
+            "pt": "Com um comutador KVM, as outras janelas já não ficam por cima do painel.",
+            "ru": "С KVM-переключателем другие окна больше не остаются поверх панели.",
+            "nl": "Met een KVM-switch blijven andere vensters niet meer over het dashboard staan.",
+            "ko": "KVM 스위치를 써도 다른 창이 더는 대시보드 위에 남지 않습니다.",
+            "ja": "KVM スイッチを使っても、ほかのウィンドウがダッシュボードの上に残らなくなりました。",
+            "zh": "使用 KVM 切换器时，其他窗口不再停留在仪表板上方。"
+          }
+        },
+        {
+          "area": {
+            "it": "Lyrics",
+            "en": "Lyrics",
+            "es": "Lyrics",
+            "fr": "Lyrics",
+            "de": "Lyrics",
+            "pt": "Lyrics",
+            "ru": "Lyrics",
+            "nl": "Lyrics",
+            "ko": "Lyrics",
+            "ja": "Lyrics",
+            "zh": "Lyrics"
+          },
+          "text": {
+            "it": "Le canzoni lunghe si traducono di nuovo, con Bit sulle Scintille o con la tua chiave Claude.",
+            "en": "Long songs translate again, with Bit on Sparks or with your own Claude key.",
+            "es": "Las canciones largas vuelven a traducirse, con Bit con Chispas o con tu propia clave de Claude.",
+            "fr": "Les chansons longues se traduisent de nouveau, avec Bit sur Étincelles ou avec ta propre clé Claude.",
+            "de": "Lange Songs werden wieder übersetzt, mit Bit über Funken oder mit deinem eigenen Claude-Schlüssel.",
+            "pt": "As músicas longas voltam a ser traduzidas, com o Bit em Faíscas ou com a sua própria chave Claude.",
+            "ru": "Длинные песни снова переводятся, с Bit на Искрах или с вашим собственным ключом Claude.",
+            "nl": "Lange nummers worden weer vertaald, met Bit op Vonken of met je eigen Claude-sleutel.",
+            "ko": "긴 노래도 다시 번역됩니다. 스파크로 쓰는 Bit이든 내 Claude 키든 마찬가지입니다.",
+            "ja": "長い曲も再び翻訳されます。スパークで使う Bit でも、自分の Claude キーでも同じです。",
+            "zh": "长歌曲又能翻译了，无论是用火花的 Bit 还是你自己的 Claude 密钥。"
+          }
+        },
+        {
+          "area": {
+            "it": "Ambient",
+            "en": "Ambient",
+            "es": "Ambient",
+            "fr": "Ambient",
+            "de": "Ambient",
+            "pt": "Ambient",
+            "ru": "Ambient",
+            "nl": "Ambient",
+            "ko": "Ambient",
+            "ja": "Ambient",
+            "zh": "Ambient"
+          },
+          "text": {
+            "it": "Sui PC con due schede video l'orologio resta di vetro sopra una tua immagine fissa.",
+            "en": "On PCs with two graphics cards the clock stays glass over a still picture of yours.",
+            "es": "En PC con dos tarjetas gráficas el reloj sigue siendo de cristal sobre una imagen fija tuya.",
+            "fr": "Sur les PC à deux cartes graphiques, l’horloge reste en verre sur une de tes images fixes.",
+            "de": "Auf PCs mit zwei Grafikkarten bleibt die Uhr über einem eigenen Standbild aus Glas.",
+            "pt": "Nos PCs com duas placas gráficas o relógio continua de vidro sobre uma imagem fixa sua.",
+            "ru": "На ПК с двумя видеокартами часы остаются стеклянными поверх вашей неподвижной картинки.",
+            "nl": "Op pc's met twee videokaarten blijft de klok van glas boven een eigen stilstaande afbeelding.",
+            "ko": "그래픽 카드가 두 개인 PC에서 내 정지 이미지 위의 시계가 유리 모양을 유지합니다.",
+            "ja": "グラフィックカードが 2 枚ある PC で、自分の静止画の上でも時計がガラスのままになります。",
+            "zh": "在有两块显卡的电脑上，时钟在你自己的静态图片上也保持玻璃效果。"
+          }
+        },
         {
           "area": {
             "it": "Store",
@@ -492,73 +800,73 @@
             "zh": "商店"
           },
           "text": {
-            "it": "Gli elementi in vendita con le Sparks mostrano di nuovo il prezzo dopo un aggiornamento.",
+            "it": "Gli elementi in vendita con le Scintille mostrano di nuovo il prezzo dopo un aggiornamento.",
             "en": "Items sold for Sparks show their price again after an update.",
-            "es": "Los elementos que se venden con Sparks vuelven a mostrar su precio tras una actualización.",
-            "fr": "Les éléments vendus en Sparks affichent de nouveau leur prix après une mise à jour.",
-            "de": "Artikel, die es für Sparks gibt, zeigen nach einem Update wieder ihren Preis.",
-            "pt": "Os itens vendidos com Sparks voltam a mostrar o preço depois de uma atualização.",
-            "ru": "Товары за Sparks снова показывают цену после обновления.",
-            "nl": "Items die je met Sparks koopt, tonen na een update weer hun prijs.",
-            "ko": "Sparks로 판매되는 항목이 업데이트 후에도 다시 가격을 표시합니다.",
-            "ja": "Sparks で販売されているアイテムが、アップデート後も価格を表示するようになりました。",
-            "zh": "用 Sparks 出售的项目在更新后会重新显示价格。"
+            "es": "Los elementos que se venden con Chispas vuelven a mostrar su precio tras una actualización.",
+            "fr": "Les éléments vendus en Étincelles affichent de nouveau leur prix après une mise à jour.",
+            "de": "Artikel, die es für Funken gibt, zeigen nach einem Update wieder ihren Preis.",
+            "pt": "Os itens vendidos com Faíscas voltam a mostrar o preço depois de uma atualização.",
+            "ru": "Товары за Искры снова показывают цену после обновления.",
+            "nl": "Items die je met Vonken koopt, tonen na een update weer hun prijs.",
+            "ko": "스파크로 판매되는 항목이 업데이트 후 다시 가격을 표시합니다.",
+            "ja": "スパークで販売されているアイテムが、アップデート後に再び価格を表示します。",
+            "zh": "用火花出售的项目在更新后会重新显示价格。"
           }
         },
         {
           "area": {
-            "it": "Sparks",
+            "it": "Scintille",
             "en": "Sparks",
-            "es": "Sparks",
-            "fr": "Sparks",
-            "de": "Sparks",
-            "pt": "Sparks",
-            "ru": "Sparks",
-            "nl": "Sparks",
-            "ko": "Sparks",
-            "ja": "Sparks",
-            "zh": "Sparks"
+            "es": "Chispas",
+            "fr": "Étincelles",
+            "de": "Funken",
+            "pt": "Faíscas",
+            "ru": "Искры",
+            "nl": "Vonken",
+            "ko": "스파크",
+            "ja": "スパーク",
+            "zh": "火花"
           },
           "text": {
-            "it": "Su un drop che si compra con le Sparks, il codice sostenitore ora lo dice e ti mostra l'acquisto, che le Sparks del pass possono pagare.",
-            "en": "On a drop bought with Sparks, your supporter code now says so and shows the purchase, which the Sparks on your pass can pay for.",
-            "es": "En un drop que se compra con Sparks, tu código de mecenas ahora lo indica y muestra la compra, que las Sparks de tu pase pueden pagar.",
-            "fr": "Sur un drop qui s'achète en Sparks, ton code supporter le dit maintenant et affiche l'achat, que les Sparks de ton pass peuvent payer.",
-            "de": "Bei einem Drop, den man mit Sparks kauft, sagt dein Unterstützer-Code das jetzt und zeigt den Kauf, den die Sparks deines Passes bezahlen können.",
-            "pt": "Num drop que se compra com Sparks, o teu código de apoiante agora diz isso e mostra a compra, que as Sparks do teu passe podem pagar.",
-            "ru": "Для дропа, который покупается за Sparks, код спонсора теперь говорит об этом и показывает покупку, которую можно оплатить Sparks с вашего пропуска.",
-            "nl": "Bij een drop die je met Sparks koopt, zegt je supportercode dat nu en toont de aankoop, die de Sparks van je pas kunnen betalen.",
-            "ko": "Sparks로 구매하는 드롭에서 후원자 코드가 이제 그 사실을 알려 주고, 패스의 Sparks로 결제할 수 있는 구매 화면을 보여 줍니다.",
-            "ja": "Sparks で購入するドロップでは、サポーターコードがそのことを伝え、パスの Sparks で支払える購入画面を表示するようになりました。",
-            "zh": "对于用 Sparks 购买的内容，你的支持者代码现在会说明这一点，并显示可用通行证中的 Sparks 支付的购买。"
+            "it": "Il codice sostenitore ora è sempre lo stesso, Impostazioni lo controlla quando lo salvi, e un codice Scintille comprato con un'altra email si salva accanto.",
+            "en": "Your supporter code now stays the same, Settings checks it when you save it, and a Sparks code bought with another email saves next to it.",
+            "es": "Tu código de mecenas ahora es siempre el mismo, Ajustes lo comprueba al guardarlo, y un código de Chispas comprado con otro email se guarda a su lado.",
+            "fr": "Ton code supporter reste maintenant le même, Réglages le vérifie à l’enregistrement, et un code Étincelles acheté avec un autre e-mail s’enregistre à côté.",
+            "de": "Dein Unterstützer-Code bleibt jetzt immer gleich, die Einstellungen prüfen ihn beim Speichern, und ein Funken-Code, mit einer anderen E-Mail gekauft, wird daneben gespeichert.",
+            "pt": "O seu código de apoiante agora fica sempre o mesmo, as Definições verificam-no ao guardar, e um código de Faíscas comprado com outro email guarda-se ao lado.",
+            "ru": "Код спонсора теперь всегда один и тот же, Настройки проверяют его при сохранении, а код Искр, купленный на другой email, сохраняется рядом.",
+            "nl": "Je supporterscode blijft nu altijd hetzelfde, Instellingen controleert hem bij het opslaan, en een Vonken-code gekocht met een ander e-mailadres wordt ernaast bewaard.",
+            "ko": "후원자 코드는 이제 항상 같고, 저장할 때 설정에서 확인하며, 다른 이메일로 산 스파크 코드도 옆에 저장됩니다.",
+            "ja": "サポーターコードは常に同じになり、保存時に設定で確認され、別のメールで買ったスパークのコードも隣に保存できます。",
+            "zh": "你的支持者代码现在始终不变，保存时设置会检查它，用其他邮箱购买的火花代码也能保存在它旁边。"
           }
         },
         {
           "area": {
-            "it": "Sparks",
-            "en": "Sparks",
-            "es": "Sparks",
-            "fr": "Sparks",
-            "de": "Sparks",
-            "pt": "Sparks",
-            "ru": "Sparks",
-            "nl": "Sparks",
-            "ko": "Sparks",
-            "ja": "Sparks",
-            "zh": "Sparks"
+            "it": "Deck",
+            "en": "Deck",
+            "es": "Deck",
+            "fr": "Deck",
+            "de": "Deck",
+            "pt": "Deck",
+            "ru": "Deck",
+            "nl": "Deck",
+            "ko": "Deck",
+            "ja": "Deck",
+            "zh": "Deck"
           },
           "text": {
-            "it": "Un codice Sparks comprato con un'altra email ora si salva in Impostazioni accanto al codice sostenitore.",
-            "en": "A Sparks code bought with a different email now saves in Settings next to your supporter code.",
-            "es": "Un código de Sparks comprado con otro correo ahora se guarda en Ajustes junto a tu código de mecenas.",
-            "fr": "Un code Sparks acheté avec une autre adresse e-mail s'enregistre maintenant dans les Réglages à côté de ton code supporter.",
-            "de": "Ein Sparks-Code, der mit einer anderen E-Mail gekauft wurde, lässt sich jetzt in den Einstellungen neben deinem Unterstützer-Code speichern.",
-            "pt": "Um código de Sparks comprado com outro email agora fica guardado nas Definições ao lado do teu código de apoiante.",
-            "ru": "Код Sparks, купленный с другой почтой, теперь сохраняется в настройках рядом с кодом спонсора.",
-            "nl": "Een Sparks-code die je met een ander e-mailadres kocht, bewaar je nu in Instellingen naast je supportercode.",
-            "ko": "다른 이메일로 구매한 Sparks 코드도 이제 설정에서 후원자 코드 옆에 저장됩니다.",
-            "ja": "別のメールアドレスで購入した Sparks コードも、設定でサポーターコードの横に保存できるようになりました。",
-            "zh": "用其他邮箱购买的 Sparks 代码现在可以保存在设置中，与你的支持者代码并列。"
+            "it": "Un profilo Deck condiviso non porta più i link alle tue chat.",
+            "en": "A shared Deck profile no longer carries links to your own chats.",
+            "es": "Un perfil de Deck compartido ya no lleva enlaces a tus chats.",
+            "fr": "Un profil Deck partagé n’emporte plus de liens vers tes discussions.",
+            "de": "Ein geteiltes Deck-Profil enthält keine Links mehr zu deinen eigenen Chats.",
+            "pt": "Um perfil do Deck partilhado já não leva ligações para as suas conversas.",
+            "ru": "Общий профиль Deck больше не содержит ссылок на ваши чаты.",
+            "nl": "Een gedeeld Deck-profiel bevat geen links meer naar je eigen chats.",
+            "ko": "공유한 Deck 프로필에 더는 내 채팅 링크가 들어가지 않습니다.",
+            "ja": "共有した Deck プロフィールに自分のチャットへのリンクが含まれなくなりました。",
+            "zh": "分享的 Deck 配置不再带有指向你自己聊天的链接。"
           }
         }
       ]
