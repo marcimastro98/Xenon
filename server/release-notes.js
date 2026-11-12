@@ -4,10 +4,6 @@
 // looks like. Rebuilt from known keys only, like normalizeWhatsNew in server.js:
 // the file ships with the build, but what reaches the page is still a boundary.
 
-const fs = require('fs');
-const path = require('path');
-const { writeFileAtomic } = require('./atomic-write.js');
-
 const SHEET_COLORS = Object.freeze(['green', 'lavender', 'yellow', 'blue', 'orange']);
 const SHEET_SCENES = Object.freeze(['menu', 'capture', 'fps', 'bit']);
 const MENU_SECTIONS = Object.freeze(['now', 'widgets', 'capture', 'keys', 'look', 'mode']);
@@ -19,8 +15,6 @@ const LOCAL_MEDIA = /^\/assets\/whatsnew\/[a-z0-9-]+\.(webp|png|jpg|mp4)$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
 const MAX_RELEASES = 40;
 const MAX_ROWS = 20;
-// The version a new install started on: its news were never news to that person.
-const ORIGIN_FILE = 'install-origin.json';
 
 const oneOf = (list, value) => (list.includes(value) ? value : '');
 
@@ -87,48 +81,7 @@ function cleanSeen(body) {
   return out;
 }
 
-const versionParts = (v) => String(v).split('.').map(Number);
-function newerThan(v, base) {
-  const [a, b] = [versionParts(v), versionParts(base)];
-  for (let i = 0; i < 3; i += 1) if (a[i] !== b[i]) return a[i] > b[i];
-  return false;
-}
-
-// What is news to this install: a release it started on, or an older one, is not.
-// Every surface reads the same answer, so none of them can race the first-run
-// question with the notes of the version just installed. An id that is not a
-// version (a named feature sheet) is kept.
-function sinceOrigin(wn, origin) {
-  if (!VERSION.test(String(origin || '')) || !wn) return wn;
-  const oldMajor = VERSION.test(String(wn.id || '')) && !newerThan(wn.id, origin);
-  return {
-    ...wn,
-    highlights: oldMajor ? [] : wn.highlights,
-    more: oldMajor ? null : wn.more,
-    releases: (Array.isArray(wn.releases) ? wn.releases : []).filter((r) => newerThan(r.version, origin)),
-  };
-}
-
-// Read once per process; a missing or broken file means "no origin": an install
-// from before this file existed sees its notes as it always did.
-let originCache;
-async function origin(dataDir) {
-  if (originCache !== undefined) return originCache;
-  try {
-    const v = JSON.parse(await fs.promises.readFile(path.join(dataDir, ORIGIN_FILE), 'utf8')).version;
-    originCache = VERSION.test(String(v || '')) ? v : null;
-  } catch { originCache = null; }
-  return originCache;
-}
-
-// Only a new install calls this, before its first request.
-async function markOrigin(dataDir, version) {
-  if (!VERSION.test(String(version || ''))) return;
-  await writeFileAtomic(path.join(dataDir, ORIGIN_FILE), JSON.stringify({ version }));
-  originCache = version;
-}
-
 module.exports = {
-  normalizeSheet, normalizeMedia, normalizeMore, normalizeReleases, cleanSeen, sinceOrigin, origin, markOrigin,
+  normalizeSheet, normalizeMedia, normalizeMore, normalizeReleases, cleanSeen,
   SHEET_COLORS, SHEET_SCENES,
 };

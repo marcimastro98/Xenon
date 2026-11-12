@@ -3715,21 +3715,9 @@ async function _hydrateHubSettingsImpl() {
     // long after the dashboard was on screen and looking finished. There is
     // nothing in either surface that needs a decoded image.
     const runFirstRunSurfaces = () => {
-      // A fresh install has no "what's new" to be told about: there is no version
-      // it is coming from. Said here because this is the one place that knows it,
-      // and before the picker opens so the modal cannot slip in between (update.js
-      // also re-reads the flag after its own network wait).
+      // A fresh install is told what's new too, after this question: the What's
+      // New waits for any first-run overlay (js/interrupt-queue.js).
       const cards = window.XenonStartupCards;
-      const fresh = window.XenonReleaseNotice && cards && window.XenonReleaseNotice.freshInstall({
-        asked: getSurfaceChoice().asked,
-        canAsk: !!(window.SurfacePicker && window.SurfacePicker.shouldAsk()),
-        whatsNewSeen: cards.whatsNewSeen(),
-        notesSeen: cards.releaseNotesSeen(),
-        tourSeen: getOnboardingSeen(),
-      });
-      if (fresh && window.XenonWhatsNew && typeof window.XenonWhatsNew.suppressForFreshInstall === 'function') {
-        window.XenonWhatsNew.suppressForFreshInstall();
-      }
       const returning = !!window.XenonReleaseNotice && !!cards && window.XenonReleaseNotice.returningUser({
         asked: getSurfaceChoice().asked, notesSeen: cards.releaseNotesSeen(), tourSeen: getOnboardingSeen(),
       });

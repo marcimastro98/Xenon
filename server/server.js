@@ -18915,8 +18915,10 @@ const handleRequest = async (req, res) => {
     json({ version: APP_VERSION, platform: process.platform });
 
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
-    // Curated highlights for the running version, less what a new install started on.
-    try { json({ ...releaseNotes.sinceOrigin(await loadWhatsNew(), await releaseNotes.origin(DATA_DIR)), version: APP_VERSION }); } catch (e) { err500(e.message); }
+    // Curated highlights for the running version (see loadWhatsNew). Static and
+    // shipped with the build; the client gates display on the `id`. A new install
+    // gets them too: the major's sheets first, then the notes since it.
+    try { json({ ...(await loadWhatsNew()), version: APP_VERSION }); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {
     // The person read What's New, the fixes of a release or a failed update. The
@@ -26495,7 +26497,6 @@ async function seedFreshInstall() {
     if (await readHubSettings()) return;
     await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' });
     await welcomeSparks.markPending(DATA_DIR);
-    await releaseNotes.markOrigin(DATA_DIR, APP_VERSION);
     startupLog.write('settings: new install, starting on Bit');
   });
 }
