@@ -343,7 +343,7 @@
         </div>
         <div class="media-textblock">
           <div class="media-title" data-mf="media-title" data-i18n="media_empty_title">Niente in riproduzione</div>
-          <div class="media-artist" data-mf="media-artist" data-i18n="media_empty_sub">Spotify, YouTube e altri player compariranno qui</div>
+          <div class="media-artist" data-mf="media-artist"></div>
         </div>
         <div class="media-progress" data-mf="media-progress" hidden>
           <input class="media-progress-range" data-mf="media-progress-range" type="range" min="0" max="0" value="0" step="1" data-i18n-aria-label="spotify_w_seek" aria-label="Scorri">
@@ -2306,6 +2306,14 @@
             </div>
           </div>
           <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_look">Stile</span><span class="settings-hint" data-i18n="settings_weather_hero_hint">Solo widget dashboard</span></span>
+            <div class="settings-segmented" role="group" aria-label="Stile" data-i18n-aria-label="settings_weather_look">
+              <button class="settings-segment-btn" type="button" data-weather-look="new" aria-pressed="true" data-i18n="settings_weather_look_new">Nuovo</button>
+              <button class="settings-segment-btn" type="button" data-weather-look="classic" aria-pressed="false" data-i18n="settings_weather_look_classic">Classico</button>
+              <button class="settings-segment-btn" type="button" data-weather-look="custom" aria-pressed="false" data-i18n="settings_weather_look_custom">Il tuo widget</button>
+            </div>
+          </div>
+          <div class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_weather_hero">Condizioni attuali</span><span class="settings-hint" data-i18n="settings_weather_hero_hint">Solo widget dashboard</span></span>
             <div class="settings-segmented" role="group" aria-label="Condizioni attuali" data-i18n-aria-label="settings_weather_hero">
               <button class="settings-weather-hero settings-segment-btn" type="button" data-weather-hero="full" onclick="updateWeatherTileHero('full')" aria-pressed="true" data-i18n="settings_weather_hero_full">Scheda grande</button>
@@ -2727,12 +2735,11 @@
            and Linux, where LibreHardwareMonitor does not exist at all, it drew a
            titled panel containing absolutely nothing, and on a healthy Windows
            box it sat at the top of the Performance page saying only "already
-           on". While empty this host is hidden by `#settings-sensors-hub:empty`
-           in styles/controls.css — an empty div still occupies a row of
-           .settings-content's grid and the row-gap above the next section, so
-           leaving it in the flow trades a titled empty box for an untitled
-           empty one. -->
+           on". While empty these hosts are hidden by `:empty` rules in
+           styles/controls.css: an empty div still takes a grid row and its gap.
+           The FFmpeg card (js/ffmpeg-offer.js) follows the same rule. -->
       <div id="settings-sensors-hub" data-settings-cat="performance"></div>
+      <div id="settings-ffmpeg-hub" data-settings-cat="performance"></div>
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
@@ -5022,6 +5029,7 @@
 <script src="js/weather-art.js"></script>
 <script src="js/weather-outlook.js"></script>
 <script src="js/weather-tile.js"></script>
+<script src="js/weather-look.js"></script>
 <script src="js/weather-window.js"></script>
 <script src="js/lock-digits.js"></script>
 <script src="js/greeting.js"></script>
@@ -5082,6 +5090,7 @@
 <script src="js/chatgpt-widget.js"></script>
 <script src="js/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
+<script src="js/ffmpeg-offer.js"></script>
 <script src="js/sensor-sources-settings.js"></script>
 <script src="js/game-ignore-settings.js"></script>
 <script src="js/sensor-history-settings.js"></script>
@@ -5147,6 +5156,7 @@
 <script src="js/buy-sheet-parts.js"></script>
 <script src="js/buy-sheet-motion.js"></script>
 <script src="js/buy-sheet.js"></script>
+<script src="js/share-link-privacy.js"></script>
 <script src="js/preset-share.js"></script>
 <script src="js/place-installed.js"></script>
 <script src="js/widget-options-panel.js"></script>

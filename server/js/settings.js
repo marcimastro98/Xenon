@@ -38,6 +38,7 @@ const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 // (icon, temperature, feels-like) so hours and days get the space (GitHub #130).
 // Mirrored in server.js normalizeSettingsWeather.
 const WEATHER_TILE_HEROES = Object.freeze(['full', 'compact']);
+const WEATHER_TILE_LOOKS = Object.freeze(['new', 'classic', 'custom']); // the 5.x tile, the 4.11 cards, or a widget of the user's
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail
 // metrics. Hiding one removes it from both the dashboard tile and the modal.
 const WEATHER_FIELD_IDS = Object.freeze([
@@ -404,7 +405,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // (the topbar chip + modal are unaffected). All on by default. `fields`
     // toggles individual detail chips/metrics and applies to the tile AND modal.
     // `hero` is 'full' (the big card) or 'compact' (a single line).
-    tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
+    tile: Object.freeze({ hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // 'auto' | 'c' | 'f' — CPU/GPU temperatures, Guardian and briefing lines.
@@ -1101,7 +1102,7 @@ function sanitizeWeatherCity(value) {
 function normalizeWeatherTile(value) {
   const src = value && typeof value === 'object' ? value : {};
   const def = DEFAULT_HUB_SETTINGS.weather.tile;
-  const out = { hero: WEATHER_TILE_HEROES.includes(src.hero) ? src.hero : def.hero };
+  const out = { hero: WEATHER_TILE_HEROES.includes(src.hero) ? src.hero : def.hero, look: WEATHER_TILE_LOOKS.includes(src.look) ? src.look : def.look };
   WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
   const srcFields = src.fields && typeof src.fields === 'object' ? src.fields : {};
   const fields = {};
@@ -2572,7 +2573,7 @@ function normalizeSdkWidgets(value) {
   if (v.assign && typeof v.assign === 'object') {
     for (const key of Object.keys(v.assign)) {
       if (n >= 32) break;
-      if (!/^custom(~[a-z0-9]+)?$/.test(key)) continue;
+      if (!/^(custom|weather)(~[a-z0-9]+)?$/.test(key)) continue;   // weather: a Weather tile on Style 'Your widget'
       const pkg = String(v.assign[key] || '');
       if (!SDK_PACKAGE_ID_RE.test(pkg)) continue;
       assign[key] = pkg; n++;
@@ -3714,21 +3715,9 @@ async function _hydrateHubSettingsImpl() {
     // long after the dashboard was on screen and looking finished. There is
     // nothing in either surface that needs a decoded image.
     const runFirstRunSurfaces = () => {
-      // A fresh install has no "what's new" to be told about: there is no version
-      // it is coming from. Said here because this is the one place that knows it,
-      // and before the picker opens so the modal cannot slip in between (update.js
-      // also re-reads the flag after its own network wait).
+      // A fresh install is told what's new too, after this question: the What's
+      // New waits for any first-run overlay (js/interrupt-queue.js).
       const cards = window.XenonStartupCards;
-      const fresh = window.XenonReleaseNotice && cards && window.XenonReleaseNotice.freshInstall({
-        asked: getSurfaceChoice().asked,
-        canAsk: !!(window.SurfacePicker && window.SurfacePicker.shouldAsk()),
-        whatsNewSeen: cards.whatsNewSeen(),
-        notesSeen: cards.releaseNotesSeen(),
-        tourSeen: getOnboardingSeen(),
-      });
-      if (fresh && window.XenonWhatsNew && typeof window.XenonWhatsNew.suppressForFreshInstall === 'function') {
-        window.XenonWhatsNew.suppressForFreshInstall();
-      }
       const returning = !!window.XenonReleaseNotice && !!cards && window.XenonReleaseNotice.returningUser({
         asked: getSurfaceChoice().asked, notesSeen: cards.releaseNotesSeen(), tourSeen: getOnboardingSeen(),
       });
@@ -4479,7 +4468,7 @@ function applyHubSettings() {
       image.hidden = false;
     }
     image.hidden = false;
-    document.body.dataset.bgType = 'image';
+    document.body.dataset.bgType = media.type === 'image/gif' ? 'gif' : 'image';
   }
 
   // Keep the System-tile History tab's visibility in step with settings. This
@@ -5055,8 +5044,8 @@ function syncSettingsControls() {
   if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
   // UniFi Protect connect + camera picker renders into Settings → Cameras.
   if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
-  // "Enable sensors" card renders into Settings → Performance (only when needed).
-  if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings();
+  if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings(); // Performance cards, only when needed
+  if (window.FfmpegOffer) window.FfmpegOffer.initSettings();
   // "Sensor sources" lists render into Settings → Performance (polls only while shown).
   for (const p of [window.SensorSourcesPage, window.GameIgnorePage]) if (p) p.show();
   // External calendars section — injected dynamically (no HTML change required).
@@ -5512,10 +5501,9 @@ async function saveSupporterCode() {
   } else if (status === 403) {
     // A paired device: what the PC pays with is changed on the PC.
     setSettingsStatus('settings_supporter_save_pc_only', 'error');
-  } else if (out && out.error === 'bad_code') {
-    // Shape, not validity: the hub is the only thing that can say whether a
-    // well-formed code works, and it answers that against a specific drop.
-    setSettingsStatus('settings_supporter_bad', 'error');
+  } else if (out && (out.error === 'bad_code' || out.error === 'refused')) {
+    // bad_code: not the shape of a code; refused: the hub does not know it.
+    setSettingsStatus(out.error === 'refused' ? 'preset_redeem_saved_stale' : 'settings_supporter_bad', 'error');
     field.focus();
   } else {
     setSettingsStatus('settings_supporter_failed', 'error');
@@ -9855,6 +9843,7 @@ function syncWeatherSettingsControls() {
     // Guarded updateWeatherForecastDays neutralizes this label-sync 'change' dispatch.
     daysSelect.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  if (window.WeatherLook) window.WeatherLook.sync();
   document.querySelectorAll('.settings-weather-hero[data-weather-hero]').forEach(btn => {
     const active = btn.dataset.weatherHero === weather.tile.hero;
     btn.classList.toggle('active', active);
@@ -10625,10 +10614,9 @@ function toggleDynamicIslandSource(pkgId, enabled) {
     topbarClock: { ...(hubSettings.topbarClock || {}), hiddenSources: Array.from(hidden) },
   });
   saveHubSettings();
-  if (window.SdkIsland) window.SdkIsland.apply();
-  if (window.SdkBadges) window.SdkBadges.apply();
-  if (window.SdkMini) window.SdkMini.apply();
-  if (window.SdkTopbarButton) window.SdkTopbarButton.apply();
+  ['SdkIsland', 'SdkBadges', 'SdkMini', 'SdkTopbarButton'].forEach((name) => { if (window[name]) window[name].apply(); });
+  // Switched off there, a package also gives up its hidden background frame.
+  if (window.CustomWidget && CustomWidget.syncBackground) CustomWidget.syncBackground();
   setSettingsStatus('settings_saved', 'ok');
 }
 

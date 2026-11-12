@@ -183,12 +183,12 @@
 
     <details>
       <summary data-i18n="f.q.cheat">Can anti-cheat flag it or get me banned?</summary>
-      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon never injects code into a game and never hooks its process. It draws its own windows on top and reads frame times from the system with PresentMon, so there is nothing inside the game for anti-cheat to flag.</p><p>The only part that works at driver level is <a href="pawnio.html">PawnIO</a>, which reads temperatures and stays outside the game. FACEIT's anti-cheat blocked PawnIO versions before 2.1.0: if it names <code>PawnIO.sys</code>, run <code>winget upgrade namazso.PawnIO</code> or the Xenon installer again. Not every anti-cheat has been tested: if one complains, say so on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>.</p></div>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon never injects code into a game and never hooks its process. It draws its own windows on top and reads frame times from the system with PresentMon, so there is nothing inside the game for anti-cheat to flag.</p><p>The only part that works at driver level is <a href="pawnio.html">PawnIO</a>, which reads temperatures and stays outside the game. FACEIT's anti-cheat blocked PawnIO versions before 2.1.0: if it names <code>PawnIO.sys</code>, run <code>winget upgrade namazso.PawnIO</code>. Not every anti-cheat has been tested: if one complains, say so on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">Can it show temperatures and in-game FPS?</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>Yes. On Windows, the installer sets up temperature reading (it needs the administrator prompt once), and PresentMon gives the real frame rate of the running game, fullscreen titles included; <strong>Settings &rarr; Performance &rarr; Game mode</strong> installs it if it is missing. The <a href='fps-overlay.html'>FPS overlay</a> shows it over the game, in borderless or windowed full screen. On macOS temperatures and GPU load come from <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). On Linux, in-game FPS needs MangoHud, with the game launched through it.</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>Yes. On Windows, <strong>Install sensors</strong> in the Fans or Energy widget sets up temperature reading (it needs the administrator prompt once), and PresentMon gives the real frame rate of the running game, fullscreen titles included; <strong>Settings &rarr; Performance &rarr; Game mode</strong> installs it if it is missing. The <a href='fps-overlay.html'>FPS overlay</a> shows it over the game, in borderless or windowed full screen. On macOS temperatures and GPU load come from <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). On Linux, in-game FPS needs MangoHud, with the game launched through it.</p></div>
     </details>
 
     <details>
@@ -240,7 +240,7 @@
 
     <details>
       <summary data-i18n="f.q.temp">I can’t see the CPU temperature</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>On Windows, run the installer again and accept the administrator prompt: reading temperatures needs LibreHardwareMonitor and PawnIO, which include a driver-level part, and that is what the prompt is for. Decline it and everything else still works, just without temperatures. On macOS, install <code>macmon</code>. Some laptops and boards expose no sensor at all; the widget then says so instead of showing an invented number.</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>On Windows, press <strong>Install sensors</strong> in the Fans or Energy widget, or in <strong>Settings &rarr; Performance</strong>, and accept the administrator prompt: reading temperatures needs LibreHardwareMonitor and PawnIO, which include a driver-level part, and a small service that reads them for Xenon, and that is what the prompt is for. Xenon itself keeps running with normal rights. Decline it and everything else still works, just without temperatures. On macOS, install <code>macmon</code>. Some laptops and boards expose no sensor at all; the widget then says so instead of showing an invented number.</p></div>
     </details>
 
     <details>

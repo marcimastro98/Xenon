@@ -476,6 +476,7 @@ function closeWeatherDetails() {
   const overlay = $('weather-overlay');
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
+  if (window.WeatherLook) window.WeatherLook.releaseWindow($('weather-content'));   // stop the user's widget
   if (typeof window.ambientFreeze === 'function') window.ambientFreeze('weather', false);
   if (weatherWindowLetGo) weatherWindowLetGo();
   weatherWindowLetGo = null;

@@ -183,12 +183,12 @@
 
     <details>
       <summary data-i18n="f.q.cheat">L’anti-triche peut-il le signaler ou me faire bannir ?</summary>
-      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon n’injecte jamais de code dans un jeu et ne s’accroche jamais à son processus. Il dessine ses propres fenêtres par-dessus et lit les temps d’image depuis le système avec PresentMon : il n’y a donc rien dans le jeu qu’un anti-triche puisse signaler.</p><p>La seule partie qui travaille au niveau pilote est <a href="/fr/pawnio.html">PawnIO</a>, qui lit les températures et reste hors du jeu. L’anti-triche de FACEIT a bloqué les versions de PawnIO antérieures à la 2.1.0 : s’il cite <code>PawnIO.sys</code>, lancez <code>winget upgrade namazso.PawnIO</code> ou de nouveau l’installateur de Xenon. Tous les anti-triche n’ont pas été testés : si l’un d’eux se plaint, dites-le sur le <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>.</p></div>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon n’injecte jamais de code dans un jeu et ne s’accroche jamais à son processus. Il dessine ses propres fenêtres par-dessus et lit les temps d’image depuis le système avec PresentMon : il n’y a donc rien dans le jeu qu’un anti-triche puisse signaler.</p><p>La seule partie qui travaille au niveau pilote est <a href="/fr/pawnio.html">PawnIO</a>, qui lit les températures et reste hors du jeu. L’anti-triche de FACEIT a bloqué les versions de PawnIO antérieures à la 2.1.0 : s’il cite <code>PawnIO.sys</code>, lancez <code>winget upgrade namazso.PawnIO</code>. Tous les anti-triche n’ont pas été testés : si l’un d’eux se plaint, dites-le sur le <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">Affiche-t-il les températures et les FPS en jeu ?</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>Oui. Sur Windows, l’installateur prépare la lecture des températures (il faut accepter une fois l’invite administrateur), et PresentMon donne la vraie fréquence d’images du jeu en cours, plein écran compris ; <strong>Réglages &rarr; Performances &rarr; Mode jeu</strong> l’installe s’il manque. L’<a href='/fr/fps-overlay.html'>overlay FPS</a> l’affiche par-dessus le jeu, en plein écran sans bordure ou en fenêtre. Sur macOS, les températures et la charge GPU viennent de <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). Sur Linux, les FPS en jeu demandent MangoHud, avec le jeu lancé à travers lui.</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>Oui. Sur Windows, <strong>Installer les capteurs</strong> dans le widget Ventilateurs ou Énergie prépare la lecture des températures (il faut accepter une fois l’invite administrateur), et PresentMon donne la vraie fréquence d’images du jeu en cours, plein écran compris ; <strong>Réglages &rarr; Performances &rarr; Mode jeu</strong> l’installe s’il manque. L’<a href='/fr/fps-overlay.html'>overlay FPS</a> l’affiche par-dessus le jeu, en plein écran sans bordure ou en fenêtre. Sur macOS, les températures et la charge GPU viennent de <code>macmon</code> (<code>brew install vladkens/tap/macmon</code>). Sur Linux, les FPS en jeu demandent MangoHud, avec le jeu lancé à travers lui.</p></div>
     </details>
 
     <details>
@@ -240,7 +240,7 @@
 
     <details>
       <summary data-i18n="f.q.temp">Je ne vois pas la température du CPU</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>Sur Windows, relancez l’installateur et acceptez l’invite administrateur : lire les températures demande LibreHardwareMonitor et PawnIO, qui comportent une partie au niveau pilote, et c’est à cela que sert l’invite. Si vous refusez, tout le reste fonctionne, simplement sans températures. Sur macOS, installez <code>macmon</code>. Certains portables et cartes n’exposent aucun capteur ; le widget le dit alors au lieu d’afficher un nombre inventé.</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>Sur Windows, appuyez sur <strong>Installer les capteurs</strong> dans le widget Ventilateurs ou Énergie, ou dans <strong>Réglages &rarr; Performances</strong>, et acceptez l’invite administrateur : lire les températures demande LibreHardwareMonitor et PawnIO, qui comportent une partie au niveau pilote, ainsi qu’un petit service qui les lit pour Xenon, et c’est à cela que sert l’invite. Xenon lui-même continue de tourner avec des droits normaux. Si vous refusez, tout le reste fonctionne, simplement sans températures. Sur macOS, installez <code>macmon</code>. Certains portables et cartes n’exposent aucun capteur ; le widget le dit alors au lieu d’afficher un nombre inventé.</p></div>
     </details>
 
     <details>

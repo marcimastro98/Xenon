@@ -138,6 +138,6 @@ test('custom-widget.js persists every boolean capability in the grant patch', ()
 
 test('advanced island grants can justify a background service frame', () => {
   const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
-  assert.match(src, /const islandLive = pkg\.islandDynamic === true && grant\.island && grant\.islandDynamic/);
-  assert.match(src, /!handlersLive && \(handlersOnly \|\| \(!badgeLive && !islandLive/);
+  // planServiceFrames (its behaviour: sdk-service-frames-plan.test.mjs).
+  assert.match(src, /else if \(shown && pkg\.islandDynamic === true && grant\.island && grant\.islandDynamic\) tiers\[2\]\.push\(pkg\);/);
 });

@@ -73,6 +73,7 @@ test('the pass goes only to /ai/session; each round carries the token, the tier 
   assert.equal(msg.model, 'haiku', 'a plain answer runs on Haiku whatever the creation model');
   assert.equal(msg.system, 'SYSTEM');
   assert.equal(msg.max_tokens, X.CHAT_MAX_TOKENS, 'a chat round is short: one that runs long is handed over');
+  assert.equal(msg.helper, undefined, 'a chat round is Bit: the hub adds the brain');
   assert.ok(!JSON.stringify(msg).includes(CODE), 'the pass never rides on a credits call');
   assert.deepEqual(msg.messages[0].content[0], { type: 'text', text: 'Current date and time: now.' });
   assert.ok(calls[1].timeoutMs >= 120000, 'a creation gets time to be written');
@@ -167,6 +168,7 @@ test('a creation is handed to the chosen model; what Haiku asked for never runs'
   assert.deepEqual(ran, ['widget'], 'only the call of the chosen model ran');
   const rounds = calls.filter((c) => c.path === '/ai/messages').map((c) => c.body);
   assert.deepEqual(rounds.map((b) => b.model), ['haiku', 'opus', 'opus']);
+  assert.deepEqual(rounds.map((b) => b.use), ['chat', 'create', 'create'], 'the hub books the chat apart from the making');
   assert.equal(rounds[0].tools.length, 5, 'Haiku sees every tool');
   for (const b of rounds.slice(1)) assert.deepEqual(b.tools.map((t) => t.name), ['create_preset', 'marketplace_search', 'my_widgets'], 'the creation model gets the creation kit, and can read a widget it changes');
 });
@@ -358,7 +360,39 @@ test('helpers always run on Haiku, with room for thinking', async () => {
   const body = calls[1].body;
   assert.equal(body.model, 'haiku');
   assert.ok(body.max_tokens >= 1024);
+  assert.equal(body.effort, 'low', 'a helper does not need deep thought');
+  assert.equal(body.helper, true, 'the hub leaves Bit\'s creative brain out of a small task');
   assert.deepEqual(used, [30, { input: 10, output: 20, credits: 1.2 }], 'the hub charge rides along');
+  assert.equal(body.use, undefined, 'a helper that names nothing sends nothing');
+});
+
+// The hub's list (ai-proxy.js USES), so its Usage page says what Sparks were spent on.
+const USES = ['chat', 'create', 'fix', 'lyrics', 'widget', 'summary', 'insight', 'roast', 'perf', 'disk'];
+
+test('a helper says what it is for, and every helper in the server names its purpose', async () => {
+  const dir = withPass();
+  const calls = hub({ '/ai/session': session, '/ai/messages': reply([{ type: 'text', text: '{}' }]) });
+  await X.oneShot({ dataDir: dir, systemText: 'translate', userText: '[]', maxTokens: 300, use: 'lyrics' });
+  assert.equal(calls[1].body.use, 'lyrics');
+  const S = read('../server.js');
+  // Each call's arguments, up to its closing `})`: the lyrics and widget calls
+  // name theirs at the call, completeWithUserAi passes its own `use` through.
+  const sites = [...S.matchAll(/aiXenon\.oneShot\(\{|completeWithUserAi\(\{/g)].map((m) => S.slice(m.index, S.indexOf('})', m.index)));
+  assert.ok(sites.length >= 8, String(sites.length));
+  for (const args of sites) {
+    assert.match(args, /\buse\b/, 'a helper call without its purpose: ' + args.slice(0, 90));
+    const named = args.match(/\buse: '([a-z]+)'/);
+    if (named) assert.ok(USES.includes(named[1]), named[1]);
+  }
+});
+
+test('a helper sized for its answer gets the thinking on top (a lyrics translation came back cut)', async () => {
+  const dir = withPass();
+  const calls = hub({ '/ai/session': session, '/ai/messages': reply([{ type: 'text', text: '{}' }]) });
+  // What Lyrics asks for a 19-line song: 256 + 19 x 50. Haiku spent all of it
+  // thinking and writing, and the JSON stopped halfway.
+  await X.oneShot({ dataDir: dir, systemText: 'translate', userText: '[]', maxTokens: 1206 });
+  assert.ok(calls[1].body.max_tokens >= 1206 + 2048, String(calls[1].body.max_tokens));
 });
 
 test('a one-shot can carry a picture, placed before the words (the Game Companion screenshot)', async () => {

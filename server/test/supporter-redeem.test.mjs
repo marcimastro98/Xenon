@@ -178,7 +178,30 @@ test('saved pass: forget removes it, and forgetting nothing still succeeds', wit
   assert.deepEqual(await redeemMod.forgetCode(dir), { ok: true, saved: false }, 'idempotent');
 }));
 
-test('saved pass: a code typed in Settings is stored on shape alone', withTransport(async () => {
+test('saved pass: Settings asks the hub once, and a code it does not know is not saved', withTransport(async () => {
+  const asked = [];
+  redeemMod._setTransport(async (url, body) => { asked.push([url.replace(/^.*\/ai\//, '/ai/'), body.code]); return { ok: false, error: 'bad_code' }; });
+  const dir = tmp();
+  assert.deepEqual(await redeemMod.saveTypedCode(dir, GOOD.code, { verify: true }), { ok: false, error: 'refused' });
+  assert.deepEqual(asked, [['/ai/session', 'XSABCDEFGHJKLM']]);
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+
+  // Offline, or an expired pass (it still opens its drops): saved as before.
+  for (const answer of [{ ok: false, error: 'network' }, { ok: false, error: 'expired' }, { ok: true, token: 't', exp: 1 }]) {
+    redeemMod._setTransport(async () => answer);
+    const d = tmp();
+    assert.deepEqual(await redeemMod.saveTypedCode(d, GOOD.code, { verify: true }), { ok: true, saved: true }, answer.error || 'ok');
+  }
+}));
+
+test('Settings tells a refused code apart from a malformed one', () => {
+  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  assert.match(settings, /out\.error === 'refused' \? 'preset_redeem_saved_stale' : 'settings_supporter_bad'/);
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /saveTypedCode\(DATA_DIR, body\.code, \{ verify: true \}\)/);
+});
+
+test('saved pass: without verify a code is stored on shape alone', withTransport(async () => {
   const dir = tmp();
   assert.deepEqual(await redeemMod.saveTypedCode(dir, 'xs-abcd efgh_jklm'), { ok: true, saved: true });
   assert.deepEqual(
@@ -186,8 +209,6 @@ test('saved pass: a code typed in Settings is stored on shape alone', withTransp
     { code: 'XSABCDEFGHJKLM' },
     'canonicalised on the way in, so the field is forgiving about spacing',
   );
-  // Whether it WORKS is a question only the hub answers, and it answers it
-  // against a specific entry — there is nothing to check against here.
   for (const bad of ['', 'XS-SHORT', 'XL-ABCD-EFGH-JKLM', 'nonsense', null, undefined]) {
     assert.deepEqual(await redeemMod.saveTypedCode(tmp(), bad), { ok: false, error: 'bad_code' }, String(bad));
   }

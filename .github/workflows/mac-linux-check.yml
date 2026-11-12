@@ -8,14 +8,14 @@ name: macOS and Linux check
 # Windows and the Linux container on his PC. It sees no screen, no permission
 # dialog and no real device: widgets, capture and keys still need a person.
 #
-# Manual, plus every push to the 5.0.0 branch until it is merged (GitHub only
+# Manual, plus every push to the 5.0.0 and 5.1.0 branches until merged (GitHub only
 # offers the manual button for workflows already on main). No secrets,
 # read-only permissions; it uploads its logs as an artifact of the run and
 # touches no release.
 on:
   workflow_dispatch: {}
   push:
-    branches: [v5.0.0]
+    branches: [v5.0.0, v5.1.0]
 
 permissions:
   contents: read

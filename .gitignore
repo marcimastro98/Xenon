@@ -25,6 +25,9 @@ apps/capture/target/
 # Built by npm run capture:build (the release pipeline builds and signs its own).
 server/capture/
 apps/native/src-tauri/gen/
+# Built by tools/engine-bundle/cli.mjs for the package that carries the engine.
+apps/native/src-tauri/engine/
+apps/native/src-tauri/tauri.engine.conf.json
 
 # OS
 Thumbs.db
@@ -43,6 +46,9 @@ server/soundvolumeview-x64/*.cfg.bak
 
 # PresentMon — downloaded by the installer for in-game FPS (not committed)
 server/presentmon/
+
+# FFmpeg for Windows, downloaded on demand from Settings (server/ffmpeg-install/)
+server/ffmpeg/
 
 # CORSAIR iCUE SDK client DLL — downloaded from Corsair's official release by
 # install.ps1. MUST NOT be committed: the SDK EULA grants a nontransferable

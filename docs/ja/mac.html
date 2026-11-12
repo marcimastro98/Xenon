@@ -168,7 +168,7 @@
     </div>
     <ul>
       <li data-i18n-html="mac.req.os"><strong>macOS 11 以降</strong>、Apple シリコンまたは Intel。.dmg はユニバーサルビルドなので、ダウンロードは両方で1つです。</li>
-      <li data-i18n-html="mac.req.node"><strong>Node.js 22 以降を推奨します。</strong> Node.js 18 と 20 でも Xenon は動きますが、セキュリティ修正はもう提供されず、Xenon はログに警告を書き込みます。Node.js が入っておらず Homebrew がある場合は、セットアップが Homebrew でインストールします。Homebrew もない場合はそこで止まり、nodejs.org からインストールするよう案内します。</li>
+      <li data-i18n-html="mac.req.node"><strong>事前にインストールするものはありません。</strong>アプリに専用の Node.js が含まれているので、Xenon を使うのに Node.js も Homebrew も必要ありません。</li>
     </ul>
     <p data-i18n="mac.req.opt">ほかは任意です。ツールごとに1つの機能が加わり、入っていないものはインストーラーが名前を挙げて知らせます:</p>
     <ul>
@@ -188,15 +188,14 @@
     <p data-i18n-html="mac.nz.p3">4.11.13 までのバージョンは、プロジェクト独自の証明書で署名されており、公証は受けていませんでした。5.0 で署名が変わるため、アップデート後に macOS が、フルディスクアクセス、アクセシビリティ、画面収録など、すでに許可した権限をもう一度求めることがあります。<strong>システム設定</strong> の <strong>プライバシーとセキュリティ</strong> で、もう一度許可してください。</p>
 
     <h3 data-i18n="mac.h.setup">ダッシュボードのエンジンのセットアップ</h3>
-    <p data-i18n="mac.setup.p1">.dmg はインストーラーを実行できないので、初回起動がその役目を担います。Xenon はダッシュボードのエンジンが見つからないと、内容を読めて途中で止められるターミナルのウィンドウを開きます。そのウィンドウで次のことを行います:</p>
+    <p data-i18n="mac.setup.p1">.dmg ではインストーラーを実行できないため、初回起動時に Xenon のウィンドウの中で、進行状況バーを表示しながら行います。Xenon は次のことをします。</p>
     <ol>
-      <li data-i18n="mac.setup.1">最新リリースと、その署名付きチェックサムの一覧をダウンロードします。</li>
-      <li data-i18n="mac.setup.2">何かを展開する前に、ダウンロードをプロジェクトの署名鍵で検証します。</li>
-      <li data-i18n-html="mac.setup.3"><code>~/Library/Application Support/Xenon</code> にインストールします。</li>
-      <li data-i18n="mac.setup.4">Xenon Helper を追加します。アプリスイッチャー、温度、検索のための小さな補助プログラムです。再生中の曲を読み取るブリッジも追加します。</li>
-      <li data-i18n="mac.setup.5">ログイン項目を登録し、ログイン時に Xenon が開くようにします。</li>
+      <li data-i18n="mac.setup.1">アプリに含まれているダッシュボードのエンジンを専用の Node.js ごとコピーします。何もダウンロードしません。</li>
+      <li data-i18n="mac.setup.2">&lt;code&gt;~/Library/Application Support/Xenon&lt;/code&gt; にインストールします。</li>
+      <li data-i18n-html="mac.setup.3">ログイン項目を登録し、ログイン時に Xenon が開くようにします。</li>
+      <li data-i18n="mac.setup.4">エンジンを起動し、応答したらすぐにダッシュボードを表示します。</li>
     </ol>
-    <p data-i18n-html="mac.setup.p2">完了すると、インストーラーはアプリを閉じて開き直し、ダッシュボードが表示されます。Mac のどのブラウザでも <code>http://127.0.0.1:3030/</code> で開けます。</p>
+    <p data-i18n-html="mac.setup.p2">かかるのは 1 分ほどで、最初の一度だけです。途中で止まった場合は Xenon が理由を伝え、ファイルには触れずに<strong>もう一度試す</strong>を表示します。Mac のどのブラウザでも <code>http://127.0.0.1:3030/</code> でダッシュボードを開けます。</p>
     <p data-i18n="mac.setup.p3">ダッシュボードのエンジンは、Xenon アプリの子プロセスとして動きます。そのため、Xenon にフルディスクアクセスを1回許可すれば、エンジンにも適用されます。Node.js に許可すると Mac 上のほかのすべてのスクリプトがその許可を共有しますが、この方法ならそうなりません。</p>
     <p data-i18n="mac.setup.p4">アップデートは Windows と同じ仕組みです。新しいバージョンを先にダウンロードして検証し、新しいバージョンが起動しなければ前のバージョンに戻します。</p>
     <p class="note" data-i18n-html="mac.setup.zip">アプリのウィンドウを使いたくない場合は、<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">リリース</a>からソースコードの zip をダウンロードして展開し、<code>INSTALL.command</code> をダブルクリックします。ダッシュボードは同じですが、アプリがないと macOS が保護しているフォルダーには届きません。</p>

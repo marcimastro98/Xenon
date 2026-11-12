@@ -63,7 +63,7 @@ export function setHead(html, { title, desc }) {
 
 // Which dictionary file holds a language: the per-language file when the page
 // has one for it, else the page's main file.
-function dictFileFor(dict, lang) {
+export function dictFileFor(dict, lang) {
   const own = path.join(ROOT, 'tools', 'i18n', `${dict}.${lang}.json`);
   if (lang !== 'en' && fs.existsSync(own)) {
     try { if (JSON.parse(fs.readFileSync(own, 'utf8'))[lang]) return own; } catch { /* fall through */ }

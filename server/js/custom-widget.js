@@ -576,7 +576,26 @@
   function tiles() {
     const layerOnly = (window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest(scope));
+    // A Weather tile set to Style "Your widget" holds a .custom-widget-mount of its
+    // own (js/weather-look.js) and hosts a package like a custom tile does.
+    const onPages = Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
+      .filter(n => n.closest(scope) && (n.getAttribute('data-dashboard-widget') === 'custom' || n.querySelector('.custom-widget-mount')));
+    // The Weather window on the same style shows that widget too, in a host of its
+    // own outside the grid (never a [data-dashboard-widget] the layout would claim).
+    return onPages.concat(Array.from(document.querySelectorAll(`[data-cw-host="${WEATHER_VIEW_ID}"]`))
+      .filter(n => n.querySelector('.custom-widget-mount')));
+  }
+
+  // The Weather window's host: its own frame, the Weather tile's assignment.
+  const WEATHER_VIEW_ID = 'weather@view';
+  // The sdkWidgets.assign key an instance reads and writes.
+  function assignKeyOf(instId) {
+    return instId === WEATHER_VIEW_ID ? 'weather' : instId;
+  }
+
+  // The tile kind an instance belongs to: 'custom', or 'weather' for a Weather host.
+  function hostKindOf(instId) {
+    return String(assignKeyOf(instId) || '').split('~')[0];
   }
 
   // Identity comes from the ATOM (data-dashboard-instance, set on every
@@ -588,7 +607,7 @@
   // Standalone tiles are unaffected: a primary's gs-id IS the base id and a
   // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
   function instanceIdOf(tile) {
-    return tile.getAttribute('data-dashboard-instance') || 'custom';
+    return tile.getAttribute('data-cw-host') || tile.getAttribute('data-dashboard-instance') || tile.getAttribute('data-dashboard-widget') || 'custom';
   }
 
   // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
@@ -601,7 +620,7 @@
   // The package assigned to a custom-widget instance, or null.
   function assignedIdOf(cfg, instId) {
     if (layerAssign.has(instId)) return layerAssign.get(instId);
-    return (cfg.assign && typeof cfg.assign === 'object') ? (cfg.assign[instId] || null) : null;
+    return (cfg.assign && typeof cfg.assign === 'object') ? (cfg.assign[assignKeyOf(instId)] || null) : null;
   }
 
   function safeModeOn() {
@@ -831,15 +850,29 @@
   // the hex it was set as. normalizeHex only reads hex, so a tile's own accent
   // or background fell back to the global one before reaching the widget.
   // Turned back into #rrggbb here; anything else passes through unchanged.
-  function computedHex(value) {
+  // A see-through colour is laid over `under` (a #rrggbb) when one is given: on
+  // Liquid Glass a tile's line, cards and keys are white or black at 8-16%
+  // (liquid-tiles.css), and with the alpha simply dropped a widget drew solid
+  // white lines and buttons on every tile.
+  function computedHex(value, under) {
     const raw = String(value || '').trim();
-    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+%?))?\s*\)$/i.exec(raw);
+    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)(%?))?\s*\)$/i.exec(raw);
     if (!m) return raw;
+    const alpha = m[4] == null ? 1 : Math.min(1, parseFloat(m[4]) / (m[5] ? 100 : 1));
     // Fully transparent has no colour to hand over: let the fallback apply.
-    if (m[4] != null && parseFloat(m[4]) === 0) return '';
+    if (alpha === 0) return '';
+    const base = /^#[0-9a-f]{6}$/i.test(under || '')
+      ? [1, 3, 5].map((i) => parseInt(under.slice(i, i + 2), 16))
+      : null;
     return '#' + [m[1], m[2], m[3]]
-      .map((v) => Math.max(0, Math.min(255, Math.round(Number(v)))).toString(16).padStart(2, '0'))
+      .map((v, i) => (base && alpha < 1 ? Number(v) * alpha + base[i] * (1 - alpha) : Number(v)))
+      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
       .join('');
+  }
+  // The dashboard's look by name, which `skin` deliberately folds into two:
+  // 'liquid' (Liquid Glass), 'glass' (Classic), 'retro' or 'comic'.
+  function lookMode(hs) {
+    return ['liquid', 'glass', 'retro', 'comic'].includes(hs.styleMode) ? hs.styleMode : 'glass';
   }
 
   function themePayload(entry) {
@@ -872,38 +905,48 @@
     if (entry && entry.frame && window.ThemePalette) {
       try {
         const cs = getComputedStyle(entry.frame);
-        const read = (name, fallback) => ThemePalette.normalizeHex(computedHex(cs.getPropertyValue(name)), fallback);
+        const read = (name, fallback, under) => ThemePalette.normalizeHex(computedHex(cs.getPropertyValue(name), under), fallback);
+        const num = (name) => { const v = parseFloat(cs.getPropertyValue(name)); return Number.isFinite(v) ? v : null; };
         const base = p || ThemePalette.derive({
           accent: hs.accent, background: hs.background, text: hs.text,
           contrastGuard: hs.contrastGuard,
         }, surfaceAppearance());
+        const background = read('--bg', base.background);
+        const surface = read('--surface', base.surface, background);
+        // Every other role sits on the tile, so a see-through one is laid over it.
+        const onTile = (name, fallback) => read(name, fallback, surface);
         const local = {
-          tone: ThemePalette.toneFor(read('--surface', base.surface)),
+          tone: ThemePalette.toneFor(surface),
           guard: base.guard,
-          background: read('--bg', base.background),
-          surface: read('--surface', base.surface),
-          surfaceAlt: read('--surface-alt', base.surfaceAlt),
-          control: read('--control-bg', base.control),
-          text: read('--text', base.text),
-          muted: read('--muted-text', base.muted),
-          dim: read('--dim-text', base.dim),
-          line: read('--line', base.line),
-          accent: read('--accent', base.accent),
-          onAccent: read('--on-accent', base.onAccent),
-          success: read('--color-success', base.success),
-          onSuccess: read('--on-success', base.onSuccess),
-          warning: read('--color-warn', base.warning),
-          onWarning: read('--on-warning', base.onWarning),
-          danger: read('--color-danger', base.danger),
-          onDanger: read('--on-danger', base.onDanger),
-          info: read('--color-info', base.info),
-          onInfo: read('--on-info', base.onInfo),
+          background,
+          surface,
+          surfaceAlt: onTile('--surface-alt', base.surfaceAlt),
+          control: onTile('--control-bg', base.control),
+          text: onTile('--text', base.text),
+          muted: onTile('--muted-text', base.muted),
+          dim: onTile('--dim-text', base.dim),
+          line: onTile('--line', base.line),
+          accent: onTile('--accent', base.accent),
+          onAccent: onTile('--on-accent', base.onAccent),
+          success: onTile('--color-success', base.success),
+          onSuccess: onTile('--on-success', base.onSuccess),
+          warning: onTile('--color-warn', base.warning),
+          onWarning: onTile('--on-warning', base.onWarning),
+          danger: onTile('--color-danger', base.danger),
+          onDanger: onTile('--on-danger', base.onDanger),
+          info: onTile('--color-info', base.info),
+          onInfo: onTile('--on-info', base.onInfo),
           // Panel opacity ("Opacità pannelli"): the nested-card surface already
           // carrying the user's alpha (surfaceAlt at --panel-soft-alpha), plus the
           // raw factor — so a widget can make its own cards follow it like a native
           // tile does. rgba string / 0..1 number; null when unavailable.
           surfaceSoft: (cs.getPropertyValue('--panel-soft').trim() || null),
-          panelAlpha: (() => { const a = parseFloat(cs.getPropertyValue('--panel-soft-alpha')); return Number.isFinite(a) ? a : null; })(),
+          panelAlpha: num('--panel-soft-alpha'),
+          // The tile's own edge (#153): the colour as the host resolved it (the
+          // user's Panel border dial, light tone, Retro's accent, Comic's ink) and
+          // the dial's alpha alone. A frame inherits neither from the tile.
+          panelBorder: (cs.getPropertyValue('--panel-border').trim() || null),
+          panelBorderAlpha: num('--panel-border-alpha'),
         };
         p = local;
         const tile = entry.frame.closest('.grid-stack-item');
@@ -923,12 +966,15 @@
         // Optional (present when the tile's tokens were readable): a card surface
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
+        // Optional: the tile's edge colour and the user's Panel border alpha.
+        panelBorder: p.panelBorder || null, panelBorderAlpha: (typeof p.panelBorderAlpha === 'number' ? p.panelBorderAlpha : null),
       };
-      return { appearance: p.tone, skin: skinMode(), overrides, controls, clock12, dateFormat, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), look: lookMode(hs), overrides, controls, clock12, dateFormat, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
       skin: skinMode(),
+      look: lookMode(hs),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
@@ -2417,6 +2463,7 @@
     const grant = grantsFor(entry.pkgId);
     if (d.type === 'hello') {
       entry.ready = true;
+      if (entry.service) { clearTimeout(entry.helloTimer); entry.helloTimer = null; serviceRetries.delete(hit.instId); }
       // A widget that starts again takes clicks until it asks otherwise.
       if (entry.frame.hasAttribute('data-layer-through')) {
         entry.frame.removeAttribute('data-layer-through');
@@ -2906,9 +2953,44 @@
   // A granted package with a persistent contribution (handlers, badge or
   // Dynamic Island activity) AND `background: true` gets a hidden sandboxed
   // frame so it stays live with no tile on screen.
-  // Same sandbox + registry as every frame; capped; torn down when the grant or
+  // Same sandbox + registry as every frame; capped at 8, since each one is a live
+  // page of someone else's code (4 until v5.1); torn down when the grant or
   // the package goes away (the sweep runs on every package/grant refresh).
-  const SERVICE_FRAMES_MAX = 4;
+  const SERVICE_FRAMES_MAX = 8;
+  // A background frame that never says hello is dead, not slow: most often it was
+  // mounted while the engine was restarting, so it holds the browser's error page
+  // and nothing in it will ever try again. Its bar chip then kept its last number
+  // for good, or went once the frame was rebuilt. It is mounted again after these
+  // waits, and at once when the stream comes back (onStreamBack).
+  const SERVICE_HELLO_WAITS_MS = [15000, 30000, 60000, 120000, 300000];
+  const serviceRetries = new Map();   // 'svc:<id>' -> remounts since its last hello
+  function serviceHelloWait(attempt) {
+    return SERVICE_HELLO_WAITS_MS[Math.min(Math.max(0, attempt), SERVICE_HELLO_WAITS_MS.length - 1)];
+  }
+  function watchServiceHello(key, entry) {
+    entry.helloTimer = setTimeout(() => {
+      entry.helloTimer = null;
+      if (entry.ready || frames.get(key) !== entry) return;
+      serviceRetries.set(key, (serviceRetries.get(key) || 0) + 1);
+      remountService(key, entry);
+    }, serviceHelloWait(serviceRetries.get(key) || 0));
+  }
+  function remountService(key, entry) {
+    clearTimeout(entry.helloTimer);
+    entry.helloTimer = null;
+    try { entry.frame.remove(); } catch { /* gone */ }
+    frames.delete(key);
+    syncServiceFrames();
+  }
+  // The live stream reopened after a drop: the engine is back, so a background
+  // frame still waiting for its first hello is mounted again now.
+  function onStreamBack() {
+    for (const [key, entry] of Array.from(frames)) {
+      if (!key.startsWith('svc:') || entry.ready) continue;
+      serviceRetries.delete(key);
+      remountService(key, entry);
+    }
+  }
   function serviceHost() {
     let host = document.getElementById('sdk-service-frames');
     if (!host) {
@@ -2919,58 +3001,83 @@
     }
     return host;
   }
+  // Ids of background packages past the cap, for the Installed list to explain.
+  let serviceLeftOut = [];
+
+  // Which background packages get a hidden frame. Pure (every input is passed in),
+  // so it is tested on its own. Ranked by need, not by install order: until
+  // v5.1 the first four packages in the list won and the rest were dropped
+  // without a word, so a badge the user wanted could lose its place to an island
+  // pop-up nobody was looking at. Deck keys first (a key must answer), then what
+  // stays on screen (badge, mini slot, bar button), island activities last. A
+  // package whose bar contribution the user switched off keeps a frame only for
+  // its Deck keys, since nothing else of it would show.
+  function planServiceFrames(pkgs, grantOf, opts) {
+    const tiers = [[], [], []];
+    for (const pkg of pkgs) {
+      if (!pkg || pkg.background !== true) continue;
+      // Suspended runs nothing (its keys go dead on purpose); a frame stopped
+      // for leaving its page stays down until a reload or new files.
+      if (opts.suspended(pkg.id) || opts.leftPage(pkg.id)) continue;
+      const grant = grantOf(pkg.id);
+      const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
+      const shown = !opts.handlersOnly && opts.barShows(pkg.id);
+      if (declared.some(h => grant.handlers.includes(h.id))) tiers[0].push(pkg);
+      else if (shown && ((pkg.badge === true && grant.badge) || (pkg.mini === true && grant.mini)
+        || (pkg.topbarButton === true && grant.topbarButton))) tiers[1].push(pkg);
+      else if (shown && pkg.islandDynamic === true && grant.island && grant.islandDynamic) tiers[2].push(pkg);
+    }
+    const ranked = tiers.flat();
+    return { run: ranked.slice(0, opts.max), left: ranked.slice(opts.max).map(p => p.id) };
+  }
+
+  // Top bar → "Apps and widgets in the bar": a package switched off there shows
+  // nothing in the bar, island or badges.
+  function barShowsPackage(pkgId) {
+    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
+    return !(cfg && Array.isArray(cfg.hiddenSources) && cfg.hiddenSources.includes(pkgId));
+  }
+
   function syncServiceFrames() {
-    const wanted = new Map();   // 'svc:'+pkgId → pkg
     // A layer window shows its own tiles only: the main dashboard already runs
     // the background frames, and a second copy would answer every Deck key twice.
     const layerSurface = !!(window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     // The hidden widget host of "widgets only" (sdk-service.html) has no bar,
     // badge or island to feed: there, only granted Deck actions justify a frame.
     const handlersOnly = document.documentElement.hasAttribute('data-sdk-service');
+    let plan = { run: [], left: [] };
     if (sdk().enabled === true && !layerSurface) {
-      let count = 0;
-      for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
-        if (count >= SERVICE_FRAMES_MAX) break;
-        if (!pkg || pkg.background !== true) continue;
-        // A suspended package runs nothing, background included — its deck keys
-        // go dead on purpose (the suspend card says so).
-        if (isSuspended(pkg.id)) continue;
-        const grant = grantsFor(pkg.id);
-        // Only granted persistent capabilities justify a headless frame.
-        const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
-        const handlersLive = declared.some(h => grant.handlers.includes(h.id));
-        const badgeLive = pkg.badge === true && grant.badge;
-        const islandLive = pkg.islandDynamic === true && grant.island && grant.islandDynamic;
-        // A mini slot is a persistent readout like a badge, so it justifies a
-        // headless frame for the same reason: the user put it in the bar to watch
-        // it, not to watch it go stale whenever its tile is off screen.
-        const miniLive = pkg.mini === true && grant.mini;
-        // A bar button the user placed must answer a tap with no tile on screen.
-        const buttonLive = pkg.topbarButton === true && grant.topbarButton;
-        if (!handlersLive && (handlersOnly || (!badgeLive && !islandLive && !miniLive && !buttonLive))) continue;
-        // Stopped for leaving its page: stays down until a reload or new files.
-        if (leftPage.get('svc:' + pkg.id) === pkg.id) continue;
-        wanted.set('svc:' + pkg.id, pkg);
-        count++;
-      }
+      plan = planServiceFrames(cachedPackages(), grantsFor, {
+        max: SERVICE_FRAMES_MAX, handlersOnly, suspended: isSuspended, barShows: barShowsPackage,
+        leftPage: (id) => leftPage.get('svc:' + id) === id,
+      });
     }
+    serviceLeftOut = plan.left;
+    const wanted = new Map(plan.run.map(pkg => ['svc:' + pkg.id, pkg]));
     // Tear down service frames no longer wanted.
     for (const [key, entry] of Array.from(frames)) {
       if (!key.startsWith('svc:')) continue;
-      if (!wanted.has(key)) { try { entry.frame.remove(); } catch {} frames.delete(key); }
+      if (!wanted.has(key)) {
+        clearTimeout(entry.helloTimer);
+        serviceRetries.delete(key);
+        try { entry.frame.remove(); } catch {}
+        frames.delete(key);
+      }
     }
     // Mount the missing ones.
     for (const [key, pkg] of wanted) {
       const existing = frames.get(key);
       if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) continue;
-      if (existing) { try { existing.frame.remove(); } catch {} frames.delete(key); }
+      if (existing) { clearTimeout(existing.helloTimer); try { existing.frame.remove(); } catch {} frames.delete(key); }
       const frame = document.createElement('iframe');
       frame.className = 'cw-frame cw-frame--service';
       frame.setAttribute('sandbox', 'allow-scripts');
       frame.setAttribute('referrerpolicy', 'no-referrer');
       frame.title = pkg.name;
       frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
-      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
+      const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion };
+      frames.set(key, entry);
+      watchServiceHello(key, entry);
       // A background frame has no tile to explain itself in: it just stops.
       guardFrame(frame, () => {
         leftPage.set(key, pkg.id);
@@ -3434,7 +3541,7 @@
       const patch = {
         grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, storageGroup: wantsStorage ? storageGroup : '', secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
       };
-      if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
+      if (instId != null) patch.assign = { ...(cur.assign || {}), [assignKeyOf(instId)]: pkg.id };
       if (turnsOn) patch.enabled = true;
       if (typeof isLayerPage === 'function' && isLayerPage()) approveFromScreen(pkg, patch, uh.values);
       else persist(patch);
@@ -3577,10 +3684,29 @@
     return hits.length ? hits : ['other'];
   }
 
+  // A Weather tile's chooser also says where a weather widget comes from: Bit
+  // (where its chat is on this screen) and Xenon Maker, beside the Store.
+  const MAKER_URL = 'https://xenon-app.com/maker/';
+  function appendWeatherMakers(row) {
+    if (!window.__xenonRemote && typeof window.aiAsk === 'function') {
+      const bit = el('button', 'cw-btn', t('cw_weather_bit', 'Make one with Bit'));
+      bit.type = 'button';
+      bit.addEventListener('click', () => window.aiAsk(t('cw_weather_bit_prompt', 'Make me a widget for my Weather tile that reads the weather.')));
+      row.appendChild(bit);
+    }
+    const maker = el('a', 'cw-btn', t('cw_weather_maker', 'Open Xenon Maker'));
+    maker.href = MAKER_URL; maker.target = '_blank'; maker.rel = 'noopener noreferrer';
+    row.appendChild(maker);
+  }
+
   // Untrusted manifest text (name/author/description) → textContent only.
   function paintPicker(body, instId) {
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('div', 'cw-pick-title', t('cw_pick', 'Choose a widget for this tile')));
+    // A Weather tile offers only the widgets that read the weather.
+    const forWeather = hostKindOf(instId) === 'weather';
+    frag.appendChild(el('div', 'cw-pick-title', forWeather
+      ? t('cw_pick_weather', 'Choose your weather widget')
+      : t('cw_pick', 'Choose a widget for this tile')));
 
     // One flat model for both installed packages and not-yet-installed bundled
     // examples, so search and chips treat them identically.
@@ -3588,6 +3714,7 @@
     // Settings → Ambient, so keep them out of the tile picker.
     const items = (pkgCache.packages || [])
       .filter(pkg => pkg && pkg.surface !== 'ambient')
+      .filter(pkg => !forWeather || (Array.isArray(pkg.streams) && pkg.streams.includes('weather')))
       .map(pkg => ({
         kind: 'pkg',
         pkg,
@@ -3597,7 +3724,7 @@
         desc: pkg.description || '',
         cats: pickCatsOf(pkg.streams),
       }))
-      .concat(missingExamples().map(ex => ({
+      .concat((forWeather ? [] : missingExamples()).map(ex => ({
         kind: 'example',
         ex,
         group: t('cw_pick_examples', 'Xenon · Examples'),
@@ -3628,7 +3755,9 @@
       ));
       const rows = document.createDocumentFragment();
       if (!shown.length) {
-        rows.appendChild(el('div', 'cw-pick-empty', t('cw_pick_none', 'No widget matches this search.')));
+        rows.appendChild(el('div', 'cw-pick-empty', forWeather && !items.length
+          ? t('cw_pick_weather_none', 'No widget of yours reads the weather yet. Make one with Bit or in Xenon Maker, or get one from the Store.')
+          : t('cw_pick_none', 'No widget matches this search.')));
       }
       // Named packs first (alphabetical); widgets with no author fall through
       // last with no header. Group text is untrusted → el() sets textContent.
@@ -3668,6 +3797,7 @@
       storeBtn.type = 'button';
       storeBtn.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); });
       createRow.appendChild(storeBtn);
+      if (forWeather) appendWeatherMakers(createRow);
       rows.appendChild(createRow);
       list.replaceChildren(rows);
     };
@@ -3882,7 +4012,7 @@
       const cfg = sdk();
       const assignedId = assignedIdOf(cfg, instId);
       const pkg = assignedId ? packageById(assignedId) : null;
-      if (titleEl) titleEl.textContent = pkg ? pkg.name : t('cw_title', 'Custom widget');
+      if (titleEl) titleEl.textContent = pkg ? pkg.name : (hostKindOf(instId) === 'weather' ? t('weather_title', 'Weather') : t('cw_title', 'Custom widget'));
       if (swapBtn) {
         // A layer placement is changed from its editor, never from the tile.
         swapBtn.hidden = !assignedId || layerAssign.has(instId);
@@ -3890,7 +4020,7 @@
         swapBtn.onclick = () => {
           const cur = sdk();
           const assign = { ...(cur.assign || {}) };
-          delete assign[instId];
+          delete assign[assignKeyOf(instId)];
           persist({ assign });
           const entry = frames.get(instId);
           if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
@@ -4422,6 +4552,12 @@
     // package from the SAME base as a tile does — see sdkAssetBase.
     assetBase: sdkAssetBase,
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
+    // Background packages left without a hidden frame because the cap is full.
+    serviceLeftOut: () => serviceLeftOut.slice(),
+    serviceFramesMax: SERVICE_FRAMES_MAX,
+    // Re-plan them now: Settings switched a package's bar contribution on or off.
+    syncBackground: () => syncServiceFrames(),
+    onStreamBack,
     // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
     // Installed list and the after-install prompt all use these.
     addToPage, addAsTab, bindPackages, placeCreated,

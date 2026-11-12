@@ -127,7 +127,7 @@
     function paint() {
       if (gone || flying) return;
       const n = held();
-      const d = M.decide({ ...last, price: o.price, sparksOnly: o.sparksOnly, chosen, held: n, bought: !!result });
+      const d = M.decide({ ...last, price: o.price, sparksOnly: o.sparksOnly || last.sparksOnly === true, chosen, held: n, bought: !!result });
       stub.classList.toggle('is-waiting', !last.known && !result);
       sheet.classList.toggle('is-done', d.view === 'done');
       offer.block.hidden = d.view !== 'offer';

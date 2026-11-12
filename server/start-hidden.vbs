@@ -158,6 +158,37 @@ Function PortInUse()
   On Error Goto 0
 End Function
 
+' Is this engine already on its way up? At sign-in on a slow cold PC the logon
+' task and the app's own nudge (schtasks /Run, after ~50 s of no answer) can
+' both land before node listens: the second launch saw nothing on the port,
+' started a second node, and that one spent 15 s retrying before writing a
+' failure into server.log. A node running this very server.js, started in the
+' last two minutes and not listening yet, is the engine starting: leave it be.
+' A question WMI cannot answer counts as no, so the start goes ahead as before.
+Function EngineStarting()
+  Dim rows, row, stamp, mine, age
+  EngineStarting = False
+  On Error Resume Next
+  Err.Clear
+  Set stamp = CreateObject("WbemScripting.SWbemDateTime")
+  Set rows = GetObject("winmgmts:\\.\root\cimv2").ExecQuery( _
+    "SELECT CommandLine, CreationDate FROM Win32_Process WHERE Name='node.exe'")
+  If Err.Number <> 0 Then Exit Function
+  For Each row In rows
+    ' Plain assignments first: under Resume Next an error inside an If's
+    ' condition runs the If's body, which would read a failed answer as yes.
+    mine = False
+    age = -1
+    mine = (InStr(1, "" & row.CommandLine, serverPath, vbTextCompare) > 0)
+    Err.Clear
+    stamp.Value = row.CreationDate
+    age = DateDiff("s", stamp.GetVarDate(True), Now)
+    If Err.Number <> 0 Then age = -1
+    If mine = True And age >= 0 And age < 120 Then EngineStarting = True
+  Next
+  On Error Goto 0
+End Function
+
 ' Stop any existing widget server on port 3030 before launching a new one.
 ' Runs synchronously (last arg = True) so we wait for the kill + sleep before
 ' handing off to node, avoiding an EADDRINUSE race on fast machines. Skipped
@@ -179,6 +210,8 @@ If PortInUse() Then
         "}catch{}" & Chr(34)
     shell.Run psKill, 0, True
   End If
+ElseIf EngineStarting() Then
+  WScript.Quit 0
 End If
 
 Dim nodeExe

@@ -195,6 +195,15 @@
         head.appendChild(el('div', 'ac-w-temp'));
         if (p.cond !== false) body.appendChild(el('div', 'ac-w-cond'));
         if (p.place !== false) body.appendChild(el('div', 'ac-w-place'));
+        // Weather Style "Your widget": a tap leaves the scene for the Weather
+        // window, which shows that widget. Only where the window exists.
+        const WL = window.WeatherLook;
+        if (WL && WL.current() === 'custom' && document.getElementById('weather-overlay')) {
+          body.dataset.acTouch = '';
+          body.dataset.acAct = 'weather-open';
+          body.setAttribute('role', 'button');
+          body.setAttribute('aria-label', tt('weather_open', 'Open weather'));
+        }
       },
       update(item) {
         const d = (typeof weatherData !== 'undefined') ? weatherData : null;
@@ -624,6 +633,12 @@
       const level = Math.max(0, Math.min(100, vol + (act === 'vol-up' ? step : -step)));
       sp.volume = level;   // optimistic; the next audio sample confirms it
       run(level);
+    } else if (act === 'weather-open') {
+      const overlay = document.getElementById('weather-overlay');
+      const open = fn('toggleWeatherDetails');
+      if (!overlay || !overlay.hidden || !open) return;
+      if (window.AmbientMode) window.AmbientMode.close();
+      open();
     }
   }
   function onStageTap(e) {

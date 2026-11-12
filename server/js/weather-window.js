@@ -48,9 +48,9 @@ function buildWeatherWindowBody(data) {
   main.append(...[
     buildWeatherWindowNow(data),
     buildWeatherWindowBlock('hours', 'weather_hourly', buildWeatherHours(data)),
+    buildWeatherWindowBlock('days', 'weather_forecast', days),
   ].filter(Boolean));
   side.append(...[
-    buildWeatherWindowBlock('days', 'weather_forecast', days),
     buildWeatherWindowBlock('facts', 'weather_details_title', buildWeatherFacts(data, weatherSunFacts(data))),
   ].filter(Boolean));
   return [main, side];
@@ -100,7 +100,9 @@ function renderWeatherDetails() {
   $('weather-modal-title').textContent = ok ? weatherFullPlace(data) : t('weather_title');
   updated.textContent = ok ? formatWeatherUpdated(data.updatedAt) : '';
   updated.classList.toggle('is-stale', ok && !!data.stale);
-  $('weather-content').replaceChildren(...weatherWindowParts(data));
+  const content = $('weather-content');
+  if (window.WeatherLook && window.WeatherLook.renderWindow(content)) return;   // Style "Your widget"
+  content.replaceChildren(...weatherWindowParts(data));
 }
 
 // Never disabled while it works: a disabled key would drop the focus out of the window.

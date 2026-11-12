@@ -64,13 +64,6 @@
     return { major: majorPending(wn, whatsNewSeen), notes: notesPending(wn, notesSeen) };
   }
 
-  // New means this surface can be asked the screen question, it never was, and
-  // nothing remembers earlier use. A phone or the iCUE frame is never asked, so
-  // "never answered" alone would swallow the news for people who never saw it.
-  function freshInstall({ asked, canAsk, whatsNewSeen, notesSeen, tourSeen }) {
-    return !asked && !!canAsk && !whatsNewSeen && !notesSeen && !tourSeen;
-  }
-
   // The line under the name of a release: how much is in it.
   function summary(notes, tr) {
     const count = (one, many, n) => (n === 1 ? tr(one) : tr(many).replace('{n}', String(n)));
@@ -81,10 +74,10 @@
   }
 
   // Someone who used Xenon before this boot. What's New does not count: a new install
-  // marks it seen on its first boot, and closing the app there must not end the question.
+  // is shown it on its first boot, and closing it there must not end the question.
   function returningUser({ asked, notesSeen, tourSeen }) {
     return !!(asked || notesSeen || tourSeen);
   }
 
-  return { compare, shortVersion, localText, pick, failurePending, freshInstall, returningUser, summary };
+  return { compare, shortVersion, localText, pick, failurePending, returningUser, summary };
 });

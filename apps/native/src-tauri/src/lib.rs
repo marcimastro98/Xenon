@@ -2,6 +2,7 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod crash_log;
 mod embed_nav;
+mod engine_install;
 #[cfg(windows)]
 mod cursor_guard;
 #[cfg(windows)]
@@ -13,6 +14,23 @@ mod gpu;
 mod layers;
 #[cfg(windows)]
 pub use layers::{pad_reader, PAD_READER_ARG};
+
+/// First argument that turns this binary into the engine install self-test.
+pub const ENGINE_SELFTEST_ARG: &str = "--install-engine-selftest";
+
+/// Runs the self-test (`engine_install::selftest`) and returns the exit code.
+pub fn engine_selftest(args: &[String]) -> i32 {
+    engine_install::selftest(args)
+}
+
+/// First argument of the "Installed apps" entry: remove Xenon (Windows).
+pub const UNINSTALL_ARG: &str = "--uninstall";
+
+/// Removes the engine this app installed, then the app (`engine_install::uninstall`).
+#[cfg(windows)]
+pub fn uninstall() -> i32 {
+    engine_install::uninstall()
+}
 #[cfg(windows)]
 mod login_task;
 mod memory_level;
@@ -227,6 +245,12 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
     let manager = app.autolaunch();
     #[cfg(windows)]
     login_task::sync(want);
+    #[cfg(windows)]
+    engine_install::keep_one_entry();
+    #[cfg(windows)]
+    if !want {
+        engine_install::keep_task_for_phone();
+    }
     if want {
         // Idempotent, and it REWRITES the entry — which is what migrates an
         // existing registration onto the new `--autostart` argument.
@@ -675,6 +699,15 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             // Someone running `node server/server.js` by hand answers it and is
             // left alone.
             if !backend_answers_once(port) {
+                // This build carries the engine: set it up now, with progress on
+                // the splash, instead of offering the old console bootstrap.
+                // Not over an engine already on disk whose task went missing (a
+                // cleanup tool, a failed query): that one is repaired by the
+                // splash's button, on the user's click.
+                if engine_install::packaged(&handle).is_some() && !engine_install::engine_on_disk() {
+                    engine_install::spawn(&handle, port);
+                    return;
+                }
                 tell_splash(&handle, "try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
             }
             return; // no task to nudge
@@ -875,40 +908,68 @@ fn run_backend_bootstrap(app: &tauri::AppHandle) {
     let Some(script) = bootstrap_script(app) else {
         return;
     };
+    let handle = app.clone();
     // Off the WebView UI thread: process creation blocks, and this is called
     // from the navigation hook, which runs on it.
     std::thread::spawn(move || {
-        use std::os::windows::process::CommandExt;
-        let Ok(mut slot) = BOOTSTRAP_CHILD.lock() else {
-            return;
-        };
-        // A console we started is still open: the user is watching that install
-        // right now, and a second one racing it over the same install root is
-        // the one thing this must never do. try_wait reaps an exited one, so a
-        // closed window frees the slot for a genuine retry.
-        if let Some(child) = slot.as_mut() {
-            if matches!(child.try_wait(), Ok(None)) {
-                return;
-            }
-        }
-        // Give the console app a console of its own — this GUI process has
-        // none, and the visible window IS the install progress UI.
-        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
-        // PowerShell by its FULL system path: an unqualified exe name resolves
-        // from the process's own directory first (binary planting, CWE-427).
-        let system_root =
-            std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
-        let powershell = std::path::Path::new(&system_root)
-            .join("System32\\WindowsPowerShell\\v1.0\\powershell.exe");
-        // A failed spawn leaves the slot empty on purpose — the splash hands the
-        // button back after a while, and that retry has to be able to work.
-        *slot = std::process::Command::new(powershell)
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(&script)
-            .creation_flags(CREATE_NEW_CONSOLE)
-            .spawn()
-            .ok();
+        start_bootstrap_console(&script);
+        watch_bootstrap_console(&handle);
     });
+}
+
+/// Tells the splash, once a second, whether the console is still open, so it
+/// never says "still not started" over an install the user is watching.
+#[cfg(windows)]
+fn watch_bootstrap_console(handle: &tauri::AppHandle) {
+    use tauri::Manager;
+    loop {
+        let running = BOOTSTRAP_CHILD
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.as_mut().map(|c| matches!(c.try_wait(), Ok(None))))
+            .unwrap_or(false);
+        if let Some(win) = handle.get_webview_window("main") {
+            let _ = win.eval(format!("try{{window.__XENON_SETUP_RUNNING__={running};}}catch(e){{}}"));
+        }
+        if !running {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
+
+#[cfg(windows)]
+fn start_bootstrap_console(script: &std::path::Path) {
+    use std::os::windows::process::CommandExt;
+    let Ok(mut slot) = BOOTSTRAP_CHILD.lock() else {
+        return;
+    };
+    // A console we started is still open: the user is watching that install
+    // right now, and a second one racing it over the same install root is
+    // the one thing this must never do. try_wait reaps an exited one, so a
+    // closed window frees the slot for a genuine retry.
+    if let Some(child) = slot.as_mut() {
+        if matches!(child.try_wait(), Ok(None)) {
+            return;
+        }
+    }
+    // Give the console app a console of its own — this GUI process has
+    // none, and the visible window IS the install progress UI.
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    // PowerShell by its FULL system path: an unqualified exe name resolves
+    // from the process's own directory first (binary planting, CWE-427).
+    let system_root =
+        std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
+    let powershell = std::path::Path::new(&system_root)
+        .join("System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+    // A failed spawn leaves the slot empty on purpose — the splash hands the
+    // button back after a while, and that retry has to be able to work.
+    *slot = std::process::Command::new(powershell)
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+        .arg(script)
+        .creation_flags(CREATE_NEW_CONSOLE)
+        .spawn()
+        .ok();
 }
 
 /// macOS twin of the Windows nudge above. The two signals differ from Windows
@@ -1058,6 +1119,28 @@ fn find_node() -> Option<std::path::PathBuf> {
     (!found.is_empty()).then(|| std::path::PathBuf::from(found))
 }
 
+/// Start server.js as this app's child (see spawn_backend_nudge for why it must
+/// be a child here). The node an install carries in `node-runtime` wins over
+/// any system one: it is the version that engine was built and tested with.
+#[cfg(target_os = "macos")]
+pub(crate) fn start_backend_child(entry: &std::path::Path) -> bool {
+    let root = entry.parent().and_then(|p| p.parent());
+    let bundled = root
+        .map(|r| r.join(engine_install::RUNTIME_DIR).join("bin/node"))
+        .filter(|p| p.is_file());
+    let Some(node) = bundled.or_else(find_node) else { return false };
+    let mut cmd = std::process::Command::new(node);
+    cmd.arg(entry);
+    if let Some(root) = root {
+        cmd.current_dir(root);
+    }
+    let Ok(child) = cmd.spawn() else { return false };
+    if let Ok(mut guard) = BACKEND_CHILD.lock() {
+        *guard = Some(child);
+    }
+    true
+}
+
 /// Open a script in Terminal.app and, when `marker` is given, make sure it
 /// actually ran.
 ///
@@ -1124,6 +1207,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
         .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
         .ok();
     let home = app.path().home_dir().ok();
+    let handle = app.clone();
     std::thread::spawn(move || {
         if backend_answers(port) {
             return;
@@ -1157,19 +1241,13 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
                     ])
                     .status();
             }
-            if let Some(node) = find_node() {
-                let root = entry.parent().and_then(|p| p.parent());
-                let mut cmd = std::process::Command::new(node);
-                cmd.arg(&entry);
-                if let Some(root) = root {
-                    cmd.current_dir(root);
+            if start_backend_child(&entry) {
+                if let Some(root) = entry.parent().and_then(|p| p.parent()) {
+                    engine_install::ensure_login_item(root);
                 }
-                if let Ok(child) = cmd.spawn() {
-                    if let Ok(mut guard) = BACKEND_CHILD.lock() {
-                        *guard = Some(child);
-                    }
-                }
-            } else if let Some(installer) = entry
+                return;
+            }
+            if let Some(installer) = entry
                 .parent()
                 .map(|p| p.join("install.sh"))
                 .filter(|p| p.exists())
@@ -1185,8 +1263,13 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             }
             return;
         }
-        // Nothing installed here at all. Open the bootstrap in Terminal so the
-        // install has a UI and an exit.
+        // Nothing installed here at all. A build that carries the engine sets it
+        // up itself, with progress on the splash; an older one opens the
+        // bootstrap in Terminal so the install has a UI and an exit.
+        if engine_install::packaged(&handle).is_some() {
+            engine_install::spawn(&handle, port);
+            return;
+        }
         let Some(script) = script else { return };
         if !script.exists() {
             return;
@@ -1214,6 +1297,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
         .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
         .ok();
     let config = app.path().config_dir().ok();
+    let handle = app.clone();
     std::thread::spawn(move || {
         if backend_answers(port) {
             return;
@@ -1243,8 +1327,13 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
         if autostart.map(|p| p.exists()).unwrap_or(false) {
             return;
         }
-        // Nothing installed → offer to set the backend up, in a terminal the
-        // user can read and interrupt.
+        // Nothing installed. A build that carries the engine sets it up itself,
+        // with progress on the splash; an older one offers the bootstrap in a
+        // terminal the user can read and interrupt.
+        if engine_install::packaged(&handle).is_some() {
+            engine_install::spawn(&handle, port);
+            return;
+        }
         let Some(script) = script else { return };
         if !script.exists() {
             return;
@@ -2098,13 +2187,14 @@ pub fn run() {
             // Windows builds that actually carry the bootstrap, and nothing
             // else (see bootstrap_script). Without this the button would show
             // up in `tauri dev` and on any future non-Windows target.
+            let engine_bundled = engine_install::packaged(app.handle()).is_some();
             #[cfg(windows)]
-            let setup_available = bootstrap_script(app.handle()).is_some();
+            let setup_available = engine_bundled || bootstrap_script(app.handle()).is_some();
             #[cfg(not(windows))]
-            let setup_available = false;
+            let setup_available = engine_bundled;
             let setup_js = format!(
-                "try{{window.__XENON_SETUP_AVAILABLE__={};}}catch(e){{}}",
-                setup_available
+                "try{{window.__XENON_SETUP_AVAILABLE__={};window.__XENON_ENGINE_BUNDLED__={};}}catch(e){{}}",
+                setup_available, engine_bundled
             );
             // The nonce every signal URL from this window must carry, and the
             // script that hands it to the top-level page of our own origins only
@@ -2314,6 +2404,13 @@ pub fn run() {
                     // deliberately replaced the installer's silent post-install
                     // spawn — see run_backend_bootstrap.
                     if scheme == "xenon-setup" {
+                        // "Install" and "Repair" with the engine this build
+                        // carries: no console, progress on the splash. Builds
+                        // without one keep the bootstrap below.
+                        if url.path() == "run" && engine_install::packaged(&nav_handle).is_some() {
+                            engine_install::spawn(&nav_handle, port);
+                            return false;
+                        }
                         #[cfg(windows)]
                         match url.path() {
                             // Also the "Repair Xenon" button: the same script

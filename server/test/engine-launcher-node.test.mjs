@@ -110,6 +110,47 @@ test('the port check sees a listener, and sees it gone', { skip: process.platfor
   assert.equal(portInUse(port, 'root\\NoSuchNamespace'), '-1', 'a question WMI cannot answer must count as in use');
 });
 
+// A second launch while the engine is still starting (the logon task and the
+// app's /Run on a slow cold boot) used to start a second node, which retried the
+// port for 15 s and left a failure in server.log.
+test('a launch while this engine is still starting leaves it be', () => {
+  const guard = CODE.indexOf('If PortInUse() Then');
+  const starting = CODE.indexOf('ElseIf EngineStarting() Then');
+  assert.ok(starting > guard, 'the starting check is not the other branch of the port check');
+  assert.ok(starting < CODE.indexOf('nodeExe = FindNode()'), 'the check must come before the start');
+  assert.match(CODE.slice(starting, CODE.indexOf('End If', starting)), /WScript\.Quit 0/);
+});
+
+const engineStarting = (serverPath) => {
+  const at = CODE.indexOf('Function EngineStarting()');
+  const fn = CODE.slice(at, CODE.indexOf('End Function', at) + 'End Function'.length);
+  const dir = mkdtempSync(join(tmpdir(), 'xenon-launcher-'));
+  try {
+    const script = join(dir, 'probe.vbs');
+    writeFileSync(script, `Dim serverPath\r\nserverPath = "${serverPath}"\r\n${fn}\r\nWScript.Echo CInt(EngineStarting())\r\n`);
+    const out = spawnSync('cscript.exe', ['//nologo', script], { encoding: 'utf8', timeout: 30000 });
+    assert.equal(out.status, 0, out.stderr);
+    return out.stdout.trim();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+test('the starting check sees a fresh node of this engine and nothing else', { skip: process.platform !== 'win32' }, async () => {
+  // A harmless node whose command line names a server.js that does not exist;
+  // nothing on the real engine's path is looked at or touched.
+  const fake = join(tmpdir(), 'xenon-starting-probe-' + process.pid, 'server', 'server.js');
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)', fake]);
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(engineStarting(fake), '-1', 'a node starting this server.js was not seen');
+    assert.equal(engineStarting(fake.toUpperCase()), '-1', 'paths are compared as Windows does, ignoring case');
+    assert.equal(engineStarting(join(tmpdir(), 'xenon-other-' + process.pid, 'server.js')), '0', 'another node read as this engine');
+  } finally {
+    child.kill();
+  }
+});
+
 // The PowerShell line the launcher really runs, for any port.
 const killCommand = (port) => {
   const from = CODE.indexOf('"try{"');

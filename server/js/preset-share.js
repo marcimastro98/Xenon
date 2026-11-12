@@ -160,6 +160,10 @@
   const PACK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
   // openApp launch arguments travel ("--incognito") unless one of them is a path.
   const LOCAL_PATH_RE = /[a-z]:[\\/]|\\\\\w|(^|[\s"'=])(~[\\/]|\/(users|home|mnt|media|volumes)\/)/i;
+  // A shared key's link loses what names a person (a chat id, a phone, a token):
+  // js/share-link-privacy.js, loaded first.
+  const LinkPrivacy = (typeof window !== 'undefined' && window.ShareLinkPrivacy)
+    || (typeof require === 'function' ? require('./share-link-privacy.js') : null);
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
   // Caps mirror server/icon-packs.js (the authority) so the builder gives the
@@ -424,6 +428,7 @@
     const out = { ...action };
     for (const name of (A.PERSONAL_PARAMS || {})[action.type] || []) if (name in out) out[name] = '';
     if (action.type === 'openApp' && LOCAL_PATH_RE.test(String(action.args || ''))) delete out.args;
+    if (action.type === 'openUrl' && LinkPrivacy) out.url = LinkPrivacy.shareableLink(out.url);
     return out;
   }
 
@@ -3142,7 +3147,8 @@
       // Only a remote-locked Store entry has a sale: the sheet (js/buy-sheet.js) shows it.
       const sealed = prefill ? peekLocked(prefill) : null;
       const sparksPrice = window.BuySheet && sealed && sealed.remote && Number.isInteger(source.sparks) && source.sparks > 0 ? source.sparks : 0;
-      const sparksOnly = sparksPrice > 0 && source.sparksOnly === true;
+      // Becomes true when the hub refuses the pass on a drop it sells (passRefusedOnSale).
+      let sparksOnly = sparksPrice > 0 && source.sparksOnly === true;
       let sale = null;
       const { body, close, overlay, modal } = buildModal(importTitle(), () => { if (sale) sale.destroy(); });
       const desc = document.createElement('p');
@@ -3363,6 +3369,30 @@
           toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service: check your connection and try again.'), '', 'error');
         }
       };
+      // The hub refused the pass (not an XL code) on a drop it sells for Sparks:
+      // the pass never opens those. Instead of "wrong code", say so and show the
+      // sale: here when this window sells it, else on the entry's Store page (a
+      // window opened without the catalog's price, e.g. from a pasted code).
+      const passRefusedOnSale = async (locked) => {
+        if (canonCode(unlockField.value).startsWith('XL')) return false;
+        const why = tr('sparks_err_pass_not_this', 'Your supporter code doesn’t open this one: it is bought with Sparks, and the Sparks on your pass can pay for it.');
+        if (sale) {
+          sparksOnly = true;
+          syncUnlockVisibility();
+          toast(why, '', 'info');
+          return true;
+        }
+        let entry = null;
+        try {
+          const cat = await (await fetch('/api/community/catalog')).json();
+          entry = cat && Array.isArray(cat.entries) ? cat.entries.find((e) => e && e.id === locked.entryId) : null;
+        } catch { entry = null; }
+        if (!entry || entry.limited || !(entry.sparks > 0) || !window.CommunityGallery) return false;
+        close();
+        toast(why, '', 'info');
+        window.CommunityGallery.openEntryById(locked.entryId);
+        return true;
+      };
       const buyWithSparks = async (locked, again = false) => {
         // Nothing spends without the box, whichever button got here. `again` is a
         // copy the hub says is already theirs: no box, and no consent sent, so if
@@ -3465,6 +3495,7 @@
           // With a pass saved, a "supporters or Sparks" drop opens with the pass:
           // nothing to buy.
           selling: remote && !boughtCek && !useRedeem && !(savedPass && !sparksOnly && !passLapsed),
+          sparksOnly,
           opens: useSaved || useRedeem,
           opensText: savedText.textContent,
           trial: !tryRow.hidden,
@@ -3578,7 +3609,7 @@
                 savedPass = false;
                 syncUnlockVisibility();
                 unlockField.focus();
-                toast(tr('preset_redeem_saved_stale', 'Your saved code no longer works: it was replaced or revoked. Paste the newest one from your email.'), '', 'error');
+                toast(tr('preset_redeem_saved_stale', 'This code does not work. Paste the one from your latest supporter email.'), '', 'error');
               } else if (err === 'not_in_trial') {
                 toast(tr('trial_err_not_in', 'This drop is not part of the trial. New drops usually join after their first 30 days; limited drops need their own code.'), '', 'error');
               } else if (err === 'trial_used') {
@@ -3595,7 +3626,9 @@
               } else if (err === 'limit') {
                 toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
               } else if (err === 'wrong_code') {
-                toast(tr('preset_redeem_wrong', 'This code doesn’t unlock this drop. Supporter codes open supporter drops only; limited or purchased drops need their own code.'), '', 'error');
+                if (!(await passRefusedOnSale(locked))) {
+                  toast(tr('preset_redeem_wrong', 'This code doesn’t unlock this drop. Supporter codes open supporter drops only; limited or purchased drops need their own code.'), '', 'error');
+                }
               } else if (err === 'bad_code' || err === 'bad_entry' || err === 'bad_request') {
                 toast(tr('preset_redeem_bad', 'Wrong or unknown code.'), '', 'error');
               } else if (err === 'rate_limited') {
@@ -4141,6 +4174,16 @@
       return true;
     }
 
+    function askIfRunsWithoutTile(pkgId) {
+      const CW = window.CustomWidget;
+      if (!CW || typeof CW.cachedPackages !== 'function' || typeof CW.requestGrants !== 'function') return;
+      const pkg = CW.cachedPackages().find((p) => p && p.id === pkgId);
+      const offTile = !!pkg && pkg.background === true && (pkg.badge === true || pkg.mini === true
+        || pkg.topbarButton === true || pkg.islandDynamic === true
+        || !!(pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.length));
+      if (offTile) CW.requestGrants([pkg]);
+    }
+
     async function showInstalledToast(CW, pkgs) {
       const screen = window.PlaceInstalled ? await window.PlaceInstalled.onScreenOption(pkgs.map((p) => p.id)) : null;
       if (screen && screen.only) {
@@ -4264,9 +4307,15 @@
         const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true, replace: review.replaces === true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        const pkgId = review.id || w.id || (w.payload && w.payload.id);
+        // A widget that works with no tile (a badge, a mini slot, an island
+        // activity, Deck keys, all with `background`) asks for its permissions
+        // now, as a bundle import does. Otherwise the only way to approve it was
+        // placing a tile its owner never wanted, and it stayed dead in silence.
+        askIfRunsWithoutTile(pkgId);
         // The installed widget says where it goes; a scene or a headless widget,
         // which has no tile, just gets the plain confirmation.
-        if (!offerAddToPage([review.id || w.id || (w.payload && w.payload.id)])) {
+        if (!offerAddToPage([pkgId])) {
           toast(importDoneLabel(), String(name || w.name || ''), 'success');
         }
       });

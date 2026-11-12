@@ -148,7 +148,7 @@ window) does not report errors or pictures yet.
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
-| `background` | no | `true` + declared `deck.handlers`, `badge`, `mini`, `topbarButton`, and/or `island: { "dynamic": true }` or `island: { "full": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
+| `background` | no | `true` + declared `deck.handlers`, `badge`, `mini`, `topbarButton`, and/or `island: { "dynamic": true }` or `island: { "full": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. At most **8** packages run this way at once (4 before v5.1), ranked by need: granted Deck keys first, then a badge, mini slot or bar button, then Dynamic Island activities. A package the user switched off in Settings → Top bar → Apps and widgets in the bar keeps a frame only for its Deck keys. One left out works only while its tile is on screen, and Settings → Installed says so. |
 | `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
@@ -175,6 +175,15 @@ with a reason rather than silently losing capabilities.
 The user sees exactly what you request in a permission dialog and can decline.
 Request only what you need — an empty `streams`/`actions` widget renders with a
 "nothing" permission summary, which users trust most.
+
+**Your widget in the Weather tile (v5.1.0).** When the user sets Settings →
+Weather → Style to *Your widget*, the Weather tile hosts one of their widgets
+instead of Xenon's own. Its chooser lists only packages whose `streams` include
+`weather`, so a weather widget needs nothing else: request `weather`, and it
+runs there under the same permission dialog, sandbox and paused states as in a
+custom tile. The Weather window (the top bar's weather, the lock screen, Ambient)
+then shows the same widget, in a second frame that starts when the window opens
+and stops when it closes: read `size` rather than assuming the tile's.
 
 ## The sandbox (what your widget can and cannot do)
 
@@ -362,6 +371,11 @@ than the manifest requested):
     // still renders as a glass card inside a pixel dashboard. See *Following the
     // skin* below. Also present on every `theme` refresh.
     skin: 'glass'|'retro',
+    // The look by name (v5.1): 'liquid' (Liquid Glass, the default on new
+    // installs), 'glass' (Classic), 'retro' or 'comic'. Use it when Liquid and
+    // Classic must differ, for example the edges of your cards. See *Following
+    // the skin*. Absent on older Xenon: fall back to `skin`.
+    look: 'liquid'|'glass'|'retro'|'comic',
     // true when the user runs a 12-hour clock. The setting is Settings → Clock →
     // Time format (auto / 12 / 24), already resolved for you: `auto` follows the
     // interface language, so you never have to guess from the locale. Use it
@@ -399,7 +413,10 @@ than the manifest requested):
       info: '#62cbea', onInfo: '#111111',
       // Optional — the nested-card surface at the user's panel opacity, and that
       // alpha as a number. null when unavailable; fall back to surfaceAlt.
-      surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92
+      surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92,
+      // Optional (v5.1) — the tile's own edge as the user set it (Panel border),
+      // ready for `border`, and that alpha as a number. null when unavailable.
+      panelBorder: 'rgba(255, 255, 255, 0.12)', panelBorderAlpha: 0.12
     },
     // Optional (v5.0.0): the colours the user picked for THIS tile's buttons
     // in Widget style → Controls. null when the tile sets none. See below.
@@ -1854,6 +1871,26 @@ Both are `null` on older hosts, or when the tile's tokens can't be read — alwa
 fall back to the solid `surfaceAlt`. Keep using the solid `surfaceAlt` for any
 surface you want to stay opaque no matter what the user sets.
 
+Every colour role is a solid `#rrggbb`. Where the tile paints a role
+see-through (on Liquid Glass the `line`, the cards and the keys are white or
+black at 8-16%), the host lays it over the tile's `surface` first, so the hex
+looks like what the tile shows. Before v5.1 the alpha was dropped instead, and
+on Liquid Glass `line` and `control` arrived as pure white.
+
+**Follow the user's panel edge (optional, v5.1).** Every tile has a 1px edge
+whose strength the user sets with **Panel border** (Settings → Appearance), and
+whose colour the look decides (white on Liquid Glass and Classic, the accent on
+Pixel Retro, ink on Comic). Your frame inherits none of it, so two values carry it:
+
+- `palette.panelBorder` — the edge colour exactly as the tile draws it, an
+  `rgba(…)` string ready for `border: 1px solid …`.
+- `palette.panelBorderAlpha` — the user's alpha alone, `0..1`, if you build
+  your own colour from it.
+
+Both are `null` on older hosts. A widget that draws a frame like a tile's uses
+these instead of a guessed alpha. Cards **inside** a tile are another matter:
+on Liquid Glass native cards have no edge at all (see `look` below).
+
 **Follow the user's button colours (optional, v5.0.0).** In Widget style →
 Controls the user can restyle a tile's own buttons, tabs, chips, the selected
 button and text fields. Native tiles change by themselves; your widget runs in
@@ -1938,6 +1975,20 @@ micro-labels, and the `'VT323', 'Courier New', monospace` stack. VT323 is loaded
 by the host document and will **not** resolve inside your sandboxed frame, which
 is fine: name it first and let Courier New take over, exactly as the app does on
 a machine without the font. Do not bundle a pixel font for this.
+
+`skin` folds Liquid Glass and Classic into `'glass'`, so a widget written before
+Liquid Glass keeps working. From v5.1 `theme.look` names the look itself:
+`'liquid'`, `'glass'` (Classic), `'retro'` or `'comic'`. What Liquid Glass does
+inside a tile (source of truth: `server/styles/liquid-tiles.css`): **cards and
+rows have no outline**, they are soft wells a few percent darker than the sheet;
+buttons are a soft fill with no border; separators are a faint line. So on
+`look === 'liquid'` drop the outline from your cards and let the fill carry them:
+
+```js
+const root = document.documentElement;
+root.dataset.look = theme.look || theme.skin || 'glass';  // older Xenon: no look
+/* [data-look="liquid"] .row { box-shadow: none; border: 0; } */
+```
 
 Two things worth not getting wrong. Any transition or easing should be dropped or
 stepped under Retro — a CRT console does not glide. And if you set sizes through a

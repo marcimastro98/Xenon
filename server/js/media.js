@@ -481,9 +481,11 @@ function applyMediaInto(root, ctx) {
   const art = mf(root, 'media-art'), bg = mf(root, 'media-bg');
   const pi = mf(root, 'play-icon'), pa = mf(root, 'pause-icon');
   if (ctx.empty) {
-    if (app) app.textContent = t('media');
+    // Minimal on purpose: no app name and no hint on screen. The title stays for
+    // screen readers, hidden by the CSS without moving the controls.
+    if (app) app.textContent = '';
     if (title) title.textContent = t('media_empty_title');
-    if (artist) artist.textContent = t('media_empty_sub');
+    if (artist) artist.textContent = '';
     if (art) { art.classList.remove('has-image'); art.style.backgroundImage = ''; }
     root.classList.remove('has-image');
     if (bg) bg.style.backgroundImage = '';

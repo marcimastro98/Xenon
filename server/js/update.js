@@ -1021,22 +1021,6 @@
     } catch { return null; }
   }
 
-  // A first install has nothing to be told about: there is no earlier version it
-  // is coming from, and "here is what changed" is a strange first sentence for
-  // something the user has never seen. Called by settings.js the moment it knows
-  // this machine has never answered the screen question — which is the only
-  // signal in the product that says "brand new install" rather than "new build".
-  //
-  // Marks the current release as already seen instead of adding a second gate:
-  // one flag, one meaning, and the modal comes back on its own at the NEXT
-  // release, which is when it starts being true.
-  async function suppressForFreshInstall() {
-    const wn = await loadWhatsNew();
-    if (wn && wn.id && !dismissedWhatsNew(wn.id)) rememberWhatsNew(wn.id);
-    const c = CARDS();
-    if (wn && wn.version && c) c.rememberUpdateNotice({ notes: wn.version });
-  }
-
   // The menu takes the screen only where a shell draws it: never on a phone.
   async function menuKey() {
     if (!isNativeShell()) return '';
@@ -1337,7 +1321,7 @@
     isVersionSkipped,
     skipVersion: rememberDismissed,
   };
-  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, reopen: reopenWhatsNew, suppressForFreshInstall };
+  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, reopen: reopenWhatsNew };
 
   document.addEventListener('DOMContentLoaded', wireVersionLabel, { once: true });
   document.addEventListener('DOMContentLoaded', boot, { once: true });

@@ -19,6 +19,15 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_CHAT_MODEL = 'claude-sonnet-5';
 const MAX_TOKENS = 2048;
 
+// Claude 5 and later think before they answer unless told otherwise, and the
+// thinking spends from max_tokens: a helper sized for its answer alone came back
+// cut (a lyrics translation, 10 Nov 2026). On those a helper runs at low effort
+// with room on top; only what is written is paid. Older models do not think by
+// default and refuse the effort setting, so they are sent as before.
+const THINKS_BY_DEFAULT = /^claude-[a-z]+-([5-9]|\d{2,})(?:-|$)/;
+const HELPER_EFFORT = 'low';
+const HELPER_THINKING_ROOM = 2048;
+
 // Offline fallback only: what the user actually runs is resolved by ai-models.js
 // against the live list, so `auto` follows Anthropic's releases on its own.
 const DEFAULTS = Object.freeze({ chat: DEFAULT_CHAT_MODEL });
@@ -178,6 +187,11 @@ function _appendToLatestUser(messages, text) {
   last.content.push({ type: 'text', text });
 }
 
+// Thinking room for a chat round on a Claude 5 model, and the wait for it: 8192
+// tokens at Sonnet's pace is well past the 90 s a short request gets.
+const CHAT_THINKING_ROOM = 6144;
+const CHAT_TIMEOUT_MS = 180000;
+
 const CUT_TOOL_NOTE = 'Your last answer reached the length limit in the middle of a tool call, so nothing was run. Call the tool again with a shorter input: fewer files, less code, no comments, and think less before writing.';
 
 // Chat turn with function calling. Mirrors ai-local.localChat and returns the
@@ -188,9 +202,12 @@ const CUT_TOOL_NOTE = 'Your last answer reached the length limit in the middle o
 async function chat({ apiKey, model, geminiTools, history, systemText, turnNote, executeTool, post, maxTokens }) {
   const key = String(apiKey || '').trim();
   if (!post && !key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
-  const send = post || ((body) => _post(key, body));
-  const outputTokens = maxTokens || MAX_TOKENS;
+  const send = post || ((body) => _post(key, body, CHAT_TIMEOUT_MS));
   const chatModel = sanitizeModel(model);
+  // On the user's own key a Claude 5 model thinks first, out of the same length
+  // (Sonnet at its default effort can think past 2048 alone): room on top, and
+  // the time to write it. Xenon credits pass their own length (`maxTokens`).
+  const outputTokens = maxTokens || (MAX_TOKENS + (THINKS_BY_DEFAULT.test(chatModel) ? CHAT_THINKING_ROOM : 0));
   // Read each round: use_tools can add a group mid-turn (ai-tool-groups.js).
   const toolsNow = follow(geminiTools, geminiToolsToAnthropic);
   const messages = geminiHistoryToAnthropic(history);
@@ -274,11 +291,14 @@ function userContent(userText, image) {
 async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage, image }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
+  const id = sanitizeModel(model);
+  const thinks = THINKS_BY_DEFAULT.test(id);
   const body = {
-    model: sanitizeModel(model),
-    max_tokens: maxTokens || MAX_TOKENS,
+    model: id,
+    max_tokens: (maxTokens || MAX_TOKENS) + (thinks ? HELPER_THINKING_ROOM : 0),
     messages: [{ role: 'user', content: userContent(userText, image) }],
   };
+  if (thinks) body.output_config = { effort: HELPER_EFFORT };
   if (systemText) body.system = systemText;
   const resp = await _post(key, body, 60000);
   const u = resp && resp.usage;

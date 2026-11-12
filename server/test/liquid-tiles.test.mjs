@@ -74,9 +74,9 @@ test('a bare widget\'s dark words get a light edge', () => {
   assert.match(host, /\[data-appearance="light"\] \.layer-slot\[data-bare\] > \[data-dashboard-widget\] \{ text-shadow: 0 0 2px #fff/);
 });
 
-test('nothing playing: the hint wraps, and the picture has no caption', () => {
+test('nothing playing: no hint under the title, and the picture has no caption', () => {
   const css = read('../components/MediaPanel/MediaPanel.css');
-  assert.match(css, /\.media-panel\.is-empty \.media-artist \{ white-space: normal; \}/);
+  assert.doesNotMatch(css, /\.media-panel\.is-empty \.media-artist/);
   assert.match(css, /\.media-panel\.is-empty \.ph-label \{ display: none; \}/);
   assert.match(read('../js/media.js'), /root\.classList\.toggle\('is-empty', !!ctx\.empty\);/);
 });

@@ -81,4 +81,7 @@ function cleanSeen(body) {
   return out;
 }
 
-module.exports = { normalizeSheet, normalizeMedia, normalizeMore, normalizeReleases, cleanSeen, SHEET_COLORS, SHEET_SCENES };
+module.exports = {
+  normalizeSheet, normalizeMedia, normalizeMore, normalizeReleases, cleanSeen,
+  SHEET_COLORS, SHEET_SCENES,
+};

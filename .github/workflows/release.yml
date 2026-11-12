@@ -366,6 +366,37 @@ jobs:
         run: |
           & "$env:XENON_SIGN_SCRIPT" -Path 'apps/native/src-tauri/windows/xenon-bootstrap.ps1'
 
+      # 5.1.0: the setup carries the engine and a pinned Node, so a new install
+      # needs no console, no download and no UAC. tools/engine-bundle writes
+      # apps/native/src-tauri/engine/ and the tauri.engine.conf.json overlay
+      # that bundles it. Built from the checked-out tag, on this OS (koffi is
+      # native).
+      - name: Build the engine the installer carries
+        shell: pwsh
+        run: |
+          node tools/engine-bundle/cli.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Tauri signs only the binaries it builds, never resources. node.exe is
+      # already signed by the OpenJS Foundation; the native modules npm brings
+      # (koffi) are not, and an unsigned DLL in a fresh install folder is the
+      # first thing a heuristic scanner flags. Only files without a valid
+      # signature are signed, so node.exe keeps its own.
+      - name: Sign the engine's native files
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        shell: pwsh
+        run: |
+          $engine = 'apps/native/src-tauri/engine'
+          $files = Get-ChildItem $engine -Recurse -File -Include *.exe, *.dll, *.node
+          foreach ($f in $files) {
+            if ((Get-AuthenticodeSignature -LiteralPath $f.FullName).Status -eq 'Valid') { continue }
+            & "$env:XENON_SIGN_SCRIPT" -Path $f.FullName
+            if ((Get-AuthenticodeSignature -LiteralPath $f.FullName).Status -ne 'Valid') {
+              throw "$($f.FullName) is still not validly signed"
+            }
+            Write-Host "signed $($f.FullName.Substring((Resolve-Path $engine).Path.Length))"
+          }
+
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
         shell: pwsh
@@ -373,16 +404,16 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          # The overlay adds bundle.windows.signCommand and nothing else, so
+          # The sign overlay adds bundle.windows.signCommand and nothing else, so
           # Tauri signs every binary it bundles: xenon-native.exe AND the setup
           # that carries it. Signing the setup alone would leave the exe inside
           # it unsigned, and that is the one antivirus quarantines mid-session.
-          # With no certificate the flag is absent and this is the plain build.
-          if ($env:XENON_SIGN_CONFIG) {
-            npm run build -- --config "$env:XENON_SIGN_CONFIG"
-          } else {
-            npm run build
-          }
+          # With no certificate that flag is absent. The engine overlay is always
+          # passed: configs merge in order, and each touches different keys.
+          $engineConf = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/tauri.engine.conf.json'
+          $configs = @('--config', $engineConf)
+          if ($env:XENON_SIGN_CONFIG) { $configs = @('--config', $env:XENON_SIGN_CONFIG) + $configs }
+          npm run build -- @configs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # A build that quietly lost its signature is worth failing for: it ships
@@ -425,6 +456,11 @@ jobs:
             }
             Write-Host "$name inside the installer signed by: $($isig.SignerCertificate.Subject)"
           }
+          # The engine's binaries as they ship, signed above or by their maker.
+          $unsigned = Get-ChildItem $dir -Recurse -File -Include *.exe, *.dll, *.node |
+            Where-Object { $_.FullName -match '[\\/]engine[\\/]' } |
+            Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -ne 'Valid' }
+          if ($unsigned) { throw "engine files inside the installer are not validly signed: $($unsigned.Name -join ', ')" }
           Remove-Item $dir -Recurse -Force
 
       - name: Stage artifacts and the windows updater fragment
@@ -471,6 +507,46 @@ jobs:
         with:
           name: xenon-native
           path: stage/
+
+  # The installer's own install path, run for real on a clean hosted machine:
+  # the setup is unpacked, and the shell's hidden self-test places the engine
+  # it carries into a temporary folder, starts it on a spare port and waits for
+  # /status. Not in the `native` job on purpose: that one runs on the signing
+  # PC, and a test engine there would act on a real session (it once moved a
+  # real app). The self-test writes no marker; with --check-register it also
+  # creates the sign-in task under a throwaway name, reads it back and deletes it
+  # (macOS: plutil on the login agent; Linux: systemd-analyze on the unit).
+  native-selftest:
+    runs-on: windows-latest
+    needs: native
+    steps:
+      - name: Download the installer
+        uses: actions/download-artifact@v6
+        with:
+          name: xenon-native
+          path: stage
+
+      - name: Install the carried engine into a temporary folder and start it
+        shell: pwsh
+        run: |
+          $setup = Get-Item stage/Xenon-Setup-x64.exe
+          $dir = Join-Path $env:RUNNER_TEMP 'setup'
+          7z x -y "-o$dir" $setup.FullName | Out-Null
+          if ($LASTEXITCODE -gt 1) { throw "7-Zip could not unpack the installer (exit $LASTEXITCODE)" }
+          $bundle = Get-ChildItem $dir -Recurse -Filter bundle.json |
+            Where-Object { $_.Directory.Name -eq 'engine' } | Select-Object -First 1
+          if (-not $bundle) { throw 'the installer carries no engine (no bundle.json inside it)' }
+          $exe = Get-ChildItem $dir -Recurse -Filter xenon-native.exe | Select-Object -First 1
+          if (-not $exe) { throw 'xenon-native.exe was not found inside the installer' }
+          $root = Join-Path $env:RUNNER_TEMP 'engine-root'
+          $out = Join-Path $env:RUNNER_TEMP 'selftest.out'
+          $err = Join-Path $env:RUNNER_TEMP 'selftest.err'
+          # A GUI-subsystem exe: Start-Process -Wait is what returns its exit code.
+          $p = Start-Process -FilePath $exe.FullName -Wait -PassThru -NoNewWindow `
+            -RedirectStandardOutput $out -RedirectStandardError $err `
+            -ArgumentList @('--install-engine-selftest', "`"$($bundle.DirectoryName)`"", "`"$root`"", '39123', '--check-register')
+          Get-Content $out, $err -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "the engine self-test failed (exit $($p.ExitCode))" }
 
   native-macos:
     runs-on: macos-latest
@@ -658,12 +734,57 @@ jobs:
           export_secret APPLE_PASSWORD "$IN_APPLE_PASSWORD"
           export_secret APPLE_TEAM_ID  "$IN_APPLE_TEAM_ID"
 
+      # 5.1.0: the app carries the engine and a pinned universal Node, so a new
+      # install needs no Terminal and no download. See the Windows job.
+      - name: Build the engine the app carries
+        run: node tools/engine-bundle/cli.mjs
+
+      # Tauri signs the app and what it builds, never Mach-O files sitting in
+      # Resources, and notarization refuses an app with any unsigned or
+      # non-hardened binary inside. node is re-signed because lipo merged two
+      # builds into one file; its entitlements are the ones Node's own release
+      # uses (JIT, and native modules signed by someone else). Inside-out, before
+      # the build, so Tauri's seal of the bundle covers the signed copies.
+      - name: Sign the engine's native files
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            # lipo dropped node's own signature, and Apple Silicon kills an
+            # unsigned binary: an ad-hoc one at least lets it run.
+            echo "::warning::no signing identity - node gets an ad-hoc signature, the rest ships as its makers left it"
+            codesign --force --sign - apps/native/src-tauri/engine/node-runtime/bin/node
+            exit 0
+          fi
+          ENGINE=apps/native/src-tauri/engine
+          find "$ENGINE/app" -type f -name '*.node' -print0 | while IFS= read -r -d '' f; do
+            codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$f"
+            echo "signed ${f#$ENGINE/}"
+          done
+          codesign --force --options runtime --timestamp \
+            --entitlements apps/native/src-tauri/macos/engine-node.entitlements \
+            --sign "$APPLE_SIGNING_IDENTITY" "$ENGINE/node-runtime/bin/node"
+          codesign --verify --strict "$ENGINE/node-runtime/bin/node"
+          "$ENGINE/node-runtime/bin/node" --version
+
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run build:mac
+        run: npm run build:mac -- --config "$GITHUB_WORKSPACE/apps/native/src-tauri/tauri.engine.conf.json"
+
+      # The install path the app takes on a new Mac, run for real: the engine
+      # the app carries is placed in a temporary folder, started on a spare
+      # port and asked for /status. Nothing is registered. A hosted runner, so
+      # no real session is touched.
+      - name: Install the carried engine into a temporary folder and start it
+        run: |
+          set -euo pipefail
+          APP=$(ls -d apps/native/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app | head -1)
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          [ -f "$APP/Contents/Resources/engine/bundle.json" ] || { echo "::error::the app carries no engine"; exit 1; }
+          "$APP/Contents/MacOS/$EXE" --install-engine-selftest \
+            "$APP/Contents/Resources/engine" "$RUNNER_TEMP/engine-root" 39123 --check-register
 
       # A build that quietly lost its signature is the failure this cannot be
       # allowed to ship: it looks identical, installs fine, and takes away every
@@ -875,6 +996,24 @@ jobs:
           # not, so a failure warns and ships what Tauri built.
           bash apps/native/src-tauri/macos/apply-dmg-layout.sh "$DMG" ||
             echo "::warning::could not apply the dmg window layout - shipping the plain image"
+          # Tauri notarizes and staples the app inside, not the image around it.
+          # A signed, notarized and stapled image is what opens without a warning
+          # even offline. After the layout, which rewrites the image. Developer ID
+          # only: a self-signed certificate cannot be notarized.
+          case "${APPLE_SIGNING_IDENTITY:-}" in
+            "Developer ID Application:"*)
+              if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
+                codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$DMG"
+                xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+                  --team-id "$APPLE_TEAM_ID" --wait
+                xcrun stapler staple "$DMG"
+                xcrun stapler validate "$DMG"
+                spctl -a -vv -t open --context context:primary-signature "$DMG"
+              else
+                echo "::warning::the disk image is not notarized: notarization secrets are missing"
+              fi ;;
+            *) echo "::warning::the disk image is not signed: no Developer ID identity" ;;
+          esac
           cp "$DMG" "stage/$(basename "$DMG")"
           # Stable-named copy, the macOS twin of Xenon-Setup-x64.exe: a permanent
           # link the README and the website can point at.
@@ -974,7 +1113,25 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run build:linux
+        run: |
+          node ../../tools/engine-bundle/cli.mjs
+          npm run build:linux -- --config "$GITHUB_WORKSPACE/apps/native/src-tauri/tauri.engine.conf.json"
+
+      # The install path a new Linux install takes, run for real from the
+      # unpacked AppImage: the engine is placed in a temporary folder, started on
+      # a spare port and asked for /status. Nothing is registered.
+      - name: Install the carried engine into a temporary folder and start it
+        run: |
+          set -euo pipefail
+          IMG=$(ls apps/native/src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+          work=$(mktemp -d)
+          cp "$IMG" "$work/x.AppImage" && chmod +x "$work/x.AppImage"
+          ( cd "$work" && ./x.AppImage --appimage-extract > /dev/null )
+          BUNDLE=$(find "$work/squashfs-root" -path '*/engine/bundle.json' | head -1)
+          [ -n "$BUNDLE" ] || { echo "::error::the AppImage carries no engine"; exit 1; }
+          "$work/squashfs-root/usr/bin/xenon-native" --install-engine-selftest \
+            "$(dirname "$BUNDLE")" "$RUNNER_TEMP/engine-root" 39123 --check-register
+          rm -rf "$work" "$RUNNER_TEMP/engine-root"
 
       # Look inside what was just built: any file only its owner can run, or a
       # folder that is not 0755, is what an isolated launch trips over. A warning
@@ -1083,7 +1240,7 @@ jobs:
     environment: release-signing
     permissions:
       contents: write
-    needs: [gate, helper, capture, native, native-macos, native-linux]
+    needs: [gate, helper, capture, native, native-selftest, native-macos, native-linux]
     if: needs.gate.outputs.proceed == 'true'
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}

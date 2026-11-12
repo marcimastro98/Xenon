@@ -2,15 +2,11 @@
 // Shared "sensors need administrator rights" affordance.
 //
 // LibreHardwareMonitor reads CPU temperature, fan RPM and CPU watts through a
-// kernel driver it can only load elevated. install.ps1 registers Xenon's startup
-// task with RunLevel = Highest ONLY when INSTALL.bat was itself run as admin —
-// double-clicking it registers the task Limited, and nothing repairs that later
-// (update-apply.ps1 never touches the task). Those users silently never get CPU
-// temperature, no matter how many times they update.
-//
-// This is the one-tap repair: POST /system/enable-sensors raises a UAC prompt and
-// sets the task to Highest, permanently. Shared by the Fans and Energy widgets and
-// by Settings → Performance ("Hardware sensors", #settings-sensors-hub) so the fix
+// kernel driver it can only load elevated. Since 5.1.0 Xenon itself never runs
+// elevated: one UAC prompt (POST /system/enable-sensors) installs the "Xenon
+// Sensors" service, which reads them from Program Files and leaves the readings
+// where the engine can read them. Shared by the Fans and Energy widgets and by
+// Settings → Performance ("Hardware sensors", #settings-sensors-hub) so the fix
 // is wherever the user notices the problem.
 (function () {
   const el = makeEl;
@@ -21,9 +17,10 @@
   function resultText(res) {
     const status = res && res.status;
     if (status === 'declined') return { cls: 'is-warn', text: t('sensors_enable_declined', 'You cancelled the Windows prompt, so nothing changed. You can try again any time.') };
-    if (status === 'no_task') return { cls: 'is-warn', text: t('sensors_enable_no_task', 'Part of the Xenon install is missing. Re-run INSTALL.bat with right-click → “Run as administrator”.') };
     if (status === 'raised_no_restart') return { cls: 'is-warn', text: t('sensors_enable_no_restart', 'Permission granted! Just one step left: restart your computer and the sensors will switch on by themselves.') };
-    return { cls: 'is-warn', text: t('sensors_enable_failed', 'That didn’t work. Try re-running INSTALL.bat with right-click → “Run as administrator”.') };
+    // The task was raised either way; only the sensor reader is missing.
+    if (status === 'no_winget' || status === 'install_failed') return { cls: 'is-warn', text: t('sensors_install_failed', 'The sensor reader could not be installed. Check the internet connection and try again.') };
+    return { cls: 'is-warn', text: t('sensors_enable_failed', 'That didn’t work. Restart your computer and try once more.') };
   }
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -42,11 +39,39 @@
     return false;
   }
 
+  // The answer now arrives a moment BEFORE the elevated helper stops this
+  // server (it has to, to be sent at all), so wait for the old one to go away
+  // first; asking it about the sensors would describe the state before the fix.
+  async function waitForDown(timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { await fetch('/version', { cache: 'no-store' }); } catch { return true; }
+      await sleep(400);
+    }
+    return false;
+  }
+
   // Never claim success from a status string alone: the whole point of this
-  // button is that the sensors read, so ask the new server whether they do.
+  // button is that the sensors read, so ask the new server whether they do. A
+  // server that just started has not read them yet (null): ask again briefly.
   async function verifyAccess() {
-    const sys = await apiJson('/system');
-    return sys && sys.sensorAccess;
+    for (let i = 0; i < 12; i++) {
+      const sys = await apiJson('/system');
+      if (sys && sys.sensorAccess) return sys.sensorAccess;
+      await sleep(1000);
+    }
+    return null;
+  }
+
+  // After a 'service' answer the old reading ('needs_admin'/'missing') can
+  // linger until the next poll: wait for 'ok' rather than taking the first one.
+  async function verifyServiceAccess() {
+    for (let i = 0; i < 25; i++) {
+      const sys = await apiJson('/system');
+      if (sys && sys.sensorAccess === 'ok') return 'ok';
+      await sleep(1000);
+    }
+    return null;
   }
 
   // A hint line plus the repair button. `text` is the caller's already-localized
@@ -54,14 +79,16 @@
   // `cls` ADDS the caller's placement class — it never replaces `sa-hint`, which
   // carries the layout: without it the text/status blocks (max-width, so they do
   // not self-centre) pin left while the inline button centres, and the block falls
-  // apart.
-  function hintNode(text, cls) {
+  // apart. `install`: the sensor reader itself is missing ('missing'), so the
+  // same prompt also installs it and the wait is longer; the label says so.
+  // `label` overrides the key's text (the outdated-service card).
+  function hintNode(text, cls, install, label) {
     const wrap = el('div', 'sa-hint' + (cls ? ' ' + cls : ''));
     wrap.appendChild(el('div', 'sa-hint-text', text));
 
     const btn = el('button', 'sa-btn');
     btn.type = 'button';
-    btn.textContent = t('sensors_enable_btn', 'Enable sensors');
+    btn.textContent = label || (install ? t('sensors_install_btn', 'Install sensors') : t('sensors_enable_btn', 'Enable sensors'));
     const status = el('div', 'sa-status');
 
     const say = (cls, text) => { status.className = 'sa-status' + (cls ? ' ' + cls : ''); status.textContent = text; };
@@ -69,7 +96,9 @@
     btn.addEventListener('click', async () => {
       if (btn.disabled) return;
       btn.disabled = true;
-      say('', t('sensors_enable_busy', 'Confirm the Windows prompt…'));
+      say('', install
+        ? t('sensors_install_busy', 'Confirm the Windows prompt. Installing can take a few minutes…')
+        : t('sensors_enable_busy', 'Confirm the Windows prompt…'));
 
       let res = null;
       try {
@@ -85,6 +114,16 @@
         res = { status: 'restarting' };
       }
 
+      // The service is in place and this engine was never elevated: nothing
+      // restarts, the readings arrive within a few seconds. Ask, never assume.
+      if (res.status === 'service') {
+        const access = await verifyServiceAccess();
+        say('is-ok', access === 'ok'
+          ? t('sensors_enable_service_done', 'Done! Fan speeds, CPU watts and CPU temperature are reading now. The FPS counter in games starts after your next sign-in.')
+          : t('sensors_enable_ok', 'Done! Restart your computer and the sensors will switch on by themselves.'));
+        return;
+      }
+
       if (res.status !== 'restarting' && res.status !== 'raised') {
         const out = resultText(res);
         say(out.cls, out.text);
@@ -93,6 +132,7 @@
       }
 
       say('', t('sensors_enable_restarting', 'Restarting Xenon…'));
+      if (res.status === 'raised') await waitForDown(8000);
       const back = await waitForServer(45000);
       if (!back) {
         say('is-warn', t('sensors_enable_slow', 'Xenon is taking a while to come back. Reload the page in a few seconds.'));
@@ -137,18 +177,45 @@
     const sys = await apiJson('/system');
     // 'ok' — nothing to fix, and the Fans and Energy widgets showing real
     // numbers is a better confirmation than a line of text here.
-    // 'missing' or unknown — no LibreHardwareMonitor, so this repair cannot help
-    // whatever is wrong; offering it would be a button that always fails.
-    if ((sys && sys.sensorAccess) !== 'needs_admin') { host.replaceChildren(); return; }
+    // 'missing' — no LibreHardwareMonitor (5.1 installs no longer add it at
+    // setup): the same prompt installs it. Only Windows reports it.
+    // Unknown — nothing to offer.
+    const access = sys && sys.sensorAccess;
+    if (access !== 'needs_admin' && access !== 'missing') {
+      const card = await outdatedServiceCard();
+      if (card) host.replaceChildren(card); else host.replaceChildren();
+      return;
+    }
+    const install = access === 'missing';
 
     const group = el('div', 'settings-group');
     const head = el('div', 'settings-group-head');
     head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
     group.appendChild(head);
-    const repair = group.appendChild(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
+    const desc = install
+      ? t('sensors_missing_desc', 'CPU temperature, fan speeds and watts need a small free sensor reader (LibreHardwareMonitor) and Windows’ permission to use it. One click installs both.')
+      : t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.');
+    const repair = group.appendChild(hintNode(desc, 'sa-hint--settings', install));
     // Same block as the tiles, but on this page the key looks like every other key.
     repair.querySelector('.sa-btn').className = 'settings-btn primary';
     host.replaceChildren(group);
+  }
+
+  // The sensors read, but the service still runs the scripts of the version
+  // before an update (they sit in Program Files, which the updater cannot
+  // write): the same prompt brings it up to date. Null when nothing is to do.
+  async function outdatedServiceCard() {
+    const r = await apiJson('/api/sensor-service');
+    if (!r || !r.service || !r.service.outdated) return null;
+    const group = el('div', 'settings-group');
+    const head = el('div', 'settings-group-head');
+    head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
+    group.appendChild(head);
+    const repair = group.appendChild(hintNode(
+      t('sensors_update_desc', 'Xenon was updated, but its sensor service still runs the previous version. One confirmation brings it up to date.'),
+      'sa-hint--settings', false, t('sensors_update_btn', 'Update sensors')));
+    repair.querySelector('.sa-btn').className = 'settings-btn primary';
+    return group;
   }
 
   window.SensorAccess = { hintNode, initSettings };

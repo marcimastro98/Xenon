@@ -37,13 +37,14 @@ function extractFunction(src, name) {
   throw new Error(`unbalanced braces while extracting ${name}`);
 }
 
-const DEF_TILE = { hero: 'full', metrics: true, hourly: true, forecast: true };
+const DEF_TILE = { hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true };
 
 function clientTile() {
   const heroes = SETTINGS.match(/const WEATHER_TILE_HEROES = Object\.freeze\((\[[^\]]*\])\)/);
   assert.ok(heroes, 'WEATHER_TILE_HEROES is declared in settings.js');
   const body = [
     `const WEATHER_TILE_HEROES = ${heroes[1]};`,
+    `const WEATHER_TILE_LOOKS = ${SETTINGS.match(/const WEATHER_TILE_LOOKS = Object\.freeze\((\[[^\]]*\])\)/)[1]};`,
     "const WEATHER_TILE_SECTIONS = ['metrics', 'hourly', 'forecast'];",
     "const WEATHER_FIELD_IDS = ['feels'];",
     `const DEFAULT_HUB_SETTINGS = { weather: { tile: ${JSON.stringify(DEF_TILE)} } };`,
@@ -129,4 +130,49 @@ test('the setting has a control and every language names it', () => {
     const defs = I18N.match(new RegExp(`("?)${key}\\1\\s*:`, 'g')) || [];
     assert.equal(defs.length, 11, `${key} should be translated in all 11 languages`);
   }
+});
+
+// Settings → Weather → Style: the 5.x tile or the 4.11 cards (asked for on Discord:
+// "the information not readable as the old one"). Same two normalizers as the hero.
+test('the style survives both normalizers, and anything else is the new look', () => {
+  const c = clientTile();
+  const s = serverWeather();
+  assert.equal(c({}).look, 'new');
+  assert.equal(s({}).tile.look, 'new');
+  assert.equal(c({ look: 'classic' }).look, 'classic');
+  assert.equal(s({ tile: { look: 'classic' } }).tile.look, 'classic');
+  for (const bad of ['mine', '', null, 1, { look: 'classic' }]) {
+    assert.equal(c({ look: bad }).look, 'new');
+    assert.equal(s({ tile: { look: bad } }).tile.look, 'new');
+  }
+  const client = SETTINGS.match(/const WEATHER_TILE_LOOKS = Object\.freeze\((\[[^\]]*\])\)/)[1];
+  const server = SERVER.match(/look: (\[[^\]]*\])\.includes\(srcTile\.look\)/);
+  assert.ok(server, 'server.js normalizeSettingsWeather validates tile.look');
+  assert.deepEqual(new Function(`return ${server[1]}`)(), new Function(`return ${client}`)());
+});
+
+test('the style buttons are wired by data attribute and named in every language', () => {
+  const LOOK = read('js', 'weather-look.js');
+  for (const look of ['new', 'classic']) {
+    assert.match(INDEX, new RegExp(`<button class="settings-segment-btn" type="button" data-weather-look="${look}"`));
+  }
+  assert.doesNotMatch(INDEX, /data-weather-look="[^"]*"[^>]*onclick=/, 'no inline handler on the new buttons');
+  assert.match(LOOK, /closest\('\[data-weather-look\]'\)/);
+  // One closed IIFE whose only global is window.WeatherLook.
+  assert.match(LOOK, /^\(\(\) => \{\n  'use strict';/m);
+  assert.deepEqual([...LOOK.matchAll(/window\.(\w+)\s*=/g)].map((m) => m[1]), ['WeatherLook']);
+  for (const key of ['settings_weather_look', 'settings_weather_look_new', 'settings_weather_look_classic']) {
+    const defs = I18N.match(new RegExp(`\\b${key}\\s*:`, 'g')) || [];
+    assert.equal(defs.length, 11, `${key} should be translated in all 11 languages`);
+  }
+});
+
+test('the classic files load only for whoever picks them, and the tile asks first', () => {
+  const LOOK = read('js', 'weather-look.js');
+  assert.match(LOOK, /'js\/weather-classic\.js'/);
+  assert.match(LOOK, /'components\/WeatherTile\/WeatherClassic\.css'/);
+  assert.doesNotMatch(INDEX, /weather-classic\.js|WeatherClassic\.css/, 'not in the page for everybody');
+  assert.match(INDEX, /<script src="js\/weather-tile\.js"><\/script>\n<script src="js\/weather-look\.js"><\/script>/);
+  assert.match(extractFunction(TILE, 'renderWeatherTile'),
+    /if \(window\.WeatherLook && window\.WeatherLook\.render\(mounts, data, sec\)\) return;/);
 });

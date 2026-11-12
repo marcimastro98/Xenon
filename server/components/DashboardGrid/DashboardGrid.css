@@ -158,8 +158,9 @@ body.low-power-gpu .grid-stack-item[data-tile-thin][data-tile-glass] { --panel-a
 /* Tiles whose top strip is a tab bar (tab-groups, System, Agenda) hide the
    pill: the bar is translucent and sits above the overlay (z 45 > 40), so the
    pill would bleed through it half-covered. The dashed outline + grab cursor
-   remain the edit cue there — the whole tile still drags. */
-.layout-editing .grid-stack-item-content:has(.tabgroup-bar, .system-tabs, .cal-task-toggle) .gs-edit-grip { display: none; }
+   remain the edit cue there — the whole tile still drags. A Custom widget's
+   panel is lifted over the overlay too (below), which would cover its pill. */
+.layout-editing .grid-stack-item-content:has(.tabgroup-bar, .system-tabs, .cal-task-toggle, .cw-body .cw-btn, .cw-swap-btn) .gs-edit-grip { display: none; }
 
 /* Tab bars stay interactive above the overlay while editing (switch the active
    member, per-tab ×-remove); their buttons never start a drag (GridStack
@@ -177,6 +178,21 @@ body.low-power-gpu .grid-stack-item[data-tile-thin][data-tile-glass] { --panel-a
    a body-level fixed backdrop, already above everything. */
 .layout-editing .cw-body .cw-btn,
 .layout-editing .cw-swap-btn { position: relative; z-index: 45; }
+
+/* The z-index lifts above only work while the panel is NOT a stacking context of
+   its own. Liquid Glass's backdrop-filter makes it one (so can a material, or
+   `isolation`), and then the bar's 45 ranks only among the panel's children: the
+   whole panel, bar included, paints under the overlay (40). That is how 5.0.0's
+   default look stopped tabs from being switched, removed or reordered while
+   editing. So a panel holding one of these controls is lifted above the overlay
+   as a whole and made click-through, and only the controls take the pointer
+   again: anywhere else the hit falls through to the overlay and drags the tile.
+   Every control lifted above the overlay from inside a panel belongs in both
+   lists (server/test/edit-overlay-controls.test.mjs). */
+.layout-editing .grid-stack-item-content > :has(.tabgroup-bar, .system-tabs, .cal-task-toggle, .cw-body .cw-btn, .cw-swap-btn, .vol-hidden-hint) {
+  z-index: 41; pointer-events: none;
+}
+.layout-editing :is(.tabgroup-bar, .system-tabs, .cal-task-toggle, .cw-body .cw-btn, .cw-swap-btn, .vol-hidden-hint) { pointer-events: auto; }
 
 /* Media/Chat panels normally isolate their blending (`isolation: isolate` for
    the z-index:-1 album-ambient backdrop). That makes the panel one atomic

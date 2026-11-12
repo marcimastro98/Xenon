@@ -10,6 +10,18 @@ fn main() {
         xenon_native_lib::pad_reader();
         return;
     }
+    // Installed apps → Uninstall. Before the app starts: its single-instance
+    // hook would hand the request to a running window instead.
+    #[cfg(windows)]
+    if std::env::args().nth(1).as_deref() == Some(xenon_native_lib::UNINSTALL_ARG) {
+        std::process::exit(xenon_native_lib::uninstall());
+    }
+    // CI installs the packaged engine into a throwaway folder and checks it
+    // answers, without a window and without touching the login entries.
+    if std::env::args().nth(1).as_deref() == Some(xenon_native_lib::ENGINE_SELFTEST_ARG) {
+        let args: Vec<String> = std::env::args().skip(2).collect();
+        std::process::exit(xenon_native_lib::engine_selftest(&args));
+    }
     // A debug build started at sign-in has nobody reading its console, and the
     // window would just sit on the desktop.
     #[cfg(all(windows, debug_assertions))]

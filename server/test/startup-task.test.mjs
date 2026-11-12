@@ -130,6 +130,49 @@ test('anything that is not a task definition is "nothing to say", not a crash', 
   assert.deepEqual(st.taskProblems(null), []);
 });
 
+// Removing only the app (its own uninstaller cannot delete a scheduled task)
+// left "Xenon App" starting a missing program at every sign-in.
+const APP_TASK = (command) => `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Actions Context="Author">
+    <Exec>
+      <Command>${command}</Command>
+      <Arguments>--autostart</Arguments>
+    </Exec>
+  </Actions>
+</Task>`;
+
+test('the app task\'s program is read as written, entities decoded', () => {
+  assert.equal(st.taskCommand(APP_TASK('C:\\Users\\a\\AppData\\Local\\Xenon\\xenon-native.exe')),
+    'C:\\Users\\a\\AppData\\Local\\Xenon\\xenon-native.exe');
+  assert.equal(st.taskCommand(APP_TASK('&quot;C:\\R&amp;D\\Xenon\\xenon-native.exe&quot;')), 'C:\\R&D\\Xenon\\xenon-native.exe');
+  assert.equal(st.taskCommand('ERROR: The system cannot find the file specified.'), '');
+});
+
+test('the app task counts as left behind only when the app and its uninstaller are gone', () => {
+  const exe = 'C:\\Users\\a\\AppData\\Local\\Xenon\\xenon-native.exe';
+  const uninstaller = 'C:\\Users\\a\\AppData\\Local\\Xenon\\uninstall.exe';
+  const only = (...present) => (p) => present.includes(p);
+  assert.equal(st.appTaskOrphaned(exe, only()), true, 'app removed');
+  assert.equal(st.appTaskOrphaned(exe, only(exe, uninstaller)), false, 'app installed');
+  assert.equal(st.appTaskOrphaned(exe, only(uninstaller)), false, 'mid-update: the uninstaller is still there');
+  assert.equal(st.appTaskOrphaned(exe, only(exe)), false, 'mid-update: the program is still there');
+  assert.equal(st.appTaskOrphaned('C:\\Tools\\other.exe', only()), false, 'not this app\'s program');
+  assert.equal(st.appTaskOrphaned('xenon-native.exe', only()), false, 'a bare name is never judged');
+  assert.equal(st.appTaskOrphaned('%LOCALAPPDATA%\\Xenon\\xenon-native.exe', only()), false);
+  assert.equal(st.appTaskOrphaned('', only()), false);
+});
+
+test('the check removes only that task, by name, and says so in the log', () => {
+  const src = readFileSync(new URL('../startup-task.js', import.meta.url), 'utf8');
+  assert.equal(st.APP_TASK_NAME, 'Xenon App');
+  assert.match(src, /run\(\['\/Delete', '\/TN', APP_TASK_NAME, '\/F'\]\)/);
+  assert.equal((src.match(/'\/Delete'/g) || []).length, 1, 'nothing else is ever deleted');
+  const check = src.slice(src.indexOf('async function checkStartupTask'));
+  assert.ok(check.indexOf('removeOrphanAppTask()') < check.indexOf('readTaskXml()'), 'cleaned up on every check');
+  assert.match(check, /startupLog\.write\('startup task: removed/);
+});
+
 test('off Windows nothing is checked and nothing is claimed', async () => {
   const res = await st.checkStartupTask({});
   if (process.platform === 'win32') return;   // the real check belongs to the machine it runs on

@@ -67,7 +67,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Do I need AIDA64 or HWiNFO?","acceptedAnswer":{"@type":"Answer","text":"No. Xenon reads the sensors itself: LibreHardwareMonitor, nvidia-smi and PresentMon on Windows, the kernel's own sensors on Linux, and the Xenon Helper on macOS."}},{"@type":"Question","name":"Why is the CPU temperature missing?","acceptedAnswer":{"@type":"Answer","text":"On Windows it usually means Xenon runs without administrator rights, so the sensor driver cannot load. Press Enable sensors in the Fans or Energy widget, or in Settings, Performance, Hardware sensors, and accept the Windows prompt."}},{"@type":"Question","name":"Can I show the sensors on a Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"Yes. The System tile shares the height between its cards so all of them fit on the Edge's 2560×720 screen. It also runs on any monitor, a tablet or a paired phone, which is in beta."}},{"@type":"Question","name":"Can I design my own sensor panel?","acceptedAnswer":{"@type":"Answer","text":"Yes, with the Widget SDK, which is in beta. Once you approve its access to the system readings, a widget can read load, temperatures, clocks, fan speeds, watts and FPS."}},{"@type":"Question","name":"Does it work on macOS and Linux?","acceptedAnswer":{"@type":"Answer","text":"Yes, both in beta. CPU and GPU temperature and GPU load work on both. Fan speeds, and in-game FPS through MangoHud, work on Linux but not on macOS. CPU and GPU watts are read on Windows only."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Do I need AIDA64 or HWiNFO?","acceptedAnswer":{"@type":"Answer","text":"No. Xenon reads the sensors itself: LibreHardwareMonitor, nvidia-smi and PresentMon on Windows, the kernel's own sensors on Linux, and the Xenon Helper on macOS."}},{"@type":"Question","name":"Why is the CPU temperature missing?","acceptedAnswer":{"@type":"Answer","text":"On Windows it usually means the sensor reader is not set up yet. Press Install sensors, or Enable sensors, in the Fans or Energy widget or in Settings, Performance, Hardware sensors, and accept the Windows prompt."}},{"@type":"Question","name":"Can I show the sensors on a Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"Yes. The System tile shares the height between its cards so all of them fit on the Edge's 2560×720 screen. It also runs on any monitor, a tablet or a paired phone, which is in beta."}},{"@type":"Question","name":"Can I design my own sensor panel?","acceptedAnswer":{"@type":"Answer","text":"Yes, with the Widget SDK, which is in beta. Once you approve its access to the system readings, a widget can read load, temperatures, clocks, fan speeds, watts and FPS."}},{"@type":"Question","name":"Does it work on macOS and Linux?","acceptedAnswer":{"@type":"Answer","text":"Yes, both in beta. CPU and GPU temperature and GPU load work on both. Fan speeds, and in-game FPS through MangoHud, work on Linux but not on macOS. CPU and GPU watts are read on Windows only."}}]}</script>
 
 <style>
   /* Sub-headings and the two source tables. */
@@ -176,7 +176,7 @@
     <p data-i18n="sens.system.p4">Temperatures show in °C or °F, following the Temperature unit setting. The choice reaches the CPU and GPU headers and the heat alerts, not only the weather. The History charts stay in °C.</p>
 
     <h3 data-i18n="sens.h.fps">Real in-game FPS</h3>
-    <p data-i18n="sens.fps.p1">On Windows the FPS card reads PresentMon, which the setup downloads into Xenon's folder. PresentMon counts the frames a game hands to Windows through event tracing, so it also measures exclusive full-screen games. It needs the administrator rights the setup asks for.</p>
+    <p data-i18n="sens.fps.p1">On Windows the FPS card reads PresentMon, which you install from Settings → Performance → Game mode. PresentMon counts the frames a game hands to Windows through event tracing, so it also measures exclusive full-screen games. Windows lets it read those frames once the sensors are on, from your next sign-in, while Xenon itself keeps your normal rights.</p>
     <p data-i18n="sens.fps.p2">Without PresentMon, Xenon falls back to a reading from the Windows desktop compositor, which only works for windowed and borderless games. With PresentMon, the card shows N/A instead of a number when no game is running.</p>
     <p data-i18n="sens.fps.p3">With frame generation on, the card follows the frames your screen actually shows, where PresentMon reports them, so it agrees with other FPS overlays rather than showing the higher count of frames handed over.</p>
     <p data-i18n-html="sens.fps.p4">On Linux the frame rate comes from MangoHud, for games launched with it (<code>mangohud %command%</code> as a Steam launch option). macOS has no frame rate source, so the card stays empty there.</p>
@@ -189,12 +189,12 @@
         <tr>
           <td data-i18n="sens.win.cpu">CPU temperature, clock and watts</td>
           <td><span class="cl" data-i18n="sens.th.source">Where it comes from</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.lhm">Installed by the setup with the PawnIO driver. Needs administrator rights.</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.lhm">Install sensors adds it with the PawnIO driver. One Windows prompt.</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.fans">Motherboard, AIO and power supply fans</td>
           <td><span class="cl" data-i18n="sens.th.source">Where it comes from</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.lhm">Installed by the setup with the PawnIO driver. Needs administrator rights.</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.lhm">Install sensors adds it with the PawnIO driver. One Windows prompt.</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.nvidia">NVIDIA GPU load, temperature, video memory, watts and clocks</td>
@@ -204,12 +204,12 @@
         <tr>
           <td data-i18n="sens.win.amd">AMD and Intel GPU temperature, video memory, watts and clocks</td>
           <td><span class="cl" data-i18n="sens.th.source">Where it comes from</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.setup">Installed by the setup.</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.setup">Added by Install sensors.</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpufans">Each graphics card fan, in RPM</td>
           <td><span class="cl" data-i18n="sens.th.source">Where it comes from</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.setup">Installed by the setup.</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.setup">Added by Install sensors.</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpuload">GPU load without nvidia-smi</td>
@@ -224,12 +224,12 @@
         <tr>
           <td data-i18n="sens.win.fps">In-game FPS</td>
           <td><span class="cl" data-i18n="sens.th.source">Where it comes from</span><span data-i18n="sens.src.presentmon">PresentMon</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.presentmon">Downloaded by the setup. Needs administrator rights.</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">What you need</span><span data-i18n="sens.need.presentmon">Installed from Settings. Needs the sensors on.</span></td>
         </tr>
       </tbody>
     </table></div>
     <p data-i18n-html="sens.win.p2">LibreHardwareMonitor and <a href="pawnio.html">PawnIO</a> are installed through winget, so their files come from their own developers through Microsoft's package manager. PawnIO is a signed driver. Xenon has never shipped WinRing0, the older driver behind most hardware-monitoring antivirus warnings.</p>
-    <p data-i18n-html="sens.win.p3">The driver only loads with administrator rights. If you said no to the Windows prompt during setup, the fan and watt readings stay empty and the CPU temperature can be missing. The Fans and Energy widgets then show an <strong>Enable sensors</strong> button: one Windows prompt sets Xenon's startup task to run with administrator rights from then on, and Xenon restarts. If the sensors are still empty after that, the widget asks you to restart the PC. The same button is in Settings → Performance → Hardware sensors.</p>
+    <p data-i18n-html="sens.win.p3">The driver needs administrator rights, and Xenon itself never runs with them. When the sensors are missing, the Fans and Energy widgets show an <strong>Install sensors</strong> button. One Windows prompt installs LibreHardwareMonitor, PawnIO and a small sensor service: its files sit in Program Files, where only an administrator can write, it only reads the sensors, and it hands the readings to Xenon. If LibreHardwareMonitor is already on the PC, the button says <strong>Enable sensors</strong> and adds only the service. If the sensors are still empty after that, the widget asks you to restart the PC. The same button is in Settings → Performance → Hardware sensors.</p>
     <p data-i18n="sens.win.p4">Without LibreHardwareMonitor, Xenon falls back to the thermal zone temperature Windows reports, when the board provides one. A reading that is not available is left blank or shown as --, rather than as a made-up zero.</p>
 
     <h2 id="linux-mac" data-i18n="sens.h.linuxmac">Temperatures on Linux and macOS</h2>
@@ -306,8 +306,8 @@
     <p data-i18n="sens.games.p5">The Pause heavy tiles while gaming option, on by default, also stops the Browser, Second screen and Cameras tiles streaming while a game runs or an optimization is active.</p>
 
     <h2 id="faq" data-i18n="sens.h.faq">Questions</h2>
-    <details><summary data-i18n="sens.faq.aida.q">Do I need AIDA64 or HWiNFO?</summary><div class="body"><p data-i18n="sens.faq.aida.a">No. Xenon reads the sensors itself: through LibreHardwareMonitor, nvidia-smi and PresentMon on Windows, the kernel's own sensors on Linux, and the Xenon Helper on macOS. The Windows setup installs LibreHardwareMonitor and PresentMon for you.</p></div></details>
-    <details><summary data-i18n="sens.faq.temp.q">Why is the CPU temperature missing?</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">On Windows this usually means Xenon runs without administrator rights, so the sensor driver cannot load. Press <strong>Enable sensors</strong> in the Fans or Energy widget, or in Settings → Performance → Hardware sensors, and accept the Windows prompt. If LibreHardwareMonitor is not installed at all, run <code>INSTALL.bat</code> in the Xenon folder again and accept the prompt.</p></div></details>
+    <details><summary data-i18n="sens.faq.aida.q">Do I need AIDA64 or HWiNFO?</summary><div class="body"><p data-i18n="sens.faq.aida.a">No. Xenon reads the sensors itself: through LibreHardwareMonitor, nvidia-smi and PresentMon on Windows, the kernel's own sensors on Linux, and the Xenon Helper on macOS. On Windows, Xenon installs LibreHardwareMonitor and PresentMon for you, one click each.</p></div></details>
+    <details><summary data-i18n="sens.faq.temp.q">Why is the CPU temperature missing?</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">On Windows this usually means the sensor reader is not set up yet. Press <strong>Install sensors</strong>, or <strong>Enable sensors</strong>, in the Fans or Energy widget or in Settings → Performance → Hardware sensors, and accept the Windows prompt. If the readings are still empty afterwards, restart the PC.</p></div></details>
     <details><summary data-i18n="sens.faq.edge.q">Can I show the sensors on a Xeneon Edge?</summary><div class="body"><p data-i18n-html="sens.faq.edge.a">Yes. The System tile shares the height between its cards so all of them fit on the Edge's 2560×720 screen. The same dashboard also runs on any monitor, a tablet, or <a href="/phone.html">a phone paired over your Wi-Fi</a>, which is in beta.</p></div></details>
     <details><summary data-i18n="sens.faq.own.q">Can I design my own sensor panel?</summary><div class="body"><p data-i18n-html="sens.faq.own.a">Yes, with the Widget SDK, which is in beta. Once you approve its access to the system readings, a widget can read load, temperatures, clocks, fan speeds, watts and FPS, including values the System tile does not show. The <a href="/create/">Create page</a> is where to start.</p></div></details>
     <details><summary data-i18n="sens.faq.os.q">Does it work on macOS and Linux?</summary><div class="body"><p data-i18n="sens.faq.os.a">Yes, both in beta. CPU and GPU temperature and GPU load work on both. Fan speeds, and in-game FPS through MangoHud, work on Linux but not on macOS. CPU and GPU watts are read on Windows only.</p></div></details>

@@ -290,7 +290,7 @@ test('custom widgets read a layer assignment before the saved one, and the page 
   assert.match(cw, /if \(layerAssign\.has\(instId\)\) return layerAssign\.get\(instId\);/);
   // A layer window mounts its slots only, never the hidden dashboard pages.
   assert.match(cw, /const layerOnly = \(window\.LayerHost && window\.LayerHost\.active\) \|\| \(typeof isSheetPage === 'function' && isSheetPage\(\)\);\n\s+const scope = layerOnly \? '\.layer-slot' : '\.pager-page, \.layer-slot';/);
-  assert.match(cw, /\.filter\(n => n\.closest\(scope\)\)/);
+  assert.match(cw, /\.filter\(n => n\.closest\(scope\)( &&|\))/);
   assert.match(cw, /setLayerAssign,/);
   const html = read('../index.html');
   assert.ok(html.indexOf('src="js/custom-widget.js"') < html.indexOf('src="js/layer-host.js"'));

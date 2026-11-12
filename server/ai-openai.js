@@ -197,6 +197,12 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
   });
 }
 
+// Models that reason before they answer: the o-series and GPT-5 onward, except
+// the `-chat` ids, which are plain chat models and refuse a reasoning setting.
+const REASONS_BY_DEFAULT = /^(?:o\d|gpt-(?:[5-9]|\d{2,}))(?!.*-chat)/;
+const HELPER_EFFORT = 'low';
+const HELPER_REASONING_ROOM = 2048;
+
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
 // `onUsage(totalTokens, { input, output })`, when given, hears what the call cost.
 // `image` ({ mimeType, data } base64), when given, rides with the text.
@@ -212,8 +218,17 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage
       ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.data}` } }]
       : text,
   });
-  const body = { model: sanitizeModel(model), messages };
-  if (maxTokens) body.max_tokens = maxTokens;
+  const id = sanitizeModel(model);
+  const body = { model: id, messages };
+  if (maxTokens) {
+    // `max_tokens` is refused by the reasoning models (the o-series, GPT-5 and
+    // later), which is what `auto:mini` resolves to now; `max_completion_tokens`
+    // works on every model. A reasoning model spends it thinking too, so it reasons
+    // briefly and gets the room on top; only what is written is paid.
+    const reasons = REASONS_BY_DEFAULT.test(id);
+    body.max_completion_tokens = maxTokens + (reasons ? HELPER_REASONING_ROOM : 0);
+    if (reasons) body.reasoning_effort = HELPER_EFFORT;
+  }
   const resp = await _post('/chat/completions', key, body, 60000);
   const u = resp && resp.usage;
   const used = Number(u && u.total_tokens);

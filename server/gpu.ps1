@@ -74,14 +74,13 @@ function Get-LibreHardwareMonitorDll {
   }
 
   $userWritable = @()
-  # Per-user copies are still used when elevated, after the machine-wide ones:
-  # the normal install (elevated, winget portable) puts LibreHardwareMonitor
-  # exactly there, and refusing it blanked the sensors on most installs. While
-  # the startup task itself runs elevated files the user can write (the server
-  # and node), refusing this one DLL closes nothing; the fix for both is a
-  # sensor component installed under Program Files. The version rule above
-  # stays: no WinRing0 build is ever loaded.
-  if ($true) {
+  # Per-user copies are for the engine's own worker, which runs with the user's
+  # rights, so a DLL there can do nothing the user could not. The sensor service
+  # (sensor-service.ps1, under Program Files, run elevated) sets
+  # $global:XenonTrustedLhmOnly and never looks here: a file the user can write
+  # must not run with administrator rights. The version rule above applies to
+  # both: no WinRing0 build is ever loaded.
+  if (-not $global:XenonTrustedLhmOnly) {
     try {
       $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
       if ($command) { $userWritable += Join-Path (Split-Path -Parent $command.Source) 'LibreHardwareMonitorLib.dll' }

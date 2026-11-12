@@ -157,6 +157,11 @@ pub fn note(kind: &str, detail: &str) {
     append(kind, detail);
 }
 
+/// The same UTC stamp the log lines carry, for files other code writes.
+pub fn now_utc() -> String {
+    timestamp()
+}
+
 /// Note that the WEB process died and the shell survived it.
 ///
 /// A panic here would not do: this is not our process crashing. On Linux the

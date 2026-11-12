@@ -107,7 +107,7 @@ test('the SDK route: only with the grant, numbers only, a fixed word on failure'
   assert.deepEqual(await call(true, null), { ok: false, error: 'unavailable' });
   assert.deepEqual(await call(true, { getEnergy: async () => { throw new Error('C:\\data\\guardian.json'); } }), { ok: false, error: 'failed' });
   assert.equal(featureRoutes.has('GET', '/api/energy'), true);
-  assert.match(read('../server.js'), /sdkStreamGranted: _sdkStreamGranted, history: guardian \}/);
+  assert.match(read('../server.js'), /sdkStreamGranted: _sdkStreamGranted, history: guardian[,}]/);
 });
 
 test('the stream in the four places, rebuilt field by field in the bridge', () => {

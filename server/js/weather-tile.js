@@ -1,6 +1,6 @@
 'use strict';
 
-// The Weather tile: now, what changes next, the coming hours as a line, the days, and the
+// The Weather tile: now, what changes next, the coming hours as columns, the days, and the
 // details that matter. It reads the shared weatherData (js/system.js) and opens the full
 // view on a click; the rules it draws from live in js/weather-outlook.js.
 
@@ -40,7 +40,7 @@ function weatherTileSections() {
 }
 
 // The forecast's hours as the tile reads them. The first one is the hour under way: it says
-// "now" and carries the reading, so the line starts from the number above it.
+// "now" and carries the reading, so its column matches the big number above it.
 function weatherHourRows(data) {
   const list = Array.isArray(data.hourly) ? data.hourly : [];
   const clock = new Date();
@@ -51,6 +51,7 @@ function weatherHourRows(data) {
     const at = min ?? undefined;
     return {
       min,
+      now: isNow,
       rain: hour.rain,
       night: isWeatherNight(data.sunrise, data.sunset, at),
       state: isNow ? classifyWeatherState(data) : classifyWeatherState({ ...hour, sunrise: data.sunrise, sunset: data.sunset }, at),
@@ -60,7 +61,7 @@ function weatherHourRows(data) {
   });
 }
 
-// A bare hour for the chart's axis. 24h stays digits in every language ("15 Uhr" would not
+// A bare hour for its column. 24h stays digits in every language ("15 Uhr" would not
 // fit a column); 12h keeps the locale's own way of writing it.
 function weatherHourLabel(min) {
   if (min == null) return '--';
@@ -184,84 +185,35 @@ function buildWeatherCompactBar(data) {
   return bar;
 }
 
-function weatherChartPath(className, d) {
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('class', className);
-  path.setAttribute('d', d);
-  return path;
-}
-
-// The temperature as a line across the plot, a number at every hour. The first and last
-// points run on to the edges so the line does not stop short of the tile's margins.
-function buildWeatherPlot(hours) {
-  const plot = weatherEl('div', 'weather-hours-plot');
-  const points = WeatherOutlook.chartPoints(hours.map((hour) => toDisplayTemp(hour.tempC)));
-  if (!points.length) return plot;
-  const edged = [[0, points[0][1]], ...points, [100, points[points.length - 1][1]]];
-  const line = SparkPath.smoothLineD(edged, 2);
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 100 100');
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.appendChild(weatherChartPath('weather-hours-line', line));
-  plot.appendChild(svg);
-  points.forEach(([x, y], i) => {
-    const label = weatherEl('span', 'weather-hours-temp', weatherDisplayValue(toDisplayTemp(hours[i].tempC), '°'));
-    label.style.setProperty('--x', x.toFixed(2));
-    label.style.setProperty('--y', y.toFixed(2));
-    label.style.setProperty('--lean', String(WeatherOutlook.labelLean(points, i)));
-    plot.appendChild(label);
-  });
-  return plot;
-}
-
-// Chance of rain per hour on its own lane, full height being 100%, so the line and the bars
-// never fight. Left out when no hour has any: an empty lane says nothing.
-function buildWeatherRainLane(hours) {
-  if (!hours.some((hour) => Number(hour.rain) >= 10)) return null;
-  const lane = weatherEl('div', 'weather-hours-row weather-hours-rain');
-  hours.forEach((hour) => {
-    const cell = weatherEl('span', 'weather-hours-chance');
+// One hour as a column, read like a timetable: the hour, its sky, its temperature, and the
+// chance of rain under it. The rain line is there for every column or none, so the
+// temperatures stay level; an hour under 10% leaves its slot empty rather than say 0%.
+function buildWeatherHourCell(hour, withRain) {
+  const cell = weatherEl('li', 'weather-hour');
+  cell.classList.toggle('is-now', hour.now);
+  cell.append(
+    weatherEl('span', 'weather-hour-time', hour.label),
+    weatherArtEl('weather-hour-art', hour.state, hour.night),
+    weatherEl('span', 'weather-hour-temp', weatherDisplayValue(toDisplayTemp(hour.tempC), '°')),
+  );
+  if (withRain) {
     const chance = Number(hour.rain);
-    if (chance >= 10) {
-      cell.style.setProperty('--rain', String(Math.min(100, chance) / 100));
-      cell.appendChild(weatherEl('b', '', `${Math.round(chance)}%`));
-    }
-    lane.appendChild(cell);
-  });
-  return lane;
+    cell.appendChild(weatherEl('span', 'weather-hour-rain', chance >= 10 ? `${Math.round(Math.min(100, chance))}%` : ''));
+  }
+  return cell;
 }
 
-// A picture only where the sky changes: eight suns in a row say less than one.
-function buildWeatherSkyRow(hours) {
-  const row = weatherEl('div', 'weather-hours-row weather-hours-sky');
-  hours.forEach((hour, i) => {
-    const same = i > 0 && hours[i - 1].state === hour.state;
-    row.appendChild(same ? weatherEl('span') : weatherArtEl('weather-hours-art', hour.state, hour.night));
-  });
-  return row;
-}
-
+// The coming hours side by side. As many as the width holds stay whole; the rest leave from
+// the right (WeatherTile.css), so a narrow tile shows fewer hours, never smaller ones.
 function buildWeatherHours(data) {
   const hours = weatherHourRows(data);
   if (hours.length < 2) return null;
-  const chart = weatherEl('div', 'weather-hours');
-  chart.setAttribute('role', 'img');
-  chart.setAttribute('aria-label', t('weather_hourly'));
-  chart.style.setProperty('--wx-cols', String(hours.length));
-  WeatherOutlook.nightRuns(hours.map((hour) => hour.night)).forEach(({ from, to }) => {
-    const band = weatherEl('span', 'weather-hours-night');
-    band.style.setProperty('--from', from.toFixed(4));
-    band.style.setProperty('--to', to.toFixed(4));
-    chart.appendChild(band);
-  });
-  const axis = weatherEl('div', 'weather-hours-row weather-hours-axis');
-  hours.forEach((hour) => axis.appendChild(weatherEl('span', '', hour.label)));
-  chart.append(buildWeatherSkyRow(hours), buildWeatherPlot(hours));
-  const rain = buildWeatherRainLane(hours);
-  if (rain) chart.appendChild(rain);
-  chart.appendChild(axis);
-  return chart;
+  const list = weatherEl('ol', 'weather-hours');
+  list.setAttribute('aria-label', t('weather_hourly'));
+  const withRain = hours.some((hour) => Number(hour.rain) >= 10);
+  list.classList.toggle('has-rain', withRain);
+  hours.forEach((hour) => list.appendChild(buildWeatherHourCell(hour, withRain)));
+  return list;
 }
 
 function weatherDayName(day, i) {
@@ -343,7 +295,6 @@ function buildWeatherFacts(data, lead = []) {
   const facts = [...lead, ...weatherFacts(data)];
   if (!facts.length) return null;
   const list = weatherEl('dl', 'weather-facts');
-  list.style.setProperty('--wx-rows', String(Math.ceil(facts.length / 2)));
   facts.forEach(({ key, value, warn }) => {
     const row = weatherEl('div', 'weather-fact');
     row.classList.toggle('is-warning', warn);
@@ -372,6 +323,7 @@ function renderWeatherTile() {
   const data = weatherData;
   const ok = !!(data && data.ok);
   const sec = weatherTileSections();
+  if (window.WeatherLook && window.WeatherLook.render(mounts, data, sec)) return;
   mounts.forEach((mount) => {
     const root = weatherEl('div', 'weather-tile-root');
     root.classList.toggle('weather-tile-root--compact', sec.compact);

@@ -67,7 +67,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"我需要 AIDA64 或 HWiNFO 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。Xenon 自己读取传感器：在 Windows 上通过 LibreHardwareMonitor、nvidia-smi 和 PresentMon，在 Linux 上通过内核自带的传感器，在 macOS 上通过 Xenon Helper。"}},{"@type":"Question","name":"为什么没有 CPU 温度？","acceptedAnswer":{"@type":"Answer","text":"在 Windows 上，这通常说明 Xenon 没有以管理员权限运行，所以传感器驱动无法加载。在“风扇”或“能耗”小组件中，或者在“设置”>“性能”>“硬件传感器”中按“启用传感器”，然后接受 Windows 的提示。"}},{"@type":"Question","name":"可以在 Xeneon Edge 上显示传感器吗？","acceptedAnswer":{"@type":"Answer","text":"可以。“系统”磁贴会在各张卡片之间分配高度，让它们全部放进 Edge 2560×720 的屏幕。它也能在任何显示器、平板或已配对的手机上运行，手机访问目前是测试版。"}},{"@type":"Question","name":"可以自己设计传感器面板吗？","acceptedAnswer":{"@type":"Answer","text":"可以，使用小组件 SDK，它目前是测试版。在你批准它访问系统读数之后，小组件可以读取负载、温度、频率、风扇转速、功耗和帧率。"}},{"@type":"Question","name":"它能在 macOS 和 Linux 上运行吗？","acceptedAnswer":{"@type":"Answer","text":"能，两者都是测试版。CPU 和 GPU 温度以及 GPU 负载在两个系统上都可用。风扇转速，以及通过 MangoHud 获取的游戏内帧率，在 Linux 上可用，在 macOS 上不可用。CPU 和 GPU 功耗只在 Windows 上读取。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"我需要 AIDA64 或 HWiNFO 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。Xenon 自己读取传感器：在 Windows 上通过 LibreHardwareMonitor、nvidia-smi 和 PresentMon，在 Linux 上通过内核自带的传感器，在 macOS 上通过 Xenon Helper。"}},{"@type":"Question","name":"为什么没有 CPU 温度？","acceptedAnswer":{"@type":"Answer","text":"在 Windows 上，这通常说明传感器读取还没有设置好。在“风扇”或“能耗”小组件中，或在设置、性能、硬件传感器中，按“安装传感器”或“启用传感器”，然后接受 Windows 的提示。"}},{"@type":"Question","name":"可以在 Xeneon Edge 上显示传感器吗？","acceptedAnswer":{"@type":"Answer","text":"可以。“系统”磁贴会在各张卡片之间分配高度，让它们全部放进 Edge 2560×720 的屏幕。它也能在任何显示器、平板或已配对的手机上运行，手机访问目前是测试版。"}},{"@type":"Question","name":"可以自己设计传感器面板吗？","acceptedAnswer":{"@type":"Answer","text":"可以，使用小组件 SDK，它目前是测试版。在你批准它访问系统读数之后，小组件可以读取负载、温度、频率、风扇转速、功耗和帧率。"}},{"@type":"Question","name":"它能在 macOS 和 Linux 上运行吗？","acceptedAnswer":{"@type":"Answer","text":"能，两者都是测试版。CPU 和 GPU 温度以及 GPU 负载在两个系统上都可用。风扇转速，以及通过 MangoHud 获取的游戏内帧率，在 Linux 上可用，在 macOS 上不可用。CPU 和 GPU 功耗只在 Windows 上读取。"}}]}</script>
 
 <style>
   /* Sub-headings and the two source tables. */
@@ -176,7 +176,7 @@
     <p data-i18n="sens.system.p4">温度以 °C 或 °F 显示，跟随“温度单位”设置。这个选择会作用于 CPU 和 GPU 标题栏以及高温提醒，而不只是天气。“历史”图表仍然使用 °C。</p>
 
     <h3 data-i18n="sens.h.fps">游戏内的真实帧率</h3>
-    <p data-i18n="sens.fps.p1">在 Windows 上，FPS 卡片读取的是 PresentMon，设置程序会把它下载到 Xenon 的文件夹中。PresentMon 通过事件跟踪统计游戏交给 Windows 的帧，所以也能测量独占全屏的游戏。它需要设置程序请求的管理员权限。</p>
+    <p data-i18n="sens.fps.p1">在 Windows 上，FPS 卡片读取的是 PresentMon，你可以在“设置 → 性能 → 游戏模式”中安装它。PresentMon 通过事件跟踪统计游戏交给 Windows 的帧，所以也能测量独占全屏的游戏。启用传感器后，从下次登录起 Windows 允许它读取这些帧，而 Xenon 本身仍以普通权限运行。</p>
     <p data-i18n="sens.fps.p2">没有 PresentMon 时，Xenon 会改用 Windows 桌面合成器的读数，但这只适用于窗口化和无边框窗口的游戏。有 PresentMon 时，如果没有游戏在运行，卡片会显示 N/A，而不是一个数字。</p>
     <p data-i18n="sens.fps.p3">开启帧生成时，只要 PresentMon 报告了屏幕上实际显示的帧，卡片就会跟随这些帧，所以它和其他帧率叠加层的数字一致，而不是显示更高的提交帧数。</p>
     <p data-i18n-html="sens.fps.p4">在 Linux 上，帧率来自 MangoHud，适用于用它启动的游戏（在 Steam 启动选项中填写 <code>mangohud %command%</code>）。macOS 没有帧率来源，所以卡片在那里保持为空。</p>
@@ -189,12 +189,12 @@
         <tr>
           <td data-i18n="sens.win.cpu">CPU 温度、频率和功耗</td>
           <td><span class="cl" data-i18n="sens.th.source">来源</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.lhm">由设置程序连同 PawnIO 驱动一起安装。需要管理员权限。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.lhm">由“安装传感器”连同 PawnIO 驱动一起添加。只需一次 Windows 提示。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.fans">主板、一体式水冷和电源的风扇</td>
           <td><span class="cl" data-i18n="sens.th.source">来源</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.lhm">由设置程序连同 PawnIO 驱动一起安装。需要管理员权限。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.lhm">由“安装传感器”连同 PawnIO 驱动一起添加。只需一次 Windows 提示。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.nvidia">NVIDIA GPU 负载、温度、显存、功耗和频率</td>
@@ -204,12 +204,12 @@
         <tr>
           <td data-i18n="sens.win.amd">AMD 和 Intel GPU 温度、显存、功耗和频率</td>
           <td><span class="cl" data-i18n="sens.th.source">来源</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.setup">由设置程序安装。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.setup">由“安装传感器”添加。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpufans">显卡上的每个风扇，单位为 RPM</td>
           <td><span class="cl" data-i18n="sens.th.source">来源</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.setup">由设置程序安装。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.setup">由“安装传感器”添加。</span></td>
         </tr>
         <tr>
           <td data-i18n="sens.win.gpuload">没有 nvidia-smi 时的 GPU 负载</td>
@@ -224,12 +224,12 @@
         <tr>
           <td data-i18n="sens.win.fps">游戏内帧率</td>
           <td><span class="cl" data-i18n="sens.th.source">来源</span><span data-i18n="sens.src.presentmon">PresentMon</span></td>
-          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.presentmon">由设置程序下载。需要管理员权限。</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">需要什么</span><span data-i18n="sens.need.presentmon">在设置中安装。需要先启用传感器。</span></td>
         </tr>
       </tbody>
     </table></div>
     <p data-i18n-html="sens.win.p2">LibreHardwareMonitor 和 <a href="/zh/pawnio.html">PawnIO</a> 通过 winget 安装，所以它们的文件来自各自的开发者，经由 Microsoft 的软件包管理器分发。PawnIO 是一个已签名的驱动。Xenon 从未附带过 WinRing0，大多数硬件监控软件引发的杀毒软件警告，背后都是这个较老的驱动。</p>
-    <p data-i18n-html="sens.win.p3">驱动只有在管理员权限下才会加载。如果你在设置过程中拒绝了 Windows 的提示，风扇和功耗读数会是空的，CPU 温度也可能缺失。这时“风扇”和“能耗”小组件会显示一个<strong>启用传感器</strong>按钮：只需一次 Windows 提示，Xenon 的启动任务就会从此以管理员权限运行，然后 Xenon 会重启。如果之后传感器仍然是空的，小组件会请你重启电脑。同一个按钮也在“设置 → 性能 → 硬件传感器”中。</p>
+    <p data-i18n-html="sens.win.p3">驱动需要管理员权限，而 Xenon 本身从不以管理员权限运行。缺少传感器时，“风扇”和“能耗”小组件会显示一个<strong>安装传感器</strong>按钮。只需一次 Windows 提示，就会安装 LibreHardwareMonitor、PawnIO 和一个小型传感器服务：它的文件位于只有管理员才能写入的 Program Files 中，它只读取传感器，并把读数交给 Xenon。如果电脑上已有 LibreHardwareMonitor，按钮会显示为<strong>启用传感器</strong>，只添加这个服务。如果之后传感器仍然是空的，小组件会请你重启电脑。同一个按钮也在“设置 → 性能 → 硬件传感器”中。</p>
     <p data-i18n="sens.win.p4">没有 LibreHardwareMonitor 时，如果主板提供了热区温度，Xenon 会改用 Windows 报告的这个温度。拿不到的读数会留空或显示为 --，而不是显示一个编造出来的零。</p>
 
     <h2 id="linux-mac" data-i18n="sens.h.linuxmac">Linux 和 macOS 上的温度</h2>
@@ -306,8 +306,8 @@
     <p data-i18n="sens.games.p5">“游戏时暂停高负载磁贴”选项默认开启，它还会在游戏运行或优化生效期间，让“浏览器”“第二屏幕”和“摄像头”磁贴停止串流。</p>
 
     <h2 id="faq" data-i18n="sens.h.faq">常见问题</h2>
-    <details><summary data-i18n="sens.faq.aida.q">我需要 AIDA64 或 HWiNFO 吗？</summary><div class="body"><p data-i18n="sens.faq.aida.a">不需要。Xenon 自己读取传感器：在 Windows 上通过 LibreHardwareMonitor、nvidia-smi 和 PresentMon，在 Linux 上通过内核自带的传感器，在 macOS 上通过 Xenon Helper。Windows 设置程序会为你安装 LibreHardwareMonitor 和 PresentMon。</p></div></details>
-    <details><summary data-i18n="sens.faq.temp.q">为什么没有 CPU 温度？</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">在 Windows 上，这通常说明 Xenon 没有以管理员权限运行，所以传感器驱动无法加载。在“风扇”或“能耗”小组件中，或者在“设置 → 性能 → 硬件传感器”中按<strong>启用传感器</strong>，然后接受 Windows 的提示。如果根本没有安装 LibreHardwareMonitor，请在 Xenon 文件夹中再次运行 <code>INSTALL.bat</code> 并接受提示。</p></div></details>
+    <details><summary data-i18n="sens.faq.aida.q">我需要 AIDA64 或 HWiNFO 吗？</summary><div class="body"><p data-i18n="sens.faq.aida.a">不需要。Xenon 自己读取传感器：在 Windows 上通过 LibreHardwareMonitor、nvidia-smi 和 PresentMon，在 Linux 上通过内核自带的传感器，在 macOS 上通过 Xenon Helper。在 Windows 上，Xenon 会为你安装 LibreHardwareMonitor 和 PresentMon，各只需点一下。</p></div></details>
+    <details><summary data-i18n="sens.faq.temp.q">为什么没有 CPU 温度？</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">在 Windows 上，这通常说明传感器读取还没有设置好。在“风扇”或“能耗”小组件中，或在“设置 → 性能 → 硬件传感器”中，按<strong>安装传感器</strong>或<strong>启用传感器</strong>，然后接受 Windows 的提示。如果之后读数仍然是空的，请重启电脑。</p></div></details>
     <details><summary data-i18n="sens.faq.edge.q">可以在 Xeneon Edge 上显示传感器吗？</summary><div class="body"><p data-i18n-html="sens.faq.edge.a">可以。“系统”磁贴会在各张卡片之间分配高度，让它们全部放进 Edge 2560×720 的屏幕。同一个仪表盘也能在任何显示器、平板或<a href="/zh/phone.html">通过你的 Wi-Fi 配对的手机</a>上运行，手机访问目前是测试版。</p></div></details>
     <details><summary data-i18n="sens.faq.own.q">可以自己设计传感器面板吗？</summary><div class="body"><p data-i18n-html="sens.faq.own.a">可以，使用小组件 SDK，它目前是测试版。在你批准它访问系统读数之后，小组件可以读取负载、温度、频率、风扇转速、功耗和帧率，包括“系统”磁贴不显示的数值。可以从<a href="/create/">创作页面</a>开始。</p></div></details>
     <details><summary data-i18n="sens.faq.os.q">它能在 macOS 和 Linux 上运行吗？</summary><div class="body"><p data-i18n="sens.faq.os.a">能，两者都是测试版。CPU 和 GPU 温度以及 GPU 负载在两个系统上都可用。风扇转速，以及通过 MangoHud 获取的游戏内帧率，在 Linux 上可用，在 macOS 上不可用。CPU 和 GPU 功耗只在 Windows 上读取。</p></div></details>

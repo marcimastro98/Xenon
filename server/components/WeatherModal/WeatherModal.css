@@ -231,6 +231,18 @@
   overflow-y: auto;
 }
 .weather-content:has(> .weather-win-trouble) { grid-template-columns: minmax(0, 1fr); }
+/* Style "Your widget": the user's widget fills the window (js/weather-look.js). */
+.weather-content:has(> .weather-own-view) { display: flex; overflow: hidden; }
+.weather-own-view {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  height: min(640px, calc(100dvh - 150px));
+  min-height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--wx-well);
+}
 .weather-win-main,
 .weather-win-side {
   display: flex;
@@ -302,25 +314,16 @@
   background: var(--wx-well);
 }
 
-.weather-win-hours { flex: 1 1 auto; }
-.weather-win-hours .weather-win-well {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 236px;
-  padding: 6px 6px 2px;
-}
+/* The hours keep their own height: a well stretched to the column would float them in a hole. */
+.weather-win-hours .weather-win-well { padding: 10px 8px; }
 .weather-win-hours .weather-hours {
-  --wx-temp: 14px;
-  flex: 1 1 auto;
-  max-height: none;
+  --wx-col: 64px;
+  --wx-hour-art: 38px;
 }
-/* It grows with the well, to a point: the whole height would turn a mild evening into a cliff. */
-.weather-win-hours .weather-hours-plot { flex: 1 1 150px; max-height: 280px; margin-block: auto; }
-.weather-win-hours .weather-hours-rain { height: 46px; }
-.weather-win-hours .weather-hours-chance:has(b)::after { height: calc(3px + var(--rain, 0) * 26px); }
-.weather-win-hours .weather-hours-chance b { font-size: 12px; }
-.weather-win-hours .weather-hours-axis { font-size: 13px; }
+.weather-win-hours .weather-hour { gap: 8px; padding: 10px 2px; }
+.weather-win-hours .weather-hour-time { font-size: 14px; }
+.weather-win-hours .weather-hour-temp { font-size: 20px; }
+.weather-win-hours .weather-hour-rain { font-size: 13px; }
 
 .weather-win-days .weather-fc-row {
   grid-template-columns: minmax(max(3.4em, min(var(--wx-name, 0px), 34%)), 0.9fr) 26px 2.4em minmax(44px, 3fr) 2.4em;
@@ -331,17 +334,14 @@
 .weather-win-days :is(.weather-fc-day, .weather-fc-min, .weather-fc-max) { font-size: 15px; }
 
 .weather-win-facts .weather-facts {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-height: none;
+  grid-template-rows: none;
+  grid-auto-rows: auto;
   overflow: visible;
 }
-.weather-win-facts .weather-fact {
-  width: auto;
-  height: 44px;
-  font-size: 14px;
-}
-.weather-win-facts .weather-fact dt { line-height: 1.15; white-space: normal; }
+.weather-win-facts .weather-fact { min-height: 58px; padding: 9px 0; }
+.weather-win-facts .weather-fact dt { font-size: 13px; line-height: 1.15; white-space: normal; }
+.weather-win-facts .weather-fact dd { font-size: 17px; }
 .weather-win-facts .weather-fact:nth-child(n + 3) { border-top: 1px solid var(--wx-line); }
 /* An odd one out takes the whole row, so the rule above it does not stop half way. */
 .weather-win-facts .weather-fact:last-child:nth-child(odd) { grid-column: 1 / -1; }
@@ -378,14 +378,14 @@
 .weather-win-key:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
 /* ── Sizes ── */
-/* Wide strip: three columns, with the days under now so that none of them ends in a hole. */
+/* Wide strip: now and the days on top, the hours across under them, the details down the side. */
 @container wxwin (min-width: 1300px) {
   .weather-content {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
     grid-template-rows: auto 1fr;
     grid-template-areas:
-      "now hours facts"
-      "days hours facts";
+      "now days facts"
+      "hours hours facts";
     row-gap: 14px;
   }
   .weather-win-main,
@@ -397,7 +397,7 @@
   /* The details spread down their column and end on the same line as the other two. */
   .weather-win-facts .weather-win-well { flex: 1 1 auto; display: grid; }
   .weather-win-facts .weather-facts { grid-auto-rows: 1fr; }
-  .weather-win-facts .weather-fact { height: auto; min-height: 44px; }
+  .weather-win-facts .weather-fact { min-height: 58px; }
 }
 @container wxwin (max-width: 759px) {
   .weather-content { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-inline: 16px; }

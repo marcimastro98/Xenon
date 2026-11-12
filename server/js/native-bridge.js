@@ -736,11 +736,16 @@
 
     // A drag that belongs to something else must never fire the gesture: a
     // scrollable list scrolling up, or a widget being moved in layout editing.
+    // The dashboard page itself is not one of them: like a phone's home bar,
+    // the bottom edge wins over scrolling the page, or a page taller than the
+    // screen could never go home. A list inside a tile keeps its flick until it
+    // reaches its end, where an up-swipe has nothing left to scroll.
     function ownsVerticalDrag(target) {
       if (document.body.classList.contains('layout-editing')) return true;
       let el = (target && target.nodeType === 1) ? target : null;
       while (el && el !== document.body) {
-        if (el.scrollHeight > el.clientHeight + 1) {
+        if (el.classList.contains('pager-page')) return false;
+        if (el.scrollHeight - el.clientHeight - el.scrollTop > 1) {
           const oy = getComputedStyle(el).overflowY;
           if (oy === 'auto' || oy === 'scroll') return true;
         }

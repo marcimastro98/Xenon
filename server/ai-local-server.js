@@ -38,10 +38,11 @@ const LIST_TIMEOUT_MS = 4000;
 // its own provider.
 const USUAL_PORTS = [1234, 8080, 1337, 8000];
 const FIND_TIMEOUT_MS = 800;
-// A small task names a tight limit for a cloud model that pays by the token. A
-// thinking model spends that limit reasoning and answers nothing, and here a
-// longer reply costs nothing, so a small task never gets less than this.
-const MIN_REPLY_TOKENS = 2048;
+// A small task names a limit sized for its answer. A thinking model spends the
+// limit reasoning too and stops before the answer (or halfway through it, on a
+// long one such as a song's translation), and here a longer reply costs nothing,
+// so the answer always gets this much room on top.
+const REPLY_ROOM_TOKENS = 2048;
 // Without tools a model will still happily say it set the timer.
 const NO_TOOLS_NOTE = '\n\nNo tools are available for the rest of this reply: never say you did something you have not already done.';
 
@@ -251,7 +252,7 @@ async function oneShot({ config, systemText, userText, maxTokens, onUsage, image
       : text,
   });
   const model = await resolveModel(config, signal);
-  const resp = await complete(config, { model, messages, max_tokens: Math.max(Number(maxTokens) || 0, MIN_REPLY_TOKENS) }, { signal, timeoutMs });
+  const resp = await complete(config, { model, messages, max_tokens: (Number(maxTokens) || 0) + REPLY_ROOM_TOKENS }, { signal, timeoutMs });
   const used = Number(resp.usage && resp.usage.total_tokens);
   if (typeof onUsage === 'function' && Number.isSafeInteger(used)) {
     onUsage(used, { input: Number(resp.usage.prompt_tokens), output: Number(resp.usage.completion_tokens) });

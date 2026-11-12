@@ -1,0 +1,182 @@
+// Which look the Weather tile wears: the 5.x tile (js/weather-tile.js) or the
+// separate cards of Xenon 4.11 (js/weather-classic.js), or a widget of the user's that
+// reads the weather (custom: js/custom-widget.js hosts it), Settings → Weather → Style
+// and Bit's change_setting weather_style. The classic files load the first time
+// someone picks it, so nobody else downloads them; if they cannot load, the tile
+// stays on the new look and says nothing worse than that. The Weather window follows the
+// same Style: Classic brings back 4.11.13's full view (js/weather-classic-window.js).
+(() => {
+  'use strict';
+
+  const LOOKS = ['new', 'classic', 'custom'];
+  const CLASSIC_JS = 'js/weather-classic.js';
+  const CLASSIC_CSS = 'components/WeatherTile/WeatherClassic.css';
+  const CLASSIC_WINDOW_JS = 'js/weather-classic-window.js';
+  const CLASSIC_WINDOW_CSS = 'components/WeatherModal/WeatherClassicWindow.css';
+  let classicLoad = null;
+
+  function current() {
+    const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
+    const look = w.tile && w.tile.look;
+    return LOOKS.includes(look) ? look : 'new';
+  }
+
+  function loaded(el) {
+    return new Promise((resolve, reject) => {
+      el.addEventListener('load', resolve, { once: true });
+      el.addEventListener('error', () => reject(new Error(`could not load ${el.src || el.href}`)), { once: true });
+    });
+  }
+
+  function sheet(href) {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = href;
+    return css;
+  }
+  function script(src) {
+    const js = document.createElement('script');
+    js.src = src;
+    js.async = false;   // in order: the window reuses the tile's cards
+    return js;
+  }
+
+  // The tile's and the window's files, stylesheets first, so nothing draws unstyled.
+  function loadClassic() {
+    if (window.WeatherClassic && window.WeatherClassicWindow) return Promise.resolve();
+    if (classicLoad) return classicLoad;
+    const files = [sheet(CLASSIC_CSS), sheet(CLASSIC_WINDOW_CSS), script(CLASSIC_JS), script(CLASSIC_WINDOW_JS)];
+    const ready = Promise.all(files.map(loaded));
+    document.head.append(...files);
+    classicLoad = ready.catch((err) => {
+      classicLoad = null;
+      files.forEach((node) => node.remove());
+      throw err;
+    });
+    return classicLoad;
+  }
+
+  const HOST = 'custom-widget-mount';
+  const hasHost = (mount) => !!(mount.firstElementChild && mount.firstElementChild.classList.contains(HOST));
+
+  // Custom: each mount holds one .custom-widget-mount, and js/custom-widget.js
+  // treats the Weather tile as a widget tile (chooser, permission, frame, paused
+  // states). The host is kept across weather refreshes so the widget is not
+  // reloaded every time; where custom-widget.js is not loaded (a desktop widget
+  // page) the tile stays on the new look.
+  function renderCustom(mounts) {
+    const cw = window.CustomWidget;
+    if (!cw || typeof cw.renderWidgets !== 'function') return false;
+    let added = false;
+    mounts.forEach((mount) => {
+      if (hasHost(mount)) return;
+      const host = document.createElement('div');
+      host.className = HOST;
+      mount.replaceChildren(host);
+      added = true;
+    });
+    if (added) cw.renderWidgets();
+    return true;
+  }
+
+  // True when the classic look or the user's widget drew the tile; false leaves
+  // it to the new one. A first classic call starts the load and draws again once
+  // it is in.
+  function render(mounts, data, sec) {
+    const look = current();
+    if (look === 'custom' && renderCustom(mounts)) return true;
+    // Leaving custom: the new or classic tile replaces the host; then the widget
+    // frame is let go.
+    if (Array.prototype.some.call(mounts, hasHost) && window.CustomWidget) queueMicrotask(() => window.CustomWidget.renderWidgets());
+    if (look !== 'classic') return false;
+    if (!window.WeatherClassic) {
+      loadClassic()
+        .then(() => { if (typeof renderWeatherTile === 'function') renderWeatherTile(); })
+        .catch((err) => console.warn('[weather] classic look unavailable, showing the new one:', err.message));
+      return false;
+    }
+    mounts.forEach((mount) => window.WeatherClassic.render(mount, data, sec));
+    return true;
+  }
+
+  // The Weather window (the top bar's weather, the tile, the lock screen, Bit) on
+  // the same style shows the user's widget instead of Xenon's details: a host
+  // custom-widget.js keys as 'weather@view', with its own frame and the Weather
+  // tile's choice. Kept while the window is open so a weather update does not
+  // reload it; let go on close so nothing runs behind a hidden window.
+  const VIEW = 'weather-own-view';
+  function renderWindow(content) {
+    const look = current();
+    if (look === 'classic') {
+      releaseWindow(content);
+      return renderClassicWindow(content);
+    }
+    if (window.WeatherClassicWindow) window.WeatherClassicWindow.release(content);
+    const cw = window.CustomWidget;
+    if (look !== 'custom' || !cw || typeof cw.renderWidgets !== 'function') return releaseWindow(content);
+    if (content.querySelector(`:scope > .${VIEW}`)) return true;
+    const view = document.createElement('section');
+    view.className = VIEW;
+    view.dataset.cwHost = 'weather@view';
+    const host = document.createElement('div');
+    host.className = HOST;
+    view.appendChild(host);
+    content.replaceChildren(view);
+    cw.renderWidgets();
+    return true;
+  }
+  // Classic: 4.11.13's window. While its files load (they normally came in with the tile)
+  // the new window shows, then this one replaces it. Still fetching with nothing to show:
+  // the new window's waiting line.
+  function renderClassicWindow(content) {
+    const data = typeof weatherData === 'undefined' ? null : weatherData;
+    const waiting = !data && typeof fetchingWeather !== 'undefined' && fetchingWeather;
+    if (window.WeatherClassicWindow && window.WeatherClassic && !waiting) {
+      window.WeatherClassicWindow.render(content, data);
+      return true;
+    }
+    if (window.WeatherClassicWindow) window.WeatherClassicWindow.release(content);
+    if (!waiting) {
+      loadClassic()
+        .then(() => { if (typeof renderWeatherDetails === 'function') renderWeatherDetails(); })
+        .catch((err) => console.warn('[weather] classic window unavailable, showing the new one:', err.message));
+    }
+    return false;
+  }
+
+  // Also on close: the user's widget frame goes, so nothing runs behind a hidden window.
+  function releaseWindow(content) {
+    const view = content && content.querySelector(`:scope > .${VIEW}`);
+    if (!view) return false;
+    view.remove();
+    if (window.CustomWidget) window.CustomWidget.renderWidgets();
+    return false;
+  }
+
+  function sync() {
+    const look = current();
+    document.querySelectorAll('[data-weather-look]').forEach((btn) => {
+      const on = btn.dataset.weatherLook === look;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  // Same path as the other Weather settings: normalize, save, redraw.
+  function set(look) {
+    if (!LOOKS.includes(look) || look === current() || typeof normalizeSettings !== 'function') return;
+    const tile = normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile);
+    hubSettings = normalizeSettings({ ...hubSettings, weather: { ...hubSettings.weather, tile: { ...tile, look } } });
+    if (typeof commitWeatherChange === 'function') commitWeatherChange();
+    sync();
+    if (typeof renderWeatherTile === 'function') renderWeatherTile();
+    if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_weather_saved', 'ok');
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target instanceof Element ? e.target.closest('[data-weather-look]') : null;
+    if (btn) set(btn.dataset.weatherLook);
+  });
+
+  window.WeatherLook = { LOOKS, current, render, renderWindow, releaseWindow, set, sync };
+})();

@@ -4,9 +4,11 @@
 // prompt was answered. A file swapped in between ran as administrator, and the
 // prompt the user approved said nothing about it.
 //
-// Now the text already loaded (captured before the prompt) goes over in
-// -EncodedCommand, with the parameters embedded as single-quoted literals in
-// which all five PowerShell quote characters are doubled.
+// compact-vhdx.ps1 sends the text already loaded (captured before the prompt)
+// in -EncodedCommand. enable-sensors.ps1 also copies the sensor service's
+// scripts, so it sends their SHA-256 instead: the elevated side reads each file
+// once, refuses one that changed, and runs and copies those same bytes. Values
+// are embedded as single-quoted literals with all five quote characters doubled.
 //
 // compact-vhdx.ps1 also stopped writing a diskpart script into %TEMP% (it pipes
 // the commands instead), writes its status only into the install's server\data
@@ -32,7 +34,7 @@ function fnBody(src, name) {
   return src.slice(at);
 }
 
-for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1', COMPACT]]) {
+for (const [name, src] of [['compact-vhdx.ps1', COMPACT]]) {
   test(`${name}: the elevated copy is the text loaded before the prompt`, () => {
     assert.doesNotMatch(src, /'-File', \("`"\$PSCommandPath`"\)/, 'no -File relaunch of the script on disk');
     const capture = src.indexOf('$selfText = $MyInvocation.MyCommand.ScriptBlock.ToString()');
@@ -46,6 +48,9 @@ for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1',
     assert.match(src, /\$command = "& \{`n" \+ \$body \+ "`n\} -/, 'run as a script block so param() binds the values');
   });
 
+}
+
+for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1', COMPACT]]) {
   test(`${name}: every PowerShell quote character is doubled in an embedded value`, () => {
     const body = fnBody(src, 'ConvertTo-PsLiteral');
     const codes = [...body.matchAll(/\[char\]0x([0-9A-Fa-f]+)/g)].map((m) => parseInt(m[1], 16)).sort((a, b) => a - b);
@@ -54,7 +59,7 @@ for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1',
     assert.match(body, /return "'" \+ \$sb\.ToString\(\) \+ "'"/);
   });
 
-  test(`${name}: comments are dropped by the parser, so the command fits`, () => {
+  if (name === 'compact-vhdx.ps1') test(`${name}: comments are dropped by the parser, so the command fits`, () => {
     const body = fnBody(src, 'Get-ElevationScriptText');
     assert.match(body, /Language\.Parser\]::ParseInput/);
     assert.match(body, /\$_\.Kind -eq 'Comment'/);
@@ -73,7 +78,45 @@ for (const [name, src] of [['enable-sensors.ps1', SENSORS], ['compact-vhdx.ps1',
 test('enable-sensors.ps1 checks the task name before it goes anywhere', () => {
   const check = SENSORS.indexOf("if ($TaskName -notmatch '^[A-Za-z0-9 ._()-]{1,128}$')");
   assert.ok(check > 0 && check < SENSORS.indexOf('-Verb RunAs'));
-  assert.match(SENSORS, /-TaskName " \+ \(ConvertTo-PsLiteral \$TaskName\) \+ ' -Elevated'/);
+  assert.match(SENSORS, /-TaskName " \+ \(ConvertTo-PsLiteral \$TaskName\) \+/);
+  assert.match(SENSORS, /' -UserSid ' \+ \(ConvertTo-PsLiteral \$Sid\) \+ ' -Elevated'/);
+});
+
+test('enable-sensors.ps1: the elevated side runs and copies only the bytes hashed before the prompt', () => {
+  const cmd = fnBody(SENSORS, 'New-ElevatedCommand');
+  assert.match(cmd, /\[IO\.File\]::ReadAllBytes/, 'each file read once, into memory');
+  assert.match(cmd, /-ne `\$h\[`\$k\]\)\{exit 3\}/, 'a changed file stops everything');
+  assert.match(cmd, /\[ScriptBlock\]::Create\(`\$t\)/, 'the script runs from those bytes, never -File');
+  assert.match(cmd, /`\$global:XenonSensorFiles=`\$f/);
+  const hashed = SENSORS.slice(SENSORS.indexOf('$hashes = @{}'), SENSORS.indexOf('-Verb RunAs'));
+  assert.match(hashed, /@\('enable-sensors\.ps1'\) \+ \$ServiceFiles/);
+  assert.match(hashed, /'-EncodedCommand', \$encoded/);
+  const install = fnBody(SENSORS, 'Install-SensorService');
+  assert.match(install, /\[IO\.File\]::WriteAllBytes\(\(Join-Path \$pfDir \$f\), \$files\[\$f\]\)/, 'copied from the checked bytes');
+  assert.doesNotMatch(install, /Copy-Item|ReadAllBytes/, 'never a second read');
+  assert.match(SENSORS, /\$SidPattern = '\^S-1-\(5-21\|12-1\)/);
+});
+
+// Since 5.1.0 the elevated copy may install LHM and PawnIO first, which takes
+// minutes, so it answers through a status file instead of the task's run level.
+test('enable-sensors.ps1 reports through server\\data, through no link', () => {
+  const t = fnBody(SENSORS, 'Test-StatusPath');
+  assert.match(t, /\(Split-Path -Leaf \$dir\) -ne 'data'/);
+  assert.match(t, /\(Split-Path -Leaf \$serverDir\) -ne 'server'/);
+  assert.match(t, /Test-IsLink \$di/);
+  assert.match(t, /Test-IsLink \$fi/);
+  const w = fnBody(SENSORS, 'Write-Status');
+  assert.ok(w.indexOf('if (-not (Test-StatusPath)) { return }') < w.indexOf('[IO.File]::Open'));
+  assert.match(w, /\[IO\.FileMode\]::CreateNew/);
+  assert.ok(SENSORS.indexOf('if (-not (Test-StatusPath)) {') < SENSORS.indexOf('-Verb RunAs'), 'checked before the prompt');
+});
+
+test('enable-sensors.ps1 installs only fixed winget ids, LHM machine-wide', () => {
+  const ids = [...SENSORS.matchAll(/'--id', '([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(ids)].sort(), ['LibreHardwareMonitor.LibreHardwareMonitor', 'namazso.PawnIO']);
+  for (const m of SENSORS.matchAll(/'--id', 'LibreHardwareMonitor\.LibreHardwareMonitor'([^)]*)\)/g)) assert.match(m[1], /'--scope', 'machine'/);
+  assert.match(fnBody(SENSORS, 'Test-MachineLhm'), /\[Version\]'0\.9\.5'/, 'never a WinRing0 build');
+  assert.ok(SENSORS.indexOf('$parts = Install-SensorParts') < SENSORS.indexOf('Install-SensorService $UserSid'), 'LHM is in place before the service starts');
 });
 
 test('compact-vhdx.ps1 embeds all three values and pins the data folder', () => {

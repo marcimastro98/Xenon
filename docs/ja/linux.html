@@ -147,18 +147,16 @@
     <p class="note" data-i18n-html="lx.beta">Linux 対応は <strong>ベータ</strong> です。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。まだ違うのはマシンを読み取って操作する部分で、下の表にまとめています。まだ実際の Linux PC では試しておらず、テスト用のマシンでしか試していません。動かないところがあれば教えてください。</p>
 
     <h2 id="setup" data-i18n="lx.h.setup">初回起動</h2>
-    <p data-i18n-html="lx.setup.p1">アプリを開きます。初回起動時に、ターミナルのウィンドウでダッシュボードをセットアップするよう提案されます。エンジンをダウンロードし、展開する前にダウンロードを検証し、ログイン時に Xenon が起動するよう <code>systemd --user</code> サービスを登録します。ユーザーマネージャーがない環境では代わりに XDG 自動起動のエントリーを使い、そのことを知らせます。この代替手段ではクラッシュ後に Xenon が再起動しないことも伝えます。</p>
+    <p data-i18n-html="lx.setup.p1">アプリを開きます。初回起動で、Xenon のウィンドウの中に進行状況バーを表示しながらダッシュボードを準備します。アプリに含まれているエンジンを専用の Node.js ごとコピーするので何もダウンロードせず、ログイン時に Xenon が起動するよう <code>systemd --user</code> サービスを登録します。ユーザーマネージャーがない環境では代わりに XDG 自動起動エントリを使いますが、こちらはクラッシュ後に Xenon を再起動しません。</p>
     <p data-i18n="lx.setup.p2">.deb と .rpm がインストール時にこれを行わないのは意図的です。セットアップが作るものはすべて1つのユーザーアカウントに属しますが、パッケージは root としてマシン全体にインストールされるからです。</p>
-    <p data-i18n="lx.setup.p3">インストーラーは、入っていない任意のツールも一覧で示します。Debian と Ubuntu では:</p>
-    <pre><code># required
-sudo apt install nodejs npm unzip
-# volume, microphone and the per-app mixer
+    <p data-i18n="lx.setup.p3">一部の機能はシステムのツールを使います。Debian と Ubuntu の場合：</p>
+    <pre><code># volume, microphone and the per-app mixer
 sudo apt install wireplumber
 # the open-applications widget (X11 sessions)
 sudo apt install wmctrl xdotool x11-utils
 # voice input and spoken replies
 sudo apt install ffmpeg</code></pre>
-    <p data-i18n-html="lx.setup.p4">デスクトップにターミナルエミュレーターがまったくない場合、アプリはインストーラーを表示できません。<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">リリース</a>からソースの zip をダウンロードして展開し、<code>./INSTALL.sh</code> を実行してください。</p>
+    <p data-i18n-html="lx.setup.p4">準備を最後まで完了できない場合は、<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">リリース</a>からソースの zip をダウンロードして展開し、ターミナルで <code>./INSTALL.sh</code> を実行してください。</p>
 
     <h2 id="works" data-i18n="lx.h.works">Linux で動く機能</h2>
     <div class="tablewrap"><table>

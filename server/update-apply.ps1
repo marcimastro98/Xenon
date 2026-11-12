@@ -338,7 +338,7 @@ function Remove-UpdateAdditions {
 # is defense-in-depth on top of it. This deliberately deletes ONE known file at
 # a time from the updater's own previous manifest - never a directory mirror
 # (the /MIR class of data loss stays impossible).
-$protectedPrefixes = @('server\data\', 'node_modules\', '.git\', 'server\shared\', 'server\helper\', 'server\presentmon\', 'server\icue-sdk\')
+$protectedPrefixes = @('server\data\', 'node_modules\', 'node-runtime\', '.git\', 'server\shared\', 'server\helper\', 'server\presentmon\', 'server\icue-sdk\', 'server\ffmpeg\')
 function Test-ProtectedPath($rel) {
   foreach ($p in $protectedPrefixes) {
     if ($rel.StartsWith($p, [StringComparison]::OrdinalIgnoreCase)) { return $true }
@@ -610,7 +610,9 @@ try {
     $script:phase = 'backup'
     if (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-    robocopy $root $backupDir /E /XD $nm $nmBak $dataDir (Join-Path $root '.git') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    # node-runtime (the Node an app-made install carries) is never touched by an
+    # update either, and copying its ~110 MB every time would only slow it down.
+    robocopy $root $backupDir /E /XD $nm $nmBak $dataDir (Join-Path $root '.git') (Join-Path $root 'node-runtime') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "backup failed ($LASTEXITCODE)" }
     Log 'backup done'
 

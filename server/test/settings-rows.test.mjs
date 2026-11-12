@@ -338,11 +338,68 @@ test('the sensors repair is a row with the page key, and only when there is some
     return host;
   };
   assert.equal((await run('ok')).children.length, 0);
-  assert.equal((await run('missing')).children.length, 0);
+  // Missing parts get the same row, with the key that installs them.
+  assert.ok((await run('missing')).querySelector('button'));
   const host = await run('needs_admin');
   assert.ok(host.querySelector('.settings-group-head'));
   assert.equal(host.querySelector('button').className, 'settings-btn primary');
   // The tiles keep their own key: only this page swaps it.
   assert.match(read('../js/sensor-access.js'), /el\('button', 'sa-btn'\)/);
   assert.match(CSS, /#settings-overlay \.sa-hint \{\s+display: grid;/);
+});
+
+// 5.1.0: the sensors read through the "Xenon Sensors" service. An update that
+// changes its scripts cannot reach Program Files, so the page offers the same
+// prompt as "Update sensors"; a 'service' answer waits for real readings.
+function loadSensorAccess(answers, fetchAnswer) {
+  const { document } = makeDom();
+  const host = document.createElement('div');
+  host.id = 'settings-sensors-hub';
+  document.body.appendChild(host);
+  const window = {};
+  const makeEl = (tag, cls, text) => {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text != null) el.textContent = text;
+    return el;
+  };
+  const asked = [];
+  const apiJson = async (url) => { asked.push(url); return typeof answers[url] === 'function' ? answers[url]() : answers[url]; };
+  const fetch = async () => ({ json: async () => fetchAnswer });
+  const fastTimeout = (fn) => setTimeout(fn, 0);
+  const sandbox = { window, document, makeEl, apiJson, fetch, setTimeout: fastTimeout };
+  vm.createContext(sandbox);
+  vm.runInContext(read('../js/sensor-access.js'), sandbox);
+  return { window, host, asked };
+}
+
+test('sensors that read through an outdated service get an Update sensors key', async () => {
+  const outdated = loadSensorAccess({ '/system': { sensorAccess: 'ok' }, '/api/sensor-service': { ok: true, service: { running: true, outdated: true } } });
+  await outdated.window.SensorAccess.initSettings();
+  const btn = outdated.host.querySelector('button');
+  assert.ok(btn);
+  assert.equal(btn.textContent, 'Update sensors');
+  assert.equal(btn.className, 'settings-btn primary');
+
+  for (const service of [{ running: true, outdated: false }, null]) {
+    const current = loadSensorAccess({ '/system': { sensorAccess: 'ok' }, '/api/sensor-service': { ok: true, service } });
+    await current.window.SensorAccess.initSettings();
+    assert.equal(current.host.children.length, 0);
+  }
+  // A paired phone may be refused the read: no answer, no card.
+  const refused = loadSensorAccess({ '/system': { sensorAccess: 'ok' }, '/api/sensor-service': null });
+  await refused.window.SensorAccess.initSettings();
+  assert.equal(refused.host.children.length, 0);
+});
+
+test('a service answer is done only once the sensors really read', async () => {
+  let polls = 0;
+  const access = () => ({ sensorAccess: ++polls < 3 ? 'needs_admin' : 'ok' });
+  const s = loadSensorAccess({ '/system': access }, { ok: true, status: 'service' });
+  const node = s.window.SensorAccess.hintNode('text', '', false);
+  s.host.appendChild(node);
+  node.querySelector('button').click();
+  for (let i = 0; i < 50 && !/is-ok/.test(node.querySelector('.sa-status').className); i++) await new Promise((r) => setTimeout(r, 5));
+  assert.match(node.querySelector('.sa-status').textContent, /^Done! Fan speeds/);
+  assert.ok(polls >= 3, 'the stale needs_admin was not taken as the answer');
 });

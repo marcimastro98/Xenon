@@ -168,7 +168,7 @@
     </div>
     <ul>
       <li data-i18n-html="mac.req.os"><strong>macOS 11 o posterior</strong>, en Apple Silicon o Intel. El .dmg es una versión universal, así que hay una sola descarga para los dos.</li>
-      <li data-i18n-html="mac.req.node"><strong>Se recomienda Node.js 22 o posterior.</strong> Node.js 18 y 20 todavía ejecutan Xenon, pero ya no reciben correcciones de seguridad, y Xenon escribe un aviso en su registro. Si falta Node.js y tienes Homebrew, la configuración lo instala con Homebrew. Si no, se detiene y te pide que lo instales desde nodejs.org.</li>
+      <li data-i18n-html="mac.req.node"><strong>Nada que instalar antes.</strong> La app lleva su propio Node.js, así que no necesitas Node.js ni Homebrew para usar Xenon.</li>
     </ul>
     <p data-i18n="mac.req.opt">El resto es opcional. Cada herramienta añade una sola cosa, y el instalador te dice cuáles te faltan:</p>
     <ul>
@@ -188,15 +188,14 @@
     <p data-i18n-html="mac.nz.p3">Las versiones hasta la 4.11.13 estaban firmadas con un certificado propio del proyecto y no estaban notarizadas. Como la firma cambia en la 5.0, después de la actualización macOS puede volver a pedir permisos que ya habías dado, como Acceso total al disco, Accesibilidad y Grabación de pantalla. Vuelve a permitirlos en <strong>Ajustes del Sistema</strong>, <strong>Privacidad y seguridad</strong>.</p>
 
     <h3 data-i18n="mac.h.setup">Configurar el motor del panel</h3>
-    <p data-i18n="mac.setup.p1">Un .dmg no puede ejecutar un instalador, así que lo hace el primer inicio. Xenon ve que no tiene ningún panel detrás y abre una ventana de Terminal que puedes leer y detener. En esa ventana:</p>
+    <p data-i18n="mac.setup.p1">Un .dmg no puede ejecutar un instalador, así que lo hace el primer inicio, dentro de la ventana de Xenon, con una barra de progreso. Xenon:</p>
     <ol>
-      <li data-i18n="mac.setup.1">descarga la última versión y su lista firmada de sumas de verificación;</li>
-      <li data-i18n="mac.setup.2">comprueba la descarga con la clave de firma del proyecto antes de extraer nada;</li>
-      <li data-i18n-html="mac.setup.3">lo instala en <code>~/Library/Application Support/Xenon</code>;</li>
-      <li data-i18n="mac.setup.4">añade Xenon Helper, un pequeño complemento para el selector de apps, las temperaturas y la búsqueda, y el puente que lee lo que se está reproduciendo;</li>
-      <li data-i18n="mac.setup.5">registra un ítem de inicio de sesión, para que Xenon se abra cuando inicias sesión.</li>
+      <li data-i18n="mac.setup.1">copia el motor del panel que lleva la app, con su propio Node.js, así que no descarga nada;</li>
+      <li data-i18n="mac.setup.2">lo instala en &lt;code&gt;~/Library/Application Support/Xenon&lt;/code&gt;;</li>
+      <li data-i18n-html="mac.setup.3">registra un elemento de inicio de sesión, para que Xenon se abra al entrar en tu cuenta;</li>
+      <li data-i18n="mac.setup.4">inicia el motor y muestra el panel en cuanto responde.</li>
     </ol>
-    <p data-i18n-html="mac.setup.p2">Cuando termina, el instalador cierra y vuelve a abrir la app, y aparece el panel. También está en <code>http://127.0.0.1:3030/</code> en cualquier navegador del Mac.</p>
+    <p data-i18n-html="mac.setup.p2">Tarda un minuto más o menos y ocurre una sola vez. Si algo lo detiene, Xenon explica por qué y ofrece <strong>Reintentar</strong>, sin tocar tus archivos. El panel también está en <code>http://127.0.0.1:3030/</code> en cualquier navegador del Mac.</p>
     <p data-i18n="mac.setup.p3">El motor del panel se ejecuta como proceso hijo de la app de Xenon. Por eso basta con un solo permiso de Acceso total al disco para Xenon, en lugar de un permiso para Node.js que compartiría cualquier otro script del Mac.</p>
     <p data-i18n="mac.setup.p4">Las actualizaciones funcionan como en Windows: primero se descarga y se verifica la versión nueva, y si no arranca, se vuelve a poner la anterior.</p>
     <p class="note" data-i18n-html="mac.setup.zip">¿Prefieres no usar la ventana de la app? Descarga el zip del código fuente desde <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la página de la versión</a>, extráelo y haz doble clic en <code>INSTALL.command</code>. El panel es el mismo, pero sin la app las carpetas que protege macOS quedan fuera de su alcance.</p>

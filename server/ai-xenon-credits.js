@@ -161,6 +161,9 @@ function roundTrip(dataDir, model) {
       tools: body.tools,
       max_tokens: body.max_tokens,
       ...(body.effort ? { effort: body.effort } : {}),
+      ...(body.helper === true ? { helper: true } : {}),
+      // What the request is for, so the hub can say where Sparks go (0039).
+      ...(typeof body.use === 'string' && body.use ? { use: body.use } : {}),
     };
     aiTurns.checkpoint(); // stopped: no new round, so nothing more is paid
     let started = _now();
@@ -210,7 +213,7 @@ function reachesForCreation(resp) {
 // configure_deck, not the lookup, hands the turn over.
 const CREATION_KIT = new Set([...CREATION_TOOLS, 'deck_action_catalog', 'marketplace_search', 'my_widgets']);
 function forCreation(body, effort) {
-  const room = { effort, max_tokens: CREATION_MAX_TOKENS[effort] };
+  const room = { effort, max_tokens: CREATION_MAX_TOKENS[effort], use: 'create' };
   if (!Array.isArray(body.tools)) return { ...body, ...room };
   const used = new Set();
   for (const m of body.messages || []) {
@@ -220,7 +223,7 @@ function forCreation(body, effort) {
 }
 
 // Haiku chosen for creations runs the whole turn at the user's level: its
-// rounds are both the chat and the creation. `pick` is read again on every
+// rounds are both the chat and the creation, and are booked as chat. `pick` is read again on every
 // chat round and at the hand-over, so "use Opus and make…" switches mid-turn.
 function routedTrip(dataDir, pick) {
   let model = CHAT_MODEL;
@@ -228,8 +231,8 @@ function routedTrip(dataDir, pick) {
   return async (body) => {
     if (model !== CHAT_MODEL) return roundTrip(dataDir, model)(forCreation(body, effort));
     const chosen = pick();
-    if (chosen.model === CHAT_MODEL) return roundTrip(dataDir, CHAT_MODEL)({ ...body, effort: chosen.effort, max_tokens: Math.max(body.max_tokens, CREATION_MAX_TOKENS[chosen.effort]) });
-    const out = await roundTrip(dataDir, CHAT_MODEL)({ ...body, max_tokens: Math.min(body.max_tokens, CHAT_MAX_TOKENS) });
+    if (chosen.model === CHAT_MODEL) return roundTrip(dataDir, CHAT_MODEL)({ ...body, use: 'chat', effort: chosen.effort, max_tokens: Math.max(body.max_tokens, CREATION_MAX_TOKENS[chosen.effort]) });
+    const out = await roundTrip(dataDir, CHAT_MODEL)({ ...body, use: 'chat', max_tokens: Math.min(body.max_tokens, CHAT_MAX_TOKENS) });
     if (!reachesForCreation(out)) return out;
     ({ model, effort } = pick());
     aiTurns.creating();
@@ -267,9 +270,14 @@ async function chat({ dataDir, model, effort, creation, geminiTools, history, sy
 
 // One completion with no tools → plain text, for the small helpers (a summary,
 // a search phrase, a lyrics translation). Always on Haiku: they are short and a
-// helper should never cost what a conversation does. Adaptive thinking spends
-// from the same length, so a tiny cap is raised; only what is written is paid.
+// helper should never cost what a conversation does. Haiku thinks before it
+// writes and the thinking spends from the same length: a lyrics translation
+// sized for its answer alone came back cut inside its JSON (10 Nov 2026, a
+// 19-line song used all of its 1206 tokens). So a helper runs at low effort and
+// gets the thinking room on top of its answer; only what is written is paid.
 const HELPER_MODEL = 'haiku';
+const HELPER_EFFORT = 'low';
+const HELPER_THINKING_ROOM = 2048;
 // What a helper costs, for estimates the app shows (Lyrics' "per 100 songs"):
 // the hub's model id for `haiku` and its Sparks per US dollar, mirrored from
 // the hub's ai-pricing.js (MODELS.haiku.id, CREDITS_PER_USD). Display only:
@@ -278,11 +286,16 @@ const HELPER_MODEL_ID = 'claude-haiku-5-5';
 const SPARKS_PER_USD = 200;
 const HELPER_MIN_TOKENS = 1024;
 
-async function oneShot({ dataDir, systemText, userText, maxTokens, onUsage, image }) {
+async function oneShot({ dataDir, systemText, userText, maxTokens, onUsage, image, use }) {
   const resp = await roundTrip(dataDir, HELPER_MODEL)({
     system: systemText || undefined,
     messages: [{ role: 'user', content: aiAnthropic.userContent(userText, image) }],
-    max_tokens: Math.max(maxTokens || 0, HELPER_MIN_TOKENS),
+    max_tokens: Math.max(maxTokens || 0, HELPER_MIN_TOKENS) + HELPER_THINKING_ROOM,
+    effort: HELPER_EFFORT,
+    // Sent without Bit's creative brain, which a hub before 10 Nov 2026 adds
+    // anyway: it ignores fields it does not know.
+    helper: true,
+    use,
   });
   const u = resp.usage;
   const input = u ? Number(u.input_tokens) : NaN;

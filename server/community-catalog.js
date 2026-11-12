@@ -347,6 +347,7 @@ let _catalogPending = null; // in-flight dedup
 let _lastForcedAt = 0;
 let _cacheFile = null;      // set by initCache(); null = memory-only (unit tests)
 let _fetchImpl = fetchText; // injectable so the SWR flow is testable without a network
+let _appVersion = '';       // the build that writes the disk copy (initCache)
 
 // Load the last-good catalog from disk at startup. The in-memory cache used to
 // die with the process, so the FIRST open after every server restart re-blocked
@@ -357,16 +358,23 @@ function initCache(opts) {
   const dir = opts && opts.dataDir;
   if (!dir) return;
   _cacheFile = path.join(dir, 'community-catalog-cache.json');
+  _appVersion = typeof opts.appVersion === 'string' ? opts.appVersion : '';
   try {
     const raw = JSON.parse(fs.readFileSync(_cacheFile, 'utf8'));
     if (raw && Array.isArray(raw.entries)) {
       // Re-normalize on load: the persisted copy could predate a schema change,
       // and it is re-validated key-by-key exactly like a fresh network fetch.
+      // A copy written by another build lost every field that build's normalizer
+      // did not know (4.11.13 dropped `sparks`, so 5.0.0 showed Sparks drops as
+      // supporter drops), and its etag would get a 304 that keeps it forever.
+      // So it is only a fallback: no etag, and the first read awaits a full fetch.
+      const sameBuild = !!_appVersion && raw.appVersion === _appVersion;
       _catalogCache = {
         entries: normalizeCatalog(raw.entries),
         layout: normalizeCatalogLayout(raw.layout),
-        fetchedAt: Number(raw.fetchedAt) || 0,
-        etag: typeof raw.etag === 'string' ? raw.etag : '',
+        fetchedAt: sameBuild ? Number(raw.fetchedAt) || 0 : 0,
+        etag: sameBuild && typeof raw.etag === 'string' ? raw.etag : '',
+        otherBuild: !sameBuild,
       };
     }
   } catch { /* absent or corrupt — start cold; the first fetch repopulates it */ }
@@ -379,6 +387,7 @@ function _persistCatalogCache() {
     layout: _catalogCache.layout,
     fetchedAt: _catalogCache.fetchedAt,
     etag: _catalogCache.etag,
+    appVersion: _appVersion,
   });
   try { writeFileAtomic(_cacheFile, snapshot).catch(() => {}); }
   catch { /* best-effort — the memory copy still serves this run */ }
@@ -423,7 +432,9 @@ async function fetchCatalog(force) {
   if (_catalogPending) return _catalogPending;
   const doForce = force && (now - _lastForcedAt) >= REFRESH_MIN_INTERVAL_MS;
   if (doForce) _lastForcedAt = now;
-  if (!doForce && cacheIsFresh(_catalogCache, now)) {
+  // A disk copy from another build is never served as is (see initCache).
+  const otherBuild = !!(_catalogCache && _catalogCache.otherBuild);
+  if (!doForce && !otherBuild && cacheIsFresh(_catalogCache, now)) {
     return { ok: true, entries: _catalogCache.entries, cached: true };
   }
   // Stale-while-revalidate: a cache exists but is past its TTL. Serve the last
@@ -434,7 +445,7 @@ async function fetchCatalog(force) {
   // manual ↻ (doForce) always awaits, so the user who asked for fresh data gets it.
   const haveCache = !!(_catalogCache && Array.isArray(_catalogCache.entries));
   const revalidate = _revalidateCatalog(doForce);
-  if (haveCache && !doForce) {
+  if (haveCache && !doForce && !otherBuild) {
     return { ok: true, entries: _catalogCache.entries, cached: true, revalidating: true };
   }
   return revalidate;
@@ -529,6 +540,6 @@ module.exports = {
   // Test seams (mirrors community-installs.js): inject the upstream fetcher and
   // reset the module cache so the SWR flow can be exercised without a network.
   _setFetcher(fn) { _fetchImpl = fn || fetchText; },
-  _resetCache() { _catalogCache = null; _catalogPending = null; _lastForcedAt = 0; _cacheFile = null; },
+  _resetCache() { _catalogCache = null; _catalogPending = null; _lastForcedAt = 0; _cacheFile = null; _appVersion = ''; },
   _expireCache() { if (_catalogCache) _catalogCache.fetchedAt = 0; },   // age past the TTL for tests
 };

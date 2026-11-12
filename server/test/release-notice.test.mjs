@@ -223,7 +223,7 @@ test('every button of a sheet has its words, and the drawn panels too', () => {
   assert.equal((I18N.match(/\bwn_try_overlay\b/g) || []).length, 0, 'no sheet asks for it');
 });
 
-test("returning means earlier use; What's New alone is not, a new install marks it itself", () => {
+test("returning means earlier use; What's New alone is not, a new install sees it too", () => {
   const { returningUser } = notice;
   assert.equal(returningUser({ asked: false, notesSeen: '', tourSeen: 0 }), false, 'a new install');
   assert.equal(returningUser({ asked: false, notesSeen: '', tourSeen: 0, whatsNewSeen: '5.0.0' }), false, 'closed on the first boot');
@@ -297,23 +297,26 @@ test('a WebKit without Web Audio still loads the page, in silence', () => {
   assert.doesNotThrow(() => vm.runInContext(source, context));
 });
 
-// Only someone who can be asked the screen question, has never answered it and
-// left no trace of earlier use is new. A phone or the iCUE frame is never asked,
-// so "never answered" alone would mark What's New seen for people who never saw it.
-test('a fresh install is only one that can be asked and left no trace', () => {
-  const fresh = { asked: false, canAsk: true, whatsNewSeen: '', notesSeen: '', tourSeen: '' };
-  assert.equal(notice.freshInstall(fresh), true);
-  assert.equal(notice.freshInstall({ ...fresh, asked: true }), false);
-  assert.equal(notice.freshInstall({ ...fresh, canAsk: false }), false, 'phone and iCUE frame never answer');
-  assert.equal(notice.freshInstall({ ...fresh, whatsNewSeen: '4.0.0' }), false);
-  assert.equal(notice.freshInstall({ ...fresh, notesSeen: '4.11.13' }), false);
-  assert.equal(notice.freshInstall({ ...fresh, tourSeen: '4.2.0' }), false, 'older than the screen question');
-});
-
-test('the first run goes through the rule, not through "never asked" alone', () => {
+// A new install is told what the version it starts on brings: the major's sheets,
+// then the notes since it, after the first-run question (they wait for its overlay).
+test('a new install sees the major first, then the notes of the version it started on', () => {
+  const wn = {
+    id: '5.0.0', version: '5.1.0', highlights: [{ title: 'Big' }],
+    releases: [{ version: '5.1.0', news: [{ title: 'n' }], fixes: [{ area: 'a', text: 'b' }] }],
+  };
+  const first = notice.pick({ wn, whatsNewSeen: '', notesSeen: '' });
+  assert.equal(first.major, true);
+  assert.equal(first.notes.version, '5.1.0');
+  const update = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
+  const majorAt = update.indexOf('queue.push((next) => openWhatsNew(wn, next))');
+  const notesAt = update.indexOf('queue.push((next) => openReleaseNotes(wn, notes, next))');
+  assert.ok(majorAt > 0 && notesAt > majorAt, 'the major is queued before the notes');
+  assert.ok(!update.includes('suppressForFreshInstall'));
   const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-  assert.match(settings, /XenonReleaseNotice\.freshInstall\(/);
-  assert.doesNotMatch(settings, /if \(!getSurfaceChoice\(\)\.asked && window\.XenonWhatsNew/);
+  assert.ok(!settings.includes('suppressForFreshInstall'));
+  assert.ok(SERVER.includes('json({ ...(await loadWhatsNew()), version: APP_VERSION })'), '/whatsnew hides nothing from a new install');
+  const queue = readFileSync(new URL('../js/interrupt-queue.js', import.meta.url), 'utf8');
+  assert.ok(queue.includes("'.sp-overlay'"), 'the first-run question holds it back');
 });
 
 test('an update that lands during a game is shown when the game ends', () => {

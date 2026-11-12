@@ -183,12 +183,12 @@
 
     <details>
       <summary data-i18n="f.q.cheat">안티치트에 걸리거나 밴당할 수 있나요?</summary>
-      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon은 게임에 코드를 주입하지 않고 게임 프로세스를 후킹하지도 않습니다. 자체 창을 위에 그리고 PresentMon으로 시스템에서 프레임 시간을 읽기 때문에 게임 안에는 안티치트가 잡아낼 것이 없습니다.</p><p>드라이버 수준에서 동작하는 부분은 온도를 읽는 <a href="/ko/pawnio.html">PawnIO</a>뿐이며 이것도 게임 밖에서 동작합니다. FACEIT 안티치트는 2.1.0 이전의 PawnIO를 차단했습니다. <code>PawnIO.sys</code>가 표시되면 <code>winget upgrade namazso.PawnIO</code>를 실행하거나 Xenon 설치 프로그램을 다시 실행하세요. 모든 안티치트를 시험한 것은 아니니 문제가 생기면 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>에 알려 주세요.</p></div>
+      <div class="body" data-i18n-html="f.a.cheat"><p>Xenon은 게임에 코드를 주입하지 않고 게임 프로세스를 후킹하지도 않습니다. 자체 창을 위에 그리고 PresentMon으로 시스템에서 프레임 시간을 읽기 때문에 게임 안에는 안티치트가 잡아낼 것이 없습니다.</p><p>드라이버 수준에서 동작하는 부분은 온도를 읽는 <a href="/ko/pawnio.html">PawnIO</a>뿐이며 이것도 게임 밖에서 동작합니다. FACEIT 안티치트는 2.1.0 이전의 PawnIO를 차단했습니다. <code>PawnIO.sys</code>가 표시되면 <code>winget upgrade namazso.PawnIO</code>를 실행하세요. 모든 안티치트를 시험한 것은 아니니 문제가 생기면 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>에 알려 주세요.</p></div>
     </details>
 
     <details>
       <summary data-i18n="f.q.sensors">온도와 게임 FPS를 보여 주나요?</summary>
-      <div class="body" data-i18n-html="f.a.sensors"><p>네. Windows에서는 설치 프로그램이 온도 읽기를 설정하고(관리자 확인이 한 번 필요합니다), PresentMon이 실행 중인 게임의 실제 프레임 속도를 전체 화면 게임까지 포함해 읽습니다. 없으면 <strong>설정 &rarr; 성능 &rarr; 게임 모드</strong>에서 설치합니다. <a href='/ko/fps-overlay.html'>FPS 오버레이</a>는 테두리 없는 전체 화면이나 창 모드의 게임 위에 표시합니다. macOS의 온도와 GPU 부하는 <code>macmon</code>(<code>brew install vladkens/tap/macmon</code>)에서 가져옵니다. Linux의 게임 내 FPS에는 MangoHud가 필요하며 게임을 그것으로 실행해야 합니다.</p></div>
+      <div class="body" data-i18n-html="f.a.sensors"><p>네. Windows에서는 팬이나 에너지 위젯의 <strong>센서 설치</strong>가 온도 읽기를 설정하고(관리자 확인이 한 번 필요합니다), PresentMon이 실행 중인 게임의 실제 프레임 속도를 전체 화면 게임까지 포함해 읽습니다. 없으면 <strong>설정 &rarr; 성능 &rarr; 게임 모드</strong>에서 설치합니다. <a href='/ko/fps-overlay.html'>FPS 오버레이</a>는 테두리 없는 전체 화면이나 창 모드의 게임 위에 표시합니다. macOS의 온도와 GPU 부하는 <code>macmon</code>(<code>brew install vladkens/tap/macmon</code>)에서 가져옵니다. Linux의 게임 내 FPS에는 MangoHud가 필요하며 게임을 그것으로 실행해야 합니다.</p></div>
     </details>
 
     <details>
@@ -240,7 +240,7 @@
 
     <details>
       <summary data-i18n="f.q.temp">CPU 온도가 안 보여요</summary>
-      <div class="body" data-i18n-html="f.a.temp"><p>Windows에서는 설치 프로그램을 다시 실행하고 관리자 확인을 허용하세요. 온도를 읽으려면 LibreHardwareMonitor와 PawnIO가 필요한데, 드라이버 수준 부분이 포함되어 있어 확인이 뜹니다. 거부해도 온도 외의 모든 기능은 작동합니다. macOS에서는 <code>macmon</code>을 설치하세요. 센서를 전혀 제공하지 않는 노트북과 메인보드도 있으며, 그 경우 위젯은 지어낸 숫자 대신 그렇다고 알려 줍니다.</p></div>
+      <div class="body" data-i18n-html="f.a.temp"><p>Windows에서는 팬이나 에너지 위젯, 또는 <strong>설정 &rarr; 성능</strong>에서 <strong>센서 설치</strong>를 누르고 관리자 확인을 허용하세요. 온도를 읽으려면 드라이버 수준 부분이 포함된 LibreHardwareMonitor와 PawnIO, 그리고 Xenon 대신 이를 읽는 작은 서비스가 필요하며, 확인은 그 때문에 뜹니다. Xenon 자체는 일반 권한으로 계속 실행됩니다. 거부해도 온도 외의 모든 기능은 작동합니다. macOS에서는 <code>macmon</code>을 설치하세요. 센서를 전혀 제공하지 않는 노트북과 메인보드도 있으며, 그 경우 위젯은 지어낸 숫자 대신 그렇다고 알려 줍니다.</p></div>
     </details>
 
     <details>

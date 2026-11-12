@@ -19,7 +19,7 @@ const MAIN = screen('A', 'DELL', { primary: true });
 const SIDE = screen('B', 'LG', { x: 2560 });
 const EDGE = screen('C', 'XENEON EDGE', { width: 2560, height: 720, y: 1440, edge: true });
 
-function load({ native = true, caps = { layers: true, menu: true }, usageMode = '', remote = false, layerPage = false, displays = [MAIN], refuse = [], offline = [] } = {}) {
+function load({ native = true, caps = { layers: true, menu: true }, usageMode = '', remote = false, layerPage = false, displays = [MAIN], refuse = [], offline = [], search = '' } = {}) {
   const { document } = makeDom();
   const make = document.createElement;
   document.createElement = (t) => {
@@ -63,6 +63,8 @@ function load({ native = true, caps = { layers: true, menu: true }, usageMode = 
     isLayerPage: () => layerPage,
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
   };
+  ctx.location = { search };
+  ctx.URLSearchParams = URLSearchParams;
   ctx.window = ctx;
   ctx.self = ctx;
   ctx.top = ctx;
@@ -284,6 +286,29 @@ test('widgets: three starters, then the answer, then the menu once', async () =>
   assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
   assert.deepEqual({ ...d.placed[0] }, { type: 'layerPlace', widget: 'weather', surface: 'desktop', position: 'top-right', size: 'medium' });
   assert.deepEqual(d.rails, [], 'no rails where there is no dashboard');
+});
+
+test("widgets in the app's own window: no melt into the dashboard, the dialog waits for the window to go", async () => {
+  const d = load({ search: '?shell=main' });
+  d.U.maybeStart();
+  await go(d);
+  assert.deepEqual(d.log, ['place:weather', 'place:media', 'place:system', 'usage:widgets', 'menu']);
+  assert.ok(rows(d).length > 0, 'still covering the dashboard while the window becomes the driver page');
+  const stay = d.timers.find((t) => t.ms === 4000);
+  assert.ok(stay, 'a window that did not leave closes the dialog anyway');
+  stay.fn();
+  assert.equal(rows(d).length, 0);
+});
+
+test("dashboard and both in the app's own window still melt into the dashboard", async () => {
+  for (const mode of ['dashboard', 'both']) {
+    const d = load({ search: '?shell=main', displays: [MAIN, SIDE] });
+    d.U.maybeStart();
+    pick(d, mode);
+    await go(d);
+    assert.equal(rows(d).length, 0, mode);
+    assert.ok(!d.timers.some((t) => t.ms === 4000), mode);
+  }
 });
 
 test('dashboard: nothing placed, no menu, the side rails show themselves and go', async () => {

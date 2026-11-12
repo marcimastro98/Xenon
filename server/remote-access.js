@@ -438,6 +438,8 @@ const REMOTE_ADMIN = new Set([
   // A UAC prompt on the PC and a supporter-pass device slot: both decisions
   // belong to the person sitting at the PC, not to a paired phone.
   '/api/devclean/compact',
+  // A 115 MB download that puts programs on the PC.
+  '/api/ffmpeg/install',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
   // Throws away the PC's remembered supporter pass: only the person at the PC

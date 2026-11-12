@@ -13,7 +13,7 @@ import { WALLPAPERS } from '../../tools/wallpapers/scenes.mjs';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = path.join(HERE, '..');
-const read = (...p) => readFileSync(path.join(SERVER, ...p), 'utf8');
+const read = (...p) => readFileSync(path.join(SERVER, ...p), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
 
 const SETTINGS = read('js', 'settings.js');
 const SERVER_JS = read('server.js');

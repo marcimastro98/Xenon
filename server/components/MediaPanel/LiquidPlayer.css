@@ -272,6 +272,8 @@
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .app-pill { font-size: 13px; }
   /* The title and the lyrics key share the second row; the words stop short of the key. */
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-textblock { grid-row: 2; padding-inline-end: var(--mp-lyr); }
+  /* Nothing playing: the title is out of the flow, so it holds no row and the keys centre. */
+  :root[data-style="liquid"] .media-panel.is-empty:not(.lyrics-open) .media-textblock { grid-row: auto; }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-progress:not([hidden]) { display: flex; }
   /* Spotify's own seek bar takes the line's place; it knows the track better. */
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content:has(> .msp:not([hidden])) > .media-progress { display: none; }
@@ -379,5 +381,7 @@
   /* With the waveform on, the cover leaves it its strip at the bottom. */
   :root[data-style="liquid"] .media-panel:not(.lyrics-open):has(> .media-viz) .media-art { width: min(100cqh - 60px, 100cqw - 300px, 560px); }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { align-self: stretch; grid-template-rows: auto 1fr; }
+  /* Nothing playing: no words above the keys, so the keys sit level with the cover's centre. */
+  :root[data-style="liquid"] .media-panel.is-empty:not(.lyrics-open) .media-content { grid-template-rows: auto; }
   :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-textblock, .media-actions > .media-lyrics-btn) { align-self: start; }
 }

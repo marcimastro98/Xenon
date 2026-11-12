@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherTile/WeatherTile.css', 'styles/liquid-sheets.css'], js: ['js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherTile/WeatherTile.css', 'styles/liquid-sheets.css'], js: ['js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {

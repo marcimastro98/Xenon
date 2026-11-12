@@ -118,6 +118,8 @@
         // grid would silently look complete.
         if (!isWatts(p.cpu) && access === 'needs_admin') {
           wrap.appendChild(SensorAccess.hintNode(t('power_hint_admin', 'CPU watts can’t be read: Windows protects your PC’s sensors, and Xenon needs your permission.'), 'pw-foot-hint'));
+        } else if (!isWatts(p.cpu) && access === 'missing') {
+          wrap.appendChild(SensorAccess.hintNode(t('power_hint_missing', 'CPU watts need LibreHardwareMonitor, a small free sensor reader. One click installs it.'), 'pw-foot-hint', true));
         } else if (!isWatts(p.psu) && access === 'ok') {
           // The PSU card simply vanishes when no digital PSU answers, which reads
           // as a broken widget rather than a missing part. Most PSUs have no chip

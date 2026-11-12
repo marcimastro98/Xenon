@@ -32,6 +32,8 @@ person's own dashboard, so you can see it run and fix it.
 - Fill the tile at every size: `container-type: size` on the root and `cqmin` units, no fixed pixel layout.
 - Put text on the page with `textContent`, never `innerHTML`.
 - Read `theme` and follow its colours, and declare a `color-scheme`: up to Xenon 4.11.13 a page with none turns the tile white.
+- Follow the look too: on `theme.look === 'liquid'` (Liquid Glass, the default) cards inside the tile have no outline,
+  and a frame like the tile's uses `palette.panelBorder`, never a guessed alpha. See sdk_reference sections "theme" and "skin".
 - Keep it light: no busy loops, pause work while the `visibility` message says hidden.
 
 ## When something is wrong

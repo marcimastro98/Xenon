@@ -119,6 +119,22 @@ const MIN_FILL_ROWS = 8;
 // the cap could not bite there. At the cap, MIN_TILE_H is a ~360px floor.
 const MAX_PORTRAIT_CELL = 90;
 const _grids = new Map();   // pageId → GridStack instance
+
+// Row heights follow the space each page box really has (fitGridHeights), and that
+// box changes size without a window resize of its own: the phone view settles
+// 150 ms after one and takes its chrome away, then the page eases into its final
+// height. A fit that ran in between kept rows sized for the smaller box, so
+// returning from the desktop (a window briefly 84 px wide) left a gap under every
+// tile until Layout mode re-fitted them (GitHub #152). So each box is watched too,
+// through the same debounce as the window.
+let _gridFitTimer = null;
+function scheduleGridFit() { clearTimeout(_gridFitTimer); _gridFitTimer = setTimeout(fitGridHeights, 120); }
+let _gridPageBoxes = null;
+function watchGridPageBox(box, on) {
+  if (!box || typeof ResizeObserver !== 'function') return;
+  if (!_gridPageBoxes) _gridPageBoxes = new ResizeObserver(scheduleGridFit);
+  if (on) _gridPageBoxes.observe(box); else _gridPageBoxes.unobserve(box);
+}
 let _editing = false;
 let _suppress = false;      // guard so programmatic placement doesn't trigger persistence
 const _lastPointer = { x: 0, y: 0 };  // last pointer position (for drop-target hit-testing)
@@ -128,7 +144,12 @@ let _affRAF = 0;                      // rAF handle: throttle "+" refresh to one
 // Mount (or re-mount) a GridStack on a page's grid element.
 function mountPageGrid(pageId, gridEl) {
   if (!gridEl || typeof GridStack === 'undefined') return null;
-  if (_grids.has(pageId)) { try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ } _grids.delete(pageId); }
+  if (_grids.has(pageId)) {
+    const old = _grids.get(pageId);
+    watchGridPageBox(old.el && old.el.parentElement, false);
+    try { old.destroy(false); } catch (e) { /* ignore */ }
+    _grids.delete(pageId);
+  }
   const grid = GridStack.init({
     column: GRID_COLUMNS, cellHeight: 35, margin: 7, float: true,
     staticGrid: shouldGridBeStatic(),
@@ -208,6 +229,7 @@ function mountPageGrid(pageId, gridEl) {
     }
   });
   _grids.set(pageId, grid);
+  watchGridPageBox(gridEl.parentElement, true);
   return grid;
 }
 
@@ -447,7 +469,9 @@ function pruneGrids(validPageIds) {
   const valid = new Set(Array.isArray(validPageIds) ? validPageIds : []);
   Array.from(_grids.keys()).forEach(pageId => {
     if (valid.has(pageId)) return;
-    try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ }
+    const grid = _grids.get(pageId);
+    watchGridPageBox(grid && grid.el && grid.el.parentElement, false);
+    try { grid.destroy(false); } catch (e) { /* ignore */ }
     _grids.delete(pageId);
   });
 }
@@ -1066,6 +1090,10 @@ function fitPageRows({ avail, width, rows, tiles, fixedRows }) {
 }
 
 function fitGridHeights() {
+  // Collapsed to the desktop's round button (see phone-view.js) the page box is a
+  // few pixels tall: fitting the rows to it would only shrink every tile for the
+  // way back. The resize of the return fits them to the real screen.
+  if (typeof document !== 'undefined' && document.body && document.body.classList.contains('xenon-home-mode')) return;
   const plan = typeof getDashboardLayout === 'function' ? portraitPlan(getDashboardLayout()) : null;
   _grids.forEach((grid, pageId) => {
     try {
@@ -1110,13 +1138,12 @@ function fitGridHeights() {
 
 if (typeof window !== 'undefined') {
   window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, parkForPlacement, addWidgetToPage, sizeForHint, fitsOnPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot: gridFirstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
-  let _fitT = null;
-  window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
+  window.addEventListener('resize', scheduleGridFit);
   // A render-parked page (content-visibility, dashboard-pager .is-parked) reports
   // clientHeight 0 and gets skipped above — a window resize while it was parked
   // never reached its grid. Re-fit when the user lands on a page; shares the
   // resize debounce so a resize + page change coalesce into one pass.
-  window.addEventListener('xenon:page-change', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
+  window.addEventListener('xenon:page-change', scheduleGridFit);
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).
   const _trackPointer = (e) => { const p = e.touches ? e.touches[0] : e; if (p) { _lastPointer.x = p.clientX; _lastPointer.y = p.clientY; } };
   window.addEventListener('pointermove', _trackPointer, true);
