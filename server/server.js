@@ -604,10 +604,10 @@ const codexBridge = require('./codex-bridge');
 const codexLink = require('./codex-link');
 const chatgptAsk = require('./chatgpt-ask');
 const communityCatalog = require('./community-catalog');
-const communityMessages = require('./community-messages');
-const communityInstalls = require('./community-installs');
+require('./community-messages');
+require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
-const sparksWallet = require('./sparks-wallet');
+require('./sparks-wallet');
 const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
@@ -627,7 +627,7 @@ const usageStats = require('./usage-stats');  // anonymous feature counts, off u
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
-const communityLimited = require('./community-limited');
+require('./community-limited');
 const { createRemoteControl } = require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature
@@ -10783,6 +10783,9 @@ const { branches: engineBranches } = require('./engine/routes.js');
 const { branches: screensBranches } = require('./screens/routes.js');
 const { branches: discordBranches } = require('./discord/routes.js');
 const { branches: searchBranches } = require('./search/routes.js');
+const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
+const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');
+const { branches: pairedBranches } = require('./paired/routes.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -11026,36 +11029,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/manifest.webmanifest' && req.method === 'GET') {
-    // The web app manifest. Built here rather than kept as a static file so the
-    // version travels with it and the icon paths cannot drift from the assets.
-    //
-    // NOTE for whoever changes the <link> tag: a same-origin manifest is fetched
-    // with credentials OMITTED unless the tag says `crossorigin="use-credentials"`.
-    // Without that the pairing cookie is withheld, the fetch comes back 401, and
-    // the only symptom is that the browser silently refuses to offer "install" —
-    // the same shape as the widget-asset bug, and just as invisible.
-    const icon = '/public/images/logo/logo-mark.png';
-    res.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' });
-    res.end(JSON.stringify({
-      name: 'Xenon',
-      short_name: 'Xenon',
-      description: 'Your PC, on the screen next to it.',
-      start_url: '/',
-      scope: '/',
-      display: 'standalone',
-      orientation: 'any',
-      background_color: '#070808',
-      theme_color: '#070808',
-      version: APP_VERSION,
-      icons: [
-        // One square mark is what exists as a shipped asset; its size is declared
-        // honestly rather than claimed at 512. Installability needs >=192, which
-        // this meets — a dedicated 512 maskable icon would buy a better splash
-        // screen and is a design asset, not a code change.
-        { src: icon, sizes: '256x256', type: 'image/png', purpose: 'any' },
-        { src: icon, sizes: '256x256', type: 'image/png', purpose: 'maskable' },
-      ],
-    }));
+    await pairedBranches['GET /manifest.webmanifest'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/shell-driver' && req.method === 'GET') {
     // The hidden page of "widgets only" (js/shell-driver.js). Denied to a paired
@@ -12865,88 +12839,25 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {
-    // Community gallery catalog — proxied from the project site with a TTL
-    // cache + ETag revalidation (see server/community-catalog.js). Read-only
-    // GET: not a CSRF_MUTATION_PATHS candidate, NEVER a JSONP candidate.
-    try {
-      const out = await communityCatalog.fetchVisibleCatalog(urlObj.searchParams.has('refresh'));
-      // Annotate version gating server-side with the same semver helpers the
-      // update checker uses, so the client never grows its own comparator.
-      if (out && Array.isArray(out.entries)) {
-        out.entries = out.entries.map(e => (e && e.appVersionMin)
-          ? { ...e, needsNewerApp: semverNewer(e.appVersionMin, APP_VERSION) } : e);
-      }
-      json(out);
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/installed' && req.method === 'POST') {
-    // Count one install of a catalog entry. NO identifier is sent: the hub only
-    // increments a per-entry counter, and "have I already reported this one?"
-    // is answered from this machine's own install receipts (js/preset-share.js).
-    // So the number means installs REPORTED, not unique owners — say that
-    // wherever it is shown. Gated like the version ping: a new install is on by
-    // default, an existing one stays off until the user says otherwise.
-    // In CSRF_MUTATION_PATHS (an outbound request, and Origin:null iframes post).
-    try {
-      if (!(hub.settings && hub.settings.catalogStats === true)) { json({ ok: false, error: 'disabled' }); return; }
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await communityInstalls.reportInstall({ entryId: body.entryId }));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['POST /api/community/installed'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/poll' && req.method === 'POST') {
-    // One answer to a poll carried by an announcement. Nothing identifies the
-    // sender: the hub bumps a counter for (message, option) and discards the
-    // request, and "have I already answered this?" is remembered on this PC.
-    // Gated by the same switch as the announcements themselves — a channel you
-    // switched off must not still be collecting answers from you.
-    // In CSRF_MUTATION_PATHS.
-    try {
-      if (!(hub.settings && hub.settings.hubMessages !== false)) { json({ ok: false, error: 'disabled' }); return; }
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await communityInstalls.submitPollVote({ messageId: body.messageId, optionId: body.optionId }));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['POST /api/community/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/installs' && req.method === 'GET') {
-    // Public per-entry totals for the Store. Read-only, cached; not gated by the
-    // setting, because reading a public number reveals nothing about this install.
-    try {
-      json(await communityInstalls.fetchInstallCounts({ ids: urlObj.searchParams.get('ids') }));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/installs'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/support-goal' && req.method === 'GET') {
-    // How many people pay for Xenon right now and the goal that makes it pay for
-    // itself: two public integers from the hub, nothing about this install sent,
-    // so not gated by a setting either. Cached an hour (community-installs.js).
-    // In CSRF_MUTATION_PATHS (a cache miss is an outbound request).
-    try { json(await communityInstalls.fetchSupportGoal()); } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/support-goal'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/messages' && req.method === 'GET') {
-    // Announcement feed — messages.json on the project site, proxied with the
-    // same TTL cache + ETag revalidation as the catalog. Every install gets the
-    // WHOLE feed; the `match` block is evaluated client-side (js/hub-messages.js)
-    // so targeting costs no identifier and the server cannot tell who saw what.
-    // In CSRF_MUTATION_PATHS: a cache miss triggers an outbound fetch. Never a
-    // JSONP candidate.
-    try {
-      const out = await communityMessages.fetchVisibleMessages(urlObj.searchParams.has('refresh'));
-      // `context` is what THIS install is, handed to the client so it can match
-      // locally: the browser has no reliable read of any of it, and the os token has
-      // to come from the same vocabulary version-ping.js uses or a filter written
-      // against one would silently miss the other. It travels inward only.
-      // `supporter` is the boolean /api/community/supporter already answers, never
-      // the code; left out when the pass cannot be read, and hub-match.js fails closed.
-      const pass = await supporterRedeem.savedStatus(DATA_DIR).catch(() => null);
-      json({ ...out, context: { version: APP_VERSION, os: process.platform, supporter: pass ? pass.saved : undefined } });
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/messages'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/code' && req.method === 'GET') {
-    // One entry's share code (codes/<id>.txt on the site). The id is validated
-    // against a strict charset before it ever reaches the URL. The code itself
-    // stays untrusted — the client feeds it to the normal import pipeline.
-    try {
-      const out = await communityCatalog.fetchCode(urlObj.searchParams.get('id'));
-      json(out);
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/code'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {
     // Supporter-code redemption for v2 remote-locked drops. This server only
@@ -12975,77 +12886,31 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/update' && req.method === 'POST') {
-    // Owner update: "I already unlocked this entry on this install, is there a newer
-    // version and may I have its key?" Sends no code. The hub answers only a device
-    // it recorded as an owner (the activation /redeem wrote) and says not_owner to
-    // every other caller. The key and any private bundle go to the browser exactly
-    // as a redeem answer does, and are never kept here. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await supporterRedeem.update({
-        entryId: body.entryId, have: body.have, kv: body.kv, dataDir: DATA_DIR,
-      }));
-    } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/update'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/supporter' && req.method === 'GET') {
-    // Does this machine remember a supporter pass? A boolean, never the code:
-    // it is a server-only secret and this answer is readable from every paired
-    // device (preserve-on-save + redact-on-wire).
-    try { json(await supporterRedeem.savedStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+    await storeSupportersBranches['GET /api/community/supporter'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/supporter/save' && req.method === 'POST') {
-    // Storing the pass from Settings, before any drop asks for it. The hub is
-    // asked once whether it knows the code (supporter-redeem.js saveTypedCode).
-    // In CSRF_MUTATION_PATHS.
-    //
-    // Its own path rather than a POST on /api/community/supporter: that GET is a
-    // pure read the import dialog makes from every surface, including a paired
-    // phone, and listing a path in CSRF_MUTATION_PATHS refuses its GET on the
-    // remote door. Splitting the write off keeps the read reachable.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const saved = await supporterRedeem.saveTypedCode(DATA_DIR, body.code, { verify: true });
-      // A Sparks code already here moves onto the new pass (sparks-wallet.js).
-      if (saved && saved.ok) await sparksWallet.mergeIfBoth(DATA_DIR);
-      json(saved);
-    } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/supporter/save'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {
-    // The reset path for that memory. In CSRF_MUTATION_PATHS.
-    try { json(await supporterRedeem.forgetCode(DATA_DIR)); } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/supporter/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/buy' && req.method === 'POST') {
-    // A drop bought with Sparks (sparks-wallet.js): this server picks the code
-    // that pays (the pass, else the Sparks code), attaches the install id and asks
-    // the hub, which charges once per owner and answers with the content key, as
-    // a redeem does. An empty code means "with what this PC remembers".
-    // In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await sparksWallet.buy({ entryId: body.entryId, code: body.code, kv: body.kv, consent: body.consent, dataDir: DATA_DIR }));
-    } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/buy'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/sparks' && req.method === 'GET') {
-    // Can this PC pay with Sparks, and with a pass or a Sparks code. Booleans
-    // only, never a code: readable from a paired phone like /api/community/supporter.
-    try { json(await sparksWallet.walletStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+    await storeSupportersBranches['GET /api/community/sparks'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/sparks/owned' && req.method === 'GET') {
-    // Is this drop already yours? A boolean, never a code; the hub only reads. The
-    // buy sheet asks so a copy already bought goes straight to Install.
-    try { json(await sparksWallet.owned({ entryId: urlObj.searchParams.get('entryId'), dataDir: DATA_DIR })); } catch (e) { err500(e.message); }
+    await storeSupportersBranches['GET /api/community/sparks/owned'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/sparks/save' && req.method === 'POST') {
-    // The XC Sparks code typed in Settings or the Store. Shape only, like the
-    // pass save; with a pass already here it is moved onto it. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await sparksWallet.saveTypedWalletCode(DATA_DIR, body.code));
-    } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/sparks/save'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/sparks/forget' && req.method === 'POST') {
-    // The reset path for the Sparks code. PC only (REMOTE_ADMIN). In CSRF_MUTATION_PATHS.
-    try { json(await sparksWallet.forgetWalletCode(DATA_DIR)); } catch (e) { err500(e.message); }
+    await storeSupportersBranches['POST /api/community/sparks/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/trial' && req.method === 'GET') {
     // The pass trial's state for this install, from the hub's last answer. Never
@@ -13066,20 +12931,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
-    // Live stock for automatic limited drops. The local proxy pins the Hub
-    // origin and validates every id; the browser never receives a configurable
-    // backend URL from catalog data.
-    try {
-      json(await communityLimited.fetchStatus(urlObj.searchParams.get('ids')));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/limited-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
-    // Star-rating aggregates for gallery entries, proxied from the hub with a
-    // TTL cache + in-flight dedup (community-ratings.js). In CSRF_MUTATION_PATHS
-    // (a cache miss triggers an outbound fetch).
-    try {
-      json(await communityRatings.fetchRatings({ ids: urlObj.searchParams.get('ids') }));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/ratings'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/rating-state' && req.method === 'GET') {
     // Can this PC vote on this entry, and what did it give (rating-votes.js). Local

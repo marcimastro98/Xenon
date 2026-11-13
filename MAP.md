@@ -21,7 +21,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 | **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` and 16 more |
 | **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux. | `server/install/**` `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` and 6 more |
 | **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding.js` `server/js/usage-*.js` `server/js/boot-splash.js` `server/js/xenon-loader.js` `server/js/greeting*.js` and 6 more |
-| **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` `server/sw.js` and 7 more |
+| **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` and 8 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings/**` `server/js/settings-*.js` `server/components/SettingsModal/**` |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
 | **Engine core** | Starts the engine, answers every request and decides who is allowed to ask. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/http-range.js` `server/listener-sockets.js` and 12 more |
@@ -75,8 +75,8 @@ The catalog of looks and widgets, and what supporters get.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass and what they unlock. | `server/supporter-redeem.js` `server/feature-unlock.js` `server/sparks-wallet.js` `server/welcome-sparks.js` `server/trial-*.js` `server/ai-xenon-credits.js` and 15 more |
-| **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/community-*.js` `server/sdk-store.js` `server/store-snapshots.js` `server/rating-votes.js` `server/widget-auto-update.js` `server/icon-packs.js` and 15 more |
+| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass and what they unlock. | `server/store-supporters/**` `server/supporter-redeem.js` `server/feature-unlock.js` `server/sparks-wallet.js` `server/welcome-sparks.js` `server/trial-*.js` and 16 more |
+| **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/sdk-store.js` `server/store-snapshots.js` `server/rating-votes.js` `server/widget-auto-update.js` and 16 more |
 | **Sharing a look** | Export and import of themes, pages and packs as a code, with the safety checks on what comes in. | `server/js/preset-share.js` `server/js/share-*.js` `server/js/dashboard-presets.js` `server/js/topbar-share.js` |
 
 ## On top of the desktop

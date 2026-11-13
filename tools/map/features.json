@@ -102,6 +102,7 @@
       "name": "Supporters and Sparks",
       "what": "Supporter codes, the Sparks wallet, the trial pass and what they unlock.",
       "files": [
+        "server/store-supporters/**",
         "server/supporter-redeem.js",
         "server/feature-unlock.js",
         "server/sparks-wallet.js",
@@ -131,6 +132,7 @@
       "name": "Store",
       "what": "The catalog: browse, buy, install, rate and update looks, widgets and packs.",
       "files": [
+        "server/store-catalog/**",
         "server/community-*.js",
         "server/sdk-store.js",
         "server/store-snapshots.js",
@@ -910,6 +912,7 @@
       "name": "Phones and tablets",
       "what": "Pairing another device, HTTPS for it, and notifications sent to it.",
       "files": [
+        "server/paired/**",
         "server/remote-access.js",
         "server/remote-https*.js",
         "server/remote-actions.js",

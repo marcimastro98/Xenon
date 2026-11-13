@@ -300,7 +300,10 @@
       {"file":"server/engine/routes.js","about":"What the engine answers about itself: that it is up, and a line a page asks it to log.","keys":["GET /ping","POST /api/log"],"after":274},
       {"file":"server/screens/routes.js","about":"What the engine answers about the screens of the PC.","keys":["GET /api/screens"],"after":274},
       {"file":"server/discord/routes.js","about":"What the engine does to open Discord.","keys":["POST /stream/discord/launch"],"after":274},
-      {"file":"server/search/routes.js","about":"What the engine answers about the shortcut of the search bar.","keys":["GET /search/hotkey-status"],"after":274}
+      {"file":"server/search/routes.js","about":"What the engine answers about the shortcut of the search bar.","keys":["GET /search/hotkey-status"],"after":274},
+      {"file":"server/store-catalog/routes.js","about":"What the engine answers about the Store: the catalog, what is installed, the counts, the messages, a code, the limited items and the ratings.","keys":["GET /api/community/catalog","POST /api/community/installed","POST /api/community/poll","GET /api/community/installs","GET /api/community/support-goal","GET /api/community/messages","GET /api/community/code","GET /api/community/limited-status","GET /api/community/ratings"],"after":274},
+      {"file":"server/store-supporters/routes.js","about":"What the engine answers about a supporter and the Sparks: the saved key, an update of owned content, a purchase and the wallet.","keys":["POST /api/community/update","GET /api/community/supporter","POST /api/community/supporter/save","POST /api/community/supporter/forget","POST /api/community/buy","GET /api/community/sparks","GET /api/community/sparks/owned","POST /api/community/sparks/save","POST /api/community/sparks/forget"],"after":274},
+      {"file":"server/paired/routes.js","about":"What the engine answers when a phone asks to install the dashboard as an app.","keys":["GET /manifest.webmanifest"],"after":274}
     ]
   }
 }
