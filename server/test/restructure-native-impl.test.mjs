@@ -1,10 +1,16 @@
 // Moving some methods of one big Rust `impl` block (tools/restructure/native-split-impl.mjs):
 // the new file opens the same block again, and the proof compares the methods one by one.
+// And the tests that read a split file as text: they must go through the reader that follows the split.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { compareGroups } from '../../tools/restructure/native-proof.mjs';
 import { splitRust } from '../../tools/restructure/native-split-rust.mjs';
+import { namesFile, retargetNativeTests, toNativeReader } from '../../tools/restructure/native-test-readers.mjs';
+import { nativeSplits } from './native-source.mjs';
+
+const REPO = fileURLToPath(new URL('../..', import.meta.url));
 
 const WITH_IMPL = [
   'use std::path::Path;',
@@ -66,4 +72,37 @@ test('the proof refuses a method that moved to another type, and a plan whose me
   assert.match(compareGroups({ 'src/win.rs': WITH_IMPL }, other).problems.join('\n'), /"Other fn save" is not an item the files had before/);
   const none = { origin: 'src/win.rs', parts: [{ file: 'src/win/save.rs', about: 'x', members: [{ impl: 'Backend', items: ['fn missing'] }] }] };
   assert.throws(() => splitRust({ origin: none.origin, text: WITH_IMPL, plan: none, otherWords: new Set() }), /no impl block has the members/);
+});
+
+test('no test reads a split native file past the reader that follows the split', () => {
+  const left = Object.keys(nativeSplits()).flatMap((file) => {
+    const { changed, byHand } = retargetNativeTests(REPO, file, false);
+    return [...changed, ...byHand].map((name) => `${name} reads ${file}`);
+  });
+  assert.deepEqual(left, []);
+});
+
+test('a test is pointed at the native reader by changing only where readFileSync comes from', () => {
+  const plain = "import { readFileSync } from 'node:fs';\nconst rust = readFileSync('apps/native/src-tauri/src/monitor.rs', 'utf8');\n";
+  assert.equal(toNativeReader(plain), plain.replace("'node:fs'", "'./native-source.mjs'"));
+  assert.equal(toNativeReader(toNativeReader(plain)), toNativeReader(plain));
+  const browser = "import { readFileSync } from './browser-source.mjs';\nreadFileSync('x/monitor.rs');\n";
+  assert.match(toNativeReader(browser), /^import \{ readFileSync \} from '\.\/native-source\.mjs'; \/\/ .*\.\/browser-source\.mjs\n/);
+  // A test that only names the file reads nothing, and one that reads it another way is for a person.
+  assert.equal(toNativeReader("const name = 'monitor.rs';\n"), "const name = 'monitor.rs';\n");
+  assert.equal(toNativeReader("import { readFile } from 'node:fs/promises';\nawait readFile('monitor.rs');\n"), null);
+  assert.equal(namesFile("read('layers/mod.rs')", 'apps/native/src-tauri/src/layers/mod.rs'), true);
+  assert.equal(namesFile("read('replay/mod.rs')", 'apps/native/src-tauri/src/layers/mod.rs'), false);
+  assert.equal(namesFile("read(NATIVE + 'lib.rs')", 'apps/native/src-tauri/src/lib.rs'), false);
+  assert.equal(namesFile("read('apps/native/src-tauri/src/lib.rs')", 'apps/native/src-tauri/src/lib.rs'), true);
+});
+
+test('a moved item that says super::name still finds it: the parent imports the name', () => {
+  const text = ['fn show() -> bool {', '    !super::menu_aside()', '}', '', '#[cfg(test)]', 'mod tests {', '    use super::*;', '}', ''].join('\n');
+  const plan = { origin: 'src/layers/win32.rs', parts: [{ file: 'src/layers/win32/sync.rs', about: 'Shows the layers.', items: ['fn show'] }] };
+  const { files } = splitRust({ origin: plan.origin, text, plan, otherWords: new Set() });
+  assert.match(files['src/layers/win32.rs'], /^use super::menu_aside;$/m);
+  assert.match(files['src/layers/win32/sync.rs'], /^ {4}!super::menu_aside\(\)$/m);
+  const own = text.replace('#[cfg(test)]', 'fn menu_aside() -> bool { true }\n\n#[cfg(test)]');
+  assert.throws(() => splitRust({ origin: plan.origin, text: own, plan, otherWords: new Set() }), /has a menu_aside of its own/);
 });

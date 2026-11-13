@@ -7,7 +7,7 @@ import { cursor, matching } from './native-lex.mjs';
 import { bodyItems, fileItems } from './native-items.mjs';
 import { textOfItem, withMemberGroups, wordsOfItem } from './native-split-impl.mjs';
 import { boundName, deeperPath, useLeaves, writeUses } from './native-use.mjs';
-import { callsTrait, commonCfg, coversEverything, mergeWords, wordsOf } from './native-wire.mjs';
+import { callsTrait, commonCfg, coversEverything, mergeWords, namesAbove, wordsOf } from './native-wire.mjs';
 
 const NAMED = new Set(['fn', 'struct', 'enum', 'union', 'trait', 'type', 'const', 'static', 'mod', 'macro']);
 const STAYS = (item) => item.kind === 'use' || item.kind === 'inner' || item.kind === 'extern crate' || (item.kind === 'mod' && item.open === undefined);
@@ -96,6 +96,15 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
   const dropped = (f, name) => (plan.drop?.[f < 0 ? origin : plan.parts[f].file] ?? []).includes(name);
   const userCfg = (f, name) => commonCfg(moving(f).filter(({ i }) => words[i].used.has(name)).map(({ item }) => item.cfg));
   const widened = new Set(plan.widen ?? []);
+  // `super::name` in an item that moves one module down must find the same thing: the parent imports the name.
+  const above = new Map();
+  items.forEach((item, i) => {
+    if (where[i] < 0 || item.kind === 'mod') return;
+    for (const name of (item.members ?? [item]).flatMap((one) => [...namesAbove(text, tokens, one)])) {
+      if (localNames.has(name)) throw new Error(`"${item.key}" names super::${name}, and ${origin} has a ${name} of its own: moved, it would mean that one.`);
+      above.set(name, [...(above.get(name) ?? []), item.cfg]);
+    }
+  });
 
   /** The imports file `f` needs for names that live in another file of the split. */
   const importsFor = (f) => {
@@ -123,6 +132,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       }
     }
     if (f < 0) {
+      for (const [name, cfgs] of above) out.push({ cfg: commonCfg(cfgs), vis: '', leaf: { path: ['super'], name } });
       // Names nothing in this file uses any more, but another module of the crate still reaches through it.
       for (const [name, list] of defs) {
         const def = list[0];

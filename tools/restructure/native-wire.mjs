@@ -53,6 +53,28 @@ export function wordsOf(text, tokens, item) {
   return words;
 }
 
+/**
+ * The names an item reaches in the module above its file with `super::name`.
+ * @param {string} text @param {import('./native-lex.mjs').Token[]} tokens
+ * @param {{ start: number, end: number }} item
+ * @returns {Set<string>}
+ */
+export function namesAbove(text, tokens, item) {
+  let lo = 0;
+  while (lo < tokens.length && tokens[lo].start < item.start) lo += 1;
+  let hi = lo;
+  while (hi < tokens.length && tokens[hi].start < item.end) hi += 1;
+  const c = cursor(text, tokens, hi);
+  const names = new Set();
+  for (let k = c.next(lo); k < hi; k = c.next(k + 1)) {
+    if (c.word(k) !== 'super') continue;
+    const colon = c.next(k + 1);
+    const second = c.next(colon + 1);
+    if (c.str(colon) === ':' && c.str(second) === ':' && c.word(c.next(second + 1))) names.add(c.word(c.next(second + 1)));
+  }
+  return names;
+}
+
 /** @param {Words[]} list @returns {Words} the words of several items together */
 export function mergeWords(list) {
   const merged = { used: new Set(), dotted: new Set(), pathed: new Set(), bound: new Set(), all: new Set() };

@@ -10,6 +10,7 @@ import { unseenOnWindows } from './native-cfg.mjs';
 import { langOf, lex } from './native-lex.mjs';
 import { splitMembers } from './native-split-members.mjs';
 import { splitRust } from './native-split-rust.mjs';
+import { retargetNativeTests } from './native-test-readers.mjs';
 import { mergeWords, wordsOf } from './native-wire.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -93,6 +94,12 @@ export function runSplit(planFile, write) {
     }
     for (const note of notes) console.log(`  note: ${note}`);
     ledger = recordSplit(ledger, plan.origin, plan.parts.map((part) => part.file));
+    // The tests that read this file as text must read its new files too.
+    for (const file of new Set([plan.origin, Object.keys(ledger).find((key) => ledger[key].includes(plan.origin)) ?? plan.origin])) {
+      const { changed, byHand } = retargetNativeTests(ROOT, file, write);
+      for (const test of changed) console.log(`  test ${write ? 'now reads' : 'will read'} the split files: ${test}`);
+      for (const test of byHand) console.log(`  TEST TO CHANGE BY HAND (reads ${file} some other way): ${test}`);
+    }
   }
   if (write) {
     const body = { note: 'Files cut by tools/restructure/native-cli.mjs, each with the files that came out of it. Written by the tool.', splits: ledger };
