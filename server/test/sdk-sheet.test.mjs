@@ -11,7 +11,7 @@
 //  6. The site's name is what is read, and a long path never pushes it out of sight.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, windowKeys } from './mini-dom.mjs';
 

@@ -1,0 +1,265 @@
+
+/* Light-paper contrast for common recent-widget status copy and controls. */
+:root[data-style="comic"] :is(.sbw-pill, .yt-pill, .twitch-status-pill,
+  .wn-item-body, .wn-muted-name, .sh-ctl-label, .sh-ctl-note,
+  .sh-seg-btn:not(.is-active), .sh-chip:not(.is-active), .sh-icobtn:not(.is-active)) {
+  color: var(--comic-muted);
+}
+:root[data-style="comic"] :is(.sh-seg-btn.is-active, .sh-abtn.is-active,
+  .sh-chan-go, .lgt-chip.is-active, .yt-btn.is-live, .twitch-golive.is-live) {
+  color: var(--text);
+  border-color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 28%, var(--comic-paper));
+}
+
+/* Top chrome visible in every screenshot must use the same paper/ink contrast. */
+:root[data-style="comic"] :is(body:not([data-panel]) .topbar, body.topbar-minimal:not([data-panel]) .topbar-mini) {
+  background: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 3px 3px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .clock-weather,
+:root[data-style="comic"] .sys-uptime {
+  background-color: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  color: var(--text);
+}
+:root[data-style="comic"] .clock-weather :is(.weather-temp, .weather-place) { color: var(--text); }
+:root[data-style="comic"] #xe-ticker {
+  background: var(--comic-paper);
+  color: var(--text);
+  border-color: var(--comic-ink);
+}
+
+/* ── Deck cap theme: Vivid / Fumetto ────────────────────────
+   This material belongs to an individual Deck profile, independently from the
+   dashboard theme. Per-key colours become printed ink and every icon/caption
+   receives a paper-backed contrast layer. */
+.deck-root[data-capstyle="vivid"] {
+  --comic-ink: #17131d;
+  --comic-muted: #5e5961;
+  --comic-pencil: #6e685f;
+  --comic-red: #ef476f;
+  --comic-cyan: #41bfd1;
+  --comic-yellow: #f6c945;
+  --comic-paper: #f7efd8;
+  --comic-paper-soft: #fff8e6;
+  --comic-paper-deep: #e8dcc0;
+  --text: var(--comic-ink);
+  --text-dim: var(--comic-muted);
+  --deck-comic-paper: var(--comic-paper-soft);
+  --deck-comic-board: color-mix(in srgb, var(--comic-paper-deep) 82%, var(--comic-yellow));
+  --deck-comic-shadow: color-mix(in srgb, var(--comic-pencil) 84%, transparent);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-tools, .deck-seg) {
+  color: var(--comic-ink);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-tools-cap {
+  color: var(--comic-muted);
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-seg button {
+  min-width: 30px;
+  color: var(--comic-ink);
+  background: transparent;
+  border: 1px solid transparent;
+}
+.deck-root[data-capstyle="vivid"] .deck-seg button.active {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 34%, var(--comic-paper));
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-pill, .deck-step) {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-pill.on, .deck-customize.deck-pill) {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper));
+  border-color: var(--comic-ink);
+}
+.deck-root[data-capstyle="vivid"] .deck-step-val { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] .deck-device,
+.deck-root[data-capstyle="vivid"][data-plate] .deck-device {
+  gap: 9px;
+  background:
+    radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--comic-pencil) 44%, transparent) 0 .6px, transparent .8px) 0 0 / 10px 10px,
+    linear-gradient(103deg, transparent 0 48%, color-mix(in srgb, var(--comic-yellow) 18%, transparent) 48% 52%, transparent 52%),
+    var(--deck-comic-board) !important;
+  border: 2px solid var(--comic-ink) !important;
+  border-radius: 14px 20px 13px 18px / 18px 13px 20px 14px;
+  box-shadow:
+    6px 7px 0 var(--deck-comic-shadow),
+    inset 2px 2px 0 color-mix(in srgb, white 70%, transparent),
+    inset -2px -2px 0 color-mix(in srgb, var(--comic-pencil) 48%, transparent) !important;
+}
+/* The comic board repaints .deck-device itself, so the base chassis layer would
+   cover it. Dropping the layer also drops the transparency knob here, which is
+   correct: this theme draws its own object, not a moulded plastic body. */
+.deck-root[data-capstyle="vivid"] .deck-device::after { display: none; }
+.deck-root[data-capstyle="vivid"] .deck-device::before {
+  inset: 4px;
+  opacity: 1;
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--comic-pencil) 72%, transparent);
+  border-radius: 11px 17px 10px 15px / 15px 10px 17px 11px;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar {
+  color: var(--comic-muted);
+  font-family: var(--comic-body, "Comic Neue"), "Segoe UI", sans-serif;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar .deck-crumb {
+  color: var(--comic-ink);
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar .deck-crumb::before {
+  width: 8px;
+  height: 8px;
+  background: var(--comic-red);
+  border: 1px solid var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-bar :is(.deck-back, .deck-edit),
+.deck-root[data-capstyle="vivid"] .deck-arrow {
+  color: var(--comic-ink);
+  background: var(--deck-comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 7px 10px 6px 9px / 9px 6px 10px 7px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"].is-editing .deck-bar .deck-edit {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 38%, var(--comic-paper));
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-index {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--comic-red) 18%, var(--deck-comic-paper));
+  border: 1px solid var(--comic-ink);
+  border-radius: 5px 8px 5px 7px / 7px 5px 8px 5px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+  text-shadow: none;
+}
+
+/* The key well is a moving comic panel. Both loops animate only transforms and
+   sit below the grid, so the Xeneon Edge gets motion without repainting keys. */
+.deck-root[data-capstyle="vivid"] .deck-well {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--comic-cyan) 14%, transparent), transparent 38%),
+    linear-gradient(292deg, color-mix(in srgb, var(--comic-red) 12%, transparent), transparent 42%),
+    var(--deck-comic-paper) !important;
+  border: 2px solid var(--comic-ink);
+  border-radius: 11px 16px 10px 14px / 15px 10px 16px 11px;
+  box-shadow:
+    inset 3px 3px 0 color-mix(in srgb, var(--comic-pencil) 38%, transparent),
+    inset -2px -2px 0 color-mix(in srgb, white 70%, transparent),
+    2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-well::before,
+.deck-root[data-capstyle="vivid"] .deck-well::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.deck-root[data-capstyle="vivid"] .deck-well::before {
+  inset: -85%;
+  background: repeating-conic-gradient(
+    from -8deg at 50% 50%,
+    transparent 0 8deg,
+    color-mix(in srgb, var(--comic-yellow) 24%, transparent) 8.2deg 9deg,
+    transparent 9.2deg 15deg,
+    color-mix(in srgb, var(--comic-red) 12%, transparent) 15.2deg 16deg
+  );
+  animation: comic-deck-rays 42s linear infinite;
+}
+.deck-root[data-capstyle="vivid"] .deck-well::after {
+  inset: -18%;
+  opacity: .5;
+  background:
+    radial-gradient(circle, var(--comic-pencil) 0 1px, transparent 1.25px) 0 0 / 13px 13px,
+    repeating-linear-gradient(164deg, transparent 0 24px, color-mix(in srgb, var(--comic-cyan) 20%, transparent) 25px 27px, transparent 28px 48px);
+  animation: comic-deck-halftone 16s ease-in-out infinite alternate;
+}
+@keyframes comic-deck-rays {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(360deg) scale(1.025); }
+}
+@keyframes comic-deck-halftone {
+  from { transform: translate3d(-2.5%, -1.5%, 0) rotate(-.5deg); }
+  to { transform: translate3d(2.5%, 1.5%, 0) rotate(.5deg); }
+}
+.deck-root[data-capstyle="vivid"] .deck-well-bg {
+  z-index: 0;
+  opacity: .16;
+  filter: grayscale(.25) contrast(.75) brightness(1.35);
+  mix-blend-mode: multiply;
+}
+.deck-root[data-capstyle="vivid"] .deck-well-bg::after {
+  background: var(--comic-paper);
+  opacity: .52;
+}
+.deck-root[data-capstyle="vivid"] .deck-grid { z-index: 2; }
+
+/* Printed key caps. Accent and gradient colours are mixed with paper instead of
+   black, then icons and captions get their own paper-backed contrast layer. */
+.deck-root[data-capstyle="vivid"] .deck-key {
+  --comic-key-tilt: -.35deg;
+  color: var(--comic-ink) !important;
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-pencil) 42%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    var(--deck-comic-paper) !important;
+  border: 2px solid var(--comic-ink) !important;
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow:
+    4px 4px 0 var(--comic-pencil),
+    inset 1px 1px 0 color-mix(in srgb, white 76%, transparent) !important;
+  text-shadow: none;
+  transform: rotate(var(--comic-key-tilt));
+  filter: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(3n + 2) { --comic-key-tilt: .32deg; }
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(4n) { --comic-key-tilt: -.18deg; }
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(5n) { --comic-key-tilt: .22deg; }
+.deck-root[data-capstyle="vivid"] .deck-key::before {
+  display: block !important;
+  inset: 3px;
+  opacity: .58;
+  background: none;
+  border: 1px solid var(--comic-pencil);
+  border-radius: 7px 10px 6px 9px / 9px 6px 10px 7px;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-accent {
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-ink) 24%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    color-mix(in srgb, var(--key-accent, var(--comic-yellow)) 48%, var(--deck-comic-paper)) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-gradient {
+  --kg-c1: color-mix(in srgb, var(--key-accent, var(--comic-red)) 48%, var(--deck-comic-paper));
+  --kg-c2: color-mix(in srgb, var(--key-accent2, var(--comic-cyan)) 44%, var(--deck-comic-paper));
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-ink) 24%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    var(--kg-face) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key .deck-key-bgimg::after {
+  background: var(--comic-paper);
+  opacity: max(.58, var(--key-dim, .35));
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image,
+.deck-root[data-capstyle="vivid"] .deck-key.has-preview {
+  background-color: var(--deck-comic-paper) !important;
+  border-color: var(--comic-ink) !important;
+}

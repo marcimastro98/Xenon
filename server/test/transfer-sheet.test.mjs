@@ -8,7 +8,7 @@
 //  6. On a phone the sheet goes when pulled down by its bar, and comes back when let go short.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom, windowKeys } from './mini-dom.mjs';
 import { appStringsSource, appStrings, APP_LANGS } from './i18n-source.mjs';

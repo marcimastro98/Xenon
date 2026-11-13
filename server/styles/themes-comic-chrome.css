@@ -1,0 +1,242 @@
+
+/* Compact icons become inked stickers. The multi-sided drop-shadow outlines
+   both white and dark raster/SVG artwork, including icons whose colour is baked
+   into an imported image and cannot be changed through currentColor. */
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The paper badge carries the key's icon-size preset (S/M/L): a fixed badge
+     made the preset do nothing on this cap style. */
+  width: calc(max(34px, 46%) * var(--ico-scale, 1));
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  color: var(--key-icon-color, var(--comic-ink)) !important;
+  background: var(--deck-comic-paper);
+  border: 2px solid var(--comic-ink);
+  border-radius: 43% 57% 48% 52% / 54% 45% 55% 46%;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+  filter: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico :is(img, svg),
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico.is-img-small img {
+  max-width: 72%;
+  max-height: 72%;
+  filter:
+    drop-shadow(1px 0 0 var(--comic-ink))
+    drop-shadow(-1px 0 0 var(--comic-ink))
+    drop-shadow(0 1px 0 var(--comic-ink))
+    drop-shadow(0 -1px 0 var(--comic-ink))
+    drop-shadow(1.5px 1.5px 0 var(--comic-pencil));
+}
+.deck-root[data-capstyle="vivid"] .deck-key .deck-label {
+  position: relative;
+  z-index: 2;
+  max-width: calc(100% - 8px);
+  padding: 2px 6px 3px;
+  color: var(--key-label-color, var(--comic-ink)) !important;
+  background: var(--deck-comic-paper);
+  border: 1px solid var(--comic-ink);
+  border-radius: 3px 6px 3px 5px / 5px 3px 6px 3px;
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.05;
+  text-shadow: none !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image .deck-label {
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  width: calc(100% - 10px);
+  padding: 3px 6px 4px;
+  background: color-mix(in srgb, var(--comic-paper) 91%, transparent);
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image[data-labelpos="top"] .deck-label {
+  top: 5px;
+  bottom: auto;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-empty {
+  background:
+    repeating-linear-gradient(145deg, transparent 0 8px, color-mix(in srgb, var(--comic-pencil) 18%, transparent) 8px 9px),
+    color-mix(in srgb, var(--comic-paper-deep) 72%, var(--comic-paper)) !important;
+  border: 1.5px dashed color-mix(in srgb, var(--comic-pencil) 74%, transparent) !important;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--comic-pencil) 42%, transparent) !important;
+  opacity: .74;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-add {
+  color: var(--comic-ink) !important;
+  background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper)) !important;
+  border: 2px dashed var(--comic-ink) !important;
+  opacity: 1;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-folder {
+  border-color: var(--comic-ink) !important;
+}
+.deck-root[data-capstyle="vivid"][data-shape="square"] .deck-key {
+  border-radius: 5px 8px 5px 7px / 7px 5px 8px 5px;
+}
+.deck-root[data-capstyle="vivid"][data-shape="circle"] .deck-key,
+.deck-root[data-capstyle="vivid"][data-shape="circle"] .deck-key::before {
+  border-radius: 50%;
+}
+.deck-root[data-capstyle="vivid"] .deck-key-live,
+.deck-root[data-capstyle="vivid"] .deck-key-trig {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border: 1px solid var(--comic-ink);
+  text-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-slider {
+  background: var(--comic-paper-deep);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-slider-fill {
+  background: var(--key-accent, var(--comic-red));
+  border-top: 1px solid var(--comic-ink);
+}
+@media (hover: hover) {
+  .deck-root[data-capstyle="vivid"] .deck-key:hover {
+    transform: rotate(var(--comic-key-tilt)) translate(-1px, -2px);
+    filter: saturate(1.06);
+    box-shadow: 5px 6px 0 var(--comic-pencil), inset 1px 1px 0 color-mix(in srgb, white 76%, transparent) !important;
+  }
+  .deck-root[data-capstyle="vivid"] .deck-key.is-empty:not(.is-add):hover {
+    transform: rotate(var(--comic-key-tilt));
+    filter: none;
+  }
+}
+.deck-root[data-capstyle="vivid"] .deck-key:active,
+.deck-root[data-capstyle="vivid"] .deck-key.is-pressed {
+  transform: rotate(var(--comic-key-tilt)) translate(3px, 3px) scale(.97);
+  filter: saturate(.94);
+  box-shadow: 1px 1px 0 var(--comic-pencil), inset 2px 2px 0 color-mix(in srgb, var(--comic-pencil) 28%, transparent) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-glint::after {
+  width: 18%;
+  background: color-mix(in srgb, var(--comic-paper) 86%, transparent);
+  transform: translateX(-650%) rotate(9deg);
+  animation: comic-key-scratch .42s steps(5, end);
+}
+@keyframes comic-key-scratch {
+  from { transform: translateX(-650%) rotate(9deg); }
+  to { transform: translateX(750%) rotate(9deg); }
+}
+
+/* Page chrome and the optional music strip use the same printed materials. */
+.deck-root[data-capstyle="vivid"] .deck-foot { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] .deck-dots i {
+  background: var(--comic-paper);
+  border: 1px solid var(--comic-ink);
+}
+.deck-root[data-capstyle="vivid"] .deck-dots i.active {
+  width: 16px;
+  background: var(--comic-red);
+  border-radius: 3px 6px 3px 5px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np {
+  filter: none;
+  background: color-mix(in srgb, var(--comic-cyan) 16%, var(--comic-paper)) !important;
+  border: 2px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 3px 3px 0 var(--comic-pencil), inset 1px 1px 0 color-mix(in srgb, white 70%, transparent);
+}
+.deck-root[data-capstyle="vivid"] .deck-np.is-idle { filter: none; }
+.deck-root[data-capstyle="vivid"] .deck-np-bg,
+.deck-root[data-capstyle="vivid"] .deck-np-userbg { opacity: .1 !important; filter: grayscale(.45) contrast(.8); }
+.deck-root[data-capstyle="vivid"] .deck-np::before,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--comic-pencil) 45%, transparent) 0 .7px, transparent .9px) 0 0 / 8px 8px;
+  box-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-cover {
+  background-color: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 5px 8px 5px 7px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-cover::after,
+.deck-root[data-capstyle="vivid"] .deck-np-spk,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent .deck-np-spk { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] :is(.deck-np-title, .deck-np-artist) {
+  color: var(--comic-ink);
+  text-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-title {
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-vol {
+  background: var(--comic-paper-deep);
+  border: 1px solid var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-vol-fill,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent .deck-np-vol-fill {
+  background: var(--comic-red);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-btn,
+.deck-root[data-capstyle="vivid"] .deck-np-btn.primary {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-btn.primary { background: var(--comic-yellow); }
+
+/* The profile menu is portaled to body, outside .deck-root. */
+:root[data-style="comic"] .deck-pmenu {
+  color: var(--text);
+  background: var(--comic-paper);
+  border: 2px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 5px 5px 0 var(--comic-pencil);
+  backdrop-filter: none;
+}
+:root[data-style="comic"] .deck-pmenu :is(.deck-pmenu-head, .deck-pmenu-empty) { color: var(--comic-muted); }
+:root[data-style="comic"] .deck-pmenu-row.active,
+:root[data-style="comic"] .deck-pmenu-pick:hover { background: color-mix(in srgb, var(--accent) 24%, var(--comic-paper)); }
+:root[data-style="comic"] .deck-pmenu-tool,
+:root[data-style="comic"] .deck-pmenu-add {
+  color: var(--text);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+
+/* The tab-group mount belongs to the dashboard page and must use the same
+   paper material as the redrawn device instead of a graphite rectangle. */
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) {
+  background:
+    radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
+    var(--comic-paper);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil), var(--panel-drop);
+}
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-bar {
+  background: var(--comic-paper-deep);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab { color: var(--comic-muted); }
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab.active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 30%, var(--comic-paper));
+  border: 1px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-root[data-capstyle="vivid"] .deck-well::before,
+  .deck-root[data-capstyle="vivid"] .deck-well::after { animation: none; transform: none; }
+  .deck-root[data-capstyle="vivid"] .deck-well-bg { display: none; }
+}
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well::before,
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well::after { animation: none; transform: none; }
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well-bg { display: none; }

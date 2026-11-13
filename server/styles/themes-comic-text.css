@@ -1,0 +1,257 @@
+
+/* One quiet accent wash marks selection. Solid red is reserved for errors,
+   destructive actions and tiny status marks, not entire everyday controls. */
+:root[data-style="comic"] :is(
+  .settings-segment-btn.active, .settings-nav-btn.active,
+  .tile-style-tabs button.active,
+  .deck-ed-tab.active, .deck-ed-segbtn.active,
+  .deck-ed-trigbtn.active, .deck-pmenu-row.active
+) {
+  color: var(--text);
+  background: var(--comic-accent-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+
+:root[data-style="comic"] :is(
+  .settings-btn.primary, .native-promo-install,
+  .tile-style-btn.primary, .deck-ed-btn.primary, .upd-btn.primary, .discord-invite-join, .feed-add
+) {
+  color: var(--text);
+  background: var(--comic-accent-strong);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.settings-btn.danger, .deck-ed-btn.danger,
+  .deck-pmenu-tool.danger, .deck-pmenu-clean) {
+  color: var(--comic-danger-ink);
+  background: color-mix(in srgb, var(--red) 10%, var(--comic-paper));
+  border-color: color-mix(in srgb, var(--red) 55%, var(--comic-ink));
+}
+
+/* Utility fields must clear dark `background` shorthands, not only change the
+   background-color layer. This covers the Notes scratchpad and every editor. */
+:root[data-style="comic"] :is(
+  .notes-area, .settings-text-input, .settings-hex-input,
+  .preset-code-field, .deck-pmenu-input, .deck-ed-input,
+  .deck-ed-modal .cs-trigger, .tsf-select, .wc-input,
+  input[type="url"], input[type="email"]
+) {
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .deck-ed-input option {
+  background: var(--comic-paper);
+  color: var(--text);
+}
+:root[data-style="comic"] select option {
+  background: var(--comic-paper);
+  color: var(--text);
+}
+
+/* Accents that are bright enough for dots and fills are not necessarily dark
+   enough for 10–12px copy on paper. Keep those roles separate. */
+:root[data-style="comic"] :is(
+  .qbtn-settings, .qbtn-focus, .qbtn-apps, .qbtn-layout,
+  .tab-icon, .tab-current, .settings-slider-value,
+  .calendar-kicker, .day-cell.today, .upcoming-when,
+  .stat-head-temp,
+  .notes-status.saved, .streaming-url,
+  .settings-spotify-steps li::marker
+) { color: var(--comic-accent-ink); }
+:root[data-style="comic"] .settings-spotify-steps li::marker {
+  color: var(--comic-success-ink);
+}
+
+:root[data-style="comic"] :is(
+  .settings-status.ok, .settings-mictest-result.is-ok, .settings-sb-status.is-ok,
+  .sh-set-status.ok
+) { color: var(--comic-success-ink); }
+:root[data-style="comic"] :is(
+  .settings-mictest-result.is-warn, .streaming-warn,
+  .feed-help-group.is-warn .feed-help-title
+) { color: var(--comic-warning-ink); }
+:root[data-style="comic"] :is(
+  .settings-status.error, .settings-sb-status.is-err,
+  .feed-status.is-error, .streaming-err, .settings-bgcode-error,
+  .sh-set-status.err
+) { color: var(--comic-danger-ink); }
+
+:root[data-style="comic"] :is(
+  .lang-seg.active, .day-cell.selected, .streaming-code, .ai-pull-progress #ai-pull-label
+) { color: var(--text); }
+:root[data-style="comic"] :is(.calendar-title, .day-modal-title) { color: var(--text); }
+:root[data-style="comic"] :is(
+  .sh-set-label, .sh-set-dev, .sh-set-check-name
+) { color: var(--text); }
+:root[data-style="comic"] :is(
+  .sh-set-desc, .sh-set-help, .sh-set-hint, .sh-set-status,
+  .sh-set-check-type, .sh-set-group, .sh-set-check-id
+) { color: var(--comic-muted); }
+:root[data-style="comic"] :is(
+  .settings-hint.settings-superseded-note,
+  .ai-provider-toggle input[type="radio"]:checked ~ .ai-prov-name,
+  .settings-inline-link
+) { color: var(--comic-accent-ink); }
+:root[data-style="comic"] .native-promo-beta { color: var(--text); }
+:root[data-style="comic"] .settings-seg-btn.is-active {
+  color: var(--text);
+  background: var(--comic-accent-soft);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .support-cta-coffee {
+  color: var(--text);
+  background: color-mix(in srgb, #ff4d8d 38%, var(--comic-paper));
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.sys-tab.active, .agenda-panel .cal-task-btn.active, .clock-sep) {
+  color: var(--comic-accent-ink);
+}
+:root[data-style="comic"] .tabgroup-tab.active { color: var(--comic-accent-ink); }
+:root[data-style="comic"] :is(.sys-tab.active, .agenda-panel .cal-task-btn.active, .tabgroup-tab.active) {
+  background: var(--comic-accent-soft);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .dc-logo {
+  color: color-mix(in srgb, #5865f2 58%, var(--comic-ink));
+}
+:root[data-style="comic"] .day-modal-close {
+  color: var(--comic-muted);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-rule);
+}
+:root[data-style="comic"] :is(.discord-invite-close, .discord-invite-dismiss) {
+  color: var(--comic-muted);
+}
+:root[data-style="comic"] :is(.discord-invite-close, .discord-invite-dismiss):hover {
+  color: var(--text);
+  background: var(--comic-paper-deep);
+}
+
+/* Dark hard-coded switcher labels are not covered by shared tokens. */
+:root[data-style="comic"] :is(.app-name, .tab-title, .preset-modal-title,
+  .preset-modal-whatname, .preset-check-name, .deck-pmenu-pick,
+  .deck-ed-title, .deck-mix-title, .wc-title) { color: var(--text); }
+:root[data-style="comic"] :is(.app-window-title, .preset-modal-desc,
+  .preset-page-meta, .preset-check-meta, .deck-pmenu-head,
+  .deck-pmenu-empty, .deck-ed-label, .wc-lead, .wc-field-label) {
+  color: var(--comic-muted);
+}
+
+/* ── Typography ──────────────────────────────────────────────
+   Comic Neue is the hand-drawn body face; Bangers is the inked
+   display cap, reserved for the small uppercase labels where its
+   punch reads as a title. Both fall back to Comic Sans MS —
+   guaranteed on the Windows target — so it stays hand-drawn offline. */
+:root[data-style="comic"] body {
+  font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+:root[data-style="comic"] :is(.tabgroup-tab, .topbtn span,
+  .panel [class$="-title"]:not(.deck-root *), .panel [class$="-logo"]:not(.deck-root *),
+  .panel .section-title, .panel .dc-sec-label) {
+  font-family: 'Bangers', 'Comic Sans MS', 'Comic Neue', cursive;
+  font-weight: 400;
+  font-style: normal;           /* Bangers is a display cap — never the inherited italic */
+  letter-spacing: 0;
+}
+:root[data-style="comic"] :is(.tabgroup-tab, .topbtn span,
+  .panel .section-title, .panel .dc-sec-label) {
+  font-size: max(1.02em, 11px);
+  text-transform: uppercase;
+}
+
+/* ── Panels: inked paper cards ───────────────────────────────
+   Opaque paper fill (the derived --panel), a thick ink outline, and the
+   hard comic drop. The Liquid Glass top-light wash is removed. */
+:root[data-style="comic"] .panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
+    radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--comic-ink) 20%, transparent) 0 0.5px, transparent 0.7px) 2px 3px / 13px 13px,
+    var(--panel);
+  border: 2px solid var(--comic-ink);
+  border-radius: 8px 12px 9px 11px / 11px 8px 12px 9px;
+  box-shadow: 1px 1px 0 var(--comic-pencil), var(--panel-drop);
+}
+
+/* A second imperfect pencil pass gives every current and future top-level tile
+   the sketched outline the theme promises. It sits inside the box, so GridStack
+   geometry and touch targets remain unchanged. */
+:root[data-style="comic"] :is(.grid-stack-item-content > .panel, body[data-panel] .panel)::before {
+  content: '';
+  position: absolute;
+  inset: 2px 1px 1px 2px;
+  z-index: 30;
+  border: 1px solid var(--comic-pencil);
+  border-radius: 10px 7px 11px 8px / 7px 11px 8px 10px;
+  transform: rotate(-0.035deg);
+  pointer-events: none;
+}
+
+/* A tab-group is one physical tile. Its active member should use the parent's
+   paper rather than drawing a second card and double-shadow inside it. */
+:root[data-style="comic"] .tabgroup-body > .panel {
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+/* ── Halftone page field ─────────────────────────────────────
+   A faint benday dot grid (in the ink colour) sits under everything —
+   static paint, zero animation cost. A pack's custom animated background
+   paints on its own layer above this, so the halftone only shows on a bare
+   page. The Liquid Glass aurora blobs are hidden here. */
+:root[data-style="comic"] .aurora-blob { display: none; }
+:root[data-style="comic"] #bg-aurora::before {
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 84%) 1.2px, transparent 1.6px),
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 90%) 1.2px, transparent 1.6px);
+  background-size: 22px 22px, 22px 22px;
+  background-position: 0 0, 11px 11px;
+}
+
+/* ── Controls: inked buttons with a real press ───────────────
+   A hair of ink tint lifts them off the paper; ink outline, hard shadow, and a
+   physical press (the control moves into its own shadow). */
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn) {
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 7px 10px 8px 9px / 9px 7px 10px 8px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+  transition: transform 0.04s steps(2, end), box-shadow 0.04s steps(2, end);
+}
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn):active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+:root[data-style="comic"] :is(.settings-segment-btn.active, .ui-segmented button.active) {
+  background: color-mix(in srgb, var(--accent), transparent 66%);
+  color: var(--text);
+  box-shadow: inset 2px 2px 0 var(--comic-shadow);
+}
+
+/* Settings buttons (.settings-btn) aren't part of the .ui-btn family and their
+   defaults — a near-transparent white fill and near-white .primary text — vanish
+   on paper. Repaint them as inked paper so Reset buttons stay legible. */
+:root[data-style="comic"] .settings-btn {
+  border: 1.5px solid var(--comic-ink);
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+}
+:root[data-style="comic"] .settings-btn:hover { background: color-mix(in srgb, var(--panel), var(--comic-ink) 10%); }
+:root[data-style="comic"] .settings-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+:root[data-style="comic"] .settings-btn.primary {
+  background: var(--comic-accent-strong);
+  color: var(--text);            /* ink on the accent, never the light default */
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .settings-btn.danger { color: var(--color-danger); }
