@@ -36,7 +36,7 @@ test('every file a step runs exists, the three server checks use the side port, 
     if (!step.git) assert.ok(existsSync(new URL(step.argv[0], ROOT)), step.argv[0]);
     assert.ok(step.minutes > 0 && step.minutes <= 15, step.name);
   }
-  for (const name of ['boot', 'requests', 'routes']) assert.equal(gateSteps().find((step) => step.name === name).env.XENON_PORT, '3039');
+  for (const name of ['boot', 'requests', 'routes']) assert.equal(gateSteps().find((step) => step.name === name).env.XENON_PORT, gatePort(process.env.XENON_GATE_PORT));
 });
 
 test('the gate takes another port when asked, and never the one of the installed app', () => {
