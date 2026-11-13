@@ -1,0 +1,53 @@
+[
+ {
+  "origin": "apps/native/src-tauri/src/engine_install/mod.rs",
+  "parts": [
+   {
+    "file": "apps/native/src-tauri/src/engine_install/place.rs",
+    "about": "First-run install: copying the engine into place once, and waiting until it answers.",
+    "lines": [
+     [
+      207,
+      284
+     ]
+    ]
+   },
+   {
+    "file": "apps/native/src-tauri/src/engine_install/selftest.rs",
+    "about": "First-run install: the checks a packaged build runs on itself before it is released.",
+    "lines": [
+     [
+      321,
+      380
+     ]
+    ]
+   }
+  ],
+  "widen": [
+   "RUNTIME_STAMP"
+  ],
+  "drop": {
+   "apps/native/src-tauri/src/engine_install/mod.rs": [
+    "RUNTIME_STAMP"
+   ]
+  },
+  "uses": {
+   "apps/native/src-tauri/src/engine_install/mod.rs": [
+    "// Only the tests read the stamp file by name.\n#[cfg(test)]\nuse place::RUNTIME_STAMP;"
+   ]
+  }
+ },
+ {
+  "origin": "apps/native/src-tauri/src/prefs.rs",
+  "parts": [
+   {
+    "file": "apps/native/src-tauri/src/prefs/unit_tests.rs",
+    "about": "Tests of the saved display choices.",
+    "items": [
+     "mod tests",
+     "mod language_tests"
+    ]
+   }
+  ]
+ }
+]

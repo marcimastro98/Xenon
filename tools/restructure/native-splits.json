@@ -63,6 +63,10 @@
       "apps/capture/src/win/record/replay/running.rs",
       "apps/capture/src/win/record/replay/saving.rs"
     ],
+    "apps/native/src-tauri/src/engine_install/mod.rs": [
+      "apps/native/src-tauri/src/engine_install/place.rs",
+      "apps/native/src-tauri/src/engine_install/selftest.rs"
+    ],
     "apps/native/src-tauri/src/gpu.rs": [
       "apps/native/src-tauri/src/gpu/displays.rs",
       "apps/native/src-tauri/src/gpu/unit_tests.rs"
@@ -100,6 +104,9 @@
       "apps/native/src-tauri/src/monitor/target.rs",
       "apps/native/src-tauri/src/monitor/watch_notes.rs",
       "apps/native/src-tauri/src/monitor/watchdog.rs"
+    ],
+    "apps/native/src-tauri/src/prefs.rs": [
+      "apps/native/src-tauri/src/prefs/unit_tests.rs"
     ],
     "helper/AudioHost.cs": [
       "helper/AudioHost.Sessions.cs"
