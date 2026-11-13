@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browserSource, fileDeclaring, partsOf, readFileSync } from './browser-source.mjs';
-import { builtListsWith, consumerProblems, keptNames, knownConsumers, withoutComments } from '../../tools/restructure/browser-consumers.mjs';
+import { builtListsWith, consumerProblems, keptNames, knownConsumers, mentionsOf, withoutComments } from '../../tools/restructure/browser-consumers.mjs';
 import { readBrowserLedger, runOf, splitFiles } from '../../tools/restructure/browser-ledger.mjs';
 import { firstReadCounts } from '../../tools/restructure/browser-cli.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
@@ -98,6 +98,8 @@ test('a browser file named in code somewhere new is caught before it is split', 
     write('tools/other.mjs', "// big.js is only named in this comment\ncopy('remote/big.js');\n");
     write('docs/notes.md', 'big.js is a large file.\n');
     write('server/components/Big/Big.css', '.big { color: red; }\n');
+    write('server/styles/frame.css', '.frame { color: red; }\n');
+    write('server/frame.html', '<link rel="stylesheet" href="styles/frame.css">\n');
     write('server/js/layer-tiles.js', "const name = 'Big';\nmodule.exports = { TILES: { big: { css: ['components/' + name + '/' + name + '.css'], js: [] } } };\n");
     write('tools/restructure/browser-consumers.json', JSON.stringify({ known: { 'server/js/big.js': { 'tools/listed.mjs': { how: 'Patches the last script.', keeps: ['big'] } } } }));
     for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
@@ -107,9 +109,11 @@ test('a browser file named in code somewhere new is caught before it is split', 
     ]);
     assert.equal(consumerProblems(root, 'server/js/big.js', { tests: false }).length, 1, 'the tests are moved over after the first split');
     assert.deepEqual([...keptNames(root, 'server/js/big.js')], [['big', 'tools/listed.mjs']]);
-    assert.deepEqual(consumerProblems(root, 'server/components/Big/Big.css'),
-      ['server/js/layer-tiles.js:1 names Big.css in code: make it follow the split, then say how in tools/restructure/browser-consumers.json'],
+    assert.deepEqual(mentionsOf(root, 'server/components/Big/Big.css').map((mention) => [mention.file, mention.kind]), [['server/js/layer-tiles.js', 'list']],
       'a name put together in code is found by asking the list, not by searching for the name');
+    assert.deepEqual(consumerProblems(root, 'server/components/Big/Big.css'), [], 'the tool writes the parts into the list itself, as it does with a page');
+    assert.deepEqual(consumerProblems(root, 'server/styles/frame.css'),
+      ['server/frame.html loads frame.css, and the page check never opens that page: add it to tools/restructure/browser-check-pages.mjs first']);
     assert.deepEqual(builtListsWith(ROOT, 'server/components/DiskWidget/DiskWidget.css'), ['server/js/layer-tiles.js'],
       'the pages for widgets on the desktop load the stylesheet of a tile by a name they build');
   } finally {
@@ -126,19 +130,33 @@ test('the lint numbers of a script that came out of a page are saved once, and o
   assert.deepEqual(firstReadCounts(saved, today, []), { next: saved, added: [] });
 });
 
-const view = (extra = {}) => ({ name: 'wide', pageErrors: [], consoleErrors: ['one'], failedRequests: [], globals: ['a', 'b'],
-  moved: { a: 'function' }, rules: 'same', ruleCount: 3, scripts: 2, stylesheets: 1, ...extra });
+const view = (extra = {}) => ({ name: 'wide', pageErrors: ['old'], consoleErrors: ['one'], failedRequests: [], globals: ['a', 'b'],
+  declared: { a: 'function', n: 'number' }, rules: 'same', ruleCount: 3, scripts: ['/js/a/one.js', '/js/a.js', '/js/b.js'],
+  stylesheets: ['/styles/a.css', '/styles/a-two.css', '/styles/b.css'], ...extra });
 const recording = (extra, settings = { opened: true, changed: true }) => ({ views: [view(extra)], settings });
+const MOVES = { moves: [{ kind: 'script', from: 'server/js/a.js', file: 'server/js/a/one.js', about: '', names: ['a'] },
+  { kind: 'style', from: 'server/styles/a.css', parts: [{ file: 'server/styles/a-two.css', at: 9 }] }] };
 
-test('the page check says what a split changed in the page, and nothing when it changed nothing', () => {
+test('the page check says what a split changed in a page, and nothing when it changed nothing', () => {
   const before = recording();
-  assert.deepEqual(compareRecordings(before, recording({ scripts: 40, stylesheets: 9 })), [], 'more files to load is the point, not a difference');
-  assert.match(compareRecordings(before, recording({ pageErrors: ['x is not defined'] })).join('\n'), /wide: page error: x is not defined/);
-  assert.match(compareRecordings(before, recording({ consoleErrors: ['one', 'one'] })).join('\n'), /new console error: one/);
-  assert.match(compareRecordings(before, recording({ failedRequests: ['/js/gone.js 404'] })).join('\n'), /new failed request: \/js\/gone\.js 404/);
-  assert.match(compareRecordings(before, recording({ globals: ['a', 'c'] })).join('\n'), /no longer on window: b\n.*new on window: c/);
-  assert.match(compareRecordings(before, recording({ moved: { a: 'missing' } })).join('\n'), /moved names that answer differently: a \(function -> missing\)/);
-  assert.match(compareRecordings(before, recording({ rules: 'other', ruleCount: 2 })).join('\n'), /style rules of the linked stylesheets differ \(3 before, 2 now\)/);
-  assert.match(compareRecordings(before, recording({ name: 'phone' })).join('\n'), /phone: not recorded before/);
-  assert.deepEqual(compareRecordings(before, recording({}, { opened: true, changed: false })), ['settings: "changed" failed']);
+  const diff = (extra, settings) => compareRecordings(before, recording(extra, settings), MOVES).join('\n');
+  assert.equal(diff({}), '');
+  const whole = recording({ scripts: ['/js/a.js', '/js/b.js'], stylesheets: ['/styles/a.css', '/styles/b.css'] });
+  assert.deepEqual(compareRecordings(whole, before, MOVES), [],
+    'the files a recorded split made, loaded next to the file they came from, are the point and not a difference');
+  assert.match(compareRecordings(before, whole, MOVES).join('\n'), /wide: \/js\/a\.js and its parts do not load in a row: \/js\/a\.js\n/, 'a page that loads a split file without its parts');
+  assert.match(diff({ scripts: ['/js/a.js', '/js/a/one.js', '/js/b.js'] }), /wide: \/js\/a\.js and its parts do not load in a row: \/js\/a\.js, \/js\/a\/one\.js/);
+  assert.equal(diff({ scripts: ['/js/a/one.js', '/js/a.js'] }), 'wide: the scripts it loads changed: no longer /js/b.js');
+  assert.equal(diff({ scripts: ['/js/a/one.js', '/js/a.js', '/js/b.js', '/js/new.js'] }), 'wide: the scripts it loads changed: new /js/new.js', 'a new file no recorded move made');
+  assert.equal(diff({ stylesheets: ['/styles/b.css', '/styles/a.css', '/styles/a-two.css'] }), 'wide: it loads the same stylesheets in another order');
+  assert.equal(diff({ pageErrors: ['old', 'x is not defined'] }), 'wide: new page error: x is not defined', 'an error the page had before the split is not the split');
+  assert.match(diff({ consoleErrors: ['one', 'one'] }), /new console error: one/);
+  assert.match(diff({ failedRequests: ['/js/gone.js 404'] }), /new failed request: \/js\/gone\.js 404/);
+  assert.match(diff({ globals: ['a', 'c'] }), /no longer on window: b\n.*new on window: c/);
+  assert.match(diff({ declared: { a: 'missing', n: 'number' } }), /top-level names that answer differently: a \(function -> missing\)/);
+  assert.match(diff({ declared: { a: 'function' } }), /top-level names that answer differently: n \(number -> not there\)/);
+  assert.match(diff({ rules: 'other', ruleCount: 2 }), /style rules of the linked stylesheets differ \(3 before, 2 now\)/);
+  assert.match(diff({ widgets: 'clock' }), /the widgets on the page differ \(undefined before, clock now\)/);
+  assert.equal(diff({ name: 'phone' }), 'wide: opened before, not opened now\nphone: not recorded before');
+  assert.equal(diff({}, { opened: true, changed: false }), 'settings: "changed" failed');
 });

@@ -4,6 +4,7 @@
 // Nothing here touches the disk, so the same code does a move and redoes it from
 // an old revision to compare (browser-extract.mjs).
 
+import { addToLists, BUILT_LIST, listRunProblems, listsHold } from './browser-lists.mjs';
 import { addTags, inlineScripts, runProblems, tagsOf, urlOfFile } from './browser-pages.mjs';
 import { headerOf, MAX_LINES, planScriptMove } from './browser-plan.mjs';
 import { planStyleSplit } from './browser-styles.mjs';
@@ -17,6 +18,7 @@ const need = (tree, file) => {
 
 // Every page that loads the old file gets the new tags next to its tag, and the
 // files of the split end up one after the other with nothing between them.
+// The same goes for the list the pages of desktop widgets are built from.
 function retag(tree, pages, { old, added, where, before, after }) {
   const files = new Map();
   const reasons = [];
@@ -30,6 +32,15 @@ function retag(tree, pages, { old, added, where, before, after }) {
     files.set(page, made.html);
   }
   if (files.size === 0) reasons.push(`no page loads ${old} with a tag: where a new file would load cannot be proven`);
+  // The pages built from a list of files (the widgets on the desktop) get the new files in every row that holds the old one.
+  const list = tree.get(BUILT_LIST);
+  if (list !== null && listsHold(list, old)) {
+    const made = addToLists(list, old, added, where);
+    const problems = [...listRunProblems(list, before), ...made.reasons];
+    if (problems.length === 0) problems.push(...listRunProblems(made.text, after));
+    reasons.push(...problems);
+    files.set(BUILT_LIST, made.text);
+  }
   if (reasons.length) throw new Refusal(reasons);
   return files;
 }

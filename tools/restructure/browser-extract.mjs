@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { uncheckedPages } from './browser-check-pages.mjs';
 import { consumerProblems, keptNames } from './browser-consumers.mjs';
 import { readBrowserLedger, writeBrowserLedger } from './browser-ledger.mjs';
 import { applyMove } from './browser-moves.mjs';
@@ -73,7 +74,8 @@ function undo(root, files, made, before) {
 export function perform({ root, parser, move, dryRun = false }) {
   const ledger = readBrowserLedger(root);
   // The tests are held to the reader by server/test/restructure-browser-state.test.mjs, once the first move is done.
-  const reasons = move.kind === 'inline' ? [] : consumerProblems(root, move.from, { tests: false });
+  const reasons = move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
+    : consumerProblems(root, move.from, { tests: false });
   reasons.push(...targetReasons(root, move));
   const kept = keptNames(root, move.from);
   for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);

@@ -3,16 +3,19 @@
 // A file about to be split must have every one of them accounted for, because
 // each of them would go on reading one file where there are now several.
 //
-// Pages are followed by their tags and tests by server/test/browser-source.mjs.
+// Pages are followed by their tags, the list the pages for desktop widgets are
+// built from by its rows (browser-lists.mjs), tests by server/test/browser-source.mjs.
+// A page that loads the file must be one the page check opens (browser-check-pages.mjs).
 // Anything else has to be written down in browser-consumers.json with a sentence
 // saying how it keeps working, or the tool refuses the split.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 
+import { uncheckedPages } from './browser-check-pages.mjs';
 import { BROWSER_LEDGER } from './browser-ledger.mjs';
+import { BUILT_LIST, listsHold } from './browser-lists.mjs';
 import { tagsOf } from './browser-pages.mjs';
 
 export const CONSUMERS = 'tools/restructure/browser-consumers.json';
@@ -23,19 +26,14 @@ const FOLLOW_ALONE = /^tools\/quality\/baseline\/|^tools\/map\/features\.json$/;
 const PROSE = /\.(md|txt)$|(^|\/)(LICENSE|CHANGELOG)[^/]*$/;
 const TEST = /(^|\/)test\//;
 const blank = (text) => text.replace(/[^\n]/g, ' ');
-// Lists of browser files that code puts together while it runs. A name can be built there from its
-// parts ('components/' + name + '/' + name + '.css'), where no search for the file's name finds it,
-// so each list is asked for its files. The pages for widgets on the desktop are made from the first.
-const BUILT_LISTS = [{
-  file: 'server/js/layer-tiles.js',
-  files: (api) => Object.values(api.TILES ?? {}).flatMap((row) => [...(row.css ?? []), ...(row.js ?? [])]).map((name) => `server/${name}`),
-}];
-const load = createRequire(import.meta.url);
-
-/** @param {string} root @param {string} file repo-relative @returns {string[]} the lists built in code that hold the file */
+/**
+ * @param {string} root @param {string} file repo-relative
+ * @returns {string[]} the lists built in code that hold the file (browser-lists.mjs): a name can be put together there
+ *   from its parts ('components/' + name + '/' + name + '.css'), where no search for the file's name finds it
+ */
 export function builtListsWith(root, file) {
-  return BUILT_LISTS.filter((list) => existsSync(path.join(root, list.file)) && list.files(load(path.join(root, list.file))).includes(file))
-    .map((list) => list.file);
+  const place = path.join(root, BUILT_LIST);
+  return existsSync(place) && listsHold(readFileSync(place, 'utf8'), file) ? [BUILT_LIST] : [];
 }
 
 /** Comments blanked out, every line kept, so a file named in a comment is not read as a use of it. */
@@ -57,9 +55,9 @@ function mentionOf(file) {
 /**
  * @param {string} root
  * @param {string} file repo-relative browser file
- * @returns {{ file: string, lines: number[], kind: 'page' | 'test' | 'code', reader: boolean }[]}
- *   every tracked file that names it outside a comment: `page` when only its tags do,
- *   `reader` true when a test already goes through browser-source.mjs
+ * @returns {{ file: string, lines: number[], kind: 'page' | 'list' | 'test' | 'code', reader: boolean }[]}
+ *   every tracked file that names it outside a comment: `page` when only its tags do, `list` for a list of
+ *   files a page is built from, `reader` true when a test already goes through browser-source.mjs
  */
 export function mentionsOf(root, file) {
   const base = path.posix.basename(file);
@@ -84,8 +82,11 @@ export function mentionsOf(root, file) {
     if (lines.length) found.push({ file: other, lines: [...new Set(lines)], kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER) });
     else if (tagLines.size) found.push({ file: other, lines: [...tagLines], kind: 'page', reader: false });
   }
+  // A list that holds the file is followed by the tool like a page; one that only names it in a sentence is code.
   for (const list of builtListsWith(root, file)) {
-    if (!found.some((mention) => mention.file === list && mention.kind === 'code')) found.push({ file: list, lines: [1], kind: 'code', reader: false });
+    const named = found.find((mention) => mention.file === list);
+    if (named) named.kind = 'list';
+    else found.push({ file: list, lines: [1], kind: 'list', reader: false });
   }
   return found;
 }
@@ -114,7 +115,10 @@ export function consumerProblems(root, file, { tests = true } = {}) {
   const known = knownConsumers(root)[file] ?? {};
   const problems = [];
   for (const mention of mentionsOf(root, file)) {
-    if (mention.kind === 'page' || known[mention.file] || FOLLOW_ALONE.test(mention.file)) continue;
+    if (mention.kind === 'page' && uncheckedPages([mention.file]).length) {
+      problems.push(`${mention.file} loads ${path.posix.basename(file)}, and the page check never opens that page: add it to tools/restructure/browser-check-pages.mjs first`);
+    }
+    if (mention.kind === 'page' || mention.kind === 'list' || known[mention.file] || FOLLOW_ALONE.test(mention.file)) continue;
     if (mention.file === CONSUMERS || mention.file === BROWSER_LEDGER) continue;
     const where = `${mention.file}:${mention.lines.slice(0, 3).join(',')}`;
     if (mention.kind === 'code') {
