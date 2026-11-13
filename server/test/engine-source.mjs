@@ -119,6 +119,12 @@ export function declarationSource(name, source = ENGINE) {
   if (first === -1) throw new Error(`${name} is not declared at the top level of ${file}`);
   const oneLine = /;\s*(?:\/\/.*)?$/.test(lines[first]) && !/[([{]\s*;?\s*$/.test(lines[first]);
   if (oneLine) return lines[first];
+  // A value written on the lines after the `=`: they are indented, and the last of them ends the statement.
+  if (/=\s*$/.test(lines[first])) {
+    let end = first;
+    while (end + 1 < lines.length && /^\s+\S/.test(lines[end + 1])) end += 1;
+    if (end > first && /;\s*(?:\/\/.*)?$/.test(lines[end])) return lines.slice(first, end + 1).join('\n');
+  }
   // The closing line starts at the margin: a bracket, or the backtick of a text written over several lines.
   const last = lines.findIndex((line, index) => index > first && /^[)\]}`]+;?\s*(?:\/\/.*)?$/.test(line));
   if (last === -1) throw new Error(`the end of ${name} was not found in ${file}`);

@@ -62,6 +62,27 @@ test('a name is declared in one place, and the readers find it there', () => {
   assert.match(declarationSource('isAllowedRequest'), /^function isAllowedRequest\(/);
 });
 
+test('a value written on the lines after its = is read to the line that ends it, and no further', () => {
+  const text = declarationSource('nativeMedia');
+  assert.match(text, /^const nativeMedia =\n {2}process\.platform === 'darwin'\n/);
+  assert.match(text, /\n {6}: null;$/, 'the last indented line, with its semicolon');
+  assert.ok(!text.includes('\n\n') && !/\n\S/.test(text), 'nothing at the margin, no blank line: one statement');
+  assert.equal(text.split('\n').length, 9);
+});
+
+test('a value that got a module of its own is required by server.js once, on one line, under its own name', () => {
+  const engine = readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
+  const lifted = entries.filter((entry) => entry.lift);
+  for (const { file, names } of lifted) {
+    assert.equal(names.length, 1, file);
+    const spec = `./${file.replace(/^server\//, '')}`;
+    assert.equal(engine.split(`require('${spec}')`).length - 1, 1, `server.js requires ${file} once`);
+    assert.ok(engine.includes(`\nconst { ${names[0]} } = require('${spec}');\n`), `${names[0]} is what that require gives`);
+    assert.ok(readFileSync(join(ROOT, file), 'utf8').endsWith(`\nmodule.exports = { ${names[0]} };\n`));
+  }
+  assert.ok(lifted.some((entry) => entry.names[0] === 'APP_VERSION'), 'the version is one of them');
+});
+
 test('a text written over several lines is read to its closing backtick, and no further', () => {
   const text = declarationSource('VOLUME_DETAILS_COMMAND');
   assert.match(text, /^const VOLUME_DETAILS_COMMAND = `\n[\s\S]+\n`;$/);

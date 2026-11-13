@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { analyze } from '../../tools/restructure/analyze.mjs';
-import { protectedNames, readLedger } from '../../tools/restructure/ledger.mjs';
+import { liftableNames, protectedNames, readLedger } from '../../tools/restructure/ledger.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 import { carryCounts } from '../../tools/restructure/ratchets.mjs';
 import { requireEditProblem } from '../../tools/restructure/require-edits.mjs';
@@ -55,9 +55,29 @@ test('the names that never move are still where the list says', (t) => {
     'handleRequest', 'server']) {
     assert.ok(kept.names.has(name), `${name} is protected`);
   }
-  const moved = (readLedger(ROOT).sources[ENGINE] ?? []).flatMap((entry) => entry.names);
+  const entries = readLedger(ROOT).sources[ENGINE] ?? [];
+  const moved = entries.filter((entry) => !entry.lift).flatMap((entry) => entry.names);
   assert.deepEqual(moved.filter((name) => kept.names.has(name)), [], 'nothing protected was ever moved');
   assert.deepEqual(protectedNames(ROOT, 'server/other.js', records), { names: new Set(), missing: [], stretches: [] });
+
+  // The one thing that may happen to a protected value is a lift (lift.mjs), and only to a value of the start-up
+  // prelude that protected.json lists: never to the code that decides who may ask the engine what.
+  const at = (name) => records.findIndex((record) => record.names.includes(name));
+  const gate = new Set(records.slice(at('LOOPBACK_IPS'), at('_remoteGate') + 1).flatMap((record) => record.names));
+  assert.ok(gate.size > 20 && gate.has('CSRF_MUTATION_PATHS') && gate.has('isAllowedRequest'), 'the stretch is read whole');
+  const liftable = liftableNames(ROOT, ENGINE);
+  for (const name of liftable) {
+    assert.ok(kept.names.has(name) && !gate.has(name) && name !== 'handleRequest' && name !== 'server', `${name} is a value of the prelude`);
+  }
+  for (const entry of entries.filter((item) => item.lift && kept.names.has(item.names[0]))) {
+    const [name] = entry.names;
+    assert.ok(liftable.has(name), `${name} was lifted and is listed as liftable`);
+    // Still declared on its line of the stretch, alone, as what the require of its module gives.
+    const record = records[at(name)];
+    assert.equal(record.kind, 'require', name);
+    assert.deepEqual(record.names, [name]);
+    assert.equal(join('server', record.require.spec).replaceAll('\\', '/'), entry.file);
+  }
 });
 
 test('saved numbers follow the code, and a new finding does not hide in the move', () => {
