@@ -7,7 +7,9 @@ const {
 } = require('./forecast-shape.js');
 
 // The met.no terms of service require an identifying User-Agent with contact.
-const METNO_HEADERS = { 'User-Agent': 'XenonEdgeHub/3.3 (github.com/marcimastro98/Xenon)' };
+// The version is the running app's, handed over by the caller (server.js reads
+// it once from package.json): a fixed number here went stale at the next release.
+const METNO_HEADERS = (appVersion) => ({ 'User-Agent': `XenonEdgeHub/${appVersion || '0'} (github.com/marcimastro98/Xenon)` });
 
 
 // met.no symbol_code (e.g. "partlycloudy_night", "lightrainshowers_day") → bucket.

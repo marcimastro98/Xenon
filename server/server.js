@@ -4408,7 +4408,7 @@ async function fetchMetnoWeather(ctx) {
   if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
   try {
     const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${ctx.lat.toFixed(4)}&lon=${ctx.lon.toFixed(4)}`;
-    const raw = await fetchJson(url, 3500, METNO_HEADERS);
+    const raw = await fetchJson(url, 3500, METNO_HEADERS(APP_VERSION));
     return normalizeMetno(raw, ctx);
   } catch { return null; }
 }
