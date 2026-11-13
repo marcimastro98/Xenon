@@ -1,0 +1,262 @@
+
+/* What "Add" lists, under the bar: one tap places a widget in the middle. */
+.layer-edit-sheet {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(320px, calc(100% - 24px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--surface, var(--panel));
+}
+
+.layer-edit-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-pick:hover,
+.layer-edit-pick:focus-visible {
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.layer-edit-pick > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.layer-edit-pick-thumb {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 60px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim-text);
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.layer-edit-pick-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Widget pages in the edit bar (js/layer-edit-pages.js): a chip per page, the
+   shown one filled; "+" makes a new one. The strip scrolls sideways before the
+   bar would overflow the window. */
+.layer-page-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.layer-page-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.layer-page-chip,
+.layer-page-new {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  max-width: 160px;
+  padding: 0 14px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-page-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.layer-page-chip[aria-pressed="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.layer-page-new.is-icon {
+  justify-content: center;
+  width: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.layer-page-pad {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.layer-page-sheet .layer-page-toggle .layer-page-pad {
+  color: var(--dim-text);
+}
+
+.layer-page-sheet .layer-page-toggle[aria-checked="true"] {
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.layer-page-sheet .layer-page-toggle[aria-checked="true"] .layer-page-pad {
+  color: var(--accent);
+}
+
+.layer-edit-bar[data-spot^="bottom"] ~ .layer-edit-sheet {
+  top: auto;
+  bottom: 64px;
+}
+
+.layer-page-sheet .is-danger {
+  color: rgb(var(--danger-rgb, 255, 107, 107));
+}
+
+/* Narrow windows: the pages get a row of their own under the hint and the
+   buttons, and the open list moves down to stay clear of it. */
+@media (max-width: 640px) {
+  .layer-edit-bar:has(.layer-page-strip) {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    border-radius: 20px;
+  }
+
+  .layer-edit-bar:has(.layer-page-strip) .layer-edit-hint {
+    flex: 1 1 0;
+  }
+
+  .layer-edit-bar .layer-page-strip {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .layer-edit-bar:has(.layer-page-strip) ~ .layer-edit-sheet {
+    top: 108px;
+  }
+
+  .layer-edit-bar[data-spot^="bottom"]:has(.layer-page-strip) ~ .layer-edit-sheet {
+    top: auto;
+    bottom: 108px;
+  }
+}
+
+/* A pinned screenshot (js/layer-pin.js): the picture itself, no tile around it,
+   any size down to a thumbnail. Dragged to move, so it shows the move cursor. */
+.layer-slot:has(> .layer-pin) {
+  --layer-min-w: 48px;
+  --layer-min-h: 32px;
+}
+
+.layer-slot > .layer-pin {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+/* A Deck key on the screen (js/layer-key.js): the key itself, no tile around it,
+   never smaller than a finger. */
+.layer-slot:has(> .layer-key) {
+  --layer-min-w: 44px;
+  --layer-min-h: 44px;
+}
+
+.layer-slot > .layer-key,
+.tabgroup-body > .layer-key {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.layer-key-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.18));
+  border-radius: 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  background: var(--key-bg, var(--surface, var(--panel)));
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.layer-key-btn:active,
+.layer-key.is-pressed .layer-key-btn {
+  transform: scale(0.94);
+}
+
+.layer-key-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.layer-key.is-running .layer-key-btn {
+  opacity: 0.6;
+}

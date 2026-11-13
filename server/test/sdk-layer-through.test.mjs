@@ -5,7 +5,7 @@
 // it cannot have, and one opened at full size on a layer window fills it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 

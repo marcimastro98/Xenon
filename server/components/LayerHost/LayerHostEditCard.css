@@ -1,0 +1,268 @@
+
+/* The choices of the widget tapped: words, beside it (js/layer-edit-card.js). */
+.layer-edit-card {
+  position: absolute;
+  left: var(--layer-edit-x, 8px);
+  top: var(--layer-edit-y, 8px);
+  z-index: 30;
+  width: min(240px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--surface, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+}
+
+.layer-edit-card > b {
+  overflow: hidden;
+  padding: 0 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-edit-card-btn,
+.layer-edit-card-size,
+.layer-edit-card-row {
+  min-height: 44px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-card-btn {
+  padding: 0 12px;
+  text-align: start;
+}
+
+.layer-edit-card-btn[aria-expanded="true"],
+.layer-edit-card-size[aria-pressed="true"],
+.layer-edit-card-row[aria-pressed="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+}
+
+.layer-edit-card-btn--off {
+  color: rgb(var(--danger-rgb, 255, 107, 107));
+}
+
+.layer-edit-card-size {
+  padding: 0 2px;
+  font-size: 12px;
+}
+
+.layer-edit-card-sizes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.layer-edit-card-menu {
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-edit-card-row {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 6px 10px;
+  text-align: start;
+}
+
+.layer-edit-card-row > span {
+  color: var(--dim-text);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.layer-edit-untab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(231, 76, 60, 0.45);
+  color: var(--red);
+  background: rgba(20, 20, 20, 0.85);
+  cursor: pointer;
+}
+
+.layer-edit-untab {
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.layer-edit-untab svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* A 44 px corner to grab, drawn as an L, only on the widget tapped: always there it
+   was grabbed by mistake. A box too small to hold one keeps all of itself to drag. */
+.layer-edit-frame:not(.is-picked) > .layer-edit-resize,
+.layer-edit-frame.is-tiny > .layer-edit-resize {
+  display: none;
+}
+
+/* Words and small boxes are not much bigger than the corner: it sits on theirs, half
+   outside, so the rest of the box still drags. */
+.layer-edit-frame.is-small > .layer-edit-resize {
+  right: -22px;
+  bottom: -22px;
+}
+
+.layer-edit-frame.is-small > .layer-edit-resize::after {
+  right: 16px;
+  bottom: 16px;
+}
+
+.layer-edit-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  height: 44px;
+  cursor: nwse-resize;
+}
+
+.layer-edit-resize::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 14px;
+  height: 14px;
+  border-right: 3px solid rgba(var(--accent-rgb), 0.9);
+  border-bottom: 3px solid rgba(var(--accent-rgb), 0.9);
+  border-bottom-right-radius: 4px;
+}
+
+/* No shadow on anything drawn here: the window is cut to a rectangle around each piece, so
+   a shadow fills the rounded corners and stops at the cut, a black box behind the piece. */
+.layer-edit-bar {
+  position: absolute;
+  top: 12px;
+  /* Centred with auto margins, not left: 50%, which leaves the bar only half the
+     width to grow into: on a small attached window "Done" fell off the edge. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-inline: auto;
+  z-index: 30;
+  max-width: calc(100% - 24px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  pointer-events: auto;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 24px;
+  background: var(--surface, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* The bar moves off whatever it would cover (LayerDrag.freeSpot). */
+.layer-edit-bar[data-spot^="bottom"] {
+  top: auto;
+  bottom: 12px;
+}
+
+.layer-edit-bar[data-spot$="left"] {
+  right: auto;
+  left: 12px;
+  margin-inline: 0;
+}
+
+.layer-edit-bar[data-spot$="right"] {
+  left: auto;
+  right: 12px;
+  margin-inline: 0;
+}
+
+.layer-edit-hint {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--dim-text);
+}
+
+/* An attached window's bar has nothing to explain until something fails. */
+.layer-edit-hint:empty {
+  display: none;
+}
+
+.layer-edit-bar:has(> .layer-edit-hint:empty) {
+  padding-left: 6px;
+}
+
+/* An attached window can be as narrow as 160 px: its two buttons stack there. */
+.layer-edit-bar:has(> .layer-edit-detach) {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  border-radius: 20px;
+}
+
+.layer-edit-bar > .layer-edit-detach {
+  max-width: 100%;
+  padding-block: 4px;
+}
+
+.layer-edit-done {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--on-accent, #fff);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.layer-edit-add,
+.layer-edit-undo,
+.layer-edit-detach {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layer-edit-sheet-note {
+  margin: 6px 10px 8px;
+  color: var(--dim-text);
+  line-height: 1.35;
+}
+
+.layer-edit-add[aria-expanded="true"] {
+  border-color: rgba(var(--accent-rgb), 0.75);
+}

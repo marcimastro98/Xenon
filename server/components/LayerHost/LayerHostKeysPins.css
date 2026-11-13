@@ -1,0 +1,230 @@
+
+/* Runs nothing yet: the first tap shows what it does. */
+.layer-key.needs-ok .layer-key-btn {
+  border: 1px dashed var(--text);
+}
+
+.layer-key.is-gone .layer-key-btn {
+  color: var(--dim-text);
+  border-style: dashed;
+}
+
+.layer-key.is-failed .layer-key-btn {
+  border-color: var(--red);
+}
+
+.layer-key-ico {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.layer-key-ico img,
+.layer-key-ico svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.layer-key-ico svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+.layer-key-title {
+  display: -webkit-box;
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.layer-key-ico + .layer-key-title {
+  -webkit-line-clamp: 1;
+}
+
+/* What a key does, before the person agrees. On the body, above every slot. */
+.layer-key-sheet {
+  position: fixed;
+  left: var(--key-sheet-x, 8px);
+  top: var(--key-sheet-y, 8px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(520px, calc(100vh - 16px));
+  padding: 14px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: min(16px, var(--radius-modal));
+  color: var(--text);
+  background: var(--surface, var(--panel));
+}
+
+.layer-key-sheet:focus { outline: none; }
+
+.layer-key-sheet-title {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.layer-key-sheet-hint {
+  margin: 0;
+  color: var(--dim-text);
+  line-height: 1.35;
+}
+
+.layer-key-steps {
+  flex: 1 1 auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 0 0 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.layer-key-step {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.layer-key-step-detail {
+  display: block;
+  color: var(--dim-text);
+  font-size: 0.9em;
+}
+
+.layer-key-sheet-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.layer-key-sheet-go,
+.layer-key-sheet-no {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.layer-key-sheet-go {
+  border: none;
+  color: var(--on-accent, #fff);
+  background: var(--accent);
+}
+
+.layer-key-sheet-go:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.layer-key-sheet-no {
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  color: var(--text);
+  background: var(--control-bg, transparent);
+}
+
+/* A pin made a tab in edit mode fills the tab body like any tile. */
+.tabgroup-body > .layer-pin {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.layer-pin.is-moving {
+  cursor: grabbing;
+}
+
+.layer-pin-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.layer-pin-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(20, 20, 20, 0.8);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* Shown while the pointer is on the picture; always on a touch screen. */
+.layer-pin:hover .layer-pin-close,
+.layer-pin-close:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .layer-pin-close {
+    opacity: 1;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.layer-pin-close svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.layer-pin.is-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+}
+
+.layer-pin.is-missing .layer-pin-img {
+  display: none;
+}
+
+.layer-pin-missing {
+  margin: 0;
+  padding: 0 44px 0 12px;
+  color: var(--dim-text);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-pin-close {
+    transition: none;
+  }
+}
