@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 280,
+  "count": 278,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -147,11 +147,9 @@
     "server/js/dashboard-instances.js": 409,
     "server/js/dashboard-layout.js": 2268,
     "server/js/dashboard-pager.js": 591,
-    "server/js/dashboard-pages.js": 380,
     "server/js/dashboard-palette.js": 690,
     "server/js/dashboard-portrait.js": 362,
     "server/js/dashboard-presets.js": 404,
-    "server/js/dashboard-tabgroups.js": 546,
     "server/js/deck-actions.js": 406,
     "server/js/deck-editor.js": 3741,
     "server/js/deck-model.js": 1456,

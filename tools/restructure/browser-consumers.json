@@ -31,6 +31,40 @@
           "cssId"
         ]
       }
+    },
+    "server/js/dashboard-pages.js": {
+      "server/test/pages-logic.test.mjs": {
+        "how": "Loads the file as a Node module for the functions it exports, which use nothing else of the file, so they stay in it.",
+        "keeps": [
+          "DASHBOARD_PAGES_MAX",
+          "clampPageName",
+          "resolveRenamedPageName",
+          "normalizePagesList",
+          "reassignOrphanWidgetPages",
+          "promoteSurvivingPrimaries",
+          "movePageInList",
+          "removePageInstances"
+        ]
+      }
+    },
+    "server/js/dashboard-tabgroups.js": {
+      "server/test/tabgroups-logic.test.mjs": {
+        "how": "Loads the file as a Node module for the functions it exports, which use only each other and three small helpers, so all of them stay in it.",
+        "keeps": [
+          "rectsOverlapRatio",
+          "widgetGroupOf",
+          "TAB_COLOR_VARS",
+          "_readableOn",
+          "tabColorVars",
+          "_makeGroupId",
+          "mergeWidgets",
+          "extractMember",
+          "reorderMembers",
+          "addAsTab"
+        ]
+      },
+      "server/test/tile-tab-colors.test.mjs": "Loads the file as a Node module for tabColorVars, which stays in it (see tabgroups-logic.test.mjs).",
+      "server/test/grid-logic.test.mjs": "Loads the file as a Node module for functions that stay in it (see tabgroups-logic.test.mjs)."
     }
   }
 }

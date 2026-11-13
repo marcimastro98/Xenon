@@ -2,7 +2,7 @@
 // mapping, the server's pruning, the style editor's Tabs pane and its strings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';

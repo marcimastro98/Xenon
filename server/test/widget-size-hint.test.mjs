@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +15,7 @@ const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const g = require('../js/dashboard-grid.js');
 const SdkWidgets = require('../sdk-widgets.js');
-const read = (p) => fs.readFileSync(path.join(HERE, '..', p), 'utf8');
+const read = (p) => readFileSync(path.join(HERE, '..', p), 'utf8');
 
 const EDGE = { rows: 8, colPx: 2560 / 24, pageH: 650 };
 const MONITOR = { rows: 8, colPx: 1920 / 24, pageH: 980 };

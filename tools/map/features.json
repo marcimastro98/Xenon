@@ -832,6 +832,8 @@
         "server/tile-settings.js",
         "server/js/main.js",
         "server/js/dashboard-*.js",
+        "server/js/dashboard-tabgroups/**",
+        "server/js/dashboard-pages/**",
         "server/js/tab-switcher.js",
         "server/js/tile-controls.js",
         "server/js/tile-tab-memory.js",
