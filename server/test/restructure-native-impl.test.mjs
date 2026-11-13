@@ -145,3 +145,11 @@ test('pub(super) on a moved item keeps meaning the module above the cut file', (
   assert.match(trim, /^use crate::inspect;$/m);
   assert.deepEqual(compareGroups({ 'src/win/edit.rs': text }, files).problems, []);
 });
+
+test('a name the parent has once per system, imported or written, is taken from it on every system', () => {
+  const text = ['#[cfg(windows)]', 'use win::Backend;', '', '#[cfg(not(windows))]', 'struct Backend;', '', 'fn serve() {', '    let (bar, _n) = (Backend, 1);', '    let _ = bar;', '}', ''].join('\n');
+  const plan = { origin: 'src/main.rs', parts: [{ file: 'src/serve.rs', about: 'Answers.', items: ['fn serve'] }] };
+  const serve = splitRust({ origin: plan.origin, text, plan, otherWords: new Set() }).files['src/serve.rs'];
+  assert.match(serve, /^use crate::Backend;$/m);
+  assert.doesNotMatch(serve, /cfg/);
+});

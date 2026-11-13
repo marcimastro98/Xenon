@@ -126,7 +126,9 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       if (mine.has(name) && found.length > 0 && f >= 0 && !callsAnother(f, name)) continue;
       for (const g of new Set(found.map((def) => def.file))) {
         const variants = found.filter((def) => def.file === g);
-        const cfgs = coversEverything(variants.map((def) => def.item.cfg)) ? [[]] : variants.map((def) => def.item.cfg);
+        // (a name the parent also imports, one system each, is there on every system)
+        const everywhere = coversEverything(variants.map((def) => def.item.cfg)) || (g < 0 && leaves.some(({ leaf }) => boundName(leaf) === name));
+        const cfgs = everywhere ? [[]] : variants.map((def) => def.item.cfg);
         const vis = variants[0].macro ? '' : variants[0].item.vis;
         if (g >= 0 && variants[0].macro) throw new Error(`${name} is declared inside a macro in ${plan.parts[g].file} and used from another file: leave that macro in ${origin}.`);
         if (g >= 0 && !vis) widened.add(name);
@@ -240,7 +242,8 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
     };
     const kept = own.filter(stays);
     if (kept.length === own.length && kept.every((entry) => cfgOf(entry).length === item.cfg.length)) return text.slice(item.lead, item.end);
-    if (kept.length === 0) return '';
+    // (an import that goes leaves the empty line it stood under, so the blocks stay apart)
+    if (kept.length === 0) return /^[ \t]*\n/.test(text.slice(item.lead, item.start)) ? '\n' : '';
     const onlyCfg = text.slice(item.start, item.visAt).replace(/#\s*\[\s*cfg\s*\([^\n]*\)\s*\]\s*/g, '').trim() === '';
     if (!onlyCfg) { notes.push(`${origin}: the use at line ${item.line} has its own attributes and was left whole.`); return text.slice(item.lead, item.end); }
     return text.slice(item.lead, item.start) + writeUses(kept.map((entry) => ({ cfg: cfgOf(entry), vis: item.vis, leaf: entry.leaf })));

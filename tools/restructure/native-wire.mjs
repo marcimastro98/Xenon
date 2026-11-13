@@ -32,8 +32,11 @@ export function wordsOf(text, tokens, item) {
   const bare = new Set();
   let before = '';
   let beforeTwo = '';
+  let patternEnd = -1;
   for (let k = c.next(lo); k < hi; k = c.next(k + 1)) {
     const w = c.word(k);
+    // `let (width, height) = ...` declares both names.
+    if (before === 'let' && c.str(k) === '(') patternEnd = matching(text, tokens, k);
     // A constant written inside a format string: format!("{NAME}").
     if (tokens[k].kind === 'string') for (const named of c.str(k).matchAll(/\{([A-Z_][A-Z0-9_]*)[}:]/g)) { words.all.add(named[1]); bare.add(named[1]); }
     if (w && !/^\d/.test(w)) {
@@ -47,6 +50,7 @@ export function wordsOf(text, tokens, item) {
       else if (before === ':' && beforeTwo === ':') words.pathed.add(w);
       else if (doubleColon || c.str(after) === '(' || c.str(after) === '!') words.used.add(w);
       else if (/^[A-Z]/.test(w)) bare.add(w);
+      else if (k < patternEnd) words.bound.add(w);
       else if (colon || BINDERS.has(before) || (before === '|' && beforeTwo !== '|')) words.bound.add(w);
       else bare.add(w);
     }
