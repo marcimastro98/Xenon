@@ -225,9 +225,7 @@ const {
   MEDIA_CROSSCHECK_MAX_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS, SOUND_ROWS_REUSE_MS,
 } = require('./media/timings.js');
 
-const {
-  sanitizeMediaSourcePreference, liveMediaSnapshot, _sameStickyTrack,
-} = require('./media/snapshot.js');
+const { sanitizeMediaSourcePreference, liveMediaSnapshot } = require('./media/snapshot.js');
 
 const { _sleep, readObsInstallDir, launchObs } = require('./streaming/obs-launch.js');
 
@@ -701,50 +699,13 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
 const {
-  UPDATE_REPO, UPDATE_CHECK_TTL, UPDATE_CHECK_RETRY, UPDATE_NOTES_MAX, AUTO_UPDATE_ASSUME_IDLE,
-  HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
+  AUTO_UPDATE_ASSUME_IDLE, HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
 } = require('./updates/check-values.js');
-const { resolveReleaseMedia } = require('./updates/release-media.js');
-let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
-const { parseSemver, semverNewer } = require('./semver');
+const { semverNewer } = require('./semver');
 const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
-// Probe the latest GitHub release. `force` bypasses the cache (the manual
-// "check now" button); otherwise a successful probe is reused for a day.
-async function checkLatestRelease(force) {
-  const now = Date.now();
-  const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
-  if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
-  try {
-    const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
-      headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(6000),
-    });
-    if (res.ok) {
-      const rel = await res.json();
-      const tag = String((rel && rel.tag_name) || '');
-      if (parseSemver(tag)) {
-        _updateCache = {
-          at: now, ok: true, latest: tag.replace(/^v/i, ''), tag,
-          url: String((rel && rel.html_url) || `https://github.com/${UPDATE_REPO}/releases/latest`),
-          notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
-          name: String((rel && rel.name) || tag),
-          publishedAt: String((rel && rel.published_at) || ''),
-          // Read from the WHOLE body, before the notes are capped: the marker
-          // must work wherever in the notes it was written.
-          noAuto: autoUpdateLib.hasNoAutoMarker(String((rel && rel.body) || '')),
-          mediaTypes: {},
-        };
-        // Resolve embedded screenshots/videos (GitHub-hosted only). Best-effort —
-        // a failed probe simply means those items render as links in the modal.
-        try { _updateCache.mediaTypes = await resolveReleaseMedia(_updateCache.notes); } catch { /* keep {} */ }
-      }
-    }
-  } catch { /* offline / rate-limited — retry next window */ }
-  return _updateCache;
-}
+const { checkLatestRelease } = require('./updates/latest-release.js');
 
 // ── What's New (curated highlights for the RUNNING version) ─────────────────
 // Distinct from the update-available modal (which nags users who are BEHIND with
@@ -1426,7 +1387,7 @@ function _hotkeyBindings() {
   // The Deck keys' shortcuts come last: they never push a search or page
   // shortcut out of the table, and one on the same combo is refused.
   const base = out.filter((b) => b.combo);
-  const table = base.concat(DeckShortcuts.planBindings(base, _deckShortcuts.list, MAX_HOTKEY_BINDINGS).bindings);
+  const table = base.concat(DeckShortcuts.planBindings(base, shortcutState.found.list, MAX_HOTKEY_BINDINGS).bindings);
   // The widgets' keys next, by the same rule: never on a combo already taken.
   table.push(..._widgetKeys.bindings(table.map((b) => b.combo), MAX_HOTKEY_BINDINGS - table.length));
   // The overlay's ready-made shortcut goes last, so a combo the user chose
@@ -1446,32 +1407,6 @@ function _hotkeyBindings() {
     table.push({ slot: 'menu', combo: menu });
   }
   return table;
-}
-
-// Who already uses `combo` among the shortcuts the user set (search, pages,
-// Deck keys, the replay, the overlay, the menu), `except` the one being set;
-// '' when nobody. Set ones count even while not held, so turning the replay or
-// the overlay back on never finds its combo taken.
-function _comboHeldBy(combo, except) {
-  const want = DeckShortcuts.normalizeShortcut(combo);
-  if (!want) return '';
-  const same = (c) => DeckShortcuts.normalizeShortcut(c) === want;
-  const hs = hub.settings || {};
-  const search = hs.searchSettings || {};
-  if (search.hotkeyEnabled === true && same(search.hotkeyCombo || 'alt+space')) return 'search';
-  if ((Array.isArray(hs.pageHotkeys) ? hs.pageHotkeys : []).some((b) => b && same(b.combo))) return 'page';
-  const key = _deckShortcuts.list.find((k) => k.keyId !== except && same(k.combo));
-  if (key) return key.title || 'deck';
-  const layers = LayersModel.normalize(hs.layers);
-  // A widget's key: `except` is a widget id when its own box is being set.
-  const mine = layers.widgets.find((w) => w.id === except);
-  const ownBox = (w) => w.id === except || !!(mine && mine.group && w.group === mine.group);
-  if (layers.widgets.some((w) => w.key && !ownBox(w) && same(w.key.combo))) return 'widget';
-  if (except !== 'overlay' && layers.overlayKey !== 'off' && same(layers.overlayKey)) return 'overlay';
-  if (except !== 'menu' && layers.menuKey !== 'off' && same(layers.menuKey)) return 'menu';
-  const o = captureOptions();
-  if (except !== 'replay' && o.replayKey !== 'off' && same(o.replayKey)) return 'replay';
-  return '';
 }
 
 // The Xenon menu's combo, or '' while no native shell can draw the menu over
@@ -1507,29 +1442,13 @@ function _overlayHotkey() {
   return DeckShortcuts.normalizeShortcut(layers.overlayKey);
 }
 
-// The shortcuts on Deck keys (js/deck-shortcuts.js), refreshed on every Deck
-// write and at boot. The helper is restarted only when a combo or its key moved.
-let _deckShortcuts = { list: [], duplicates: [] };
+const { shortcutState } = require('./deck/shortcut-state.js');
 function _refreshDeckShortcuts(configs) {
   const next = DeckShortcuts.collectShortcuts(configs);
   const sig = (s) => s.list.map((x) => x.keyId + '=' + x.combo).join('|');
-  const changed = sig(next) !== sig(_deckShortcuts);
-  _deckShortcuts = next;
+  const changed = sig(next) !== sig(shortcutState.found);
+  shortcutState.found = next;
   if (changed && hub.settings) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
-}
-
-// Why each Deck shortcut is or is not held, for the key editor: the helper's
-// own verdict when it got one, else the reason it never reached the helper.
-function _deckShortcutStatus() {
-  const table = _hotkey.bindings || [];
-  const refused = DeckShortcuts.planBindings(table.filter((b) => !b.keyId), _deckShortcuts.list, MAX_HOTKEY_BINDINGS).refused;
-  const out = _deckShortcuts.list.map((s) => {
-    const bound = table.find((b) => b.keyId === s.keyId);
-    const state = bound ? ((_hotkey.slots || {})[bound.slot] || _hotkey.state || 'off') : (refused[s.keyId] || 'off');
-    return { keyId: s.keyId, combo: s.combo, title: s.title, state };
-  });
-  for (const d of _deckShortcuts.duplicates) out.push({ keyId: d.keyId, combo: d.combo, title: d.title, state: 'duplicate' });
-  return out;
 }
 
 const { routePageHotkey, saysOverExclusive } = require('./deck/hotkey-routes.js');
@@ -1613,18 +1532,17 @@ function routeSpotlightHotkey() {
   _spotlightClaimTimer.unref();
 }
 
-let _hotkeyRetryTimer = null;
 function _scheduleHotkeyRetry(ms) {
-  if (_hotkeyRetryTimer) return;   // cancelled in _gracefulShutdown
+  if (shortcutState.retryTimer) return;   // cancelled in _gracefulShutdown
   const pause = Math.min(HOTKEY_RETRY_MS * (2 ** _hotkey.failures), HOTKEY_RETRY_MAX_MS);
-  _hotkeyRetryTimer = setTimeout(() => {
-    _hotkeyRetryTimer = null;
+  shortcutState.retryTimer = setTimeout(() => {
+    shortcutState.retryTimer = null;
     try { refreshHotkeyListener(); } catch { /* next save will retry */ }
   }, Math.max(1000, ms || pause));
-  _hotkeyRetryTimer.unref();
+  shortcutState.retryTimer.unref();
 }
 function _cancelHotkeyRetry() {
-  if (_hotkeyRetryTimer) { clearTimeout(_hotkeyRetryTimer); _hotkeyRetryTimer = null; }
+  if (shortcutState.retryTimer) { clearTimeout(shortcutState.retryTimer); shortcutState.retryTimer = null; }
 }
 
 // On Linux the shortcut is not a process we own but an entry in the desktop's
@@ -1789,70 +1707,10 @@ function refreshHotkeyListener() {
   proc.unref();
 }
 
-// The roots this machine can actually open, from whatever is saved.
-//
-// Roots are stored in whichever shape the machine that saved them uses, and
-// normalizeSearchSettings deliberately keeps BOTH shapes so a config carried
-// between a PC and a Mac is never destroyed. The consequence is that a saved
-// list can be non-empty and still contain nothing this host can open: the
-// dashboard's own browser-side default wrote "C:\" on every Mac and Linux
-// install, and no POSIX walk can start there. Search then ran with zero roots
-// and reported itself off, and the disk widget — which addresses roots BY INDEX
-// into this same list — resolved root 0 to "C:\" and drew an empty 0-byte disk.
-// Both while Settings displayed a configured folder, so there was nothing the
-// user could do about either.
-//
-// Every consumer must therefore resolve through here, or two of them disagree
-// about which disk is being talked about. The saved list is left untouched, so
-// a config shared with a Windows machine still works there.
-//
-// Three distinct states, and collapsing any two of them breaks something:
-//   absent      nobody has chosen yet          → this platform's default
-//   empty       the user switched it off       → stays off
-//   unusable    saved elsewhere, non-empty     → this platform's default
-// macOS only: is Full Disk Access in force right now? Cached, because
-// usableIndexRoots() is synchronous and on the settings path; refreshed by the
-// timer below, which is also what makes granting the permission take effect
-// without restarting anything. Every other platform is granted by definition —
-// there is no TCC to withhold anything.
-let _macFdaGranted = true;
-// The roots we actually withheld, so the UI can say WHY the index is off
-// instead of leaving the user with an empty map and no explanation.
-let _macFdaBlockedRoots = [];
+const { macDiskAccess } = require('./search/mac-disk-access.js');
 let _macFdaTimer = null;
 
-const { macRootReachesHome } = require('./search/mac-home-roots.js');
-
-function usableIndexRoots(saved) {
-  const platformDefault = POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir();
-  let roots;
-  if (!Array.isArray(saved)) roots = [platformDefault];
-  else if (!saved.length) roots = [];
-  else {
-    const usable = saved.filter((r) => (process.platform === 'win32'
-      ? /^[A-Za-z]:\\/.test(String(r))
-      : String(r).startsWith('/')));
-    roots = usable.length ? usable : [platformDefault];
-  }
-  // The macOS gate, applied AFTER the default is resolved — the default IS the
-  // home directory here, so gating before it would hand the home root straight
-  // back. Without Full Disk Access, walking the home means Desktop, Documents,
-  // Downloads, Pictures and Music, and macOS raises a permission dialog for
-  // each, on every walk, forever. Those folders are unreadable either way; the
-  // only thing the walk adds is the prompts.
-  //
-  // A root the user chose explicitly is left alone even when it is protected:
-  // they pointed Xenon at that folder, so one dialog for that one folder is an
-  // answer to a question they asked. What is dropped is only the root that
-  // sweeps up folders nobody asked about.
-  if (process.platform === 'darwin' && !_macFdaGranted) {
-    const kept = roots.filter((r) => !macRootReachesHome(r));
-    _macFdaBlockedRoots = roots.filter((r) => macRootReachesHome(r));
-    return kept;
-  }
-  _macFdaBlockedRoots = [];
-  return roots;
-}
+const { usableIndexRoots } = require('./search/index-roots.js');
 
 // Ask macOS whether the grant still holds, and re-point the index when the
 // answer changes. It CHANGES on its own: the grant is bound to the app's code
@@ -1866,8 +1724,8 @@ async function refreshMacFdaState() {
   if (!nativeCollectors || typeof nativeCollectors.fullDiskAccess !== 'function') return;
   let granted = true;
   try { granted = await nativeCollectors.fullDiskAccess(); } catch { return; }
-  if (granted === _macFdaGranted) return;
-  _macFdaGranted = granted;
+  if (granted === macDiskAccess.granted) return;
+  macDiskAccess.granted = granted;
   refreshLivingIndex();
 }
 
@@ -2285,93 +2143,11 @@ const {
   sdkHandlerDispatch, sdkHandlerAck, sdkHandlerShutdown,
 } = require('./widget-sdk/handler-calls.js');
 
-// ── SDK deck states relay ────────────────────────────────────────────────────
-// Widget-published deck states live in the DASHBOARD page (postMessage bridge in
-// custom-widget.js) — but the Virtual Deck popup hosts no widget frames, so the
-// host page mirrors each change here (POST /sdk/deck-states) and the server
-// re-broadcasts it as the `sdk_states` SSE event + seeds it on connect. Values
-// are re-validated and re-built key-by-key (never spread), bounded, and carry
-// only projected state — no widget code, no secrets. In-memory only.
-// 256 = the true client-side bound (32 packages × 8 declared states); the
-// per-value cap MUST match onBridgeState's 200-char cap in custom-widget.js or
-// a value-equality sdkState binding matches on the dashboard but not in the popup.
-const SDK_DECK_STATES_MAX = 256;
-// ── Script states: a Deck key that mirrors something Xenon cannot see ───────
-// Deck keys light up from sixteen things Xenon knows about — the mic, OBS, Home
-// Assistant, a widget's published state. What they could not do is mirror
-// anything ELSE on the machine: asked on Discord by someone with an AppleScript
-// that swaps between two audio outputs, who wanted the key to carry a different
-// icon per output. The key already supports two faces (deck-model.js
-// `stateStyle`); what was missing was something to tell it which side it is on.
-//
-// So: a named value any local script can set, and any key can bind to. The
-// AppleScript ends with one curl and the icon follows.
-//
-// A SEPARATE store from the SDK one on purpose. /sdk/deck-states is a full-map
-// MIRROR of what the widgets in the dashboard page are publishing — it replaces
-// the map on every relay — so a script writing into it would erase every widget
-// state and be erased right back on the next relay. These merge instead, and
-// nothing else writes here.
-const SCRIPT_STATES_MAX = 64;
-const SCRIPT_STATE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
-const _scriptStates = { states: {} };
-let _scriptStatesLast = '';
 
-// Set or clear one named value. A null/absent value REMOVES it, so a script can
-// tidy up after itself rather than leaving a key lit forever. Returns the reason
-// it refused, or '' on success.
-function setScriptState(name, value) {
-  const key = String(name == null ? '' : name).trim();
-  if (!SCRIPT_STATE_NAME_RE.test(key)) return 'bad_name';
-  if (value == null || value === '') {
-    if (!Object.hasOwn(_scriptStates.states, key)) return '';
-    delete _scriptStates.states[key];
-  } else {
-    // A new name past the cap is refused; an existing one may always be updated,
-    // or a full map would freeze at whatever happened to fill it first.
-    if (!Object.hasOwn(_scriptStates.states, key)
-      && Object.keys(_scriptStates.states).length >= SCRIPT_STATES_MAX) return 'too_many';
-    _scriptStates.states[key] = String(value).slice(0, 200);
-  }
-  const sig = JSON.stringify(_scriptStates);
-  if (sig !== _scriptStatesLast) {
-    _scriptStatesLast = sig;
-    broadcastSSE('script_states', _scriptStates);
-  }
-  return '';
-}
+const { _sdkDeckStates, acceptSdkDeckStates } = require('./widget-sdk/deck-states.js');
 
-const _sdkDeckStates = { states: {}, meta: {} };
-let _sdkDeckStatesLast = '';   // change guard: identical relays don't rebroadcast
-function acceptSdkDeckStates(body) {
-  if (!body || typeof body !== 'object') return false;
-  const states = {};
-  const meta = {};
-  let count = 0;
-  const rawStates = (body.states && typeof body.states === 'object') ? body.states : {};
-  const rawMeta = (body.meta && typeof body.meta === 'object') ? body.meta : {};
-  for (const key of Object.keys(rawStates)) {
-    if (count >= SDK_DECK_STATES_MAX) break;
-    if (typeof key !== 'string' || !key || key.length > 120) continue;
-    count++;
-    states[key] = String(rawStates[key] == null ? '' : rawStates[key]).slice(0, 200);
-    const m = rawMeta[key];
-    if (m && typeof m === 'object') {
-      const clean = {};
-      if (typeof m.label === 'string' && m.label) clean.label = m.label.slice(0, 24);
-      if (typeof m.icon === 'string' && m.icon) clean.icon = m.icon.slice(0, 8);
-      if (typeof m.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(m.color.trim())) clean.color = m.color.trim();
-      if (Object.keys(clean).length) meta[key] = clean;
-    }
-  }
-  _sdkDeckStates.states = states;
-  _sdkDeckStates.meta = meta;
-  const sig = JSON.stringify(_sdkDeckStates);
-  if (sig === _sdkDeckStatesLast) return false;
-  _sdkDeckStatesLast = sig;
-  broadcastSSE('sdk_states', _sdkDeckStates);
-  return true;
-}
+const { _scriptStates, setScriptState } = require('./deck/script-states.js');
+
 
 // THE single writer for widget-package installs: POST /sdk/install and the AI's
 // create_widget tool both land here, so validateWidgetPayload stays the one
@@ -3063,7 +2839,7 @@ function runMediaHostRequest(action, timeout = 8000, position) {
     }, timeout);
     _mediaHost.pending.set(id, { resolve, reject, timer });
     try {
-      const request = { id, action, preferredSource: mediaPreferredSource || '' };
+      const request = { id, action, preferredSource: mediaChoice.source || '' };
       if (position !== undefined) request.position = position;
       proc.stdin.write(JSON.stringify(request) + '\n');
     } catch (e) {
@@ -3261,7 +3037,7 @@ setInterval(_sweepStaleStt, 60000).unref();
 
 const { _pcmRmsStats, _dbFromRms } = require('./wav/pcm-loudness.js');
 
-let mediaPreferredSource = '';
+const { mediaChoice } = require('./media/preferred-source.js');
 let mediaReaderRestUntil = 0;
 let mediaListProbe = null;
 let mediaHoldUntil = 0;
@@ -3276,16 +3052,16 @@ const artworkCache = new Map();
 
 function setMediaPreferredSource(value) {
   const next = sanitizeMediaSourcePreference(value);
-  if (next !== mediaPreferredSource) {
-    mediaPreferredSource = next;
+  if (next !== mediaChoice.source) {
+    mediaChoice.source = next;
     mediaCache.updatedAt = 0;
   }
-  return mediaPreferredSource;
+  return mediaChoice.source;
 }
 
 function mediaScriptArgs(action, position) {
   const args = [action];
-  if (mediaPreferredSource || action === 'seek') args.push(mediaPreferredSource || '');
+  if (mediaChoice.source || action === 'seek') args.push(mediaChoice.source || '');
   if (action === 'seek') args.push(String(position));
   return args;
 }
@@ -4205,31 +3981,7 @@ async function _getDiskIoRaw() {
   return { ok: true, disks };
 }
 
-// Sticky per-track album art. SMTC — browser/YouTube sessions especially —
-// often reports a track's metadata a beat before (or, after an idle/reconnect,
-// briefly without) its artwork stream. The client backfills a missing cover
-// from its own `_lastThumb`, but a client that connects in that window (a
-// reload, an iCUE restart mid-playback, a second surface) has an empty
-// `_lastThumb` and shows the "no media" placeholder even though the cover was
-// available seconds earlier. Remember the last non-empty thumbnail keyed by
-// track and backfill it whenever a later read of the SAME track comes back
-// without one, so every consumer (SSE connect-seed, GET /media, the 2s
-// broadcast, lockscreen, mini-player, deck, SDK relay) keeps the art through a
-// transient null read or a reconnect. Keyed by track, so a genuine track change
-// (new key) never inherits the previous cover — it clears to the placeholder
-// until the new track's artwork arrives, exactly like the client's `_lastThumb`.
-let _lastGoodThumb = { title: '', artist: '', album: '', value: '' };
-function applyStickyThumb(data) {
-  if (!data || !data.active) return data;
-  const title = (data && data.title) || '';
-  if (!title) return data; // no reliable track identity → don't stick
-  if (data.thumbnail) {
-    _lastGoodThumb = { title, artist: data.artist || '', album: data.album || '', value: data.thumbnail };
-  } else if (_lastGoodThumb.value && _sameStickyTrack(data, _lastGoodThumb)) {
-    data.thumbnail = _lastGoodThumb.value;
-  }
-  return data;
-}
+const { applyStickyThumb, mediaForBroadcast } = require('./media/cover-memory.js');
 
 async function getMediaInfo(force = false) {
   if (!force && Date.now() < mediaHoldUntil) return mediaCache.data;
@@ -4282,29 +4034,6 @@ async function mediaStandIn(error) {
   if (Date.now() < mediaHoldUntil) return mediaCache.data;
   mediaCache = { data: fallback, updatedAt: Date.now() };
   return fallback;
-}
-
-// The album-art thumbnail is a ~50-100KB base64 data URI. Re-sending it on every
-// 2s 'media' broadcast is pure waste once the client holds it: the client caches
-// the last thumbnail per track (media.js `_lastThumb`) and reuses it whenever a
-// payload omits one for the same track. So strip the thumbnail from BROADCASTS
-// while the track is unchanged — the SSE connect-seed and GET /media still carry
-// it in full so a fresh or reconnecting client always gets the art. The key
-// mirrors the client's `trackKey` so we re-send whenever the client would clear.
-let _lastBroadcastThumbKey = null;
-function mediaForBroadcast(info) {
-  if (!info) return info;
-  if (!info.thumbnail) {
-    if (!info.active) _lastBroadcastThumbKey = null; // reset so the next track re-sends
-    return info;
-  }
-  const key = `${info.title || ''}|${info.artist || info.album || ''}`;
-  if (key === _lastBroadcastThumbKey) {
-    const { thumbnail, ...rest } = info;             // same track → drop the heavy payload
-    return rest;
-  }
-  _lastBroadcastThumbKey = key;
-  return info;
 }
 
 function readSoundingRows() {
@@ -4938,7 +4667,7 @@ async function refreshObsWatch() {
 let haStopWatch = null;
 let haNotifyTimer = null;
 const {
-  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_ENTITY_ID_RE, UNIFI_COOLDOWN_MAX,
+  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_ENTITY_ID_RE,
 } = require('./smart-home/limits.js');
 
 const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
@@ -5176,42 +4905,14 @@ function refreshVoicemeeterWatch() {
 // switch on the client). Idle-closes otherwise, mirroring OBS/HA/Wave Link. The
 // per-camera+kind cooldown lives here so one person lingering can't spam the screen.
 let unifiEventsStopWatch = null;
-let _unifiNotifyConfigSig = null;
-let _unifiNotifySnapshot = null;          // { enabled, types, cooldownMs } — refreshed by refreshUnifiEventsWatch
-const _unifiNotifyCooldown = new Map();   // "camId|kind" -> last-broadcast ms
-
-// Handle one decoded detection: fan its kinds out to individual toasts, each gated
-// by the user's per-kind toggle and the per-camera+kind cooldown. Reads the notify
-// snapshot cached by refreshUnifiEventsWatch (which runs on every settings save and
-// SSE membership change) — a busy camera must not cost a settings read per event.
-function _onUnifiDetection(det) {
-  if (!det || !det.camId || !Array.isArray(det.kinds)) return;
-  const notify = _unifiNotifySnapshot;
-  if (!notify || notify.enabled !== true) return;
-  const types = notify.types;
-  const cooldownMs = notify.cooldownMs;
-  const now = Date.now();
-  for (const kind of det.kinds) {
-    if (types[kind] !== true) continue;
-    const key = det.camId + '|' + kind;
-    const last = _unifiNotifyCooldown.get(key) || 0;
-    if (now - last < cooldownMs) continue;
-    _unifiNotifyCooldown.set(key, now);
-    // Bound the cooldown map: drop the oldest entries if it grows too large.
-    if (_unifiNotifyCooldown.size > UNIFI_COOLDOWN_MAX) {
-      const drop = _unifiNotifyCooldown.size - UNIFI_COOLDOWN_MAX;
-      let i = 0;
-      for (const k of _unifiNotifyCooldown.keys()) { if (i++ >= drop) break; _unifiNotifyCooldown.delete(k); }
-    }
-    broadcastSSE('unifi_event', { camId: det.camId, name: det.name || det.camId, kind, at: det.at || now });
-  }
-}
+const { unifiNotify } = require('./smart-home/unifi-notify-state.js');
+const { _unifiNotifyCooldown, _onUnifiDetection } = require('./smart-home/unifi-detections.js');
 
 async function refreshUnifiEventsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const u = (s && s.unifi) || {};
   const notify = u.notify || {};
-  _unifiNotifySnapshot = {
+  unifiNotify.snapshot = {
     enabled: notify.enabled === true,
     types: (notify.types && typeof notify.types === 'object') ? notify.types : {},
     cooldownMs: Math.max(5, Math.min(600, Number(notify.cooldownSec) || 45)) * 1000,
@@ -5226,10 +4927,10 @@ async function refreshUnifiEventsWatch() {
   } else if (!want && unifiEventsStopWatch) {
     unifiEventsStopWatch(); unifiEventsStopWatch = null;
     _unifiNotifyCooldown.clear();
-  } else if (want && unifiEventsStopWatch && sig !== _unifiNotifyConfigSig) {
+  } else if (want && unifiEventsStopWatch && sig !== unifiNotify.configSig) {
     unifiEventsStopWatch(); unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
   }
-  _unifiNotifyConfigSig = sig;
+  unifiNotify.configSig = sig;
 }
 
 let obsLaunching = false;
@@ -7483,34 +7184,6 @@ async function runAiTool(fnName, fnArgs, deps) {
 }
 
 
-// Build a short two-note chime WAV in memory (sine + decay envelope).
-let _chimeCache = {};
-
-const _lastChimeAt = {};
-function chimeRequested(kind, now = Date.now()) {
-  const k = chimeKind(kind);
-  if (now - (_lastChimeAt[k] || 0) < CHIME_COALESCE_MS) return false;
-  _lastChimeAt[k] = now;
-  playChimeOnServer(k);
-  return true;
-}
-
-function playChimeOnServer(kind) {
-  const k = chimeKind(kind);
-  if (!_chimeCache[k]) {
-    try { _chimeCache[k] = _buildChimeWav(k); } catch { return; }
-  }
-  const wavPath = privateTmpFile(`xenon-chime-${k}-`, '.wav');
-  fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
-    const proc = _spawnWavPlayer(wavPath);
-    proc.on('error', () => {});
-    // On Windows the player one-liner removes the file itself; afplay/aplay do
-    // not, and this is the one caller that never unlinks (_playWavFile does).
-    if (process.platform !== 'win32') {
-      proc.on('exit', () => { fs.promises.unlink(wavPath).catch(() => {}); });
-    }
-  }).catch(() => {});
-}
 
 function getFfmpegPath() {
   if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
@@ -8929,9 +8602,9 @@ async function replayDiskInfo(o) {
   return out;
 }
 
-function captureOptions() {
-  return CaptureSettings.normalizeCaptureSettings(hub.settings && hub.settings.capture);
-}
+const { captureOptions } = require('./screens/capture-options.js');
+
+const { _comboHeldBy, _deckShortcutStatus } = require('./deck/shortcut-questions.js');
 
 // Per-app volume: macOS has no per-process mixer (docs/MACOS_PORTABILITY.md).
 async function _appAudioAvailable() {
@@ -9004,7 +8677,7 @@ async function _xenonMenuState() {
     widgetKeys: await _sdkWidgetKeys().catch(() => []),
     searchKey: { on: searchCfg.hotkeyEnabled === true, combo: String(searchCfg.hotkeyCombo || 'alt+space') },
     pageKeys,
-    deck: _deckShortcuts.list.map((x) => ({ keyId: x.keyId, instance: x.instance, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
+    deck: shortcutState.found.list.map((x) => ({ keyId: x.keyId, instance: x.instance, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
     usageMode: UsageMode.normalize(hs.usageMode) || '',
     scene: { ...ScreenSceneModel.settingsOf(hs), id: (hs.ambientMode || {}).sceneId, parts: normalizeLockWidgets(hs.lockWidgets), canvases: hs.ambientScenes, themes: hs.customThemes, waiting: require('./capabilities/desktop-scene').scenesWaiting(hs, catalog.scenes), dashboard: layersHost.dashboard() },
     alertsOn: !(hs.notifications && hs.notifications.onScreen === false),
@@ -10821,41 +10494,11 @@ setInterval(() => {
   refreshFootball().catch(() => {});
 }, 15000).unref();
 
-// ── News ─────────────────────────────────────────────────────────────────────
-// In-memory only. Headlines from the followed feeds are pulled on a client-gated
-// timer, then pushed over SSE ('news'). Low cadence (feeds don't change fast).
-let _newsCache = { items: [], refreshedAt: 0 };
-let _newsRefreshing = false;
-let _newsLastFetch = 0;
-let _newsSig = null;
+const { newsState } = require('./ticker/news-state.js');
 
-function _pushNews() {
-  const sig = JSON.stringify(_newsCache.items);
-  if (sig === _newsSig) return;
-  _newsSig = sig;
-  broadcastSSE('news', _newsCache);
-}
+const { refreshNews } = require('./ticker/news-refresh.js');
 const _newsSearchCache = new Map(); // bounded LRU: `query` → { at, results }
 
-
-async function refreshNews() {
-  if (_newsRefreshing) return _newsCache;
-  _newsLastFetch = Date.now();
-  const cfg = _newsSettings();
-  if (!Array.isArray(cfg.feeds) || !cfg.feeds.length) {
-    _newsCache = { items: [], refreshedAt: Date.now() };
-    _pushNews();
-    return _newsCache;
-  }
-  _newsRefreshing = true;
-  try {
-    const data = await news.fetchHeadlines(cfg.feeds, _newsOpts());
-    if (data.items.length) _newsCache = { items: data.items, refreshedAt: Date.now() };
-    _pushNews();
-  } catch { /* keep last good cache */ }
-  finally { _newsRefreshing = false; }
-  return _newsCache;
-}
 
 // Display-only feed: also gated on the widget/ticker actually using it, so a
 // user who never added the News widget pays zero network for it.
@@ -10864,7 +10507,7 @@ setInterval(() => {
   if (sseClients.size === 0) return;
   if (!_feedWidgetInUse('news', 'news')) return;
   const period = Math.max(120, Number(_newsSettings().refreshSec) || 600) * 1000;
-  if (Date.now() - _newsLastFetch < period) return;
+  if (Date.now() - newsState.lastFetch < period) return;
   refreshNews().catch(() => {});
 }, 30000).unref();
 
@@ -11282,7 +10925,7 @@ function _chatgptChanged(id) {
 
 const { pcmToWav } = require('./wav/pcm-to-wav.js');
 
-const { chimeKind, _buildChimeWav, CHIME_COALESCE_MS } = require('./time/chime-sound.js');
+const { chimeRequested } = require('./ai/chime-play.js');
 
 const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.js');
 
@@ -12596,8 +12239,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
   if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
   // Seed the current news headlines, then kick a refresh if empty/stale
   // (display-only feed: only when the widget/ticker actually uses it).
-  try { if (_newsCache.items.length) res.write(`event: news\ndata: ${JSON.stringify(_newsCache)}\n\n`); } catch (e) { /* ignore */ }
-  if (_feedWidgetInUse('news', 'news') && (!_newsCache.items.length || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
+  try { if (newsState.cache.items.length) res.write(`event: news\ndata: ${JSON.stringify(newsState.cache)}\n\n`); } catch (e) { /* ignore */ }
+  if (_feedWidgetInUse('news', 'news') && (!newsState.cache.items.length || Date.now() - newsState.cache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
   // Seed the current Claude Code usage aggregate, then refresh if empty/stale
   // (display-only feed: only when the widget is on the dashboard).
   try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
@@ -15033,7 +14676,7 @@ const handleRequest = async (req, res) => {
       // A Codex/ChatGPT tile added or removed, or a widget granted the stream.
       _syncCodexDemand();
       _codexChanged();
-      if (_feedWidgetInUse('news', 'news') && Date.now() - _newsCache.refreshedAt > 60 * 1000) refreshNews().catch(() => {});
+      if (_feedWidgetInUse('news', 'news') && Date.now() - newsState.cache.refreshedAt > 60 * 1000) refreshNews().catch(() => {});
       // Tell every OTHER open surface (Xeneon Edge screen / browser / native app)
       // that the settings changed, so they re-hydrate live instead of clobbering
       // this save with their own stale copy on their next edit. Clients ignore
@@ -16068,9 +15711,9 @@ const handleRequest = async (req, res) => {
       // A GET is proof someone wants the data (widget just added, ticker source
       // just enabled) — the gated timers may not have run yet, so if the cache
       // is cold, refresh in background; the SSE push repaints when it lands.
-      else if (!_newsCache.refreshedAt || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000) refreshNews().catch(() => {});
+      else if (!newsState.cache.refreshedAt || Date.now() - newsState.cache.refreshedAt > 15 * 60 * 1000) refreshNews().catch(() => {});
       const cfg = _newsSettings();
-      json({ items: _newsCache.items, refreshedAt: _newsCache.refreshedAt, feeds: cfg.feeds, tile: cfg.tile });
+      json({ items: newsState.cache.items, refreshedAt: newsState.cache.refreshedAt, feeds: cfg.feeds, tile: cfg.tile });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/news/search' && req.method === 'GET') {
@@ -18669,8 +18312,8 @@ const handleRequest = async (req, res) => {
     try {
       json({
         ...(await livingIndex.stats()),
-        fdaBlocked: process.platform === 'darwin' && !_macFdaGranted && _macFdaBlockedRoots.length > 0,
-        fdaRoots: _macFdaBlockedRoots.slice(0, 8),
+        fdaBlocked: process.platform === 'darwin' && !macDiskAccess.granted && macDiskAccess.blockedRoots.length > 0,
+        fdaRoots: macDiskAccess.blockedRoots.slice(0, 8),
       });
     } catch (e) { err500(e.message); }
 
@@ -18873,7 +18516,7 @@ const handleRequest = async (req, res) => {
     try {
       json({
         ...(await diskSpace.status()),
-        fdaBlocked: process.platform === 'darwin' && !_macFdaGranted && _macFdaBlockedRoots.length > 0,
+        fdaBlocked: process.platform === 'darwin' && !macDiskAccess.granted && macDiskAccess.blockedRoots.length > 0,
         // The helper download exists on Windows only (POST /audio/levels/install-helper).
         canInstallHelper: process.platform === 'win32',
       });
