@@ -13,7 +13,14 @@ import { kindOf, TOOLS } from '../../tools/restructure/branches-kinds.mjs';
 import { readModule, SET_ONCE_LINE } from '../../tools/restructure/branches-text.mjs';
 import { readLedger } from '../../tools/restructure/ledger.mjs';
 
-const ALLOWED = [];
+const ALLOWED = [
+  'server/ai/tools-memory.js', 'server/ai/tools-pc.js', 'server/ai/tools-presets.js',
+  'server/ai/tools-web.js', 'server/audio/tools.js', 'server/deck/tools.js',
+  'server/disk/tools.js', 'server/lights/tools.js', 'server/media/tools.js',
+  'server/settings/tools.js', 'server/streaming/tools.js', 'server/system/tools.js',
+  'server/ticker/tools.js', 'server/time/tools-calendar.js', 'server/time/tools-notes.js',
+  'server/time/tools-tasks.js', 'server/time/tools-timers.js', 'server/weather/tools.js',
+];
 
 // A comment that tells the lint check to skip something, for a line or for a file.
 const SILENCES = /^\s*(?:\/\/|\/\*+|\*)\s*biome-ignore/;

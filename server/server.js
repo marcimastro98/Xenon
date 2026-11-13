@@ -68,8 +68,8 @@ const { createCaptures, VIDEO_KINDS, KINDS: CAPTURE_KINDS } = require('./capture
 const { createCaptureGallery } = require('./capture-gallery');
 const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
-const NotesAi = require('./notes-ai');
-const AgendaAi = require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
+require('./notes-ai');
+require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
 const TimerActions = require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
@@ -178,8 +178,6 @@ const { normalizeClaudeWidget } = require('./claude-code/settings-normalize.js')
 
 const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
 
-const { LIGHTING_ANIM_STYLES } = require('./lights/settings-normalize.js');
-
 const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
 const {
@@ -197,7 +195,7 @@ const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-r
 
 const { _nextListSeq } = require('./time/list-seq.js');
 
-const { TASK_PRIORITIES, normalizeTask, normalizeTasks } = require('./time/tasks-normalize.js');
+const { normalizeTasks } = require('./time/tasks-normalize.js');
 
 const { CALENDAR_FEED_PALETTE, normalizeEvents } = require('./time/events-normalize.js');
 
@@ -534,10 +532,10 @@ const aiLocalServer = require('./ai-local-server');
 const aiAnthropic = require('./ai-anthropic');
 const aiXenon = require('./ai-xenon-credits');
 const welcomeSparks = require('./welcome-sparks');
-const aiCreationLabels = require('./ai-creation-labels');
+require('./ai-creation-labels');
 const aiTurns = require('./ai-turns');
 const aiMyWidgets = require('./ai-my-widgets');
-const { externalizeInlineScripts } = require('./ai-widget-scripts');
+require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const { withThinking, applyThinking } = require('./ai-gemini-thinking');
@@ -611,12 +609,12 @@ const aiSurface = require('./ai-surface');  // Bit on the main screen with no da
 const AiToolGroups = require('./ai-tool-groups'); // Bit's tools: a core + groups on demand (use_tools)
 const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a reply, kept in the chat history
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
-const aiRateStore = require('./ai-rate-store');  // Bit votes on a Store entry, after a card
+require('./ai-rate-store');  // Bit votes on a Store entry, after a card
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
 const screenAlertsPage = require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
 const scenePage = require('./scene-page');  // the desktop scene: wallpaper and screensaver
-const { addConsiderations } = require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
+require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
 const versionPing = require('./version-ping');
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 const iconPacks = require('./icon-packs');
@@ -1764,8 +1762,7 @@ const {
   NOTES_FILE, NOTES_JSON, EVENTS_FILE, TASKS_FILE, TIMERS_FILE,
 } = require('./time/store-files.js');
 const {
-  NOTES_MAX, NOTE_BODY_MAX, _noteId, normalizeNotesState, notesToText, textToNotesState,
-  _notesRevOf,
+  normalizeNotesState, notesToText, textToNotesState, _notesRevOf,
 } = require('./time/notes-state.js');
 require('./actions/widget-timers');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
@@ -2278,7 +2275,7 @@ async function sendHotkeyCombo(keys) {
   return { ok: false, error: 'hotkey_unavailable' };
 }
 
-const { psEscape } = require('./ps-quote');
+require('./ps-quote');
 
 const { resolveAppIcons } = require('./programs/app-icons.js');
 
@@ -5370,8 +5367,6 @@ async function _persistLighting() {
   _lightingPersistTimer.unref();
 }
 
-const { issuePcAction } = require('./ai/pc-actions.js');
-
 // What the create_preset dry run needs from this file: the real settings
 // normalizer, the built-in tile ids with their default sizes, the SDK switch.
 function aiPresetDeps() {
@@ -5401,6 +5396,28 @@ async function executeAiTool(fnName, fnArgs, deps) {
 
 const { branches: storeCatalogToolsBranches } = require('./store-catalog/tools.js');
 const { branches: aiToolsBranches } = require('./ai/tools.js');
+const { branches: widgetSdkToolsBranches } = require('./widget-sdk/tools.js');
+const { branches: aiToolsPresetsBranches } = require('./ai/tools-presets.js');
+const { branches: aiToolsMemoryBranches } = require('./ai/tools-memory.js');
+const { branches: aiToolsPcBranches } = require('./ai/tools-pc.js');
+const { branches: aiToolsWebBranches } = require('./ai/tools-web.js');
+const { branches: deckToolsBranches } = require('./deck/tools.js');
+const { branches: systemToolsBranches } = require('./system/tools.js');
+const { branches: audioToolsBranches } = require('./audio/tools.js');
+const { branches: mediaToolsBranches } = require('./media/tools.js');
+const { branches: lightsToolsBranches } = require('./lights/tools.js');
+const { branches: weatherToolsBranches } = require('./weather/tools.js');
+const { branches: tickerToolsBranches } = require('./ticker/tools.js');
+const { branches: settingsToolsBranches } = require('./settings/tools.js');
+const { branches: timeToolsNotesBranches } = require('./time/tools-notes.js');
+const { branches: timeToolsTasksBranches } = require('./time/tools-tasks.js');
+const { branches: timeToolsCalendarBranches } = require('./time/tools-calendar.js');
+const { branches: timeToolsTimersBranches } = require('./time/tools-timers.js');
+const { branches: searchToolsBranches } = require('./search/tools.js');
+const { branches: diskToolsBranches } = require('./disk/tools.js');
+const { branches: streamingToolsBranches } = require('./streaming/tools.js');
+const { branches: smartHomeToolsBranches } = require('./smart-home/tools.js');
+const { branches: storeCatalogToolsRatingBranches } = require('./store-catalog/tools-rating.js');
 
 async function runAiTool(fnName, fnArgs, deps) {
   const {
@@ -5451,77 +5468,13 @@ async function runAiTool(fnName, fnArgs, deps) {
 
   try {
     if (fnName === 'create_widget') {
-      // AI-authored community widget: files arrive as plain text, get base64-
-      // encoded into the EXACT /sdk/install payload and pass through the same
-      // validateWidgetPayload boundary (installWidgetPayload is the ONE writer).
-      // Never grants, never assigns — the user approves permissions on first use.
-      if (!sdkFeatureEnabled()) {
-        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widgets & sharing first.' };
-      } else {
-        // A file whose content is "attached:N" becomes that attached picture.
-        const placed = aiPictures.resolvePictures(Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [], pictures);
-        const problem = aiPictures.pictureProblem(placed);
-        // An inline <script> never runs in the sandbox: it moves to a file first.
-        const files = externalizeInlineScripts(problem ? [] : placed.value).files;
-        const id = String(fnArgs.id || '');
-        const changed = files.map(f => ({ path: String(f && f.path || ''), data: f && typeof f.data === 'string' ? f.data : Buffer.from(String(f && f.content || ''), 'utf8').toString('base64') }));
-        // An id already installed is an edit, and only of the user's own work:
-        // a Store or shared widget is never overwritten by the assistant.
-        const current = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
-        const editing = !!current || trialVault.has(id);
-        let r;
-        let all = changed;
-        if (problem) {
-          r = problem;
-        } else if (editing && !widgetExportable(id)) {
-          r = { ok: false, error: 'not_yours' };
-        } else {
-          if (current) all = aiMyWidgets.mergeEdit(current, changed, fnArgs.remove);
-          // 'creator': an AI-authored widget is the user's own build, so it stays
-          // exportable/shareable — unlike packages that arrive via import.
-          r = await installWidgetPayload({ id, files: all }, 'creator');
-        }
-        if (r.ok) clientActions.push({ action: 'place_created_widget', args: { id: r.id } });
-        fnResult = r.ok
-          ? { ok: true, id: r.id, name: r.name, note: (editing ? 'Updated: the files you sent replaced theirs, the rest stayed. ' : 'Installed and put on the page the user is looking at, in the shape its manifest "size" names. ') + 'A widget already on a tile only refreshes that tile. If it needs permissions, the user approves them in the window that opens, never automatically. If critique lists fix items, correct them and call create_widget again with the same id (only the files you fix) before telling the user.' }
-          : r.error === 'not_yours'
-            ? { ok: false, error: 'not_yours', hint: 'This id is a widget from the Store or a share code, which belongs to someone else. Make a new widget with a different id.' }
-            : problem || { ok: false, error: r.error };
-        // The same checks a create_preset widget gets, on the whole package as installed.
-        const whole = r.ok ? aiMyWidgets.readOwn({ id, files: all }) : null;
-        const checked = r.ok ? aiPresets.critiqueWidget(r.id, whole && whole.ok ? whole.files : files, aiPresetDeps()) : null;
-        if (checked) {
-          fnResult.critique = provider === 'xenon'
-            ? addConsiderations(checked.critique, await aiXenon.designAdvice(DATA_DIR, checked.code))
-            : checked.critique;
-        }
-      }
+      fnResult = await widgetSdkToolsBranches['create_widget']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiPresetDeps, installWidgetPayload, sdkFeatureEnabled, trialVault, widgetExportable });
     } else if (fnName === 'my_widgets') {
-      // Read-only: the user's own widgets, and one's files to change it later.
-      const id = String(fnArgs.id || '');
-      if (!id) {
-        fnResult = { ok: true, widgets: aiMyWidgets.listOwn((await refreshSdkScan()).packages, widgetExportable) };
-      } else if (!widgetExportable(id)) {
-        fnResult = { ok: false, error: 'not_yours_or_missing', hint: 'Only widgets the user made can be read. Call my_widgets with no id for the list.' };
-      } else {
-        const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
-        fnResult = payload ? aiMyWidgets.readOwn(payload) : { ok: false, error: 'not_found' };
-      }
+      fnResult = await widgetSdkToolsBranches['my_widgets']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { refreshSdkScan, widgetExportable });
     } else if (fnName === 'preset_reference') {
-      // Read-only grounding for create_preset, built from the import's own code.
-      fnResult = aiPresets.runPresetReference(fnArgs, aiPresetDeps());
+      fnResult = await aiToolsPresetsBranches['preset_reference']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiPresetDeps });
     } else if (fnName === 'create_preset') {
-      // Builds a share code and dry-runs it through the import's normalizers.
-      // It never applies anything: on success the client opens the normal
-      // import review window with the code, exactly as marketplace_install does.
-      const out = aiPresets.runCreatePreset(fnArgs, aiPresetDeps(), pictures);
-      clientActions.push(...out.clientActions);
-      fnResult = out.fnResult;
-      // On Xenon credits the hub's design check (what reads as generated) joins
-      // the critique, so the assistant can fix it before the user looks.
-      if (provider === 'xenon' && out.code) {
-        fnResult.critique = addConsiderations(fnResult.critique, await aiXenon.designAdvice(DATA_DIR, out.code));
-      }
+      fnResult = await aiToolsPresetsBranches['create_preset']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiPresetDeps });
     } else if (capabilities.aiAction(fnName, fnArgs)) {
       // A catalog capability: the call becomes its Deck action and runs through
       // the same allowlisted registry as a key press.
@@ -5577,57 +5530,35 @@ async function runAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'marketplace_install') {
       fnResult = await storeCatalogToolsBranches['marketplace_install']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'open_virtual_deck') {
-      fnResult = await openDeckPopupWindow(String(fnArgs.instance || ''), fnArgs.topmost !== false);
+      fnResult = await deckToolsBranches['open_virtual_deck']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { openDeckPopupWindow });
     } else if (fnName === 'guardian_report') {
-      // Guardian (opt-in): deterministic local digest of the sensor history —
-      // the model turns it into a human health report. Zero extra API calls.
-      fnResult = await guardian.getDigest();
+      fnResult = await systemToolsBranches['guardian_report']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { guardian });
     } else if (fnName === 'query_sensor_history') {
-      // Guardian (opt-in): targeted per-metric history so the model can compare
-      // days / find peaks / read the trend. Deterministic, zero API cost.
-      fnResult = await guardian.queryHistory(fnArgs.metric || '');
+      fnResult = await systemToolsBranches['query_sensor_history']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { guardian });
     } else if (fnName === 'remember_fact') {
-      // Persistent memory: store a durable fact about the user (local only).
-      fnResult = await aiMemory.add(fnArgs.fact || fnArgs.text || '');
+      fnResult = await aiToolsMemoryBranches['remember_fact']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiMemory });
     } else if (fnName === 'forget_fact') {
-      fnResult = await aiMemory.remove(fnArgs.fact || fnArgs.text || fnArgs.query || '');
+      fnResult = await aiToolsMemoryBranches['forget_fact']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiMemory });
     } else if (fnName === 'toggle_mic') {
-      audioCache.muted = !audioCache.muted; setMicMute(audioCache.muted);
-      fnResult = { ok: true, muted: audioCache.muted };
+      fnResult = await audioToolsBranches['toggle_mic']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { setMicMute });
     } else if (fnName === 'mute_mic') {
-      audioCache.muted = true; setMicMute(true);
-      fnResult = { ok: true, muted: true };
+      fnResult = await audioToolsBranches['mute_mic']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { setMicMute });
     } else if (fnName === 'unmute_mic') {
-      audioCache.muted = false; setMicMute(false);
-      fnResult = { ok: true, muted: false };
+      fnResult = await audioToolsBranches['unmute_mic']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { setMicMute });
     } else if (fnName === 'media_playpause') {
-      fnResult = await mediaAction('playpause');
+      fnResult = await mediaToolsBranches['media_playpause']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { mediaAction });
     } else if (fnName === 'media_next') {
-      fnResult = await mediaAction('next');
+      fnResult = await mediaToolsBranches['media_next']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { mediaAction });
     } else if (fnName === 'media_previous') {
-      fnResult = await mediaAction('previous');
+      fnResult = await mediaToolsBranches['media_previous']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { mediaAction });
     } else if (fnName === 'set_volume') {
-      const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-      if (audioCache.speakerId) {
-        await svvExec(['/SetVolume', audioCache.speakerId, String(vol)]);
-      }
-      fnResult = { ok: true, level: vol };
+      fnResult = await audioToolsBranches['set_volume']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { svvExec });
     } else if (fnName === 'toggle_speaker_mute') {
-      if (!audioCache.speakerId) { fnResult = { error: 'audio not ready' }; }
-      else {
-        await svvExec(['/Switch', audioCache.speakerId]);
-        fnResult = { ok: true };
-      }
+      fnResult = await audioToolsBranches['toggle_speaker_mute']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { svvExec });
     } else if (fnName === 'set_mic_volume') {
-      const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-      if (!audioCache.micId) { fnResult = { error: 'mic not ready' }; }
-      else {
-        await svvExec(['/SetVolume', audioCache.micId, String(micVol)]);
-        fnResult = { ok: true, level: micVol };
-      }
+      fnResult = await audioToolsBranches['set_mic_volume']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { svvExec });
     } else if (fnName === 'lock_pc') {
-      await lockWorkstation();
-      fnResult = { ok: true };
+      fnResult = await aiToolsPcBranches['lock_pc']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (vitalsAiTools.NAMES.includes(fnName)) {
       fnResult = await vitalsAiTools.run(fnName, fnArgs, { read: () => hub.settings, update: updateVitalsSettings });
     } else if (fnName === 'capture_screen') {
@@ -5672,572 +5603,109 @@ async function runAiTool(fnName, fnArgs, deps) {
         }
       }
     } else if (fnName === 'get_system_info') {
-      fnResult = await getSystemInfo();
+      fnResult = await systemToolsBranches['get_system_info']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getSystemInfo });
     } else if (fnName === 'set_lights') {
-      const ok = lighting.setManualColor(fnArgs.color);
-      fnResult = ok ? { ok: true, color: String(fnArgs.color || '') }
-                    : { error: 'unknown_colour', hint: 'use a colour name or #RRGGBB' };
+      fnResult = await lightsToolsBranches['set_lights']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'clear_lights') {
-      lighting.clearManual();
-      fnResult = { ok: true };
+      fnResult = await lightsToolsBranches['clear_lights']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'set_effect') {
-      const eff = String(fnArgs.effect || '');
-      let ok = false;
-      if (eff === 'volume') {
-        // The volume-flash effect was removed — be honest instead of confirming a no-op.
-        fnResult = { error: 'effect_removed', hint: 'the volume flash effect no longer exists; available: temperature, musicAlbum, timer, notification, reminder' };
-      } else {
-        if (['temperature', 'musicAlbum'].includes(eff)) {
-          lighting.applyConfig({ effects: { [eff]: !!fnArgs.enabled } }); ok = true;
-        } else if (['timer', 'notification', 'reminder'].includes(eff)) {
-          lighting.applyConfig({ effects: { [eff]: { enabled: !!fnArgs.enabled } } }); ok = true;
-        }
-        if (ok) await _persistLighting();
-        fnResult = ok ? { ok: true, effect: eff, enabled: !!fnArgs.enabled }
-                      : { error: 'unknown_effect', hint: 'one of: temperature, musicAlbum, timer, notification, reminder' };
-      }
+      fnResult = await lightsToolsBranches['set_effect']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _persistLighting });
     } else if (fnName === 'set_event_effect') {
-      const eff = String(fnArgs.effect || '');
-      if (!['timer', 'notification', 'reminder'].includes(eff)) {
-        fnResult = { error: 'unknown_effect', hint: 'one of: timer, notification, reminder' };
-      } else {
-        const patch = {};
-        if (fnArgs.color != null) {
-          const c = lighting._fx.parseColorName(fnArgs.color);
-          if (c) patch.color = lighting._fx.rgbToHex(c);
-        }
-        if (['blink', 'pulse', 'solid'].includes(fnArgs.style)) patch.style = fnArgs.style;
-        if (typeof fnArgs.enabled === 'boolean') patch.enabled = fnArgs.enabled;
-        lighting.applyConfig({ effects: { [eff]: patch } });
-        await _persistLighting();
-        fnResult = { ok: true, effect: eff, config: lighting.getConfig().effects[eff] };
-      }
+      fnResult = await lightsToolsBranches['set_event_effect']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _persistLighting });
     } else if (fnName === 'set_animation') {
-      const patch = {};
-      if (typeof fnArgs.style === 'string') patch.style = fnArgs.style.trim();
-      if (fnArgs.color != null) {
-        const c = lighting._fx.parseColorName(fnArgs.color);
-        if (c) patch.color = lighting._fx.rgbToHex(c);
-      }
-      if (fnArgs.speed != null) patch.speed = Number(fnArgs.speed);
-      if (typeof fnArgs.palette === 'string' && fnArgs.palette.trim()) {
-        patch.palette = fnArgs.palette.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      // setAnimation silently ignores unknown styles — validate here so the AI
-      // hears "invalid" instead of confirming a change that didn't happen.
-      if (patch.style && !LIGHTING_ANIM_STYLES.includes(patch.style)) {
-        fnResult = { error: 'invalid_animation', hint: 'style must be one of: ' + LIGHTING_ANIM_STYLES.join(', ') };
-      } else {
-        lighting.setAnimation(patch);
-        await _persistLighting();
-        fnResult = { ok: true, animation: lighting.getConfig().animation, hint: lighting.getConfig().enabled ? undefined : 'lighting master is OFF: call set_lighting_bridge to make the animation visible' };
-      }
+      fnResult = await lightsToolsBranches['set_animation']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _persistLighting });
     } else if (fnName === 'set_lighting_bridge') {
-      lighting.setLightsOut(!fnArgs.enabled && fnArgs.dark === true);
-      lighting.setEnabled(!!fnArgs.enabled);
-      if (fnArgs.enabled || fnArgs.dark === true) { try { await lighting.ensureConnected(); } catch {} }
-      await _persistLighting();
-      fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
+      fnResult = await lightsToolsBranches['set_lighting_bridge']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _persistLighting });
     } else if (fnName === 'show_sensor') {
-      const sys = await getSystemInfo().catch(() => null);
-      // One flat metric map over the assembled system payload — the same
-      // projections the Deck's live 'sensor' keys use.
-      let value = null;
-      if (sys) {
-        const p = sys.power || {};
-        const fans = Array.isArray(sys.fans) ? sys.fans : [];
-        // Same discriminator + spinning-fan preference as the Deck's live
-        // 'sensor' projection (deck-model.js sensorsFromSystem) — the AI and a
-        // Deck key bound to the same metric must report the same fan.
-        const gpuFan = fans.find(f => f && f.kind === 'gpu');
-        const cpuFan = fans.find(f => f && f.kind !== 'gpu' && Number(f.rpm) > 0) || fans.find(f => f && f.kind !== 'gpu');
-        const metrics = {
-          cpuTemp: sys.cpuTemp, gpuTemp: sys.gpuTemp, cpu: sys.cpu, gpu: sys.gpu,
-          cpuFan: cpuFan ? cpuFan.rpm : null,
-          gpuFan: gpuFan ? (gpuFan.rpm != null ? gpuFan.rpm + ' RPM' : (gpuFan.pct != null ? gpuFan.pct + '%' : null)) : null,
-          cpuWatts: p.cpu, gpuWatts: p.gpu, totalWatts: p.total, psuWatts: p.psu,
-        };
-        value = Object.prototype.hasOwnProperty.call(metrics, fnArgs.sensor) ? metrics[fnArgs.sensor] : null;
-      }
-      fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
+      fnResult = await systemToolsBranches['show_sensor']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getSystemInfo });
     } else if (fnName === 'get_battery_status') {
-      const bat = await batteryMonitor.getDevices().catch(() => null);
-      fnResult = bat
-        ? { ...bat, devices: bat.devices.map(({ lastSeen, ...d }) => (lastSeen ? { ...d, lastReadMinutesAgo: Math.round((Date.now() - lastSeen) / 60000) } : d)) }
-        : { devices: [], sources: { corsair: false, bluetooth: false, peripherals: false } };
+      fnResult = await systemToolsBranches['get_battery_status']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { batteryMonitor });
     } else if (fnName === 'get_energy_status') {
-      const sys = await getSystemInfo().catch(() => null);
-      const ha = await buildHaState().catch(() => null);
-      fnResult = {
-        pc: (sys && sys.power) || { cpu: null, gpu: null, psu: null, total: null },
-        home: (ha && Array.isArray(ha.energy)) ? ha.energy.map(e => ({ name: e.name, value: e.state, unit: e.unit || '', deviceClass: e.deviceClass || '' })) : [],
-        homeConfigured: !!(ha && ha.configured),
-      };
+      fnResult = await systemToolsBranches['get_energy_status']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { buildHaState, getSystemInfo });
     } else if (fnName === 'get_weather') {
-      fnResult = await getWeather(uiLang, null);
+      fnResult = await weatherToolsBranches['get_weather']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getWeather });
     } else if (fnName === 'get_stock_quote') {
-      const syms = String(fnArgs.symbols || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
-      const quotes = await stocks.fetchQuotes(syms, _stocksProviderOpts());
-      fnResult = quotes.length
-        ? { quotes: quotes.map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) }
-        : { error: 'no data for those symbols: check the ticker (Borsa Italiana needs .MI, e.g. ENI.MI)' };
+      fnResult = await tickerToolsBranches['get_stock_quote']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _stocksProviderOpts });
     } else if (fnName === 'get_stock_watchlist') {
-      const fresh = await refreshStocks();
-      fnResult = { quotes: (fresh.quotes || []).map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) };
+      fnResult = await tickerToolsBranches['get_stock_watchlist']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { refreshStocks });
     } else if (fnName === 'add_stock_favorite') {
-      const sym = stocks.cleanSymbol(fnArgs.symbol);
-      if (!sym) { fnResult = { error: 'invalid symbol' }; }
-      else {
-        await withHubSettingsLock(async () => {        // serialized with every other settings writer
-          const cur = await readHubSettingsForUpdate();
-          const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
-          if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
-          const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
-          hub.settings = saved;
-        });
-        refreshStocks().catch(() => {});
-        fnResult = { ok: true, symbol: sym };
-      }
+      fnResult = await tickerToolsBranches['add_stock_favorite']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { hub, readHubSettingsForUpdate, refreshStocks, withHubSettingsLock, writeHubSettings });
     } else if (fnName === 'edit_favorites') {
-      fnResult = await editFavorites(fnArgs);
+      fnResult = await tickerToolsBranches['edit_favorites']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { editFavorites });
     } else if (fnName === 'change_setting') {
-      fnResult = await changeSetting(fnArgs);
+      fnResult = await settingsToolsBranches['change_setting']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { changeSetting });
     } else if (fnName === 'sensor_source') {
-      fnResult = await chooseSensorSource(fnArgs);
+      fnResult = await systemToolsBranches['sensor_source']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { chooseSensorSource });
     } else if (fnName === 'set_creation_model') {
-      // The credits turn reads these again at its hand-over (creation: in the
-      // xenon branch below), so a change made earlier in the same turn applies.
-      const model = fnArgs.model == null || fnArgs.model === '' ? null : String(fnArgs.model).toLowerCase();
-      const effort = fnArgs.effort == null || fnArgs.effort === '' ? null : String(fnArgs.effort).toLowerCase();
-      if (provider !== 'xenon') {
-        fnResult = { ok: false, error: 'not_on_credits', hint: 'The creation model and reasoning level belong to Sparks, Bit credits. Tell the user they apply when Sparks is the provider in Settings → Bit.' };
-      } else if ((!model && !effort) || (model && !aiXenon.MODELS.includes(model)) || (effort && !aiXenon.EFFORTS.includes(effort))) {
-        fnResult = { ok: false, error: 'bad_args', hint: 'model: haiku, sonnet or opus; effort: low, medium or high.' };
-      } else {
-        const saved = await withHubSettingsLock(async () => {
-          const cur = await readHubSettingsForUpdate();
-          const next = { ...cur, ...(model ? { xenonModel: model } : {}), ...(effort ? { xenonEffort: effort } : {}), rev: nextSettingsRev(cur.rev) };
-          hub.settings = await writeHubSettings(next);
-          return hub.settings;
-        });
-        broadcastSSE('settings', { rev: saved.rev });
-        fnResult = {
-          ok: true, model: saved.xenonModel, effort: saved.xenonEffort,
-          names: await aiCreationLabels.namesFor(uiLang),
-          hint: 'Call the model and the level by these names, the ones Settings shows the user, never by the English ids.',
-        };
-      }
+      fnResult = await settingsToolsBranches['set_creation_model']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { hub, readHubSettingsForUpdate, withHubSettingsLock, writeHubSettings });
     } else if (fnName === 'get_football_scores') {
-      const fresh = await refreshFootball();
-      const wanted = String(fnArgs.team || '').trim().toLowerCase();
-      const teams = (fresh.teams || []).filter(td => !wanted || String(td.name || '').toLowerCase().includes(wanted));
-      const fmt = (ev) => {
-        if (!ev) return null;
-        const both = ev.homeScore != null && ev.awayScore != null;
-        return {
-          match: both ? `${ev.home} ${ev.homeScore}-${ev.awayScore} ${ev.away}` : `${ev.home} vs ${ev.away}`,
-          status: ev.status, when: ev.ts || (ev.date + ' ' + ev.time), league: ev.league,
-        };
-      };
-      fnResult = teams.length
-        ? { teams: teams.map(td => ({ team: td.name, next: fmt(td.next), last: fmt(td.last) })) }
-        : { error: wanted ? 'that team is not in the favorites' : 'no favorite teams yet' };
+      fnResult = await tickerToolsBranches['get_football_scores']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { refreshFootball });
     } else if (fnName === 'get_league_standings') {
-      const wanted = String(fnArgs.team || '').trim().toLowerCase();
-      const fresh = await refreshFootball();
-      // Match a followed favorite (team → its league; league → itself) by name,
-      // then fall back to the curated competitions so "Serie A"/"Champions" work
-      // even when not followed. An empty query is rejected (would match anything).
-      const fav = wanted ? (fresh.teams || []).find(x => String(x.name || '').toLowerCase().includes(wanted)) : null;
-      let leagueId = fav ? (fav.type === 'league' ? fav.id : fav.leagueId) : '';
-      let season = fav ? fav.season : '';
-      if (!leagueId && wanted) { const L = football.searchLeagues(wanted)[0]; if (L) leagueId = L.id; }
-      if (!leagueId) { fnResult = { error: 'no league found: name a competition (e.g. "Serie A", "Champions League") or a team you follow' }; }
-      else {
-        const table = await football.fetchStandings(leagueId, season, _footballOpts());
-        fnResult = table
-          ? { league: table.league, standings: table.rows.slice(0, 20).map(r => ({ rank: r.rank, team: r.team, played: r.played, points: r.points, gd: r.gd })) }
-          : { error: 'standings unavailable for that league right now' };
-      }
+      fnResult = await tickerToolsBranches['get_league_standings']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _footballOpts, refreshFootball });
     } else if (fnName === 'get_news_headlines') {
-      const topic = String(fnArgs.topic || '').trim();
-      if (topic) {
-        // A specific topic → fetch it fresh (doesn't need to be a followed feed).
-        const data = await news.fetchHeadlines([{ type: 'topic', name: topic, query: topic }], _newsOpts());
-        fnResult = data.items.length
-          ? { headlines: data.items.slice(0, 8).map(it => ({ title: it.title, source: it.source })) }
-          : { error: 'no headlines found for that topic' };
-      } else {
-        const fresh = await refreshNews();
-        fnResult = (fresh.items || []).length
-          ? { headlines: fresh.items.slice(0, 8).map(it => ({ title: it.title, source: it.source })) }
-          : { error: 'no followed news feeds yet' };
-      }
+      fnResult = await tickerToolsBranches['get_news_headlines']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _newsOpts, refreshNews });
     } else if (fnName === 'web_search') {
-      // Only Gemini has a built-in grounded search. Every other provider (local
-      // Ollama, and the server-only ChatGPT/Claude, whose Gemini key is absent)
-      // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
-      // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
-      // `provider` is undefined there and must fall to the grounded branch.
-      const searchRes = (provider === 'ollama' || provider === 'localapi' || provider === 'openai' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider))
-        ? await aiLocal.localWebSearch(fnArgs.query)
-        : await _geminiWebSearch(fnArgs.query, apiKey);
-      fnResult = searchRes.error
-        ? { error: searchRes.error, note: 'web search unavailable: answer from your own knowledge and say it may not be up to date' }
-        : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language: answer in the user\'s language.' };
+      fnResult = await aiToolsWebBranches['web_search']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _geminiWebSearch });
     } else if (fnName === 'read_notes') {
-      const state = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
-      fnResult = { notes: notesToText(state), list: NotesAi.listNotes(normalizeNotesState(state)) };
+      fnResult = await timeToolsNotesBranches['read_notes']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { readNotes });
     } else if (fnName === 'edit_note') {
-      const prevState = await readNotes();   // unreadable: the tool fails, never writes over the file
-      const { next, result } = NotesAi.planNoteAction(normalizeNotesState(prevState), fnArgs,
-        { newId: _noteId, now: Date.now(), bodyMax: NOTE_BODY_MAX, notesMax: NOTES_MAX });
-      if (next) {
-        await writeNotes(next);
-        clientActions.push({ action: 'refresh_notes', args: {} });
-        aiActionLog.record({ name: 'edit_note', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevState } });
-      }
-      fnResult = result;
+      fnResult = await timeToolsNotesBranches['edit_note']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, readNotes, writeNotes });
     } else if (fnName === 'write_notes') {
-      const safe = String(fnArgs.content || '').slice(0, NOTE_BODY_MAX);
-      // Guard: never silently erase the notes with an empty string.
-      // The model must use clear_all_tasks-style explicit intent for destructive ops.
-      if (safe.trim() === '') { fnResult = { error: 'content is empty: to clear notes, send a single space or ask the user to confirm' }; }
-      else {
-        const prevState = await readNotes();   // unreadable: the tool fails, never writes over the file
-        // Write into the active note (preserving the user's other notes); create
-        // one if the store is empty. The model's mental model is a single notepad.
-        const next = normalizeNotesState(prevState);
-        let active = next.notes.find((n) => n.id === next.activeId);
-        if (!active) {
-          active = { id: _noteId(), body: '', pinned: false, updatedAt: Date.now() };
-          next.notes.unshift(active);
-          next.activeId = active.id;
-        }
-        active.body = safe;
-        active.updatedAt = Date.now();
-        await writeNotes(next);
-        clientActions.push({ action: 'refresh_notes', args: {} });
-        aiActionLog.record({ name: 'write_notes', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevState } });
-        fnResult = { ok: true };
-      }
+      fnResult = await timeToolsNotesBranches['write_notes']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, readNotes, writeNotes });
     } else if (fnName === 'list_tasks') {
-      const tasks = await readTasks();
-      fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
+      fnResult = await timeToolsTasksBranches['list_tasks']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { readTasks });
     } else if (fnName === 'create_task') {
-      const taskText = String(fnArgs.text || '').trim();
-      if (!taskText) { fnResult = { error: 'empty text' }; }
-      else {
-        const newTask = normalizeTask({
-          text: taskText,
-          priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
-          recurrence: 'never',
-        });
-        await updateTasks((tasks) => ({ next: tasks.concat([newTask]) }));
-        clientActions.push({ action: 'refresh_tasks', args: {} });
-        aiActionLog.record({ name: 'create_task', label: `Task creato: "${newTask.text}"`, undo: { kind: 'delete_task', id: newTask.id } });
-        fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
-      }
+      fnResult = await timeToolsTasksBranches['create_task']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, updateTasks });
     } else if (fnName === 'delete_task') {
-      const delId = String(fnArgs.id || '').trim();
-      if (!delId) { fnResult = { error: 'missing id' }; }
-      else {
-        const r = await updateTasks((tasks) => {
-          const remaining = tasks.filter(t => t.id !== delId);
-          return remaining.length === tasks.length ? { found: false } : { found: true, next: remaining };
-        });
-        if (!r.found) { fnResult = { error: 'task not found', id: delId }; }
-        else {
-          clientActions.push({ action: 'refresh_tasks', args: {} });
-          fnResult = { ok: true, deleted: delId };
-        }
-      }
+      fnResult = await timeToolsTasksBranches['delete_task']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { updateTasks });
     } else if (fnName === 'clear_all_tasks') {
-      const { prevTasks } = await updateTasks((tasks) => ({ prevTasks: tasks, next: [] }));
-      clientActions.push({ action: 'refresh_tasks', args: {} });
-      aiActionLog.record({ name: 'clear_all_tasks', label: 'Tutti i task cancellati', undo: { kind: 'restore_tasks', prev: prevTasks } });
-      fnResult = { ok: true, deleted: 'all' };
+      fnResult = await timeToolsTasksBranches['clear_all_tasks']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, updateTasks });
     } else if (fnName === 'edit_task') {
-      const r = await updateTasks((tasks) => {
-        const { next, result } = AgendaAi.editTask(tasks, fnArgs);
-        return next ? { next, result, prev: tasks } : { result };
-      });
-      if (r.changed) {
-        clientActions.push({ action: 'refresh_tasks', args: {} });
-        aiActionLog.record({ name: 'edit_task', label: `Task modificato: "${r.result.task.text}"`, undo: { kind: 'restore_tasks', prev: r.prev } });
-      }
-      fnResult = r.result;
+      fnResult = await timeToolsTasksBranches['edit_task']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, updateTasks });
     } else if (fnName === 'complete_task') {
-      const taskId = String(fnArgs.id || '').trim();
-      const makeCompleted = fnArgs.completed !== false; // defaults to true
-      if (!taskId) { fnResult = { error: 'missing id' }; }
-      else {
-        const r = await updateTasks((tasks) => {
-          const task = tasks.find(t => t.id === taskId);
-          if (!task) return { found: false };
-          return { found: true, next: tasks.map(t => (t === task ? { ...t, completed: makeCompleted, completedAt: makeCompleted ? new Date().toISOString() : null } : t)) };
-        });
-        if (!r.found) { fnResult = { error: 'task not found', id: taskId }; }
-        else {
-          clientActions.push({ action: 'refresh_tasks', args: {} });
-          fnResult = { ok: true, id: taskId, completed: makeCompleted };
-        }
-      }
+      fnResult = await timeToolsTasksBranches['complete_task']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { updateTasks });
     } else if (fnName === 'list_calendar_events') {
-      // Return ALL events (past included): the model needs every event to be
-      // able to delete or reference them. Past events were previously filtered
-      // out, which made "delete all events" wrongly report an empty calendar.
-      const events = await readEvents();
-      const sorted = events
-        .slice()
-        .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
-        .slice(0, 50);
-      fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
+      fnResult = await timeToolsCalendarBranches['list_calendar_events']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { readEvents });
     } else if (fnName === 'create_calendar_event') {
-      const evTitle = String(fnArgs.title || '').trim();
-      if (!evTitle) { fnResult = { error: 'empty title' }; }
-      else {
-        const newEvent = {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          title: evTitle.slice(0, 120),
-          notes: String(fnArgs.notes || '').trim().slice(0, 600),
-          startsAt: String(fnArgs.starts_at || '').trim(),
-          reminderAt: String(fnArgs.reminder_at || '').trim(),
-          notifiedAt: '',
-          createdAt: new Date().toISOString(),
-        };
-        await updateEvents((events) => ({ next: events.concat([newEvent]) }));
-        clientActions.push({ action: 'refresh_calendar', args: {} });
-        fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
-      }
+      fnResult = await timeToolsCalendarBranches['create_calendar_event']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { updateEvents });
     } else if (fnName === 'play_in_tile') {
-      fnResult = await playInTile(fnArgs);
+      fnResult = await mediaToolsBranches['play_in_tile']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { playInTile });
     } else if (fnName === 'edit_calendar_event') {
-      const r = await updateEvents((events) => {
-        const { next, result } = AgendaAi.editEvent(events, fnArgs);
-        return next ? { next, result, prev: events } : { result };
-      });
-      if (r.changed) {
-        clientActions.push({ action: 'refresh_calendar', args: {} });
-        aiActionLog.record({ name: 'edit_calendar_event', label: `Evento modificato: "${r.result.event.title}"`, undo: { kind: 'restore_events', prev: r.prev } });
-      }
-      fnResult = r.result;
+      fnResult = await timeToolsCalendarBranches['edit_calendar_event']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, updateEvents });
     } else if (fnName === 'delete_calendar_event') {
-      const evId = String(fnArgs.id || '').trim();
-      if (!evId) { fnResult = { error: 'missing id' }; }
-      else {
-        const r = await updateEvents((events) => {
-          const remaining = events.filter(e => e.id !== evId);
-          return remaining.length === events.length ? { found: false } : { found: true, next: remaining };
-        });
-        if (!r.found) { fnResult = { error: 'event not found', id: evId }; }
-        else {
-          clientActions.push({ action: 'refresh_calendar', args: {} });
-          fnResult = { ok: true, deleted: evId };
-        }
-      }
+      fnResult = await timeToolsCalendarBranches['delete_calendar_event']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { updateEvents });
     } else if (fnName === 'clear_all_calendar_events') {
-      const { prevEvents } = await updateEvents((events) => ({ prevEvents: events, next: [] }));
-      clientActions.push({ action: 'refresh_calendar', args: {} });
-      aiActionLog.record({ name: 'clear_all_calendar_events', label: 'Tutti gli eventi cancellati', undo: { kind: 'restore_events', prev: prevEvents } });
-      fnResult = { ok: true, deleted: 'all', count: prevEvents.length };
+      fnResult = await timeToolsCalendarBranches['clear_all_calendar_events']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { aiActionLog, updateEvents });
     } else if (fnName === 'open_application') {
-      const rawTarget = String(fnArgs.target || '').trim();
-      if (!rawTarget) { fnResult = { error: 'target mancante' }; }
-      else {
-        // Some apps are more reliably opened via their registered URI protocol
-        // than via App Paths name lookup (e.g. Steam doesn't always resolve by
-        // name). Use canonical deep links that actually open a window — a bare
-        // "steam://" invokes the handler but opens nothing visible.
-        const PROTOCOL_MAP = {
-          'steam': 'steam://open/main', 'steam client': 'steam://open/main',
-          'discord': 'discord://',
-          'whatsapp': 'whatsapp://',
-          'slack': 'slack://',
-          'zoom': 'zoommtg://',
-          'epic': 'com.epicgames.launcher://apps',
-          'epic games': 'com.epicgames.launcher://apps',
-        };
-        // An app by name, a website, or a file that does not run code when it
-        // opens; never a network path, a special link or a script (ai-pc-apps.js).
-        const allowed = aiPcApps.openTarget(rawTarget, PROTOCOL_MAP);
-        // From a paired phone, what /windows/launch allows and nothing else: a
-        // file sent from the phone could otherwise be started right after it lands.
-        if (remote && !remoteActions.remoteMayLaunch(rawTarget, hub.settings && hub.settings.appFavorites, await readDeckStore())) {
-          fnResult = phoneRefusal('needs_pc');
-        } else if (!allowed.ok) {
-          fnResult = { error: `not allowed (${allowed.error}): this tool opens apps by name, websites and documents on this PC. Scripts, network paths and special links are refused; running commands needs PC Control, which asks the user first.` };
-        } else {
-        const resolved = allowed.target;
-        // Every quote PowerShell ends a single-quoted string on (ps-quote.js).
-        const psEscaped = psEscape(resolved);
-        // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
-        // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
-        const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
-        try {
-          await new Promise((resolve, reject) =>
-            execFile('powershell.exe',
-              ['-NoProfile', '-NonInteractive', '-Command', ps],
-              { windowsHide: true, timeout: 10000 },
-              (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
-            )
-          );
-          fnResult = { ok: true, opened: rawTarget };
-        } catch (launchErr) {
-          fnResult = { error: launchErr.message };
-        }
-        }
-      }
+      fnResult = await aiToolsPcBranches['open_application']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { hub, readDeckStore });
     } else if (fnName === 'close_application') {
       fnResult = await aiToolsBranches['close_application']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'search_files') {
-      // Local search — same pipeline as the Spotlight UI (parser + Windows
-      // Search + crawler index + ranker). Read-only; results carry the opaque
-      // ids open_search_result resolves, so the model never handles a path as
-      // an actionable value.
-      const q = String(fnArgs.query || '').trim().slice(0, 200);
-      if (!q) { fnResult = { error: 'empty query' }; }
-      else {
-        const out = await fileSearch.search(q);
-        fnResult = {
-          windowsSearch: out.wds,
-          results: out.results.slice(0, 12).map(r => ({
-            id: r.id, name: r.name, folder: r.dir, size: r.size,
-            modified: r.mtime ? new Date(r.mtime).toISOString() : '',
-          })),
-        };
-        if (out.wds === 'unavailable' && !out.results.length) {
-          fnResult.note = 'Windows Search service is disabled on this PC';
-        }
-      }
+      fnResult = await searchToolsBranches['search_files']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { fileSearch });
     } else if (fnName === 'open_search_result') {
-      const rid = String(fnArgs.id || '').trim();
-      if (!rid) { fnResult = { error: 'missing id' }; }
-      else {
-        const out = fnArgs.reveal === true ? await fileSearch.reveal(rid) : await fileSearch.open(rid);
-        if (out.ok) fnResult = { ok: true };
-        else fnResult = { error: out.error, revealable: out.revealable === true };
-      }
+      fnResult = await searchToolsBranches['open_search_result']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { fileSearch });
     } else if (fnName === 'phone_lookup' || fnName === 'phone_call' || fnName === 'phone_message') {
       fnResult = await aiPhoneTool(fnName, fnArgs, latestUserText);
     } else if (fnName === 'disk_insights') {
-      // Read-only by construction: there is no deleteFile action type anywhere
-      // (registry, Deck, SDK, AI) — a human tap on the disk widget is the only
-      // path to a deletion, and even that goes to the Recycle Bin.
-      fnResult = await diskSpace.insights(fnArgs.rootIndex);
+      fnResult = await diskToolsBranches['disk_insights']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { diskSpace });
     } else if (fnName === 'start_timer') {
-      const stopwatch = fnArgs.kind === 'stopwatch';
-      const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
-      const timerLabel = String(fnArgs.label || (stopwatch ? 'Stopwatch' : 'Timer')).trim().slice(0, 40);
-      if (timerState.list.length >= TIMERS_MAX) {
-        fnResult = { error: 'Too many timers active' };
-      } else if (stopwatch) {
-        const newTimer = _normalizeTimer({ label: timerLabel, kind: 'stopwatch', intervalSecs: Number(fnArgs.chime_every_secs) || 0, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-        timerState.list.push(newTimer);
-        await _saveTimers();
-        clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: timerState.list });
-        fnResult = { ok: true, id: newTimer.id, label: timerLabel, kind: 'stopwatch', ...(newTimer.intervalSecs ? { chimes_every_secs: newTimer.intervalSecs } : {}) };
-      } else {
-        const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-        timerState.list.push(newTimer);
-        await _saveTimers();
-        clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: timerState.list });
-        const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
-        const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
-        fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
-      }
+      fnResult = await timeToolsTimersBranches['start_timer']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _saveTimers, timerState });
     } else if (fnName === 'control_timer') {
-      const action = String(fnArgs.action || '').trim().toLowerCase();
-      const found = TimerActions.ACTIONS.includes(action) ? TimerActions.findTimer(timerState.list, fnArgs.timer, action) : null;
-      const next = found && TimerActions.applyTimerAction(found, action, Date.now());
-      if (!TimerActions.ACTIONS.includes(action)) {
-        fnResult = { ok: false, error: 'bad_action', actions: TimerActions.ACTIONS };
-      } else if (!found) {
-        fnResult = { ok: false, error: timerState.list.length ? 'which_timer' : 'no_timers', timers: timerState.list.map(t => ({ label: t.label, status: t.status })) };
-      } else if (!next) {
-        fnResult = { ok: true, label: found.label, status: found.status, unchanged: true };
-      } else {
-        timerState.list = timerState.list.map(t => (t.id === next.id ? next : t));
-        await _saveTimers();
-        clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: timerState.list });
-        fnResult = { ok: true, label: next.label, status: next.status };
-      }
+      fnResult = await timeToolsTimersBranches['control_timer']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _saveTimers, timerState });
     } else if (fnName === 'list_timers') {
-      fnResult = {
-        // A stopwatch has no remaining time, and reporting Infinity to a model
-        // is worse than reporting nothing: it says elapsed instead, which is
-        // the only reading it has.
-        timers: timerState.list.map(t => (t.kind === 'stopwatch'
-          ? { id: t.id, label: t.label, status: t.status, kind: 'stopwatch',
-              elapsed_secs: Math.floor(_getTimerElapsed(t)),
-              ...(t.intervalSecs > 0 ? { chimes_every_secs: t.intervalSecs } : {}) }
-          : { id: t.id, label: t.label, status: t.status, kind: 'countdown',
-              remaining_secs: Math.ceil(_getTimerRemaining(t)),
-              duration_secs: t.durationSecs })),
-      };
+      fnResult = await timeToolsTimersBranches['list_timers']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { timerState });
     } else if (fnName === 'delete_timer') {
-      const delId = String(fnArgs.id || '').trim();
-      const before = timerState.list.length;
-      timerState.list = timerState.list.filter(t => t.id !== delId);
-      if (timerState.list.length < before) {
-        await _saveTimers();
-        clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: timerState.list });
-        fnResult = { ok: true };
-      } else {
-        fnResult = { error: 'timer not found' };
-      }
+      fnResult = await timeToolsTimersBranches['delete_timer']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _saveTimers, timerState });
     } else if (fnName === 'app_audio') {
-      // Per-app mixer via the same allowlisted registry the Deck uses.
-      const app = String(fnArgs.app || '').trim();
-      const action = String(fnArgs.action || '');
-      const map = {
-        volume_up: { type: 'appVolume', app, mode: 'up' },
-        volume_down: { type: 'appVolume', app, mode: 'down' },
-        mute: { type: 'appMute', app, mode: 'mute' },
-        unmute: { type: 'appMute', app, mode: 'unmute' },
-        toggle_mute: { type: 'appMute', app, mode: 'toggle' },
-      };
-      const act = map[action];
-      fnResult = !app ? { error: 'no_app' } : (act ? await runAction(act) : { error: 'bad_action' });
+      fnResult = await audioToolsBranches['app_audio']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'obs_control') {
-      // Route through the same allowlisted deck registry that Deck keys use, so
-      // validation/normalisation lives in one place. A missing OBS connection
-      // comes back as {error:'obs_unavailable'} — the model tells the user.
-      const map = {
-        start_recording: { type: 'obsRecord', mode: 'start' },
-        stop_recording: { type: 'obsRecord', mode: 'stop' },
-        toggle_recording: { type: 'obsRecord', mode: 'toggle' },
-        start_streaming: { type: 'obsStream', mode: 'start' },
-        stop_streaming: { type: 'obsStream', mode: 'stop' },
-        toggle_streaming: { type: 'obsStream', mode: 'toggle' },
-        switch_scene: { type: 'obsScene', scene: String(fnArgs.scene || '') },
-        next_scene: { type: 'obsSceneNext' },
-      };
-      const action = map[String(fnArgs.action || '')];
-      fnResult = action ? await runAction(action) : { error: 'bad_action' };
+      fnResult = await streamingToolsBranches['obs_control']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'twitch_action') {
-      const value = String(fnArgs.value || '');
-      const map = {
-        create_clip: { type: 'twitchClip' },
-        set_title: { type: 'twitchTitle', title: value },
-        set_game: { type: 'twitchGame', game: value },
-        send_chat: { type: 'twitchChat', message: value },
-        marker: { type: 'twitchMarker', description: value },
-        shoutout: { type: 'twitchShoutout', login: value },
-        chat_mode: { type: 'twitchChatMode', mode: value },
-        run_ad: { type: 'twitchAd', length: value || '60' },
-      };
-      const action = map[String(fnArgs.action || '')];
-      fnResult = action ? await runAction(action) : { error: 'bad_action' };
+      fnResult = await streamingToolsBranches['twitch_action']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'youtube_broadcast') {
-      fnResult = await runAction({ type: 'ytBroadcast', mode: String(fnArgs.mode || 'toggle') });
+      fnResult = await streamingToolsBranches['youtube_broadcast']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'streamerbot_action') {
-      const act = String(fnArgs.action || '').trim();
-      fnResult = act ? await runAction({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+      fnResult = await streamingToolsBranches['streamerbot_action']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'spotify_control') {
       // Full Spotify control. Transport/shuffle/repeat/like/volume/seek/device
       // route through the allowlisted registry; play/queue-by-name and the status
@@ -6276,38 +5744,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         fnResult = act ? await runAction(act) : { error: 'bad_action' };
       }
     } else if (fnName === 'home_assistant') {
-      // Smart-home control. `list` reads the entity roster (so the model can match
-      // a friendly name → entity_id); everything else goes through the registry's
-      // validated HA actions (the provider re-validates entity_id/service).
-      const action = String(fnArgs.action || '');
-      const entity = String(fnArgs.entity_id || '').trim();
-      if (action === 'list') {
-        const ents = await deckHa.listEntities().catch(() => []);
-        fnResult = {
-          ok: true,
-          entities: (Array.isArray(ents) ? ents : []).slice(0, 80).map(e => ({
-            id: e.id, name: e.name, domain: e.domain, area: e.area || null, state: e.state, unit: e.unit || undefined,
-          })),
-        };
-      } else {
-        const map = {
-          turn_on: { type: 'haToggle', entity, mode: 'on' },
-          turn_off: { type: 'haToggle', entity, mode: 'off' },
-          toggle: { type: 'haToggle', entity, mode: 'toggle' },
-          scene: { type: 'haScene', entity },
-          service: { type: 'haCallService', service: String(fnArgs.service || ''), entity, data: String(fnArgs.data || '') },
-        };
-        const act = map[action];
-        // Locks, alarms, covers, scripts and the like are not Bit's to drive
-        // on its own (ai-pc-apps.js): both the entity's and the service's
-        // domain must be ordinary ones.
-        const service = action === 'service' ? String(fnArgs.service || '') : '';
-        if (act && ((entity && !aiPcApps.haDomainAllowed(entity)) || (service && !aiPcApps.haDomainAllowed(service)))) {
-          fnResult = { error: 'not allowed: locks, alarms, covers, garage doors, scripts and automations are not controlled by the assistant. The user can do it in Home Assistant or with a Deck key.' };
-        } else {
-          fnResult = act ? await runAction(act) : { error: 'bad_action' };
-        }
-      }
+      fnResult = await smartHomeToolsBranches['home_assistant']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { deckHa });
     } else if (fnName === 'discord_voice') {
       // Discord voice control. `status` reads the live voice state + joinable
       // channels; `join` resolves a channel NAME → snowflake before the registry
@@ -6346,89 +5783,15 @@ async function runAiTool(fnName, fnArgs, deps) {
         fnResult = act ? await runAction(act) : { error: 'bad_action' };
       }
     } else if (fnName === 'list_audio_devices') {
-      // Report the available output/input devices so the model can pick one by
-      // name (and answer "what speakers do I have?").
-      const info = await getAudioInfo().catch(() => null);
-      if (!info) { fnResult = { error: 'audio_unavailable' }; }
-      else {
-        const trim = (arr) => (Array.isArray(arr) ? arr : []).map(d => ({ name: d.label || d.name, current: !!d.isDefault })).slice(0, 24);
-        fnResult = { ok: true, speakers: trim(info.speakers), microphones: trim(info.mics),
-          current: { speaker: info.speaker && (info.speaker.label || info.speaker.name) || null, microphone: info.mic && (info.mic.label || info.mic.name) || null } };
-      }
+      fnResult = await audioToolsBranches['list_audio_devices']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getAudioInfo });
     } else if (fnName === 'set_audio_device') {
-      // Switch the default output/input device by (fuzzy) name. Reuses the exact
-      // SoundVolumeView path the manual picker uses.
-      const kind = String(fnArgs.kind || '').toLowerCase();
-      const wanted = String(fnArgs.name || '').trim().toLowerCase();
-      if (!['speaker', 'mic', 'microphone'].includes(kind)) { fnResult = { error: 'bad_kind', message: 'kind must be "speaker" or "mic"' }; }
-      else if (!wanted) { fnResult = { error: 'no_name' }; }
-      else {
-        const info = await getAudioInfo().catch(() => null);
-        const list = info ? (kind === 'speaker' ? info.speakers : info.mics) : null;
-        if (!Array.isArray(list) || !list.length) { fnResult = { error: 'audio_unavailable' }; }
-        else {
-          const hay = (d) => `${d.label || ''} ${d.name || ''}`.toLowerCase();
-          const match = list.find(d => hay(d) === wanted)
-            || list.find(d => hay(d).includes(wanted))
-            || list.find(d => wanted.includes((d.name || '').toLowerCase()) && (d.name || '').length > 2);
-          if (!match || !match.id) {
-            fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
-          } else {
-            await setDefaultAudioDevice(match.id);
-            if (kind === 'speaker') audioCache.speakerId = match.id;
-            else { audioCache.micId = match.id; if (audioCache.muted) setMicMute(true); }
-            fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
-          }
-        }
-      }
+      fnResult = await audioToolsBranches['set_audio_device']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getAudioInfo, setDefaultAudioDevice, setMicMute });
     } else if (fnName === 'rate_store_item') {
-      const refused = aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode));
-      if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
-      const step = refused ? null : await aiRateStore.plan(fnArgs, { settings: () => hub.settings, stateOf: ratingVotes.stateOf });
-      if (!step || !step.ok) {
-        fnResult = refused || step;
-      } else {
-        const nonce = _deckConfirms.issue(step.action);
-        clientActions.push({ action: 'confirm_deck_action', args: { nonce, type: step.action.type, params: aiRateStore.cardParams(step.action), description: aiDeckRun.purposeOf(fnArgs) } });
-        fnResult = { status: 'pending_confirmation', message: 'The vote is NOT in yet: the user sees a confirmation card and it counts only if they approve. Tell them to confirm on the card.' };
-      }
+      fnResult = await storeCatalogToolsRatingBranches['rate_store_item']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _deckConfirms, hub, ratingVotes });
     } else if (fnName === 'run_deck_action') {
-      // A key press, by Bit: same validator, same registry. Risky types wait on
-      // a card (ai-deck-run.js), sound and mixer steps play in the chat's page.
-      const step = aiDeckRun.plan(fnArgs.action);
-      const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode));
-      if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
-      // Asked from a paired phone, Bit can do what the phone can (remote-actions.js).
-      const phoneVerdict = remote && step.mode && step.mode !== 'client' ? remoteActions.remoteMayRun(step.action, await readDeckStore()) : null;
-      if (!step.mode || refused) {
-        fnResult = refused || step;
-      } else if (phoneVerdict && !phoneVerdict.ok) {
-        fnResult = { ok: false, error: phoneVerdict.error, hint: 'A paired device cannot run this: say it has to be done at the PC, or from a Deck key the user set up there.' };
-      } else if (step.mode === 'confirm') {
-        const nonce = _deckConfirms.issue(step.action);
-        clientActions.push({ action: 'confirm_deck_action', args: { nonce, type: step.action.type, params: aiDeckRun.describe(step.action), description: aiDeckRun.purposeOf(fnArgs) } });
-        fnResult = { status: 'pending_confirmation', message: 'It has NOT run yet: the user sees a confirmation card and it runs only if they approve. Do NOT say it is done; tell them to confirm on the card.' };
-      } else if (step.mode === 'client') {
-        clientActions.push({ action: 'run_deck_client', args: { action: step.action } });
-        fnResult = { ok: true };
-      } else {
-        fnResult = await deckRegistry.run(step.action);
-      }
+      fnResult = await deckToolsBranches['run_deck_action']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _deckConfirms, deckRegistry, hub, readDeckStore });
     } else if (fnName === 'run_pc_command') {
-      // Consent-gated generic PC control. NEVER executes here — proposes a
-      // command that runs only after the user approves the confirmation card.
-      if (!_pcControlEnabled()) {
-        fnResult = { error: 'pc_control_disabled', message: 'PC command control is off. Tell the user to enable "PC control" in Settings → Bit → Advanced AI features first.' };
-      } else {
-        const command = String(fnArgs.command || '').trim().slice(0, 2000);
-        const purpose = String(fnArgs.description || fnArgs.purpose || '').trim().slice(0, 300);
-        if (!command) { fnResult = { error: 'no_command' }; }
-        else {
-          const nonce = issuePcAction(command, purpose);
-          clientActions.push({ action: 'confirm_pc_command', args: { nonce, command, description: purpose } });
-          fnResult = { status: 'pending_confirmation', message: 'The command has NOT run yet: a confirmation card is shown to the user and it will run only if they approve. Do NOT claim it executed; tell the user to confirm on the card.' };
-        }
-      }
+      fnResult = await aiToolsPcBranches['run_pc_command']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { _pcControlEnabled });
     } else {
       fnResult = { error: 'unknown_function' };
     }
