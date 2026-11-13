@@ -23,7 +23,9 @@
 //                                           [--under <address>] ["<METHOD> <address>" ...]
 //                                                                  the bodies of routes of the request handler go into a table in
 //                                                                  a module of the feature; each test stays where it is. --under
-//                                                                  takes every body under an address that can move now
+//                                                                  takes every body under an address that can move now. A route
+//                                                                  asked with either of two methods is "<M1>|<M2> <address>", one
+//                                                                  for every address with the same start "<METHOD> <start>*"
 //   node tools/restructure/cli.mjs branches --from <file> --to <dir>/<feature>/tools[-<word>].js [--about "..."] [--dry-run] <tool> ...
 //                                                                  the same for what a tool of the assistant does: the file name
 //                                                                  says which chain; the function declares the result and gives it back

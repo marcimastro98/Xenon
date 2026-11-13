@@ -2,7 +2,8 @@
 // and what differs between them. Everything else (the plan, the proof, the record)
 // is the same code for both.
 //
-//   routes  the request handler: `if (reqPath === '/x' && req.method === 'GET') {`.
+//   routes  the request handler: `if (reqPath === '/x' && req.method === 'GET') {`,
+//           or one of the few other plain ways to ask for an address (ROUTE_TESTS).
 //           A body is handed the request, the answer and five values of the handler;
 //           it gives nothing back, so a bare `return;` in it still ends the request.
 //   tools   the function that runs a tool for the assistant: `if (fnName === 'x') {`.
@@ -16,15 +17,35 @@
 
 import { routeChain } from './routes-list.mjs';
 
-const METHOD_AND_PATH = [/^reqPath === '(\/[^'\\]*)' && req\.method === '([A-Z]+)'$/, /^req\.method === '([A-Z]+)' && reqPath === '(\/[^'\\]*)'$/];
+// The tests of a route a body can be named after. The test stays in the file as it is written; the key only says
+// which body of the table is its own, so each way of writing a test gives a key no other way gives:
+//
+//   reqPath === '/x' && req.method === 'GET'                               GET /x       (in either order)
+//   reqPath === '/x' && (req.method === 'POST' || req.method === 'GET')    POST|GET /x
+//   reqPath.startsWith('/x/') && req.method === 'GET'                      GET /x/*     (in either order)
+const ADDRESS = String.raw`'(\/[^'\\*|]*)'`;
+const ASKED = String.raw`req\.method === '([A-Z]+)'`;
+const whole = (text) => new RegExp(`^${text}$`);
+const ROUTE_TESTS = [
+  { test: whole(`reqPath === ${ADDRESS} && ${ASKED}`), key: (found) => `${found[2]} ${found[1]}` },
+  { test: whole(`${ASKED} && reqPath === ${ADDRESS}`), key: (found) => `${found[1]} ${found[2]}` },
+  { test: whole(String.raw`reqPath === ${ADDRESS} && \(${ASKED} \|\| ${ASKED}\)`), key: (found) => `${found[2]}|${found[3]} ${found[1]}` },
+  { test: whole(String.raw`reqPath\.startsWith\(${ADDRESS}\) && ${ASKED}`), key: (found) => `${found[2]} ${found[1]}*` },
+  { test: whole(String.raw`${ASKED} && reqPath\.startsWith\(${ADDRESS}\)`), key: (found) => `${found[1]} ${found[2]}*` },
+];
 const TOOL_NAME = /^fnName === '([a-z][a-z0-9_]*)'$/;
 
-/** @param {string} test a branch's test as written @returns {string | null} `METHOD /path` when the test is exactly that */
+/**
+ * @param {string} test a branch's test as written
+ * @returns {string | null} `METHOD /path`, `METHOD|METHOD /path` or `METHOD /path*` when the test is exactly one of the
+ *   ways above
+ */
 export function keyOf(test) {
-  const first = METHOD_AND_PATH[0].exec(test);
-  if (first) return `${first[2]} ${first[1]}`;
-  const second = METHOD_AND_PATH[1].exec(test);
-  return second ? `${second[1]} ${second[2]}` : null;
+  for (const way of ROUTE_TESTS) {
+    const found = way.test.exec(test);
+    if (found) return way.key(found);
+  }
+  return null;
 }
 
 // The chain of a function written `async function name(...) { ...; try { if ... else if ... } catch ... }`:
@@ -56,9 +77,9 @@ export const ROUTES = Object.freeze({
   context: Object.freeze(['json', 'err500', 'reqPath', 'urlObj', 'isRemote']),
   result: null,
   indent: '    ',
-  key: String.raw`[A-Z]+ /[^'\\]*`,
+  key: String.raw`[A-Z]+(?:\|[A-Z]+)? /[^'\\*|]*\*?`,
   keyOf,
-  notKey: 'its test is not one address asked with one method',
+  notKey: 'its test is not an address, or the start of one, asked with one method or either of two',
   chainOf: routeChain,
   type: '(req: any, res: any, context: any) => Promise<void>',
   typeOwn: '(req: any, res: any, context: any, engine?: any) => Promise<void>',

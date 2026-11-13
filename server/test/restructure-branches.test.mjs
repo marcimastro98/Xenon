@@ -42,6 +42,36 @@ test('the lines the command writes are read back as what they say', () => {
   assert.equal(keyOf("reqPath === '/x' && req.method === 'GET' && isRemote"), null);
 });
 
+test('a test written one of the other plain ways names its body with a key no other way gives', () => {
+  assert.equal(keyOf("reqPath === '/x' && (req.method === 'POST' || req.method === 'GET')"), 'POST|GET /x');
+  assert.equal(keyOf("reqPath.startsWith('/x/') && req.method === 'DELETE'"), 'DELETE /x/*');
+  assert.equal(keyOf("req.method === 'GET' && reqPath.startsWith('/x/')"), 'GET /x/*');
+  assert.equal(keyOf("reqPath.startsWith('/x/')"), null, 'asked with any method: not one of the ways');
+  assert.equal(keyOf("reqPath === '/x' && (req.method === 'POST' || req.method === 'GET' || req.method === 'PUT')"), null);
+  assert.equal(keyOf("(reqPath === '/x' || reqPath === '/y') && req.method === 'GET'"), null);
+  assert.equal(keyOf("reqPath.startsWith('/x/') && (req.method === 'GET' || req.method === 'HEAD')"), null);
+  assert.equal(keyOf("reqPath === '/x*' && req.method === 'GET'"), null, 'an address that ends in a star would read like the start of one');
+  assert.equal(keyOf("reqPath === '/x|y' && req.method === 'GET'"), null);
+  for (const key of ['POST|GET /x', 'DELETE /x/*', 'GET /x']) assert.deepEqual(readCall(callLine('lightsBranches', key)), { local: 'lightsBranches', key, own: [] });
+  for (const key of ['GET|POST|PUT /x', 'GET /x/**', 'get /x', 'GET| /x', 'GET x']) assert.equal(readCall(callLine('lightsBranches', key)), null, `${key} is not a key`);
+});
+
+test('a body under such a test moves like any other, and two tests that would share a key are refused', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const swap = (text, from, to) => { assert.equal(text.split(from).length, 2, `the sample has ${JSON.stringify(from)} once`); return text.replace(from, () => to); };
+  const text = swap(swap(SOURCE, "reqPath.startsWith('/h/')", "reqPath.startsWith('/h/') && req.method === 'GET'"),
+    "reqPath === '/a' && req.method === 'GET'", "reqPath === '/a' && (req.method === 'GET' || req.method === 'HEAD')");
+  const made = plan(['GET /h/*', 'GET|HEAD /a'], { text });
+  assert.deepEqual(made.keys, ['GET|HEAD /a', 'GET /h/*']);
+  assert.ok(made.newSource.includes("  if (reqPath === '/a' && (req.method === 'GET' || req.method === 'HEAD')) {\n    await lightsBranches['GET|HEAD /a'](req, res, { json, err500, reqPath, urlObj, isRemote });\n"));
+  assert.ok(made.newSource.includes("  } else if (reqPath.startsWith('/h/') && req.method === 'GET') {\n    await lightsBranches['GET /h/*'](req, res, { json, err500, reqPath, urlObj, isRemote });\n"));
+  assert.deepEqual(readModule(made.moduleText).entries.map((entry) => entry.key), ['GET|HEAD /a', 'GET /h/*']);
+  assert.deepEqual(proven(made, { before: text }), []);
+  assert.equal(undoBranchesText(made.newSource, () => made.moduleText), text, 'and is put back under its test');
+  const twice = swap(text, "reqPath === '/j' && req.method === 'GET'", "req.method === 'GET' && reqPath.startsWith('/h/')");
+  assert.match(refusal(['GET /h/*'], { text: twice }), /2 branches of handleRequest answer GET \/h\/\*, one was expected/);
+});
+
 test('a table is named after its folder, and a body is handed only what it uses', () => {
   assert.deepEqual(tableOf('server/server.js', 'server/lights/routes.js'), { local: 'lightsBranches', spec: './lights/routes.js', kind: ROUTES });
   assert.deepEqual(tableOf('server/server.js', 'server/smart-home/routes-plugs.js'), { local: 'smartHomePlugsBranches', spec: './smart-home/routes-plugs.js', kind: ROUTES });
@@ -69,7 +99,7 @@ test('every branch is read with what its body takes from outside and what keeps 
   assert.match(of('GET /e').reasons.join('\n'), /it has a `var`/);
   assert.match(of('GET /f').reasons.join('\n'), /it has a `return` with a value[\s\S]*it has `this`/);
   assert.deepEqual([of('GET /g').needed, of('GET /g').own], [[], ['late']], 'a name required further down is handed over: a table that required it would load its module early');
-  assert.match(branches[7].reasons.join('\n'), /its test is not one address asked with one method/);
+  assert.match(branches[7].reasons.join('\n'), /its test is not an address, or the start of one, asked with one method or either of two/);
   assert.match(of('GET /i').reasons.join('\n'), /its body is not on lines of its own/);
 });
 
