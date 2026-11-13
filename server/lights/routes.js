@@ -8,6 +8,9 @@ const icueSdkInstall = require('../icue-sdk-install.js');
 const { hub } = require('../settings/current.js');
 const signalrgb = require('../signalrgb.js');
 const { withHubSettingsLock } = require('../settings/write-lock.js');
+const { icueSharpen } = require('./sharpen-state.js');
+const { runPowerShellScript } = require('../powershell/run-command.js');
+const { ICUE_SHARPEN_SCRIPT } = require('./script-paths.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -128,6 +131,23 @@ const branches = {
       signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
       json({ ok: true, installed: signalrgb.isInstalled(), enabled });
     } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
+  },
+
+  'POST /api/icue/sharpen': async (_req, _res, { json }) => {
+    // Fix for the blurry dashboard in iCUE widget mode (issue #53): nudge iCUE's
+    // Xeneon Edge window by 1px and back so Qt re-reads which screen it is on and
+    // pushes the correct device scale to the widget renderer (see icue-sharpen.ps1
+    // for the full mechanism). Triggered by the dashboard itself when it detects
+    // it is being rasterised at another monitor's scale. Cooldown guards against
+    // a client retry loop; the wiggle is idempotent when the scale is already right.
+    try {
+      const now = Date.now();
+      if (now - icueSharpen.lastAt < 3000) { json({ ok: false, error: 'cooldown' }); }
+      else {
+        icueSharpen.lastAt = now;
+        json(await runPowerShellScript(ICUE_SHARPEN_SCRIPT, [], 15000));
+      }
+    } catch (e) { json({ ok: false, error: e.message }); }
   },
 };
 

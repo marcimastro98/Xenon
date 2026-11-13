@@ -10,6 +10,11 @@ const path = require('node:path');
 const { DATA_DIR } = require('../engine/paths.js');
 const { checkLatestRelease } = require('./latest-release.js');
 const { semverNewer } = require('../semver.js');
+const versionPing = require('../version-ping.js');
+const { hub } = require('../settings/current.js');
+const { settingsBoot } = require('../settings/boot-state.js');
+const supporterRedeem = require('../supporter-redeem.js');
+const usageStats = require('../usage-stats.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -124,6 +129,46 @@ const branches = {
     try {
       await readBody(req);
       json(autoUpdater.postpone());
+    } catch (e) { err500(e.message); }
+  },
+
+  'GET /update/check': async (_req, _res, { json, err500, urlObj }) => {
+    // Latest released version vs the running one (probed at most daily,
+    // fail-silent — offline simply reports no update). `?force=1` bypasses the
+    // cache for the manual "check now" button.
+    try {
+      const u = await checkLatestRelease(urlObj.searchParams.get('force') === '1');
+      json({
+        current: APP_VERSION,
+        latest: u.ok ? u.latest : '',
+        url: u.ok ? u.url : '',
+        notes: u.ok ? u.notes : '',
+        name: u.ok ? u.name : '',
+        publishedAt: u.ok ? u.publishedAt : '',
+        mediaTypes: u.ok ? (u.mediaTypes || {}) : {},
+        updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
+      });
+      // Opt-in anonymous version ping, off by default. Deliberately piggybacks
+      // on this check so enabling it adds no new outbound request, and is
+      // fire-and-forget so it can never delay or fail the update response.
+      versionPing.maybePing({
+        dataDir: DATA_DIR,
+        version: APP_VERSION,
+        enabled: !!(hub.settings && hub.settings.versionPing === true),
+        // Only a birth observed at boot may produce a cohort — see version-ping.js.
+        fresh: settingsBoot.fileMissing,
+        // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
+        // js/settings.js), so reading it costs nothing and adds no new key.
+        lang: (hub.settings && hub.settings.language) || '',
+      }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
+      // Anonymous feature counts, off unless usageStats is on: same ride, same
+      // once-a-day rule. The tier is a boolean (is a supporter code saved here),
+      // never the code itself.
+      if (hub.settings && hub.settings.usageStats === true) {
+        supporterRedeem.savedStatus(DATA_DIR)
+          .then((st) => usageStats.maybeSend({ enabled: true, supporter: !!(st && st.saved) }))
+          .catch(() => { /* best-effort, like the version ping */ });
+      }
     } catch (e) { err500(e.message); }
   },
 };

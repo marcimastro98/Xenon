@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1143,
+  "total": 1142,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -215,9 +215,9 @@
     "server/server.js TS2339": 54,
     "server/server.js TS2345": 1,
     "server/server.js TS2353": 14,
-    "server/server.js TS2554": 4,
+    "server/server.js TS2554": 2,
     "server/server.js TS2739": 5,
-    "server/server.js TS2741": 3,
+    "server/server.js TS2741": 2,
     "server/server.js TS2810": 16,
     "server/session-watch.js TS2339": 1,
     "server/session-watch.js TS2353": 1,
@@ -229,6 +229,8 @@
     "server/stream-spotify.js TS2556": 1,
     "server/stream-twitch.js TS2556": 1,
     "server/stream-youtube.js TS2556": 1,
+    "server/streaming/routes-spotify.js TS2554": 1,
+    "server/streaming/routes-youtube.js TS2554": 1,
     "server/stutter-why.js TS2339": 9,
     "server/supporter-redeem.js TS2741": 1,
     "server/system/lock-workstation.js TS2810": 1,

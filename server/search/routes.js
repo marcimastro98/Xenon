@@ -2,6 +2,7 @@
 
 const { hub } = require('../settings/current.js');
 const { _hotkey } = require('../deck/hotkey-state.js');
+const { searchShortcut } = require('./shortcut-claim.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -21,6 +22,14 @@ const branches = {
     // pressing it only ever opens Xenon's own search window.
     try { routeSpotlightHotkey(); json({ ok: true }); }
     catch (e) { err500(e.message); }
+  },
+
+  'POST /spotlight/claimed': async (_req, _res, { json }) => {
+    // The native kiosk claims the hotkey: it just opened the frameless
+    // Spotlight window, so the Edge fallback must NOT also fire. In
+    // CSRF_MUTATION_PATHS.
+    searchShortcut.claimed = true;
+    json({ ok: true });
   },
 };
 

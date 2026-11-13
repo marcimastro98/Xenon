@@ -2,6 +2,7 @@
 // sources of OBS, and the streaming setup saved.
 
 const { readBody } = require('../http/read-body.js');
+const { streamingLive } = require('./live.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -72,6 +73,31 @@ const branches = {
     } catch (e) { err500(e.message); }
 
   // ── Discord voice integration (local RPC/IPC — needs the Discord desktop app) ─
+  },
+
+  'GET /obs/scenes': async (_req, _res, { json }, { deckObs, refreshObsWatch }) => {
+    try {
+      const d = await deckObs.request('GetSceneList', {});
+      // A successful probe means the OBS widget is present AND local OBS answered —
+      // arm the live watch + preview even when the host field was left blank.
+      if (!streamingLive.obsWanted) { streamingLive.obsWanted = true; refreshObsWatch(); }
+      json({ ok: true, current: d.currentProgramSceneName || '', scenes: (d.scenes || []).map((s) => s.sceneName).filter(Boolean) });
+    } catch (e) {
+      json({ ok: false, scenes: [], error: String((e && e.message) || e) });
+    }
+  },
+
+  'GET /streamerbot/activity': async (_req, _res, { json }, { buildSbState }) => {
+    // Seed for the Streamer.bot widget: connection flag, live globals and the recent
+    // activity buffer. New events then stream live over the `streamerbot_event` SSE
+    // event; connection/globals over `streamerbot`. No Streamer.bot call here — it's
+    // all in-memory — so it's cheap and safe when Streamer.bot is offline.
+    try {
+      const st = await buildSbState();
+      json(Object.assign({ ok: true, recent: streamingLive.streamerbotActivity }, st));
+    } catch (e) {
+      json({ ok: false, recent: [], configured: false, connected: false, globals: {}, error: String((e && e.message) || e) });
+    }
   },
 };
 

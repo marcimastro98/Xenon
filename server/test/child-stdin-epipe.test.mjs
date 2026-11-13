@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { engineSource, extractedFrom } from './engine-source.mjs';
+import { bodiesBack, engineSource, extractedFrom } from './engine-source.mjs';
 
 // Xenon talks to its native helpers over a long-lived stdin/stdout pipe: the
 // index host, the file-search host, the phone host, the screen host, the
@@ -73,7 +73,9 @@ test('every child stdin Xenon writes to has an error handler', () => {
   const files = [...readdirSync(SERVER_DIR).filter((f) => f.endsWith('.js')), ...extractedFrom().map((entry) => entry.file.slice('server/'.length))];
   const missing = [];
   for (const file of files) {
-    const src = readFileSync(join(SERVER_DIR, file), 'utf8');
+    // The body of a route may stand in a table of its feature, with the child spawned in one route and written to in
+    // another: read with every body back under its test, the write and its guard are one text again.
+    const src = bodiesBack(`server/${file}`, readFileSync(join(SERVER_DIR, file), 'utf8'));
     // The receiver of a `.stdin.write(` — `proc`, `p`, `ff`, `rec.ffmpegProc`, …
     const writers = new Set();
     for (const m of src.matchAll(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.stdin\.write\(/g)) {

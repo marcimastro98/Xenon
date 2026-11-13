@@ -1,6 +1,8 @@
 // What the engine answers about the PC: the system and network readings, the batteries of its
 // devices and the history of its hardware health.
 
+const { sensorCache } = require('./sensor-cache.js');
+
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /system': async (_req, _res, { json, err500 }, { getSystemInfo }) => {
@@ -26,6 +28,17 @@ const branches = {
     // it just returns whatever buckets were collected while it was last on.
     try { json(await guardian.getHistory()); }
     catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
+  },
+
+  'GET /system/sensors': async (_req, _res, { json }, { collectSensors }) => {
+    // The whole catalog with live values, for the Sensor sources picker. Read
+    // only while the picker is open (it polls this); nothing runs otherwise.
+    try {
+      const r = await collectSensors(null);
+      json({ ok: r.known || r.sensors.length > 0, platform: process.platform, sensorAccess: sensorCache.reading.sensorAccess, auto: { cpuTemp: sensorCache.reading.cpuTempSource }, sensors: r.sensors });
+    } catch {
+      json({ ok: false, platform: process.platform, sensorAccess: sensorCache.reading.sensorAccess, sensors: [] });
+    }
   },
 };
 

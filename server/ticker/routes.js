@@ -4,7 +4,7 @@
 const { _stocksChartCache, _stocksSearchCache } = require('./stocks-caches.js');
 const stocks = require('../stocks.js');
 const {
-  _stocksProviderOpts, _footballOpts, _footballSettings, _newsSettings,
+  _stocksProviderOpts, _footballOpts, _footballSettings, _newsSettings, _stocksSettings,
 } = require('./feed-settings.js');
 const {
   _footballStandingsCache, _footballNewsCache, FOOTBALL_NEWS_TTL_MS, _footballSearchCache,
@@ -15,8 +15,9 @@ const news = require('../news.js');
 const { refreshNews } = require('./news-refresh.js');
 const { newsState } = require('./news-state.js');
 const { _newsSearchCache } = require('./news-search-cache.js');
+const { stocksState } = require('./stocks-state.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /api/stocks/chart': async (_req, res, { json, err500, urlObj }) => {
     // Chart candles for the detail view (on-demand, short-cached so range
@@ -155,6 +156,15 @@ const branches = {
       if (_newsSearchCache.size > 40) _newsSearchCache.delete(_newsSearchCache.keys().next().value);
       _newsSearchCache.set(key, { at: now, results });
       json({ results });
+    } catch (e) { err500(e.message); }
+  },
+
+  'GET /api/stocks': async (_req, _res, { json, err500, urlObj }, { refreshStocks }) => {
+    // Current quotes for the watchlist (+ the config the widget needs to render).
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshStocks();
+      const cfg = _stocksSettings();
+      json({ quotes: stocksState.cache.quotes, provider: stocksState.cache.provider, refreshedAt: stocksState.cache.refreshedAt, watchlist: cfg.watchlist, tile: cfg.tile, alertPercent: cfg.alertPercent });
     } catch (e) { err500(e.message); }
   },
 };

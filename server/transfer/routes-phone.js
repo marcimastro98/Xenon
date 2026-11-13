@@ -5,6 +5,9 @@
 const { readBody } = require('../http/read-body.js');
 const callDetect = require('../call-detect.js');
 const calls = require('../calls.js');
+const { callsSettings } = require('./calls-settings.js');
+const winNotif = require('../winnotif.js');
+const { discordMirror } = require('../discord/mirrored.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -114,6 +117,28 @@ const branches = {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await phone.dial(String(body.number || '').slice(0, 40)));
     } catch (e) { err500(e.message); }
+  },
+
+  'GET /api/calls': async (_req, _res, { json }, { keySendAvailable, keySendProblem }) => {
+    // Seed + capability report for the call card. `keys`/`keysProblem` are what
+    // the Settings panel uses to explain why an Answer button is missing on this
+    // machine (no Accessibility grant on macOS, no xdotool/ydotool on Linux)
+    // instead of leaving the user to guess. A ringing call carries the caller's
+    // name, so this is loopback-or-paired-device like the rest and NEVER JSONP.
+    const c = callsSettings();
+    json({
+      ok: true,
+      enabled: c.enabled,
+      sound: c.sound,
+      push: c.push,
+      calls: calls.current(),
+      capabilities: {
+        keys: keySendAvailable(),
+        keysProblem: keySendProblem(),
+        notifications: winNotif.isSupported(),
+        discord: discordMirror.linkedForCalls,
+      },
+    });
   },
 };
 

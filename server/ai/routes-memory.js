@@ -15,6 +15,10 @@ const { providerModelFor } = require('./provider-models.js');
 const aiXenon = require('../ai-xenon-credits.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const aiCli = require('../ai-cli.js');
+const gameDetect = require('../gamedetect.js');
+const { listScreens } = require('../screens/list-screens.js');
+const { companionState } = require('./companion-state.js');
+const fpsMonitor = require('../fps-monitor.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -150,6 +154,50 @@ const branches = {
       }
       json({ summary });
     } catch (e) { json({ error: e.message }); }
+  },
+
+  'POST /api/companion/insight': async (req, res, { json, err500 }, { captureScreenshot, completeWithUserAi, userAiVisionBlocker }) => {
+    // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
+    // screen and ask the AI set for Bit (Sparks, the user's key, a seeing
+    // Ollama model) for a short in-game insight. Each call costs one vision
+    // request, so the client only calls it on demand (overlay opened or manual
+    // refresh) — never on a background timer while hidden.
+    const companionFail = (status, error) => {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error }));
+    };
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const blocked = await userAiVisionBlocker();
+      if (blocked) { companionFail(400, blocked); return; }
+      const langName = aiLangName(body.lang, 'English');
+      const question = String(body.question || '').trim().slice(0, 300);
+      let fgProc = '';
+      try { fgProc = gameDetect.getForegroundProcess() || ''; } catch {}
+      const screens = await listScreens();
+      const primary = screens.find(s => s.primary) || screens[0];
+      const shot = await captureScreenshot(primary);
+      const sysText = 'You are Xenon\'s Game Companion, shown to the user while they play (on a second screen, or as a card over the game). You receive a live screenshot of their game.';
+      const task = question
+        ? `The user asks: «${question}». Answer their question, grounded in what you see on screen. Reply in ${langName}: short plain sentences, no markdown, no preamble.`
+        : `Identify the game and the current in-game situation, then give ONE concrete, immediately useful tip (strategy, mechanic, objective, build…). Reply in ${langName}: 2-3 short plain sentences, no markdown, no preamble. If the screen is clearly not a game, briefly say what you see instead.`;
+      const { text, sparks } = await completeWithUserAi({
+        use: 'insight', system: sysText,
+        user: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}`,
+        image: { mimeType: 'image/jpeg', data: shot },
+        maxTokens: 512,
+      });
+      if (!text) throw new Error('empty companion answer');
+      if (Number.isFinite(sparks)) companionState.lastSparks = sparks;
+      let fps = null;
+      try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+      json({ text, process: fgProc, fps, ...(Number.isFinite(sparks) ? { sparks } : {}) });
+    } catch (e) {
+      // Out of Sparks is the user's to fix, so it is named; the rest is logged.
+      if (e && e.code === 'no_credits') { companionFail(402, 'no_credits'); return; }
+      if (e && e.code === 'no_vision') { companionFail(400, 'no_vision'); return; }
+      err500(e.message);
+    }
   },
 };
 

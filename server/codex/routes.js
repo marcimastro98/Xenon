@@ -8,6 +8,7 @@ const codexBridge = require('../codex-bridge.js');
 const codexLink = require('../codex-link.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const chatgptAsk = require('../chatgpt-ask.js');
+const { codexState } = require('./tile-state.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -129,6 +130,20 @@ const branches = {
       if (body && body.all === true) { await _chatgptAsker.clear(); json({ ok: true }); return; }
       const id = String(body && body.id || '');
       json({ ok: chatgptAsk.isId(id) && await _chatgptAsker.remove(id) });
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/codex/link': async (_req, _res, { json, err500 }, { PORT, _codexChanged, _codexLinkStatus }) => {
+    // Writes Xenon's hooks into the user's Codex hooks.json (backed up first,
+    // their own hooks kept in place). Codex runs them only after the user trusts
+    // them in /hooks; the answer says whether it has, when Codex can tell us.
+    try {
+      const st = await codexLink.link(DATA_DIR, PORT);
+      codexState.bridgeToken = await codexLink.ensureToken(DATA_DIR, PORT);
+      if (st.error) { json({ ok: false, ...st }); return; }
+      const fresh = await _codexLinkStatus({ fresh: true });
+      _codexChanged();
+      json({ ok: true, ...fresh });
     } catch (e) { err500(e.message); }
   },
 };

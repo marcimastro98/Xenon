@@ -10,6 +10,9 @@ const { timerState } = require('./timer-list.js');
 const { TIMERS_MAX } = require('./timer-values.js');
 const { _normalizeTimer } = require('./timer-normalize.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
+const { agendaState } = require('./agenda-state.js');
+const { readEvents, readTasks } = require('./store-read.js');
+const { EXTERNAL_FEEDS_INTERVAL_MS } = require('../ticker/feeds-interval.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -138,6 +141,36 @@ const branches = {
       broadcastSSE('timer_update', { timers: timerState.list });
       json({ timer });
     } catch (e) { err500(e.message); }
+  },
+
+  'GET /events': async (_req, _res, { json, err500 }) => {
+    // Read only. Saving used to be possible as a GET (?save=&data=), which any
+    // link or <img> could fire to replace the whole calendar; it is POST now.
+    try { const seq = agendaState.eventsSeq; json({ events: await readEvents(), seq }); }
+    catch (e) { err500(e.message); }
+  },
+
+  'GET /external-events': async (_req, _res, { json, err500, urlObj }, { refreshExternalFeeds }) => {
+    try {
+      // The periodic refresh is gated on connected clients, so after boot or an
+      // idle stretch the cache can be cold: never-filled → fetch now (there is
+      // nothing to serve anyway); merely stale → serve it, refresh in background.
+      if (urlObj.searchParams.has('refresh') || agendaState.externalFeeds.refreshedAt === 0) await refreshExternalFeeds();
+      else if (Date.now() - agendaState.externalFeeds.refreshedAt > EXTERNAL_FEEDS_INTERVAL_MS) {
+        refreshExternalFeeds().catch(() => {});
+      }
+      json({ feeds: agendaState.externalFeeds.feeds, events: agendaState.externalFeeds.events, refreshedAt: agendaState.externalFeeds.refreshedAt });
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /external-events/refresh': async (_req, _res, { json, err500 }, { refreshExternalFeeds }) => {
+    try { await refreshExternalFeeds(); json({ ok: true, feeds: agendaState.externalFeeds.feeds, refreshedAt: agendaState.externalFeeds.refreshedAt }); }
+    catch (e) { err500(e.message); }
+  },
+
+  'GET /tasks': async (_req, _res, { json, err500 }) => {
+    try { const seq = agendaState.tasksSeq; json({ tasks: await readTasks(), seq }); }
+    catch (e) { err500(e.message); }
   },
 };
 

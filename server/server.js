@@ -615,7 +615,7 @@ const perfScreen = require('./perf-screen');  // Performance Mode with no dashbo
 const screenAlertsPage = require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
 const scenePage = require('./scene-page');  // the desktop scene: wallpaper and screensaver
 require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
-const versionPing = require('./version-ping');
+require('./version-ping');
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
@@ -635,14 +635,14 @@ const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); const { runHelperFirstInstall } = require('./helper-first-install.js');
 const { createNativeInstallerFetch } = require('./native-installer');
-let _nativeInstallInFlight = null; // one verified installer download at a time (POST /api/native/install)
+const { nativeInstall } = require('./updates/native-install-state.js');
 const { PRESENTMON_URL, PRESENTMON_SHA256 } = require('./performance/presentmon-download.js');
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
-const spotifyLaunch = require('./spotify-launch');
+require('./spotify-launch');
 const discordLaunch = require('./discord-launch'); // start/focus Discord and open a chat, on every OS
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
@@ -676,7 +676,7 @@ try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w);
 const {
   AUTO_UPDATE_ASSUME_IDLE, HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
 } = require('./updates/check-values.js');
-const { semverNewer } = require('./semver');
+require('./semver');
 const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
@@ -1095,8 +1095,6 @@ const {
 const { PERFORMANCE_SCRIPT, PROCESSES_SCRIPT } = require('./performance/script-paths.js');
 const { SENSORS_SCRIPT } = require('./system/script-paths.js');
 const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
-const { ICUE_SHARPEN_SCRIPT } = require('./lights/script-paths.js');
-let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
 // script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
@@ -1384,14 +1382,14 @@ function openSpotlightPopupWindow() {
 // /spotlight/claimed). No claim within the window → the Edge app-mode popup
 // opens instead, so browser-only installs lose nothing.
 let _spotlightClaimTimer = null;
-let _spotlightClaimed = false;
+const { searchShortcut } = require('./search/shortcut-claim.js');
 function routeSpotlightHotkey() {
-  _spotlightClaimed = false;
+  searchShortcut.claimed = false;
   broadcastSSE('spotlight_hotkey', { at: Date.now() });
   if (_spotlightClaimTimer) clearTimeout(_spotlightClaimTimer);
   _spotlightClaimTimer = setTimeout(() => {
     _spotlightClaimTimer = null;
-    if (!_spotlightClaimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
+    if (!searchShortcut.claimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
   }, 450);
   _spotlightClaimTimer.unref();
 }
@@ -1772,11 +1770,7 @@ const aiMemory = createAiMemory({ dataDir: DATA_DIR });
 // overwrite, bulk clear, a just-created item). In-memory only (short-term undo).
 const aiActionLog = createAiActionLog();
 
-// ── Voce Live (Gemini Live realtime, opt-in beta) ────────────────────────────
-// At most one full-duplex Live session at a time (it owns the single mic). While
-// active the wake word stays suspended and the one-shot STT recorder is refused,
-// since dshow cannot share the capture device. See _handleLiveClient below.
-let _liveActive = false;
+const { liveVoice } = require('./ai/live-voice-state.js');
 let _liveSession = null; // { session, capture, timer, teardown }
 
 // Apply the undo descriptor recorded for an AI action. Returns { ok, refresh }
@@ -2482,7 +2476,7 @@ setInterval(() => {
 }, 1500).unref();
 
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
+const { sensorCache } = require('./system/sensor-cache.js');
 let mediaCache = { data: null, updatedAt: 0 };
 const {
   WEATHER_CACHE_MAX_ENTRIES, weatherCache, weatherPending, weatherLocationCache,
@@ -2501,10 +2495,7 @@ let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a strin
 let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 
-const {
-  STT_START_SILENCE_GRACE_MS, STT_AFTER_SPEECH_SILENCE_GRACE_MS, _sttSilenceDb, _sttLooksLikeSpeech,
-  STT_DEVICE_DELAY_MS,
-} = require('./ai/stt-gate.js');
+const { _sttLooksLikeSpeech, STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
 const { _sttDeviceWaiters, _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
 setInterval(_sweepStaleStt, 60000).unref();
 
@@ -2914,8 +2905,8 @@ function getCpuUsage() {
 }
 
 async function getCpuTemp() {
-  const age = Date.now() - cpuTempCache.updatedAt;
-  if (age < sensorRateMs()) return cpuTempCache.cpuTemp;
+  const age = Date.now() - sensorCache.reading.updatedAt;
+  if (age < sensorRateMs()) return sensorCache.reading.cpuTemp;
   if (cpuTempPending) return cpuTempPending;
 
   cpuTempPending = (async () => {
@@ -2924,7 +2915,7 @@ async function getCpuTemp() {
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
-      cpuTempCache = {
+      sensorCache.reading = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
         // The automatic pick's sensor name (Tctl/Tdie, CPU Package), shown by
         // Settings → Sensor sources next to "Automatic". Presentation only.
@@ -2949,10 +2940,10 @@ async function getCpuTemp() {
         updatedAt: Date.now(),
       };
     } catch {
-      cpuTempCache.updatedAt = Date.now();
+      sensorCache.reading.updatedAt = Date.now();
     }
     cpuTempPending = null;
-    return cpuTempCache.cpuTemp;
+    return sensorCache.reading.cpuTemp;
   })();
 
   return cpuTempPending;
@@ -3105,7 +3096,7 @@ const firstSystemReading = createFirstReading();
 // What getSystemInfo can say without waiting for a source that has not answered yet.
 function knownSystemSources() {
   return Promise.all([
-    gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), cpuTempCache.cpuTemp,
+    gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), sensorCache.reading.cpuTemp,
     nativeCollectors ? nativeCollectors.memory() : null,
   ]);
 }
@@ -3138,7 +3129,7 @@ async function getSystemInfo({ partialOk = false } = {}) {
   // AIO pump, a Corsair Commander or any fan hub are invisible to the board, and
   // fans daisy-chained onto one header report as a single reading. The list is
   // therefore "what the hardware exposes", never "every fan in the case".
-  const fans = cpuTempCache.fans.map(f => ({ ...f }));
+  const fans = sensorCache.reading.fans.map(f => ({ ...f }));
   // Prefer each fan's real tachometer over nvidia-smi's fan.speed, which is the
   // curve's TARGET: an idle card in zero-RPM mode reports a percent while the
   // fans are stopped. The percent stays the fallback for cards LHM can't read.
@@ -3150,12 +3141,12 @@ async function getSystemInfo({ partialOk = false } = {}) {
   // Power draw in watts. `total` is strictly CPU+GPU (labelled as such client-
   // side — never a whole-system estimate); `psu` appears only when a digital
   // PSU (Corsair HXi/RMi & co.) is visible to LHM.
-  const cpuWatts = cpuTempCache.cpuWatts;
+  const cpuWatts = sensorCache.reading.cpuWatts;
   const gpuWatts = gpu.gpuWatts === undefined ? null : gpu.gpuWatts;
   const power = {
     cpu: cpuWatts,
     gpu: gpuWatts,
-    psu: cpuTempCache.psuWatts,
+    psu: sensorCache.reading.psuWatts,
     total: (cpuWatts !== null && gpuWatts !== null) ? Math.round((cpuWatts + gpuWatts) * 10) / 10 : null,
   };
 
@@ -3169,11 +3160,11 @@ async function getSystemInfo({ partialOk = false } = {}) {
     // Live clock speeds in MHz, null where the platform exposes none. Added for
     // the SDK's `system` stream, which forwards this payload untouched — so a
     // monitoring widget reads them with the grant it already has.
-    cpuClockMHz: cpuTempCache.cpuClockMHz,
+    cpuClockMHz: sensorCache.reading.cpuClockMHz,
     // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
     // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
     // 'missing'. Lets the widgets name the actual fix instead of guessing.
-    sensorAccess: cpuTempCache.sensorAccess,
+    sensorAccess: sensorCache.reading.sensorAccess,
     memory: {
       used: usedMem,
       total: totalMem,
@@ -3221,7 +3212,7 @@ async function getSystemInfo({ partialOk = false } = {}) {
   if (partial) info.partial = true;
   const unread = partial ? null : [];
   const readings = !partial && Object.keys(sources).length ? await readChosenSensors(sources) : unread;
-  return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: cpuTempCache.cpuTempSource });
+  return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: sensorCache.reading.cpuTempSource });
 }
 
 // --- Network info: bandwidth requires a delta between two readings ---
@@ -3655,9 +3646,9 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
   return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output, sparks };
 }
 
-let _companionLastSparks = null;
+const { companionState } = require('./ai/companion-state.js');
 function companionLookSparks() {
-  return Number.isFinite(_companionLastSparks) ? _companionLastSparks : COMPANION_TYPICAL_SPARKS;
+  return Number.isFinite(companionState.lastSparks) ? companionState.lastSparks : COMPANION_TYPICAL_SPARKS;
 }
 
 // 'no_ai' when the AI set for Bit cannot answer (no key, no Sparks code), or ''.
@@ -3997,13 +3988,7 @@ let obsStopWatch = null;
 // the (larger) image never rides the frequent small `obs` state updates.
 let obsPreview = { scene: '', image: '' };
 let obsPreviewTimer = null;
-// The OBS widget signals local-OBS intent by successfully probing /obs/scenes: a
-// blank host still connects to 127.0.0.1, so a reachable LOCAL OBS should light up
-// the live watch + preview WITHOUT the user having to type a host. Held true only
-// while a dashboard is open (reset when the last SSE client leaves), so a non-OBS
-// user — who never adds the widget and never hits /obs/scenes — keeps zero OBS
-// sockets. An explicit `obsHost` in settings arms the watch on its own regardless.
-let obsLocalWanted = false;
+const { streamingLive } = require('./streaming/live.js');
 
 function applyObsPartial(partial) {
   if (!partial) return;
@@ -4067,7 +4052,7 @@ const _situations = createSituations({
 
 async function refreshObsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
-  const tile = !!s.obsHost || obsLocalWanted;
+  const tile = !!s.obsHost || streamingLive.obsWanted;
   const want = (tile || _situations.needs('live') || _situations.needs('recording')) && sseClients.size > 0;
   if (want && !obsStopWatch) obsStopWatch = deckObs.watch(applyObsPartial);
   // A rule only asks whether OBS is live: no picture of the scene every 5 s for it.
@@ -4201,14 +4186,13 @@ async function refreshHaWatch() {
 let sbStopWatch = null;
 let sbNotifyTimer = null;
 const { SB_ACTIVITY_MAX } = require('./streaming/streamerbot-activity-limit.js');
-let sbActivity = [];
 let sbActivitySeq = 0;
 
 function pushActivity(a) {
   if (!a || typeof a !== 'object') return;
   const item = Object.assign({ id: ++sbActivitySeq, at: Date.now() }, a);
-  sbActivity.push(item);
-  if (sbActivity.length > SB_ACTIVITY_MAX) sbActivity = sbActivity.slice(-SB_ACTIVITY_MAX);
+  streamingLive.streamerbotActivity.push(item);
+  if (streamingLive.streamerbotActivity.length > SB_ACTIVITY_MAX) streamingLive.streamerbotActivity = streamingLive.streamerbotActivity.slice(-SB_ACTIVITY_MAX);
   broadcastSSE('streamerbot_event', item);
 }
 
@@ -4882,11 +4866,11 @@ async function saveVitalsState(body) {
 }
 async function tilePlaySearch(tile, q) {
   if (tile === 'twitch') {
-    const r = await streamTwitch.searchChannels(q, { language: hub.settings && hub.settings.language });
+    const r = await streams.twitch.searchChannels(q, { language: hub.settings && hub.settings.language });
     const ch = r && r.ok && Array.isArray(r.channels) ? r.channels.find((c) => c && c.live !== false) || r.channels[0] : null;
     return ch ? { value: ch.login, title: ch.name || ch.login } : { error: (r && r.error) || 'no_match' };
   }
-  const r = await streamYouTube.searchVideos(q);
+  const r = await streams.youtube.searchVideos(q);
   const v = r && r.ok && Array.isArray(r.videos) ? r.videos.find((x) => x && x.embeddable !== false) : null;
   return v ? { value: v.id, title: v.title } : { error: (r && r.error) || 'no_match' };
 }
@@ -5715,14 +5699,14 @@ async function runAiTool(fnName, fnArgs, deps) {
       const value = String(fnArgs.value || '');
       if (action === 'status') {
         const [player, devices] = await Promise.all([
-          streamSpotify.getPlayer().catch(() => null),
-          streamSpotify.getDevices().catch(() => null),
+          streams.spotify.getPlayer().catch(() => null),
+          streams.spotify.getDevices().catch(() => null),
         ]);
         fnResult = { ok: true, nowPlaying: player, devices: (devices && devices.devices) || [] };
       } else if (action === 'play_song') {
-        fnResult = await streamSpotify.playSearch(query);
+        fnResult = await streams.spotify.playSearch(query);
       } else if (action === 'queue_song') {
-        fnResult = await streamSpotify.queueSearch(query);
+        fnResult = await streams.spotify.queueSearch(query);
       } else {
         const seekMs = Math.max(0, Math.round((parseFloat(value) || 0) * 1000));
         const map = {
@@ -5752,15 +5736,15 @@ async function runAiTool(fnName, fnArgs, deps) {
       const action = String(fnArgs.action || '');
       if (action === 'status') {
         const [st, chans] = await Promise.all([
-          discordRpc.voiceState().catch(() => null),
-          discordRpc.listVoiceChannels().catch(() => []),
+          discordLink.rpc.voiceState().catch(() => null),
+          discordLink.rpc.listVoiceChannels().catch(() => []),
         ]);
         fnResult = { ok: true, voice: st, channels: (Array.isArray(chans) ? chans : []).slice(0, 60) };
       } else if (action === 'join') {
         const name = String(fnArgs.channel || '').trim().toLowerCase();
         if (!name) { fnResult = { error: 'no_channel' }; }
         else {
-          const chans = await discordRpc.listVoiceChannels().catch(() => []);
+          const chans = await discordLink.rpc.listVoiceChannels().catch(() => []);
           const match = (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase() === name)
             || (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase().includes(name));
           fnResult = match ? await runAction({ type: 'discordJoin', channel: match.id }) : { error: 'channel_not_found' };
@@ -5878,12 +5862,7 @@ const { _sttGain } = require('./ai/mic-gain.js');
 // must not hit the disk that often. Populated at startup and on every POST.
 hub.settings = { ...DEFAULT_HUB_SETTINGS };
 
-// True when settings.json did NOT exist as this process started: the only honest
-// way to tell a brand-new install from an old one that just enabled the version
-// ping. Read once at boot (see readHubSettings().then below) because the answer
-// stops being available a moment later. Defaults to false, so anything that goes
-// wrong reads as "not new" — under-counting births is the recoverable direction.
-let _settingsFileMissingAtBoot = false;
+const { settingsBoot } = require('./settings/boot-state.js');
 
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
@@ -6707,7 +6686,7 @@ async function updateNotificationsSetting(change) {
     return written.notifications;
   });
   if (masterChanged) {
-    if (!discordNotifWanted()) discordNotifs = [];
+    if (!discordNotifWanted()) discordMirror.notifications = [];
     if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
     refreshDiscordWatch().catch(() => {});
     refreshWinNotifWatch();
@@ -7147,7 +7126,7 @@ async function autoUpdateSignals() {
   try { if (_claudeBridge.pendingCount > 0) blockers.push('claude'); } catch { /* bridge off */ }
   try { if (_codexBridge.pendingCount > 0) blockers.push('codex'); } catch { /* bridge off */ }
   try { if (_chatgptAsker.activeCount > 0) blockers.push('chatgpt'); } catch { /* not ready */ }
-  if (_liveActive) blockers.push('voice');
+  if (liveVoice.active) blockers.push('voice');
   try { if (calls.current().length > 0) blockers.push('call'); } catch { /* calls off */ }
   return { blockers, idleSec: await autoUpdateIdleSeconds() };
 }
@@ -7253,36 +7232,37 @@ const briefing = createBriefingEngine({
   getFps: () => fpsMonitor.getCurrentFps(),
 });
 
+const { streams } = require('./streaming/providers.js');
 // Twitch + YouTube live integrations. Tokens persist to a server-only file
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
 // the user pastes/saves their app credentials in Settings → Streaming, picking up
 // the new client_id/secret without a server restart (see saveStreamConfig).
-let streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
-let streamYouTube = createYouTubeProvider({
+streams.twitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+streams.youtube = createYouTubeProvider({
   clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
   clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
   tokensFile: STREAM_TOKENS_FILE,
 });
-// Twitch Deck actions (Phase 2). These arrow deps read `streamTwitch` at call
+// Twitch Deck actions (Phase 2). These arrow deps read `streams.twitch` at call
 // time, so a re-created provider is picked up automatically.
-deckRegistryDeps.twitchClip = () => streamTwitch.createClip();
-deckRegistryDeps.twitchMarker = (description) => streamTwitch.createMarker(description);
-deckRegistryDeps.twitchAd = (length) => streamTwitch.runAd(length);
-deckRegistryDeps.twitchTitle = (title) => streamTwitch.setTitle(title);
-deckRegistryDeps.twitchGame = (game) => streamTwitch.setGame(game);
-deckRegistryDeps.twitchChat = (message) => streamTwitch.sendChat(message);
-deckRegistryDeps.twitchShoutout = (login) => streamTwitch.shoutout(login);
-deckRegistryDeps.twitchChatMode = (mode) => streamTwitch.setChatMode(mode);
+deckRegistryDeps.twitchClip = () => streams.twitch.createClip();
+deckRegistryDeps.twitchMarker = (description) => streams.twitch.createMarker(description);
+deckRegistryDeps.twitchAd = (length) => streams.twitch.runAd(length);
+deckRegistryDeps.twitchTitle = (title) => streams.twitch.setTitle(title);
+deckRegistryDeps.twitchGame = (game) => streams.twitch.setGame(game);
+deckRegistryDeps.twitchChat = (message) => streams.twitch.sendChat(message);
+deckRegistryDeps.twitchShoutout = (login) => streams.twitch.shoutout(login);
+deckRegistryDeps.twitchChatMode = (mode) => streams.twitch.setChatMode(mode);
 // YouTube Deck action: start/stop/toggle the live broadcast.
-deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
+deckRegistryDeps.ytBroadcast = (mode) => streams.youtube.transitionBroadcast(mode);
 
 // Spotify integration (Authorization Code + PKCE — no client secret). `let` so it
 // can be re-created when the user saves a Client ID in Settings → Streaming (see
 // saveStreamConfig). Tokens persist to the same server-only stream-tokens.json.
-let streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+streams.spotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
 const { SPOTIFY_LOCAL_FALLBACK } = require('./media/spotify-local-fallback.js');
 deckRegistryDeps.spotify = async (action) => {
-  const r = await streamSpotify.runAction(action);
+  const r = await streams.spotify.runAction(action);
   const cmd = SPOTIFY_LOCAL_FALLBACK[action.type];
   if (!cmd || !r || r.ok !== false || r.error !== 'rate_limited') return r;
   let media = null;
@@ -7296,20 +7276,21 @@ deckRegistryDeps.spotify = async (action) => {
   try { await mediaAction(cmd); return { ok: true }; } catch { return r; }
 };
 
-let discordRpc = createDiscordProvider({
+const { discordLink } = require('./discord/link.js');
+discordLink.rpc = createDiscordProvider({
   clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
   clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
   tokensFile: STREAM_TOKENS_FILE,
   wantNotifications: discordNotifScopeWanted,
 });
 // All Discord Deck actions funnel through the provider (it owns the RPC socket and
-// the current-state reads). Reads `discordRpc` at call time so a re-created
+// the current-state reads). Reads `discordLink.rpc` at call time so a re-created
 // provider is picked up automatically.
-deckRegistryDeps.discord = (action) => discordRpc.runAction(action);
+deckRegistryDeps.discord = (action) => discordLink.rpc.runAction(action);
 // "Reply" on a mirrored DM or mention, from the built-in widget and from SDK ones.
 const openDiscordChat = (channelId) => discordLaunch.openConversation(channelId, {
   launch: () => discordLaunch.launchDiscord(),
-  select: (id) => discordRpc.openTextChannel(id),
+  select: (id) => discordLink.rpc.openTextChannel(id),
 });
 deckRegistryDeps.discordOpenChat = openDiscordChat;
 
@@ -7323,7 +7304,7 @@ let discordLogin = '';
 let discordWatchArming = false;   // serialize refreshes (status() is async)
 let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
 
-let discordNotifs = [];
+const { discordMirror } = require('./discord/mirrored.js');
 let discordNotifSeq = 0;
 function pushDiscordNotification(n) {
   if (!n || typeof n !== 'object') return;
@@ -7335,8 +7316,8 @@ function pushDiscordNotification(n) {
   try { calls.onDiscordNotification(n); } catch { /* a ring never breaks the feed */ }
   if (!discordNotifWanted()) return;   // toggled off mid-watch → drop until re-arm
   const item = Object.assign({ id: ++discordNotifSeq, at: Date.now() }, n);
-  discordNotifs.push(item);
-  if (discordNotifs.length > DISCORD_NOTIF_MAX) discordNotifs = discordNotifs.slice(-DISCORD_NOTIF_MAX);
+  discordMirror.notifications.push(item);
+  if (discordMirror.notifications.length > DISCORD_NOTIF_MAX) discordMirror.notifications = discordMirror.notifications.slice(-DISCORD_NOTIF_MAX);
   broadcastSSE('discord_notification', item);
   // Fire the "notification" RGB event effect (no-op unless the user enabled it in
   // Settings → Illuminazione → Effetti evento). Same entry point as timer/reminder.
@@ -7383,11 +7364,6 @@ winNotif.init({
 });
 
 const { callsSettings } = require('./transfer/calls-settings.js');
-// Whether Discord can actually answer. Kept as a flag rather than an async
-// status() call because capabilities are computed while a call is ringing, and
-// a card that takes a round trip to decide whether to draw its main button is a
-// card that draws it late. refreshDiscordWatch keeps it current.
-let _discordLinkedForCalls = false;
 calls.init({
   platform: process.platform,
   broadcast: broadcastSSE,
@@ -7398,8 +7374,8 @@ calls.init({
   listWindows: () => runWindowsTool(['list'], 8000),
   focusWindow: (id) => runWindowsTool(['focus', String(id)], 5000),
   sendHotkey: sendHotkeyCombo,
-  discordLinked: () => _discordLinkedForCalls,
-  discordJoin: (channelId) => discordRpc.runAction({ type: 'discordJoin', channel: String(channelId) }),
+  discordLinked: () => discordMirror.linkedForCalls,
+  discordJoin: (channelId) => discordLink.rpc.runAction({ type: 'discordJoin', channel: String(channelId) }),
   // Read from the helper's own report, never assumed. Both are false on every
   // platform today (the HFP channel belongs to the OS), and the card draws its
   // buttons from them — so this is the single place that has to change if one
@@ -7602,9 +7578,9 @@ setInterval(async () => {
     // `problem` only when there is no answer at all, so a widget can explain
     // the gap (sensorAccess says why) instead of drawing an empty machine.
     const problem = r.known || r.sensors.length ? undefined : 'unavailable';
-    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: r.sensors, problem, sensorAccess: cpuTempCache.sensorAccess });
+    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: r.sensors, problem, sensorAccess: sensorCache.reading.sensorAccess });
   } catch {
-    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: [], problem: 'unavailable', sensorAccess: cpuTempCache.sensorAccess });
+    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: [], problem: 'unavailable', sensorAccess: sensorCache.reading.sensorAccess });
   } finally {
     _sensorsStreamBusy = false;
   }
@@ -7616,15 +7592,15 @@ setInterval(async () => {
 // dashboard is open. wakeword.js owns the child, the VAD and the matcher; the
 // mic is read with the exact same device selection as the STT recorder.
 let _whisperReadyVal = false;
-let _whisperProbedAt = 0;
+const { whisperProbe } = require('./ai/whisper-probe.js');
 function _whisperReady() {
   // Cached: this runs on the SSE connect/close path, which must never do sync
   // FS. A positive result is sticky (whisper doesn't uninstall itself); a
   // negative probe is cached for 10 s (and reset by the install handler).
   if (_whisperReadyVal) return true;
   const now = Date.now();
-  if (now - _whisperProbedAt < 10000) return false;
-  _whisperProbedAt = now;
+  if (now - whisperProbe.lastAt < 10000) return false;
+  whisperProbe.lastAt = now;
   try { _whisperReadyVal = !!aiLocal.whisperExe(__dirname) && fs.existsSync(aiLocal.whisperPaths(__dirname).model); }
   catch { _whisperReadyVal = false; }
   return _whisperReadyVal;
@@ -7681,7 +7657,7 @@ function refreshWakeWordWatch() {
   // Listener count first: it short-circuits the (cached) whisper probe away
   // whenever nobody is connected. A live voice session owns the mic (dshow can't
   // share it), so the wake word stays down for its whole duration.
-  wakeWord.sync(!_liveActive && sseClients.size > 0 && wakeWordWanted());
+  wakeWord.sync(!liveVoice.active && sseClients.size > 0 && wakeWordWanted());
 }
 
 async function refreshDiscordWatch() {
@@ -7695,21 +7671,21 @@ async function refreshDiscordWatch() {
   try {
     do {
       discordWatchDirty = false;
-      const st = await discordRpc.status().catch(() => null);
+      const st = await discordLink.rpc.status().catch(() => null);
       // The call card's Answer button is only real while the account is linked,
       // so the flag it reads follows the same status this watch is armed on.
-      _discordLinkedForCalls = !!(st && st.configured && st.connected);
+      discordMirror.linkedForCalls = !!(st && st.configured && st.connected);
       const want = !!(st && st.configured && st.connected) && sseClients.size > 0;
       if (want && !discordStopWatch) {
         discordLogin = (st && st.login) || '';
-        discordStopWatch = discordRpc.watchVoice((voice) => {
+        discordStopWatch = discordLink.rpc.watchVoice((voice) => {
           // Derive `connected` (account linked) from the pushed state, not a hardcoded
           // true — otherwise a token revoked mid-watch would leave the widget stuck
           // looking linked. A dropped pipe still reports connected:true (linked, just
           // offline); a token failure reports connected:false (→ "connect" notice).
           // `notif` tells the widget's Notifications tab whether the feed is live or
           // the token needs a re-link ('scope_missing').
-          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice, notif: discordRpc.notifStatus() });
+          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice, notif: discordLink.rpc.notifStatus() });
         }, pushDiscordNotification);
       } else if (!want && discordStopWatch) {
         discordStopWatch(); discordStopWatch = null;
@@ -7720,8 +7696,6 @@ async function refreshDiscordWatch() {
   } finally { discordWatchArming = false; }
 }
 
-const { spotifyRedirectUri, spotifyCallbackPage } = require('./media/spotify-connect.js');
-
 async function saveStreamConfig(patch) {
   let cfg = {};
   try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
@@ -7729,18 +7703,18 @@ async function saveStreamConfig(patch) {
     if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
   }
   await writeFileAtomic(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2));
-  streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
-  streamYouTube = createYouTubeProvider({
+  streams.twitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+  streams.youtube = createYouTubeProvider({
     clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
     clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
     tokensFile: STREAM_TOKENS_FILE,
   });
-  streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+  streams.spotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
   // Stop any live watch on the OLD provider first — closing it with a watcher
   // still attached would spin up a reconnect loop against the stale socket.
   if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
-  try { discordRpc.close(); } catch { /* ignore */ }
-  discordRpc = createDiscordProvider({
+  try { discordLink.rpc.close(); } catch { /* ignore */ }
+  discordLink.rpc = createDiscordProvider({
     clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
     clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
     tokensFile: STREAM_TOKENS_FILE,
@@ -7753,7 +7727,8 @@ async function saveStreamConfig(patch) {
 // `notifiedAt`) and a save never interleave, and a save from a copy older than
 // the mark keeps it (calendar-reminders.js keepNotified).
 let _eventsWriteChain = Promise.resolve();
-let _eventsSeq = Date.now();   // as _tasksSeq
+const { agendaState } = require('./time/agenda-state.js');
+agendaState.eventsSeq = Date.now();   // as agendaState.tasksSeq
 function withEventsWrite(fn) {
   const run = _eventsWriteChain.then(fn, fn);
   _eventsWriteChain = run.catch(() => {});
@@ -7762,10 +7737,10 @@ function withEventsWrite(fn) {
 
 async function _saveEvents(safe) {
   await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe));
-  _eventsSeq = _nextListSeq(_eventsSeq);
+  agendaState.eventsSeq = _nextListSeq(agendaState.eventsSeq);
   // Every dashboard repaints its calendar from this, and so does the SDK
   // `agenda` stream.
-  broadcastSSE('agenda', { events: safe, seq: _eventsSeq });
+  broadcastSSE('agenda', { events: safe, seq: agendaState.eventsSeq });
   return safe;
 }
 
@@ -7784,9 +7759,9 @@ function updateEvents(edit) {
   return withEventsWrite(async () => {
     const prev = await readEvents();
     const out = (await edit(prev)) || {};
-    if (!Array.isArray(out.next)) return { ...out, events: prev, seq: _eventsSeq, changed: false };
+    if (!Array.isArray(out.next)) return { ...out, events: prev, seq: agendaState.eventsSeq, changed: false };
     const events = await _saveEvents(calendarReminders.keepNotified(normalizeEvents(out.next), prev));
-    return { ...out, events, seq: _eventsSeq, changed: true };
+    return { ...out, events, seq: agendaState.eventsSeq, changed: true };
   });
 }
 
@@ -7805,7 +7780,7 @@ function markEventReminders(now) {
 // repeating tasks and two dashboards can never base a write on the same old
 // list and drop each other's change.
 let _tasksWriteChain = Promise.resolve();
-let _tasksSeq = Date.now();
+agendaState.tasksSeq = Date.now();
 function withTasksWrite(fn) {
   const run = _tasksWriteChain.then(fn, fn);
   _tasksWriteChain = run.catch(() => {});
@@ -7815,10 +7790,10 @@ function withTasksWrite(fn) {
 async function _writeTasksNow(tasks) {
   const safe = normalizeTasks(tasks);
   await writeFileAtomic(TASKS_FILE, JSON.stringify(safe));
-  _tasksSeq = _nextListSeq(_tasksSeq);
+  agendaState.tasksSeq = _nextListSeq(agendaState.tasksSeq);
   // Every dashboard repaints its Tasks tile from this, and so does the SDK
   // `tasks` stream.
-  broadcastSSE('tasks', { tasks: safe, seq: _tasksSeq });
+  broadcastSSE('tasks', { tasks: safe, seq: agendaState.tasksSeq });
   return safe;
 }
 
@@ -7834,9 +7809,9 @@ function updateTasks(edit) {
   return withTasksWrite(async () => {
     const cur = await readTasks();
     const out = (await edit(cur)) || {};
-    if (!Array.isArray(out.next)) return { ...out, tasks: cur, seq: _tasksSeq, changed: false };
+    if (!Array.isArray(out.next)) return { ...out, tasks: cur, seq: agendaState.tasksSeq, changed: false };
     const tasks = await _writeTasksNow(out.next);
-    return { ...out, tasks, seq: _tasksSeq, changed: true };
+    return { ...out, tasks, seq: agendaState.tasksSeq, changed: true };
   });
 }
 
@@ -8006,13 +7981,10 @@ async function _initTimers() {
   timerState.checking.unref();
 }
 
-// ── External calendar feeds (read-only ICS subscriptions) ──────────────────
-// In-memory only: parsed feed events are never written to disk.
-let _externalFeedCache = { feeds: [], events: [], refreshedAt: 0 };
 let _externalRefreshing = false;
 
 async function refreshExternalFeeds() {
-  if (_externalRefreshing) return _externalFeedCache;
+  if (_externalRefreshing) return agendaState.externalFeeds;
   _externalRefreshing = true;
   try {
     const settings = await readHubSettings().catch(() => null);
@@ -8025,13 +7997,13 @@ async function refreshExternalFeeds() {
       status.push({ id: feeds[i].id, name: feeds[i].name, status: r.status, error: r.error, count: r.count, reminders: feeds[i].reminders });
       if (r.events && r.events.length) events.push(...r.events);
     }
-    _externalFeedCache = { feeds: status, events, refreshedAt: Date.now() };
+    agendaState.externalFeeds = { feeds: status, events, refreshedAt: Date.now() };
   } catch (e) {
     // Keep last good cache; record nothing sensitive.
   } finally {
     _externalRefreshing = false;
   }
-  return _externalFeedCache;
+  return agendaState.externalFeeds;
 }
 
 const { EXTERNAL_FEEDS_INTERVAL_MS } = require('./ticker/feeds-interval.js');
@@ -8044,7 +8016,7 @@ setInterval(() => {
 // Calendar reminders are decided here, once for every surface (see the module).
 const _calendarReminders = calendarReminders.createCalendarReminders({
   markLocal: markEventReminders,
-  feedCache: () => _externalFeedCache,
+  feedCache: () => agendaState.externalFeeds,
   firedFile: path.join(DATA_DIR, 'calendar-reminders.json'),
   writeFileAtomic,
   hasListeners: () => sseClients.size > 0,
@@ -8072,13 +8044,7 @@ function _syncFpsMonitor() {
   _fpsDemand.clients(sseClients.size);
 }
 
-// ── Stock market (Borsa) ─────────────────────────────────────────────────────
-// In-memory only. Quotes are pulled from a free provider (Yahoo keyless by
-// default; optional Twelve Data/Finnhub keys) on a client-gated timer whose
-// cadence follows the user's refreshSec, then pushed over SSE ('stocks'). When a
-// watched symbol crosses ±alertPercent an 'stocks_alert' event fires (→ client
-// toast + LED, gated by the master Notifiche switch).
-let _stocksCache = { quotes: [], provider: 'yahoo', refreshedAt: 0 };
+const { stocksState } = require('./ticker/stocks-state.js');
 let _stocksRefreshing = false;
 let _stocksLastFetch = 0;
 let _stocksSig = null;
@@ -8086,28 +8052,28 @@ let _stocksSig = null;
 // Push only when the data actually changed (refreshedAt excluded): a closed
 // market re-fetch then costs the clients zero repaints and zero SSE traffic.
 function _pushStocks() {
-  const sig = JSON.stringify(_stocksCache.quotes) + '|' + _stocksCache.provider;
+  const sig = JSON.stringify(stocksState.cache.quotes) + '|' + stocksState.cache.provider;
   if (sig === _stocksSig) return;
   _stocksSig = sig;
-  broadcastSSE('stocks', _stocksCache);
+  broadcastSSE('stocks', stocksState.cache);
 }
 const _stocksAlerts = stocks.createAlertTracker();
 
 
 async function refreshStocks() {
-  if (_stocksRefreshing) return _stocksCache;
+  if (_stocksRefreshing) return stocksState.cache;
   _stocksLastFetch = Date.now();
   const cfg = _stocksSettings();
   if (!Array.isArray(cfg.watchlist) || !cfg.watchlist.length) {
-    _stocksCache = { quotes: [], provider: 'yahoo', refreshedAt: Date.now() };
+    stocksState.cache = { quotes: [], provider: 'yahoo', refreshedAt: Date.now() };
     _pushStocks();
-    return _stocksCache;
+    return stocksState.cache;
   }
   _stocksRefreshing = true;
   try {
     const opts = _stocksProviderOpts();
     const quotes = await stocks.fetchQuotes(cfg.watchlist, opts);
-    if (quotes.length) _stocksCache = { quotes, provider: stocks.resolveProvider(opts), refreshedAt: Date.now() };
+    if (quotes.length) stocksState.cache = { quotes, provider: stocks.resolveProvider(opts), refreshedAt: Date.now() };
     // Alerts: one per symbol per direction per day (the tracker dedupes on dayKey).
     const dayKey = new Date().toISOString().slice(0, 10);
     const alerts = _stocksAlertsWanted(cfg) ? _stocksAlerts.evaluate(quotes, cfg.alertPercent, dayKey) : [];
@@ -8121,7 +8087,7 @@ async function refreshStocks() {
     _pushStocks();
   } catch { /* keep last good cache */ }
   finally { _stocksRefreshing = false; }
-  return _stocksCache;
+  return stocksState.cache;
 }
 
 const { _widgetPlaced } = require('./grid/widget-placed.js');
@@ -8284,22 +8250,13 @@ setInterval(() => {
 // over SSE ('claude') on a client-gated cadence, and only when the aggregate
 // actually changed (the reader hands us a signature). No alerts, no disk writes.
 const _claudeReader = claudeUsage.createReader();
-let _claudeCache = { data: null, sig: '', refreshedAt: 0 };
+const { claudeState } = require('./claude-code/tile-state.js');
 let _claudeRefreshing = false;
 let _claudeLastFetch = 0;
 
-// ── the live bridge ──────────────────────────────────────────────────────────
-// Where the transcript reader above infers activity from file mtimes, the bridge
-// is told: Claude Code itself POSTs its statusline payload and its lifecycle
-// hooks here (see claude-link.js for how that config is installed). It supplies
-// the two things the filesystem cannot — the real subscription quota, and a
-// blocking permission request the user answers from the touchscreen.
-// Claude Code's permissions.defaultMode, re-read just before a plan card is
-// built (see the /api/claude/permission route) so it is never stale.
-let _claudeDefaultMode = '';
 const _claudeBridge = claudeBridge.createBridge({
   onChange: () => _claudeBridgeChanged(),
-  defaultMode: () => _claudeDefaultMode,
+  defaultMode: () => claudeState.defaultMode,
   terminal: (id) => _claudeInbox.present(id),
 });
 // Tile messages for a session open in a terminal (claude-inbox.js): the Xenon
@@ -8313,7 +8270,6 @@ const _claudeInbox = claudeInbox.createInbox({
     _claudeBridgeChanged();
   },
 });
-let _claudeBridgeToken = '';        // resolved once at boot from DATA_DIR
 let _claudeBridgePushTimer = null;
 
 // Runs the dashboard starts itself. It shares the bridge's repaint throttle
@@ -8396,8 +8352,8 @@ if (typeof _claudeRegistryTimer.unref === 'function') _claudeRegistryTimer.unref
 // Constant-time compare so the token can't be probed byte-by-byte.
 function _claudeBridgeAuth(req) {
   const got = String(req.headers['x-xenon-bridge'] || '');
-  if (!_claudeBridgeToken || got.length !== _claudeBridgeToken.length) return false;
-  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(_claudeBridgeToken)); }
+  if (!claudeState.bridgeToken || got.length !== claudeState.bridgeToken.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(claudeState.bridgeToken)); }
   catch { return false; }
 }
 
@@ -8432,7 +8388,7 @@ async function _claudeHoldPermission(res, data, opts) {
 
 // Resolve (or mint) the bridge token once at boot. Until it lands, both ingest
 // endpoints reject — which is the safe direction, and the window is a few ms.
-claudeLink.ensureToken(DATA_DIR).then((t) => { _claudeBridgeToken = t; }).catch(() => {});
+claudeLink.ensureToken(DATA_DIR).then((t) => { claudeState.bridgeToken = t; }).catch(() => {});
 
 // A Claude Code link that is there but incomplete is repaired once at boot and
 // again whenever the widget asks: an older Xenon wrote a smaller hook set, and
@@ -8446,7 +8402,7 @@ async function _claudeLinkStatus() {
   const st = await claudeLink.repairLink(DATA_DIR, PORT);
   if (st && st.repaired) {
     _claudeLinkRepairedAt = Date.now();
-    _claudeBridgeToken = await claudeLink.ensureToken(DATA_DIR);
+    claudeState.bridgeToken = await claudeLink.ensureToken(DATA_DIR);
     console.log('[claude] Claude Code link updated to the current hook set: '
       + (st.repairedMissing || []).length + ' missing, ' + (st.repairedOutdated || 0) + ' out of date');
   }
@@ -8495,14 +8451,14 @@ function _claudeSessionTitles(live, usage) {
 // dashboard seed itself with an empty approvals list while Claude Code is
 // actually blocked waiting for a tap.
 function _claudeFresh() {
-  return _claudePayload(_claudeCache.data ? _claudeCache.data.usage : null);
+  return _claudePayload(claudeState.cache.data ? claudeState.cache.data.usage : null);
 }
 
 // Single exit point for both feeds. `usage` defaults to whatever the last
 // filesystem scan produced, so a bridge-only change (a tool call, an approval)
 // repaints without re-reading any transcript.
 function _claudeBroadcast(usage) {
-  const u = usage !== undefined ? usage : (_claudeCache.data ? _claudeCache.data.usage : null);
+  const u = usage !== undefined ? usage : (claudeState.cache.data ? claudeState.cache.data.usage : null);
   const payload = _claudePayload(u);
   // Change detection folds in the budget so a settings edit repaints too, the
   // bridge signature so live state does as well — not just token activity — and
@@ -8514,14 +8470,14 @@ function _claudeBroadcast(usage) {
   const runSig = payload.runs.map(r => `${r.id}:${r.state}:${r.output.length}`).join(',');
   const titleSig = Object.keys(payload.titles).map((id) => id + '=' + payload.titles[id]).join('\n');
   const fullSig = `${u ? u.sig : ''}|${payload.budget.weekly}|${payload.budget.plan}|${payload.live.sig}|${runSig}|${titleSig}`;
-  const changed = fullSig !== _claudeCache.sig;
-  _claudeCache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
+  const changed = fullSig !== claudeState.cache.sig;
+  claudeState.cache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
   if (changed) broadcastSSE('claude', payload);
   return payload;
 }
 
 async function refreshClaude() {
-  if (_claudeRefreshing) return _claudeCache;
+  if (_claudeRefreshing) return claudeState.cache;
   _claudeRefreshing = true;
   _claudeLastFetch = Date.now();
   try {
@@ -8529,7 +8485,7 @@ async function refreshClaude() {
     _claudeBroadcast(usage);
   } catch { /* keep last good cache */ }
   finally { _claudeRefreshing = false; }
-  return _claudeCache;
+  return claudeState.cache;
 }
 
 // Client-gated cadence (mirrors stocks/football): only scans the filesystem once a
@@ -8571,7 +8527,7 @@ const _codexApp = codexAppServer.createAppServer({
   onChange: () => { _codexRefreshLink().catch(() => {}); },
   log: (m) => console.log('[codex] ' + m),
 });
-let _codexBridgeToken = '';
+const { codexState } = require('./codex/tile-state.js');
 let _codexPushTimer = null;
 let _codexSig = '';
 let _codexLinkCache = null;
@@ -8585,8 +8541,8 @@ function _syncCodexDemand() {
 
 function _codexBridgeAuth(req) {
   const got = String(req.headers['x-xenon-bridge'] || '');
-  if (!_codexBridgeToken || got.length !== _codexBridgeToken.length) return false;
-  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(_codexBridgeToken)); }
+  if (!codexState.bridgeToken || got.length !== codexState.bridgeToken.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(codexState.bridgeToken)); }
   catch { return false; }
 }
 
@@ -8611,7 +8567,7 @@ async function _codexRefreshLink() {
 // it), then a repair only for a link the user made whose node or script path
 // moved. A repair changes the hook hash, so the tile says to trust it again.
 codexLink.ensureToken(DATA_DIR, PORT)
-  .then((t) => { _codexBridgeToken = t; return codexLink.repairLink(DATA_DIR, PORT); })
+  .then((t) => { codexState.bridgeToken = t; return codexLink.repairLink(DATA_DIR, PORT); })
   .then((st) => {
     if (st && st.repaired) {
       _codexLinkRepairedAt = Date.now();
@@ -9916,7 +9872,7 @@ function openSseClient(req, res, isRemote, remote) {
   refreshWakeWordWatch();
   refreshAudioLevelsWatch();
   _syncCodexDemand();
-  req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); _syncCodexDemand(); });
+  req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) streamingLive.obsWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); _syncCodexDemand(); });
 
   // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
   noteUsageDay();
@@ -9995,8 +9951,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
     .catch(() => {});
   // Seed the current stock quotes (paint immediately), then kick a refresh if
   // the cache is empty/stale so a freshly opened dashboard fills in fast.
-  try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
-  if (!_stocksCache.quotes.length || Date.now() - _stocksCache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
+  try { if (stocksState.cache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(stocksState.cache)}\n\n`); } catch (e) { /* ignore */ }
+  if (!stocksState.cache.quotes.length || Date.now() - stocksState.cache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
   // Seed the current football fixtures/results, then kick a refresh if stale.
   try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
   if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
@@ -10007,7 +9963,7 @@ data: ${JSON.stringify({ ...st, seed: true })}
   // Seed the current Claude Code usage aggregate, then refresh if empty/stale
   // (display-only feed: only when the widget is on the dashboard).
   try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
-  if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
+  if (_feedWidgetInUse('claude') && (!claudeState.cache.data || Date.now() - claudeState.cache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
   // Seed the Codex state (live approvals included, so a card waiting before this
   // dashboard opened is drawn at once).
   try { res.write(`event: codex\ndata: ${JSON.stringify(_codexPayload())}\n\n`); } catch (e) { /* ignore */ }
@@ -10022,8 +9978,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
   // until the user next edits a task/note/event. Same loopback-only stream and
   // same payload shape as the change broadcasts; the custom-widget host forwards
   // each only to a frame that was granted that stream.
-  { const seq = _tasksSeq; readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
-  { const seq = _eventsSeq; readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
+  { const seq = agendaState.tasksSeq; readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
+  { const seq = agendaState.eventsSeq; readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
   readNotes().then(n => { try { if (n) res.write(`event: notes\ndata: ${JSON.stringify(n)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
   // Timers too: timer_update otherwise fires only on mutations/completions, so
   // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
@@ -10098,6 +10054,10 @@ const { branches: notificationOpenBranches } = require('./notification-open/rout
 const { branches: widgetOptionsBranches } = require('./widget-options/routes.js');
 const { branches: menuBranches } = require('./menu/routes.js');
 const { branches: alertsBranches } = require('./alerts/routes.js');
+const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');
+const { branches: streamingYoutubeBranches } = require('./streaming/routes-youtube.js');
+const { branches: streamingSpotifyBranches } = require('./streaming/routes-spotify.js');
+const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -10445,14 +10405,7 @@ const handleRequest = async (req, res) => {
     await systemInfoBranches['GET /system'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSystemInfo });
 
   } else if (reqPath === '/system/sensors' && req.method === 'GET') {
-    // The whole catalog with live values, for the Sensor sources picker. Read
-    // only while the picker is open (it polls this); nothing runs otherwise.
-    try {
-      const r = await collectSensors(null);
-      json({ ok: r.known || r.sensors.length > 0, platform: process.platform, sensorAccess: cpuTempCache.sensorAccess, auto: { cpuTemp: cpuTempCache.cpuTempSource }, sensors: r.sensors });
-    } catch {
-      json({ ok: false, platform: process.platform, sensorAccess: cpuTempCache.sensorAccess, sensors: [] });
-    }
+    await systemInfoBranches['GET /system/sensors'](req, res, { json, err500, reqPath, urlObj, isRemote }, { collectSensors });
 
   } else if (reqPath === '/perf' && req.method === 'GET') {
     // Read-only seed for the Game performance tile (SSE 'perf' pushes the rest).
@@ -10651,20 +10604,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/icue/sharpen' && req.method === 'POST') {
-    // Fix for the blurry dashboard in iCUE widget mode (issue #53): nudge iCUE's
-    // Xeneon Edge window by 1px and back so Qt re-reads which screen it is on and
-    // pushes the correct device scale to the widget renderer (see icue-sharpen.ps1
-    // for the full mechanism). Triggered by the dashboard itself when it detects
-    // it is being rasterised at another monitor's scale. Cooldown guards against
-    // a client retry loop; the wiggle is idempotent when the scale is already right.
-    try {
-      const now = Date.now();
-      if (now - lastIcueSharpenAt < 3000) { json({ ok: false, error: 'cooldown' }); }
-      else {
-        lastIcueSharpenAt = now;
-        json(await runPowerShellScript(ICUE_SHARPEN_SCRIPT, [], 15000));
-      }
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await lightsBranches['POST /api/icue/sharpen'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
     await weatherBranches['GET /weather'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getWeather });
@@ -10876,10 +10816,10 @@ const handleRequest = async (req, res) => {
       const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
       // Twitch actions are only useful when logged in — surface that so the editor
       // can hide them until the user connects (mirrors obs/remote gating).
-      const tw = await streamTwitch.status().catch(() => ({ connected: false }));
-      const yt = await streamYouTube.status().catch(() => ({ connected: false }));
-      const dc = await discordRpc.status().catch(() => ({ connected: false }));
-      const sp = await streamSpotify.status().catch(() => ({ connected: false }));
+      const tw = await streams.twitch.status().catch(() => ({ connected: false }));
+      const yt = await streams.youtube.status().catch(() => ({ connected: false }));
+      const dc = await discordLink.rpc.status().catch(() => ({ connected: false }));
+      const sp = await streams.spotify.status().catch(() => ({ connected: false }));
       const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
       // Lighting actions surface only when the user actually has controllable
       // lighting — the iCUE bridge, an external provider with devices, or Chroma.
@@ -10906,7 +10846,7 @@ const handleRequest = async (req, res) => {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
+      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || streamingLive.obsWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
@@ -10978,15 +10918,7 @@ const handleRequest = async (req, res) => {
     await windowsTilesBranches['POST /embedded-browser/adblock/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
-    try {
-      const d = await deckObs.request('GetSceneList', {});
-      // A successful probe means the OBS widget is present AND local OBS answered —
-      // arm the live watch + preview even when the host field was left blank.
-      if (!obsLocalWanted) { obsLocalWanted = true; refreshObsWatch(); }
-      json({ ok: true, current: d.currentProgramSceneName || '', scenes: (d.scenes || []).map((s) => s.sceneName).filter(Boolean) });
-    } catch (e) {
-      json({ ok: false, scenes: [], error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /obs/scenes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs, refreshObsWatch });
 
   } else if (reqPath === '/obs/sources' && req.method === 'GET') {
     await streamingBranches['GET /obs/sources'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs });
@@ -11001,16 +10933,7 @@ const handleRequest = async (req, res) => {
     await streamingBranches['GET /streamerbot/globals'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
 
   } else if (reqPath === '/streamerbot/activity' && req.method === 'GET') {
-    // Seed for the Streamer.bot widget: connection flag, live globals and the recent
-    // activity buffer. New events then stream live over the `streamerbot_event` SSE
-    // event; connection/globals over `streamerbot`. No Streamer.bot call here — it's
-    // all in-memory — so it's cheap and safe when Streamer.bot is offline.
-    try {
-      const st = await buildSbState();
-      json(Object.assign({ ok: true, recent: sbActivity }, st));
-    } catch (e) {
-      json({ ok: false, recent: [], configured: false, connected: false, globals: {}, error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /streamerbot/activity'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildSbState });
 
   } else if (reqPath === '/notes/list' && req.method === 'GET') {
     await timeBranches['GET /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });
@@ -11048,43 +10971,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/update/check' && req.method === 'GET') {
-    // Latest released version vs the running one (probed at most daily,
-    // fail-silent — offline simply reports no update). `?force=1` bypasses the
-    // cache for the manual "check now" button.
-    try {
-      const u = await checkLatestRelease(urlObj.searchParams.get('force') === '1');
-      json({
-        current: APP_VERSION,
-        latest: u.ok ? u.latest : '',
-        url: u.ok ? u.url : '',
-        notes: u.ok ? u.notes : '',
-        name: u.ok ? u.name : '',
-        publishedAt: u.ok ? u.publishedAt : '',
-        mediaTypes: u.ok ? (u.mediaTypes || {}) : {},
-        updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
-      });
-      // Opt-in anonymous version ping, off by default. Deliberately piggybacks
-      // on this check so enabling it adds no new outbound request, and is
-      // fire-and-forget so it can never delay or fail the update response.
-      versionPing.maybePing({
-        dataDir: DATA_DIR,
-        version: APP_VERSION,
-        enabled: !!(hub.settings && hub.settings.versionPing === true),
-        // Only a birth observed at boot may produce a cohort — see version-ping.js.
-        fresh: _settingsFileMissingAtBoot,
-        // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
-        // js/settings.js), so reading it costs nothing and adds no new key.
-        lang: (hub.settings && hub.settings.language) || '',
-      }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
-      // Anonymous feature counts, off unless usageStats is on: same ride, same
-      // once-a-day rule. The tier is a boolean (is a supporter code saved here),
-      // never the code itself.
-      if (hub.settings && hub.settings.usageStats === true) {
-        supporterRedeem.savedStatus(DATA_DIR)
-          .then((st) => usageStats.maybeSend({ enabled: true, supporter: !!(st && st.saved) }))
-          .catch(() => { /* best-effort, like the version ping */ });
-      }
-    } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['GET /update/check'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/startup-task' && req.method === 'GET') {
     // Will Xenon still be here after the next sign-in? Answered from the last
@@ -11143,7 +11030,7 @@ const handleRequest = async (req, res) => {
       try { await fs.promises.access(script); } catch { json({ ok: false, error: 'helper_missing' }); return; }
       // A second tap while a download is in flight joins it rather than starting a
       // second writer on the same file.
-      if (_nativeInstallInFlight) { json({ ok: true }); return; }
+      if (nativeInstall.inFlight) { json({ ok: true }); return; }
       const statusFile = path.join(DATA_DIR, 'native-install-status.json');
       const writeStatus = (state, error) => fs.promises.writeFile(
         statusFile, JSON.stringify({ state, error: error || '', at: new Date().toISOString() })
@@ -11153,7 +11040,7 @@ const handleRequest = async (req, res) => {
       // ours, so we report it; the PS script takes over at installing -> done/error.
       await writeStatus('downloading', '');
       json({ ok: true });
-      _nativeInstallInFlight = (async () => {
+      nativeInstall.inFlight = (async () => {
         const got = await createNativeInstallerFetch({ destDir: path.join(DATA_DIR, 'native-installer') }).fetchVerified();
         if (!got.ok) { await writeStatus('error', got.error); return; }
         const child = spawn('powershell.exe', [
@@ -11163,7 +11050,7 @@ const handleRequest = async (req, res) => {
         child.on('error', () => { writeStatus('error', 'helper_missing'); });
         child.unref();
       })().catch(() => writeStatus('error', 'download_failed'))
-        .finally(() => { _nativeInstallInFlight = null; });
+        .finally(() => { nativeInstall.inFlight = null; });
     } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
@@ -11471,7 +11358,7 @@ const handleRequest = async (req, res) => {
       const dnPrev = masterPrev && !!(prev && prev.discordNotifications && prev.discordNotifications.enabled);
       const dnNext = masterNext && !!(settings.discordNotifications && settings.discordNotifications.enabled);
       if (dnPrev !== dnNext) {
-        if (!dnNext) discordNotifs = [];       // feature off → drop the stored feed
+        if (!dnNext) discordMirror.notifications = [];       // feature off → drop the stored feed
         if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
         refreshDiscordWatch();
       }
@@ -11600,12 +11487,7 @@ const handleRequest = async (req, res) => {
     await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
-    // Current quotes for the watchlist (+ the config the widget needs to render).
-    try {
-      if (urlObj.searchParams.has('refresh')) await refreshStocks();
-      const cfg = _stocksSettings();
-      json({ quotes: _stocksCache.quotes, provider: _stocksCache.provider, refreshedAt: _stocksCache.refreshedAt, watchlist: cfg.watchlist, tile: cfg.tile, alertPercent: cfg.alertPercent });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/stocks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshStocks });
 
   } else if (reqPath === '/api/stocks/chart' && req.method === 'GET') {
     await tickerBranches['GET /api/stocks/chart'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11620,16 +11502,7 @@ const handleRequest = async (req, res) => {
     await weatherBranches['POST /api/weather/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });
 
   } else if (reqPath === '/api/claude' && req.method === 'GET') {
-    // Local Claude Code usage aggregate + the budget config the reactor renders.
-    // No key, no network — reads ~/.claude transcripts. Ensures the cache is warm
-    // (the widget can be opened before any SSE-gated refresh has run).
-    try {
-      if (urlObj.searchParams.has('refresh') || !_claudeCache.data) await refreshClaude();
-      // Widget just (re)added after a gated-idle stretch: serve the cache now,
-      // catch up in background; the SSE push repaints when it lands.
-      else if (Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000) refreshClaude().catch(() => {});
-      json(_claudeFresh());        // never the cached `live` block — see _claudeFresh
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['GET /api/claude'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeFresh, refreshClaude });
 
   } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {
     await claudeCodeRunBranches['POST /api/claude/budget'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshClaude, writeHubSettings });
@@ -11644,43 +11517,7 @@ const handleRequest = async (req, res) => {
     await claudeCodeSessionBranches['GET /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeModReply });
 
   } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {
-    // The blocking one. Claude Code holds its tool call open while this request
-    // is unanswered, so the user can decide on the Xeneon Edge instead of at the
-    // keyboard. Every path that is not an explicit tap answers 2xx with an EMPTY
-    // object, which means "no decision" and hands the prompt back to Claude
-    // Code's own terminal UI — this endpoint can never auto-approve anything.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    // Approval cards switched off in Settings → answer immediately with "no
-    // decision". Refusing to QUEUE the request is the whole point: leaving it
-    // pending would block the session for the full approval window waiting on a
-    // card that is never drawn, which is worse than the prompt the user asked
-    // not to see. Same empty answer as a timeout, so the terminal asks instead.
-    if (hub.settings && hub.settings.claudeWidget
-      && hub.settings.claudeWidget.approvals === false) {
-      req.resume();                                  // drain the body we won't read
-      json({});
-      return;
-    }
-    try {
-      const data = JSON.parse(await readBody(req));
-      // AskUserQuestion no longer arrives here: it is intercepted earlier, on
-      // PreToolUse, by /api/claude/question — which is the only point at which
-      // an answer from the touchscreen can still spare the user the terminal.
-      // If one reaches this route anyway (an older link, a hand-edited config),
-      // it gets no decision, which is the tool proceeding to ask normally.
-      if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
-      // The mod already asked about this call and its wait ran out: the
-      // terminal asks now, not a second card (claude-bridge.js, takeHandBack).
-      if (_claudeBridge.takeHandBack(data)) { json({}); return; }
-      // Whether the plan card offers auto mode depends on it (claude-bridge.js,
-      // planChoices). One small read, only for a plan.
-      if (data && data.tool_name === 'ExitPlanMode') {
-        _claudeDefaultMode = await claudeLink.defaultMode().catch(() => '');
-      }
-      const decision = await _claudeHoldPermission(res, data);
-      if (res.writableEnded || res.destroyed) return;
-      json(decision ? { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } } : {});
-    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+    await claudeCodeBranches['POST /api/claude/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeHoldPermission });
 
   } else if (reqPath === '/api/claude/mod/permission' && req.method === 'POST') {
     await claudeCodeSessionBranches['POST /api/claude/mod/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeHoldPermission });
@@ -11707,13 +11544,7 @@ const handleRequest = async (req, res) => {
     await claudeCodeRunBranches['GET /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeLinkStatus });
 
   } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
-    // Writes the hub's hooks + statusline into the user's Claude Code
-    // settings.json (backed up first, existing statusline chained, not lost).
-    try {
-      const st = await claudeLink.link(DATA_DIR, PORT);
-      _claudeBridgeToken = await claudeLink.ensureToken(DATA_DIR);
-      json({ ok: true, ...st });
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['POST /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });
 
   } else if (reqPath === '/api/claude/unlink' && req.method === 'POST') {
     await claudeCodeRunBranches['POST /api/claude/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });
@@ -11776,17 +11607,7 @@ const handleRequest = async (req, res) => {
     await codexBranches['GET /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexLinkStatus });
 
   } else if (reqPath === '/api/codex/link' && req.method === 'POST') {
-    // Writes Xenon's hooks into the user's Codex hooks.json (backed up first,
-    // their own hooks kept in place). Codex runs them only after the user trusts
-    // them in /hooks; the answer says whether it has, when Codex can tell us.
-    try {
-      const st = await codexLink.link(DATA_DIR, PORT);
-      _codexBridgeToken = await codexLink.ensureToken(DATA_DIR, PORT);
-      if (st.error) { json({ ok: false, ...st }); return; }
-      const fresh = await _codexLinkStatus({ fresh: true });
-      _codexChanged();
-      json({ ok: true, ...fresh });
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, _codexChanged, _codexLinkStatus });
 
   } else if (reqPath === '/api/codex/unlink' && req.method === 'POST') {
     await codexBranches['POST /api/codex/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _codexLinkStatus });
@@ -11917,33 +11738,19 @@ const handleRequest = async (req, res) => {
     await deckKeysBranches['POST /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { withDeckWrite, writeDeckStore });
 
   } else if (reqPath === '/events' && req.method === 'GET') {
-    // Read only. Saving used to be possible as a GET (?save=&data=), which any
-    // link or <img> could fire to replace the whole calendar; it is POST now.
-    try { const seq = _eventsSeq; json({ events: await readEvents(), seq }); }
-    catch (e) { err500(e.message); }
+    await timeBranches['GET /events'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/events' && req.method === 'POST') {
     await timeBranches['POST /events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateEvents, writeEvents });
 
   } else if (reqPath === '/external-events' && req.method === 'GET') {
-    try {
-      // The periodic refresh is gated on connected clients, so after boot or an
-      // idle stretch the cache can be cold: never-filled → fetch now (there is
-      // nothing to serve anyway); merely stale → serve it, refresh in background.
-      if (urlObj.searchParams.has('refresh') || _externalFeedCache.refreshedAt === 0) await refreshExternalFeeds();
-      else if (Date.now() - _externalFeedCache.refreshedAt > EXTERNAL_FEEDS_INTERVAL_MS) {
-        refreshExternalFeeds().catch(() => {});
-      }
-      json({ feeds: _externalFeedCache.feeds, events: _externalFeedCache.events, refreshedAt: _externalFeedCache.refreshedAt });
-    } catch (e) { err500(e.message); }
+    await timeBranches['GET /external-events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });
 
   } else if (reqPath === '/external-events/refresh' && req.method === 'POST') {
-    try { await refreshExternalFeeds(); json({ ok: true, feeds: _externalFeedCache.feeds, refreshedAt: _externalFeedCache.refreshedAt }); }
-    catch (e) { err500(e.message); }
+    await timeBranches['POST /external-events/refresh'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshExternalFeeds });
 
   } else if (reqPath === '/tasks' && req.method === 'GET') {
-    try { const seq = _tasksSeq; json({ tasks: await readTasks(), seq }); }
-    catch (e) { err500(e.message); }
+    await timeBranches['GET /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/tasks' && req.method === 'POST') {
     await timeBranches['POST /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTasks, writeTasks });
@@ -11983,47 +11790,7 @@ const handleRequest = async (req, res) => {
     await aiVoiceBranches['GET /api/companion/cost'](req, res, { json, err500, reqPath, urlObj, isRemote }, { companionLookSparks, readHubSettings });
 
   } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
-    // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
-    // screen and ask the AI set for Bit (Sparks, the user's key, a seeing
-    // Ollama model) for a short in-game insight. Each call costs one vision
-    // request, so the client only calls it on demand (overlay opened or manual
-    // refresh) — never on a background timer while hidden.
-    const companionFail = (status, error) => {
-      res.writeHead(status, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error }));
-    };
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const blocked = await userAiVisionBlocker();
-      if (blocked) { companionFail(400, blocked); return; }
-      const langName = aiLangName(body.lang, 'English');
-      const question = String(body.question || '').trim().slice(0, 300);
-      let fgProc = '';
-      try { fgProc = gameDetect.getForegroundProcess() || ''; } catch {}
-      const screens = await listScreens();
-      const primary = screens.find(s => s.primary) || screens[0];
-      const shot = await captureScreenshot(primary);
-      const sysText = 'You are Xenon\'s Game Companion, shown to the user while they play (on a second screen, or as a card over the game). You receive a live screenshot of their game.';
-      const task = question
-        ? `The user asks: «${question}». Answer their question, grounded in what you see on screen. Reply in ${langName}: short plain sentences, no markdown, no preamble.`
-        : `Identify the game and the current in-game situation, then give ONE concrete, immediately useful tip (strategy, mechanic, objective, build…). Reply in ${langName}: 2-3 short plain sentences, no markdown, no preamble. If the screen is clearly not a game, briefly say what you see instead.`;
-      const { text, sparks } = await completeWithUserAi({
-        use: 'insight', system: sysText,
-        user: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}`,
-        image: { mimeType: 'image/jpeg', data: shot },
-        maxTokens: 512,
-      });
-      if (!text) throw new Error('empty companion answer');
-      if (Number.isFinite(sparks)) _companionLastSparks = sparks;
-      let fps = null;
-      try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
-      json({ text, process: fgProc, fps, ...(Number.isFinite(sparks) ? { sparks } : {}) });
-    } catch (e) {
-      // Out of Sparks is the user's to fix, so it is named; the rest is logged.
-      if (e && e.code === 'no_credits') { companionFail(402, 'no_credits'); return; }
-      if (e && e.code === 'no_vision') { companionFail(400, 'no_vision'); return; }
-      err500(e.message);
-    }
+    await aiMemoryBranches['POST /api/companion/insight'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot, completeWithUserAi, userAiVisionBlocker });
 
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
@@ -12676,125 +12443,7 @@ const handleRequest = async (req, res) => {
     await screensCaptureBranches['GET /api/screenshot/monitor'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });
 
   } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      await Promise.race([
-        _sttDeviceWhenReady(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('STT device timeout')), 10000)),
-      ]);
-      if (!_sttInputArgs()) throw new Error('No audio device available for recording');
-      // A full-duplex Voce Live session already owns the mic (dshow can't share
-      // the device) — refuse a one-shot recorder so it can't starve the live
-      // capture's ffmpeg and tear the session down under the user.
-      if (_liveActive) {
-        res.writeHead(409, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'live_active' })); return;
-      }
-      // Prevent two concurrent STT sessions (e.g. two browser tabs receiving the same wake event)
-      if (_sttPending.size > 0) {
-        res.writeHead(409, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'already_recording' })); return;
-      }
-      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const wavPath = privateTmpFile('xenon-stt-', '.wav');
-
-      let resolveRecording, resolveSaved;
-      const recordingStarted = new Promise(r => { resolveRecording = r; });
-      const recordingSaved   = new Promise(r => { resolveSaved   = r; });
-
-      // Release the wake-word listener before opening the mic (dshow cannot
-      // share a device). Resolves when its capture child has actually exited —
-      // immediately when the feature is off, so this adds no latency then.
-      await wakeWord.suspend();
-      const ffmpeg = getFfmpegPath();
-      const inputArgs = _sttInputArgs();
-      const silenceDb = _sttSilenceDb();
-      const gain = _sttGain();
-      // silencedetect runs on the RAW signal (so end-of-speech is judged before
-      // the boost lifts the noise floor); volume then boosts the saved WAV so
-      // the transcription clip is audible for a quiet hands-free mic.
-      const ffmpegProc = spawn(ffmpeg, [
-        '-hide_banner', '-loglevel', 'info',
-        ...inputArgs,
-        '-af', `silencedetect=noise=${silenceDb.toFixed(1)}dB:d=0.55,volume=${gain}`,
-        '-ar', '16000', '-ac', '1', '-acodec', 'pcm_s16le',
-        '-y', wavPath,
-      ], { windowsHide: true });
-
-      ffmpegProc.stdin.setDefaultEncoding('utf8');
-      // Stopping a recording writes 'q' to this pipe. If ffmpeg already died
-      // (mic unplugged, device taken by another app) that write races its exit
-      // and reports EPIPE as an 'error' event on the stream, not as a throw —
-      // unhandled, it would take the server down at the end of a dictation.
-      ffmpegProc.stdin.on('error', () => {}); // the exit handler already settles it
-
-      ffmpegProc.stderr.setEncoding('utf8');
-
-      let stderrAccum = '';
-      let didStart = false;
-      let silenceNotified = false;
-      let sawSpeech = false;
-      let _silenceDebounce = null; // fires stt_silence after a short wait when no speech yet
-      ffmpegProc.stderr.on('data', d => {
-        stderrAccum += d;
-        if (!didStart && /Press \[q\] to stop/i.test(stderrAccum)) {
-          didStart = true;
-          resolveRecording();
-        }
-        // End-of-speech detection: stop the recorder as soon as the user goes quiet.
-        // • silence_end  → audio resumed; the user is actively speaking (sawSpeech).
-        // • silence_start → user paused. We ALWAYS wait a bit before deciding end-of-
-        //   speech, otherwise a natural mid-sentence pause (e.g. between words or a
-        //   breath) would cut the user off. silence_end during the wait cancels it.
-        if (!silenceNotified) {
-          if (/silence_end:/.test(d)) {
-            sawSpeech = true;
-            if (_silenceDebounce) { clearTimeout(_silenceDebounce); _silenceDebounce = null; }
-          }
-          if (/silence_start:/.test(d) && !_silenceDebounce) {
-            const startMatch = d.match(/silence_start:\s*([\d.]+)/);
-            const silenceStartAt = startMatch ? Number(startMatch[1]) : 0;
-            if (Number.isFinite(silenceStartAt) && silenceStartAt > 0.35) sawSpeech = true;
-            // Long grace after real speech: people pause mid-sentence to think,
-            // and we MUST NOT cut them off. Short grace when no speech happened
-            // yet (the user is just slow to start, no need to wait as long).
-            const grace = sawSpeech ? STT_AFTER_SPEECH_SILENCE_GRACE_MS : STT_START_SILENCE_GRACE_MS;
-            _silenceDebounce = setTimeout(() => {
-              if (!silenceNotified) { silenceNotified = true; broadcastSSE('stt_silence', { id }); }
-            }, grace);
-          }
-        }
-      });
-      ffmpegProc.on('exit', () => resolveSaved());
-      ffmpegProc.on('error', e => {
-        process.stdout.write('[STT] ffmpeg error: ' + e.message + '\n');
-        if (!didStart) { didStart = true; resolveRecording(); }
-        resolveSaved();
-      });
-
-      _sttPending.set(id, { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved, silenceDb, startedAt: Date.now() });
-
-      try {
-        await Promise.race([
-          recordingStarted,
-          new Promise((_, rej) => setTimeout(() => rej(new Error('ffmpeg did not start recording')), 6000)),
-        ]);
-      } catch (startErr) {
-        // A failed start must not leak the pending slot: a stale entry keeps
-        // every later start answering 409, keeps the wake word's isBusy() true
-        // and leaves its listener suspended. Clean up, then rethrow for the 500.
-        _sttPending.delete(id);
-        try { ffmpegProc.kill(); } catch { /* never spawned / already gone */ }
-        if (_sttPending.size === 0) wakeWord.resumeSoon();
-        throw startErr;
-      }
-      process.stdout.write(`[STT] Recording id=${id} via=${_sttVia()} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ id }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiDictationBranches['POST /api/stt/start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _sttDeviceWhenReady, _sttInputArgs, _sttVia, getFfmpegPath });
 
   } else if (reqPath === '/api/stt/stop' && req.method === 'POST') {
     try {
@@ -13075,7 +12724,7 @@ const handleRequest = async (req, res) => {
       res.end();
       // Whisper just became available → drop the negative probe cache and let
       // the wake word start if enabled.
-      _whisperProbedAt = 0;
+      whisperProbe.lastAt = 0;
       refreshWakeWordWatch();
     } catch (e) {
       try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
@@ -13236,11 +12885,7 @@ const handleRequest = async (req, res) => {
     await systemBranches['POST /macos/fda-settings'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {
-    // The native kiosk claims the hotkey: it just opened the frameless
-    // Spotlight window, so the Edge fallback must NOT also fire. In
-    // CSRF_MUTATION_PATHS.
-    _spotlightClaimed = true;
-    json({ ok: true });
+    await searchBranches['POST /spotlight/claimed'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck/press' && req.method === 'GET') {
     await deckKeysBranches['GET /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
@@ -13869,153 +13514,69 @@ const handleRequest = async (req, res) => {
   // Responses never include tokens — only { connected, login, configured } or the
   // device-flow code/URL the user authorises on their phone.
   } else if (reqPath === '/stream/twitch/status' && req.method === 'GET') {
-    try { json(await streamTwitch.status()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['GET /stream/twitch/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/login' && req.method === 'POST') {
-    try { await readBody(req); json(await streamTwitch.startDeviceLogin()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['POST /stream/twitch/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/login/poll' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamTwitch.pollDeviceToken(body.deviceCode));
-    } catch (e) { err500(e.message); }
+    await streamingTwitchBranches['POST /stream/twitch/login/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/logout' && req.method === 'POST') {
-    try { await readBody(req); json(await streamTwitch.logout()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['POST /stream/twitch/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/stream' && req.method === 'GET') {
-    // Live status for the dashboard tile (viewer count / live-offline). Cheap
-    // Helix call; the client polls only while the tile is visible.
-    try { json(await streamTwitch.streamStatus()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['GET /stream/twitch/stream'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/followed' && req.method === 'GET') {
-    // Watching-side channel lists. Reads, cached in the provider, and cheap on
-    // Twitch's rate limit, so a GET is right and none of the three belongs in
-    // CSRF_MUTATION_PATHS the way a YouTube search does — there is no daily
-    // budget here for a drive-by to burn.
-    try { json(await streamTwitch.followedChannels()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['GET /stream/twitch/followed'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/top' && req.method === 'GET') {
-    try { json(await streamTwitch.topChannels()); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['GET /stream/twitch/top'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/emotes' && req.method === 'GET') {
-    // The emotes usable in a channel's chat, for the picker. A read, cached in
-    // the provider for ten minutes, needing no scope.
-    try { json(await streamTwitch.channelEmotes(urlObj.searchParams.get('channel') || '')); }
-    catch (e) { err500(e.message); }
+    await streamingTwitchBranches['GET /stream/twitch/emotes'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/search' && req.method === 'POST') {
-    // POST because it is the one of the three the user triggers by hand and the
-    // one that sends arbitrary text outbound. Listed in CSRF_MUTATION_PATHS for
-    // the same reason the YouTube search is.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      // The dashboard's language picks which live streams are read for title and
-      // tag matches (see searchChannels); it is re-validated there.
-      json(await streamTwitch.searchChannels(body.q, { language: body.lang }));
-    } catch (e) { err500(e.message); }
+    await streamingTwitchBranches['POST /stream/twitch/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/twitch/chat/send' && req.method === 'POST') {
-    // Speaks publicly under the user's name in someone else's chat, so it is
-    // POST-only and in CSRF_MUTATION_PATHS, exactly like the YouTube chat send.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamTwitch.sendChatTo(body.channel, body.message));
-    } catch (e) { err500(e.message); }
-
-  // ── YouTube live integration (Google OAuth device flow) ──────────────────
+    await streamingTwitchBranches['POST /stream/twitch/chat/send'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/stream/youtube/status' && req.method === 'GET') {
-    try { json(await streamYouTube.status()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/login' && req.method === 'POST') {
-    try { await readBody(req); json(await streamYouTube.startDeviceLogin()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/login/poll' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.pollDeviceToken(body.deviceCode));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/login/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/logout' && req.method === 'POST') {
-    try { await readBody(req); json(await streamYouTube.logout()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/broadcast' && req.method === 'GET') {
-    // Live broadcast status + viewer count for the YouTube widget. Quota-aware:
-    // the client polls only while the tile is visible.
-    try { json(await streamYouTube.broadcastStatus()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/broadcast'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/title' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.updateBroadcastTitle(body.title));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/title'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/playlists' && req.method === 'GET') {
-    // Viewer mode: the signed-in user's own playlists for the widget. Quota-kind:
-    // the provider caches the list for 5 minutes and the client loads it once.
-    try { json(await streamYouTube.listPlaylists()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/playlists'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/playlist/resolve' && req.method === 'POST') {
-    // Playlist id → watch URL of its first video. The id is strictly validated in
-    // the provider; the client opens the returned URL (Browser tile or openUrl
-    // action) — a wire-supplied URL is never opened directly.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.resolvePlaylistUrl(body.id));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/playlist/resolve'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/liked' && req.method === 'GET') {
-    // Viewer mode video lists. All three are cheap (1-2 quota units) and cached
-    // in the provider, so a GET is right: they read, they never mutate.
-    try { json(await streamYouTube.likedVideos()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/liked'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/playlist/items' && req.method === 'GET') {
-    try { json(await streamYouTube.playlistVideos(urlObj.searchParams.get('id') || '')); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/playlist/items'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/subscriptions' && req.method === 'GET') {
-    try { json(await streamYouTube.subscriptionsFeed()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/subscriptions'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/query' && req.method === 'POST') {
-    // Authenticated YouTube READS for SDK widgets: an allowlisted `op` plus
-    // bounded params, never a path and never the token. The allowlist lives in
-    // stream-youtube.js so there is one table rather than a route that can be
-    // talked into a general Google proxy.
-    //
-    // POST for the same reason /stream/youtube/search is (quota, not state), and
-    // gated per package on top: a miss spends the USER's 10,000 units a day, and
-    // those units are shared with Xenon's own YouTube tile. A widget that burns
-    // them leaves the person with a dead YouTube integration until midnight
-    // Pacific, which they would experience as Xenon being broken.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const pkgId = String(body.pkg || '');
-      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
-      if (!sdkGrantsFor(pkgId).streams.includes('youtube')) { json({ ok: false, error: 'not_allowed' }); return; }
-      const release = sdkTileGate(pkgId, 'tile');
-      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
-      try {
-        const p = (body.params && typeof body.params === 'object') ? body.params : {};
-        const params = {};
-        for (const k of ['id', 'q', 'pageToken', 'order']) {
-          if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
-        }
-        json(await streamYouTube.query(String(body.op || ''), params));
-      } finally { release(); }
-    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingYoutubeBranches['POST /stream/youtube/query'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath.startsWith('/api/mcp/dev/')) {
     // Claude Code / Codex building widgets (mcp-dev.js). Never from a paired
@@ -14031,60 +13592,30 @@ const handleRequest = async (req, res) => {
     await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });
 
   } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
-    // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what
-    // it changes: one search is 100 of the account's 10,000 daily quota units, so
-    // a cross-site drive-by could burn a user's whole day of YouTube access in a
-    // couple of hundred requests. The cheap reads above don't need this.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.searchVideos(body.q));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/broadcast/create' && req.method === 'POST') {
-    // Creates the broadcast AND the channel's ingestion endpoint if it has none,
-    // so a stream can start without a trip to YouTube Studio. Writes, so it is in
-    // CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.createBroadcast(body.title, body.privacy));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/broadcast/create'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/broadcast/cancel' && req.method === 'POST') {
-    try { json(await streamYouTube.cancelBroadcast()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/broadcast/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/privacy' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.setPrivacy(body.privacy));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/privacy'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/streamkey' && req.method === 'GET') {
-    // The RTMP address and stream key for OBS. A real credential — whoever holds
-    // it can broadcast to the channel — so this one is in REMOTE_DENY: a paired
-    // phone cannot ask for it, only the dashboard on this PC can.
-    try { json(await streamYouTube.streamKey()); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/streamkey'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/chat' && req.method === 'GET') {
-    // Live chat page. A plain GET like the other viewer reads, but it IS in
-    // CSRF_MUTATION_PATHS: the provider's throttle is keyed on the page token, so
-    // "it cannot be hammered" was only true of a caller that asks the same
-    // question twice. A drive-by varying ?page= misses the cache every time.
-    try { json(await streamYouTube.chatMessages(urlObj.searchParams.get('page') || '')); }
-    catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['GET /stream/youtube/chat'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/youtube/chat/send' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamYouTube.sendChat(body.text));
-    } catch (e) { err500(e.message); }
+    await streamingYoutubeBranches['POST /stream/youtube/chat/send'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/config' && req.method === 'POST') {
     await streamingBranches['POST /stream/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveStreamConfig });
   } else if (reqPath === '/stream/discord/status' && req.method === 'GET') {
-    try { json(await discordRpc.status()); }
-    catch (e) { err500(e.message); }
+    await discordBranches['GET /stream/discord/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {
     // Blocks until the user approves the consent dialog in the Discord client (or
@@ -14096,7 +13627,7 @@ const handleRequest = async (req, res) => {
     try {
       await readBody(req);
       if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
-      const r = await discordRpc.login();
+      const r = await discordLink.rpc.login();
       refreshDiscordWatch();
       json(r);
     } catch (e) {
@@ -14112,66 +13643,29 @@ const handleRequest = async (req, res) => {
     try {
       await readBody(req);
       if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
-      const r = await discordRpc.logout();
-      discordNotifs = [];
+      const r = await discordLink.rpc.logout();
+      discordMirror.notifications = [];
       refreshDiscordWatch();
       json(r);
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/discord/channels' && req.method === 'GET') {
-    // Voice channels across the user's guilds, for the Deck editor's join picker
-    // and the dashboard widget's channel list. Returns {ok:false} (not an error)
-    // when Discord is offline so callers fall back to a typed channel-id field.
-    try { json({ ok: true, channels: await discordRpc.listVoiceChannels() }); }
-    catch (e) { json({ ok: false, channels: [], error: String((e && e.message) || e) }); }
+    await discordBranches['GET /stream/discord/channels'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/sounds' && req.method === 'GET') {
-    // The user's soundboard sounds (guild + built-in), for the Deck editor's
-    // soundboard picker. Client-safe (id + guild + name); {ok:false} with an empty
-    // list when Discord is offline so the picker degrades instead of erroring.
-    try { json({ ok: true, sounds: await discordRpc.listSoundboardSounds() }); }
-    catch (e) { json({ ok: false, sounds: [], error: String((e && e.message) || e) }); }
+    await discordBranches['GET /stream/discord/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/voice' && req.method === 'GET') {
-    // Live voice state for the dashboard widget (self mute/deaf, mode, volumes,
-    // audio processing, current channel + members). Client-safe; {ok:false} when
-    // offline. The widget reads this once on mount for an instant paint, then gets
-    // real-time updates over SSE — so this read also arms the event watch.
-    refreshDiscordWatch();
-    try { json(await discordRpc.voiceState()); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await discordBranches['GET /stream/discord/voice'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshDiscordWatch });
 
   } else if (reqPath === '/stream/discord/roster' && req.method === 'GET') {
-    // Who's currently connected in each voice channel, for the widget's Channels
-    // tab. The client polls this only while that tab is open and the tile is
-    // visible, so the per-channel reads stay off the idle path. Client-safe
-    // (names + mute/deaf only); {ok:false} when Discord is offline.
-    try { json(await discordRpc.voiceRoster()); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await discordBranches['GET /stream/discord/roster'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/notifications/windows' && req.method === 'GET') {
     await notificationOpenBranches['GET /notifications/windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
-    // Seed + capability report for the call card. `keys`/`keysProblem` are what
-    // the Settings panel uses to explain why an Answer button is missing on this
-    // machine (no Accessibility grant on macOS, no xdotool/ydotool on Linux)
-    // instead of leaving the user to guess. A ringing call carries the caller's
-    // name, so this is loopback-or-paired-device like the rest and NEVER JSONP.
-    const c = callsSettings();
-    json({
-      ok: true,
-      enabled: c.enabled,
-      sound: c.sound,
-      push: c.push,
-      calls: calls.current(),
-      capabilities: {
-        keys: keySendAvailable(),
-        keysProblem: keySendProblem(),
-        notifications: winNotif.isSupported(),
-        discord: _discordLinkedForCalls,
-      },
-    });
+    await transferPhoneBranches['GET /api/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { keySendAvailable, keySendProblem });
 
   } else if (reqPath === '/api/calls/test' && req.method === 'POST') {
     await transferPhoneBranches['POST /api/calls/test'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -14507,12 +14001,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/stream/discord/notifications' && req.method === 'GET') {
-    // Seed for the widget's Notifications tab: the feature flags + the bounded
-    // recent-notification buffer. New items then stream live over the
-    // `discord_notification` SSE event. Notification text is private user data —
-    // loopback-only like every route, and NEVER a JSONP candidate.
-    const dn = normalizeDiscordNotifications(hub.settings && hub.settings.discordNotifications);
-    json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordRpc.notifStatus(), items: discordNotifs });
+    await discordBranches['GET /stream/discord/notifications'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
     await discordBranches['POST /stream/discord/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -14520,106 +14009,34 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/stream/discord/open-chat' && req.method === 'POST') {
     await discordBranches['POST /stream/discord/open-chat'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDiscordChat });
   } else if (reqPath === '/stream/spotify/status' && req.method === 'GET') {
-    // canStartMinimized: whether Settings may offer "start minimized" here.
-    try { json({ ...(await streamSpotify.status()), canStartMinimized: await spotifyLaunch.canStartMinimized() }); }
-    catch (e) { err500(e.message); }
+    await streamingSpotifyBranches['GET /stream/spotify/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/login' && req.method === 'POST') {
-    // Return the authorize URL; the client opens it in a new window and polls
-    // /status until the callback completes. The redirect_uri is pinned to the
-    // loopback IP (Spotify rejects `localhost`) and MUST match the one the user
-    // registered in their Spotify app — see docs/streaming-setup.md.
-    try { await readBody(req); json(streamSpotify.buildAuthUrl(spotifyRedirectUri(req))); }
-    catch (e) { err500(e.message); }
+    await streamingSpotifyBranches['POST /stream/spotify/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/callback' && req.method === 'GET') {
-    // Spotify's redirect lands here (a top-level GET navigation, so no Origin
-    // header and no CSRF_MUTATION_PATHS entry — the unguessable OAuth `state`,
-    // minted by our own /login, is the CSRF guard). Exchange the code, then show a
-    // tiny self-closing page; the Settings poll picks up the connected state.
-    try {
-      const sp = urlObj.searchParams;
-      let ok = false;
-      if (sp.get('error')) ok = false;                     // user denied consent
-      else { const r = await streamSpotify.exchangeCode(sp.get('code'), sp.get('state')); ok = !!(r && r.ok); }
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(spotifyCallbackPage(ok));
-    } catch (e) { err500(e.message); }
+    await streamingSpotifyBranches['GET /stream/spotify/callback'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/logout' && req.method === 'POST') {
-    try { await readBody(req); json(await streamSpotify.logout()); }
-    catch (e) { err500(e.message); }
+    await streamingSpotifyBranches['POST /stream/spotify/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/query' && req.method === 'GET') {
-    // Authenticated Spotify READS for SDK widgets: an allowlisted `op` plus
-    // bounded params, never a path and never the token. The allowlist lives in
-    // stream-spotify.js so there is one table rather than a route that can be
-    // talked into a general proxy.
-    //
-    // Gated per package: a miss is a call against the USER's Spotify quota, and
-    // that quota is shared with Xenon's own Spotify tile — a widget searching on
-    // every keystroke would stop the dashboard's music working, which the person
-    // would experience as Xenon being broken. Same gate the image routes use.
-    try {
-      const pkgId = String(urlObj.searchParams.get('pkg') || '');
-      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
-      if (!sdkGrantsFor(pkgId).streams.includes('spotify')) { json({ ok: false, error: 'not_allowed' }); return; }
-      const release = sdkTileGate(pkgId, 'tile');
-      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
-      try {
-        const params = {};
-        // Every field an op can read has to be named here AND in the bridge that
-        // builds the request. A field missing from either list is not an error:
-        // it is silently absent, and the op answers page 1 as if it had never
-        // been asked for anything else.
-        for (const k of ['id', 'q', 'types', 'limit', 'offset', 'after', 'before']) {
-          const v = urlObj.searchParams.get(k);
-          if (v !== null) params[k] = v;
-        }
-        json(await streamSpotify.query(urlObj.searchParams.get('op') || '', params));
-      } finally { release(); }
-    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingSpotifyBranches['GET /stream/spotify/query'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/queue' && req.method === 'GET') {
-    // "Up Next": the currently-playing track + the upcoming queue, for the widget.
-    // The client polls this only while the tile is visible.
-    try { json(await streamSpotify.getQueue()); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingSpotifyBranches['GET /stream/spotify/queue'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/playlists' && req.method === 'GET') {
-    try { json(await streamSpotify.getPlaylists()); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingSpotifyBranches['GET /stream/spotify/playlists'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/devices' && req.method === 'GET') {
-    try { json(await streamSpotify.getDevices()); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingSpotifyBranches['GET /stream/spotify/devices'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/player' && req.method === 'GET') {
-    // Full now-playing state (track, progress, shuffle/repeat, device volume, liked)
-    // for the widget's hero. Polled only while the tile is visible; playback control
-    // itself still runs through the allowlisted /actions/run spotify* actions.
-    // ?fresh=1 skips the snapshot cache — the post-control resync (next/prev/seek)
-    // needs the live state, not a pre-action snapshot cached for the TTL.
-    try { json(await streamSpotify.getPlayer({ fresh: urlObj.searchParams.get('fresh') === '1' })); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await streamingSpotifyBranches['GET /stream/spotify/player'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
-    // Start the Spotify desktop app on this computer when the tile finds it closed
-    // (spotify-launch.js picks the command per platform, minimized when the setting
-    // asks and the platform can). With {play:true} it then waits for the app to
-    // sign in and starts the music on this computer. The body carries one boolean;
-    // nothing from it reaches a command line.
-    try {
-      let body = {};
-      try { body = JSON.parse(await readBody(req) || '{}') || {}; } catch { body = {}; }
-      const play = body.play === true;
-      // Taken before the launch, so the new computer can be told apart on a Mac.
-      const known = play ? await streamSpotify.computerIds() : null;
-      const launched = await spotifyLaunch.launchSpotify({ minimized: hub.settings.spotifyStartMinimized === true });
-      if (!launched.ok || !play) { json(launched); return; }
-      const played = await streamSpotify.playWhenReady(os.hostname(), known);
-      json({ ...played, launched: true, minimized: launched.minimized });
-    } catch (e) { json({ ok: false, error: 'launch_failed' }); }
+    await streamingSpotifyBranches['POST /stream/spotify/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {
     await windowsTilesTilesBranches['GET /second-screen/requirements'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenCapture, secondScreen });
@@ -15038,10 +14455,10 @@ async function addIntegrationAiFunctions(fns) {
   let _streamingText = '';
   {
     const _s = (await readHubSettings().catch(() => null)) || {};
-    const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
-    const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
+    const _tw = await streams.twitch.status().catch(() => ({ connected: false }));
+    const _yt = await streams.youtube.status().catch(() => ({ connected: false }));
     const _enabled = [];
-    if (_s.obsHost || obsLocalWanted) {
+    if (_s.obsHost || streamingLive.obsWanted) {
       AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
         action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
         scene: { type: 'STRING', description: 'Scene name: required only for switch_scene' },
@@ -15081,8 +14498,8 @@ async function addIntegrationAiFunctions(fns) {
   // provider instance directly, exactly like the existing data endpoints.
   let _integrationsText = '';
   {
-    const _sp = await streamSpotify.status().catch(() => ({ connected: false }));
-    const _dc = await discordRpc.status().catch(() => ({ connected: false }));
+    const _sp = await streams.spotify.status().catch(() => ({ connected: false }));
+    const _dc = await discordLink.rpc.status().catch(() => ({ connected: false }));
     const _s2 = (await readHubSettings().catch(() => null)) || {};
     const _haCfg = (_s2.homeAssistant && typeof _s2.homeAssistant === 'object') ? _s2.homeAssistant : {};
     const _haOn = !!(_haCfg.url && _haCfg.token);
@@ -15135,16 +14552,16 @@ function _buildLiveSystemInstruction({ langName, summary }) {
 }
 
 async function _teardownLiveSession(reason) {
-  // No-op only when the session neither started arming (no _liveActive) nor
-  // created any handles. Crucially, if _liveActive was set true — even before
+  // No-op only when the session neither started arming (no liveVoice.active) nor
+  // created any handles. Crucially, if liveVoice.active was set true — even before
   // _liveSession was assigned, i.e. a stop that lands mid-await in the 'start'
   // path — we must STILL restore the duck and the wake word, or the mic stays
   // ducked and the wake word stays suspended forever.
-  if (!_liveActive && !_liveSession) return;
+  if (!liveVoice.active && !_liveSession) return;
   const s = _liveSession;
-  const wasActive = _liveActive;
+  const wasActive = liveVoice.active;
   _liveSession = null;
-  _liveActive = false;
+  liveVoice.active = false;
   try { if (s && s.timer) clearTimeout(s.timer); } catch {}
   try { if (s && s.capture) s.capture.stop(); } catch {}
   try { if (s && s.session) s.session.close(); } catch {}
@@ -15185,7 +14602,7 @@ function _handleLiveClient(client) {
       // bug. Trust the intent: a connected client wants a Live session.
       const apiKey = String(m.key || settings.geminiApiKey || '').trim();
       if (!apiKey) { reject('no_key', 'No Gemini API key'); return; }
-      if (_liveActive) { reject('busy', 'A live session is already active'); return; }
+      if (liveVoice.active) { reject('busy', 'A live session is already active'); return; }
       // Wait for the capture device to actually be probed (like the STT path)
       // rather than bailing synchronously — on a fresh boot the probe can lag the
       // first click and would otherwise wrongly report "no microphone".
@@ -15202,10 +14619,10 @@ function _handleLiveClient(client) {
       langName = aiLangName(uiLang);
       const summary = String(m.summary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
 
-      _liveActive = true;
+      liveVoice.active = true;
       refreshWakeWordWatch();   // sync(false) — keep the wake word down for the session
       await wakeWord.suspend(); // ensure its capture child has actually exited
-      // A stop/close during the suspend await: _liveActive is now true (so the
+      // A stop/close during the suspend await: liveVoice.active is now true (so the
       // teardown restores the wake word/duck), but no session/capture exists yet.
       if (aborted) { _teardownLiveSession('aborted').then(() => endClient('aborted')); return; }
       _duckSpeakerVolume();
@@ -15254,7 +14671,7 @@ function _handleLiveClient(client) {
           process.stdout.write(`[Live] gemini socket closed ${detail}\n`);
           // Forward the close reason so the client can show why (bad model/key →
           // typically 1007/1008/1011) and fall back to the turn-based path.
-          if (_liveActive) { send({ type: 'error', code: 'gemini_closed', error: `Gemini Live closed (${detail})` }); _teardownLiveSession('gemini_closed').then(() => endClient('gemini_closed')); }
+          if (liveVoice.active) { send({ type: 'error', code: 'gemini_closed', error: `Gemini Live closed (${detail})` }); _teardownLiveSession('gemini_closed').then(() => endClient('gemini_closed')); }
         },
       });
       _liveSession.session = session;
@@ -15547,7 +14964,7 @@ function _startListen(host) {
       // at boot: by the time the first ping fires, an old install always has the
       // file, so asking then would call every late opt-in a new install and
       // corrupt the retention curve permanently. See version-ping.js.
-      _settingsFileMissingAtBoot = (s === null);
+      settingsBoot.fileMissing = (s === null);
       if (s) hub.settings = s;
       // Which store this process is actually running on, written down where a
       // person can read it. Reported on Discord as "my whole layout is back to
@@ -16534,7 +15951,7 @@ function _gracefulShutdown() {
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a
   // reconnect during shutdown.
   try { if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } } catch {}
-  try { discordRpc.close(); } catch {}
+  try { discordLink.rpc.close(); } catch {}
   // Stop the live Home Assistant watch (clears its reconnect timer) then close the
   // WebSocket. Stopping first prevents close() from scheduling a reconnect.
   try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
