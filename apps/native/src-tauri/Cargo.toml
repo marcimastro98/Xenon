@@ -4,7 +4,7 @@ version = "5.1.0"
 description = "Xenon native kiosk shell for any second screen"
 authors = ["Marcello Mastroeni (marcimastro98)"]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.90"
 
 # The library the desktop and (future) mobile entry points call into.
 [lib]
@@ -12,7 +12,7 @@ name = "xenon_native_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 # `macos-private-api` is required by `macOSPrivateApi` in tauri.conf.json, and
@@ -21,11 +21,14 @@ tauri-build = { version = "2.6.3", features = [] }
 # opaque WHITE under the page, and the switch that turns that off is a private key
 # wry only compiles in under this feature. It affects macOS builds alone, and
 # Xenon does not ship through the App Store, where private APIs are refused.
-tauri = { version = "2.11.6", features = ["tray-icon", "macos-private-api"] }
+tauri = { version = "2.12.5", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-single-instance = "2.4.2"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-opener = "2.5.4"
-tauri-plugin-updater = "2.10.1"
+# 2.14.1 is the first updater that unpacks with zip 9: the zip 4 line before it
+# carries four open advisories (RUSTSEC-2026-0367, -0368, -0369, -0429) and gets
+# no fix. It needs Tauri 2.12, which is why the two moved together.
+tauri-plugin-updater = "2.14.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # The per-launch nonce the main webview's signal URLs must carry (nav_policy.rs).
@@ -36,8 +39,8 @@ getrandom = "0.3"
 # same reason as webkit2gtk below: `with_webview` hands over wry's own WebView2
 # types. Used by `memory_level` to let a hidden webview give memory back.
 [target.'cfg(windows)'.dependencies]
-webview2-com = "=0.38.2"
-windows-core = "=0.61.2"
+webview2-com = "=0.39.1"
+windows-core = "=0.62.2"
 
 # macOS only, the versions tao and wry already resolve (no new crate): the
 # widget layers set their window level, Spaces behaviour and mouse pass-through
