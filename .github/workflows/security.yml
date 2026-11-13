@@ -1,0 +1,135 @@
+name: Security
+
+# Static analysis and known-vulnerability checks that cost nothing to run:
+# CodeQL reads the JavaScript, the workflows, the C# helper, the Swift helper
+# and the Rust code and files what it finds under Security > Code scanning;
+# the audits ask the npm and RustSec databases about the exact versions the
+# lockfiles name.
+#
+# Every push and pull request, plus once a week, because a new advisory or a
+# new CodeQL query can turn up a problem in code nobody touched.
+#
+# No secrets. The token reads the code; only the CodeQL job may also write
+# its own results.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    - cron: '23 4 * * 1'   # Mondays, off the hour: scheduled runs queue up at :00
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: javascript
+            language: javascript-typescript
+            os: ubuntu-latest
+            build-mode: none
+          - name: workflows
+            language: actions
+            os: ubuntu-latest
+            build-mode: none
+          # Read from source, no build: the helper targets Windows and would
+          # not compile on this runner, and CodeQL does not need it to.
+          - name: csharp
+            language: csharp
+            os: ubuntu-latest
+            build-mode: none
+          # CodeQL only reads Swift on a Mac, while watching a real build.
+          - name: swift
+            language: swift
+            os: macos-latest
+            build-mode: manual
+          # Rust is read as the compiler would see it on that OS, and a large
+          # part of both crates is per-OS code, so each OS gets its own pass.
+          - name: rust-windows
+            language: rust
+            os: windows-latest
+            build-mode: none
+          - name: rust-macos
+            language: rust
+            os: macos-latest
+            build-mode: none
+          - name: rust-linux
+            language: rust
+            os: ubuntu-latest
+            build-mode: none
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write   # file the results under Security > Code scanning
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The crates' build scripts look these up; without them the Rust pass on
+      # Linux would read the code with half its types unknown.
+      - name: Install the Linux build dependencies
+        if: matrix.name == 'rust-linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # Libraries copied in from other projects are not ours to fix here.
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config: |
+            paths-ignore:
+              - server/vendor
+              - server/js/vendor
+
+      - name: Build the Mac helper for CodeQL to watch
+        if: matrix.language == 'swift'
+        run: swift build --package-path helper-mac
+
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.name }}
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      # Only what a user's install runs: the lockfile is enough, nothing is
+      # installed. Fails on an advisory rated high or critical.
+      - name: npm packages the app runs with
+        run: npm audit --omit=dev --audit-level=high
+
+      # A ready-made binary, checked against the checksum the action carries:
+      # compiling cargo-audit here would take longer than the audit itself.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-audit
+
+      - name: Crates of the app shell
+        run: cargo audit --file apps/native/src-tauri/Cargo.lock
+
+      - name: Crates of the capture engine
+        run: cargo audit --file apps/capture/Cargo.lock

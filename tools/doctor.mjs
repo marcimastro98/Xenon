@@ -81,7 +81,7 @@ async function probe(name, fn, check, ...rest) {
   try {
     value = await fn();
   } catch (e) {
-    report(name, { level: 'fail', summary: `threw: ${e && e.message ? e.message : e}`, notes: [] }, Date.now() - t);
+    report(name, checks.checkThrown(e), Date.now() - t);
     return null;
   }
   report(name, check(value, ...rest), Date.now() - t);

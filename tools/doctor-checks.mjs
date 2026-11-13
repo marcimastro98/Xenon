@@ -231,4 +231,14 @@ export function checkMedia(info, expectPlaying = false) {
   ]);
 }
 
+// A collector that threw. One kind of throw is not a fault: the program the
+// collector reads through is not installed (pw-dump on a PC without PipeWire).
+// That is the same state as an optional tool missing from PATH, so it gets the
+// same answer. Every other throw is a collector that broke.
+export function checkThrown(err) {
+  const missing = err?.code === 'ENOENT' && String(err.syscall || '').startsWith('spawn');
+  if (!missing) return fail(`threw: ${err?.message || err}`);
+  return warn(`${err.path || 'a program it needs'} is not installed`, ['Nothing can be read here until it is installed.']);
+}
+
 export const _internal = { bytes };

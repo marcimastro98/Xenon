@@ -1,7 +1,7 @@
 // Starts the real server, asks it for the dashboard and the action catalog, stops it, and
 // fails when it did not answer or its output shows a crash. Used by
-// .github/workflows/mac-linux-check.yml on macOS and Linux runners, where nobody looks
-// at a screen; runs anywhere Node runs.
+// .github/workflows/ci.yml on Windows, macOS and Linux runners, where nobody looks at
+// a screen; runs anywhere Node runs.
 //
 //   node tools/ci/boot-check.mjs [log file]      XENON_PORT picks the port (default 3039)
 

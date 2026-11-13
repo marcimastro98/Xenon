@@ -17,6 +17,9 @@ const { createSessionStore, _internal } = require('../claude-history.js');
 
 const OLD = Date.now() - 24 * 3600 * 1000;
 const line = (o) => JSON.stringify(o) + '\n';
+// The folder the chats were started in. A full path by this machine's rules: the project's name is its
+// last part, split on this machine's separator, as in a transcript Claude Code wrote here.
+const CWD = path.resolve('work', 'alpha');
 
 async function fixture() {
   const config = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-claude-history-'));
@@ -30,15 +33,15 @@ async function fixture() {
     return file;
   };
   await write('aaa-1', [
-    line({ type: 'user', cwd: 'C:\\work\\alpha', message: { content: 'fix the login bug' } }),
+    line({ type: 'user', cwd: CWD, message: { content: 'fix the login bug' } }),
     line({ type: 'ai-title', aiTitle: 'Login bug fix' }),
     line({ type: 'custom-title', customTitle: 'My login work' }),
   ]);
   await write('bbb-2', [
-    line({ type: 'user', cwd: 'C:\\work\\alpha', message: { content: [{ type: 'text', text: 'add a dark theme' }] } }),
+    line({ type: 'user', cwd: CWD, message: { content: [{ type: 'text', text: 'add a dark theme' }] } }),
     line({ type: 'ai-title', aiTitle: 'Dark theme' }),
   ]);
-  await write('ccc-3', [line({ type: 'user', cwd: 'C:\\work\\alpha', message: { content: 'just a prompt' } })]);
+  await write('ccc-3', [line({ type: 'user', cwd: CWD, message: { content: 'just a prompt' } })]);
   await fs.writeFile(path.join(proj, 'not a session!.jsonl'), '');
   // Companions of aaa-1: subagents next to the transcript, and the per-session
   // folders under the config dir.

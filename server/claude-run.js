@@ -376,9 +376,6 @@ function createRunner(opts) {
     const proj = projects.find(p => p.id === str(i.projectId, 40));
     if (!proj) return { ok: false, error: 'unknown_project' };
 
-    const exe = await resolveExecutable();
-    if (!exe) return { ok: false, error: 'claude_not_found' };
-
     const model = str(i.model, 40);
     if (model && !/^[a-z0-9][a-z0-9._-]{0,39}$/i.test(model)) return { ok: false, error: 'bad_model' };
     // Both are checked against fixed lists before they get near argv, and
@@ -387,6 +384,9 @@ function createRunner(opts) {
     if (mode && !RUN_MODES.includes(mode)) return { ok: false, error: 'bad_mode' };
     const effort = str(i.effort, 10);
     if (effort && !EFFORTS.includes(effort)) return { ok: false, error: 'bad_effort' };
+    // Only now look for Claude Code (a PATH probe): bad input never starts a process.
+    const exe = await resolveExecutable();
+    if (!exe) return { ok: false, error: 'claude_not_found' };
     const cli = (mode || effort) ? await cliOptions() : { effort: false, modes: [] };
     const useMode = mode && cli.modes.includes(mode) ? mode : '';
     const useEffort = effort && cli.effort ? effort : '';

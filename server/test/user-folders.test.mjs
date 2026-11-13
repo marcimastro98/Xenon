@@ -11,10 +11,19 @@ const { resolveUserFolder, replayRingDir } = require('../user-folders.js');
 
 const regOut = (value, dir) => `\r\nHKEY_CURRENT_USER\\...\\Shell Folders\r\n    ${value}    REG_SZ    ${dir}\r\n`;
 
+// The module judges a path by the rules of the machine it runs on, and "D:\..." is
+// absolute by Windows' rules only: anywhere else the answer is the profile folder.
+const NOT_WINDOWS = process.platform === 'win32' ? false : 'a moved Windows folder (D:\\...) is absolute only by Windows path rules';
+
+test('a folder OneDrive moved comes back as the shell folders name it', { skip: NOT_WINDOWS }, async () => {
+  const execFile = (_f, args, _o, cb) => cb(null, regOut(args[3], 'D:\\OneDrive\\Immagini'));
+  assert.equal(await resolveUserFolder('pictures', { platform: 'win32', homedir: 'C:\\Users\\u', execFile }), 'D:\\OneDrive\\Immagini');
+});
+
 test('each folder reads its own shell-folder value, argv only', async () => {
   const seen = [];
   const execFile = (file, args, opts, cb) => { seen.push({ file, args, opts }); cb(null, regOut(args[3], 'D:\\OneDrive\\Immagini')); };
-  assert.equal(await resolveUserFolder('pictures', { platform: 'win32', homedir: 'C:\\Users\\u', execFile }), 'D:\\OneDrive\\Immagini');
+  await resolveUserFolder('pictures', { platform: 'win32', homedir: 'C:\\Users\\u', execFile });
   assert.deepEqual(seen[0].args.slice(2), ['/v', 'My Pictures']);
   assert.equal(seen[0].file, 'reg');
   assert.equal(seen[0].opts.windowsHide, true);

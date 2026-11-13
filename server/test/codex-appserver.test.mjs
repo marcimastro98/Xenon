@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -158,8 +158,10 @@ test('parseAccount: signed out, and garbage', () => {
 });
 
 test('parseThreads: ephemeral threads skipped, active flags read, cap held', () => {
+  // A folder as this machine writes it, trailing separator included: the project is its last part.
+  const CWD = join(resolve('proj'), 'app') + sep;
   const data = [];
-  for (let i = 0; i < 30; i++) data.push({ id: 't' + i, preview: '\n  line ' + i + '\nmore', cwd: 'C:\\Users\\x\\proj\\app\\', updatedAt: 1800000000, status: { type: 'idle' }, source: 'cli' });
+  for (let i = 0; i < 30; i++) data.push({ id: 't' + i, preview: '\n  line ' + i + '\nmore', cwd: CWD, updatedAt: 1800000000, status: { type: 'idle' }, source: 'cli' });
   data[0].ephemeral = true;
   data[1].status = { type: 'active', activeFlags: ['waitingOnApproval'] };
   data[2].status = { type: 'active', activeFlags: [] };

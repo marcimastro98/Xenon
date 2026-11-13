@@ -16,7 +16,9 @@ const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-const FILE = 'C:\\Users\\u\\Pictures\\Xenon\\Desktop\\Desktop 2026-10-26 21-05-09.png';
+// A full path by this machine's rules, with "Users" in it: the tests below look for that word
+// to prove no folder leaves the server, only the file's name.
+const FILE = path.join(path.parse(process.cwd()).root, 'Users', 'u', 'Pictures', 'Xenon', 'Desktop', 'Desktop 2026-10-26 21-05-09.png');
 
 function deps({ reply = { ok: true, width: 1920, height: 1080, hdr: false }, last = null, game = '' } = {}) {
   const log = { requests: [], opts: [], added: [], saved: [], revealed: [], dirs: [] };

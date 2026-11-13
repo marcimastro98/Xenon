@@ -1,0 +1,180 @@
+name: CI
+
+# Every push and every pull request, on Windows, macOS and Linux. The Mac and
+# the Linux machine exist nowhere else for this project, so these runners are
+# the proof that a change still works there: the whole test suite, the real
+# server started and asked for its pages, the doctor, and the native code
+# (Rust, C#, Swift) compiled where it has to run.
+#
+# What it cannot see: a screen, a permission dialog, a real device. Widgets on
+# a display, capture and global keys still need a person.
+#
+# No secrets and a read-only token, so a pull request from a fork runs the same
+# checks with nothing to steal. Release, signing and publishing live in
+# release.yml and are not touched from here.
+on:
+  push:
+    branches: ['**']   # branches only: a release tag points at a commit already checked
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request makes the older run useless.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }}, Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false   # one OS failing must not hide what the other two say
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        # The oldest line package.json's "engines" accepts and the current LTS,
+        # which is also the line the installer carries. The guard test fails
+        # when a number here falls out of "engines".
+        node: [22, 26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false   # no token left in .git/config for later steps
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tools/quality/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Types and lint live in their own package so a user's install never
+      # downloads them. Without this step their two tests skip instead of running.
+      - name: Install the quality tools
+        run: npm run quality:install
+
+      # Run in the runner's own shell on purpose: on Windows that is PowerShell,
+      # the PATH a user has, not Git Bash with GNU find, sort and tar in front.
+      - name: Test suite
+        timeout-minutes: 25
+        run: npm test
+
+      - name: The server starts and answers
+        timeout-minutes: 5
+        run: node tools/ci/boot-check.mjs "${{ runner.temp }}/boot.log"
+
+      # Exits 1 on a collector whose answer the dashboard would misread. A
+      # sensor or a tool the runner does not have is "absent", not a failure.
+      - name: Doctor
+        if: runner.os != 'Windows'
+        timeout-minutes: 5
+        run: npm run doctor -- --capture "${{ runner.temp }}/doctor"
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-${{ matrix.os }}-node${{ matrix.node }}
+          path: |
+            ${{ runner.temp }}/boot.log
+            ${{ runner.temp }}/doctor
+            server/data/server.log*
+          if-no-files-found: ignore
+          retention-days: 7
+
+  native:
+    name: Native code (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+    # One command per step: PowerShell on Windows only reports the last
+    # command of a step, so two cargo calls in one step could hide the first.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The set Tauri documents for Ubuntu, the same one the installer check uses.
+      - name: Install the Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Cache the Rust builds
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: |
+            apps/native/src-tauri
+            apps/capture
+
+      # --locked everywhere: the committed Cargo.lock is what gets checked, and
+      # a lockfile that no longer matches Cargo.toml fails here.
+      - name: Fetch the crates (app shell)
+        run: cargo fetch --locked --manifest-path apps/native/src-tauri/Cargo.toml
+
+      - name: Fetch the crates (capture engine)
+        run: cargo fetch --locked --manifest-path apps/capture/Cargo.toml
+
+      - name: The app shell compiles
+        run: cargo check --locked --all-targets --manifest-path apps/native/src-tauri/Cargo.toml
+
+      # Clippy at its own levels: its "this is a bug" lints stop the job, style
+      # warnings are printed. The shell still has a few of those, so warnings
+      # are not errors yet.
+      - name: Clippy on the app shell
+        run: cargo clippy --locked --all-targets --manifest-path apps/native/src-tauri/Cargo.toml
+
+      - name: The capture engine compiles
+        run: cargo check --locked --all-targets --manifest-path apps/capture/Cargo.toml
+
+      - name: Clippy on the capture engine
+        run: cargo clippy --locked --all-targets --manifest-path apps/capture/Cargo.toml
+
+      # Reads the crate sources cargo fetched above and names every Tauri API
+      # that exists on one OS only, which a compile on a single OS cannot show.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      - name: Tauri APIs that are not on every platform
+        run: npm run check:platform-apis
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: The Windows helper builds
+        if: runner.os == 'Windows'
+        run: dotnet build helper -c Release
+
+      - name: The Mac helper builds
+        if: runner.os == 'macOS'
+        run: swift build -c release --package-path helper-mac
+
+      # The in-app update of the Mac helper, run for real: the helper built
+      # above, the system's tar and xattr, and the helper's own --version.
+      - name: The Mac helper updates in place
+        if: runner.os == 'macOS'
+        run: node tools/ci/mac-helper-update-check.mjs "$(swift build -c release --package-path helper-mac --show-bin-path)/xenon-helper"

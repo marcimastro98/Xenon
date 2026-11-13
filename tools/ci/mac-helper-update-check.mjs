@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The in-app Mac helper update, for real, on a Mac (mac-linux-check.yml).
+// The in-app Mac helper update, for real, on a Mac (the native job of ci.yml).
 //
 //   node tools/ci/mac-helper-update-check.mjs <built xenon-helper>
 //

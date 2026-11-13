@@ -45,7 +45,8 @@ test('Windows hook command holds no quote: it is a space-free .cmd path (openai/
 });
 
 test('wrapperPath: only DATA_DIR and only as a bare word, never a shared folder, never off Windows', () => {
-  assert.equal(link.wrapperPath('C:\\Xenon\\data', 'win32'), 'C:\\Xenon\\data\\codex-hook.cmd');
+  // Joined with this machine's separator, as the module does; cmd reads either one.
+  assert.equal(link.wrapperPath('C:\\Xenon\\data', 'win32'), path.join('C:\\Xenon\\data', 'codex-hook.cmd'));
   assert.equal(link.wrapperPath('C:\\Users\\Mary Ann\\Xenon\\data', 'win32'), null);
   assert.equal(link.wrapperPath('C:\\Users\\città\\data', 'win32'), null);
   assert.equal(link.wrapperPath('/home/x/data', 'linux'), null);

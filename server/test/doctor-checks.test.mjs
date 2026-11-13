@@ -147,6 +147,19 @@ test('checkMedia: accepts the real shaped payload and catches a broken vocabular
   assert.equal(dc.checkMedia({ ...info, active: 'yes' }).level, 'fail');
 });
 
+test('checkThrown: a program that is not installed is absent, any other throw is broken', async () => {
+  const { execFile } = await import('node:child_process');
+  // A real spawn failure, so the error is the one Node builds and not a guess at its shape.
+  const err = await new Promise((resolve) => { execFile('xenon-no-such-program', [], (e) => resolve(e)); });
+  const absent = dc.checkThrown(err);
+  assert.equal(absent.level, 'warn', JSON.stringify(absent));
+  assert.match(absent.summary, /xenon-no-such-program is not installed/);
+  assert.equal(dc.checkThrown(new Error('pw-dump returned unparseable output')).level, 'fail');
+  // A file that is missing is not a program that is missing.
+  assert.equal(dc.checkThrown(Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT', syscall: 'open' })).level, 'fail');
+  for (const junk of [undefined, null, 'boom', 7]) assert.equal(dc.checkThrown(junk).level, 'fail');
+});
+
 test('every check answers with a level and a summary, never throws', () => {
   const checks = [dc.checkDisks, dc.checkGpu, dc.checkCpuTemp, dc.checkNetwork, dc.checkWindows, dc.checkAudioRows, dc.checkMedia];
   for (const fn of checks) {

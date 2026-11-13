@@ -114,7 +114,7 @@ jobs:
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
@@ -124,7 +124,7 @@ jobs:
       # step fails; the runner's tool cache is, and persists between jobs so
       # the SDK is fetched once. Hosted runners ignore the difference.
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         env:
           DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
@@ -159,7 +159,7 @@ jobs:
           & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path 'out/xenon-helper.exe'
 
       - name: Upload helper artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-helper
           path: out/xenon-helper.exe
@@ -177,7 +177,7 @@ jobs:
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
@@ -228,7 +228,7 @@ jobs:
           Write-Host "engine signed by: $($sig.SignerCertificate.Subject)"
 
       - name: Upload capture engine artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-capture
           path: apps/capture/target/release/xenon-capture.exe
@@ -251,7 +251,7 @@ jobs:
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
@@ -269,7 +269,7 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $git
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
@@ -503,7 +503,7 @@ jobs:
           Copy-Item $setup.FullName stage/Xenon-Setup-x64.exe
 
       - name: Upload native artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-native
           path: stage/
@@ -521,7 +521,7 @@ jobs:
     needs: native
     steps:
       - name: Download the installer
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: xenon-native
           path: stage
@@ -558,13 +558,13 @@ jobs:
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
@@ -1020,7 +1020,7 @@ jobs:
           cp "$DMG" stage/Xenon-macOS-universal.dmg
 
       - name: Upload native macOS artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-native-macos
           path: stage/
@@ -1045,13 +1045,13 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
@@ -1227,7 +1227,7 @@ jobs:
           fi
 
       - name: Upload native Linux artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-native-linux
           path: stage/
@@ -1247,7 +1247,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           path: assets
           merge-multiple: true

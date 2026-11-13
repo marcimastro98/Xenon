@@ -66,7 +66,8 @@ test('the chosen folder holds the file; a vanished one falls back to Documents a
     r.frames(500, 10); r.tick();
     return { r, res: await r.b.stop() };
   };
-  const chosen = path.join('E:', 'Bench');
+  // Absolute by this machine's own rules: "E:\Bench" is a relative name off Windows.
+  const chosen = path.resolve('other-drive', 'Bench');
   const a = await run(async () => ({ dir: chosen }));
   assert.equal(a.r.dirs[0], chosen);
   assert.equal(a.res.folderMissing, undefined);
@@ -259,9 +260,16 @@ test('frames from another side mid-run end it with what was measured', async () 
   assert.equal(r.ended[0].frames, 200);
 });
 
-test('Documents comes from the shell folders on Windows, the profile otherwise', async () => {
+// The module judges a path by the rules of the machine it runs on, and "D:\..." is
+// absolute by Windows' rules only: anywhere else the answer is the profile folder.
+const NOT_WINDOWS = process.platform === 'win32' ? false : 'a moved Windows folder (D:\\...) is absolute only by Windows path rules';
+
+test('Documents moved by OneDrive comes from the shell folders on Windows', { skip: NOT_WINDOWS }, async () => {
   const ok = (_f, _a, _o, cb) => cb(null, '\r\nHKEY_CURRENT_USER\\...\\Shell Folders\r\n    Personal    REG_SZ    D:\\OneDrive\\Documenti\r\n');
   assert.equal(await resolveDocumentsDir({ platform: 'win32', homedir: 'C:\\Users\\u', execFile: ok }), 'D:\\OneDrive\\Documenti');
+});
+
+test('Documents is the profile folder when the shell folders say nothing, and off Windows nothing is asked', async () => {
   const fail = (_f, _a, _o, cb) => cb(new Error('no reg'));
   assert.equal(await resolveDocumentsDir({ platform: 'win32', homedir: 'C:\\Users\\u', execFile: fail }), path.join('C:\\Users\\u', 'Documents'));
   const junk = (_f, _a, _o, cb) => cb(null, 'Personal REG_SZ relative\\path');

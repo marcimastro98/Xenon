@@ -63,7 +63,7 @@ jobs:
     environment: release-signing
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.ref }}
@@ -79,7 +79,7 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $git
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
@@ -335,7 +335,7 @@ jobs:
 
       - name: Upload as workflow artifacts
         if: inputs.tag == ''
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: xenon-native
           path: stage/

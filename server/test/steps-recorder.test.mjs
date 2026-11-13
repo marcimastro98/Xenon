@@ -29,6 +29,11 @@ const WORDS = {
   steps_role_button: 'button', steps_role_field: 'text field', steps_role_checkbox: 'checkbox',
 };
 
+// The Documents folder of the test, a full path by this machine's rules: the recorder only
+// trusts a remembered document whose path is absolute here.
+const ROOT = path.parse(process.cwd()).root;
+const DOCS = path.join(ROOT, 'Users', 'u', 'Documents');
+
 const ev = (n, extra = {}) => ({ event: 'step', n, file: `step-${String(n).padStart(3, '0')}.jpg`, width: 1600, height: 900, right: false, app: 'chrome.exe', name: '', role: '', typedBefore: false, ...extra });
 
 test('a step is validated: number, file name, role and sizes; names are cleaned', () => {
@@ -123,7 +128,7 @@ function setup({ reply = { ok: true, steps: true }, available = true, remember, 
   };
   const emit = (e) => listeners.forEach(fn => fn(e));
   const rec = createStepsRecorder({
-    host, root: async () => 'C:\\Users\\u\\Documents', ...fsx,
+    host, root: async () => DOCS, ...fsx,
     words: async () => WORDS, badge: async () => 'Steps: {n}', lang: () => 'en', when: () => 'today',
     openFile: (f) => opened.push(f), reveal: (f) => revealed.push(f), now: () => new Date(2026, 9, 27, 9, 5, 7).getTime(),
     onChange: (s) => changes.push(s), onSaved: (s) => saved.push(s),
@@ -135,7 +140,7 @@ function setup({ reply = { ok: true, steps: true }, available = true, remember, 
 test('a recording writes steps.html and steps.md, each through a temporary name', async () => {
   const t = setup();
   assert.deepEqual(await t.rec.start(), { ok: true, recording: true });
-  const dir = path.join('C:\\Users\\u\\Documents', 'Xenon', 'Steps', '2026-10-27 09-05-07');
+  const dir = path.join(DOCS, 'Xenon', 'Steps', '2026-10-27 09-05-07');
   assert.deepEqual(t.requests[0], { cmd: 'steps', body: { action: 'start', dir, badge: 'Steps: {n}' } });
   t.fsx.files.set(path.join(dir, 'step-001.jpg'), Buffer.from('ABC'));
   t.emit(ev(1, { name: 'Save report', role: 'button' }));
@@ -255,7 +260,7 @@ test('the last document survives a restart, checked and only while it is on disk
   const kept = [];
   const t = setup({ remember: { load: async () => null, save: (v) => kept.push(v) } });
   await t.rec.start();
-  t.fsx.files.set(path.join('C:\\Users\\u\\Documents', 'Xenon', 'Steps', '2026-10-27 09-05-07', 'step-001.jpg'), Buffer.from('A'));
+  t.fsx.files.set(path.join(DOCS, 'Xenon', 'Steps', '2026-10-27 09-05-07', 'step-001.jpg'), Buffer.from('A'));
   t.emit(ev(1, { name: 'Save', role: 'button' }));
   await t.rec.stop();
   assert.equal(kept.length, 1);
@@ -270,7 +275,7 @@ test('the last document survives a restart, checked and only while it is on disk
   assert.deepEqual(await after.rec.reveal(), { ok: false, error: 'no_file' });
 
   for (const bad of [
-    { ...doc, html: 'C:\\Windows\\system32\\calc.exe' },
+    { ...doc, html: path.join(ROOT, 'Windows', 'system32', 'calc.exe') },
     { ...doc, name: 'other' },
     { ...doc, html: 'steps.html', dir: '.' },
     { dir: 1, html: doc.html, name: doc.name },

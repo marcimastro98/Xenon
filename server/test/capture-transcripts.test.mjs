@@ -9,9 +9,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { EventEmitter } from 'node:events';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const { createCaptureTranscripts, MAX_SECONDS } = require('../capture-transcripts.js');
+
+// Where the transcripts go. The module joins the file name on with this machine's
+// separator, so the test builds the expected path the same way.
+const DIR = 'D:\\data\\capture-transcripts';
 
 const VID = { id: 'aaaaaaaaaaaaaaaa', kind: 'recording', name: 'talk.mp4', file: 'C:\\v\\talk.mp4', seconds: 17 };
 const SHOT = { id: 'bbbbbbbbbbbbbbbb', kind: 'screenshot', name: 'a.png', file: 'C:\\p\\a.png' };
@@ -42,7 +47,7 @@ function rig({ sound = { event: 'speech_done', seconds: 16.8, cut: false }, whis
   const t = createCaptureTranscripts({
     host,
     store: { get: (id) => byId.get(id) || null },
-    dir: 'D:\\data\\capture-transcripts',
+    dir: DIR,
     whisper: () => (whisper ? { exe: 'W:\\whisper-cli.exe', model: 'W:\\ggml-small.bin' } : null),
     spawn: (exe, args) => {
       const child = new EventEmitter();
@@ -67,7 +72,7 @@ function rig({ sound = { event: 'speech_done', seconds: 16.8, cut: false }, whis
     readFile: async (p) => { if (!files.has(p)) { const e = new Error('nope'); e.code = 'ENOENT'; throw e; } return files.get(p); },
     writeFileAtomic: async (p, data) => { files.set(p, data); },
     unlink: async (p) => { log.unlinked.push(p); if (!files.delete(p)) { const e = new Error('nope'); e.code = 'ENOENT'; throw e; } },
-    readdir: async () => [...files.keys()].filter(k => k.startsWith('D:\\data\\capture-transcripts')).map(k => k.split('\\').pop()),
+    readdir: async () => [...files.keys()].filter(k => k.startsWith(DIR)).map(k => path.basename(k)),
     mkdir: async () => {},
     stat: async (p) => ({ size: p.endsWith('.wav') ? 537000 : 1 }),
     tmp: () => 'T:\\tmp\\xt-1',
@@ -90,7 +95,7 @@ test('a video is written down: engine speech, whisper at low priority, saved, te
   assert.equal(exe, 'W:\\whisper-cli.exe');
   for (const a of ['-m', 'W:\\ggml-small.bin', '-l', 'auto', '-f', 'T:\\tmp\\xt-1.wav', '-oj', '-of', 'T:\\tmp\\xt-1', '-pp', '-bytes', '537000']) assert.ok(args.includes(a), a);
   assert.deepEqual(log.priority, [4242]);
-  const saved = JSON.parse(files.get('D:\\data\\capture-transcripts\\' + VID.id + '.json'));
+  const saved = JSON.parse(files.get(path.join(DIR, VID.id + '.json')));
   assert.equal(saved.version, 1);
   assert.equal(saved.lang, 'it');
   assert.equal(saved.seconds, 16.8);
@@ -187,7 +192,7 @@ test('ensure makes one when missing; load finds saved ones; forget deletes the f
   assert.equal(made.transcript.lines.length, 2);
   const again = createCaptureTranscripts({
     host: { available: () => true, onEvent: () => {}, request: async () => ({ ok: true }) },
-    store: { get: () => null }, dir: 'D:\\data\\capture-transcripts', whisper: () => null, spawn: () => null,
+    store: { get: () => null }, dir: DIR, whisper: () => null, spawn: () => null,
     readFile: async (p) => files.get(p), writeFileAtomic: async () => {}, unlink: async () => {},
     readdir: async () => [VID.id + '.json', 'not-an-id.json', 'x.txt'], mkdir: async () => {}, stat: async () => ({}),
   });
@@ -197,7 +202,7 @@ test('ensure makes one when missing; load finds saved ones; forget deletes the f
   assert.equal((await again.read(VID.id)).lang, 'it');
   await t.forget(VID.id);
   assert.equal(t.has(VID.id), false);
-  assert.equal(files.has('D:\\data\\capture-transcripts\\' + VID.id + '.json'), false);
+  assert.equal(files.has(path.join(DIR, VID.id + '.json')), false);
   assert.equal(await t.read(VID.id), null);
   assert.equal(await t.read('../../etc'), null);
 });

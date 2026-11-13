@@ -105,7 +105,8 @@ test('captures: " Timelapse" in the name, `lapse` kept only on a recording with 
   assert.equal((await store.plan({ kind: 'recording', game: '', lapse: 5 })).name, 'Desktop Timelapse 2026-10-27 10-00-00.mp4');
   assert.equal((await store.plan({ kind: 'recording', game: '' })).name, 'Desktop 2026-10-27 10-00-00.mp4');
   assert.equal((await store.plan({ kind: 'recording', game: '', lapse: 7 })).name, 'Desktop 2026-10-27 10-00-00.mp4');
-  const base = { id: 'b'.repeat(16), file: 'C:\\V\\x.mp4', createdAt: 1 };
+  // The library only keeps an entry whose file is a full path by this machine's rules.
+  const base = { id: 'b'.repeat(16), file: path.join(os.tmpdir(), 'V', 'x.mp4'), createdAt: 1 };
   assert.equal(normalizeEntry({ ...base, kind: 'recording', lapse: 5 }).lapse, 5);
   assert.equal('lapse' in normalizeEntry({ ...base, kind: 'recording', lapse: 7 }), false);
   assert.equal('lapse' in normalizeEntry({ ...base, kind: 'replay', lapse: 5 }), false);
