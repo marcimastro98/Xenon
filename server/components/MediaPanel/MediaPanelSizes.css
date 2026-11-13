@@ -1,0 +1,276 @@
+
+/* The per-app volume row and the Spotify strip are extras stacked below the
+   transport — they are the only things height alone removes, and the title stops
+   taking a second line. */
+@container mediatile (max-height: 360px) {
+  .media-panel .media-volume,
+  .media-panel .msp { display: none; }
+  .media-panel .media-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
+}
+
+@container mediatile (max-height: 270px) {
+  .media-panel .media-pane-play:not([hidden]) { gap: 13px; }
+  .media-panel .media-content { gap: 9px; }
+  .media-panel .media-title { font-size: 22px; }
+  .media-panel .media-artist { font-size: 13px; margin-top: 2px; }
+  .media-panel .media-actions { gap: 9px; }
+  .media-panel .control-btn { width: 36px; height: 36px; }
+  .media-panel .control-btn.primary { width: 44px; height: 44px; }
+  .media-panel .control-btn svg { width: 16px; height: 16px; }
+  .media-panel .control-btn.primary svg { width: 19px; height: 19px; }
+  .media-panel .app-pill { height: 23px; padding: 0 8px; font-size: 11.5px; }
+}
+
+@container mediatile (max-height: 200px) {
+  .media-panel .media-content { gap: 7px; }
+  .media-panel .media-title { font-size: 19px; }
+  .media-panel .media-artist { font-size: 12px; }
+  .media-panel .control-btn { width: 32px; height: 32px; }
+  .media-panel .control-btn.primary { width: 38px; height: 38px; }
+  .media-panel .control-btn svg { width: 14px; height: 14px; }
+  .media-panel .control-btn.primary svg { width: 17px; height: 17px; }
+}
+
+@container mediatile (max-height: 150px) {
+  .media-panel .media-title { font-size: 17px; }
+  .media-panel .media-actions { gap: 7px; }
+  .media-panel .control-btn { width: 28px; height: 28px; }
+  .media-panel .control-btn.primary { width: 34px; height: 34px; }
+  .media-panel .control-btn.primary svg { width: 15px; height: 15px; }
+}
+
+/* ── Short but wide: two blocks, not four things in a queue ───────────────────
+   The default content column stacks chip / title / transport vertically, which
+   is what runs out of height first. With this much width the pieces fit beside
+   each other — but laying all FOUR of them on one line (cover, source chip,
+   title, transport) gave the tile no hierarchy at all: everything sat on the
+   same baseline, the source chip read as a peer of the track title and pushed it
+   rightwards, and the transport ended up marooned across a gap.
+
+   So the row is two blocks instead. The cover anchors the left; next to it one
+   text column reading top-down in the order it should be read — source above,
+   title, artist, and the per-app volume under them — and the transport alone on
+   the right, vertically centred against the whole block. The same order the tall
+   tile already uses, turned on its side. */
+@container mediatile (max-height: 300px) and (min-width: 430px) {
+  .media-panel .media-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    /* auto rows: a hidden chip or volume collapses to nothing instead of leaving
+       a gap where it would have been. */
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    /* Centre the TRACKS, not just each item inside its track. A grid's default
+       alignment stretches auto rows to fill the box, so on a short tile the
+       three rows were each handed more height than they asked for — and the one
+       holding the title and artist then started below where it would have sat
+       and ran past the bottom edge, which is where the artist line was being
+       cut. With the tracks centred the free space stays outside them and the
+       block sits in the middle of the tile, which is where it looks like it
+       should be anyway. */
+    align-content: center;
+    column-gap: 20px;
+    row-gap: 3px;
+  }
+  .media-panel .media-app-row   { grid-column: 1; grid-row: 1; align-self: end; }
+  .media-panel .media-textblock { grid-column: 1; grid-row: 2; }
+  .media-panel .media-volume    { grid-column: 1; grid-row: 3; align-self: start; }
+  .media-panel .media-actions   { grid-column: 2; grid-row: 1 / -1; justify-self: end; }
+  /* Restore what the height steps above gave up: there is room for both now. */
+  .media-panel .media-app-row { display: flex; }
+  .media-panel .media-artist { display: block; }
+  /* An eyebrow, not a badge: it says where the music comes from and should be
+     read before the title without competing with it. */
+  .media-panel .app-pill { height: 22px; padding: 0 9px; font-size: 10px; }
+  .media-panel .app-pill .media-app-icon { width: 13px; height: 13px; }
+  /* Two lines fit here even when the tile is short, and a track title is what
+     the space should go to. */
+  .media-panel .media-title { -webkit-line-clamp: 2; }
+  /* The cover may take more of the height here. The 44cqh cap exists so a short
+     tile does not clip it, but the text beside it is now a compact three-row
+     block rather than a full-height column — so the cover was the only thing
+     left holding the row's height, and capping it low left the bottom third of a
+     wide tile empty for no reason. */
+  .media-panel .media-art { width: min(34cqw, 62cqh, 170px); }
+}
+
+/* Very wide strip: give the title back its full weight — at this width it is
+   the tile's headline, not a label squeezed next to the buttons. */
+@container mediatile (max-height: 300px) and (min-width: 620px) {
+  .media-panel .media-content { gap: 20px; }
+  .media-panel .media-title { font-size: 26px; }
+  .media-panel .media-artist { font-size: 14px; }
+  .media-panel .control-btn { width: 38px; height: 38px; }
+  .media-panel .control-btn.primary { width: 46px; height: 46px; }
+  .media-panel .control-btn svg { width: 17px; height: 17px; }
+  .media-panel .control-btn.primary svg { width: 20px; height: 20px; }
+}
+
+/* Four keys beside the words need more width than this: they left the title one letter. Under
+   the words they fit, and a tile too short for that gives the cover up instead. */
+@container mediatile (min-height: 150px) and (max-height: 300px) and (min-width: 430px) and (max-width: 639px) {
+  .media-panel .media-content { grid-template-columns: minmax(0, 1fr); }
+  .media-panel .media-actions { grid-column: 1; grid-row: 4; justify-self: start; margin-top: 6px; }
+  .media-panel .media-title { -webkit-line-clamp: 1; }
+}
+@container mediatile (max-height: 149px) and (min-width: 430px) and (max-width: 639px) {
+  .media-panel .media-art { display: none; }
+  .media-panel .media-pane-play:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Width: start removing ────────────────────────────────────────────────── */
+
+/* Too narrow for the strip AND too short to stack: the provider chip goes, then
+   the artist line. The cover already says which app is playing. */
+@container mediatile (max-height: 200px) and (max-width: 430px) {
+  .media-panel .media-app-row { display: none; }
+}
+@container mediatile (max-height: 150px) and (max-width: 430px) {
+  .media-panel .media-artist { display: none; }
+}
+
+/* Below this the cover and the text column can't share a row without one of them
+   becoming unreadable, so the cover yields — the title and the transport are
+   what the tile is for. */
+@container mediatile (max-width: 330px) {
+  .media-panel .media-pane-play:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .media-panel .media-art { display: none; }
+  .media-panel .media-title { font-size: 21px; -webkit-line-clamp: 2; }
+}
+
+/* Liquid Glass on a phone: with this much height a small cover still fits beside the text. */
+@container mediatile (min-width: 290px) and (max-width: 330px) and (min-height: 150px) {
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) { grid-template-columns: auto minmax(0, 1fr); }
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { display: block; width: 96px; }
+}
+
+@container mediatile (max-width: 240px) {
+  .media-panel .media-app-row { display: none; }
+  .media-panel .media-title { font-size: 18px; }
+  .media-panel .media-actions { gap: 8px; }
+  .media-panel .control-btn { width: 32px; height: 32px; }
+  .media-panel .control-btn.primary { width: 38px; height: 38px; }
+}
+
+/* ── Short tile: one line, whatever the width ─────────────────────────────── */
+
+/* LAST on purpose. Three separate blocks above hand the title a second line —
+   the wide strip ("two lines fit here even when the tile is short"), the narrow
+   single-column step, and the portrait one — and each was written about WIDTH,
+   with the tile's height taken on trust. Below ~200px that trust is misplaced,
+   and the second line does not come out of empty space: it comes out of whatever
+   is underneath it. Measured, the victim depended only on which rule had put it
+   there — the artist line pushed through the bottom edge on a wide tile, the
+   transport buttons on a narrow one, and the tile clips either without a word.
+   Reported as "the artist name is moved outside the frame", with the fix the
+   user themselves proposed: one line plus an ellipsis once the tile is short.
+   A height rule has to win over three width rules, so it is placed where the
+   cascade lets it. */
+@container mediatile (max-height: 200px) {
+  .media-panel .media-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
+}
+
+/* Shorter still and even one line plus the chip does not fit. The chip goes
+   first, exactly as it already does on a narrow tile: the cover says which app
+   is playing, and the title and the transport are what the tile is for. */
+@container mediatile (max-height: 165px) {
+  .media-panel .media-app-row { display: none; }
+}
+
+/* ── Lyrics mode (js/media-lyrics.js) ─────────────────────────────────────────
+   The tile itself becomes the lyrics view: no card on top of it. The cover drops
+   to a thumbnail beside the title and stays as the blurred backdrop, darkened
+   evenly so it never competes with the words, and the transport, the Spotify
+   row and the volume keep working underneath. .media-content turns into
+   display:contents so its children can share one grid with the cover and the
+   lyrics. Every rule carries .lyrics-open, which outranks the size ladder above;
+   the ladder still decides what is hidden, this block only decides where the
+   rest goes. Too small for a few lines, there is no lyrics mode at all. */
+@container mediatile (min-height: 166px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-overlay {
+    background: linear-gradient(180deg, rgba(7,12,11,0.62), rgba(7,12,11,0.74));
+  }
+  .media-panel.lyrics-open .media-pane-play:not([hidden]) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 2px 0;
+  }
+  .media-panel.lyrics-open .media-content { display: contents; }
+  .media-panel.lyrics-open .media-art {
+    grid-column: 1; grid-row: 1 / 3;
+    width: 56px; margin-right: 14px; border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .media-panel.lyrics-open .media-art .media-placeholder { display: none; }
+  .media-panel.lyrics-open .media-app-row { grid-column: 2; grid-row: 1; align-self: end; margin-bottom: 4px; }
+  .media-panel.lyrics-open .media-textblock { grid-column: 2; grid-row: 2; align-self: start; }
+  .media-panel.lyrics-open .media-title { font-size: 19px; display: block; white-space: nowrap; text-overflow: ellipsis; }
+  .media-panel.lyrics-open .media-artist { font-size: 13px; }
+  .media-panel.lyrics-open .media-lyrics {
+    grid-column: 1 / -1; grid-row: 3; align-self: stretch;
+    display: flex; flex-direction: column; min-height: 0; margin: 10px 0 8px;
+  }
+  .media-panel.lyrics-open .media-lyrics .lyv { --lyv-size: clamp(17px, 3.6cqi, 28px); gap: 4px; }
+  .media-panel.lyrics-open .media-lyrics .lyv-foot { min-height: 24px; }
+  .media-panel.lyrics-open .media-actions { grid-column: 1 / -1; grid-row: 4; margin-top: 0; }
+  .media-panel.lyrics-open .msp { grid-column: 1 / -1; grid-row: 5; max-width: none; margin-top: 10px; }
+  .media-panel.lyrics-open .media-volume { grid-column: 1 / -1; grid-row: 6; margin-top: 8px; }
+}
+
+/* Tall and wide enough: the transport and the volume share one row, so the tile
+   ends with a single line of controls. Narrower or shorter tiles keep them
+   stacked, there is no room for both side by side. */
+@container mediatile (min-height: 301px) and (min-width: 460px) {
+  .media-panel.lyrics-open .media-actions { grid-column: 1 / 3; justify-self: start; }
+  .media-panel.lyrics-open .media-volume { grid-column: 3; grid-row: 4; width: clamp(160px, 40cqi, 320px); margin: 0 0 0 16px; }
+}
+
+/* The waveform is part of the cover artwork, and the lyrics sit right over it:
+   no waveform while they are open (js/media-viz.js stops drawing it too). */
+.media-panel.lyrics-open .media-viz { display: none; }
+
+/* Short tile: the transport moves up beside the title so the lyrics keep the
+   height, and below that the thumbnail goes too. */
+@container mediatile (min-height: 166px) and (max-height: 300px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-actions { grid-column: 3; grid-row: 1 / 3; margin-left: 14px; }
+}
+@container mediatile (min-height: 166px) and (max-height: 240px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-art { display: none; }
+}
+
+.media-lyrics { display: none; }
+.media-lyrics-btn[hidden] { display: none; }
+@container mediatile (max-height: 165px) {
+  .media-panel .media-lyrics-btn { display: none; }
+}
+@container mediatile (max-width: 240px) {
+  .media-panel .media-lyrics-btn { display: none; }
+}
+
+/* ── Vertical screen: cover above the text ───────────────────────────────────
+   On a vertical screen the media tile is a full-width band taller than it is
+   wide, and the side-by-side layout leaves a 170px cover floating in the middle
+   of it. Like a phone's now-playing view, the cover goes on top, large, and
+   the text and transport sit under it. On the vertical layout (html.is-portrait,
+   js/phone-view.js) and on Liquid Glass, so a landscape tile in the Classic look
+   stays as it was; lyrics mode keeps its own arrangement. */
+@container mediatile (orientation: portrait) and (min-height: 400px) and (min-width: 300px) {
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    justify-items: center;
+    gap: 22px;
+  }
+  /* max-width: the old viewport steps in breakpoints.css cap the cover for
+     narrow windows, and a vertical Edge is a narrow window. */
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-art { width: min(64cqw, 44cqh, 360px); max-width: none; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-content { width: 100%; align-items: center; text-align: center; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .media-app-row { justify-content: center; }
+  :is(.is-portrait, [data-style="liquid"]) .media-panel:not(.lyrics-open) .msp { width: 100%; margin-inline: auto; }
+}
+
+/* Liquid Glass, a wide tile with height to spare: the cover carries it, as on a tall one. */
+@container mediatile (orientation: landscape) and (min-width: 560px) and (min-height: 400px) {
+  [data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(40cqw, 60cqh, 340px); max-width: none; }
+}

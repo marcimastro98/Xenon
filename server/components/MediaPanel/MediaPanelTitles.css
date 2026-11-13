@@ -1,0 +1,263 @@
+
+/* Title and artist as a column, and NEITHER of them shrinks. Letting the title
+   shrink looks like the obvious answer and is the wrong one: a clamped box with
+   a height below its own line does not lose a line, it is cut THROUGH one, so
+   the tile ends up with a row of half-letters instead of a title. How many lines
+   the title gets is decided by the steps further down, which know the tile's
+   size; what this block guarantees is only that the artist keeps the place
+   underneath it. */
+.media-textblock {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.media-textblock > .media-title,
+.media-textblock > .media-artist { flex: 0 0 auto; }
+
+.media-app-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(15,20,19,0.55);
+  backdrop-filter: blur(10px);
+  color: #d3ddd9;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.app-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.media-panel.spotify .app-indicator { background: var(--green); color: var(--green); }
+.media-panel.youtube .app-indicator { background: var(--red); color: var(--red); }
+.media-panel.twitch .app-indicator { background: #9146ff; color: #9146ff; }
+
+.media-source-picker {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(230px, 100%);
+}
+
+.media-source-picker[hidden] { display: none !important; }
+
+.media-source-picker .cs-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.media-source-picker .cs-trigger {
+  height: 26px;
+  min-width: 110px;
+  max-width: 230px;
+  border-radius: 999px;
+  padding: 0 9px 0 11px;
+  background: rgba(15,20,19,0.48);
+  border-color: rgba(255,255,255,0.12);
+  color: #c7d3cf;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.media-source-picker .cs-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-source-picker .cs-panel {
+  left: auto;
+  right: 0;
+  max-width: 280px;
+}
+
+.media-source-picker .cs-option {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-chip,
+.calendar-mini-btn {
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(16,22,22,0.62);
+  color: #dce7e2;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  padding: 0 10px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.calendar-chip:hover,
+.calendar-mini-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--accent-rgb),0.34);
+  background: rgba(24,34,32,0.78);
+}
+
+.media-title {
+  min-width: 0;
+  font-size: 29px;
+  line-height: 1.2;
+  font-weight: 850;
+  color: #f3f7f5;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.55);
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  padding-bottom: 0.05em;
+}
+
+.media-artist {
+  min-width: 0;
+  margin-top: 4px;
+  font-size: 15.5px;
+  line-height: 1.25;
+  color: #c1ccc7;
+  font-weight: 700;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nothing playing: only the picture and the controls, the controls centred on
+   the picture. No app name and no title on screen; the title leaves the flow but
+   stays readable to screen readers. A source picker, when there is one, stays. */
+.media-panel.is-empty .ph-label { display: none; }
+.media-panel.is-empty .media-app-row:not(:has(.media-source-picker:not([hidden]))) { display: none; }
+.media-panel.is-empty .app-pill { display: none; }
+/* The keys sit level with the picture's centre, whether the column is a flex
+   stack or Liquid Glass's grid. Sideways they keep the place the layout gives
+   them while music plays: centred here, they jumped when a track started (#154). */
+.media-panel.is-empty .media-content { justify-content: center; align-content: center; grid-template-rows: auto; }
+.media-panel.is-empty .media-actions { grid-area: auto / 1 / auto / -1; align-self: center; margin-top: 0; }
+.media-panel.is-empty .media-textblock {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.media-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.control-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(15,20,19,0.55);
+  backdrop-filter: blur(10px);
+  color: #e4ebe8;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.control-btn:hover { background: rgba(30,40,38,0.7); border-color: rgba(255,255,255,0.2); }
+
+.control-btn.primary {
+  width: 54px;
+  height: 54px;
+  background: #f1f5f3;
+  color: #07100d;
+  border-color: #f1f5f3;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+}
+.control-btn.primary:hover { background: #fff; }
+
+.control-btn:active { transform: scale(0.92); }
+.control-btn svg { width: 18px; height: 18px; fill: currentColor; }
+.control-btn.primary svg { width: 22px; height: 22px; }
+
+.media-header {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.media-panel.calendar-mode .media-header { display: none; }
+
+.calendar-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.40);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: #d6ffe6;
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+.calendar-entry:hover {
+  background: rgba(var(--accent-rgb), 0.22);
+  border-color: rgba(var(--accent-rgb), 0.6);
+}
+.calendar-entry:active { transform: scale(0.94); }
+.calendar-entry svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Source brand icon (inside the app pill) ─────────────────── */
+.media-app-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.media-app-icon svg { width: 16px; height: 16px; fill: currentColor; }
+.media-app-icon.has-img { width: 17px; height: 17px; }
+.media-app-icon img {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  object-fit: contain;
+  display: block;
+}
+.media-app-icon.brand-spotify { color: #1ed760; }
+.media-app-icon.brand-youtube { color: #ff3d3d; }
+.media-app-icon.brand-twitch { color: #9146ff; }
+.media-app-icon.brand-soundcloud { color: #ff5500; }

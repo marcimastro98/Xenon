@@ -1,7 +1,7 @@
 // Bit on the search bar (js/spotlight-bit.js) and the one way to reach him from it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
 

@@ -12,7 +12,7 @@
 // in that panel with no data-i18n, so it stayed English in all eleven languages.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');

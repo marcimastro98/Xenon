@@ -56,7 +56,7 @@
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
-      css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/LiquidPlayer.css', 'components/LyricsView/LyricsView.css'],
+      css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/LyricsView/LyricsView.css'],
       js: ['js/album-theme.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
         'js/lyrics-view.js', 'js/media-lyrics.js', 'js/media-viz.js'],
       markup: ['media'],

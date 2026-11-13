@@ -1,0 +1,236 @@
+
+/* Chat tab while music plays: blurred album cover behind the chat */
+.media-panel.media-chat-mode .media-bg {
+  filter: blur(26px) brightness(0.5) saturate(1.25);
+  transform: scale(1.18);
+  opacity: 0.7;
+}
+.media-panel.media-chat-mode #media-pane-chat .ai-chat { background: transparent; }
+
+/* Blurred album cover behind the Chat tab while music plays (restores the look
+   the chat had when it lived inside the media tile). */
+/* clip, not just hidden: the over-filled cover made the panel a scroll
+   container, and focusing the input could slide the whole chat sideways. */
+.chat-panel { position: relative; overflow: hidden; overflow: clip; isolation: isolate; display: flex; flex-direction: column; }
+.chat-bg {
+  position: absolute;
+  inset: -12%;            /* over-fill so blurred edges fall outside the tile */
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) brightness(0.5) saturate(1.25);
+  transform: scale(1.35); /* push the blur's faded edges well past the corners */
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.chat-panel.has-cover .chat-bg { opacity: 0.7; }
+.chat-panel > .media-pane { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; }
+
+/* Mini now-playing preview at the top of the Chat tab */
+.media-chat-np:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.media-chat-np-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),0.4), rgba(var(--accent-rgb),0.15));
+  background-size: cover;
+  background-position: center;
+}
+.media-chat-np-info { flex: 1 1 auto; min-width: 0; }
+.media-chat-np-title { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-chat-np-artist { font-size: 11px; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-chat-np-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+/* Keep the mini-player compact — including the primary play/pause, which would
+   otherwise inherit the full 54px size from .control-btn.primary. */
+.media-chat-np-actions .control-btn,
+.media-chat-np-actions .control-btn.primary { width: 32px; height: 32px; }
+.media-chat-np-actions .control-btn svg,
+.media-chat-np-actions .control-btn.primary svg { width: 15px; height: 15px; }
+
+.media-panel.calendar-mode {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.media-panel.calendar-mode .media-art,
+.media-panel.calendar-mode .media-content { display: none; }
+
+.media-bg {
+  position: absolute;
+  inset: -40px;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  filter: blur(34px) saturate(1.35) brightness(0.78);
+  transform: scale(1.15);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+/* Promote (and isolate) this heavy blur layer only while a cover is actually
+   shown — keeping it on the compositor permanently (will-change/translateZ) left
+   a full-size blur(34px) surface rasterized even with no music, which on hybrid
+   Intel+NVIDIA laptops is exactly the kind of always-live GPU layer that makes
+   Chromium flicker the whole window. Now it costs nothing when idle. */
+.media-panel.has-image .media-bg { opacity: 1; will-change: opacity; }
+
+/* Ambient fallback when there's no cover art */
+.media-bg-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 80% at 18% 30%, rgba(var(--accent-rgb),0.10), transparent 60%),
+    radial-gradient(55% 70% at 90% 75%, rgba(86,140,255,0.09), transparent 60%),
+    radial-gradient(40% 60% at 65% 20%, rgba(180,120,255,0.07), transparent 65%);
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+.media-panel.has-image .media-bg-fallback { opacity: 0; }
+
+/* ── Visualiser ───────────────────────────────────────────────────
+   The waveform of what is actually playing (js/media-viz.js), laid across the
+   bottom of the tile. Above the blurred cover, BELOW the content — it is part of
+   the artwork, not a control, and it must never sit over the transport buttons.
+   Created only when the setting is on, so a default dashboard has no canvas and
+   no compositor layer here at all. */
+.media-viz {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  z-index: 0;
+  pointer-events: none;
+  /* Fades with the strip's own opacity easing; the mask keeps it from ending on
+     a hard line against the tile's rounded corner. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 100%);
+          mask-image: linear-gradient(90deg, transparent, #000 12%, #000 100%);
+}
+/* Promoted ONLY while it is actually animating — the same rule the blurred cover
+   follows above, and for the same reason: a permanently promoted layer is what
+   makes hybrid-GPU laptops flicker the whole window. */
+.media-viz.is-live { will-change: transform; }
+
+.media-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 100% at 0% 50%, rgba(7,12,11,0.85) 0%, rgba(7,12,11,0.55) 45%, rgba(7,12,11,0.2) 100%),
+    linear-gradient(180deg, rgba(10,15,14,0.4), rgba(10,15,14,0.65));
+  pointer-events: none;
+}
+
+.media-art {
+  position: relative;
+  aspect-ratio: 1;
+  /* Sized from the tile, capped at the original 170px so a full-size tile looks
+     exactly as before. cqh is what keeps a SHORT tile from clipping: the cover
+     is square, so its height is its width. */
+  width: min(34cqw, 44cqh, 170px);
+  border-radius: var(--radius);
+  background: #101516;
+  /* Sized to the border box: a repeating picture sized to the padding box wrapped
+     its bottom row into the border, a bright line along the top of the cover. */
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.55);
+}
+
+.media-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(var(--accent-rgb),0.18), transparent 55%),
+    radial-gradient(120% 90% at 80% 90%, rgba(86,140,255,0.14), transparent 55%),
+    linear-gradient(140deg, #14201c 0%, #0d1413 60%, #0a1010 100%);
+  overflow: hidden;
+}
+
+.media-placeholder::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    conic-gradient(from 220deg at 50% 50%, rgba(var(--accent-rgb),0.10), transparent 40%, rgba(180,120,255,0.08) 70%, transparent 95%);
+  filter: blur(20px);
+  opacity: 0.85;
+  /* Static glow. This placeholder only ever shows when NOTHING is playing, so
+     there is no sound to visualise — it used to spin (and the bars below used to
+     pulse) forever anyway, keeping the compositor busy for an empty state. Held
+     still, it costs nothing and still reads as a soft music-widget backdrop. */
+}
+
+.ph-eq {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 38%;
+  z-index: 1;
+}
+
+.ph-eq span {
+  display: block;
+  width: 6px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--green), var(--green) 60%, var(--green));
+  box-shadow: 0 0 10px rgba(var(--accent-rgb),0.45);
+}
+/* Fixed bar heights — a clean, still equaliser glyph (no per-frame animation;
+   see the note on .media-placeholder::before above). */
+.ph-eq span:nth-child(1) { height: 60%; }
+.ph-eq span:nth-child(2) { height: 90%; }
+.ph-eq span:nth-child(3) { height: 45%; }
+.ph-eq span:nth-child(4) { height: 75%; }
+.ph-eq span:nth-child(5) { height: 55%; }
+
+.ph-label {
+  position: absolute;
+  bottom: 10%;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.6px;
+  color: rgba(220, 235, 230, 0.55);
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.media-art.has-image .media-placeholder { display: none; }
+
+.media-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* The text column may never be taller than the row it sits in. Without this
+     it simply grew, and because .media-pane-play centres its items the excess
+     went out BOTH ends, where the panel's overflow:hidden cut it — reported as
+     "the artist name is moved outside the frame", with the artist line sliced
+     in half along the tile's bottom edge.
+     The steps below keep the content within the tile at every size the tile can
+     be; this is the guarantee that holds when a step is a few pixels optimistic
+     or a font renders taller than the one it was measured with. */
+  min-height: 0;
+  max-height: 100%;
+}
