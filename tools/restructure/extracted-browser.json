@@ -149,6 +149,7 @@
     {"kind":"style","from":"server/styles/themes-light.css","parts":[{"file":"server/styles/themes-light-widgets.css","at":257},{"file":"server/styles/themes-light-text-and-tiles.css","at":523}]},
     {"kind":"style","from":"server/components/Toast/Toast.css","parts":[{"file":"server/components/Toast/ToastContent.css","at":233}]},
     {"kind":"style","from":"server/styles/theme-contract.css","parts":[{"file":"server/styles/theme-contract-states-and-chat.css","at":220}]},
-    {"kind":"style","from":"server/components/AmbientCanvas/AmbientCanvas.css","parts":[{"file":"server/components/AmbientCanvas/AmbientCanvasOptions.css","at":284},{"file":"server/components/AmbientCanvas/AmbientCanvasSettings.css","at":449}]}
+    {"kind":"style","from":"server/components/AmbientCanvas/AmbientCanvas.css","parts":[{"file":"server/components/AmbientCanvas/AmbientCanvasOptions.css","at":284},{"file":"server/components/AmbientCanvas/AmbientCanvasSettings.css","at":449}]},
+    {"kind":"module","file":"server/js/deck-popup.js","names":[]}
   ]
 }
