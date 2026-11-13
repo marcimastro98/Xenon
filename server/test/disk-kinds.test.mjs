@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import fs from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,7 +27,7 @@ test('extension and game-library rules', () => {
 });
 
 function csLists() {
-  const src = fs.readFileSync(join(REPO, 'helper', 'IndexHost.cs'), 'utf8');
+  const src = readFileSync(join(REPO, 'helper', 'IndexHost.cs'), 'utf8');
   const kinds = [...src.matchAll(/Add\((\d), "([^"]+)"\);/g)].map((m) => [Number(m[1]), m[2]]);
   const names = /KindNames = \{([^}]+)\}/.exec(src)[1].split(',').map((s) => s.trim().replace(/"/g, ''));
   const games = /GameLibraryNames =\s*\{([^}]+)\}/.exec(src)[1].split(',').map((s) => s.trim().replace(/"/g, '').toLowerCase());
@@ -34,7 +35,7 @@ function csLists() {
 }
 
 function swiftLists() {
-  const src = fs.readFileSync(join(REPO, 'helper-mac', 'Sources', 'xenon-helper', 'IndexHost.swift'), 'utf8');
+  const src = readFileSync(join(REPO, 'helper-mac', 'Sources', 'xenon-helper', 'IndexHost.swift'), 'utf8');
   const kinds = [...src.matchAll(/\((\d), "([^"]+)"\),/g)].map((m) => [Number(m[1]), m[2]]);
   const names = /kindNames = \[([^\]]+)\]/.exec(src)[1].split(',').map((s) => s.trim().replace(/"/g, ''));
   const games = /gameLibraryNames: Set<String> = \[([^\]]+)\]/.exec(src)[1].split(',').map((s) => s.trim().replace(/"/g, ''));

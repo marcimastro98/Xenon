@@ -100,6 +100,18 @@
       "apps/native/src-tauri/src/monitor/target.rs",
       "apps/native/src-tauri/src/monitor/watch_notes.rs",
       "apps/native/src-tauri/src/monitor/watchdog.rs"
+    ],
+    "helper/IndexHost.cs": [
+      "helper/IndexHost.Names.cs",
+      "helper/IndexHost.Ops.cs",
+      "helper/IndexHost.Power.cs",
+      "helper/IndexHost.Query.cs",
+      "helper/IndexHost.Serve.cs",
+      "helper/IndexHost.Store.cs",
+      "helper/IndexHost.Totals.cs",
+      "helper/IndexHost.Tree.cs",
+      "helper/IndexHost.Walk.cs",
+      "helper/IndexHost.Watch.cs"
     ]
   }
 }

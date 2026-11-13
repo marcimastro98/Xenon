@@ -1,0 +1,15 @@
+{
+ "origin": "helper/IndexHost.cs",
+ "parts": [
+  { "file": "helper/IndexHost.Store.cs", "about": "The file index: the compact tables every file and folder is kept in.", "type": "IndexHost", "lines": [[102, 297]] },
+  { "file": "helper/IndexHost.Serve.cs", "about": "The file index: the loop that reads a request, and the table that sends it to its handler.", "type": "IndexHost", "lines": [[383, 481], [1054, 1103]] },
+  { "file": "helper/IndexHost.Power.cs", "about": "The file index: keeping the background threads slow and cheap, and handing memory back.", "type": "IndexHost", "lines": [[482, 534]] },
+  { "file": "helper/IndexHost.Names.cs", "about": "The file index: how a name is stored, compared and matched, accents included.", "type": "IndexHost", "lines": [[535, 630], [1348, 1423]] },
+  { "file": "helper/IndexHost.Tree.cs", "about": "The file index: the roots, the folder tree, and the path of a file or folder.", "type": "IndexHost", "lines": [[631, 828]] },
+  { "file": "helper/IndexHost.Totals.cs", "about": "The file index: kinds of file, folder sizes, and the lists read from them.", "type": "IndexHost", "lines": [[829, 1053]] },
+  { "file": "helper/IndexHost.Query.cs", "about": "The file index: answering a name search.", "type": "IndexHost", "lines": [[1104, 1347]] },
+  { "file": "helper/IndexHost.Ops.cs", "about": "The file index: the other requests: overview, browse, lists, biggest files, duplicates, state.", "type": "IndexHost", "lines": [[1424, 1686]] },
+  { "file": "helper/IndexHost.Walk.cs", "about": "The file index: reading a drive into the index, and removing or compacting entries.", "type": "IndexHost", "lines": [[1687, 1962]] },
+  { "file": "helper/IndexHost.Watch.cs", "about": "The file index: following changes on disk and repairing a folder that changed.", "type": "IndexHost", "lines": [[1963, 2158]] }
+ ]
+}
