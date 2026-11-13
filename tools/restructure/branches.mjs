@@ -4,7 +4,6 @@
 // redoes recorded moves for `verify`, and says what keeps the other bodies.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
-import { isBuiltin } from 'node:module';
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
@@ -119,22 +118,23 @@ const groupOf = (branch) => {
 };
 
 /**
- * What can move now and what keeps the rest.
+ * What can move and what keeps the rest, body by body.
  * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string }} job
- * @returns {{ branches: number, moved: number, movable: { key: string, group: string, lines: number, line: number }[],
+ * @returns {{ branches: number, moved: number,
+ *   bodies: { key: string | null, test: string, group: string, line: number, lines: number, state: 'now' | 'handed' | 'kept', own: string[], reasons: string[] }[],
+ *   movable: { key: string, group: string, lines: number, line: number, own: string[] }[],
  *   held: { name: string, branches: number, alone: number, lines: number }[], other: { reason: string, branches: number }[] }}
- *   `held`: per name the file still declares, how many bodies wait on it, how many on it alone, and those bodies' lines.
- *   A body that needs a module the file loads below the function is not movable: its table is required above the
- *   function and would load that module earlier than today (the plan refuses it); it is counted under `other`.
+ *   `bodies`: every body still in the file, in order: it moves as it is (`now`), it moves when its call hands it
+ *   the names in `own` (`handed`), or it stays for `reasons`. `movable`: the first two. `held`: per name of the file
+ *   that cannot be handed over, how many bodies wait on it, how many on it alone, and those bodies' lines.
  */
 export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler }) {
   const analysis = analyze(text, parser, source);
   const { branches } = readBranches({ text, parser, analysis, kind, handler });
-  const home = analysis.bindings.get(handler)?.record.index ?? Infinity;
-  const late = (branch) => branch.needed.map((name) => analysis.bindings.get(name).record).some((record) => record.index > home && !isBuiltin(record.require.spec));
   const open = branches.filter((branch) => !branch.moved);
-  const waits = open.filter((branch) => branch.reasons.length === 0 && late(branch));
-  const movable = open.filter((branch) => branch.reasons.length === 0 && !late(branch)).map((branch) => ({ key: branch.key, group: groupOf(branch), lines: branch.lines, line: branch.line }));
+  const stateOf = (branch) => (branch.reasons.length ? 'kept' : branch.own.length ? 'handed' : 'now');
+  const bodies = open.map((branch) => ({ key: branch.key, test: branch.test, group: groupOf(branch), line: branch.line, lines: branch.lines,
+    state: stateOf(branch), own: branch.own, reasons: branch.reasons }));
   const held = new Map();
   const other = new Map();
   for (const branch of open) {
@@ -150,24 +150,30 @@ export function surveyBranches({ text, parser, source, kind = ROUTES, handler = 
       other.set(kind, (other.get(kind) ?? 0) + 1);
     }
   }
-  if (waits.length) other.set(`it needs a module the file loads below ${handler} (${waits.reduce((sum, branch) => sum + branch.lines, 0)} lines)`, waits.length);
-  return { branches: branches.length, moved: branches.length - open.length, movable,
+  return { branches: branches.length, moved: branches.length - open.length, bodies,
+    movable: bodies.filter((row) => row.state !== 'kept').map(({ key, group, lines, line, own }) => ({ key, group, lines, line, own })),
     held: [...held.values()].sort((a, b) => b.branches - a.branches || a.name.localeCompare(b.name)),
     other: [...other].map(([reason, count]) => ({ reason, branches: count })).sort((a, b) => b.branches - a.branches) };
 }
 
-/** @param {ReturnType<typeof surveyBranches>} survey @param {string} source @returns {string} */
-export function renderSurvey(survey, source) {
+/** @param {ReturnType<typeof surveyBranches>} survey @param {string} source @param {{ bodies?: boolean }} [options] @returns {string} */
+export function renderSurvey(survey, source, { bodies = false } = {}) {
   const sum = (rows) => rows.reduce((total, row) => total + row.lines, 0);
   const groups = new Map();
   for (const row of survey.movable) groups.set(row.group, [...(groups.get(row.group) ?? []), row]);
+  const [now, handed] = ['now', 'handed'].map((state) => survey.bodies.filter((row) => row.state === state));
   const out = [`${source}: ${survey.branches} branches, ${survey.moved} of them a call of a table already.`,
-    `Can move now: ${survey.movable.length} bodies, ${sum(survey.movable)} lines.`];
+    `Move as they are: ${now.length} bodies, ${sum(now)} lines.`,
+    `Move when their call hands them names of the file: ${handed.length} bodies, ${sum(handed)} lines, ${new Set(handed.flatMap((row) => row.own)).size} different names.`];
   for (const [group, rows] of [...groups].sort((a, b) => sum(b[1]) - sum(a[1]))) out.push(`  ${group.padEnd(28)} ${String(rows.length).padStart(3)} bodies ${String(sum(rows)).padStart(5)} lines`);
-  out.push('', 'Kept by a name the file still declares (bodies waiting on it, of which on it alone, and the lines of those):');
+  out.push('', 'Kept by a name of the file that cannot be handed over (bodies waiting on it, of which on it alone, and the lines of those):');
   for (const row of survey.held.slice(0, 60)) out.push(`  ${row.name.padEnd(34)} ${String(row.branches).padStart(3)} ${String(row.alone).padStart(3)} ${String(row.lines).padStart(5)}`);
   if (survey.held.length > 60) out.push(`  ... and ${survey.held.length - 60} more names`);
   out.push('', 'Kept by something else:');
   for (const row of survey.other) out.push(`  ${String(row.branches).padStart(3)}  ${row.reason}`);
+  if (!bodies) return out.join('\n');
+  const said = { now: () => 'moves now', handed: (row) => `moves with these handed names: ${row.own.join(', ')}`, kept: (row) => `stays: ${row.reasons.join('; ')}` };
+  out.push('', 'Body by body:');
+  for (const row of survey.bodies) out.push(`  ${row.key ?? row.test} (line ${row.line}, ${row.lines} lines): ${said[row.state](row)}`);
   return out.join('\n');
 }

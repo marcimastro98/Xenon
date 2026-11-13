@@ -1,4 +1,5 @@
-// The small request handler the tests of `branches` take apart: routes that can move, and one for each reason a body must stay.
+// The small request handler the tests of `branches` take apart: routes that can move as they are, routes that
+// can move when their call hands them a name of the file, and one for each reason a body must stay.
 import path from 'node:path';
 
 export const OLD = 'server/demo.js';
@@ -30,7 +31,7 @@ const handleRequest = async (req, res) => {
       json({ b: fs.existsSync(body.file), remote: isRemote });
     } catch (e) { err500(e.message); }
   } else if (req.method === 'GET' && reqPath === '/c') {
-    json({ c: helper() });
+    json({ c: helper(), limit: LIMIT });
   } else if (reqPath === '/d' && req.method === 'GET') {
     json({ d: secret });
   } else if (reqPath === '/e' && req.method === 'GET') {
@@ -45,6 +46,8 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/i' && req.method === 'GET') { json({ i: 1 }); }
   else if (reqPath === '/j' && req.method === 'GET') {
     res.end(lights.name);
+  } else if (reqPath === '/k' && req.method === 'GET') {
+    json({ k: turns });
   } else {
     res.writeHead(404); res.end();
   }
@@ -52,6 +55,7 @@ const handleRequest = async (req, res) => {
 
 const { late } = require('./late.js');
 module.exports = { handleRequest, helper, sendFile, late };
+let turns = 0;
 `;
 
 const BUILT_IN = new Set(['fs', 'path', 'os']);

@@ -31,7 +31,7 @@ const proven = (made, more = {}) => proveBranches({ before: SOURCE, after: made.
 test('the lines the command writes are read back as what they say', () => {
   const call = callLine('lightsBranches', 'GET /api/lights/now');
   assert.equal(call, "    await lightsBranches['GET /api/lights/now'](req, res, { json, err500, reqPath, urlObj, isRemote });");
-  assert.deepEqual(readCall(call), { local: 'lightsBranches', key: 'GET /api/lights/now' });
+  assert.deepEqual(readCall(call), { local: 'lightsBranches', key: 'GET /api/lights/now', own: [] });
   assert.equal(readCall(call.replace('isRemote }', 'isRemote, more }')), null, 'a call that hands over anything else is not one of ours');
   assert.deepEqual(readRequire(requireLine('lightsBranches', './lights/routes.js')), { local: 'lightsBranches', spec: './lights/routes.js' });
   assert.deepEqual(readHead(headLine('POST /x', 'req, _res, { json }')), { key: 'POST /x', params: 'req, _res, { json }' });
@@ -59,15 +59,16 @@ test('every branch is read with what its body takes from outside and what keeps 
   const { branches, locals } = readBranches({ text: SOURCE, parser, analysis: analyze(SOURCE, parser, OLD) });
   assert.deepEqual([...locals], ['req', 'res', 'urlObj', 'reqPath', 'isRemote', 'json', 'err500', 'secret', 'count']);
   const of = (key) => branches.find((branch) => branch.key === key);
-  assert.deepEqual(branches.map((branch) => branch.key), ['GET /a', 'POST /b', 'GET /c', 'GET /d', 'GET /e', 'GET /f', 'GET /g', null, 'GET /i', 'GET /j']);
+  assert.deepEqual(branches.map((branch) => branch.key), ['GET /a', 'POST /b', 'GET /c', 'GET /d', 'GET /e', 'GET /f', 'GET /g', null, 'GET /i', 'GET /j', 'GET /k']);
   assert.deepEqual([of('GET /a').reasons, of('GET /a').handed, of('GET /a').needed, of('GET /a').lines], [[], ['json'], ['lights'], 2]);
   assert.deepEqual([of('POST /b').reasons, of('POST /b').handed.sort(), of('POST /b').needed.sort()], [[], ['err500', 'isRemote', 'json', 'req'], ['fs', 'readBody']]);
-  assert.deepEqual(of('GET /c').holders, ['helper']);
-  assert.match(of('GET /c').reasons.join('\n'), /it needs helper, which the file still declares \(line 6\)/);
+  assert.deepEqual([of('GET /c').reasons, of('GET /c').own, of('GET /c').holders], [[], ['LIMIT', 'helper'], []], 'a const and a function of the file are handed over, in order');
+  assert.deepEqual(of('GET /k').holders, ['turns']);
+  assert.match(of('GET /k').reasons.join('\n'), /it needs turns, which cannot be handed over: it is declared with `let` \(line 52\)/);
   assert.match(of('GET /d').reasons.join('\n'), /it uses secret, which the handler works out for itself/);
   assert.match(of('GET /e').reasons.join('\n'), /it has a `var`/);
   assert.match(of('GET /f').reasons.join('\n'), /it has a `return` with a value[\s\S]*it has `this`/);
-  assert.deepEqual(of('GET /g').needed, ['late'], 'a name required further down is a required name: the plan says it loads too late');
+  assert.deepEqual([of('GET /g').needed, of('GET /g').own], [[], ['late']], 'a name required further down is handed over: a table that required it would load its module early');
   assert.match(branches[7].reasons.join('\n'), /its test is not one address asked with one method/);
   assert.match(of('GET /i').reasons.join('\n'), /its body is not on lines of its own/);
 });
@@ -123,10 +124,9 @@ test('a required name only the moved body used leaves the file, and an app modul
 
 test('what would mean something else in another function is refused, with every reason at once', (t) => {
   if (!parser) return t.skip(SKIP);
-  const said = refusal(['GET /c', 'GET /d', 'GET /e', 'GET /f', 'GET /i', 'GET /zz']);
-  for (const reason of [/GET \/c \(server\/demo\.js:27\): it needs helper/, /GET \/d .*it uses secret/, /GET \/e .*a `var`/, /GET \/f .*`this`/, /GET \/f .*a `return` with a value/,
+  const said = refusal(['GET /k', 'GET /d', 'GET /e', 'GET /f', 'GET /i', 'GET /zz']);
+  for (const reason of [/GET \/k \(server\/demo\.js:43\): it needs turns, which cannot be handed over/, /GET \/d .*it uses secret/, /GET \/e .*a `var`/, /GET \/f .*`this`/, /GET \/f .*a `return` with a value/,
     /GET \/i .*not on lines of its own/, /0 branches of handleRequest answer GET \/zz/]) assert.match(said, reason);
-  assert.match(refusal(['GET /g']), /the table would need require\('\.\.\/late\.js'\) for late, which server\/demo\.js loads after handleRequest \(line 48\): it would load earlier than today/);
   assert.match(refusal(['GET /a'], { allowed: new Set() }), /protected\.json does not let the bodies of handleRequest move/);
   assert.match(refusal(['GET /a'], { target: 'server/lights/answers.js' }), /is not <feature>\/routes\.js, <feature>\/tools\.js or one of them with -<word>/);
   assert.match(refusal(['GET /a'], { about: ' ' }), /say in one sentence what the new file does/);
@@ -165,7 +165,7 @@ test('the proof stands on the three texts, not on what the planner says it did',
   assert.match(wrong({ plan: { newSource: made.newSource.replace('json({ d: secret });', 'json({ d: 0 });') } }), /the body of GET \/d changed and was not asked to move/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace(TYPE_LINE, `lights.start();\n${TYPE_LINE}`) } }), /has a statement that is not a require, the table or the export/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace("require('../lights-lib.js')", "require('../other-lib.js')") } }), /lights in server\/lights\/routes\.js is not what server\/demo\.js required under that name/);
-  assert.match(wrong({ plan: { moduleText: made.moduleText.replace('{ json, err500, isRemote }', '{ json, err500 }') } }), /POST \/b uses isRemote, which its function is not handed/);
+  assert.match(wrong({ plan: { moduleText: made.moduleText.replace('{ json, err500, isRemote }', '{ json, err500 }') } }), /the function of POST \/b does not take exactly what it uses, under the same names/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace("const { branches: lightsBranches } = require('./lights/routes.js');\n\n", '')
     .replace('const LIMIT = 3;', "const { branches: lightsBranches } = require('./lights/routes.js');\n\nconst LIMIT = 3;") } }), /does not require the table right above handleRequest/,
     'the require line anywhere else is said, though the bodies still go back to the old bytes');

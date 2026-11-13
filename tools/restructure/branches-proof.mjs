@@ -12,23 +12,32 @@
 //   d. each body takes from outside exactly what it took before: the same names,
 //      read and changed as often, none assigned but the result it gives back; every
 //      one of them is a handler value handed over under the same name, a name the module requires
-//      from the same file as the old file did, or something Node gives everyone;
+//      from the same file as the old file did, something Node gives everyone, or a
+//      name of the file its call hands over (f);
 //   e. the module is nothing but requires, the table and its export; what the new
 //      bodies need is loaded by the old file before the handler, and the file
 //      requires the table right above the handler, so loading it runs nothing new;
-//      nothing that runs while the file loads can reach the handler before that line.
+//      nothing that runs while the file loads can reach the handler before that line;
+//   f. a name of the file a call hands over is one the file declares once, for good,
+//      and has its value before anything can run the handler (branches-own.mjs), in
+//      the old file and in the new one; the handler declares nothing under that name,
+//      so the call reads the file's; the call lists plain names and nothing else, the
+//      ones the body uses, in order, and the function takes them under the same names.
 
 import { analyze } from './analyze.mjs';
 import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
 import { kindOf } from './branches-kinds.mjs';
+import { ownRule } from './branches-own.mjs';
+import { paramsFor } from './branches-plan.mjs';
 import { placeBoundIn, readBranches } from './branches-scope.mjs';
-import { callLine, putBack, readModule, readRequire } from './branches-text.mjs';
+import { callLine, ownOf, putBack, readModule, readRequire } from './branches-text.mjs';
 import { requireEditProblem } from './require-edits.mjs';
 import { createUseReader } from './scope-uses.mjs';
 
 const profile = (uses, skip) => [...uses].filter(([name]) => !skip.has(name)).map(([name, use]) => `${name} ${use.read} ${use.write} ${use.change}`).sort().join('\n');
 
-// The functions of the table, by key, and the statements of the module that are not a require, the table or the export.
+// The functions of the table, by key, each with its parameters as written, and the statements of the module that are
+// not a require, the table or the export.
 function readTable(moduleText, parser, target) {
   const { K } = parser;
   const sourceFile = parser.parse(moduleText, target);
@@ -42,7 +51,8 @@ function readTable(moduleText, parser, target) {
         const made = property.initializer;
         const plain = property.kind === K.PropertyAssignment && property.name.kind === K.StringLiteral && made.kind === K.ArrowFunction
           && made.body.kind === K.Block && moduleText.slice(made.getStart(sourceFile), made.end).startsWith('async (');
-        if (plain) functions.set(property.name.text, made); else strange.push(`an entry of the table that is not 'KEY': async (...) => { ... }`);
+        const params = plain && made.parameters.length ? moduleText.slice(made.parameters[0].getStart(sourceFile), made.parameters.at(-1).end) : '';
+        if (plain) functions.set(property.name.text, { made, params }); else strange.push(`an entry of the table that is not 'KEY': async (...) => { ... }`);
       }
     } else if (text !== 'module.exports = { branches };' && !/^const (?:\{[^}]*\}|[\w$]+) = require\('[^']+'\)(?:\.[\w$]+)?;$/.test(text)) {
       strange.push(`a statement that is not a require, the table or the export: ${JSON.stringify(text.slice(0, 60))}`);
@@ -82,6 +92,7 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
   try { table = readModule(moduleText); } catch (error) { return [`${target}: ${error.message}`]; }
   if (table.kind !== kind) return [`${target} holds a table of ${table.kind.id}, its name says ${kind.id}`];
   const bodies = new Map(table.entries.map((entry) => [entry.key, entry.lines]));
+  const ownOfKey = new Map(table.entries.map((entry) => [entry.key, ownOf(entry.params, kind)]));
 
   // a. Undo the shrunk requires bottom up, then put the bodies back.
   const undone = after.split('\n');
@@ -116,7 +127,7 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
     if (!other) break;
     const [was, is] = [oldLines.slice(branch.first, branch.last + 1), newLines.slice(other.first, other.last + 1)];
     if (!keys.has(branch.key)) { if (was.join('\n') !== is.join('\n')) problems.push(`the body of ${branch.key ?? branch.test} changed and was not asked to move`); continue; }
-    if (is.join('\n') !== callLine(plan.local, branch.key, kind)) problems.push(`${branch.key} is not one call of the table`);
+    if (is.join('\n') !== callLine(plan.local, branch.key, kind, ownOfKey.get(branch.key))) problems.push(`${branch.key} is not one call of the table that hands over what its function takes`);
     if ((bodies.get(branch.key) ?? []).join('\n') !== was.join('\n')) problems.push(`the body of ${branch.key} in ${target} is not the old lines byte for byte`);
   }
   if (moving.length !== keys.size) problems.push(`${keys.size} bodies were to move, ${moving.length} branches have those keys`);
@@ -136,19 +147,30 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
   const module = analyze(moduleText, parser, target);
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
   const home = oldFile.bindings.get(handler)?.record.index ?? -1;
+  const [ruleBefore, ruleAfter] = [ownRule(oldFile, handler), ownRule(newFile, handler)];
   const loadedAt = new Map();
   for (const record of oldFile.records.filter((entry) => entry.require).toReversed()) loadedAt.set(idOf(record.require.spec, source), record.index);
   for (const branch of moving) {
-    const made = functions.get(branch.key);
+    const { made, params } = functions.get(branch.key) ?? {};
     if (!made) { problems.push(`${target} has no function for ${branch.key}`); continue; }
     const uses = usesOf(made.body);
-    const given = new Set(made.parameters.flatMap((parameter) => (parameter.name.kind === parser.K.Identifier ? [parameter.name.text]
-      : parameter.name.elements.map((element) => element.name.text))));
+    // f. What the call hands over of the file: exactly the names the body takes from it that the table does not require.
+    const own = ownOfKey.get(branch.key);
+    const taken = [...uses.keys()].filter((name) => !NOT_COMPARED.has(name) && oldFile.bindings.has(name) && !ruleBefore.required(name)).sort();
+    if (taken.join(' ') !== own.join(' ')) problems.push(`${branch.key} is not handed exactly the names of ${source} it uses, in order`);
+    if (params !== paramsFor([...PARAMETERS].filter((name) => uses.has(name)), kind, own)) problems.push(`the function of ${branch.key} does not take exactly what it uses, under the same names`);
+    for (const name of own) {
+      const why = ruleBefore.whyNot(name) ?? ruleAfter.whyNot(name);
+      if (why) problems.push(`${branch.key} is handed ${name}: ${why}`);
+      if (old.locals.has(name) || now.locals.has(name)) problems.push(`${branch.key} is handed ${name}, which ${handler} declares for itself`);
+    }
     if (profile(uses, NOT_COMPARED) !== profile(branch.uses, NOT_COMPARED)) problems.push(`${branch.key} does not take the same names from outside as before`);
     for (const [name, use] of uses) {
       if (use.write > 0) problems.push(`${branch.key} assigns ${name}`);
       if (PARAMETERS.has(name)) {
-        if (!given.has(name) || !old.locals.has(name)) problems.push(`${branch.key} uses ${name}, which its function is not handed`);
+        if (!old.locals.has(name)) problems.push(`${branch.key} uses ${name}, which its function is not handed`);
+      } else if (own.includes(name)) {
+        continue;
       } else if (module.bindings.has(name)) {
         const [here, there] = [originOf(module, name, target, idOf), originOf(oldFile, name, source, idOf)];
         if (!here || here !== there) problems.push(`${name} in ${target} is not what ${source} required under that name`);
@@ -156,7 +178,6 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
         if (!id.startsWith('node:') && !(loadedAt.get(id) < home)) problems.push(`${target} requires ${id}, which ${source} has not loaded before ${handler}`);
       } else if (!(name in globalThis) || oldFile.bindings.has(name) || old.locals.has(name)) problems.push(`${branch.key} uses ${name}, which ${target} does not have`);
     }
-    for (const name of given) if (!PARAMETERS.has(name) && !kind.leading.includes(name.slice(1))) problems.push(`${branch.key} is handed ${name}, which the handler does not hand over`);
     // A function that gives a result back is the line that declares it, the body, and the line that returns it (readModule saw both).
     const inside = kind.result ? made.body.statements.slice(1, -1) : [...made.body.statements];
     problems.push(...placeBoundIn(inside, parser, { anyReturn: Boolean(kind.result) }).map((what) => `${branch.key} has ${what}`));

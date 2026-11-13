@@ -3,7 +3,10 @@
 //
 // A body can move when everything it names from outside is one of:
 //   - one of the few values of its function that are handed over (branches-kinds.mjs);
-//   - a name the file gets from `require` (the new module requires the same module);
+//   - a name the file gets from `require` above the function (the new module
+//     requires the same module);
+//   - a name of the file that means one value for good and has it by then: the
+//     call hands it over (branches-own.mjs);
 //   - something every Node program has (`JSON`, `Buffer`, `setTimeout`).
 // and when it has nothing whose meaning depends on the function around it: no
 // `this`, no `arguments`, no `return` with a value (no `return` at all where the
@@ -16,6 +19,7 @@
 // that adds a finding.
 
 import { ROUTES } from './branches-kinds.mjs';
+import { ownRule } from './branches-own.mjs';
 import { createUseReader } from './scope-uses.mjs';
 import { frameLine, readCall } from './branches-text.mjs';
 import { lineAt, lineStarts } from './top-level.mjs';
@@ -116,9 +120,10 @@ function bodyLines(block, sourceFile, starts, lines) {
  * @param {typeof ROUTES} [job.kind] which chain (branches-kinds.mjs)
  * @returns {{ sourceFile: any, chain: any, locals: Set<string>, branches: { key: string | null, test: string,
  *   line: number, first: number, last: number, lines: number, moved: boolean, block: any, uses: Map<string, any>, handed: string[],
- *   needed: string[], holders: string[], reasons: string[] }[] }}
- *   `first`/`last` are 0-based lines of the body, `handed` the handler values it uses, `needed` the required names it uses,
- *   `holders` the names the file still declares that keep it, `reasons` everything that keeps it (holders included);
+ *   needed: string[], own: string[], holders: string[], reasons: string[] }[] }}
+ *   `first`/`last` are 0-based lines of the body, `handed` the handler values it uses, `needed` the names it uses that its
+ *   table would require, `own` the names of the file its call would hand over (sorted), `holders` the names of the file
+ *   that cannot be handed and keep it, `reasons` everything that keeps it (one per holder, last);
  *   `moved` is true when the body is one call of a table already
  */
 export function readBranches({ text, parser, analysis, kind = ROUTES, handler = kind.handler }) {
@@ -127,6 +132,7 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
   const { sourceFile } = chain;
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
   const locals = handlerNames(chain.handler, parser);
+  const rule = ownRule(analysis, handler);
   const starts = lineStarts(text);
   const lines = text.split('\n');
   const branches = chain.branches.map(({ test, block }) => {
@@ -136,6 +142,7 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
     const reasons = [];
     const holders = [];
     const needed = [];
+    const own = [];
     const handed = [];
     if (!key) reasons.push(kind.notKey);
     if (!at) reasons.push('its body is not on lines of its own between `{` and `}`');
@@ -149,16 +156,17 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
         else handed.push(name);
       } else if (BOUND_TO_PLACE.has(name)) reasons.push(`it uses \`${name}\`, which means another thing in another file or function`);
       else if (analysis.bindings.has(name)) {
-        if (analysis.bindings.get(name).kind === 'require') { needed.push(name); if (use.write > 0) reasons.push(`it assigns ${name}`); }
+        if (rule.required(name)) { needed.push(name); if (use.write > 0) reasons.push(`it assigns ${name}`); }
+        else if (rule.whyNot(name) === null) own.push(name);
         else holders.push(name);
       } else if (!(name in globalThis)) reasons.push(`it uses ${name}, which nothing declares`);
       else if (use.write > 0) reasons.push(`it assigns ${name}`);
     }
     reasons.push(...placeBound(block, parser, { anyReturn: Boolean(kind.result) }).map((what) => `it has ${what}`));
     if (kind.result && setsOnceAtTop(block, kind.result, uses, parser.K)) reasons.push(`it sets ${kind.result} once, in a line of its own: a function that declares it first would read as code to rewrite`);
-    reasons.push(...holders.map((name) => `it needs ${name}, which the file still declares (line ${analysis.bindings.get(name).record.line[0]})`));
+    reasons.push(...holders.map((name) => `it needs ${name}, which cannot be handed over: ${rule.whyNot(name)}`));
     return { key, test, line: lineAt(starts, block.getStart(sourceFile)) + 1, first: at?.first ?? -1, last: at?.last ?? -1,
-      lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, holders, reasons };
+      lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, own: own.sort(), holders, reasons };
   });
   return { sourceFile, chain, locals, branches };
 }

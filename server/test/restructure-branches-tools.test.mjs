@@ -32,6 +32,7 @@ const SOURCE = `const fs = require('fs');
 const notes = require('./notes-lib');
 
 const LIMIT = notes.limit + fs.constants.F_OK;
+function bonus() { return 2; }
 
 // Runs one tool for the assistant.
 async function runAiTool(fnName, fnArgs, deps) {
@@ -73,6 +74,9 @@ async function runAiTool(fnName, fnArgs, deps) {
       fnResult = { ok: fnArgs.ok };
     } else if (fnName === 'limit') {
       fnResult = { limit: LIMIT };
+    } else if (fnName === 'count') {
+      if (fnArgs.more) fnResult = { limit: LIMIT + bonus() };
+      else fnResult = { limit: LIMIT, name: more.name };
     } else if (fnName === 'early') {
       if (!fnArgs.ok) return { fnResult: { error: 'no' }, clientActions, pending };
       fnResult = { ok: true };
@@ -94,6 +98,7 @@ async function runAiTool(fnName, fnArgs, deps) {
   return { fnResult, clientActions, pending };
 }
 
+const more = require('./more-lib');
 module.exports = { runAiTool };
 `;
 const MOVED = ['add_note', 'read_file', 'boom', 'run'];
@@ -115,7 +120,7 @@ test('a table of tools is said by its file name, and its lines are read back as 
   assert.equal(tableOf(OLD, 'server/screen-notes/tools-more.js').local, 'screenNotesToolsMoreBranches');
   const line = callLine('aiToolsBranches', 'add_note', TOOLS);
   assert.equal(line, `      fnResult = await aiToolsBranches['add_note'](${HANDED});`);
-  assert.deepEqual([readCall(line, TOOLS), readCall(line), readCall(callLine('lightsBranches', 'GET /a'), TOOLS)], [{ local: 'aiToolsBranches', key: 'add_note' }, null, null]);
+  assert.deepEqual([readCall(line, TOOLS), readCall(line), readCall(callLine('lightsBranches', 'GET /a'), TOOLS)], [{ local: 'aiToolsBranches', key: 'add_note', own: [] }, null, null]);
   assert.deepEqual(entryLines(['      fnResult = 1;'], TOOLS), ['      let fnResult;', '      fnResult = 1;', '      return fnResult;']);
   assert.deepEqual([paramsFor(['fnArgs', 'clientActions'], TOOLS), paramsFor(['uiLang', 'fnArgs'], TOOLS), paramsFor([], TOOLS)], ['{ fnArgs, clientActions }', '{ fnArgs, uiLang }', '']);
 });
@@ -135,7 +140,8 @@ test('the bodies of tools move as written into functions that give the result ba
   assert.equal(lines.indexOf("const { branches: aiToolsBranches } = require('./ai/tools.js');") + 2, lines.indexOf('// Runs one tool for the assistant.'), 'the table is required right above the function');
   assert.equal(undoBranchesText(made.newSource, () => made.moduleText), SOURCE, 'read as text, the bodies are back under their tests');
   const survey = surveyBranches({ text: SOURCE, parser, source: OLD, kind: TOOLS });
-  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [10, MOVED, ['LIMIT']]);
+  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [11, [...MOVED, 'count'], []]);
+  assert.deepEqual(survey.bodies.find((row) => row.key === 'count'), { key: 'count', test: "fnName === 'count'", group: 'tools', line: 47, lines: 2, state: 'handed', own: ['LIMIT', 'bonus', 'more'], reasons: [] });
   assert.ok(survey.other.some((row) => /^it sets fnResult once, in a line of its own/.test(row.reason) && row.branches === 6), 'a body that sets the result just once is counted with what keeps it');
 });
 
@@ -143,7 +149,7 @@ test('a body that would end the function, or set something else of it, stays; so
   if (!parser) return t.skip(SKIP);
   const said = refusal(['limit', 'early', 'screen', 'bare', 'once', 'a', 'nothing']);
   for (const reason of [/once \(server\/demo\.js:\d+\): it sets fnResult once, in a line of its own: a function that declares it first would read as code to rewrite/,
-    /limit \(server\/demo\.js:\d+\): it needs LIMIT, which the file still declares/, /early .*it has a `return`/, /bare .*it has a `return`/,
+    /limit \(server\/demo\.js:\d+\): it sets fnResult once, in a line of its own/, /early .*it has a `return`/, /bare .*it has a `return`/,
     /screen .*it uses pending, which the handler works out for itself/, /0 branches of runAiTool answer a, one was expected/, /0 branches of runAiTool answer nothing/]) assert.match(said, reason);
   assert.match(refusal(['run'], { allowed: new Set(['handleRequest']) }), /protected\.json does not let the bodies of runAiTool move/);
   assert.match(refusal(['run'], { target: 'server/ai/routes.js' }), /protected.json does not let the bodies of handleRequest move/);
@@ -155,7 +161,7 @@ test('a body that would end the function, or set something else of it, stays; so
   assert.match(refusal(['boom'], { text: swap(SOURCE, ', apiKey, latestUserText } = deps;', ', latestUserText } = deps;') }), /the function has no apiKey above the chain, and every call hands it over/);
   assert.match(refusal(['run'], { text: swap(SOURCE, '  let pending = null;', '  let pending = null;\n  if (!fnArgs) fnArgs = {};') }), /the function assigns fnArgs, which a body would be handed once/);
   assert.equal(refusal(['boom'], { text: swap(SOURCE, '  let pending = null;', "  let pending = null;\n  if (remote) deps = { ...deps, uiLang: 'en' };") }), '', 'what no body is handed may change');
-  assert.match(refusal(['run'], { text: swap(SOURCE, '// Runs one tool', "const first = runAiTool('open', {}, {});\n\n// Runs one tool") }), /line 6 of server\/demo\.js runs while the file loads and may reach runAiTool before the line that requires the table/);
+  assert.match(refusal(['run'], { text: swap(SOURCE, '// Runs one tool', "const first = runAiTool('open', {}, {});\n\n// Runs one tool") }), /line 7 of server\/demo\.js runs while the file loads and may reach runAiTool before the line that requires the table/);
   assert.match(refusal(['run'], { text: swap(SOURCE, "  try {\n    if (fnName === 'add_note')", "  try {\n    pending = 1;\n    if (fnName === 'add_note')") }), /the try block of runAiTool is not one chain of tools and nothing else/);
 });
 
@@ -177,6 +183,7 @@ function demoRepo() {
   writeFileSync(path.join(root, PROTECTED), '{ "files": { "server/demo.js": { "names": [], "branches": ["runAiTool"] } } }\n');
   writeFileSync(path.join(root, 'tools', 'map', 'frozen-paths.json'), '{}\n');
   writeFileSync(path.join(root, 'server', 'notes-lib.js'), 'const all = [];\nmodule.exports = { limit: 3, add: (text) => all.push(text) };\n');
+  writeFileSync(path.join(root, 'server', 'more-lib.js'), "module.exports = { name: 'more' };\n");
   writeFileSync(path.join(root, OLD), SOURCE);
   return root;
 }
@@ -185,7 +192,7 @@ function demoRepo() {
 async function resultsOf(root) {
   const { runAiTool } = createRequire(path.join(root, 'server', 'x.js'))('./demo.js');
   const asked = [['add_note', { text: ' milk ' }], ['add_note', { text: '' }], ['add_note', { text: 'eggs' }], ['read_file', { file: '.' }], ['boom', { what: 'luck' }], ['run', { action: 'lock' }],
-    ['run', { action: 'lock' }, { remote: true }], ['lock', {}, { remote: true }], ['open', {}], ['limit', {}], ['once', { ok: 1 }], ['boom', {}], ['read_file', {}], ['early', {}], ['screen', {}], ['nothing', {}], ['add_note', null]];
+    ['run', { action: 'lock' }, { remote: true }], ['lock', {}, { remote: true }], ['open', {}], ['limit', {}], ['count', {}], ['count', { more: 1 }], ['once', { ok: 1 }], ['boom', {}], ['read_file', {}], ['early', {}], ['screen', {}], ['nothing', {}], ['add_note', null]];
   const out = [];
   for (const [name, args, more] of asked) out.push(`${name} ${JSON.stringify(await runAiTool(name, args, { uiLang: 'it', ...more }))}`);
   return out;
@@ -196,14 +203,19 @@ test('on disk: the move is written and recorded, the replay redoes it, and the f
   const [root, untouched] = [demoRepo(), demoRepo()];
   try {
     moveBranches({ root, parser, source: OLD, target: TABLE, about: ABOUT, keys: ['add_note', 'boom'] });
-    moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['run', 'read_file'] });
-    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: ABOUT, keys: ['add_note', 'boom'], after: 0 }, { file: TABLE, about: '', keys: ['read_file', 'run'], after: 0 }] });
-    assert.deepEqual(readModule(readFileSync(path.join(root, TABLE), 'utf8')).entries.map((entry) => entry.key), ['add_note', 'boom', 'read_file', 'run']);
+    moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['run', 'read_file', 'count'] });
+    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: ABOUT, keys: ['add_note', 'boom'], after: 0 }, { file: TABLE, about: '', keys: ['read_file', 'run', 'count'], after: 0 }] });
+    const written = readModule(readFileSync(path.join(root, TABLE), 'utf8'));
+    assert.deepEqual(written.entries.map((entry) => entry.key), ['add_note', 'boom', 'read_file', 'run', 'count']);
+    assert.equal(written.entries.at(-1).params, '{ fnArgs }, { LIMIT, bonus, more }', 'a const, a function and a module the file loads further down are handed over by the call');
+    assert.ok(readFileSync(path.join(root, OLD), 'utf8').includes(`${callLine('aiToolsBranches', 'count', TOOLS, ['LIMIT', 'bonus', 'more'])}\n`));
+    assert.ok(!readFileSync(path.join(root, TABLE), 'utf8').includes('more-lib'), 'the table does not require what the file loads below the function');
     const results = await resultsOf(root);
     assert.deepEqual(results, await resultsOf(untouched), 'run for real, both functions give back the same');
     assert.equal(results[4], 'boom {"fnResult":{"error":"no luck"},"clientActions":[],"pending":null}', 'a body that set the result and then threw leaves only the error');
     assert.equal(results[0], 'add_note {"fnResult":{"ok":true,"count":1},"clientActions":[{"action":"notes_changed"}],"pending":null}');
     assert.equal(results[6], 'run {"fnResult":{"ok":false,"error":"not_on_phone"},"clientActions":[],"pending":null}', 'the check a body calls is the function\'s own');
+    assert.deepEqual(results.slice(10, 12), ['count {"fnResult":{"limit":3,"name":"more"},"clientActions":[],"pending":null}', 'count {"fnResult":{"limit":5},"clientActions":[],"pending":null}'], 'a body runs with the names of the file it was handed');
     const fromStart = (_root, _rev, file) => (file === OLD ? SOURCE : null);
     assert.deepEqual(replay({ root, parser, base: 'BASE', show: fromStart }), { problems: [], replayed: 2, files: [[OLD, TABLE]] });
     const table = readFileSync(path.join(root, TABLE), 'utf8');

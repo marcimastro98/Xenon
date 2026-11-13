@@ -27,7 +27,7 @@
 //   node tools/restructure/cli.mjs branches --from <file> --to <dir>/<feature>/tools[-<word>].js [--about "..."] [--dry-run] <tool> ...
 //                                                                  the same for what a tool of the assistant does: the file name
 //                                                                  says which chain; the function declares the result and gives it back
-//   node tools/restructure/cli.mjs branches --from <file> --survey [--tools] [--json]   what can move now and what keeps the rest
+//   node tools/restructure/cli.mjs branches --from <file> --survey [--tools] [--bodies] [--json]   what can move and what keeps the rest (--bodies: one line per body)
 //                                                                  (of the routes; --tools: of the assistant's tools)
 //   node tools/restructure/cli.mjs verify [--base HEAD]           redo the recorded moves and rewrites from a revision, compare bytes
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
@@ -164,7 +164,7 @@ function runBranches(parser, { flags, rest }) {
   const source = posix(flags.from);
   if (flags.survey) {
     const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES });
-    console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source));
+    console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source, { bodies: Boolean(flags.bodies) }));
     return 0;
   }
   const dryRun = Boolean(flags['dry-run']);

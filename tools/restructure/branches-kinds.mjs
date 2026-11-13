@@ -10,6 +10,9 @@
 //           thing it may assign, the tool's result; it may not `return` at all,
 //           because the function goes on after the chain. A body that sets the
 //           result just once, straight in its lines, stays (branches-scope.mjs).
+//
+// Both kinds can also hand a body names of the file itself, in one more argument
+// (`typeOwn`): see branches-handler.mjs for which names.
 
 import { routeChain } from './routes-list.mjs';
 
@@ -58,6 +61,7 @@ export const ROUTES = Object.freeze({
   notKey: 'its test is not one address asked with one method',
   chainOf: routeChain,
   type: '(req: any, res: any, context: any) => Promise<void>',
+  typeOwn: '(req: any, res: any, context: any, engine?: any) => Promise<void>',
 });
 
 export const TOOLS = Object.freeze({
@@ -74,6 +78,7 @@ export const TOOLS = Object.freeze({
   notKey: 'its test is not one tool asked by its name',
   chainOf: chainInTry,
   type: '(context: any) => Promise<any>',
+  typeOwn: '(context: any, engine?: any) => Promise<any>',
 });
 
 export const KINDS = Object.freeze([ROUTES, TOOLS]);

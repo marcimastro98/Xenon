@@ -11,7 +11,10 @@
 //   - a function declared with `function` can be called from above its own line
 //     while the file loads, and the table is required right above it: nothing
 //     that runs at load above that line may reach the function.
+//
+// Which names of the file a call may hand over as well is in branches-own.mjs.
 
+import { firstReach } from './branches-own.mjs';
 import { createUseReader } from './scope-uses.mjs';
 
 // The names a function has when it reaches one of its statements: its parameters and what it declared above.
@@ -79,17 +82,6 @@ export function handlerProblems(chain, parser, kind, handed, textOf) {
 export function calledBeforeItsTable(analysis, handler) {
   const target = analysis.bindings.get(handler)?.record;
   if (target?.kind !== 'function') return null;
-  for (const start of analysis.records.slice(0, target.index)) {
-    if (!start.loadTime) continue;
-    const seen = new Set([start]);
-    const queue = [start];
-    while (queue.length) {
-      for (const name of queue.pop().uses.keys()) {
-        const next = analysis.bindings.get(name)?.record;
-        if (next && !seen.has(next)) { seen.add(next); queue.push(next); }
-      }
-    }
-    if (seen.has(target)) return start.line[0];
-  }
-  return null;
+  const start = firstReach(analysis, handler);
+  return start && start.index < target.index ? start.line[0] : null;
 }

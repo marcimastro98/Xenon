@@ -9,10 +9,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { moveBranches, surveyBranches } from '../../tools/restructure/branches.mjs';
-import { KINDS } from '../../tools/restructure/branches-kinds.mjs';
+import { moveBranches, renderSurvey, surveyBranches } from '../../tools/restructure/branches.mjs';
+import { KINDS, ROUTES } from '../../tools/restructure/branches-kinds.mjs';
 import { planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
-import { readCall, readModule, requireLine } from '../../tools/restructure/branches-text.mjs';
+import { readCall, readModule, requireLine, typeLine } from '../../tools/restructure/branches-text.mjs';
 import { replay } from '../../tools/restructure/extract.mjs';
 import { LEDGER, PROTECTED, readLedger } from '../../tools/restructure/ledger.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
@@ -40,7 +40,7 @@ function demoRepo() {
 async function answersOf(root) {
   const { handleRequest } = createRequire(path.join(root, 'server', 'x.js'))('./demo.js');
   const out = [];
-  for (const [method, url, body] of [['GET', '/a'], ['POST', '/b', '{"ok":true,"file":"."}'], ['POST', '/b', '{}'], ['POST', '/b', '{'], ['GET', '/c'], ['GET', '/j'], ['GET', '/nowhere']]) {
+  for (const [method, url, body] of [['GET', '/a'], ['POST', '/b', '{"ok":true,"file":"."}'], ['POST', '/b', '{}'], ['POST', '/b', '{'], ['GET', '/c'], ['GET', '/g'], ['GET', '/j'], ['GET', '/k'], ['GET', '/nowhere']]) {
     const said = [];
     await handleRequest({ method, url, body }, { writeHead: (status) => said.push(status), end: (text) => said.push(text ?? '') });
     out.push(`${method} ${url} ${JSON.stringify(said)}`);
@@ -56,16 +56,18 @@ test('a move is written, recorded with its place in the order, redone by the rep
     assert.deepEqual([dry.keys, dry.added, existsSync(path.join(root, TABLE)), readFileSync(path.join(root, OLD), 'utf8') === SOURCE], [['GET /a'], true, false, true], 'a dry run writes nothing');
     moveBranches({ root, parser, source: OLD, target: TABLE, about: 'What the lights answer.', keys: ['GET /a'] });
     const afterOne = { [OLD]: readFileSync(path.join(root, OLD), 'utf8'), [TABLE]: readFileSync(path.join(root, TABLE), 'utf8'), [LEDGER]: readFileSync(path.join(root, LEDGER), 'utf8') };
-    const added = moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['POST /b', 'GET /j'] });
+    const added = moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['POST /b', 'GET /j', 'GET /g', 'GET /c'] });
     assert.equal(added.added, false);
-    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: 'What the lights answer.', keys: ['GET /a'], after: 0 }, { file: TABLE, about: '', keys: ['POST /b', 'GET /j'], after: 0 }] });
+    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: 'What the lights answer.', keys: ['GET /a'], after: 0 }, { file: TABLE, about: '', keys: ['POST /b', 'GET /c', 'GET /g', 'GET /j'], after: 0 }] });
     assert.deepEqual(await answersOf(root), await answersOf(untouched), 'run for real, both handlers say the same');
     assert.equal((await answersOf(root))[0], 'GET /a ["{\\"a\\":7}"]');
+    assert.deepEqual((await answersOf(root)).slice(4, 6), ['GET /c ["{\\"c\\":3,\\"limit\\":3}"]', 'GET /g ["{\\"g\\":1}"]'], 'a body handed a function, a const and a name required further down runs with them');
 
     const fromStart = (_root, _rev, file) => (file === OLD ? SOURCE : null);
     assert.deepEqual(replay({ root, parser, base: 'BASE', show: fromStart }), { problems: [], replayed: 2, files: [[OLD, TABLE]] });
     const fromOne = (_root, _rev, file) => afterOne[file] ?? null;
     assert.deepEqual(replay({ root, parser, base: 'BASE', show: fromOne }), { problems: [], replayed: 1, files: [[OLD, TABLE]] }, 'a table the revision has is taken from there and added to');
+    assert.ok(readFileSync(path.join(root, TABLE), 'utf8').includes(typeLine(ROUTES, true)) && afterOne[TABLE].includes(typeLine(ROUTES)), 'the table says its functions may take names of the file once one of them does');
     // A hand edit in the same step as a move is seen, in the table and in the file.
     const table = readFileSync(path.join(root, TABLE), 'utf8');
     writeFileSync(path.join(root, TABLE), table.replace('lights.count()', 'lights.count() + 1'));
@@ -84,13 +86,19 @@ test('a move is written, recorded with its place in the order, redone by the rep
 test('the survey says what can move and which name keeps the rest', (t) => {
   if (!parser) return t.skip(SKIP);
   const survey = surveyBranches({ text: SOURCE, parser, source: OLD });
-  assert.deepEqual([survey.branches, survey.moved, survey.movable.map((row) => row.key)], [10, 0, ['GET /a', 'POST /b', 'GET /j']]);
-  assert.ok(survey.other.some((row) => row.reason === 'it needs a module the file loads below handleRequest (1 lines)' && row.branches === 1), 'a body whose module loads later is not called movable');
-  assert.deepEqual(survey.held, [{ name: 'helper', branches: 1, alone: 1, lines: 1 }]);
+  assert.deepEqual([survey.branches, survey.moved, survey.movable.map((row) => [row.key, row.own])], [11, 0, [['GET /a', []], ['POST /b', []], ['GET /c', ['LIMIT', 'helper']], ['GET /g', ['late']], ['GET /j', []]]]);
+  assert.deepEqual(survey.bodies.map((row) => row.state), ['now', 'now', 'handed', 'kept', 'kept', 'kept', 'handed', 'kept', 'kept', 'now', 'kept'], 'every body is said: it moves, it moves with names handed over, or it stays');
+  assert.deepEqual(survey.held, [{ name: 'turns', branches: 1, alone: 1, lines: 1 }]);
+  const said = renderSurvey(survey, OLD, { bodies: true });
+  for (const line of ['Move as they are: 3 bodies, 8 lines.', 'Move when their call hands them names of the file: 2 bodies, 2 lines, 3 different names.', '  GET /a (line 17, 2 lines): moves now',
+    '  GET /c (line 27, 1 lines): moves with these handed names: LIMIT, helper', '  GET /k (line 43, 1 lines): stays: it needs turns, which cannot be handed over: it is declared with `let` (line 52), so it can change while a body runs']) {
+    assert.ok(said.split('\n').includes(line), `the survey says: ${line}`);
+  }
+  assert.ok(!renderSurvey(survey, OLD).includes('Body by body'));
   assert.ok(survey.other.some((row) => row.reason === 'it uses … which the handler works out for itself' || /works out for itself/.test(row.reason)));
   const moved = surveyBranches({ parser, source: OLD,
     text: planBranches({ text: SOURCE, parser, source: OLD, target: TABLE, about: 'What the lights answer.', keys: ['GET /a'], moduleBefore: null, rewrite, allowed: ALLOWED }).newSource });
-  assert.deepEqual([moved.moved, moved.movable.map((row) => row.key)], [1, ['POST /b', 'GET /j']]);
+  assert.deepEqual([moved.moved, moved.movable.map((row) => row.key)], [1, ['POST /b', 'GET /c', 'GET /g', 'GET /j']]);
 });
 
 test('the real engine: every table on the list is there, and each of its bodies stands under one test of the handler', () => {

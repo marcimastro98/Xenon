@@ -7,7 +7,9 @@
 // What stays exactly as it is: every test of the chain and their order, every
 // statement of the handler before the chain, and the rest of the file. The file
 // gains one line that requires the table, right above the handler, where every
-// module the table needs is loaded already: requiring it runs nothing new.
+// module the table needs is loaded already: requiring it runs nothing new. A name
+// from a module the file loads further down is handed over by the call instead,
+// like a name the file declares itself (branches-own.mjs).
 
 import path from 'node:path';
 
@@ -15,7 +17,7 @@ import { analyze } from './analyze.mjs';
 import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
 import { kindOf, ROUTES } from './branches-kinds.mjs';
 import { readBranches } from './branches-scope.mjs';
-import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, readModule, readRequire, requireLine, typeLine } from './branches-text.mjs';
+import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, ownOf, readModule, readRequire, requireLine, typeLine } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 import { requireEdit } from './require-edits.mjs';
@@ -40,14 +42,22 @@ export function tableOf(source, target) {
   return { local: `${feature}${kind.localWord}${word ? word[0].toUpperCase() + word.slice(1) : ''}Branches`, spec: `./${relative}`, kind };
 }
 
-/** The parameters of a body's function: only what it uses, so nothing in the new file is declared and left unused. */
-export function paramsFor(handed, kind = ROUTES) {
+const HOLDS_A_PLACE = '_context';
+/**
+ * The parameters of a body's function: only what it uses, so nothing in the new file is declared and left unused.
+ * @param {string[]} handed the handler values it uses @param {typeof ROUTES} [kind]
+ * @param {string[]} [own] the names of the file its call hands over, which come last
+ */
+export function paramsFor(handed, kind = ROUTES, own = []) {
   const context = kind.context.filter((name) => handed.includes(name));
   const parts = kind.leading.map((name) => (handed.includes(name) ? name : `_${name}`));
-  if (context.length) parts.push(`{ ${context.join(', ')} }`);
+  parts.push(context.length ? `{ ${context.join(', ')} }` : HOLDS_A_PLACE);
+  if (own.length) return [...parts, `{ ${own.join(', ')} }`].join(', ');
   while (parts.length && parts.at(-1).startsWith('_')) parts.pop();
   return parts.join(', ');
 }
+/** The names a function's parameters may be written with when it does not use them. */
+export const placeHolders = (kind) => [...kind.leading.map((name) => `_${name}`), HOLDS_A_PLACE];
 
 // The require lines of the table's module: the ones it has, plus one name per new need, written the way the file binds it.
 function requiresOf({ moduleBefore, parser, target, needed, bindings, rewriteSpec }) {
@@ -91,7 +101,8 @@ function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
   if (taken.length) throw new Refusal([`${target} already has a body for ${taken.join(', ')}`]);
   const entries = [...before.entries, ...added];
   const table = entries.flatMap((entry, index) => [...(index ? [''] : []), headLine(entry.key, entry.params), ...entryLines(entry.lines, kind), ENTRY_END]);
-  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), typeLine(kind), OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
+  const type = typeLine(kind, entries.some((entry) => ownOf(entry.params, kind).length > 0));
+  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), type, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
 }
 
 // The requires of the file that lost names only the moved bodies used, as edits of `text`, top to bottom.
@@ -162,6 +173,8 @@ export function planBranches(job) {
     if (found.length !== 1) { reasons.push(`${found.length} branches of ${handler} answer ${key}, one was expected`); continue; }
     if (found[0].moved) reasons.push(`${key} is a call of a table already`);
     reasons.push(...found[0].reasons.map((reason) => `${key} (${source}:${found[0].line}): ${reason}`));
+    const taken = placeHolders(kind).filter((name) => found[0].uses.has(name));
+    if (taken.length) reasons.push(`${key} (${source}:${found[0].line}): it uses ${taken.join(', ')}, a name its function keeps for a value it does not use`);
     picked.push(found[0]);
   }
   if (picked.length === 0) reasons.push('no branch was named');
@@ -182,12 +195,9 @@ export function planBranches(job) {
   const needed = [...new Set(picked.flatMap((branch) => branch.needed))];
   const required = requiresOf({ moduleBefore, parser, target, needed, bindings: analysis.bindings, rewriteSpec: (spec) => rewrite(spec, source, target) });
   const home = analysis.bindings.get(handler).record;
-  const late = required.modules.filter((module) => module.kind !== 'builtin' && module.index > home.index);
-  reasons.push(...required.reasons, ...late.map((module) => `the table would need require('${module.spec}') for ${module.name}, which ${source} loads `
-    + `after ${handler} (line ${analysis.records[module.index].line[0]}): it would load earlier than today`));
-  if (reasons.length) throw new Refusal(reasons);
+  if (required.reasons.length) throw new Refusal(required.reasons);
 
-  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind), lines: lines.slice(branch.first, branch.last + 1) }));
+  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind, branch.own), lines: lines.slice(branch.first, branch.last + 1) }));
   const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target, kind });
   const moduleLines = moduleText.split('\n').length - 1;
   if (moduleLines > maxLines) {
@@ -196,7 +206,7 @@ export function planBranches(job) {
 
   // The file: each body becomes its call, bottom up so the lines above keep their numbers; then the require.
   const out = [...lines];
-  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key, kind));
+  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key, kind, branch.own));
   if (!hasRequire) {
     const at = home.range[0] - 1;
     if (out[at - 1] === '' && readRequire(out[at - 2] ?? '')) out.splice(at - 1, 0, requireLine(table.local, table.spec));
