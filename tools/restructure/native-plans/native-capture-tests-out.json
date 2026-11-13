@@ -1,0 +1,95 @@
+[
+  {
+    "origin": "apps/capture/src/reframe.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/reframe/resample.rs",
+        "about": "Shrinks or crops one picture plane to a new size, and turns video colours into screen colours.",
+        "lines": [
+          [
+            283,
+            517
+          ]
+        ]
+      },
+      {
+        "file": "apps/capture/src/reframe/unit_tests.rs",
+        "about": "Tests of the sizes, crops and frame pacing of a copy.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ],
+    "drop": {
+      "apps/capture/src/reframe.rs": [
+        "Yuv",
+        "nv12_to_bgrx"
+      ]
+    },
+    "uses": {
+      "apps/capture/src/reframe.rs": [
+        "// Only the Windows export reads video colours; elsewhere this import would be unused.\n#[cfg(windows)]\npub use resample::{nv12_to_bgrx, Yuv};"
+      ]
+    }
+  },
+  {
+    "origin": "apps/capture/src/ring.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/ring/unit_tests.rs",
+        "about": "Tests of the ring that keeps the last seconds of video.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ]
+  },
+  {
+    "origin": "apps/capture/src/audio.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/audio/unit_tests.rs",
+        "about": "Tests of mixing the sound tracks.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ]
+  },
+  {
+    "origin": "apps/capture/src/sketch/bar.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/sketch/bar/unit_tests.rs",
+        "about": "Tests of the drawing toolbar.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ]
+  },
+  {
+    "origin": "apps/capture/src/sketch/canvas.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/sketch/canvas/unit_tests.rs",
+        "about": "Tests of the drawing canvas.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ]
+  },
+  {
+    "origin": "apps/capture/src/private_spots.rs",
+    "parts": [
+      {
+        "file": "apps/capture/src/private_spots/unit_tests.rs",
+        "about": "Tests of the areas kept out of a capture.",
+        "items": [
+          "mod tests"
+        ]
+      }
+    ]
+  }
+]
