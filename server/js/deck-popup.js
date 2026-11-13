@@ -1,11 +1,11 @@
 'use strict';
 // Virtual Deck popup bootstrap — a "main.js-lite" for deck-popup.html.
 //
-// Runs BEFORE deck.js's DOMContentLoaded boot (scripts are synchronous), so it
-// can stamp the ?instance= id onto the tile first; then it opens its own SSE
-// stream and feeds exactly the events the deck snapshot consumes. View+press
-// only: no editor, no layout shell, no settings — key presses go through the
-// same POST /actions/run as the dashboard.
+// Runs BEFORE deck.js's DOMContentLoaded boot (the page runs every script, a
+// module too, before that event), so it can stamp the ?instance= id onto the
+// tile first; then it opens its own SSE stream and feeds exactly the events the
+// deck snapshot consumes. View+press only: no editor, no layout shell, no
+// settings — key presses go through the same POST /actions/run as the dashboard.
 (function () {
   // ── Which deck instance to mirror (default: the primary tile) ──
   const params = new URLSearchParams(location.search);
