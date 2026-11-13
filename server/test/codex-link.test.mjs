@@ -49,6 +49,10 @@ test('wrapperPath: only DATA_DIR and only as a bare word, never a shared folder,
   assert.equal(link.wrapperPath('C:\\Xenon\\data', 'win32'), path.join('C:\\Xenon\\data', 'codex-hook.cmd'));
   assert.equal(link.wrapperPath('C:\\Users\\Mary Ann\\Xenon\\data', 'win32'), null);
   assert.equal(link.wrapperPath('C:\\Users\\città\\data', 'win32'), null);
+  // A Windows short name is one word to cmd. %TEMP% is spelled that way for any
+  // user name longer than eight characters, a GitHub runner's included.
+  assert.equal(link.wrapperPath('C:\\Users\\MARYAN~1\\Xenon\\data', 'win32'), path.join('C:\\Users\\MARYAN~1\\Xenon\\data', 'codex-hook.cmd'));
+  assert.equal(link.wrapperPath('C:\\Users\\100%~dp0\\data', 'win32'), null, 'a % stays out, so a tilde never modifies anything');
   assert.equal(link.wrapperPath('/home/x/data', 'linux'), null);
 });
 
@@ -76,6 +80,26 @@ test('link into a missing file creates exactly our five hooks; status is complet
   assert.equal(state.port, 3030);
   assert.ok(state.token.length >= 32);
   assert.equal(JSON.stringify(j).includes(state.token), false, 'the token is never in the file');
+});
+
+// Run for real, the way Codex starts a hook on Windows: %COMSPEC% /C "<command>",
+// with the one pair of quotes it adds itself.
+test('the wrapper starts under cmd from a folder spelled as a short name', { skip: process.platform !== 'win32' && 'cmd is the Windows shell' }, async (t) => {
+  const { spawnSync } = await import('node:child_process');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-codex-cmd-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const data = path.join(root, 'MARYAN~1', 'data');
+  const wrapper = link.wrapperPath(data);
+  if (!wrapper) return t.skip('the temp folder of this PC is not one word to cmd: ' + root);
+  await fs.mkdir(data, { recursive: true });
+  const script = path.join(root, 'with space', 'says its mode.js');
+  await fs.mkdir(path.dirname(script));
+  await fs.writeFile(script, 'process.stdout.write(process.argv[2]);');
+  await fs.writeFile(wrapper, link.wrapperBody(process.execPath, script));
+  const line = link.hookCommand('win32', process.execPath, script, 'permission', wrapper);
+  const r = spawnSync(process.env.COMSPEC || 'cmd.exe', ['/C', '"' + line + '"'], { windowsVerbatimArguments: true, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, 'permission');
 });
 
 test('the user hooks survive, keep their position, and a no-op relink writes nothing', async () => {

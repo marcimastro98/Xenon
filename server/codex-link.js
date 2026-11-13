@@ -87,12 +87,12 @@ function hooksPath() {
 // codex-hook.cmd, which holds the quoted node and script. That also means a
 // Node upgrade rewrites the .cmd only, and costs no re-trust.
 function quotePosix(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
-// A path cmd reads as one bare word: ASCII, no space, no metacharacter. Only
-// DATA_DIR is ever used: it sits in the user's own install, like the script the
-// .cmd runs. A machine-wide folder (ProgramData) would let another local user
-// plant the file Codex executes, so a DATA_DIR that is not a bare word (a user
-// name with a space) keeps the old quoted command instead.
-const CMD_SAFE_PATH = /^[A-Za-z0-9_.:\\/-]+$/;
+// A path cmd reads as one bare word: ASCII, no space, no metacharacter ("~" is
+// one only after a "%", so a short name like C:\Users\MARYAN~1 passes). Only
+// DATA_DIR is used, in the user's own install like the script the .cmd runs: a
+// machine-wide folder would let another local user plant the file Codex runs.
+// Any other DATA_DIR (a user name with a space) keeps the old quoted command.
+const CMD_SAFE_PATH = /^[A-Za-z0-9_.:~\\/-]+$/;
 function wrapperPath(dataDir, platform = process.platform) {
   if (platform !== 'win32') return null;
   const p = path.join(dataDir, 'codex-hook.cmd');
