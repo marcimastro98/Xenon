@@ -969,6 +969,10 @@
       "name": "Small shared tools",
       "what": "Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs.",
       "files": [
+        "server/files/**",
+        "server/programs/**",
+        "server/powershell/**",
+        "server/wav/**",
         "server/atomic-write.js",
         "server/json-lru.js",
         "server/list-ops.js",

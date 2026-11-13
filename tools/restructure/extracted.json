@@ -14,7 +14,21 @@
       {"file":"server/topbar/settings-normalize.js","about":"Checks the saved top bar settings: the side rails, the clock island and the order of the buttons.","names":["normalizeTopbarRails","TOPBAR_ISLAND_IDS","normalizeTopbarClock","TOPBAR_ALWAYS_SHOWN","TOPBAR_ACTION_DEFAULTS","normalizeTopbarActions"]},
       {"file":"server/media/normalize.js","about":"Makes usable what the media hosts hand over: a cover that arrived broken, an artist and album packed into one field.","names":["DATA_URI_HEAD_RE","IMAGE_MIME_RE","repairThumbnail","APPLE_MUSIC_RE","EM_DASH_SPLIT","splitAppleArtist","normalizeMedia"]},
       {"file":"server/settings/normalize-notifications.js","about":"Checks the saved settings of notifications, calls and the paired phone.","names":["normalizeNotifications","normalizeDiscordNotifications","normalizeWindowsNotifications","normalizeCalls","normalizePhone"]},
-      {"file":"server/settings/normalize-favorites.js","about":"Checks the saved browser tiles and the browser and app favourites.","names":["normalizeServerBrowserTiles","normalizeServerBrowserTileEntry","normalizeServerBrowserFavorites","SAFE_IMAGE_DATA_URI_RE","normalizeServerAppFavorites"]}
+      {"file":"server/settings/normalize-favorites.js","about":"Checks the saved browser tiles and the browser and app favourites.","names":["normalizeServerBrowserTiles","normalizeServerBrowserTileEntry","normalizeServerBrowserFavorites","SAFE_IMAGE_DATA_URI_RE","normalizeServerAppFavorites"]},
+      {"file":"server/wav/pcm-to-wav.js","about":"Wraps raw sound samples in a WAV header, so any player or speech service can read them.","names":["pcmToWav"]},
+      {"file":"server/wav/pcm-loudness.js","about":"Measures how loud raw sound samples are: over the whole clip, at its loudest moment, and in decibels.","names":["_pcmRms","_pcmRmsStats","_dbFromRms"]},
+      {"file":"server/wav/player.js","about":"Starts the program that plays a WAV file on this operating system, without needing a window in focus.","names":["_spawnWavPlayer"]},
+      {"file":"server/powershell/read-json.js","about":"Gets JSON back from PowerShell: out of the text a script printed, or from a file a script wrote.","names":["readPwshJson","parseJsonOutput"]},
+      {"file":"server/programs/exec-file-promise.js","about":"Runs a program and gives back what it printed as a promise, with the output kept on the error when it fails.","names":["execFilePromise"]},
+      {"file":"server/programs/launch-linux-app.js","about":"Starts an application on Linux, where opening a program file with the desktop's \"open\" would show it as a document.","names":["launchLinuxApp"]},
+      {"file":"server/files/reveal-in-file-manager.js","about":"Shows a file in the file manager of this operating system, selected where the system can do that.","names":["revealInFileManager"]},
+      {"file":"server/files/network-path.js","about":"Tells whether a path points at another computer on the network, which Windows would sign in to just by touching it.","names":["isNetworkPath"]},
+      {"file":"server/files/read-json-map.js","about":"Reads a JSON file that must hold a plain object, and answers an empty one when it is missing or damaged.","names":["readJsonMapSync"]},
+      {"file":"server/http/upload-limits.js","about":"What may be uploaded: the largest size and the accepted file types for backgrounds, fonts, tile pictures and slideshow pictures.","names":["BACKGROUND_MAX_BYTES","BACKGROUND_TRANSCODE_TIMEOUT_MS","BACKGROUND_MIME_BY_EXT","FONT_MAX_BYTES","FONT_MIME_BY_EXT","TILE_ASSET_MAX_BYTES","TILE_ASSET_MIME_BY_EXT","SLIDESHOW_ASSET_MAX_BYTES","SLIDESHOW_ASSET_MIME_BY_EXT"]},
+      {"file":"server/http/read-body.js","about":"Reads the body of a request, as text or as bytes, and refuses one that grows past its limit.","names":["READ_BODY_MAX_BYTES","readBody","readBodyBuffer"]},
+      {"file":"server/http/multipart-upload.js","about":"Takes the one uploaded file out of a multipart form body, with its name and type.","names":["parseMultipartBackground"]},
+      {"file":"server/http/sse-limits.js","about":"Limits of the live event streams to the dashboards: unsent data per stream, and streams per device.","names":["SSE_MAX_BUFFERED","SSE_MAX_PER_DEVICE"]},
+      {"file":"server/ffmpeg-install/lookup.js","about":"Small checks used when looking for ffmpeg: finding a file by name under a folder, and recognising the \"not installed\" error.","names":["findFirstFile","isFfmpegMissing"]}
     ]
   }
 }

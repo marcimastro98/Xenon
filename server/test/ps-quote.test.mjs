@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { psEscape, psQuote } = require('../ps-quote.js');
@@ -97,7 +97,7 @@ test('the icon lookup refuses network paths and is guarded against other sites',
 });
 
 test('the spoken-reply player and the uninstaller quote their paths too', () => {
-  const wav = SERVER.slice(SERVER.indexOf('function _spawnWavPlayer('), SERVER.indexOf('function _playWavFile('));
+  const wav = declarationSource('_spawnWavPlayer');
   assert.match(wav, /-ArgumentList \$\{psQuote\(wavPath\)\}/);
   assert.match(wav, /Remove-Item -LiteralPath \$\{psQuote\(wavPath\)\}/);
   const un = readFileSync(join(SERVER_DIR, 'uninstall.ps1'), 'utf8');

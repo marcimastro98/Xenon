@@ -147,6 +147,22 @@ const {
   normalizeServerBrowserTiles, normalizeServerBrowserFavorites, normalizeServerAppFavorites,
 } = require('./settings/normalize-favorites.js');
 
+const { readPwshJson, parseJsonOutput } = require('./powershell/read-json.js');
+
+const { launchLinuxApp } = require('./programs/launch-linux-app.js');
+
+const { revealInFileManager } = require('./files/reveal-in-file-manager.js');
+
+const {
+  BACKGROUND_MAX_BYTES, BACKGROUND_TRANSCODE_TIMEOUT_MS, BACKGROUND_MIME_BY_EXT, FONT_MAX_BYTES,
+  FONT_MIME_BY_EXT, TILE_ASSET_MAX_BYTES, TILE_ASSET_MIME_BY_EXT, SLIDESHOW_ASSET_MAX_BYTES,
+  SLIDESHOW_ASSET_MIME_BY_EXT,
+} = require('./http/upload-limits.js');
+
+const { SSE_MAX_BUFFERED, SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
+
+const { findFirstFile, isFfmpegMissing } = require('./ffmpeg-install/lookup.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -761,17 +777,6 @@ function normalizeWhatsNew(raw) {
     more: releaseNotes.normalizeMore(raw.more, normalizeWhatsNewText),
     releases: releaseNotes.normalizeReleases(raw.releases, normalizeWhatsNewText),
   };
-}
-
-// Read + parse a JSON marker file written by a PowerShell script, stripping the
-// UTF-8 BOM Windows PowerShell's `-Encoding UTF8` prepends (JSON.parse rejects
-// a BOM'd payload — the documented "permanently idle" trap). Returns null when
-// the file is absent or unparsable. Use this for every PS-written JSON file.
-async function readPwshJson(filePath) {
-  try {
-    const raw = await fs.promises.readFile(filePath, 'utf8');
-    return JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
-  } catch { return null; }
 }
 
 async function loadWhatsNew() {
@@ -2081,6 +2086,8 @@ const trialVault = createTrialVault({
   onChange: () => { refreshSdkScan().catch(() => {}); },
 });
 const featureUnlock = createFeatureUnlock({ dataDir: DATA_DIR, trialPass });
+const { execFilePromise } = require('./programs/exec-file-promise.js');
+
 const devClean = createDevClean({
   run: execFilePromise,
   getSettings: () => readHubSettings(),
@@ -2468,12 +2475,7 @@ function sdkStoreFile(ns) {
   const leaf = s.startsWith('g:') ? 'group_' + s.slice(2) : 'pkg_' + s;
   return path.join(SDK_STORE_DIR, leaf + '.json');
 }
-function readJsonMapSync(file) {
-  try {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
-  } catch { return {}; }
-}
+const { readJsonMapSync } = require('./files/read-json-map.js');
 function sdkStoreLoad(ns) {
   if (_sdkStoreCache.has(ns)) return _sdkStoreCache.get(ns);
   const map = readJsonMapSync(sdkStoreFile(ns));
@@ -2974,42 +2976,13 @@ const TRANSFER_DISK_HEADROOM = 1024 * 1024 * 1024;
 // small enough that doing so is free. Bigger images show an extension chip.
 const TRANSFER_THUMB_MAX = 12 * 1024 * 1024;
 
-const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
-const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
-const BACKGROUND_MIME_BY_EXT = new Map([
-  ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
-  ['.webp', 'image/webp'], ['.gif', 'image/gif'], ['.mp4', 'video/mp4'], ['.webm', 'video/webm'],
-]);
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
-// Custom UI font upload. Fonts are tiny next to backgrounds (a full TTF/OTF is a
-// few MB at most), so a modest cap is plenty and keeps them small enough to embed
-// in a full backup and a shared theme code.
-const FONT_MAX_BYTES = 8 * 1024 * 1024;
-const FONT_MIME_BY_EXT = new Map([
-  ['.woff2', 'font/woff2'], ['.woff', 'font/woff'], ['.ttf', 'font/ttf'], ['.otf', 'font/otf'],
-]);
 const FONT_EXT_BY_MIME = new Map([...FONT_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
-// Per-tile decoration image upload (widget backgrounds / frames / overlays).
-// Images only (no video). Unlike backgrounds/fonts there is NO one-live-file
-// policy — many tiles hold many pictures — so orphans are swept by a
-// reference-counted GC on every dashboard-layout save (see below).
-const TILE_ASSET_MAX_BYTES = 10 * 1024 * 1024;
-const TILE_ASSET_MIME_BY_EXT = new Map([
-  ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
-  ['.webp', 'image/webp'], ['.gif', 'image/gif'],
-]);
 const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
-// Slideshow images. Same disk-backed, reference-counted model as tile decorations
-// (many images, no one-live-file policy), but referenced from hubSettings.slideshow
-// rather than the dashboard layout, and with their own `slideshow-*` name prefix so
-// the two GCs never reclaim each other's files. Animated GIFs are the whole point of
-// the widget and run large, so the per-file cap is roomier than a tile decoration's.
-const SLIDESHOW_ASSET_MAX_BYTES = 20 * 1024 * 1024;
-const SLIDESHOW_ASSET_MIME_BY_EXT = TILE_ASSET_MIME_BY_EXT;   // same image allowlist
 const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
@@ -3025,13 +2998,6 @@ function setAppIcon(key, value) {
     appIconCache.delete(appIconCache.keys().next().value);
   }
   appIconCache.set(key, value);
-}
-
-function parseJsonOutput(stdout) {
-  const start = stdout.indexOf('{');
-  const end = stdout.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('No JSON output');
-  return JSON.parse(stdout.slice(start, end + 1));
 }
 
 function powerShellUtf8Command(command) {
@@ -3265,13 +3231,7 @@ const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
 const { psEscape, psQuote } = require('./ps-quote');
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
-// \\host\share, //host/share, \\?\UNC\host: touching one makes Windows
-// authenticate to that host with the user's credentials.
-function isNetworkPath(p) {
-  const s = String(p || '').trim();
-  if (/^[\\/]{2}[?.][\\/]/.test(s)) return /^[\\/]{2}[?.][\\/]UNC[\\/]/i.test(s);
-  return /^[\\/]{2}/.test(s);
-}
+const { isNetworkPath } = require('./files/network-path.js');
 
 // Doubles every quote PowerShell ends a single-quoted string on (ps-quote.js).
 function psSingleQuote(value) {
@@ -3892,31 +3852,7 @@ const STT_START_SILENCE_GRACE_MS       = 3200;
 // enough for a breath between clauses, short enough to feel like a reply.
 const STT_AFTER_SPEECH_SILENCE_GRACE_MS = 1000;
 
-function _pcmRms(pcm) {
-  if (!pcm || pcm.length < 2) return 0;
-  const n = pcm.length - (pcm.length % 2);
-  let sum = 0;
-  for (let i = 0; i < n; i += 2) sum += pcm.readInt16LE(i) ** 2;
-  return Math.sqrt(sum / (n / 2));
-}
-
-function _pcmRmsStats(pcm, sampleRate = 16000, frameMs = 80) {
-  const full = _pcmRms(pcm);
-  const n = pcm ? pcm.length - (pcm.length % 2) : 0;
-  const frameBytes = Math.max(2, Math.floor(sampleRate * frameMs / 1000) * 2);
-  let peak = 0;
-  for (let offset = 0; offset < n; offset += frameBytes) {
-    const end = Math.min(n, offset + frameBytes);
-    const frame = pcm.slice(offset, end - ((end - offset) % 2));
-    if (frame.length >= 2) peak = Math.max(peak, _pcmRms(frame));
-  }
-  return { rms: full, peak: Math.max(peak, full) };
-}
-
-function _dbFromRms(rms) {
-  if (!Number.isFinite(rms) || rms <= 0) return -60;
-  return 20 * Math.log10(Math.max(1, rms) / 32768);
-}
+const { _pcmRmsStats, _dbFromRms } = require('./wav/pcm-loudness.js');
 
 // End-of-speech silence threshold (raw input, BEFORE the gain boost is applied).
 // Kept lenient so a quiet mic — e.g. a Bluetooth headset in hands-free mode,
@@ -6625,76 +6561,6 @@ function openExternalPath(p, args) {
   });
 }
 
-// Launch an application on Linux — the half of openApp that xdg-open cannot
-// be: xdg-open OPENS a path with its mime handler, so a binary or a .desktop
-// file handed to it is treated as a document (text editor, archive manager, or
-// a refusal), never launched. A .desktop entry goes through `gio launch`,
-// which parses Exec=/Terminal=/field codes per the spec (glib ships on every
-// desktop that has .desktop files at all); an AppImage or a plain executable
-// is spawned directly, detached, resolved on the 'spawn' event so ENOENT and
-// a missing execute bit surface as clean errors instead of silent successes.
-// The registry has already validated shape + existence before this runs.
-function launchLinuxApp(p, args) {
-  const target = String(p);
-  const argv = Array.isArray(args) ? args.map(String) : [];
-  if (/\.desktop$/i.test(target)) {
-    return new Promise((resolve, reject) => {
-      execFile('gio', ['launch', target], { timeout: 8000 }, (err) => {
-        if (err) reject(err); else resolve({ ok: true });
-      });
-    });
-  }
-  return new Promise((resolve, reject) => {
-    let child;
-    try {
-      child = spawn(target, argv, { detached: true, stdio: 'ignore' });
-    } catch (e) { reject(e); return; }
-    child.once('error', (e) => reject(e));
-    child.once('spawn', () => { child.unref(); resolve({ ok: true }); });
-  });
-}
-
-// "Show me where this is" — the one path an executable result may take, because
-// revealing something runs nothing. Companion to openExternalPath, and shared
-// for the same reason: each platform's file manager has its own verb, and
-// `explorer /select,` is a Windows spelling rather than a portable one. Linux
-// has no universal equivalent, so the honest fallback is opening the containing
-// FOLDER — it answers the same question without pretending to a selection
-// nobody can make. Argv array everywhere; the path is one argument.
-function revealInFileManager(p, dir) {
-  const target = String(p);
-  const folder = dir || path.dirname(target);
-  // explorer.exe does NOT parse its command line with CommandLineToArgvW: it
-  // wants the quotes around the PATH, not around the whole `/select,` token.
-  // Node quotes any argument containing a space, so `'/select,' + target`
-  // reached it as "/select,C:\Users\...\My Projects\..." — which explorer
-  // gives up on and answers by opening the DEFAULT folder (Documents), with no
-  // error anywhere. That is not the edge case: almost every real path has a
-  // space in it, so "show in folder" opened an unrelated window for most users,
-  // in Spotlight and in the transfer widget alike. windowsVerbatimArguments
-  // hands the line over unquoted so the quotes can go where explorer expects.
-  // It is NOT a shell (no cmd.exe, so &, | and > stay inert) — but since Node
-  // is no longer escaping, refuse the one character that could re-cut the
-  // arguments. A double quote is illegal in a Windows path, so this can only
-  // ever fire on something that was never a real file.
-  if (process.platform === 'win32' && target.includes('"')) {
-    console.warn('[reveal] refusing a path containing a quote');
-    return;
-  }
-  const child = process.platform === 'win32'
-    ? spawn('explorer.exe', ['/select,"' + target + '"'], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true })
-    : process.platform === 'darwin'
-      ? spawn('open', ['-R', target], { detached: true, stdio: 'ignore' })
-      : spawn('xdg-open', [folder], { detached: true, stdio: 'ignore' });
-  // A missing file manager raises an ASYNC 'error' on the child, which the
-  // caller's try/catch cannot see — unhandled, it takes the whole server down.
-  // That is not hypothetical: xdg-utils is genuinely absent on minimal Linux
-  // installs, and POST /api/transfer/reveal is reachable from a paired phone,
-  // so one tap could end the backend. Revealing is best-effort by nature.
-  child.on('error', (e) => console.warn('[reveal] no file manager:', e && e.message));
-  child.unref();
-}
-
 // The interpreter a user script runs under, by extension. The Windows set lives
 // in deck-actions.ps1; this is its POSIX twin, and it must cover exactly the
 // extensions actions/registry.js accepts off Windows — an extension the gate
@@ -7343,90 +7209,9 @@ const perfRegistry = createPerfRegistry({
   isRunning: (name) => perfSession.priority.isRunning(name),
 });
 
-// Default body cap for JSON/text routes. Generous enough for the largest legit
-// payload (AI chat carries base64 screenshots, a few MB) while bounding memory
-// against a buggy/looping local client that would otherwise grow the string
-// without limit. Mirrors the reject pattern of readBodyBuffer; every caller is
-// try/catch-wrapped, so the rejection surfaces as a normal 500.
-const READ_BODY_MAX_BYTES = 64 * 1024 * 1024;
-function readBody(req, maxBytes = READ_BODY_MAX_BYTES) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    let size = 0;
-    req.on('data', chunk => {
-      size += chunk.length;
-      if (size > maxBytes) {
-        const err = new Error('Payload too large');
-        err.code = 'PAYLOAD_TOO_LARGE';
-        reject(err);
-        req.destroy();
-        return;
-      }
-      body += chunk;
-    });
-    req.on('end',  () => resolve(body));
-    req.on('error', reject);
-  });
-}
+const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
-function readBodyBuffer(req, maxBytes = BACKGROUND_MAX_BYTES) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', chunk => {
-      size += chunk.length;
-      if (size > maxBytes) {
-        const err = new Error('Payload too large');
-        err.code = 'PAYLOAD_TOO_LARGE';
-        reject(err);
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
-}
-
-function parseMultipartBackground(req, body, fieldName = 'background') {
-  const contentType = req.headers['content-type'] || '';
-  const match = contentType.match(/boundary=(?:(?:"([^"]+)")|([^;]+))/i);
-  if (!match) throw new Error('Missing multipart boundary');
-
-  const boundaryText = match[1] || match[2];
-  const boundary = Buffer.from(`--${boundaryText}`);
-  const separator = Buffer.from('\r\n\r\n');
-  const nextBoundaryPrefix = Buffer.from(`\r\n--${boundaryText}`);
-  let offset = body.indexOf(boundary);
-
-  while (offset !== -1) {
-    let partStart = offset + boundary.length;
-    if (body[partStart] === 45 && body[partStart + 1] === 45) break;
-    if (body[partStart] === 13 && body[partStart + 1] === 10) partStart += 2;
-
-    const headerEnd = body.indexOf(separator, partStart);
-    if (headerEnd === -1) break;
-    const headers = body.slice(partStart, headerEnd).toString('latin1');
-    const dataStart = headerEnd + separator.length;
-    const dataEnd = body.indexOf(nextBoundaryPrefix, dataStart);
-    if (dataEnd === -1) break;
-
-    const disposition = headers.match(/content-disposition:\s*([^\r\n]+)/i);
-    const name = disposition && disposition[1].match(/name="([^"]+)"/i);
-    const filename = disposition && disposition[1].match(/filename="([^"]*)"/i);
-    if (name && name[1] === fieldName && filename && filename[1]) {
-      const typeMatch = headers.match(/content-type:\s*([^\r\n;]+)/i);
-      return {
-        originalName: path.basename(filename[1]).replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 120) || fieldName,
-        contentType: typeMatch ? typeMatch[1].trim().toLowerCase() : '',
-        data: body.slice(dataStart, dataEnd),
-      };
-    }
-    offset = body.indexOf(boundary, dataEnd);
-  }
-  throw new Error(`Missing ${fieldName} file`);
-}
+const { parseMultipartBackground } = require('./http/multipart-upload.js');
 
 function cleanupOldBackgrounds(keepName) {
   fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
@@ -7803,23 +7588,7 @@ function _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, model, t
   });
 }
 
-// Spawn a blocking, focus-independent WAV player for the current platform.
-// Windows: SoundPlayer.PlaySync() through PowerShell. Elsewhere: afplay on
-// macOS (built in), aplay on Linux. The Windows one-liner also deletes the file
-// on a clean exit; the others leave that to the caller, which unlinks anyway.
-function _spawnWavPlayer(wavPath) {
-  if (process.platform === 'darwin') {
-    return spawn('/usr/bin/afplay', [wavPath]);
-  }
-  if (process.platform === 'linux') {
-    return spawn('aplay', ['-q', wavPath]);
-  }
-  // The path is the user's temp folder, which can hold an apostrophe or a
-  // typographic quote (C:\Users\D'Amico, D’Amico): quoted by psQuote().
-  const ps = `(New-Object System.Media.SoundPlayer -ArgumentList ${psQuote(wavPath)}).PlaySync();` +
-             `try { Remove-Item -LiteralPath ${psQuote(wavPath)} -Force -EA SilentlyContinue } catch {}`;
-  return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
-}
+const { _spawnWavPlayer } = require('./wav/player.js');
 
 // Play a WAV file (synchronous playback, focus-independent).
 // Resolves when playback finishes or is cancelled. Honours the cancel token.
@@ -9241,20 +9010,6 @@ function playChimeOnServer(kind) {
   }).catch(() => {});
 }
 
-function execFilePromise(file, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    execFile(file, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
-      if (error) {
-        error.stdout = stdout;
-        error.stderr = stderr;
-        reject(error);
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-  });
-}
-
 function getFfmpegPath() {
   if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
   if (process.platform !== 'win32') {
@@ -9278,26 +9033,6 @@ function getFfmpegPath() {
   }
 
   return 'ffmpeg.exe';
-}
-
-function findFirstFile(root, fileName, maxDepth) {
-  if (!root || maxDepth < 0 || !fs.existsSync(root)) return null;
-  try {
-    const entries = fs.readdirSync(root, { withFileTypes: true });
-    const direct = entries.find(entry => entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase());
-    if (direct) return path.join(root, direct.name);
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const found = findFirstFile(path.join(root, entry.name), fileName, maxDepth - 1);
-      if (found) return found;
-    }
-  } catch {}
-  return null;
-}
-
-function isFfmpegMissing(error) {
-  return error && (error.code === 'ENOENT' || /not recognized|ENOENT|cannot find/i.test(String(error.message || '')));
 }
 
 async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
@@ -13758,11 +13493,6 @@ function _syncFpsMonitor() {
   _fpsDemand.clients(sseClients.size);
 }
 
-// A stream whose reader has stopped reading keeps every event in memory. Past
-// this much unsent data it is dropped (the page reconnects on its own when it
-// is alive), so one stuck or hostile client cannot grow the server without end.
-const SSE_MAX_BUFFERED = 1024 * 1024;
-const SSE_MAX_PER_DEVICE = 4;
 function broadcastSSE(event, data) {
   if (sseClients.size === 0) return;
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -14527,6 +14257,8 @@ function _chatgptChanged(id) {
   if (sseClients.size === 0) return;
   try { broadcastSSE('chatgpt', _chatgptPayload(id)); } catch { /* a repaint must never break a turn */ }
 }
+
+const { pcmToWav } = require('./wav/pcm-to-wav.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -15650,21 +15382,6 @@ function _maybeRebindSttDevice() {
       wakeWord.bounce();
     } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
   }, 800);
-}
-
-function pcmToWav(pcmBytes, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
-  const buf = Buffer.alloc(44 + pcmBytes.length);
-  buf.write('RIFF', 0);         buf.writeUInt32LE(36 + pcmBytes.length, 4);
-  buf.write('WAVE', 8);         buf.write('fmt ', 12);
-  buf.writeUInt32LE(16, 16);    buf.writeUInt16LE(1, 20);  // PCM
-  buf.writeUInt16LE(channels, 22);
-  buf.writeUInt32LE(sampleRate, 24);
-  buf.writeUInt32LE(sampleRate * channels * bitsPerSample / 8, 28);
-  buf.writeUInt16LE(channels * bitsPerSample / 8, 32);
-  buf.writeUInt16LE(bitsPerSample, 34);
-  buf.write('data', 36);        buf.writeUInt32LE(pcmBytes.length, 40);
-  pcmBytes.copy(buf, 44);
-  return buf;
 }
 
 // Any clip the browser or a paired phone recorded → 16 kHz mono WAV.
