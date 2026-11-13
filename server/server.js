@@ -643,7 +643,7 @@ const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
 require('./spotify-launch');
-const discordLaunch = require('./discord-launch'); // start/focus Discord and open a chat, on every OS
+require('./discord-launch'); // start/focus Discord and open a chat, on every OS
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
@@ -4864,16 +4864,6 @@ async function saveVitalsState(body) {
   });
   return { ok: true, rev };
 }
-async function tilePlaySearch(tile, q) {
-  if (tile === 'twitch') {
-    const r = await streams.twitch.searchChannels(q, { language: hub.settings && hub.settings.language });
-    const ch = r && r.ok && Array.isArray(r.channels) ? r.channels.find((c) => c && c.live !== false) || r.channels[0] : null;
-    return ch ? { value: ch.login, title: ch.name || ch.login } : { error: (r && r.error) || 'no_match' };
-  }
-  const r = await streams.youtube.searchVideos(q);
-  const v = r && r.ok && Array.isArray(r.videos) ? r.videos.find((x) => x && x.embeddable !== false) : null;
-  return v ? { value: v.id, title: v.title } : { error: (r && r.error) || 'no_match' };
-}
 async function playInTile(args) {
   const want = TilePlay.parseTilePlay(args);
   if (want.error) return { ok: false, ...want };
@@ -7233,6 +7223,8 @@ const briefing = createBriefingEngine({
 });
 
 const { streams } = require('./streaming/providers.js');
+const { tilePlaySearch } = require('./streaming/tile-play-search.js');
+
 // Twitch + YouTube live integrations. Tokens persist to a server-only file
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
 // the user pastes/saves their app credentials in Settings → Streaming, picking up
@@ -7287,11 +7279,7 @@ discordLink.rpc = createDiscordProvider({
 // the current-state reads). Reads `discordLink.rpc` at call time so a re-created
 // provider is picked up automatically.
 deckRegistryDeps.discord = (action) => discordLink.rpc.runAction(action);
-// "Reply" on a mirrored DM or mention, from the built-in widget and from SDK ones.
-const openDiscordChat = (channelId) => discordLaunch.openConversation(channelId, {
-  launch: () => discordLaunch.launchDiscord(),
-  select: (id) => discordLink.rpc.openTextChannel(id),
-});
+const { openDiscordChat } = require('./discord/open-chat.js');
 deckRegistryDeps.discordOpenChat = openDiscordChat;
 
 // Live Discord voice state pushed to the dashboard widget over SSE. The provider
@@ -7735,14 +7723,7 @@ function withEventsWrite(fn) {
   return run;
 }
 
-async function _saveEvents(safe) {
-  await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe));
-  agendaState.eventsSeq = _nextListSeq(agendaState.eventsSeq);
-  // Every dashboard repaints its calendar from this, and so does the SDK
-  // `agenda` stream.
-  broadcastSSE('agenda', { events: safe, seq: agendaState.eventsSeq });
-  return safe;
-}
+const { _saveEvents } = require('./time/events-save.js');
 
 function writeEvents(events) {
   return withEventsWrite(async () => {
@@ -8349,13 +8330,7 @@ _claudeRegistryTimer = setInterval(() => {
 }, 7000);
 if (typeof _claudeRegistryTimer.unref === 'function') _claudeRegistryTimer.unref();
 
-// Constant-time compare so the token can't be probed byte-by-byte.
-function _claudeBridgeAuth(req) {
-  const got = String(req.headers['x-xenon-bridge'] || '');
-  if (!claudeState.bridgeToken || got.length !== claudeState.bridgeToken.length) return false;
-  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(claudeState.bridgeToken)); }
-  catch { return false; }
-}
+const { _claudeBridgeAuth } = require('./claude-code/bridge-auth.js');
 
 // What /api/claude/mod tells the mod: which hub, and whether the tile is out.
 function _claudeModReply() {
@@ -8539,12 +8514,7 @@ function _syncCodexDemand() {
   _codexApp.setDemand({ wanted, visible: wanted });
 }
 
-function _codexBridgeAuth(req) {
-  const got = String(req.headers['x-xenon-bridge'] || '');
-  if (!codexState.bridgeToken || got.length !== codexState.bridgeToken.length) return false;
-  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(codexState.bridgeToken)); }
-  catch { return false; }
-}
+const { _codexBridgeAuth } = require('./codex/bridge-auth.js');
 
 // The link as the tile shows it. `trust` is Codex's own verdict (hooks/list)
 // when the app-server child is running, else null and the tile explains /hooks.
@@ -8655,6 +8625,8 @@ const {
 const { batteryWanted } = require('./device-battery/wanted.js');
 
 const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
+
+const { desiredBindHost, BIND_HOST } = require('./paired/bind-host.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -14171,52 +14143,6 @@ function ensureCaptureEngine(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
-// Where to bind. Loopback ONLY by default.
-//
-// This used to be '::', chosen for dual-stack loopback — the comment said
-// "accepts both 127.0.0.1 and ::1", which is true but not the whole truth:
-// '::' accepts from every address on the machine, so the dashboard was
-// answering on the LAN. That is a real exposure, not a theoretical one. Xenon
-// serves file search, a disk map, notes, calendar and an AI assistant with
-// system actions behind no authentication at all, because it was designed on
-// the premise that only this machine can reach it. Remote PC control is a
-// separate thing entirely (Sunshine over Tailscale), and the Widget SDK
-// documents "no network access". Nothing in the product needs the wider bind.
-//
-// On Windows the firewall prompt hid this; on Linux it depends on the distro —
-// Fedora's firewalld blocks it, a minimal Arch or Debian desktop does not.
-//
-// Cost of the change: '[::1]:3030' no longer answers. Every caller in the tree
-// uses 127.0.0.1 (the native app, install.sh, the bootstrap, the docs), so this
-// is a URL nobody dials, and IPv6 loopback cannot be added without a second
-// listener that would also have to duplicate the 'upgrade' handling below.
-//
-// XENON_BIND_HOST is the deliberate way back out — set it to '::' to restore
-// the old all-interfaces behaviour, on purpose and in one place.
-//
-// CORRECTION, and the reason this is no longer a constant. Binding loopback
-// unconditionally was an over-correction that silently killed the paired-device
-// feature: the QR code advertises http://<lan-ip>:3030/pair, and nothing was
-// listening there, so a phone on the same Wi-Fi got "Safari cannot connect".
-// The reasoning above missed that the exposure it describes already HAS a
-// guard — the paired-device door (see isAllowedRequest and the note beside it):
-// off by default, deny-by-default allowlist, Host must be an IP literal this
-// machine owns, per-device hashed token. That door is the thing the wider bind
-// exists for, and it is the user's explicit opt-in.
-//
-// So: loopback while paired access is OFF, all interfaces while it is ON, and
-// the switch rebinds. The default state of a fresh install is unchanged.
-const BIND_HOST_ENV = process.env.XENON_BIND_HOST || '';
-const BIND_LOOPBACK = '127.0.0.1';
-const BIND_SHARED = '0.0.0.0';
-
-function desiredBindHost() {
-  if (BIND_HOST_ENV) return BIND_HOST_ENV;
-  const ra = hub.settings && hub.settings.remoteAccess;
-  return ra && ra.enabled === true ? BIND_SHARED : BIND_LOOPBACK;
-}
-
-const BIND_HOST = BIND_HOST_ENV || BIND_LOOPBACK;
 
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).

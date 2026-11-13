@@ -293,7 +293,13 @@
       {"file":"server/ai/companion-state.js","about":"What the last companion insight cost in Sparks.","names":["_companionLastSparks"],"state":{"object":"companionState","props":{"_companionLastSparks":"lastSparks"},"kept":[],"bare":[]}},
       {"file":"server/search/shortcut-claim.js","about":"Whether the app's own search window answered the last press of the search shortcut.","names":["_spotlightClaimed"],"state":{"object":"searchShortcut","props":{"_spotlightClaimed":"claimed"},"kept":[],"bare":[]}},
       {"file":"server/audio/helper-install-state.js","about":"The install of the audio helper started from Settings, while it runs: a second tap waits on the first.","names":["_helperInstall"],"state":{"object":"helperInstall","props":{"_helperInstall":"running"},"kept":[],"bare":[]}},
-      {"file":"server/install/startup-task-state.js","about":"What the last look at the task that starts Xenon at sign-in found, and what was repaired.","names":["_startupTaskState"],"state":{"object":"startupTaskCheck","props":{"_startupTaskState":"last"},"kept":[],"bare":[]}}
+      {"file":"server/install/startup-task-state.js","about":"What the last look at the task that starts Xenon at sign-in found, and what was repaired.","names":["_startupTaskState"],"state":{"object":"startupTaskCheck","props":{"_startupTaskState":"last"},"kept":[],"bare":[]}},
+      {"file":"server/claude-code/bridge-auth.js","about":"Whether a request carries the token the Claude Code bridge was given.","names":["_claudeBridgeAuth"]},
+      {"file":"server/codex/bridge-auth.js","about":"Whether a request carries the token the Codex bridge was given.","names":["_codexBridgeAuth"]},
+      {"file":"server/time/events-save.js","about":"Saving the events of the calendar and telling every dashboard.","names":["_saveEvents"]},
+      {"file":"server/discord/open-chat.js","about":"Opening a Discord conversation from a mirrored message.","names":["openDiscordChat"]},
+      {"file":"server/streaming/tile-play-search.js","about":"Finding what a Twitch or YouTube tile should play from a few words.","names":["tilePlaySearch"]},
+      {"file":"server/paired/bind-host.js","about":"The address the engine listens on: this computer alone, or every network once paired devices are let in.","names":["BIND_HOST_ENV","BIND_LOOPBACK","BIND_SHARED","desiredBindHost","BIND_HOST"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]}
