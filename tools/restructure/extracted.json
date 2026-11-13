@@ -276,6 +276,9 @@
       {"file":"server/look/normalize-backgrounds.js","about":"The settings of the three built-in backgrounds (aurora, still, grid) as saved, each number within its limits.","names":["normalizeBgAurora","normalizeBgStatic","normalizeBgGrid"]},
       {"file":"server/transfer/normalize-settings.js","about":"The file transfer settings as saved: the folder received files go to, the size limits and the switches.","names":["normalizeFileTransfer"]},
       {"file":"server/lights/normalize-settings.js","about":"The lighting settings as saved: brightness, which devices and effects are on, the animation, the providers and the native board.","names":["normalizeLighting"]}
+    ],
+    "server/remote-access.js": [
+      {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]}
     ]
   },
   "spreads": {

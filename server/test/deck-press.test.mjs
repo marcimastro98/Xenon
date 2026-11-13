@@ -185,7 +185,7 @@ test('the model keeps an agreement only on a key, and only a well formed one', (
 
 test('a phone cannot place a key, and neither /deck/press route reaches it', () => {
   assert.equal(remoteMayRun({ type: 'layerKey', key: 'k1' }, {}).error, 'needs_pc');
-  const ra = readFileSync(new URL('../remote-access.js', import.meta.url), 'utf8');
+  const ra = engineSource('server/remote-access.js');
   assert.equal((ra.match(/'\/deck\/press'/g) || []).length, 2, 'in both deny lists');
 });
 

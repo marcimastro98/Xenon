@@ -46,7 +46,7 @@ test('the route validates, and is CSRF-guarded and denied to paired devices', ()
   const src = engineSource();
   assert.match(src, /'\/deck\/client-step',\n/);
   assert.match(src, /reqPath === '\/deck\/client-step'[\s\S]{0,500}handOff\(require\('\.\/js\/deck-actions\.js'\)\.validateAction\(/);
-  const ra = read('remote-access.js');
+  const ra = engineSource('server/remote-access.js');
   assert.equal((ra.match(/'\/deck\/client-step'/g) || []).length, 2);
 });
 

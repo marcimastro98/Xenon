@@ -147,7 +147,7 @@ test('the route checks the grant, the manifest, and sits on the CSRF lists', () 
   assert.match(route, /pkg\.ai !== true/);
   assert.match(route, /readBody\(req, 64 \* 1024\)/);
   assert.match(server.slice(server.indexOf('const CSRF_MUTATION_PATHS')), /'\/sdk\/ai'/);
-  assert.match(read('server/remote-access.js'), /'\/sdk\/ai'/);
+  assert.match(engineSource('server/remote-access.js'), /'\/sdk\/ai'/);
   assert.match(server, /ai: !!\(g && g\.ai === true\)/);
 });
 

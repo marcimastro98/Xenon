@@ -202,7 +202,7 @@ test('wired: route, CSRF, phone, Deck error words, gallery button', () => {
   assert.match(server, /'\/captures\/clips'/);
   assert.match(server, /json\(await makeMarkClips\(String\(\(body && body\.id\) \|\| ''\), body && body\.which\)\)/);
   assert.match(server, /broadcastSSE\('captures', \{ changed: true \}\)/);
-  assert.match(read('../remote-access.js'), /'\/captures\/clips'/);
+  assert.match(engineSource('server/remote-access.js'), /'\/captures\/clips'/);
   assert.match(read('../capabilities/index.js'), /case 'markClips': return markClips\.run\(d, action\)/);
   const errors = read('../js/deck-error-text.js');
   assert.match(errors, /no_marks: \['capg_clips_err_none'/);

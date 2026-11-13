@@ -323,7 +323,7 @@ test('the route costs quota, so it is POST and on the CSRF list', () => {
     'a GET here is one drive-by loop away from 100 quota units a request');
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
   assert.ok(csrf.slice(0, csrf.indexOf(']);')).includes("'/stream/youtube/query'"));
-  const remote = read('server/remote-access.js');
+  const remote = engineSource('server/remote-access.js');
   assert.ok(remote.includes("'/stream/youtube/query'"),
     'a paired phone must not be able to reach it by navigation either');
 });

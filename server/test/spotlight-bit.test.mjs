@@ -151,7 +151,7 @@ test('one Bit: the separate AI search is gone from the client and the server', (
   const spot = read('../js/spotlight.js');
   for (const old of ['setAiMode', 'runAiSearch', '/search/ai', 'spot-ai']) assert.ok(!spot.includes(old), old);
   assert.ok(!engineSource().includes("'/search/ai'"));
-  assert.ok(!read('../remote-access.js').includes('/search/ai'));
+  assert.ok(!engineSource('server/remote-access.js').includes('/search/ai'));
   assert.ok(!read('../filesearch.js').includes('searchStructured'));
 });
 

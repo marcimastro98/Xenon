@@ -75,7 +75,7 @@ test('the route serves the page uncached, and the phone never gets it', () => {
   assert.match(route, /await sendPage\(/);
   assert.match(SERVER.slice(SERVER.indexOf('const sendPage = async'), SERVER.indexOf('const reqPath = urlObj.pathname;')), /no-store/);
   assert.doesNotMatch(route, /readFileSync/);
-  assert.match(read('../remote-access.js'), /'\/screen-alerts'/);
+  assert.match(engineSource('server/remote-access.js'), /'\/screen-alerts'/);
 });
 
 test('one chime per timer, whoever asks for it', () => {

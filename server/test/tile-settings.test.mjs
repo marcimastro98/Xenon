@@ -42,7 +42,7 @@ test('the route writes under the lock with a rev, CSRF-guarded and denied to pai
   assert.match(src, /const CSRF_MUTATION_PATHS = new Set\(\[[\s\S]{0,200}'\/settings\/tile',/);
   assert.match(src, /reqPath === '\/settings\/tile' && req\.method === 'POST'[\s\S]{0,300}saveTileSettings\(body\)/);
   assert.match(src, /async function saveTileSettings\(body\) \{[\s\S]{0,300}withHubSettingsLock[\s\S]{0,300}nextSettingsRev[\s\S]{0,200}broadcastSSE\('settings'/);
-  assert.equal((read('remote-access.js').match(/'\/settings\/tile'/g) || []).length, 1);
+  assert.equal((engineSource('server/remote-access.js').match(/'\/settings\/tile'/g) || []).length, 1);
 });
 
 function helper({ layer, fetchOk = true }) {

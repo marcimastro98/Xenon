@@ -37,7 +37,7 @@ test('the route installs through helper-update, POST only, and restarts the wave
 });
 
 test('a paired device cannot install it', () => {
-  const RA = read('../remote-access.js');
+  const RA = engineSource('server/remote-access.js');
   const deny = cut(RA, 'const REMOTE_DENY = new Set([', ']);');
   assert.match(deny, /'\/audio\/levels\/install-helper',/);
 });

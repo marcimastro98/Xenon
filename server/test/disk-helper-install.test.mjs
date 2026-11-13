@@ -100,7 +100,7 @@ test('the tile renders that card, and the server says when it can be used', () =
   const route = cut(SERVER, "reqPath === '/disk/status' && req.method === 'GET'", '\n  } else if (');
   assert.match(route, /canInstallHelper: process\.platform === 'win32'/);
   // The route the button uses stays closed to paired devices.
-  assert.match(read('../remote-access.js'), /'\/audio\/levels\/install-helper',/);
+  assert.match(engineSource('server/remote-access.js'), /'\/audio\/levels\/install-helper',/);
 });
 
 test('every language has the Windows sentence, and none still sends people to an installer', () => {

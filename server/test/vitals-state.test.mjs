@@ -82,5 +82,5 @@ test('wiring: both widgets save through the helper, one merge on both doors, the
   assert.match(S, /reqPath === '\/api\/vitals\/state' && req\.method === 'POST'[\s\S]{0,300}saveVitalsState\(body\)/);
   assert.match(S, /async function saveVitalsState\(body\) \{[\s\S]{0,200}withHubSettingsLock[\s\S]{0,400}VitalsState\.mergeState\(vitals\.state, plan\.state\)[\s\S]{0,200}nextSettingsRev[\s\S]{0,200}broadcastSSE\('settings'/);
   assert.match(S, /const CSRF_MUTATION_PATHS = new Set\(\[[\s\S]{0,300}'\/api\/vitals\/state',/);
-  assert.match(read('remote-access.js'), /'\/settings\/tile',\n[^\n]*\n  '\/api\/vitals\/state',/);
+  assert.match(engineSource('server/remote-access.js'), /'\/settings\/tile',\n[^\n]*\n  '\/api\/vitals\/state',/);
 });

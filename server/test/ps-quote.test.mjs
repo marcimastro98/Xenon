@@ -91,7 +91,7 @@ test('the icon lookup refuses network paths and is guarded against other sites',
   assert.match(SERVER, /appPath && !isNetworkPath\(appPath\)/);
   const list = SERVER.slice(SERVER.indexOf('const CSRF_MUTATION_PATHS = new Set(['), SERVER.indexOf(']);', SERVER.indexOf('const CSRF_MUTATION_PATHS = new Set([')));
   assert.ok(list.includes("'/deck/app-icon'"), 'on the cross-site list');
-  const remote = readFileSync(join(SERVER_DIR, 'remote-access.js'), 'utf8');
+  const remote = engineSource('server/remote-access.js');
   const reads = remote.slice(remote.indexOf('const GET_READ_EXCEPTIONS'), remote.indexOf(']);', remote.indexOf('const GET_READ_EXCEPTIONS')));
   assert.ok(reads.includes("'/deck/app-icon'"), 'still readable from a paired phone');
 });

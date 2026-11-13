@@ -73,7 +73,7 @@ test('the server, both pages and the phone rule are wired', () => {
   assert.match(server, /reqPath === '\/tiles\/play-claim' && req\.method === 'POST'[\s\S]{0,400}tilePlay\.claim/);
   const csrf = server.slice(server.indexOf('CSRF_MUTATION_PATHS'));
   assert.ok(csrf.includes("'/tiles/play-claim'"), 'CSRF');
-  assert.ok(read('../remote-access.js').includes("'/tiles/play-claim'"), 'phones refused');
+  assert.ok(engineSource('server/remote-access.js').includes("'/tiles/play-claim'"), 'phones refused');
   assert.match(read('../js/main.js'), /window\.TilePlay\.listen\(es\)/);
   assert.match(read('../js/layer-lite.js'), /TilePlay\.listen\(es\)/);
   const html = read('../index.html');

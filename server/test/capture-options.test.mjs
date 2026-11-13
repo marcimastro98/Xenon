@@ -23,7 +23,7 @@ const { createCaptures } = require('../captures.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = engineSource();
-const REMOTE = readFileSync(path.join(HERE, '..', 'remote-access.js'), 'utf8');
+const REMOTE = engineSource('server/remote-access.js');
 
 const FOLDER = path.join(os.tmpdir(), 'My Clips');
 // The Instant Replay fields at their defaults.

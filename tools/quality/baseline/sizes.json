@@ -199,7 +199,7 @@
     "server/phone.js": 585,
     "server/processes.ps1": 329,
     "server/rating-votes.js": 361,
-    "server/remote-access.js": 1236,
+    "server/remote-access.js": 1040,
     "server/remote-control/installer.js": 450,
     "server/remote-control/tailscale.js": 416,
     "server/remote-https.js": 323,
