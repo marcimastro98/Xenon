@@ -934,6 +934,7 @@
         "server/settings/**",
         "server/settings-rev.js",
         "server/js/settings.js",
+        "server/js/settings/**",
         "server/js/settings-*.js",
         "server/components/SettingsModal/**"
       ]
