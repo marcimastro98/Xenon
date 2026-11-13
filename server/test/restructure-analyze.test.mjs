@@ -2,8 +2,10 @@
 // lines go with it, what it touches, and whether it can leave its file.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { analyze, closureOf, toJson } from '../../tools/restructure/analyze.mjs';
+import { readLoadTimeCalls } from '../../tools/restructure/load-time-calls.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
 const parser = parserAvailable() ? await openParser() : null;
@@ -50,15 +52,61 @@ test('reads, reassignments and changes in place are told apart', (t) => {
 
 test('what runs when the file loads does not move, plain values do', (t) => {
   if (!parser) return t.skip(SKIP);
-  const a = read(['const os = require("os");', 'const SIZE = 512 * 1024;', 'const HOME = os.homedir();',
+  const a = read(['const os = require("os");', 'const SIZE = 512 * 1024;', 'const UP = os.uptime();',
     'const TABLE = Object.freeze({ a: [1, 2], b: new Set(["x"]) });', 'const PICK = SIZE > 1 ? "big" : "small";',
     'const made = build();', 'function build() { return {}; }', 'if (SIZE) { var leaked = 1; }', ''].join('\n'));
   assert.equal(record(a, 'SIZE').loadTime, false);
   assert.equal(record(a, 'TABLE').loadTime, false);
   assert.equal(record(a, 'PICK').loadTime, false);
-  assert.deepEqual(codes(a, 'HOME'), ['runs-code-at-load']);
+  assert.deepEqual(codes(a, 'UP'), ['runs-code-at-load']);
   assert.deepEqual(codes(a, 'made'), ['runs-code-at-load']);
   assert.deepEqual(record(a, 'leaked').kind, 'statement', 'a var inside an if belongs to that statement');
+});
+
+test('a value worked out with a listed call of a Node module moves; any other call still holds it', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const a = read(['const os = require("os");', 'const path = require("node:path");', 'const fs = require("fs");',
+    'const mine = require("./mine.js");', 'const other = { homedir: () => "x" };',
+    'const HOME = path.join(os.homedir(), "docs");', 'const DEFAULTS = Object.freeze({ dir: os.tmpdir(), win: process.platform === "win32", arch: os.arch() });',
+    'const UP = os.uptime();', 'const FILE = fs.readFileSync("x");', 'const MINE = mine.homedir();', 'const FAKE = other.homedir();',
+    'const NAMES = ["a"].map((os) => os.homedir());', 'const ENV = process.env.HOME || "";', ''].join('\n'));
+  for (const name of ['HOME', 'DEFAULTS', 'ENV']) {
+    assert.equal(record(a, name).loadTime, false, name);
+    assert.deepEqual(record(a, name).loadCalls, [], name);
+  }
+  assert.deepEqual(record(a, 'UP').loadCalls, ['os.uptime()'], 'a function of the same module that is not listed');
+  assert.deepEqual(record(a, 'FILE').loadCalls, ['fs.readFileSync()'], 'a module that is not listed at all');
+  assert.deepEqual(record(a, 'MINE').loadCalls, ['mine.homedir()'], 'the name of a listed function on a module of the project');
+  assert.deepEqual(record(a, 'FAKE').loadCalls, ['other.homedir()'], 'the name of a listed function on a plain object');
+  assert.equal(record(a, 'NAMES').loadTime, true, 'a parameter called like the module hides it');
+  for (const name of ['UP', 'FILE', 'MINE', 'FAKE', 'NAMES']) assert.ok(codes(a, name).includes('runs-code-at-load'), name);
+  assert.deepEqual(toJson(a).declarations.find((d) => d.names[0] === 'UP').loadTimeCalls, ['os.uptime()'], '`analyze` says which call holds it');
+});
+
+test('the list is what decides: with another list the same code is held or free', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const text = 'const os = require("os");\nconst HOME = os.homedir();\nconst TABLE = Object.freeze({ a: 1 });\n';
+  const none = analyze(text, parser, 'demo.js', { calls: readLoadTimeCalls({}) });
+  assert.deepEqual(record(none, 'HOME').loadCalls, ['os.homedir()']);
+  assert.deepEqual(record(none, 'TABLE').loadCalls, ['Object.freeze()']);
+  const some = analyze(text, parser, 'demo.js', { calls: readLoadTimeCalls({ functions: ['Object.freeze'], moduleFunctions: { os: ['homedir'] } }) });
+  assert.equal(record(some, 'HOME').loadTime, false);
+  assert.equal(record(some, 'TABLE').loadTime, false);
+  assert.throws(() => readLoadTimeCalls({ functions: 'Object.freeze' }), /functions must be a list of names/);
+  assert.throws(() => readLoadTimeCalls({ moduleFunctions: { os: [1] } }), /moduleFunctions\.os must be a list of names/);
+});
+
+test('the list in the repo explains itself and names only modules that compute', () => {
+  const json = JSON.parse(readFileSync(new URL('../../tools/restructure/load-time-calls.json', import.meta.url), 'utf8'));
+  assert.ok(json.note.length > 200, 'the note says what the rule is and when a name may be added');
+  const calls = readLoadTimeCalls(json);
+  assert.deepEqual([...calls.moduleFunctions.keys()].sort(), ['os', 'path'], 'no module that reads files, starts programs or opens sockets');
+  assert.deepEqual([...calls.moduleFunctions.get('os')].sort(), ['arch', 'homedir', 'platform', 'tmpdir']);
+  assert.deepEqual([...calls.moduleFunctions.get('path')].sort(), ['basename', 'dirname', 'join', 'resolve']);
+  for (const key of ['functions', 'constructors', 'methods', 'methodsTakingAFunction']) {
+    assert.deepEqual(json[key], [...new Set(json[key])].sort(), `${key} is sorted and names nothing twice`);
+  }
+  for (const name of ['Date.now', 'Math.random', 'require', 'JSON.parse']) assert.ok(!calls.functions.has(name), `${name} is not on the list`);
 });
 
 test('code tied to its file, or needing something that cannot move, stays', (t) => {

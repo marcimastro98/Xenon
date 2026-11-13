@@ -1,0 +1,15 @@
+{
+  "note": "The calls a top-level value may make and still be moved. A const whose value is worked out while the file loads moves to a new module, where it is worked out at another moment of the same start-up: that is only safe when the answer is the same at any moment and working it out touches nothing. So every call in the value has to be on this list; one call that is not keeps the declaration where it is (`analyze` names it under loadTimeCalls). `functions` are called by their name. `constructors` are used with new. `methods` are called on any value and return a new one. `methodsTakingAFunction` are accepted only with an inline `x => expression` whose expression passes the same rule. `moduleFunctions` belong to a Node built-in module and are matched through the name the file gave that module with require, so a local object that happens to be called os or path does not pass. Reading a variable or a property (process.env.X, process.platform) is not a call and never blocks. Add a name only after checking that it reads no file, starts no program or timer, keeps nothing between calls, and answers the same for the whole life of the process.",
+  "functions": [
+    "Array.from", "Array.of", "BigInt", "Boolean", "Math.ceil", "Math.floor", "Math.max", "Math.min", "Math.pow", "Math.round",
+    "Number", "Object.entries", "Object.freeze", "Object.fromEntries", "Object.keys", "Object.seal", "Object.values",
+    "String", "Symbol", "Symbol.for", "parseFloat", "parseInt"
+  ],
+  "constructors": ["Array", "Map", "RegExp", "Set", "WeakMap", "WeakSet"],
+  "methods": ["concat", "flat", "join", "padEnd", "padStart", "repeat", "slice", "split", "toLowerCase", "toUpperCase", "trim"],
+  "methodsTakingAFunction": ["filter", "flatMap", "map"],
+  "moduleFunctions": {
+    "os": ["arch", "homedir", "platform", "tmpdir"],
+    "path": ["basename", "dirname", "join", "resolve"]
+  }
+}

@@ -13,13 +13,14 @@ const CAN_MOVE = new Set(['function', 'class', 'const']);
  * @param {string} text the file's source
  * @param {any} parser from parser.mjs
  * @param {string} [file] name shown in the result
+ * @param {{ calls?: import('./load-time-calls.mjs').LoadTimeCalls }} [rules] what may run at load and still move; the lists of this folder when left out
  * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any> }}
  *   `records` are the top-level statements with, added here: `deps` (other top-level
  *   names used), `requires` (required modules used), `writes`, `changes`, `state`,
  *   `fileBound`, `movable` and `blockers`.
  */
-export function analyze(text, parser, file = 'file.js') {
-  const records = readTopLevel(parser.parse(text, file), parser);
+export function analyze(text, parser, file = 'file.js', rules = {}) {
+  const records = readTopLevel(parser.parse(text, file), parser, rules.calls);
   const bindings = new Map();
   const duplicates = new Set();
   for (const record of records) {
@@ -140,7 +141,7 @@ export function toJson(analysis) {
   const declarations = analysis.records.filter((r) => r.names.length > 0 && r.kind !== 'require').map((r) => ({
     names: r.names, kind: r.kind, line: r.line, range: r.range, lines: r.range[1] - r.range[0] + 1,
     reads: r.deps, requires: r.requires, writes: r.writes, changes: r.changes, state: r.state,
-    fileBound: r.fileBound, loadTime: r.loadTime, movable: r.movable, blockers: r.blockers,
+    fileBound: r.fileBound, loadTime: r.loadTime, loadTimeCalls: r.loadCalls, movable: r.movable, blockers: r.blockers,
   }));
   const statements = analysis.records.filter((r) => r.names.length === 0).map((r) => ({
     line: r.line, reads: r.deps, writes: r.writes, changes: r.changes,

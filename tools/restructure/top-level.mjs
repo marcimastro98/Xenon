@@ -2,15 +2,10 @@
 // lines it covers together with its comment, and whether it runs code when the
 // file loads.
 
-import { createUseReader } from './scope-uses.mjs';
+import { isBuiltin } from 'node:module';
 
-const PURE_CALLS = new Set(['Object.freeze', 'Object.seal', 'Object.keys', 'Object.values', 'Object.entries',
-  'Object.fromEntries', 'Array.from', 'Array.of', 'Symbol', 'Symbol.for', 'Number', 'String', 'Boolean', 'BigInt',
-  'parseInt', 'parseFloat', 'Math.max', 'Math.min', 'Math.round', 'Math.floor', 'Math.ceil', 'Math.pow']);
-const PURE_NEW = new Set(['Set', 'Map', 'WeakMap', 'WeakSet', 'RegExp', 'Array']);
-const PURE_METHODS = new Set(['split', 'join', 'concat', 'slice', 'toLowerCase', 'toUpperCase', 'trim', 'repeat',
-  'padStart', 'padEnd', 'flat']);
-const CALLBACK_METHODS = new Set(['map', 'filter', 'flatMap']);
+import { createLoadTimeCheck, repoLoadTimeCalls } from './load-time-calls.mjs';
+import { createUseReader } from './scope-uses.mjs';
 
 /** @param {string} text @returns {number[]} offset of the first character of every line */
 export function lineStarts(text) {
@@ -28,53 +23,6 @@ export function lineAt(starts, offset) {
     if (starts[mid] <= offset) low = mid; else high = mid - 1;
   }
   return low;
-}
-
-function createPurity(K) {
-  const SIMPLE = new Set([K.StringLiteral, K.NumericLiteral, K.BigIntLiteral, K.RegularExpressionLiteral,
-    K.NoSubstitutionTemplateLiteral, K.TrueKeyword, K.FalseKeyword, K.NullKeyword, K.Identifier, K.OmittedExpression,
-    K.FunctionExpression, K.ArrowFunction, K.TemplateHead, K.TemplateMiddle, K.TemplateTail, K.MethodDeclaration,
-    K.ComputedPropertyName]);
-  const dotted = (node) => (node.kind === K.Identifier ? node.text
-    : node.kind === K.PropertyAccessExpression && node.expression.kind === K.Identifier
-      ? `${node.expression.text}.${node.name.text}` : '');
-  const every = (node) => {
-    let ok = true;
-    node.forEachChild((child) => { if (ok && !pure(child)) ok = false; });
-    return ok;
-  };
-  // An inline `x => expression` handed to map/filter runs now, so its body counts.
-  const pureCallback = (node) => node && node.kind === K.ArrowFunction && node.body.kind !== K.Block && pure(node.body);
-  function pure(node) {
-    if (!node) return true;
-    if (SIMPLE.has(node.kind)) return node.kind !== K.ComputedPropertyName || pure(node.expression);
-    switch (node.kind) {
-      case K.PropertyAccessExpression: return pure(node.expression);
-      case K.NewExpression:
-        return node.expression.kind === K.Identifier && PURE_NEW.has(node.expression.text)
-          && (node.arguments ?? []).every(pure);
-      case K.CallExpression: {
-        const callee = node.expression;
-        if (PURE_CALLS.has(dotted(callee))) return node.arguments.every(pure);
-        if (callee.kind !== K.PropertyAccessExpression || !pure(callee.expression)) return false;
-        if (PURE_METHODS.has(callee.name.text)) return node.arguments.every(pure);
-        return CALLBACK_METHODS.has(callee.name.text) && node.arguments.length === 1 && pureCallback(node.arguments[0]);
-      }
-      case K.BinaryExpression:
-        return !(node.operatorToken.kind >= K.FirstAssignment && node.operatorToken.kind <= K.LastAssignment)
-          && pure(node.left) && pure(node.right);
-      case K.ConditionalExpression: return pure(node.condition) && pure(node.whenTrue) && pure(node.whenFalse);
-      case K.PrefixUnaryExpression:
-        return node.operator !== K.PlusPlusToken && node.operator !== K.MinusMinusToken && pure(node.operand);
-      case K.ArrayLiteralExpression: case K.ObjectLiteralExpression: case K.PropertyAssignment:
-      case K.ShorthandPropertyAssignment: case K.SpreadElement: case K.SpreadAssignment: case K.TemplateExpression:
-      case K.TemplateSpan: case K.ParenthesizedExpression: case K.TypeOfExpression:
-      case K.ElementAccessExpression: case K.VoidExpression:
-        return every(node);
-      default: return false;
-    }
-  }
-  return pure;
 }
 
 function bindingNames(K, name, out = []) {
@@ -117,22 +65,38 @@ function requireOf(K, declaration, sourceFile, statementStart) {
   return { spec, property, head, bindings };
 }
 
+// The Node modules the file holds whole under a name that cannot change: `const os = require('os')`.
+function builtinModules(K, NodeFlags, statements, sourceFile) {
+  const moduleOf = new Map();
+  for (const node of statements) {
+    if (node.kind !== K.VariableStatement || (node.declarationList.flags & NodeFlags.Const) === 0) continue;
+    for (const declaration of node.declarationList.declarations) {
+      const required = declaration.name.kind === K.Identifier ? requireOf(K, declaration, sourceFile, 0) : null;
+      if (required && !required.property && isBuiltin(required.spec)) moduleOf.set(declaration.name.text, required.spec.replace(/^node:/, ''));
+    }
+  }
+  return moduleOf;
+}
+
 /**
  * @param {any} sourceFile a tree from parser.mjs
  * @param {{K: any, NodeFlags: any, commentsBefore: Function}} parser
+ * @param {import('./load-time-calls.mjs').LoadTimeCalls} [calls] the calls a value may make at load and still move
  * @returns {any[]} one record per top-level statement, in file order. Lines are 1-based:
  *   `line` is the code, `range` adds the comment block above it and the blank
- *   lines after it that go with it when it is taken out.
+ *   lines after it that go with it when it is taken out. `loadCalls` names what a
+ *   declaration runs at load that is not on the list.
  */
-export function readTopLevel(sourceFile, parser) {
+export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
   const { K, NodeFlags } = parser;
   const text = sourceFile.text;
   const starts = lineStarts(text);
   const lineText = (line) => text.slice(starts[line], line + 1 < starts.length ? starts[line + 1] - 1 : text.length);
   const isBlank = (line) => line >= 0 && line < starts.length && lineText(line).trim() === '';
   const usesOf = createUseReader(K, NodeFlags);
-  const pure = createPurity(K);
   const statements = sourceFile.statements.filter((s) => (s.flags & NodeFlags.Reparsed) === 0);
+  const blocker = createLoadTimeCheck(K, calls, builtinModules(K, NodeFlags, statements, sourceFile));
+  const blockersOf = (nodes) => nodes.map(blocker).filter(Boolean);
 
   const records = statements.map((node, index) => {
     const codeStart = node.getStart(sourceFile);
@@ -151,7 +115,7 @@ export function readTopLevel(sourceFile, parser) {
     while (isBlank(last + 1 + blanks) && last + 1 + blanks < starts.length - 1) blanks += 1;
     const takesBlanks = blanks > 0 && (top === 0 || isBlank(top - 1));
     const record = {
-      index, kind: 'statement', names: [], loadTime: true, require: null, isAsync: false,
+      index, kind: 'statement', names: [], loadTime: true, loadCalls: [], require: null, isAsync: false,
       line: [first + 1, last + 1], range: [top + 1, last + 1 + (takesBlanks ? blanks : 0)],
       sharesLine: false, uses: usesOf(node),
     };
@@ -159,9 +123,11 @@ export function readTopLevel(sourceFile, parser) {
       Object.assign(record, { kind: 'function', names: [node.name.text], loadTime: false });
     } else if (node.kind === K.ClassDeclaration && node.name) {
       // Only `static` members run when the class is declared.
-      const runsNow = node.members.some((m) => m.kind === K.ClassStaticBlockDeclaration || (m.kind === K.PropertyDeclaration
-        && (m.modifiers ?? []).some((mod) => mod.kind === K.StaticKeyword) && !pure(m.initializer)));
-      Object.assign(record, { kind: 'class', names: [node.name.text], loadTime: runsNow });
+      const statics = node.members.filter((m) => m.kind === K.PropertyDeclaration
+        && (m.modifiers ?? []).some((mod) => mod.kind === K.StaticKeyword));
+      record.loadCalls = [...(node.members.some((m) => m.kind === K.ClassStaticBlockDeclaration) ? ['static { }'] : []),
+        ...blockersOf(statics.map((m) => m.initializer))];
+      Object.assign(record, { kind: 'class', names: [node.name.text], loadTime: record.loadCalls.length > 0 });
     } else if (node.kind === K.VariableStatement) {
       const list = node.declarationList;
       const requires = list.declarations.map((d) => requireOf(K, d, sourceFile, codeStart));
@@ -169,7 +135,10 @@ export function readTopLevel(sourceFile, parser) {
       record.names = list.declarations.flatMap((d) => bindingNames(K, d.name));
       if (record.kind === 'const' && requires.length === 1 && requires[0]) {
         Object.assign(record, { kind: 'require', require: requires[0], loadTime: false });
-      } else record.loadTime = !list.declarations.every((d) => pure(d.initializer));
+      } else {
+        record.loadCalls = blockersOf(list.declarations.map((d) => d.initializer));
+        record.loadTime = record.loadCalls.length > 0;
+      }
     } else record.names = leakedNames(K, NodeFlags, node);
     return record;
   });

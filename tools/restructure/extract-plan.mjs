@@ -37,7 +37,10 @@ function selfReasons(record, at, protectedNames) {
   const label = record.names.join(', ') || `the statement at ${at(record)}`;
   const reasons = [];
   if (!MOVABLE_KINDS.has(record.kind)) reasons.push(`${label} (${at(record)}) is a ${record.kind}, not a declaration that can move`);
-  else if (record.loadTime) reasons.push(`${label} (${at(record)}) runs code when the file loads: moving it would change the load order`);
+  else if (record.loadTime) {
+    const calls = record.loadCalls?.length ? ` (${record.loadCalls.join(', ')}, not on the list in load-time-calls.json)` : '';
+    reasons.push(`${label} (${at(record)}) runs code when the file loads${calls}: moving it would change the load order`);
+  }
   if (record.sharesLine) reasons.push(`${label} (${at(record)}) shares a line with another statement`);
   if (record.fileBound.length) reasons.push(`${label} (${at(record)}) uses ${record.fileBound.join(', ')}, which would mean another file there`);
   const guarded = record.names.filter((name) => protectedNames.has(name));
