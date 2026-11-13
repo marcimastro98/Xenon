@@ -34,6 +34,25 @@ export function appendLedger(root, source, entry) {
 }
 
 /**
+ * The modules the tool made out of a file that run nothing when they load: a require of one may go when nobody
+ * uses it. A lifted value's module (lift.mjs) does run code, on the line where the file requires it, and is left out.
+ * @param {{ file: string, lift?: boolean }[]} entries a file's entries, or the ones before a step being redone
+ * @returns {Set<string>}
+ */
+export function quietModules(entries) {
+  return new Set(entries.filter((entry) => !entry.lift).map((entry) => entry.file));
+}
+
+/**
+ * The protected values of a file that may get a module of their own, required on the line where they stood.
+ * @param {string} root @param {string} source repo-relative
+ * @returns {Set<string>}
+ */
+export function liftableNames(root, source) {
+  return new Set(JSON.parse(readFileSync(path.join(root, PROTECTED), 'utf8')).files?.[source]?.liftable ?? []);
+}
+
+/**
  * The names that never leave a file: listed one by one, or as a stretch of the
  * file from one declaration to another (both included).
  * @param {string} root

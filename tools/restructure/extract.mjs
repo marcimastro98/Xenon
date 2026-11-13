@@ -9,7 +9,8 @@ import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
-import { appendLedger, protectedNames, readLedger } from './ledger.mjs';
+import { appendLedger, protectedNames, quietModules, readLedger } from './ledger.mjs';
+import { planLiftFor, proveLift, repoFileReader } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { planStateFor, proveState } from './state.mjs';
@@ -42,8 +43,9 @@ function planFor({ root, parser, text, source, target, about, names, withDeps, o
 export function extract(job) {
   const { root, source, target, about, dryRun = false } = job;
   const before = readFileSync(path.join(root, source), 'utf8');
-  const earlier = (readLedger(root).sources[source] ?? []).map((entry) => entry.file);
-  const plan = planFor({ ...job, text: before, ownModules: new Set(earlier) });
+  const entries = readLedger(root).sources[source] ?? [];
+  const earlier = entries.map((entry) => entry.file);
+  const plan = planFor({ ...job, text: before, ownModules: quietModules(entries) });
   const requires = plan.requires.map((module) => module.file).filter(Boolean);
   const reasons = targetReasons({ root, source, target, requires });
   if (reasons.length) throw new Refusal(reasons);
@@ -92,24 +94,26 @@ export function replay({ root, parser, base, show = gitShow }) {
     files.push([source, ...entries.map((entry) => entry.file)]);
     let text = show(root, base, source);
     if (text === null) { problems.push(`${base} has no ${source}`); continue; }
-    const earlier = new Set();
+    const earlier = [];
     for (const entry of entries) {
-      earlier.add(entry.file);
+      const ownModules = quietModules(earlier);
+      earlier.push(entry);
       if (show(root, base, entry.file) !== null) continue;
       replayed += 1;
+      const step = { root, parser, text, source, target: entry.file, about: entry.about };
       let plan;
       try {
-        plan = entry.state
-          ? planStateFor({ root, parser, text, source, target: entry.file, about: entry.about, object: entry.state.object,
-            vars: Object.entries(entry.state.props).map(([name, prop]) => ({ name, prop })) })
-          : planFor({ root, parser, text, source, target: entry.file, about: entry.about, names: entry.names, withDeps: false,
-            ownModules: new Set([...earlier].filter((file) => file !== entry.file)) });
+        if (entry.lift) plan = planLiftFor({ ...step, name: entry.names[0] });
+        else if (entry.state) {
+          plan = planStateFor({ ...step, object: entry.state.object, vars: Object.entries(entry.state.props).map(([name, prop]) => ({ name, prop })) });
+        } else plan = planFor({ ...step, names: entry.names, withDeps: false, ownModules });
       } catch (error) {
-        problems.push(`${entry.file}: the recorded ${entry.state ? 'rewrite' : 'move'} cannot be redone from ${base}: ${error.message}`);
+        problems.push(`${entry.file}: the recorded ${entry.lift ? 'lift' : entry.state ? 'rewrite' : 'move'} cannot be redone from ${base}: ${error.message}`);
         break;
       }
-      const proof = entry.state ? proveState({ before: text, after: plan.newSource, moduleText: plan.moduleText, plan, parser, source })
-        : proveMove({ before: text, after: plan.newSource, moduleText: plan.moduleText, plan });
+      const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
+      const proof = entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
+        : entry.state ? proveState({ ...texts, parser, source }) : proveMove(texts);
       problems.push(...proof.map((p) => `${entry.file}: ${p}`));
       const onDisk = existsSync(path.join(root, entry.file)) ? readFileSync(path.join(root, entry.file), 'utf8') : null;
       if (onDisk !== plan.moduleText) problems.push(`${entry.file} is not what the tool writes: it was edited by hand after the move, or is missing`);

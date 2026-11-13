@@ -1,5 +1,5 @@
 {
-  "note": "Declarations `extract` refuses to move: the start-up prelude and the code that decides who may ask the engine what. `names` are single declarations, `between` are stretches of the file from one declaration to another, both included (null = from the first line). A name listed here that the file no longer declares stops every extraction until this list is corrected.",
+  "note": "Declarations `extract` refuses to move: the start-up prelude and the code that decides who may ask the engine what. `names` are single declarations, `between` are stretches of the file from one declaration to another, both included (null = from the first line). A name listed here that the file no longer declares stops every extraction until this list is corrected. `liftable` are protected values that `lift` may give a module of their own: the file then requires that module on the very line where the value was worked out, under the same name, so a stretch keeps its length in statements, its order and its last name. Nothing else in a stretch is touched by any command.",
   "files": {
     "server/server.js": {
       "names": ["handleRequest", "server"],
