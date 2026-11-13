@@ -1,0 +1,263 @@
+
+/* ── small tiles: keep what answers "does anything need me" ── */
+@container cw (max-height: 300px) {
+  .cw-pace { display: none; }
+  .cw-gauge-val { font-size: 21px; }
+  .cw-cs-aside, .cw-cs-chips { display: none; }
+}
+@container cw (max-height: 200px) {
+  .cw-sec-head { display: none; }
+}
+@container cw (max-width: 430px) {
+  .cw-face { padding: 0 10px; }
+  .claude-widget-mount .cw-ask-open { padding: 0 12px; }
+  .cw-ask-open-t { display: none; }
+}
+
+@keyframes cw-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── Clawd, in the session's colour ─────────────────────────────────────────
+   The same sprite as the topbar marker (claude-clawd.js), moved by the state
+   class on its box: walking while the session works, hopping when it is blocked
+   on you, blinking when it is done, eyes shut once it has ended. The badge says
+   the state again without motion, for the moments motion is switched off. */
+/* The sprite stands on its own, no tile behind it, at a whole number of screen
+   pixels per sprite pixel (32x24 is 2:1), and every step it takes is one
+   sprite pixel: nothing lands between pixels and blurs. */
+.cw-clawd {
+  position: relative; flex: 0 0 auto; display: inline-grid; place-items: center;
+  width: 32px; height: 28px;
+  color: var(--cw-s, var(--cw-claude));
+}
+.cw-clawd-svg { width: 32px; height: 24px; display: block; overflow: visible; }
+.cw-clawd.is-ended { color: var(--cw-3); opacity: 0.6; }
+.cw-clawd.is-ended .cw-cl-eyes { opacity: 1; }
+.cw-clawd.is-working .cw-cl-shell { animation: cw-cl-bob-px 0.5s steps(1, end) infinite; will-change: transform; }
+.cw-clawd.is-working .cw-cl-legl { animation: cw-cl-stepa-px 0.5s steps(1, end) infinite; }
+.cw-clawd.is-working .cw-cl-legr { animation: cw-cl-stepb-px 0.5s steps(1, end) infinite; }
+.cw-clawd.is-idle .cw-cl-eyes { animation: cw-cl-blink 4.5s steps(1, end) infinite; }
+.cw-clawd.is-needs { color: var(--cw-warn); }
+.cw-clawd.is-needs .cw-clawd-svg { animation: cw-cl-hop-px 1.9s steps(1, end) infinite; will-change: transform; }
+@keyframes cw-cl-bob-px   { 0% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+@keyframes cw-cl-stepa-px { 0% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+@keyframes cw-cl-stepb-px { 0% { transform: translateY(1px); } 50% { transform: translateY(0); } }
+@keyframes cw-cl-hop-px {
+  0%, 100% { transform: translateY(0); }
+  6%  { transform: translateY(-4px); }
+  12% { transform: translateY(0); }
+  20% { transform: translateY(-4px); }
+  26% { transform: translateY(0); }
+}
+/* Square, like the sprite: "!" when it waits for you, one 2x2 dot when it
+   finished while you were elsewhere. */
+.cw-clawd-badge {
+  position: absolute; top: -3px; right: -5px; width: 10px; height: 12px;
+  display: grid; place-items: center;
+  font-family: var(--cw-mono); font-size: 10px; font-weight: 800; line-height: 1; color: var(--cw-on-go); background: var(--cw-warn);
+}
+.cw-clawd-badge.is-needs { color: #1b1205; }
+.cw-clawd-badge.is-fresh { width: 4px; height: 4px; top: 0; right: -3px; background: var(--cw-go); }
+
+/* The spinner Claude Code prints before what it is doing. Stepped, never
+   eased: it is a glyph changing, not a shape moving. */
+.cw-spin { display: inline-block; width: 1.1em; flex: 0 0 auto; text-align: center; color: var(--cw-claude); font-weight: 700; }
+.cw-spin::before { content: '✻'; }
+.cw-spin.is-on::before { animation: cw-spin-glyph 1.2s steps(1, end) infinite; }
+@keyframes cw-spin-glyph {
+  0% { content: '·'; } 16% { content: '✢'; } 33% { content: '✳'; }
+  50% { content: '✶'; } 66% { content: '✻'; } 83% { content: '✽'; }
+}
+
+/* Every infinite animation here joins the four freeze states, and stops for
+   reduced motion. A blocked session keeps its badge, which carries the state. */
+body.overlay-frozen .cw-clawd *, body.ambient-idle .cw-clawd *,
+body.game-mode .cw-clawd *, body.low-power-gpu .cw-clawd *,
+body.overlay-frozen .cw-spin::before, body.ambient-idle .cw-spin::before,
+body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before,
+body.overlay-frozen .cw-breathing, body.ambient-idle .cw-breathing,
+body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cw-clawd *, .cw-spin::before, .cw-breathing { animation: none !important; transform: none; }
+}
+
+/* ── the header: brand, the quota at a glance, faces, new session ── */
+.cw-brand { display: inline-grid; place-items: center; color: var(--cw-claude); }
+.cw-brand-mark { width: 24px; height: 18px; display: block; }
+.cw-qmini {
+  appearance: none; border: 0; cursor: pointer; flex: 0 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; gap: 12px; min-height: 32px; padding: 0 10px; border-radius: 9px;
+  font: inherit; color: inherit; background: var(--cw-well);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-qmini:hover { background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
+.cw-qm { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-qm-k { color: var(--cw-2); font-weight: 650; }
+.cw-qm-bar { width: 38px; height: 5px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--cw-ink) 14%, transparent); }
+.cw-qm-fill { display: block; height: 100%; background: var(--cw-go); }
+.cw-qm.is-warn .cw-qm-fill { background: var(--cw-warn); }
+.cw-qm.is-crit .cw-qm-fill { background: var(--cw-crit); }
+.cw-qm-v { font-weight: 700; }
+.cw-qm.is-warn .cw-qm-v { color: var(--cw-warn); }
+.cw-qm.is-crit .cw-qm-v { color: var(--cw-crit); }
+@container cw (max-width: 760px) { .cw-qm-bar { display: none; } .cw-qmini { gap: 9px; } }
+@container cw (max-width: 520px) { .cw-qmini { display: none; } }
+
+.claude-widget-mount .cw-ask-open {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; appearance: none;
+  color: var(--cw-on-claude); background: var(--cw-claude); border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.claude-widget-mount .cw-ask-open:hover { filter: brightness(1.07); }
+.claude-widget-mount .cw-ask-open.is-on { color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 16%, transparent); }
+.cw-ask-open-plus { font-size: 17px; font-weight: 600; line-height: 1; }
+
+/* ── the console: one session, terminal-style ───────────────────────────────
+   Head, status line, decisions, then the conversation with the plan and the
+   tool log beside it when there is room, and the prompt at the bottom. */
+.cw-console {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 9px;
+  padding: 12px; border-radius: 14px; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
+  container-type: inline-size; container-name: cwc;
+}
+.cw-console > * { flex: 0 0 auto; }
+.cw-console > .cw-cs-body, .cw-console > .cw-thread-spacer { flex: 1 1 auto; }
+
+.cw-cs-head { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.cw-cs-clawd { width: 38px; height: 32px; border-radius: 10px; }
+.cw-cs-clawd .cw-clawd-svg { width: 32px; height: 24px; }
+.cw-cs-names { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cw-cs-title { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-sub { font-family: var(--cw-mono); font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.cw-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 22px; padding: 0 8px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 650; white-space: nowrap; color: var(--cw-2);
+  background: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+}
+.cw-cs-chips .cw-ctx { min-height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--cw-2); background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-chip-model { color: var(--cw-ink); box-shadow: inset 2px 0 0 hsl(var(--cw-chip-hue, 20) 65% 60%); }
+.cw-chip-mode { font-family: var(--cw-mono); color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 14%, transparent); }
+.cw-chip-mode.is-warn { color: var(--cw-crit); background: color-mix(in srgb, var(--cw-crit) 13%, transparent); }
+/* Header controls of an idle terminal session: the menus and Compact read as chips. */
+.cw-cs-chips .cs-wrap { flex: 0 1 auto; min-width: 0; }
+.cw-cs-chips .cs-label { max-width: 16ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-chips .cs-wrap .cs-trigger { min-height: 22px; padding: 0 8px; font-size: 11.5px; font-weight: 650; border-radius: 6px; }
+.cw-chip-btn {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 650;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-chip-btn:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 13%, transparent); }
+.cw-chip-btn:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-chip-glyph { font-size: 10px; letter-spacing: -0.1em; }
+.cw-chip-lines { font-family: var(--cw-mono); }
+.cw-chip-lines .is-add { color: var(--cw-go); }
+.cw-chip-lines .is-del { color: var(--cw-crit); }
+
+/* The status line, as the terminal prints it under the conversation. */
+.cw-cs-status {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 7px 10px; border-radius: 9px;
+  font-size: 13px; line-height: 1.35; background: var(--cw-term);
+}
+.cw-cs-glyph { flex: 0 0 auto; width: 1.1em; text-align: center; color: var(--cw-3); }
+.cw-cs-glyph.is-idle { color: var(--cw-go); }
+.cw-cs-glyph.is-needs { color: var(--cw-warn); }
+.cw-cs-word { flex: 0 1 auto; min-width: 0; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-status.is-working .cw-cs-word { color: var(--cw-claude-ink); }
+.cw-cs-status.is-needs { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 45%, transparent); }
+.cw-cs-status.is-needs .cw-cs-word { color: var(--cw-warn); }
+.cw-cs-status.is-ended, .cw-cs-status.is-idle:not(:has(.cw-cs-glyph)) { color: var(--cw-2); }
+.cw-cs-detail { flex: 1 1 auto; min-width: 0; font-family: var(--cw-mono); font-size: 12px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-for { flex: 0 0 auto; margin-left: auto; font-size: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Conversation, with the plan and the tool log beside it on a wide console
+   and under the status line's weight on a narrow one. */
+.cw-cs-body { position: relative; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.cw-cs-aside {
+  flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 34%; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 10px; padding: 9px 10px; border-radius: 10px; background: var(--cw-term);
+}
+.cw-cs-body.has-aside { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(120px, 1fr) auto; min-height: min-content; }
+@container cwc (min-width: 640px) {
+  .cw-cs-body.has-aside { grid-template-columns: minmax(0, 1fr) clamp(220px, 34cqw, 300px); grid-template-rows: minmax(120px, 1fr); }
+  .cw-cs-body.has-aside .cw-cs-aside { max-height: none; }
+}
+@container cwc (max-width: 639px) {
+  /* The log moves above the conversation, so the rows swap too: it gets its
+     own height and the conversation keeps the stretch. */
+  .cw-cs-body.has-aside { grid-template-rows: auto minmax(120px, 1fr); }
+  .cw-cs-body.has-aside .cw-cs-aside { order: -1; max-height: 120px; }
+}
+/* Side panel head: Activity | Plan tabs and the hide button. */
+.cw-aside-bar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 26px; }
+.cw-aside-tabs { flex: 1 1 auto; min-width: 0; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.cw-aside-tab {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; min-height: 26px; padding: 0 7px; border-radius: 7px; white-space: nowrap;
+  font: inherit; font-size: 12px; font-weight: 700; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-tab:hover { color: var(--cw-ink); }
+.cw-aside-tab.is-on { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-aside-hide {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; width: 28px; min-height: 26px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 16px; line-height: 1; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-hide:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-aside-hide:focus-visible, .cw-aside-tab:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-aside-proposal { font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--cw-ink); }
+.cw-aside-proposal + .cw-cs-todos { margin-top: 10px; }
+/* The plan as a roadmap: a rail down the left, done steps filled, the one being
+   worked lit, the rest waiting. */
+.cw-roadmap { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; }
+.cw-rm-step { position: relative; display: flex; align-items: flex-start; gap: 9px; padding: 0 0 11px; min-width: 0; font-size: 12.5px; line-height: 1.4; color: var(--cw-3); }
+.cw-rm-step:last-child { padding-bottom: 0; }
+.cw-rm-step::before { content: ''; position: absolute; left: 9px; top: 20px; bottom: 1px; width: 2px; border-radius: 1px; background: var(--cw-line); }
+.cw-rm-step:last-child::before { display: none; }
+.cw-rm-step.is-done::before { background: color-mix(in srgb, var(--cw-go) 55%, transparent); }
+.cw-rm-dot { position: relative; flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; font-family: var(--cw-mono); color: var(--cw-3); box-shadow: inset 0 0 0 1.5px var(--cw-line); }
+.cw-rm-title { min-width: 0; padding-top: 2px; overflow-wrap: anywhere; }
+.cw-rm-step.is-done { color: var(--cw-2); }
+.cw-rm-step.is-done .cw-rm-dot { color: var(--cw-term-ink, #0b0d0f); background: var(--cw-go); box-shadow: none; }
+.cw-rm-step.is-doing { color: var(--cw-ink); font-weight: 600; }
+.cw-rm-step.is-doing .cw-rm-dot { color: var(--cw-ink); box-shadow: inset 0 0 0 2px var(--cw-go), 0 0 0 4px color-mix(in srgb, var(--cw-go) 22%, transparent); }
+/* The one breathing mark of a live step or agent; frozen with the rest above. */
+.cw-breathing { animation: cw-breathe 1.8s ease-in-out infinite; }
+/* The Agents view: one row per subagent (its square in its own colour, solid
+   while it works, hollow once done), then one agent in full. */
+.cw-agents { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-ag-row {
+  appearance: none; border: 0; width: 100%; cursor: pointer; text-align: left; font: inherit; color: var(--cw-ink);
+  display: flex; align-items: flex-start; gap: 9px; min-height: 40px; padding: 6px 4px; border-radius: 7px; background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ag-row:hover { background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-ag-row.is-done { color: var(--cw-2); }
+.cw-ag-row:focus-visible, .cw-ag-back:focus-visible, .cw-aside-strip:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-ag-mark { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 5px; background: var(--cw-s, var(--cw-2)); }
+.cw-ag-mark.is-done { background: transparent; box-shadow: inset 0 0 0 2px var(--cw-s, var(--cw-2)); }
+.cw-ag-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-ag-title { font-size: 12.5px; font-weight: 650; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-ag-sub { font-family: var(--cw-mono); font-size: 11px; line-height: 1.4; color: var(--cw-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-ag-time { flex: 0 0 auto; padding-top: 1px; font-size: 11.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-ag-time.is-done { color: var(--cw-3); }
+.cw-agent { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.cw-ag-head { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
+.cw-ag-back {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; width: 26px; height: 26px; margin: -4px 0 0 -6px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 16px; line-height: 1; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ag-back:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-ag-names { flex: 1 1 auto; min-width: 0; }
+.cw-ag-names .cw-ag-title { white-space: normal; overflow-wrap: anywhere; }
+.cw-ag-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 12px; line-height: 1.4; }
+.cw-ag-facts dt { color: var(--cw-2); }
+.cw-ag-facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cw-ag-facts dd.is-run { color: var(--cw-go); }
+.cw-ag-facts dd.is-done { color: var(--cw-2); }
+.cw-ag-model { font-weight: 650; color: var(--cw-chip-hue, var(--cw-ink)); }
+.cw-agent .cw-cs-label { margin: 2px 0 -5px; }
+.cw-ag-last { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }

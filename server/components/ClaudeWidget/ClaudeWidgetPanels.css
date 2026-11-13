@@ -1,0 +1,217 @@
+
+/* ── panels (link + budget) ── */
+.cw-panel { display: flex; flex-direction: column; gap: 11px; height: 100%; min-height: 0; overflow-y: auto; }
+.cw-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cw-panel-title { font-weight: 750; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+.cw-panel-close {
+  width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center;
+  border: 0; border-radius: 9px; background: rgba(255,255,255,0.06);
+  color: var(--text, #f0f3f1); cursor: pointer; font-size: 13px; line-height: 1;
+}
+.cw-panel-close:hover { background: rgba(255,255,255,0.12); }
+.cw-panel-body { font-size: 12px; line-height: 1.55; opacity: 0.65; color: var(--text, #f0f3f1); }
+.cw-panel-notes { margin: 0; padding: 0 0 0 16px; display: flex; flex-direction: column; gap: 4px; }
+.cw-panel-note { font-size: 11px; line-height: 1.45; opacity: 0.5; color: var(--text, #f0f3f1); }
+.cw-panel-acts { display: flex; gap: 8px; margin-top: 2px; }
+.cw-panel-go {
+  flex: 1 1 auto; min-height: 42px; border-radius: 11px; cursor: pointer;
+  font-size: 13px; font-weight: 750;
+  border: 1px solid var(--accent, #1ed760); background: var(--accent, #1ed760); color: #06210f;
+}
+.cw-panel-go.is-off { background: transparent; color: var(--xe-stock-down, #ff5b6a); border-color: color-mix(in srgb, var(--xe-stock-down, #ff5b6a) 55%, transparent); }
+.cw-panel-go:disabled { opacity: 0.5; cursor: default; }
+.cw-panel-path {
+  font-size: 10px; opacity: 0.35; color: var(--text, #f0f3f1);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; word-break: break-all;
+}
+/* A command to copy into Claude Code: readable, and selected whole on one tap. */
+
+.cw-plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cw-plan {
+  min-height: 38px; padding: 0 14px; border-radius: 11px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text, #f0f3f1); font-size: 12.5px; font-weight: 650; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.cw-plan:hover { background: rgba(255,255,255,0.09); }
+.cw-plan.is-sel { border-color: var(--accent, #1ed760); background: color-mix(in srgb, var(--accent, #1ed760) 16%, transparent); color: var(--accent, #1ed760); }
+.cw-custom { display: flex; align-items: center; gap: 9px; margin-top: 2px; }
+.cw-custom-input { width: 92px; height: 38px; padding: 0 12px; border-radius: 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text, #f0f3f1); font-size: 14px; font-variant-numeric: tabular-nums; }
+.cw-custom-input:focus { outline: none; border-color: var(--accent, #1ed760); }
+.cw-custom-unit { font-size: 11.5px; opacity: 0.55; flex: 1 1 auto; }
+.cw-custom-save { height: 38px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--accent, #1ed760); background: color-mix(in srgb, var(--accent, #1ed760) 20%, transparent); color: var(--accent, #1ed760); font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.cw-custom-save:hover { background: color-mix(in srgb, var(--accent, #1ed760) 30%, transparent); }
+
+/* ── lower detail sections (revealed by container queries) ── */
+.cw-section { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.cw-section-t { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; color: var(--text, #f0f3f1); }
+.cw-section-hint { font-size: 11px; opacity: 0.42; }
+/* Collapsible head. Full-width tap target on a touchscreen, and the chevron is
+   the only thing that moves — the label must not shift when it opens. */
+.cw-section-btn {
+  width: 100%; appearance: none; border: 0; background: transparent; cursor: pointer;
+  padding: 6px 4px; margin: -6px -4px 1px; border-radius: 8px; text-align: left;
+  font: inherit; color: inherit; align-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-section-btn:hover { background: rgba(255,255,255,0.05); }
+/* The title takes the slack so it stays put next to the chevron. Without this,
+   space-between pushed a hint-less title (Projects) to the far right. */
+.cw-section-btn .cw-section-t { flex: 1 1 auto; text-align: left; }
+.cw-section-btn .cw-section-hint { flex: 0 0 auto; text-align: right; }
+.cw-section-chev {
+  flex: 0 0 auto; width: 13px; font-size: 14px; line-height: 1; opacity: 0.5;
+  transition: transform 0.18s ease; transform-origin: 50% 50%;
+}
+.cw-section-chev.is-open { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .cw-section-chev { transition: none; } }
+
+/* ── the topbar marker ──────────────────────────────────────────────────────
+   #clock-claude is a plain span inside .clock in the base markup, so the
+   minimal topbar adopts it for free when the clock is reparented into the
+   island (same arrangement as the vitals chips and the SDK badges). Hidden
+   whenever there is nothing to report, so it costs no space at rest. */
+.clock-claude { display: inline-flex; align-items: center; }
+.clock-claude[hidden] { display: none; }
+
+/* The mark, sitting with the clock. It replaced a pill that spelled its state
+   out in words: beside a clock nobody reads a sentence, and "wants your OK" was
+   the width of six characters saying what one colour says instantly. State is
+   carried by colour and by HOW THE MARK MOVES — turning while Claude works,
+   still when there is something to read, knocking when it is blocked on you —
+   with the words kept in the tooltip. */
+.cw-tb {
+  appearance: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  /* The glyph is 15px; the box around it is bigger so the thing stays tappable
+     on a touchscreen. The top bar cannot give a 44px target without becoming a
+     different top bar, so this takes what there is rather than pretending. */
+  padding: 3px 7px; min-height: 28px; min-width: 28px; border-radius: 999px;
+  font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--text, #f0f3f1);
+  background: transparent; border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-tb:hover { background: rgba(255,255,255,0.09); }
+/* Claude's orange, not the dashboard accent. The mark is here to say WHOSE
+   session this is, and repainting it in whatever accent the user picked says
+   that much less clearly.
+   This is the value the codebase already carries in two other places — the Opus
+   model chip in claude-widget.js and the provider glyph in index.html — so all
+   three agree. The sprite itself measures #D77757, one step off in red and
+   invisible at any size; using the established one is worth more than matching
+   a difference nobody can see. */
+.cw-tb { color: #D97757; }
+/* 4:3, because the sprite is 16x12, and both axes scale by the same 1.5 so the
+   pixels stay square. Chosen by looking at 16, 20, 24 and 28 side by side: below
+   this the eye holes and the gaps between the legs close up and Clawd turns into
+   an orange blob, above it he is too big to sit next to a clock.
+   `shape-rendering: crispEdges` on the sprite keeps the edges on device pixels. */
+.cw-tb-mark { width: 24px; height: 18px; display: block; flex: 0 0 auto; }
+.cw-cl-shell rect, .cw-cl-leg rect, .cw-cl-eyes rect { fill: currentColor; }
+/* The eyes are holes in the sprite, so "closed" means painted over. Kept at
+   zero until a blink asks for them. */
+.cw-cl-eyes { opacity: 0; }
+.cw-tb-n { font-size: 10px; font-weight: 800; opacity: 0.65; font-variant-numeric: tabular-nums; color: var(--text, #f0f3f1); }
+/* The badge, riding on Clawd's shoulder. Amber means blocked on you; the accent
+   means finished and unread. It carries the state on its own, because the walk
+   and the blink are switched off whenever the dashboard goes quiet and a state
+   told only by motion is no state at all then. */
+.cw-tb-alert {
+  width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--xe-warn, #f5a524); margin-left: -4px; align-self: flex-start; margin-top: 1px;
+}
+.cw-tb-alert.is-done { background: var(--accent, #1ed760); }
+
+/* Everything below animates in WHOLE SPRITE UNITS on steps() timing. A pixel
+   character that eases between positions stops being a pixel character: it
+   smears across a subpixel and looks like a JPEG of itself. One unit is 1.5px
+   at the size above, so the transforms are written in those pixels. */
+
+/* Working: Clawd walks. The shell bobs a unit as the legs alternate, which is
+   the whole trick — four static legs plus a bob reads as walking, and nothing
+   here needs more than two frames. */
+.cw-tb.is-working .cw-cl-shell {
+  animation: cw-cl-bob 0.5s steps(1, end) infinite; will-change: transform;
+}
+.cw-tb.is-working .cw-cl-legl { animation: cw-cl-stepa 0.5s steps(1, end) infinite; }
+.cw-tb.is-working .cw-cl-legr { animation: cw-cl-stepb 0.5s steps(1, end) infinite; }
+@keyframes cw-cl-bob   { 0% { transform: translateY(0); }      50% { transform: translateY(1.5px); } }
+@keyframes cw-cl-stepa { 0% { transform: translateY(0); }      50% { transform: translateY(1.5px); } }
+@keyframes cw-cl-stepb { 0% { transform: translateY(1.5px); } 50% { transform: translateY(0); } }
+
+/* Finished, and you have not looked yet: Clawd stands still and blinks. Still
+   is the point — it is a result waiting to be read, not something happening —
+   and the blink is what keeps "still" from reading as "broken". */
+.cw-tb.is-done .cw-cl-eyes {
+  animation: cw-cl-blink 4.5s steps(1, end) infinite;
+}
+@keyframes cw-cl-blink { 0%, 94% { opacity: 0; } 96%, 99% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Blocked on you: two hops and a pause. Two beats and a wait reads as somebody
+   knocking and then standing there, which is exactly what is happening — and it
+   is the one state allowed to pull the eye away from the dashboard. */
+.cw-tb.is-waiting .cw-tb-mark {
+  animation: cw-cl-hop 1.9s steps(1, end) infinite; will-change: transform;
+}
+@keyframes cw-cl-hop {
+  0%, 100% { transform: translateY(0); }
+  6%  { transform: translateY(-3px); }
+  12% { transform: translateY(0); }
+  20% { transform: translateY(-3px); }
+  26% { transform: translateY(0); }
+}
+
+/* Every infinite animation above joins the four freeze states. The selectors
+   carry the same class count as the rules they have to beat, so none can lose
+   the cascade the way the session-dot ripple silently did — and `animation:
+   none` is paired with a resting transform, because a running animation beats a
+   static declaration and would otherwise leave the sprite stuck mid-hop. */
+body.overlay-frozen .cw-tb .cw-tb-mark, body.overlay-frozen .cw-tb .cw-cl-shell,
+body.overlay-frozen .cw-tb .cw-cl-leg,  body.overlay-frozen .cw-tb .cw-cl-eyes,
+body.ambient-idle .cw-tb .cw-tb-mark,   body.ambient-idle .cw-tb .cw-cl-shell,
+body.ambient-idle .cw-tb .cw-cl-leg,    body.ambient-idle .cw-tb .cw-cl-eyes,
+body.game-mode .cw-tb .cw-tb-mark,      body.game-mode .cw-tb .cw-cl-shell,
+body.game-mode .cw-tb .cw-cl-leg,       body.game-mode .cw-tb .cw-cl-eyes,
+body.low-power-gpu .cw-tb .cw-tb-mark,  body.low-power-gpu .cw-tb .cw-cl-shell,
+body.low-power-gpu .cw-tb .cw-cl-leg,   body.low-power-gpu .cw-tb .cw-cl-eyes {
+  animation: none; transform: none;
+}
+body.overlay-frozen .cw-tb .cw-cl-eyes, body.ambient-idle .cw-tb .cw-cl-eyes,
+body.game-mode .cw-tb .cw-cl-eyes,      body.low-power-gpu .cw-tb .cw-cl-eyes { opacity: 0; }
+
+/* …with ONE exemption, and it is the whole point of the thing.
+
+   The quiet-screen states exist to stop DECORATION: a dashboard alone in a room
+   burning GPU for nobody. The hop is not decoration. It is the only element on
+   the top bar that means a person is required — Claude Code is blocked, on this
+   machine, right now, and will stay blocked until somebody answers. Freezing it
+   makes the one thing that needs attention the one thing that stops moving,
+   which is backwards, and it was measured that way: three of these were on at
+   once (a dialog open, a minute without touches, Performance Mode) over a
+   session that had been waiting three and a half minutes, and Clawd stood
+   perfectly still under a tooltip saying it wanted an answer.
+   It is the same call already made for the fullscreen approval, which ambient
+   mode is not allowed to start over.
+   `perf-mode` needs !important because its rule is a global `*` with
+   !important; this selector is (0,4,1) against its (0,1,0), so it wins on
+   specificity rather than by shouting louder. The cost being bought back is
+   four discrete transform steps every 1.9 seconds on a 24x18 sprite, only while
+   something is actually blocked, and it stops the moment you answer.
+   Reduced motion is NOT overridden: the exemption lives inside a
+   no-preference query, so for anyone who asked for less movement it simply does
+   not exist rather than having to be beaten. */
+@media (prefers-reduced-motion: no-preference) {
+  body.overlay-frozen .cw-tb.is-waiting .cw-tb-mark,
+  body.ambient-idle .cw-tb.is-waiting .cw-tb-mark,
+  body.game-mode .cw-tb.is-waiting .cw-tb-mark,
+  body.low-power-gpu .cw-tb.is-waiting .cw-tb-mark,
+  body.perf-mode .cw-tb.is-waiting .cw-tb-mark {
+    animation: cw-cl-hop 1.9s steps(1, end) infinite !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cw-tb .cw-tb-mark, .cw-tb .cw-cl-shell, .cw-tb .cw-cl-leg, .cw-tb .cw-cl-eyes {
+    animation: none !important; transform: none;
+  }
+  .cw-tb .cw-cl-eyes { opacity: 0; }
+}

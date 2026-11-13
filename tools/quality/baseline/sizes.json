@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 326,
+  "count": 325,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -99,7 +99,6 @@
     "server/components/AudioSection/LiquidMixer.css": 544,
     "server/components/BrowserPanel/BrowserPanel.css": 349,
     "server/components/CalendarView/CalendarView.css": 481,
-    "server/components/ClaudeWidget/ClaudeWidget.css": 1440,
     "server/components/CustomWidget/CustomWidget.css": 421,
     "server/components/DashboardGrid/DashboardGrid.css": 990,
     "server/components/DashboardLayout/DashboardLayout.css": 595,

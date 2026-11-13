@@ -1,0 +1,224 @@
+
+/* The hidden panel's summary: one row over the conversation on a narrow
+   console, the panel's spine beside it on a wide one. No slab of its own, a
+   hairline; agents are small Clawds in their own colours, the plan a ladder
+   of its steps. */
+.cw-cs-body.has-strip { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(120px, 1fr); min-height: min-content; }
+.cw-aside-strip {
+  appearance: none; border: 0; border-bottom: 1px solid var(--cw-line); cursor: pointer; order: -1;
+  min-width: 0; min-height: 36px; padding: 2px 6px 3px 0; overflow: hidden;
+  display: flex; align-items: center; gap: 12px;
+  font: inherit; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-strip:hover { color: var(--cw-ink); }
+.cw-strip-open {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  font-size: 16px; line-height: 1;
+}
+.cw-aside-strip:hover .cw-strip-open { background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-strip-agents { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cw-strip-agent { display: inline-flex; align-items: center; gap: 5px; }
+.cw-strip-clawd { display: block; color: var(--cw-s, var(--cw-2)); }
+.cw-strip-time { font-size: 10.5px; line-height: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-strip-more { font-size: 11px; font-weight: 650; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-strip-plan { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+.cw-strip-v { font-size: 11.5px; font-weight: 700; color: var(--cw-ink); font-variant-numeric: tabular-nums; }
+.cw-strip-ladder { display: flex; gap: 2px; }
+.cw-strip-step { width: 8px; height: 4px; border-radius: 1px; background: var(--cw-line); }
+.cw-strip-step.is-done { background: var(--cw-go); }
+.cw-strip-step.is-doing { background: color-mix(in srgb, var(--cw-go) 50%, transparent); }
+.cw-strip-ladder.is-bar { width: 48px; height: 4px; border-radius: 2px; overflow: hidden; background: var(--cw-line); }
+.cw-strip-fill { display: block; width: var(--cw-plan, 0%); height: 100%; background: var(--cw-go); }
+/* The spine needs height for its column; a short tile keeps the row. */
+@container cw (min-height: 420px) {
+  @container cwc (min-width: 640px) {
+    .cw-cs-body.has-strip { grid-template-columns: minmax(0, 1fr) 48px; grid-template-rows: minmax(120px, 1fr); }
+    .cw-aside-strip {
+      order: 0; flex-direction: column; justify-content: flex-start; gap: 14px; padding: 4px 0 8px 1px;
+      border-bottom: 0; border-left: 1px solid var(--cw-line);
+    }
+    .cw-strip-agents { flex-direction: column; gap: 10px; }
+    .cw-strip-agent { flex-direction: column; gap: 3px; }
+    .cw-strip-plan { flex-direction: column; gap: 6px; margin: auto 0 0; }
+    .cw-strip-ladder { flex-direction: column; gap: 3px; }
+    .cw-strip-step { width: 20px; height: 4px; }
+    .cw-strip-ladder.is-bar { width: 4px; height: 56px; }
+    .cw-strip-fill { width: 100%; height: var(--cw-plan, 0%); }
+  }
+}
+@container cw (max-height: 300px) {
+  .cw-aside-strip { display: none; }
+  .cw-cs-body.has-strip { display: flex; }
+}
+/* A short tile with a decision waiting is that decision, whole: the session's head, the thread
+   and the message box would only push its keys out of the tile. The card names the project.
+   After the layouts above, which it hides. */
+@container cw (max-height: 420px) {
+  .cw-console:has(> .cw-decs) > .cw-cs-head, .cw-console > .cw-decs ~ * { display: none; }
+  .cw-console > .cw-decs { flex: 1 1 0; max-height: none; }
+  .cw-console > .cw-decs.is-pair { grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; }
+  .cw-console > .cw-decs .cw-dec { flex: 1 1 auto; max-height: none; }
+  .cw-console .cw-dec-acts { margin-top: auto; }
+}
+/* Narrow as well: the session list sits above the card there, and gives way too. */
+@container cw (max-height: 420px) and (max-width: 619px) {
+  .cw-mc:has(> .cw-console > .cw-decs) { grid-template-rows: minmax(0, 1fr); }
+  .cw-mc:has(> .cw-console > .cw-decs) > .cw-side { display: none; }
+}
+
+.cw-aside-full { margin-top: 4px; }
+.cw-aside-full > summary { cursor: pointer; padding: 4px 0; font-size: 12px; font-weight: 700; color: var(--cw-2); }
+.cw-aside-full[open] > summary { margin-bottom: 4px; }
+/* The Plan view: every step in full, with the progress bar above. */
+.cw-cs-todos.is-full .cw-todo { align-items: flex-start; }
+.cw-cs-todos.is-full .cw-todo-text { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.cw-plan-bar { height: 5px; border-radius: 3px; margin: 2px 0 6px; background: color-mix(in srgb, var(--cw-ink) 10%, transparent); overflow: hidden; }
+.cw-plan-fill { display: block; height: 100%; width: var(--cw-plan, 0%); border-radius: inherit; background: var(--cw-go); }
+.cw-cs-label { font-size: 12px; font-weight: 700; color: var(--cw-2); margin-bottom: 3px; }
+.cw-cs-todos, .cw-cs-acts { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cw-todo { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.4; }
+.cw-todo-box { flex: 0 0 auto; width: 1.1em; font-family: var(--cw-mono); color: var(--cw-3); }
+.cw-todo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-todo.is-done .cw-todo-text { color: var(--cw-3); text-decoration: line-through; }
+.cw-todo.is-done .cw-todo-box { color: var(--cw-go); }
+.cw-todo.is-doing .cw-todo-box, .cw-todo.is-doing .cw-todo-text { color: var(--cw-claude-ink); font-weight: 650; }
+.cw-cs-more { font-size: 11.5px; color: var(--cw-3); padding-left: calc(1.1em + 7px); }
+.cw-act { font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.45; min-width: 0; }
+.cw-act-call { display: flex; gap: 6px; min-width: 0; white-space: nowrap; }
+.cw-act-dot { flex: 0 0 auto; color: var(--cw-go); }
+.cw-act.is-fail .cw-act-dot { color: var(--cw-crit); }
+.cw-act-tool { flex: 0 0 auto; max-width: 60%; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.cw-act-arg { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--cw-2); }
+.cw-act-res { padding-left: 2px; color: var(--cw-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-act.is-fail .cw-act-res { color: var(--cw-crit); }
+
+/* What an edit changed: a summary line that opens into the +/- lines. */
+.cw-chg { margin: 2px 0 2px 14px; min-width: 0; }
+.cw-chg-sum {
+  appearance: none; border: 0; background: transparent; cursor: pointer; padding: 2px 0; max-width: 100%;
+  display: flex; align-items: baseline; gap: 8px; text-align: left; font: inherit; color: var(--cw-2);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-chg-sum:disabled { cursor: default; }
+.cw-chg-sum:not(:disabled):hover .cw-chg-file { color: var(--cw-ink); }
+.cw-chg-sum:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-chg-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-chg-sum .is-add, .cw-chg-l.is-add { color: var(--cw-go); }
+.cw-chg-sum .is-del, .cw-chg-l.is-del { color: var(--cw-crit); }
+.cw-chg-body {
+  margin-top: 3px; padding: 5px 0; border-radius: 6px; max-height: 220px;
+  overflow: auto; overscroll-behavior: auto; scrollbar-width: thin; background: var(--cw-term);
+}
+.cw-chg-body[hidden] { display: none; }
+.cw-chg-l { white-space: pre; padding: 0 8px; width: max-content; min-width: 100%; }
+.cw-chg-l.is-add { background: color-mix(in srgb, var(--cw-go) 13%, transparent); }
+.cw-chg-l.is-del { background: color-mix(in srgb, var(--cw-crit) 13%, transparent); }
+
+.cw-cs-note {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.45; color: var(--cw-2); background: var(--cw-term);
+}
+.cw-cs-note > span { flex: 1 1 200px; min-width: 0; }
+
+/* A decision waiting in ANOTHER session: one line on top that switches to it. */
+.cw-elsewhere {
+  appearance: none; border: 0; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 6px 12px 6px 7px; border-radius: 11px; text-align: left;
+  font: inherit; font-size: 12.5px; color: var(--cw-ink);
+  background: color-mix(in srgb, var(--cw-warn) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 40%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-elsewhere:hover { background: color-mix(in srgb, var(--cw-warn) 19%, transparent); }
+.cw-elsewhere-t { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-elsewhere-more { flex: 0 0 auto; font-weight: 800; color: var(--cw-2); }
+.cw-elsewhere-go { flex: 0 0 auto; font-weight: 750; color: var(--cw-warn); }
+
+/* No session in the console: Clawd and the prompt, not an empty panel. */
+.cw-console.is-new { gap: 11px; }
+.cw-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px 4px; text-align: center; }
+.cw-hero-clawd { width: 72px; height: 60px; border-radius: 16px; margin-bottom: 4px; }
+.cw-hero-clawd .cw-clawd-svg { width: 48px; height: 36px; }
+.cw-hero-t { font-size: 17px; font-weight: 750; letter-spacing: -0.01em; }
+.cw-hero-s { font-size: 12.5px; color: var(--cw-2); max-width: 42ch; line-height: 1.45; }
+@container cw (max-height: 360px) {
+  .cw-hero { flex-direction: row; padding: 2px 0; text-align: left; }
+  .cw-hero-clawd { width: 38px; height: 32px; margin: 0; }
+  .cw-hero-clawd .cw-clawd-svg { width: 32px; height: 24px; }
+  .cw-hero-s { display: none; }
+}
+
+/* ── projects for a new session ── */
+.cw-ask-projects { display: flex; flex-wrap: wrap; gap: 7px; }
+.cw-ask-proj {
+  appearance: none; cursor: pointer; min-height: 38px; padding: 0 13px; border-radius: 10px; max-width: 100%;
+  font: inherit; font-size: 12.5px; font-weight: 650; color: var(--cw-ink);
+  background: color-mix(in srgb, var(--cw-ink) 6%, transparent); border: 1px solid var(--cw-line);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ask-folder { display: flex; flex: 1 1 100%; gap: 7px; min-width: 0; }
+.cw-ask-folder:has(.cw-ask-proj-add) { flex: 0 0 auto; }
+.cw-ask-folder-in {
+  flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--cw-line);
+  font: inherit; font-family: var(--cw-mono); font-size: 12px; color: var(--cw-ink); background: var(--cw-term);
+}
+.cw-ask-folder-in:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 1px; }
+.cw-ask-proj-add { color: var(--cw-2); border-style: dashed; }
+.cw-ask-proj-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cw-mono); font-size: 12px; }
+.cw-ask-proj:hover { background: color-mix(in srgb, var(--cw-ink) 11%, transparent); }
+.cw-ask-proj.is-sel { color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 15%, transparent); border-color: color-mix(in srgb, var(--cw-claude) 60%, transparent); }
+
+/* ── the conversation, as the terminal shows it ──────────────────────────────
+   Your turns are a "> " line on a faint band; Claude's are a "⏺ " paragraph.
+   The speaker label stays for screen readers, the glyph says it at a glance. */
+.cw-thread {
+  flex: 1 1 auto; min-height: 120px; overflow-y: auto;
+  /* No overscroll containment: when the thread fits, the wheel must reach the console that scrolls around it. */
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 12px 14px; border-radius: 11px; background: var(--cw-term);
+}
+/* The wrap takes the thread's place so the "new reply" chip can float over
+   the bottom edge of the scroller without scrolling with it. */
+.cw-thread-wrap {
+  position: relative; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column;
+  border-radius: 11px; background: var(--cw-term); overflow: hidden;
+}
+/* Basis 0, not auto: with auto the wrap's natural height was the whole
+   conversation, so the console grew and scrolled instead of the thread, and a
+   session opened at its top with the newest turn far below. */
+.cw-thread-wrap > .cw-thread { min-height: 0; flex: 1 1 0; background: transparent; border-radius: 0; }
+/* The status line is the foot of the conversation: same well, a hairline above. */
+.cw-thread-wrap > .cw-cs-status { flex: 0 0 auto; border-radius: 0; background: transparent; box-shadow: inset 0 1px 0 var(--cw-line); }
+.cw-thread-wrap > .cw-cs-status.is-needs { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cw-warn) 55%, transparent); }
+.cw-thread-wrap:has(> .cw-cs-status) > .cw-thread-new { bottom: 52px; }
+.cw-thread-new {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  appearance: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 14px; border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 750; color: var(--cw-on-claude); background: var(--cw-claude);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35); -webkit-tap-highlight-color: transparent;
+}
+.cw-thread-spacer { flex: 1 1 auto; min-height: 0; }
+.cw-thread-note { font-size: 12.5px; color: var(--cw-2); }
+
+.cw-msg { display: flex; min-width: 0; }
+.cw-msg-bubble { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding-left: 20px; }
+.cw-msg-bubble::before { position: absolute; left: 2px; top: 0; font-family: var(--cw-mono); font-size: 12.5px; line-height: 1.55; }
+.cw-msg.is-claude .cw-msg-bubble::before { content: '⏺'; color: var(--cw-ink); }
+.cw-msg.is-user .cw-msg-bubble { padding-top: 6px; padding-bottom: 6px; padding-right: 10px; border-radius: 7px; background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
+.cw-msg.is-user .cw-msg-bubble::before { content: '>'; top: 6px; left: 7px; color: var(--cw-2); font-weight: 700; }
+.cw-msg-who {
+  position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+.cw-msg-text { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 7px; }
+.cw-msg.is-user .cw-msg-text { white-space: pre-wrap; color: var(--cw-2); }
+.cw-msg-cut { font-size: 11px; font-style: italic; color: var(--cw-3); padding-top: 3px; border-top: 1px dashed var(--cw-line); }
+.cw-msg-more {
+  align-self: flex-start; appearance: none; border: 0; background: transparent; cursor: pointer;
+  min-height: 28px; padding: 0 6px; margin-left: -6px; font: inherit; font-size: 12px; font-weight: 750; color: var(--cw-claude-ink);
+}
+/* The Stop hook's copy of the final reply, shown until the transcript has it. */
+.cw-msg.is-provisional .cw-msg-text { opacity: 0.85; }
+.cw-msg.is-provisional .cw-msg-bubble::before { color: var(--cw-3); }

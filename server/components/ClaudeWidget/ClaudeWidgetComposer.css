@@ -1,0 +1,224 @@
+
+
+/* Rendered markdown. Deliberately quiet: this is context. */
+.cw-md-p { margin: 0; }
+.cw-md-h { font-weight: 750; font-size: 13px; letter-spacing: -0.005em; }
+.cw-md-list { display: flex; flex-direction: column; gap: 4px; }
+.cw-md-li { display: flex; gap: 7px; align-items: baseline; }
+.cw-md-bullet { flex: 0 0 auto; color: var(--cw-3); font-size: 11px; min-width: 12px; }
+/* The item's text is one box, so bold and code stay inline in the sentence. */
+.cw-md-litext { flex: 1 1 auto; min-width: 0; }
+.cw-md-code { font-family: var(--cw-mono); font-size: 12px; padding: 1px 5px; border-radius: 5px; background: var(--cw-code); color: var(--cw-claude-ink); }
+.cw-md-pre {
+  margin: 0; padding: 9px 11px; border-radius: 8px; overflow-x: auto;
+  font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.5; white-space: pre;
+  background: var(--cw-code); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--cw-ink) 18%, transparent);
+}
+
+/* ── the prompt box ──────────────────────────────────────────────────────────
+   Claude Code's input: a rounded box with "> " in front of what you type, the
+   tools for the run in one row under it, and a plain line saying where the
+   text will go. */
+.cw-composer {
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 9px; border-radius: 12px;
+  background: var(--cw-term); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-ink) 16%, transparent);
+}
+.cw-composer:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-claude) 70%, transparent); }
+/* The text, the attach button and the send button share one box: the buttons
+   sit bottom right and the text keeps clear of them. */
+.cw-ask-field { position: relative; display: flex; min-width: 0; }
+.cw-ask-tools { position: absolute; right: 2px; top: 2px; display: flex; align-items: center; gap: 4px; }
+.cw-ask-text {
+  width: 100%; box-sizing: border-box; resize: none; min-height: 36px; max-height: 160px;
+  padding: 8px 78px 8px 26px; border: 0; border-radius: 8px; outline: none;
+  font: inherit; font-family: var(--cw-mono); font-size: 13px; line-height: 1.5; color: var(--cw-ink);
+  background: transparent;
+}
+.cw-ask-field::before {
+  content: '>'; position: absolute; left: 8px; top: 8px; pointer-events: none;
+  font-family: var(--cw-mono); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--cw-claude-ink);
+}
+.cw-ask-text::placeholder { color: var(--cw-3); }
+.cw-composer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.cw-composer-bar { gap: 6px; }
+/* Model, mode and effort as small pills sized to their words, like the chips
+   in Claude Code's footer, not three full-width form fields. */
+.cw-composer .cs-wrap { flex: 0 1 auto; min-width: 0; }
+.cw-composer .cs-trigger {
+  min-height: 32px; padding: 4px 9px; gap: 5px; border: 0; border-radius: 7px;
+  font-family: var(--cw-mono); font-size: 11.5px; font-weight: 650; color: var(--cw-2);
+  background: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+}
+.cw-composer .cs-trigger:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 12%, transparent); }
+.cw-composer .cs-label { min-width: 0; max-width: 22ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-composer .cs-chevron { width: 10px; height: 10px; opacity: 0.7; }
+
+/* The "/" picker: the commands and skills that match what is typed, under
+   the prompt, as Claude Code lists them (a floating list would be clipped by the console). */
+.cw-slash {
+  display: flex; flex-direction: column; gap: 2px; max-height: 214px; overflow-y: auto; overscroll-behavior-y: contain;
+  scrollbar-width: thin; padding: 4px; border-radius: 9px; background: var(--cw-well);
+  box-shadow: inset 0 0 0 1px var(--cw-line);
+}
+.cw-slash[hidden] { display: none; }
+.cw-slash-item {
+  appearance: none; border: 0; cursor: pointer; display: flex; align-items: baseline; gap: 10px; min-width: 0;
+  min-height: 34px; padding: 6px 9px; border-radius: 7px; text-align: left; font: inherit; color: var(--cw-ink);
+  background: transparent; -webkit-tap-highlight-color: transparent;
+}
+.cw-slash-item:hover { background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-slash-item.is-on { background: color-mix(in srgb, var(--cw-claude) 16%, transparent); }
+.cw-slash-name { flex: 0 0 auto; max-width: 50%; font-family: var(--cw-mono); font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-item.is-on .cw-slash-name { color: var(--cw-claude-ink); }
+.cw-slash-ns { flex: 0 1 auto; min-width: 0; max-width: 30%; font-family: var(--cw-mono); font-size: 11px; color: var(--cw-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-desc { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-empty { padding: 8px 9px; font-size: 12px; color: var(--cw-2); }
+@container cwc (max-width: 380px) {
+  .cw-slash-item { flex-direction: column; gap: 1px; }
+  .cw-slash-name { max-width: 100%; }
+}
+
+.cw-icon-btn {
+  appearance: none; cursor: pointer; flex: 0 0 auto; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px; font-size: 14px; line-height: 1;
+  color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 7%, transparent); border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-icon-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--cw-ink) 13%, transparent); }
+.cw-icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+.cw-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-attach-item {
+  position: relative; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 5px 4px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--cw-ink) 8%, transparent);
+}
+/* A picture is shown as itself, with the remove button over its corner. */
+.cw-attach-item.is-image { padding: 0; width: 64px; height: 64px; overflow: hidden; }
+.cw-attach-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cw-attach-item.is-image .cw-attach-rm {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; color: #fff; background: rgba(0, 0, 0, 0.6);
+}
+.cw-attach-item.is-image .cw-attach-rm:hover { color: #fff; background: rgba(0, 0, 0, 0.8); }
+.cw-attach-name { font-family: var(--cw-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-attach-rm {
+  appearance: none; cursor: pointer; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 0;
+  font-size: 10px; line-height: 1; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-attach-rm:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+
+/* Inside the box the paperclip has no plate of its own. */
+.cw-ask-tools .cw-icon-btn { background: transparent; color: var(--cw-2); }
+.cw-ask-tools .cw-icon-btn:hover:not(:disabled) { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+
+/* A picture at full size. Lives on the body, so it carries its own colours. */
+.cw-lightbox {
+  position: fixed; inset: 0; z-index: 12100; display: grid; place-items: center; padding: 24px;
+  background: rgba(0, 0, 0, 0.9); cursor: zoom-out;
+}
+.cw-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.cw-lightbox-x {
+  position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 10px; cursor: pointer;
+  font-size: 16px; color: #fff; background: rgba(255, 255, 255, 0.14); -webkit-tap-highlight-color: transparent;
+}
+.cw-lightbox-x:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* Tool calls between Claude's sentences: one quiet mono line each. */
+.cw-msg-tools { display: flex; flex-direction: column; gap: 2px; padding: 2px 4px; min-width: 0; }
+.cw-msg-tool { display: flex; gap: 8px; min-width: 0; font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.5; color: var(--cw-3); }
+.cw-msg-tool-n { flex: 0 0 auto; font-weight: 700; color: var(--cw-2); }
+.cw-msg-tool-d { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pictures in the conversation: small tiles under the text, full size on a tap. */
+.cw-msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cw-msg-text:empty { display: none; }
+.cw-msg-text:empty + .cw-msg-images { margin-top: 0; }
+/* A thumbnail hugs the picture: fixed height, width from the aspect ratio, so no empty plate around it. */
+.cw-msg-img { display: block; flex: 0 0 auto; max-width: 100%; line-height: 0; border-radius: 5px; overflow: hidden; outline: 1px solid var(--cw-line); outline-offset: -1px; cursor: zoom-in; }
+.cw-msg-img img { display: block; height: 84px; width: auto; max-width: 100%; object-fit: cover; }
+
+.cw-ask-note { font-size: 11.5px; line-height: 1.4; color: var(--cw-3); padding: 0 4px; }
+.cw-ask-note.is-warn { color: var(--cw-warn); }
+.cw-ask-error { font-size: 12px; line-height: 1.45; color: var(--cw-crit); padding: 0 4px; }
+.cw-ask-send {
+  flex: 0 0 auto; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; cursor: pointer; border: 0;
+  color: var(--cw-on-claude); background: var(--cw-claude);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ask-send.is-busy svg { opacity: 0.5; }
+.cw-ask-send:hover:not(:disabled) { filter: brightness(1.07); }
+.cw-ask-send:disabled { opacity: 0.45; cursor: default; }
+@container cwc (max-width: 380px) {
+  .cw-composer .cs-label { max-width: 11ch; }
+}
+
+/* ── runs the dashboard started ── */
+/* A run's card is the newest thing on the tile, not the most important one: the
+   bands below it are what the widget is for. It was `flex: 0 0 auto`, so a card
+   with a long reply took whatever height it wanted and left the sessions band a
+   half-visible row. Now the list yields and scrolls inside itself instead. */
+.cw-run-list {
+  flex: 0 1 auto; min-height: 0; max-height: 40%;
+  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cw-run {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 13px; border-radius: 14px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid color-mix(in srgb, var(--accent, #1ed760) 26%, transparent);
+}
+.cw-run.is-failed { border-color: color-mix(in srgb, var(--xe-danger, #f26d6d) 45%, transparent); }
+.cw-run.is-done, .cw-run.is-stopped { border-color: rgba(255,255,255,0.1); }
+.cw-run-head { display: flex; align-items: center; gap: 8px; }
+.cw-run-badge {
+  flex: 0 0 auto; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--accent, #1ed760); padding: 3px 7px; border-radius: 6px;
+  background: color-mix(in srgb, var(--accent, #1ed760) 16%, transparent);
+}
+.cw-run-proj {
+  flex: 1 1 auto; min-width: 0; font-size: 11.5px; font-weight: 650; opacity: 0.62;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text, #f0f3f1);
+}
+.cw-run-state { flex: 0 0 auto; font-size: 11.5px; opacity: 0.5; font-variant-numeric: tabular-nums; }
+.cw-run-prompt {
+  font-size: 13px; font-weight: 650; line-height: 1.4; color: var(--text, #f0f3f1);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* What Claude said. The reason the run exists, so it gets the most room and the
+   scroller rather than an ellipsis. */
+.cw-run-out {
+  font-size: 12.5px; line-height: 1.55; color: var(--text, #f0f3f1); opacity: 0.85;
+  max-height: 108px; overflow-y: auto; overscroll-behavior-y: contain;
+  white-space: pre-wrap; word-break: break-word;
+  padding: 9px 11px; border-radius: 10px;
+  background: rgba(0,0,0,0.24); border: 1px solid rgba(255,255,255,0.06);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+.cw-run-chips { margin-top: 2px; }
+.cw-run .cw-cs-status { padding: 5px 8px; font-size: 12px; }
+.cw-run .cw-cs-acts { padding: 6px 8px; border-radius: 8px; background: var(--cw-term); }
+.cw-run-err { font-size: 11.5px; line-height: 1.45; color: var(--xe-danger, #f26d6d); }
+.cw-run-stop {
+  align-self: flex-start; appearance: none; cursor: pointer;
+  min-height: 38px; padding: 0 18px; border-radius: 10px;
+  font-size: 12.5px; font-weight: 700; color: var(--text, #f0f3f1);
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.16);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-run-stop:hover { background: rgba(255,255,255,0.12); }
+
+/* ── connect call-to-action ── */
+.cw-cta {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 11px;
+  background: color-mix(in srgb, var(--accent, #1ed760) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #1ed760) 25%, transparent);
+}
+.cw-cta-text { flex: 1 1 auto; min-width: 0; font-size: 11px; opacity: 0.75; color: var(--text, #f0f3f1); line-height: 1.35; }
+.cw-linkbtn {
+  flex: 0 0 auto; min-height: 34px; padding: 0 14px; border-radius: 9px; cursor: pointer;
+  font-size: 11.5px; font-weight: 750;
+  border: 1px solid var(--accent, #1ed760); color: #06210f; background: var(--accent, #1ed760);
+}
+.cw-linkbtn.is-on { background: transparent; color: var(--accent, #1ed760); }
+.cw-linkbtn:hover { filter: brightness(1.08); }
