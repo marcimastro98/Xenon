@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -121,7 +122,7 @@ test('installed only in the app, keeping the constants callers compare with', ()
 
 test('every page that opens the feed loads the socket first', () => {
   for (const page of ['index', 'layer-lite', 'menu', 'scene', 'sdk-service', 'deck-popup', 'shell-driver', 'screen-alerts']) {
-    const html = fs.readFileSync(path.join(SERVER_DIR, `${page}.html`), 'utf8');
+    const html = readFileSync(path.join(SERVER_DIR, `${page}.html`), 'utf8');
     const at = html.indexOf('<script src="js/live-stream.js">');
     assert.ok(at > 0, `${page}.html does not load live-stream.js`);
     assert.ok(at < html.indexOf('<script src="js/utils.js">'), `${page}.html loads it too late`);

@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 289,
+  "count": 287,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -130,7 +130,6 @@
     "server/js/app-switcher.js": 481,
     "server/js/bit-message-card.js": 321,
     "server/js/browser-tile.js": 1285,
-    "server/js/calendar.js": 884,
     "server/js/call-modal.js": 329,
     "server/js/capability-catalog.js": 1339,
     "server/js/capture-annotate.js": 375,
@@ -224,7 +223,6 @@
     "server/js/unifi-widget.js": 1141,
     "server/js/update.js": 1328,
     "server/js/usage-ask.js": 336,
-    "server/js/utils.js": 609,
     "server/js/vitals-pet-core.js": 2775,
     "server/js/vitals-pet.js": 950,
     "server/js/vitals.js": 596,

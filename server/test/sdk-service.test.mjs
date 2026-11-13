@@ -4,7 +4,7 @@
 // granted Deck action (js/driver-sdk-host.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
@@ -154,7 +154,8 @@ test('only the hidden host answers: the page, its order, the route and the phone
   const html = read('../sdk-service.html');
   assert.match(html, /<html lang="en" data-sdk-service>/);
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ['shared/src/constants.js', 'js/live-stream.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
+  assert.deepEqual(scripts, ['shared/src/constants.js', 'js/live-stream.js',
+    'js/utils/page-and-text.js', 'js/utils/time-and-format.js', 'js/utils/stat-spark.js', 'js/utils.js', 'js/state.js', 'layer-i18n.js',
     'js/theme-palette.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
     'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);

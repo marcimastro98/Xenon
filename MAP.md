@@ -25,7 +25,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings/**` `server/js/settings-*.js` `server/components/SettingsModal/**` |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
 | **Engine core** | Starts the engine, answers every request and decides who is allowed to ask. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/http-range.js` `server/listener-sockets.js` and 12 more |
-| **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/atomic-write.js` `server/json-lru.js` and 19 more |
+| **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/atomic-write.js` `server/json-lru.js` and 20 more |
 
 ## Dashboard
 
@@ -47,7 +47,7 @@ One row per tile on the dashboard.
 | **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media-*.js` `server/media.ps1` `server/media-key.ps1` `server/lyrics*.js` `server/darwin-media.js` and 13 more |
 | **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio/**` `server/audio-levels.js` `server/mic-use.js` `server/svv-text.js` `server/soundvolumeview-x64/**` `server/actions/wavelink.js` and 9 more |
 | **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-*.js` `server/components/WeatherModal/**` `server/components/WeatherTile/**` |
-| **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/time/**` `server/ics-feeds.js` `server/calendar-reminders.js` `server/timer-actions.js` `server/agenda-ai.js` `server/notes-ai.js` and 11 more |
+| **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/time/**` `server/ics-feeds.js` `server/calendar-reminders.js` `server/timer-actions.js` `server/agenda-ai.js` `server/notes-ai.js` and 12 more |
 | **Performance and FPS** | Game detection, the frame counter, Performance Mode and Core Shield. | `server/performance/**` `server/perf-session/**` `server/perf-*.js` `server/performance.ps1` `server/perf-priority.ps1` `server/processes.ps1` and 19 more |
 | **PC numbers** | CPU, GPU, memory, network, fans, battery and power, with their history. | `server/system/**` `server/battery.js` `server/battery.ps1` `server/power/**` `server/device-battery/**` `server/sensor-service/**` and 28 more |
 | **Disk space** | What fills the drive, safe clean-up, duplicates and the developer clean-up. | `server/disk/**` `server/disk*.js` `server/disk-space/**` `server/devclean*.js` `server/compact-vhdx.ps1` `server/mounted-disks.js` and 5 more |

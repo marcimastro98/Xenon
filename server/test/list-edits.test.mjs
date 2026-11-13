@@ -3,7 +3,7 @@
 // whose first load failed can never save an empty list over the real one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
@@ -151,7 +151,7 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   // Loaded before the code that uses it, on every page that saves.
   const page = read('../index.html');
   assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar.js'));
-  assert.match(read('../js/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\.js'/);
+  assert.match(read('../js/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\/month-grid\.js', 'js\/calendar\/upcoming-and-day-window\.js', 'js\/calendar\/events-sync\.js', 'js\/calendar\.js'/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     assert.ok(appStrings()[lang].list_save_retry_title, lang);
   }

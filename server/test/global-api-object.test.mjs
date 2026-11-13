@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +14,7 @@ const CALL = /(?<![.\w$])api\(/;
 const LOCAL = /(function\s+api\s*\(|(const|let|var)\s+api\s*=|[(,]\s*api\s*[,)=])/;
 
 test('the global api is an object, as every caller must assume', () => {
-  const src = fs.readFileSync(path.join(JS, 'deck-store.js'), 'utf8');
+  const src = readFileSync(path.join(JS, 'deck-store.js'), 'utf8');
   assert.match(src, /^const api = \{/m);
 });
 
@@ -21,7 +22,7 @@ test('no script calls api(...) without a local api of its own', () => {
   const bad = fs.readdirSync(JS)
     .filter((f) => f.endsWith('.js'))
     .filter((f) => {
-      const src = fs.readFileSync(path.join(JS, f), 'utf8');
+      const src = readFileSync(path.join(JS, f), 'utf8');
       return CALL.test(src) && !LOCAL.test(src);
     });
   assert.deepEqual(bad, [], 'use apiJson(path, opts) from utils.js');

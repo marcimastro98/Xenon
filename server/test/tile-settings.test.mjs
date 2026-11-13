@@ -6,13 +6,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const TileSettings = require('../tile-settings.js');
-const read = (f) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
 test('only the allowlisted fields, in their shape', () => {
   assert.deepEqual(TileSettings.plan({ patch: { discordFavChannels: ['123'] } }), { patch: { discordFavChannels: ['123'] } });

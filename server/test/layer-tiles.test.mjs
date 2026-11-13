@@ -4,7 +4,8 @@
 // memory (tools/measure-layer-tiles.mjs --write) keeps "light" a number.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
