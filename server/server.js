@@ -33,14 +33,7 @@ const { privateTmpDir, privateTmpFile } = require('./private-tmp');
 const nativeCollectors =
   process.platform === 'linux' ? require('./linux-collectors') :
   process.platform === 'darwin' ? require('./darwin-collectors') : null;
-// Every PowerShell path in this file is gated on this. The collectors above
-// cover the sensors, but dozens of on-demand features (Deck actions, RAM
-// detail, window management, the media host) still shell out to a .ps1, and
-// off Windows those spawns fail with ENOENT several layers below the caller.
-// Rejecting once, here, turns "a stack of ENOENT noise per click" into the
-// clean per-feature "unavailable" the action registry already knows how to
-// render. See runPowerShellScript / runPowerShellCommand.
-const POWERSHELL_SUPPORTED = process.platform === 'win32';
+const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
 const { createFpsDemand } = require('./fps-demand');
 // Single-screen capabilities (js/capability-catalog.js): one declaration, run
@@ -71,7 +64,7 @@ const { createPacketLoss } = require('./packet-loss');
 const { createPerfNet } = require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
-const { overExclusive } = require('./capabilities/over-screen');
+require('./capabilities/over-screen');
 const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
@@ -152,7 +145,7 @@ const {
   SLIDESHOW_ASSET_MIME_BY_EXT,
 } = require('./http/upload-limits.js');
 
-const { SSE_MAX_BUFFERED, SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
+const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 
 const { findFirstFile, isFfmpegMissing } = require('./ffmpeg-install/lookup.js');
 
@@ -262,14 +255,9 @@ const {
 
 const { PWSH_WORKER_GC_BUDGET } = require('./system/pwsh-worker-memory.js');
 
-const {
-  DISK_DETAILS_TIMEOUT_MS, DISK_DETAILS_BG_TIMEOUT_MS, DISK_MODELS_TIMEOUT_MS, diskProbeFresh,
-  DISK_LETTERS_TTL,
-} = require('./disk/details-timings.js');
+const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
-const { VOLUME_DETAILS_COMMAND, DISK_MODELS_COMMAND } = require('./disk/details-commands.js');
-
-const { psRows, joinDiskDetails } = require('./disk/details-shape.js');
+const { joinDiskDetails } = require('./disk/details-shape.js');
 
 const {
   DECK_SOUND_MAX_BYTES, DECK_SOUND_EXTS, DECK_SOUND_NAME_RE, DECK_MAX_BYTES,
@@ -296,6 +284,8 @@ const layersEdit = require('./layers-edit').createLayersEdit({
   },
   onOff: (byHand) => screenMenu.holdEnded(byHand),
 });
+const { sseClients, broadcastSSE } = require('./http/sse-clients.js');
+
 // The widget whose screen is open in the menu shows whatever its rule says (layers-peek.js).
 const layersPeek = require('./layers-peek').createLayersPeek({
   broadcast: (id) => broadcastSSE('layers-peek', { id }),
@@ -1446,6 +1436,8 @@ const INDEX_START_DELAY_MS = 90 * 1000;
 const livingIndex = process.platform === 'linux'
   ? createLinuxIndex({ startDelayMs: INDEX_START_DELAY_MS })
   : createLivingIndex({ helperExe: HELPER_EXE, startDelayMs: INDEX_START_DELAY_MS });
+const { runPowerShellScript, runPowerShellCommand } = require('./powershell/run-command.js');
+
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
@@ -1458,23 +1450,10 @@ const fileSearch = createFileSearch({
   launchApp: launchInstalledApp,
   catalogRunner: process.platform === 'darwin' ? createMdfindRunner() : undefined,
 });
-// Global Spotlight hotkey (helper-gated, opt-in). The helper's hotkey-serve
-// owns a RegisterHotKey + message loop and pushes a line per press; the server
-// opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
-// surfaced to Settings via GET /search/hotkey-status; 'taken' means another
-// app (PowerToys Run on Alt+Space, typically) owns the combo.
-const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {} };
+const {
+  _hotkey, MAX_HOTKEY_BINDINGS, HOTKEY_RETRY_MS, HOTKEY_RETRY_MAX_MS, _stopHotkeyListener,
+} = require('./deck/hotkey-state.js');
 
-// The table the helper is handed, in the order it is handed it: the helper
-// addresses a combo by its POSITION, so this array IS the wire format and the
-// index of a press is an index into it.
-//
-// Spotlight goes first when it is on, which is also the compatibility story: a
-// helper too old to understand a list registers only the first combo and
-// reports a press with no index, which reads as index 0 — so on a stale binary
-// the search shortcut still works and the page ones are simply absent, rather
-// than the whole feature failing.
-const MAX_HOTKEY_BINDINGS = 16;
 // The keys placed widgets show or hide with (widget-keys.js). What they hide
 // leaves with the rules' answer in the status, pushed at once.
 const _widgetKeys = createWidgetKeys({
@@ -1602,23 +1581,7 @@ function _deckShortcutStatus() {
   return out;
 }
 
-// A page shortcut fires on the PC running the server, and every dashboard
-// watching it flips. The target is resolved on the CLIENT: pages belong to a
-// device's own layout, so the server would have to guess which device's page
-// ids these are, and a phone with different pages simply ignores an id it does
-// not have.
-function routePageHotkey(binding) {
-  if (!binding || !binding.target) return;
-  broadcastSSE('page_hotkey', { target: binding.target, at: Date.now() });
-}
-
-// A shortcut has no key to answer on: over a game in exclusive full screen
-// (capabilities/over-screen.js) the card says why nothing opened.
-function saysOverExclusive() {
-  if (!overExclusive(fpsMonitor)) return false;
-  broadcastSSE('xenon_menu_failed', { error: 'over_exclusive' });
-  return true;
-}
+const { routePageHotkey, saysOverExclusive } = require('./deck/hotkey-routes.js');
 
 function routeHotkeyIndex(index) {
   const binding = _hotkey.bindings[index];
@@ -1699,11 +1662,6 @@ function routeSpotlightHotkey() {
   _spotlightClaimTimer.unref();
 }
 
-// One pending retry at a time. Without it a single helper crash disabled the
-// global shortcut until the user re-saved settings or restarted the app:
-// refreshHotkeyListener() is only called from POST /settings and at boot.
-const HOTKEY_RETRY_MS = 15000;
-const HOTKEY_RETRY_MAX_MS = 5 * 60 * 1000;
 let _hotkeyRetryTimer = null;
 function _scheduleHotkeyRetry(ms) {
   if (_hotkeyRetryTimer) return;   // cancelled in _gracefulShutdown
@@ -1716,16 +1674,6 @@ function _scheduleHotkeyRetry(ms) {
 }
 function _cancelHotkeyRetry() {
   if (_hotkeyRetryTimer) { clearTimeout(_hotkeyRetryTimer); _hotkeyRetryTimer = null; }
-}
-
-function _stopHotkeyListener() {
-  const p = _hotkey.proc;
-  _hotkey.proc = null;
-  if (!p) return;
-  try { p.stdin.end(); } catch {}
-  const force = setTimeout(() => { try { p.kill(); } catch {} }, 2000);
-  force.unref();
-  p.once('exit', () => clearTimeout(force));
 }
 
 // On Linux the shortcut is not a process we own but an entry in the desktop's
@@ -1999,6 +1947,8 @@ const { normalizeVitals } = require('./vitals/settings-normalize.js');
 const {
   normalizeLightingDeviceModes, normalizeLightingNative,
 } = require('./lights/devices-normalize.js');
+
+const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
 
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -2302,29 +2252,10 @@ async function recordWidgetOrigin(id, origin, catalogVersion) {
   catch { /* origin records are advisory — never fail an install over them */ }
 }
 
-// Per-package gate for the fetch proxy: a floor between requests plus a small
-// concurrency cap, so one chatty widget can't turn the server into a scraper.
-const _sdkFetchGate = new Map();   // pkgId → { last, inflight }
-function sdkFetchGateAcquire(pkgId) {
-  const g = _sdkFetchGate.get(pkgId) || { last: 0, inflight: 0 };
-  if (g.inflight >= sdkWidgets.SDK_LIMITS.fetch.maxInFlight || Date.now() - g.last < 250) return null;
-  g.last = Date.now();
-  g.inflight++;
-  _sdkFetchGate.set(pkgId, g);
-  return () => { g.inflight = Math.max(0, g.inflight - 1); };
-}
+const {
+  sdkFetchGateAcquire, sdkHookGateOk, sdkStoreGateOk,
+} = require('./widget-sdk/request-gates.js');
 
-// Per-hook rate floor: a local script POSTing a hook in a tight loop can't turn
-// one webhook into an SSE flood across every surface. Bounded (~64 keys) — hook
-// ids come from validated manifests (≤32 packages × ≤8 hooks).
-const _sdkHookGate = new Map();   // "pkg/hookId" → last accept ts
-function sdkHookGateOk(key) {
-  const now = Date.now();
-  if (now - (_sdkHookGate.get(key) || 0) < 250) return false;
-  if (_sdkHookGate.size > 512) _sdkHookGate.clear();   // hard bound against churn
-  _sdkHookGate.set(key, now);
-  return true;
-}
 
 // Whether the third-party widget SDK is enabled at all. The master toggle is the
 // kill-switch: with it off, no SDK ingress (fetch proxy, webhooks, deck macros)
@@ -2462,133 +2393,14 @@ async function sdkSecretsSave(pkgId, map) {
   catch { /* best-effort */ }
 }
 
-// Per-package write-rate floor for the store/secret bridges — same shape as the
-// fetch/hook gates: a chatty widget can't turn set() into a disk-write flood.
-const _sdkStoreGate = new Map();   // pkgId → last-accept ts
-function sdkStoreGateOk(pkgId) {
-  const now = Date.now();
-  if (now - (_sdkStoreGate.get(pkgId) || 0) < 100) return false;
-  if (_sdkStoreGate.size > 512) _sdkStoreGate.clear();
-  _sdkStoreGate.set(pkgId, now);
-  return true;
-}
 
-// ── SDK map-tile cache (GET /sdk/tile/<pkg>?u=…) ────────────────────────────
-// A radar/map widget needs many small image tiles from a tile server — over the
-// postMessage fetch bridge that means base64 round-trips at ~1 req/s, unusable
-// for a slippy map. Instead the widget points an <img>/Leaflet layer straight at
-// the SAME-ORIGIN /sdk/tile route, which the CSP already allows (`img-src
-// 'self'`) with NO relaxation. The route re-uses the exact proxy trust boundary
-// (allowlisted + granted host, guardedLookup SSRF block, size cap) and adds a
-// bounded LRU + coalescing so panning a map doesn't re-hammer the origin. Only
-// image/* responses are cached/served — the tile route is images, not a second
-// data channel. Secrets are NEVER injected here (that's the fetch bridge only).
-const SDK_TILE_CACHE_MAX = 256;         // ~a few screenfuls of tiles
-const SDK_TILE_TTL_MS = 10 * 60 * 1000; // radar frames refresh on the order of minutes
-const _sdkTileCache = new Map();        // url → { at, contentType, buffer }
-const _sdkTileInflight = new Map();     // url → Promise (coalesce concurrent misses)
-function sdkTileCacheGet(url) {
-  const hit = _sdkTileCache.get(url);
-  if (!hit) return null;
-  if (Date.now() - hit.at > SDK_TILE_TTL_MS) { _sdkTileCache.delete(url); return null; }
-  // LRU touch: re-insert so eviction drops the least-recently used.
-  _sdkTileCache.delete(url);
-  _sdkTileCache.set(url, hit);
-  return hit;
-}
-function sdkTileCachePut(url, contentType, buffer) {
-  _sdkTileCache.set(url, { at: Date.now(), contentType, buffer });
-  while (_sdkTileCache.size > SDK_TILE_CACHE_MAX) {
-    const oldest = _sdkTileCache.keys().next().value;
-    if (oldest === undefined) break;
-    _sdkTileCache.delete(oldest);
-  }
-}
-// Per-package tile gate — a miss costs an outbound fetch, so bound both live
-// concurrency and a rolling rate so a widget can't turn the tile route into a
-// scraper. Cache HITS are free and never gated. Returns a release fn, or null
-// when over budget (→ 429). Maps are bounded by the ≤32-package install cap.
-const _sdkTileConc = new Map();   // pkgId → inflight miss count
-const _sdkTileRate = new Map();   // pkgId → { windowStart, count }
-function sdkTileGate(pkgId) {
-  const conc = _sdkTileConc.get(pkgId) || 0;
-  if (conc >= 6) return null;
-  const now = Date.now();
-  let r = _sdkTileRate.get(pkgId);
-  if (!r || now - r.windowStart > 10000) { r = { windowStart: now, count: 0 }; _sdkTileRate.set(pkgId, r); }
-  if (r.count >= 120) return null;
-  r.count++;
-  _sdkTileConc.set(pkgId, conc + 1);
-  return () => { _sdkTileConc.set(pkgId, Math.max(0, (_sdkTileConc.get(pkgId) || 1) - 1)); };
-}
+const { sdkTileCacheGet, sdkTileGate } = require('./widget-sdk/tile-cache.js');
 
-// Fetch (or coalesce onto an in-flight fetch of) one tile through the hardened
-// proxy. Resolves { contentType, buffer } for an image, or throws.
-function sdkTileFetch(url, opts) {
-  // `memoryCache: false` is the artwork path: it keeps its answer on disk, and
-  // filling the small tile LRU with covers would evict the tiles a map is
-  // actively panning through. Coalescing is shared either way — two widgets
-  // asking for the same cover at once is exactly when it matters.
-  const memoryCache = !(opts && opts.memoryCache === false);
-  const inflight = _sdkTileInflight.get(url);
-  if (inflight) return inflight;
-  const p = (async () => {
-    const r = await sdkProxy.proxyFetch({ url, method: 'GET', headers: {}, body: '' });
-    const ct = String(r.contentType || '');
-    if ((r.status || 0) >= 400 || !/^image\//i.test(ct)) { const e = new Error('not_a_tile'); e.status = r.status; throw e; }
-    if (memoryCache) sdkTileCachePut(url, ct, r.buffer);
-    return { contentType: ct, buffer: r.buffer };
-  })().finally(() => { _sdkTileInflight.delete(url); });
-  _sdkTileInflight.set(url, p);
-  return p;
-}
+const { sdkTileFetch } = require('./widget-sdk/tile-fetch.js');
 
-// ── SDK handler actions (deck keys answered by widget code) ─────────────────
-// A pressed sdkHandler key broadcasts `sdk_handler` and parks its /actions/run
-// response here until a dashboard frame acks it (POST /sdk/handler-ack) or the
-// timeout fires — so a key with no live frame flashes an honest error instead
-// of pretending success. Bounded + cleaned on shutdown.
-const SDK_HANDLER_TIMEOUT_MS = 3000;
-const SDK_HANDLER_PENDING_MAX = 32;
-const _sdkHandlerPending = new Map();   // callId → { resolve, timer }
-
-function sdkHandlerDispatch(pkg, handler, args, gesture) {
-  // Nobody listening → fail fast; a broadcast to zero clients can never be
-  // acked, so parking the call would only burn the timeout. This also keeps
-  // the invariant simple: every _sdkHandlerPending entry has a live listener
-  // window at creation time.
-  if (sseClients.size === 0) return Promise.resolve({ ok: false, error: 'no_frame' });
-  if (_sdkHandlerPending.size >= SDK_HANDLER_PENDING_MAX) {
-    return Promise.resolve({ ok: false, error: 'busy' });
-  }
-  const callId = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      _sdkHandlerPending.delete(callId);
-      resolve({ ok: false, error: 'no_frame' });
-    }, SDK_HANDLER_TIMEOUT_MS);
-    timer.unref();
-    _sdkHandlerPending.set(callId, { resolve, timer });
-    broadcastSSE('sdk_handler', gesture ? { pkg, handler, args, callId, gesture } : { pkg, handler, args, callId });
-  });
-}
-
-function sdkHandlerAck(callId, ok, error) {
-  const entry = _sdkHandlerPending.get(String(callId || ''));
-  if (!entry) return false;   // late/duplicate ack — first one already won
-  _sdkHandlerPending.delete(String(callId));
-  clearTimeout(entry.timer);
-  entry.resolve(ok ? { ok: true } : { ok: false, error: String(error || 'handler_failed').slice(0, 80) });
-  return true;
-}
-
-function sdkHandlerShutdown() {
-  for (const [, entry] of _sdkHandlerPending) {
-    clearTimeout(entry.timer);
-    entry.resolve({ ok: false, error: 'shutdown' });
-  }
-  _sdkHandlerPending.clear();
-}
+const {
+  sdkHandlerDispatch, sdkHandlerAck, sdkHandlerShutdown,
+} = require('./widget-sdk/handler-calls.js');
 
 // ── SDK deck states relay ────────────────────────────────────────────────────
 // Widget-published deck states live in the DASHBOARD page (postMessage bridge in
@@ -2942,82 +2754,6 @@ const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map
 
 const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
-// Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
-// Bounded LRU (oldest evicted past the cap) so a long-running session that sees
-// many distinct executables can't grow it without limit — mirrors artworkCache.
-const appIconCache = new Map();
-const APP_ICON_CACHE_MAX = 200;
-function setAppIcon(key, value) {
-  if (appIconCache.size >= APP_ICON_CACHE_MAX && !appIconCache.has(key)) {
-    appIconCache.delete(appIconCache.keys().next().value);
-  }
-  appIconCache.set(key, value);
-}
-
-function powerShellUtf8Command(command) {
-  return `$utf8NoBom = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncoding = $utf8NoBom; $OutputEncoding = $utf8NoBom; ${command}`;
-}
-
-function runPowerShellScript(script, args = [], timeout = 5000) {
-  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
-  return new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
-      windowsHide: true,
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-    let resolvedEarly = false;
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-
-    // Resolve the promise as soon as we have valid JSON, but DO NOT kill the
-    // PowerShell process — let it exit on its own so WinRT/COM handles (SMTC
-    // session, thumbnail stream, DataReader, …) get released cleanly. Killing
-    // mid-flight is what leaks broker handles and eventually wedges Windows
-    // shutdown.
-    const finishOk = value => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(value);
-    };
-
-    const finishErr = err => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (!child.killed && child.exitCode === null) child.kill();
-      reject(err);
-    };
-
-    const resolveIfJsonReady = () => {
-      if (resolvedEarly) return;
-      if (!stdout.trimEnd().endsWith('}')) return;
-      try {
-        const value = parseJsonOutput(stdout);
-        resolvedEarly = true;
-        finishOk(value);
-      } catch { }
-    };
-
-    const timer = setTimeout(() => {
-      try { finishOk(parseJsonOutput(stdout)); }
-      catch { finishErr(new Error(stderr || `PowerShell timeout: ${path.basename(script)}`)); }
-    }, timeout);
-
-    child.stdout.on('data', chunk => { stdout += chunk; resolveIfJsonReady(); });
-    child.stderr.on('data', chunk => { stderr += chunk; });
-    child.on('error', e => finishErr(e));
-    child.on('close', code => {
-      if (settled) return;
-      try { finishOk(parseJsonOutput(stdout)); }
-      catch (e) { finishErr(new Error(stderr || e.message || `PowerShell exited with ${code}`)); }
-    });
-  });
-}
 
 // One-shot run of the native helper (e.g. `xenon-helper windows list`). Unlike
 // the persistent media/foreground hosts this spawns per request — the trimmed
@@ -3146,21 +2882,6 @@ async function sendHotkeyCombo(keys) {
   return { ok: false, error: 'hotkey_unavailable' };
 }
 
-function runPowerShellCommand(command, timeout = 5000) {
-  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
-  return new Promise((resolve, reject) => {
-    execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', powerShellUtf8Command(command)], {
-      timeout,
-      windowsHide: true,
-      encoding: 'utf8',
-    }, (err, stdout, stderr) => {
-      if (err) { reject(new Error(stderr || err.message)); return; }
-      try { resolve(parseJsonOutput(stdout)); }
-      catch (e) { reject(e); }
-    });
-  });
-}
-
 // ── "Open dashboard in browser at logon" task ────────────────────────────────
 // A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs
 // at logon. The server already auto-starts at logon via its own task; this one
@@ -3182,7 +2903,9 @@ function runPowerShellCommand(command, timeout = 5000) {
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
 const { AUTO_OPEN_SUPPORTED, autoOpenTaskFix } = require('./install/browser-auto-open.js');
-const { psEscape, psQuote } = require('./ps-quote');
+const { psEscape } = require('./ps-quote');
+const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./programs/app-icons.js');
+
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
 const { isNetworkPath } = require('./files/network-path.js');
@@ -3285,23 +3008,7 @@ async function reconcileBrowserAutoOpenTask() {
 // Any worker problem falls back transparently to runPowerShellScript, so
 // behaviour degrades to the one-shot model and never breaks.
 const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
-const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
-
-function _workerReject(id, err) {
-  const p = _worker.pending.get(id);
-  if (!p) return;
-  clearTimeout(p.timer);
-  _worker.pending.delete(id);
-  p.reject(err);
-}
-
-function _killWorker(reason) {
-  const proc = _worker.proc;
-  _worker.proc = null;
-  _worker.buf = '';
-  for (const id of [..._worker.pending.keys()]) _workerReject(id, new Error(reason || 'worker down'));
-  if (proc) { try { proc.kill(); } catch {} }
-}
+const { _worker, _workerReject, _killWorker } = require('./powershell/worker-state.js');
 
 function _ensureWorker() {
   if (!POWERSHELL_SUPPORTED) return null;
@@ -3392,56 +3099,7 @@ const batteryMonitor = createBatteryMonitor({
   peripherals: () => require('./device-battery').read({ ask: !_serverHubSettings || _serverHubSettings.batteryAskDevices !== false }),
 });
 
-// ── Persistent SMTC media host ────────────────────────────────────────────────
-// media.ps1 used to be spawned one-shot for EVERY media poll (the SSE stream
-// broadcasts media every 2s), paying ~150-300ms of CLR + WinRT startup each
-// time — the single largest source of steady-state CPU/temp churn, visible to
-// users as powershell.exe popping in and out of Task Manager. `media.ps1 -Serve`
-// keeps ONE process alive holding the SMTC session manager, answers polls
-// in-proc and caches the album-art stream per track. Protocol mirrors the
-// sensor worker ("XEMED " + base64 frames), but it gets its OWN process: media
-// holds WinRT broker handles, so unlike the sensor worker it is retired
-// GRACEFULLY — stdin close lets the serve loop exit and release its handles
-// cleanly; a hard kill only fires 3s later if the process refuses to die.
-// Any problem falls back to the unchanged one-shot spawn path.
-const _mediaHost = {
-  proc: null, buf: '', nextId: 1, pending: new Map(), diedAt: 0, isHelper: false, bornAt: 0, helperBadUntil: 0,
-  // Blind-helper detection (issue #80): a helper that answers fine but always
-  // reports an empty session list, while the OS actually has one, never trips
-  // the death/timeout fallback. These track a run of empties so a persistent
-  // one can be cross-checked against the PowerShell host. Reset on each spawn,
-  // and again whenever the helper proves it can see a session.
-  emptyStreak: 0, crossChecks: 0, lastCrossCheck: 0,
-};
-
-function _mediaHostReject(id, err) {
-  const p = _mediaHost.pending.get(id);
-  if (!p) return;
-  clearTimeout(p.timer);
-  _mediaHost.pending.delete(id);
-  p.reject(err);
-}
-
-function _retireMediaHost(reason) {
-  const proc = _mediaHost.proc;
-  _mediaHost.proc = null;
-  _mediaHost.buf = '';
-  _mediaHost.diedAt = Date.now();
-  // A helper exe that dies or misbehaves within seconds of spawning is likely
-  // broken (corrupt download, AV block): pin the PS host for a while instead
-  // of ping-ponging between the two on every retry window.
-  if (_mediaHost.isHelper && reason !== 'shutdown' && Date.now() - _mediaHost.bornAt < 15000) {
-    _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
-  }
-  for (const id of [..._mediaHost.pending.keys()]) _mediaHostReject(id, new Error(reason || 'media host down'));
-  if (!proc) return;
-  // Closing stdin ends the serve loop → clean process exit → SMTC/WinRT broker
-  // handles released the safe way (killing mid-flight is what wedges the broker).
-  try { proc.stdin.end(); } catch {}
-  const force = setTimeout(() => { try { proc.kill(); } catch {} }, 3000);
-  force.unref();
-  proc.once('exit', () => clearTimeout(force));
-}
+const { _mediaHost, _mediaHostReject, _retireMediaHost } = require('./media/host-state.js');
 
 function _ensureMediaHost() {
   // Both hosts read Windows' SMTC: the helper through WinRT, the fallback
@@ -3600,6 +3258,8 @@ async function _guardHelperMediaBlindSpot(out) {
 
 const { _normalizeTimer } = require('./time/timer-normalize.js');
 
+const { readRamInfo } = require('./system/ram-info.js');
+
 // Neither host above can run off Windows: there is no SMTC and no PowerShell.
 // Both other platforms have their own now-playing source behind the SAME
 // interface — available/start/stop/info/command — so this is one variable and
@@ -3685,14 +3345,10 @@ function sensorRateMs() {
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
-// Weather responses cached per (lang|provider|mode|city). Different surfaces —
-// and the server's own AI calls — can ask with different languages; a single
-// shared slot would let them evict each other on every request, hammering the
-// providers and handing two surfaces two different snapshots of the same place
-// for up to a refresh cycle (#72). Bounded: oldest entry evicted past the cap.
-const WEATHER_CACHE_MAX_ENTRIES = 16;
-const weatherCache = new Map();   // cacheKey → { data, updatedAt }
-const weatherPending = new Map(); // cacheKey → in-flight promise
+const {
+  WEATHER_CACHE_MAX_ENTRIES, weatherCache, weatherPending, weatherLocationCache,
+  newestWeatherForLocation,
+} = require('./weather/cache.js');
 let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
@@ -3752,7 +3408,6 @@ const {
 } = require('./weather/timings.js');
 const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
 const artworkCache = new Map();
-const weatherLocationCache = new Map();
 
 function setMediaPreferredSource(value) {
   const next = sanitizeMediaSourcePreference(value);
@@ -3796,132 +3451,6 @@ function readSoundVolumeRows() {
       }, 250);
     });
   });
-}
-
-async function resolveAppIcons(appPaths) {
-  // Extract the associated exe icon for each process path, exactly like windows.ps1
-  // does for the app switcher. Keyed by path so each app resolves once and is cached.
-  const keys = appPaths.map(p => (p || '').toLowerCase());
-  const uncached = [...new Set(keys)].filter(k => k && !appIconCache.has(k));
-  if (uncached.length) {
-    const psArr = uncached.map(p => psQuote(p)).join(',');
-    const psCmd = `
-      $paths = @(${psArr})
-      $out = @{}
-      try { Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue } catch {}
-      foreach ($p in $paths) {
-        $key = $p
-        try {
-          if ($p -and (Test-Path -LiteralPath $p)) {
-            $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($p)
-            if ($ico) {
-              $bmp = New-Object System.Drawing.Bitmap(32, 32)
-              $g = [System.Drawing.Graphics]::FromImage($bmp)
-              $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-              $g.DrawImage($ico.ToBitmap(), 0, 0, 32, 32)
-              $g.Dispose()
-              $ms = New-Object System.IO.MemoryStream
-              $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-              $out[$key] = 'data:image/png;base64,' + [Convert]::ToBase64String($ms.ToArray())
-              $bmp.Dispose(); $ms.Dispose(); $ico.Dispose()
-            }
-          }
-        } catch {}
-        if (-not $out.ContainsKey($key)) { $out[$key] = $null }
-      }
-      $out | ConvertTo-Json -Compress
-    `;
-    try {
-      const result = await runPowerShellCommand(psCmd, 10000);
-      if (result && typeof result === 'object') {
-        for (const [k, v] of Object.entries(result)) {
-          setAppIcon(k.toLowerCase(), v || null);
-        }
-      }
-    } catch {}
-    for (const k of uncached) {
-      if (!appIconCache.has(k)) setAppIcon(k, null);
-    }
-  }
-  return keys.map(k => appIconCache.get(k) || null);
-}
-
-// Extract a Store/UWP app's own tile logo from its installed package manifest, so
-// a Deck "open Store app" key can use the app's real icon with no external image.
-// Store apps have no classic exe for ExtractAssociatedIcon — they launch by AUMID
-// (PackageFamilyName!AppId) — so we read the Square logo asset declared in
-// AppxManifest.xml straight off disk (best-scaled variant), yielding a clean PNG
-// with proper transparency. Cached in appIconCache under a 'store:' namespace so
-// it can't collide with exe-path keys. Returns a PNG data URL or null.
-async function resolveStoreAppIcon(aumid) {
-  const id = String(aumid || '').trim();
-  // Defence in depth: the endpoint already charset-checks the AUMID, but re-assert
-  // here so the two halves can never carry anything but [\w.-] into PowerShell.
-  if (!/^[\w.-]+![\w.-]+$/.test(id)) return null;
-  const cacheKey = 'store:' + id.toLowerCase();
-  if (appIconCache.has(cacheKey)) return appIconCache.get(cacheKey);
-  const [pfn, appId] = id.split('!');
-  const psCmd = `
-    $pfn = '${pfn}'
-    $appId = '${appId}'
-    $out = @{ icon = $null }
-    try {
-      $name = ($pfn -split '_')[0]
-      $pkg = Get-AppxPackage -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.PackageFamilyName -eq $pfn } | Select-Object -First 1
-      if (-not $pkg) { $pkg = Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object { $_.PackageFamilyName -eq $pfn } | Select-Object -First 1 }
-      if ($pkg -and $pkg.InstallLocation) {
-        $loc = $pkg.InstallLocation
-        $manifest = Join-Path $loc 'AppxManifest.xml'
-        if (Test-Path -LiteralPath $manifest) {
-          [xml]$m = Get-Content -LiteralPath $manifest
-          $logo = $null
-          foreach ($app in $m.SelectNodes("//*[local-name()='Application']")) {
-            if ($app.GetAttribute('Id') -eq $appId) {
-              $ve = $app.SelectSingleNode(".//*[local-name()='VisualElements']")
-              if ($ve) { $logo = $ve.GetAttribute('Square44x44Logo'); if (-not $logo) { $logo = $ve.GetAttribute('Square150x150Logo') } }
-              break
-            }
-          }
-          if (-not $logo) {
-            $ve = $m.SelectSingleNode("//*[local-name()='VisualElements']")
-            if ($ve) { $logo = $ve.GetAttribute('Square44x44Logo'); if (-not $logo) { $logo = $ve.GetAttribute('Square150x150Logo') } }
-          }
-          if ($logo) {
-            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($logo.Replace('/', '\\'))
-            $ext = [System.IO.Path]::GetExtension($logo)
-            if (-not $ext) { $ext = '.png' }
-            # The manifest logo path is LOGICAL (resource-resolved); the real scaled
-            # assets live elsewhere in the package under the same base filename, so
-            # search the package and prefer the standard full-colour variant near a
-            # crisp size, falling back to any non-themed then the largest available.
-            $all = @(Get-ChildItem -LiteralPath $loc -Recurse -Filter ($baseName + '*' + $ext) -File -ErrorAction SilentlyContinue)
-            $file = $null
-            foreach ($tag in @('scale-200','targetsize-48','targetsize-64','scale-150','targetsize-96','scale-100','targetsize-32')) {
-              $cand = $all | Where-Object { $_.Name -eq ($baseName + '.' + $tag + $ext) } | Select-Object -First 1
-              if ($cand) { $file = $cand.FullName; break }
-            }
-            if (-not $file) {
-              $cand = $all | Where-Object { $_.Name -notmatch 'altform' } | Sort-Object Length -Descending | Select-Object -First 1
-              if ($cand) { $file = $cand.FullName }
-            }
-            if (-not $file -and $all.Count) { $file = ($all | Sort-Object Length -Descending | Select-Object -First 1).FullName }
-            if ($file) {
-              $bytes = [System.IO.File]::ReadAllBytes($file)
-              $out.icon = 'data:image/png;base64,' + [Convert]::ToBase64String($bytes)
-            }
-          }
-        }
-      }
-    } catch {}
-    $out | ConvertTo-Json -Compress
-  `;
-  let icon = null;
-  try {
-    const out = await runPowerShellCommand(psCmd, 10000);
-    if (out && typeof out.icon === 'string' && out.icon) icon = out.icon;
-  } catch {}
-  setAppIcon(cacheKey, icon);
-  return icon;
 }
 
 const FETCH_JSON_MAX_BYTES = 2 * 1024 * 1024;
@@ -4189,22 +3718,6 @@ const WEATHER_FETCHERS = {
   'wttr': fetchWttrWeather,
 };
 
-// Newest cached forecast for a location regardless of UI language. The cache key
-// is `lang|provider|mode|city`, so a language change misses the per-lang slot and,
-// if the providers are momentarily unavailable (e.g. rate-limited by rapid
-// switching), the widget would blank to "no data" (#88). Bridging to the last
-// known conditions for the same place — served stale, no extra provider request —
-// keeps the tile populated until the correct-language fetch succeeds.
-function newestWeatherForLocation(provider, mode, city) {
-  const suffix = `|${provider}|${mode}|${String(city).toLowerCase()}`;
-  let best = null;
-  for (const [key, entry] of weatherCache) {
-    if (!key.endsWith(suffix)) continue;
-    if (!best || entry.updatedAt > best.updatedAt) best = entry;
-  }
-  return best ? best.data : null;
-}
-
 async function getWeather(lang = 'en', requestedLocation = null) {
   // Unsupported/missing language falls back to English (neutral), never to a
   // specific locale — a client on a language the server doesn't know must not
@@ -4448,82 +3961,6 @@ function readChosenSensors(sources) {
 }
 
 
-const volumeDetailsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
-const diskModelsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
-
-// Shared by both probes. `parse` returns { map, ok }: `ok` is whether the query
-// answered at all, which is not the same as whether the map has entries (a PC
-// whose disks report no friendly name answers correctly with nothing to show,
-// and must not be re-asked every minute forever).
-function runDiskProbe(probe, command, timeout, parse) {
-  if (probe.pending) return probe.pending;
-  probe.pending = (async () => {
-    try {
-      const { map, ok } = parse(await runPowerShellCommand(command, timeout));
-      // Volumes and disks change on plug/unplug and nothing else, so details we
-      // already have are always better than none: a read that answered nothing
-      // is recorded as a failed one (short TTL, retried) and never replaces a
-      // map that had drives in it.
-      const keep = (ok || !probe.ok) ? map : probe.data;
-      Object.assign(probe, { data: keep, updatedAt: Date.now(), ok });
-      return keep;
-    } catch {
-      const keep = probe.ok ? probe.data : {};
-      Object.assign(probe, { data: keep, updatedAt: Date.now(), ok: false });
-      return keep;
-    } finally {
-      probe.pending = null;
-    }
-  })();
-  return probe.pending;
-}
-
-function refreshVolumeDetails(timeout) {
-  return runDiskProbe(volumeDetailsProbe, VOLUME_DETAILS_COMMAND, timeout, data => {
-    const map = {};
-    const rows = psRows(data.volumes);
-    rows.forEach(volume => {
-      if (volume && volume.drive) map[String(volume.drive).toUpperCase()] = volume;
-    });
-    return { map, ok: rows.length > 0 };
-  });
-}
-
-function refreshDiskModels(timeout) {
-  return runDiskProbe(diskModelsProbe, DISK_MODELS_COMMAND, timeout, data => {
-    const map = {};
-    const rows = psRows(data.models);
-    rows.forEach(row => {
-      const model = row && row.drive ? String(row.model || '').trim() : '';
-      if (model) map[String(row.drive).toUpperCase()] = model;
-    });
-    return { map, ok: rows.length > 0 };
-  });
-}
-
-async function getDiskDetails() {
-  // Started first so it is already in flight while the volumes read blocks, and
-  // never awaited: nothing on screen waits for the name of a disk.
-  const models = diskModels();
-  return joinDiskDetails(await volumeDetails(), models);
-}
-
-function volumeDetails() {
-  if (diskProbeFresh(volumeDetailsProbe)) return volumeDetailsProbe.data;
-  // Nothing cached at all: this is the first read of the process, so wait for it
-  // rather than paint the disk card with no detail line and fill it in later.
-  if (!volumeDetailsProbe.data) return refreshVolumeDetails(DISK_DETAILS_TIMEOUT_MS);
-  refreshVolumeDetails(DISK_DETAILS_BG_TIMEOUT_MS);   // lands on the next cycle
-  return volumeDetailsProbe.data;
-}
-
-// Synchronous by design — see DISK_MODELS_TIMEOUT_MS. A stale or missing map
-// starts a refresh that lands on a later cycle; runDiskProbe swallows its own
-// failures, so the unawaited promise can never reject.
-function diskModels() {
-  if (!diskProbeFresh(diskModelsProbe)) refreshDiskModels(DISK_MODELS_TIMEOUT_MS);
-  return diskModelsProbe.data || {};
-}
 
 let _diskLettersCache = { letters: null, at: 0 };
 
@@ -4580,60 +4017,6 @@ async function getAllDisksInfo({ waitForDetails = true } = {}) {
 }
 
 const ramInfo = createFactReader(readRamInfo, { retryMs: RAM_INFO_RETRY_MS });
-async function readRamInfo() {
-  const command = `
-    $types = @{ 20='DDR'; 21='DDR2'; 22='DDR2 FB'; 24='DDR3'; 26='DDR4'; 34='DDR5' }
-    $modules = @(Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop | ForEach-Object {
-      $smbios = 0
-      try { $smbios = [int]$_.SMBIOSMemoryType } catch { }
-      $type = $types[$smbios]
-      $speed = 0
-      if ($_.ConfiguredClockSpeed) { $speed = [int]$_.ConfiguredClockSpeed }
-      elseif ($_.Speed) { $speed = [int]$_.Speed }
-      [pscustomobject]@{
-        type = $type
-        speed = $speed
-        capacity = [uint64]$_.Capacity
-        manufacturer = ([string]$_.Manufacturer).Trim()
-        partNumber = ([string]$_.PartNumber).Trim()
-      }
-    })
-    if ($modules.Count -eq 0) {
-      [pscustomobject]@{ ram = $null } | ConvertTo-Json -Depth 4 -Compress
-      exit 0
-    }
-    $type = ($modules | Where-Object { $_.type } | Select-Object -First 1 -ExpandProperty type)
-    $speed = ($modules | Measure-Object -Property speed -Maximum).Maximum
-    $total = ($modules | Measure-Object -Property capacity -Sum).Sum
-    $moduleCount = $modules.Count
-    $moduleGb = if ($moduleCount -gt 0 -and $total) { [Math]::Round(($total / $moduleCount) / 1GB, 0) } else { 0 }
-    $manufacturer = ($modules | Where-Object { $_.manufacturer -and $_.manufacturer -notmatch '^(Unknown|Undefined|Default|string|To Be Filled)' } | Select-Object -First 1 -ExpandProperty manufacturer)
-    $partNumber = ($modules | Where-Object { $_.partNumber -and $_.partNumber -notmatch '^(Unknown|Undefined|Default|string|To Be Filled)' } | Select-Object -First 1 -ExpandProperty partNumber)
-    $labelParts = @()
-    if ($type) { $labelParts += $type }
-    if ($speed) { $labelParts += (([int]$speed).ToString() + ' MHz') }
-    $layout = if ($moduleCount -gt 0 -and $moduleGb -gt 0) { $moduleCount.ToString() + 'x' + $moduleGb.ToString() + ' GB' } else { $null }
-    $detailParts = @()
-    if ($labelParts.Count -gt 0) { $detailParts += ($labelParts -join ' ') }
-    if ($layout) { $detailParts += $layout }
-    $nameParts = @()
-    if ($manufacturer) { $nameParts += $manufacturer }
-    if ($partNumber) { $nameParts += $partNumber }
-    [pscustomobject]@{
-      ram = [pscustomobject]@{
-        name = ($labelParts -join ' ')
-        detail = ($detailParts -join ' - ')
-        moduleName = ($nameParts -join ' ')
-        modules = $moduleCount
-        speed = $speed
-        type = $type
-      }
-    } | ConvertTo-Json -Depth 4 -Compress
-  `;
-
-  const data = await runPowerShellCommand(command, 5000);
-  return data.ram || null;
-}
 
 const firstSystemReading = createFirstReading();
 
@@ -5689,30 +5072,11 @@ async function refreshObsWatch() {
 // the server — only this projected state does.
 let haStopWatch = null;
 let haNotifyTimer = null;
-// Entity ids Deck keys are bound to (haEntity state bindings / haLight sliders).
-// Posted by each SURFACE (dashboard, Virtual Deck popup, second browser) after
-// its deck renders — kept PER CLIENT and broadcast as the union, so a surface
-// posting a narrower set (a popup showing one folder) can never clobber another
-// surface's watch list. Bounded + TTL-pruned; the shared HA watch already
-// receives every state_changed, so this only widens what gets BROADCAST.
-const _haDeckWatchClients = new Map();   // clientId → { ids, at }
 const {
-  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_DECK_WATCH_TTL_MS, HA_ENTITY_ID_RE,
-  UNIFI_COOLDOWN_MAX,
+  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_ENTITY_ID_RE, UNIFI_COOLDOWN_MAX,
 } = require('./smart-home/limits.js');
 
-function haDeckWatchUnion() {
-  const now = Date.now();
-  const ids = new Set();
-  for (const [client, entry] of _haDeckWatchClients) {
-    if (now - entry.at > HA_DECK_WATCH_TTL_MS) { _haDeckWatchClients.delete(client); continue; }
-    for (const id of entry.ids) {
-      if (ids.size >= HA_DECK_WATCH_MAX) break;
-      ids.add(id);
-    }
-  }
-  return Array.from(ids);
-}
+const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
 
 // Compact { id: { state, brightness? } } map for the deck-bound entities.
 function buildHaDeckStates() {
@@ -7183,17 +6547,9 @@ async function _persistLighting() {
   _lightingPersistTimer.unref();
 }
 
-// Returns { fnResult, clientActions, pendingScreenImage }.
-// ── Consent-gated PC commands (Xenon AI "run_pc_command") ─────────────────
-// The AI never runs a shell command directly. It PROPOSES one; we store the
-// exact command under a single-use, unguessable nonce and surface a confirmation
-// card to the user. The command runs ONLY after the user approves it
-// (POST /ai/pc-run) and is looked up by nonce server-side, so the browser can
-// never tamper with what actually executes. Gated behind the off-by-default
-// aiFeatures.pcControl flag and re-checked on both issue and run.
-const PC_ACTION_TTL_MS = 5 * 60 * 1000;
-const PC_ACTION_TIMEOUT_MS = 60 * 1000;
-const _pcActions = new Map(); // nonce -> { command, purpose, ts }
+const {
+  PC_ACTION_TTL_MS, PC_ACTION_TIMEOUT_MS, _pcActions, issuePcAction,
+} = require('./ai/pc-actions.js');
 // PC Control is a PowerShell feature, not merely a Windows-first one: the
 // command the AI writes is PowerShell, the confirmation card shows the user
 // PowerShell, and the runner below spawns it directly rather than through
@@ -7207,13 +6563,6 @@ function _pcControlEnabled() {
   if (!POWERSHELL_SUPPORTED) return false;
   const f = _serverHubSettings && _serverHubSettings.aiFeatures;
   return !!(f && f.enabled === true && f.pcControl === true);
-}
-function issuePcAction(command, purpose) {
-  const now = Date.now();
-  for (const [k, v] of _pcActions) if (now - v.ts > PC_ACTION_TTL_MS) _pcActions.delete(k);
-  const nonce = crypto.randomBytes(18).toString('hex');
-  _pcActions.set(nonce, { command, purpose, ts: now });
-  return nonce;
 }
 
 // What the create_preset dry run needs from this file: the real settings
@@ -11640,8 +10989,6 @@ _calendarReminders.start();
 // so the client-side render functions need no changes — only the fetch trigger
 // changes from setInterval to EventSource.
 
-const sseClients = new Set();
-
 // PresentMon runs an ETW tracing session, so it reads only while a dashboard is
 // connected or a recording marks stutters (holdFpsForMarkers), and pauses 45 s
 // after the last one goes: the grace survives a page reload on the screen. A game
@@ -11653,20 +11000,6 @@ const _fpsDemand = createFpsDemand({
 });
 function _syncFpsMonitor() {
   _fpsDemand.clients(sseClients.size);
-}
-
-function broadcastSSE(event, data) {
-  if (sseClients.size === 0) return;
-  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of sseClients) {
-    if (res.writableLength > SSE_MAX_BUFFERED) {
-      sseClients.delete(res);
-      try { res.destroy(); } catch { /* already gone */ }
-      continue;
-    }
-    try { res.write(payload); }
-    catch { sseClients.delete(res); }
-  }
 }
 
 // A display-only feed is worth fetching only if someone can actually see it:

@@ -4,7 +4,7 @@
     "server/server.js": {
       "names": ["handleRequest", "server"],
       "between": [
-        [null, "POWERSHELL_SUPPORTED"],
+        [null, "nativeCollectors"],
         ["LOOPBACK_IPS", "_remoteGate"]
       ]
     }

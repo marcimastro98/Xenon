@@ -203,7 +203,7 @@
     "server/sensor-service/migrate.js TS2339": 3,
     "server/server.js TS1345": 1,
     "server/server.js TS2322": 93,
-    "server/server.js TS2339": 174,
+    "server/server.js TS2339": 173,
     "server/server.js TS2345": 2,
     "server/server.js TS2353": 17,
     "server/server.js TS2367": 33,
@@ -240,6 +240,7 @@
     "server/web-push.js TS2554": 5,
     "server/web-push.js TS2739": 1,
     "server/widget-options/index.js TS2322": 1,
+    "server/widget-sdk/tile-fetch.js TS2339": 1,
     "server/winnotif.js TS2554": 1
   }
 }
