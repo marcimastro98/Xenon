@@ -9,11 +9,16 @@
 // (`_serverHubSettings` is `hub.settings` now). The tests were written with the old
 // names, so the text handed out here has them put back: the list says which
 // property stands for which name.
+//
+// A big frozen object may have been cut into parts (`DEFAULT_HUB_SETTINGS` is
+// several constants spread together now). The text handed out here has every key
+// back inside the one literal, and the parts gone, as the tests found it before.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
+import { dropPart, undoSpreadText } from '../../tools/restructure/spread-undo.mjs';
 import { undoStateText } from '../../tools/restructure/state-undo.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -23,17 +28,44 @@ const ENGINE = 'server/server.js';
 const readAsIs = (file) => readFileSync(join(REPO, file), 'utf8');
 // A module of places next to the engine says SERVER_DIR where the old file said __dirname: the old word is put back.
 const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
-const read = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
+const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
+const read = (file) => whole(file, PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
 
-function ledgerOf(source) {
-  let ledger;
+// The text of a file with the objects it declares in one piece again, and without the parts it declares.
+function whole(file, text) {
+  let out = text;
+  for (const spread of SPREADS) {
+    if (plainFileOf(spread.name) === file) out = undoSpreadText(out, spread, (part) => readAsIs(plainFileOf(part)));
+    for (const part of spread.parts) if (plainFileOf(part.name) === file) out = dropPart(out, part.name);
+  }
+  return out;
+}
+
+// Where a constant that was moved as it is lives today.
+function plainFileOf(name) {
+  return ledgerOf(ENGINE).find((entry) => !entry.state && entry.names.includes(name))?.file ?? ENGINE;
+}
+
+function readLedger() {
   try {
-    ledger = JSON.parse(readFileSync(LEDGER, 'utf8'));
+    return JSON.parse(readFileSync(LEDGER, 'utf8'));
   } catch (error) {
-    if (error.code === 'ENOENT') return [];
+    if (error.code === 'ENOENT') return {};
     throw error;
   }
-  return ledger.sources?.[source] ?? [];
+}
+
+function ledgerOf(source) {
+  return readLedger().sources?.[source] ?? [];
+}
+
+/**
+ * @param {string} [source]
+ * @returns {{ name: string, parts: { name: string, first: string }[] }[]} the frozen objects of the file that were cut
+ *   into parts: each part is a constant holding the keys from `first` on, spread into the object in order
+ */
+export function cutObjects(source = ENGINE) {
+  return readLedger().spreads?.[source] ?? [];
 }
 
 /**

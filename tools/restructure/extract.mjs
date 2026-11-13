@@ -9,11 +9,12 @@ import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
-import { appendLedger, protectedNames, quietModules, readLedger } from './ledger.mjs';
+import { appendLedger, LEDGER, protectedNames, quietModules, readLedger } from './ledger.mjs';
 import { planLiftFor, proveLift, repoFileReader } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { planPathsFor, provePaths } from './paths.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
+import { planSpreadFor, proveSpread } from './spread.mjs';
 import { planStateFor, proveState } from './state.mjs';
 import { targetReasons } from './target-rules.mjs';
 import { proveMove, syntaxProblems, unknownNameProblems } from './verify.mjs';
@@ -80,6 +81,28 @@ function gitShow(root, rev, file) {
   return run.status === 0 ? run.stdout : null;
 }
 
+// The cuts of a frozen object (spread.mjs) the revision's own list does not have yet.
+function cutsToRedo(root, base, show, source) {
+  const had = new Set((JSON.parse(show(root, base, LEDGER) ?? '{}').spreads?.[source] ?? []).map((spread) => spread.name));
+  return (readLedger(root).spreads?.[source] ?? []).filter((spread) => !had.has(spread.name));
+}
+
+// Redoes the cuts recorded after `count` entries. Returns the new text, or null when one cannot be redone.
+function redoCuts({ root, parser, source, base, cuts, count, text, problems }) {
+  let out = text;
+  for (const spread of cuts.filter((cut) => cut.after === count)) {
+    try {
+      const plan = planSpreadFor({ root, parser, text: out, source, name: spread.name, parts: spread.parts });
+      problems.push(...proveSpread({ before: out, after: plan.newSource, parser, source, spread }).map((p) => `${spread.name}: ${p}`));
+      out = plan.newSource;
+    } catch (error) {
+      problems.push(`${spread.name}: the recorded cut cannot be redone from ${base}: ${error.message}`);
+      return null;
+    }
+  }
+  return out;
+}
+
 /**
  * Redoes every recorded extraction whose module the revision does not have yet,
  * starting from the revision's copy of the old file, and compares the result with
@@ -91,12 +114,21 @@ export function replay({ root, parser, base, show = gitShow }) {
   const problems = [];
   const files = [];
   let replayed = 0;
-  for (const [source, entries] of Object.entries(readLedger(root).sources)) {
+  const ledger = readLedger(root);
+  for (const source of new Set([...Object.keys(ledger.sources), ...Object.keys(ledger.spreads ?? {})])) {
+    const entries = ledger.sources[source] ?? [];
     files.push([source, ...entries.map((entry) => entry.file)]);
     let text = show(root, base, source);
     if (text === null) { problems.push(`${base} has no ${source}`); continue; }
     const earlier = [];
+    const cuts = cutsToRedo(root, base, show, source);
+    replayed += cuts.length;
+    const redo = (count) => redoCuts({ root, parser, source, base, cuts, count, text, problems });
+    let stopped = false;
     for (const entry of entries) {
+      text = redo(earlier.length);
+      stopped = text === null;
+      if (stopped) break;
       const ownModules = quietModules(earlier);
       earlier.push(entry);
       if (show(root, base, entry.file) !== null) continue;
@@ -111,6 +143,7 @@ export function replay({ root, parser, base, show = gitShow }) {
         } else plan = planFor({ ...step, names: entry.names, withDeps: false, ownModules });
       } catch (error) {
         problems.push(`${entry.file}: the recorded ${entry.lift ? 'lift' : entry.state ? 'rewrite' : 'move'} cannot be redone from ${base}: ${error.message}`);
+        stopped = true;
         break;
       }
       const texts = { before: text, after: plan.newSource, moduleText: plan.moduleText, plan };
@@ -122,6 +155,8 @@ export function replay({ root, parser, base, show = gitShow }) {
       if (onDisk !== plan.moduleText) problems.push(`${entry.file} is not what the tool writes: it was edited by hand after the move, or is missing`);
       text = plan.newSource;
     }
+    if (!stopped) text = redo(entries.length);
+    if (text === null) continue;
     if (readFileSync(path.join(root, source), 'utf8') !== text) {
       problems.push(`${source} differs from ${base} by more than the recorded moves: commit other edits apart from a move`);
     }

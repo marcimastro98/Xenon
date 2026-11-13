@@ -9,7 +9,11 @@ export const LEDGER = 'tools/restructure/extracted.json';
 export const PROTECTED = 'tools/restructure/protected.json';
 const NOTE = 'What tools/restructure took out of which file, in order. Written by `extract`, read by `verify` and by server/test/engine-source.mjs. Do not edit by hand.';
 
-/** @param {string} root @returns {{ note: string, sources: Record<string, {file: string, about: string, names: string[]}[]> }} */
+/**
+ * @param {string} root
+ * @returns {{ note: string, sources: Record<string, {file: string, about: string, names: string[]}[]>,
+ *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number }[]> }}
+ */
 export function readLedger(root) {
   try {
     return JSON.parse(readFileSync(path.join(root, LEDGER), 'utf8'));
@@ -17,6 +21,17 @@ export function readLedger(root) {
     if (error.code === 'ENOENT') return { note: NOTE, sources: {} };
     throw error;
   }
+}
+
+// One list per file, one entry per line: a step shows up as one added line.
+function rowsOf(lists) {
+  return Object.entries(lists).map(([file, entries]) => `    ${JSON.stringify(file)}: [\n${
+    entries.map((e) => `      ${JSON.stringify(e)}`).join(',\n')}\n    ]`).join(',\n');
+}
+
+function writeLedger(root, ledger) {
+  const spreads = ledger.spreads ? `,\n  "spreads": {\n${rowsOf(ledger.spreads)}\n  }` : '';
+  writeFileSync(path.join(root, LEDGER), `{\n  "note": ${JSON.stringify(ledger.note)},\n  "sources": {\n${rowsOf(ledger.sources)}\n  }${spreads}\n}\n`);
 }
 
 /**
@@ -28,9 +43,22 @@ export function appendLedger(root, source, entry) {
   const ledger = readLedger(root);
   ledger.sources[source] ??= [];
   ledger.sources[source].push(entry);
-  const rows = Object.entries(ledger.sources).map(([file, entries]) => `    ${JSON.stringify(file)}: [\n${
-    entries.map((e) => `      ${JSON.stringify(e)}`).join(',\n')}\n    ]`);
-  writeFileSync(path.join(root, LEDGER), `{\n  "note": ${JSON.stringify(ledger.note)},\n  "sources": {\n${rows.join(',\n')}\n  }\n}\n`);
+  writeLedger(root, ledger);
+}
+
+/**
+ * A frozen object that was cut into parts where it stood (spread.mjs). It is not a module, so it has a list of its
+ * own: `after` says how many entries the file had when it was cut, which is where the replay redoes it.
+ * @param {string} root
+ * @param {string} source repo-relative file that declares the object
+ * @param {{ name: string, parts: { name: string, first: string }[], after: number }} spread
+ */
+export function recordSpread(root, source, spread) {
+  const ledger = readLedger(root);
+  ledger.spreads ??= {};
+  ledger.spreads[source] ??= [];
+  ledger.spreads[source].push(spread);
+  writeLedger(root, ledger);
 }
 
 /**
