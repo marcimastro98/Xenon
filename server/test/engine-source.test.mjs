@@ -103,6 +103,8 @@ test('the joined text holds the old file and every module, each once', () => {
 test('a module that holds shared variables is one object and nothing else, and the old names are gone from the code', () => {
   const engine = readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
   const seen = new Set(entries.map((entry) => entry.file));
+  // The code that uses the variables: the file and every module moved out of it, not the modules that hold them.
+  const code = ['server/server.js', ...entries.map((entry) => entry.file)].map(asWritten).join('\n');
   for (const entry of rewrites) {
     const { file, about, names, state } = entry;
     assert.match(file, /^server\/[a-z0-9-]+\/[a-z0-9-]+\.js$/, file);
@@ -121,7 +123,7 @@ test('a module that holds shared variables is one object and nothing else, and t
     for (const name of names) {
       const escaped = name.replace(/[$]/g, '\\$&');
       assert.ok(!new RegExp(`^(?:const|let|var)\\s+${escaped}\\b`, 'm').test(engine), `${name} is not declared in server.js any more`);
-      assert.match(asWritten('server/server.js'), new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`), `the readers still hand ${name} out by its old name`);
+      assert.match(code, new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`), `the readers still hand ${name} out by its old name`);
       if (state.kept.includes(name)) assert.match(declarationSource(name), new RegExp(`^let ${escaped} = `), `${name} gets its first value in server.js`);
       else {
         assert.equal(fileDeclaring(name), file);

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 // A Deck key can mirror a state set by any local script (POST /state/set) — the
 // seventeenth state source, added for a user whose AppleScript swaps between two
@@ -64,13 +64,14 @@ test('a scriptState key survives normalizeDeckConfig with its name and value', (
 // would boot the whole server), so it's lifted out of the source and run in
 // isolation with a broadcast collector standing in for SSE.
 function loadSetScriptState() {
-  const src = engineSource();
-  const start = src.indexOf('const SCRIPT_STATES_MAX =');
-  assert.ok(start > 0, 'SCRIPT_STATES_MAX not found in server.js');
-  const end = src.indexOf('const _sdkDeckStates =', start);
-  assert.ok(end > start, 'could not delimit the script-state block');
+  // The block declaration by declaration, each read from the file it lives in today: they stood
+  // together in server.js once, and a slice between two of them stops working the day one moves.
+  const src = ['SCRIPT_STATES_MAX', 'SCRIPT_STATE_NAME_RE', '_scriptStates', '_scriptStatesLast', 'setScriptState']
+    .map((name) => declarationSource(name)).join('\n');
+  assert.ok(src.startsWith('const SCRIPT_STATES_MAX ='), 'SCRIPT_STATES_MAX not found in server.js');
+  assert.ok(src.includes('\nfunction setScriptState('), 'could not delimit the script-state block');
   const sent = [];
-  const make = new Function('broadcastSSE', `${src.slice(start, end)}\nreturn { setScriptState, states: _scriptStates.states, SCRIPT_STATES_MAX };`);
+  const make = new Function('broadcastSSE', `${src}\nreturn { setScriptState, states: _scriptStates.states, SCRIPT_STATES_MAX };`);
   return Object.assign(make((name, payload) => sent.push({ name, payload })), { sent });
 }
 
