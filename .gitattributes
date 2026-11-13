@@ -92,6 +92,22 @@ MAP.md                          export-ignore
 *.sh                            text eol=lf
 *.command                       text eol=lf
 
+# The code is LF in every checkout too, whatever the PC's autocrlf says. The
+# blobs are already LF; with autocrlf=true a Windows checkout turned them into
+# CRLF, and ~50 tests that read source as text then fail on that PC only. It
+# also keeps a file's bytes the same on every machine, which the scripts that
+# split and move files rely on to prove nothing changed.
+*.js                            text eol=lf
+*.mjs                           text eol=lf
+*.cjs                           text eol=lf
+*.json                          text eol=lf
+*.css                           text eol=lf
+*.html                          text eol=lf
+*.md                            text eol=lf
+*.svg                           text eol=lf
+*.yml                           text eol=lf
+*.yaml                          text eol=lf
+
 # Batch files the other way round: cmd.exe can miss a goto/call label in an
 # LF-only .bat, and GitHub builds the tag zip with no autocrlf, so without these
 # lines INSTALL.bat would reach users with LF. The blobs stay LF in the repo;
