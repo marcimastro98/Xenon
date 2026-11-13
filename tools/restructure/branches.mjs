@@ -4,6 +4,7 @@
 // redoes recorded moves for `verify`, and says what keeps the other bodies.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
@@ -122,12 +123,18 @@ const groupOf = (branch) => {
  * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string }} job
  * @returns {{ branches: number, moved: number, movable: { key: string, group: string, lines: number, line: number }[],
  *   held: { name: string, branches: number, alone: number, lines: number }[], other: { reason: string, branches: number }[] }}
- *   `held`: per name the file still declares, how many bodies wait on it, how many on it alone, and those bodies' lines
+ *   `held`: per name the file still declares, how many bodies wait on it, how many on it alone, and those bodies' lines.
+ *   A body that needs a module the file loads below the function is not movable: its table is required above the
+ *   function and would load that module earlier than today (the plan refuses it); it is counted under `other`.
  */
 export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler }) {
-  const { branches } = readBranches({ text, parser, analysis: analyze(text, parser, source), kind, handler });
+  const analysis = analyze(text, parser, source);
+  const { branches } = readBranches({ text, parser, analysis, kind, handler });
+  const home = analysis.bindings.get(handler)?.record.index ?? Infinity;
+  const late = (branch) => branch.needed.map((name) => analysis.bindings.get(name).record).some((record) => record.index > home && !isBuiltin(record.require.spec));
   const open = branches.filter((branch) => !branch.moved);
-  const movable = open.filter((branch) => branch.reasons.length === 0).map((branch) => ({ key: branch.key, group: groupOf(branch), lines: branch.lines, line: branch.line }));
+  const waits = open.filter((branch) => branch.reasons.length === 0 && late(branch));
+  const movable = open.filter((branch) => branch.reasons.length === 0 && !late(branch)).map((branch) => ({ key: branch.key, group: groupOf(branch), lines: branch.lines, line: branch.line }));
   const held = new Map();
   const other = new Map();
   for (const branch of open) {
@@ -143,6 +150,7 @@ export function surveyBranches({ text, parser, source, kind = ROUTES, handler = 
       other.set(kind, (other.get(kind) ?? 0) + 1);
     }
   }
+  if (waits.length) other.set(`it needs a module the file loads below ${handler} (${waits.reduce((sum, branch) => sum + branch.lines, 0)} lines)`, waits.length);
   return { branches: branches.length, moved: branches.length - open.length, movable,
     held: [...held.values()].sort((a, b) => b.branches - a.branches || a.name.localeCompare(b.name)),
     other: [...other].map(([reason, count]) => ({ reason, branches: count })).sort((a, b) => b.branches - a.branches) };

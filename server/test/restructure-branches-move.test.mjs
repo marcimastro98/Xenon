@@ -84,12 +84,13 @@ test('a move is written, recorded with its place in the order, redone by the rep
 test('the survey says what can move and which name keeps the rest', (t) => {
   if (!parser) return t.skip(SKIP);
   const survey = surveyBranches({ text: SOURCE, parser, source: OLD });
-  assert.deepEqual([survey.branches, survey.moved, survey.movable.map((row) => row.key)], [10, 0, ['GET /a', 'POST /b', 'GET /g', 'GET /j']]);
+  assert.deepEqual([survey.branches, survey.moved, survey.movable.map((row) => row.key)], [10, 0, ['GET /a', 'POST /b', 'GET /j']]);
+  assert.ok(survey.other.some((row) => row.reason === 'it needs a module the file loads below handleRequest (1 lines)' && row.branches === 1), 'a body whose module loads later is not called movable');
   assert.deepEqual(survey.held, [{ name: 'helper', branches: 1, alone: 1, lines: 1 }]);
   assert.ok(survey.other.some((row) => row.reason === 'it uses … which the handler works out for itself' || /works out for itself/.test(row.reason)));
   const moved = surveyBranches({ parser, source: OLD,
     text: planBranches({ text: SOURCE, parser, source: OLD, target: TABLE, about: 'What the lights answer.', keys: ['GET /a'], moduleBefore: null, rewrite, allowed: ALLOWED }).newSource });
-  assert.deepEqual([moved.moved, moved.movable.map((row) => row.key)], [1, ['POST /b', 'GET /g', 'GET /j']]);
+  assert.deepEqual([moved.moved, moved.movable.map((row) => row.key)], [1, ['POST /b', 'GET /j']]);
 });
 
 test('the real engine: every table on the list is there, and each of its bodies stands under one test of the handler', () => {
