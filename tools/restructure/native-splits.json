@@ -4,6 +4,9 @@
     "apps/capture/src/audio.rs": [
       "apps/capture/src/audio/unit_tests.rs"
     ],
+    "apps/capture/src/main.rs": [
+      "apps/capture/src/serve.rs"
+    ],
     "apps/capture/src/private_spots.rs": [
       "apps/capture/src/private_spots/unit_tests.rs"
     ],

@@ -1,0 +1,17 @@
+[
+ {
+  "origin": "apps/capture/src/main.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/serve.rs",
+    "about": "Reads the requests the engine is sent, one a line, and answers each.",
+    "lines": [
+     [
+      239,
+      309
+     ]
+    ]
+   }
+  ]
+ }
+]
