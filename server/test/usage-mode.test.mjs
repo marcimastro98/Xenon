@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
+import { engineSource } from './engine-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
@@ -11,7 +12,8 @@ const require = createRequire(import.meta.url);
 const UsageMode = require('../js/usage-mode.js');
 const { validateAction } = require('../js/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url));
+// The engine's code wherever it lives now: the defaults and the code that saves them have modules of their own.
+const SERVER = engineSource();
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url));
 const I18N = appStringsSource();
 

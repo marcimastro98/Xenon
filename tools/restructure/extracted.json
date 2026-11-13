@@ -259,7 +259,28 @@
       {"file":"server/codex/wanted.js","about":"Whether anything shows Codex right now: a dashboard is open and a Codex or ChatGPT tile, or a widget given the stream, is there.","names":["_codexWanted"]},
       {"file":"server/screens/capture-folder-titles.js","about":"The title of the folder dialog for each kind of capture: recordings, screenshots, benchmark files and bug reports.","names":["CAPTURE_FOLDER_TITLES"]},
       {"file":"server/screens/steps-language.js","about":"The language the steps recorder writes in: the user's, or English.","names":["stepsLanguage"]},
-      {"file":"server/vitals/nag-last.js","about":"When Bit last covered the screen, minimized the windows or locked the PC.","names":["_vitalsNagLast"]}
+      {"file":"server/vitals/nag-last.js","about":"When Bit last covered the screen, minimized the windows or locked the PC.","names":["_vitalsNagLast"]},
+      {"file":"server/weather/fields-all-on.js","about":"Every weather detail switched on: what the weather tile shows until the user turns one off.","names":["WEATHER_FIELDS_ALL_ON"]},
+      {"file":"server/settings/defaults-look.js","about":"What a new install starts with, first part: colours, style, glass, clock size and the lock screen's widgets.","names":["HUB_DEFAULTS_LOOK"]},
+      {"file":"server/settings/defaults-screen.js","about":"What a new install starts with, second part: the screensaver, weather and units, music and lyrics, the top bar, widget layers and the upcoming list.","names":["HUB_DEFAULTS_SCREEN"]},
+      {"file":"server/settings/defaults-app.js","about":"What a new install starts with, third part: the app's gestures and zoom, starting with the system, updates, anonymous counts and the cards already seen.","names":["HUB_DEFAULTS_APP"]},
+      {"file":"server/settings/defaults-tiles.js","about":"What a new install starts with, fourth part: the Browser tile, the Claude, Codex and ChatGPT widgets, the dashboard's layout and the streaming connections.","names":["HUB_DEFAULTS_TILES"]},
+      {"file":"server/settings/defaults-assistant.js","about":"What a new install starts with, fifth part: the assistant's provider, models, keys, voice and memory, and how this PC uses Xenon.","names":["HUB_DEFAULTS_ASSISTANT"]},
+      {"file":"server/settings/defaults-features.js","about":"What a new install starts with, sixth part: the opt-in features, notifications, calls and phone, the wake word, search, disk, backgrounds, lighting and calendar feeds.","names":["HUB_DEFAULTS_FEATURES"]},
+      {"file":"server/settings/defaults-connections.js","about":"What a new install starts with, seventh part: stocks, football, news and the ticker, the smart home, paired devices, screen capture and file transfer.","names":["HUB_DEFAULTS_CONNECTIONS"]},
+      {"file":"server/settings/defaults-install.js","about":"What a new install starts with, eighth part: which screen it shows on, the language, and what the install remembers about itself.","names":["HUB_DEFAULTS_INSTALL"]},
+      {"file":"server/settings/defaults.js","about":"The settings a new install starts with: the eight parts next to this file put together, in the order they are saved and sent.","names":["DEFAULT_HUB_SETTINGS"]},
+      {"file":"server/settings/normalize-lock-widgets.js","about":"Which widgets the lock screen shows, read from saved settings: each switch is kept only when it is a yes or a no.","names":["normalizeLockWidgets"]},
+      {"file":"server/ambient/normalize-mode.js","about":"The screensaver settings as saved: a known idle time and scene, the wallpaper and screensaver of each screen, the switches as yes or no.","names":["normalizeAmbientMode"]},
+      {"file":"server/weather/normalize-settings.js","about":"The weather settings as saved: the place, the provider, how often to refresh, how many days, and what the tile shows.","names":["normalizeSettingsWeather"]},
+      {"file":"server/look/normalize-backgrounds.js","about":"The settings of the three built-in backgrounds (aurora, still, grid) as saved, each number within its limits.","names":["normalizeBgAurora","normalizeBgStatic","normalizeBgGrid"]},
+      {"file":"server/transfer/normalize-settings.js","about":"The file transfer settings as saved: the folder received files go to, the size limits and the switches.","names":["normalizeFileTransfer"]},
+      {"file":"server/lights/normalize-settings.js","about":"The lighting settings as saved: brightness, which devices and effects are on, the animation, the providers and the native board.","names":["normalizeLighting"]}
+    ]
+  },
+  "spreads": {
+    "server/server.js": [
+      {"name":"DEFAULT_HUB_SETTINGS","parts":[{"name":"HUB_DEFAULTS_LOOK","first":"appearance"},{"name":"HUB_DEFAULTS_SCREEN","first":"ambientMode"},{"name":"HUB_DEFAULTS_APP","first":"swipeHomeGesture"},{"name":"HUB_DEFAULTS_TILES","first":"browserAdblock"},{"name":"HUB_DEFAULTS_ASSISTANT","first":"aiProvider"},{"name":"HUB_DEFAULTS_FEATURES","first":"aiFeatures"},{"name":"HUB_DEFAULTS_CONNECTIONS","first":"stocks"},{"name":"HUB_DEFAULTS_INSTALL","first":"surfaceChoice"}],"after":258}
     ]
   }
 }

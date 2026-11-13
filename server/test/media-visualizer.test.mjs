@@ -24,7 +24,8 @@ test('the setting exists in BOTH normalizers, and defaults to off', () => {
   // from the server's is silently dropped on save, so the switch would look like
   // it worked until the next reload. That has happened twice in this codebase.
   for (const file of ['js/settings.js', 'server.js']) {
-    const src = read(...file.split('/'));
+    // The engine's defaults have modules of their own now: its text is read wherever it lives.
+    const src = file === 'server.js' ? SERVER : read(...file.split('/'));
     assert.ok(src.includes("mediaVisualizer: 'off'"), `${file}: must default to off`);
     assert.match(src, /\['off', 'minimal', 'wave'\]\.includes\((value|source)\.mediaVisualizer\)/, `${file}: missing the normalizer line`);
   }

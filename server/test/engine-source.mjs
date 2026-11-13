@@ -29,10 +29,15 @@ const readAsIs = (file) => readFileSync(join(REPO, file), 'utf8');
 // A module of places next to the engine says SERVER_DIR where the old file said __dirname: the old word is put back.
 const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
 const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
-const read = (file) => whole(file, PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
+const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
+const oldPlaces = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
+const read = (file) => wholeObjects(file, oldPlaces(file));
 
-// The text of a file with the objects it declares in one piece again, and without the parts it declares.
-function whole(file, text) {
+/**
+ * @param {string} file repo-relative @param {string} text its text
+ * @returns {string} the text with the cut objects it declares in one piece again, and without the parts it declares
+ */
+export function wholeObjects(file, text) {
   let out = text;
   for (const spread of SPREADS) {
     if (plainFileOf(spread.name) === file) out = undoSpreadText(out, spread, (part) => readAsIs(plainFileOf(part)));
@@ -148,7 +153,9 @@ function valueHolder(name, source) {
 export function declarationSource(name, source = ENGINE) {
   const file = fileDeclaring(name, source);
   const holder = valueHolder(name, source);
-  const lines = (holder ? oldDeclarations(read(file), holder) : oldNames(read(file), stateRewrites(source))).split('\n');
+  // A part of a cut object is not in the text handed out as a whole; asked for by name, it is read as its module has it.
+  const text = PARTS.has(name) ? oldPlaces(file) : read(file);
+  const lines = (holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source))).split('\n');
   const escaped = name.replace(/[$]/g, '\\$&');
   const opening = new RegExp(`^(?:(?:async\\s+)?function\\*?\\s+${escaped}\\s*\\(|(?:const|let|var|class)\\s+${escaped}\\b)`);
   const first = lines.findIndex((line) => opening.test(line));

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites } from './engine-source.mjs';
+import { cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites, wholeObjects } from './engine-source.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -20,8 +20,10 @@ const rewrites = stateRewrites();
 const placeModules = new Set(entries.filter((entry) => entry.paths).map((entry) => entry.file));
 const asWritten = (file) => {
   const text = readFileSync(join(ROOT, file), 'utf8');
-  return oldNames(placeModules.has(file) ? oldPathsText(text) : text, rewrites);
+  return oldNames(wholeObjects(file, placeModules.has(file) ? oldPathsText(text) : text), rewrites);
 };
+// The parts a big list was cut into: the readers hand out the list in one piece, and a part only when asked by name.
+const partNames = new Set(cutObjects().flatMap((cut) => cut.parts.map((part) => part.name)));
 
 test('every module on the list exists, under the line limit, in a feature folder', () => {
   const seen = new Set();
@@ -58,7 +60,8 @@ test('a name is declared in one place, and the readers find it there', () => {
     for (const name of names) {
       assert.equal(fileDeclaring(name), file);
       const text = declarationSource(name);
-      assert.ok(asWritten(file).includes(text), `${name} is read from ${file}`);
+      const where = partNames.has(name) ? readFileSync(join(ROOT, file), 'utf8') : asWritten(file);
+      assert.ok(where.includes(text), `${name} is read from ${file}`);
       const escaped = name.replace(/[$]/g, '\\$&');
       assert.ok(!new RegExp(`^(?:async\\s+)?(?:function\\*?|const|let|var|class)\\s+${escaped}\\b`, 'm').test(engine),
         `${name} is not declared in server.js any more`);

@@ -153,11 +153,7 @@ const {
   normalizeServerAiFeatures, normalizeProactive, normalizeWakeWord,
 } = require('./ai/settings-normalize.js');
 
-const {
-  AMBIENT_IDLE_MINUTES, AMBIENT_SCENE_ID_RE, AMBIENT_CANVAS_REF_RE, AMBIENT_THEME_REF_RE,
-} = require('./ambient/settings-values.js');
-
-const { SETTINGS_MIN_PANEL_ALPHA, BG_STATIC_STYLES } = require('./look/background-values.js');
+const { SETTINGS_MIN_PANEL_ALPHA } = require('./look/background-values.js');
 
 const { sanitizeSettingsUiFont } = require('./look/font-setting.js');
 
@@ -183,12 +179,9 @@ const { normalizeClaudeWidget } = require('./claude-code/settings-normalize.js')
 
 const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
 
-const {
-  LIGHTING_ANIM_STYLES, normalizeLightingAnimation, normalizeLightingProviders,
-  normalizeLightingEvent,
-} = require('./lights/settings-normalize.js');
+const { LIGHTING_ANIM_STYLES } = require('./lights/settings-normalize.js');
 
-const { WEATHER_LANGS, WEATHER_FIELD_IDS } = require('./weather/setting-values.js');
+const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
 const {
   LEGACY_SEEDED_GROUPS, cloneDashboardLayout, DASHBOARD_GEOM_FALLBACK, normalizeDashboardItem,
@@ -1625,10 +1618,6 @@ const { normalizeHardwareScan } = require('./ai/hardware-scan-normalize.js');
 
 const { normalizeVitals } = require('./vitals/settings-normalize.js');
 
-const {
-  normalizeLightingDeviceModes, normalizeLightingNative,
-} = require('./lights/devices-normalize.js');
-
 const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
 
 const { sanitizeAmbientScenes } = require('./ambient/scenes-sanitize.js');
@@ -1638,6 +1627,22 @@ const { normalizeBgCustom } = require('./look/background-custom-normalize.js');
 const { normalizeSlideshow } = require('./windows-tiles/slideshow-normalize.js');
 
 const { SETTINGS_FILE } = require('./settings/settings-file.js');
+
+const { DEFAULT_HUB_SETTINGS } = require('./settings/defaults.js');
+
+const { normalizeLockWidgets } = require('./settings/normalize-lock-widgets.js');
+
+const { normalizeAmbientMode } = require('./ambient/normalize-mode.js');
+
+const { normalizeSettingsWeather } = require('./weather/normalize-settings.js');
+
+const {
+  normalizeBgAurora, normalizeBgStatic, normalizeBgGrid,
+} = require('./look/normalize-backgrounds.js');
+
+const { normalizeFileTransfer } = require('./transfer/normalize-settings.js');
+
+const { normalizeLighting } = require('./lights/normalize-settings.js');
 
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -6585,494 +6590,6 @@ const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
 
-const WEATHER_FIELDS_ALL_ON = Object.freeze(
-  WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
-);
-
-
-const DEFAULT_HUB_SETTINGS = Object.freeze({
-  appearance: 'dark',
-  autoPalette: false,
-  styleMode: 'liquid', // 'liquid' | 'glass' | 'retro' | 'comic' — dashboard style language; a saved 'glass' stays Classic
-  retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
-  accent: '#6ee787',
-  dynamicAlbumTheme: true, // tint the accent from the now-playing album art
-  background: '#14181c',
-  surface: null,
-  surfaceAlt: null,
-  controlColor: null,
-  text: '#f0f3f1',
-  accentText: null,
-  successColor: null,
-  warningColor: null,
-  dangerColor: null,
-  infoColor: null,
-  contrastGuard: true,
-  panelAlpha: 0.54,
-  bgDim: 0.48,
-  bgBlur: 0,
-  idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
-  bootSplash: true, // the Xenon mark while the dashboard loads (client-applied)
-  hybridGpuAnimationPause: true, // freeze ambient FX + animated bg + Deck decor on a hybrid-GPU native session (client-applied)
-  // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
-  // look; the client applies them (glass styles only). Mirror of settings.js.
-  uiRoundness: 1,
-  glassBlur: 22,
-  glassSaturate: 160,
-  clockScale: 1,
-  clockDateScale: 1,
-  clockDateFormat: 'medium',
-  panelBorderStrength: 1,
-  tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings.js
-  mutedText: null,
-  lineColor: null,
-  backgroundMedia: null,
-  uiFont: null,
-  lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
-  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', wallpaper: false, saverMinutes: 0, openOnStartup: false }),
-  // Native canvas Ambient scenes (client-owned, like customThemes).
-  ambientScenes: Object.freeze([]),
-  contentInstalls: Object.freeze([]),
-  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ hero: 'full', look: 'new', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
-  tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
-  hwTempUnit: 'auto', // 'auto' | 'c' | 'f' — hardware readings; auto follows tempUnit
-  // Mirrors js/settings.js: 'off' | 'minimal' | 'wave'. Read by
-  // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
-  // helper's meter, beside the SDK grants.
-  mediaVisualizer: 'off',
-  // Song lyrics from LRCLIB (sends title + artist; listed on the privacy page).
-  // false = /api/lyrics answers 'off' and never reaches out.
-  mediaLyrics: true,
-  // Lyrics widget timing nudge, ms; a positive value shows lines earlier.
-  lyricsOffsetMs: 0,
-  // Supporter Lyrics widget. Translation sends the song's lines to the user's
-  // own Xenon AI provider (one request per song, capped per month), so it is
-  // off until they turn it on. Reading = romanization for ja/ko/zh lines.
-  lyricsTranslate: false,
-  lyricsReading: true,
-  lyricsTranslateCap: 200,
-  // How many questions a widget granted `ai` may ask the AI set for Bit each
-  // day (sdk-ai.js): each one can cost Sparks, an API key's money or plan quota.
-  sdkAiDailyCap: 50,
-  // Spotify tile: when it starts the closed desktop app, start it minimized
-  // (Windows and macOS; the Linux client cannot, see spotify-launch.js).
-  spotifyStartMinimized: false,
-  // Stage: the widget fills the screen while music plays on its page.
-  lyricsStage: false,
-  clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
-  topbarStyle: 'minimal', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
-  // Minimal-mode edge-rail drawer positions (true = collapsed). Persisted here —
-  // not browser-local — so the kiosk remembers the choice across launches and a
-  // WebView storage reset; both default closed so the rails never open on their own.
-  topbarRails: Object.freeze({ left: true, right: true }),
-  // Minimal-mode edge rails auto-hide after ~10s of no interaction, revealed again
-  // by a touch at the screen edge. Default on; off keeps them always on screen.
-  topbarRailsAutoHide: true,
-  // The bar's look in every style (js/topbar-look.js owns the rules).
-  topbarLook: TopbarLook.DEFAULTS,
-  // Widgets outside the dashboard (js/layers-model.js owns the rules).
-  layers: LayersModel.DEFAULTS,
-  // Dynamic Island personalization (Settings → Dynamic Island). Visibility is
-  // shared by Full + Minimal; order/anchor apply to the Minimal capsule. The
-  // installed-package opt-outs and takeover gate are kept in the same object.
-  topbarClock: Object.freeze({
-    version: 2,
-    align: 'center',
-    takeovers: true,
-    // Music takeover: the player owns the whole capsule while a track plays, and
-    // the other segments return the moment it pauses. Off by default.
-    mediaTakeover: false,
-    // Page dots as labelled pills carrying the page names. Off by default.
-    pageLabels: false,
-    // The chrome buttons: order, side, visibility (see normalizeTopbarActions).
-    actions: Object.freeze([
-      Object.freeze({ id: 'lock', hidden: false, side: 'left' }),
-      Object.freeze({ id: 'ambient', hidden: false, side: 'left' }),
-      Object.freeze({ id: 'xenon', hidden: false, side: 'left' }),
-      Object.freeze({ id: 'search', hidden: false, side: 'left' }),
-      Object.freeze({ id: 'mini', hidden: false, side: 'left' }),
-      Object.freeze({ id: 'layout', hidden: false, side: 'right' }),
-      Object.freeze({ id: 'settings', hidden: false, side: 'right' }),
-      Object.freeze({ id: 'apps', hidden: false, side: 'right' }),
-      Object.freeze({ id: 'favorites', hidden: false, side: 'right' }),
-    ]),
-    hiddenSources: Object.freeze([]),
-    items: Object.freeze([
-      Object.freeze({ id: 'time', hidden: false }),
-      Object.freeze({ id: 'date', hidden: false }),
-      Object.freeze({ id: 'weather', hidden: false }),
-      Object.freeze({ id: 'media', hidden: false }),
-      Object.freeze({ id: 'vitals', hidden: true }),
-      Object.freeze({ id: 'dots', hidden: false }),
-      Object.freeze({ id: 'badges', hidden: false }),
-      Object.freeze({ id: 'claude', hidden: false }),
-      Object.freeze({ id: 'codex', hidden: false }),
-    ]),
-  }),
-  weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
-  // What the Upcoming list shows. 0 days = no horizon, which is what it always
-  // did — the list simply took the next five, wherever they landed.
-  upcomingCount: 5,
-  upcomingDays: 0,
-  upcomingColumns: 0,
-  swipeNavigation: true, // drag / finger-swipe to change dashboard page
-  // Native app only: quick up-swipe from the bottom of the screen collapses the
-  // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
-  swipeHomeGesture: true,
-  // Native app only: interface scale (in-page CSS zoom) applied by native-bridge.js,
-  // independent of the Windows display scale. 1 = 100%.
-  nativeZoom: 1,
-  // Native app only: hide the kiosk window while the machine is used over RDP
-  // (monitor.rs watches SM_REMOTESESSION; native-bridge.js relays the toggle).
-  hideOnRdp: false,
-  // Windows keeps a separate default for calls (Discord, Teams): true = moving
-  // the output or input moves that one too, as Xenon always did.
-  audioSetCommunications: true,
-  // Open the dashboard in the default browser at Windows logon. The user's
-  // intent (default on); the actual scheduled task is registered/removed by
-  // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
-  autoOpenBrowser: true,
-  // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
-  // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
-  // on the update check the app already makes; never the install id. See
-  // server/version-ping.js and docs/privacy.html.
-  //
-  // These defaults are read ONLY when settings.json does not exist yet (see the
-  // `|| { ...DEFAULT_HUB_SETTINGS }` fallbacks), so this reaches a fresh install
-  // and nothing else. `normalizeHubSettings` deliberately keeps the strict
-  // `=== true` test, which means an existing install whose blob predates the key
-  // stays OFF instead of being switched on by an update — it was documented to
-  // those users as off-unless-you-choose. Do not relax that test to `!== false`.
-  versionPing: true,
-  // Announcements (js/hub-messages.js) and the paid-drop card (js/catalog-drop.js).
-  // ON by default and normalized with `!== false`, which is the OPPOSITE of
-  // versionPing above and deliberate: these are not a data opt-in, they are a
-  // preference about being interrupted, and the honest default for a channel the
-  // user can switch off in one tap is on. Both were localStorage-only before
-  // v4.9.0 — per surface, and with no way back once muted (see the migration in
-  // each module).
-  hubMessages: true,
-  catalogDrops: true,
-  monthlyDrops: true,
-  // Automatic updates (server/auto-update.js). ON by default and normalized
-  // with `!== false`, so existing installs get it with this update as well: it
-  // sends nothing anywhere new (the release check already runs), it only
-  // installs what the user would otherwise be asked to install, at a moment
-  // they are not using the PC. One tap in Settings -> General turns it off.
-  autoUpdate: true,
-  // Store widgets update themselves (server/widget-auto-update.js). Same posture
-  // as autoUpdate: ON, normalized with `!== false`, sends nothing anywhere new (it
-  // reads the catalog the Store already reads). It never raises a widget's
-  // permissions and never touches a theme, a page or a Deck: a version that asks
-  // for more than was approved waits for the user, as an update always did.
-  autoUpdateWidgets: true,
-  // Counts an install of a catalog entry, with NO identifier attached: the hub
-  // bumps a per-entry counter and discards the request (see community-installs.js).
-  // Normalized `=== true` like versionPing, NOT `!== false` like the two above:
-  // this is a new outbound report, so a fresh install starts on and an existing
-  // one stays off until its owner chooses. Turning it on for everyone during an
-  // update is the move that costs trust.
-  catalogStats: true,
-  // Bit may ask for a vote on something in real use (rating-votes.js).
-  ratingAsks: true,
-  // Anonymous feature counts (server/usage-stats.js): which built-in features
-  // run, as counters with no identifier, at most one report a day. Same posture
-  // as catalogStats: `=== true`, so a fresh install starts on and an existing
-  // one stays off until its owner chooses. Changed only from the PC itself (the
-  // settings save below keeps the stored value for a paired device).
-  usageStats: true,
-  // Reading the charge of a device on a dongle means sending it a request. Same rule
-  // as usageStats for a paired device: this is the PC owner's choice.
-  batteryAskDevices: true,
-  // The two startup cards' "don't show again": the What's New modal (the release
-  // id the user dismissed) and the Discord invite card (a plain flag).
-  //
-  // Both lived ONLY in localStorage until v4.11.6, which made a permanent choice
-  // exactly as durable as the browser's site data — a browser set to clear it on
-  // exit, or a cleanup tool, put both cards back at every boot with the
-  // dismissal gone. They also never crossed surfaces: the native WebView and a
-  // browser tab are separate stores on the same URL, so each had to be told.
-  // Reported on Discord. Same move hubMessages/catalogDrops made in v4.9.0.
-  //
-  // Empty/false on a fresh install: nobody has dismissed anything yet, and the
-  // legacy key is promoted into these by the client on first hydrate (see
-  // promoteLegacySeenFlags in js/settings.js), so an existing user does not have
-  // to answer either card a second time.
-  whatsNewSeen: '',
-  releaseNotesSeen: '',
-  updateFailSeen: '',
-  discordInviteSeen: false,
-  // Voice channels pinned to the top of the Discord widget's Channels tab, as
-  // Discord channel ids. Server-side rather than per-device on purpose: which
-  // channels you care about is a fact about YOU, so it should follow you to the
-  // phone and the Edge. Contrast the tile layout, which is per-device precisely
-  // because the right answer differs from screen to screen.
-  // Which servers the user has collapsed in the Discord widget's Channels tab,
-  // by guild id. Remembered rather than reset per visit: someone with a dozen
-  // servers collapses the ones they never join once, and a list that forgets
-  // makes them do it again at every sign-in (asked for on Discord, Sep 2026 —
-  // "so your not forever scrolling"). Guild ids, not names, so a renamed server
-  // stays collapsed and two servers with the same name are told apart.
-  discordFavChannels: Object.freeze([]),
-  discordCollapsedGuilds: Object.freeze([]),
-  // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
-  // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
-  browserAdblock: false,
-  // Claude Code widget: the permission / question cards (Settings → Claude Code)
-  // and the topbar marker. Both on — they are what the Claude Code link is for —
-  // and both switchable, because they are the two things this widget can put on
-  // screen while you are looking at something else.
-  claudeWidget: { approvals: true, questions: true, topbar: true },
-  // OpenAI Codex widget: the approval cards, and how long a card waits before
-  // the decision goes back to Codex. Short by default because, unlike Claude
-  // Code, Codex shows no prompt of its own while our hook waits (codex-bridge.js
-  // header). The topbar marker is an island item, owned by topbarClock.
-  codexWidget: { approvals: true, waitSec: 90 },
-  // "Ask ChatGPT" tile: the model Codex answers with ('default' lets Codex choose).
-  chatgptWidget: { model: 'default' },
-  dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
-  dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
-  geminiApiKey: '',
-  obsHost: '',
-  obsPort: 4455,
-  obsPassword: '',
-  obsAutoLaunch: true,
-  streamerbotHost: '',
-  streamerbotPort: 8080,
-  streamerbotPassword: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'localapi' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
-  ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
-  ollamaUrl: 'http://localhost:11434',
-  // A server the user runs on this PC (ai-local-server.js). The key is optional
-  // and SERVER-ONLY, like the cloud ones below.
-  localApiUrl: aiLocalServer.DEFAULT_URL,
-  localApiModel: 'auto',
-  localApiKey: '',
-  localApiVision: false,
-  // ChatGPT (OpenAI) + Claude (Anthropic): server-mediated cloud providers. Keys
-  // are SERVER-ONLY (redacted on the wire; see ai-provider-creds.js), unlike the
-  // browser-shipped geminiApiKey. Models are user-overridable.
-  openaiApiKey: '',
-  openaiModel: 'auto',
-  openaiSttModel: 'auto',
-  openaiTtsModel: 'auto',
-  anthropicApiKey: '',
-  anthropicModel: 'auto',
-  // Xenon credits (ai-xenon-credits.js): a tier, never a model id; the hub maps it.
-  xenonModel: 'sonnet',
-  xenonEffort: 'medium',
-  // Claude Code / Codex (ai-cli.js): 'default' lets the program choose.
-  claudeCodeModel: 'default',
-  codexModel: 'default',
-  // Gemini models, one per role. `auto` (or `auto:<family>`) follows whatever the
-  // user's key can reach — see ai-models.js — so a model Google ships tomorrow is
-  // in use without an app update, while a concrete id here is a pin kept forever.
-  geminiModel: 'auto',
-  geminiModelPro: 'auto',
-  geminiModelTts: 'auto',
-  geminiModelLive: 'auto',
-  hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
-  aiTtsEnabled: true,
-  aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
-  aiChatHidden: false,
-  // Persistent AI memory — durable facts Xenon remembers about the user across
-  // sessions (data/ai-memory.json). ON by default; fully local, viewable and
-  // clearable in Settings → Funzioni AI.
-  aiMemory: true,
-  // Advanced reasoning — route TEXT chat turns to the stronger (slower) model.
-  // OFF by default; voice turns always stay on the fast model.
-  aiProReasoning: false,
-  // Voce Live (Gemini Live realtime, full-duplex voice) — OFF by default (beta;
-  // uses more Gemini quota, needs a Live-capable key). The turn-based voice path
-  // stays the default + fallback.
-  aiLiveVoice: false,
-  // Voice chat presentation: false = full opaque "room" (default); true = ambient
-  // (dashboard stays visible, only the screen edge glows, captions in a glass strip).
-  aiVoiceAmbient: false,
-  // Which screens light their edges during a voice chat (native app): auto = the
-  // screens without the dashboard; 'off' turns it off.
-  aiEdgeGlow: 'auto',
-  // How this PC uses Xenon (native app): 'dashboard', 'widgets' (no dashboard
-  // window, only widgets on the screen and the menu), 'both'. '' = not asked
-  // yet, which behaves like today's dashboard (js/usage-mode.js).
-  usageMode: '',
-  // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
-  aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
-  // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
-  // default; independent of the AI Guardian feature (which also consumes it).
-  // When on, collection runs even without any AI; the data never leaves the PC.
-  sensorHistory: Object.freeze({ enabled: false, everyMin: 5 }),
-  // Game sessions (Settings → Performance → Partite giocate): average FPS and
-  // lows of each game played, kept on this PC to compare. ON by default: it
-  // costs a counter per frame only while a game runs, and stores ~100 lines.
-  gameSessions: Object.freeze({ enabled: true }),
-  // Proactive moments (Settings → Performance → Momenti proattivi). Deterministic,
-  // bounded, individually toggleable: sustained-thermal alerts, game-session
-  // recaps, and the morning-agenda briefing inside the greeting splash.
-  proactive: Object.freeze({ thermal: true, recap: true, morning: true, anomaly: true }),
-  // Master notifications switch (Settings → Notifiche). ON by default, but the
-  // individual sources below are still OFF by default — this just lets the user
-  // silence EVERYTHING (pop-ups + feeds) and stop the background watchers in one
-  // place. `popups` alone keeps the feeds but suppresses the on-screen toasts;
-  // `sounds` alone silences the per-pop-up cue (client-played, WebAudio).
-  notifications: Object.freeze({ enabled: true, popups: true, sounds: true, quiet: 'auto' }),
-  // Discord notification mirroring (Settings → Streaming → Discord). OFF by
-  // default — it's privacy-touching, and enabling it requests the extra
-  // rpc.notifications.read scope, which means a one-time Discord re-link.
-  // Notifications are read from the local desktop client and never leave the PC.
-  discordNotifications: Object.freeze({ enabled: false, hide: false }),
-  windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
-  calls: Object.freeze({ enabled: false, push: true, sound: true, disabledApps: Object.freeze([]), apps: Object.freeze([]) }),
-  // The paired phone. OFF by default (privacy) — switching it on reads the
-  // user's whole address book off their phone over Bluetooth and keeps it in
-  // this process. `ring` is separate because wanting the phonebook on a second
-  // screen is not the same as wanting that screen to take itself over on every
-  // incoming call.
-  phone: Object.freeze({ enabled: false, ring: true, hide: true }),
-  // Local "Hey Bit" wake word. OFF by default (privacy) — when on, the mic is
-  // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
-  // leaves the PC.
-  wakeWord: Object.freeze({ enabled: false }),
-  // indexRoots defaults per platform for the reason spelled out in
-  // normalizeSearchSettings: "C:\" is not a path off Windows, and a default the
-  // validator there would reject leaves the index permanently off.
-  searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false, recentInTile: false }),
-  pageHotkeys: Object.freeze([]),
-  diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
-  bgAurora: Object.freeze({ enabled: false, intensity: 55, speed: 50 }),
-  bgGrid: Object.freeze({ enabled: false, color: '#6ee787', intensity: 45, speed: 50 }),
-  // Static premium background (0 animations). style: none|nebulosa|prisma|halo|dusk.
-  bgStatic: Object.freeze({ style: 'dusk', intensity: 100 }),
-  // Code-defined animated background (sandboxed iframe on the client). Off by default.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
-  lighting: Object.freeze({
-    enabled: false,            // master OFF by default — explicit opt-in, zero cost
-    brightness: 1.0,
-    pauseDuringGame: true,
-    devices: {},               // deviceId → bool opt-in (absent/true = on)
-    // All OFF by default — each effect is opt-in and independent of the master.
-    effects: Object.freeze({
-      temperature: false,      // CPU-temp colour
-      volume: false,           // flash on volume change
-      musicAlbum: false,       // tint from the now-playing cover
-      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
-      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
-      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
-      // Bit's rage flash — not surfaced in the lighting page; its ON/OFF control is
-      // the `vitals.pet.lighting` toggle, so this stays enabled and the client only
-      // fires it when the user opted in. Redder + longer for a dramatic burst.
-      vitals:       Object.freeze({ enabled: true, color: '#ff2b2b', style: 'blink', durationMs: 4000 }),
-    }),
-    // Ambient anim: none|solid|breathing|cycle|wave|aurora|candle|palette.
-    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50, palette: Object.freeze(['#1ed760', '#0066ff']) }),
-    manualColor: '',               // persisted manual fixed colour ('' = none)
-    providers: Object.freeze({}),  // external (non-iCUE) providers → { providerId: { devices: [...] } }
-    deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
-    // Controllers Xenon drives itself over USB (opt-in) and what hangs on each of
-    // their outputs, told once in the guided setup → { deviceId: { h0: { parts } } }.
-    native: Object.freeze({ enabled: false, layouts: Object.freeze({}) }),
-  }),
-  calendarFeeds: [],
-  // Stock-market (Borsa) widget + ticker. Watchlist/provider/refresh are
-  // client-visible; the optional provider API keys below are server-only secrets.
-  stocks: stocks.DEFAULT_STOCKS,
-  twelveDataKey: '',   // optional Twelve Data key (server-only; preserve+redact)
-  finnhubKey: '',      // optional Finnhub key (server-only; preserve+redact)
-  // Football (Calcio) widget + ticker. teams/refresh are client-visible; the
-  // optional TheSportsDB Premium key below is a server-only secret.
-  football: football.DEFAULT_FOOTBALL,
-  sportsDbKey: '',     // optional TheSportsDB Premium key (server-only; preserve+redact)
-  // News widget + ticker. feeds/refresh are client-visible; the optional
-  // NewsData.io key below is a server-only secret.
-  news: news.DEFAULT_NEWS,
-  newsDataKey: '',     // optional NewsData.io key (server-only; preserve+redact)
-  // Claude Code usage ("Xenon Pulse") widget. Reads local ~/.claude transcripts;
-  // no keys, no network. Only the plan/budget config is persisted here.
-  claude: claudeUsage.DEFAULT_CLAUDE,
-  // Scrolling ticker bar (news/stocks/football). Bottom edge by default,
-  // configurable to the top or hidden. Freezes automatically in game/perf mode.
-  ticker: Object.freeze({ enabled: false, position: 'bottom', speed: 50, sources: Object.freeze({ stocks: true, football: true, news: true }) }),
-  // Home Assistant Smart Home bridge. url/entities are client-visible; `token`
-  // (a long-lived access token) is a server-only secret (preserve-on-save +
-  // redact-on-wire). `entities` = the entity_ids the Smart Home tile shows.
-  homeAssistant: Object.freeze({ url: '', token: '', entities: [] }),
-  // UniFi Protect cameras. host/username/cameras (the selection to display) are
-  // client-managed; the console `password` is a server-only secret (redacted on
-  // the wire, restored on save). Mirror of settings.js.
-  unifi: Object.freeze({ host: '', username: '', password: '', cameras: [], columns: 0, fit: 'cover', aspect: '16:9', order: [], refreshMs: 1500, angles: {}, notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
-  remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
-  // Paired-device access (the phone as a second screen). OFF by default: while
-  // false, remote-access.js is never consulted and a non-loopback request is
-  // refused by isAllowedRequest() exactly as it always has been.
-  // `https` is the T2 door on top of it: same pairing, same gate, TLS on the
-  // Tailscale address. Separate flag because it can fail for reasons that have
-  // nothing to do with pairing (no Tailscale, not logged in, certificates not
-  // enabled for the tailnet) and because turning it off must not turn off the
-  // LAN door people already rely on.
-  remoteAccess: Object.freeze({ enabled: false, https: false }),
-  // Phone ↔ PC file transfer. Server-owned for the same reason remoteAccess is,
-  // plus a sharper one: `inboxDir` is a real folder on THIS PC, and the settings
-  // blob is mirrored to every browser surface and into the localStorage of every
-  // paired phone. A path that only this machine needs must not travel — the
-  // geminiApiKey lesson, applied before the fact rather than after. The only
-  // writer is POST /api/transfer/settings, which is loopback-only.
-  // Recording options (capture-settings.js). Server-owned like fileTransfer:
-  // `folder` is a folder on this PC; the writers are /capture/settings and the
-  // recordingOptions capability, through updateCaptureSettings.
-  capture: CaptureSettings.DEFAULTS,
-  fileTransfer: Object.freeze({
-    enabled: true,
-    inboxDir: '',        // '' = resolved from the OS on first read (Downloads/Xenon)
-    autoDeliver: true,
-    maxFileMb: 2048,
-    quotaMb: 8192,
-    keepDays: 14,
-    notifyPhone: false,  // push when the PC puts a file there; never the other way
-  }),
-  // Which screen the user chose for Xenon (asked once at first run): 'auto',
-  // 'screen' (named in `monitor`), or 'phone'. Client-owned and client-sent —
-  // see normalizeSurface in js/settings.js, which must stay in step with the
-  // normalizer below or the settings-server-owned-keys test fails.
-  //
-  // This is NOT the authority for where the native window opens: the shell keeps
-  // that in its own display.json, because it has to read it at launch, before
-  // the backend is necessarily running. This copy exists so Settings can show
-  // the choice on every surface, and so a paired phone — which has no way to
-  // speak to the shell — can still ask for it.
-  // NOT `surface`: that key is the theme's panel colour. See surfaceChoiceFrom().
-  surfaceChoice: Object.freeze({ kind: 'auto', asked: false, monitor: '', label: '' }),
-  language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
-  // Identity of this settings store, minted on the first write (see
-  // SETTINGS_STORE_ID_RE). Empty here because a default blob has not been
-  // persisted yet; server-owned, so POST /settings keeps the stored value.
-  storeId: '',
-  // How long this install has actually been USED, which is the only honest basis
-  // for asking anything of the person using it. All three are server-owned like
-  // storeId above — the browser never writes them, and POST /settings keeps the
-  // stored values, or clearing site data would reset the clock and the ask could
-  // come round again.
-  //
-  // `usageDays` counts DAYS the dashboard was opened, not launches and not hours:
-  // an engine that runs at logon on a PC nobody looks at must not accumulate
-  // credit. See noteUsageDay().
-  firstRunDay: '',          // YYYY-MM-DD, stamped the first time a dashboard connects
-  lastUsageDay: '',         // the last day counted, so a day counts exactly once
-  usageDays: 0,
-  // The one-time supporter ask (js/support-card.js). Shown once in the life of an
-  // install and never again — on disk, not in localStorage, because a browser set
-  // to clear its site data would otherwise bring it back for good.
-  supportAskSeen: false,
-  // The day that ask went away, so the December appeal (js/support-appeal.js)
-  // keeps a month between the two; '' on installs that saw it before the field.
-  supportAskSeenDay: '',
-  // The last calendar year the December appeal was shown. Once a year, at most.
-  supportAppealYear: 0,
-  // The one-time "show off your setup" invitation (js/share-nudge.js). Same
-  // rules as the ask above, same reason it is here and not in localStorage.
-  shareNudgeSeen: false,
-});
-
 const { hub } = require('./settings/current.js');
 const { goToPageMiss } = require('./grid/go-to-page-miss.js');
 
@@ -7100,100 +6617,6 @@ hub.settings = { ...DEFAULT_HUB_SETTINGS };
 // stops being available a moment later. Defaults to false, so anything that goes
 // wrong reads as "not new" — under-counting births is the recoverable direction.
 let _settingsFileMissingAtBoot = false;
-
-function normalizeLockWidgets(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const defaults = DEFAULT_HUB_SETTINGS.lockWidgets;
-  return {
-    clock: source.clock !== undefined ? !!source.clock : defaults.clock,
-    weather: source.weather !== undefined ? !!source.weather : defaults.weather,
-    media: source.media !== undefined ? !!source.media : defaults.media,
-    calendar: source.calendar !== undefined ? !!source.calendar : defaults.calendar,
-  };
-}
-
-function normalizeAmbientMode(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
-  const idle = Number(source.idleMinutes);
-  // sceneId is 'builtin', an SDK package id, a "canvas:<id>" reference into
-  // ambientScenes or a "theme:<id>" one into customThemes — anything else resets
-  // to the default.
-  const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
-  const isScene = (id) => id === 'builtin' || AMBIENT_SCENE_ID_RE.test(id) || AMBIENT_CANVAS_REF_RE.test(id) || AMBIENT_THEME_REF_RE.test(id);
-  const sceneId = isScene(raw) ? raw : defaults.sceneId;
-  // The animated wallpaper and the screensaver, per screen (js/screen-scene-model.js). Both off by default.
-  const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
-  return {
-    enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
-    idleMinutes: AMBIENT_IDLE_MINUTES.has(idle) ? idle : defaults.idleMinutes,
-    sceneId,
-    wallpaper: source.wallpaper === true,
-    saverMinutes: saverMinutes(source.saverMinutes),
-    screens: ScreenSceneModel.normalizeScreens(source.screens),
-    byScreen: ScreenSceneModel.normalizeByScreen(source.byScreen, isScene),
-    // Mirror of js/settings.js — dropped here, the toggle would snap back off
-    // on the next hydrate.
-    openOnStartup: source.openOnStartup === true,
-  };
-}
-
-function normalizeSettingsWeather(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
-  const provider = WEATHER_PROVIDERS.has(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
-  const refreshMin = [10, 15, 30, 60, 120, 180].includes(Number(source.refreshMin))
-    ? Number(source.refreshMin) : DEFAULT_HUB_SETTINGS.weather.refreshMin;
-  const forecastDays = [1, 2, 3, 4, 5, 6, 7].includes(Number(source.forecastDays))
-    ? Number(source.forecastDays) : DEFAULT_HUB_SETTINGS.weather.forecastDays;
-  const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
-  const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
-  // Mirrors of WEATHER_TILE_HEROES and WEATHER_TILE_LOOKS in js/settings.js.
-  const tile = { hero: ['full', 'compact'].includes(srcTile.hero) ? srcTile.hero : defTile.hero, look: ['new', 'classic', 'custom'].includes(srcTile.look) ? srcTile.look : defTile.look };
-  ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
-  const srcFields = srcTile.fields && typeof srcTile.fields === 'object' ? srcTile.fields : {};
-  const fields = {};
-  WEATHER_FIELD_IDS.forEach(id => { fields[id] = typeof srcFields[id] === 'boolean' ? srcFields[id] : true; });
-  tile.fields = fields;
-  return {
-    mode,
-    city: sanitizeWeatherCity(source.city),
-    provider,
-    refreshMin,
-    forecastDays,
-    tile,
-  };
-}
-
-function normalizeBgAurora(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const defaults = DEFAULT_HUB_SETTINGS.bgAurora;
-  return {
-    enabled: source.enabled !== false,
-    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
-    speed: clampNumber(source.speed, 0, 100, defaults.speed),
-  };
-}
-
-function normalizeBgStatic(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const defaults = DEFAULT_HUB_SETTINGS.bgStatic;
-  return {
-    style: BG_STATIC_STYLES.includes(source.style) ? source.style : 'none',
-    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
-  };
-}
-
-function normalizeBgGrid(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const defaults = DEFAULT_HUB_SETTINGS.bgGrid;
-  return {
-    enabled: source.enabled !== false,
-    color: normalizeHex(source.color, defaults.color),
-    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
-    speed: clampNumber(source.speed, 0, 100, defaults.speed),
-  };
-}
 
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
@@ -7309,28 +6732,6 @@ function normalizeDashboardLayout(value) {
 }
 
 const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
-
-// Phone ↔ PC file transfer. Server-owned: there is no twin in
-// js/settings.js normalizeSettings, on purpose, because `inboxDir` names a
-// folder on this machine and the settings blob reaches every paired phone. The
-// keep-prev guard in POST /settings is what stops a generic save from wiping
-// it, and settings-server-owned-keys.test.mjs fails until both exist.
-function normalizeFileTransfer(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const d = DEFAULT_HUB_SETTINGS.fileTransfer;
-  return {
-    enabled: v.enabled !== false,
-    // Kept verbatim; it is validated against the filesystem where it is SET
-    // (POST /api/transfer/settings) and again at delivery time, because a
-    // folder that was fine yesterday can be renamed or unmounted today.
-    inboxDir: typeof v.inboxDir === 'string' ? v.inboxDir.slice(0, 512) : d.inboxDir,
-    autoDeliver: v.autoDeliver !== false,
-    maxFileMb: clampNumber(v.maxFileMb, 1, 65536, d.maxFileMb),
-    quotaMb: clampNumber(v.quotaMb, 256, 262144, d.quotaMb),
-    keepDays: clampNumber(v.keepDays, 1, 365, d.keepDays),
-    notifyPhone: v.notifyPhone === true,
-  };
-}
 
 // One day of real use, counted once. Called when a dashboard connects, which is
 // the only signal that someone actually LOOKED at Xenon: the engine starts at
@@ -7649,37 +7050,6 @@ function normalizeHubSettings(value) {
     // Persisted UI language ('' = follow the browser). Round-tripped so the
     // user's choice survives a browser-storage reset (e.g. a Windows restart).
     language: WEATHER_LANGS.has(source.language) ? source.language : '',
-  };
-}
-
-function normalizeLighting(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const d = DEFAULT_HUB_SETTINGS.lighting;
-  const fx = v.effects && typeof v.effects === 'object' ? v.effects : {};
-  const devices = {};
-  if (v.devices && typeof v.devices === 'object') {
-    for (const [k, on] of Object.entries(v.devices)) devices[String(k).slice(0, 128)] = on === true;
-  }
-  return {
-    enabled: v.enabled === true,
-    lightsOut: v.lightsOut === true,
-    brightness: clampNumber(v.brightness, 0, 1, d.brightness),
-    pauseDuringGame: v.pauseDuringGame !== false,
-    devices,
-    effects: {
-      temperature: fx.temperature === true,
-      volume: fx.volume === true,
-      musicAlbum: fx.musicAlbum === true,
-      timer: normalizeLightingEvent(fx.timer, d.effects.timer),
-      notification: normalizeLightingEvent(fx.notification, d.effects.notification),
-      reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
-      vitals: normalizeLightingEvent(fx.vitals, d.effects.vitals),
-    },
-    animation: normalizeLightingAnimation(v.animation, d.animation),
-    manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
-    providers: normalizeLightingProviders(v.providers),
-    deviceModes: normalizeLightingDeviceModes(v.deviceModes),
-    native: normalizeLightingNative(v.native),
   };
 }
 
