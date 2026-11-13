@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 290,
+  "count": 289,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -183,7 +183,6 @@
     "server/js/main.js": 1116,
     "server/js/media-spotify.js": 440,
     "server/js/media-viz.js": 419,
-    "server/js/media.js": 998,
     "server/js/native-bridge.js": 1206,
     "server/js/news-widget.js": 337,
     "server/js/notes.js": 504,

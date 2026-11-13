@@ -435,6 +435,7 @@
         "server/stream-spotify.js",
         "server/spotify-launch.js",
         "server/js/media*.js",
+        "server/js/media/**",
         "server/js/lyrics-*.js",
         "server/js/spotify-*.js",
         "server/js/album-theme.js",

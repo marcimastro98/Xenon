@@ -57,7 +57,7 @@
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
       css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/MediaPanel/LiquidPlayerSpotify.css', 'components/LyricsView/LyricsView.css'],
-      js: ['js/album-theme.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
+      js: ['js/album-theme.js', 'js/media/source-and-tabs.js', 'js/media/chat-and-album-color.js', 'js/media/now-playing.js', 'js/media/source-apps.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
         'js/lyrics-view.js', 'js/media-lyrics.js', 'js/media-viz.js'],
       markup: ['media'],
     },
