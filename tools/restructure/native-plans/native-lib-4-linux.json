@@ -1,0 +1,63 @@
+{
+ "origin": "apps/native/src-tauri/src/lib.rs",
+ "parts": [
+  {
+   "file": "apps/native/src-tauri/src/backend_nudge_linux.rs",
+   "about": "Linux: waking an engine that does not answer, or offering to set it up in a terminal window.",
+   "lines": [
+    [
+     121,
+     314
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/host_graphics_linux.rs",
+   "about": "Linux: an AppImage must draw with the host's graphics libraries, not the ones it carries.",
+   "lines": [
+    [
+     347,
+     370
+    ],
+    [
+     462,
+     526
+    ]
+   ]
+  }
+ ],
+ "drop": {
+  "apps/native/src-tauri/src/backend_nudge_linux.rs": [
+   "Manager",
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState",
+   "backend_answers_once",
+   "backend_answers_within",
+   "LOGON_PROBE_TRIES",
+   "PROBE_TRIES",
+   "backend_entry",
+   "current_uid",
+   "backend_answers"
+  ],
+  "apps/native/src-tauri/src/host_graphics_linux.rs": [
+   "Manager",
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState",
+   "backend_answers_once",
+   "backend_answers_within",
+   "LOGON_PROBE_TRIES",
+   "PROBE_TRIES",
+   "backend_entry",
+   "current_uid"
+  ]
+ },
+ "uses": {
+  "apps/native/src-tauri/src/backend_nudge_linux.rs": [
+   "#[cfg(target_os = \"linux\")]\nuse crate::backend_probe::backend_answers;"
+  ]
+ }
+}
