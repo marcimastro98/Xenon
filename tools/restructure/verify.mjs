@@ -59,10 +59,12 @@ export function proveMove({ before, after, moduleText, plan }) {
   if (now.slice(sourceAt, sourceAt + sourceLines.length).join('\n') !== sourceLines.join('\n')) {
     problems.push('the new require is not where the plan put it');
   }
-  // Undo the glue and the shrunk requires from the bottom up, so earlier line numbers stay true.
+  // Undo the glue and the shrunk requires from the bottom up, so earlier line numbers stay true. Lines that
+  // went altogether leave nothing behind, so two of them next to each other come back at the same place:
+  // the one that was lower in the old file first.
   const undone = [...now];
-  const patches = [{ at: sourceAt, drop: sourceLines.length, put: [] }, ...edits.map((edit) => ({ at: edit.at, drop: edit.newLines.length, put: edit.oldLines }))];
-  for (const { at, drop, put } of patches.sort((a, b) => b.at - a.at || b.drop - a.drop)) undone.splice(at, drop, ...put);
+  const patches = [{ at: sourceAt, drop: sourceLines.length, put: [] }, ...edits.map((edit, order) => ({ at: edit.at, drop: edit.newLines.length, put: edit.oldLines, order }))];
+  for (const { at, drop, put } of patches.sort((a, b) => b.at - a.at || b.drop - a.drop || b.order - a.order)) undone.splice(at, drop, ...put);
   if (undone.join('\n') !== expected) problems.push('text outside the moved ranges changed');
   for (const edit of edits) {
     const wrong = requireEditProblem(edit.oldLines, edit.newLines, moduleText);

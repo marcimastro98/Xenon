@@ -133,3 +133,15 @@ test('the new require never lands inside a protected stretch: it goes just above
   assert.match(refusal(text, ['late'], { protectedStretches: [[-1, at('gate')]] }), /a protected stretch that is never edited/,
     'a stretch that starts with the file has no line above it');
 });
+
+test('two requires next to each other that both go with the moved code are proven, in either order of use', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const ownModules = new Set(['server/made.js', 'server/more.js']);
+  for (const body of ['a() + b()', 'b() + a()']) {
+    const text = ['const keep = 1;', 'const { a } = require("./made");', 'const { b } = require("./more");', `function f() { return ${body}; }`,
+      'function g() { return f() + keep; }', ''].join('\n');
+    const made = plan(text, ['f'], { ownModules });
+    assert.deepEqual(made.newSource.split('\n'), ['const keep = 1;', "const { f } = require('./part/x.js');", 'function g() { return f() + keep; }', ''], body);
+    assert.deepEqual(proven(text, made), [], body);
+  }
+});

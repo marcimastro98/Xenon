@@ -102,7 +102,7 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
  * @returns {{ newSource: string, moduleText: string, moved: string[], exported: string[], imported: string[],
  *   ranges: number[][], requires: any[], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
  *   edits: { at: number, oldLines: string[], newLines: string[] }[] } }}
- *   `edits` are requires of the old file that lost names only the moved code used; `at` and
+ *   `edits` are requires of the old file that lost names only the moved code used, in the order of the old file; `at` and
  *   `sourceAt` are 0-based lines of the new text.
  */
 export function planExtraction(job) {
@@ -193,6 +193,6 @@ export function planExtraction(job) {
     newSource: kept.join('\n'), moduleText: `${body.join('\n')}\n`,
     moved: movedNames, exported, imported, ranges: moved.map((record) => record.range), requires: required.modules,
     glue: { sourceAt, sourceLines: sourceGlue, moduleLines: moduleGlue,
-      edits: [...edits.values()].map(({ at, oldLines, newLines }) => ({ at, oldLines, newLines })) },
+      edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, oldLines, newLines }) => ({ at, oldLines, newLines })) },
   };
 }
