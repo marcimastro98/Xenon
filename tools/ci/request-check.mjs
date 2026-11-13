@@ -178,7 +178,7 @@ function stop(child) {
 
 // A copy of the engine that keeps its data apart: the code, the shared package where `server/shared` points,
 // the version file, and the checkout's installed packages reached through a link.
-function copyEngine() {
+export function copyEngine() {
   const folder = mkdtempSync(path.join(os.tmpdir(), 'xenon-request-check-'));
   cpSync(path.join(ROOT, 'server'), path.join(folder, 'server'), { recursive: true,
     filter: (source) => !(path.dirname(source) === path.join(ROOT, 'server') && SKIPPED.has(path.basename(source))) });

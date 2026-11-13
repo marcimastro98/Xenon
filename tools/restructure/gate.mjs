@@ -2,7 +2,8 @@
 // Runs every check a restructure commit has to pass, in order, and stops at the first
 // that fails: the moves redone from a base commit, the saved type and lint numbers
 // carried along, the map, the sizes, types, lint, the tests, a real start of the
-// server, real requests against a throwaway copy, the personal-data sweep, whitespace.
+// server, real requests against a throwaway copy, every plain GET route asked before and
+// after (the base commit against the working folder), the personal-data sweep, whitespace.
 //
 //   node tools/restructure/gate.mjs [--base <commit>] [--from <step>] [--only <step>]
 
@@ -32,6 +33,7 @@ export function gateSteps(base = 'HEAD') {
       minutes: 15, npm: 'test' },
     { name: 'boot', argv: ['tools/ci/boot-check.mjs'], minutes: 2, env: { XENON_PORT: PORT } },
     { name: 'requests', argv: ['tools/ci/request-check.mjs'], minutes: 4, env: { XENON_PORT: PORT } },
+    { name: 'routes', argv: ['tools/restructure/routes-check.mjs', 'check', '--base', base], minutes: 4, env: { XENON_PORT: PORT } },
     { name: 'personal', argv: ['tools/repo-sweep.mjs', 'personal'], minutes: 5 },
     { name: 'whitespace', argv: ['diff', '--check'], minutes: 1, git: true },
   ];

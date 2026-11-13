@@ -1,0 +1,5 @@
+{
+ "paths": {
+  "/sse": "the live stream: it never ends, and request-check already holds it open"
+ }
+}
