@@ -303,7 +303,9 @@
       {"file":"server/search/routes.js","about":"What the engine answers about the shortcut of the search bar.","keys":["GET /search/hotkey-status"],"after":274},
       {"file":"server/store-catalog/routes.js","about":"What the engine answers about the Store: the catalog, what is installed, the counts, the messages, a code, the limited items and the ratings.","keys":["GET /api/community/catalog","POST /api/community/installed","POST /api/community/poll","GET /api/community/installs","GET /api/community/support-goal","GET /api/community/messages","GET /api/community/code","GET /api/community/limited-status","GET /api/community/ratings"],"after":274},
       {"file":"server/store-supporters/routes.js","about":"What the engine answers about a supporter and the Sparks: the saved key, an update of owned content, a purchase and the wallet.","keys":["POST /api/community/update","GET /api/community/supporter","POST /api/community/supporter/save","POST /api/community/supporter/forget","POST /api/community/buy","GET /api/community/sparks","GET /api/community/sparks/owned","POST /api/community/sparks/save","POST /api/community/sparks/forget"],"after":274},
-      {"file":"server/paired/routes.js","about":"What the engine answers when a phone asks to install the dashboard as an app.","keys":["GET /manifest.webmanifest"],"after":274}
+      {"file":"server/paired/routes.js","about":"What the engine answers when a phone asks to install the dashboard as an app.","keys":["GET /manifest.webmanifest"],"after":274},
+      {"file":"server/store-catalog/tools.js","about":"What the assistant does when asked to look in the Store or to install something from it: the install only opens the usual review on the screen, where the user confirms.","keys":["marketplace_search","marketplace_install"],"after":274},
+      {"file":"server/ai/tools.js","about":"What the assistant does when asked to close an app: one program by its exact name, never Windows' own or Xenon (ai-pc-apps.js decides).","keys":["close_application"],"after":274}
     ]
   }
 }
