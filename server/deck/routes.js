@@ -15,8 +15,9 @@ const { _hotkey } = require('./hotkey-state.js');
 const { _deckShortcutStatus } = require('./shortcut-questions.js');
 const { _altGrKeys } = require('./altgr-keys.js');
 const { setScriptState, _scriptStates } = require('./script-states.js');
+const { serveFileRange } = require('../http-range.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'POST /deck/sound-upload': async (req, res, { json }) => {
     // Soundboard library upload: store the clip under DATA_DIR/sounds with a
@@ -183,6 +184,55 @@ const branches = {
     // So a script can read back what it set (and a person can check their curl
     // landed) without opening the dashboard.
     json({ ok: true, states: _scriptStates.states });
+  },
+
+  'GET /deck/sound': async (req, res, { err500, urlObj }, { soundPackStore }) => {
+    // Stream a user-chosen local audio file for the Deck soundboard. The browser
+    // plays it; the file path comes from the user's own Deck config (same trust
+    // level as the open-file/open-app actions). This is the only route that returns
+    // raw file CONTENTS for a client-supplied path, so it is hardened two ways:
+    //   1. Fetch Metadata gate — reject cross-site requests. The browser stamps
+    //      `Sec-Fetch-Site` and a page can't forge it, so a malicious site can't
+    //      point an <audio> at this route to read/play local files; only the
+    //      same-origin dashboard can. (Absent header = non-browser caller, which
+    //      already has direct filesystem access — no escalation.)
+    //   2. Extension allowlist — only audio files, so it can't read documents/secrets.
+    // Range is supported so <audio> seeking works.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const SOUND_MIME = {
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
+        '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
+      };
+      // Two accepted shapes: an absolute local path (the user's own machine-
+      // local clip — same trust level as open-file keys), or a PACK-RELATIVE
+      // ref ('packs/<packId>/<clipId>.<ext>') resolved under the sounds dir.
+      // The pack shape is what shared Deck profiles carry (machine-independent)
+      // and is validated segment-by-segment + prefix-asserted in sound-packs.js
+      // BEFORE path.resolve can ever see it.
+      const rawPath = urlObj.searchParams.get('path') || '';
+      const abs = soundPackStore.resolve(rawPath) || path.resolve(rawPath);
+      const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
+      if (!mime) { res.writeHead(415); res.end(); return; }
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+
+      serveFileRange(req, res, abs, stat, {
+        'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store',
+      });
+    } catch (e) {
+      if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+  },
+
+  'GET /deck/sound-packs': async (_req, _res, { json, err500 }, { soundPackStore }) => {
+    // Installed soundboard-pack manifests (clip ids/labels + pack-relative
+    // paths, no audio data) — feeds the editor's sound picker. Additive: the
+    // loose-upload library keeps its own GET /deck/sounds contract untouched.
+    try { json({ ok: true, packs: await soundPackStore.list() }); } catch (e) { err500(e.message); }
   },
 };
 

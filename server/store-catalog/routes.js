@@ -13,7 +13,7 @@ const { DATA_DIR } = require('../engine/paths.js');
 const communityLimited = require('../community-limited.js');
 const communityRatings = require('../community-ratings.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /api/community/catalog': async (_req, _res, { json, err500, urlObj }) => {
     // Community gallery catalog — proxied from the project site with a TTL
@@ -121,6 +121,30 @@ const branches = {
     // (a cache miss triggers an outbound fetch).
     try {
       json(await communityRatings.fetchRatings({ ids: urlObj.searchParams.get('ids') }));
+    } catch (e) { err500(e.message); }
+  },
+
+  'GET /api/community/rating-state': async (_req, _res, { json, err500, urlObj }, { ratingVotes }) => {
+    // Can this PC vote on this entry, and what did it give (rating-votes.js). Local
+    // only, no hub call; the phone shows the same Store.
+    try { json(await ratingVotes.stateOf(urlObj.searchParams.get('id'))); } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/community/rating-close': async (req, _res, { json, err500 }, { ratingVotes }) => {
+    // The X on Bit's card: no more asks about this entry. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await ratingVotes.close(body.entryId));
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/community/rate': async (req, _res, { json, err500 }, { ratingVotes }) => {
+    // This PC's one final vote on a catalog entry. The ticket stays on this server
+    // and the hub re-validates. In CSRF_MUTATION_PATHS (drive-by pages must not
+    // pump the hub or forge votes), never JSONP.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await ratingVotes.vote({ entryId: body.entryId, stars: body.stars, why: body.why }));
     } catch (e) { err500(e.message); }
   },
 };

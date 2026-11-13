@@ -323,6 +323,7 @@
       "name": "Xenon menu",
       "what": "The menu that opens over the desktop: widgets, screens, looks, the Store.",
       "files": [
+        "server/menu/**",
         "server/xenon-menu.js",
         "server/menu-*.js",
         "server/menu.html",
@@ -356,6 +357,7 @@
       "name": "Alerts and drawing",
       "what": "Notifications at the top centre of the screen, and drawing over the screen.",
       "files": [
+        "server/alerts/**",
         "server/screen-alerts-page.js",
         "server/screen-alerts.html",
         "server/screen-draw-shell.js",

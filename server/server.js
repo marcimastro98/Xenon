@@ -130,14 +130,13 @@ const { launchLinuxApp } = require('./programs/launch-linux-app.js');
 const { revealInFileManager } = require('./files/reveal-in-file-manager.js');
 
 const {
-  BACKGROUND_MAX_BYTES, BACKGROUND_TRANSCODE_TIMEOUT_MS, BACKGROUND_MIME_BY_EXT, FONT_MAX_BYTES,
-  FONT_MIME_BY_EXT, TILE_ASSET_MAX_BYTES, TILE_ASSET_MIME_BY_EXT, SLIDESHOW_ASSET_MAX_BYTES,
-  SLIDESHOW_ASSET_MIME_BY_EXT,
+  BACKGROUND_TRANSCODE_TIMEOUT_MS, BACKGROUND_MIME_BY_EXT, FONT_MAX_BYTES, FONT_MIME_BY_EXT,
+  TILE_ASSET_MIME_BY_EXT,
 } = require('./http/upload-limits.js');
 
 const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 
-const { findFirstFile, isFfmpegMissing } = require('./ffmpeg-install/lookup.js');
+const { findFirstFile } = require('./ffmpeg-install/lookup.js');
 
 const { SETTINGS_STORE_ID_RE, _SETTINGS_READ_BUSY } = require('./settings/store-file.js');
 
@@ -198,13 +197,9 @@ const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-r
 
 const { _nextListSeq } = require('./time/list-seq.js');
 
-const {
-  TASK_PRIORITIES, normalizeTask, normalizeTasks, TASK_EDIT_FIELDS,
-} = require('./time/tasks-normalize.js');
+const { TASK_PRIORITIES, normalizeTask, normalizeTasks } = require('./time/tasks-normalize.js');
 
-const {
-  CALENDAR_FEED_PALETTE, normalizeEvents, EVENT_EDIT_FIELDS,
-} = require('./time/events-normalize.js');
+const { CALENDAR_FEED_PALETTE, normalizeEvents } = require('./time/events-normalize.js');
 
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
 
@@ -236,7 +231,7 @@ const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
 const { joinDiskDetails } = require('./disk/details-shape.js');
 
-const { DECK_SOUND_EXTS, DECK_SOUND_NAME_RE, DECK_MAX_BYTES } = require('./deck/limits.js');
+const { DECK_SOUND_EXTS, DECK_SOUND_NAME_RE } = require('./deck/limits.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
@@ -663,7 +658,7 @@ const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
 const { createPcId } = require('./pc-id.js');
 const { createMcpDev } = require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
-const lyricsPrices = require('./lyrics-translate-price');
+require('./lyrics-translate-price');
 
 const { APP_VERSION } = require('./updates/app-version.js');
 
@@ -690,7 +685,7 @@ const { nextSettingsRev } = require('./settings-rev');   // shared by every sett
 const { checkLatestRelease } = require('./updates/latest-release.js');
 
 const { WHATSNEW_FILE } = require('./updates/whats-new-file.js');
-const releaseNotes = require('./release-notes.js');
+require('./release-notes.js');
 const { normalizeWhatsNew } = require('./updates/whats-new-normalize.js');
 
 let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
@@ -1191,9 +1186,7 @@ const mcpDev = createMcpDev({
   broadcast: (event, data) => broadcastSSE(event, data),
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
-const {
-  DECK_SOUNDS_DIR, ICON_PACKS_DIR, ICON_PACK_BODY_MAX, SOUND_PACKS_DIR, SOUND_PACK_BODY_MAX,
-} = require('./deck/pack-places.js');
+const { DECK_SOUNDS_DIR, ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
 const {
   _installedApps, INDEX_START_DELAY_MS, _spotlightPopupPids,
 } = require('./search/spotlight-state.js');
@@ -3549,7 +3542,7 @@ async function mediaSeek(position) {
 const { LYRICS_USER_AGENT, _lyricsPending } = require('./media/lyrics-lookup-values.js');
 let _lyricsCooldownUntil = 0;
 
-const { lyricsReply, lyricsTexts } = require('./media/lyrics-reply.js');
+const { lyricsReply } = require('./media/lyrics-reply.js');
 
 function lookupLyricsOnce(media, key) {
   if (_lyricsPending.has(key)) return _lyricsPending.get(key);
@@ -4981,10 +4974,6 @@ const perfRegistry = createPerfRegistry({
 });
 
 const { readBody, readBodyBuffer } = require('./http/read-body.js');
-
-const { parseMultipartBackground } = require('./http/multipart-upload.js');
-
-const { cleanupOldBackgrounds, cleanupOldFonts } = require('./look/upload-cleanup.js');
 
 let _tileAssetGcSig = null;
 let _tileAssetGcAt = 0;
@@ -7433,8 +7422,8 @@ function updateDeckConfigs(edit) {
 const { redactSettingsSecrets, preserveSettingsSecrets } = require('./settings/secrets.js');
 
 const {
-  BACKUP_FORMAT, BACKUP_MIN_FORMAT, BACKUP_MAX_BYTES, BACKUP_BACKGROUND_MAX_BYTES,
-  BACKUP_SAFE_NAME_RE, localBackupStamp,
+  BACKUP_FORMAT, BACKUP_MIN_FORMAT, BACKUP_BACKGROUND_MAX_BYTES, BACKUP_SAFE_NAME_RE,
+  localBackupStamp,
 } = require('./settings/backup-format.js');
 
 const { _backupSecretFlags, _backupNeedsSetup } = require('./settings/backup-secrets.js');
@@ -10723,6 +10712,29 @@ const { branches: searchFilesBranches } = require('./search/routes-files.js');
 const { branches: diskBranches } = require('./disk/routes.js');
 const { branches: smartHomeBranches } = require('./smart-home/routes.js');
 const { branches: lightsControlBranches } = require('./lights/routes-control.js');
+const { branches: updatesUpdateBranches } = require('./updates/routes-update.js');
+const { branches: remoteControlBranches } = require('./remote-control/routes.js');
+const { branches: deckKeysBranches } = require('./deck/routes-keys.js');
+const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-packs.js');
+const { branches: storeSupportersUnlockBranches } = require('./store-supporters/routes-unlock.js');
+const { branches: performanceModeBranches } = require('./performance/routes-mode.js');
+const { branches: audioVolumeBranches } = require('./audio/routes-volume.js');
+const { branches: timeBranches } = require('./time/routes.js');
+const { branches: codexBranches } = require('./codex/routes.js');
+const { branches: tickerListsBranches } = require('./ticker/routes-lists.js');
+const { branches: screensCaptureBranches } = require('./screens/routes-capture.js');
+const { branches: windowsTilesTilesBranches } = require('./windows-tiles/routes-tiles.js');
+const { branches: lookBranches } = require('./look/routes.js');
+const { branches: gridBranches } = require('./grid/routes.js');
+const { branches: settingsBranches } = require('./settings/routes.js');
+const { branches: streamingBranches } = require('./streaming/routes.js');
+const { branches: mediaBranches } = require('./media/routes.js');
+const { branches: weatherBranches } = require('./weather/routes.js');
+const { branches: systemInfoBranches } = require('./system/routes-info.js');
+const { branches: notificationOpenBranches } = require('./notification-open/routes.js');
+const { branches: widgetOptionsBranches } = require('./widget-options/routes.js');
+const { branches: menuBranches } = require('./menu/routes.js');
+const { branches: alertsBranches } = require('./alerts/routes.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -11019,18 +11031,7 @@ const handleRequest = async (req, res) => {
     await sendPage(await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8'));
 
   } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
-    // Every page's strings: the saved language and the browser's, plus English.
-    // no-store, so a window reloaded after a language change gets it.
-    try {
-      const langs = LayerI18n.wantedLanguages(hub.settings.language, req.headers['accept-language']);
-      const js = await LayerI18n.scriptFor(langs, hub.settings.language);
-      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(js);
-    } catch (e) {
-      console.error('[layer-i18n]', e && e.message);
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('layer strings unavailable');
-    }
+    await widgetOptionsBranches['GET /layer-i18n.js'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/spotlight' && req.method === 'GET') {
     // Spotlight popup document (main-PC window, opened by the global hotkey).
@@ -11043,12 +11044,7 @@ const handleRequest = async (req, res) => {
     await sendPage(screenAlertsPage.compose(html, dashboard));
 
   } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
-    // Open the Virtual Deck as an Edge app-mode window on the main PC (shared
-    // helper — the AI's open_virtual_deck tool uses the same code path).
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await openDeckPopupWindow(String(body.instance || ''), body.topmost !== false));
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'popup_failed' }); }
+    await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });
 
   } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
     audioCache.muted = !audioCache.muted;
@@ -11080,15 +11076,10 @@ const handleRequest = async (req, res) => {
     json(await osTheme.read());
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
-    // On failure (SoundVolumeView missing/blocked) return an explicit
-    // { unavailable } marker with 200 so the polling fallback can render the
-    // Volume section's "audio unavailable" notice, matching the SSE path.
-    try   { json(await getAudioInfo()); }
-    catch { json({ unavailable: true }); }
+    await audioVolumeBranches['GET /audio'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getAudioInfo });
 
   } else if (reqPath === '/system' && req.method === 'GET') {
-    try   { json(await getSystemInfo({ partialOk: true })); }
-    catch (e) { err500(e.message); }
+    await systemInfoBranches['GET /system'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSystemInfo });
 
   } else if (reqPath === '/system/sensors' && req.method === 'GET') {
     // The whole catalog with live values, for the Sensor sources picker. Read
@@ -11111,24 +11102,16 @@ const handleRequest = async (req, res) => {
     json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
 
   } else if (reqPath === '/api/battery' && req.method === 'GET') {
-    // Read-only seed for the battery widget / deck editor (SSE 'battery'
-    // pushes updates afterwards). Never a JSONP candidate.
-    try   { json(await batteryMonitor.getDevices()); }
-    catch (e) { err500(e.message); }
+    await systemInfoBranches['GET /api/battery'](req, res, { json, err500, reqPath, urlObj, isRemote }, { batteryMonitor });
 
   } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
     await systemBranches['POST /system/enable-sensors'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/network' && req.method === 'GET') {
-    try   { json(await getNetworkInfo()); }
-    catch (e) { err500(e.message); }
+    await systemInfoBranches['GET /network'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getNetworkInfo });
 
   } else if (reqPath === '/api/processes/history' && req.method === 'GET') {
-    // The recent `processes` readings, as ages rather than clock times (the
-    // reader may be a paired phone with its own clock). A pure read of what the
-    // SSE stream already carried, so it widens nothing on the paired-device
-    // door; empty when no package holds the grant, exactly like the stream.
-    json({ ok: true, items: processesWanted() ? _processesHistory.toWire() : [] });
+    await performanceModeBranches['GET /api/processes/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _processesHistory });
 
   } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
     await diskBranches['GET /api/disks/io'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getDiskIo });
@@ -11144,47 +11127,22 @@ const handleRequest = async (req, res) => {
     await performanceBranches['GET /api/gamemode/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {
-    // Read-only system snapshot for Performance Mode: memory pressure + the top
-    // processes by RAM with a CPU% estimate. Feeds the optimization sheet (per-app
-    // memory chips), the deterministic preselect, and the AI planner.
-    try   { json(await perfStats()); }
-    catch (e) { json({ ok: false, error: e.message }); }
+    await performanceModeBranches['GET /api/performance/stats'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfStats });
 
   } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
-    // Performance Mode: read the active Windows power scheme so the client can
-    // remember it before switching, then restore it on exit. Fully reversible.
-    try   { json(perfSession.plan ? await perfSession.plan.get() : { ok: false, error: 'unsupported_platform' }); }
-    catch (e) { json({ ok: false, error: e.message }); }
+    await performanceModeBranches['GET /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
 
   } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {
-    // Switch to a known high-performance plan ('high'/'ultimate') or restore a
-    // previously-saved scheme by GUID. Anything else is rejected here and in power-plan.js.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const value = String(body.value || '').trim();
-      const isPreset = value === 'high' || value === 'ultimate';
-      const isGuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
-      if (!isPreset && !isGuid) { res.writeHead(400); res.end('Invalid power plan'); return; }
-      json(perfSession.plan ? await perfSession.plan.set(value) : { ok: false, error: 'unsupported_platform' });
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await performanceModeBranches['POST /api/performance/powerplan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
 
   } else if (reqPath === '/api/performance/shield' && req.method === 'GET') {
-    // Read-only: whether Core Shield can run on this PC, for the sheet and Settings,
-    // and which apps it moved this session, for the note at the end.
-    try   { json({ ok: true, ...(await perfSession.shield.status()) }); }
-    catch (e) { json({ ok: false, error: e.message }); }
+    await performanceModeBranches['GET /api/performance/shield'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfSession });
 
   } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {
     await performanceBranches['POST /api/performance/screen'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/settings/tile' && req.method === 'POST') {
-    let body = null;
-    try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
-    try {
-      const out = await saveTileSettings(body);
-      if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
-      json(out);
-    } catch (e) { err500(e.message); }
+    await settingsBranches['POST /settings/tile'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveTileSettings });
 
   } else if (reqPath === '/sdk/grant' && req.method === 'POST') {
     await widgetSdkPackagesBranches['POST /sdk/grant'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveSdkGrant });
@@ -11193,43 +11151,10 @@ const handleRequest = async (req, res) => {
     await vitalsBranches['POST /api/vitals/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveVitalsState });
 
   } else if (reqPath === '/api/performance/state' && req.method === 'POST') {
-    // The driver page's save of the `performance` block (an optimize session
-    // started or ended with no dashboard). Nothing else in the settings moves.
-    let perf = null;
-    try { perf = perfScreen.stateFrom(JSON.parse(await readBody(req) || '{}')); } catch (e) { perf = null; }
-    if (!perf) { res.writeHead(400); res.end('Invalid performance settings'); return; }
-    try {
-      const saved = await updatePerformanceSetting(perf);
-      json({ ok: true, rev: saved.rev });
-    } catch (e) { err500(e.message); }
+    await performanceModeBranches['POST /api/performance/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updatePerformanceSetting });
 
   } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
-    // AI planner for Performance Mode: returns { explanation, closeApps } curated
-    // for the current activity, or { ok:false } so the client falls back to the
-    // deterministic flow. The AI only picks among the open apps it's given.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const settings = (await readHubSettings().catch(() => null)) || {};
-      const provider = aiLocal.sanitizeProvider(body.provider);
-      const opts = (body.opts && typeof body.opts === 'object') ? body.opts : {};
-      // Measure here (server-side) so the plan reasons on real RAM/CPU numbers;
-      // a failed probe degrades to the old name-only prompt.
-      const stats = await perfStats().catch(() => null);
-      const plan = await _aiPerformancePlan({
-        activity: String(body.activity || 'other'),
-        appNames: Array.isArray(body.apps) ? body.apps : [],
-        opts,
-        provider,
-        key: String(body.key || settings.geminiApiKey || '').trim(),
-        model: aiLocal.sanitizeModel(body.model || settings.ollamaModel),
-        ollamaUrl: body.ollamaUrl || settings.ollamaUrl,
-        hardwareScan: settings.hardwareScan,
-        lang: String(body.lang || 'en'),
-        stats: (stats && stats.ok) ? stats : null,
-      });
-      if (!plan) { json({ ok: false }); return; }
-      json({ ok: true, plan });
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await performanceModeBranches['POST /api/performance/plan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _aiPerformancePlan, perfStats, readHubSettings });
 
   } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
     await lightsBranches['GET /api/lighting/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11303,11 +11228,7 @@ const handleRequest = async (req, res) => {
     await lightsBranches['POST /api/lighting/sdk-install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {
-    // Guardian hardware-health history for the dashboard charts (same local data
-    // the AI digest summarises). Read-only; harmless when Guardian is disabled —
-    // it just returns whatever buckets were collected while it was last on.
-    try { json(await guardian.getHistory()); }
-    catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
+    await systemInfoBranches['GET /api/guardian/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { guardian });
 
   } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
     await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11383,23 +11304,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
-    try {
-      const requestedWeather = urlObj.searchParams.has('mode') || urlObj.searchParams.has('city')
-        ? { mode: urlObj.searchParams.get('mode'), city: urlObj.searchParams.get('city') }
-        : null;
-      json(await getWeather(urlObj.searchParams.get('lang') || 'en', requestedWeather));
-    }
-    catch (e) { err500(e.message); }
+    await weatherBranches['GET /weather'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getWeather });
 
   } else if (reqPath === '/media' && req.method === 'GET') {
-    try {
-      // ?source= changes the preferred player. Only from our own pages.
-      const fetchSite = String(req.headers['sec-fetch-site'] || '').toLowerCase();
-      const foreignPage = fetchSite === 'cross-site' || fetchSite === 'same-site';
-      if (urlObj.searchParams.has('source') && !foreignPage) setMediaPreferredSource(urlObj.searchParams.get('source'));
-      json(await getMediaInfo());
-    }
-    catch (e) { err500(e.message); }
+    await mediaBranches['GET /media'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getMediaInfo, setMediaPreferredSource });
 
   } else if (reqPath === '/media/source' && (req.method === 'POST' || req.method === 'GET')) {
     try {
@@ -11431,23 +11339,7 @@ const handleRequest = async (req, res) => {
     await windowsTilesBranches['POST /windows/close'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/windows/launch' && req.method === 'POST') {
-    // Launch a favorited app that isn't currently open, by its stored exe path.
-    // The path came from the server's own window enumeration, but it is re-validated
-    // through the SAME allowlisted openApp runner the Deck uses (exe/.lnk only +
-    // existence check) before anything spawns — never trusted blindly.
-    try {
-      const { path: appPath } = JSON.parse(await readBody(req));
-      if (!appPath || typeof appPath !== 'string') {
-        res.writeHead(400); res.end('Missing path'); return;
-      }
-      // From a paired phone, only an app the user already chose: a favourite
-      // or a Deck key's app. Otherwise a file sent from the phone could be
-      // started right after it lands.
-      if (isRemote && !remoteActions.remoteMayLaunch(appPath, hub.settings && hub.settings.appFavorites, await readDeckStore())) {
-        json({ ok: false, error: 'needs_pc' }); return;
-      }
-      json(await deckRegistry.run({ type: 'openApp', path: appPath }));
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['POST /windows/launch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
 
   } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
     try {
@@ -11557,45 +11449,7 @@ const handleRequest = async (req, res) => {
     await audioBranches['GET /audio/apps'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck/sound' && req.method === 'GET') {
-    // Stream a user-chosen local audio file for the Deck soundboard. The browser
-    // plays it; the file path comes from the user's own Deck config (same trust
-    // level as the open-file/open-app actions). This is the only route that returns
-    // raw file CONTENTS for a client-supplied path, so it is hardened two ways:
-    //   1. Fetch Metadata gate — reject cross-site requests. The browser stamps
-    //      `Sec-Fetch-Site` and a page can't forge it, so a malicious site can't
-    //      point an <audio> at this route to read/play local files; only the
-    //      same-origin dashboard can. (Absent header = non-browser caller, which
-    //      already has direct filesystem access — no escalation.)
-    //   2. Extension allowlist — only audio files, so it can't read documents/secrets.
-    // Range is supported so <audio> seeking works.
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const SOUND_MIME = {
-        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
-        '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
-      };
-      // Two accepted shapes: an absolute local path (the user's own machine-
-      // local clip — same trust level as open-file keys), or a PACK-RELATIVE
-      // ref ('packs/<packId>/<clipId>.<ext>') resolved under the sounds dir.
-      // The pack shape is what shared Deck profiles carry (machine-independent)
-      // and is validated segment-by-segment + prefix-asserted in sound-packs.js
-      // BEFORE path.resolve can ever see it.
-      const rawPath = urlObj.searchParams.get('path') || '';
-      const abs = soundPackStore.resolve(rawPath) || path.resolve(rawPath);
-      const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
-      if (!mime) { res.writeHead(415); res.end(); return; }
-      const stat = await fs.promises.stat(abs);
-      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
-
-      serveFileRange(req, res, abs, stat, {
-        'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store',
-      });
-    } catch (e) {
-      if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await deckBranches['GET /deck/sound'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
   } else if (reqPath === '/deck/sound-upload' && req.method === 'POST') {
     await deckBranches['POST /deck/sound-upload'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11625,32 +11479,13 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /deck/app-icon'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
-    try {
-      const { id } = JSON.parse(await readBody(req));
-      setDefaultAudioDevice(id).then(() => { audioCache.speakerId = id; json({ ok: true }); }, e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioVolumeBranches['POST /speaker/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setDefaultAudioDevice });
 
   } else if (reqPath === '/mic/set' && req.method === 'POST') {
-    try {
-      const { id } = JSON.parse(await readBody(req));
-      setDefaultAudioDevice(id).then(() => {
-        audioCache.micId = id;
-        if (audioCache.muted) setMicMute(true);
-        json({ ok: true });
-      }, e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioVolumeBranches['POST /mic/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setDefaultAudioDevice, setMicMute });
 
   } else if (reqPath === '/actions/run' && req.method === 'POST') {
-    try {
-      const action = JSON.parse(await readBody(req) || '{}');
-      // A paired phone runs free actions, and anything else only as a key the
-      // user already built (remote-actions.js).
-      if (isRemote) {
-        const verdict = remoteActions.remoteMayRun(action, await readDeckStore());
-        if (!verdict.ok) { json({ ok: false, error: verdict.error }); return; }
-      }
-      json(await deckRegistry.run(action));
-    } catch (e) { err500(e.message); }
+    await deckKeysBranches['POST /actions/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
 
   } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {
     await aiBranches['POST /ai/pc-run'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11665,12 +11500,7 @@ const handleRequest = async (req, res) => {
     await aiBranches['POST /ai/pc-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/actions/perf' && req.method === 'POST') {
-    // Performance Mode system actions (guided app close/relaunch). Allowlisted
-    // and validated inside perfRegistry — never an arbitrary command.
-    try {
-      const action = JSON.parse(await readBody(req) || '{}');
-      json(await perfRegistry.run(action));
-    } catch (e) { err500(e.message); }
+    await performanceModeBranches['POST /actions/perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { perfRegistry });
 
   } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
     try {
@@ -11717,47 +11547,22 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
-    // What the Deck editor's strip/bus pickers are filled from, and the honest
-    // answer when there is nothing to fill them with: `available` says the DLL
-    // is there, `running` says the mixer is up, and `reason` names which of the
-    // two is missing. Never throws — an absent Voicemeeter is a state.
-    try { json(deckVoicemeeter.state()); }
-    catch (e) { json({ ok: true, available: false, running: false, reason: 'voicemeeter_unavailable' }); }
+    await audioVolumeBranches['GET /api/voicemeeter/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckVoicemeeter });
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
-    // Current Wave Link mixer snapshot (for a tile's first paint before SSE ticks).
-    try { json(await buildWlState()); } catch (e) { err500(e.message); }
+    await audioVolumeBranches['GET /api/wavelink/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildWlState });
 
   } else if (reqPath === '/api/wavelink/channels' && req.method === 'GET') {
-    // Channel list for the Deck editor's mixer picker: [{ value: mixId, label }].
-    try { json({ channels: await deckWaveLink.listChannels() }); } catch (e) { json({ channels: [] }); }
+    await audioVolumeBranches['GET /api/wavelink/channels'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
 
   } else if (reqPath === '/api/wavelink/mixes' && req.method === 'GET') {
-    // Mix list for the editor's mix picker. On Wave Link 2 these are the two
-    // synthetic mixes (Local/Stream); on 3.x they are the user's own, named.
-    // Either way the picker shows words rather than PCM_IN_01_V_00_SD1.
-    try { json({ mixes: await deckWaveLink.listMixes() }); } catch (e) { json({ mixes: [] }); }
+    await audioVolumeBranches['GET /api/wavelink/mixes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
 
   } else if (reqPath === '/api/wavelink/icon' && req.method === 'GET') {
-    // Wave Link 3 ships a PNG per channel as base64. It is served here, by id,
-    // rather than carried in the SSE frame that fires on every fader move.
-    // The id is resolved against the client's own cache — no path, no lookup by
-    // anything the caller supplies beyond a key we minted.
-    try {
-      const buf = deckWaveLink.iconFor(urlObj.searchParams.get('id') || '');
-      if (!buf) { res.writeHead(404).end(); return; }
-      res.writeHead(200, {
-        'Content-Type': 'image/png',
-        'Content-Length': buf.length,
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-store',
-      });
-      res.end(buf);
-    } catch (e) { res.writeHead(404).end(); }
+    await audioVolumeBranches['GET /api/wavelink/icon'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
 
   } else if (reqPath === '/api/wavelink/test' && req.method === 'POST') {
-    // Settings "Test connection": open the socket once and report reachability.
-    try { json(await deckWaveLink.test()); } catch (e) { json({ ok: false, error: 'wl_failed' }); }
+    await audioVolumeBranches['POST /api/wavelink/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
 
   } else if (reqPath === '/api/chroma/status' && req.method === 'GET') {
     await lightsControlBranches['GET /api/chroma/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckChroma });
@@ -11804,14 +11609,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
-    // Ad-blocker status for Settings → Browser: whether the extension is installed,
-    // whether the user has it enabled, and whether a download is in flight.
-    json({
-      available: embeddedBrowser.available(),
-      installed: browserAdblock.isInstalled(DATA_DIR),
-      enabled: !!(hub.settings && hub.settings.browserAdblock),
-      busy: browserAdblock.isBusy(),
-    });
+    await windowsTilesTilesBranches['GET /embedded-browser/adblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser });
 
   } else if (reqPath === '/embedded-browser/adblock/install' && req.method === 'POST') {
     await windowsTilesBranches['POST /embedded-browser/adblock/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11828,57 +11626,16 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/obs/sources' && req.method === 'GET') {
-    try {
-      const d = await deckObs.request('GetInputList', {});
-      const inputs = Array.isArray(d.inputs) ? d.inputs : [];
-      // Prefer audio inputs (mic / desktop / app audio); if the kind filter matches
-      // none, fall back to every input so the user can still pick one.
-      const audio = inputs.filter((i) => /audio|wasapi|coreaudio|pulse|sndio|alsa/i.test(i.inputKind || ''));
-      const sources = (audio.length ? audio : inputs).map((i) => i.inputName).filter(Boolean);
-      json({ ok: true, sources });
-    } catch (e) {
-      json({ ok: false, sources: [], error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /obs/sources'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs });
 
   } else if (reqPath === '/streamerbot/actions' && req.method === 'GET') {
-    // Live list of Streamer.bot actions for the Deck editor + Settings card. The
-    // editor stores each key's action by id (stable across renames); the name is
-    // only the label. Returns {ok:false} (not an error) when streamer.bot is off.
-    try {
-      const d = await deckSb.request('GetActions', {});
-      const actions = (Array.isArray(d.actions) ? d.actions : [])
-        .map((a) => ({ id: String(a.id || ''), name: String(a.name || '') }))
-        .filter((a) => a.id);
-      json({ ok: true, actions });
-    } catch (e) {
-      json({ ok: false, actions: [], error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /streamerbot/actions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
 
   } else if (reqPath === '/streamerbot/codetriggers' && req.method === 'GET') {
-    // Live list of Streamer.bot CODE triggers for the Deck editor picker. Stored on
-    // a key by trigger name (what ExecuteCodeTrigger takes). Response shape varies by
-    // build, so accept `triggers` or `codeTriggers`. {ok:false} when streamer.bot is off.
-    try {
-      const d = await deckSb.request('GetCodeTriggers', {});
-      const raw = Array.isArray(d.triggers) ? d.triggers : (Array.isArray(d.codeTriggers) ? d.codeTriggers : []);
-      const triggers = raw
-        .map((a) => ({ name: String((a && (a.name || a.triggerName)) || ''), group: String((a && (a.category || a.group)) || '') }))
-        .filter((a) => a.name);
-      json({ ok: true, triggers });
-    } catch (e) {
-      json({ ok: false, triggers: [], error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /streamerbot/codetriggers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
 
   } else if (reqPath === '/streamerbot/globals' && req.method === 'GET') {
-    // Live list of Streamer.bot global-variable NAMES for the Deck editor's
-    // "reflect a global" picker. A key stores the name; its on/off then follows the
-    // live value pushed over the `streamerbot` SSE event. {ok:false} when off.
-    try {
-      const globals = await deckSb.listGlobals();
-      json({ ok: true, globals });
-    } catch (e) {
-      json({ ok: false, globals: [], error: String((e && e.message) || e) });
-    }
+    await streamingBranches['GET /streamerbot/globals'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
 
   } else if (reqPath === '/streamerbot/activity' && req.method === 'GET') {
     // Seed for the Streamer.bot widget: connection flag, live globals and the recent
@@ -11893,64 +11650,25 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/notes/list' && req.method === 'GET') {
-    // Structured multi-note store — used by the web dashboard notes widget.
-    readNotes()
-      .then(state => json(state))
-      .catch(e => err500(e.message));
+    await timeBranches['GET /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });
 
   } else if (reqPath === '/notes/list' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      // Stale-write guard (serialized in saveNotesGuarded): a save carries the
-      // rev it was based on. A surface that missed newer saves would clobber
-      // fresher content — refuse it and hand back the authoritative state (the
-      // client rebases or adopts it). Absent baseRev (legacy/SDK callers)
-      // keeps last-writer-wins as before. normalizeNotesState (inside
-      // writeNotes) rebuilds from known keys and caps sizes, so a tampered
-      // payload can't smuggle bad shapes or exhaust disk.
-      json(await saveNotesGuarded(body));
-    } catch (e) { err500(e.message); }
+    await timeBranches['POST /notes/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNotesGuarded });
 
   } else if (reqPath === '/notes' && req.method === 'GET') {
-    // Read only. A GET that saved (?save=&data=) let any link or <img> replace
-    // every note with one; saving is POST now.
-    // Legacy flat-text read. Flatten the structured store.
-    readNotes()
-      .then(state => json({ notes: notesToText(state) }))
-      .catch(e => err500(e.message));
+    await timeBranches['GET /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readNotes });
 
   } else if (reqPath === '/notes' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      const notes = typeof body.notes === 'string' ? body.notes : (typeof body.text === 'string' ? body.text : '');
-      // Legacy flat-text save (iCUE widget). Replaces the store with a single note.
-      const safe = String(notes).slice(0, NOTE_BODY_MAX);
-      writeNotes(textToNotesState(safe))
-        .then(() => json({ ok: true, savedAt: Date.now() }))
-        .catch(e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await timeBranches['POST /notes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { writeNotes });
 
   } else if (reqPath === '/version' && req.method === 'GET') {
     await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
-    // Curated highlights for the running version (see loadWhatsNew). Static and
-    // shipped with the build; the client gates display on the `id`. A new install
-    // gets them too: the major's sheets first, then the notes since it.
-    try { json({ ...(await loadWhatsNew()), version: APP_VERSION }); } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['GET /whatsnew'](req, res, { json, err500, reqPath, urlObj, isRemote }, { loadWhatsNew });
 
   } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {
-    // The person read What's New, the fixes of a release or a failed update. The
-    // alerts window of "widgets only" only views the settings, and the two
-    // versions must hold on every surface, so the server writes them.
-    try {
-      const seen = releaseNotes.cleanSeen(JSON.parse(await readBody(req, 1024) || '{}'));
-      if (Object.keys(seen).length) await saveNoticeSeen(seen);
-      json({ ok: true });
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-    }
+    await updatesUpdateBranches['POST /update/notice-seen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveNoticeSeen });
 
   } else if (reqPath === '/bit/messages' && req.method === 'GET') {
     await aiVoiceBranches['GET /bit/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { bitMessages });
@@ -12022,98 +11740,22 @@ const handleRequest = async (req, res) => {
     });
 
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
-    // Whether one-click self-update is possible here (not a git checkout, applier
-    // present), and whether a validated build is already staged and ready to apply.
-    // `lastResult` is the machine-readable outcome update-apply.ps1 persists to
-    // DATA_DIR/update-result.json (success or rollback + reason), so the dashboard
-    // can explain a failed apply instead of spinning to a blind timeout. Read
-    // fresh per request — the applier writes it while we are down.
-    try {
-      let lastResult = null;
-      // Absent (old applier or no update yet) → null; readPwshJson also strips
-      // the PS5 UTF-8 BOM older applier builds wrote.
-      const m = await readPwshJson(path.join(DATA_DIR, 'update-result.json'));
-      if (m && typeof m.ok === 'boolean') {
-        lastResult = {
-          ok: m.ok,
-          reason: String(m.reason || ''),
-          // The failing tool's OWN sentence, when the applier captured one (npm's
-          // first ERR! line). The reason code names the stage and stops there,
-          // which is the same text for four failures with four different fixes.
-          // Free text from a tool, so it is bounded here and rendered as text.
-          detail: String(m.detail || '').slice(0, 200),
-          rolledBack: m.rolledBack !== false,
-          rollbackVerified: m.rollbackVerified !== false,
-          from: String(m.from || ''),
-          to: String(m.to || ''),
-          at: String(m.at || ''),
-        };
-      }
-      // `reason` names WHICH precondition failed, so a stuck install can be
-      // diagnosed from this one URL instead of a round of guesses. Empty when
-      // self-update is available. `applier` is the path that has to exist —
-      // quoted here because "restore this file" is only actionable if the user
-      // is told which file.
-      const unsupportedFor = selfUpdate.unsupportedReason();
-      json({
-        supported: !unsupportedFor,
-        reason: unsupportedFor,
-        applier: unsupportedFor === 'no_applier' ? String(selfUpdate.applierPath || '') : undefined,
-        staged: selfUpdate.staged(),
-        lastResult,
-      });
-    } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['GET /update/self-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });
 
   } else if (reqPath === '/update/prepare' && req.method === 'POST') {
-    // Non-destructive: download + extract + validate the latest release into
-    // DATA_DIR. The live install is never touched here.
-    try {
-      await readBody(req);
-      if (!selfUpdate.supported()) { json({ ok: false, error: 'unsupported' }); return; }
-      const u = await checkLatestRelease(true);
-      if (!u.ok || !semverNewer(u.latest, APP_VERSION)) { json({ ok: false, error: 'no_update' }); return; }
-      const r = await selfUpdate.prepare({ tag: u.tag, version: u.latest });
-      json(r);
-    } catch (e) { json({ ok: false, error: String(e && e.message || e) }); }
+    await updatesUpdateBranches['POST /update/prepare'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });
 
   } else if (reqPath === '/update/apply' && req.method === 'POST') {
-    // Hand off to the external applier (elevated, detached). Only valid once a
-    // build is staged; from here the swap happens outside this process.
-    // The port is this server's, so an install on XENON_PORT updates itself
-    // and not whatever else listens on 3030.
-    try {
-      await readBody(req);
-      json(selfUpdate.apply({ port: PORT }));
-    } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['POST /update/apply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, selfUpdate });
 
   } else if (reqPath === '/update/auto-status' && req.method === 'GET') {
-    // Where the automatic updater stands, for the line in Settings -> General.
-    // ?safe=1 also answers "could the app restart right now?", which the native
-    // app asks before updating its own shell; it reads idle time, so it is only
-    // computed on request. `shellSilent` says whether that shell update can run
-    // with nobody there to answer a password prompt (see self-update.js).
-    try {
-      const out = autoUpdater.status();
-      if (urlObj.searchParams.get('safe') === '1') {
-        out.safeNow = await autoUpdater.safeNow();
-        out.shellSilent = selfUpdate.shellUpdatesSilently();
-      }
-      json(out);
-    } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['GET /update/auto-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater, selfUpdate });
 
   } else if (reqPath === '/api/widgets/auto-update' && req.method === 'GET') {
-    // Where the widget auto-updater stands, for the line in Settings -> Widget e
-    // condivisione: the switch, the last run, and what is waiting for the user.
-    // Read-only, names and versions only.
-    try { json(await widgetAutoUpdater.status()); } catch (e) { err500(e.message); }
+    await storeCatalogPacksBranches['GET /api/widgets/auto-update'](req, res, { json, err500, reqPath, urlObj, isRemote }, { widgetAutoUpdater });
 
   } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {
-    // "Postpone by an hour" from the countdown on any dashboard. It can only
-    // delay an update, never start one, so a paired phone may send it too.
-    try {
-      await readBody(req);
-      json(autoUpdater.postpone());
-    } catch (e) { err500(e.message); }
+    await updatesUpdateBranches['POST /update/auto/postpone'](req, res, { json, err500, reqPath, urlObj, isRemote }, { autoUpdater });
 
   } else if (reqPath === '/api/native/status' && req.method === 'GET') {
     await updatesBranches['GET /api/native/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12165,60 +11807,16 @@ const handleRequest = async (req, res) => {
     await updatesBranches['GET /api/native/install-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
-    // One portable JSON file with the user's configuration (no secrets, no
-    // uploaded binaries). Served as a download.
-    try {
-      const bundle = await buildBackup();
-      const name = 'xenon-backup-' + localBackupStamp(new Date()) + '.json';
-      res.writeHead(200, {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${name}"`,
-      });
-      // Compact on purpose: pretty-printing a bundle that can embed a multi-MB
-      // background stringifies tens of extra MB synchronously on the event loop.
-      res.end(JSON.stringify(bundle));
-    } catch (e) { err500(e.message); }
+    await settingsBranches['GET /backup/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildBackup });
 
   } else if (reqPath === '/backup/import' && req.method === 'POST') {
-    try {
-      const raw = await readBody(req, BACKUP_MAX_BYTES);
-      json(await applyBackup(JSON.parse(raw || '{}'), { remote: isRemote }));
-    } catch (e) { err500(e.message); }
+    await settingsBranches['POST /backup/import'](req, res, { json, err500, reqPath, urlObj, isRemote }, { applyBackup });
 
   } else if (reqPath === '/backup/save' && req.method === 'POST') {
-    // Embedded-view fallback: the iCUE WebView (and some kiosk browsers) have no
-    // download manager, so a blob/anchor download silently does nothing there.
-    // Since the server runs on the same PC, write the backup straight to the
-    // user's Downloads folder and report the path back for a confirmation toast.
-    // `pick: true` asks where first, with the system folder dialog, on the PC
-    // only: from a paired device nobody is in front of that dialog. No dialog
-    // (no capture engine, it failed) → Downloads.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      let dir = '';
-      if (body && body.pick === true && !isRemote && _captureHost.has('pick_folder')) {
-        const r = await chooseBackupFolder();
-        if (r.ok && r.cancelled) { json({ ok: true, cancelled: true }); return; }
-        if (!r.ok && r.error === 'picking') { json(r); return; }
-        if (r.ok) dir = r.path;
-      }
-      json(await saveBackupToDisk(dir));
-    } catch (e) { err500(e.message); }
+    await settingsBranches['POST /backup/save'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseBackupFolder, saveBackupToDisk });
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    // Redact ALL server-only secrets (remote-control creds, Home Assistant token,
-    // OBS/Streamer.bot passwords, EVERY provider API key, lighting pairing
-    // tokens) before sending to the browser.
-    //
-    // geminiApiKey used to be excluded here, on the reasoning that the client
-    // needed it. It did not: every use was a presence gate or a `key:` field
-    // posted back to an endpoint that already had the key on disk. The gates now
-    // read `geminiApiKeySet` and the server swaps the real key in
-    // (`geminiKeyFor`), so nothing about the AI changed except that the secret
-    // stays on this machine — which matters most on the paired-device door,
-    // where the wire is a cleartext LAN.
-    try { json({ settings: redactSettingsSecrets(await readHubSettings()) }); }
-    catch (e) { err500(e.message); }
+    await settingsBranches['GET /settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
     try {
@@ -12585,30 +12183,7 @@ const handleRequest = async (req, res) => {
     await storeCatalogBranches['GET /api/community/code'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {
-    // Supporter-code redemption for v2 remote-locked drops. This server only
-    // validates shape, attaches the persisted install id and forwards to the
-    // author-owned hub (see server/supporter-redeem.js) — the one-time /
-    // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
-    // An EMPTY code is not a malformed request: it means "use the supporter
-    // pass this machine already redeemed with" (supporter-redeem.js).
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const r = await supporterRedeem.redeem({
-        entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR,
-      });
-      // Opened with the pass trial: the key stays here. This server decrypts the
-      // drop (body.enc, the public locked file), keeps its widgets in the vault
-      // and answers with the inner code, packages replaced by vault markers.
-      if (r && r.ok && r.trial === true) {
-        const { cek, trial, ...answer } = r;
-        const opened = await trialVault.open({
-          entryId: body.entryId, kv: body.kv, enc: body.enc, cek, catalogVersion: body.catalogVersion,
-        });
-        json(opened.ok ? { ...answer, inner: opened.inner } : { ok: false, error: opened.error });
-        return;
-      }
-      json(r);
-    } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/community/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialVault });
 
   } else if (reqPath === '/api/community/update' && req.method === 'POST') {
     await storeSupportersBranches['POST /api/community/update'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12638,22 +12213,13 @@ const handleRequest = async (req, res) => {
     await storeSupportersBranches['POST /api/community/sparks/forget'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/trial' && req.method === 'GET') {
-    // The pass trial's state for this install, from the hub's last answer. Never
-    // the code. A pure read: no hub call (that is /check).
-    try { json(await trialPass.status()); } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['GET /api/community/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
 
   } else if (reqPath === '/api/community/trial/check' && req.method === 'POST') {
-    // A dashboard opening: the hub's latest word, asked at most every 10 minutes.
-    // A conversion lands here too (the supporter code is saved). In CSRF_MUTATION_PATHS.
-    try { json(await trialPass.refresh()); } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/community/trial/check'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
 
   } else if (reqPath === '/api/community/trial/tried' && req.method === 'POST') {
-    // What the dashboard took off when the trial ended, so a conversion can put it
-    // back. Validated in trial-pass.js. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await trialPass.setTried(body && body.tried, { end: !!(body && body.end === true) }));
-    } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/community/trial/tried'](req, res, { json, err500, reqPath, urlObj, isRemote }, { trialPass });
 
   } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
     await storeCatalogBranches['GET /api/community/limited-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12662,25 +12228,13 @@ const handleRequest = async (req, res) => {
     await storeCatalogBranches['GET /api/community/ratings'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/community/rating-state' && req.method === 'GET') {
-    // Can this PC vote on this entry, and what did it give (rating-votes.js). Local
-    // only, no hub call; the phone shows the same Store.
-    try { json(await ratingVotes.stateOf(urlObj.searchParams.get('id'))); } catch (e) { err500(e.message); }
+    await storeCatalogBranches['GET /api/community/rating-state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
   } else if (reqPath === '/api/community/rating-close' && req.method === 'POST') {
-    // The X on Bit's card: no more asks about this entry. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await ratingVotes.close(body.entryId));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['POST /api/community/rating-close'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
   } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
-    // This PC's one final vote on a catalog entry. The ticket stays on this server
-    // and the hub re-validates. In CSRF_MUTATION_PATHS (drive-by pages must not
-    // pump the hub or forge votes), never JSONP.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await ratingVotes.vote({ entryId: body.entryId, stars: body.stars, why: body.why }));
-    } catch (e) { err500(e.message); }
+    await storeCatalogBranches['POST /api/community/rate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { ratingVotes });
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
     // Current quotes for the watchlist (+ the config the widget needs to render).
@@ -12697,68 +12251,10 @@ const handleRequest = async (req, res) => {
     await tickerBranches['GET /api/stocks/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/stocks/watchlist' && req.method === 'POST') {
-    // Add / remove a favorite symbol (or replace the whole list). Persisted in
-    // settings.stocks.watchlist via the atomic writer, then a refresh is kicked.
-    try {
-      await withHubSettingsLock(async () => {          // serialized with every other settings writer
-      const body = JSON.parse(await readBody(req));
-      const cur = await readHubSettingsForUpdate();
-      let wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
-      const action = String(body.action || '').toLowerCase();
-      if (action === 'set' && Array.isArray(body.watchlist)) {
-        // Through the same normalizer 'add' effectively goes through, rather
-        // than storing the posted array as it arrives: 'set' is what the
-        // widget's drag-to-reorder posts, so this is now a user-facing path and
-        // has to clean symbols, cap names and drop duplicates like every other.
-        wl = stocks.normalizeWatchlist(body.watchlist);
-        if (!wl.length) { res.writeHead(400); res.end('bad watchlist'); return; }
-      } else if (action === 'remove') {
-        const sym = stocks.cleanSymbol(body.symbol);
-        wl = wl.filter(w => w.symbol !== sym);
-      } else { // add (default)
-        const sym = stocks.cleanSymbol(body.symbol);
-        if (!sym) { res.writeHead(400); res.end('bad symbol'); return; }
-        if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym, name: String(body.name || '').slice(0, 60) });
-      }
-      const next = { ...cur, stocks: { ...cur.stocks, watchlist: wl } };
-      const saved = await writeHubSettings(next);
-      hub.settings = saved;
-      refreshStocks().catch(() => {});
-      json({ ok: true, watchlist: saved.stocks.watchlist });
-      });
-    } catch (e) { err500(e.message); }
+    await tickerListsBranches['POST /api/stocks/watchlist'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshStocks, writeHubSettings });
 
   } else if (reqPath === '/api/weather/config' && req.method === 'POST') {
-    // Weather location/config, edited from Settings on any surface. It is
-    // deliberately NOT persisted through the whole-settings blob: that transport
-    // is shared with high-frequency automatic saves (a Vitals/Bit heartbeat) and
-    // the unload beacon, either of which — coming from a surface that still holds
-    // the OLD location — would clobber a change just made elsewhere via
-    // last-writer-wins (the "XENON stays on the wrong weather location" bug,
-    // GitHub #109). Persisted like the stocks watchlist: a dedicated writer the
-    // generic POST /settings then preserves (keep-prev). Unlike the watchlist it
-    // also bumps the settings rev and broadcasts, because a peer surface only
-    // refetches the new location once its settings hydrate updates its own
-    // hubSettings.weather (GitHub #72). writeHubSettings normalizes the whole
-    // object, so the incoming weather block is validated server-side here.
-    try {
-      await withHubSettingsLock(async () => {          // serialized with every other settings writer
-      const body = JSON.parse(await readBody(req));
-      const cur = await readHubSettingsForUpdate();
-      const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
-      // Exact same monotonic rule as POST /settings, through the shared helper:
-      // re-deriving the rev from the stored copy alone left this endpoint BELOW
-      // the client's rev (the city field bumps it per keystroke, only the last
-      // debounced save reaches us), and a broadcast under a surface's own rev is
-      // ignored by its hydrate — so that surface stopped adopting a location set
-      // elsewhere (the "browser keeps auto location" residual of GitHub #109).
-      const rev = nextSettingsRev(cur.rev, body && body.rev);
-      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev });
-      hub.settings = saved;
-      broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
-      json({ ok: true, weather: saved.weather, rev: saved.rev });
-      });
-    } catch (e) { err500(e.message); }
+    await weatherBranches['POST /api/weather/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });
 
   } else if (reqPath === '/api/claude' && req.method === 'GET') {
     // Local Claude Code usage aggregate + the budget config the reactor renders.
@@ -12899,68 +12395,22 @@ const handleRequest = async (req, res) => {
     await claudeCodeRunBranches['POST /api/claude/run/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
 
   } else if (reqPath === '/api/codex' && req.method === 'GET') {
-    // The Codex tile's whole state: account side from app-server, live side from
-    // the hooks, the link, the tile settings. `?refresh` re-reads the account
-    // side now (the tile's refresh button), skipping any read still in flight.
-    try {
-      _syncCodexDemand();
-      if (urlObj.searchParams.has('refresh')) {
-        await Promise.all(['limits', 'usage', 'threads'].map((k) => _codexApp.refresh(k).catch(() => {})));
-      }
-      json(_codexPayload());
-    } catch (e) { err500(e.message); }
+    await codexBranches['GET /api/codex'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexPayload, _syncCodexDemand });
 
   } else if (reqPath === '/api/codex/thread' && req.method === 'GET') {
-    // One conversation, as the tile shows it when a row is tapped: requests and
-    // final answers, cleaned of attachment paths (codex-appserver.js parseTurns).
-    // Only a thread Codex listed to us or a session its hooks reported, so this
-    // never reads an arbitrary id.
-    try {
-      const id = String(urlObj.searchParams.get('id') || '');
-      if (!/^[0-9A-Za-z-]{8,64}$/.test(id) || !(_codexApp.knowsThread(id) || _codexBridge.hasSession(id))) {
-        json({ ok: false, error: 'not_found' });
-        return;
-      }
-      json(await _codexApp.readThread(id));
-    } catch (e) { err500(e.message); }
+    await codexBranches['GET /api/codex/thread'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexApp, _codexBridge });
 
   } else if (reqPath === '/api/codex/event' && req.method === 'POST') {
-    // A lifecycle hook from Codex, through codex-hook.js. 204 and no body, ever:
-    // this endpoint has no say in what Codex does.
-    if (!_codexBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    try { _codexBridge.applyHook(JSON.parse(await readBody(req))); } catch { /* malformed: ignored */ }
-    res.writeHead(204); res.end();
+    await codexBranches['POST /api/codex/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });
 
   } else if (reqPath === '/api/codex/permission' && req.method === 'POST') {
-    // The blocking one: Codex waits on this answer. Every path that is not an
-    // explicit tap answers `{}`, which codex-hook.js turns into "no decision"
-    // and Codex into its own prompt. This endpoint cannot approve on its own.
-    if (!_codexBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    if (_codexCfg().approvals === false) { req.resume(); json({}); return; }
-    try {
-      const pendingReq = _codexBridge.requestPermission(JSON.parse(await readBody(req)));
-      if (!pendingReq) { json({}); return; }
-      // Codex gave up (Ctrl-C, its own timeout) and killed the hook: drop the card.
-      const onGone = () => _codexBridge.cancel(pendingReq.id);
-      res.on('close', onGone);
-      const out = await pendingReq.promise;
-      res.off('close', onGone);
-      if (res.writableEnded || res.destroyed) return;
-      json(codexBridge.toHookOutput(out));
-    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller gone */ } }
+    await codexBranches['POST /api/codex/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge, _codexBridgeAuth });
 
   } else if (reqPath === '/api/codex/decide' && req.method === 'POST') {
-    // The touchscreen answering a pending Codex request: allow, deny, or
-    // handback ("Answer in Codex": no decision, at once).
-    try {
-      const body = JSON.parse(await readBody(req));
-      const behavior = body && ['allow', 'deny', 'handback'].includes(body.behavior) ? body.behavior : '';
-      json({ ok: behavior ? _codexBridge.decide(String(body.id || ''), behavior) : false });
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/codex/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexBridge });
 
   } else if (reqPath === '/api/codex/link' && req.method === 'GET') {
-    try { json(await _codexLinkStatus({ fresh: urlObj.searchParams.has('fresh') })); }
-    catch (e) { err500(e.message); }
+    await codexBranches['GET /api/codex/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexLinkStatus });
 
   } else if (reqPath === '/api/codex/link' && req.method === 'POST') {
     // Writes Xenon's hooks into the user's Codex hooks.json (backed up first,
@@ -12976,60 +12426,25 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/codex/unlink' && req.method === 'POST') {
-    try {
-      await codexLink.unlink(DATA_DIR);
-      const st = await _codexLinkStatus({ fresh: true });
-      _codexChanged();
-      json({ ok: true, ...st });
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/codex/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _codexChanged, _codexLinkStatus });
 
   } else if (reqPath === '/api/chatgpt' && req.method === 'GET') {
-    // The conversation list and what is answering right now. Program status
-    // and models come from /api/ai/cli/status and /api/ai/cli/models.
-    try { await _chatgptStore.load(); json(_chatgptPayload(null)); }
-    catch (e) { err500(e.message); }
+    await codexBranches['GET /api/chatgpt'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptPayload, _chatgptStore });
 
   } else if (reqPath === '/api/chatgpt/conversation' && req.method === 'GET') {
-    try {
-      await _chatgptStore.load();
-      const id = String(urlObj.searchParams.get('id') || '');
-      const c = chatgptAsk.isId(id) ? _chatgptStore.get(id) : null;
-      if (!c) { json({ ok: false, error: 'not_found' }); return; }
-      json({ ok: true, conversation: c });
-    } catch (e) { err500(e.message); }
+    await codexBranches['GET /api/chatgpt/conversation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptStore });
 
   } else if (reqPath === '/api/chatgpt/ask' && req.method === 'POST') {
-    // Answers at once with the conversation id; the reply arrives over SSE.
-    try {
-      const body = JSON.parse(await readBody(req));
-      json(await _chatgptAsker.ask({ conversationId: body && body.conversationId, text: body && body.text }));
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/chatgpt/ask'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
 
   } else if (reqPath === '/api/chatgpt/cancel' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      const id = String(body && body.conversationId || '');
-      json({ ok: chatgptAsk.isId(id) && _chatgptAsker.cancel(id) });
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/chatgpt/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
 
   } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      if (body && body.all === true) { await _chatgptAsker.clear(); json({ ok: true }); return; }
-      const id = String(body && body.id || '');
-      json({ ok: chatgptAsk.isId(id) && await _chatgptAsker.remove(id) });
-    } catch (e) { err500(e.message); }
+    await codexBranches['POST /api/chatgpt/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
 
   } else if (reqPath === '/api/football' && req.method === 'GET') {
-    // Current fixtures/results for the favorite teams (+ the config the widget needs).
-    try {
-      if (urlObj.searchParams.has('refresh')) await refreshFootball();
-      const cfg = _footballSettings();
-      // A cold seed has no identity on disk yet; load it (cheap, no network) so
-      // the very first paint already has crests instead of letter initials.
-      await _loadFootballInfo();
-      json({ ..._footballPayload(), favorites: cfg.teams, tile: cfg.tile });
-    } catch (e) { err500(e.message); }
+    await tickerListsBranches['GET /api/football'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _footballPayload, _loadFootballInfo, refreshFootball });
 
   } else if (reqPath === '/api/football/standings' && req.method === 'GET') {
     await tickerBranches['GET /api/football/standings'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13041,35 +12456,7 @@ const handleRequest = async (req, res) => {
     await tickerBranches['GET /api/football/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/football/teams' && req.method === 'POST') {
-    // Add / remove a favorite team (or replace the whole list). Persisted in
-    // settings.football.teams via the atomic writer, then a refresh is kicked.
-    try {
-      await withHubSettingsLock(async () => {          // serialized with every other settings writer
-      const body = JSON.parse(await readBody(req));
-      const cur = await readHubSettingsForUpdate();
-      let teams = Array.isArray(cur.football && cur.football.teams) ? cur.football.teams.slice() : [];
-      const action = String(body.action || '').toLowerCase();
-      if (action === 'set' && Array.isArray(body.teams)) {
-        teams = football.normalizeTeams(body.teams);
-      } else if (action === 'remove') {
-        const id = football.cleanId(body.id);
-        const isLeague = body.type === 'league';
-        teams = teams.filter(tm => !(tm.id === id && (tm.type === 'league') === isLeague));
-      } else { // add (default)
-        const id = football.cleanId(body.id);
-        if (!id) { res.writeHead(400); res.end('bad team id'); return; }
-        const type = body.type === 'league' ? 'league' : 'team';
-        if (!teams.some(tm => tm.id === id && (tm.type === 'league') === (type === 'league'))) {
-          teams.push(football.normalizeTeams([{ id, type, name: body.name, badge: body.badge, league: body.league, leagueId: body.leagueId }])[0] || { id });
-        }
-      }
-      const next = { ...cur, football: { ...cur.football, teams } };
-      const saved = await writeHubSettings(next);
-      hub.settings = saved;
-      refreshFootball().catch(() => {});
-      json({ ok: true, teams: saved.football.teams });
-      });
-    } catch (e) { err500(e.message); }
+    await tickerListsBranches['POST /api/football/teams'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshFootball, writeHubSettings });
 
   } else if (reqPath === '/api/news' && req.method === 'GET') {
     await tickerBranches['GET /api/news'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13078,39 +12465,7 @@ const handleRequest = async (req, res) => {
     await tickerBranches['GET /api/news/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/news/feeds' && req.method === 'POST') {
-    // Add / remove a followed source or topic (or replace the whole list).
-    // Persisted in settings.news.feeds via the atomic writer, then a refresh.
-    try {
-      await withHubSettingsLock(async () => {          // serialized with every other settings writer
-      const body = JSON.parse(await readBody(req));
-      const cur = await readHubSettingsForUpdate();
-      let feeds = Array.isArray(cur.news && cur.news.feeds) ? cur.news.feeds.slice() : [];
-      const action = String(body.action || '').toLowerCase();
-      if (action === 'set' && Array.isArray(body.feeds)) {
-        feeds = news.normalizeFeeds(body.feeds);
-      } else if (action === 'remove') {
-        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
-        // topic ids are slugged (idempotent); source/custom ids arrive verbatim from the chip.
-        const id = type === 'topic' ? news.topicId(body.id || body.query || body.name) : String(body.id || '');
-        feeds = feeds.filter(f => !(f.id === id && f.type === type));
-      } else { // add (default)
-        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
-        const entry = type === 'topic'
-          ? { type: 'topic', name: body.name || body.query, query: body.query || body.name }
-          : type === 'custom'
-            ? { type: 'custom', url: body.url, name: body.name }
-            : { type: 'source', id: body.id };
-        const merged = news.normalizeFeeds([...feeds, entry]);
-        if (merged.length === feeds.length) { res.writeHead(400); res.end('bad or duplicate feed'); return; }
-        feeds = merged;
-      }
-      const next = { ...cur, news: { ...cur.news, feeds } };
-      const saved = await writeHubSettings(next);
-      hub.settings = saved;
-      refreshNews().catch(() => {});
-      json({ ok: true, feeds: saved.news.feeds });
-      });
-    } catch (e) { err500(e.message); }
+    await tickerListsBranches['POST /api/news/feeds'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, writeHubSettings });
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
     await smartHomeBranches['GET /api/homeassistant/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildHaState });
@@ -13196,64 +12551,7 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck-config' && req.method === 'POST') {
-    try {
-      const raw = await readBody(req);
-      if (raw.length > DECK_MAX_BYTES) {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Deck config too large' }));
-        return;
-      }
-      const body = JSON.parse(raw);
-      // One Deck write at a time (withDeckWrite): the AI edits keys too.
-      await withDeckWrite(async () => {
-        const current = await readDeckStore();
-
-        // Current protocol: the client sends only the changes it actually made, as
-        // precise ops ({ ops: [...] }). The server owns the store and assigns every
-        // revision, so two clients' uncoordinated local counters can never fight —
-        // a stale open dashboard simply has no ops to send and can't overwrite or
-        // delete decks it never touched (the "edit reverted / second deck wiped
-        // after a reboot" loss).
-        if (Array.isArray(body.ops)) {
-          const applied = deckStore.applyDeckOps(current, body.ops);
-          if (!applied.changed) {
-            json({ ok: true, rev: current.rev, savedAt: current.savedAt });
-            return;
-          }
-          // A phone may rearrange and edit keys, but not add one that starts
-          // a program, types or calls out (remote-actions.js).
-          if (isRemote && remoteActions.introduces(current, applied.store)) {
-            json({ ok: false, error: 'needs_pc' }); return;
-          }
-          applied.store.rev = current.rev + 1;
-          const saved = await writeDeckStore(applied.store);
-          // Nudge every other open dashboard to re-sync its decks right away.
-          broadcastSSE('deck', { rev: saved.rev });
-          json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
-          return;
-        }
-
-        // LEGACY whole-blob push (a client still running the previous deck.js, or an
-        // old queued beacon). Made strictly ADDITIVE: it can RESTORE an instance the
-        // server is missing entirely, but it never overwrites one the server already
-        // has. The server is authoritative — its decks got there via precise ops from
-        // up-to-date clients — so a stale dashboard can no longer revert a key edit by
-        // racing its beacon after a reboot (the reported "my button reverted" loss).
-        const incoming = normalizeDeckStore(body);
-        const applied = deckStore.applyLegacyBlob(current, incoming);
-        if (!applied.changed) {
-          json({ ok: true, rev: current.rev, savedAt: current.savedAt });
-          return;
-        }
-        if (isRemote && remoteActions.introduces(current, applied.store)) {
-          json({ ok: false, error: 'needs_pc' }); return;
-        }
-        applied.store.rev = current.rev + 1;   // revs are server-assigned — never adopt a client counter
-        const saved = await writeDeckStore(applied.store);
-        broadcastSSE('deck', { rev: saved.rev });
-        json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
-      });
-    } catch (e) { err500(e.message); }
+    await deckKeysBranches['POST /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { withDeckWrite, writeDeckStore });
 
   } else if (reqPath === '/events' && req.method === 'GET') {
     // Read only. Saving used to be possible as a GET (?save=&data=), which any
@@ -13262,31 +12560,7 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      // The dashboard sends one edit (list-ops.js), applied to the list on disk.
-      // A whole list is still taken from a page that loaded before this build.
-      if (listOps.isListOp(body)) {
-        let bad = '';
-        const r = await updateEvents((events) => {
-          const o = listOps.applyListOp(events, body, EVENT_EDIT_FIELDS);
-          if (o.error) { bad = o.error; return null; }
-          return o.changed ? { next: o.list } : null;
-        });
-        if (bad) {
-          res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({ ok: false, error: bad }));
-        } else json({ ok: true, events: r.events, seq: r.seq, savedAt: Date.now() });
-      } else if (Array.isArray(body) || (body && Array.isArray(body.events))) {
-        const events = await writeEvents(body.events || body);
-        json({ ok: true, events, savedAt: Date.now() });
-      } else {
-        // Neither an edit this build knows nor a list: never read it as an
-        // empty list, which would delete every event.
-        res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ ok: false, error: 'bad_op' }));
-      }
-    } catch (e) { err500(e.message); }
+    await timeBranches['POST /events'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateEvents, writeEvents });
 
   } else if (reqPath === '/external-events' && req.method === 'GET') {
     try {
@@ -13309,57 +12583,12 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tasks' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      // One edit at a time, as for the events above.
-      if (listOps.isListOp(body)) {
-        let bad = '';
-        const r = await updateTasks((tasks) => {
-          const o = listOps.applyListOp(tasks, body, TASK_EDIT_FIELDS);
-          if (o.error) { bad = o.error; return null; }
-          return o.changed ? { next: o.list } : null;
-        });
-        if (bad) {
-          res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({ ok: false, error: bad }));
-        } else json({ ok: true, tasks: r.tasks, seq: r.seq, savedAt: Date.now() });
-      } else if (Array.isArray(body) || (body && Array.isArray(body.tasks))) {
-        const tasks = await writeTasks(body.tasks || body);
-        json({ ok: true, tasks, savedAt: Date.now() });
-      } else {
-        // Neither an edit this build knows nor a list: never read it as an
-        // empty list, which would delete every task.
-        res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ ok: false, error: 'bad_op' }));
-      }
-    } catch (e) { err500(e.message); }
-
-  // ── Timers API ────────────────────────────────────────────────────────────
+    await timeBranches['POST /tasks'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateTasks, writeTasks });
   } else if (reqPath === '/api/timers' && req.method === 'GET') {
-    json({ timers: timerState.list });
+    await timeBranches['GET /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/timers' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      if (timerState.list.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
-      // No duration means a stopwatch — which is also how the tile creates one,
-      // by leaving the field empty rather than growing a second button.
-      const kind = body.kind === 'stopwatch' || (body.kind == null && !Number(body.duration_secs))
-        ? 'stopwatch' : 'countdown';
-      const timer = _normalizeTimer({
-        label: String(body.label || (kind === 'stopwatch' ? 'Stopwatch' : 'Timer')).trim(),
-        kind,
-        durationSecs: Math.max(1, Math.round(Number(body.duration_secs) || 60)),
-        intervalSecs: Math.max(0, Math.round(Number(body.interval_secs) || 0)),
-        status: 'running',
-        startedAt: Date.now(),
-        pausedElapsed: 0,
-      });
-      timerState.list.push(timer);
-      await _saveTimers();
-      broadcastSSE('timer_update', { timers: timerState.list });
-      json({ timer });
-    } catch (e) { err500(e.message); }
+    await timeBranches['POST /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {
     try {
@@ -14078,58 +13307,10 @@ const handleRequest = async (req, res) => {
     await screensBranches['GET /api/screens'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
-    try {
-      // Same capture the AI's vision tool uses — one implementation, so the
-      // per-platform grabber lives in exactly one place.
-      const w = parseInt(urlObj.searchParams.get('w'));
-      const h = parseInt(urlObj.searchParams.get('h'));
-      const monitor = w > 0 && h > 0
-        ? {
-            x: parseInt(urlObj.searchParams.get('x')) || 0,
-            y: parseInt(urlObj.searchParams.get('y')) || 0,
-            width: w,
-            height: h,
-          }
-        : null;
-      const base64 = await captureScreenshot(monitor);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ base64, mimeType: 'image/jpeg' }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await screensCaptureBranches['GET /api/screenshot'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });
 
   } else if (reqPath === '/api/screenshot/monitor' && req.method === 'GET') {
-    // "Share my setup": capture exactly ONE enumerated display, near native res.
-    //
-    // The client names an INDEX, never a rectangle — the server re-derives the
-    // bounds from its own listScreens(), so this cannot become an arbitrary-
-    // region capture primitive (unlike /api/screenshot, whose x/y/w/h contract
-    // the AI vision flow depends on). The response echoes the screen it used so
-    // the client can verify the display did not change under it mid-capture.
-    if (process.platform !== 'win32') {
-      // gdigrab is Windows-only. Answer immediately instead of burning the 15 s
-      // ffmpeg timeout, so the card falls back to its drawn form fast.
-      res.writeHead(501, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'unsupported' }));
-      return;
-    }
-    try {
-      const idx = Number.parseInt(urlObj.searchParams.get('index'), 10);
-      const screens = await listScreens();
-      const s = (Number.isInteger(idx) && idx >= 0 && idx < screens.length) ? screens[idx] : null;
-      if (!s || !(s.width > 0) || !(s.height > 0)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'unknown monitor' }));
-        return;
-      }
-      const max = Number.parseInt(urlObj.searchParams.get('max'), 10);
-      const base64 = await captureScreenshot(s, { maxWidth: max || 2560, quality: 2 });
-      json({ base64, mimeType: 'image/jpeg', screen: { index: s.index, width: s.width, height: s.height } });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await screensCaptureBranches['GET /api/screenshot/monitor'](req, res, { json, err500, reqPath, urlObj, isRemote }, { captureScreenshot });
 
   } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
     try {
@@ -14545,124 +13726,16 @@ const handleRequest = async (req, res) => {
     await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/volume/duck' && req.method === 'POST') {
-    // Lower system volume before TTS speaks so Xenon's voice is foregrounded.
-    try {
-      await readBody(req);
-      if (!audioCache.ducked && audioCache.speakerId) {
-        audioCache.volumeBeforeDuck = audioCache.speakerVolume;
-        audioCache.ducked = true;
-        svvExec(['/SetVolume', audioCache.speakerId, '20']).catch(() => {});
-      }
-      res.writeHead(204); res.end();
-    } catch { res.writeHead(204); res.end(); }
+    await audioVolumeBranches['POST /api/volume/duck'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/api/volume/restore' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      if (audioCache.ducked && audioCache.speakerId) {
-        const vol = audioCache.volumeBeforeDuck != null ? audioCache.volumeBeforeDuck : 70;
-        audioCache.ducked = false;
-        audioCache.volumeBeforeDuck = null;
-        svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).catch(() => {});
-      }
-      res.writeHead(204); res.end();
-    } catch { res.writeHead(204); res.end(); }
+    await audioVolumeBranches['POST /api/volume/restore'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/background' && req.method === 'POST') {
-    try {
-      const body = await readBodyBuffer(req, BACKGROUND_MAX_BYTES);
-      const file = parseMultipartBackground(req, body);
-      const extFromName = path.extname(file.originalName).toLowerCase();
-      const ext = BACKGROUND_MIME_BY_EXT.has(extFromName) ? extFromName : BACKGROUND_EXT_BY_MIME.get(file.contentType);
-      if (!ext || !BACKGROUND_MIME_BY_EXT.has(ext)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unsupported file type' }));
-        return;
-      }
-      const expectedType = BACKGROUND_MIME_BY_EXT.get(ext);
-      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'File type mismatch' }));
-        return;
-      }
-      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-      const safeName = `background-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      const safePath = path.join(UPLOADS_DIR, safeName);
-      await fs.promises.writeFile(safePath, file.data);
-
-      let response = { ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length, conversion: 'not-needed' };
-      if (expectedType === 'video/mp4') {
-        const webmName = safeName.replace(/\.mp4$/i, '.webm');
-        const webmPath = path.join(UPLOADS_DIR, webmName);
-        try {
-          const webmStat = await transcodeMp4BackgroundToWebm(safePath, webmPath);
-          await fs.promises.unlink(safePath).catch(() => {});
-          response = {
-            ok: true,
-            url: `/uploads/${webmName}`,
-            name: `${path.basename(file.originalName, path.extname(file.originalName))}.webm`,
-            type: 'video/webm',
-            size: webmStat.size,
-            originalName: file.originalName,
-            originalType: expectedType,
-            converted: true,
-            conversion: 'webm-vp8',
-          };
-          cleanupOldBackgrounds(webmName);
-        } catch (conversionError) {
-          await fs.promises.unlink(webmPath).catch(() => {});
-          response = {
-            ...response,
-            conversion: isFfmpegMissing(conversionError) ? 'ffmpeg-missing' : 'failed',
-          };
-          console.warn(`Background MP4 conversion skipped: ${conversionError.message}`);
-          cleanupOldBackgrounds(safeName);
-        }
-      } else {
-        cleanupOldBackgrounds(safeName);
-      }
-
-      json(response);
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await lookBranches['POST /background'](req, res, { json, err500, reqPath, urlObj, isRemote }, { BACKGROUND_EXT_BY_MIME, transcodeMp4BackgroundToWebm });
 
   } else if (reqPath === '/font' && req.method === 'POST') {
-    try {
-      const body = await readBodyBuffer(req, FONT_MAX_BYTES);
-      const file = parseMultipartBackground(req, body, 'font');
-      // Fonts are validated by EXTENSION (the served MIME + how the browser loads
-      // them derive from it). Content-Type is only a soft hint — browsers report
-      // fonts inconsistently (font/woff2, application/octet-stream, empty) — so it
-      // never rejects on its own; the extension allowlist + server-generated name
-      // are the real controls, exactly like the durable-upload invariant.
-      const extFromName = path.extname(file.originalName).toLowerCase();
-      const ext = FONT_MIME_BY_EXT.has(extFromName) ? extFromName : FONT_EXT_BY_MIME.get(file.contentType);
-      if (!ext || !FONT_MIME_BY_EXT.has(ext)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unsupported file type' }));
-        return;
-      }
-      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-      const safeName = `font-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
-      cleanupOldFonts(safeName);
-      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, size: file.data.length });
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await lookBranches['POST /font'](req, res, { json, err500, reqPath, urlObj, isRemote }, { FONT_EXT_BY_MIME });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
     // Imported-theme cleanup. Only a generated font filename inside UPLOADS_DIR
@@ -14677,35 +13750,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/icon-pack' && req.method === 'POST') {
-    // Install a Deck icon pack (the 'icons' preset kind). Reached only from the
-    // import preview's Apply step. All validation is fail-closed in
-    // icon-packs.js (SVG reject-list, PNG magic bytes, id charsets, size caps);
-    // files land under server-derived names via a temp-dir + rename install.
-    try {
-      const body = await readBodyBuffer(req, ICON_PACK_BODY_MAX);
-      let payload = null;
-      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
-      const result = await iconPackStore.install(payload);
-      if (!result.ok) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result));
-        return;
-      }
-      json(result);
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await storeCatalogPacksBranches['POST /icon-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (reqPath === '/icon-packs' && req.method === 'GET') {
-    // Installed icon-pack manifests (no file data) — feeds the Deck key icon
-    // picker's pack sections.
-    try { json({ ok: true, packs: await iconPackStore.list() }); } catch (e) { err500(e.message); }
+    await storeCatalogPacksBranches['GET /icon-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {
     // Serve one pack icon (/icon-pack/<packId>/<file>). Both segments are
@@ -14739,37 +13787,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/sound-pack' && req.method === 'POST') {
-    // Install a soundboard pack (the 'sounds' preset kind). Reached only from
-    // the import preview's Apply step. Validation is fail-closed in
-    // sound-packs.js (per-clip magic bytes, id charsets, size caps); clips land
-    // under DETERMINISTIC server-derived names (packs/<id>/<clip>.<ext>) so
-    // shared Deck profiles can reference them across machines.
-    try {
-      const body = await readBodyBuffer(req, SOUND_PACK_BODY_MAX);
-      let payload = null;
-      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
-      const result = await soundPackStore.install(payload);
-      if (!result.ok) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result));
-        return;
-      }
-      json(result);
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await storeCatalogPacksBranches['POST /sound-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
   } else if (reqPath === '/deck/sound-packs' && req.method === 'GET') {
-    // Installed soundboard-pack manifests (clip ids/labels + pack-relative
-    // paths, no audio data) — feeds the editor's sound picker. Additive: the
-    // loose-upload library keeps its own GET /deck/sounds contract untouched.
-    try { json({ ok: true, packs: await soundPackStore.list() }); } catch (e) { err500(e.message); }
+    await deckBranches['GET /deck/sound-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
     // Uninstall a pack (Installed content cleanup). Deck keys referencing its
@@ -14782,88 +13803,13 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tile-asset' && req.method === 'POST') {
-    // Manual per-tile decoration upload. Mirrors /background but keeps every file
-    // (multiple tiles → multiple pictures); a `tileasset-*` name is server-generated
-    // and orphans are reclaimed by cleanupUnreferencedTileAssets() on layout save.
-    try {
-      const body = await readBodyBuffer(req, TILE_ASSET_MAX_BYTES);
-      const file = parseMultipartBackground(req, body, 'asset');
-      const extFromName = path.extname(file.originalName).toLowerCase();
-      const ext = TILE_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : TILE_ASSET_EXT_BY_MIME.get(file.contentType);
-      if (!ext || !TILE_ASSET_MIME_BY_EXT.has(ext)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unsupported file type' }));
-        return;
-      }
-      const expectedType = TILE_ASSET_MIME_BY_EXT.get(ext);
-      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'File type mismatch' }));
-        return;
-      }
-      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-      const safeName = `tileasset-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
-      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await gridBranches['POST /tile-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TILE_ASSET_EXT_BY_MIME });
 
   } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
-    // Slideshow image upload. Mirrors /tile-asset: keeps every file (a slideshow is
-    // many pictures), a server-generated `slideshow-*` name, orphans reclaimed by
-    // cleanupUnreferencedSlideshowAssets() on settings save. This is what lets a
-    // slideshow hold far more images than the old inline-base64 model — they live on
-    // disk, not in the settings blob.
-    try {
-      const body = await readBodyBuffer(req, SLIDESHOW_ASSET_MAX_BYTES);
-      const file = parseMultipartBackground(req, body, 'asset');
-      const extFromName = path.extname(file.originalName).toLowerCase();
-      const ext = SLIDESHOW_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : SLIDESHOW_ASSET_EXT_BY_MIME.get(file.contentType);
-      if (!ext || !SLIDESHOW_ASSET_MIME_BY_EXT.has(ext)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unsupported file type' }));
-        return;
-      }
-      const expectedType = SLIDESHOW_ASSET_MIME_BY_EXT.get(ext);
-      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'File type mismatch' }));
-        return;
-      }
-      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-      const safeName = `slideshow-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
-      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await windowsTilesTilesBranches['POST /slideshow-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { SLIDESHOW_ASSET_EXT_BY_MIME });
 
   } else if (reqPath === '/slideshow/folder' && req.method === 'GET') {
-    // How many images the configured slideshow folder holds (plus why it can't be
-    // read, when it can't). The folder comes from the SETTINGS, never from the
-    // query — the only thing a caller may influence is `?refresh=1`, which skips
-    // the 30s enumeration cache so the settings pane reflects a folder the user
-    // just filled. Read-only, so it stays out of CSRF_MUTATION_PATHS.
-    try {
-      const dir = await getSlideshowDir();
-      const refresh = urlObj.searchParams.get('refresh') === '1';
-      json(await slideshowFolder.listFolder(dir, { refresh }));
-    } catch (e) {
-      err500(e.message);
-    }
+    await windowsTilesTilesBranches['GET /slideshow/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getSlideshowDir });
 
   } else if (reqPath === '/slideshow/file' && req.method === 'GET') {
     // Stream the Nth image of the configured folder. The index is the ONLY thing
@@ -14934,15 +13880,9 @@ const handleRequest = async (req, res) => {
     json({ ok: true });
 
   } else if (reqPath === '/deck/press' && req.method === 'GET') {
-    json(await deckPress.read(urlObj.searchParams.get('id')));
+    await deckKeysBranches['GET /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
   } else if (reqPath === '/deck/press' && req.method === 'POST') {
-    // Only a layer page's real press lands here: same origin, never a phone, never
-    // a widget (connect-src 'none'), and no capability reaches it. `accept` is the
-    // person agreeing to what the key does now, the fingerprint they were shown.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      json(typeof body.accept === 'string' ? await deckPress.accept(body.id, body.accept) : await deckPress.press(body.id));
-    } catch { json({ ok: false, error: 'failed' }); }
+    await deckKeysBranches['POST /deck/press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckPress });
   } else if (reqPath === '/deck/client-step' && req.method === 'POST') {
     // The Virtual Deck window or a Deck on a widget layer cannot open the AI
     // chat or the mixer: a dashboard (or the screen, in "widgets only") claims
@@ -14953,82 +13893,28 @@ const handleRequest = async (req, res) => {
     } catch { json({ ok: false, error: 'failed' }); }
 
   } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {
-    // A dashboard on this PC takes a Deck shortcut's step that only a dashboard
-    // can do; the first claim wins (deck-shortcut-runner.js). In
-    // CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
-    try {
-      const body = JSON.parse(await readBody(req, 4 * 1024) || '{}');
-      json({ ok: deckShortcutRunner.claim(body && body.nonce) });
-    } catch { json({ ok: false }); }
+    await deckKeysBranches['POST /deck/shortcut-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckShortcutRunner });
 
   } else if (reqPath === '/tiles/play-claim' && req.method === 'POST') {
-    // A surface on this PC with the tile takes what Bit asked to play
-    // (tile-play.js); the first claim wins. In CSRF_MUTATION_PATHS, denied to
-    // paired devices in remote-access.js.
-    try {
-      const body = JSON.parse(await readBody(req, 4 * 1024) || '{}');
-      json({ ok: tilePlay.claim(body && body.nonce) });
-    } catch { json({ ok: false }); }
+    await windowsTilesTilesBranches['POST /tiles/play-claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { tilePlay });
 
   } else if (reqPath === '/layers/edit' && req.method === 'GET') {
-    // A layer window opened (or reconnected) during edit mode reads it here;
-    // later changes arrive over SSE `layers-edit`. Read-only.
-    json({ on: layersEdit.get(), peek: layersPeek.get() });
+    await widgetOptionsBranches['GET /layers/edit'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersEdit, layersPeek });
 
   } else if (reqPath === '/screen-draw' && req.method === 'GET') {
-    // Whether the drawing sheet is open (screen-draw-shell.js), for a page that
-    // (re)connects; changes arrive over SSE `screen_draw`. Read-only.
-    json({ drawing: drawShell.get() });
+    await alertsBranches['GET /screen-draw'](req, res, { json, err500, reqPath, urlObj, isRemote }, { drawShell });
 
   } else if (reqPath === '/screen-menu' && req.method === 'GET') {
-    // Whether the menu is open over the screen and on which section, for a page
-    // that (re)connects; changes arrive over SSE `screen_menu`. Read-only.
-    json(screenMenu.get());
+    await menuBranches['GET /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenMenu });
 
   } else if (reqPath === '/screen-menu' && req.method === 'POST') {
-    // The menu page closes itself (Esc, a click outside, a row that closes it,
-    // whose action `run` goes through the registry like POST /actions/run; with
-    // `aside` the menu stays open and comes back when the action ended). In
-    // CSRF_MUTATION_PATHS, denied to paired devices.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      if (body && body.run) { json({ ok: true, where: body.aside === true ? screenMenu.stepAside(body.run) : screenMenu.closeThenRun(body.run) }); return; }
-      if (body && body.takeAsk === true) { json({ ok: true, ask: screenMenu.takeAsk() }); return; }
-      // The page keeps asking while it is minimized: only the shell knows it is out of sight.
-      if (body && 'peek' in body) { json({ ok: true, peek: layersPeek.set(screenMenu.isBehind() ? null : body.peek) }); return; }
-      if (body && typeof body.behind === 'boolean') {
-        screenMenu.setBehind(body.behind);
-        if (screenMenu.isBehind()) layersPeek.set(null);
-        json({ ok: true });
-        return;
-      }
-      if (body && body.sheet) { json({ ok: true, where: screenMenu.showSheet(body.sheet, body.ask) }); return; }
-      json({ ok: true, where: body && body.open === true ? screenMenu.show({ section: body.section }) : screenMenu.close() });
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-    }
+    await menuBranches['POST /screen-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { layersPeek, screenMenu });
 
   } else if (reqPath === '/xenon-menu' && req.method === 'GET') {
-    // The menu's sections (xenon-menu.js), the same for the screen and the
-    // dashboard panel (a paired phone's too). Read-only, never a path.
-    try { json({ ...(await _xenonMenuState()), altGrKeys: _altGrKeys() }); } catch (e) { err500(e.message); }
+    await menuBranches['GET /xenon-menu'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _xenonMenuState });
 
   } else if (reqPath === '/layers/host' && req.method === 'POST') {
-    // The native shell reports what it can draw (layers-host.js); the `layers`
-    // capability probe reads it. Re-sent while the shell runs; the report expires.
-    // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
-    try {
-      const body = JSON.parse(await readBody(req, 16 * 1024) || '{}');
-      const menuKey = _menuHotkey();
-      const accepted = layersHost.accept(body);
-      // A shell that can draw the menu arms its shortcut (and frees it on quit).
-      if (_menuHotkey() !== menuKey) { try { refreshHotkeyListener(); } catch { /* the next report retries */ } }
-      json(accepted);
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-    }
+    await widgetOptionsBranches['POST /layers/host'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _menuHotkey, layersHost, refreshHotkeyListener });
 
   } else if (reqPath === '/layers/desk' && req.method === 'POST') {
     // The shell says which virtual desktop is shown (apps/native layers/desks.rs,
@@ -15061,16 +13947,7 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /pages/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/pages/hotkey-press' && req.method === 'POST') {
-    // The Linux page shortcuts' other end, one URL per slot: the desktop runs a
-    // command and `?i=` says which shortcut ran it. Read off urlObj, because
-    // reqPath is the pathname alone and carries no query. It is routed through
-    // the same binding table the helper path uses, so an index that no longer
-    // exists (settings saved between the press and here) simply does nothing.
-    try {
-      const at = Number.parseInt(urlObj.searchParams.get('i'), 10);
-      if (Number.isInteger(at)) routeHotkeyIndex(at);
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await deckKeysBranches['POST /pages/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeHotkeyIndex });
 
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
     await diskBranches['GET /disk/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
@@ -15100,98 +13977,34 @@ const handleRequest = async (req, res) => {
     await diskBranches['POST /disk/clean/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/api/lyrics' && req.method === 'GET') {
-    // Lyrics for the song playing now. No parameters: the server reads its own
-    // media session, so nothing from the page reaches the LRCLIB query.
-    try { json(await getCurrentLyrics()); }
-    catch (e) { json({ ok: false, state: 'error', error: String((e && e.message) || e) }); }
+    await mediaBranches['GET /api/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getCurrentLyrics });
 
   } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {
-    // Is the supporter-only Lyrics widget usable on this install? `unlocked`
-    // covers a running trial too; `owned`, `trialEndsAt` and `trialAvailable`
-    // tell the tile which of the two it is. The lyrics themselves stay free:
-    // the Media tile's button reads them too.
-    try { json({ ok: true, ...(await featureUnlock.status('lyrics')) }); } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['GET /api/features/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath === '/api/features/lyrics/trial' && req.method === 'POST') {
-    // Starts the one-week trial, once per install. No hub call, no code. In
-    // CSRF_MUTATION_PATHS; a paired phone may start it like any tile action.
-    try { json(await featureUnlock.startTrial('lyrics')); } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/features/lyrics/trial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {
-    // One /redeem against the hub's `feature-lyrics` entry, with the saved pass
-    // (or a code typed in the tile). In CSRF_MUTATION_PATHS + REMOTE_ADMIN.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await featureUnlock.unlock('lyrics', typeof body.code === 'string' ? body.code : ''));
-    } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/features/lyrics/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath === '/api/lyrics/offset' && req.method === 'POST') {
-    // Supporter widget: this song's own timing, { key, ms } (0 = back to the
-    // global one). Only for the song playing now. In CSRF_MUTATION_PATHS.
-    try {
-      if (!(await featureUnlock.isUnlocked('lyrics'))) { json({ ok: false, error: 'locked' }); return; }
-      const body = JSON.parse(await readBody(req) || '{}');
-      const playing = await lyricsForPlayingKey(body.key);
-      if (playing.status !== 200) { json({ ok: false, error: 'stale' }); return; }
-      const ms = await lyricsOffsets.set(body.key, body.ms);
-      json(ms === null ? { ok: false, error: 'bad_value' } : { ok: true, offsetMs: ms });
-    } catch (e) { err500(e.message); }
+    await mediaBranches['POST /api/lyrics/offset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock, lyricsForPlayingKey, lyricsOffsets });
 
   } else if (reqPath === '/api/lyrics/translate' && req.method === 'POST') {
-    // Supporter widget: translation and reading of the song playing now,
-    // { key, lang, cachedOnly }. The lines come from the server's own lyrics
-    // cache, never from the request. A request to the user's AI provider is made
-    // only when they turned translation on, under the monthly cap, once per
-    // song (lyrics-translator.js). In CSRF_MUTATION_PATHS.
-    try {
-      if (!(await featureUnlock.isUnlocked('lyrics'))) { json({ ok: false, error: 'locked' }); return; }
-      const blocker = await lyricsTranslateBlocker();
-      if (blocker) { json({ ok: false, error: blocker }); return; }
-      const body = JSON.parse(await readBody(req) || '{}');
-      const playing = await lyricsForPlayingKey(body.key);
-      if (playing.status !== 200) { json({ ok: false, error: 'stale' }); return; }
-      const texts = lyricsTexts(playing.entry);
-      if (!texts) { json({ ok: false, error: 'no_lyrics' }); return; }
-      json(await lyricsTranslator.translate({
-        songKey: body.key, texts, lang: String(body.lang || '').slice(0, 5),
-        reading: hub.settings.lyricsReading !== false,
-        cap: hub.settings.lyricsTranslateCap, cachedOnly: body.cachedOnly === true,
-      }));
-    } catch (e) { err500(e.message); }
+    await mediaBranches['POST /api/lyrics/translate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock, lyricsForPlayingKey, lyricsTranslateBlocker, lyricsTranslator });
 
   } else if (reqPath === '/api/lyrics/translate/usage' && req.method === 'GET') {
-    // This month's translated songs and tokens, for the counter in the widget,
-    // with what 100 songs cost on the model translation runs on. The model id
-    // only, never a key.
-    try {
-      const settings = await readHubSettings().catch(() => null) || {};
-      const provider = aiLocal.sanitizeProvider(settings.aiProvider);
-      const model = await smallTaskModel(provider, settings);
-      await lyricsPrices.refresh(); // the published price table, at most every 12 h
-      const usage = await lyricsTranslator.usage(hub.settings.lyricsTranslateCap, model);
-      // Bit on Sparks: the same estimate in Sparks, the unit the user pays in.
-      if (provider === 'xenon' && usage.estimate) usage.estimate.sparks = Math.max(1, Math.round(usage.estimate.usd * aiXenon.SPARKS_PER_USD));
-      json({ ok: true, ...usage });
-    } catch (e) { err500(e.message); }
+    await mediaBranches['GET /api/lyrics/translate/usage'](req, res, { json, err500, reqPath, urlObj, isRemote }, { lyricsTranslator, readHubSettings, smallTaskModel });
 
   } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
-    // Is the supporter-only Dev cleanup unlocked on this install? A boolean.
-    try { json({ ok: true, unlocked: await featureUnlock.isUnlocked('devclean') }); } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['GET /api/features/devclean'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath === '/api/features/devclean/preview' && req.method === 'GET') {
-    // What the locked tile shows a non-supporter: this PC's own numbers, the
-    // same names-free summary the SDK's devStorage stream carries for free.
-    // Pulled only while the tile is on screen.
-    try { json({ ok: true, ...(await devClean.summary()) }); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await storeSupportersUnlockBranches['GET /api/features/devclean/preview'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (reqPath === '/api/features/devclean/unlock' && req.method === 'POST') {
-    // One /redeem against the hub's `feature-devclean` entry, with the saved
-    // pass (or a code typed in the tile). In CSRF_MUTATION_PATHS + REMOTE_ADMIN.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await featureUnlock.unlock('devclean', typeof body.code === 'string' ? body.code : ''));
-    } catch (e) { err500(e.message); }
+    await storeSupportersUnlockBranches['POST /api/features/devclean/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
   } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {
     // The gate lives here, not only in the tile: every Dev cleanup route
@@ -15544,20 +14357,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/captures/clips' && req.method === 'POST') {
-    // "Clips from marks": a short copy around each marked moment of a video
-    // (capture-gallery.js clips()). Like a trim: CSRF-checked, the original kept.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      json(await makeMarkClips(String((body && body.id) || ''), body && body.which));
-    } catch (e) { err500(e.message); }
+    await screensCaptureBranches['POST /captures/clips'](req, res, { json, err500, reqPath, urlObj, isRemote }, { makeMarkClips });
 
   } else if (reqPath === '/captures/send' && req.method === 'POST') {
-    // "To phone": the capture joins the PC → phone file list (capture-send.js).
-    // Loopback-only and CSRF-checked: the phone downloads, the PC sends.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      json(await sendCaptureToPhone(String((body && body.id) || '')));
-    } catch (e) { err500(e.message); }
+    await screensCaptureBranches['POST /captures/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sendCaptureToPhone });
 
   } else if (reqPath === '/captures/spots' && req.method === 'POST') {
     // The gallery's editor: where a screenshot shows an e-mail, an IBAN or a
@@ -15601,33 +14404,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/capture/settings' && req.method === 'POST') {
-    // Frame rate, size, quality, pill, space limit; `folder: ''` (or
-    // shotFolder, benchFolder) goes back to the default folder. A folder is only
-    // set through /capture/settings/pick.
-    // Loopback-only (REMOTE_DENY), in CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const { bad, owner } = CaptureSettings.applyCaptureChange(captureOptions(), body);
-      if (bad.length) { json({ ok: false, error: owner ? 'reserved' : 'bad_value', bad, ...(owner ? { owner } : {}) }); return; }
-      const resets = {};
-      for (const key of CaptureSettings.FOLDER_KEYS) if (body[key] === '') resets[key] = '';
-      const saved = await updateCaptureSettings(body, resets);
-      json({ ok: true, ...saved });
-    } catch (e) { err500(e.message); }
+    await screensCaptureBranches['POST /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateCaptureSettings });
 
   } else if (reqPath === '/capture/settings/pick' && req.method === 'POST') {
-    // The system's folder dialog, on the PC. Waits for the choice (the engine
-    // closes a forgotten dialog after 5 minutes). Loopback-only, CSRF-listed.
-    try {
-      if (!_captureHost.has('pick_folder')) { json({ ok: false, error: 'unavailable' }); return; }
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      const key = CaptureSettings.FOLDERS[body && body.for] || CaptureSettings.FOLDERS.recording;
-      const kind = Object.keys(CaptureSettings.FOLDERS).find((k) => CaptureSettings.FOLDERS[k] === key);
-      const r = await chooseCaptureFolder(kind);
-      if (!r.ok || r.cancelled) { json(r); return; }
-      const saved = await updateCaptureSettings({}, { [key]: r.path });
-      json({ ok: true, [key]: saved[key] });
-    } catch (e) { err500(e.message); }
+    await screensCaptureBranches['POST /capture/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseCaptureFolder, updateCaptureSettings });
 
   } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {
     await transferBranches['GET /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, fileTransfer, transferInboxDir, transferSettings });
@@ -15938,15 +14718,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/config' && req.method === 'POST') {
-    // Save the streaming app credentials pasted in Settings → Streaming (so the
-    // user never edits stream-config.json by hand) and re-create the providers.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      await saveStreamConfig(body);
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
-
-  // ── Discord voice integration (local RPC/IPC — needs the Discord desktop app) ─
+    await streamingBranches['POST /stream/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveStreamConfig });
   } else if (reqPath === '/stream/discord/status' && req.method === 'GET') {
     try { json(await discordRpc.status()); }
     catch (e) { err500(e.message); }
@@ -16015,12 +14787,7 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/notifications/windows' && req.method === 'GET') {
-    // Seed for the Notifications tile: feature flags + the bounded feed buffer.
-    // New items then stream live over the `windows_notification` SSE event.
-    // Notification text is private user data — loopback-only like every route,
-    // and NEVER a JSONP candidate.
-    const wn = normalizeWindowsNotifications(hub.settings && hub.settings.windowsNotifications);
-    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
+    await notificationOpenBranches['GET /notifications/windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
     // Seed + capability report for the call card. `keys`/`keysProblem` are what
@@ -16388,18 +15155,7 @@ const handleRequest = async (req, res) => {
     await discordBranches['POST /stream/discord/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/open-chat' && req.method === 'POST') {
-    // The widget's "Reply" on a mirrored DM or mention: bring Discord forward on
-    // this PC and show that conversation. Discord's local connection cannot send
-    // a message, so this is the reply button it allows. The channel id only ever
-    // reaches Discord's own connection, checked as a snowflake there and here.
-    let body = {};
-    try { body = JSON.parse((await readBody(req, 4096)) || '{}'); } catch { body = {}; }
-    json(await openDiscordChat(body && body.channelId));
-
-  // ── Spotify integration (Authorization Code + PKCE — redirect flow) ──────────
-  // Responses never include tokens — only { connected, login, configured } or the
-  // authorize URL the user opens. Playback CONTROL runs through /actions/run (the
-  // allowlisted spotify* Deck actions); these routes are reads + the OAuth dance.
+    await discordBranches['POST /stream/discord/open-chat'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDiscordChat });
   } else if (reqPath === '/stream/spotify/status' && req.method === 'GET') {
     // canStartMinimized: whether Settings may offer "start minimized" here.
     try { json({ ...(await streamSpotify.status()), canStartMinimized: await spotifyLaunch.canStartMinimized() }); }
@@ -16503,141 +15259,64 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: 'launch_failed' }); }
 
   } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {
-    try {
-      const r = await secondScreen.requirements();
-      // The tile also needs the native helper (the GDI capture host); fold its
-      // presence into the same payload so the client decides in one round-trip.
-      r.captureAvailable = screenCapture.available();
-      json(r);
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['GET /second-screen/requirements'](req, res, { json, err500, reqPath, urlObj, isRemote }, { screenCapture, secondScreen });
 
   } else if (reqPath === '/second-screen/install' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      json(await secondScreen.installDriver());
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['POST /second-screen/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
 
   } else if (reqPath === '/second-screen/create-display' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await secondScreen.createDisplay(body && body.mode));
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['POST /second-screen/create-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
 
   } else if (reqPath === '/second-screen/apply-resolution' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await applySecondScreenMode((body && body.mode) || {}, { soft: !!(body && body.soft) }));
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['POST /second-screen/apply-resolution'](req, res, { json, err500, reqPath, urlObj, isRemote }, { applySecondScreenMode });
 
   } else if (reqPath === '/second-screen/remove-display' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      json(await secondScreen.removeDisplay());
-    } catch (e) { err500(e.message); }
+    await windowsTilesTilesBranches['POST /second-screen/remove-display'](req, res, { json, err500, reqPath, urlObj, isRemote }, { secondScreen });
 
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
-    try {
-      const state = await remoteControl.status();
-      json(isRemote ? remoteAccessLib.withoutLoginLink(state) : state);
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['GET /remote/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/install' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const ok = await remoteControl.installTool(body.tool);
-      if (ok) { json({ ok }); } else { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok })); }
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/tailscale/login' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      await remoteControl.startTailscaleLogin();
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/tailscale/login'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/sunshine/configure' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      await remoteControl.configureSunshine();
-      json({ ok: true });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: e.message }));
-    }
+    await remoteControlBranches['POST /remote/sunshine/configure'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/pin' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const result = await remoteControl.sendPin(body.pin);
-      if (result.ok) { json({ ok: true }); }
-      else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, status: result.status })); }
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/pin'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/kill' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      const ok = await remoteControl.killSwitch();
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/kill'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/enable' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      await remoteControl.enable();
-      json({ ok: true });
-    } catch (e) {
-      // Sunshine too old (or its version unreadable): said, not a bare 500.
-      if (e && /^sunshine_/.test(String(e.code || ''))) { json({ ok: false, error: e.code, message: e.message }); return; }
-      err500(e.message);
-    }
+    await remoteControlBranches['POST /remote/enable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/disable' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      await remoteControl.disable();
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/disable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/ondemand' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const ok = await remoteControl.setOnDemand(body.value === true);
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/ondemand'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/screens' && req.method === 'GET') {
-    try { json(await remoteControl.listScreens()); }
-    catch (e) { err500(e.message); }
+    await remoteControlBranches['GET /remote/screens'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/screen' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const ok = await remoteControl.setScreen(body.id);
-      if (ok) { json({ ok: true }); } else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false })); }
-    } catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/screen'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/screen/cycle' && req.method === 'POST') {
-    try { await readBody(req); const active = await remoteControl.cycleScreen(); json({ ok: !!active, active }); }
-    catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/screen/cycle'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/session/close' && req.method === 'POST') {
-    try { await readBody(req); const ok = await remoteControl.closeSession(); json({ ok }); }
-    catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/session/close'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/block' && req.method === 'POST') {
-    try { await readBody(req); const ok = await remoteControl.blockAccess(); json({ ok }); }
-    catch (e) { err500(e.message); }
+    await remoteControlBranches['POST /remote/block'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/remote/unblock' && req.method === 'POST') {
-    try { await readBody(req); const ok = await remoteControl.unblockAccess(); json({ ok }); }
-    catch (e) { err500(e.message); }
-
-  // ── Paired-device access (R1.1) ────────────────────────────────────────────
-  // Everything below except /redeem and /whoami is LOOPBACK-ONLY, and not
-  // because a handler says so: none of these paths is on the remote allowlist
-  // in remote-access.js, so a paired device is refused before reaching them.
-  // That is the intended shape — a phone can never enrol another phone, revoke
-  // the device that would kick it off, or turn the feature off from outside.
+    await remoteControlBranches['POST /remote/unblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/api/remote-access/status' && req.method === 'GET') {
     // Everything the Settings panel needs to render itself, in one read.

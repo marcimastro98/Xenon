@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1166,
+  "total": 1158,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -211,7 +211,7 @@
     "server/self-update.js TS2810": 1,
     "server/sensor-service/migrate.js TS2339": 3,
     "server/server.js TS2322": 50,
-    "server/server.js TS2339": 77,
+    "server/server.js TS2339": 69,
     "server/server.js TS2345": 1,
     "server/server.js TS2353": 14,
     "server/server.js TS2554": 4,
