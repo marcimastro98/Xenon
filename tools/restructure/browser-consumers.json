@@ -13,7 +13,8 @@
         "keeps": [
           "defaultNewsFeedsClient"
         ]
-      }
+      },
+      "server/test/restructure-engine-test-readers.test.mjs": "Names the file only inside sample test text it hands to the tool that re-points tests; it never opens it."
     }
   }
 }
