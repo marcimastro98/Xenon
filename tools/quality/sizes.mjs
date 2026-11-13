@@ -1,5 +1,6 @@
 // File length: a code file stays under LIMIT lines. The files that are already
 // longer are listed in baseline/sizes.json with their length, and may only shrink.
+// A page of the app is counted without the tags of the files a recorded split made.
 //
 //   npm run sizes              check
 //   npm run sizes -- --update  save the lower numbers after a split
@@ -39,6 +40,32 @@ export function countLines(text) {
   return text.endsWith('\n') ? breaks : breaks + 1;
 }
 
+// The list of what tools/restructure took out of which browser file. A page gets one line per new file,
+// a plain tag right next to the tag of the file it came out of: that line is the split, not something
+// added to the page, so a page's length leaves those lines out. Any other line of a page counts,
+// a tag written by hand included.
+const SPLITS = 'tools/restructure/extracted-browser.json';
+const PAGE = /^server\/[^/]+\.html$/;
+const TAG = /^\s*(?:<script src="([^"?]+)(?:\?[^"]*)?"><\/script>|<link rel="stylesheet" href="([^"?]+)(?:\?[^"]*)?">)\s*$/;
+
+/** @param {string} root @returns {Set<string>} the files, as a page's tag names them, that a recorded split made */
+export function splitFiles(root = REPO_ROOT) {
+  let moves = [];
+  try {
+    moves = JSON.parse(readFileSync(path.join(root, SPLITS), 'utf8')).moves ?? [];
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const made = moves.flatMap((move) => (move.kind === 'script' ? [move.file] : move.kind === 'style' ? move.parts.map((part) => part.file) : []));
+  return new Set(made.map((file) => file.replace(/^server\//, '')));
+}
+
+/** @param {string} html @param {Set<string>} made @returns {number} the lines that only load a file a recorded split made */
+export function splitTagLines(html, made) {
+  if (made.size === 0) return 0;
+  return html.split('\n').filter((line) => { const tag = TAG.exec(line); return tag !== null && made.has(tag[1] ?? tag[2]); }).length;
+}
+
 /**
  * @param {string[]} files repo-relative paths
  * @param {string} [root]
@@ -46,8 +73,10 @@ export function countLines(text) {
  */
 export function measure(files, root = REPO_ROOT) {
   const sizes = {};
+  const made = splitFiles(root);
   for (const file of files.filter(isCounted)) {
-    sizes[file] = countLines(readFileSync(path.join(root, file), 'utf8'));
+    const text = readFileSync(path.join(root, file), 'utf8');
+    sizes[file] = countLines(text) - (PAGE.test(file) ? splitTagLines(text, made) : 0);
   }
   return sizes;
 }

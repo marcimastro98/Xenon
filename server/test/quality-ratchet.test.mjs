@@ -2,13 +2,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { countLintFindings } from '../../tools/quality/lint.mjs';
 import { compareCounts, nextBaseline } from '../../tools/quality/ratchet.mjs';
 import { REPO_ROOT, trackedFiles } from '../../tools/quality/repo-files.mjs';
-import { LIMIT, countLines, isCounted, measure, readBaseline } from '../../tools/quality/sizes.mjs';
+import { LIMIT, countLines, isCounted, measure, readBaseline, splitFiles, splitTagLines } from '../../tools/quality/sizes.mjs';
 import { countTypeErrors } from '../../tools/quality/typecheck.mjs';
 
 test('a number may go down and never up', () => {
@@ -33,6 +33,21 @@ test('lines are counted the way an editor shows them', () => {
   assert.equal(countLines('one\n'), 1);
   assert.equal(countLines('one\ntwo'), 2);
   assert.equal(countLines('one\r\ntwo\r\n'), 2);
+});
+
+test('a page is counted without the tags of the files a recorded split made, and with every other line', () => {
+  const made = new Set(['js/big/one.js', 'components/Box/BoxEdit.css']);
+  const page = ['<link rel="stylesheet" href="components/Box/Box.css">', '<link rel="stylesheet" href="components/Box/BoxEdit.css">',
+    '  <script src="js/big/one.js?v=5"></script>', '<script src="js/big.js"></script>', '<script src="js/by-hand.js"></script>',
+    '<script src="js/big/one.js" defer></script>', '<p>js/big/one.js</p>', '<script src="js/big/one.js"></script><script src="js/big.js"></script>', ''].join('\n');
+  assert.equal(splitTagLines(page, made), 2, 'only a line that is nothing but the plain tag of such a file');
+  assert.equal(splitTagLines(page, new Set()), 0);
+  const split = splitFiles();
+  const dashboard = readFileSync(path.join(REPO_ROOT, 'server', 'index.html'), 'utf8');
+  assert.equal(measure(['server/index.html'])['server/index.html'], countLines(dashboard) - splitTagLines(dashboard, split));
+  assert.equal(measure(['server/server.js'])['server/server.js'], countLines(readFileSync(path.join(REPO_ROOT, 'server', 'server.js'), 'utf8')),
+    'a file that is not a page is counted whole');
+  assert.equal(splitFiles(path.join(REPO_ROOT, 'no-such-folder')).size, 0, 'a tree without the list of splits counts every line');
 });
 
 test('code is counted, tests and other people\'s code are not', () => {
