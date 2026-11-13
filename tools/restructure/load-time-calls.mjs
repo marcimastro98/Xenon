@@ -9,6 +9,14 @@ const NAME_LISTS = ['functions', 'constructors', 'methods', 'methodsTakingAFunct
 const SHOWN = 60;
 
 /**
+ * The names of the language itself a value may use and still need nothing from its file:
+ * the same in every module, at any moment. (Calling them is a separate question, answered
+ * by the list in load-time-calls.json.)
+ */
+export const PLAIN_GLOBALS = new Set(['undefined', 'NaN', 'Infinity', 'Array', 'BigInt', 'Boolean', 'Map', 'Math', 'Number', 'Object',
+  'RegExp', 'Set', 'String', 'Symbol', 'WeakMap', 'WeakSet', 'parseFloat', 'parseInt']);
+
+/**
  * @typedef {{ functions: Set<string>, constructors: Set<string>, methods: Set<string>,
  *   methodsTakingAFunction: Set<string>, moduleFunctions: Map<string, Set<string>> }} LoadTimeCalls
  */

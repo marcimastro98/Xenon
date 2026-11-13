@@ -4,7 +4,7 @@
 
 import { isBuiltin } from 'node:module';
 
-import { createLoadTimeCheck, repoLoadTimeCalls } from './load-time-calls.mjs';
+import { createLoadTimeCheck, PLAIN_GLOBALS, repoLoadTimeCalls } from './load-time-calls.mjs';
 import { createUseReader } from './scope-uses.mjs';
 
 /** @param {string} text @returns {number[]} offset of the first character of every line */
@@ -86,7 +86,8 @@ function builtinModules(K, NodeFlags, statements, sourceFile) {
  *   `line` is the code, `range` adds the comment block above it and the blank
  *   lines after it that go with it when it is taken out. `loadCalls` names what a
  *   declaration runs at load that is not on the list. `handedTo` names the calls the
- *   statement hands a function to (scope-uses.mjs).
+ *   statement hands a function to (scope-uses.mjs). `selfContained` is true for a
+ *   `const` whose value needs nothing from the file: literals, and listed calls on them.
  */
 export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
   const { K, NodeFlags } = parser;
@@ -117,7 +118,7 @@ export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
     const takesBlanks = blanks > 0 && (top === 0 || isBlank(top - 1));
     const handedTo = new Set();
     const record = {
-      index, kind: 'statement', names: [], loadTime: true, loadCalls: [], require: null, isAsync: false,
+      index, kind: 'statement', names: [], loadTime: true, loadCalls: [], require: null, isAsync: false, selfContained: false,
       line: [first + 1, last + 1], range: [top + 1, last + 1 + (takesBlanks ? blanks : 0)],
       sharesLine: false, uses: usesOf(node, handedTo), handedTo: [...handedTo],
     };
@@ -140,6 +141,8 @@ export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
       } else {
         record.loadCalls = blockersOf(list.declarations.map((d) => d.initializer));
         record.loadTime = record.loadCalls.length > 0;
+        record.selfContained = record.kind === 'const' && !record.loadTime && list.declarations.every((d) => d.initializer)
+          && [...record.uses.keys()].every((name) => PLAIN_GLOBALS.has(name));
       }
     } else record.names = leakedNames(K, NodeFlags, node);
     return record;

@@ -30,7 +30,7 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
   for (const record of records) {
     for (const name of record.names) {
       if (bindings.has(name)) duplicates.add(name);
-      bindings.set(name, { name, record, kind: record.kind, reassigned: false, changed: false, state: false });
+      bindings.set(name, { name, record, kind: record.kind, reassigned: false, changed: false, shared: false, state: false });
     }
   }
   for (const record of records) {
@@ -41,8 +41,12 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
       if (use.change > 0 && binding.kind !== 'require') binding.changed = true;
     }
   }
+  // A const that is never assigned again and whose value needs nothing from the file is one object for
+  // everyone who requires it: changing it in place is seen by all, wherever the declaration lives.
   for (const binding of bindings.values()) {
-    binding.state = binding.kind === 'let' || binding.kind === 'var' || binding.reassigned || binding.changed;
+    binding.shared = binding.kind === 'const' && !binding.reassigned && !duplicates.has(binding.name) && binding.record.selfContained
+      && ![...binding.record.uses.keys()].some((name) => bindings.has(name));
+    binding.state = binding.kind === 'let' || binding.kind === 'var' || binding.reassigned || (binding.changed && !binding.shared);
   }
   const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file),
     { bindings, fileOf: rules.fileOf ?? repoFileOf(file) });
@@ -71,7 +75,7 @@ function describe(record, bindings, duplicates) {
   block('declared-twice', record.names.filter((name) => duplicates.has(name)));
   if (CAN_MOVE.has(record.kind)) block('is-shared-state', record.names.filter((name) => bindings.get(name).state));
   block('reassigns', record.writes);
-  block('changes-in-place', record.changes);
+  block('changes-in-place', record.changes.filter((name) => !bindings.get(name).shared));
   block('reads-state', record.state.filter((name) => !record.writes.includes(name) && !record.changes.includes(name)));
   record.blockers = blockers;
 }

@@ -43,11 +43,45 @@ test('reads, reassignments and changes in place are told apart', (t) => {
     'function destructure() { [count] = [2]; }', ''].join('\n'));
   assert.deepEqual(codes(a, 'bump'), ['reassigns']);
   assert.deepEqual(codes(a, 'destructure'), ['reassigns']);
-  assert.deepEqual(codes(a, 'add'), ['changes-in-place']);
+  assert.deepEqual(codes(a, 'add'), [], 'a const made of literals is one object for everyone: changing it in place holds nobody');
   assert.deepEqual(codes(a, 'peek'), ['reads-state']);
-  assert.deepEqual(codes(a, 'list'), ['is-shared-state'], 'a const that is changed in place is shared state');
+  assert.deepEqual(codes(a, 'list'), []);
   assert.deepEqual(record(a, 'shadow').deps, [], 'a parameter hides the variable of the same name');
-  assert.deepEqual(toJson(a).movable, ['LIMIT', 'ok', 'shadow']);
+  assert.deepEqual(toJson(a).movable, ['list', 'LIMIT', 'add', 'ok', 'shadow']);
+});
+
+test('a const changed in place moves only when it is never assigned again and its value needs nothing from the file', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const a = read(['const make = require("./make.js");', 'const SEED = 3;',
+    'const clients = new Set();', 'const byId = new Map([["a", 1]]);', 'const hotkey = { proc: null, combos: [], slots: {} };',
+    'const seen = new WeakMap();', 'const made = make.thing();', 'const seeded = [SEED];', 'const fromEnv = { home: process.env.HOME };',
+    'let swapped = new Set();',
+    'function join(c) { clients.add(c); byId.set(c.id, c); hotkey.proc = c; seen.set(c, 1); }',
+    'function useMade() { made.count += 1; }', 'function useSeeded() { seeded.push(1); }', 'function useEnv() { fromEnv.home = ""; }',
+    'function swap() { swapped = new Set(); }', 'function useSwapped() { swapped.add(1); }', ''].join('\n'));
+  for (const name of ['clients', 'byId', 'hotkey', 'seen']) {
+    assert.equal(a.bindings.get(name).shared, true, name);
+    assert.equal(a.bindings.get(name).state, false, name);
+    assert.deepEqual(codes(a, name), [], name);
+  }
+  assert.deepEqual(codes(a, 'join'), []);
+  assert.deepEqual(codes(a, 'made'), ['runs-code-at-load', 'is-shared-state'], 'a value that comes out of a call');
+  assert.deepEqual(codes(a, 'seeded'), ['is-shared-state'], 'a value built from another name of the file');
+  assert.deepEqual(codes(a, 'fromEnv'), ['is-shared-state'], 'a value read from the process');
+  assert.deepEqual(codes(a, 'useMade'), ['changes-in-place']);
+  assert.deepEqual(codes(a, 'useSeeded'), ['changes-in-place']);
+  assert.deepEqual(codes(a, 'useEnv'), ['changes-in-place']);
+  assert.deepEqual(codes(a, 'swapped'), ['is-a-let'], 'a let never moves as it is, whatever it holds');
+  assert.equal(a.bindings.get('swapped').state, true);
+  assert.deepEqual(codes(a, 'useSwapped'), ['changes-in-place']);
+  assert.equal(toJson(a).state.some((entry) => ['clients', 'byId', 'hotkey', 'seen'].includes(entry.name)), false);
+});
+
+test('a name of the language that the file declares itself no longer counts as the language', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const a = read(['function Set() { return globalThis.tracked; }', 'const clients = new Set();', 'function join(c) { clients.add(c); }', ''].join('\n'));
+  assert.equal(a.bindings.get('clients').shared, false);
+  assert.ok(codes(a, 'join').includes('changes-in-place'));
 });
 
 test('what runs when the file loads does not move, plain values do', (t) => {
