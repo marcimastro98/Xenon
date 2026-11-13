@@ -826,15 +826,7 @@ const AI_MODELS = Object.freeze({
   get live() { return geminiModelFor('live'); },
 });
 
-// One answer through the user's Claude Code / Codex subscription (ai-cli.js),
-// for the features a person starts themselves: a search, a button, the fold of
-// their own conversation. Automatic background ones never come here; the two
-// exceptions, lyrics translation and a widget granted `ai`, are each the user's
-// explicit opt-in under a cap, on the plan's small model (completeWithUserAi).
-// One plain answer from the server the user runs on this PC (ai-local-server.js).
-function localServerOneShot(settings, systemText, userText, maxTokens) {
-  return aiLocalServer.oneShot({ config: aiLocalServer.configFrom(settings), systemText, userText, maxTokens });
-}
+const { localServerOneShot } = require('./ai/local-server-one-shot.js');
 
 async function cliOneShot(provider, systemText, userText, settings) {
   const s = settings || (await readHubSettings().catch(() => null)) || {};
@@ -2234,72 +2226,6 @@ const {
 } = require('./widget-sdk/request-gates.js');
 
 
-// Whether the third-party widget SDK is enabled at all. The master toggle is the
-// kill-switch: with it off, no SDK ingress (fetch proxy, webhooks, deck macros)
-// may act, even if stale grants linger in settings.json.
-function sdkFeatureEnabled() {
-  // Safe mode is an EFFECTIVE off for every SDK surface, server side included:
-  // without this, deck MACROS (executed here via /actions/run), the fetch proxy
-  // and webhooks kept acting for "paused" third-party packages — a false
-  // negative in the exact triage safe mode exists for. The stored enabled flag
-  // and grants stay untouched, matching the client's sdk() mask.
-  if (hub.settings && hub.settings.safeMode === true) return false;
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  return !!(sw && sw.enabled === true);
-}
-
-// A package the user paused from the Store's Installed tab. Server-side twin of
-// the client's isSuspended: the suspend card promises "its Deck keys are paused
-// too", which must cover server-executed macro steps, not only handler frames.
-function sdkPkgSuspended(pkgId) {
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  const s = sw && Array.isArray(sw.suspended) ? sw.suspended : [];
-  return typeof pkgId === 'string' && s.includes(pkgId);
-}
-
-// The user's per-package SDK grants (client-owned schema, round-tripped through
-// settings). Read defensively — a malformed blob collapses to "nothing granted".
-// A disabled SDK (or a suspended package) grants nothing, so every server-side
-// consent check fails closed.
-function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled() || sdkPkgSuspended(pkgId)) return { streams: [], actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
-  return {
-    // `streams` is read here too: the audio-meter host decides whether to run at
-    // all from "has anyone been granted audioLevels", so it needs the same
-    // fail-closed reader every other consent check uses.
-    streams: (g && Array.isArray(g.streams)) ? g.streams : [],
-    actions: (g && Array.isArray(g.actions)) ? g.actions : [],
-    hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
-    hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
-    handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
-    storage: !!(g && g.storage === true),
-    // The shared store group the user approved ('' = the package's own store;
-    // null = a grant from before the group was recorded, which
-    // migrateSdkGrantGroups fills in at start). /sdk/store opens a group only
-    // when it is this one.
-    storageGroup: (g && typeof g.storageGroup === 'string') ? g.storageGroup : null,
-    secrets: !!(g && g.secrets === true),
-    // Questions to the AI set for Bit (POST /sdk/ai).
-    ai: !!(g && g.ai === true),
-    // Raw addresses the user typed into the manifest's userHosts slots. Passed
-    // to sdkWidgets.resolveUserHosts, which is what validates them — never read
-    // as an allowlist directly.
-    userHosts: (g && g.userHosts && typeof g.userHosts === 'object' && !Array.isArray(g.userHosts)) ? g.userHosts : {},
-  };
-}
-
-// Whether ANY installed package has been granted a data stream. The demand gate
-// for server work that exists only to feed widgets: fails closed with
-// sdkGrantsFor, so safe mode and a suspended package cost nothing.
-function sdkStreamGranted(stream) {
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
-  if (!grants) return false;
-  return Object.keys(grants).some((pkgId) => sdkGrantsFor(pkgId).streams.includes(stream));
-}
-
 // ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
 // The sandbox denies widgets localStorage/cookies (opaque origin), so these two
 // on-disk stores are their ONLY persistence — and they live OUTSIDE the package
@@ -3311,13 +3237,6 @@ setInterval(() => {
     cachedCpuUsage = pct;
   }
 }, 1500).unref();
-
-// The chosen cadence, live. Read per tick and per cache check rather than
-// captured once, so changing it in Settings takes effect on the next reading
-// instead of at the next restart.
-function sensorRateMs() {
-  return normalizeSensorRate(hub.settings && hub.settings.sensorRateMs);
-}
 
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
@@ -4992,7 +4911,7 @@ const _situations = createSituations({
     game: () => gameDetect.isGameRunning(),
     live: () => obsState.obsStreaming === true,
     recording: () => obsState.obsRecording === true || _recorder.status().on === true,
-    timer: () => _timers.some((t) => t.status === 'running'),
+    timer: () => timerState.list.some((t) => t.status === 'running'),
     dnd: () => !!(hub.settings.notifications && hub.settings.notifications.quiet === 'always'),
     cpu: () => getCpuUsage(),
     idleSec: () => ((_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null),
@@ -5602,38 +5521,38 @@ const deckRegistryDeps = {
   // persists atomically and broadcasts `timer_update`, so tile, key faces and
   // other dashboards stay in sync. secs is already clamped by the registry.
   timers: {
-    labels: () => _timers.map((t) => t.label),
+    labels: () => timerState.list.map((t) => t.label),
     start: async (label, secs) => {
-      const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
+      const idx = timerState.list.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
       if (idx >= 0) {
         // Same label → restart it with the requested duration (a deck key is a
         // "start my 5-minute tea timer" button, not an endless duplicate mill).
-        _timers[idx] = { ..._timers[idx], durationSecs: secs, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+        timerState.list[idx] = { ...timerState.list[idx], durationSecs: secs, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
       } else {
-        if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
-        _timers.push(_normalizeTimer({ label, durationSecs: secs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+        if (timerState.list.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
+        timerState.list.push(_normalizeTimer({ label, durationSecs: secs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
       }
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       return { ok: true };
     },
     // Same contract as start(), minus the duration: a key pressed twice
     // restarts the stopwatch from zero rather than stacking a second one, which
     // is what "start my task clock" means when you press it again.
     stopwatch: async (label, intervalSecs = 0) => {
-      const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
+      const idx = timerState.list.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
       if (idx >= 0) {
-        _timers[idx] = { ..._timers[idx], kind: 'stopwatch', durationSecs: 0, intervalSecs, chimes: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+        timerState.list[idx] = { ...timerState.list[idx], kind: 'stopwatch', durationSecs: 0, intervalSecs, chimes: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
       } else {
-        if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
-        _timers.push(_normalizeTimer({ label, kind: 'stopwatch', intervalSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+        if (timerState.list.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
+        timerState.list.push(_normalizeTimer({ label, kind: 'stopwatch', intervalSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
       }
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       return { ok: true };
     },
     toggle: async (label) => {
-      const t = _timers.find((x) => x.label.toLowerCase() === label.toLowerCase());
+      const t = timerState.list.find((x) => x.label.toLowerCase() === label.toLowerCase());
       if (!t) return { ok: false, error: 'not_found' };
       if (t.status === 'running') {
         t.pausedElapsed += (Date.now() - t.startedAt) / 1000;
@@ -5645,15 +5564,15 @@ const deckRegistryDeps = {
         t.status = 'running';
       }
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       return { ok: true };
     },
     cancel: async (label) => {
-      const before = _timers.length;
-      _timers = _timers.filter((t) => t.label.toLowerCase() !== label.toLowerCase());
-      if (_timers.length === before) return { ok: false, error: 'not_found' };
+      const before = timerState.list.length;
+      timerState.list = timerState.list.filter((t) => t.label.toLowerCase() !== label.toLowerCase());
+      if (timerState.list.length === before) return { ok: false, error: 'not_found' };
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       return { ok: true };
     },
   },
@@ -7339,40 +7258,40 @@ async function runAiTool(fnName, fnArgs, deps) {
       const stopwatch = fnArgs.kind === 'stopwatch';
       const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
       const timerLabel = String(fnArgs.label || (stopwatch ? 'Stopwatch' : 'Timer')).trim().slice(0, 40);
-      if (_timers.length >= TIMERS_MAX) {
+      if (timerState.list.length >= TIMERS_MAX) {
         fnResult = { error: 'Too many timers active' };
       } else if (stopwatch) {
         const newTimer = _normalizeTimer({ label: timerLabel, kind: 'stopwatch', intervalSecs: Number(fnArgs.chime_every_secs) || 0, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-        _timers.push(newTimer);
+        timerState.list.push(newTimer);
         await _saveTimers();
         clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: _timers });
+        broadcastSSE('timer_update', { timers: timerState.list });
         fnResult = { ok: true, id: newTimer.id, label: timerLabel, kind: 'stopwatch', ...(newTimer.intervalSecs ? { chimes_every_secs: newTimer.intervalSecs } : {}) };
       } else {
         const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-        _timers.push(newTimer);
+        timerState.list.push(newTimer);
         await _saveTimers();
         clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: _timers });
+        broadcastSSE('timer_update', { timers: timerState.list });
         const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
         const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
         fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
       }
     } else if (fnName === 'control_timer') {
       const action = String(fnArgs.action || '').trim().toLowerCase();
-      const found = TimerActions.ACTIONS.includes(action) ? TimerActions.findTimer(_timers, fnArgs.timer, action) : null;
+      const found = TimerActions.ACTIONS.includes(action) ? TimerActions.findTimer(timerState.list, fnArgs.timer, action) : null;
       const next = found && TimerActions.applyTimerAction(found, action, Date.now());
       if (!TimerActions.ACTIONS.includes(action)) {
         fnResult = { ok: false, error: 'bad_action', actions: TimerActions.ACTIONS };
       } else if (!found) {
-        fnResult = { ok: false, error: _timers.length ? 'which_timer' : 'no_timers', timers: _timers.map(t => ({ label: t.label, status: t.status })) };
+        fnResult = { ok: false, error: timerState.list.length ? 'which_timer' : 'no_timers', timers: timerState.list.map(t => ({ label: t.label, status: t.status })) };
       } else if (!next) {
         fnResult = { ok: true, label: found.label, status: found.status, unchanged: true };
       } else {
-        _timers = _timers.map(t => (t.id === next.id ? next : t));
+        timerState.list = timerState.list.map(t => (t.id === next.id ? next : t));
         await _saveTimers();
         clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: _timers });
+        broadcastSSE('timer_update', { timers: timerState.list });
         fnResult = { ok: true, label: next.label, status: next.status };
       }
     } else if (fnName === 'list_timers') {
@@ -7380,7 +7299,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         // A stopwatch has no remaining time, and reporting Infinity to a model
         // is worse than reporting nothing: it says elapsed instead, which is
         // the only reading it has.
-        timers: _timers.map(t => (t.kind === 'stopwatch'
+        timers: timerState.list.map(t => (t.kind === 'stopwatch'
           ? { id: t.id, label: t.label, status: t.status, kind: 'stopwatch',
               elapsed_secs: Math.floor(_getTimerElapsed(t)),
               ...(t.intervalSecs > 0 ? { chimes_every_secs: t.intervalSecs } : {}) }
@@ -7390,12 +7309,12 @@ async function runAiTool(fnName, fnArgs, deps) {
       };
     } else if (fnName === 'delete_timer') {
       const delId = String(fnArgs.id || '').trim();
-      const before = _timers.length;
-      _timers = _timers.filter(t => t.id !== delId);
-      if (_timers.length < before) {
+      const before = timerState.list.length;
+      timerState.list = timerState.list.filter(t => t.id !== delId);
+      if (timerState.list.length < before) {
         await _saveTimers();
         clientActions.push({ action: 'refresh_timers', args: {} });
-        broadcastSSE('timer_update', { timers: _timers });
+        broadcastSSE('timer_update', { timers: timerState.list });
         fnResult = { ok: true };
       } else {
         fnResult = { error: 'timer not found' };
@@ -8221,6 +8140,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
 });
 
 const { hub } = require('./settings/current.js');
+const { sensorRateMs } = require('./system/sensor-rate.js');
+
+const {
+  sdkFeatureEnabled, sdkPkgSuspended, sdkGrantsFor, sdkStreamGranted, _sdkStreamGranted,
+} = require('./widget-sdk/grants.js');
+
 const { PROVIDER_MODEL_KEYS, providerModelFor } = require('./ai/provider-models.js');
 
 const { _pcControlEnabled } = require('./ai/pc-control-switch.js');
@@ -8864,21 +8789,14 @@ function normalizeLighting(value) {
   };
 }
 
-// The store id this process has seen on disk. Held so that a write which
-// somehow starts from a blob without one (a writer basing itself on
-// DEFAULT_HUB_SETTINGS before the boot read landed) RE-STAMPS the same id
-// instead of minting a fresh one: rotating it would tell every surface that the
-// store changed, which is precisely when their mirrors are the only remaining
-// copy of the settings. A new id is minted only when this process has never
-// seen one, i.e. a genuinely new store.
-let _settingsStoreId = '';
+const { settingsStore } = require('./settings/store-state.js');
 
 async function readHubSettings() {
   for (let attempt = 0; ; attempt++) {
     try {
       const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
       const parsed = normalizeHubSettings(JSON.parse(raw));
-      if (parsed.storeId) _settingsStoreId = parsed.storeId;
+      if (parsed.storeId) settingsStore.id = parsed.storeId;
       return parsed;
     } catch (e) {
       if (e.code === 'ENOENT') return null;
@@ -8964,10 +8882,10 @@ async function writeHubSettings(settings) {
   }
   const safe = normalizeHubSettings(settings);
   // Mint the store id on the first write that lacks one, which covers a fresh
-  // install and an existing one updating into this build. `_settingsStoreId`
+  // install and an existing one updating into this build. `settingsStore.id`
   // first, so only a store this process has never seen gets a new value.
-  if (!safe.storeId) safe.storeId = _settingsStoreId || crypto.randomBytes(16).toString('hex');
-  _settingsStoreId = safe.storeId;
+  if (!safe.storeId) safe.storeId = settingsStore.id || crypto.randomBytes(16).toString('hex');
+  settingsStore.id = safe.storeId;
   // The rev moves past the one the saving screen holds, so that screen also
   // picks up the lighter copy on the broadcast instead of sending the pictures
   // again with every save.
@@ -8985,21 +8903,16 @@ async function writeHubSettings(settings) {
   // A folder-source slideshow keeps its enumeration in memory; pointing the setting
   // at a different folder must show the new count now, not up to a TTL later.
   slideshowFolder.invalidate();
-  _slideshowDirCache = (safe.slideshow && typeof safe.slideshow.folder === 'string') ? safe.slideshow.folder : '';
+  slideshowCache.folder = (safe.slideshow && typeof safe.slideshow.folder === 'string') ? safe.slideshow.folder : '';
   return safe;
 }
 
-// The slideshow tile requests /slideshow/file every few seconds per surface, and
-// each request only needs ONE string from settings. Re-reading + re-normalizing
-// the whole settings blob per image was steady synchronous event-loop work on
-// the same loop that serves SSE. The cache is refreshed on every settings write
-// above (the sole writer), so it can never serve a stale folder.
-let _slideshowDirCache = null;   // '' = no folder configured; null = not loaded yet
+const { slideshowCache } = require('./windows-tiles/slideshow-cache.js');
 async function getSlideshowDir() {
-  if (_slideshowDirCache !== null) return _slideshowDirCache;
+  if (slideshowCache.folder !== null) return slideshowCache.folder;
   const s = (await readHubSettings().catch(() => null)) || {};
-  _slideshowDirCache = (s.slideshow && typeof s.slideshow.folder === 'string') ? s.slideshow.folder : '';
-  return _slideshowDirCache;
+  slideshowCache.folder = (s.slideshow && typeof s.slideshow.folder === 'string') ? s.slideshow.folder : '';
+  return slideshowCache.folder;
 }
 
 // ── settings store: serialized read-modify-write ────────────────────────────
@@ -9016,7 +8929,7 @@ async function getSlideshowDir() {
 // this promise-chain mutex so each one observes the previous one's committed
 // result. fn runs after the previous settles (fulfilled OR rejected), and a
 // rejected run never poisons the chain.
-let _hubSettingsWriteChain = Promise.resolve();
+settingsStore.writeChain = Promise.resolve();
 // Bit's Vitals tools write like a tap on the bar: one locked read-modify-write,
 // a new rev, and every surface told to read the settings again.
 async function updateVitalsSettings(change) {
@@ -9031,11 +8944,7 @@ async function updateVitalsSettings(change) {
   return saved;
 }
 
-function withHubSettingsLock(fn) {
-  const run = _hubSettingsWriteChain.then(fn, fn);
-  _hubSettingsWriteChain = run.then(() => {}, () => {});
-  return run;
-}
+const { withHubSettingsLock } = require('./settings/write-lock.js');
 
 // What the person has read of an update, from any surface (POST /update/notice-seen).
 async function saveNoticeSeen(seen) {
@@ -9339,27 +9248,7 @@ async function updateUsageModeSetting(mode) {
   });
 }
 
-// The Deck widget's keys live in the browser's localStorage, which the Xeneon
-// Edge WebView can wipe on some restarts/updates — silently losing the user's
-// programmed keys. We keep a durable server-side backup here. The store is held
-// opaquely: { configs: { [instanceId]: deckConfig }, rev }. The server never
-// edits the config shape (the client owns normalization via DeckModel); it only
-// trusts the monotonic `rev` to resolve which copy is newer (last-writer-wins).
-function normalizeDeckStore(raw) {
-  const src = raw && typeof raw === 'object' ? raw : {};
-  const configs = (src.configs && typeof src.configs === 'object' && !Array.isArray(src.configs)) ? src.configs : {};
-  const rev = Number.isFinite(src.rev) ? Math.max(0, Math.floor(src.rev)) : 0;
-  const savedAt = Number.isFinite(src.savedAt) ? src.savedAt : 0;
-  // Per-instance revisions: a lightweight diagnostic counter applyDeckOps bumps on
-  // every write. No longer used to decide a winner (the server is authoritative).
-  const instanceRevs = deckStore.sanitizeInstanceRevs(src.instanceRevs);
-  // Saved profile + single-key presets (client-owned shape, like configs):
-  // bounded arrays round-tripped so reusable profiles/keys survive a WebView
-  // storage wipe / restart.
-  const presets = Array.isArray(src.presets) ? src.presets.slice(0, 60) : [];
-  const keyPresets = Array.isArray(src.keyPresets) ? src.keyPresets.slice(0, 120) : [];
-  return { configs, rev, savedAt, instanceRevs, presets, keyPresets };
-}
+const { normalizeDeckStore } = require('./deck/store-normalize.js');
 
 async function readDeckStore() {
   try {
@@ -9412,33 +9301,10 @@ function updateDeckConfigs(edit) {
 
 const { redactSettingsSecrets, preserveSettingsSecrets } = require('./settings/secrets.js');
 
-// ── Configuration backup ──────────────────────────────────────────────────────
-// Export/import of the user's configuration as ONE portable JSON file (layout,
-// Deck, calendar, tasks, timers, notes, settings, AI memory, Guardian history,
-// custom background). Credentials (API keys, Sunshine credentials, OBS /
-// Streamer.bot / UniFi passwords, the Home Assistant token, streaming tokens)
-// are deliberately excluded. What travels instead is `secretsConfigured` —
-// boolean flags only — so the import can tell the user exactly which services
-// need re-configuring on the new machine.
-//
-// A backup is NOT safe to hand to someone, though: it exists to restore the
-// user's own setup, so it keeps the personal configuration that setup is made
-// of — private calendar (.ics) links, Deck webhook addresses and bodies, the
-// Home Assistant alarm code on a Deck key, notes, tasks, AI memory. Stripping
-// those (as shared presets do with deck-actions.js PERSONAL_PARAMS) would make
-// a restore on a new PC silently lose calendars and break keys, with nothing to
-// tell the user what to re-enter. The export note in Settings says to keep the
-// file private; share a preset or a code instead of a backup. On import,
-// every section goes through the same normalizers as its normal save path, so
-// a tampered file can't smuggle bad shapes in. Installed third-party widget /
-// Ambient-scene PACKAGES are likewise excluded (they live in DATA_DIR/widgets,
-// not settings) — a lightweight `widgetsInstalled` list travels instead, driving
-// a "re-import these from their codes" report (`needsWidgets`) after a restore.
-const BACKUP_FORMAT = 2;             // v2: + aiMemory, guardian, background, secretsConfigured
-const BACKUP_MIN_FORMAT = 1;         // v1 bundles (pre-4.0 exports) still import
-const BACKUP_MAX_BYTES = 64 * 1024 * 1024;              // deck icons + an embedded background
-const BACKUP_BACKGROUND_MAX_BYTES = 12 * 1024 * 1024;   // embed background images; skip large videos
-const BACKUP_SAFE_NAME_RE = /^[A-Za-z0-9._-]+$/;        // upload filenames (no slash → no traversal)
+const {
+  BACKUP_FORMAT, BACKUP_MIN_FORMAT, BACKUP_MAX_BYTES, BACKUP_BACKGROUND_MAX_BYTES,
+  BACKUP_SAFE_NAME_RE, localBackupStamp,
+} = require('./settings/backup-format.js');
 
 // Raw parse of the server-only OAuth token store; used ONLY to derive boolean
 // "is this provider connected" flags. Token values never enter the backup.
@@ -9525,7 +9391,7 @@ async function buildBackup() {
       deck: await readDeckStore().catch(() => null),
       events: await readEvents().catch(() => []),
       tasks: await readTasks().catch(() => []),
-      timers: _timers,
+      timers: timerState.list,
       // `notes` stays a flat text blob so older Xenon builds can restore this
       // backup; `notesData` carries the full multi-note structure for current builds.
       notes: notesToText(notesState),
@@ -9537,19 +9403,6 @@ async function buildBackup() {
       font: await _buildBackupFont(settings),
     },
   };
-}
-
-// Write the backup bundle to a file on disk and return its absolute path.
-// Targets the user's Downloads folder (the natural place for an export); falls
-// back to the home dir, then DATA_DIR, if Downloads doesn't exist. The filename
-// carries date + time so repeated exports never overwrite one another.
-// `chosen`: a folder the dialog returned and the checks passed; '' = Downloads.
-// Backup file names carry the user's own date and time, not UTC: a backup made
-// at 00:40 on the 27th must not be named after the 26th.
-function localBackupStamp(d, withTime = false) {
-  const p = (n) => String(n).padStart(2, '0');
-  const day = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-  return withTime ? `${day}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}` : day;
 }
 
 async function saveBackupToDisk(chosen = '') {
@@ -9729,7 +9582,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
   if (Array.isArray(d.tasks))  await apply('tasks',  () => writeTasks(d.tasks));
   if (Array.isArray(d.timers)) {
     await apply('timers', async () => {
-      _timers = d.timers.slice(0, TIMERS_MAX).map(_normalizeTimer);
+      timerState.list = d.timers.slice(0, TIMERS_MAX).map(_normalizeTimer);
       await _saveTimers();
     });
   }
@@ -9784,6 +9637,14 @@ const remoteControl = createRemoteControl({
   getSettings: () => hub.settings,
   saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { hub.settings = safe; return safe; })),
 });
+const {
+  discordNotifWanted, discordNotifScopeWanted, winNotifWanted,
+} = require('./settings/notification-switches.js');
+
+const { _feedWidgetInUse } = require('./grid/feed-widget-in-use.js');
+
+const { processesWanted, perfWanted } = require('./performance/feeds-wanted.js');
+
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
@@ -10019,33 +9880,6 @@ deckRegistryDeps.spotify = async (action) => {
   try { await mediaAction(cmd); return { ok: true }; } catch { return r; }
 };
 
-// Discord voice integration via the local RPC/IPC channel (needs the Discord
-// desktop client + the user's own app credentials). `let` so it can be re-created
-// when the user saves credentials in Settings → Streaming (see saveStreamConfig).
-// Tokens persist to the same server-only stream-tokens.json.
-// Read at authorize/subscribe time, so the login consent and the live watch both
-// follow the current Settings toggle without re-creating the provider.
-// The master switch (Settings → Notifiche). When OFF, every notification source is
-// silenced and its background watcher stops — one place to kill it all.
-function notificationsEnabled() {
-  const n = hub.settings && hub.settings.notifications;
-  return !n || n.enabled !== false;   // default ON
-}
-function discordNotifWanted() {
-  const dn = hub.settings && hub.settings.discordNotifications;
-  return notificationsEnabled() && !!(dn && dn.enabled);
-}
-// Whether the RPC token needs the notifications SCOPE, which is a different
-// question from whether the notification FEED is on. A ringing Discord call
-// arrives as NOTIFICATION_CREATE and there is no other event for it, so Calls
-// needs the subscription even when the widget's message feed is switched off.
-// Both still go through the same one-time re-link, and pushDiscordNotification
-// keeps the feed itself gated on its own switch.
-function discordNotifScopeWanted() {
-  if (discordNotifWanted()) return true;
-  const c = hub.settings && hub.settings.calls;
-  return !!(c && c.enabled);
-}
 let discordRpc = createDiscordProvider({
   clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
   clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
@@ -10098,22 +9932,6 @@ function pushDiscordNotification(n) {
   // Fire the "notification" RGB event effect (no-op unless the user enabled it in
   // Settings → Illuminazione → Effetti evento). Same entry point as timer/reminder.
   try { lighting.onEvent('notification'); } catch { /* lighting optional */ }
-}
-// ── Windows notification mirror (the Notifications tile) ────────────────────
-// Same lifecycle discipline as the Discord/HA watches: the notifications-serve
-// child (native helper or notifications.ps1) runs only while the feature is
-// enabled AND a dashboard is open. winnotif.js owns the child + feed buffer.
-function winNotifWanted() {
-  if (!notificationsEnabled()) return false;   // master switch off → no mirror child
-  const wn = hub.settings && hub.settings.windowsNotifications;
-  if (wn && wn.enabled) return true;
-  // Calls read the same child: outside Discord, an OS notification is the only
-  // thing that can tell us a call is ringing (Windows exposes no toast XML and
-  // no "incoming call" flag — measured). So enabling Calls starts the reader
-  // even with the Notifications tile switched off, and the Settings copy says
-  // so rather than leaving the user to discover that one switch moved another.
-  const c = hub.settings && hub.settings.calls;
-  return !!(c && c.enabled);
 }
 winNotif.init({
   // Per-app mute: match the AUMID when the toast has one, the display name
@@ -10320,36 +10138,7 @@ const phone = createPhone({
   },
 });
 
-// ── Per-app audio peak meters ───────────────────────────────────────────────
-// Demand-driven, with NO setting of its own. This is a ~12/s broadcast, so it
-// must not run for everyone by default — but a second global switch was the
-// wrong way to hold that line: approving the widget's `audioLevels` permission
-// IS the consent, and every other stream starts working the moment you grant it.
-// Asking twice, in two different places, only made the widget look broken until
-// you found the second switch. So the cost follows the grant: the helper child
-// starts when some installed package has actually been granted this stream and a
-// dashboard is open, and stops otherwise. sdkGrantsFor() fails closed under safe
-// mode and per-package suspend, so both of those turn it off for free.
-function audioLevelsWanted() {
-  if (!audioLevels.available()) return false;
-  // The Media tile's waveform is the first FIRST-PARTY consumer. It gets a
-  // switch of its own for the reason the comment above gives about widgets:
-  // turning the feature on IS the consent, and there is exactly one place to do
-  // it. A built-in has no grant to ride, so this is that one place.
-  const viz = hub.settings && hub.settings.mediaVisualizer;
-  if (viz && viz !== 'off') return true;
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
-  if (!grants) return false;
-  for (const pkgId of Object.keys(grants)) {
-    if (sdkGrantsFor(pkgId).streams.includes('audioLevels')) return true;
-  }
-  return false;
-}
-function refreshAudioLevelsWatch() {
-  if (audioLevelsWanted() && sseClients.size > 0) audioLevels.start();
-  else audioLevels.stop();
-}
+const { audioLevelsWanted, refreshAudioLevelsWatch } = require('./audio/levels-wanted.js');
 // Each tick goes straight out; the helper's own interval is the rate limit, and
 // the payload is only the apps that are actually making sound.
 audioLevels.onTick((peaks) => {
@@ -10403,10 +10192,6 @@ let _processesProblemSaid = '';
 // `history` message). Filled by the tick below and nothing else: no timer of its
 // own, no disk, ~0.5 MB, and empty until someone has been granted the stream.
 const _processesHistory = require('./stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
-
-function processesWanted() {
-  return sdkStreamGranted('processes');
-}
 
 const { normalizeProcesses } = require('./performance/processes-normalize.js');
 
@@ -10818,18 +10603,17 @@ function saveNotesGuarded(body) {
 
 // ── Timers ────────────────────────────────────────────────────────────────────
 
-let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
-let _timerCheckInterval = null;
+const { timerState } = require('./time/timer-list.js');
 
 async function _saveTimers() {
   try {
-    await writeFileAtomic(TIMERS_FILE, JSON.stringify(_timers, null, 2));
+    await writeFileAtomic(TIMERS_FILE, JSON.stringify(timerState.list, null, 2));
   } catch {}
 }
 
 function _checkTimers() {
   let changed = false;
-  for (const t of _timers) {
+  for (const t of timerState.list) {
     // A stopwatch never finishes, so it never rings for having ENDED. It can
     // still chime on the way, if its owner asked for that.
     if (t.kind === 'stopwatch') {
@@ -10874,7 +10658,7 @@ function _checkTimers() {
   }
   if (changed) {
     _saveTimers();
-    broadcastSSE('timer_update', { timers: _timers });
+    broadcastSSE('timer_update', { timers: timerState.list });
   }
 }
 
@@ -10882,14 +10666,14 @@ async function _initTimers() {
   try {
     const raw = await fs.promises.readFile(TIMERS_FILE, 'utf8');
     const loaded = JSON.parse(raw);
-    _timers = (Array.isArray(loaded) ? loaded : []).slice(0, TIMERS_MAX).map(_normalizeTimer);
+    timerState.list = (Array.isArray(loaded) ? loaded : []).slice(0, TIMERS_MAX).map(_normalizeTimer);
   } catch (e) {
     if (e.code !== 'ENOENT') process.stdout.write(`[timers] load error: ${e.message}\n`);
-    _timers = [];
+    timerState.list = [];
   }
-  if (_timerCheckInterval) clearInterval(_timerCheckInterval);
-  _timerCheckInterval = setInterval(_checkTimers, 1000);
-  _timerCheckInterval.unref();
+  if (timerState.checking) clearInterval(timerState.checking);
+  timerState.checking = setInterval(_checkTimers, 1000);
+  timerState.checking.unref();
 }
 
 // ── External calendar feeds (read-only ICS subscriptions) ──────────────────
@@ -10961,34 +10745,6 @@ const _fpsDemand = createFpsDemand({
 });
 function _syncFpsMonitor() {
   _fpsDemand.clients(sseClients.size);
-}
-
-// A display-only feed is worth fetching only if someone can actually see it:
-// its widget is on the dashboard (visible, duplicated as a copy, or merged into
-// a tab-group) or the ticker streams that source. Any unexpected/legacy layout
-// shape fails OPEN (fetch) — this gate may only ever save work, never hide data.
-// Used for news + claude; stocks/football are deliberately NOT gated because
-// their fetch also drives user-facing alerts (price moves, goals) that must
-// keep working with the widget hidden (see _stocksAlertsWanted).
-function _feedWidgetInUse(widgetId, tickerSource) {
-  const s = hub.settings;
-  if (!s || typeof s !== 'object') return true;
-  if (tickerSource) {
-    const t = s.ticker;
-    if (t && t.enabled === true && t.sources && t.sources[tickerSource] !== false) return true;
-  }
-  const layout = s.dashboardLayout;
-  if (!layout || typeof layout !== 'object') return true;
-  const w = layout.widgets && layout.widgets[widgetId];
-  if (!w || typeof w !== 'object') return true;
-  if (w.visible === true) return true;
-  if (Array.isArray(layout.copies) && layout.copies.some(c => c && c.widget === widgetId)) return true;
-  const groups = layout.groups && typeof layout.groups === 'object' ? layout.groups : {};
-  for (const gid of Object.keys(groups)) {
-    const members = groups[gid] && Array.isArray(groups[gid].members) ? groups[gid].members : [];
-    if (members.some(m => m === widgetId || (typeof m === 'string' && m.indexOf(widgetId + '~') === 0))) return true;
-  }
-  return false;
 }
 
 // ── Stock market (Borsa) ─────────────────────────────────────────────────────
@@ -11545,17 +11301,6 @@ let _codexSig = '';
 let _codexLinkCache = null;
 let _codexLinkRepairedAt = 0;
 
-// Some installed package actually GRANTED this stream (sdkGrantsFor applies safe
-// mode and per-package suspend, so both switch the feed off for free).
-function _sdkStreamGranted(stream) {
-  const sw = hub.settings && hub.settings.sdkWidgets;
-  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
-  if (!grants) return false;
-  for (const pkgId of Object.keys(grants)) {
-    if (sdkGrantsFor(pkgId).streams.includes(stream)) return true;
-  }
-  return false;
-}
 function _codexWanted() {
   return sseClients.size > 0 && (_widgetPlaced('openaicodex') || _widgetPlaced('chatgpt') || _sdkStreamGranted('codex'));
 }
@@ -13110,7 +12855,7 @@ data: ${JSON.stringify({ ...st, seed: true })}
   // Timers too: timer_update otherwise fires only on mutations/completions, so
   // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
   // countdown faces and unlit timerRunning keys for the rest of a running timer.
-  try { res.write(`event: timer_update\ndata: ${JSON.stringify({ timers: _timers })}\n\n`); } catch (e) { /* ignore */ }
+  try { res.write(`event: timer_update\ndata: ${JSON.stringify({ timers: timerState.list })}\n\n`); } catch (e) { /* ignore */ }
   // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
   // sdkState keys without waiting for the next widget state change.
   try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
@@ -17043,12 +16788,12 @@ const handleRequest = async (req, res) => {
 
   // ── Timers API ────────────────────────────────────────────────────────────
   } else if (reqPath === '/api/timers' && req.method === 'GET') {
-    json({ timers: _timers });
+    json({ timers: timerState.list });
 
   } else if (reqPath === '/api/timers' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      if (_timers.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
+      if (timerState.list.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
       // No duration means a stopwatch — which is also how the tile creates one,
       // by leaving the field empty rather than growing a second button.
       const kind = body.kind === 'stopwatch' || (body.kind == null && !Number(body.duration_secs))
@@ -17062,9 +16807,9 @@ const handleRequest = async (req, res) => {
         startedAt: Date.now(),
         pausedElapsed: 0,
       });
-      _timers.push(timer);
+      timerState.list.push(timer);
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       json({ timer });
     } catch (e) { err500(e.message); }
 
@@ -17073,21 +16818,21 @@ const handleRequest = async (req, res) => {
       const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
       const body = JSON.parse(await readBody(req));
       const action = String(body.action || '').trim();
-      const idx = _timers.findIndex(t => t.id === tid);
+      const idx = timerState.list.findIndex(t => t.id === tid);
       if (idx < 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
-      const t = TimerActions.applyTimerAction(_timers[idx], action, Date.now()) || { ..._timers[idx] };
-      _timers[idx] = t;
+      const t = TimerActions.applyTimerAction(timerState.list[idx], action, Date.now()) || { ...timerState.list[idx] };
+      timerState.list[idx] = t;
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       json({ timer: t });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'DELETE') {
     try {
       const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
-      _timers = _timers.filter(t => t.id !== tid);
+      timerState.list = timerState.list.filter(t => t.id !== tid);
       await _saveTimers();
-      broadcastSSE('timer_update', { timers: _timers });
+      broadcastSSE('timer_update', { timers: timerState.list });
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
@@ -22858,15 +22603,6 @@ const _whenPageSync = LayerPages.createWhenPageSync({
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
-// The Game performance tile's feed: only while a game runs and a tile shows it.
-function perfWanted() {
-  if (_feedWidgetInUse('perf')) return true;
-  // A tile on a hidden surface draws nothing, so it wants no feed.
-  const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
-  if (layers.enabled && layers.widgets.some(w => w.kind === 'tile' && w.widget === 'perf' && !w.off && !layers.hidden.includes(w.surface))) return true;
-  // A Store widget granted the `perf` stream (sdk-widgets.js), like `processes`.
-  return sdkStreamGranted('perf');
-}
 // Ping and packet loss for the same tile, only when someone chose to see them.
 const _perfNet = createPerfNet({
   read: getNetworkInfo,
