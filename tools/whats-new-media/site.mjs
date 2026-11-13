@@ -56,12 +56,14 @@ const PLAYER_ANSWERS = `(() => {
 const HIDE_DEMO = '#demo-badge,#demo-convert,.demo-na,.xtoast-stack{display:none!important}';
 
 // One sheet of the What's New with nothing on it, for a scene to be drawn into.
+// The words come as every page of the app gets them (/layer-i18n.js, English
+// always in it): js/i18n.js alone has the functions and no words.
 export const SCENE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/components/WhatsNew/WhatsNew.css">
 <style>html, body { margin: 0; }</style></head>
 <body><div class="wn-stage"><section class="wn-sheet wn-c-green"></section></div>
 <script>let lang = 'en';</script>
-<script src="/js/i18n.js"></script>
+<script src="/layer-i18n.js"></script>
 <script src="/js/whats-new-scenes.js"></script></body></html>`;
 
 export function pickSteps(args) {

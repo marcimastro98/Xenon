@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The matcher behind the Settings search and the "add widget" palette. It is
 // run here against the REAL translations, in all 11 languages, because a
@@ -14,7 +15,7 @@ const F = require('../js/fuzzy-find.js');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
 function loadI18n() {
-  const src = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const src = appStringsSource();
   const cut = src.search(/^function /m);
   const ctx = { module: {} };
   vm.createContext(ctx);

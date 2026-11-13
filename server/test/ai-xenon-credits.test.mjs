@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 // Each round writes a cost line to server.log: never the real one.
@@ -462,7 +463,7 @@ test('the server routes the provider, keeps the time out of the system text, and
   const ui = read('../js/ai-xenon-settings.js');
   assert.match(ui, /fillSelect\('settings-xenon-effort', EFFORTS, 'settings_xenon_effort_', currentEffort\(\)\)/);
   assert.match(ui, /hubSettings = normalizeSettings\(\{ \.\.\.hubSettings, xenonEffort: value \}\);\n\s*saveHubSettings\(\);/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['settings_xenon_effort', 'settings_xenon_effort_hint', 'settings_xenon_effort_low', 'settings_xenon_effort_medium', 'settings_xenon_effort_high']) {
     assert.equal((i18n.match(new RegExp('^\\s+' + k + ': ', 'gm')) || []).length, 11, k);
   }
@@ -521,13 +522,13 @@ test('voice on credits is heard by local whisper, never sent to Gemini', () => {
 });
 
 test('settings, changelog and the assistant quote the same creation costs and levels', () => {
-  const i18n = read('../js/i18n.js');
+  const it = appStrings().it;
   const log = read('../../CHANGELOG.md');
   const card = require('../ai-knowledge.js').TOPICS.find((t) => t.id === 'ai-credits').body;
-  assert.match(i18n, /settings_xenon_model_opus: "Il più bravo: un widget costa circa 150 Scintille"/);
-  assert.match(i18n, /settings_xenon_model_sonnet: "Bravo: un widget costa circa 80 Scintille"/);
-  assert.match(i18n, /settings_xenon_effort_high: 'Approfondito: più curato, circa il doppio di Scintille e di tempo'/);
-  assert.doesNotMatch(i18n, /settings_xenon_effort_low: [^\n]*(meno Scintille|fewer Sparks|meno crediti|fewer credits)/, 'Light does not promise savings it does not deliver');
+  assert.equal(it.settings_xenon_model_opus, 'Il più bravo: un widget costa circa 150 Scintille');
+  assert.equal(it.settings_xenon_model_sonnet, 'Bravo: un widget costa circa 80 Scintille');
+  assert.equal(it.settings_xenon_effort_high, 'Approfondito: più curato, circa il doppio di Scintille e di tempo');
+  for (const [lang, text] of textsOf('settings_xenon_effort_low')) assert.doesNotMatch(text, /meno Scintille|fewer Sparks|meno crediti|fewer credits/, lang + ': Light does not promise savings it does not deliver');
   for (const text of [log, card]) {
     assert.match(text, /Sonnet \(balanced, about 80\) or Opus \(the most accurate, about 150\)/);
     assert.match(text, /Thorough gives a more polished result for about twice the Sparks and the time/);
@@ -540,11 +541,10 @@ test('settings, changelog and the assistant quote the same creation costs and le
 test('the widget count uses the same costs the model names quote, in every language', () => {
   const src = read('../js/xenon-credits.js');
   const cost = JSON.parse(src.match(/const WIDGET_COST = (\{[^}]+\})/)[1].replace(/(\w+):/g, '"$1":'));
-  const i18n = read('../js/i18n.js');
   for (const model of ['haiku', 'sonnet', 'opus']) {
-    const lines = [...i18n.matchAll(new RegExp(`settings_xenon_model_${model}: "([^"]+)"`, 'g'))].map((m) => m[1]);
-    assert.equal(lines.length, 11, `${model} is quoted in 11 languages`);
-    for (const line of lines) assert.match(line, new RegExp(`(^|\\D)${cost[model]}(\\D|$)`), `${model} costs ${cost[model]}: ${line}`);
+    const lines = textsOf('settings_xenon_model_' + model);
+    assert.equal(lines.length, 11, model + ' is quoted in 11 languages');
+    for (const [lang, line] of lines) assert.match(line, new RegExp('(^|\\D)' + cost[model] + '(\\D|$)'), lang + ': ' + model + ' costs ' + cost[model] + ': ' + line);
   }
   const low = Number(read('../js/xenon-credits.js').match(/const LOW_CREDITS = (\d+)/)[1]);
   assert.equal(low, cost.sonnet, 'the low warning comes before one Sonnet widget is out of reach');

@@ -7,11 +7,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const { note } = (await import('../js/deck-done-text.js')).default;
 const tt = (key, fallback) => fallback || key;
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 test('Do not disturb says the state it ended in', () => {
   for (const quiet of ['always', 'auto', 'off']) {

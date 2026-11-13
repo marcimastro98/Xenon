@@ -13,11 +13,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const TOKENS = readFileSync(new URL('../js/theme-tokens.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 const KEYS = ['settings_accent_covered_retro', 'settings_accent_covered_album'];
 

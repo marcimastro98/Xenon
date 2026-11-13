@@ -20,9 +20,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/youtube-widget.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 // The onError branch is lifted out and RUN, rather than pattern-matched: the
 // property that matters is "which ids end up in the refused set", and reading

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -122,14 +123,14 @@ test('a widget update waiting for a permission says where it is, and opens it', 
   const fn = /function onAutoUpdated\(data\) \{[\s\S]*?\n  \}\n/.exec(read('../js/custom-widget.js'))[0];
   const waiting = fn.slice(fn.indexOf('if (waiting.length)'));
   assert.match(waiting, /onClick: \(\) => \{ if \(window\.CommunityGallery\) window\.CommunityGallery\.open\('__installed'\); \}/);
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
     assert.ok(i18n[l].widget_autoupdate_wait_sub.includes(i18n[l].gallery_tab_installed), `${l}: ${i18n[l].widget_autoupdate_wait_sub}`);
   }
 });
 
 test('its words are in all 11 languages, with no dash', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
     for (const k of ['bm_installed_open', 'settings_updates_toast_one', 'settings_updates_toast_n', 'gallery_fact_version']) {
       const v = i18n[l][k];

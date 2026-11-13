@@ -14,13 +14,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const st = require('../startup-task.js');
 
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 /** A task definition in the shape schtasks /Query /XML actually emits. */

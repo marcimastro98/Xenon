@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const M = require('../js/capture-gallery-model.js');
@@ -62,7 +63,7 @@ test('trimChanges: the whole clip is not a trim, a tenth off either end is', () 
 });
 
 test('errorText: every code has a key in all 11 languages; unknown codes get the plain one', () => {
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   const codes = ['busy', 'too_short', 'empty', 'disk_full', 'unavailable', 'not_found', 'copy_failed', 'delete_failed', 'weird'];
   for (const code of codes) {
     const [key, fallback] = M.errorText(code);
@@ -82,7 +83,7 @@ test('isVideo and gameLabel', () => {
 });
 
 test('export: errors have keys in all 11 languages, a long clip warns before a GIF, sizes read as MB', () => {
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const code of ['busy', 'too_long', 'too_big', 'no_webcam', 'already_small', 'disk_full', 'weird']) {
     const [key, fallback] = M.exportErrorText(code);
     assert.ok(fallback && !/—/.test(fallback), code);

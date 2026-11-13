@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The interface scale, and the two ways it was out of reach.
 //
@@ -24,7 +25,7 @@ import { readFileSync } from 'node:fs';
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const BRIDGE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 function fn(name) {
   const at = SETTINGS.indexOf('function ' + name + '(');

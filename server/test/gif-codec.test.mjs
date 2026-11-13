@@ -210,6 +210,7 @@ test('shrinkGif fits the budget, keeps the motion and its timing', async () => {
 
 // --- wiring: every editor that used to flatten a moving picture now asks first.
 import { readFileSync } from 'node:fs';
+import { languagesWith } from './i18n-source.mjs';
 const src = f => readFileSync(new URL(f, import.meta.url), 'utf8');
 
 test('the codec loads before the editors that use it', () => {
@@ -232,8 +233,7 @@ test('scene pictures, key pictures and Deck decorations keep moving pictures mov
 });
 
 test('what a refused picture says exists in all 11 languages', () => {
-  const I18N = src('../js/i18n.js');
   for (const k of ['picture_too_big', 'picture_frames', 'picture_kept_still', 'ace_picture_failed']) {
-    assert.equal((I18N.match(new RegExp('^  ' + k + ': ', 'gm')) || []).length, 11, k);
+    assert.equal(languagesWith(k).length, 11, k);
   }
 });

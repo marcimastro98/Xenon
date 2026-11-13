@@ -15,6 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { appStringsSource, appStrings } from './i18n-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -25,7 +26,7 @@ const BREAKPOINTS = read('../styles/breakpoints.css');
 const SETTINGS = read('../js/settings.js');
 const SERVER = read('../server.js');
 const HTML = read('../index.html');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 /** The minimum column width a grid rule asks for, in px. */
@@ -110,16 +111,6 @@ test('every language has all five strings', () => {
   const keys = ['settings_upcoming_cols', 'settings_upcoming_cols_hint',
     'settings_upcoming_cols_auto', 'settings_upcoming_cols_1', 'settings_upcoming_cols_2'];
   for (const lang of LANGS) {
-    const start = I18N.indexOf(`Object.assign(i18n.${lang}, {`, I18N.indexOf('settings_upcoming_days_30'));
-    const block = I18N.slice(I18N.indexOf(`Object.assign(i18n.${lang}, {\n  settings_upcoming_count`));
-    const body = block.slice(0, block.indexOf('});'));
-    for (const k of keys) {
-      const has = body.split('\n').some((l) => {
-        const t = l.trimStart();
-        return t.startsWith(`${k}:`) || t.startsWith(`'${k}':`);
-      });
-      assert.ok(has, `${lang} is missing ${k}`);
-    }
-    assert.ok(start >= 0);
+    for (const k of keys) assert.ok(appStrings()[lang][k], lang + ' is missing ' + k);
   }
 });

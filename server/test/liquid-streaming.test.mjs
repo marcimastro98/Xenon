@@ -6,11 +6,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { selectorsOf, topRules, declsIn } from './css-rules.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SHEET = read('../styles/liquid-streaming.css');
 const TILES = read('../styles/liquid-tiles.css');
-const I18N = read('../js/i18n.js').replace(/\r\n/g, '\n');
+const I18N = appStringsSource().replace(/\r\n/g, '\n');
 const LINK = '<link rel="stylesheet" href="styles/liquid-streaming.css">';
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

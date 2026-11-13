@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, languagesWith, textsOf } from './i18n-source.mjs';
 
 // The Installed list reads /sdk/widgets fresh, while CustomWidget.addToPage only
 // knows the package list it fetched at page load. A widget folder dropped in
@@ -9,7 +10,7 @@ import { readFileSync } from 'node:fs';
 // fails, in every language the app ships.
 
 const ui = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8');
-const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const i18n = appStringsSource();
 
 function addHandler() {
   const start = ui.indexOf("t('settings_sdk_add_page'");
@@ -30,6 +31,6 @@ test('a tap that still places nothing tells the user', () => {
 });
 
 test('the failure message exists in all 11 languages', () => {
-  assert.equal((i18n.match(/^\s*settings_sdk_add_page_failed: "[^"]+",\r?$/mg) || []).length, 11);
-  assert.equal((i18n.match(/^\s*settings_sdk_added_page: /mg) || []).length, 11);
+  assert.equal(textsOf('settings_sdk_add_page_failed').filter(([, text]) => text).length, 11);
+  assert.equal(languagesWith('settings_sdk_added_page').length, 11);
 });

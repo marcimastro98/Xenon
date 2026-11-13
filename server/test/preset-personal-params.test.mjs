@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const PresetShare = require('../js/preset-share.js');
@@ -135,7 +136,7 @@ test('a key waiting for setup says so when pressed, in every language', () => {
   const deck = read('js/deck.js');
   assert.match(deck, /needsSetup\(action\)\) \{\s*reportActionError\('not_set_up'\)/);
   assert.match(read('js/deck-error-text.js'), /not_set_up: \['deck_err_not_set_up'/);
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['deck_err_not_set_up', 'preset_deck_finish', 'preset_deck_finish_meta']) {
     const n = (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length;
     assert.ok(n >= 11, k + ' in 11 languages (found ' + n + ')');

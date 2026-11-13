@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStrings } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 // A Windows checkout has CRLF: the patterns below cut on "\n".
@@ -27,9 +28,8 @@ test('a paired phone removes or reorders app favourites, never adds one', () => 
   // The phone says so instead of showing a star that would vanish.
   const sw = read('../js/app-switcher.js');
   assert.match(sw, /if \(existing < 0 && window\.__xenonRemote\) \{/);
-  const I18N = read('../js/i18n.js');
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  apps_fav_pc_only_title:`), lang);
+    assert.ok(appStrings()[lang].apps_fav_pc_only_title, lang);
   }
 });
 

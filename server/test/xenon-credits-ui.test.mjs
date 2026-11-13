@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -203,7 +204,7 @@ test('live voice is offered only on Gemini, which is what runs it', () => {
 });
 
 test('every string on the page is in all 11 languages, with no dash or warning sign', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const html = read('../index.html');
   const a = html.indexOf('<div class="settings-group settings-ai-group"');
   const page = html.slice(a, html.indexOf('<div class="settings-group"', html.indexOf('<div class="settings-group settings-aifeat-group"', a) + 10));
@@ -233,7 +234,7 @@ test('every string on the page is in all 11 languages, with no dash or warning s
 // what it is (Xenon's credits: one day they pay for more than Bit), that it is
 // bought, and that bought ones last.
 test('Scintille are named everywhere and the first lines say they are Xenon\'s credits, bought, never expiring', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const SPARK = { it: 'Scintill', en: 'Spark', ko: '스파크', ja: 'スパーク', zh: '火花', es: 'Chispa', fr: 'Étincelle', de: 'Funke', pt: 'Faísca', ru: 'Искр', nl: 'Vonk' };
   const CREDITS = { it: 'crediti di Xenon', en: 'Xenon\'s credits', ko: 'Xenon의 크레딧', ja: 'Xenon のクレジット', zh: 'Xenon 的点数', es: 'créditos de Xenon', fr: 'crédits de Xenon', de: 'Credits von Xenon', pt: 'créditos do Xenon', ru: 'кредиты Xenon', nl: 'credits van Xenon' };
   for (const l of LANGS) {
@@ -291,7 +292,7 @@ test('the Scintilla twinkles only while the dashboard moves', () => {
 // the spark beside them. They are Xenon's credits, not only Bit's: one day they
 // pay for more than Bit, so the offer never ties them to Bit.
 test('every support offer names 300 Scintille a month as Xenon\'s credits, never as Bit\'s', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const SPARK = { it: 'Scintill', en: 'Spark', ko: '스파크', ja: 'スパーク', zh: '火花', es: 'Chispa', fr: 'Étincelle', de: 'Funke', pt: 'Faísca', ru: 'Искр', nl: 'Vonk' };
   for (const l of LANGS) {
     for (const k of ['support_perk_sparks', 'support_plan_sparks', 'support_sparks_also']) {
@@ -408,7 +409,7 @@ test('the Store shows Sparks as Xenon\'s credits and sends a buyer to the Sparks
   assert.match(band, /sparks_shop_open/);
   assert.match(band, /goView\('__sparks'\)/);
   assert.equal(gallery.match(/packList\([^)]*\)/g), null, 'packs are drawn in the Sparks view alone');
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
     const v = i18n[l].sparks_shop_sub_bit;
     assert.equal(typeof v, 'string', `${l} is missing`);

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const SRC = readFileSync(new URL('../js/installed-manager.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -91,7 +92,7 @@ test('the page passes the green row to renderRow and Update all stays primary', 
 });
 
 test('its words are in all 11 languages, with no dash, and keep the version slot', () => {
-  const i18n = vm.runInNewContext(`${readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
     for (const k of ['installed_state_update', 'installed_state_allow']) {
       const v = i18n[l][k];

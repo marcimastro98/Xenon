@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Performance Mode in the top bar. Many people took a running session for a
 // broken Xenon: animations, the Media wave and heavy tiles paused with nothing
@@ -199,7 +200,7 @@ test('the Media wave names what holds it, and Settings listens', () => {
 });
 
 test('every language has the new words, translated', () => {
-  const SRC = read('../js/i18n.js');
+  const SRC = appStringsSource();
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

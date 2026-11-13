@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { makeDom, windowKeys } from './mini-dom.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -406,7 +407,7 @@ test('the hold-to-allow label fits two lines of a phone key in every language', 
     window: {}, document: { documentElement: {}, querySelectorAll: () => [], addEventListener() {} },
     localStorage: { getItem: () => null, setItem() {} }, navigator: { language: 'en' },
   };
-  vm.runInNewContext(read('../js/i18n.js') + '\n;this.__i18n = i18n;', box);
+  vm.runInNewContext(appStringsSource() + '\n;this.__i18n = i18n;', box);
   const long = Object.entries(box.__i18n)
     .map(([lang, s]) => [lang, s.claude_hold_allow])
     .filter(([, text]) => typeof text === 'string' && text.length > 25);

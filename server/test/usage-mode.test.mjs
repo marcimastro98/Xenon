@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
@@ -12,7 +13,7 @@ const { validateAction } = require('../js/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url));
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url));
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url));
+const I18N = appStringsSource();
 
 const shellUp = { available: () => true };
 const recorder = () => {

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Maker is reached from the places where people look for things to install or
 // change. These are browser files, so the check reads the source.
@@ -29,6 +30,6 @@ test('the Store and the Deck profile menu link the Maker in a new window', () =>
 });
 
 test('every app language has the link label', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   assert.equal(i18n.match(/ambient_create_maker:/g).length, 11);
 });

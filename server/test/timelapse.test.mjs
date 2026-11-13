@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createRecorder, LAPSE_EVERY } = require('../recorder.js');
@@ -223,7 +224,7 @@ test('cards: "Timelapse running" stops the timelapse; "Timelapse saved" says how
 });
 
 test('the words are in all 11 languages, without em-dashes', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   const keys = ['deck_act_timelapse', 'deck_param_every', 'lapse_on', 'lapse_on_msg', 'lapse_saved', 'lapse_span',
     ...timelapse.EVERY.map(v => 'deck_opt_lapse_' + v)];
   for (const k of keys) assert.equal((i18n.match(new RegExp(`\\n\\s+${k}: ['"]`, 'g')) || []).length, 11, k);

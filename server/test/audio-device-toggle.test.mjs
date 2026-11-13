@@ -17,6 +17,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { createRegistry, pickToggleDevice } from '../actions/registry.js';
 import * as sdk from '../sdk-widgets.js';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
@@ -148,7 +149,7 @@ test('the deck follows the real default output, and asks for it right after a sw
 });
 
 test('every language names the key, its two pickers and the not-connected reason', () => {
-  const SRC = read('../js/i18n.js');
+  const SRC = appStringsSource();
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

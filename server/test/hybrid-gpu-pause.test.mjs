@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
@@ -77,7 +78,7 @@ test('the background editor explains the freeze instead of looking like a code e
   assert.match(settings, /function renderBgFrozenNote\(\)/, 'the note must exist');
   assert.match(settings, /settings_bg_code_frozen_gpu/, 'the note must have copy to show');
   assert.match(read('index.html'), /id="settings-bgcode-frozen"/, 'the note needs a home in the editor');
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   assert.ok(
     (i18n.match(/settings_bg_code_frozen_gpu/g) || []).length >= 2,
     'the note must be translated in at least it + en',

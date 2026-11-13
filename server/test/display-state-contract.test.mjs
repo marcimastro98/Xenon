@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The display state crosses three layers written in two languages, and each layer
 // names its fields ONE BY ONE:
@@ -122,7 +123,7 @@ test('the mismatch notice is translated everywhere surface_missing is', () => {
   // Both strings live in the same panel, so the set of languages carrying one is
   // exactly the set that must carry the other. Counting against a sibling key is
   // what makes this survive a twelfth language being added.
-  const i18n = read('js', 'i18n.js');
+  const i18n = appStringsSource();
   const count = (key) => [...i18n.matchAll(new RegExp(`["']${key}["']\\s*:`, 'g'))].length;
   assert.equal(
     count('surface_gpu_mismatch'),

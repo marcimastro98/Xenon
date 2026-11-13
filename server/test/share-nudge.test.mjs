@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -16,7 +17,7 @@ const CARD = readFileSync(new URL('../js/share-nudge.js', import.meta.url), 'utf
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 test('the gate is fourteen days AND five separate days of use', () => {
@@ -83,9 +84,11 @@ test('the message is loaded, and every string exists in all eleven languages', (
 // Plain speech, same rule as the ask: no em dashes anywhere on the card.
 test('the card speaks plainly, with no em dashes', () => {
   let checked = 0;
-  for (const m of I18N.matchAll(/share_nudge_[a-z]+"?:\s*("(?:[^"\\]|\\.)*")/g)) {
-    checked++;
-    assert.ok(!JSON.parse(m[1]).includes('—'), 'em dash in: ' + m[1].slice(0, 50));
+  for (const key of Object.keys(appStrings().en).filter((k) => /share_nudge_[a-z]+$/.test(k))) {
+    for (const [lang, text] of textsOf(key)) {
+      checked++;
+      assert.ok(!text.includes('—'), 'em dash in ' + lang + '.' + key);
+    }
   }
   assert.equal(checked, 33, 'three strings in eleven languages');
 });

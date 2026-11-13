@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Settings search and the "add widget" search index what the page and
 // i18n.js already say, plus hidden words per category and per widget. These
@@ -13,7 +14,7 @@ const HTML = read('../index.html');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
 function loadI18n() {
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   const cut = src.search(/^function /m);
   const ctx = { module: {} };
   vm.createContext(ctx);
@@ -58,7 +59,7 @@ test('every widget the palette can offer has hidden search words in all 11 langu
 });
 
 test('the search strings are translated in every language block', () => {
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   for (const key of ['settings_search_placeholder', 'settings_search_empty', 'settings_search_recent',
     'palette_search_placeholder', 'palette_search_empty', 'palette_group_builtin', 'palette_group_store',
     'palette_filter_all', 'palette_filter_installed', 'palette_store_empty', 'palette_store_safe', 'palette_open_store', 'palette_examples']) {

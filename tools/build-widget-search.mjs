@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds docs/widget-search.json: the built-in widgets the home page's search box looks
 // through, in the site's seven languages. Names and hidden search words are the ones the
-// app's own "+" panel uses (layout_widget_<id>, palette_kw_<id> in server/js/i18n.js), and
+// app's own "+" panel uses (layout_widget_<id>, palette_kw_<id> in server/js/i18n/<code>.js), and
 // the list is the panel's (server/js/palette-model.js), so the site never drifts from the app.
 //
 // Run it after adding a widget:   node tools/build-widget-search.mjs [--check]
@@ -11,17 +11,17 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'docs', 'widget-search.json');
 export const SITE_LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
 
-// i18n.js is a browser script: run it in an empty context and read its one table back.
+// Every language's words as a page holds them: its own file, completed by English.
 export function appStrings() {
-  const src = fs.readFileSync(path.join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
-  const context = vm.createContext({ localStorage: { getItem: () => null }, document: {}, window: {}, navigator: { language: 'en' } });
-  return vm.runInContext(`${src}\n;i18n`, context);
+  const Tables = createRequire(import.meta.url)('../server/app-strings/tables.js');
+  const own = (code) => Tables.parse(fs.readFileSync(Tables.fileOf(code), 'utf8'), `js/i18n/${code}.js`);
+  const english = own(Tables.FALLBACK);
+  return Object.fromEntries(Tables.LANGS.map((code) => [code, code === Tables.FALLBACK ? english : Tables.complete(english, own(code))]));
 }
 
 export function buildIndex(strings, categories) {

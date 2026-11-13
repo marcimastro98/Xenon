@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const { hasVoice, wavPcm, transcriptionPrompt, cleanTranscript, geminiTranscript, VOICE_BLOCKED } = require('../stt-voice-gate.js');
 
@@ -116,7 +117,7 @@ test('the answer leaves out thoughts and honours the no-speech word', () => {
 
 test('a refused clip reaches the chat in the language of the user', () => {
   const ai = readFileSync(new URL('../js/ai.js', import.meta.url), 'utf8');
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   assert.ok(ai.includes(`msg === '${VOICE_BLOCKED}'`));
   assert.equal((i18n.match(/ai_voice_blocked/g) || []).length, 11, 'every app language');
 });

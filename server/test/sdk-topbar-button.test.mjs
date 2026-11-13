@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -107,9 +108,8 @@ test('the bar draws the button itself: text only, no widget markup', () => {
 });
 
 test('the permission strings exist in all 11 languages', () => {
-  const i18n = read('../js/i18n.js');
   for (const key of ['cw_perm_topbar_button', 'cw_perm_topbar_button_val', 'cw_perm_background_topbar_button']) {
-    assert.equal((i18n.match(new RegExp('\\n  ' + key + ': ', 'g')) || []).length, 11, key);
+    assert.equal(languagesWith(key).length, 11, key);
   }
 });
 

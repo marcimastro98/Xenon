@@ -46,6 +46,18 @@ test('code is counted, tests and other people\'s code are not', () => {
   assert.equal(isCounted('server/whatsnew.json'), false);
 });
 
+test('a language\'s table of words is data: not counted, and nothing else rides on that', () => {
+  assert.equal(isCounted('server/js/i18n/en.js'), false);
+  assert.equal(isCounted('server/js/i18n/ja.js'), false);
+  // The code around the words is counted like any other file.
+  assert.equal(isCounted('server/js/i18n.js'), true);
+  assert.equal(isCounted('server/js/i18n-load.js'), true);
+  assert.equal(isCounted('server/app-strings/tables.js'), true);
+  assert.equal(isCounted('server/js/i18n/loader.js'), true);
+  assert.equal(isCounted('server/js/i18n/en/extra.js'), true);
+  assert.equal(isCounted('server/js/other/en.js'), true);
+});
+
 test('compiler lines become one number per file and error code', () => {
   const cwd = path.join(REPO_ROOT, 'tools', 'quality');
   const text = [

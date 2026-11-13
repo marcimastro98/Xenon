@@ -7,10 +7,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = readFileSync(join(ROOT, 'server', 'js', 'preset-share.js'), 'utf8');
-const I18N = readFileSync(join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
+const I18N = appStringsSource();
 const CSS = readFileSync(join(ROOT, 'server', 'components', 'SettingsModal', 'SettingsModal.css'), 'utf8');
 
 test('the package picker refuses to build without a name and outlines the field', () => {

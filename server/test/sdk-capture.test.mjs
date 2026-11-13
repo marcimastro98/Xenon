@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -114,7 +115,7 @@ test('manifest macros: a capture step installs, a reveal or a microphone step fa
 test('the permission line in 11 languages, wired in the dialog; the docs say what it never sees', () => {
   assert.match(CW, /capture: \['cw_act_capture', /);
   assert.match(CW, /pages: \['cw_act_pages', /);
-  const i18n = readFileSync(path.join(ROOT, 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   assert.equal((i18n.match(/\bcw_act_capture:/g) || []).length, 11);
   const docs = readFileSync(path.join(ROOT, '..', 'docs', 'WIDGET_SDK.md'), 'utf8');
   const i = docs.indexOf('`capture` (v5.0.0)');

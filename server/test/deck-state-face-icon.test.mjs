@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The active face's icon — the second icon on a key.
 //
@@ -20,7 +21,7 @@ const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 const face = (icon) => dm.normalizeDeckConfig({
   profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
@@ -34,7 +35,7 @@ test('Bit: a Sparks code alone is enough to turn Xenon AI on', () => {
 });
 
 test('the new lines exist in all 11 languages and the "no code" line names both codes', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['settings_sparks_code_saved', 'settings_sparks_code_note', 'xai_offer_title_wallet', 'xai_offer_line_wallet']) {
     assert.equal((i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length, 11, k);
   }
@@ -53,6 +54,6 @@ test('Settings: beside a saved pass the box stays open for a Sparks code, and on
   const guard = save.indexOf("if (!isSparks && field.dataset.mode === 'sparks')");
   assert.ok(guard > 0 && guard < save.indexOf('fetch('), 'checked before the request');
   assert.ok(guard < save.indexOf('btn.disabled = true'), 'the button is never left disabled');
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   assert.equal((i18n.match(/\bsettings_sparks_add_note:/g) || []).length, 11);
 });

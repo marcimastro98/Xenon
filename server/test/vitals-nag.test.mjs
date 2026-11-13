@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createVitalsNag, cleanText, popupFont, POPUP_MS } = require('../vitals-nag.js');
@@ -119,7 +120,7 @@ test('Settings copy: every language explains what this PC cannot do, and none sa
   const vm = await import('node:vm');
   const ctx = { window: {} };
   vm.createContext(ctx);
-  vm.runInContext(readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8') + ';globalThis.__i18n = i18n;', ctx);
+  vm.runInContext(appStringsSource() + ';globalThis.__i18n = i18n;', ctx);
   const KEYS = ['settings_vpet_cap_main', 'settings_vpet_cap_notify', 'settings_vpet_cap_none', 'settings_vpet_cap_wayland', 'settings_vpet_cap_wmctrl'];
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     const d = ctx.__i18n[lang];
@@ -177,7 +178,7 @@ test('AI roasts: on Claude Code or Codex Settings says Bit keeps to its own line
   assert.deepEqual(require('../ai-cli.js').isCliProvider('claudecode') && require('../ai-cli.js').isCliProvider('codex'), true, 'the server roast skips the same providers');
   const i18n = { window: {} };
   vm.createContext(i18n);
-  vm.runInContext(read('../js/i18n.js') + ';globalThis.__i18n = i18n;', i18n);
+  vm.runInContext(appStringsSource() + ';globalThis.__i18n = i18n;', i18n);
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     for (const key of ['settings_vpet_ai_bank_cli', 'settings_vpet_sparks', 'settings_vpet_sparks_hint', 'settings_vpet_sparks_off']) assert.ok(i18n.__i18n[lang][key], lang + ' ' + key);
     assert.ok(i18n.__i18n[lang].settings_vpet_sparks_n.includes('{n}'), lang);

@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { makeDom, settle, windowKeys } from './mini-dom.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (name) => readFileSync(join(HERE, '..', 'js', name), 'utf8');
@@ -81,7 +82,7 @@ test('the export list carries no tag beside each row', () => {
 });
 
 test('a key opens with its word, in every language', () => {
-  const src = read('i18n.js');
+  const src = appStringsSource();
   for (const key of ['preset_publish', 'sharecard_open', 'preset_lock_toggle', 'preset_cancel']) {
     const values = [...src.matchAll(new RegExp(`["']?\\b${key}["']?:\\s*(['"])(.*?)\\1`, 'g'))].map((m) => m[2]);
     assert.ok(values.length >= 11, `${key} in all 11 languages`);

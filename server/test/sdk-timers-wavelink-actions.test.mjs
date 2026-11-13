@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -16,7 +17,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const CW = read('../js/custom-widget.js');
 const SERVER = read('../server.js');
 const SETTINGS = read('../js/settings.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');
 
 // The same name rules as the real list: names match without regard to case, and

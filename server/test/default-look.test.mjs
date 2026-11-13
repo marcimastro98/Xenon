@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { loadServerSettingsSlice } from './server-settings-slice.mjs';
 import { WALLPAPERS } from '../../tools/wallpapers/scenes.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -155,7 +156,7 @@ test('the wallpaper can be picked in Settings, and the card shows it', () => {
 });
 
 test('the three new names exist in all 11 languages', () => {
-  const i18n = read('js', 'i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['settings_style_liquid', 'settings_style_glass', 'settings_bg_static_dusk']) {
     const found = i18n.match(new RegExp(`["']?${key}["']?:`, 'g')) || [];
     assert.equal(found.length, 11, key);

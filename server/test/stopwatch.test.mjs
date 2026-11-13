@@ -14,6 +14,7 @@ import { readFileSync as readFileSyncRaw } from 'node:fs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
@@ -141,7 +142,7 @@ test('the assistant reports elapsed for a stopwatch, never a remaining of Infini
 });
 
 test('the stopwatch is named in every language, and so is how to make one', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const key of ['timer_stopwatch', 'deck_act_stopwatchStart']) {
     const n = i18n.split('\n').filter((l) => l.trimStart().startsWith(key + ':')).length;
     assert.equal(n, 11, key + ' is in ' + n + ' languages, expected 11');
@@ -237,7 +238,7 @@ test('the Deck key can ask for it too, and a bad value never breaks the key', ()
 });
 
 test('every new string is in all eleven languages', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const key of ['timer_every', 'timer_chime_alert', 'deck_param_every_minutes']) {
     const n = i18n.split('\n').filter((l) => l.trimStart().startsWith(key + ':')).length;
     assert.equal(n, 11, key + ' is in ' + n + ' languages, expected 11');

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCaptureCopy, PLACES } = require('../capture-copy.js');
@@ -95,7 +96,7 @@ test('Deck and Bit see it, every folder has a label', () => {
   assert.ok(!c.capability.sdk, 'not for widgets: the user decides where files go');
   const to = c.params.find((p) => p.name === 'to');
   assert.deepEqual(to.options, PLACES);
-  const i18n = fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_copyCapture', 'deck_param_copy_to', ...Object.values(to.optionKeys)]) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

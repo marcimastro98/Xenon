@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const screenCover = require('../capabilities/screen-cover.js');
@@ -84,7 +85,7 @@ test('the catalog entry, the runner and the AI function line up', async () => {
 });
 
 test('the toast, the Deck icon and the editor speak 11 languages', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   const keys = ['deck_act_screenCover', 'cover_none', 'cover_done', 'cover_check', 'capg_edit',
     'cann_arrow', 'cann_box', 'cann_text', 'cann_highlight', 'cann_cover', 'cann_red', 'cann_yellow', 'cann_white',
     'cann_undo', 'cann_save', 'cann_saving', 'cann_hint', 'cann_text_ph', 'cann_find', 'cann_finding', 'cann_found',

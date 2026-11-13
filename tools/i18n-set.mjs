@@ -1,132 +1,80 @@
 #!/usr/bin/env node
-// Sets app strings in server/js/i18n.js, one value per language, in place.
+// Sets app strings in server/js/i18n/<code>.js, one value per language.
 //
-// A key can be defined more than once for a language: in the main block
-// (`  it: {`) and again in a later `Object.assign(i18n.it, {...})` block or
-// one-line patch, where the last one wins at runtime. Rewriting copy by hand
-// across 11 languages kept missing one of them, so this rewrites EVERY
-// definition of the key for that language. A key a language does not have yet
-// is added to its main block, after the `...i18n.en,` spread when the block has
-// one (otherwise the English fallback would overwrite it).
+// Rewriting copy by hand across 11 languages kept missing one of them, so this
+// takes one list of values and puts each in its language's file. A file holds a
+// key once, one per line, and is written back in the shape every other tool
+// expects (tools/restructure/i18n-render.mjs: English's key order, single
+// quotes), so a hand edit that left it is tidied on the way.
+//
+// A key a language has no translation for is left out of its file and reads in
+// English: give a language only words that are its own.
 //
 // Run:  node tools/i18n-set.mjs <updates.json> [--check]
 //   updates.json = { "key": { "it": "...", "en": "...", ... }, "gone": null }
-//   A null removes every definition of that key, in every language.
+//   A null removes that key from every language.
 //   --check prints what would change and writes nothing.
 
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ENGLISH, renderLanguage } from './restructure/i18n-render.mjs';
 
-const MAIN_BLOCK = /^ {2}([a-z]{2}): \{\s*$/;
-const ASSIGN_BLOCK = /^Object\.assign\(i18n\.([a-z]{2}), \{\s*$/;
-// A short patch opens and closes on one line, and it still wins at runtime.
-const ASSIGN_LINE = /^Object\.assign\(i18n\.([a-z]{2}), \{.*\}\);\s*$/;
-const EMPTY_ASSIGN_LINE = /^Object\.assign\(i18n\.[a-z]{2}, \{\s*\}\);\s*$/;
+const Tables = createRequire(import.meta.url)('../server/app-strings/tables.js');
 
-// Line ranges that belong to each language: [{ lang, start, end, main, inline }].
-// A block's keys sit between its `start` and `end` lines; an inline patch keeps
-// them on its own `start` line.
-export function languageRegions(lines) {
-  const regions = [];
-  let open = null;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const main = MAIN_BLOCK.exec(line);
-    const assign = ASSIGN_BLOCK.exec(line);
-    const inline = !main && !assign && ASSIGN_LINE.exec(line);
-    if (main || assign || inline) {
-      if (open) { open.end = i; regions.push(open); open = null; }
-      if (inline) {
-        regions.push({ lang: inline[1], start: i, end: i + 1, main: false, inline: true });
-        continue;
-      }
-      open = { lang: (main || assign)[1], start: i, end: lines.length, main: Boolean(main), inline: false };
-      continue;
-    }
-    if (open && (line === '};' || line === '});')) { open.end = i; regions.push(open); open = null; }
-  }
-  if (open) regions.push(open);
-  return regions;
+export const LANGS = Tables.LANGS;
+/** @param {string} code @returns {string} repo-relative path of a language's file */
+export const languageFile = (code) => `server/js/i18n/${code}.js`;
+
+/**
+ * Each language's own words, from the text of its file.
+ * @param {Record<string, string>} texts language code -> its file's text
+ * @returns {Record<string, Record<string, string | string[]>>}
+ */
+export function ownTables(texts) {
+  return Object.fromEntries(Object.entries(texts).map(([code, text]) => [code, Tables.parse(text, languageFile(code))]));
 }
 
-const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-function keyLine(key) {
-  return new RegExp(`^(\\s+)(["']?)${escapeRe(key)}\\2:\\s*(['"])((?:\\\\.|(?!\\3).)*)\\3(,?)\\s*$`);
+/**
+ * The files for these tables, in the one shape. English gives the key order.
+ * @param {Record<string, Record<string, string | string[]>>} own
+ * @returns {Record<string, string>} language code -> its file's text
+ */
+export function renderTables(own) {
+  const englishKeys = Object.keys(own[ENGLISH] || {});
+  return Object.fromEntries(Object.keys(own).map((code) => [code, renderLanguage(code, own[code], englishKeys)]));
 }
 
-// A long line can hold many keys, so a definition is found anywhere on the line.
-function keyAnywhere(key) {
-  return new RegExp(`(^|[\\s,{])(["']?)${escapeRe(key)}\\2:\\s*(['"])((?:\\\\.|(?!\\3).)*)\\3`, 'g');
-}
-
-function quote(value, q) {
-  if (q === '"') return JSON.stringify(value);
-  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
-}
-
-// Pure: returns { source, changes } with every update applied.
-export function setI18nKeys(source, updates) {
-  const eol = source.includes('\r\n') ? '\r\n' : '\n';
-  const lines = source.split(/\r?\n/);
+/**
+ * Pure: every update applied.
+ * @param {Record<string, string>} texts language code -> its file's text
+ * @param {Record<string, Record<string, string> | null>} updates
+ * @returns {{ texts: Record<string, string>, changes: { key: string, lang: string, kind: 'set' | 'add' | 'remove' }[] }}
+ */
+export function setI18nKeys(texts, updates) {
+  const own = ownTables(texts);
   const changes = [];
   for (const [key, perLang] of Object.entries(updates)) {
-    const re = keyLine(key);
-    const anywhere = keyAnywhere(key);
+    if (!key || key === '__proto__') throw new Error(`not a key: "${key}"`);
     if (perLang === null) {
-      for (let i = lines.length - 1; i >= 0; i--) {
-        if (re.test(lines[i])) {
-          changes.push({ key, lang: '*', line: i + 1, kind: 'remove' });
-          lines.splice(i, 1);
-          continue;
-        }
-        const left = lines[i].replace(new RegExp(`${anywhere.source},?\\s*`, 'g'), '$1');
-        if (left === lines[i]) continue;
-        changes.push({ key, lang: '*', line: i + 1, kind: 'remove' });
-        // A one-line patch left with no key goes, rather than staying as `{ }`.
-        if (EMPTY_ASSIGN_LINE.test(left)) lines.splice(i, 1);
-        else lines[i] = left.trimEnd();
+      for (const lang of Object.keys(own)) {
+        if (!Object.hasOwn(own[lang], key)) continue;
+        delete own[lang][key];
+        changes.push({ key, lang, kind: 'remove' });
       }
       continue;
     }
     for (const [lang, value] of Object.entries(perLang)) {
       if (typeof value !== 'string') throw new Error(`${key}.${lang}: value must be a string`);
-      const regions = languageRegions(lines).filter((r) => r.lang === lang);
-      if (!regions.length) throw new Error(`no block for language "${lang}"`);
-      let hits = 0;
-      for (const r of regions) {
-        for (let i = r.inline ? r.start : r.start + 1; i < r.end; i++) {
-          let found = false;
-          const next = lines[i].replace(anywhere, (_match, lead, keyQuote, q) => {
-            found = true;
-            return `${lead}${keyQuote}${key}${keyQuote}: ${quote(value, q)}`;
-          });
-          if (!found) continue;
-          if (next !== lines[i]) changes.push({ key, lang, line: i + 1, kind: 'set' });
-          lines[i] = next;
-          hits++;
-        }
-      }
-      if (hits) continue;
-      // A new key never goes into a one-line patch: it would land outside its braces.
-      const main = regions.find((r) => r.main) || regions.find((r) => !r.inline);
-      if (!main) throw new Error(`${key}.${lang}: no block to add the key to`);
-      let at = main.start + 1;
-      for (let i = main.start + 1; i < main.end; i++) {
-        if (lines[i].trim() === '...i18n.en,') { at = i + 1; break; }
-      }
-      // Match the block's own key style (the Dutch block quotes its keys).
-      const sample = lines.slice(at, main.end).find((l) => /^\s+["']?[a-z0-9_]+["']?:\s*['"]/i.test(l)) || '    k: \'\'';
-      const indent = /^(\s+)/.exec(sample)[1];
-      // A key that is not a plain identifier (remote.pin_placeholder) must be quoted.
-      const keyQuote = /^\s+"/.test(sample) ? '"' : (/^[A-Za-z_$][\w$]*$/.test(key) ? '' : "'");
-      const valueQuote = /:\s*"/.test(sample) ? '"' : "'";
-      lines.splice(at, 0, `${indent}${keyQuote}${key}${keyQuote}: ${quote(value, valueQuote)},`);
-      changes.push({ key, lang, line: at + 1, kind: 'add' });
+      if (!Object.hasOwn(own, lang)) throw new Error(`no file for language "${lang}"`);
+      const had = Object.hasOwn(own[lang], key);
+      if (had && own[lang][key] === value) continue;
+      own[lang][key] = value;
+      changes.push({ key, lang, kind: had ? 'set' : 'add' });
     }
   }
-  return { source: lines.join(eol), changes };
+  return { texts: renderTables(own), changes };
 }
 
 function main(argv) {
@@ -136,13 +84,18 @@ function main(argv) {
     process.exit(2);
   }
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const target = path.join(root, 'server', 'js', 'i18n.js');
+  const at = (code) => path.join(root, languageFile(code));
+  const before = Object.fromEntries(LANGS.map((code) => [code, fs.readFileSync(at(code), 'utf8')]));
   const updates = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const { source, changes } = setI18nKeys(fs.readFileSync(target, 'utf8'), updates);
-  for (const c of changes) console.log(`${c.kind} ${c.key} [${c.lang}] line ${c.line}`);
-  if (argv.includes('--check')) return;
-  fs.writeFileSync(target, source, 'utf8');
-  console.log(`${changes.length} change(s) written to server/js/i18n.js`);
+  const { texts, changes } = setI18nKeys(before, updates);
+  for (const c of changes) console.log(`${c.kind} ${c.key} [${c.lang}]`);
+  const changed = LANGS.filter((code) => texts[code] !== before[code]);
+  if (argv.includes('--check')) {
+    console.log(`${changes.length} change(s) in ${changed.length} file(s), nothing written`);
+    return;
+  }
+  for (const code of changed) fs.writeFileSync(at(code), texts[code], 'utf8');
+  console.log(`${changes.length} change(s) written to ${changed.map(languageFile).join(', ') || 'no file'}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));

@@ -23,7 +23,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 | **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/js/onboarding.js` `server/js/usage-*.js` `server/js/boot-splash.js` `server/js/xenon-loader.js` `server/js/greeting*.js` `server/js/genesis.js` and 5 more |
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` `server/sw.js` and 7 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings-rev.js` `server/js/settings.js` `server/js/settings-*.js` `server/components/SettingsModal/**` |
-| **Words** | Every text of the app in 11 languages. | `server/js/i18n.js` `server/js/i18n-load.js` `server/app-strings/**` |
+| **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
 | **Engine core** | Starts the engine, answers every request and decides who is allowed to ask. | `server/server.js` `server/feature-routes.js` `server/http/**` `server/http-range.js` `server/listener-sockets.js` `server/sse-*.js` and 11 more |
 | **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/atomic-write.js` `server/json-lru.js` `server/list-ops.js` `server/semver.js` `server/ps-quote.js` `server/win-reserved.js` and 15 more |
 

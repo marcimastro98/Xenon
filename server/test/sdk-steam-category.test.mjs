@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +58,7 @@ test('every mirror of the category list carries it', () => {
 });
 
 test('the permission line is translated in every language the app ships', () => {
-  const I18N = read('server/js/i18n.js');
+  const I18N = appStringsSource();
   const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
   const found = new Set();
   let current = null;

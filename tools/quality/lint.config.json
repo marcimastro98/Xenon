@@ -9,7 +9,7 @@
       "**/*.js", "**/*.mjs", "**/*.cjs",
       "!**/node_modules", "!**/vendor", "!**/*.min.js",
       "!**/test", "!**/sdk-example", "!**/data", "!**/target", "!**/gen", "!**/engine",
-      "!**/i18n.js"
+      "!**/server/js/i18n"
     ]
   },
   "formatter": { "enabled": false },

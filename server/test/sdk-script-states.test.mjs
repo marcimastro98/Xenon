@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // A widget can WATCH the named values local scripts set with POST /state/set
 // (the `scriptStates` stream) and can never SET one. Both halves are promises
@@ -36,7 +37,7 @@ test('a manifest asking for scriptStates keeps it through validation', () => {
 });
 
 test('its permission label is translated in every language the app ships', () => {
-  const src = read('js', 'i18n.js');
+  const src = appStringsSource();
   const n = (src.match(/["']?cw_stream_scriptstates["']?\s*:/g) || []).length;
   assert.equal(n, 11, `cw_stream_scriptstates is defined ${n} times, expected 11`);
 });

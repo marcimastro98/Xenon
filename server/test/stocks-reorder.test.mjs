@@ -18,6 +18,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +28,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const WIDGET = read('../js/stock-widget.js');
 const SERVER = read('../server.js');
 const CSS = read('../components/StockWidget/StockWidget.css');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const CHANGELOG = read('../../CHANGELOG.md');
 const FEATURES = read('../../FEATURES.md');
 

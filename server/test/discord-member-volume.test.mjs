@@ -11,11 +11,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const WIDGET = readFileSync(new URL('../js/discord-widget.js', import.meta.url), 'utf8');
 const RPC = readFileSync(new URL('../discord-rpc.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/DiscordWidget/DiscordWidget.css', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 // The two pure decisions are lifted out and RUN: which names become buttons, and
 // what the volume reads. Everything else about this widget needs a browser and a

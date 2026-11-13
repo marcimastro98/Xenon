@@ -10,6 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStrings } from './i18n-source.mjs';
 
 // A Windows checkout has CRLF: the patterns below cut on "\n".
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -80,13 +81,7 @@ test('the strip and the Channels tab read on a light theme', () => {
 });
 
 test('the state named in the tooltip is translated in every language', () => {
-  const I18N = read('../js/i18n.js');
-  const block = I18N.slice(I18N.indexOf('// ── Discord widget: member avatars'));
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    const at = block.indexOf(`Object.assign(i18n.${lang}, {`);
-    assert.ok(at >= 0, `${lang} missing`);
-    const part = block.slice(at, block.indexOf('});', at));
-    assert.match(part, /discord_w_member_muted:/, lang);
-    assert.match(part, /discord_w_member_deaf:/, lang);
+    for (const key of ['discord_w_member_muted', 'discord_w_member_deaf']) assert.ok(appStrings()[lang][key], lang + ' is missing ' + key);
   }
 });

@@ -6,12 +6,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, appStrings } from './i18n-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const WIDGET = read('../js/disk-widget.js');
 const SERVER = read('../server.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const HTML = read('../index.html');
 
 function cut(src, start, end) {
@@ -104,19 +105,18 @@ test('the tile renders that card, and the server says when it can be used', () =
 test('every language has the Windows sentence, and none still sends people to an installer', () => {
   const langs = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
   for (const lang of langs) {
-    const re = new RegExp('Object\\.assign\\(i18n\\.' + lang + ', \\{\\n  disk_helper_text_win: "([^"]+)"');
-    const m = re.exec(I18N);
-    assert.ok(m, `${lang} has no disk_helper_text_win`);
-    assert.ok(m[1].length > 40);
+    const text = appStrings()[lang].disk_helper_text_win;
+    assert.ok(text, lang + ' has no disk_helper_text_win');
+    assert.ok(text.length > 40);
   }
 });
 
 test('Game mode names the background, and the search knows the words for it', () => {
-  const hint = /settings_gamemode: 'Game mode', settings_gamemode_hint: '([^']+)'/.exec(I18N)[1];
+  const hint = appStrings().en.settings_gamemode_hint;
   assert.match(hint, /animated background/);
   assert.match(hint, /aurora and neon grid/);
   assert.match(HTML, /<label class="settings-toggle-row full" data-search-kw="settings_gamemode_kw">\n\s+<input class="settings-check" id="settings-gamemode-enabled"/);
-  const en = /Object\.assign\(i18n\.en, \{\n  disk_helper_text_win: "[^"]+",\n  settings_gamemode_kw: "([^"]+)"/.exec(I18N)[1];
+  const en = appStrings().en.settings_gamemode_kw;
   for (const word of ['black background', 'background goes black', 'in game', 'aurora', 'neon grid']) {
     assert.ok(en.includes(word), `the English keywords lack "${word}"`);
   }

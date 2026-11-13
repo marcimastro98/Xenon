@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
@@ -85,10 +86,9 @@ test('the style editor shows a Tabs pane only for a tab group, one section per t
 });
 
 test('the Tabs pane strings exist in all 11 languages', () => {
-  const i18n = read('../js/i18n.js');
   for (const k of ['tile_style_tab_tabs', 'tile_style_tabs_hint', 'tile_style_tabs_bar', 'tile_style_tabs_active_bg',
     'tile_style_tabs_active_text', 'tile_style_tabs_bg', 'tile_style_tabs_text']) {
-    assert.equal((i18n.match(new RegExp('\\b' + k + '"?: "', 'g')) || []).length, 11, k);
+    assert.equal(languagesWith(k).length, 11, k);
   }
 });
 

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const MIXER = read('../components/AudioSection/LiquidMixer.css');
@@ -160,7 +161,7 @@ test('the Microphone tab sizes itself like the Volume tab, except where the tile
 });
 
 test('the input level is named in every language, and the old "sensitivity" word is gone', () => {
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   assert.equal((i18n.match(/^\s*mic_input_volume: '(?:[^'\\]|\\.)+',\r?$/gm) || []).length, 11);
   assert.doesNotMatch(i18n, /mic_sensitivity/);
   assert.doesNotMatch(INDEX, /mic_sensitivity/);

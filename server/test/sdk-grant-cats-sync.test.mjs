@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -101,7 +102,7 @@ test('every STREAM_LABELS i18n key exists in all languages', () => {
   const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
   const keys = [...block[1].matchAll(/^\s{4}[A-Za-z]+:\s*\['([a-z0-9_]+)'/gm)].map(m => m[1]);
   assert.ok(keys.length >= 20, 'expected the full stream label map');
-  const i18n = readFileSync(join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const key of keys) {
     // Both spellings the file uses: `key: '...'` and JSON-style `"key": "..."`.
     const hits = (i18n.match(new RegExp('["\']?\\b' + key + '\\b["\']?\\s*:', 'g')) || []).length;

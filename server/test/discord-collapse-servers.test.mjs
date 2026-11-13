@@ -13,6 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -22,7 +23,7 @@ const SETTINGS = read('../js/settings.js');
 const RPC = read('../discord-rpc.js');
 const CUSTOM = read('../js/custom-widget.js');
 const CSS = read('../components/DiscordWidget/DiscordWidget.css');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const SDK_DOC = read('../../docs/WIDGET_SDK.md');
 const CHANGELOG = read('../../CHANGELOG.md');
 const FEATURES = read('../../FEATURES.md');

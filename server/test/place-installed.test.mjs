@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('js/place-installed.js');
@@ -146,7 +147,7 @@ test('the link in the address bar still reads once the # is gone: it is what the
 });
 
 test('every string is there in the 11 languages', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['place_offer_msg', 'place_offer_btn', 'place_many_msg', 'place_many_btn', 'place_done_title',
     'place_done_msg', 'place_move_btn', 'place_failed_title', 'place_needs_app']) {
     assert.equal((i18n.match(new RegExp('\\b' + key + ':', 'g')) || []).length, 11, key);

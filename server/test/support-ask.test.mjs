@@ -8,12 +8,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const CARD = readFileSync(new URL('../js/support-card.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 // The answer to "I already support Xenon" is shared with the December appeal,
@@ -145,9 +146,11 @@ test('"I already support Xenon" says what it just did', () => {
 // rather than to be read, and it was the first thing called out on the draft.
 test('the card speaks plainly, with no em dashes', () => {
   let checked = 0;
-  for (const m of I18N.matchAll(/support_(?:ask|perk|thanks)_[a-z]+"?:\s*("(?:[^"\\]|\\.)*")/g)) {
-    checked++;
-    assert.ok(!JSON.parse(m[1]).includes('\u2014'), 'em dash in: ' + m[1].slice(0, 50));
+  for (const key of Object.keys(appStrings().en).filter((k) => /support_(?:ask|perk|thanks)_[a-z]+$/.test(k))) {
+    for (const [lang, text] of textsOf(key)) {
+      checked++;
+      assert.ok(!text.includes('—'), 'em dash in ' + lang + '.' + key);
+    }
   }
   assert.ok(checked >= 110, 'every card string was checked, in every language');
 });

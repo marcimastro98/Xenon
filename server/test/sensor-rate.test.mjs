@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 // A widget author building a monitoring tile asked for a faster refresh. The
 // answer was a user setting rather than a new default, because the cost is real
@@ -20,7 +21,7 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 const SERVER = read('server/server.js');
 const SETTINGS = read('server/js/settings.js');
 const HTML = read('server/index.html');
-const I18N = read('server/js/i18n.js');
+const I18N = appStringsSource();
 
 const STEPS = [5000, 2000, 1000];
 

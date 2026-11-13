@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (f) => fs.readFileSync(path.join(here, '..', f), 'utf8').replace(/\r\n/g, '\n');
@@ -206,7 +207,7 @@ test('the changelog label stays neutral on a light theme', () => {
 });
 
 test('the words the Store added are in all 11 languages', () => {
-  const i18n = vm.runInNewContext(read('js/i18n.js') + '\ni18n;', { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} } });
+  const i18n = vm.runInNewContext(appStringsSource() + '\ni18n;', { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} } });
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     for (const key of ['gallery_more_shelf', 'gallery_ask_bit_line', 'gallery_ask_bit_key', 'gallery_ask_bit_draft', 'gallery_retry']) {
       const v = i18n[lang][key];

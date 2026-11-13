@@ -6,10 +6,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const media = read('../js/media.js');
-const i18n = read('../js/i18n.js');
+const i18n = appStringsSource();
 const html = read('../index.html');
 const css = read('../components/MediaPanel/MediaPanel.css');
 const liquid = read('../components/MediaPanel/LiquidPlayer.css');

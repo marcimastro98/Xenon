@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Menu = require('../xenon-menu.js');
@@ -13,7 +14,7 @@ const { handlerKeyId } = require('../capabilities/widget-key.js');
 
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 const dict = (() => {
-  const text = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const text = appStringsSource();
   const ctx = {};
   vm.runInNewContext(text.slice(0, text.search(/^function /m)) + '\nthis.i18n = i18n;', ctx);
   return ctx.i18n;

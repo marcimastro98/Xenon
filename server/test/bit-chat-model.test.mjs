@@ -13,6 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -199,7 +200,7 @@ test('the head carries the back arrow, the button and the panel, in every chat c
   assert.doesNotMatch(head.slice(head.indexOf('data-bit-model ')), / id="/, 'no ids: the tile is cloned');
   assert.ok(html.indexOf('<script src="js/bit-chat-model.js">') > html.indexOf('<script src="js/ai-xenon-settings.js">'));
   assert.match(read('../js/xenon-credits.js'), /function renderChips\(\) \{[^}]*BitChatModel\.paint\(\)/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   const apply = i18n.slice(i18n.indexOf('function applyTranslations()'), i18n.indexOf('function setLang('));
   assert.match(apply, /XenonCredits\.renderChips\(\)/, 'a language change repaints the head');
   const css = read('../components/MediaPanel/MediaPanel.css');
@@ -211,7 +212,7 @@ test('the head carries the back arrow, the button and the panel, in every chat c
 });
 
 test('every word of the head, the panel and the card is in all 11 languages', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const keys = ['bit_back', 'bit_balance_title', 'bit_balance_title_none', 'bit_model_topup', 'bit_model_who', 'bit_model_cost', 'bit_model_ask_cost',
     'bit_nokey_title', 'bit_nokey_line', 'bit_nokey_cta', 'bit_nokey_key', 'xai_model_haiku', 'xai_model_sonnet', 'xai_model_opus', 'xai_pack_credits'];
   for (const l of LANGS) {

@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const TOUR = read('../js/onboarding.js');
@@ -195,7 +196,7 @@ test('peekRails opens closed rails on screen only, and puts each back as it was'
 });
 
 test('every language carries the tour, translated, with the Settings path left to the code', () => {
-  const SRC = read('../js/i18n.js');
+  const SRC = appStringsSource();
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

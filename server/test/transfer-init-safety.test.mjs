@@ -23,6 +23,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +31,7 @@ const ft = require(path.join(here, '..', 'file-transfer.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SERVER = read('../server.js');
 const WIDGET = read('../js/transfer-widget.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 
 async function seeded(names = ['a.jpg', 'b.jpg', 'c.jpg']) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'xfer-init-'));

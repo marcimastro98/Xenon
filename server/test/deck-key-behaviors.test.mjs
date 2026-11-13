@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { languagesWith, textsOf } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');
@@ -250,7 +251,6 @@ test('the editor saves only the gestures of the chosen behaviour and loads the c
 });
 
 test('the Behaviour strings exist in all 11 languages', () => {
-  const i18n = read('../js/i18n.js');
   const keys = ['deck_behavior_title', 'deck_behavior_button', 'deck_behavior_switch', 'deck_behavior_momentary', 'deck_behavior_repeat',
     'deck_behavior_cycle', 'deck_behavior_hint_button', 'deck_behavior_hint_momentary', 'deck_behavior_hint_repeat', 'deck_behavior_hint_cycle',
     'deck_behavior_hold_ms', 'deck_behavior_double_ms', 'deck_unit_ms', 'deck_unit_s', 'deck_behavior_auto_off', 'deck_behavior_auto_off_hint',
@@ -258,8 +258,8 @@ test('the Behaviour strings exist in all 11 languages', () => {
     'deck_trigger_press', 'deck_trigger_release', 'deck_cycle_state', 'deck_cycle_color', 'deck_cycle_color2',
     'deck_cycle_sec_label', 'deck_cycle_sec_icon', 'deck_cycle_sec_bg',
     'deck_state_sum_momentary', 'deck_state_sum_cycle'];
-  for (const k of keys) assert.equal((i18n.match(new RegExp('^ +' + k + ': ', 'gm')) || []).length, 11, k);
-  assert.equal((i18n.match(/^ +deck_cycle_state: ".*\{n\}.*",$/gm) || []).length, 11);
+  for (const k of keys) assert.equal(languagesWith(k).length, 11, k);
+  assert.equal(textsOf('deck_cycle_state').filter(([, text]) => text.includes('{n}')).length, 11);
 });
 
 // ── sharing a Deck profile ──

@@ -10,11 +10,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 // The sentences moved to their own file, shared with the on-screen alerts.
 const ERR_TEXT_SRC = readFileSync(new URL('../js/deck-error-text.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const REGISTRY = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
 // The page rules answer the menu and the Deck with their own codes.
 const LAYER_PAGES = readFileSync(new URL('../layer-pages.js', import.meta.url), 'utf8');

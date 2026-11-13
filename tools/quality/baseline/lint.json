@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5933,
+  "total": 5934,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -57,7 +57,6 @@
     "server/ai-anthropic.js complexity/useOptionalChain": 8,
     "server/ai-cli.js complexity/useOptionalChain": 13,
     "server/ai-cli.js suspicious/noAssignInExpressions": 3,
-    "server/ai-creation-labels.js complexity/useOptionalChain": 2,
     "server/ai-gemini-thinking.js complexity/useOptionalChain": 1,
     "server/ai-gemini.js complexity/useOptionalChain": 4,
     "server/ai-live.js complexity/useOptionalChain": 9,
@@ -543,6 +542,8 @@
     "server/js/i18n-load.js complexity/useOptionalChain": 2,
     "server/js/i18n-load.js suspicious/noPrototypeBuiltins": 1,
     "server/js/i18n-load.js suspicious/useIterableCallbackReturn": 2,
+    "server/js/i18n.js complexity/useOptionalChain": 3,
+    "server/js/i18n.js suspicious/useIterableCallbackReturn": 1,
     "server/js/icue-host.js complexity/useArrowFunction": 2,
     "server/js/icue-host.js complexity/useOptionalChain": 1,
     "server/js/installed-manager.js complexity/useArrowFunction": 1,
@@ -1251,7 +1252,7 @@
     "tools/demo/maker.js complexity/useOptionalChain": 4,
     "tools/dev-install/cli.mjs complexity/useOptionalChain": 1,
     "tools/doctor-checks.mjs complexity/useOptionalChain": 1,
-    "tools/doctor.mjs complexity/useOptionalChain": 3,
+    "tools/doctor.mjs complexity/useOptionalChain": 2,
     "tools/edit-tabs-check/check.mjs complexity/useOptionalChain": 1,
     "tools/engine-bundle/node-runtime.mjs complexity/useOptionalChain": 1,
     "tools/home-bake.mjs suspicious/noAssignInExpressions": 3,

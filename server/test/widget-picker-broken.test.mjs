@@ -17,13 +17,14 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { listPackages } = require('../sdk-widgets.js');
 
 const CW = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/CustomWidget/CustomWidget.css', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 const KEYS = [
   'cw_pick_broken',

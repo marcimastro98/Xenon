@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const run = require('../ai-deck-run.js');
@@ -98,7 +99,7 @@ test('wiring: the tool, the run route that reads only the nonce, the card', () =
   const card = read('../js/ai-deck-confirm.js');
   assert.ok(!card.includes('innerHTML'), 'model text reaches the card as textContent only');
   assert.ok(card.includes("post('/ai/deck-run', nonce)"));
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['ai_deck_confirm_title', 'ai_deck_run', 'ai_deck_done', 'ai_deck_failed', 'ai_deck_cancel', 'ai_deck_close', 'ai_deck_running']) {
     assert.equal((i18n.match(new RegExp('^ {4}' + k + ': ', 'gm')) || []).length, 11, k);
   }

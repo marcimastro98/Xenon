@@ -10,11 +10,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, textsOf } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SETTINGS = read('../js/settings.js');
 const BRIDGE = read('../js/native-bridge.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 
 function load() {
   const start = SETTINGS.indexOf('let _gamingActive = false;');
@@ -115,8 +116,7 @@ test('a widget-layer window is not the kiosk: native-bridge sends it no shell si
 });
 
 test('the Game mode hint says the focus option does not depend on it, in every language', () => {
-  const block = I18N.slice(I18N.indexOf('// Game mode is the look and the background work'));
-  for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
-    assert.match(block, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{ settings_gamemode_hint: '[^']*Keep games focused[^']*' \\}\\);`), lang);
-  }
+  const hints = textsOf('settings_gamemode_hint');
+  assert.equal(hints.length, 11);
+  for (const [lang, text] of hints) assert.match(text, /Keep games focused/, lang);
 });

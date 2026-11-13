@@ -13,6 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -153,7 +154,7 @@ test('the status route says which platform it runs on', () => {
 });
 
 test('every language has the new sentences, translated', () => {
-  const SRC = read('../js/i18n.js');
+  const SRC = appStringsSource();
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

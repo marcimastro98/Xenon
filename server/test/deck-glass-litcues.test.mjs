@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');
 
@@ -41,7 +42,7 @@ test('the preview demonstrates the lit-key switches on any page', () => {
 });
 
 test('the Glass label is in all 11 languages', () => {
-  assert.equal((read('../js/i18n.js').match(/^ +deck_plate_glass: /gm) || []).length, 11);
+  assert.equal((appStringsSource().match(/^ +deck_plate_glass: /gm) || []).length, 11);
 });
 
 test('a chosen label colour beats the Comic ink, on both faces', () => {

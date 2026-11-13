@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ai = require('../ai-local.js');
@@ -72,8 +73,8 @@ test('voice errors stay up long enough to read, then close the session', () => {
   assert.match(show, /_aiVoiceSetReply\(msg\)/);
   assert.match(show, /gen === _aiVoiceGen && _aiVoiceSessionActive\) _aiEndVoiceSession\(\)/);
   assert.match(AI, /const AI_VOICE_ERROR_HOLD_MS = \d{4};/);
-  assert.match(read('../js/i18n.js'), /ai_mic_unavailable/);
-  const langs = read('../js/i18n.js').match(/^ {4}ai_mic_unavailable: /gm) || [];
+  assert.match(appStringsSource(), /ai_mic_unavailable/);
+  const langs = appStringsSource().match(/^ {4}ai_mic_unavailable: /gm) || [];
   assert.equal(langs.length, 11);
 });
 

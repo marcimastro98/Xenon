@@ -19,6 +19,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource, appStrings } from './i18n-source.mjs';
 
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 const require = createRequire(import.meta.url);
@@ -36,7 +37,7 @@ const { redactRemoteCreds } = require('../remote-control/settings.js');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const SETTINGS_JS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 function routeBody(path) {
   const start = SERVER.indexOf(`reqPath === '${path}'`);
@@ -195,8 +196,7 @@ test('backup: keeps the calendar links for the restore, and says the file is pri
   assert.match(SERVER, /A backup is NOT safe to hand to someone/);
   // Every language's export note is overridden with the corrected text.
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    const re = new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  settings_backup_note: "[^"]+",\\n\\}\\);`);
-    assert.match(I18N, re, lang + ' is missing the corrected backup note');
+    assert.ok(appStrings()[lang].settings_backup_note, lang + ' is missing the corrected backup note');
   }
 });
 

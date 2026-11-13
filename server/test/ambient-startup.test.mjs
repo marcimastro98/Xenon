@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Asked for on Discord by someone whose Ambient scene is their whole dashboard:
 // "on startup/restart I need to press the button in the top left for ambient
@@ -25,7 +26,7 @@ const ScreenSceneModel = require('../js/screen-scene-model.js');
 const MODE = read('js', 'ambient-mode.js');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = read('server.js');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 const INDEX = read('index.html');
 
 function extractFunction(src, name) {

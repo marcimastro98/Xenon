@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
@@ -191,6 +192,6 @@ test('the transfer panel uses the dialog where there is one and the typed field 
   const W = readFileSync(join(HERE, '..', 'js', 'transfer-widget.js'), 'utf8');
   assert.match(W, /cfg\.canPick === true \? pickedFolderField\(\) : typedFolderField\(\)/);
   assert.match(W, /'\/api\/transfer\/settings\/pick'/);
-  const I18N = readFileSync(join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const I18N = appStringsSource();
   assert.equal((I18N.match(/\bxfer_folder_title:/g) || []).length, 11);
 });

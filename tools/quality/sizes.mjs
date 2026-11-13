@@ -19,6 +19,10 @@ const ROOTS = ['server/', 'packages/', 'apps/', 'helper/', 'helper-mac/', 'integ
 const SKIPPED = [
   /(^|\/)vendor\//, /\.min\./, /(^|\/)test\//, /^server\/sdk-example\//,
   /^server\/soundvolumeview-x64\//, /^apps\/native\/src-tauri\/(gen|target|engine)\//,
+  // The app's words, one table per language (server/js/i18n/en.js): a line per
+  // string and no logic, so there is nothing to split. Only these files: the
+  // code that reads them (js/i18n.js, app-strings/) is counted like any other.
+  /^server\/js\/i18n\/[a-z]{2}\.js$/,
 ];
 
 /** @param {string} file repo-relative path @returns {boolean} */

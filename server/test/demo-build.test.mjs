@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 // Contract test for tools/build-demo.mjs — over the SOURCES, not over a build.
 //
@@ -125,13 +128,12 @@ test('the catalog only offers "Try in the browser" for client-side kinds', () =>
 
 test('the demo splash has a line in every language the app speaks', () => {
   // i18n.js is not loaded when the splash paints, so boot.js carries its own copy.
-  const i18n = read('server', 'js', 'i18n.js');
   const boot = read('tools', 'demo', 'boot.js');
-  const appLangs = [...i18n.matchAll(/^ {2}([a-z]{2}): \{$/gm)].map((m) => m[1]);
+  const appLangs = [...require('../app-strings/tables.js').LANGS];
   const block = /const SPLASH_TEXT = \{([\s\S]*?)\n {2}\};/.exec(boot);
   assert.ok(block, 'SPLASH_TEXT is gone from tools/demo/boot.js');
   const splashLangs = [...block[1].matchAll(/^ {4}([a-z]{2}): '/gm)].map((m) => m[1]);
-  assert.ok(appLangs.length >= 11, 'expected the app languages in i18n.js');
+  assert.ok(appLangs.length >= 11, 'expected the app languages (server/app-strings/tables.js)');
   assert.deepEqual(splashLangs.sort(), appLangs.sort());
 });
 

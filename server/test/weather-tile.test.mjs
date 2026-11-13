@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Weather tile: one thing that changes next, the hours as columns, the days with their
 // real temperatures, and the details that matter. It sits on the tile's sheet with no sky of
@@ -20,7 +21,7 @@ const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const MODAL_CSS = read('components', 'WeatherModal', 'WeatherModal.css');
 const LIQUID = read('styles', 'liquid-tiles.css');
 const INDEX = read('index.html');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 
 const hour = (min, state = 'state-cloud', rain = 0) => ({ min, state, rain });
 const day = (...states) => states.map((state, i) => hour(600 + i * 60, state));

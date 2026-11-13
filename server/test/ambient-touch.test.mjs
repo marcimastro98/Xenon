@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { languagesWith } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const AS = require('../js/ambient-scene.js');
 const AM = require('../js/ambient-mode.js');
@@ -89,8 +90,7 @@ test('the notifications feed can be read without its tile', () => {
 });
 
 test('every new label is in all 11 languages', () => {
-  const i18n = read('../js/i18n.js');
   for (const k of ['ambient_notif_off', 'ambient_notif_clear', 'ambient_notif_hidden', 'ambient_vol_down', 'ambient_vol_up', 'ambient_vol_mute']) {
-    assert.equal((i18n.match(new RegExp('^  ' + k + ': ', 'gm')) || []).length, 11, k);
+    assert.equal(languagesWith(k).length, 11, k);
   }
 });

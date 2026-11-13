@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -101,7 +102,7 @@ test('Bit on the screen optimizes through the driver instead of saying it needs 
 const en = (() => {
   const ctx = {};
   vm.createContext(ctx);
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   return vm.runInContext(src.slice(0, src.indexOf('\nfunction t(key) {')) + '\ni18n.en;', ctx);
 })();
 const ctxEn = { t: (k) => en[k] || k };

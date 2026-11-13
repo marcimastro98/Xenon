@@ -15,6 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -311,7 +312,7 @@ test('the tab is laid out for every screen: wraps, no fixed widths, 44px targets
 });
 
 test('every string of the tab is in all 11 languages, placeholders kept, no dash', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const keys = read('../js/sparks-store.js').match(/'sparks_(?:shop|use|plan)_[a-z_]+'/g).map((k) => k.slice(1, -1));
   keys.push('gallery_supporters_join', 'sparks_settings_shop', 'sparks_shop_open', 'sparks_buy_more', 'xc_chip_buy', 'xc_chip_title_none', 'xai_packs_note', 'xai_packs_email', 'xai_buy_toast_msg');
   const PH = { sparks_use_bit_v: ['{haiku}', '{sonnet}', '{opus}'], sparks_plan_price: ['{usd}'], sparks_plan_sparks: ['{n}'], xai_packs_email: ['{email}'], xai_buy_toast_msg: ['{n}', '{balance}'] };
@@ -326,11 +327,11 @@ test('every string of the tab is in all 11 languages, placeholders kept, no dash
     if (l !== 'en') assert.notEqual(i18n[l].sparks_use_bit_d, i18n.en.sparks_use_bit_d, `${l} is translated`);
     for (const gone of ['sparks_shop_reach_note', 'sparks_shop_support', 'sparks_sub_t', 'sparks_sub_d', 'sparks_sub_cta', 'sparks_sub_mine_t', 'sparks_sub_mine_d', 'sparks_quick_more', 'sparks_plan_extend']) assert.equal(i18n[l][gone], undefined, `${l}.${gone} is unused`);
   }
-  assert.doesNotMatch(read('../js/i18n.js'), /sul tuo codice|arrivano da sole sul/, 'Sparks are added to a balance, not onto a code');
+  assert.doesNotMatch(appStringsSource(), /sul tuo codice|arrivano da sole sul/, 'Sparks are added to a balance, not onto a code');
 });
 
 test('every key the Store and the Sparks tab ask for exists in all 11 languages', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const f of ['../js/sparks-store.js', '../js/community-gallery.js']) {
     // Literal keys only: a prefix joined to a value at runtime ends in '_'.
     const keys = new Set([...read(f).matchAll(/\bt\('([a-z0-9_]*[a-z0-9])'/g)].map((m) => m[1]));

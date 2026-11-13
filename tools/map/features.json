@@ -911,9 +911,10 @@
       "id": "words",
       "area": "engine",
       "name": "Words",
-      "what": "Every text of the app in 11 languages.",
+      "what": "Every text of the app in 11 languages, one file per language.",
       "files": [
         "server/js/i18n.js",
+        "server/js/i18n/**",
         "server/js/i18n-load.js",
         "server/app-strings/**"
       ]

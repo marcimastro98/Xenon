@@ -25,6 +25,7 @@
 // is precisely why every destructive path is stopped at the network boundary in
 // demo/boot.js instead.
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -88,6 +89,24 @@ for (const rel of COPY_ALLOWLIST) {
   cpSync(from, join(OUT, rel), { recursive: true });
 }
 log('copied ' + COPY_ALLOWLIST.join(', '));
+
+// ── 1b. The strings. In the app the server puts a page's languages in front of
+//      the functions of js/i18n.js (/layer-i18n.js, from js/i18n/<code>.js). A
+//      static site has no server, so the demo's js/i18n.js is that same script
+//      with every language, built here. The per-language files are what the
+//      server reads, not something a browser loads: they leave the copy.
+{
+  const require = createRequire(import.meta.url);
+  const Tables = require('../server/app-strings/tables.js');
+  const LayerStrings = require('../server/layer-strings.js');
+  const tables = await Tables.tables([...Tables.LANGS]);
+  const missing = Tables.LANGS.filter((code) => !tables[code]);
+  if (missing.length) fail(`the strings of ${missing.join(', ')} could not be read`);
+  const core = readFileSync(join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
+  writeFileSync(join(OUT, 'js', 'i18n.js'), LayerStrings.build(tables, core, ''));
+  rmSync(join(OUT, 'js', 'i18n'), { recursive: true, force: true });
+  log(`built js/i18n.js with ${Tables.LANGS.length} languages`);
+}
 
 // ── 2. Materialize shared/ from packages/core — NEVER from server/shared.
 //      That path is a junction on Windows and a `dir` symlink elsewhere

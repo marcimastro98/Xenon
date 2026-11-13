@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const screenPin = require('../capabilities/screen-pin.js');
@@ -178,7 +179,7 @@ test('the pin key says where it stays in its own words, in 11 languages', () => 
   const surface = entry.params.find(p => p.name === 'surface');
   assert.equal(surface.labelKey, 'deck_param_screenPin_surface');
   assert.deepEqual({ ...surface.optionKeys }, { overlay: 'deck_opt_over_windows' });
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_param_screenPin_surface', 'deck_opt_over_windows', 'deck_opt_desktop', 'deck_act_screenPin', 'deck_param_screenPin_source', 'deck_opt_last']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

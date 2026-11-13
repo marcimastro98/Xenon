@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // All-day events used to vanish from the Upcoming list one minute after
 // midnight. Reported from macOS with Google Calendar: "they are not visible,
@@ -123,7 +124,7 @@ test('a whole-day event says so instead of showing 00:00', () => {
 });
 
 test('the label ships in every language, and stays as short as a time', () => {
-  const i18n = readFileSync(join(__dirname, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   const vals = [...i18n.matchAll(/["']?event_all_day["']?\s*:\s*['"]([^'"]+)['"]/g)].map(m => m[1]);
   assert.equal(vals.length, 11, `event_all_day is defined ${vals.length} times, expected 11`);
   // The chip is a grid whose only flexible cell is the NAME, so whatever this

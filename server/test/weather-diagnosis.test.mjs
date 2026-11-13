@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // ── Why the weather can fail, said out loud ─────────────────────────────────
 // Reported three times from the same install ("Weather not working and still
@@ -24,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const SERVER = readFileSync(join(root, 'server.js'), 'utf8');
 const SYSTEM = readFileSync(join(root, 'js', 'system.js'), 'utf8');
-const I18N = readFileSync(join(root, 'js', 'i18n.js'), 'utf8');
+const I18N = appStringsSource();
 
 // The real GEO_IP_SOURCES table and its value guard, lifted out of server.js and
 // evaluated — a paraphrase here would test the paraphrase.

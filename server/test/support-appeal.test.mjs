@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { appStringsSource, textsOf } from './i18n-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -16,7 +17,7 @@ const GOAL = readFileSync(new URL('../js/support-goal.js', import.meta.url), 'ut
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const ASK_CSS = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
 const GOAL_CSS = readFileSync(new URL('../components/SupportGoal/SupportGoal.css', import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
@@ -32,15 +33,7 @@ function body(src, anchor, end = '\n  }') {
 
 // Every value of `key`, keyed by language block.
 function stringsOf(key) {
-  const out = new Map();
-  let current = null;
-  for (const line of I18N.split('\n')) {
-    const ns = line.match(/^ {2}"?([a-z]{2})"?: \{/) || line.match(/^Object\.assign\(i18n\.([a-z]{2})/);
-    if (ns) current = ns[1];
-    const m = line.trimStart().match(new RegExp('^"?' + key + '"?:\\s*("(?:[^"\\\\]|\\\\.)*")'));
-    if (m) out.set(current, JSON.parse(m[1]));
-  }
-  return out;
+  return new Map(textsOf(key));
 }
 
 test('December only, and at most once a calendar year', () => {

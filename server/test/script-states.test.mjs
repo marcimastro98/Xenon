@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // A Deck key can mirror a state set by any local script (POST /state/set) — the
 // seventeenth state source, added for a user whose AppleScript swaps between two
@@ -170,7 +171,7 @@ test('the key editor offers the script-state binding and saves it', () => {
 });
 
 test('every language that translates the deck editor translates the new strings', () => {
-  const src = read('js', 'i18n.js');
+  const src = appStringsSource();
   for (const k of ['deck_edit_scriptstate', 'deck_edit_scriptstateval', 'deck_scriptstate_hint', 'deck_ph_scriptstate']) {
     const mine = (src.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;
     const sibling = (src.match(new RegExp(`["']?${k.replace('script', 'sdk').replace('deck_ph_sdkstate', 'deck_ph_sbglobalval')}["']?\\s*:`, 'g')) || []).length;

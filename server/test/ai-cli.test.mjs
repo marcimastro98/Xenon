@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cli = require('../ai-cli.js');
@@ -351,7 +352,7 @@ test('settings keep the chosen model per program, and the page offers both', () 
 });
 
 test('every language has the new strings, translated', () => {
-  const SRC = read('../js/i18n.js');
+  const SRC = appStringsSource();
   const ctx = { module: {} };
   vm.createContext(ctx);
   vm.runInContext(SRC.slice(0, SRC.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

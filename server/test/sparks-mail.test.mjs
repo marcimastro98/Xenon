@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -67,7 +68,7 @@ test('the page loads it after the messages and the credits', () => {
 });
 
 test('its lines are in all 11 languages, call Scintille Xenon\'s credits, with no dash', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of LANGS) {
     for (const k of ['sparks_mail_low_title', 'sparks_mail_empty_title', 'sparks_mail_low_line', 'sparks_mail_empty_line', 'sparks_mail_what']) {
       const v = i18n[l][k];

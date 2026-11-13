@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { PERF_HUD_PARTS, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, applyPerfHudChange, statText } = require('../js/perf-hud.js');
@@ -55,7 +56,7 @@ test('every reading has its words, and a machine without it gets a dash', () => 
 });
 
 test('every part is named in all the languages', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   for (const part of PERF_HUD_PARTS) {
     const hits = i18n.match(new RegExp('\\b' + PERF_HUD_LABELS[part] + ':', 'g')) || [];
     assert.ok(hits.length >= 11, part + ': ' + hits.length);
@@ -63,7 +64,7 @@ test('every part is named in all the languages', () => {
 });
 
 test('the tile writes short names, in all the languages', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   assert.equal(PERF_HUD_SHORT.cpuTemp, 'perf_cpu');
   assert.equal(PERF_HUD_SHORT.gpuPower, 'perf_gpu');
   for (const part of PERF_HUD_PARTS) {

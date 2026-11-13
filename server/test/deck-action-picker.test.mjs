@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const da = require('../js/deck-actions.js');
@@ -53,8 +54,8 @@ test('the on-screen tools sit in their own group, apart from what records the sc
   assert.deepEqual(of('screen').sort(), ['screenColor', 'screenCover', 'screenDraw', 'screenMeasure', 'screenPin', 'screenText']);
   for (const t of ['screenshot', 'record', 'replay']) assert.ok(of('capture').includes(t), t);
   assert.equal(CATEGORY_GROUPS.indexOf('screen'), CATEGORY_GROUPS.indexOf('capture') + 1);
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
-  assert.equal(i18n.match(/\bdeck_cat_screen: "[^"]+",/g).length, i18n.match(/\bdeck_cat_capture: "[^"]+",/g).length);
+  assert.ok(languagesWith('deck_cat_screen').length > 0);
+  assert.deepEqual(languagesWith('deck_cat_screen'), languagesWith('deck_cat_capture'));
 });
 
 test('the picker turns on search, collapsible groups and its texts', () => {

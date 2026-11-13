@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createScreenDrawShell } = require('../screen-draw-shell.js');
@@ -86,7 +87,7 @@ test('the page loads its model and stops through the same action the Deck runs',
 });
 
 test('every label on the bar exists in 11 languages', () => {
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   const html = read('../draw.html');
   const keys = new Set([...html.matchAll(/data-i18n(?:-title|-aria-label)?="([a-z_]+)"/g)].map((m) => m[1]));
   for (const p of PALETTE) keys.add(p.label);

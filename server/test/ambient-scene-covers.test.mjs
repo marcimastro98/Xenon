@@ -15,10 +15,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LOCK = readFileSync(new URL('../components/LockScreen/LockScreen.css', import.meta.url), 'utf8');
 const CANVAS = readFileSync(new URL('../components/AmbientCanvas/AmbientCanvas.css', import.meta.url), 'utf8');
 

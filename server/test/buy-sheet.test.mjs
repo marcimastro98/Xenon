@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { textsOf } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
@@ -98,8 +99,7 @@ test('catalog data is checked where it enters the sheet', () => {
 });
 
 test('the price splits into number and word in every language, and always names USD', () => {
-  const i18n = read('js/i18n.js');
-  const templates = i18n.match(/gallery_sparks_price: "[^"]*"/g).map((m) => m.slice(m.indexOf('"') + 1, -1));
+  const templates = textsOf('gallery_sparks_price').map(([, text]) => text);
   assert.equal(templates.length, LANGS.length);
   for (const template of templates) {
     const parts = M.priceParts(template, 300);
@@ -204,9 +204,8 @@ const SHEET_KEYS = {
 };
 
 test('the sheet is in all 11 languages, with every number it needs', () => {
-  const i18n = read('js/i18n.js');
   for (const [key, holes] of Object.entries(SHEET_KEYS)) {
-    const lines = i18n.match(new RegExp(`\\bsparks_sheet_${key}: "[^"]*"`, 'g')) || [];
+    const lines = textsOf('sparks_sheet_' + key).map(([, text]) => text);
     assert.equal(lines.length, LANGS.length, key);
     for (const line of lines) {
       for (const hole of holes) assert.ok(line.includes(hole), `${line} needs ${hole}`);
@@ -216,7 +215,7 @@ test('the sheet is in all 11 languages, with every number it needs', () => {
 });
 
 test('the box has one bold lead, names the 14 days and the right it gives up', () => {
-  const lines = read('js/i18n.js').match(/\bsparks_buy_consent: "[^"]*"/g);
+  const lines = textsOf('sparks_buy_consent').map(([, text]) => text);
   assert.equal(lines.length, LANGS.length);
   for (const line of lines) {
     assert.equal(line.split('|').length, 2, line);

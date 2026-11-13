@@ -10,12 +10,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource, languagesWith } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const BRIDGE = readFileSync(new URL('../js/custom-widget.js', import.meta.url));
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url));
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url));
+const I18N = appStringsSource();
 const DOC = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url));
 const SERVER = readFileSync(new URL('../server.js', import.meta.url));
 const { SDK_STREAMS } = require('../sdk-widgets.js');
@@ -93,7 +94,7 @@ test('gameSessions is a stream in every list that has to agree', () => {
   assert.match(SETTINGS, /const SDK_WIDGET_STREAMS = Object\.freeze\(\[[^\]]*'gameSessions'/);
   assert.match(BRIDGE, /gameSessions: \['cw_stream_gameSessions', /);
   assert.match(BRIDGE, /gameSessions: Object\.freeze\(\{ ttl: \d+, load: async \(\) => \{\n\s+const d = await api\('\/perf\/sessions\?limit=20'\);/);
-  const count = (I18N.match(/\n\s+cw_stream_gameSessions: "/g) || []).length;
+  const count = languagesWith('cw_stream_gameSessions').length;
   assert.equal(count, 11, 'the permission label in all 11 languages');
   assert.match(DOC, /### 3c-quater\. The games you played — `gameSessions`/);
   assert.match(DOC, /### 4c-quater\. Where your widget is — `placement`/);

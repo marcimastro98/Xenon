@@ -9,7 +9,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { builtNamePatterns } from '../../tools/repo-sweep/built-names.mjs';
 import { findDeadCode } from '../../tools/repo-sweep/functions.mjs';
-import { classifyKeys, definedKeys, loadTables, removeKeys, sha256, writeIfUnchanged } from '../../tools/repo-sweep/i18n.mjs';
+import { classifyKeys, definedKeys, languageFile, loadTables, removeKeys, sha256, writeIfUnchanged } from '../../tools/repo-sweep/i18n.mjs';
 import { classifyMedia, namesInRevisions, releaseTags, SHIPPED_PATHS } from '../../tools/repo-sweep/media.mjs';
 import { imageMetadata, isThisUser, machineName, mask, scanText } from '../../tools/repo-sweep/personal.mjs';
 import { sweepI18n, sweepMedia } from '../../tools/repo-sweep/run.mjs';
@@ -151,47 +151,39 @@ test('functions: never called, called only by tests, exported but read by nobody
 
 // --- app strings ------------------------------------------------------------
 
-// The shape of server/js/i18n.js: two main blocks, a later language spreading
-// English, an override block, then the functions.
-const TABLES = [
-  'const i18n = {',
-  '  it: {',
-  "    used_key: 'Usata',",
-  "    old_key: 'Vecchia',",
-  "    skip_me: 'Salta',",
-  "    deck_err_busy: 'Occupato',",
-  "    test_only_key: 'Solo nei test',",
-  "    weekdays: ['Lun', 'Mar'],",
-  '  },',
-  '  en: {',
-  "    used_key: 'Used',",
-  "    old_key: 'Old',",
-  "    skip_me: 'Skip',",
-  "    deck_err_busy: 'Busy',",
-  "    test_only_key: 'Only in tests',",
-  "    weekdays: ['Mon', 'Tue'],",
-  '  },',
-  '};',
-  'Object.assign(i18n, {',
-  '  ko: {',
-  '    ...i18n.en,',
-  "    used_key: '사용',",
-  '  },',
-  '});',
-  'Object.assign(i18n.it, {',
-  "    old_key: 'Vecchia, di nuovo',",
-  '});',
-];
-const CODE = ['function t(key) {', '  return key;', '}', ''];
-const i18nSource = () => [...TABLES, ...CODE].join('\n');
+// The shape of server/js/i18n/<code>.js: one file per language, a key per line,
+// own words only (Korean lacks most keys and reads them in English).
+const languageText = (lines) => ["'use strict';", 'module.exports = {', ...lines, '};', ''].join('\n');
+const i18nTexts = () => ({
+  it: languageText([
+    "  used_key: 'Usata',",
+    "  old_key: 'Vecchia',",
+    "  skip_me: 'Salta',",
+    "  deck_err_busy: 'Occupato',",
+    "  test_only_key: 'Solo nei test',",
+    "  weekdays: ['Lun', 'Mar'],",
+  ]),
+  en: languageText([
+    "  used_key: 'Used',",
+    "  old_key: 'Old',",
+    "  skip_me: 'Skip',",
+    "  deck_err_busy: 'Busy',",
+    "  test_only_key: 'Only in tests',",
+    "  weekdays: ['Mon', 'Tue'],",
+  ]),
+  ko: languageText(["  used_key: '사용',", "  old_key: '오래된'," ]),
+});
+const SWEEP_LANGS = ['it', 'en', 'ko'];
+const CORE_JS = 'const i18n = {};\nfunction t(key) {\n  return key;\n}\n';
 const APP_JS = "t('used_key'); t('weekdays'); t(`deck_err_${code}`);\n";
-const plain = (value) => JSON.parse(JSON.stringify(value)); // out of the vm realm
 
 test('i18n: unused, used only by tests, or maybe built at runtime', () => {
+  const sources = i18nTexts();
   const r = classifyKeys({
-    keys: definedKeys(loadTables(i18nSource())),
+    keys: definedKeys(loadTables(sources)),
     texts: new Map([
-      ['server/js/i18n.js', i18nSource()],
+      ...SWEEP_LANGS.map((code) => [languageFile(code), sources[code]]),
+      ['server/js/i18n.js', CORE_JS],
       ['server/js/app.js', APP_JS],
       ['server/test/app.test.mjs', "t('test_only_key');\n"],
     ]),
@@ -199,6 +191,18 @@ test('i18n: unused, used only by tests, or maybe built at runtime', () => {
   assert.deepEqual(r.unused.map((u) => u.key), ['old_key', 'skip_me']);
   assert.deepEqual(r.onlyTests.map((u) => u.key), ['test_only_key']);
   assert.deepEqual(r.maybe.map((u) => u.key), ['deck_err_busy']);
+});
+
+test('i18n: a key named by the functions of js/i18n.js is used, one that only sits in a table is not', () => {
+  const sources = i18nTexts();
+  const r = classifyKeys({
+    keys: new Set(['old_key', 'skip_me']),
+    texts: new Map([
+      [languageFile('en'), sources.en],
+      ['server/js/i18n.js', "function localize() { return t('skip_me'); }\n"],
+    ]),
+  });
+  assert.deepEqual(r.unused.map((u) => u.key), ['old_key']);
 });
 
 test('i18n: a key holding a dot counts, and so does one reached as a property', () => {
@@ -210,25 +214,26 @@ test('i18n: a key holding a dot counts, and so does one reached as a property', 
 });
 
 test('i18n: a removed key leaves every language, nothing else moves', () => {
-  const source = i18nSource();
-  const { source: next } = removeKeys(source, ['old_key']);
-  const before = plain(loadTables(source));
-  const after = plain(loadTables(next));
+  const sources = i18nTexts();
+  const { texts: next, changes } = removeKeys(sources, ['old_key']);
+  const before = loadTables(sources);
+  const after = loadTables(next);
   for (const lang of Object.keys(before)) delete before[lang].old_key;
-  // weekdays is an array: two vm runs never share one, so this also proves the
-  // comparison inside removeKeys looks at values, not identity.
+  // weekdays is a list: this also proves the comparison inside removeKeys looks
+  // at values, not identity.
   assert.deepEqual(after, before);
-  assert.ok(next.endsWith(CODE.join('\n')));
+  assert.deepEqual(changes.map((c) => `${c.lang}:${c.kind}`), ['it:remove', 'en:remove', 'ko:remove']);
+  assert.doesNotMatch(Object.values(next).join('\n'), /old_key/);
 });
 
-test('i18n: a removal that would touch the code after the tables is refused', () => {
-  const source = i18nSource().replace('  return key;', "  return key || { old_key: 'kept in code' };");
-  assert.throws(() => removeKeys(source, ['old_key']), /code after the tables changed/);
+test('i18n: a removal never fills a gap: a language keeps only its own words', () => {
+  const { texts: next } = removeKeys(i18nTexts(), ['skip_me']);
+  assert.deepEqual(Object.keys(loadTables(next).ko), ['used_key', 'old_key']);
 });
 
 test('i18n: the write is refused when the file changed after it was read', (t) => {
   const dir = tempDir(t);
-  const file = path.join(dir, 'i18n.js');
+  const file = path.join(dir, 'en.js');
   fs.writeFileSync(file, 'one');
   const readHash = sha256(fs.readFileSync(file));
   fs.writeFileSync(file, 'two'); // another session got there first
@@ -236,25 +241,41 @@ test('i18n: the write is refused when the file changed after it was read', (t) =
   assert.equal(fs.readFileSync(file, 'utf8'), 'two');
   writeIfUnchanged(file, sha256(fs.readFileSync(file)), 'three');
   assert.equal(fs.readFileSync(file, 'utf8'), 'three');
-  assert.deepEqual(fs.readdirSync(dir), ['i18n.js']);
+  assert.deepEqual(fs.readdirSync(dir), ['en.js']);
 });
 
 test('i18n --remove: only committed keys go, and never a skipped prefix', NEEDS_GIT, (t) => {
   const repo = tempRepo(t);
-  repo.write('server/js/i18n.js', i18nSource());
+  const sources = i18nTexts();
+  for (const code of SWEEP_LANGS) repo.write(languageFile(code), sources[code]);
+  repo.write('server/js/i18n.js', CORE_JS);
   repo.write('server/js/app.js', APP_JS);
   repo.write('server/test/app.test.mjs', "t('test_only_key');\n");
   repo.commit('tables');
   // Another session adds a key it has not wired up yet.
-  repo.write('server/js/i18n.js', i18nSource().replace("    used_key: 'Used',", "    used_key: 'Used',\n    new_key: 'New',"));
+  repo.write(languageFile('en'), sources.en.replace("  used_key: 'Used',", "  used_key: 'Used',\n  new_key: 'New',"));
 
-  const r = sweepI18n(repo.dir, { remove: true, skip: ['skip_'] });
+  const r = sweepI18n(repo.dir, { remove: true, skip: ['skip_'], langs: SWEEP_LANGS });
   assert.deepEqual(r.removed, ['old_key']);
   assert.deepEqual(r.keptNew, ['new_key']);
   assert.deepEqual(r.keptSkipped, ['skip_me']);
-  const tables = loadTables(fs.readFileSync(path.join(repo.dir, 'server/js/i18n.js'), 'utf8'));
-  for (const lang of ['it', 'en', 'ko']) assert.ok(!Object.hasOwn(tables[lang], 'old_key'), lang);
+  const tables = loadTables(Object.fromEntries(SWEEP_LANGS.map((code) => [code, fs.readFileSync(path.join(repo.dir, languageFile(code)), 'utf8')])));
+  for (const lang of SWEEP_LANGS) assert.ok(!Object.hasOwn(tables[lang], 'old_key'), lang);
   assert.deepEqual(Object.keys(tables.en).sort(), ['deck_err_busy', 'new_key', 'skip_me', 'test_only_key', 'used_key', 'weekdays']);
+  assert.equal(fs.readFileSync(path.join(repo.dir, 'server/js/i18n.js'), 'utf8'), CORE_JS, 'the functions are not touched');
+});
+
+test('i18n --remove: language files that were never committed lose nothing', NEEDS_GIT, (t) => {
+  const repo = tempRepo(t);
+  repo.write('server/js/app.js', APP_JS);
+  repo.commit('code first');
+  const sources = i18nTexts();
+  for (const code of SWEEP_LANGS) repo.write(languageFile(code), sources[code]);
+
+  const r = sweepI18n(repo.dir, { remove: true, langs: SWEEP_LANGS });
+  assert.deepEqual(r.removed, []);
+  assert.deepEqual(r.keptNew, ['old_key', 'skip_me', 'test_only_key']);
+  for (const code of SWEEP_LANGS) assert.equal(fs.readFileSync(path.join(repo.dir, languageFile(code)), 'utf8'), sources[code], code);
 });
 
 // --- personal data ----------------------------------------------------------

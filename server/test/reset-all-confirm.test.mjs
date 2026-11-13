@@ -15,10 +15,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, textsOf } from './i18n-source.mjs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 const RESET = (() => {
@@ -87,9 +88,8 @@ test('both sentences exist in every language the app ships', () => {
 // and a length floor would have failed them for being efficient.
 test('the message names what is lost, not just that something is', () => {
   let seen = 0;
-  for (const m of I18N.matchAll(/settings_reset_all_confirm"?:\s*("(?:[^"\\]|\\.)*")/g)) {
+  for (const [, text] of textsOf('settings_reset_all_confirm')) {
     seen++;
-    const text = JSON.parse(m[1]);
     const sentences = (text.match(/[.?!\u3002\uff1f\uff01]/g) || []).length;
     assert.ok(sentences >= 3, 'a one-line confirm cannot list what goes: ' + text.slice(0, 40));
   }

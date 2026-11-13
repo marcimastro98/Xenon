@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -302,7 +303,7 @@ test('a tap on a pack starts the watch; Settings keeps the status and the way to
 });
 
 test('every new line is in all 11 languages, keeps its placeholders, no dash', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const want = { xai_packs_email: ['{email}'], xai_buy_waiting: [], xai_buy_arrived: ['{n}'], xai_buy_late: [], xai_buy_mail: [], xai_packs_note: [], xai_buy_toast_title: [], xai_buy_toast_msg: ['{n}', '{balance}'] };
   for (const l of LANGS) {
     for (const [k, holes] of Object.entries(want)) {

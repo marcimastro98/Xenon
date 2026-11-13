@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource, appStrings } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ra = require('../remote-actions.js');
@@ -20,7 +21,7 @@ const registry = require('../actions/registry.js');
 const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const DECK = fs.readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const MAIN = fs.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-const I18N = fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const SMART_HOME = fs.readFileSync(new URL('../js/smart-home.js', import.meta.url), 'utf8');
 const WIDGETS = fs.readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
 const CLAUDE_TILE = fs.readFileSync(new URL('../js/claude-widget.js', import.meta.url), 'utf8');
@@ -251,8 +252,7 @@ test('the phone explains a refusal and the PC sees every new pairing, in every l
   assert.ok(text);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     for (const key of ['deck_err_needs_pc', 'cw_perm_at_pc', 'smarthome_needs_pc', 'claude_run_at_pc', 'deck_err_pc_only', 'deck_needs_pc_title', 'deck_needs_pc', 'ra_paired_toast_title', 'ra_paired_toast_hint']) {
-      const re = new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{[^}]*\\b${key}:`);
-      assert.match(I18N, re, `${lang}.${key}`);
+      assert.ok(appStrings()[lang][key], lang + '.' + key);
     }
   }
 });

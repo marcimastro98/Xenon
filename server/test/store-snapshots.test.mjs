@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource, appStrings } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-snapshots.js');
@@ -13,7 +14,7 @@ const snaps = require('../store-snapshots.js');
 const readLf = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = readLf('../server.js');
 const MAIN = readLf('../js/main.js');
-const I18N = readLf('../js/i18n.js');
+const I18N = appStringsSource();
 const DAY = 86_400_000;
 
 function tmpData() {
@@ -86,7 +87,9 @@ test('the server recovers before it reads, copies every store, and tells the scr
   assert.match(SERVER, /event: store_recovery/);
   assert.match(MAIN, /es\.addEventListener\('store_recovery'/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  store_set_aside: "[^"]+",\\n  store_restored_title:[^}]*store_restored: "[^"]*\\{day\\}`), lang);
+    const own = appStrings()[lang];
+    assert.ok(own.store_set_aside && own.store_restored_title, lang);
+    assert.ok(String(own.store_restored).includes('{day}'), lang);
   }
 });
 

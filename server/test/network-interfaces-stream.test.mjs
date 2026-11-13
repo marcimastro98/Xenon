@@ -15,6 +15,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -26,7 +27,7 @@ const PS1 = read('../network.ps1');
 const SDK = read('../sdk-widgets.js');
 const SETTINGS = read('../js/settings.js');
 const CUSTOM = read('../js/custom-widget.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');
 const DARWIN = read('../darwin-collectors.js');
 

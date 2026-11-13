@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync as readFileSyncRaw } from 'node:fs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
@@ -458,7 +459,7 @@ test('the picture shows a monitor name as text only', () => {
 });
 
 test('every text in all 11 languages, removed words gone', () => {
-  const i18n = src('js/i18n.js');
+  const i18n = appStringsSource();
   const ctx = {};
   vm.runInNewContext(i18n.slice(0, i18n.search(/^function /m)) + '\nthis.i18n = i18n;', ctx);
   const keys = ['usage_ask_title', 'usage_ask_sub', 'usage_ask_go', 'usage_ask_recommended', 'usage_ask_both_title', 'usage_ask_widgets_title', 'usage_ask_dash_title',

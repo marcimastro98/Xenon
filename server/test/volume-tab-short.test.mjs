@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStrings } from './i18n-source.mjs';
 
 // LF only, so slices find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -98,8 +99,7 @@ test('it is drawn only in Layout mode, above the drag surface, and kept in step 
 });
 
 test('every language has both strings', () => {
-  const I18N = read('../js/i18n.js');
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
-    assert.match(I18N, new RegExp('Object\\.assign\\(i18n\\.' + lang + ', \\{\\n  layout_volume_hidden: "[^"]+",\\n  layout_volume_show: "[^"]+",'), lang);
+    assert.ok(appStrings()[lang].layout_volume_hidden && appStrings()[lang].layout_volume_show, lang);
   }
 });

@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // A translation key that does not exist is invisible until someone hits the code
 // path that shows it, and then it prints the key. That is what shipped: the
@@ -18,7 +19,7 @@ import vm from 'node:vm';
 // English block, which is the fallback every language lands on.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const JS_DIR = join(__dirname, '..', 'js');
-const SRC = readFileSync(join(JS_DIR, 'i18n.js'), 'utf8');
+const SRC = appStringsSource();
 
 // Resolving the object is the only exact answer, and a regex over the source
 // cannot be. Keys are written several to a line in the two big literals, one per

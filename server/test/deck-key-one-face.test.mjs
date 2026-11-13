@@ -4,11 +4,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource, textsOf } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
 const EDITOR = readFileSync(new URL('../js/deck-editor.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 const replayStep = { type: 'replay' };
 function keyOf(extra) {
@@ -41,7 +42,7 @@ test('the editor offers the choice in State and saves it', () => {
 });
 
 test('the one-face line exists in every language', () => {
-  const n = (k) => (I18N.match(new RegExp(`\\b${k}: "[^"]+",`, 'g')) || []).length;
+  const n = (k) => textsOf(k).filter(([, text]) => text).length;
   assert.equal(n('deck_state_sum_single'), n('deck_state_sum_follows'));
   assert.equal(n('deck_state_sum_single'), 11);
 });
@@ -50,7 +51,7 @@ test('the preview offers the same choice where the two faces are seen', () => {
   assert.match(EDITOR, /previewPanel\.appendChild\(faceCountBtn\);/);
   assert.match(EDITOR, /followAuto = !followAuto; followRow\.set\(followAuto\);/, 'the State switch follows the button');
   assert.match(EDITOR, /faceCountBtn\.style\.display = auto && !ownSum \? '' : 'none';/, 'only on a key that lights by itself');
-  const n = (k) => (I18N.match(new RegExp(`\\b${k}: "[^"]+",`, 'g')) || []).length;
+  const n = (k) => textsOf(k).filter(([, text]) => text).length;
   assert.equal(n('deck_face_one'), 11);
   assert.equal(n('deck_face_two'), 11);
 });

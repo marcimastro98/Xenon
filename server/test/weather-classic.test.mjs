@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The classic Weather look is the 4.11.13 tile, brought back as a choice. It shares the mount
 // and some class names with the current tile, so it must stay one closed file with one global,
@@ -13,7 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8').replace(/\r\n/g, '\n');
 const JS = read('js', 'weather-classic.js');
 const CSS = read('components', 'WeatherTile', 'WeatherClassic.css');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 
 const SCOPE = '.weather-tile-root--classic';
 const CLASSIC_KEYS = [

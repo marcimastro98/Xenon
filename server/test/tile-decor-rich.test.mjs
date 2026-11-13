@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
 const TDS = require('../js/tile-decor-schema.js');
@@ -78,7 +79,7 @@ test('every ready-made look survives the validator whole', () => {
 });
 
 test('every label key exists in all eleven languages', () => {
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   const keys = [
     ...TDP.TILE_DECOR_FRAMES, ...TDP.TILE_DECOR_OVERLAYS, ...TDP.TILE_DECOR_OVERLAY_CATS, ...TDP.TILE_DECOR_LOOKS,
   ].map((e) => e.labelKey).concat(['decor_cat_all', 'tile_style_tab_controls', 'tile_style_ctrl_buttons', 'decor_pattern_noise']);

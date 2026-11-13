@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
@@ -47,6 +48,6 @@ test('the sheet model: once Sparks-only, a saved pass is offered the purchase, n
 });
 
 test('the new line exists in all 11 languages', () => {
-  const n = (read('js/i18n.js').match(/\bsparks_err_pass_not_this:/g) || []).length;
+  const n = (appStringsSource().match(/\bsparks_err_pass_not_this:/g) || []).length;
   assert.equal(n, 11);
 });

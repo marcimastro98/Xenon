@@ -1,7 +1,7 @@
 // The languages a page was not served with, fetched when it needs them.
 //
 // Every page loads /layer-i18n.js: the saved language, the browser's and
-// English, a tenth of js/i18n.js (layer-strings.js). Two things want more: a
+// English, a tenth of all the words (layer-strings.js). Two things want more: a
 // language picked after the page loaded (setLang in js/i18n.js waits here),
 // and the Settings and widget searches, which match words in every language
 // (fuzzy-find.js i18nFields) and so ask for the rest the first time someone

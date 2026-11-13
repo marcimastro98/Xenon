@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 // One folder for this file's temp token files, removed when its tests end.
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-spq-'));
@@ -28,7 +29,7 @@ const require = createRequire(import.meta.url);
 const { createSpotifyProvider } = require('../stream-spotify.js');
 const WIDGET = readFileSync(new URL('../js/spotify-widget.js', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../components/SpotifyWidget/SpotifyWidget.css', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 // A logged-in provider whose fetch answers from a route list and records every
 // request — same shape as stream-spotify.test.mjs's own helper, plus `once` so a

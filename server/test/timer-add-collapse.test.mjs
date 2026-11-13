@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Timer widget's add row (label + duration) and its format hint sat on
 // screen permanently. Reported from a Xeneon Edge — wide and only 720px tall —
@@ -85,7 +86,7 @@ test('a Timer copy is still cloned without the add section', () => {
 });
 
 test('the new strings are translated in every language the app ships', () => {
-  const src = read('js', 'i18n.js');
+  const src = appStringsSource();
   for (const k of ['timer_add_new', 'timer_add_expand', 'timer_add_collapse']) {
     const n = (src.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;
     assert.equal(n, 11, `${k} is defined ${n} times, expected 11 (one per language)`);

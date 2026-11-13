@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource, languagesWith } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const AS = require('../js/ambient-scene.js');
 
@@ -17,7 +18,7 @@ const FORM = read('../js/ambient-canvas-editor-form.js');
 const FIELDS_SRC = read('../js/ambient-canvas-editor-fields.js');
 const CANVAS = read('../js/ambient-canvas.js');
 const SETTINGS = read('../js/settings.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const INDEX = read('../index.html');
 
 function loadFields() {
@@ -48,7 +49,7 @@ test('the editor loads after the renderer it drives, with its own stylesheet', (
 test('every word the editor shows exists in all 11 languages', () => {
   const keys = allKeys();
   assert.ok(keys.length > 150, 'the key list was collected');
-  const missing = keys.filter(k => (I18N.match(new RegExp('^  ' + k + ': ', 'gm')) || []).length !== 11);
+  const missing = keys.filter((k) => languagesWith(k).length !== 11);
   assert.deepEqual(missing, []);
 });
 

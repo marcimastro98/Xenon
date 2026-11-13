@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const vm = require('../actions/voicemeeter.js');
@@ -227,7 +228,7 @@ test('every action is in the catalog, dispatched, and named in all eleven langua
   for (const t of types) assert.ok(registry.includes("case '" + t + "':"), t + ' is not dispatched');
   assert.match(registry, /d\.voicemeeter/);
 
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
   for (const key of types.map((t) => 'deck_act_' + t)
     .concat(['deck_cat_voicemeeter', 'deck_cat_hint_voicemeeter', 'deck_param_vm_strip', 'deck_param_vm_bus', 'deck_param_vm_param'])) {
@@ -288,7 +289,7 @@ test('every list that mirrors the SDK allowlist agrees with it', () => {
   assert.ok(SDK_STREAMS.includes('voicemeeter'));
 
   // And the user-facing copy for both grants exists in every language.
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const key of ['cw_act_voicemeeter', 'cw_stream_voicemeeter']) {
     const n = i18n.split('\n').filter((l) => l.trimStart().startsWith(key + ':')).length;
     assert.equal(n, 11, key + ' is in ' + n + ' languages, expected 11');

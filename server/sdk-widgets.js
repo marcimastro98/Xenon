@@ -28,7 +28,7 @@
 //                                 permission LABEL the user reads
 //   3. server/js/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
 //                                 which the permission dialog is built from
-//   4. server/js/i18n.js          that label, in all 11 languages
+//   4. server/js/i18n/<code>.js   that label, in all 11 languages
 //   5. docs/WIDGET_SDK.md         the capability table — regenerate with
 //                                 tools/gen-sdk-reference.mjs (a test fails if
 //                                 the generated block goes stale)

@@ -9,8 +9,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const NAME = /Mastroeni|Marcello|마르첼로|マルチェロ|Марчелло/;
 const SITE_LANGS = ['', 'it/', 'es/', 'fr/', 'ko/', 'ja/', 'zh/'];
+const APP_LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 const FILES = [
   'server/js/i18n.js',
+  ...APP_LANGS.map((lang) => `server/js/i18n/${lang}.js`),
   'server/js/buy-sheet-parts.js',
   'server/js/support-appeal.js',
   'server/ai-knowledge.js',

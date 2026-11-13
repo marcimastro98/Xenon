@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -196,7 +197,7 @@ test('a reply shows no Scintille spent: next to Annulla a number read like a ref
   assert.equal(chat.costLine, undefined);
   const ai = read('../js/ai.js');
   assert.doesNotMatch(ai, /_aiAppendCostLine/);
-  assert.doesNotMatch(read('../js/i18n.js'), /bit_cost_line/);
+  assert.doesNotMatch(appStringsSource(), /bit_cost_line/);
 });
 
 test('every reply mood beside a reply is a pose Bit has', () => {
@@ -274,7 +275,7 @@ test('the voice view is Bit: no orb or ring left, and the words say Bit', () => 
   const ai = read('../js/ai.js');
   const stateFn = ai.slice(ai.indexOf('function _aiVoiceState('), ai.indexOf('function _aiVoiceTapInterrupt('));
   assert.match(stateFn, /BitChat\.voiceState\(state\)/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   const speaking = [...i18n.matchAll(/["']?ai_state_speaking["']?: ["']([^"']+)["']/g)].map((m) => m[1]);
   assert.equal(speaking.length, 11);
   for (const s of speaking) assert.match(s, /Bit/);
@@ -370,7 +371,7 @@ test('the top bar launcher is Bit, so the phone dock that copies it is Bit too',
   assert.ok(html.indexOf('<script src="js/ai-bit-chat.js">') < html.indexOf('<script src="js/phone-view.js">'));
   const launcher = html.slice(html.indexOf('class="topbtn topbtn-xenon"'), html.indexOf('</button>', html.indexOf('class="topbtn topbtn-xenon"')));
   assert.match(launcher, /<span>Bit<\/span>/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['topbar_btn_xenon', 'ph_ai']) {
     const all = strings(i18n, key);
     assert.equal(all.length, 11, key);
@@ -396,7 +397,7 @@ test('Game Companion, Spotlight and the Deck show Bit, and their words say Bit',
   }
   // the Deck action picker shows Bit for the AI action
   assert.match(read('../js/deck-editor.js'), /ai: \(window\.BitApp && BitApp\.icon\('idle'\)\) \|\| _ai\(/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['spot_chat', 'spot_ask', 'spot_placeholder_bit', 'deck_act_aiEdgeGlow', 'settings_ai_edge_glow_hint']) {
     const all = strings(i18n, key);
     assert.equal(all.length, 11, key);
@@ -490,7 +491,7 @@ test('the Game Companion card is Bit: a name, the game, the answer beside Bit', 
   // the card itself: theme colours, no glow or pulse (the pill keeps its own look)
   const css = read('../components/GameCompanion/GameCompanion.css');
   assert.doesNotMatch(css.slice(css.indexOf('.gc-card {')), /gradient|@keyframes|animation/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['gc_ask_placeholder']) {
     const all = strings(i18n, key);
     assert.equal(all.length, 11, key);
@@ -516,7 +517,7 @@ test('a failed reply keeps the question and offers to try again now', () => {
   const retry = ai.slice(ai.indexOf('function _aiRetry('), ai.indexOf('function _aiClearChoices'));
   assert.match(retry, /aiConversationHistory\.pop\(\)/, 'the question is not sent twice');
   assert.match(retry, /!aiTurnRunning\(\)/, 'no second turn while one runs');
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   for (const l of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
     for (const k of ['ai_undo', 'ai_undo_done', 'ai_undo_failed', 'ai_retry_now']) assert.equal(typeof i18n[l][k], 'string', `${l}.${k} is missing`);
   }

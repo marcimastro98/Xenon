@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const A = createRequire(import.meta.url)('../js/alert-toasts.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -97,7 +98,7 @@ test('wiring: the dashboard builds its pop-ups here, not inline', () => {
 test('"why does it stutter?": every server reason is worded, in all 11 languages, numbers filled', () => {
   const server = createRequire(import.meta.url)('../stutter-why.js');
   assert.deepEqual([...A.STUTTER_REASONS], [...server.REASONS]);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const r of A.STUTTER_REASONS) {
     for (const key of ['why_' + r, 'why_' + r + '_tip']) {
       assert.equal((i18n.match(new RegExp('^    ' + key + ': ', 'gm')) || []).length, 11, key);
@@ -119,7 +120,7 @@ test('"why does it stutter?": every server reason is worded, in all 11 languages
 });
 
 test('"why does it stutter?": the program that weighs on the PC is named, in all 11 languages', () => {
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['why_app_cpu_tip', 'why_app_ram_tip']) {
     const lines = i18n.match(new RegExp('^    ' + key + ': .*$', 'gm')) || [];
     assert.equal(lines.length, 11, key);

@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
@@ -18,7 +19,7 @@ const LOOK = read('js', 'weather-look.js');
 const SETTINGS = read('js', 'settings.js');
 const SERVER = read('server.js');
 const INDEX = read('index.html');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 const CSS = read('components', 'CustomWidget', 'CustomWidget.css');
 
 function extractFunction(src, name) {

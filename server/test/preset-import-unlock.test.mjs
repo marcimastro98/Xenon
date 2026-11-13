@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource, appStrings, APP_LANGS, languagesWith, textsOf } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
@@ -51,7 +52,7 @@ test('on a phone the detail actions stay pinned under the description', () => {
 });
 
 test('the new lines exist in all 11 languages and the retired ones are gone', () => {
-  const i18n = read('js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['preset_redeem_other', 'preset_redeem_saved_ready', 'trial_import_ready', 'preset_join_note']) {
     assert.ok((i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length >= 11, k);
   }
@@ -141,16 +142,20 @@ test('the Store names the Sparks way in next to the supporter one', () => {
 });
 
 test('the Sparks lines exist in all 11 languages, each price line in USD', () => {
-  const i18n = read('js/i18n.js');
   for (const k of ['gallery_sparks_price', 'gallery_unlock_sparks', 'sparks_buy_now',
     'sparks_buy_consent', 'sparks_buy_seller', 'sparks_tick_first', 'sparks_pack_note', 'sparks_buy_more', 'sparks_bought', 'sparks_owned', 'sparks_left', 'sparks_err_included', 'sparks_err_no_code',
     'sparks_err_short', 'sparks_err_short_plain', 'sparks_err_not_for_sale', 'sparks_err_sold_out', 'sparks_err_revoked',
     'gallery_or_sparks', 'gallery_unlock_code_or_sparks', 'sparks_code_label']) {
-    assert.equal((i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length, 11, k);
+    assert.equal(languagesWith(k).length, 11, k);
   }
-  for (const line of i18n.match(/sparks_sheet_(?:join_note|pass_line): "[^"]*"/g)) assert.match(line, /\{usd\} USD/, line);
-  assert.doesNotMatch(i18n, /\bsparks_buy_(?:btn|confirm|line_only|line_or):|\bsparks_saved_pays/);
+  for (const key of ['sparks_sheet_join_note', 'sparks_sheet_pass_line']) {
+    for (const [lang, line] of textsOf(key)) assert.match(line, /\{usd\} USD/, lang + ': ' + line);
+  }
+  const retired = APP_LANGS.flatMap((lang) => Object.keys(appStrings()[lang]).filter((k) => /^sparks_buy_(?:btn|confirm|line_only|line_or)$|^sparks_saved_pays/.test(k)));
+  assert.deepEqual(retired, []);
   // Every language names the seller, and the pack note says where to write.
-  for (const line of i18n.match(/sparks_(?:buy_seller|pack_note): "[^"]*"/g)) assert.match(line, /Xenon/, line);
-  for (const line of i18n.match(/sparks_pack_note: "[^"]*"/g)) assert.match(line, /\{mail\}.*14|14.*\{mail\}/, line);
+  for (const key of ['sparks_buy_seller', 'sparks_pack_note']) {
+    for (const [lang, line] of textsOf(key)) assert.match(line, /Xenon/, lang + ': ' + line);
+  }
+  for (const [lang, line] of textsOf('sparks_pack_note')) assert.match(line, /\{mail\}.*14|14.*\{mail\}/, lang + ': ' + line);
 });

@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { languagesWith } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/boot-splash.js');
@@ -170,9 +171,8 @@ test('the setting is kept the same way on both sides, on by default', () => {
   assert.match(settings, /bootSplash: value\.bootSplash !== false,/);
   assert.match(server, /\n {2}bootSplash: true,/);
   assert.match(server, /bootSplash: source\.bootSplash !== false,/);
-  const i18n = read('../js/i18n.js');
   for (const key of ['settings_boot_splash', 'settings_boot_splash_hint']) {
-    assert.equal((i18n.match(new RegExp('\\n  ' + key + ': ', 'g')) || []).length, 11, key);
+    assert.equal(languagesWith(key).length, 11, key);
   }
 });
 

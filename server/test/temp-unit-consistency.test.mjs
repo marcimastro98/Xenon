@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Settings calls it "Temperature unit", not "Weather temperature unit" — and it
 // only ever reached the weather. Someone running Xenon in °F read the forecast
@@ -20,7 +21,7 @@ import { createRequire } from 'node:module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 const SYSTEM = read('js', 'system.js');
 const AMBIENT = read('js', 'ambient.js');
 const MAIN = read('js', 'main.js');

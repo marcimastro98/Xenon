@@ -3,7 +3,7 @@
 // js/i18n-load.js. A page loads only the saved language, the browser's and
 // English (/layer-i18n.js); it asks here for the rest when it needs them: a
 // language picked since it loaded, or every language for the searches that
-// match words in any of them. Read-only, built from js/i18n.js
+// match words in any of them. Read-only, built from js/i18n/<code>.js
 // (layer-strings.js); unknown codes are left out, never an error.
 
 const LayerI18n = require('../layer-strings.js');

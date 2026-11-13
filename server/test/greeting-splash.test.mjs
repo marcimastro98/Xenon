@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -284,7 +285,7 @@ test('the splash is sized in the pixel unit and colours come from the scene, not
 });
 
 test('every language has the new lines and none keeps the old ones', () => {
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   assert.doesNotMatch(src, /greet_sub_|greet_agenda_title/);
   for (const key of FACT_KEYS) assert.equal((src.match(new RegExp(`["']?${key}["']?:`, 'g')) || []).length, LANGS.length, key);
   // Each line keeps its placeholders: {n} only where a count is said, {time} always.

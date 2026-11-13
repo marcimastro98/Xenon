@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const W = require('../js/bit-welcome.js');
@@ -116,7 +117,7 @@ test('the welcome shows only in an empty, ready chat and leaves on the first mes
 });
 
 test('every word of the welcome is in all 11 languages', () => {
-  const i18n = vm.runInNewContext(`${read('../js/i18n.js')}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
+  const i18n = vm.runInNewContext(`${appStringsSource()}\ni18n;`, { window: {}, navigator: { language: 'en' }, localStorage: { getItem: () => null }, document: { documentElement: {} }, console });
   const keys = ['bit_welcome_line', 'bit_start_label', 'bit_start_weather', 'bit_start_weather_city', 'bit_start_timer', 'bit_start_music_timer', 'bit_start_widget', 'bit_start_tour', 'bit_start_cost',
     ...['morning', 'afternoon', 'evening', 'night'].map((h) => 'bit_hello_' + h)];
   for (const l of LANGS) {
@@ -156,7 +157,7 @@ test('a language change rebuilds a shown welcome in the new words and leaves a t
   const line = fresh.children.find((c) => c.className === 'bit-welcome-line');
   assert.equal(line.textContent, 'two');
   assert.equal(mirrored, 1, 'the chat copies follow');
-  assert.match(read('../js/i18n.js'), /if \(window\.BitWelcome\) window\.BitWelcome\.refresh\(\);/);
+  assert.match(appStringsSource(), /if \(window\.BitWelcome\) window\.BitWelcome\.refresh\(\);/);
 });
 
 // The empty chat must never scroll (he saw it scroll on a short tile, 7 Nov 2026).

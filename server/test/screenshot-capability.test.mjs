@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const shot = require('../capabilities/screenshot.js');
@@ -171,7 +172,7 @@ test('the catalog marks it sensitive, in the capture group, with a Deck label in
   const c = CAPABILITIES.find(x => x.type === 'screenshot');
   assert.equal(c.capability.risk, 'sensitive');
   assert.equal(c.group, 'capture');
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_screenshot', 'deck_cat_capture', 'deck_param_target', 'deck_opt_take', 'deck_opt_screen', 'deck_opt_window', 'deck_opt_region', 'shot_saved', 'shot_copied', 'shot_show', 'shot_pick_hint']) {
     assert.equal(i18n.match(new RegExp(`\\b${k}:`, 'g')).length, 11, k);
   }

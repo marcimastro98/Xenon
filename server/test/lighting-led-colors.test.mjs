@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, MAX_LED_COLORS } = require('../lighting-led-colors.js');
@@ -126,7 +127,7 @@ test('a Deck key and the SDK can switch a device to its LED colours', () => {
   const line = src.split('\n').find(l => l.includes("type: 'lightDevice'"));
   assert.ok(line, 'lightDevice action missing');
   assert.match(line, /options: \[[^\]]*'custom'/, 'the Deck cannot pick the custom mode');
-  const i18n = readFileSync(join(SERVER, 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   assert.equal((i18n.match(/deck_opt_custom:/g) || []).length, 11, 'deck_opt_custom must exist in all 11 languages');
 });
 

@@ -18,6 +18,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { createRegistry, pickFirstConnected } from '../actions/registry.js';
 import * as sdk from '../sdk-widgets.js';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
@@ -131,7 +132,7 @@ test('widgets get it under the audioDevice grant and no other', () => {
 });
 
 test('every language names the action, its three choices and the error', () => {
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   const sandbox = {};
   vm.runInNewContext(src.slice(0, src.indexOf('\nfunction t(key) {')) + '\nthis.i18n = i18n;', sandbox);
   const keys = ['deck_act_audioDeviceFirst', 'deck_param_device1', 'deck_param_device2', 'deck_param_device3', 'deck_err_none_connected'];

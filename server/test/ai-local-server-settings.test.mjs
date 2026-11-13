@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Bit's local server, on the side the fake-server tests in ai-local-server.test.mjs
 // cannot see: the panel, the strings, and the key on its way through the settings.
@@ -20,7 +21,7 @@ const { SECRET_KEY_GROUPS, stripSettingsSecrets } = require('../js/settings-secr
 const LANGUAGES = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
 function i18nTable() {
-  const src = read('js/i18n.js');
+  const src = appStringsSource();
   const ctx = { module: {} };
   vm.runInNewContext(`${src.slice(0, src.search(/^function /m))}\nthis.table = i18n;`, ctx);
   return ctx.table;

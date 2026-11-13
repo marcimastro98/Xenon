@@ -13,11 +13,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const WIDGET = read('../js/transfer-widget.js');
 const CSS = read('../components/TransferWidget/TransferWidget.css');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const CHANGELOG = read('../../CHANGELOG.md');
 const FEATURES = read('../../FEATURES.md');
 
@@ -111,15 +112,15 @@ test('the steps say WHERE to open Xenon on the phone', () => {
   // "Open Xenon on the phone" was the first wording, and it never said where:
   // there is no app to launch, there is the address the QR opened in the
   // phone's browser. Reported the day it shipped.
-  const it = I18N.match(/xfer_help_to_pc_2: "([^"]+)"/);
-  assert.ok(it, 'the step is gone');
-  for (const m of I18N.match(/xfer_help_to_pc_2: "([^"]+)"/g) || []) {
+  const steps = textsOf('xfer_help_to_pc_2');
+  assert.ok(steps.length > 0, 'the step is gone');
+  for (const [lang, text] of steps) {
     // Every locale has to name the browser and the home screen, not just say
     // "open Xenon" again in its own language.
-    assert.ok(m.length > 60, 'a one-clause step cannot be saying where: ' + m);
+    assert.ok(text.length > 39, 'a one-clause step cannot be saying where: ' + lang + ': ' + text);
   }
   // The pairing step names the exact path on this PC, not "Settings somewhere".
-  assert.match(I18N, /xfer_help_to_pc_1: "On this PC: Settings → Phone → Add device[^"]*QR/);
+  assert.match(appStrings().en.xfer_help_to_pc_1, /^On this PC: Settings → Phone → Add device.*QR/);
   // …and the dashboard really is installable, or the home-screen line is a lie.
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /name="apple-mobile-web-app-capable" content="yes"/);
@@ -161,9 +162,9 @@ test('the ? is sized by a rule that can win', () => {
 test('no locale left an English placeholder behind', () => {
   // The pairing line is the one that matters most; a copy-pasted English one
   // would be the easiest to miss.
-  const all = I18N.match(/xfer_help_to_pc_1: "([^"]+)"/g) || [];
+  const all = textsOf('xfer_help_to_pc_1');
   assert.equal(all.length, 11);
-  const english = all.filter((l) => /On this PC: Settings/.test(l));
+  const english = all.filter(([, text]) => /On this PC: Settings/.test(text));
   assert.equal(english.length, 1, 'only the English locale may carry the English line');
 });
 

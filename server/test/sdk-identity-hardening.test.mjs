@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Four ways a community widget could end up with more than the user approved:
 //   1. a frame that navigates itself away keeps its place on the bridge;
@@ -298,7 +299,7 @@ test('the import review can name the combos a profile presses', () => {
 // ── the new words exist in every language ────────────────────────────────────
 
 test('the new strings are in all eleven languages', () => {
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   for (const key of ['cw_left_page', 'cw_left_page_hint', 'preset_widget_replaces']) {
     const n = (src.match(new RegExp('\\b' + key + ':', 'g')) || []).length;
     assert.equal(n, 11, key);

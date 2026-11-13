@@ -18,6 +18,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
@@ -29,7 +30,7 @@ const MINI = read('../components/TopbarMinimal/TopbarMinimal.css');
 const SETTINGS = read('../js/settings.js');
 const SERVER = read('../server.js');
 const HTML = read('../index.html');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const CLOCK = read('../js/clock.js');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

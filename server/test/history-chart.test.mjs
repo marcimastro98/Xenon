@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CHART_SRC = read('../js/history-chart.js');
@@ -332,7 +333,7 @@ test('a size container only where the tile has a height of its own', () => {
 test('the words of the tab exist in all eleven languages, and the old ones are gone', () => {
   const ctx = {};
   vm.createContext(ctx);
-  const src = read('../js/i18n.js');
+  const src = appStringsSource();
   vm.runInContext(`${src.slice(0, src.search(/^function /m))};globalThis.__i18n = i18n;`, ctx);
   const langs = Object.keys(ctx.__i18n);
   assert.equal(langs.length, 11);

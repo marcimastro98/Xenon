@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Create card in Settings is where someone who cannot code looks for a way
 // to make something: it has to point at Xenon Maker, in their own language.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER = join(__dirname, '..');
 const HTML = readFileSync(join(SERVER, 'index.html'), 'utf8');
-const SRC = readFileSync(join(SERVER, 'js', 'i18n.js'), 'utf8');
+const SRC = appStringsSource();
 
 function languages() {
   const cut = SRC.search(/^function /m);

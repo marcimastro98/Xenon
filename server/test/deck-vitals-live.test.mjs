@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
@@ -81,7 +82,7 @@ test('the editor offers each meter, and Bit knows the source', () => {
   const server = read('../server.js');
   assert.ok(server.includes('{"source":"vitals","name":"hydration"}'));
   assert.ok(server.includes('vitalsMeters: dm.DECK_VITALS_METERS'));
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   assert.equal((i18n.match(/^ {4}deck_live_vitals: /gm) || []).length, 11, 'all 11 app languages');
   assert.equal((i18n.match(/^ {4}deck_live_vitals_lowest: /gm) || []).length, 11);
 });

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Media tile's waveform. Asked for by a supporter: "wish there was a media
 // bar and visualization".
@@ -137,7 +138,7 @@ test('the strip sits under the tile content, never over the controls', () => {
 test('the settings row and its strings ship in every language', () => {
   assert.match(read('index.html'), /onclick="updateMediaVisualizer\('minimal'\)"/);
   assert.match(read('js', 'settings.js'), /function updateMediaVisualizer\(/);
-  const i18n = read('js', 'i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['settings_media_viz_head', 'settings_media_viz_off', 'settings_media_viz_minimal', 'settings_media_viz_wave', 'settings_media_viz_note']) {
     const n = (i18n.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;
     assert.equal(n, 11, `${k} is defined ${n} times, expected 11`);

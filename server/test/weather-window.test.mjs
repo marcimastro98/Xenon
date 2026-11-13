@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
+import { appStringsSource } from './i18n-source.mjs';
 
 // The Weather window: the tile's parts at full size, on the sheet every dialog uses. It has
 // to say what happened when there is nothing to show, and it must not stay on "loading".
@@ -319,7 +320,7 @@ test('nothing data-driven reaches innerHTML', () => {
 });
 
 test('every new word is there in all eleven languages', () => {
-  const i18n = read('js', 'i18n.js');
+  const i18n = appStringsSource();
   for (const key of ['weather_sunrise', 'weather_sunset', 'weather_open_settings', 'weather_loading']) {
     const hits = i18n.match(new RegExp(`(?:^|[\\s,{"])${key}"?\\s*:`, 'gm')) || [];
     assert.equal(hits.length, 11, key);

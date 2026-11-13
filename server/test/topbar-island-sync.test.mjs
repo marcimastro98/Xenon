@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
@@ -200,7 +201,7 @@ test('every chrome button has an editor label key, and that key exists in i18n',
   assert.ok(labelsSrc, 'TOPBAR_ACTION_LABELS not found in settings.js');
   const labels = new Map();
   for (const m of labelsSrc[1].matchAll(/(\w+):\s*'([^']+)'/g)) labels.set(m[1], m[2]);
-  const i18n = read('server', 'js', 'i18n.js');
+  const i18n = appStringsSource();
   for (const id of actionRenderer) {
     const key = labels.get(id);
     assert.ok(key, 'chrome button "' + id + '" has no TOPBAR_ACTION_LABELS entry');
@@ -215,7 +216,7 @@ test('every island segment has an editor label key, and that key exists in i18n'
   assert.ok(labelsSrc, 'TOPBAR_ISLAND_LABELS not found in settings.js');
   const labels = new Map();
   for (const m of labelsSrc[1].matchAll(/(\w+):\s*'([^']+)'/g)) labels.set(m[1], m[2]);
-  const i18n = read('server', 'js', 'i18n.js');
+  const i18n = appStringsSource();
   for (const id of renderer) {
     const key = labels.get(id);
     assert.ok(key, 'island segment "' + id + '" has no TOPBAR_ISLAND_LABELS entry');

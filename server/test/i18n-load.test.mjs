@@ -1,12 +1,13 @@
 // Every page loads one language (/layer-i18n.js) and fetches the others when it
 // needs them (js/i18n-load.js from /i18n-langs.json): a language picked later,
-// or every language for the Settings and widget searches. The whole js/i18n.js
-// is 5.2 MB; one language is ~0.8 MB and about half the JS heap.
+// or every language for the Settings and widget searches. All eleven together
+// are 5.2 MB; one language is ~0.8 MB and about half the JS heap.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerI18n = require('../layer-strings.js');
@@ -58,7 +59,7 @@ test('ensure fetches only what the page lacks, once, and the strings then transl
   assert.equal(calls.length, 1, 'two asks at once share one fetch');
   ctx.lang = 'de';
   const full = vm.createContext({ lang: 'de' });
-  vm.runInContext(read('../js/i18n.js'), full);
+  vm.runInContext(appStringsSource(), full);
   assert.equal(vm.runInContext("t('cw_title')", ctx), vm.runInContext("t('cw_title')", full));
   assert.equal(await L.ensureAll(), true);
   assert.deepEqual(Object.keys(ctx.__i18n).sort(), [...SUPPORTED_LANGS].sort());

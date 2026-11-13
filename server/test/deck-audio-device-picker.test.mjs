@@ -21,6 +21,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -29,7 +30,7 @@ const { actionSpec } = require(join(here, '..', 'js', 'deck-actions.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const EDITOR = read('../js/deck-editor.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 const SERVER = read('../server.js');
 
 const SPEAKERS = [

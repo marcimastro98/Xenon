@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/gallery.js');
@@ -110,7 +111,7 @@ test('the catalog: a safe Deck key in Capture, the list hidden, the hidden id is
   const fn = aiFunctions({}).find(f => f.name === 'open_gallery');
   assert.equal(fn.parameters.properties.id.type, 'STRING');
   assert.ok(!(fn.parameters.required || []).includes('id'));
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_gallery', 'deck_act_galleryList', 'deck_param_gallery_filter', 'deck_opt_video', 'deck_opt_screenshot', 'capg_open']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -26,7 +27,7 @@ test('a language change is pushed to open widgets, like a theme change is', () =
 });
 
 test('setLang actually calls it, and cannot break the language switch if it fails', () => {
-  const i18n = read('server/js/i18n.js');
+  const i18n = appStringsSource();
   const start = i18n.indexOf('function setLang(l)');
   const body = i18n.slice(start, i18n.indexOf('\n}', start));
   assert.match(body, /window\.CustomWidget\.refreshLang\(\)/, 'the push must happen on a real change');

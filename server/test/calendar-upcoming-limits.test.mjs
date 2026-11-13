@@ -12,6 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const SRC = readFileSync(new URL('../js/calendar.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -72,7 +73,7 @@ test('the widget actually applies both, and the settings carry them', () => {
 });
 
 test('both settings are offered in every language', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const key of ['settings_upcoming_count', 'settings_upcoming_count_hint',
     'settings_upcoming_days', 'settings_upcoming_days_hint', 'settings_upcoming_days_any',
     'settings_upcoming_days_7', 'settings_upcoming_days_14', 'settings_upcoming_days_30']) {

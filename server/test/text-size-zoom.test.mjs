@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const F = require('../js/fuzzy-find.js');
@@ -18,7 +19,7 @@ const F = require('../js/fuzzy-find.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
-const src = read('../js/i18n.js');
+const src = appStringsSource();
 const ctx = { module: {} };
 vm.createContext(ctx);
 vm.runInContext(src.slice(0, src.search(/^function /m)) + ';globalThis.__i18n = i18n;', ctx);

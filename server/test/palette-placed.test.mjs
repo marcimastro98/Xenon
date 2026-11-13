@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStrings } from './i18n-source.mjs';
 const require = createRequire(import.meta.url);
 const PM = require('../js/palette-model.js');
 
@@ -120,10 +121,9 @@ test('a placed item is the same item, quieter, ending in an arrow; the lit tile 
 });
 
 test('every language has the heading and the three "where" lines, and the page name slots in', () => {
-  const I18N = read('../js/i18n.js');
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
-    const m = new RegExp('Object\\.assign\\(i18n\\.' + lang + ', \\{\\n  palette_placed: "([^"]+)",\\n  palette_placed_page: "([^"]+)",\\n  palette_placed_here: "([^"]+)",\\n  palette_placed_tab: "([^"]+)",').exec(I18N);
-    assert.ok(m, `${lang} lacks the palette_placed strings`);
-    assert.ok(m[2].includes('{page}'), `${lang}: the page line has no {page}`);
+    const own = appStrings()[lang];
+    for (const key of ['palette_placed', 'palette_placed_page', 'palette_placed_here', 'palette_placed_tab']) assert.ok(own[key], lang + ' lacks ' + key);
+    assert.ok(own.palette_placed_page.includes('{page}'), lang + ': the page line has no {page}');
   }
 });

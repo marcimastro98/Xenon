@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -132,7 +133,7 @@ test('it is documented for widget authors and on the site', () => {
 });
 
 test('the permission has a label in every language the app ships', () => {
-  const i18n = readFileSync(join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   const langs = [...i18n.matchAll(/^ {2}([a-z]{2}): \{$/gm)].map((m) => m[1]);
   assert.ok(langs.length >= 11, `found only ${langs.length} language blocks`);
   const labels = (i18n.match(/"?cw_act_pages"?\s*:/g) || []).length;

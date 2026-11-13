@@ -1,15 +1,16 @@
-// server/layer-strings.js (served as /layer-i18n.js): the light layer page gets
-// one language plus English, built from js/i18n.js so it says exactly what the
-// dashboard says.
+// server/layer-strings.js (served as /layer-i18n.js): a page gets its language
+// plus English, built from the language files (js/i18n/<code>.js) and the
+// functions of js/i18n.js, so it says exactly what all the words together say.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerI18n = require('../layer-strings.js');
-const SRC = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const SRC = appStringsSource(); // every language and the functions, as one script
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function run(script, lang) {

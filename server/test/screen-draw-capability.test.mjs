@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const draw = require('../capabilities/screen-draw.js');
@@ -73,7 +74,7 @@ test('the catalog entry, the runner, the AI function and the SDK category line u
 });
 
 test('the strings and the Deck icon exist, in 11 languages', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_screenDraw', 'draw_hint', 'cw_act_layers']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

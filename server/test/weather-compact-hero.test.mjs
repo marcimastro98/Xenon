@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 // Asked for on GitHub #130: "Is there a way to not waste that entire screen space
 // (weather widget) on that blue background with a moon (I just want the next
@@ -22,7 +23,7 @@ const SETTINGS = read('js', 'settings.js');
 const SERVER = read('server.js');
 const TILE = read('js', 'weather-tile.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
-const I18N = read('js', 'i18n.js');
+const I18N = appStringsSource();
 const INDEX = read('index.html');
 
 function extractFunction(src, name) {

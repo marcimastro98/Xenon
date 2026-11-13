@@ -11,12 +11,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { makeDom, windowKeys } from './mini-dom.mjs';
+import { appStringsSource, appStrings, APP_LANGS } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SRC = read('../js/transfer-widget.js');
 const CSS = read('../components/TransferWidget/TransferWidget.css');
 const LIQUID = read('../styles/liquid-sheets.css');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 
 // A history that behaves: back() spends the entry and tells the page, as a browser does.
 function fakeHistory(fire) {
@@ -216,7 +217,7 @@ test('a row says how old it is in the language of the app', () => {
 });
 
 test('the how-to names the key as the key reads, in every language', () => {
-  const all = (key) => [...I18N.matchAll(new RegExp(`\\b${key}: "([^"]*)"`, 'g'))].map((m) => m[1]);
+  const all = (key) => APP_LANGS.map((lang) => appStrings()[lang][key]).filter((text) => typeof text === 'string');
   const names = all('xfer_pick_photos');
   const lines = all('xfer_help_to_pc_3');
   assert.equal(names.length, 11);

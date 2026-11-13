@@ -13,12 +13,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const wake = require('../wakeword.js');
 const FEATURES = readFileSync(new URL('../../FEATURES.md', import.meta.url), 'utf8');
 const SRC = readFileSync(new URL('../wakeword.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 test('the documented pause limit is the one the code enforces', () => {

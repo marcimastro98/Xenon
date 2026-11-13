@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
@@ -27,7 +28,7 @@ function loadI18n() {
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  vm.runInContext(read('js/i18n.js') + '\n;globalThis.__i18n = i18n;', ctx);
+  vm.runInContext(appStringsSource() + '\n;globalThis.__i18n = i18n;', ctx);
   return ctx.__i18n;
 }
 

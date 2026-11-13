@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStrings } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ops = require('../list-ops.js');
@@ -150,9 +151,8 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   const page = read('../index.html');
   assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar.js'));
   assert.match(read('../js/layer-tiles.js'), /'js\/list-sync\.js', 'js\/calendar\.js'/);
-  const I18N = read('../js/i18n.js');
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  list_save_retry_title:`), lang);
+    assert.ok(appStrings()[lang].list_save_retry_title, lang);
   }
 });
 

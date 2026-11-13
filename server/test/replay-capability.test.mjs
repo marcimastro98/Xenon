@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/replay.js');
@@ -130,7 +131,7 @@ test('the catalog: a sensitive capture key, hidden options, labels in every lang
   assert.equal(key.group, 'capture');
   assert.equal(key.params[0].options[0], 'save');
   assert.equal(CAPABILITIES.find(x => x.type === 'replayOptions').hidden, true);
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_replay', 'deck_param_replay_seconds', 'deck_opt_save', 'replay_saved', 'replay_on', 'replay_on_msg', 'replay_failed', 'replay_retry', 'replay_no_encoder']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

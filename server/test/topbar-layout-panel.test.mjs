@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const PANEL = read('../js/topbar-layout-panel.js');
@@ -19,7 +20,7 @@ const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']
 function loadI18n() {
   const ctx = { window: {}, document: { documentElement: {}, querySelectorAll: () => [] }, localStorage: { getItem: () => null, setItem() {} }, navigator: { language: 'en' } };
   vm.createContext(ctx);
-  vm.runInContext(read('../js/i18n.js') + '\n;globalThis.__i18n = i18n;', ctx);
+  vm.runInContext(appStringsSource() + '\n;globalThis.__i18n = i18n;', ctx);
   return ctx.__i18n;
 }
 

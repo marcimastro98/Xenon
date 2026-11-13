@@ -14,6 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const BRIDGE = read('../js/native-bridge.js');
@@ -155,18 +156,13 @@ test('the Settings switch lives in Background and is shown only where it works',
 });
 
 test('every string of the switch is translated in every language', () => {
-  const I18N = read('../js/i18n.js');
   const keys = [
     'settings_see_through_head', 'settings_see_through',
     'settings_see_through_desc', 'settings_see_through_blocked', 'settings_see_through_tip',
     'settings_see_through_restart_title', 'settings_see_through_restart',
   ];
-  const block = I18N.slice(I18N.indexOf('// ── See-through window'));
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    const at = block.indexOf(`Object.assign(i18n.${lang}, {`);
-    assert.ok(at >= 0, `${lang} has no see-through strings`);
-    const part = block.slice(at, block.indexOf('});', at));
-    for (const key of keys) assert.match(part, new RegExp(`\\b${key}:`), `${lang} is missing ${key}`);
+    for (const key of keys) assert.ok(appStrings()[lang][key], lang + ' is missing ' + key);
   }
 });
 
@@ -185,16 +181,14 @@ test('the reason travels to the page, and each one is explained in its own words
   assert.match(SETTINGS, /state\.why === 'compositor' \? 'settings_see_through_blocked_compositor' : 'settings_see_through_blocked'/);
   // The Wallpaper Engine tip is Windows only, like Wallpaper Engine.
   assert.match(SETTINGS, /tip\.hidden = !state\.on \|\| window\.XenonPlatform !== 'win32'/);
-  const I18N = read('../js/i18n.js');
+  const I18N = appStringsSource();
   assert.equal((I18N.match(/settings_see_through_blocked_compositor:/g) || []).length, 11, 'in every language');
 });
 
 test('the Wallpaper Engine tip names the file as a file, in every language', () => {
   // The name is typed into Wallpaper Engine, so it is its own element (never
   // split at its hyphen) and every translation leaves exactly one slot for it.
-  const I18N = read('../js/i18n.js');
-  const block = I18N.slice(I18N.indexOf('// ── See-through window'), I18N.indexOf('// ── Discord widget: "Reply"'));
-  const tips = [...block.matchAll(/settings_see_through_tip: "([^"]*)"/g)].map((m) => m[1]);
+  const tips = textsOf('settings_see_through_tip').map(([, text]) => text);
   assert.equal(tips.length, 11);
   for (const tip of tips) {
     assert.equal(tip.split('{exe}').length, 2, `one {exe} slot: ${tip}`);

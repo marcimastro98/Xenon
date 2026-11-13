@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 // A Slideshow folder that reads fine and shows nothing.
 //
@@ -26,7 +27,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const folderSrc = require('../slideshow-folder.js');
 const WIDGET = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
-const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

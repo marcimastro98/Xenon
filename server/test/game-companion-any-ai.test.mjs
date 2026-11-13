@@ -10,6 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const A = require('../ai-anthropic.js');
@@ -67,7 +68,7 @@ test('the card asks the AI set for Bit, sends no key, and explains each problem'
   assert.match(js, /go\.addEventListener\('click', \(\) => \{ closeOverlay\(\); XenonCredits\.openShop\(\); \}\);/);
   // Untrusted answer text only ever goes in as text.
   assert.doesNotMatch(js, /out\.innerHTML/);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['gc_need_key', 'gc_no_vision', 'gc_no_sparks', 'bit_model_topup']) {
     assert.equal((i18n.match(new RegExp(`^\\s+"?${k}"?: `, 'gm')) || []).length, 11, k);
   }
@@ -123,7 +124,7 @@ test('the card says what a look costs before pressing, and what the last one cos
   ctx.GameCompanion.openOverlay();
   await new Promise((r) => setImmediate(r));
   assert.equal(els['gc-cost'].hidden, true);
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['gc_cost', 'gc_cost_under']) {
     assert.equal((i18n.match(new RegExp(`^\\s+"?${k}"?: `, 'gm')) || []).length, 11, k);
   }

@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Doc = require('../steps-doc.js');
@@ -241,7 +242,7 @@ test('the step sentences reach the AI turn only, never the action result a phone
 });
 
 test('the strings exist in 11 languages, keep their placeholders, and the Deck icon is there', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   const keys = [...Doc.ALL_WORDS, 'deck_act_steps', 'deck_opt_steps_open', 'steps_badge', 'steps_on', 'steps_on_msg', 'steps_saved', 'steps_none', 'steps_failed', 'steps_cut_full', 'steps_cut_idle'];
   for (const k of keys) {
     const found = [...i18n.matchAll(new RegExp(`\\b${k}: '((?:[^'\\\\]|\\\\.)*)'`, 'g'))].map(m => m[1]);

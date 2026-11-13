@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const CS = require('../capture-settings.js');
@@ -347,7 +348,7 @@ test('the routes are closed to a paired phone, CSRF-listed, and the setting has 
   // and each kind has its own title, translated everywhere.
   assert.ok(SERVER.includes('const key = CaptureSettings.FOLDERS[body && body.for] || CaptureSettings.FOLDERS.recording;'));
   assert.deepEqual(Object.keys(CS.FOLDERS), ['recording', 'screenshot', 'benchmark', 'bugreport', 'buglogs']);
-  const i18n = readFileSync(path.join(HERE, '..', 'js', 'i18n.js'), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['capture_folder_title', 'shot_folder_title', 'bench_folder_title', 'settings_folder_label', 'settings_shot_title',
     'settings_bench_title', 'settings_shot_reset', 'settings_bench_reset', 'settings_folder_busy',
     'shot_folder_missing', 'bench_folder_missing', 'bug_folder_title', 'bug_logs_title', 'bug_folder_missing']) {

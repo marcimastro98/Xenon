@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createFpsAccess, parseToken, stateOf } = require('../sensor-service/fps-access.js');
@@ -127,7 +128,7 @@ test('Settings and the Game performance tile say it, in every language', () => {
   const route = readFileSync(new URL('../sensor-service/routes.js', import.meta.url), 'utf8');
   assert.match(route, /fpsMonitor\.backend === 'presentmon' && fpsMonitor\.isAvailable\(\)/, 'only where PresentMon is installed');
   // One value per language, each its own translation (a title may match by chance).
-  const src = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const src = appStringsSource();
   for (const k of ['perf_fps_signin', 'perf_fps_rights', 'fps_access_title', 'fps_access_signin_desc', 'fps_access_rights_desc', 'fps_access_btn']) {
     const values = [...src.matchAll(new RegExp(`^\\s+${k}: '((?:[^'\\\\]|\\\\.)+)',$`, 'gm'))].map((m) => m[1]);
     assert.equal(values.length, 11, `${k} in all 11 languages`);

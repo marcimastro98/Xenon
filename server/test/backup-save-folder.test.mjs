@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { appStringsSource } from './i18n-source.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = readFileSync(path.join(DIR, 'server.js'), 'utf8');
@@ -57,7 +58,7 @@ test('the embedded view asks, a browser uses Save as, a failure still saves a fi
 });
 
 test('the new strings exist in all 11 languages', () => {
-  const I18N = readFileSync(path.join(DIR, 'js', 'i18n.js'), 'utf8');
+  const I18N = appStringsSource();
   for (const k of ['backup_folder_title', 'save_file_failed']) {
     assert.equal((I18N.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);
   }

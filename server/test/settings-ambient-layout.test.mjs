@@ -4,13 +4,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appStringsSource, languagesWith } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const INDEX = read('../index.html');
 const CSS = read('../components/AmbientCanvas/AmbientCanvas.css');
 const SETTINGS_CSS = read('../components/SettingsModal/SettingsModal.css');
 const SETTINGS = read('../js/settings.js');
-const I18N = read('../js/i18n.js');
+const I18N = appStringsSource();
 
 const group = INDEX.slice(INDEX.indexOf('<div class="settings-group settings-lock-group"'), INDEX.indexOf('<div class="settings-group settings-weather-group"'));
 const sections = group.split('<section class="settings-ambient-sec').slice(1);
@@ -118,8 +119,7 @@ test('gallery scenes are listed, named safely, with no Edit to offer', () => {
 test('every new word exists in all 11 languages', () => {
   const keys = ['ambient_sec_when', 'ambient_classic_widgets', 'ambient_scene_active', 'ambient_editor_count', 'ambient_editor_count_one',
     'ambient_create_maker', 'ambient_import_code', 'ambient_gallery', 'ambient_scenes_empty', 'ambient_pkg_note'];
-  const langs = [...I18N.matchAll(/Object\.assign\(i18n\.(\w+), \{\n  ambient_create_maker:/g)].map(m => m[1]);
-  assert.equal(langs.length, 11);
-  for (const k of keys) assert.equal((I18N.match(new RegExp('^  ' + k + ': ', 'gm')) || []).length >= 11, true, k);
+  assert.equal(languagesWith('ambient_create_maker').length, 11);
+  for (const k of keys) assert.equal(languagesWith(k).length, 11, k);
   assert.match(SETTINGS, /count === 1 \? t\('ambient_editor_count_one'\)/);
 });

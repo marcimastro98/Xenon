@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const transcript = require('../capabilities/transcript.js');
@@ -135,7 +136,7 @@ test('server.js adds the lines to the AI turn only, and wires the routes', () =>
 });
 
 test('the words are in all 11 languages', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   const keys = ['deck_act_transcript', 'deck_act_transcriptChapters', 'capg_tx_button', 'capg_tx_working', 'capg_tx_empty',
     'capg_tx_chapters', 'capg_tx_ask_bit', 'capg_tx_bit_prompt', 'capg_tx_srt', 'capg_tx_err_whisper', 'capg_tx_err_no_audio',
     'capg_tx_err_busy', 'capg_tx_err_too_long'];

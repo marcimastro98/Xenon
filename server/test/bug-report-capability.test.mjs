@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/bug-report.js');
@@ -69,7 +70,7 @@ test('the server wires the replay, both folders and a notice without a path', ()
 });
 
 test('strings, the Settings rows and the Deck icon exist, in 11 languages', () => {
-  const i18n = read('../js/i18n.js');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_bugReport', 'deck_opt_bug_make', 'deck_param_bug_seconds', 'deck_opt_bug_10', 'deck_opt_bug_30', 'deck_opt_bug_60',
     'bug_saved', 'bug_video', 'bug_no_video', 'bug_no_video_now', 'bug_no_shot', 'bug_logs', 'bug_log_one', 'bug_logs_missing', 'bug_folder_missing',
     'settings_bug_logs', 'settings_bug_logs_hint', 'settings_bug_logs_none', 'settings_bug_logs_clear', 'bug_folder_title', 'bug_logs_title',

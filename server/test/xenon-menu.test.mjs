@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import vm from 'node:vm';
+import { appStringsSource } from './i18n-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
@@ -20,7 +21,7 @@ const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
 const SERVER = src('server.js');
 
 // The dictionary, loaded like the browser does (i18n.js is a plain script).
-const I18N_SRC = src('js/i18n.js');
+const I18N_SRC = appStringsSource();
 const dict = (() => {
   const head = I18N_SRC.slice(0, I18N_SRC.search(/^function /m));
   const ctx = {};

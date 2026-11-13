@@ -4,11 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { widgetWhenRow, pageWhenRow, whenFact } = require('../menu-when.js');
 const When = require('../js/xenon-menu-when.js');
-const I18N = fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const I18N = appStringsSource();
 
 const everything = { probes: { situationCall: true, situationFront: true }, power: { battery: { percent: 80 } } };
 const box = (over = {}) => ({ id: 'lw_aaaa0001', show: 'always', ...over });

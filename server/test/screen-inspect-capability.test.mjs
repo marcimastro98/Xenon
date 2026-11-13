@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { appStringsSource } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const inspect = require('../capabilities/screen-inspect.js');
@@ -118,7 +119,7 @@ test('the catalog entries, the runner and the AI functions line up', async () =>
 });
 
 test('the strings and the Deck icons exist, in 11 languages', () => {
-  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  const i18n = appStringsSource();
   for (const k of ['deck_act_screenColor', 'deck_act_screenMeasure', 'deck_param_screenColor_format', 'deck_opt_hex', 'deck_opt_rgb', 'deck_opt_hsl',
     'color_pick_hint', 'measure_pick_hint', 'color_copied', 'measure_copied', 'inspect_not_copied']) {
     assert.equal((i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length, 11, k);

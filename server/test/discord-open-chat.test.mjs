@@ -10,6 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { appStrings } from './i18n-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../discord-launch.js');
@@ -157,14 +158,9 @@ test('the widget offers Reply only where it can act, and says what happened', ()
 });
 
 test('every string of the button is translated in every language', () => {
-  const I18N = read('../js/i18n.js');
-  const block = I18N.slice(I18N.indexOf('// ── Discord widget: "Reply"'));
   const keys = ['discord_w_notif_reply', 'discord_w_notif_reply_title', 'discord_w_notif_reply_partial', 'discord_w_notif_reply_failed'];
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    const at = block.indexOf(`Object.assign(i18n.${lang}, {`);
-    assert.ok(at >= 0, `${lang} has no Reply strings`);
-    const part = block.slice(at, block.indexOf('});', at));
-    for (const key of keys) assert.match(part, new RegExp(`\\b${key}:`), `${lang} is missing ${key}`);
+    for (const key of keys) assert.ok(appStrings()[lang][key], lang + ' is missing ' + key);
   }
 });
 
