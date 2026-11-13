@@ -189,6 +189,33 @@ test('a game that runs but whose frames cannot be read is named once, with wheth
   assert.deepEqual(ok.snapshot(), { active: false, game: 'Game.exe' });
 });
 
+test('a game whose frames Windows does not let Xenon read says what fixes it, once per change', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const sent = [];
+  const fps = { ...fakeFps({ fps: null }), isAvailable: () => true };
+  const a = { state: 'signin' };
+  const s = createPerfStream({ fps, wanted: () => true, hasClients: () => true, broadcast: (p) => sent.push(p), game: () => 'Game.exe', access: () => a.state });
+  assert.deepEqual(s.snapshot(), { active: false, game: 'Game.exe', access: 'signin' });
+  s.setGaming(true);
+  t.mock.timers.tick(INTERVAL_MS * 4);
+  assert.equal(sent.length, 1, 'said once');
+  a.state = 'rights';
+  t.mock.timers.tick(INTERVAL_MS);
+  assert.deepEqual(sent.at(-1), { active: false, game: 'Game.exe', access: 'rights' }, 'a new answer is sent');
+  // Anything else, or an access check that throws, says nothing.
+  a.state = 'weird';
+  assert.deepEqual(s.snapshot(), { active: false, game: 'Game.exe' });
+  const throwing = createPerfStream({ fps, wanted: () => true, hasClients: () => true, broadcast: () => {}, game: () => 'Game.exe', access: () => { throw new Error('x'); } });
+  assert.deepEqual(throwing.snapshot(), { active: false, game: 'Game.exe' });
+  // A missing reader is the first thing to fix, so it wins.
+  const none = createPerfStream({ fps: { ...fps, isAvailable: () => false }, wanted: () => true, hasClients: () => true, broadcast: () => {}, game: () => 'Game.exe', access: () => 'rights' });
+  assert.deepEqual(none.snapshot(), { active: false, game: 'Game.exe', reader: false });
+  // While frames read, access is never asked about.
+  fps.state.fps = 120;
+  assert.equal(s.snapshot().active, true);
+  assert.equal('access' in s.snapshot(), false);
+});
+
 test('the stutter line carries the program that weighs on the PC, checked, never trusted', () => {
   const why = (w) => snapshot(fakeFps(), null, null, () => w).why;
   assert.deepEqual(why({ verdict: 'low', reason: 'cpu_bound', app: { name: 'encoder', cpu: 15, path: 'x' } }),

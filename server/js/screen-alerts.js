@@ -415,6 +415,7 @@ let hubSettings = {};
     benchmark: (d) => show(AlertToasts.benchmark(d, ctx(), revealBenchmark)),
     stutter_why: unlessMenu((d) => show(AlertToasts.stutterWhy(d, ctx()))),
     exclusive_hint: (d) => { if (onScreen()) show(AlertToasts.exclusiveHint(d, ctx())); },
+    fps_access: (d) => { if (onScreen()) show(AlertToasts.fpsAccess(d, ctx())); },
     deck_shortcut_failed: (d) => show(DeckErrorText.shortcutFailed(d, tt)),
     xenon_menu_failed: unlessMenu((d) => show(DeckErrorText.menuFailed(d, tt))),
     // The whole ringing list (calls.js): an empty one closes the card.

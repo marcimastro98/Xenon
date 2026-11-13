@@ -49,6 +49,8 @@ $ServiceTask = 'Xenon Sensors'
 $ServiceFiles = @('sensor-service.ps1', 'cpu-temp.ps1', 'sensors.ps1')
 # A local or domain account (S-1-5-21-...) or a Microsoft Entra one (S-1-12-1-...).
 $SidPattern = '^S-1-(5-21|12-1)(-\d{1,10}){4}$'
+# BUILTIN\Performance Log Users, by SID: its name changes with the language.
+$PerfLogUsers = 'S-1-5-32-559'
 
 function Out-Result($ok, $status, $message) {
   [pscustomobject]@{ ok = $ok; status = $status; message = $message } | ConvertTo-Json -Compress
@@ -280,6 +282,31 @@ function Register-SensorTask([string]$Dir, [string]$Account) {
   [void](Register-ScheduledTask -TaskName $ServiceTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force)
 }
 
+# This user in Performance Log Users, so PresentMon reads FPS with normal rights.
+# True when the user is in the group. The cmdlet fails on a group that holds a
+# member Windows can no longer resolve (a deleted account), so net.exe, which
+# does not, tries next; its error 1378 means the user was in already.
+function Add-FpsReader([string]$Sid, [string]$Account) {
+  try { Add-LocalGroupMember -SID $PerfLogUsers -Member $Sid -ErrorAction Stop; return $true }
+  catch { if ([string]$_.FullyQualifiedErrorId -like 'MemberExists*') { return $true } }
+  # Under 'Stop', net.exe writing to stderr would throw before its code is read.
+  $ErrorActionPreference = 'Continue'
+  try {
+    $group = (New-Object Security.Principal.SecurityIdentifier $PerfLogUsers).Translate([Security.Principal.NTAccount]).Value -replace '^[^\\]*\\', ''
+    $out = & (Join-Path ([Environment]::SystemDirectory) 'net.exe') localgroup $group $Account /add 2>&1
+    if ($LASTEXITCODE -eq 0 -or (($out | Out-String) -match '\b1378\b')) { return $true }
+  } catch { }
+  return $false
+}
+
+# The engine reads this to tell "sign out and back in" from "the group refused
+# this user" (server/sensor-service/fps-access.js). One file per user, in the
+# folder only an administrator can write.
+function Write-FpsAccess([string]$Dir, [string]$Sid, [bool]$Member) {
+  $json = '{"v":1,"sid":"' + $Sid + '","member":' + $Member.ToString().ToLowerInvariant() + ',"at":' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '}'
+  [IO.File]::WriteAllText((Join-Path $Dir ('fps-access-' + $Sid + '.json')), $json, $utf8NoBom)
+}
+
 # The service, its folders and its task. Every file comes from the bytes checked
 # before the prompt ($global:XenonSensorFiles), never from a second read.
 function Install-SensorService([string]$Sid) {
@@ -298,7 +325,7 @@ function Install-SensorService([string]$Sid) {
   New-AdminFolder $readings $null
   New-AdminFolder (Join-Path $readings 'want') $Sid
   Register-SensorTask $pfDir $account
-  try { Add-LocalGroupMember -SID 'S-1-5-32-559' -Member $Sid -ErrorAction Stop } catch { }
+  Write-FpsAccess $readings $Sid (Add-FpsReader $Sid $account)
   & $schtasks /Run /TN $ServiceTask 2>&1 | Out-Null
 }
 

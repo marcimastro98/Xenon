@@ -27306,6 +27306,12 @@ const _exclusiveHint = createExclusiveHint({
   },
   broadcast: (payload) => broadcastSSE('exclusive_hint', payload),
 });
+// FPS needs a Windows permission since 5.1.0: one pop-up per version (fps-notice.js).
+const _fpsNotice = require('./sensor-service/fps-notice.js').createFpsNotice({
+  access: require('./sensor-service/fps-access.js').instance(), dataDir: DATA_DIR, version: APP_VERSION,
+  readerReady: () => fpsMonitor.backend === 'presentmon' && fpsMonitor.isAvailable(),
+  broadcast: (payload) => broadcastSSE('fps_access', payload),
+});
 const _perfStream = createPerfStream({
   fps: fpsMonitor,
   why: () => _stutterWatch.current(),
@@ -27316,6 +27322,7 @@ const _perfStream = createPerfStream({
   bench: () => _benchmark.status(),
   // A game that runs but draws no readable frames is named, not "start a game".
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  access: () => require('./sensor-service/fps-access.js').instance().current(),
 });
 // With Game Mode on, or in a Performance Mode session, the background work that can
 // wait does, for as long as a game runs. Everything that answers a person keeps answering.
@@ -27436,6 +27443,7 @@ async function _systemTick() {
         const game = gameDetect.isGameRunning() ? gameDetect.getGameProcess() : '';
         _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cachedCpuMaxCore } : null, game);
         try { _exclusiveHint.onTick(game); } catch {}
+        _fpsNotice.onTick(game);
       } catch {}
     } catch {}
   }

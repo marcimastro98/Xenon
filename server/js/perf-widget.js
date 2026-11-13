@@ -124,9 +124,15 @@
     const platform = sys && sys.platform;
     if (platform === 'darwin') return t('perf_mac', 'A Mac cannot measure the frame rate of other apps.');
     if (platform === 'linux') return t('perf_linux', 'Start the game with MangoHud to see its frame rate.');
-    // A game runs but draws no readable frames. Only a missing reader has a fix
-    // to offer; otherwise the numbers come back by themselves, so nothing is said.
-    if (runningGame()) return perf.reader === false ? t('perf_no_reader', 'Install PresentMon in Settings to see its frame rate.') : '';
+    // A game runs but draws no readable frames. Only a missing reader or a
+    // Windows permission has a fix to offer; otherwise the numbers come back by
+    // themselves, so nothing is said.
+    if (runningGame()) {
+      if (perf.reader === false) return t('perf_no_reader', 'Install PresentMon in Settings to see its frame rate.');
+      if (perf.access === 'signin') return t('perf_fps_signin', 'Sign out of Windows and back in to see its frame rate.');
+      if (perf.access === 'rights') return t('perf_fps_rights', 'Allow FPS in Settings to see its frame rate.');
+      return '';
+    }
     return t('perf_idle', 'Start a game to see its frame rate.');
   }
 
@@ -330,5 +336,13 @@
     if (toast) window.XenonToast.show(toast);
   }
 
-  window.PerfWidget = { renderWidgets, onPerf, onSystem, onNet, onBenchmark, onStutterWhy, onExclusiveHint, graphPath };
+  // FPS needs a Windows permission (SSE 'fps_access', once per version).
+  function onFpsAccess(d) {
+    if (!window.XenonToast || !window.AlertToasts) return;
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;
+    const toast = window.AlertToasts.fpsAccess(d, { t });
+    if (toast) window.XenonToast.show(toast);
+  }
+
+  window.PerfWidget = { renderWidgets, onPerf, onSystem, onNet, onBenchmark, onStutterWhy, onExclusiveHint, onFpsAccess, graphPath };
 })();

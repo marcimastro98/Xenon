@@ -182,7 +182,8 @@
     // Unknown — nothing to offer.
     const access = sys && sys.sensorAccess;
     if (access !== 'needs_admin' && access !== 'missing') {
-      const card = await outdatedServiceCard();
+      const r = await apiJson('/api/sensor-service');
+      const card = outdatedServiceCard(r) || fpsAccessCard(r);
       if (card) host.replaceChildren(card); else host.replaceChildren();
       return;
     }
@@ -201,19 +202,44 @@
     host.replaceChildren(group);
   }
 
+  // A titled group, as every section of the page.
+  function settingsGroup(title) {
+    const group = el('div', 'settings-group');
+    const head = el('div', 'settings-group-head');
+    head.appendChild(el('span', '', title));
+    group.appendChild(head);
+    return group;
+  }
+
   // The sensors read, but the service still runs the scripts of the version
   // before an update (they sit in Program Files, which the updater cannot
   // write): the same prompt brings it up to date. Null when nothing is to do.
-  async function outdatedServiceCard() {
-    const r = await apiJson('/api/sensor-service');
+  function outdatedServiceCard(r) {
     if (!r || !r.service || !r.service.outdated) return null;
-    const group = el('div', 'settings-group');
-    const head = el('div', 'settings-group-head');
-    head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
-    group.appendChild(head);
+    const group = settingsGroup(t('sensors_admin_title', 'Hardware sensors'));
     const repair = group.appendChild(hintNode(
       t('sensors_update_desc', 'Xenon was updated, but its sensor service still runs the previous version. One confirmation brings it up to date.'),
       'sa-hint--settings', false, t('sensors_update_btn', 'Update sensors')));
+    repair.querySelector('.sa-btn').className = 'settings-btn primary';
+    return group;
+  }
+
+  // PresentMon is installed, but Windows does not let Xenon read frame rates
+  // (/api/sensor-service `fpsAccess`, fps-access.js). 'signin': the permission
+  // is there and reaches Xenon at the next Windows sign-in, which no button can
+  // do. 'rights': the sensor prompt grants it. Null when nothing is to do.
+  function fpsAccessCard(r) {
+    const state = r && r.fpsAccess;
+    if (state !== 'signin' && state !== 'rights') return null;
+    const group = settingsGroup(t('fps_access_title', 'FPS in games'));
+    if (state === 'signin') {
+      const wrap = group.appendChild(el('div', 'sa-hint sa-hint--settings'));
+      wrap.appendChild(el('div', 'sa-hint-text', t('fps_access_signin_desc', 'Sign out of Windows and back in, or restart the PC, and the FPS counter starts in your games. Windows gives Xenon the permission only from the next sign-in.')));
+      return group;
+    }
+    const repair = group.appendChild(hintNode(
+      t('fps_access_rights_desc', 'To read the frame rate of your games, Xenon needs Windows’ permission. One confirmation gives it, together with the hardware sensors.'),
+      'sa-hint--settings', false, t('fps_access_btn', 'Allow FPS')));
     repair.querySelector('.sa-btn').className = 'settings-btn primary';
     return group;
   }

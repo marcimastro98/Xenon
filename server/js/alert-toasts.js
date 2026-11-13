@@ -287,6 +287,22 @@
     };
   }
 
+  // A game whose frames Windows does not let Xenon read (server/sensor-service/
+  // fps-notice.js, SSE `fps_access`): sign out and back in, or Allow FPS.
+  function fpsAccess(d, ctx) {
+    if (!d || (d.access !== 'signin' && d.access !== 'rights')) return null;
+    const signin = d.access === 'signin';
+    return {
+      type: 'warning', // said in a game by definition: an 'info' card is silenced there
+      kicker: String(d.game || '').replace(/\.exe$/i, '').slice(0, 40) || tr(ctx, 'layout_widget_perf', 'Game performance'),
+      title: tr(ctx, 'fps_access_title', 'FPS in games'),
+      message: signin
+        ? tr(ctx, 'perf_fps_signin', 'Sign out of Windows and back in to see its frame rate.')
+        : tr(ctx, 'perf_fps_rights', 'Allow FPS in Settings to see its frame rate.'),
+      duration: 15000,
+    };
+  }
+
   // Performance Mode (js/performance.js). The suggestion's line per activity,
   // as the dashboard's banner says it.
   const PERF_PROMPT_KEYS = Object.freeze({
@@ -339,5 +355,5 @@
     };
   }
 
-  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS };
+  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, stutterAppShort, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS, fpsAccess };
 });

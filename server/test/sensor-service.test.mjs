@@ -257,7 +257,25 @@ test('enable-sensors.ps1 never raises the engine task, and lowers it', () => {
   assert.doesNotMatch(ENABLE, /&\s*\$schtasks\s+\/Change/);
   assert.match(ENABLE, /-UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest/, 'the service runs as SYSTEM, never with the user\'s environment');
   assert.doesNotMatch(ENABLE, /S4U/);
-  assert.match(ENABLE, /Add-LocalGroupMember -SID 'S-1-5-32-559'/, 'PresentMon without administrator rights');
+  assert.match(ENABLE, /\$PerfLogUsers = 'S-1-5-32-559'/, 'PresentMon without administrator rights');
+  assert.match(ENABLE, /Add-LocalGroupMember -SID \$PerfLogUsers -Member \$Sid/);
+});
+
+test('joining Performance Log Users is checked, tried twice and written down', () => {
+  const add = ENABLE.slice(ENABLE.indexOf('function Add-FpsReader'), ENABLE.indexOf('function Write-FpsAccess'));
+  assert.ok(add.length > 0, 'Add-FpsReader exists');
+  assert.match(add, /FullyQualifiedErrorId\] -like 'MemberExists\*'|FullyQualifiedErrorId -like 'MemberExists\*'/, 'already in counts as in');
+  // The cmdlet trips over a member Windows can no longer resolve; net.exe does not.
+  assert.match(add, /'net\.exe'\) localgroup \$group \$Account \/add/);
+  assert.match(add, /\\b1378\\b/, 'net.exe: already a member');
+  assert.match(add, /\$ErrorActionPreference = 'Continue'/, 'stderr from net.exe must not throw before its code is read');
+  assert.match(add, /return \$false/);
+  // No silent catch left around the group: the outcome is recorded for the engine.
+  assert.doesNotMatch(ENABLE, /Add-LocalGroupMember[^\n]*\}\s*catch\s*\{\s*\}/);
+  assert.match(ENABLE, /Write-FpsAccess \$readings \$Sid \(Add-FpsReader \$Sid \$account\)/);
+  const write = ENABLE.slice(ENABLE.indexOf('function Write-FpsAccess'), ENABLE.indexOf('# The service, its folders and its task.'));
+  assert.match(write, /'fps-access-' \+ \$Sid \+ '\.json'/);
+  assert.match(write, /"v":1,"sid":"/);
 });
 
 test('the elevated step finds winget in its own package, never on the user\'s PATH', () => {

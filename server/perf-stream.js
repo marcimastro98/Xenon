@@ -10,7 +10,9 @@
 // runner (deps.bench), a live reading says when a run is going and for how long.
 // With deps.game, an idle reading names a game that runs but whose frames
 // cannot be read, so the tile names it instead of saying "start a game"; `reader:
-// false` adds that the frame reader is not installed.
+// false` adds that the frame reader is not installed, and with deps.access,
+// `access: 'signin' | 'rights'` that Windows does not let it read yet
+// (sensor-service/fps-access.js).
 
 const INTERVAL_MS = 250;
 const GRAPH_FRAMES = 120;
@@ -28,13 +30,16 @@ function idle(last) {
   return { active: false, last: s };
 }
 
-function unreadable(fps, game) {
+function unreadable(fps, game, access) {
   let g = '';
   try { g = typeof game === 'function' ? String(game() || '') : ''; } catch { g = ''; }
   if (!g) return null;
   let reader = true;
   try { reader = !(fps && typeof fps.isAvailable === 'function' && fps.isAvailable() === false); } catch { reader = true; }
-  return reader ? { game: g } : { game: g, reader: false };
+  if (!reader) return { game: g, reader: false };
+  let a = null;
+  try { a = typeof access === 'function' ? access() : null; } catch { a = null; }
+  return a === 'signin' || a === 'rights' ? { game: g, access: a } : { game: g };
 }
 
 // "Why does it stutter?" (stutter-why.js): { verdict, reason } once it held for
@@ -55,13 +60,13 @@ function appOf(a) {
   return null;
 }
 
-function snapshot(fps, last, bench, why, game) {
+function snapshot(fps, last, bench, why, game, access) {
   const call = (name, ...args) => {
     try { return fps && typeof fps[name] === 'function' ? fps[name](...args) : null; } catch { return null; }
   };
   const detail = call('getFpsDetail') || {};
   if (detail.fps == null) {
-    const u = unreadable(fps, game);
+    const u = unreadable(fps, game, access);
     return u ? { active: false, ...u } : idle(last);
   }
   const stats = call('getFrameStats') || {};
@@ -87,14 +92,14 @@ function snapshot(fps, last, bench, why, game) {
 
 // What a tile was last told: live readings ('active') go out every tick, an
 // idle one only when it says something new.
-const kindOf = (p) => (p.active ? 'active' : p.game ? 'game:' + p.game + (p.reader === false ? ':noreader' : '') : '');
+const kindOf = (p) => (p.active ? 'active' : p.game ? 'game:' + p.game + (p.reader === false ? ':noreader' : '') + (p.access ? ':' + p.access : '') : '');
 
-// deps: { fps, wanted(), hasClients(), broadcast(payload), last()?, bench()?, why()?, game()?, intervalMs? }
+// deps: { fps, wanted(), hasClients(), broadcast(payload), last()?, bench()?, why()?, game()?, access()?, intervalMs? }
 function createPerfStream(deps) {
   const intervalMs = deps.intervalMs || INTERVAL_MS;
   let timer = null;
   let sent = '';
-  const read = () => snapshot(deps.fps, deps.last, deps.bench, deps.why, deps.game);
+  const read = () => snapshot(deps.fps, deps.last, deps.bench, deps.why, deps.game, deps.access);
 
   function tick() {
     if (!deps.hasClients() || !deps.wanted()) return;
