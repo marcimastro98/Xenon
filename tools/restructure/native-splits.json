@@ -20,6 +20,10 @@
     "apps/capture/src/sketch/canvas.rs": [
       "apps/capture/src/sketch/canvas/unit_tests.rs"
     ],
+    "apps/capture/src/win/draw/mod.rs": [
+      "apps/capture/src/win/draw/input.rs",
+      "apps/capture/src/win/draw/window.rs"
+    ],
     "apps/capture/src/win/edit.rs": [
       "apps/capture/src/win/edit/thumb.rs",
       "apps/capture/src/win/edit/trim.rs"
@@ -41,6 +45,20 @@
       "apps/capture/src/win/picker/paint.rs",
       "apps/capture/src/win/picker/show.rs",
       "apps/capture/src/win/picker/window.rs"
+    ],
+    "apps/capture/src/win/record/audio.rs": [
+      "apps/capture/src/win/record/audio/clients.rs"
+    ],
+    "apps/capture/src/win/record/badge.rs": [
+      "apps/capture/src/win/record/badge/paint.rs",
+      "apps/capture/src/win/record/badge/window.rs"
+    ],
+    "apps/capture/src/win/record/mod.rs": [
+      "apps/capture/src/win/record/session.rs"
+    ],
+    "apps/capture/src/win/record/replay/mod.rs": [
+      "apps/capture/src/win/record/replay/running.rs",
+      "apps/capture/src/win/record/replay/saving.rs"
     ],
     "apps/native/src-tauri/src/gpu.rs": [
       "apps/native/src-tauri/src/gpu/displays.rs",

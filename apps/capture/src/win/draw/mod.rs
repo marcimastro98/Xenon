@@ -6,32 +6,24 @@
 //! closes it.
 
 mod surfaces;
+mod input;
+mod window;
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
-use std::sync::{mpsc, Arc, Once};
+use std::sync::{Arc, mpsc};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, ReleaseCapture, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT,
-    VK_CONTROL, VK_DELETE, VK_ESCAPE,
-};
-use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DefWindowProcW, DestroyWindow, DispatchMessageW, GetForegroundWindow,
-    GetMessageW, KillTimer, LoadCursorW, PostMessageW, PostQuitMessage, RegisterClassExW,
-    SetForegroundWindow, SetTimer, SetWindowsHookExW, ShowWindow, TranslateMessage,
-    UnhookWindowsHookEx, HC_ACTION, IDC_ARROW, IDC_CROSS, KBDLLHOOKSTRUCT, MA_NOACTIVATE, MSG,
-    SW_SHOW, SW_SHOWNOACTIVATE, WH_KEYBOARD_LL, WM_CAPTURECHANGED, WM_CLOSE, WM_DESTROY,
-    WM_DISPLAYCHANGE, WM_KEYDOWN, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEACTIVATE, WM_MOUSEMOVE,
-    WM_SYSKEYDOWN, WM_TIMER, WNDCLASSEXW,
-};
+use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageW, GetForegroundWindow, GetMessageW, MSG, PostMessageW, SetForegroundWindow, SetTimer, SetWindowsHookExW, ShowWindow, SW_SHOW, SW_SHOWNOACTIVATE, TranslateMessage, UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_CLOSE};
 
-use crate::sketch::bar::{self, Item, Look};
+use crate::sketch::bar::{Item, Look};
 use crate::sketch::canvas::Tool;
-use surfaces::{Surfaces, BAR_CLASS, CANVAS_CLASS};
+use surfaces::Surfaces;
+
+use window::{keys, register};
 
 /// Called once when the drawing ends: "closed" by the user, "stopped" by the server.
 pub type OnEnd = Box<dyn FnOnce(&'static str) + Send>;
@@ -189,150 +181,6 @@ impl State {
         let look = self.look();
         self.s.paint_bar(&look);
     }
-
-    fn canvas(&mut self, msg: u32, w: WPARAM, l: LPARAM) -> Option<LRESULT> {
-        let pt = point(l);
-        match msg {
-            WM_LBUTTONDOWN => {
-                unsafe {
-                    SetCapture(self.s.canvas);
-                }
-                self.dragging = true;
-                let (ctrl, shift) = (w.0 & MK_CONTROL != 0, w.0 & MK_SHIFT != 0);
-                // Ctrl draws a box, Ctrl+Shift an arrow, Shift a straight line.
-                let tool = match (ctrl, shift) {
-                    (true, true) => Tool::Arrow,
-                    (true, false) => Tool::Box,
-                    _ => self.tool,
-                };
-                let (rgb, scale) = (bar::PALETTE[self.colour], self.s.scale);
-                let s = &mut self.s;
-                let dirty =
-                    s.sketch
-                        .begin(s.pixels.bytes_mut(), tool, rgb, scale, shift && !ctrl, pt);
-                if dirty.is_some() {
-                    s.present(dirty);
-                }
-                if self.s.has_hint() {
-                    self.s.drop_hint();
-                    self.paint_bar();
-                }
-            }
-            WM_MOUSEMOVE if self.dragging => {
-                let s = &mut self.s;
-                if let Some(dirty) = s.sketch.extend(s.pixels.bytes_mut(), pt) {
-                    s.present(Some(dirty));
-                }
-            }
-            WM_LBUTTONUP => {
-                self.finish_stroke();
-                unsafe {
-                    let _ = ReleaseCapture();
-                }
-            }
-            WM_CAPTURECHANGED => self.finish_stroke(),
-            WM_KEYDOWN => self.key(w.0 as u32),
-            WM_TIMER => {
-                unsafe {
-                    let _ = KillTimer(Some(self.s.canvas), HINT_TIMER);
-                }
-                if self.s.has_hint() {
-                    self.s.drop_hint();
-                    self.paint_bar();
-                }
-            }
-            WM_DISPLAYCHANGE => unsafe {
-                // The monitor changed under the drawing: it no longer lines up.
-                let _ = PostMessageW(Some(self.s.canvas), WM_CLOSE, WPARAM(0), LPARAM(0));
-            },
-            _ => return None,
-        }
-        Some(LRESULT(0))
-    }
-
-    fn finish_stroke(&mut self) {
-        if !self.dragging {
-            return;
-        }
-        self.dragging = false;
-        let had = self.s.sketch.has_strokes();
-        let s = &mut self.s;
-        s.sketch.end(s.pixels.bytes());
-        if had != self.s.sketch.has_strokes() {
-            self.paint_bar();
-        }
-    }
-
-    fn key(&mut self, vk: u32) {
-        let ctrl = unsafe { GetKeyState(VK_CONTROL.0 as i32) } < 0;
-        let colour = b"RYGBWK".iter().position(|&c| c as u32 == vk);
-        match (vk, colour) {
-            (v, _) if v == b'Z' as u32 && ctrl => self.act(Item::Undo),
-            (v, _) if v == b'E' as u32 || v == VK_DELETE.0 as u32 => self.act(Item::Clear),
-            (_, Some(i)) if !ctrl => self.act(Item::Colour(i)),
-            _ => {}
-        }
-    }
-
-    fn act(&mut self, item: Item) {
-        match item {
-            Item::Colour(i) => self.colour = i,
-            Item::Tool(t) => self.tool = t,
-            Item::Undo | Item::Clear => {
-                self.finish_stroke();
-                let s = &mut self.s;
-                let changed = if item == Item::Undo {
-                    s.sketch.undo(s.pixels.bytes_mut())
-                } else {
-                    s.sketch.clear(s.pixels.bytes_mut())
-                };
-                if changed {
-                    self.s.present(None);
-                }
-            }
-            Item::Close => unsafe {
-                let _ = PostMessageW(Some(self.s.canvas), WM_CLOSE, WPARAM(0), LPARAM(0));
-                return;
-            },
-        }
-        self.paint_bar();
-    }
-
-    fn bar(&mut self, msg: u32, l: LPARAM) -> Option<LRESULT> {
-        match msg {
-            WM_MOUSEMOVE => {
-                let (x, y) = point(l);
-                let over = bar::hit(&self.s.layout, x, y);
-                if self.hover.is_none() {
-                    let mut track = TRACKMOUSEEVENT {
-                        cbSize: std::mem::size_of::<TRACKMOUSEEVENT>() as u32,
-                        dwFlags: TME_LEAVE,
-                        hwndTrack: self.s.bar,
-                        dwHoverTime: 0,
-                    };
-                    unsafe {
-                        let _ = TrackMouseEvent(&mut track);
-                    }
-                }
-                if over != self.hover {
-                    self.hover = over;
-                    self.paint_bar();
-                }
-            }
-            WM_MOUSELEAVE => {
-                self.hover = None;
-                self.paint_bar();
-            }
-            WM_LBUTTONUP => {
-                let (x, y) = point(l);
-                if let Some(item) = bar::hit(&self.s.layout, x, y) {
-                    self.act(item);
-                }
-            }
-            _ => return None,
-        }
-        Some(LRESULT(0))
-    }
 }
 
 /// A mouse message's point, at the pixel's centre.
@@ -340,89 +188,4 @@ fn point(l: LPARAM) -> (f32, f32) {
     let x = (l.0 & 0xFFFF) as i16 as f32;
     let y = ((l.0 >> 16) & 0xFFFF) as i16 as f32;
     (x + 0.5, y + 0.5)
-}
-
-unsafe extern "system" fn window_proc(h: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
-    match msg {
-        WM_MOUSEACTIVATE if h.0 as isize != CANVAS.load(Ordering::SeqCst) => {
-            return LRESULT(MA_NOACTIVATE as isize)
-        }
-        WM_CLOSE => {
-            let mut before = None;
-            STATE.with(|s| {
-                if let Some(st) = s.try_borrow_mut().ok().as_mut().and_then(|g| g.as_mut()) {
-                    if w.0 == BY_SERVER {
-                        st.reason = "stopped";
-                    }
-                    before = Some(st.before);
-                }
-            });
-            // The focus goes back where it was, if the drawing had it.
-            if let Some(b) = before.filter(|_| GetForegroundWindow() == h) {
-                let _ = SetForegroundWindow(b);
-            }
-            let _ = DestroyWindow(h);
-            return LRESULT(0);
-        }
-        WM_DESTROY => {
-            if h.0 as isize == CANVAS.load(Ordering::SeqCst) {
-                PostQuitMessage(0);
-            }
-            return LRESULT(0);
-        }
-        _ => {}
-    }
-    // Calls made while handling a message send messages back in; those find
-    // the state busy and take the default path.
-    let handled = STATE.with(|s| {
-        s.try_borrow_mut().ok().and_then(|mut g| {
-            g.as_mut().and_then(|st| {
-                if h == st.s.canvas {
-                    st.canvas(msg, w, l)
-                } else if h == st.s.bar {
-                    st.bar(msg, l)
-                } else {
-                    None
-                }
-            })
-        })
-    });
-    handled.unwrap_or_else(|| DefWindowProcW(h, msg, w, l))
-}
-
-/// Esc ends the drawing even before its window has the focus.
-unsafe extern "system" fn keys(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
-    if code == HC_ACTION as i32 {
-        let k = &*(l.0 as *const KBDLLHOOKSTRUCT);
-        if k.vkCode == VK_ESCAPE.0 as u32 {
-            if matches!(w.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN) {
-                let _ = PostMessageW(
-                    Some(hwnd(CANVAS.load(Ordering::SeqCst))),
-                    WM_CLOSE,
-                    WPARAM(0),
-                    LPARAM(0),
-                );
-            }
-            return LRESULT(1); // Esc belongs to the drawing while it is open
-        }
-    }
-    CallNextHookEx(None, code, w, l)
-}
-
-fn register() {
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| unsafe {
-        let instance = GetModuleHandleW(None).map(Into::into).unwrap_or_default();
-        for (class, cursor) in [(CANVAS_CLASS, IDC_CROSS), (BAR_CLASS, IDC_ARROW)] {
-            let wc = WNDCLASSEXW {
-                cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-                lpfnWndProc: Some(window_proc),
-                hInstance: instance,
-                hCursor: LoadCursorW(None, cursor).unwrap_or_default(),
-                lpszClassName: class,
-                ..Default::default()
-            };
-            RegisterClassExW(&wc);
-        }
-    });
 }

@@ -1,0 +1,117 @@
+[
+ {
+  "origin": "apps/capture/src/win/record/replay/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/record/replay/running.rs",
+    "about": "Windows replay: the thread that keeps recording into short files.",
+    "lines": [
+     [
+      240,
+      448
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/record/replay/saving.rs",
+    "about": "Windows replay: keeping only the newest short files, and joining them into the saved clip.",
+    "lines": [
+     [
+      449,
+      590
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/draw/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/draw/input.rs",
+    "about": "Windows drawing sheet: what the pen, a key or the toolbar does.",
+    "members": [
+     {
+      "impl": "State",
+      "lines": [
+       [
+        193,
+        301
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/draw/window.rs",
+    "about": "Windows drawing sheet: the window itself, its messages and its keys.",
+    "lines": [
+     [
+      345,
+      428
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/record/badge.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/record/badge/paint.rs",
+    "about": "Windows recording badge: its font and its drawing.",
+    "members": [
+     {
+      "impl": "State",
+      "lines": [
+       [
+        208,
+        251
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/record/badge/window.rs",
+    "about": "Windows recording badge: the window itself, its messages and where it sits.",
+    "lines": [
+     [
+      366,
+      417
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/record/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/record/session.rs",
+    "about": "Windows recording: the thread that captures, encodes and finishes one recording.",
+    "lines": [
+     [
+      121,
+      343
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/record/audio.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/record/audio/clients.rs",
+    "about": "Windows recording sound: opening the system sound, a microphone or one app's sound.",
+    "lines": [
+     [
+      169,
+      270
+     ]
+    ]
+   }
+  ]
+ }
+]
