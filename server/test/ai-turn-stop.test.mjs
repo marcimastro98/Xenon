@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
@@ -141,7 +141,7 @@ test('every way /api/ai answers turns a stop into { stopped }, with what was mad
   const sent = [];
   const ctx = { aiTurns: { madeSoFar: () => [{ action: 'place_created_widget' }] } };
   vm.createContext(ctx);
-  vm.runInContext(fnSource(server, 'aiStoppedReply'), ctx);
+  vm.runInContext(declarationSource('aiStoppedReply'), ctx);
   const json = (b) => sent.push(b);
   assert.equal(ctx.aiStoppedReply({ code: 'turn_stopped' }, json, { credits: 248 }), true);
   assert.deepEqual(JSON.parse(JSON.stringify(sent[0])), { stopped: true, text: '', clientActions: [{ action: 'place_created_widget' }], credits: 248 });

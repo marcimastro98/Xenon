@@ -250,6 +250,8 @@ const {
   TIMERS_MAX, TIMER_KINDS, _timerId, _getTimerElapsed, _getTimerRemaining,
 } = require('./time/timer-values.js');
 
+const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-probe.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -649,11 +651,7 @@ const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, HELPER_ASSET, HELPER_ASSET_MAC, MIN_MAC_HELPER, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update'); const { runHelperFirstInstall } = require('./helper-first-install.js');
 const { createNativeInstallerFetch } = require('./native-installer');
 let _nativeInstallInFlight = null; // one verified installer download at a time (POST /api/native/install)
-// PresentMon 1.10.0, the last classic single-binary CLI fpsmon.js parses: the
-// exact asset and the SHA-256 of the reviewed bytes (install.ps1 carries the
-// same pair). Bump both together.
-const PRESENTMON_URL = 'https://github.com/GameTechDev/PresentMon/releases/download/v1.10.0/PresentMon-1.10.0-x64.exe';
-const PRESENTMON_SHA256 = 'e57a2f8ee1de1ef1a5516d875f1b115e881943cd729fe9c5a2f88b1dc79a8a3b';
+const { PRESENTMON_URL, PRESENTMON_SHA256 } = require('./performance/presentmon-download.js');
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
@@ -1304,20 +1302,7 @@ function buildCoreAiFunctions() {
   ];
 }
 
-// Persistent-memory tool declarations (remember/forget a durable fact). Gated on
-// the aiMemory setting at BOTH callers — the /api/ai turn-based handler and the
-// Voce Live endpoint — so "remember this" works by voice in either mode. Fresh
-// array each call.
-function buildMemoryFunctions() {
-  return [
-    { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Anna", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
-      fact: { type: 'STRING', description: 'The fact to remember, as a short third-person statement.' },
-    }, required: ['fact'] } },
-    { name: 'forget_fact', description: 'Remove something from your persistent memory when the user asks you to forget it or corrects an outdated fact. Pass the fact text (or a distinctive part of it) to remove.', parameters: { type: 'OBJECT', properties: {
-      fact: { type: 'STRING', description: 'The fact (or a distinctive part of it) to forget.' },
-    }, required: ['fact'] } },
-  ];
-}
+const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const svvText = require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
@@ -1390,6 +1375,8 @@ aiModels.initCache({ dataDir: DATA_DIR });
 const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
 // Supporter Lyrics widget: per-song timing, and translations paid for once.
 const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
+const { SMALL_TASK_FAMILY } = require('./ai/small-task-models.js');
+
 const lyricsTranslator = createLyricsTranslator({
   dataDir: DATA_DIR,
   complete: (req) => completeWithUserAi({ ...req, json: true, temperature: 0.2, use: 'lyrics' }),
@@ -3895,15 +3882,10 @@ let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on dev
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
 
-// A recorder is normally reaped within seconds — the silence detector ends it or
-// the client POSTs /api/stt/stop. If the client dies mid-recording (a crashed tab,
-// or the dashboard closing right after a hands-free wake), the entry would live
-// forever: ffmpeg keeps writing to %TEMP%, every later /api/stt/start answers 409,
-// and wakeWord.isBusy() stays true so the resumed listener drops every segment —
-// wake word is dead until restart. This periodic sweep reaps any over-age entry,
-// kills its ffmpeg, unlinks the wav and lets the wake word recover. Zero cost when
-// there is nothing recording (the common case).
-const STT_MAX_AGE_MS = 5 * 60 * 1000;
+const {
+  STT_MAX_AGE_MS, STT_START_SILENCE_GRACE_MS, STT_AFTER_SPEECH_SILENCE_GRACE_MS, _sttSilenceDb,
+  _sttLooksLikeSpeech, STT_DEVICE_DELAY_MS,
+} = require('./ai/stt-gate.js');
 function _sweepStaleStt() {
   if (_sttPending.size === 0) return;
   const now = Date.now();
@@ -3918,23 +3900,8 @@ function _sweepStaleStt() {
 }
 setInterval(_sweepStaleStt, 60000).unref();
 
-const STT_SPEECH_MIN         = 420;
-const STT_START_SILENCE_GRACE_MS       = 3200;
-// After real speech, ffmpeg needs 0.55 s of quiet to report silence_start and
-// this grace runs on top: about 1.5 s from the last word to the answer, long
-// enough for a breath between clauses, short enough to feel like a reply.
-const STT_AFTER_SPEECH_SILENCE_GRACE_MS = 1000;
 
 const { _pcmRmsStats, _dbFromRms } = require('./wav/pcm-loudness.js');
-
-// End-of-speech silence threshold (raw input, BEFORE the gain boost is applied).
-// Kept lenient so a quiet mic — e.g. a Bluetooth headset in hands-free mode,
-// whose speech sits well below a normal mic's — is not mistaken for silence and
-// cut off mid-sentence. Noisy mics whose idle hum exceeds this just fall back to
-// the client-side auto-stop timer, which is the safe degradation.
-function _sttSilenceDb() {
-  return -42;
-}
 
 // Input gain applied to the captured audio. A Bluetooth hands-free mic produces
 // a very low signal (the browser's getUserMedia hides this with automatic gain
@@ -3946,16 +3913,6 @@ function _sttGain() {
     ? _serverHubSettings.aiMicSensitivity : 50;
   return Math.round((1.5 + (s / 100) * 3.5) * 10) / 10;
 }
-
-// Speech gate runs on the gain-boosted clip. The boost lifts real speech above
-// the floor while idle noise — proportionally lower — stays beneath it, so this
-// still rejects near-silent clips before they reach Gemini.
-function _sttLooksLikeSpeech(stats) {
-  if (!stats) return false;
-  if (stats.rms >= STT_SPEECH_MIN) return true;
-  return stats.rms >= 330 && stats.peak >= 620;
-}
-
 
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
@@ -5587,12 +5544,6 @@ function lyricsTexts(entry) {
   if (entry.state === 'plain') return entry.plain;
   return null;
 }
-
-// The small helpers (a song's translation, a widget's question) run on each
-// provider's small low-cost family, whatever model the user picked for the
-// assistant: a song a day on Opus would be real money. Bit on Sparks runs them
-// on Haiku (ai-xenon-credits.js oneShot).
-const SMALL_TASK_FAMILY = Object.freeze({ gemini: 'auto:flash-lite', openai: 'auto:mini', anthropic: 'auto:haiku' });
 
 async function smallTaskModel(provider, settings) {
   if (aiCli.isCliProvider(provider)) return aiCli.lightModel(provider);
@@ -7808,13 +7759,7 @@ function aiPresetDeps() {
   };
 }
 
-// The user stopped the turn (ai-turns.js): answered as a reply with no text,
-// carrying what its tools already made. False for any other error.
-function aiStoppedReply(e, json, extra) {
-  if (!e || (e.code !== 'turn_stopped' && e.code !== 'cli_cancelled')) return false;
-  json({ stopped: true, text: '', clientActions: aiTurns.madeSoFar(), ...extra });
-  return true;
-}
+const { aiStoppedReply } = require('./ai/stopped-reply.js');
 
 // Every tool the assistant runs, marked on the turn the chat is waiting for.
 async function executeAiTool(fnName, fnArgs, deps) {
@@ -11922,60 +11867,7 @@ function processesWanted() {
   return sdkStreamGranted('processes');
 }
 
-// The collector is ours, but this is still parsed input crossing a boundary:
-// rebuild the shape explicitly rather than broadcasting whatever came back.
-// `n` is a process name and reaches a third-party widget, so it is bounded here
-// and must be rendered with textContent there (documented in WIDGET_SDK.md).
-function normalizeProcesses(raw) {
-  if (!raw || typeof raw !== 'object' || raw.ok !== true) return null;
-  const clamp = (v, max) => {
-    const n = Number(v);
-    if (!Number.isFinite(n) || n < 0) return 0;
-    return Math.min(max, Math.round(n * 10) / 10);
-  };
-  // Graphics adapters, in the collector's stable order. A machine can have
-  // several and a process is busy on ONE of them, so the per-app figures are
-  // per adapter too; folding them together would produce a number describing no
-  // piece of hardware and contradicting every per-card tile on the dashboard.
-  const gpus = [];
-  for (const g of (Array.isArray(raw.gpus) ? raw.gpus : [])) {
-    if (!g || typeof g !== 'object') continue;
-    const id = String(g.id == null ? '' : g.id).slice(0, 48).trim();
-    if (!id) continue;
-    gpus.push({ i: gpus.length, id, name: String(g.name == null ? '' : g.name).slice(0, 64).trim(), t: clamp(g.t, 100) });
-    if (gpus.length >= 8) break;
-  }
-  const maxGpu = gpus.length;
-
-  const apps = [];
-  for (const a of (Array.isArray(raw.apps) ? raw.apps : [])) {
-    if (!a || typeof a !== 'object') continue;
-    const n = String(a.n == null ? '' : a.n).slice(0, 64).trim();
-    if (!n) continue;
-    const row = { n, c: clamp(a.c, 100), m: Math.round(clamp(a.m, 1024 * 1024)), g: clamp(a.g, 100) };
-    if (a.gs && typeof a.gs === 'object' && maxGpu) {
-      const gs = {};
-      for (const [k, v] of Object.entries(a.gs)) {
-        const idx = Number(k);
-        if (!Number.isInteger(idx) || idx < 0 || idx >= maxGpu) continue;
-        const val = clamp(v, 100);
-        if (val > 0) gs[idx] = val;
-      }
-      if (Object.keys(gs).length) row.gs = gs;
-    }
-    apps.push(row);
-    if (apps.length >= 48) break;
-  }
-  return {
-    cpu: clamp(raw.cpu, 100),
-    gpus,
-    cores: Math.max(1, Math.round(Number(raw.cores) || 1)),
-    totalMB: Math.max(0, Math.round(Number(raw.totalMB) || 0)),
-    usedMB: Math.max(0, Math.round(Number(raw.usedMB) || 0)),
-    gpuAvail: raw.gpuAvail === true,
-    apps,
-  };
-}
+const { normalizeProcesses } = require('./performance/processes-normalize.js');
 
 // Said ONCE on the same channel, so a widget that can never get data renders its
 // own explanation instead of an empty list that looks like an idle machine.
@@ -13358,6 +13250,10 @@ const { pcmToWav } = require('./wav/pcm-to-wav.js');
 
 const { chimeKind, _buildChimeWav, CHIME_COALESCE_MS } = require('./time/chime-sound.js');
 
+const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.js');
+
+const { _perfPlanPrompt, _normalizePerfPlan } = require('./performance/ai-plan.js');
+
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
@@ -14301,42 +14197,6 @@ async function _enumSttDevice() {
   return names;
 }
 
-// ffmpeg prints avfoundation's inventory to stderr, video block first:
-//   [AVFoundation indev @ 0x…] AVFoundation audio devices:
-//   [AVFoundation indev @ 0x…] [0] MacBook Pro Microphone
-// Only the audio block is ours — the video one carries its own [0].
-function _parseAvfAudioDevices(stderr) {
-  const devices = [];
-  let inAudio = false;
-  for (const line of String(stderr || '').split(/\r?\n/)) {
-    if (/AVFoundation video devices:/i.test(line)) { inAudio = false; continue; }
-    if (/AVFoundation audio devices:/i.test(line)) { inAudio = true; continue; }
-    if (!inAudio) continue;
-    const m = line.match(/\[(\d+)\]\s+(.+?)\s*$/);
-    if (m) devices.push({ index: m[1], name: m[2] });
-  }
-  return devices;
-}
-
-// Does this ffmpeg build know an input format? Listing always "fails" (there is
-// no device to open), so the exit code says nothing — the refusal to recognise
-// the format does, and it is the only cheap way to tell a build with pulse
-// support from one without.
-function _ffmpegKnowsFormat(ffmpeg, fmt) {
-  return new Promise((resolve) => {
-    let stderr = '';
-    let p;
-    try {
-      p = spawn(ffmpeg, ['-hide_banner', '-f', fmt, '-list_devices', 'true', '-i', 'dummy'], { windowsHide: true });
-    } catch { resolve(false); return; }
-    p.stderr.setEncoding('utf8');
-    p.stderr.on('data', (d) => { stderr += d; });
-    p.on('exit', () => resolve(!/Unknown input format/i.test(stderr)));
-    p.on('error', () => resolve(false));
-    setTimeout(() => { try { p.kill(); } catch {} resolve(!/Unknown input format/i.test(stderr)); }, 4000);
-  });
-}
-
 async function _initSttDevice() {
   const ffmpeg = getFfmpegPath();
 
@@ -14437,10 +14297,6 @@ async function _initSttDevice() {
   _sttDeviceWaiters.splice(0).forEach(cb => cb());
 }
 
-// Looking for the microphone costs a few ffmpeg runs and nothing needs it in the first
-// seconds, so it waits for the start to settle. By then the default mic is known too,
-// which saves the rebind round a look at the very start used to trigger.
-const STT_DEVICE_DELAY_MS = 30 * 1000;
 let _sttDeviceStarted = false;
 function _startSttDevice() {
   if (_sttDeviceStarted) return;
@@ -14551,33 +14407,6 @@ function _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, model, thin
   });
 }
 
-// Recent Gemini models occasionally "leak" a tool call as plain text — e.g.
-// `[call:default_api:genesis_compose_page{name:Studio,widgets:[notes,tasks]}]`
-// — instead of emitting a structured functionCall part. Without this fallback
-// the call is never executed and the raw text is shown/spoken to the user.
-// Returns { name, args } when the text contains a leaked call to a known
-// function, or null. Pseudo-JSON args (unquoted keys/values) are tolerated.
-const LEAKED_CALL_RE = /\[?\s*(?:tool_code\s+|call\s*:\s*)(?:default_api[.:])?\s*([A-Za-z0-9_]+)\s*[{(]([\s\S]*?)[)}]\s*\]?/;
-function _parseLeakedToolCall(text, validNames) {
-  const m = String(text || '').match(LEAKED_CALL_RE);
-  if (!m || !validNames.has(m[1])) return null;
-  const raw = m[2].trim();
-  if (!raw) return { name: m[1], args: {} };
-  // Quote bare words (keys and string values) so the pseudo-JSON parses;
-  // already-quoted strings, numbers, true/false/null pass through untouched.
-  const fixed = ('{' + raw + '}').replace(
-    /"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_\- ]*)/g,
-    (tok, bare) => {
-      if (bare === undefined) return tok.startsWith("'") ? JSON.stringify(tok.slice(1, -1)) : tok;
-      const t = bare.trim();
-      return /^(true|false|null)$/.test(t) ? t : JSON.stringify(t);
-    }
-  );
-  try {
-    const args = JSON.parse(fixed);
-    return (args && typeof args === 'object') ? { name: m[1], args } : null;
-  } catch { return null; }
-}
 
 // Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
 // because the google_search grounding tool cannot be combined with
@@ -14632,46 +14461,6 @@ function _geminiWebSearchOnce(q, apiKey, model, thinking) {
   });
 }
 
-// ── Performance Mode AI planner ──────────────────────────────────────────
-// Given the current activity and the list of open apps, ask the configured
-// provider which BACKGROUND apps are worth closing for this activity, plus a
-// one-sentence explanation. The AI only curates app selection and reasoning —
-// the blanket levers (pause animations, power plan) stay governed by the user's
-// own toggles, and the result is re-validated against the actually-open apps so
-// the model can never name something that isn't there. Returns null on any
-// failure so the client falls back to the deterministic (manual) flow.
-function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
-  const langName = aiLangName(lang, 'English');
-  const levers = [];
-  if (opts.pauseAnimations) levers.push('pausing the dashboard animations');
-  if (opts.powerPlan && opts.powerPlan !== 'none') levers.push('switching Windows to a high-performance power plan');
-  const leverText = levers.length ? `The user has also enabled: ${levers.join(' and ')}. ` : '';
-  // Real measurements (when the stats probe succeeded): per-app RAM/CPU and the
-  // system memory pressure, so the model reasons about actual cost, not name vibes.
-  const byProc = new Map((stats && Array.isArray(stats.apps) ? stats.apps : [])
-    .map(a => [String(a.proc || '').toLowerCase(), a]));
-  const appList = appNames.map(n => {
-    const s = byProc.get(String(n).toLowerCase());
-    return s ? { name: n, ramMB: s.memMB, cpuPct: s.cpuPct } : { name: n };
-  });
-  const memLine = (stats && stats.totalMB)
-    ? `System memory: ${stats.totalMB - stats.freeMB} of ${stats.totalMB} MB in use (${Math.round((1 - stats.freeMB / stats.totalMB) * 100)}%). `
-    : '';
-  return [
-    `You help optimize a desktop PC for the user's current activity: "${activity}".`,
-    leverText, memLine,
-    `Here are the currently-open background apps with their measured RAM/CPU where known: ${JSON.stringify(appList)}.`,
-    'Choose ONLY the apps that are clearly NOT needed for this activity and worth closing to free RAM/CPU',
-    '(e.g. music players, chat apps, game launchers, update helpers). Prefer the apps that actually cost the',
-    'most RAM/CPU; closing a 40 MB tray app is not worth it. Be CONSERVATIVE:',
-    'never choose the app central to the activity (the game itself while gaming, the code editor while coding,',
-    'the writing app while writing, the streaming software while streaming, the conferencing app during a meeting),',
-    'browsers, or anything you are unsure about. It is fine to choose none.',
-    `Respond with ONLY a JSON object (no markdown, no prose) of the form:`,
-    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why: cite the measured RAM when relevant>","closeApps":["<exact app name from the list>"]}`,
-  ].join(' ');
-}
-
 function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
   const model = AI_MODELS.chat;
   return _withGeminiModel(model, apiKey, (id, thinking) => _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, id, thinking))
@@ -14705,26 +14494,6 @@ function _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, model, thinking) {
     r.write(payload);
     r.end();
   });
-}
-
-// Parse + clamp the model's JSON against what's actually allowed: only apps that
-// were in the open list (case-insensitive), unique, capped.
-function _normalizePerfPlan(rawText, appNames) {
-  if (!rawText) return null;
-  let obj;
-  try { obj = JSON.parse(String(rawText).replace(/^```(?:json)?\s*|\s*```$/g, '')); }
-  catch { return null; }
-  if (!obj || typeof obj !== 'object') return null;
-  const lower = new Map(appNames.map(n => [String(n).toLowerCase(), n]));
-  const seen = new Set();
-  const closeApps = (Array.isArray(obj.closeApps) ? obj.closeApps : [])
-    .map(n => lower.get(String(n).toLowerCase()))
-    .filter(n => n && !seen.has(n) && seen.add(n))
-    .slice(0, 12);
-  return {
-    explanation: String(obj.explanation || '').slice(0, 300),
-    closeApps,
-  };
 }
 
 async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang, stats }) {

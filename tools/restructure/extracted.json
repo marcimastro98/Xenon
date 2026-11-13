@@ -70,7 +70,16 @@
       {"file":"server/time/tasks-normalize.js","about":"Tasks as the engine stores them: their limit, the check of one task and of the list, and the fields a dashboard may edit.","names":["TASKS_MAX","TASK_PRIORITIES","TASK_RECURRENCES","normalizeTask","normalizeTasks","TASK_EDIT_FIELDS"]},
       {"file":"server/time/events-normalize.js","about":"Calendar events as the engine stores them: the check of the saved list, the fields a dashboard may edit, and the colours of subscribed calendars.","names":["CALENDAR_FEED_PALETTE","normalizeEvents","EVENT_EDIT_FIELDS"]},
       {"file":"server/time/timer-values.js","about":"Timers and stopwatches: how many there may be, the two kinds, a new id, and the seconds counted or left.","names":["TIMERS_MAX","TIMER_KINDS","_timerId","_getTimerElapsed","_getTimerRemaining"]},
-      {"file":"server/time/chime-sound.js","about":"Builds the short sounds of timers, reminders and notifications from a list of notes.","names":["REMINDER_BURST","REMINDER_NOTES","CHIME_NOTES","chimeKind","_buildChimeWav","CHIME_COALESCE_MS"]}
+      {"file":"server/time/chime-sound.js","about":"Builds the short sounds of timers, reminders and notifications from a list of notes.","names":["REMINDER_BURST","REMINDER_NOTES","CHIME_NOTES","chimeKind","_buildChimeWav","CHIME_COALESCE_MS"]},
+      {"file":"server/ai/small-task-models.js","about":"The small, low-cost model family each AI provider uses for short helper jobs.","names":["SMALL_TASK_FAMILY"]},
+      {"file":"server/ai/stt-gate.js","about":"Decides when a voice recording holds speech and when it has ended: the thresholds and the waits.","names":["STT_MAX_AGE_MS","STT_SPEECH_MIN","STT_START_SILENCE_GRACE_MS","STT_AFTER_SPEECH_SILENCE_GRACE_MS","_sttSilenceDb","_sttLooksLikeSpeech","STT_DEVICE_DELAY_MS"]},
+      {"file":"server/ai/stt-device-probe.js","about":"Asks ffmpeg what it can record from: the microphones macOS lists, and whether an input format is known.","names":["_parseAvfAudioDevices","_ffmpegKnowsFormat"]},
+      {"file":"server/ai/leaked-tool-call.js","about":"Recognises a tool call that a model wrote as plain text instead of calling the tool.","names":["LEAKED_CALL_RE","_parseLeakedToolCall"]},
+      {"file":"server/ai/memory-functions.js","about":"The two tools Bit gets when memory is on: remember a fact about the user, and forget one.","names":["buildMemoryFunctions"]},
+      {"file":"server/ai/stopped-reply.js","about":"Answers a turn the user stopped: no text, with what its tools had already made.","names":["aiStoppedReply"]},
+      {"file":"server/performance/ai-plan.js","about":"Performance Mode asks the AI which open apps to slow down: the question, and the check of the answer.","names":["_perfPlanPrompt","_normalizePerfPlan"]},
+      {"file":"server/performance/presentmon-download.js","about":"Where the frame-rate reader PresentMon is downloaded from, and the checksum the file must have.","names":["PRESENTMON_URL","PRESENTMON_SHA256"]},
+      {"file":"server/performance/processes-normalize.js","about":"Checks the list of busiest programs that the reader sends, before it goes to widgets.","names":["normalizeProcesses"]}
     ]
   }
 }
