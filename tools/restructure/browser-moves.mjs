@@ -1,10 +1,12 @@
-// The three moves the browser side knows, each as a function from texts to texts:
+// The moves the browser side knows, each as a function from texts to texts:
 // declarations to a script that loads right before the old one, a stylesheet cut
-// into parts linked right after it, and a script written inside a page to a file.
+// into parts linked right after it, a script written inside a page to a file, and
+// a classic script turned into an ES module (browser-module.mjs).
 // Nothing here touches the disk, so the same code does a move and redoes it from
 // an old revision to compare (browser-extract.mjs).
 
 import { addToLists, BUILT_LIST, listRunProblems, listsHold } from './browser-lists.mjs';
+import { moduleMove } from './browser-module.mjs';
 import { addTags, inlineScripts, runProblems, tagsOf, urlOfFile } from './browser-pages.mjs';
 import { headerOf, MAX_LINES, planScriptMove } from './browser-plan.mjs';
 import { planStyleSplit } from './browser-styles.mjs';
@@ -46,6 +48,9 @@ function retag(tree, pages, { old, added, where, before, after }) {
 }
 
 function scriptMove(tree, move, { parser, pages, earlier }) {
+  if (earlier.some((entry) => entry.kind === 'module' && entry.file === move.from)) {
+    throw new Refusal([move.from + ' is a module: its names are its own, and a script that loads before it cannot hold them']);
+  }
   const before = earlier.filter((entry) => entry.kind === 'script' && entry.from === move.from).map((entry) => entry.file);
   const run = [...before, move.from];
   const files = retag(tree, pages, { old: move.from, added: [move.file], where: 'before', before: run, after: [...before, move.file, move.from] });
@@ -104,13 +109,13 @@ function inlineMove(tree, move) {
  * Works one move out, from the texts in `tree`.
  * @param {{ get: (file: string) => string | null }} tree the repo's files as text, null for a file that is not there
  * @param {any} move `{ kind: 'script', from, file, about, names }`, `{ kind: 'style', from, parts: [{ file, at }] }`
- *   or `{ kind: 'inline', from, file, about, nth }`
+ *   `{ kind: 'inline', from, file, about, nth }` or `{ kind: 'module', file }`
  * @param {{ parser: any, pages: string[], earlier: any[] }} context the pages of the app and the moves done before this one
  * @returns {{ files: Map<string, string>, made: string[], record: any }} every file to write with its new text,
  *   which of them are new, and the line for the list of moves. Throws a Refusal with every reason when the move is not safe.
  */
 export function applyMove(tree, move, context) {
-  const work = { script: scriptMove, style: styleMove, inline: inlineMove }[move.kind];
+  const work = { script: scriptMove, style: styleMove, inline: inlineMove, module: moduleMove }[move.kind];
   if (!work) throw new Refusal([`unknown kind of move: ${move.kind}`]);
   const done = work(tree, move, context);
   const taken = done.made.filter((file) => tree.get(file) !== null);

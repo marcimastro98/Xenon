@@ -32,7 +32,7 @@ test('every split browser file still loads in a row, runs nothing new on load, a
 test('every file the list of moves names is there, once', () => {
   const made = ledger.moves.flatMap((move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : [move.file]));
   assert.deepEqual(made.filter((file, at) => made.indexOf(file) !== at), [], 'a file is the target of one move');
-  assert.deepEqual([...made, ...ledger.moves.map((move) => move.from)].filter((file) => !fs.existsSync(path.join(ROOT, file))), []);
+  assert.deepEqual([...made, ...ledger.moves.map((move) => move.from).filter(Boolean)].filter((file) => !fs.existsSync(path.join(ROOT, file))), []);
 });
 
 test('a declaration another file reads out of the old script stays in it', () => {

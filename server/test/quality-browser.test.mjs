@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { readCounts } from '../../tools/quality/baseline-file.mjs';
 import {
-  CHECKS, browserProblems, duplicateNames, familyOf, inlineHandlers, isBrowserScript, measureBrowser, sharedNames,
+  CHECKS, browserProblems, duplicateNames, familyOf, inlineHandlers, isBrowserScript, measureBrowser, mixedLoads, sharedNames,
 } from '../../tools/quality/browser.mjs';
 import { REPO_ROOT, trackedFiles } from '../../tools/quality/repo-files.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
@@ -43,6 +43,7 @@ test('a file split out of a script, or taken out of a page, counts with the file
     { kind: 'script', from: 'server/js/big/one.js', file: 'server/js/big/one-a.js' },
     { kind: 'inline', from: 'server/index.html', file: 'server/js/from-page.js' },
     { kind: 'style', from: 'server/components/Box/Box.css', parts: [{ file: 'server/components/Box/BoxEdit.css', at: 10 }] },
+    { kind: 'module', file: 'server/js/alone.js', names: [] },
   ] });
   assert.equal(family('server/js/big/one-a.js'), 'server/js/big.js');
   assert.equal(family('server/js/big.js'), 'server/js/big.js');
@@ -63,6 +64,20 @@ test('a classic script leaves its top-level names in the shared scope; a wrapper
   } finally {
     parser.close();
   }
+});
+
+test('a page must load a module as a module and a classic script as a classic script, and a built list holds no module', () => {
+  const read = (file) => ({ 'server/js/leaf.js': { module: true }, 'server/js/old.js': { module: false } })[file] ?? null;
+  const right = '<script src="js/old.js"></script>\n<script type="module" src="js/leaf.js?v=1"></script>\n<script src="js/vendor/lib.js"></script>\n';
+  assert.deepEqual(mixedLoads('server/index.html', right, read), []);
+  const wrong = '<script type="module" src="js/old.js"></script>\n<script src="js/leaf.js"></script>\n';
+  assert.deepEqual(mixedLoads('server/index.html', wrong, read, ['server/js/leaf.js', 'server/js/old.js']), [
+    'server/index.html loads server/js/old.js as a module, and the file does not say it is one',
+    'server/index.html loads server/js/leaf.js as a classic script, and the file says it is a module',
+    'server/js/layer-tiles.js holds server/js/leaf.js, a module, in a list written out as classic tags',
+  ]);
+  const saved = { scripts: {}, handlers: {}, duplicates: {} };
+  assert.deepEqual(browserProblems({ ...saved, where: {}, mixed: ['a page loads x the wrong way'] }, saved), ['modules: a page loads x the wrong way'], 'never allowed, whatever is saved');
 });
 
 test('a name is a duplicate when two different scripts of the page declare it', () => {
@@ -123,6 +138,7 @@ test('a small tree is measured whole: tags, a split, a module, a wrapper, a scri
   assert.deepEqual(now.where, { esc: ['server/js/big.js', 'server/js/other.js', 'server/js/tile.js'] });
   assert.deepEqual(now.duplicates, { esc: 3 });
   assert.deepEqual(now.modules, ['server/js/leaf.js']);
+  assert.deepEqual(now.mixed, []);
   assert.equal(now.counted, 7);
 });
 

@@ -6,15 +6,16 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const BROWSER_LEDGER = 'tools/restructure/extracted-browser.json';
-const NOTE = 'What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css` and '
-  + '`browser inline`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
+const NOTE = 'What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css`, '
+  + '`browser inline` and `browser module`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
 
 /**
  * @param {string} root
  * @returns {{ note: string, moves: any[] }}
  *   `moves`: `{ kind: 'script', from, file, about, names }` (declarations to a script that loads right before),
  *   `{ kind: 'style', from, parts: [{ file, at }] }` (a stylesheet cut at lines, the parts linked right after)
- *   or `{ kind: 'inline', from, file, about, nth }` (a script written inside a page, to a file).
+ *   `{ kind: 'inline', from, file, about, nth }` (a script written inside a page, to a file)
+ *   or `{ kind: 'module', file, names }` (a classic script turned into an ES module; `names` are the top-level names it stopped sharing).
  */
 export function readBrowserLedger(root) {
   try {
@@ -45,5 +46,5 @@ export function runOf(ledger, file) {
 
 /** @param {{ moves: any[] }} ledger @returns {string[]} every script or stylesheet something was taken out of */
 export function splitFiles(ledger) {
-  return [...new Set(ledger.moves.filter((move) => move.kind !== 'inline').map((move) => move.from))];
+  return [...new Set(ledger.moves.filter((move) => move.kind === 'script' || move.kind === 'style').map((move) => move.from))];
 }

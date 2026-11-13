@@ -9,6 +9,8 @@
 //   node tools/restructure/cli.mjs browser split-css <stylesheet> [--dry-run] <line>:<Part.css> ...
 //   node tools/restructure/cli.mjs browser inline --from <page> --to <new script> --about "<one sentence>" [--nth 0]
 //   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }]
+//   node tools/restructure/cli.mjs browser module <script> [--dry-run]     turn a classic script that runs last into an ES module
+//   node tools/restructure/cli.mjs browser module --list [--all]           which scripts can become a module today, and what keeps the others
 //   node tools/restructure/cli.mjs browser consumers <file>                who names a browser file in code
 //   node tools/restructure/cli.mjs browser tests <file> [--write]          point the tests that read it as text at the reader
 //   node tools/restructure/cli.mjs browser verify [--base HEAD]            redo the recorded moves from a revision, compare bytes
@@ -20,8 +22,9 @@ import path from 'node:path';
 import { readCounts, saveCounts } from '../quality/baseline-file.mjs';
 import { analyzeRun, assignedAtHome, orderProblems, stayReasons } from './browser-analyze.mjs';
 import { keptNames, mentionsOf } from './browser-consumers.mjs';
-import { perform, replay, showAt } from './browser-extract.mjs';
+import { everyPage, perform, replay, showAt } from './browser-extract.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
+import { candidates } from './browser-module.mjs';
 import { resolvePicks } from './browser-plan.mjs';
 import { stateProblems } from './browser-state.mjs';
 import { readStylesheet } from './browser-styles.mjs';
@@ -131,6 +134,32 @@ function runMoves(parser, jobs, dryRun) {
   return 0;
 }
 
+// What keeps a classic script from becoming a module, by kind (browser-module.mjs), as the list says it.
+const HOLDS = { place: 'do not run last in a page', loader: 'are loaded by a list, a loader or Node', names: 'have a name another file has as a word',
+  code: 'have code that means something else in a module', split: 'are part of a split', page: 'are loaded by no page, or by one the page check never opens' };
+
+function listModules(parser, { flags }) {
+  const rows = candidates({ root: REPO_ROOT, parser, ledger: readBrowserLedger(REPO_ROOT), pages: everyPage(REPO_ROOT) });
+  const classic = rows.filter((row) => !row.module);
+  const free = classic.filter((row) => row.reasons.length === 0);
+  for (const row of free) console.log(`can   ${row.file} (${row.names.length} names leave the shared scope)`);
+  if (flags.all) for (const row of classic.filter((entry) => entry.reasons.length)) console.log(`stays ${row.file}  # ${row.reasons[0].text}${row.reasons.length > 1 ? ` (+${row.reasons.length - 1})` : ''}`);
+  const held = (kind, test) => classic.filter((row) => row.reasons.length && row.reasons[test]((reason) => reason.kind === kind)).length;
+  console.log(`${rows.length - classic.length} modules, ${classic.length} classic scripts: ${free.length} can become a module today.`);
+  console.log(`What keeps the others (a script can have several): ${Object.entries(HOLDS).map(([kind, text]) => `${held(kind, 'some')} ${text}`).join('; ')}.`);
+  console.log(`Only their place holds back ${held('place', 'every')} of them, only a name ${held('names', 'every')}.`);
+  return 0;
+}
+
+function convert(parser, { flags, rest }) {
+  const file = posix(rest[0]);
+  const dryRun = Boolean(flags['dry-run']);
+  const done = perform({ root: REPO_ROOT, parser, move: { kind: 'module', file }, dryRun });
+  const pages = Object.keys(done.lines).filter((name) => name.endsWith('.html'));
+  console.log(`${file} ${dryRun ? 'would be' : 'is'} a module: ${pages.join(', ')} ${pages.length === 1 ? 'loads' : 'load'} it with type="module", and ${done.record.names.length} of its names leave the shared scope.`);
+  if (!dryRun) console.log('Next: the page check before and after (side-copy.mjs record, browser-page-check.mjs compare), browser verify, npm run browser -- --update.');
+  return 0;
+}
 function showCuts({ rest }) {
   const text = read(posix(rest[0]));
   const { between, problems } = readStylesheet(text);
@@ -218,9 +247,10 @@ export async function main(argv) {
   const args = readArgs(tail);
   const { flags, rest } = args;
   const complete = { analyze: rest.length === 1, cuts: rest.length === 1, consumers: rest.length === 1, tests: rest.length === 1, apply: rest.length === 1, verify: true, carry: true,
-    extract: Boolean(flags.from && flags.to && rest.length), 'split-css': rest.length >= 2, inline: Boolean(flags.from && flags.to) }[command];
+    extract: Boolean(flags.from && flags.to && rest.length), 'split-css': rest.length >= 2, inline: Boolean(flags.from && flags.to),
+    module: flags.list ? rest.length === 0 : rest.length === 1 }[command];
   if (!complete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 16).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(4, 18).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   if (command === 'carry') return carry();
@@ -231,6 +261,7 @@ export async function main(argv) {
   try {
     if (command === 'analyze') return showAnalysis(parser, args);
     if (command === 'verify') return verify(parser, args);
+    if (command === 'module') return flags.list ? listModules(parser, args) : convert(parser, args);
     const dryRun = Boolean(flags['dry-run']);
     if (command === 'apply') return runMoves(parser, JSON.parse(readFileSync(rest[0], 'utf8')), dryRun);
     if (command === 'split-css') return runMoves(parser, [{ css: rest[0], cuts: rest.slice(1) }], dryRun);

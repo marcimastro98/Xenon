@@ -10,8 +10,10 @@ import path from 'node:path';
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { consumerProblems, keptNames } from './browser-consumers.mjs';
 import { readBrowserLedger, writeBrowserLedger } from './browser-ledger.mjs';
+import { moduleReasons, saysModule } from './browser-module.mjs';
 import { applyMove } from './browser-moves.mjs';
 import { listPages } from './browser-pages.mjs';
+import { builtPages } from './browser-state.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { frozenTest, ownersOf } from './target-rules.mjs';
 import { syntaxProblems } from './verify.mjs';
@@ -53,6 +55,9 @@ export function targetReasons(root, move) {
   return reasons;
 }
 
+/** @param {string} root @returns {{ page: string, html: string }[]} every page of the app with its text, the ones the engine builds from a list too */
+export const everyPage = (root) => [...listPages(root).map((page) => ({ page, html: readFileSync(path.join(root, page), 'utf8') })), ...builtPages(root)];
+
 const diskTree = (root) => ({
   get: (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } },
 });
@@ -74,11 +79,14 @@ function undo(root, files, made, before) {
 export function perform({ root, parser, move, dryRun = false }) {
   const ledger = readBrowserLedger(root);
   // The tests are held to the reader by server/test/restructure-browser-state.test.mjs, once the first move is done.
-  const reasons = move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
-    : consumerProblems(root, move.from, { tests: false });
-  reasons.push(...targetReasons(root, move));
-  const kept = keptNames(root, move.from);
-  for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
+  const reasons = move.kind === 'module' ? moduleReasons({ root, parser, file: move.file, ledger, pages: everyPage(root) }).reasons.map((reason) => reason.text)
+    : move.kind === 'inline' ? uncheckedPages([move.from]).map((page) => `the page check never opens ${page}: add it to tools/restructure/browser-check-pages.mjs first`)
+      : consumerProblems(root, move.from, { tests: false });
+  if (move.kind !== 'module') {
+    reasons.push(...targetReasons(root, move));
+    const kept = keptNames(root, move.from);
+    for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
+  }
   if (reasons.length) throw new Refusal(reasons);
   const tree = diskTree(root);
   const { files, made, record } = applyMove(tree, move, { parser, pages: listPages(root), earlier: ledger.moves });
@@ -106,7 +114,7 @@ export function showAt(root, rev, file) {
   return run.status === 0 ? run.stdout : null;
 }
 
-const newFilesOf = (move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : [move.file]);
+const newFilesOf = (move) => (move.kind === 'style' ? move.parts.map((part) => part.file) : move.kind === 'module' ? [] : [move.file]);
 
 /**
  * Redoes every recorded move the revision does not have yet, starting from the
@@ -127,16 +135,18 @@ export function replay({ root, parser, base, show = showAt }) {
   ledger.moves.forEach((move, index) => {
     const made = newFilesOf(move);
     const there = made.filter((file) => show(root, base, file) !== null);
-    if (there.length === made.length) return;
+    // A conversion makes no file: the revision has it when the script says there that it is a module.
+    const was = move.kind === 'module' ? tree.get(move.file) : null;
+    if (move.kind === 'module' ? was !== null && saysModule(parser.parse(was, move.file), parser.K) : there.length === made.length) return;
     if (there.length) { problems.push(`${base} has ${there.join(', ')} but not the rest of that move`); return; }
     let done;
     try {
       done = applyMove(tree, move, { parser, pages, earlier: ledger.moves.slice(0, index) });
     } catch (error) {
-      problems.push(`${made[0]}: the recorded move cannot be redone from ${base}: ${error instanceof Refusal ? error.reasons.join('; ') : error.message}`);
+      problems.push(`${made[0] ?? move.file}: the recorded move cannot be redone from ${base}: ${error instanceof Refusal ? error.reasons.join('; ') : error.message}`);
       return;
     }
-    if (JSON.stringify(done.record) !== JSON.stringify(move)) problems.push(`${made[0]}: redone from ${base}, the move is not the one recorded`);
+    if (JSON.stringify(done.record) !== JSON.stringify(move)) problems.push(`${made[0] ?? move.file}: redone from ${base}, the move is not the one recorded`);
     for (const [file, text] of done.files) { texts.set(file, text); written.add(file); }
     replayed += 1;
   });

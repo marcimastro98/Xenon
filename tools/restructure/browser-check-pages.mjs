@@ -14,17 +14,26 @@ const LOAD_TIMEOUT_MS = 60000;
 const GROUP = 22;
 const DESK = { width: 1280, height: 720 };
 
+// What the window of a second deck shows: whose deck the tile is, and that it was drawn. The page's last script
+// (js/deck-popup.js) writes the first from the address before the deck starts. Runs in the page.
+function deckOfTheWindow() {
+  const tile = document.querySelector('[data-dashboard-widget="deck"]');
+  return { deck: tile ? tile.getAttribute('data-dashboard-instance') : 'no tile', drawn: Boolean(tile?.childElementCount) };
+}
+
 /**
  * `file` is the page's own file, `path` where the engine serves it. The dashboard is opened on the wide
  * screen it is made for and on a phone held upright. `widgets` marks the page the engine builds per
  * desktop widget. `stay` keeps a page that sends the window elsewhere once it has loaded (the driver
- * page leaves for the dashboard on an install that shows the dashboard) where it is.
+ * page leaves for the dashboard on an install that shows the dashboard) where it is. `probe` is a question of the
+ * page's own, asked in the page once it has loaded: what a module does cannot be asked by name from outside.
  */
 export const PAGES = [
   { name: 'dashboard wide', file: 'server/index.html', path: '/', width: 2560, height: 720 },
   { name: 'dashboard phone', file: 'server/index.html', path: '/', width: 390, height: 844 },
   { name: 'desktop widgets', file: 'server/layer-lite.html', path: '/?layer=desktop:', widgets: true, ...DESK },
   { name: 'deck window', file: 'server/deck-popup.html', path: '/deck-popup', ...DESK },
+  { name: 'deck window of a second deck', file: 'server/deck-popup.html', path: '/deck-popup?instance=deck~two', probe: deckOfTheWindow, ...DESK },
   { name: 'menu', file: 'server/menu.html', path: '/menu', ...DESK },
   { name: 'scene', file: 'server/scene.html', path: '/scene', ...DESK },
   { name: 'alerts', file: 'server/screen-alerts.html', path: '/screen-alerts', ...DESK },
@@ -89,18 +98,30 @@ function readPage() {
     address: window.location.pathname + window.location.search,
     globals: Object.getOwnPropertyNames(window).filter((name) => !/^\d+$/.test(name)).sort(),
     scripts: [...document.scripts].map((script) => script.src).filter(Boolean),
+    modules: [...document.scripts].filter((script) => script.type === 'module' && script.src).map((script) => script.src),
     sheets,
     rules,
     widgets: document.documentElement.getAttribute('data-layer-tiles'),
   };
 }
 
+// Asks the page for each of its modules again, by the address of its tag: the browser hands back the module the
+// tag made, without running it a second time. It answers once the module ran to its end, and fails with the
+// module's own error when it did not. A module's top-level names cannot be asked from outside: this, and the
+// names it exports, is what the check knows of it. Runs in the page.
+function importAll(addresses) {
+  return Promise.all(addresses.map((address) => import(address).then(
+    (made) => ({ address, exports: Object.keys(made).sort() }),
+    (error) => ({ address, error: String(error?.message || error) }),
+  )));
+}
+
 // `typeof` of each name, asked as page code so that `const` and `let` answer too.
 const typesOf = (names) => `[${names.map((name) => `(() => { try { return typeof ${name}; } catch (e) { return 'missing'; } })()`).join(',')}]`;
 
 /**
- * Every name the page's own scripts declare at their top level, read from the scripts as the engine serves them.
- * @param {string[]} scripts addresses, in load order @param {any} parser @param {Map<string, string[]>} known names per script text, kept between pages
+ * Every name the page's own classic scripts declare at their top level, read from the scripts as the engine serves them.
+ * @param {string[]} scripts addresses, in load order, without the modules (their names are their own) @param {any} parser @param {Map<string, string[]>} known names per script text, kept between pages
  * @returns {Promise<string[]>}
  */
 async function declaredNames(scripts, parser, known) {
@@ -158,7 +179,7 @@ export async function openPage(browser, port, page, settleMs, run) {
 }
 
 /**
- * @param {any} browser @param {number} port @param {{ name: string, path: string, width: number, height: number, stay?: boolean }} page
+ * @param {any} browser @param {number} port @param {{ name: string, path: string, width: number, height: number, stay?: boolean, probe?: () => any }} page
  * @param {number} settleMs @param {any} parser @param {Map<string, string[]>} known
  * @returns {Promise<any>} what the page check keeps of one page
  */
@@ -166,7 +187,8 @@ export function recordPage(browser, port, page, settleMs, parser, known) {
   const plain = plainFor(port);
   return openPage(browser, port, page, settleMs, async (tab, seen) => {
     const held = await tab.evaluate(readPage);
-    const names = await declaredNames(held.scripts, parser, known);
+    const names = await declaredNames(held.scripts.filter((address) => !held.modules.includes(address)), parser, known);
+    const modules = held.modules.length ? await tab.evaluate(importAll, held.modules) : [];
     const types = names.length ? await tab.evaluate(typesOf(names)) : [];
     return {
       name: page.name, path: page.path, address: held.address, width: page.width, height: page.height, ...seen, refused: [...seen.refused].sort(),
@@ -174,7 +196,9 @@ export function recordPage(browser, port, page, settleMs, parser, known) {
       scripts: held.scripts.map(plain), stylesheets: held.sheets.map(plain),
       rules: createHash('sha256').update(held.rules.join('\n')).digest('hex'), ruleCount: held.rules.length,
       declared: Object.fromEntries(names.map((name, i) => [name, types[i]])),
+      ...(modules.length ? { modules: modules.map((made) => (made.error ? { address: plain(made.address), error: plain(made.error) } : { ...made, address: plain(made.address) })) } : {}),
       ...(held.widgets === null ? {} : { widgets: held.widgets }),
+      ...(page.probe ? { probe: await tab.evaluate(page.probe) } : {}),
     };
   });
 }

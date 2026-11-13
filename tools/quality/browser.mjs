@@ -8,6 +8,8 @@
 //   - inline `on*=` handlers written in a page (they can only call such names).
 //   - names two classic scripts of the same page both declare at their top level:
 //     the second silently replaces the first.
+// And one thing that is never allowed: a file that says it is a module loaded as a
+// classic script, or the other way round (the page would stop at its first line).
 //
 //   npm run browser              check
 //   npm run browser -- --update  save the lower numbers after a clean-up
@@ -20,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { readBrowserLedger } from '../restructure/browser-ledger.mjs';
 import { BUILT_LIST, readLists } from '../restructure/browser-lists.mjs';
+import { saysModule } from '../restructure/browser-module.mjs';
 import { inlineScripts, tagsOf } from '../restructure/browser-pages.mjs';
 import { openParser, parserAvailable } from '../restructure/parser.mjs';
 import { readTopLevel } from '../restructure/top-level.mjs';
@@ -63,14 +66,8 @@ export function inlineHandlers(html) {
  * @returns {(file: string) => string} the script a file was split out of (through several splits) or the page it was written in, or the file itself
  */
 export function familyOf(ledger) {
-  const from = new Map(ledger.moves.filter((move) => move.kind !== 'style').map((move) => [move.file, move.from]));
+  const from = new Map(ledger.moves.filter((move) => move.kind === 'script' || move.kind === 'inline').map((move) => [move.file, move.from]));
   return (file) => { let at = file; for (let hops = 0; from.has(at) && hops < 50; hops += 1) at = from.get(at); return at; };
-}
-
-/** @param {any} sourceFile @param {any} K @returns {boolean} whether the file says it is a module (an import or an export at its top level) */
-export function isModule(sourceFile, K) {
-  return sourceFile.statements.some((node) => [K.ImportDeclaration, K.ExportDeclaration, K.ExportAssignment].includes(node.kind)
-    || (node.modifiers ?? []).some((modifier) => modifier.kind === K.ExportKeyword));
 }
 
 /**
@@ -79,7 +76,7 @@ export function isModule(sourceFile, K) {
  */
 export function sharedNames(text, parser) {
   const sourceFile = parser.parse(text, 'script.js');
-  if (isModule(sourceFile, parser.K)) return { module: true, names: [] };
+  if (saysModule(sourceFile, parser.K)) return { module: true, names: [] };
   return { module: false, names: [...new Set(readTopLevel(sourceFile, parser).flatMap((record) => record.names))] };
 }
 
@@ -94,12 +91,28 @@ export function duplicateNames(scripts) {
   return Object.fromEntries([...holders].map(([name, files]) => [name, [...new Set(files)].sort()]).filter(([, files]) => files.length > 1));
 }
 
+const tagIsModule = (html, tag) => /\stype="module"/.test(html.slice(tag.start, tag.end));
+
+/**
+ * @param {string} page @param {string} html @param {(file: string) => { module: boolean } | null} read @param {string[]} builtFiles the scripts the built list can add to the page
+ * @returns {string[]} the scripts the page loads as what they are not: a module by a classic tag (or by a list, which writes classic tags), a classic script as a module
+ */
+export function mixedLoads(page, html, read, builtFiles = []) {
+  const problems = [];
+  for (const tag of tagsOf(html)) {
+    const known = tag.kind === 'script' && tag.file ? read(tag.file) : null;
+    if (known && known.module !== tagIsModule(html, tag)) problems.push(`${page} loads ${tag.file} as a ${known.module ? 'classic script, and the file says it is a module' : 'module, and the file does not say it is one'}`);
+  }
+  for (const file of builtFiles) if (read(file)?.module) problems.push(`${BUILT_LIST} holds ${file}, a module, in a list written out as classic tags`);
+  return problems;
+}
+
 // The classic scripts one page runs: its tags, the scripts written inside it, and (for the page of desktop
 // widgets) every script a row of the built list can add.
 function pageScripts(page, html, read, builtRows) {
   const scripts = [];
   for (const tag of tagsOf(html)) {
-    if (tag.kind !== 'script' || !tag.file || /type="module"/.test(html.slice(tag.start, tag.end))) continue;
+    if (tag.kind !== 'script' || !tag.file || tagIsModule(html, tag)) continue;
     const known = read(tag.file);
     if (known && !known.module) scripts.push({ file: tag.file, names: known.names });
   }
@@ -118,7 +131,7 @@ function pageScripts(page, html, read, builtRows) {
  * Today's numbers.
  * @param {string} [root] @param {string[]} [files] the tracked files
  * @returns {Promise<{ scripts: Record<string, number>, handlers: Record<string, number>, duplicates: Record<string, number>,
- *   where: Record<string, string[]>, counted: number, modules: string[], classic: string[] }>}
+ *   where: Record<string, string[]>, counted: number, modules: string[], classic: string[], mixed: string[] }>}
  *   `scripts` holds the number of such names per script (a script and the files split out of it are one key)
  */
 export async function measureBrowser(root = REPO_ROOT, files = trackedFiles(root) ?? []) {
@@ -151,13 +164,15 @@ export async function measureBrowser(root = REPO_ROOT, files = trackedFiles(root
     const handlers = Object.fromEntries(pages.map((page) => [page, inlineHandlers(text(page))]).filter(([, count]) => count > 0));
     const builtRows = tracked.has(BUILT_LIST) ? Object.values(readLists(text(BUILT_LIST))) : [];
     const where = {};
+    const builtFiles = [...new Set(builtRows.flatMap((row) => row.js))];
+    const mixed = pages.flatMap((page) => mixedLoads(page, text(page), read, page === 'server/layer-lite.html' ? builtFiles : []));
     for (const page of pages) {
       for (const [name, holders] of Object.entries(duplicateNames(pageScripts(page, text(page), read, builtRows)))) {
         where[name] = [...new Set([...(where[name] ?? []), ...holders])].sort();
       }
     }
     const duplicates = Object.fromEntries(Object.entries(where).map(([name, holders]) => [name, holders.length]));
-    return { scripts, handlers, duplicates, where, counted: ours.length, modules, classic };
+    return { scripts, handlers, duplicates, where, counted: ours.length, modules, classic, mixed };
   } finally {
     parser.close();
   }
@@ -169,7 +184,7 @@ export async function measureBrowser(root = REPO_ROOT, files = trackedFiles(root
  * @returns {string[]} what got worse, empty when nothing did
  */
 export function browserProblems(now, saved = Object.fromEntries(Object.keys(CHECKS).map((key) => [key, readCounts(CHECKS[key].file)]))) {
-  const problems = [];
+  const problems = (now.mixed ?? []).map((line) => `modules: ${line}`);
   for (const key of Object.keys(CHECKS)) {
     const { worse } = compareCounts(saved[key], now[key]);
     for (const row of worse) {
