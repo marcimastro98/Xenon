@@ -138,7 +138,8 @@
       {"file":"server/grid/widget-placed.js","about":"Whether a tile is on the dashboard right now, answered strictly: an unknown layout is no.","names":["_widgetPlaced"]},
       {"file":"server/ticker/feed-settings.js","about":"What the stocks, football and news feeds read from the settings: the lists the user follows and the provider keys.","names":["_stocksSettings","_stocksProviderOpts","_stocksAlertsWanted","_footballSettings","_footballOpts","_newsSettings","_newsOpts"]},
       {"file":"server/codex/widget-config.js","about":"The Codex tile's own choices from the settings, with their defaults.","names":["_codexCfg"]},
-      {"file":"server/vitals/pet-config.js","about":"The Vitals pet's settings, or nothing when the pet or Vitals is switched off.","names":["vitalsPetCfg"]}
+      {"file":"server/vitals/pet-config.js","about":"The Vitals pet's settings, or nothing when the pet or Vitals is switched off.","names":["vitalsPetCfg"]},
+      {"file":"server/audio/device-cache.js","about":"The sound devices in use, as last seen: the default speaker and microphone, the speaker volume and whether sound is muted or turned down for speech. Kept so a volume or mute change does not have to look them up again.","names":["isMuted","cachedSpeakerId","cachedSpeakerName","cachedMicId","cachedMicLabel","_lastSpeakerVolume","_duckActive","_duckSavedVolume"],"state":{"object":"audioCache","props":{"isMuted":"muted","cachedSpeakerId":"speakerId","cachedSpeakerName":"speakerName","cachedMicId":"micId","cachedMicLabel":"micLabel","_lastSpeakerVolume":"speakerVolume","_duckActive":"ducked","_duckSavedVolume":"volumeBeforeDuck"},"kept":[],"bare":[]}}
     ]
   }
 }

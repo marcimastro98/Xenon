@@ -791,14 +791,7 @@ async function loadWhatsNew() {
   return data;
 }
 
-let isMuted = false;
-let cachedSpeakerId   = null; // full CLI ID — for SetDefault
-let cachedSpeakerName = null; // short endpoint name — for SetVolume/ToggleMute
-let cachedMicId       = null;
-let cachedMicLabel    = null; // friendly name (F.NAME) used to match DirectShow devices
-let _lastSpeakerVolume = 50;  // updated by getAudioInfo — used for duck/restore
-let _duckActive        = false;
-let _duckSavedVolume   = null;
+const { audioCache } = require('./audio/device-cache.js');
 
 // ── AI model ids ─────────────────────────────────────────────────────────────
 // `chat` is the Gemini model for chat / function-calling / STT / web-search;
@@ -4658,8 +4651,8 @@ async function _getAudioInfoRaw() {
   const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
   const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
 
-  if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
-  if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; _maybeRebindSttDevice(); }
+  if (defSpk) { audioCache.speakerId = defSpk[F.CLI_ID]; audioCache.speakerName = defSpk[F.NAME]; audioCache.speakerVolume = parseInt(defSpk[F.VOL_PCT]) || audioCache.speakerVolume; }
+  if (defMic) { audioCache.micId = defMic[F.CLI_ID]; audioCache.micLabel = defMic[F.NAME]; _maybeRebindSttDevice(); }
 
   const toDevice = (f, isDefault) => ({
     name:      f[F.DEVICE_NAME],
@@ -4753,9 +4746,9 @@ function setMicMute(mute) {
   const action = mute ? '/Mute' : '/Unmute';
   // Use the cached mic CLI ID (resolved from SoundVolumeView output) so the call works
   // regardless of the Windows display language. Falls back silently if the cache is empty.
-  if (cachedMicId) {
-    svvExec([action, cachedMicId]).catch(e => console.error(e.message));
-  } else if (cachedSpeakerName) {
+  if (audioCache.micId) {
+    svvExec([action, audioCache.micId]).catch(e => console.error(e.message));
+  } else if (audioCache.speakerName) {
     // Last-resort: try the generic 'DefaultCaptureDevice' selector understood by SVV
     svvExec([action, 'DefaultCaptureDevice']).catch(e => console.error(e.message));
   }
@@ -5499,22 +5492,22 @@ const deckRegistryDeps = {
   mediaAction: (cmd) => mediaAction(cmd),
   mediaSeek: (position) => mediaSeek(position),
   micMute: async (mode) => {
-    if (mode === 'mute') isMuted = true;
-    else if (mode === 'unmute') isMuted = false;
-    else isMuted = !isMuted;          // 'toggle'
-    setMicMute(isMuted);
+    if (mode === 'mute') audioCache.muted = true;
+    else if (mode === 'unmute') audioCache.muted = false;
+    else audioCache.muted = !audioCache.muted;          // 'toggle'
+    setMicMute(audioCache.muted);
     // Push it now rather than on the next 3s status tick, so a Deck key's face
     // follows the press on every screen (issue #139).
     broadcastStatusNow();
-    return { muted: isMuted };
+    return { muted: audioCache.muted };
   },
   volume: async (mode, value) => {
-    if (!cachedSpeakerId) throw new Error('Cache not ready');
-    if (mode === 'mute') return svvExec(['/Switch', cachedSpeakerId]);
-    if (mode === 'up') return svvExec(['/ChangeVolume', cachedSpeakerId, '5']);
-    if (mode === 'down') return svvExec(['/ChangeVolume', cachedSpeakerId, '-5']);
+    if (!audioCache.speakerId) throw new Error('Cache not ready');
+    if (mode === 'mute') return svvExec(['/Switch', audioCache.speakerId]);
+    if (mode === 'up') return svvExec(['/ChangeVolume', audioCache.speakerId, '5']);
+    if (mode === 'down') return svvExec(['/ChangeVolume', audioCache.speakerId, '-5']);
     // 'set': absolute 0–100 (already clamped by the registry) — slider keys.
-    if (mode === 'set') return svvExec(['/SetVolume', cachedSpeakerId, String(value)]);
+    if (mode === 'set') return svvExec(['/SetVolume', audioCache.speakerId, String(value)]);
   },
   appVolume: async (app, mode, value) => {
     const target = appAudioTarget(app);
@@ -5543,8 +5536,8 @@ const deckRegistryDeps = {
     const match = resolveOutputDevice(wanted, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
     await setDefaultAudioDevice(match.id);
-    cachedSpeakerId = match.id;
-    cachedSpeakerName = match.name || cachedSpeakerName;
+    audioCache.speakerId = match.id;
+    audioCache.speakerName = match.name || audioCache.speakerName;
     return { ok: true };
   },
   // Flip between two outputs. Which one is decided against the live list, so a
@@ -5556,8 +5549,8 @@ const deckRegistryDeps = {
     const match = pickToggleDevice(a, b, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
     await setDefaultAudioDevice(match.id);
-    cachedSpeakerId = match.id;
-    cachedSpeakerName = match.name || cachedSpeakerName;
+    audioCache.speakerId = match.id;
+    audioCache.speakerName = match.name || audioCache.speakerName;
     return { ok: true };
   },
   // The first output of an ordered list that is connected right now: headphones
@@ -5571,8 +5564,8 @@ const deckRegistryDeps = {
     const match = pickFirstConnected(ids, info && info.speakers);
     if (!match) return { ok: false, error: 'none_connected' };
     if (!match.isDefault) await setDefaultAudioDevice(match.id);
-    cachedSpeakerId = match.id;
-    cachedSpeakerName = match.name || cachedSpeakerName;
+    audioCache.speakerId = match.id;
+    audioCache.speakerName = match.name || audioCache.speakerName;
     return { ok: true };
   },
   // A Vitals meter marked done from a Deck key or a granted SDK widget: the
@@ -6212,19 +6205,19 @@ let _speakGenToken = 0; // incremented on each stopServerSpeak to abort in-fligh
 // Duck/restore helpers — lower device volume so music quiets while Xenon speaks,
 // then restore to the saved level. Safe to call multiple times (guarded by flag).
 function _duckSpeakerVolume() {
-  if (!_duckActive && cachedSpeakerId) {
-    _duckSavedVolume = _lastSpeakerVolume;
-    _duckActive = true;
-    svvExec(['/SetVolume', cachedSpeakerId, '30']).catch(() => {});
-    process.stdout.write(`[Duck] volume ${_duckSavedVolume} → 30\n`);
+  if (!audioCache.ducked && audioCache.speakerId) {
+    audioCache.volumeBeforeDuck = audioCache.speakerVolume;
+    audioCache.ducked = true;
+    svvExec(['/SetVolume', audioCache.speakerId, '30']).catch(() => {});
+    process.stdout.write(`[Duck] volume ${audioCache.volumeBeforeDuck} → 30\n`);
   }
 }
 function _restoreSpeakerVolume() {
-  if (_duckActive && cachedSpeakerId) {
-    const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
-    _duckActive = false;
-    _duckSavedVolume = null;
-    svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).catch(() => {});
+  if (audioCache.ducked && audioCache.speakerId) {
+    const vol = audioCache.volumeBeforeDuck != null ? audioCache.volumeBeforeDuck : 70;
+    audioCache.ducked = false;
+    audioCache.volumeBeforeDuck = null;
+    svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).catch(() => {});
     process.stdout.write(`[Duck] restored → ${vol}\n`);
   }
 }
@@ -6770,13 +6763,13 @@ async function runAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'forget_fact') {
       fnResult = await aiMemory.remove(fnArgs.fact || fnArgs.text || fnArgs.query || '');
     } else if (fnName === 'toggle_mic') {
-      isMuted = !isMuted; setMicMute(isMuted);
-      fnResult = { ok: true, muted: isMuted };
+      audioCache.muted = !audioCache.muted; setMicMute(audioCache.muted);
+      fnResult = { ok: true, muted: audioCache.muted };
     } else if (fnName === 'mute_mic') {
-      isMuted = true; setMicMute(true);
+      audioCache.muted = true; setMicMute(true);
       fnResult = { ok: true, muted: true };
     } else if (fnName === 'unmute_mic') {
-      isMuted = false; setMicMute(false);
+      audioCache.muted = false; setMicMute(false);
       fnResult = { ok: true, muted: false };
     } else if (fnName === 'media_playpause') {
       fnResult = await mediaAction('playpause');
@@ -6786,21 +6779,21 @@ async function runAiTool(fnName, fnArgs, deps) {
       fnResult = await mediaAction('previous');
     } else if (fnName === 'set_volume') {
       const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-      if (cachedSpeakerId) {
-        await svvExec(['/SetVolume', cachedSpeakerId, String(vol)]);
+      if (audioCache.speakerId) {
+        await svvExec(['/SetVolume', audioCache.speakerId, String(vol)]);
       }
       fnResult = { ok: true, level: vol };
     } else if (fnName === 'toggle_speaker_mute') {
-      if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
+      if (!audioCache.speakerId) { fnResult = { error: 'audio not ready' }; }
       else {
-        await svvExec(['/Switch', cachedSpeakerId]);
+        await svvExec(['/Switch', audioCache.speakerId]);
         fnResult = { ok: true };
       }
     } else if (fnName === 'set_mic_volume') {
       const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-      if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
+      if (!audioCache.micId) { fnResult = { error: 'mic not ready' }; }
       else {
-        await svvExec(['/SetVolume', cachedMicId, String(micVol)]);
+        await svvExec(['/SetVolume', audioCache.micId, String(micVol)]);
         fnResult = { ok: true, level: micVol };
       }
     } else if (fnName === 'lock_pc') {
@@ -7592,8 +7585,8 @@ async function runAiTool(fnName, fnArgs, deps) {
             fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
           } else {
             await setDefaultAudioDevice(match.id);
-            if (kind === 'speaker') cachedSpeakerId = match.id;
-            else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
+            if (kind === 'speaker') audioCache.speakerId = match.id;
+            else { audioCache.micId = match.id; if (audioCache.muted) setMicMute(true); }
             fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
           }
         }
@@ -10528,9 +10521,9 @@ function _sttVia() {
   return _sttUseWasapi ? 'wasapi' : 'dshow';
 }
 function _sttDeviceLabel() {
-  if (_sttAvfIndex !== null) return cachedMicLabel || `Input ${_sttAvfIndex}`;
-  if (_sttLinuxFormat) return cachedMicLabel || `Default (${_sttLinuxFormat})`;
-  if (_sttUseWasapi) return cachedMicLabel || 'Default (WASAPI)';
+  if (_sttAvfIndex !== null) return audioCache.micLabel || `Input ${_sttAvfIndex}`;
+  if (_sttLinuxFormat) return audioCache.micLabel || `Default (${_sttLinuxFormat})`;
+  if (_sttUseWasapi) return audioCache.micLabel || 'Default (WASAPI)';
   return _sttDshowDevice || 'unknown';
 }
 wakeWord.init({
@@ -12644,8 +12637,8 @@ async function _initSttDevice() {
         // Prefer the device the mixer says is the default input, so the wake
         // word and the recorder follow the mic the user actually picked.
         let chosen = null;
-        if (cachedMicLabel) {
-          const lbl = cachedMicLabel.toLowerCase();
+        if (audioCache.micLabel) {
+          const lbl = audioCache.micLabel.toLowerCase();
           chosen = devices.find(d => d.name.toLowerCase().includes(lbl));
         }
         _sttAvfIndex = (chosen || devices[0]).index;
@@ -12657,7 +12650,7 @@ async function _initSttDevice() {
       process.stdout.write('[STT] Device init error: ' + e.message + '\n');
     }
     _sttDeviceReady = true;
-    _boundMicLabel = cachedMicLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
+    _boundMicLabel = audioCache.micLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
     _sttDeviceWaiters.splice(0).forEach(cb => cb());
     return;
   }
@@ -12676,7 +12669,7 @@ async function _initSttDevice() {
       process.stdout.write('[STT] Device init error: ' + e.message + '\n');
     }
     _sttDeviceReady = true;
-    _boundMicLabel = cachedMicLabel || (_sttLinuxFormat ? `__${_sttLinuxFormat}__` : null);
+    _boundMicLabel = audioCache.micLabel || (_sttLinuxFormat ? `__${_sttLinuxFormat}__` : null);
     _sttDeviceWaiters.splice(0).forEach(cb => cb());
     return;
   }
@@ -12704,8 +12697,8 @@ async function _initSttDevice() {
       const names = await _enumSttDevice();
       if (names.length > 0) {
         let chosen = null;
-        if (cachedMicLabel) {
-          const lbl = cachedMicLabel.toLowerCase();
+        if (audioCache.micLabel) {
+          const lbl = audioCache.micLabel.toLowerCase();
           chosen = names.find(d => d.toLowerCase().includes(lbl));
         }
         _sttDshowDevice = chosen || names[0];
@@ -12719,7 +12712,7 @@ async function _initSttDevice() {
   }
 
   _sttDeviceReady = true;
-  _boundMicLabel = cachedMicLabel || _sttDshowDevice || (wasapiOk ? '__wasapi_default__' : null);
+  _boundMicLabel = audioCache.micLabel || _sttDshowDevice || (wasapiOk ? '__wasapi_default__' : null);
   _sttDeviceWaiters.splice(0).forEach(cb => cb());
 }
 
@@ -12748,13 +12741,13 @@ function _sttDeviceWhenReady() {
 let _sttRebindTimer = null;
 function _maybeRebindSttDevice() {
   if (!_sttDeviceReady || _sttUseWasapi) return;          // wasapi follows "default" already
-  if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
+  if (!audioCache.micLabel || audioCache.micLabel === _boundMicLabel) return;
   if (_sttRebindTimer) return;
   _sttRebindTimer = setTimeout(async () => {
     _sttRebindTimer = null;
     if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
-    if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
-    process.stdout.write(`[STT] Default mic changed to "${cachedMicLabel}": rebinding capture device\n`);
+    if (!audioCache.micLabel || audioCache.micLabel === _boundMicLabel) return;
+    process.stdout.write(`[STT] Default mic changed to "${audioCache.micLabel}": rebinding capture device\n`);
     try {
       await _initSttDevice();
       // The wake listener pins the device at spawn time — bounce it so it
@@ -13486,9 +13479,9 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'popup_failed' }); }
 
   } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
-    isMuted = !isMuted;
-    setMicMute(isMuted);
-    json({ muted: isMuted });
+    audioCache.muted = !audioCache.muted;
+    setMicMute(audioCache.muted);
+    json({ muted: audioCache.muted });
 
   } else if (reqPath === '/ping' && req.method === 'GET') {
     // 1×1 transparent GIF — used by the iCUE widget to probe connectivity via
@@ -14198,8 +14191,8 @@ const handleRequest = async (req, res) => {
         ({ level } = JSON.parse(await readBody(req)));
       }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
-      if (!cachedSpeakerId) { err500('Cache not ready'); return; }
-      svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).then(() => json({ ok: true, level: vol }), e => err500(e.message));
+      if (!audioCache.speakerId) { err500('Cache not ready'); return; }
+      svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).then(() => json({ ok: true, level: vol }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/volume' && (req.method === 'POST' || req.method === 'GET')) {
@@ -14211,16 +14204,16 @@ const handleRequest = async (req, res) => {
         ({ level } = JSON.parse(await readBody(req)));
       }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
-      if (!cachedMicId) { err500('Cache not ready'); return; }
+      if (!audioCache.micId) { err500('Cache not ready'); return; }
       // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
-      svvExec(['/SetVolume', cachedMicId, String(vol)])
-        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', cachedMicId]))
+      svvExec(['/SetVolume', audioCache.micId, String(vol)])
+        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', audioCache.micId]))
         .then(() => json({ ok: true, level: vol }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/speaker/mute' && (req.method === 'POST' || req.method === 'GET')) {
-    if (!cachedSpeakerId) { err500('Cache not ready'); return; }
-    svvExec(['/Switch', cachedSpeakerId]).then(() => json({ ok: true }), e => err500(e.message));
+    if (!audioCache.speakerId) { err500('Cache not ready'); return; }
+    svvExec(['/Switch', audioCache.speakerId]).then(() => json({ ok: true }), e => err500(e.message));
 
   } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
     try {
@@ -14496,15 +14489,15 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      setDefaultAudioDevice(id).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
+      setDefaultAudioDevice(id).then(() => { audioCache.speakerId = id; json({ ok: true }); }, e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
       setDefaultAudioDevice(id).then(() => {
-        cachedMicId = id;
-        if (isMuted) setMicMute(true);
+        audioCache.micId = id;
+        if (audioCache.muted) setMicMute(true);
         json({ ok: true });
       }, e => err500(e.message));
     } catch (e) { err500(e.message); }
@@ -18701,10 +18694,10 @@ const handleRequest = async (req, res) => {
     // Lower system volume before TTS speaks so Xenon's voice is foregrounded.
     try {
       await readBody(req);
-      if (!_duckActive && cachedSpeakerId) {
-        _duckSavedVolume = _lastSpeakerVolume;
-        _duckActive = true;
-        svvExec(['/SetVolume', cachedSpeakerId, '20']).catch(() => {});
+      if (!audioCache.ducked && audioCache.speakerId) {
+        audioCache.volumeBeforeDuck = audioCache.speakerVolume;
+        audioCache.ducked = true;
+        svvExec(['/SetVolume', audioCache.speakerId, '20']).catch(() => {});
       }
       res.writeHead(204); res.end();
     } catch { res.writeHead(204); res.end(); }
@@ -18712,11 +18705,11 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/volume/restore' && req.method === 'POST') {
     try {
       await readBody(req);
-      if (_duckActive && cachedSpeakerId) {
-        const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
-        _duckActive = false;
-        _duckSavedVolume = null;
-        svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).catch(() => {});
+      if (audioCache.ducked && audioCache.speakerId) {
+        const vol = audioCache.volumeBeforeDuck != null ? audioCache.volumeBeforeDuck : 70;
+        audioCache.ducked = false;
+        audioCache.volumeBeforeDuck = null;
+        svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).catch(() => {});
       }
       res.writeHead(204); res.end();
     } catch { res.writeHead(204); res.end(); }
@@ -22500,10 +22493,10 @@ function _startListen(host) {
       .catch((e) => console.warn('[sdk] grant group migration failed:', e && e.message));
     setTimeout(tidyLeftoverTasks, LEFTOVER_TASKS_DELAY_MS).unref();
     getAudioInfo().then(info => {
-      if (info && info.mic && typeof info.mic.muted === 'boolean') isMuted = info.mic.muted;
-      console.log('Speaker cache:', cachedSpeakerId);
-      console.log('Mic cache:   ', cachedMicId);
-      console.log('Mic muted:   ', isMuted);
+      if (info && info.mic && typeof info.mic.muted === 'boolean') audioCache.muted = info.mic.muted;
+      console.log('Speaker cache:', audioCache.speakerId);
+      console.log('Mic cache:   ', audioCache.micId);
+      console.log('Mic muted:   ', audioCache.muted);
     }).catch(e => console.error('Audio init failed:', e.message));
     setTimeout(_startSttDevice, STT_DEVICE_DELAY_MS).unref();
     // The T2 HTTPS door, when the user asked for it. Deferred and fire-and-forget:
@@ -22834,7 +22827,7 @@ function statusPayload() {
   // (main.js) — a stale client's normalizers can corrupt shared state on save.
   // whenOff: opaque ids of the widgets whose rule or key hides them now, never why.
   const whenOff = [...new Set([..._situations.hidden(), ..._widgetKeys.hidden()])];
-  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, whenOff, bootAt: _serverBootAt, version: APP_VERSION };
+  return { muted: audioCache.muted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, whenOff, bootAt: _serverBootAt, version: APP_VERSION };
 }
 
 // Broadcast only when the payload actually changed (plus a slow heartbeat).
