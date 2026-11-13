@@ -1,0 +1,77 @@
+{
+ "origin": "apps/native/src-tauri/src/layers/mod.rs",
+ "parts": [
+  {
+   "file": "apps/native/src-tauri/src/layers/supports.rs",
+   "about": "What this system can draw outside the dashboard window: the scene, the drawing sheet, anchored widgets, the menu.",
+   "lines": [
+    [
+     118,
+     145
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/layers/page.rs",
+   "about": "The page a layer window loads: its address and the scripts it starts with.",
+   "lines": [
+    [
+     179,
+     216
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/layers/signals.rs",
+   "about": "What the dashboard asks of the layer windows: a sync, a dashboard brought forward, the glow on the edges, the menu and the screensaver.",
+   "lines": [
+    [
+     240,
+     240
+    ],
+    [
+     266,
+     450
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/layers/window.rs",
+   "about": "One layer window: opened, kept on its own page, and its tile rectangles reported.",
+   "lines": [
+    [
+     599,
+     794
+    ]
+   ]
+  }
+ ],
+ "drop": {
+  "apps/native/src-tauri/src/layers/mod.rs": [
+   "backend"
+  ],
+  "apps/native/src-tauri/src/layers/supports.rs": [
+   "backend",
+   "Kind"
+  ],
+  "apps/native/src-tauri/src/layers/signals.rs": [
+   "glow",
+   "native_handle",
+   "glow_backend"
+  ]
+ },
+ "uses": {
+  "apps/native/src-tauri/src/layers/mod.rs": [
+   "/// How the windows behave on this OS: the same `Plan`, `apply` and `set_region`.\n#[cfg(target_os = \"linux\")]\nuse linux as backend;\n#[cfg(target_os = \"macos\")]\nuse macos as backend;",
+   "// The glow has a file of its own with the same name as this function: both are reached as `layers::glow`.\npub use signals::glow;"
+  ],
+  "apps/native/src-tauri/src/layers/supports.rs": [
+   "// On Windows every answer below is fixed, so only the other systems ask their backend.\n#[cfg(target_os = \"linux\")]\nuse super::linux as backend;\n#[cfg(target_os = \"macos\")]\nuse super::macos as backend;\n#[cfg(not(windows))]\nuse super::spec::Kind;"
+  ],
+  "apps/native/src-tauri/src/layers/signals.rs": [
+   "/// How the edge glow is drawn on this OS: the same `Screen::of`, `Plan` and `apply`.\n#[cfg(target_os = \"linux\")]\nuse super::glow_linux as glow_backend;\n#[cfg(target_os = \"macos\")]\nuse super::glow_macos as glow_backend;\n#[cfg(windows)]\nuse super::glow_win32 as glow_backend;",
+   "// Only Windows asks for the window handle here (force_focus).\n#[cfg(windows)]\nuse super::native_handle;",
+   "// Only the file named glow, not the function of the same name defined below.\nuse super::glow::{self};"
+  ]
+ }
+}

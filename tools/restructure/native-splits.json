@@ -127,6 +127,12 @@
     "apps/native/src-tauri/src/layers/glow.rs": [
       "apps/native/src-tauri/src/layers/glow/unit_tests.rs"
     ],
+    "apps/native/src-tauri/src/layers/mod.rs": [
+      "apps/native/src-tauri/src/layers/page.rs",
+      "apps/native/src-tauri/src/layers/signals.rs",
+      "apps/native/src-tauri/src/layers/supports.rs",
+      "apps/native/src-tauri/src/layers/window.rs"
+    ],
     "apps/native/src-tauri/src/layers/spec.rs": [
       "apps/native/src-tauri/src/layers/spec/pages.rs",
       "apps/native/src-tauri/src/layers/spec/unit_tests.rs"

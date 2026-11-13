@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readFileSync } from './browser-source.mjs';
+import { readFileSync } from './native-source.mjs'; // browser files too: it reads them through ./browser-source.mjs
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { engineSource } from './engine-source.mjs';
