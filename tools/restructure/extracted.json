@@ -106,7 +106,14 @@
       {"file":"server/smart-home/limits.js","about":"Limits of the smart home links: Home Assistant devices watched for Deck keys, the shape of a device id, and remembered camera alerts.","names":["HA_DECK_WATCH_MAX","HA_DECK_WATCH_CLIENTS_MAX","HA_DECK_WATCH_TTL_MS","HA_ENTITY_ID_RE","UNIFI_COOLDOWN_MAX"]},
       {"file":"server/search/installed-apps-windows.js","about":"Lists the apps installed on Windows, from the Start menu and from the Store, and says how long the list is reused.","names":["INSTALLED_APPS_TTL_MS","_enumStartMenuLnks","_enumStoreApps"]},
       {"file":"server/screens/list-screens.js","about":"Lists the screens connected to this PC with their position and size.","names":["listScreens"]},
-      {"file":"server/screens/shrink-to-width.js","about":"Makes a screenshot narrower in place when it is wider than asked, on macOS.","names":["_capShrinkToWidth"]}
+      {"file":"server/screens/shrink-to-width.js","about":"Makes a screenshot narrower in place when it is wider than asked, on macOS.","names":["_capShrinkToWidth"]},
+      {"file":"server/look/background-media.js","about":"Checks the picture or video saved as the dashboard background: an uploaded file of this server, or a small inline SVG.","names":["sanitizeSettingsBackgroundMedia"]},
+      {"file":"server/look/custom-themes.js","about":"Checks the themes a user imported before they are saved with the settings: at most 24, and when they are too big together their pictures go, not the themes.","names":["sanitizeCustomThemes"]},
+      {"file":"server/grid/pages-normalize.js","about":"Checks the list of dashboard pages saved with the settings: one entry per id, names cut to size, and no more pages than allowed.","names":["normalizeDashboardPages"]},
+      {"file":"server/ai/hardware-scan-normalize.js","about":"Checks a hardware scan result (memory, cores, which local AI model fits) when a browser sends it back with the settings.","names":["normalizeHardwareScan"]},
+      {"file":"server/vitals/settings-normalize.js","about":"Checks the Vitals settings (the reminders and Bit, the guardian pet): every field brought back to an allowed value or its default.","names":["normalizeVitals"]},
+      {"file":"server/lights/devices-normalize.js","about":"Checks the per-device parts of the lighting settings: each device's own mode and colours, and the layouts of directly driven controllers.","names":["normalizeLightingDeviceModes","normalizeLightingNative"]},
+      {"file":"server/time/timer-normalize.js","about":"Checks one timer before it is kept: id, label, countdown or stopwatch, duration, chimes and where it stands.","names":["_normalizeTimer"]}
     ]
   }
 }

@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { wallpaperPayload, WALLPAPER_EMBED_MAX, encodePreset, decodePreset } = require('../js/preset-share.js');
@@ -45,7 +46,7 @@ test('the wallpaper survives the code round trip inside a bundle', () => {
 
 // Both sanitizers keep `imported` + a valid installId, and nothing else new.
 function loadSanitizer(file, fnName, extra) {
-  const src = readFileSync(join(ROOT, file), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
+  const src = (file === 'server/server.js' ? engineSource() : readFileSync(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
   const start = src.indexOf('function ' + fnName + '(');
   const end = src.indexOf('\n}\n', start) + 2;
   const ctx = vm.createContext(Object.assign({

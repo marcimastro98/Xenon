@@ -171,16 +171,11 @@ const {
 } = require('./ai/settings-normalize.js');
 
 const {
-  VITALS_IDS, VITALS_DEFAULT_MIN, VITALS_DEFAULT_ON, VITALS_PET_STAGES, VITALS_PET_DEFAULT_THR,
-  vitalsHour,
-} = require('./vitals/settings-values.js');
-
-const {
   AMBIENT_IDLE_MINUTES, AMBIENT_SCENE_ID_RE, AMBIENT_CANVAS_REF_RE, AMBIENT_THEME_REF_RE,
 } = require('./ambient/settings-values.js');
 
 const {
-  SETTINGS_MIN_PANEL_ALPHA, BG_SVG_DATA_RE, BG_SVG_MAX_CHARS, BG_STATIC_STYLES, BG_CUSTOM_CODE_MAX,
+  SETTINGS_MIN_PANEL_ALPHA, BG_STATIC_STYLES, BG_CUSTOM_CODE_MAX,
 } = require('./look/background-values.js');
 
 const { sanitizeSettingsUiFont } = require('./look/font-setting.js');
@@ -209,15 +204,14 @@ const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
 
 const {
   LIGHTING_ANIM_STYLES, normalizeLightingAnimation, normalizeLightingProviders,
-  LIGHTING_DEVICE_MODES, LIGHTING_ANIM_SUB, normalizeLightingEvent,
+  normalizeLightingEvent,
 } = require('./lights/settings-normalize.js');
 
 const { WEATHER_LANGS, WEATHER_FIELD_IDS } = require('./weather/setting-values.js');
 
 const {
   LEGACY_SEEDED_GROUPS, cloneDashboardLayout, DASHBOARD_GEOM_FALLBACK, normalizeDashboardItem,
-  reindexDashboardCollection, DASHBOARD_PAGES_MAX, normalizeDashboardTabs, normalizeCalendarTabs,
-  normalizeMediaView,
+  reindexDashboardCollection, normalizeDashboardTabs, normalizeCalendarTabs, normalizeMediaView,
 } = require('./grid/layout-normalize-parts.js');
 
 const { scaleDashboardLayoutUnits } = require('./grid/layout-unit-migration.js');
@@ -227,8 +221,6 @@ const {
 } = require('./grid/tile-asset-refs.js');
 
 const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-refs.js');
-
-const { SAFE_ITEM_ID_RE } = require('./time/item-id.js');
 
 const { _nextListSeq } = require('./time/list-seq.js');
 
@@ -240,9 +232,7 @@ const {
   CALENDAR_FEED_PALETTE, normalizeEvents, EVENT_EDIT_FIELDS,
 } = require('./time/events-normalize.js');
 
-const {
-  TIMERS_MAX, TIMER_KINDS, _timerId, _getTimerElapsed, _getTimerRemaining,
-} = require('./time/timer-values.js');
+const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
 
 const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-probe.js');
 
@@ -542,8 +532,8 @@ try {
 } catch { /* platform without one */ }
 const lighting = require('./lighting');
 const { createSessionWatch } = require('./session-watch');
-const { normalizeLedColors } = require('./lighting-led-colors');
-const { normalizeLayouts: normalizeLightingLayouts, normalizeScanned: normalizeLightingScanned } = require('./lighting-layouts');
+require('./lighting-led-colors');
+require('./lighting-layouts');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
@@ -706,7 +696,7 @@ const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
 const { createSdkAi, cleanDailyCap: cleanSdkAiDailyCap } = require('./sdk-ai');
-const { createRoastSparks, cleanRoastSparksCap } = require('./vitals-roast-sparks.js');
+const { createRoastSparks } = require('./vitals-roast-sparks.js');
 const { createBitMessages } = require('./bit-messages.js');
 const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
 const { createPcId } = require('./pc-id.js');
@@ -1996,6 +1986,20 @@ function refreshLivingIndex() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
   try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
 }
+const { sanitizeSettingsBackgroundMedia } = require('./look/background-media.js');
+
+const { sanitizeCustomThemes } = require('./look/custom-themes.js');
+
+const { normalizeDashboardPages } = require('./grid/pages-normalize.js');
+
+const { normalizeHardwareScan } = require('./ai/hardware-scan-normalize.js');
+
+const { normalizeVitals } = require('./vitals/settings-normalize.js');
+
+const {
+  normalizeLightingDeviceModes, normalizeLightingNative,
+} = require('./lights/devices-normalize.js');
+
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
 // the guard re-checks every resolved path. Settings feed the category rules
@@ -2137,7 +2141,7 @@ const {
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
-const { SCOPED_LABEL_MAX } = require('./actions/widget-timers');
+require('./actions/widget-timers');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
 // injected into the AI system prompt so the assistant remembers across sessions.
@@ -3593,6 +3597,8 @@ async function _guardHelperMediaBlindSpot(out) {
   _retireMediaHost('helper media blind');                   // drop to the PS host for a while
   return ps;
 }
+
+const { _normalizeTimer } = require('./time/timer-normalize.js');
 
 // Neither host above can run off Windows: there is no SMTC and no PowerShell.
 // Both other platforms have their own now-playing source behind the SAME
@@ -8924,30 +8930,6 @@ let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 // wrong reads as "not new" — under-counting births is the recoverable direction.
 let _settingsFileMissingAtBoot = false;
 
-function sanitizeSettingsBackgroundMedia(value) {
-  if (!value || typeof value !== 'object') return null;
-  const url = String(value.url || '').trim();
-  const name = String(value.name || '').trim().slice(0, 120);
-  const type = String(value.type || '').trim().slice(0, 60);
-  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  let out;
-  if (url.startsWith('data:')) {
-    if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
-    out = { url, name: name || 'svg', type: 'image/svg+xml', version };
-  } else {
-    if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
-    if (!/^(image|video)\//.test(type)) return null;
-    out = { url, name: name || url.split('/').pop(), type, version };
-  }
-  // Redistribution marker (mirrors bgCustom): a wallpaper installed from a
-  // package is never offered back in an export, and its receipt can remove it.
-  if (value.imported === true) out.imported = true;
-  if (out.imported && contentInstalls.INSTALL_ID_RE.test(String(value.installId || ''))) {
-    out.installId = String(value.installId);
-  }
-  return out;
-}
-
 function normalizeLockWidgets(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.lockWidgets;
@@ -9100,25 +9082,6 @@ function normalizeDashboardGeom(sourceItem, fallbackItem) {
   return out;
 }
 
-function normalizeDashboardPages(value) {
-  const seed = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT.pages);
-  if (!Array.isArray(value)) return seed;
-  const out = [];
-  const seen = new Set();
-  value.forEach(p => {
-    if (!p || typeof p !== 'object') return;
-    const id = String(p.id || '').trim().slice(0, 64);
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
-    if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
-    if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
-    if (page.imported && contentInstalls.INSTALL_ID_RE.test(String(p.installId || ''))) page.installId = String(p.installId);
-    out.push(page);
-  });
-  return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
-}
-
 function normalizeDashboardGroups(value, widgets, pageIds, copies) {
   const copyIds = new Set((Array.isArray(copies) ? copies : []).map(c => c.id));
   const isInstance = (m) => (widgets && widgets[m]) || copyIds.has(m);
@@ -9216,137 +9179,8 @@ function normalizeDashboardLayout(value) {
   return layout;
 }
 
-// Hardware scan result is server-generated; when echoed back from the client we
-// keep only the known numeric/string fields and drop anything unexpected.
-function normalizeHardwareScan(value) {
-  if (!value || typeof value !== 'object') return null;
-  const tiers = ['incompatible', 'minimum', 'recommended', 'optimal'];
-  const tier = tiers.includes(value.tier) ? value.tier : 'incompatible';
-  return {
-    ram: clampNumber(value.ram, 0, 4096, 0),
-    vram: clampNumber(value.vram, 0, 4096, 0),
-    cores: clampNumber(value.cores, 0, 512, 0),
-    tier,
-    recommended: aiLocal.sanitizeModel(value.recommended),
-  };
-}
-
 function gameSessionsEnabled() {
   return !(_serverHubSettings && _serverHubSettings.gameSessions && _serverHubSettings.gameSessions.enabled === false);
-}
-
-function normalizeVitals(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
-  const stateSrc = v.state && typeof v.state === 'object' ? v.state : {};
-  const lastSrc = stateSrc.last && typeof stateSrc.last === 'object' ? stateSrc.last : {};
-  const items = {};
-  const last = {};
-  VITALS_IDS.forEach((id) => {
-    const it = itemsSrc[id] && typeof itemsSrc[id] === 'object' ? itemsSrc[id] : {};
-    items[id] = {
-      on: typeof it.on === 'boolean' ? it.on : VITALS_DEFAULT_ON[id],
-      min: Math.round(clampNumber(it.min, 5, 480, VITALS_DEFAULT_MIN[id])),
-    };
-    const ts = Number(lastSrc[id]);
-    last[id] = Number.isFinite(ts) && ts > 0 ? Math.floor(ts) : 0;
-  });
-  // Bit, the pixel guardian pet. Each rung of the nag ladder is strict opt-in:
-  // the PC-invading actions (monitor popups, minimize-all, workstation lock)
-  // require `=== true` — the /api/vitals/nag endpoint enforces these
-  // server-side, so a forged client request can never act beyond the opt-ins.
-  const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
-  const thrSrc = petSrc.thresholds && typeof petSrc.thresholds === 'object' ? petSrc.thresholds : {};
-  const thresholds = {};
-  VITALS_PET_STAGES.forEach((stage) => {
-    thresholds[stage] = Math.round(clampNumber(thrSrc[stage], 1, 480, VITALS_PET_DEFAULT_THR[stage]));
-  });
-  const pet = {
-    enabled: petSrc.enabled === true,
-    tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
-    effects: petSrc.effects !== false,
-    sounds: petSrc.sounds !== false,
-    lighting: petSrc.lighting === true,
-    monitors: petSrc.monitors === true,
-    minimize: petSrc.minimize === true,
-    lock: petSrc.lock === true,
-    quietInGame: petSrc.quietInGame !== false,
-    // Where Bit lives: the floating corner sprite, a mini chip in the topbar
-    // clock cluster, or both. AI roasts (Xenon AI-generated lines with offline
-    // bank fallback) are strict opt-in; night quiet (23–07: Bit sleeps, never
-    // escalates past decay) is on by default.
-    position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
-    aiRoasts: petSrc.aiRoasts === true,
-    // With Sparks as the AI, the Sparks a day the roasts may spend (0 = never).
-    roastSparksCap: cleanRoastSparksCap(petSrc.roastSparksCap),
-    nightQuiet: petSrc.nightQuiet !== false,
-    // The quiet window, whole local hours: from (inclusive) to (exclusive),
-    // wrapping past midnight when from > to; from === to means no quiet hours.
-    // Anything but an hour 0-23 reads as the default (null is not midnight).
-    quietFrom: vitalsHour(petSrc.quietFrom) ? petSrc.quietFrom : 23,
-    quietTo: vitalsHour(petSrc.quietTo) ? petSrc.quietTo : 7,
-    thresholds,
-  };
-  // Bit's durable bookkeeping (state.pet): truce (snooze/mute-today) and the
-  // per-episode escalation flags, persisted so a reload can't re-fire GAME
-  // OVER/minimize/lock and a truce granted on one surface holds on the others.
-  // Episodes are keyed by z = the episode's zeroAt instant (a stable identity
-  // across reloads and surfaces). Known-key rebuild — never spread.
-  const petStSrc = stateSrc.pet && typeof stateSrc.pet === 'object' ? stateSrc.pet : {};
-  const epSrc = petStSrc.ep && typeof petStSrc.ep === 'object' ? petStSrc.ep : {};
-  const ep = {};
-  VITALS_IDS.forEach((id) => {
-    const e = epSrc[id];
-    if (!e || typeof e !== 'object') return;
-    const z = Number(e.z);
-    if (!Number.isFinite(z) || z <= 0) return;
-    ep[id] = {
-      z: Math.floor(z),
-      goAt: Math.max(0, Math.floor(Number(e.goAt) || 0)),
-      ovAt: Math.max(0, Math.floor(Number(e.ovAt) || 0)),
-      min: e.min === true,
-      lock: e.lock === true,
-    };
-  });
-  const statePet = {
-    snoozeUntil: Math.round(clampNumber(petStSrc.snoozeUntil, 0, Date.now() + 24 * 3600000, 0)),
-    muteDay: typeof petStSrc.muteDay === 'string' ? petStSrc.muteDay.slice(0, 10) : '',
-    ep,
-  };
-  // Bit's long-term memory: daily self-care streak + grow-only lifetime
-  // counters (fuel for contextual/AI roasts and streak praise).
-  const memSrc = stateSrc.mem && typeof stateSrc.mem === 'object' ? stateSrc.mem : {};
-  const mem = {
-    streak: Math.round(clampNumber(memSrc.streak, 0, 100000, 0)),
-    bestStreak: Math.round(clampNumber(memSrc.bestStreak, 0, 100000, 0)),
-    lastFillDay: typeof memSrc.lastFillDay === 'string' ? memSrc.lastFillDay.slice(0, 10) : '',
-    locksTotal: Math.round(clampNumber(memSrc.locksTotal, 0, 1e6, 0)),
-    gameoversTotal: Math.round(clampNumber(memSrc.gameoversTotal, 0, 1e6, 0)),
-  };
-  return {
-    enabled: v.enabled !== false,
-    topbar: v.topbar === true,
-    reminders: v.reminders !== false,
-    // Freeze the meters while the user is away from the PC (no real input for
-    // 5+ min, via the server idle probe) and resume exactly where they were.
-    awayPause: v.awayPause !== false,
-    naturalBreaks: v.naturalBreaks !== false,
-    pet,
-    items,
-    state: {
-      last,
-      xp: Math.round(clampNumber(stateSrc.xp, 0, 1e9, 0)),
-      day: typeof stateSrc.day === 'string' ? stateSrc.day.slice(0, 10) : '',
-      fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
-      // Today's refills in order (the widget's "combo ribbon"); bounded.
-      log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
-      // freezeStart identity of the last credited away period (see
-      // vitals-pet-core.awayCredit) — merged as max server-side.
-      awayCreditAt: Math.max(0, Math.floor(Number(stateSrc.awayCreditAt) || 0)),
-      pet: statePet,
-      mem,
-    },
-  };
 }
 
 // Phone ↔ PC file transfer. Server-owned: there is no twin in
@@ -9691,67 +9525,6 @@ function normalizeHubSettings(value) {
   };
 }
 
-// Client-owned imported themes: bounded round-trip (the client is authoritative
-// and re-validates every field on load). A theme may embed a small font ref but
-// not the font bytes, so the cap can stay tight.
-function sanitizeCustomThemes(value) {
-  if (!Array.isArray(value)) return [];
-  try {
-    const json = JSON.stringify(value);
-    // A theme can carry a code-defined animated background (bgCustom.code, up to
-    // 20 KB client-side) and, since assets landed, its bundled images (up to
-    // ~900 KB per card). Size the cap for the 24-card ceiling with a few
-    // asset-heavy cards; past it, DEGRADE by stripping the images (keeping every
-    // theme + its code) instead of dropping the whole gallery on the round-trip.
-    const CAP = 4000000;
-    const cards = JSON.parse(json).slice(0, 24);
-    if (json.length <= CAP) return cards;
-    const slim = cards.map((card) => {
-      if (card && typeof card === 'object' && card.bgCustom && typeof card.bgCustom === 'object') {
-        // bgCustom rebuilt with known keys only (assets dropped); the rest of
-        // the card stays the client-owned passthrough it always was.
-        const cb = card.bgCustom;
-        return {
-          ...card,
-          bgCustom: {
-            enabled: !!cb.enabled,
-            name: typeof cb.name === 'string' ? cb.name : '',
-            code: typeof cb.code === 'string' ? cb.code : '',
-            assets: {},
-            fps: sanitizeBgFps(cb.fps),
-            ...(cb.imported === true ? { imported: true } : {}),
-            ...(contentInstalls.INSTALL_ID_RE.test(String(cb.installId || '')) ? { installId: String(cb.installId) } : {}),
-          },
-        };
-      }
-      return card;
-    });
-    // Re-check against the SAME cap — codes alone can't legitimately exceed it.
-    return JSON.stringify(slim).length > CAP ? [] : slim;
-  } catch { return []; }
-}
-
-
-function normalizeLightingDeviceModes(value) {
-  const out = {};
-  if (!value || typeof value !== 'object') return out;
-  for (const [id, v] of Object.entries(value)) {
-    if (!v || typeof v !== 'object') continue;
-    const key = String(id).slice(0, 160);
-    const e = { mode: LIGHTING_DEVICE_MODES.includes(v.mode) ? v.mode : 'follow' };
-    if (typeof v.color === 'string' && /^#?[0-9a-f]{6}$/i.test(v.color)) e.color = normalizeHex(v.color, '#1ed760');
-    if (v.anim && typeof v.anim === 'object') {
-      e.anim = {
-        style: LIGHTING_ANIM_SUB.includes(v.anim.style) ? v.anim.style : 'cycle',
-        color: normalizeHex(v.anim.color, '#1ed760'),
-        speed: clampNumber(v.anim.speed, 1, 100, 50),
-      };
-    }
-    if (v.leds !== undefined) e.leds = normalizeLedColors(v.leds);
-    out[key] = e;
-  }
-  return out;
-}
 function normalizeLighting(value) {
   const v = value && typeof value === 'object' ? value : {};
   const d = DEFAULT_HUB_SETTINGS.lighting;
@@ -9781,10 +9554,6 @@ function normalizeLighting(value) {
     deviceModes: normalizeLightingDeviceModes(v.deviceModes),
     native: normalizeLightingNative(v.native),
   };
-}
-function normalizeLightingNative(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled === true, layouts: normalizeLightingLayouts(v.layouts), scanned: normalizeLightingScanned(v.scanned) };
 }
 
 // The store id this process has seen on disk. Held so that a write which
@@ -11741,33 +11510,6 @@ function saveNotesGuarded(body) {
 
 let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
 let _timerCheckInterval = null;
-
-function _normalizeTimer(item) {
-  const given       = String(item && item.id || '').slice(0, 80);
-  // SAFE_ITEM_ID_RE: see _noteId. A malformed id is replaced, not escaped.
-  const id          = SAFE_ITEM_ID_RE.test(given) ? given : _timerId();
-  const label       = String(item && item.label || 'Timer').trim().slice(0, SCOPED_LABEL_MAX);
-  const kind        = TIMER_KINDS.includes(item && item.kind) ? item.kind : 'countdown';
-  // A stopwatch has no duration. Storing 0 rather than a fake 60 keeps every
-  // "is this a countdown" test honest, including in a settings file somebody
-  // has edited by hand.
-  const durationSecs = kind === 'stopwatch' ? 0 : Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
-  // A stopwatch may CHIME every N seconds. Zero is off, which is what every
-  // stopwatch was until somebody said what they actually use one for: "it goes
-  // up and sounds an alert at specified intervals, I use it for stretching".
-  // Meaningless on a countdown, which already has one alert at the end.
-  const intervalSecs = kind === 'stopwatch'
-    ? Math.max(0, Math.min(86400, Math.round(Number(item && item.intervalSecs) || 0)))
-    : 0;
-  // How many have already sounded. Persisted rather than derived, so a restart
-  // mid-run does not replay every chime the stopwatch has ever made.
-  const chimes = Math.max(0, Math.round(Number(item && item.chimes) || 0));
-  const status      = ['running', 'paused', 'done'].includes(item && item.status) ? item.status : 'running';
-  const startedAt   = Number.isFinite(Number(item && item.startedAt)) ? Number(item.startedAt) : Date.now();
-  const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
-  const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
-  return { id, label, kind, durationSecs, intervalSecs, chimes, status, startedAt, pausedElapsed, createdAt };
-}
 
 async function _saveTimers() {
   try {
