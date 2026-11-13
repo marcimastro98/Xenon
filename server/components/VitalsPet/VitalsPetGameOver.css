@@ -1,0 +1,155 @@
+
+/* Glitch pulse — a fleeting full-screen scanline + slice flicker. Transform/
+   opacity only, self-removed by the engine after ~900ms. */
+.vpet-glitch {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+  animation: vpet-glitch-flicker 0.9s steps(6) forwards;
+  will-change: opacity, transform;
+}
+@keyframes vpet-glitch-flicker {
+  0%   { opacity: 0;   transform: translateX(0); }
+  15%  { opacity: 1;   transform: translateX(-6px) skewX(-2deg); }
+  30%  { opacity: 0.4; transform: translateX(4px); }
+  45%  { opacity: 1;   transform: translateX(-3px) skewX(1.5deg); }
+  60%  { opacity: 0.3; transform: translateX(6px); }
+  80%  { opacity: 0.8; transform: translateX(-2px); }
+  100% { opacity: 0;   transform: translateX(0); }
+}
+
+/* Stage 2b — GAME OVER: full-dashboard CRT card. */
+.vpet-gameover {
+  /* The sprite in the card lives outside .vpet — restate its palette (angry red)
+     or the body rects would fall back to black. */
+  --vpet-rgb: 255, 90, 95;
+  --vpet-body: rgb(var(--vpet-rgb));
+  position: fixed;
+  inset: 0;
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vpet-scrim);
+  backdrop-filter: blur(3px);
+  animation: vpet-go-in 0.25s steps(4);
+}
+@keyframes vpet-go-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.vpet-go-card {
+  position: relative;
+  max-width: min(430px, 86vw);
+  padding: 26px 28px 20px;
+  text-align: center;
+  background: var(--vpet-surface);
+  border: 3px solid var(--color-danger);
+  box-shadow: 6px 6px 0 var(--vpet-shadow),
+    0 0 34px color-mix(in srgb, var(--color-danger) 35%, transparent);
+  overflow: hidden;
+}
+/* CRT scanlines across the card. */
+.vpet-go-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 3px);
+}
+.vpet-go-sprite { width: 56px; height: 56px; margin: 0 auto 10px; }
+.vpet-go-sprite svg { width: 100%; height: 100%; }
+.vpet-go-title {
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 26px;
+  color: var(--color-danger);
+  text-shadow: 3px 3px 0 var(--vpet-shadow);
+  margin-bottom: 12px;
+  animation: vpet-go-blink 1.2s steps(2) infinite;
+}
+@keyframes vpet-go-blink { 50% { opacity: 0.55; } }
+.vpet-go-sub {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 19px;
+  line-height: 1.2;
+  color: var(--vpet-text);
+  margin-bottom: 18px;
+}
+.vpet-go-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+.vpet-go-btn {
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--vpet-text);
+  border: 2px solid var(--vpet-line);
+  cursor: pointer;
+}
+.vpet-go-btn.is-fix { color: var(--color-success); border-color: var(--color-success); box-shadow: 3px 3px 0 var(--vpet-shadow); }
+.vpet-go-btn.is-fix:hover { background: color-mix(in srgb, var(--color-success) 14%, var(--vpet-control)); }
+.vpet-go-btn:hover { background: var(--hover-bg); }
+.vpet-go-coin {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 15px;
+  color: var(--vpet-muted);
+  letter-spacing: 1px;
+  animation: vpet-go-blink 1.6s steps(2) infinite;
+}
+
+/* ── Topbar mini-Bit (#clock-bit, pet.position topbar/both) ──────────────────
+   First child of #clock-vitals so it rides the minimal-island reparenting with
+   the clock. The same live Bit at chip scale, mood glow via --vpet-rgb; the
+   touch target stays comfortable (≥32px) even though Bit is tiny. */
+.clock-bit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  --vpet-rgb: 255, 215, 94;
+  --vpet-body: rgb(var(--vpet-rgb));
+}
+.clock-bit .cb-sprite {
+  width: 30px;
+  height: 28px;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(var(--vpet-rgb), 0.45));
+}
+.clock-bit .cb-sprite svg { width: 100%; height: 100%; display: block; }
+/* Frosted overlay open: pause the pet's INFINITE loops only — one-shot moves
+   (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. Bit
+   itself holds on the same class (js/bit-app.js TILE_HOLD).
+   (See the overlay-frozen block in styles/backgroundfx.css.) */
+body.overlay-frozen .vpet-go-title,
+body.overlay-frozen .vpet-go-coin { animation-play-state: paused; }
+
+/* Compact bubble under the chip — used when the floating pet is off. */
+.vpet-chip-bubble {
+  position: fixed;
+  z-index: 300;
+  padding: 7px 9px;
+  background: var(--vpet-surface);
+  color: var(--vpet-text);
+  border: 2px solid rgb(var(--vpet-rgb, 255, 215, 94));
+  box-shadow: 4px 4px 0 var(--vpet-shadow);
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1.15;
+  letter-spacing: 0.2px;
+}
+
+/* Settings: small visual break before the Bit sub-section inside the Vitals card. */
+
+@media (prefers-reduced-motion: reduce) {
+  .vpet-go-title, .vpet-go-coin { animation: none; }
+  .vpet-glitch { display: none; }
+}

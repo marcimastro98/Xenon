@@ -2,7 +2,8 @@
 // missing is a hole in the first screen, and they ship in every update zip.
 // Made by tools/first-run-shots/shoot.mjs.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';

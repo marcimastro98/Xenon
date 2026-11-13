@@ -99,6 +99,13 @@
     {"kind":"style","from":"server/components/MediaPanel/LiquidPlayer.css","parts":[{"file":"server/components/MediaPanel/LiquidPlayerSpotify.css","at":194}]},
     {"kind":"style","from":"server/components/SpotifyWidget/SpotifyWidget.css","parts":[{"file":"server/components/SpotifyWidget/SpotifyWidgetTabs.css","at":194}]},
     {"kind":"style","from":"server/components/TimerPanel/TimerPanel.css","parts":[{"file":"server/components/TimerPanel/TimerPanelCards.css","at":175}]},
-    {"kind":"style","from":"server/components/BrowserPanel/BrowserPanel.css","parts":[{"file":"server/components/BrowserPanel/BrowserPanelStage.css","at":171}]}
+    {"kind":"style","from":"server/components/BrowserPanel/BrowserPanel.css","parts":[{"file":"server/components/BrowserPanel/BrowserPanelStage.css","at":171}]},
+    {"kind":"style","from":"server/components/UpdateModal/UpdateModal.css","parts":[{"file":"server/components/UpdateModal/UpdateModalLightbox.css","at":169}]},
+    {"kind":"style","from":"server/components/AmbientCanvasEditor/AmbientCanvasEditor.css","parts":[{"file":"server/components/AmbientCanvasEditor/AmbientCanvasEditorPanels.css","at":116}]},
+    {"kind":"style","from":"server/styles/liquid-sheets.css","parts":[{"file":"server/styles/liquid-sheets-windows.css","at":170}]},
+    {"kind":"style","from":"server/components/VitalsPet/VitalsPet.css","parts":[{"file":"server/components/VitalsPet/VitalsPetGameOver.css","at":172}]},
+    {"kind":"style","from":"server/components/AppSwitcher/AppSwitcher.css","parts":[{"file":"server/components/AppSwitcher/AppSwitcherCardDetails.css","at":180}]},
+    {"kind":"style","from":"server/components/TasksPanel/TasksPanel.css","parts":[{"file":"server/components/TasksPanel/TasksPanelList.css","at":149}]},
+    {"kind":"style","from":"server/components/UsageAsk/UsageAsk.css","parts":[{"file":"server/components/UsageAsk/UsageAskQuestion.css","at":161}]}
   ]
 }

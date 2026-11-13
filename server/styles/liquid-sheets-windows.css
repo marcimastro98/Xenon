@@ -1,0 +1,160 @@
+
+/* The ringing window and Bit's card over a game. On the alerts window they hang on their
+   own over the screen: no scrim, and the shadow would end in a straight edge. The call's
+   pulse stays: it is the point of it. */
+:root[data-style="liquid"][data-screen-alerts] :is(.call-overlay, .gc-overlay) { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="liquid"] .diskw-advisor-dialog {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line); --control-bg: var(--sheet-well);
+}
+:root[data-style="liquid"] .diskw-modal-review { border-color: transparent; }
+:root[data-style="liquid"] .diskw-modal-review:hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .call-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+}
+:root[data-style="liquid"] .call-avatar { background: var(--sheet-well); }
+:root[data-style="liquid"] .gc-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+}
+:root[data-style="liquid"] .gc-close { background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .gc-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.gc-ask-input, .gc-ask-btn, .gc-ask-voice) { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.gc-ask-btn, .gc-ask-voice):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .gc-ask-input:focus { border-color: var(--sheet-main); }
+:root[data-style="liquid"] .gc-analyze { border-color: transparent; background: var(--sheet-main); color: var(--sheet-main-ink); }
+/* Seen only while a game runs: the sheet's look without a blur, which the game would pay for. */
+:root[data-style="liquid"] .gc-pill {
+  border-color: var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(rgba(var(--panel-rgb), 0.92) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] .call-btn { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .call-btn:hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .call-btn--answer,
+:root[data-style="liquid"] .call-btn--answer:hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .call-btn--decline { color: var(--color-danger); }
+:root[data-style="liquid"] .call-actions--minor .call-btn { border-color: transparent; background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .call-actions--minor .call-btn:hover { background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .call-dismiss:hover { background: var(--sheet-well); }
+
+/* A request of Codex or Claude Code. On the overlay, not on the sheet: the agents' own
+   tokens are declared there and resolve there. */
+:root[data-style="liquid"] .ask-overlay {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line); --divider: var(--sheet-line);
+}
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-deny, .cw-key.is-quiet, .cx-key.is-deny, .cx-key.is-quiet, .cw-key.is-hold, .cx-key.is-hold, .cw-opt, .cw-dec-input) {
+  box-shadow: none; border-color: transparent; background: var(--sheet-well);
+}
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-deny, .cw-key.is-quiet, .cx-key.is-deny, .cx-key.is-quiet, .cw-key.is-hold, .cx-key.is-hold, .cw-opt):hover:not(:disabled) { background: var(--sheet-well-hover); filter: none; }
+:root[data-style="liquid"] .ask-sheet :is(.cw-key.is-allow:not(.is-hold), .cx-key.is-allow:not(.is-hold)) { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .ask-sheet .cw-dec-input:focus { border-color: var(--sheet-main); }
+
+/* The colour picker is of the family but stays solid: a colour is judged on a plain
+   ground (ColorPicker.css). */
+:root[data-style="liquid"] .cp-pop {
+  border-color: var(--sheet-edge);
+  border-radius: 16px;
+  background: var(--sheet-sheen), linear-gradient(rgb(var(--panel-rgb)) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+}
+:root[data-style="liquid"] .cp-hex { border-color: transparent; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] .cp-hex:focus { border-color: var(--sheet-main); box-shadow: none; }
+:root[data-style="liquid"] .cp-recents { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] .weather-panel {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted);
+  --wx-well: var(--sheet-well); --wx-line: var(--sheet-line);
+}
+:root[data-style="liquid"] .weather-win-key { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .day-modal-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+  --divider: var(--sheet-line); --hover-bg: var(--sheet-well-hover);
+}
+:root[data-style="liquid"] .day-modal-card :is(.event-item, .event-input, .time-picker-display, .cs-trigger) { border-color: transparent; background: var(--sheet-well); }
+:root[data-style="liquid"] .day-modal-card :is(.event-input:focus, .time-picker-display:focus, .cs-wrap.cs-open .cs-trigger) { border-color: var(--sheet-main); }
+/* A list over the form has to hide it: a well's fill would let the fields read through. */
+:root[data-style="liquid"] .time-picker-dropdown { border-color: var(--sheet-edge); border-radius: 10px; background: rgb(var(--panel-rgb)); }
+:root[data-style="liquid"] .tp-item.selected { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .tp-sep { color: var(--sheet-muted); }
+:root[data-style="liquid"] .ai-pc-card {
+  --text: var(--sheet-text); --muted-text: var(--sheet-muted); --line: var(--sheet-line);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover);
+}
+/* The head of the notes keeps its colour: colour is Bit's. */
+:root[data-style="liquid"] .rn-main { min-height: 48px; min-width: 120px; font: 700 18px / 1 var(--wn-body); }
+:root[data-style="liquid"] .rn-link { padding-inline: 10px; margin-left: -10px; border-radius: 10px; font: 600 16px / 1 var(--wn-body); text-decoration: none; }
+:root[data-style="liquid"] .rn-link:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.rn-card, .rn-corner) button:focus-visible { outline: 2px solid var(--sheet-text); }
+
+:root[data-style="liquid"] .upd-close { width: 36px; height: 36px; border-radius: 10px; background: none; color: var(--sheet-muted); }
+:root[data-style="liquid"] .upd-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .upd-ver { color: var(--sheet-muted); opacity: 1; }
+:root[data-style="liquid"] :is(.upd-actions, .perf-sheet-actions) { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(.upd-btn, .perf-btn) { border-color: transparent; border-radius: 10px; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.upd-btn:not(.primary), .perf-btn:not(.perf-btn-primary)):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .upd-btn.ghost { background: none; color: var(--sheet-muted); opacity: 1; }
+:root[data-style="liquid"] :is(.upd-btn.primary, .perf-btn-primary),
+:root[data-style="liquid"] :is(.upd-btn.primary, .perf-btn-primary):hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .upd-status:not(.ok, .error) { background: var(--sheet-well); }
+:root[data-style="liquid"] .upd-notes code { background: var(--sheet-well); }
+:root[data-style="liquid"] .upd-media { border-color: var(--sheet-line); }
+
+/* Share, import, export and their family. Their rows read the app's tokens, so the sheet
+   hands them its own. The fill stays readable at any --panel-alpha: it does not follow it. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) {
+  --text: var(--sheet-text); --text-dim: var(--sheet-muted); --text-muted: var(--sheet-muted);
+  --muted-text: var(--sheet-muted); --dim-text: var(--sheet-muted);
+  --glass-border: var(--sheet-line); --line: var(--sheet-line); --divider: var(--sheet-line);
+  --control-bg: var(--sheet-well); --hover-bg: var(--sheet-well-hover); --surface-alt: var(--sheet-well);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(.settings-btn, .preset-page-item, .preset-check-row, .export-pick-row, .preset-deck-acts, .preset-lock-code-row, .preset-code-field, .preset-unlock-field, .preset-lock-count-input, .sharecard-link-field) {
+  border-color: transparent;
+  border-radius: 10px;
+  background: var(--sheet-well);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(.settings-btn:not(.primary), .preset-page-item:not(:disabled), .preset-check-row:not(.is-static), .export-pick-row):hover {
+  border-color: transparent;
+  background: var(--sheet-well-hover);
+}
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.primary,
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.primary:hover { background: var(--sheet-main); color: var(--sheet-main-ink); }
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) :is(input, textarea):focus { border-color: var(--sheet-main); }
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .preset-keep-code { border-color: transparent; background: var(--sheet-well); }
+/* A key that destroys: a red word, as in Settings. White on the theme's red reads under 3:1. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.danger { color: var(--color-danger); }
+:root[data-style="liquid"][data-appearance="light"] .preset-modal:not(.cst, .cgal-modal) .settings-btn.danger { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
+/* The space above and below is border, not padding: text stops at the padding box, so a
+   long link ends on a whole line instead of a sliced one. */
+:root[data-style="liquid"] .preset-modal:not(.cst, .cgal-modal) .preset-code-field { padding-block: 0; border-block-width: 9px; }
+
+:root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app) { border-color: transparent; border-radius: 10px; background: var(--sheet-well); }
+:root[data-style="liquid"] :is(.perf-sheet-opt, .perf-sheet-app):hover { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] :is(.perf-sheet-hint, .perf-sheet-apps-head, .perf-sheet-app-title, .perf-sheet-app-mem, .perf-sheet-apps-empty) { color: var(--sheet-muted); opacity: 1; }
+
+/* ── Lists that open over a form ──────────────────────────────────
+   Selects, the Deck's profiles and Bit's attach menu are of the family and solid like
+   the time list: the rows under them must not read through. The chosen row is neutral,
+   green stays for state. */
+:root[data-style="liquid"] :is(.cs-panel, .deck-pmenu, .ai-attach-menu) {
+  border-color: var(--sheet-edge); border-radius: 14px; color: var(--sheet-text);
+  background: var(--sheet-sheen), linear-gradient(rgb(var(--panel-rgb)) 0 0);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-style="liquid"] .cs-option { color: var(--sheet-muted); }
+:root[data-style="liquid"] :is(.cs-option:hover, .cs-option.cs-active, .cs-group-btn:hover, .cs-group-btn:focus-visible,
+  .deck-pmenu-pick:hover, .ai-attach-item:hover, .ai-attach-item:focus-visible) { background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(.cs-option.cs-selected, .cs-option.cs-selected.cs-active, .deck-pmenu-row.active) { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-option.cs-selected::before,
+:root[data-style="liquid"] .deck-pmenu-row.active .deck-pmenu-dot { background: var(--sheet-text); box-shadow: none; }
+:root[data-style="liquid"] :is(.cs-option-ico, .cs-group-ico, .cs-group-open .cs-group-ico, .cs-group, .cs-group-count, .cs-group-chev,
+  .cs-empty, .cs-option-info, .deck-pmenu-head, .deck-pmenu-empty, .deck-pmenu-count) { color: var(--sheet-muted); }
+:root[data-style="liquid"] :is(.cs-group-btn, .deck-pmenu-pick, .ai-attach-item:not([aria-checked="true"])) { color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-option-label .cs-hit { color: var(--sheet-text); }
+:root[data-style="liquid"] .cs-search-wrap { background: rgb(var(--panel-rgb)); border-bottom-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(input.cs-search-input, input.deck-pmenu-input) { border-color: transparent; border-radius: 9px; background: var(--sheet-well); color: var(--sheet-text); }
+:root[data-style="liquid"] :is(input.cs-search-input, input.deck-pmenu-input):focus { border-color: var(--sheet-main); background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .deck-pmenu-head ~ .deck-pmenu-head { border-top-color: var(--sheet-line); }
+:root[data-style="liquid"] :is(.deck-pmenu-tool, .deck-pmenu-count) { border-color: transparent; background: var(--sheet-well); }
+:root[data-style="liquid"] .deck-pmenu-add { border-color: var(--sheet-line); background: none; }
+:root[data-style="liquid"] :is(.deck-pmenu-add, .deck-pmenu-tool:not(:disabled, .danger)):hover { background: var(--sheet-well-hover); }

@@ -4,7 +4,7 @@
 // their own lists.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const read = (rel) => readFileSyncRaw(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

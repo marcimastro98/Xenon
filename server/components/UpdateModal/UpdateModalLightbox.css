@@ -1,0 +1,175 @@
+
+/* Small inline image (mid-sentence screenshots, e.g. an icon). */
+.upd-inline-img {
+  max-height: 1.5em;
+  max-width: 100%;
+  vertical-align: text-bottom;
+  border-radius: 4px;
+}
+
+/* ── Lightbox (tap a screenshot to view it fullscreen) ─────────────────────── */
+.upd-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(2, 3, 6, 0.86);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  animation: upd-fade 0.16s ease;
+  cursor: zoom-out;
+}
+
+.upd-lightbox-img {
+  max-width: 96vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  animation: upd-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.upd-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.upd-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* The main key closes the row, the quiet ones wait at the other end. */
+.upd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.upd-btn {
+  border: 0;
+  border-radius: 11px;
+  padding: 10px 18px;
+  min-height: 42px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 0.15s, transform 0.1s;
+}
+.upd-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.upd-btn:active { transform: scale(0.97); }
+
+.upd-btn.primary {
+  background: rgb(var(--accent-rgb));
+  color: var(--on-accent, #08090c);
+  font-weight: 700;
+}
+.upd-btn.primary:hover { filter: brightness(1.08); background: rgb(var(--accent-rgb)); }
+
+.upd-btn.ghost {
+  padding-inline: 10px;
+  background: transparent;
+  opacity: 0.72;
+}
+.upd-btn.ghost:first-child { margin-left: -10px; }
+.upd-btn.ghost:has(+ .upd-btn:not(.ghost)) { margin-right: auto; }
+.upd-btn.ghost:hover { background: rgba(255, 255, 255, 0.08); opacity: 1; }
+
+/* On a phone the quiet word takes a row of its own and the two keys stay side by side. */
+@media (max-width: 480px) {
+  .upd-btn.ghost:has(+ .upd-btn:not(.ghost)) { flex: 1 0 100%; margin-right: 0; text-align: left; }
+  .upd-actions > .upd-btn:not(.ghost) { flex: 1 1 0; }
+}
+
+.upd-status {
+  margin-top: 12px;
+  font-size: 0.86em;
+  line-height: 1.45;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.upd-status.ok { background: var(--success-bg); color: var(--color-success); }
+.upd-status.error { background: var(--danger-bg); color: var(--color-danger); }
+
+/* Updating overlay (after Apply): no close button, just the Xenon loader. */
+.upd-updating { align-items: center; text-align: center; padding: 34px 28px; }
+.upd-updating .upd-title { margin-top: 14px; }
+.upd-updating-sub { margin-top: 6px; max-width: 420px; opacity: 0.8; color: inherit; }
+
+/* ── Update notification dot ───────────────────────────────────────────────
+   Red badge on the topbar Settings button (and on the footer pill) while an
+   update is available; both vanish automatically once updated. */
+.qbtn-settings { position: relative; }
+
+.topbtn-update-dot {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 9px rgba(255, 77, 77, 0.85);
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+.topbtn-update-dot[hidden] { display: none; }
+
+.settings-update-pill::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 8px rgba(255, 77, 77, 0.85);
+  vertical-align: middle;
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes upd-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Manual "Check for updates" button in the Settings sidebar footer. */
+.settings-update-check {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  border-radius: 10px;
+  padding: 7px 6px;
+  background: rgba(var(--accent-rgb), 0.10);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.settings-update-check:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.22); }
+.settings-update-check:disabled { opacity: 0.55; cursor: default; }
+/* The `display: block` above outranks the UA `[hidden]` rule, so guard it: when an
+   update is available update.js sets the button hidden and only the pill remains. */
+.settings-update-check[hidden] { display: none; }

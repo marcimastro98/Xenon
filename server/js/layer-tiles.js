@@ -31,14 +31,14 @@
   const SYSTEM = {
     css: ['components/SystemPanel/SystemPanel.css', 'components/SystemPanel/SystemPanelSparkline.css', 'components/DashboardLayout/DashboardLayout.css', 'components/DashboardLayout/DashboardLayoutEditor.css', 'components/DashboardLayout/DashboardLayoutBars.css',
       'components/AudioSection/AudioSection.css', 'components/AudioSection/AudioSectionAppMixer.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
-      'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css',
+      'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
       'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
-      'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/TimerPanel/TimerPanelCards.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
+      'components/TasksPanel/TasksPanel.css', 'components/TasksPanel/TasksPanelList.css', 'components/TimerPanel/TimerPanel.css', 'components/TimerPanel/TimerPanelCards.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'],
     js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
 
@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css'], js: ['js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
@@ -89,15 +89,15 @@
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}, null, ['components/SpotifyWidget/SpotifyWidgetTabs.css']),
     claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
       'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget.js'], { claude: 'onSSE' },
-      'ClaudeWidget', ['components/ClaudeWidget/ClaudeWidgetDecisions.css', 'components/ClaudeWidget/ClaudeWidgetHeader.css', 'components/ClaudeWidget/ClaudeWidgetConsole.css', 'components/ClaudeWidget/ClaudeWidgetComposer.css', 'components/ClaudeWidget/ClaudeWidgetPanels.css', 'components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),
+      'ClaudeWidget', ['components/ClaudeWidget/ClaudeWidgetDecisions.css', 'components/ClaudeWidget/ClaudeWidgetHeader.css', 'components/ClaudeWidget/ClaudeWidgetConsole.css', 'components/ClaudeWidget/ClaudeWidgetComposer.css', 'components/ClaudeWidget/ClaudeWidgetPanels.css', 'components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget.js'], { codex: 'onSSE' },
-      'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),
+      'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/approval-keys.js', 'js/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
     transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }, null, ['components/TransferWidget/TransferWidgetList.css', 'components/TransferWidget/TransferWidgetRows.css', 'components/TransferWidget/TransferWidgetSheet.css']),
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css', 'components/Spotlight/SpotlightResults.css']),
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
-      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
+      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
       'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
