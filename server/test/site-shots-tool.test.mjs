@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { runInNewContext } from 'node:vm';
 import { docsFile, injectShotScripts, startSite, DOCS_DIR } from '../../tools/site-shots/serve.mjs';
 import { SCENES, initScript, richData } from '../../tools/site-shots/scenes.mjs';

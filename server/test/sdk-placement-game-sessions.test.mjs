@@ -8,7 +8,7 @@
 // its own grant (it is history).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource, languagesWith } from './i18n-source.mjs';
 

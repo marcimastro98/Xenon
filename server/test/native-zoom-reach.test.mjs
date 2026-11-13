@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 // The interface scale, and the two ways it was out of reach.

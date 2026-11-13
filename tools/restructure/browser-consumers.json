@@ -1,0 +1,19 @@
+{
+  "note": "Who names a split browser file in code and needs more than a tag in a page or the reader of the tests to keep working, and how each does. Read by tools/restructure/browser-consumers.mjs: a file that is named somewhere not listed here cannot be split. `keeps` lists declarations that stay in the file because the consumer reads them there.",
+  "known": {
+    "server/js/settings.js": {
+      "tools/site-shots/scenes.mjs": {
+        "how": "Reads DASHBOARD_LAYOUT_VERSION out of the file as text, so that declaration stays in it.",
+        "keeps": [
+          "DASHBOARD_LAYOUT_VERSION"
+        ]
+      },
+      "server/test/settings-load-order.test.mjs": {
+        "how": "Reads the split through the reader, and one of its checks says defaultNewsFeedsClient sits below the line that loads the settings, so that function stays in the file.",
+        "keeps": [
+          "defaultNewsFeedsClient"
+        ]
+      }
+    }
+  }
+}

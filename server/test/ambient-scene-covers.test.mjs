@@ -14,7 +14,7 @@
 // for exactly this shape of surprise.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

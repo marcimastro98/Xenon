@@ -3,7 +3,7 @@
 // save on either side, with the same defaults and the same clamps.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';

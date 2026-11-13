@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createGuard, guardStep, LIMITS, LEVEL_FPS, LEVEL_RES, LEVEL_STILL } = require('../js/bg-guard.js');
@@ -162,7 +163,7 @@ test('with the guard off, a heavy background is left alone', () => {
 // The bgGuard line of each normalizer, read from the shipped source and run
 // against the same inputs: both must keep an explicit off, and default to on.
 function ruleFrom(file, param) {
-  const src = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  const src = readFileSync(new URL(file, import.meta.url), 'utf8');
   const m = /^\s*bgGuard: (.+),\s*$/m.exec(src);
   assert.ok(m, 'no bgGuard line in ' + file);
   return new Function(param, 'return ' + m[1] + ';');

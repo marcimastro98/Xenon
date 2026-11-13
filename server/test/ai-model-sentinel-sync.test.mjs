@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,7 +38,7 @@ const models = require('../ai-models.js');
 // the entire point: a copy of the regex written here would pass while the
 // shipped one drifted, which is the failure this file exists to catch.
 function clientNormalizer() {
-  const src = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+  const src = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
   const at = src.indexOf('function normalizeModelChoice(');
   assert.notEqual(at, -1, 'normalizeModelChoice was not found — did it move or get renamed?');
   const end = src.indexOf('\n}', at);

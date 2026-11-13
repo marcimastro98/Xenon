@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +21,7 @@ const wau = require('../widget-auto-update.js');
 const PS = require('../js/preset-share.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
-const read = (rel) => fs.readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 const CW_SRC = read('../js/custom-widget.js');
 
 // ── 1. a frame that leaves its page ──────────────────────────────────────────

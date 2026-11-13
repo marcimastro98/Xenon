@@ -2,7 +2,8 @@
 // daily number the user picked, never past it, counted across restarts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';

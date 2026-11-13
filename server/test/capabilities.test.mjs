@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { appStringsSource } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');

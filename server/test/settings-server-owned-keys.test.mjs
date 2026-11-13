@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
@@ -24,7 +25,7 @@ import { engineSource } from './engine-source.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = engineSource();
-const CLIENT = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
 
 /** Top-level keys of the server's authoritative defaults. */
 function serverKeys() {

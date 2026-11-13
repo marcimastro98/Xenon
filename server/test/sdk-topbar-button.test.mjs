@@ -6,7 +6,7 @@
 // page that hides the very bar it is changing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const require = createRequire(import.meta.url);
 const pane = require('../js/game-sessions-pane.js');

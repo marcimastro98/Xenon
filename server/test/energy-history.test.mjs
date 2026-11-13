@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -20,7 +21,7 @@ const { readEnergy } = require('../sensor-history/routes.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const featureRoutes = require('../feature-routes.js');
 const sdk = require('../sdk-widgets.js');
-const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const MIN = 60 * 1000;
 

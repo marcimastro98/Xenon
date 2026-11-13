@@ -4,7 +4,7 @@
 // by someone else's bar, or a Store/catalog that does not know the kind.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);

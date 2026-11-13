@@ -3,7 +3,7 @@
 // wired to the same setting, and a Delete button whose label can be read.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, languagesWith } from './i18n-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');

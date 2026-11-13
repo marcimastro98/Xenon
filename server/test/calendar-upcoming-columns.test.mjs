@@ -14,7 +14,7 @@
 // and `upcomingColumns` is the user overriding the question entirely.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.

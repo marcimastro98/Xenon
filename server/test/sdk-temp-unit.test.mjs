@@ -11,7 +11,7 @@
 // than leaving the widget on whatever was true when it mounted.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 

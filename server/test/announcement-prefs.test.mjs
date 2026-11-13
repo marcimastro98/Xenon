@@ -8,7 +8,7 @@
 // the whole point is that the two files cannot be allowed to drift.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const SERVER = engineSource();

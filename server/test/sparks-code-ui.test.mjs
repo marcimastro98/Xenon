@@ -4,12 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
+const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
 const settings = read('js/settings.js');
 const box = settings.slice(settings.indexOf('async function syncSupporterCodeBox('), settings.indexOf('window.saveSupporterCode = saveSupporterCode;'));
 

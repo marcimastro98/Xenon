@@ -5,7 +5,7 @@
 // spoken twice), unseen, or marked an announcement read that nobody saw.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 

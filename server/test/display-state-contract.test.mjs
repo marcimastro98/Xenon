@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
@@ -24,9 +25,9 @@ import { appStringsSource } from './i18n-source.mjs';
 // passing while the originals drifted apart.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const read = (...p) => fs.readFileSync(path.join(HERE, '..', ...p), 'utf8');
+const read = (...p) => readFileSync(path.join(HERE, '..', ...p), 'utf8');
 
-const RUST = fs.readFileSync(
+const RUST = readFileSync(
   path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'monitor.rs'),
   'utf8',
 );

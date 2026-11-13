@@ -4,7 +4,7 @@
 // survive a round trip; the frame renderer must follow Xenon where nothing is set.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';

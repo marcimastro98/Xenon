@@ -4,7 +4,7 @@
 // the two talk through the server (perf-screen.js, SSE perf_screen).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';

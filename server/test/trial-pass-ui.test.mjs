@@ -103,7 +103,7 @@ test('the end card shows a picture of each thing used, from the Store catalog, w
 });
 
 test('the end card has one main action, "Keep them", last, and the other two as quiet keys', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showEndCard('), src.indexOf('// ── After a conversion'));
   assert.equal((card.match(/settings-btn primary/g) || []).length, 1);
@@ -114,21 +114,21 @@ test('the end card has one main action, "Keep them", last, and the other two as 
 });
 
 test('one thing to put back gets the main key, a list of them does not', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
   assert.match(card, /missing\.length === 1 \? ' primary' : ''/);
 });
 
 test('putting one thing back leaves the rest of the list on the welcome card', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   const card = src.slice(src.indexOf('function showWelcome('), src.indexOf('// ── State'));
   assert.match(card, /line\.remove\(\);\s+if \(!body\.querySelector\('\.trial-welcome-row'\)\) close\(\);\s+putBack\(item\.entryId\);/);
 });
 
 test('nothing in the end card or the tile comes from markup', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /innerHTML|insertAdjacentHTML|document\.write/);
 });
@@ -145,7 +145,7 @@ test('a look saved on top of an imported animated background stays that import',
 });
 
 test('export leaves an imported background or font out of a tweaked theme; removal takes derived cards', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
   const exp = src.slice(src.indexOf('async function themeExportData()'), src.indexOf('async function exportTheme()'));
   assert.match(exp, /bgImported\) delete data\.bgCustom/);
@@ -156,7 +156,7 @@ test('export leaves an imported background or font out of a tweaked theme; remov
 });
 
 test('trial content with no trial file comes off; a conversion needs the saved pass', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/trial-pass-ui.js', import.meta.url), 'utf8');
   assert.match(src, /status\.state === 'none'\) \{ await tidyOrphans\(\)/);
   assert.match(src, /now\.state !== 'none'\) return;/, 'asked again before taking anything off');
@@ -164,7 +164,7 @@ test('trial content with no trial file comes off; a conversion needs the saved p
 });
 
 test('a Lyrics widget on the screen opens the trial page by itself: its page has no TrialPass', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const src = readFileSync(new URL('../js/lyrics-widget.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function startTrial()'), src.indexOf('async function unlock()'));
   assert.match(body, /else window\.open\(window\.Xenon\.constants\.trialUrl\(/, 'a button that does nothing is the bug this guards');

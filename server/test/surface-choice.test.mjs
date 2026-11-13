@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';
@@ -18,7 +19,7 @@ import { engineSource } from './engine-source.mjs';
 // the same shape and the same rules.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLIENT = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
+const CLIENT = readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
 const SERVER = engineSource();
 
 /** Lift a normalizer out of its file and evaluate it in isolation. */
@@ -92,13 +93,13 @@ test("'both' is a settings answer, not a shell placement", () => {
   // branch to grow. A `xenon-display:both` verb would be a scheme the shell does
   // not know, which on Windows raises the OS "how do you want to open this?"
   // dialog on the kiosk.
-  const LIB = fs.readFileSync(
+  const LIB = readFileSync(
     path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'lib.rs'),
     'utf8'
   );
   assert.ok(!/"both" =>/.test(LIB), 'lib.rs grew a "both" display signal');
   assert.ok(!/xenon-display:both/.test(
-    fs.readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8')
+    readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8')
   ), 'native-bridge.js sends a "both" display signal');
   // And the client must place it, not leave the window wherever it was: the way
   // OUT of "nothing on this PC" is choosing 'both', so it has to tell the shell.
@@ -147,14 +148,14 @@ test('the shell prefs and the settings key agree on the three mode names', () =>
   // The Rust side matches on these exact lowercase strings (prefs.rs
   // `placement_or_auto`), and the scheme verbs are named after them. A rename on
   // one side alone would silently mean "auto" forever.
-  const RUST = fs.readFileSync(
+  const RUST = readFileSync(
     path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'prefs.rs'),
     'utf8'
   );
   for (const kind of ['screen', 'phone']) {
     assert.match(RUST, new RegExp(`Some\\("${kind}"\\)`), `prefs.rs does not accept "${kind}"`);
   }
-  const LIB = fs.readFileSync(
+  const LIB = readFileSync(
     path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'lib.rs'),
     'utf8'
   );
@@ -169,7 +170,7 @@ test('every writer of the placement reconciles the login entry', () => {
   // reconcile, the window came back immediately and was gone again at the next
   // login — a setting applied by half, which is the failure this whole feature
   // exists to remove. Any new writer must do the same.
-  const MONITOR = fs.readFileSync(
+  const MONITOR = readFileSync(
     path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'monitor.rs'),
     'utf8'
   );

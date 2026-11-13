@@ -16,7 +16,7 @@
 // evaluates IT, so the guarantee is tested, not a paraphrase of it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const SRC = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 

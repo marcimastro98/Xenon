@@ -4,7 +4,7 @@
 // is cut from the source and run in a vm against test/mini-dom.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';

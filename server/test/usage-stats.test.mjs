@@ -6,6 +6,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -18,7 +19,7 @@ const { createRegistry } = require('../actions/registry.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
+const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
 const HUB = process.env.HUB_REPO || path.resolve(here, '..', '..', '..', 'xenon-supporter-hub');
 const HUB_FEATURES = path.join(HUB, 'src', 'usage-features.js');
 const HUB_USAGE = path.join(HUB, 'src', 'feature-usage.js');
@@ -87,7 +88,7 @@ test('counts are kept on disk as one small aggregate and read back after a resta
   usage.record('cap.screenshot');
   usage.record('cap.screenshot', true);
   await usage.flush();
-  const saved = JSON.parse(fs.readFileSync(file(), 'utf8'));
+  const saved = JSON.parse(readFileSync(file(), 'utf8'));
   assert.deepEqual(saved, { v: 1, sent: '', counts: { 'cap.screenshot': { n: 2, err: 1 } } });
 
   usage._reset();
@@ -131,7 +132,7 @@ test('a failed send keeps the counts, and the day is spent before the request', 
   usage.record('cap.gallery');
   assert.deepEqual(await usage.maybeSend({ enabled: true, supporter: false, day: '2026-10-30' }), { ok: false, error: 'network' });
   assert.deepEqual(usage._snapshot(), { 'cap.gallery': { n: 1, err: 0 } });
-  assert.equal(JSON.parse(fs.readFileSync(file(), 'utf8')).sent, '2026-10-30');
+  assert.equal(JSON.parse(readFileSync(file(), 'utf8')).sent, '2026-10-30');
   assert.deepEqual(await usage.maybeSend({ enabled: true, supporter: false, day: '2026-10-30' }), { ok: false, skipped: 'already_sent' });
   assert.equal(calls.length, 1, 'no retry storm');
 });
@@ -140,7 +141,7 @@ test('what the hub took is off the disk at once, so a restart never sends it twi
   usage.record('cap.screenshot');
   await usage.maybeSend({ enabled: true, supporter: false, day: '2026-10-30' });
   // No flush: an update restart right after the check.
-  assert.deepEqual(JSON.parse(fs.readFileSync(file(), 'utf8')), { v: 1, sent: '2026-10-30', counts: {} });
+  assert.deepEqual(JSON.parse(readFileSync(file(), 'utf8')), { v: 1, sent: '2026-10-30', counts: {} });
   usage._reset();
   usage.configure({ dataDir: dir, enabled: () => true });
   await usage.maybeSend({ enabled: true, supporter: false, day: '2026-10-31' });

@@ -17,7 +17,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readFileSyncRaw } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
 import { engineSource } from './engine-source.mjs';

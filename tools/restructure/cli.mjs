@@ -17,6 +17,7 @@
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
 //   node tools/restructure/cli.mjs remainder <file> --movable      the names that can move now, by feature
+//   node tools/restructure/cli.mjs browser <command> ...           the same for scripts and stylesheets a page loads (browser-cli.mjs)
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -181,6 +182,7 @@ function showRemainder(parser, { flags, rest }) {
 
 async function main(argv) {
   const [command, ...tail] = argv;
+  if (command === 'browser') return (await import('./browser-cli.mjs')).main(tail);
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
@@ -189,7 +191,7 @@ async function main(argv) {
   const incomplete = (command === 'extract' && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
   if (!known || args.rest.length < needsFile || incomplete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 20).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 21).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   const parser = await openParser();

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -13,7 +14,7 @@ const require = createRequire(import.meta.url);
 const wau = require('../widget-auto-update.js');
 const sdk = require('../sdk-widgets.js');
 const codec = require('../js/preset-share.js');
-const CLIENT_SRC = fs.readFileSync(fileURLToPath(new URL('../js/custom-widget.js', import.meta.url)), 'utf8');
+const CLIENT_SRC = readFileSync(fileURLToPath(new URL('../js/custom-widget.js', import.meta.url)), 'utf8');
 
 const NOW = Date.parse('2026-10-10T12:00:00Z');
 
@@ -296,7 +297,7 @@ test('run: at most a few widgets per run, the rest next time', async () => {
 // ── the swap, on a real folder ───────────────────────────────────────────────
 function tmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-wau-')); }
 const validated = (id, version, files) => sdk.validateWidgetPayload(payloadFor(id, version, {}, files));
-const read = (p) => fs.readFileSync(p, 'utf8');
+const read = (p) => readFileSync(p, 'utf8');
 
 test('staged install: replaces the package whole, and the files the new version dropped are gone', async () => {
   const root = tmp(); const widgets = path.join(root, 'widgets'); const staging = path.join(root, 'staging');
@@ -355,13 +356,13 @@ test('staged install: refuses an invalid package before touching the disk', asyn
 
 test('wiring: the setting is on by default, normalized on both sides, and never an SDK grant', () => {
   const server = engineSource();
-  const settings = fs.readFileSync(fileURLToPath(new URL('../js/settings.js', import.meta.url)), 'utf8');
+  const settings = readFileSync(fileURLToPath(new URL('../js/settings.js', import.meta.url)), 'utf8');
   assert.match(server, /autoUpdateWidgets: true,/);
   assert.match(server, /autoUpdateWidgets: source\.autoUpdateWidgets !== false/);
   assert.match(settings, /autoUpdateWidgets: value\.autoUpdateWidgets !== false/);
   assert.match(settings, /autoUpdateWidgets: true,/);
   // the updater has no way to write a grant: nothing in the module touches the grants store
-  const mod = fs.readFileSync(fileURLToPath(new URL('../widget-auto-update.js', import.meta.url)), 'utf8');
+  const mod = readFileSync(fileURLToPath(new URL('../widget-auto-update.js', import.meta.url)), 'utf8');
   assert.doesNotMatch(mod.replace(/\/\/.*$/gm, ''), /grants\s*\[|setGrant|writeGrant|persist\(/);
 });
 

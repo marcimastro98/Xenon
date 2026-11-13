@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync as readRaw } from 'node:fs';
+import { readFileSync as readRaw } from './browser-source.mjs';
 import { declarationSource, engineSource } from './engine-source.mjs';
 
 const read = (p) => readRaw(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');

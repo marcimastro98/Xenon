@@ -8,7 +8,7 @@
 // Pin all four so they can't drift (same guard shape as sdk-grant-cats-sync).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';

@@ -12,7 +12,7 @@
 // the switch needs a relaunch) are unit-tested in see_through.rs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
 

@@ -7,6 +7,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -22,7 +23,7 @@ const { validateAction } = require('../js/deck-actions.js');
 const sdk = require('../sdk-widgets.js');
 
 const METRICS = ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem', 'cpuWatts', 'gpuWatts'];
-const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 test('the setting: off and every 5 minutes unless said otherwise, only the offered intervals', () => {
   assert.deepEqual(SensorHistory.normalizeSensorHistory(undefined), { enabled: false, everyMin: 5 });
@@ -111,7 +112,7 @@ test('the disk is written at most every 5 minutes, whatever the interval', async
     t.mock.timers.tick(4 * 60000);
     await g.sample();
     assert.ok(fs.existsSync(file), 'five minutes after the last write: written');
-    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).recent.length, 3, 'with every sample since');
+    assert.equal(JSON.parse(readFileSync(file, 'utf8')).recent.length, 3, 'with every sample since');
   });
 });
 

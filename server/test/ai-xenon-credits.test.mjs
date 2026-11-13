@@ -11,7 +11,8 @@
 //  - Bit's automatic lines never spend credits.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';

@@ -116,7 +116,7 @@ test('every collector set offers the same three calls', () => {
 });
 
 test('Settings copy: every language explains what this PC cannot do, and none says "Windows"', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const vm = await import('node:vm');
   const ctx = { window: {} };
   vm.createContext(ctx);
@@ -132,7 +132,7 @@ test('Settings copy: every language explains what this PC cannot do, and none sa
 });
 
 test('AI roasts: on Claude Code or Codex Settings says Bit keeps to its own lines; on Sparks it asks how many a day', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./browser-source.mjs');
   const vm = await import('node:vm');
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const src = read('../js/settings.js');

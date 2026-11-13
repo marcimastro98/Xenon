@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 
@@ -126,19 +127,19 @@ test('SDK: a widget may switch the modes and rule out the app in front, never na
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'current' }), true);
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'add', name: 'eldenring' }), false);
   assert.equal(sdk.sdkActionWithinLimits({ type: 'gameIgnore', mode: 'current', name: 'eldenring' }), false);
-  const cw = fs.readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const cw = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
   assert.match(cw, /performance: \['gameMode', 'perfMode', 'gameIgnore', 'sensorHistory'\]/);
   assert.match(cw, /gameIgnore: \{ mode: \['current'\], name: \[\] \}/);
-  const st = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const st = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   assert.match(st, /SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[[^\]]*'performance'\]\)/);
 });
 
 test('the shortcut runner and the dashboards hand Performance Mode on, never the phone', () => {
   const { CLIENT_ACTIONS } = require('../js/deck-shortcuts.js');
   assert.ok(CLIENT_ACTIONS.includes('perfMode'));
-  const deck = fs.readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+  const deck = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
   assert.match(deck, /action\.type === 'perfMode' && window\.PerfMode && !window\.__xenonRemote && !\(typeof isLayerPage === 'function' && isLayerPage\(\)\)/);
-  const driver = fs.readFileSync(new URL('../js/driver-perf.js', import.meta.url), 'utf8');
+  const driver = readFileSync(new URL('../js/driver-perf.js', import.meta.url), 'utf8');
   assert.match(driver, /es\.addEventListener\('deck_shortcut', onDeckStep\)/);
 });
 
@@ -146,6 +147,6 @@ test('the server reads the list from settings and normalizes it on both sides', 
   const server = engineSource();
   assert.match(server, /gameDetect\.setIgnoreSource\(\(\) => _serverHubSettings && _serverHubSettings\.gameIgnore\)/);
   assert.match(server, /gameIgnore: GameIgnore\.normalizeGameIgnore\(source\.gameIgnore\)/);
-  const st = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const st = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   assert.match(st, /gameIgnore: window\.GameIgnore \? window\.GameIgnore\.normalizeGameIgnore\(value\.gameIgnore\) : \[\]/);
 });

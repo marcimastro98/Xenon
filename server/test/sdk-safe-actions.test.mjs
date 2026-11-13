@@ -6,7 +6,7 @@
 // from a dashboard but on the PC from a layer page.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync as readRaw } from 'node:fs';
+import { readFileSync as readRaw } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';

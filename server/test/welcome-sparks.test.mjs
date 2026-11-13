@@ -8,7 +8,8 @@
 //  - the default layout and provider change for new installs only.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';

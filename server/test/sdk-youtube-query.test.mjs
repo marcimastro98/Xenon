@@ -14,7 +14,8 @@
 //   · Paging by opaque token, because a YouTube library does not fit in a page.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
