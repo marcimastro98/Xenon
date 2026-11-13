@@ -1,0 +1,85 @@
+{
+ "origin": "apps/native/src-tauri/src/lib.rs",
+ "parts": [
+  {
+   "file": "apps/native/src-tauri/src/shell_update.rs",
+   "about": "The app updating itself: the check for a newer signed release, the install, and what it tells the dashboard.",
+   "lines": [
+    [
+     82,
+     131
+    ],
+    [
+     232,
+     419
+    ],
+    [
+     1326,
+     1326
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/autostart.rs",
+   "about": "The app's own login entry: kept in step with the choice made in Settings.",
+   "lines": [
+    [
+     147,
+     194
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/backend_probe.rs",
+   "about": "Asking whether the engine answers on its local port, and for how long to keep asking.",
+   "lines": [
+    [
+     945,
+     971
+    ]
+   ]
+  }
+ ],
+ "drop": {
+  "apps/native/src-tauri/src/shell_update.rs": [
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState"
+  ],
+  "apps/native/src-tauri/src/autostart.rs": [
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState",
+   "Manager",
+   "engine_install"
+  ],
+  "apps/native/src-tauri/src/backend_probe.rs": [
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState"
+  ],
+  "apps/native/src-tauri/src/lib.rs": [
+   "backend_answers_once",
+   "backend_answers_within",
+   "PROBE_TRIES",
+   "LOGON_PROBE_TRIES"
+  ]
+ },
+ "uses": {
+  "apps/native/src-tauri/src/autostart.rs": [
+   "// Only Windows keeps the engine's own entries in step from here.\n#[cfg(windows)]\nuse crate::engine_install;"
+  ],
+  "apps/native/src-tauri/src/lib.rs": [
+   "// Only the Windows files ask these by name: the other systems go through backend_answers.\n#[cfg(windows)]\nuse backend_probe::{backend_answers_once, backend_answers_within, LOGON_PROBE_TRIES, PROBE_TRIES};"
+  ]
+ },
+ "widen": [
+  "backend_answers_once",
+  "backend_answers_within",
+  "PROBE_TRIES",
+  "LOGON_PROBE_TRIES"
+ ]
+}

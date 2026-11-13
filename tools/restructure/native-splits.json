@@ -146,10 +146,13 @@
       "apps/native/src-tauri/src/layers/win32/wallpaper.rs"
     ],
     "apps/native/src-tauri/src/lib.rs": [
+      "apps/native/src-tauri/src/autostart.rs",
       "apps/native/src-tauri/src/backend_bootstrap.rs",
       "apps/native/src-tauri/src/backend_nudge_windows.rs",
+      "apps/native/src-tauri/src/backend_probe.rs",
       "apps/native/src-tauri/src/backend_task.rs",
       "apps/native/src-tauri/src/display_signal.rs",
+      "apps/native/src-tauri/src/shell_update.rs",
       "apps/native/src-tauri/src/webview_setup.rs"
     ],
     "apps/native/src-tauri/src/monitor.rs": [

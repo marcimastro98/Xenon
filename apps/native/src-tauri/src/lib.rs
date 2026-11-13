@@ -19,6 +19,9 @@ mod backend_task;
 mod backend_nudge_windows;
 #[cfg(windows)]
 mod backend_bootstrap;
+mod shell_update;
+mod autostart;
+mod backend_probe;
 #[cfg(windows)]
 pub use layers::{pad_reader, PAD_READER_ARG};
 
@@ -33,6 +36,16 @@ pub(crate) use display_signal::display_state_js;
 use webview_setup::EXTERNAL_LINK_SHIM;
 #[cfg(windows)]
 pub(crate) use webview_setup::browser_args;
+
+pub(crate) use autostart::sync_autostart;
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+use backend_probe::backend_answers;
+use shell_update::shell_self_update;
+#[cfg(desktop)]
+use shell_update::{legacy_rescue_js, LEGACY_RESCUE_STARTED, spawn_update_check, spawn_update_install, UPDATE_CHECK_STARTED};
+// Only the Windows files ask these by name: the other systems go through backend_answers.
+#[cfg(windows)]
+use backend_probe::{backend_answers_once, backend_answers_within, LOGON_PROBE_TRIES, PROBE_TRIES};
 
 /// First argument that turns this binary into the engine install self-test.
 pub const ENGINE_SELFTEST_ARG: &str = "--install-engine-selftest";
@@ -76,348 +89,6 @@ pub(crate) fn system32_exe(name: &str) -> std::path::PathBuf {
     let root = std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
     std::path::Path::new(&root).join("System32").join(name)
 }
-
-/// Guards the one-shot update check so it fires once per launch, when the
-/// loopback dashboard first loads (not on the splash).
-#[cfg(desktop)]
-static UPDATE_CHECK_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Build the tiny JS that asks the dashboard to show its localized "update
-/// available — tap to install" toast. Retries briefly in case the dashboard's
-/// scripts have not finished loading yet. The version is JSON-encoded so it is
-/// always a safe string literal.
-#[cfg(desktop)]
-fn update_prompt_js(version: &str) -> String {
-    let v = serde_json::to_string(version).unwrap_or_else(|_| "\"\"".to_string());
-    format!(
-        "(function(v){{var n=0;function go(){{if(window.XenonNative&&window.XenonNative.showUpdatePrompt){{try{{window.XenonNative.showUpdatePrompt(v);}}catch(e){{}}}}else if(n++<50){{setTimeout(go,200);}}}}go();}})({v});"
-    )
-}
-
-/// Check GitHub for a newer signed release; if one exists, surface the in-dashboard
-/// prompt. Never installs on its own — the user taps to update (see the
-/// `xenon-update:` navigation below).
-#[cfg(desktop)]
-fn spawn_update_check(app: tauri::AppHandle) {
-    use tauri_plugin_updater::UpdaterExt;
-    if !shell_self_update() {
-        return;
-    }
-    tauri::async_runtime::spawn(async move {
-        let updater = match app.updater() {
-            Ok(u) => u,
-            Err(_) => return,
-        };
-        if let Ok(Some(update)) = updater.check().await {
-            if let Some(win) = app.get_webview_window("main") {
-                let _ = win.eval(update_prompt_js(&update.version));
-            }
-        }
-    });
-}
-
-/// Build the tiny JS that reports a shell-update event into the dashboard
-/// (XenonNative.onShellUpdateEvent — progress overlay or error toast). Retries
-/// briefly in case the dashboard's scripts have not finished loading. The event
-/// is serde-encoded, so it is always a safe JS literal.
-#[cfg(desktop)]
-fn update_report_js(event: &serde_json::Value) -> String {
-    format!(
-        "(function(e){{var n=0;function go(){{if(window.XenonNative&&window.XenonNative.onShellUpdateEvent){{try{{window.XenonNative.onShellUpdateEvent(e);}}catch(err){{}}}}else if(n++<50){{setTimeout(go,200);}}}}go();}})({event});"
-    )
-}
-
-/// Eval a shell-update event into the dashboard, best effort (no window → drop).
-#[cfg(desktop)]
-fn report_update_event(app: &tauri::AppHandle, event: serde_json::Value) {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.eval(update_report_js(&event));
-    }
-}
-
-/// Register or remove the kiosk's own login entry to match the user's choice.
-///
-/// Called at startup and again whenever the placement changes, because the choice
-/// is only honoured if the autostart entry follows it. Note this touches ONLY the
-/// app's entry (`Xenon`); the backend has its own login mechanism on every
-/// platform — the "Xenon Edge Widget" scheduled task, the
-/// `com.marcimastro98.xenon.backend` LaunchAgent, `xenon-backend.service` — and
-/// none of them is affected. In phone mode the backend keeps starting, hidden,
-/// which is the whole point.
-#[cfg(desktop)]
-pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
-    use tauri_plugin_autostart::ManagerExt;
-    // A development build leaves the login entries alone: one run from the build
-    // folder would point the PC at an unoptimized shell at every sign-in.
-    if cfg!(debug_assertions) {
-        return;
-    }
-    // macOS is the exception and not a compromise: there the login item starts
-    // the APP, and the app is what spawns the backend so it inherits Full Disk
-    // Access (see spawn_backend_nudge). Not launching it would either leave the
-    // backend down or hand it a far smaller view of the disk.
-    let want = prefs::load(app).shows_on_this_pc() || cfg!(target_os = "macos");
-    let manager = app.autolaunch();
-    #[cfg(windows)]
-    login_task::sync(want);
-    #[cfg(windows)]
-    engine_install::keep_one_entry();
-    #[cfg(windows)]
-    if !want {
-        engine_install::keep_task_for_phone();
-    }
-    if want {
-        // Idempotent, and it REWRITES the entry — which is what migrates an
-        // existing registration onto the new `--autostart` argument.
-        if manager.enable().is_ok() {
-            #[cfg(windows)]
-            quote_login_entry(app);
-        }
-    } else if manager.is_enabled().unwrap_or(false) {
-        // Gated on is_enabled: the underlying crate's Windows `disable()` deletes
-        // a registry value and returns an error when it is already absent.
-        let _ = manager.disable();
-    }
-}
-
-#[cfg(not(desktop))]
-pub(crate) fn sync_autostart(_app: &tauri::AppHandle) {}
-
-/// Rewrite the Windows login entry with the program path in quotes.
-///
-/// The autostart crate writes `C:\Users\John Smith\...\xenon-native.exe --autostart`
-/// with no quotes. Under a user folder with a space in it Windows then has to
-/// guess where the program name ends, and it can drop the `--autostart`
-/// argument (the same bug in another Tauri app: localsend/localsend#1293), so a
-/// login launch would be taken for a deliberate one. Same value name, so the
-/// crate's `is_enabled` and `disable` still find it.
-#[cfg(windows)]
-fn quote_login_entry(app: &tauri::AppHandle) {
-    #[link(name = "advapi32")]
-    extern "system" {
-        fn RegSetKeyValueW(
-            hkey: isize,
-            sub_key: *const u16,
-            value_name: *const u16,
-            kind: u32,
-            data: *const core::ffi::c_void,
-            bytes: u32,
-        ) -> i32;
-    }
-    // HKEY_CURRENT_USER is the sign-extended (LONG)0x80000001.
-    const HKEY_CURRENT_USER: isize = 0x8000_0001_u32 as i32 as isize;
-    const REG_SZ: u32 = 1;
-    let Ok(exe) = std::env::current_exe() else { return };
-    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-    let sub_key = wide(r"Software\Microsoft\Windows\CurrentVersion\Run");
-    let name = wide(&app.package_info().name);
-    let data = wide(&format!("\"{}\" --autostart", exe.display()));
-    let status = unsafe {
-        RegSetKeyValueW(
-            HKEY_CURRENT_USER,
-            sub_key.as_ptr(),
-            name.as_ptr(),
-            REG_SZ,
-            data.as_ptr().cast(),
-            (data.len() * 2) as u32,
-        )
-    };
-    if status != 0 {
-        crate::crash_log::note("autostart", &format!("could not quote the login entry (error {status})"));
-    }
-}
-
-/// First ~200 chars of an updater error, safe to embed via serde. Full errors
-/// can carry URLs/paths the toast has no room for.
-#[cfg(desktop)]
-fn short_err(e: &dyn std::fmt::Display) -> String {
-    e.to_string().chars().take(200).collect()
-}
-
-/// Download and install the pending update, then relaunch. Triggered by the user
-/// tapping the update toast (which navigates to `xenon-update:install`).
-///
-/// EVERY exit path reports an event into the dashboard — a failed check,
-/// download or install used to die in silence here, which read as "Updating
-/// Xenon… and nothing happens" (the bug real users hit). Progress is throttled
-/// to ~5% steps so the eval channel never floods the webview.
-#[cfg(desktop)]
-fn spawn_update_install(app: tauri::AppHandle) {
-    use serde_json::json;
-    use tauri_plugin_updater::UpdaterExt;
-    tauri::async_runtime::spawn(async move {
-        report_update_event(&app, json!({ "phase": "checking" }));
-        if !shell_self_update() {
-            report_update_event(&app, json!({ "phase": "error", "code": "managed_install" }));
-            return;
-        }
-        let updater = match app.updater() {
-            Ok(u) => u,
-            Err(e) => {
-                report_update_event(
-                    &app,
-                    json!({ "phase": "error", "code": "check_failed", "message": short_err(&e) }),
-                );
-                return;
-            }
-        };
-        let update = match updater.check().await {
-            Ok(Some(u)) => u,
-            Ok(None) => {
-                report_update_event(&app, json!({ "phase": "uptodate" }));
-                return;
-            }
-            Err(e) => {
-                crash_log::note("update", &format!("check failed: {}", short_err(&e)));
-                report_update_event(
-                    &app,
-                    json!({ "phase": "error", "code": "check_failed", "message": short_err(&e) }),
-                );
-                return;
-            }
-        };
-        // In the crash log too: the app's own update is the one half of an update
-        // that a report from a machine we cannot see would otherwise say nothing
-        // about (the dashboard half has update-result.json).
-        crash_log::note("update", &format!("installing v{}", update.version));
-        let progress_app = app.clone();
-        let done_app = app.clone();
-        let mut received: u64 = 0;
-        let mut last_pct: u64 = u64::MAX; // sentinel → the first chunk always reports
-        let mut last_bytes_report: u64 = 0;
-        let result = update
-            .download_and_install(
-                move |chunk, total| {
-                    received += chunk as u64;
-                    let Some(t) = total.filter(|t| *t > 0) else {
-                        // No usable content length (chunked CDN response): still
-                        // emit byte-count heartbeats — the dashboard's watchdog
-                        // treats silence as a wedged updater. First chunk, then
-                        // every ~2 MB.
-                        if last_bytes_report == 0 || received - last_bytes_report >= 2_000_000 {
-                            last_bytes_report = received;
-                            report_update_event(
-                                &progress_app,
-                                json!({ "phase": "downloading", "received": received }),
-                            );
-                        }
-                        return;
-                    };
-                    let pct = received * 100 / t;
-                    if last_pct != u64::MAX && pct < last_pct.saturating_add(5) && pct < 100 {
-                        return;
-                    }
-                    last_pct = pct;
-                    report_update_event(
-                        &progress_app,
-                        json!({ "phase": "downloading", "received": received, "total": t }),
-                    );
-                },
-                move || {
-                    report_update_event(&done_app, json!({ "phase": "installing" }));
-                },
-            )
-            .await;
-        match result {
-            Ok(()) => {
-                report_update_event(&app, json!({ "phase": "restarting" }));
-                // Same reason the backend is stopped here: restart() execs past
-                // the run loop, so the crash diary has to close its own session
-                // or the update would read as a process that vanished.
-                crash_log::session_end("restarting after update");
-                // restart() execs: the run loop's Exit arm may never run, so the
-                // backend we own is stopped here rather than orphaned.
-                stop_owned_backend();
-                app.restart();
-            }
-            Err(e) => {
-                crash_log::note("update", &format!("install failed: {}", short_err(&e)));
-                report_update_event(
-                    &app,
-                    json!({ "phase": "error", "code": "install_failed", "message": short_err(&e) }),
-                );
-            }
-        }
-    });
-}
-
-/// Legacy rescue: un-strand existing installs whose DASHBOARD predates the
-/// orchestrated update flow. Their old update.js never updates the Node backend
-/// on native (it only ever triggered the shell updater), so after this shell
-/// self-updates, the backend would stay old forever. This self-contained script
-/// no-ops on new dashboards (they expose XenonUpdate.nativeOrchestrate and own
-/// the flow); on old ones, when the backend version is older than this shell,
-/// it offers a persistent toast that drives the backend's own signed
-/// prepare/apply endpoints and reloads when the new version serves. English
-/// only by design — it exists precisely because the old dashboard's i18n has no
-/// keys for it, and it turns into dead code once the user base is current.
-#[cfg(desktop)]
-fn legacy_rescue_js(shell_version: &str) -> String {
-    let v = serde_json::to_string(shell_version).unwrap_or_else(|_| "\"\"".to_string());
-    format!(
-        r#"(function (shellVer) {{
-  try {{
-    if (window.XenonUpdate && typeof window.XenonUpdate.nativeOrchestrate === 'function') return;
-    if (window.__xenonLegacyRescue) return;
-    window.__xenonLegacyRescue = true;
-  }} catch (e) {{ return; }}
-  function newer(a, b) {{
-    a = String(a || '').replace(/^v/i, '').split('.');
-    b = String(b || '').replace(/^v/i, '').split('.');
-    for (var i = 0; i < 3; i++) {{
-      var x = parseInt(a[i], 10) || 0, y = parseInt(b[i], 10) || 0;
-      if (x !== y) return x > y;
-    }}
-    return false;
-  }}
-  function toast(opts) {{
-    try {{
-      if (window.XenonToast && typeof window.XenonToast.show === 'function') window.XenonToast.show(opts);
-    }} catch (e) {{}}
-  }}
-  fetch('/version').then(function (r) {{ return r.json(); }}).then(function (j) {{
-    if (!j || !j.version || !newer(shellVer, j.version)) return;
-    fetch('/update/self-status').then(function (r) {{ return r.json(); }}).then(function (st) {{
-      if (!st || !st.supported) return;
-      toast({{
-        type: 'info', duration: 0,
-        title: 'Dashboard update available',
-        message: 'Tap to install the latest dashboard (v' + String(shellVer).replace(/^v/i, '') + ').',
-        onClick: function () {{
-          toast({{ type: 'info', title: 'Updating the dashboard…', message: 'The page reloads by itself when it is done.' }});
-          fetch('/update/prepare', {{ method: 'POST' }}).then(function (r) {{ return r.json(); }}).then(function (res) {{
-            if (!res || !res.ok) {{
-              toast({{ type: 'error', title: 'Update failed', message: 'Could not prepare the update' + (res && res.error ? ' (' + res.error + ')' : '') + '.' }});
-              return;
-            }}
-            fetch('/update/apply', {{ method: 'POST' }}).catch(function () {{}});
-            var tries = 0;
-            var poll = setInterval(function () {{
-              if (++tries > 144) {{
-                clearInterval(poll);
-                // The applier rolled back or stalled (this old backend writes no
-                // result file to consult) — say so instead of dying silently.
-                toast({{ type: 'error', title: 'Update failed', message: 'The dashboard update did not complete and the previous version is still running. Restart the app to try again.' }});
-                return;
-              }}
-              fetch('/version', {{ cache: 'no-store' }}).then(function (r) {{ return r.json(); }}).then(function (v) {{
-                if (v && v.version && !newer(shellVer, v.version)) {{ clearInterval(poll); location.reload(); }}
-              }}).catch(function () {{}});
-            }}, 2500);
-          }}).catch(function () {{
-            toast({{ type: 'error', title: 'Update failed', message: 'Could not reach the dashboard backend.' }});
-          }});
-        }}
-      }});
-    }}).catch(function () {{}});
-  }}).catch(function () {{}});
-}})({v});"#
-    )
-}
-
-/// Guards the one-shot legacy-rescue injection so it fires once per launch.
-#[cfg(desktop)]
-static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// macOS twin of the Windows nudge above. The two signals differ from Windows
 /// because
@@ -939,47 +610,6 @@ fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
 
-/// One connection attempt, ~2s. Enough to tell "installed and starting" from
-/// "not there at all" when something else has already answered that question —
-/// see the task query in the Windows nudge.
-#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
-fn backend_answers_once(port: u16) -> bool {
-    use std::net::{SocketAddr, TcpStream};
-    use std::time::Duration;
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
-}
-
-/// Probe rounds before healing a backend that does not answer: ~8–16s, so a
-/// normally-starting backend is never interfered with.
-#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
-const PROBE_TRIES: u32 = 4;
-/// The same when the app itself was launched at sign-in, where the logon task
-/// is starting the engine alongside it and a cold boot is slow: ~25–50s.
-#[cfg(windows)]
-const LOGON_PROBE_TRIES: u32 = 12;
-
-/// True once the local backend accepts a connection, polling for the usual
-/// ~8–16s.
-#[cfg(any(target_os = "macos", target_os = "linux"))]
-fn backend_answers(port: u16) -> bool {
-    backend_answers_within(port, PROBE_TRIES)
-}
-
-/// True once the local backend accepts a connection within `tries` probe rounds
-/// (one connection attempt of up to 2s, then a 2s pause).
-#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
-fn backend_answers_within(port: u16, tries: u32) -> bool {
-    use std::time::Duration;
-    for _ in 0..tries {
-        if backend_answers_once(port) {
-            return true;
-        }
-        std::thread::sleep(Duration::from_secs(2));
-    }
-    false
-}
-
 /// The current user id, via `id -u` — launchctl addresses its domains by uid and
 /// there is no std API for it (and no libc dependency in this crate).
 #[cfg(target_os = "macos")]
@@ -1314,23 +944,6 @@ fn init_xlib_threads() {
     // SAFETY: takes no arguments, and runs before any thread or display exists.
     unsafe {
         XInitThreads();
-    }
-}
-
-/// Whether this shell may replace its own binary. On Linux the bundler stamps an
-/// AppImage, .deb or .rpm binary with its bundle type; an unstamped one (the
-/// pacman package `tools/package-arch.mjs` builds, or a dev build) belongs to
-/// whoever installed it, and the updater would fall back to the AppImage path
-/// and try to overwrite /usr/bin/xenon-native in place. The dashboard reads this
-/// as `shellSelfUpdate` and skips the app phase; the backend still updates.
-fn shell_self_update() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        tauri::utils::platform::bundle_type().is_some()
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        true
     }
 }
 
