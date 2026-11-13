@@ -79,7 +79,14 @@
       {"file":"server/ai/stopped-reply.js","about":"Answers a turn the user stopped: no text, with what its tools had already made.","names":["aiStoppedReply"]},
       {"file":"server/performance/ai-plan.js","about":"Performance Mode asks the AI which open apps to slow down: the question, and the check of the answer.","names":["_perfPlanPrompt","_normalizePerfPlan"]},
       {"file":"server/performance/presentmon-download.js","about":"Where the frame-rate reader PresentMon is downloaded from, and the checksum the file must have.","names":["PRESENTMON_URL","PRESENTMON_SHA256"]},
-      {"file":"server/performance/processes-normalize.js","about":"Checks the list of busiest programs that the reader sends, before it goes to widgets.","names":["normalizeProcesses"]}
+      {"file":"server/performance/processes-normalize.js","about":"Checks the list of busiest programs that the reader sends, before it goes to widgets.","names":["normalizeProcesses"]},
+      {"file":"server/media/timings.js","about":"The waits of the music reader: how long an answer is reused, and how long to stay away from a reader that failed.","names":["MEDIA_HOST_RETRY_MS","MEDIA_HELPER_BAD_MS","MEDIA_BLIND_STREAK","MEDIA_CROSSCHECK_BASE_MS","MEDIA_CROSSCHECK_MAX_MS","MEDIA_CACHE_MS","MEDIA_READER_REST_MS","SOUND_ROWS_REUSE_MS"]},
+      {"file":"server/media/snapshot.js","about":"Small steps on what is playing: the position moved forward to now, the same-track test, and the cleaned name of the preferred player.","names":["sanitizeMediaSourcePreference","liveMediaSnapshot","_sameStickyTrack"]},
+      {"file":"server/media/lyrics-reply.js","about":"Shapes found lyrics for the dashboard, and lists their lines for translation.","names":["lyricsReply","lyricsTexts"]},
+      {"file":"server/media/spotify-connect.js","about":"Signing in to Spotify: the address Spotify sends the user back to, and the page shown there.","names":["spotifyRedirectUri","spotifyCallbackPage"]},
+      {"file":"server/streaming/obs-launch.js","about":"Finds where OBS is installed and starts it, for an OBS action pressed while OBS is closed.","names":["_sleep","readObsInstallDir","launchObs"]},
+      {"file":"server/audio/svv-csv.js","about":"Reads the table SoundVolumeView writes: the column numbers, one line split into fields, and a temporary file to write it to.","names":["F","makeCsvPath","parseCsvLine"]},
+      {"file":"server/audio/app-target.js","about":"Turns the name of an app into the form the volume tool needs to find it.","names":["appAudioTarget"]}
     ]
   }
 }

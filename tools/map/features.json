@@ -236,6 +236,7 @@
       "name": "Streaming",
       "what": "Twitch, YouTube, OBS and Streamer.bot: chat, watching, scene and stream controls.",
       "files": [
+        "server/streaming/**",
         "server/stream-twitch.js",
         "server/stream-youtube.js",
         "server/stream-common.js",

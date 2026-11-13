@@ -100,7 +100,7 @@ Other programs Xenon talks to.
 | **Claude Code** | The Claude tile: live sessions, permission requests answered from the screen, usage. | `server/claude-code/**` `server/claude-*.js` `server/js/claude-*.js` `server/components/ClaudeWidget/**` `integrations/claude-code/**` `.claude-plugin/**` |
 | **Codex and ChatGPT** | The Codex tile and the Ask ChatGPT tile. | `server/codex/**` `server/codex-*.js` `server/chatgpt-ask.js` `server/js/codex-widget.js` `server/js/chatgpt-widget.js` `server/components/CodexWidget/**` and 1 more |
 | **Discord** | Voice channel, who is talking, mute and volume per person. | `server/discord/**` `server/discord-*.js` `server/js/discord-widget.js` `server/components/DiscordWidget/**` `server/public/images/discord/**` |
-| **Streaming** | Twitch, YouTube, OBS and Streamer.bot: chat, watching, scene and stream controls. | `server/stream-twitch.js` `server/stream-youtube.js` `server/stream-common.js` `server/stream-creds.js` `server/stream-history.js` `server/stream-config.example.json` and 18 more |
+| **Streaming** | Twitch, YouTube, OBS and Streamer.bot: chat, watching, scene and stream controls. | `server/streaming/**` `server/stream-twitch.js` `server/stream-youtube.js` `server/stream-common.js` `server/stream-creds.js` `server/stream-history.js` and 19 more |
 | **Remote control** | Using the PC from another device through Sunshine, Moonlight and Tailscale. | `server/remote-control/**` `server/js/remote-control.js` `server/components/RemoteControlSettings/**` |
 
 ## For widget makers

@@ -252,6 +252,21 @@ const {
 
 const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-probe.js');
 
+const {
+  MEDIA_HOST_RETRY_MS, MEDIA_HELPER_BAD_MS, MEDIA_BLIND_STREAK, MEDIA_CROSSCHECK_BASE_MS,
+  MEDIA_CROSSCHECK_MAX_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS, SOUND_ROWS_REUSE_MS,
+} = require('./media/timings.js');
+
+const {
+  sanitizeMediaSourcePreference, liveMediaSnapshot, _sameStickyTrack,
+} = require('./media/snapshot.js');
+
+const { _sleep, readObsInstallDir, launchObs } = require('./streaming/obs-launch.js');
+
+const { F, makeCsvPath, parseCsvLine } = require('./audio/svv-csv.js');
+
+const { appAudioTarget } = require('./audio/app-target.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -3045,9 +3060,6 @@ const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map
 
 const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
-// CSV column indices for SoundVolumeView /scomma (no header row)
-const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
-
 // Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
 // Bounded LRU (oldest evicted past the cap) so a long-running session that sees
 // many distinct executables can't grow it without limit — mirrors artworkCache.
@@ -3548,11 +3560,6 @@ const _mediaHost = {
   // and again whenever the helper proves it can see a session.
   emptyStreak: 0, crossChecks: 0, lastCrossCheck: 0,
 };
-const MEDIA_HOST_RETRY_MS = 10000; // after a host death, poll one-shot for a while instead of respawn-storming
-const MEDIA_HELPER_BAD_MS = 10 * 60 * 1000; // a helper exe that dies young (or is blind) is pinned out in favour of the PS host
-const MEDIA_BLIND_STREAK = 3;          // consecutive empty helper polls before a PS cross-check
-const MEDIA_CROSSCHECK_BASE_MS = 60000;   // first cross-checks: at most one PS spawn per minute
-const MEDIA_CROSSCHECK_MAX_MS = 5 * 60000; // …backing off to no more than one every 5 min while idle
 
 function _mediaHostReject(id, err) {
   const p = _mediaHost.pending.get(id);
@@ -3915,15 +3922,9 @@ function _sttGain() {
 }
 
 let mediaPreferredSource = '';
-const MEDIA_CACHE_MS = 1200;
-// A stuck media service answers only after its full timeout, and each try leaves another
-// call open inside it: ask again in a while, not on every tick.
-const MEDIA_READER_REST_MS = 30000;
 let mediaReaderRestUntil = 0;
 let mediaListProbe = null;
 let mediaHoldUntil = 0;
-// Each read of the sound rows is a process on Windows.
-const SOUND_ROWS_REUSE_MS = 2500;
 let _soundRows = { rows: null, at: 0 };
 const heardPlayer = createHeardPlayer(F);
 const musicNow = createMusicFact();
@@ -3933,10 +3934,6 @@ const {
 const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
-
-function sanitizeMediaSourcePreference(value) {
-  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 240);
-}
 
 function setMediaPreferredSource(value) {
   const next = sanitizeMediaSourcePreference(value);
@@ -3952,11 +3949,6 @@ function mediaScriptArgs(action, position) {
   if (mediaPreferredSource || action === 'seek') args.push(mediaPreferredSource || '');
   if (action === 'seek') args.push(String(position));
   return args;
-}
-
-function makeCsvPath() {
-  const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return path.join(os.tmpdir(), `xenonedge-svv-${stamp}.csv`);
 }
 
 function readSoundVolumeRows() {
@@ -4501,21 +4493,6 @@ async function getWeather(lang = 'en', requestedLocation = null) {
 
   weatherPending.set(cacheKey, promise);
   return promise;
-}
-
-function liveMediaSnapshot(data, ageMs) {
-  if (!data) return data;
-  const snapshot = { ...data };
-  if (snapshot.playbackStatus === 'Playing' && snapshot.duration) {
-    const position = Number(snapshot.position) || 0;
-    const duration = Number(snapshot.duration) || 0;
-    snapshot.position = Math.min(duration, position + Math.floor(ageMs / 1000));
-    // The unrounded twin (hosts that send it) ages by the exact time, so the
-    // lyrics clock is not up to a second off.
-    const positionMs = Number(snapshot.positionMs);
-    if (Number.isFinite(positionMs)) snapshot.positionMs = Math.round(Math.min(duration * 1000, positionMs + ageMs));
-  }
-  return snapshot;
 }
 
 function getCpuUsage() {
@@ -5294,31 +5271,6 @@ async function _getDiskIoRaw() {
 // (new key) never inherits the previous cover — it clears to the placeholder
 // until the new track's artwork arrives, exactly like the client's `_lastThumb`.
 let _lastGoodThumb = { title: '', artist: '', album: '', value: '' };
-// Is this read plausibly the SAME track as the remembered one? A single naive
-// key would force a choice between two failure modes, because SMTC routinely
-// drops the artist (and/or album) on a transient read while keeping the title —
-// so the very read we want to backfill looks like `title|''`:
-//   • key on title+artist+album → the transient drop changes the key → no
-//     backfill exactly when the cover flickers (the bug we're fixing);
-//   • key on title alone → two different untagged tracks that share a title
-//     collide and inherit each other's cover.
-// So match tolerantly: the title must match, and each of artist/album must
-// either match or be ABSENT on the incoming read (an empty field carries no new
-// info — treat it as "unchanged", not "different"). A DIFFERING non-empty
-// artist or album is a real other track and blocks the backfill, so covers never
-// bleed between two songs that merely share a title AND carry any distinguishing
-// tag. The one irreducible case — two fully-untagged tracks with byte-identical
-// titles back to back — is indistinguishable from a single read; we favour the
-// common flicker fix over that rare collision.
-function _sameStickyTrack(data, ref) {
-  const title = (data && data.title) || '';
-  if (!title || title !== ref.title) return false;
-  const artist = (data && data.artist) || '';
-  const album = (data && data.album) || '';
-  if (artist && ref.artist && artist !== ref.artist) return false;
-  if (album && ref.album && album !== ref.album) return false;
-  return true;
-}
 function applyStickyThumb(data) {
   if (!data || !data.active) return data;
   const title = (data && data.title) || '';
@@ -5481,12 +5433,7 @@ const LYRICS_USER_AGENT = `Xenon v${APP_VERSION || '0'} (https://github.com/marc
 const _lyricsPending = new Map();
 let _lyricsCooldownUntil = 0;
 
-function lyricsReply(media, key, result) {
-  const out = { ok: true, state: result.state, key, title: String(media.title || ''), source: 'LRCLIB' };
-  if (result.state === 'synced') out.lines = result.lines;
-  else if (result.state === 'plain') out.plain = result.plain;
-  return out;
-}
+const { lyricsReply, lyricsTexts } = require('./media/lyrics-reply.js');
 
 function lookupLyricsOnce(media, key) {
   if (_lyricsPending.has(key)) return _lyricsPending.get(key);
@@ -5535,14 +5482,6 @@ async function lyricsForPlayingKey(key) {
   const media = await getMediaInfo();
   if (!media || !media.active || lyrics.trackKey(media) !== key) return { status: 409 };
   return { status: 200, entry: await lyricsCache.get(key) };
-}
-
-// The texts a translation is made from: always the server's own copy.
-function lyricsTexts(entry) {
-  if (!entry) return null;
-  if (entry.state === 'synced') return entry.lines.map(l => l.text);
-  if (entry.state === 'plain') return entry.plain;
-  return null;
 }
 
 async function smallTaskModel(provider, settings) {
@@ -5650,18 +5589,6 @@ async function userAiVisionBlocker() {
 async function lyricsTranslateBlocker() {
   if (_serverHubSettings.lyricsTranslate !== true) return 'off';
   return userAiBlocker();
-}
-
-function parseCsvLine(line) {
-  const fields = [];
-  let cur = '', inQuote = false;
-  for (const ch of line) {
-    if (ch === '"') { inQuote = !inQuote; }
-    else if (ch === ',' && !inQuote) { fields.push(cur); cur = ''; }
-    else { cur += ch; }
-  }
-  fields.push(cur);
-  return fields;
 }
 
 async function _getAudioInfoRaw() {
@@ -5809,17 +5736,6 @@ function svvExec(args) {
   // for the next 8s tick (issue #139). Once the change is done, the next read
   // starts fresh.
   return run.finally(() => { audioPending = null; });
-}
-
-// Normalise a per-app audio target for SoundVolumeView: a bare process name with
-// a .exe suffix (the durable identifier the Deck stores, vs. the volatile CLI id).
-function appAudioTarget(app) {
-  const base = String(app || '').split(/[\\/]/).pop().trim();
-  // A blank app name yields a blank target, never the bare ".exe" — which the
-  // Linux matcher reads as "every stream on the machine" once the suffix is
-  // stripped. Callers refuse an empty target instead of aiming at everything.
-  if (!base) return '';
-  return /\.exe$/i.test(base) ? base : base + '.exe';
 }
 
 // Lazy OBS WebSocket client — reads live settings on each new connection so
@@ -6388,31 +6304,7 @@ async function refreshUnifiEventsWatch() {
   _unifiNotifyConfigSig = sig;
 }
 
-// ── OBS auto-launch: open OBS when an OBS action is clicked while it's closed,
-// then run the action once it connects. ──────────────────────────────────────
-const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let obsLaunching = false;
-
-// Read OBS's install dir from the registry (HKLM\SOFTWARE\OBS Studio default).
-// Returns the path string or null; never throws.
-function readObsInstallDir() {
-  return new Promise((resolve) => {
-    execFile('powershell.exe',
-      ['-NoProfile', '-Command', "$ErrorActionPreference='SilentlyContinue'; (Get-ItemProperty 'HKLM:\\SOFTWARE\\OBS Studio').'(default)'"],
-      { timeout: 4000, windowsHide: true },
-      (err, stdout) => {
-        if (err) return resolve(null);
-        const dir = String(stdout || '').trim();
-        resolve(dir || null);
-      });
-  });
-}
-
-// Launch obs64.exe with its required working directory (bin\64bit). Best-effort.
-function launchObs(exe) {
-  try { spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: false }).unref(); }
-  catch (e) { console.error('OBS launch failed:', e.message); }
-}
 
 function _finishObsLaunch(ok) {
   if (!obsLaunching) return;
@@ -12043,37 +11935,7 @@ async function refreshDiscordWatch() {
   } finally { discordWatchArming = false; }
 }
 
-// Persist the streaming app credentials (from the Settings → Streaming inputs) to
-// the gitignored stream-config.json and re-create the providers so they take
-// effect immediately. Only the known credential keys are accepted.
-// The Spotify OAuth redirect target. Pinned to the loopback IP (Spotify rejects
-// `localhost` redirect URIs) with the server's actual port taken from the — already
-// loopback-verified — Host header. This exact string must be registered in the
-// user's Spotify app (see docs/streaming-setup.md); it's the same for every install
-// on the default port: http://127.0.0.1:3030/stream/spotify/callback.
-function spotifyRedirectUri(req) {
-  const host = String((req && req.headers && req.headers.host) || '').trim();
-  const port = (host.match(/:(\d+)$/) || [])[1] || '3030';
-  return 'http://127.0.0.1:' + port + '/stream/spotify/callback';
-}
-
-// The minimal page shown after Spotify redirects back — the Settings poll detects
-// the connected state, so this only needs to reassure the user and self-close.
-function spotifyCallbackPage(ok) {
-  const title = ok ? 'Spotify connected' : 'Spotify connection failed';
-  const body = ok
-    ? 'You can close this window and return to the dashboard.'
-    : 'Something went wrong. Close this window and try Connect again.';
-  return '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title>'
-    + '<style>html{color-scheme:dark}body{margin:0;height:100vh;display:flex;flex-direction:column;'
-    + 'align-items:center;justify-content:center;gap:10px;background:#0b0f0e;color:#e7e9ee;'
-    + 'font:600 15px/1.5 system-ui,Segoe UI,sans-serif;text-align:center;padding:24px}'
-    + '.d{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;'
-    + 'font-size:26px;background:' + (ok ? 'rgba(30,215,96,.16);color:#1ed760' : 'rgba(237,66,69,.16);color:#ed4245') + '}'
-    + 'p{margin:0;opacity:.75;font-weight:500;max-width:320px}</style></head><body>'
-    + '<div class="d">' + (ok ? '✓' : '✕') + '</div><div>' + title + '</div><p>' + body + '</p>'
-    + '<script>setTimeout(function(){window.close()},2500)</script></body></html>';
-}
+const { spotifyRedirectUri, spotifyCallbackPage } = require('./media/spotify-connect.js');
 
 const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret', 'discordClientId', 'discordClientSecret', 'spotifyClientId'];
 async function saveStreamConfig(patch) {
