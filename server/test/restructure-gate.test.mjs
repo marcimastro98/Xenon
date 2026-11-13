@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { gateSteps } from '../../tools/restructure/gate.mjs';
+import { gatePort, gateSteps } from '../../tools/restructure/gate.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const scripts = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')).scripts;
@@ -37,4 +37,11 @@ test('every file a step runs exists, the three server checks use the side port, 
     assert.ok(step.minutes > 0 && step.minutes <= 15, step.name);
   }
   for (const name of ['boot', 'requests', 'routes']) assert.equal(gateSteps().find((step) => step.name === name).env.XENON_PORT, '3039');
+});
+
+test('the gate takes another port when asked, and never the one of the installed app', () => {
+  assert.equal(gatePort(undefined), '3039');
+  assert.equal(gatePort('3041'), '3041');
+  assert.throws(() => gatePort('3030'), /installed app/);
+  assert.throws(() => gatePort('http'), /pick a free port/);
 });

@@ -6,13 +6,28 @@
 // after (the base commit against the working folder), the personal-data sweep, whitespace.
 //
 //   node tools/restructure/gate.mjs [--base <commit>] [--from <step>] [--only <step>]
+//
+// XENON_GATE_PORT picks the port of the throwaway servers (default 3039), so two checkouts can
+// run their gate at once. 3030 is the installed app's and is refused.
 
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PORT = '3039';
+const DAILY_PORT = '3030';
+
+/**
+ * @param {string | undefined} asked the value of XENON_GATE_PORT
+ * @returns {string} the port the throwaway servers listen on
+ */
+export function gatePort(asked) {
+  const port = String(asked || '3039').trim();
+  if (!/^\d{4,5}$/.test(port) || port === DAILY_PORT) throw new Error(`XENON_GATE_PORT ${port}: pick a free port that is not ${DAILY_PORT}, the installed app's`);
+  return port;
+}
+
+const PORT = gatePort(process.env.XENON_GATE_PORT);
 const MINUTE = 60_000;
 
 /**
