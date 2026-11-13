@@ -55,6 +55,10 @@ function styleMove(tree, move, { pages, earlier }) {
   const old = need(tree, move.from);
   const plan = planStyleSplit(old, move.parts, move.from);
   const added = plan.parts.map((part) => part.file);
+  // The empty line between two sections opens the part after it: a file that ends with one fails `git diff --check`.
+  const pieces = [{ file: move.from, text: plan.kept }, ...plan.parts.slice(0, -1)];
+  const trailing = pieces.filter((piece) => /(^|\n)[ \t]*\n$/.test(piece.text));
+  if (trailing.length) throw new Refusal(trailing.map((piece) => `${piece.file} would end with an empty line: cut one line earlier, so the empty line opens the next part`));
   const files = retag(tree, pages, { old: move.from, added, where: 'after', before: [move.from], after: [move.from, ...added] });
   files.set(move.from, plan.kept);
   for (const part of plan.parts) files.set(part.file, part.text);

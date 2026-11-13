@@ -111,12 +111,14 @@ test('a stylesheet that cannot be read in parts is refused whole', () => {
 
 test('a stylesheet move links the parts right after the old sheet on every page', () => {
   const tree = treeOf({ 'server/index.html': PAGE, 'server/components/Box.css': SHEET });
-  const move = { kind: 'style', from: 'server/components/Box.css', parts: [{ file: 'server/components/BoxEdit.css', at: 6 }] };
+  const move = { kind: 'style', from: 'server/components/Box.css', parts: [{ file: 'server/components/BoxEdit.css', at: 5 }] };
   const done = applyMove(tree, move, { parser: null, pages: ['server/index.html'], earlier: [] });
   assert.equal(done.files.get('server/components/Box.css') + done.files.get('server/components/BoxEdit.css'), SHEET);
   assert.ok(done.files.get('server/index.html').includes('href="components/Box.css?v=1">\n<link rel="stylesheet" href="components/BoxEdit.css">\n'));
   assert.match(refusal(() => applyMove(tree, move, { parser: null, pages: ['server/index.html'], earlier: [done.record] })), /cut into parts already/);
-  const elsewhere = { ...move, parts: [{ file: 'server/styles/BoxEdit.css', at: 6 }] };
+  const late = { ...move, parts: [{ file: 'server/components/BoxEdit.css', at: 6 }] };
+  assert.match(refusal(() => applyMove(tree, late, { parser: null, pages: ['server/index.html'], earlier: [] })), /Box\.css would end with an empty line: cut one line earlier/);
+  const elsewhere = { ...move, parts: [{ file: 'server/styles/BoxEdit.css', at: 5 }] };
   assert.match(refusal(() => applyMove(tree, elsewhere, { parser: null, pages: ['server/index.html'], earlier: [] })), /must be a \.css file in the folder of server\/components\/Box\.css/);
 });
 
