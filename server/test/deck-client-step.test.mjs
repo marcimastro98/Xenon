@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
+import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { createDeckShortcutRunner } = require('../deck-shortcut-runner.js');

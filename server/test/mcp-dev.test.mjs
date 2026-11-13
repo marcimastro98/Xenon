@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { createMcpDev, cleanName, cleanReport, parseStore, TOKEN_PREFIX, PAIR_TTL_MS, MAX_CLIENTS } = require('../mcp-dev.js');

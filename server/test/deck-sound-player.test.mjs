@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
+import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { createDeckSoundPlayer, playersFor, volumeOf, MAX_CLIPS } = require('../deck-sound-player.js');

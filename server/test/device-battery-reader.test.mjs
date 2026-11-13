@@ -8,6 +8,7 @@ import { fork } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { createGuard, keyOf } = require('../device-battery/guard.js');

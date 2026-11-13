@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import './keep-loop-alive.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCaptureExport, shape, suffixOf, timeoutFor } = require('../capture-export.js');
