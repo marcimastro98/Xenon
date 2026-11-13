@@ -178,7 +178,7 @@ test('C# members move to another file of the same partial class', () => {
   const plan = { origin: 'helper/Host.cs', parts: [{ file: 'helper/Host.Walk.cs', about: 'Walks the disk.', type: 'Host', items: ['method Walk', 'type Entry'] }, { file: 'helper/Kind.cs', about: 'What an entry is.', types: ['Kind'] }] };
   const { files } = splitMembers({ origin: plan.origin, text: CS, plan, lang: 'cs' });
   assert.match(files['helper/Host.cs'], /^internal static partial class Host$/m);
-  assert.doesNotMatch(files['helper/Host.cs'], /void Walk|class Entry|enum Kind/);
+  assert.doesNotMatch(files['helper/Host.cs'], /void Walk|class Entry|enum Kind|\n\n$/);
   assert.match(files['helper/Host.Walk.cs'], /^\/\/ Walks the disk\.\n\nusing System;\n\nnamespace Demo;\n\ninternal static partial class Host\n\{\n {4}private static void Walk\(\)/);
   assert.match(files['helper/Host.Walk.cs'], /class Entry \{ public int Id; \}\n\}\n$/);
   assert.match(files['helper/Kind.cs'], /namespace Demo;\n\ninternal enum Kind \{ File, Dir \}\n$/);

@@ -117,6 +117,7 @@ export function splitMembers({ origin, text, plan, lang }) {
     if (gone && !/^(?:[ \t]*\n|[ \t]*\})/.test(text.slice(cut.to)) && !cuts.some((other) => other.from === cut.to && other.to > other.from)) rest += '\n';
     at = cut.to;
   }
-  out[origin] = unprivate(rest + text.slice(at));
+  // (when the last type of the file left, the empty line above it goes too)
+  out[origin] = unprivate(rest + text.slice(at)).replace(/\n\s*$/, '\n');
   return { files: out, notes };
 }
