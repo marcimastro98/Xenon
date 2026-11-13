@@ -60,6 +60,38 @@ test('a required name only the moved code used leaves the old file, the module s
   assert.deepEqual(proven(text, own), []);
 });
 
+test('a require line with a comment after it loses its names and keeps the comment', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const text = ['const path = require("path"); // joins', 'const { a, keep } = require("./lib");   // the rules, shared',
+    'const Whole = require("./whole"); // limits (shared with the import)', 'const {', '  b,', '  c,', '} = require("./more"); // more of it',
+    'const made = require("./made"); // made earlier', '// Says what f is.',
+    'function f(x) { return path.join(a(x), Whole.max, c(), made.go()); }', 'function g() { return f() + b() + keep(); }', ''].join('\n');
+  const head = (made) => made.newSource.split('\n').slice(0, 7);
+  const hand = plan(text, ['f']);
+  assert.deepEqual(head(hand), ['require("path"); // joins', 'const { keep } = require("./lib");   // the rules, shared',
+    'require("./whole"); // limits (shared with the import)', 'const {', '  b,', '} = require("./more"); // more of it',
+    'require("./made"); // made earlier'], 'every comment is where it was, with the spaces before it');
+  assert.deepEqual(proven(text, hand), []);
+  assert.match(hand.moduleText, /const path = require\('node:path'\);\nconst \{ a \} = require\('\.\.\/lib\.js'\);\nconst Whole = require\('\.\.\/whole\.js'\);/);
+
+  // A line the tool wrote itself and somebody commented since: it stays too.
+  const own = plan(text, ['f'], { ownModules: new Set(['server/made.js', 'server/more.js']) });
+  assert.deepEqual(head(own).slice(3, 6), ['const { b } = require("./more"); // more of it', 'require("./made"); // made earlier',
+    "const { f } = require('./part/x.js');"], 'rewritten on one line, or left as a bare require: never dropped');
+  assert.deepEqual(proven(text, own), []);
+
+  // The proof is not the code that made the edit: each way of losing the comment is caught.
+  const bend = (made, from, to) => ({ ...made, newSource: made.newSource.replace(from, to),
+    glue: { ...made.glue, edits: made.glue.edits.map((edit) => ({ ...edit, newLines: edit.newLines.map((line) => line.replace(from, to)) })) } });
+  assert.match(proven(text, bend(hand, '   // the rules, shared', '')).join('\n'), /the comment after require\('\.\/lib'\) changed/);
+  assert.match(proven(text, bend(hand, '// limits (shared with the import)', '// limits')).join('\n'), /the comment after require\('\.\/whole'\) changed/);
+  assert.match(proven(text, bend(hand, '// more of it', '// more of it, and f')).join('\n'), /the comment after require\('\.\/more'\) changed/);
+  const dropped = { ...hand, newSource: hand.newSource.replace('require("path"); // joins\n', ''),
+    glue: { ...hand.glue, sourceAt: hand.glue.sourceAt - 1,
+      edits: hand.glue.edits.map((edit) => (edit.at === 0 ? { ...edit, newLines: [] } : { ...edit, at: edit.at - 1 })) } };
+  assert.match(proven(text, dropped).join('\n'), /the comment after require\('path'\) was lost with its line/);
+});
+
 test('the new require goes before the first statement that may use a moved name while the file loads', (t) => {
   if (!parser) return t.skip(SKIP);
   const text = ['const table = build();', 'function helper() { return 1; }', 'function build() { return helper(); }',

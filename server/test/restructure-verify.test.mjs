@@ -91,3 +91,39 @@ test('a require line of the old file may only lose names', () => {
   assert.match(requireEditProblem(['const { a } = require("./gone");'], [], module), /was dropped but the new module does not require it/);
   assert.ok(requireEditProblem(['const { a } = require("./lib");'], ['const { a } = require("./other");'], module));
 });
+
+test('a comment after a require stays after it, byte for byte, whatever the line loses', () => {
+  const module = "const { a } = require('../lib.js');\nconst path = require('node:path');\n";
+  const note = ' // the one owner of the rules (shared with the client)';
+  const fine = [
+    [[`const { a, b } = require("./lib");${note}`], [`const { b } = require("./lib");${note}`]],
+    [[`const { a } = require("./lib");${note}`], [`require("./lib");${note}`]],
+    [[`const Lib = require("./lib");${note}`], [`require("./lib");${note}`]],
+    [[`const Lib = require("./lib").one;   // spaced`], [`require("./lib").one;   // spaced`]],
+    [['const {', '  a,', '  b,', `} = require("./lib");${note}`], ['const {', '  b,', `} = require("./lib");${note}`]],
+    [['// Above.', `const path = require("path");${note}`], ['// Above.', `require("path");${note}`]],
+  ];
+  for (const [was, now] of fine) assert.equal(requireEditProblem(was, now, module), null, now.join(' | '));
+
+  const lost = /the comment after require\('\.\/lib'\) (changed|was lost)/;
+  const old = [`const { a, b } = require("./lib");${note}`];
+  assert.match(requireEditProblem(old, ['const { b } = require("./lib");'], module), lost, 'the comment went');
+  assert.match(requireEditProblem(old, ['const { b } = require("./lib"); // the one owner of the rules'], module), lost, 'the comment was cut short');
+  assert.match(requireEditProblem(old, [`const { b } = require("./lib");${note} and more`], module), lost, 'the comment grew');
+  assert.match(requireEditProblem(old, [`const { b } = require("./lib"); ${note}`], module), lost, 'a space more before it');
+  assert.match(requireEditProblem(old, [`const { b } = require("./lib");${note} `], module), lost, 'a space more after it');
+  assert.match(requireEditProblem(old, ['require("./lib");'], module), lost);
+  assert.match(requireEditProblem([`const path = require("path");${note}`], [], module), /the comment after require\('path'\) was lost with its line/,
+    'a built-in module with a comment keeps its line');
+  assert.match(requireEditProblem(old, [`const { b } = require("./lib");${note}`, 'evil();'], module), /changed/, 'nothing may follow the line');
+  assert.match(requireEditProblem(old, [`const { b, evil } = require("./lib");${note}`], module), /gained evil/, 'the names are still checked');
+  assert.match(requireEditProblem(old, [`const { b } = require("./other");${note}`], module), lost, 'so is the module');
+  assert.match(requireEditProblem(old, [`const { b } = evil(); require("./lib");${note}`], module), /changed into something else/);
+
+  // What stands after the require is only ever read as a comment when it starts with `//`.
+  assert.match(requireEditProblem(['const { a, b } = require("./lib"); run();'], ['const { b } = require("./lib"); run();'], module), /not a plain require/);
+  assert.match(requireEditProblem(['const { a, b } = require("./lib"); /* note */'], ['const { b } = require("./lib"); /* note */'], module),
+    /not a plain require/);
+  assert.match(requireEditProblem([`const { a, b } = require("./lib"), c = 1;${note}`], [`const { b } = require("./lib"), c = 1;${note}`], module),
+    /not a plain require/);
+});
