@@ -11,6 +11,7 @@ import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs'
 import { kept, levelCounts, recordProblems, settle, shapeOf } from '../../tools/restructure/routes-answers.mjs';
 import { baseEdits, questionsFor, REFUSALS } from '../../tools/restructure/routes-check.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from '../../tools/restructure/routes-list.mjs';
+import { writeRequests } from '../../tools/restructure/routes-writes.mjs';
 
 const parser = parserAvailable() ? await openParser() : null;
 after(() => parser?.close());
@@ -55,6 +56,26 @@ test('an address that changes something is never asked, a skipped one keeps its 
   assert.match(made.skipped[0].reason, /it changes something/);
   assert.equal(made.skipped[1].reason, 'never ends');
   assert.deepEqual(made.stale, ['/gone']);
+});
+
+test('a request that writes is asked in the order of its list, with its body as written; one that names no route is told', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const { branches } = routeChain(HANDLER, parser);
+  const made = writeRequests(branches, [
+    { method: 'POST', path: '/save', body: { a: 1 }, why: 'one file of the copy' },
+    { method: 'GET', path: '/status', why: 'reads it back from the copy' },
+    { method: 'POST', path: '/gone', body: {}, why: 'a route that was taken away' },
+    { method: 'POST', path: '/save', raw: 'not JSON', why: 'short' },
+    { method: 'DELETE', path: '/save', body: {}, why: 'another method than the route answers' },
+  ]);
+  assert.deepEqual(made.ask, [
+    { label: 'write 01: POST /save', method: 'POST', path: '/save', headers: { 'Content-Type': 'application/json' }, body: '{"a":1}' },
+    { label: 'write 02: GET /status', method: 'GET', path: '/status', headers: {} },
+    { label: 'write 04: POST /save', method: 'POST', path: '/save', headers: { 'Content-Type': 'application/json' }, body: 'not JSON' },
+  ]);
+  assert.deepEqual(made.stale, ['POST /gone', 'DELETE /save']);
+  assert.deepEqual(made.unexplained, ['POST /save'], 'an entry says what it touches, in more than a word');
+  assert.deepEqual(writeRequests(branches, []), { ask: [], stale: [], unexplained: [] });
 });
 
 test('an answer is kept as its status, its kind, a fingerprint of its body and one of its shape', () => {
@@ -154,4 +175,13 @@ test('on the real engine: only plain GET routes are asked, none that changes som
   for (const [address, reason] of Object.entries(skip)) assert.ok(address.startsWith('/') && reason.length > 20, `${address} says why it is left out`);
   assert.equal(asked.length + made.skipped.length, made.paths.length, 'every plain GET route is asked or left out with a reason');
   for (const refusal of REFUSALS) assert.ok(!/^\/(toggle|media|volume|mic|speaker|audio)\b/.test(refusal.path), 'no refusal is tried on an address that could act on this PC');
+  // The routes that write: every entry names a route of today and says what it touches, and none is of a kind that acts on the PC.
+  const writes = JSON.parse(readFileSync(repoFile('tools/restructure/routes-writes.json'), 'utf8')).requests;
+  const wrote = questionsFor({ engineText, remoteText, skip, writes, parser });
+  assert.deepEqual(wrote.staleWrites, []);
+  assert.equal(wrote.writes.length, writes.length);
+  assert.ok(wrote.writes.length >= 20, `${wrote.writes.length} requests of routes that write`);
+  assert.deepEqual(wrote.questions, made.questions, 'the list of writes changes nothing in what is asked with GET');
+  const ACTS_ON_THE_PC = /^\/(?:toggle|media|volume|mic|speaker|audio|lock|windows|deck\/press|actions|remote\/|search\/(?:open|reveal)|disk\/(?:clean|reveal)|api\/(?:lighting|transfer|devclean|speak|tts|chime|claude\/run|phone|calls)|second-screen|update\/(?:prepare|apply)|sdk\/install|backup)/;
+  for (const request of wrote.writes) assert.ok(!ACTS_ON_THE_PC.test(request.path), `${request.path} could act on this PC and is not asked`);
 });

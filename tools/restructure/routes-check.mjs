@@ -9,7 +9,9 @@
 // The addresses are read from the handler itself (routes-list.mjs): every branch
 // whose test is one address asked with GET. Left out are the addresses the engine
 // lists as changing something, and the ones in routes-skip.json, each with its
-// reason. A few requests the gate must refuse are asked too.
+// reason. A few requests the gate must refuse are asked too. Last come the requests
+// of routes-writes.json: a few routes that write, picked by hand because each only
+// touches the copy's own data, asked one at a time in the order of the list.
 //
 // The copy runs with its data, its home folder and its temp folder inside a temp
 // folder of its own, and with routes-quiet.cjs loaded first: it can start no
@@ -26,6 +28,7 @@ import { copyEngine } from '../ci/request-check.mjs';
 import { openParser } from './parser.mjs';
 import { kept, levelCounts, recordProblems, settle } from './routes-answers.mjs';
 import { askable, exactGetPaths, routeChain, setOfTexts } from './routes-list.mjs';
+import { writeRequests } from './routes-writes.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -50,8 +53,10 @@ export const REFUSALS = [
 ];
 
 function ask(port, { method, path: pathname, headers = {}, body }) {
+  // The length is said for every body: left to itself Node says none for a DELETE, and the engine cannot read the body.
+  const sent = body === undefined ? headers : { 'Content-Length': Buffer.byteLength(body), ...headers };
   return new Promise((resolve) => {
-    const req = http.request({ host: '127.0.0.1', port, method, path: pathname, headers, timeout: ANSWER_LIMIT_MS }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port, method, path: pathname, headers: sent, timeout: ANSWER_LIMIT_MS }, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => resolve({ status: res.statusCode, type: String(res.headers['content-type'] || ''), body: Buffer.concat(chunks) }));
@@ -63,8 +68,8 @@ function ask(port, { method, path: pathname, headers = {}, body }) {
   });
 }
 
-// One start of one copy: every question asked, a few at a time, then the copy is stopped.
-async function answersOf(folder, port, questions) {
+// One start of one copy: every question asked, a few at a time, then the writes one by one, then the copy is stopped.
+async function answersOf(folder, port, questions, writes) {
   const home = path.join(folder, 'home');
   const temp = path.join(folder, 'temp');
   for (const made of [home, temp]) mkdirSync(made, { recursive: true });
@@ -87,6 +92,7 @@ ${output}`);
       for (let next = waiting.shift(); next; next = waiting.shift()) answers[next.label] = kept(await ask(port, next));
     };
     await Promise.all(Array.from({ length: AT_ONCE }, worker));
+    for (const next of writes) answers[next.label] = kept(await ask(port, next));
   } finally {
     clearTimeout(limit);
     if (child.exitCode === null) await new Promise((resolve) => { child.once('exit', resolve); child.kill(); });
@@ -131,21 +137,25 @@ function copyOfCommit(rev) {
 }
 
 /** What to ask an engine, read from its own code. */
-export function questionsFor({ engineText, remoteText, skip, parser }) {
-  const paths = exactGetPaths(routeChain(engineText, parser).branches);
+export function questionsFor({ engineText, remoteText, skip, writes = [], parser }) {
+  const { branches } = routeChain(engineText, parser);
+  const paths = exactGetPaths(branches);
+  const wrote = writeRequests(branches, writes);
   const mutators = [...setOfTexts(engineText, parser, 'CSRF_MUTATION_PATHS'), ...setOfTexts(remoteText, parser, 'DEFAULT_GET_MUTATORS')];
   const { ask: wanted, skipped, stale } = askable({ paths, mutators, skip });
-  return { paths, skipped, stale, questions: [...wanted.map((address) => ({ label: `GET ${address}`, method: 'GET', path: address })), ...REFUSALS] };
+  return { paths, skipped, stale, writes: wrote.ask, staleWrites: [...wrote.stale, ...wrote.unexplained],
+    questions: [...wanted.map((address) => ({ label: `GET ${address}`, method: 'GET', path: address })), ...REFUSALS] };
 }
 
 async function record(rev) {
   const port = Number(process.env.XENON_PORT || 3039);
   const read = (file) => (rev ? execFileSync('git', ['show', `${rev}:${file}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }) : readFileSync(path.join(ROOT, file), 'utf8'));
   const skip = JSON.parse(readFileSync(path.join(HERE, 'routes-skip.json'), 'utf8')).paths;
+  const writes = JSON.parse(readFileSync(path.join(HERE, 'routes-writes.json'), 'utf8')).requests;
   const parser = await openParser();
   let plan;
   try {
-    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/remote-access.js'), skip, parser });
+    plan = questionsFor({ engineText: read(ENGINE), remoteText: read('server/remote-access.js'), skip, writes, parser });
   } finally {
     parser.close();
   }
@@ -154,18 +164,19 @@ async function record(rev) {
   for (let run = 0; run < 2; run += 1) {
     const folder = rev ? copyOfCommit(rev) : copyEngine();
     try {
-      runs.push(await answersOf(folder, port, plan.questions));
+      runs.push(await answersOf(folder, port, plan.questions, plan.writes));
     } finally {
       rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     }
   }
   const answers = settle(runs[0], runs[1]);
   const shapes = Object.fromEntries(Object.entries(runs[0]).filter(([, answer]) => answer.shape !== null).map(([label, answer]) => [label, answer.shape]));
-  return { getRoutes: plan.paths.length, asked: plan.questions.length - REFUSALS.length, refusals: REFUSALS.length,
-    skipped: plan.skipped, staleSkips: plan.stale, levels: levelCounts(answers), answers, shapes };
+  return { getRoutes: plan.paths.length, asked: plan.questions.length - REFUSALS.length, refusals: REFUSALS.length, writes: plan.writes.length,
+    skipped: plan.skipped, staleSkips: plan.stale, staleWrites: plan.staleWrites, levels: levelCounts(answers), answers, shapes };
 }
 
-const summary = (made) => `${made.asked} of ${made.getRoutes} GET routes asked (${made.skipped.length} left out), ${made.refusals} requests the gate must refuse; `
+const summary = (made) => `${made.asked} of ${made.getRoutes} GET routes asked (${made.skipped.length} left out), ${made.refusals} requests the gate must refuse, `
+  + `${made.writes ?? 0} requests of routes that write, in order; `
   + `compared by body ${made.levels.body}, by shape ${made.levels.shape}, by status ${made.levels.status}, not steady ${made.levels.unsteady}`;
 
 async function main() {
@@ -176,6 +187,7 @@ async function main() {
     writeFileSync(rest[0], `${JSON.stringify(made, null, 1)}\n`);
     console.log(summary(made));
     if (made.staleSkips.length) console.log(`skip list entries that name no GET route: ${made.staleSkips.join(', ')}`);
+    if (made.staleWrites.length) console.log(`entries of routes-writes.json that name no route, or do not say what they touch: ${made.staleWrites.join(', ')}`);
     return;
   }
   let before;
@@ -189,6 +201,7 @@ async function main() {
   }
   const problems = recordProblems(before, after);
   if (after.staleSkips?.length) problems.push(`the skip list names addresses no GET route answers: ${after.staleSkips.join(', ')}`);
+  if (after.staleWrites?.length) problems.push(`routes-writes.json has entries that name no route, or do not say what they touch: ${after.staleWrites.join(', ')}`);
   console.log(problems.length ? problems.join('\n') : `the routes answer as before: ${summary(after)}`);
   process.exitCode = problems.length ? 1 : 0;
 }

@@ -1,0 +1,33 @@
+{
+ "note": "Requests the route check asks after its GET questions, one at a time and in this order, to an engine before a move and to the one after it: routes that write, with a GET here and there to read back what was written. Add a route only after reading the lines under its test: it must touch nothing but the data folder of the throwaway copy. The copy can start no program and reach nothing (routes-quiet.cjs), but nothing stops a call into Windows itself or a file written outside the copy, so never a route that acts on the PC: locking it, volume, lights, windows, a file opened, moved or deleted, a Deck key, an install.",
+ "requests": [
+  { "method": "POST", "path": "/api/ai/memory", "body": { "text": "The route check keeps this one fact." }, "why": "one fact in the copy's memory file" },
+  { "method": "GET", "path": "/api/ai/memory", "why": "reads the fact back" },
+  { "method": "DELETE", "path": "/api/ai/memory", "body": { "all": true }, "why": "empties the copy's memory file" },
+  { "method": "POST", "path": "/notes", "body": { "notes": "written by the route check" }, "why": "the copy's notes file" },
+  { "method": "GET", "path": "/notes", "why": "reads the note back" },
+  { "method": "POST", "path": "/notes/list", "raw": "this is not JSON", "why": "a body that cannot be read: the route's own error answer, nothing written" },
+  { "method": "POST", "path": "/tasks", "body": { "op": "add", "item": { "id": "route-check-task", "text": "route check", "priority": "low" } }, "why": "one task in the copy's tasks file" },
+  { "method": "GET", "path": "/tasks", "why": "reads the task back" },
+  { "method": "POST", "path": "/tasks", "body": { "neither": "a list nor an edit" }, "why": "the route's refusal of a body it does not know, nothing written" },
+  { "method": "POST", "path": "/events", "body": { "op": "add", "item": { "id": "route-check-event", "title": "route check", "notes": "", "startsAt": "2031-01-01T10:00", "reminderAt": "" } }, "why": "one event without a reminder in the copy's events file" },
+  { "method": "GET", "path": "/events", "why": "reads the event back" },
+  { "method": "POST", "path": "/api/timers", "body": { "label": "route check", "kind": "stopwatch" }, "why": "one stopwatch (nothing rings) in the copy's timers file" },
+  { "method": "GET", "path": "/api/timers", "why": "reads the stopwatch back" },
+  { "method": "POST", "path": "/settings/tile", "body": {}, "why": "an empty save of one tile's settings: the route's own answer to it" },
+  { "method": "POST", "path": "/update/notice-seen", "body": {}, "why": "nothing to mark as read: the answer without a write" },
+  { "method": "POST", "path": "/api/vitals/state", "body": {}, "why": "an empty save of the Vitals state: the route's own answer to it" },
+  { "method": "POST", "path": "/api/push/unsubscribe", "body": { "endpoint": "https://push.example.com/route-check" }, "why": "an address no device subscribed with: the copy's own list, unchanged" },
+  { "method": "POST", "path": "/api/remote-access/rename", "body": { "id": "no-such-device", "name": "Route check" }, "why": "a device that was never paired: the answer without a write" },
+  { "method": "POST", "path": "/api/remote-access/pair/cancel", "body": {}, "why": "no pairing is open: memory only" },
+  { "method": "POST", "path": "/api/lyrics/offset", "body": { "key": "route-check", "ms": 0 }, "why": "the copy has nothing unlocked: the locked answer" },
+  { "method": "POST", "path": "/state/set", "body": { "name": "route-check", "value": "on" }, "why": "a script state, kept in memory" },
+  { "method": "POST", "path": "/api/log", "body": { "msg": "route check" }, "why": "one line in the copy's own output" },
+  { "method": "POST", "path": "/api/community/supporter/forget", "body": {}, "why": "forgets a supporter code the copy never had" },
+  { "method": "POST", "path": "/api/community/sparks/forget", "body": {}, "why": "forgets a Sparks code the copy never had" },
+  { "method": "POST", "path": "/disk/scan/cancel", "body": {}, "why": "no scan is running: memory only" },
+  { "method": "POST", "path": "/ai/pc-cancel", "body": { "nonce": "no-such-proposal" }, "why": "drops a proposal that does not exist: memory only" },
+  { "method": "POST", "path": "/ai/deck-cancel", "body": { "nonce": "no-such-proposal" }, "why": "drops a proposal that does not exist: memory only" },
+  { "method": "POST", "path": "/sdk/store", "body": { "pkg": "no-such-widget", "op": { "op": "get", "key": "x" } }, "why": "a widget that is not installed: the refusal, nothing written" }
+ ]
+}
