@@ -561,14 +561,14 @@ const icsFeeds = require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
-const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected, isBlockedOpenPath } = require('./actions/registry');
+const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createPerfSession } = require('./perf-session');
 const { shieldWish } = require('./perf-session/shield-wish');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
-const { createHomeAssistant, normalizeHomeAssistant, haSameDestination } = require('./actions/home-assistant');
-const { createHaQuery, normalizeHistoryRequest } = require('./actions/home-assistant-query');
+const { createHomeAssistant, normalizeHomeAssistant } = require('./actions/home-assistant');
+const { createHaQuery } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
 const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
@@ -580,7 +580,7 @@ const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl } = require('./remote-control/settings');
 require('./stream-creds');
-const { createUnifiProtect, normalizeUnifi, unifiSameDestination } = require('./actions/unifi');
+const { createUnifiProtect, normalizeUnifi } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
 require('./stocks-creds');
@@ -2210,7 +2210,7 @@ const { writeFileAtomic } = require('./atomic-write');
 // and quietly not in another.
 const { serveFileRange } = require('./http-range');
 
-const { TRANSFER_DISK_HEADROOM, TRANSFER_THUMB_MAX } = require('./transfer/limits.js');
+const { TRANSFER_DISK_HEADROOM } = require('./transfer/limits.js');
 
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
@@ -2287,7 +2287,7 @@ async function sendHotkeyCombo(keys) {
 
 const { psEscape } = require('./ps-quote');
 
-const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./programs/app-icons.js');
+const { resolveAppIcons } = require('./programs/app-icons.js');
 
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
@@ -4105,9 +4105,6 @@ async function refreshObsWatch() {
 // the server — only this projected state does.
 let haStopWatch = null;
 let haNotifyTimer = null;
-const {
-  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_ENTITY_ID_RE,
-} = require('./smart-home/limits.js');
 
 const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
 
@@ -10718,6 +10715,14 @@ const { branches: widgetSdkPackagesBranches } = require('./widget-sdk/routes-pac
 const { branches: aiMemoryBranches } = require('./ai/routes-memory.js');
 const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');
 const { branches: vitalsBranches } = require('./vitals/routes.js');
+const { branches: transferBranches } = require('./transfer/routes.js');
+const { branches: transferPhoneBranches } = require('./transfer/routes-phone.js');
+const { branches: pairedAccessBranches } = require('./paired/routes-access.js');
+const { branches: pairedPushBranches } = require('./paired/routes-push.js');
+const { branches: searchFilesBranches } = require('./search/routes-files.js');
+const { branches: diskBranches } = require('./disk/routes.js');
+const { branches: smartHomeBranches } = require('./smart-home/routes.js');
+const { branches: lightsControlBranches } = require('./lights/routes-control.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -11126,19 +11131,10 @@ const handleRequest = async (req, res) => {
     json({ ok: true, items: processesWanted() ? _processesHistory.toWire() : [] });
 
   } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
-    // Per-disk throughput and IOPS, for the SDK's `diskIo` stream. A read, and
-    // a costed one — it is pulled by a widget that is on screen asking, never
-    // polled by the server.
-    try   { json(await getDiskIo()); }
-    catch (e) { json({ ok: false, disks: [], error: String((e && e.message) || e) }); }
+    await diskBranches['GET /api/disks/io'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getDiskIo });
 
   } else if (reqPath === '/api/devstorage' && req.method === 'GET') {
-    // The SDK `devStorage` stream: how much space developer tools hold, numbers
-    // only. Not supporter-gated (the cleanup actions are), but it spawns docker
-    // and reg, so it answers only when some package was granted the stream.
-    if (!_sdkStreamGranted('devStorage')) { json({ ok: false, error: 'not_granted' }); return; }
-    try   { json({ ok: true, ...(await devClean.summary()) }); }
-    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+    await diskBranches['GET /api/devstorage'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (featureRoutes.has(req.method, reqPath)) {
     // A route that lives in its feature's routes.js (feature-routes.js).
@@ -11242,29 +11238,10 @@ const handleRequest = async (req, res) => {
     await lightsBranches['GET /api/lighting/devices'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
-    // Apply a partial config change immediately, then persist it so Lighting-page
-    // (and AI-driven) toggles survive a server restart.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      lighting.applyConfig(body);
-      _syncSessionWatch();
-      // Enabling connects asynchronously — wait briefly so the response carries
-      // the connected state and the freshly-enumerated device list.
-      if (body && body.enabled === true) { try { await lighting.ensureConnected(); } catch {} }
-      await _persistLighting();
-      json(lighting.getStatus());
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/effects'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting, _syncSessionWatch });
 
   } else if (reqPath === '/api/lighting/manual' && req.method === 'POST') {
-    // Manual fixed colour — persisted so it survives a restart.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      let ok = true;
-      if (body && body.clear) lighting.clearManual();
-      else ok = lighting.setManualColor(body && body.color);
-      await _persistLighting();
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/manual'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
     await lightsBranches['POST /api/lighting/album'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11282,77 +11259,22 @@ const handleRequest = async (req, res) => {
     await vitalsBranches['GET /api/vitals/popup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
 
   } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
-    // Ambient animation (none|solid|breathing|cycle). Persisted so it survives a
-    // restart. The render loop only spins while a dynamic style is actively painting.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      lighting.setAnimation(body);
-      await _persistLighting();
-      json(lighting.getStatus());
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/animation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/device-mode' && req.method === 'POST') {
-    // Per-device override: { id, mode, color?, anim? }. Persisted.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const ok = lighting.setDeviceMode(String(body && body.id || ''), body || {});
-      await _persistLighting();
-      json({ ok, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/device-mode'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/scan' && req.method === 'POST') {
-    // On-demand LAN discovery for external providers (WLED, …). No background scan.
-    try {
-      const result = await lighting.scanExternal();
-      await _persistLighting();
-      json({ ok: true, found: result.found, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/device' && req.method === 'POST') {
-    // Add / remove / opt-in an external device. body: { provider, action, host?, id?, optedIn? }
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const provider = String(body && body.provider || '');
-      const action = String(body && body.action || '');
-      let result = { ok: false };
-      if (action === 'add') {
-        const dev = await lighting.addExternalDevice(provider, String(body.host || ''));
-        result = { ok: !!dev, device: dev || null };
-      } else if (action === 'pair') {
-        const r = await lighting.pairExternalDevice(provider, String(body.host || ''));
-        result = { ok: !!(r && r.ok), needsButton: !!(r && r.needsButton) };
-      } else if (action === 'remove') {
-        result = { ok: lighting.removeExternalDevice(provider, String(body.id || '')) };
-      } else if (action === 'optin') {
-        result = { ok: lighting.setExternalDeviceOptIn(provider, String(body.id || ''), body.optedIn !== false) };
-      }
-      await _persistLighting();
-      json({ ...result, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/device'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/native' && req.method === 'POST') {
-    // Native control of the motherboard's lighting on/off: { enabled }. Persisted.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      lighting.setNativeEnabled(body.enabled === true);
-      _syncSessionWatch();
-      await _persistLighting();
-      json({ ok: true, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/native'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting, _syncSessionWatch });
 
   } else if (reqPath === '/api/lighting/native/layout' && req.method === 'POST') {
-    // What hangs on one output, from the guided setup:
-    // { device, output, layout: { empty } | { parts: [{ kind, count, name? }] } | null }.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const output = Number(body.output);
-      if (!Number.isInteger(output) || output < 0 || output > 15) { res.writeHead(400); res.end('Invalid output'); return; }
-      const layout = body.layout === null ? null : (body.layout && typeof body.layout === 'object' ? body.layout : undefined);
-      if (layout === undefined) { res.writeHead(400); res.end('Invalid layout'); return; }
-      const ok = lighting.setNativeLayout(String(body.device || '').slice(0, 160), 'h' + output, layout);
-      if (ok) await _persistLighting();
-      json({ ok, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/native/layout'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/native/preview' && req.method === 'POST') {
     // Guided setup: light part of one output so the user sees where each fan
@@ -11372,13 +11294,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/native/scan' && req.method === 'POST') {
-    // Look for the controllers again (after plugging something in, or closing
-    // the vendor app that held them).
-    try {
-      await lighting.scanNative();
-      await _persistLighting();
-      json({ ok: true, status: lighting.getStatus() });
-    } catch (e) { err500(e.message); }
+    await lightsControlBranches['POST /api/lighting/native/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
 
   } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
     await lightsBranches['POST /api/lighting/open-download'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -11844,27 +11760,16 @@ const handleRequest = async (req, res) => {
     try { json(await deckWaveLink.test()); } catch (e) { json({ ok: false, error: 'wl_failed' }); }
 
   } else if (reqPath === '/api/chroma/status' && req.method === 'GET') {
-    // Chroma reachability + fixed device list (no live stream — state is static).
-    json(deckChroma.getStatus());
+    await lightsControlBranches['GET /api/chroma/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckChroma });
 
   } else if (reqPath === '/api/chroma/test' && req.method === 'POST') {
-    // Settings "Test connection": init a Chroma session then release it.
-    try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
+    await lightsControlBranches['POST /api/chroma/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckChroma });
 
   } else if (reqPath === '/api/signalrgb/status' && req.method === 'GET') {
     await lightsBranches['GET /api/signalrgb/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
-    // Toggle the SignalRGB integration on/off (persisted like the chroma flag).
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const enabled = body.enabled === true;
-      await withHubSettingsLock(async () => {
-        hub.settings = await writeHubSettings({ ...hub.settings, signalrgb: { enabled } });
-      });
-      signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
-      json({ ok: true, installed: signalrgb.isInstalled(), enabled });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
+    await lightsBranches['POST /api/signalrgb/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { writeHubSettings });
 
   } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
     await lightsBranches['GET /api/signalrgb/effects'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13208,187 +13113,28 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
-    // Compact snapshot of the user's selected entities + connection flag (the same
-    // shape the SSE `homeassistant` event pushes). Used as a fallback/first paint.
-    try { json(await buildHaState()); }
-    catch (e) { err500(e.message); }
+    await smartHomeBranches['GET /api/homeassistant/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildHaState });
 
   } else if (reqPath === '/stream/homeassistant/query' && req.method === 'POST') {
-    // Home Assistant READS for SDK widgets: an entity's recent history, one
-    // camera frame, or a media player's cover art. Gated per package on the `homeassistant` stream grant, and
-    // only for entities the user already selected (the same ones the stream
-    // shows that widget) — a widget can't name a lock, a person or a camera the
-    // user never chose. POST JSON, so the loopback Origin layer covers it.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const pkgId = String(body.pkg || '');
-      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
-      if (!sdkGrantsFor(pkgId).streams.includes('homeassistant')) { json({ ok: false, error: 'not_allowed' }); return; }
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const ha = (s && s.homeAssistant) || {};
-      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
-      const allowed = [].concat(ha.entities || [], ha.energyEntities || []);
-      const p = (body.params && typeof body.params === 'object') ? body.params : {};
-      const release = sdkTileGate(pkgId, 'tile');
-      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
-      try {
-        if (body.op === 'history') {
-          const q = normalizeHistoryRequest(p.ids, p.hours, allowed);
-          json(q.error ? { ok: false, error: q.error } : Object.assign(await haQuery.history(q.ids, q.hours), { skipped: q.skipped }));
-        } else if (body.op === 'camera') {
-          json(await haQuery.cameraFrame(p.id, allowed));
-        } else if (body.op === 'artwork') {
-          json(await haQuery.artwork(p.id, allowed));
-        } else {
-          json({ ok: false, error: 'bad_op' });
-        }
-      } finally { release(); }
-    } catch (e) {
-      // A fixed code: a failed HA call's message can carry the HA host and port.
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
-    }
+    await smartHomeBranches['POST /stream/homeassistant/query'](req, res, { json, err500, reqPath, urlObj, isRemote }, { haQuery, readHubSettings });
 
   } else if (reqPath === '/ha/deck-watch' && req.method === 'POST') {
-    // A SURFACE tells the server which HA entities its deck keys are bound to;
-    // the shared watch then includes the UNION across surfaces in the coalesced
-    // `ha_states` broadcasts (per-client sets — a popup showing a narrow folder
-    // can't clobber the dashboard's list). POST-only JSON → covered by the
-    // loopback Origin layer; client id + entity ids re-validated.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const client = String(body.client || '').trim();
-      if (!/^[a-z0-9]{4,24}$/.test(client)) { json({ ok: false, error: 'bad_client' }); return; }
-      const raw = Array.isArray(body.entities) ? body.entities : [];
-      const ids = [];
-      for (const item of raw) {
-        const id = String(item == null ? '' : item).trim().toLowerCase();
-        if (HA_ENTITY_ID_RE.test(id) && !ids.includes(id)) ids.push(id);
-        if (ids.length >= HA_DECK_WATCH_MAX) break;
-      }
-      if (!ids.length) {
-        _haDeckWatchClients.delete(client);
-      } else {
-        // Bounded: a burst of new client ids evicts the stalest entry first.
-        if (!_haDeckWatchClients.has(client) && _haDeckWatchClients.size >= HA_DECK_WATCH_CLIENTS_MAX) {
-          let oldest = null;
-          for (const [k, v] of _haDeckWatchClients) { if (!oldest || v.at < oldest.at) oldest = { k, at: v.at }; }
-          if (oldest) _haDeckWatchClients.delete(oldest.k);
-        }
-        _haDeckWatchClients.set(client, { ids, at: Date.now() });
-      }
-      // Seed immediately so freshly-bound keys paint without waiting for the
-      // next state_changed. FORCED past the change guard: the posting client
-      // needs the snapshot even when it matches the last broadcast.
-      try { broadcastHaDeckStates(true); } catch (e) { /* ignore */ }
-      json({ ok: true, watching: haDeckWatchUnion().length });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+    await smartHomeBranches['POST /ha/deck-watch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastHaDeckStates });
 
   } else if (reqPath === '/api/homeassistant/entities' && req.method === 'GET') {
-    // Full compact entity list for the Settings device picker. Opens a live
-    // connection on demand (idle-closes afterwards). Never leaks the token.
-    try {
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const ha = (s && s.homeAssistant) || {};
-      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
-      const entities = await deckHa.listEntities();
-      json({ ok: true, entities });
-    } catch (e) {
-      // A fixed code: a failed HA call's message can carry the HA host and port.
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
-    }
+    await smartHomeBranches['GET /api/homeassistant/entities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
 
   } else if (reqPath === '/api/homeassistant/dashboards' && req.method === 'GET') {
-    // Settings → Smart Home → "Add as a tile": the user's HA dashboards (Overview
-    // first). Read-only, opened on demand like /entities; never leaks the token.
-    try {
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const ha = (s && s.homeAssistant) || {};
-      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
-      json({ ok: true, dashboards: await deckHa.listDashboards() });
-    } catch (e) {
-      json({ ok: false, error: 'ha_failed' });   // fixed code: the message can carry the HA host
-    }
+    await smartHomeBranches['GET /api/homeassistant/dashboards'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
 
   } else if (reqPath === '/api/homeassistant/test' && req.method === 'POST') {
-    // Settings "Connect" button: verify the URL + token by opening one connection.
-    // Reads the just-typed url/token from the body so it works before a full save.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const prev = (await readHubSettings().catch(() => null)) || {};
-      const prevHa = (prev && prev.homeAssistant) || {};
-      const url = typeof body.url === 'string' && body.url.trim() ? body.url.trim() : prevHa.url;
-      // Empty/omitted token in the body → fall back to the saved one (write-only
-      // field), but only for the server it was saved for. The URL comes from the
-      // request, so without this check any page that can POST here could point
-      // the probe at its own host and receive the long-lived token. A new URL
-      // needs its token typed alongside it, which is what the Connect form sends.
-      const typedToken = typeof body.token === 'string' && body.token ? body.token : '';
-      const token = typedToken || (haSameDestination(url, prevHa.url) ? prevHa.token : '');
-      const probe = createHomeAssistant(async () => ({ baseUrl: url, token }));
-      const r = await probe.test();
-      // On success, return the entity list from the SAME already-seeded probe, so
-      // the Settings picker can populate immediately — the persisted settings save
-      // is debounced, so a follow-up GET /entities could still read the old config.
-      let entities = [];
-      if (r && r.ok) {
-        entities = await probe.listEntities().catch(() => []);
-        // Persist url+token straight away so a green "Connected" ALWAYS means the
-        // token reached settings.json. The client's own save is debounced +
-        // fire-and-forget and can be lost to a hydrate/reconnect race (the redacted
-        // server copy overwriting the just-typed token before it lands), which
-        // strands the tile on "Connect Home Assistant" (configured=false) even
-        // though the test passed. Writing here closes that window; the client mirror
-        // save still runs and is reconciled by preserveHaToken. Read fail-closed: a
-        // real read error must NOT lead to writing a defaults-only object over the
-        // user's config (readHubSettings maps ENOENT → null on a fresh install).
-        try {
-          await withHubSettingsLock(async () => {       // serialized with every other settings writer
-            const base = await readHubSettings();
-            const cur = (base && typeof base === 'object') ? base : {};
-            const curHa = (cur.homeAssistant && typeof cur.homeAssistant === 'object') ? cur.homeAssistant : {};
-            const next = { ...cur, homeAssistant: { ...curHa, url, token }, rev: (Number(cur.rev) || 0) + 1 };
-            const saved = await writeHubSettings(next);
-            hub.settings = saved;
-            refreshHaWatch();                              // open the live socket now that we're configured
-            broadcastSSE('settings', { rev: saved.rev });  // other open surfaces adopt the saved token
-          });
-        } catch (e) { /* non-fatal: the client's debounced save remains the fallback */ }
-      }
-      try { probe.close(); } catch (e) { /* ignore */ }
-      json(Object.assign({ entities }, r));
-    } catch (e) {
-      // A fixed code: a failed HA call's message can carry the HA host and port.
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
-    }
+    await smartHomeBranches['POST /api/homeassistant/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, refreshHaWatch, writeHubSettings });
 
   } else if (reqPath === '/api/homeassistant/service' && req.method === 'POST') {
-    // Call a Home Assistant service (tile controls). POST-only, so the loopback
-    // Origin/Sec-Fetch checks in isAllowedRequest guard it from cross-site drive-by.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const target = body.entityId ? { entity_id: String(body.entityId) } : null;
-      const data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : {};
-      if (isRemote && !remoteActions.remoteMayCallHa(body.domain, body.service, body.entityId, data)) {
-        json({ ok: false, error: 'needs_pc' }); return;
-      }
-      json(await deckHa.callService(String(body.domain || ''), String(body.service || ''), target, data));
-    } catch (e) {
-      // A fixed code: a failed HA call's message can carry the HA host and port.
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
-    }
+    await smartHomeBranches['POST /api/homeassistant/service'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa });
 
   } else if (reqPath === '/api/unifiprotect/state' && req.method === 'GET') {
-    // First paint + periodic status poll for the Cameras tile: whether UniFi
-    // Protect is configured and the compact camera list (id/name/connected). Opens
-    // a login on demand (short-cached), never leaks the password.
-    try {
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const u = (s && s.unifi) || {};
-      const configured = !!(u.host && u.username && u.password);
-      if (!configured) { json({ configured: false, cameras: [] }); return; }
-      try { json({ configured: true, cameras: await deckUnifi.cameras() }); }
-      catch (e) { json({ configured: true, cameras: [], error: (e && e.message) || 'unifi_failed' }); }
-    } catch (e) { err500(e.message); }
+    await smartHomeBranches['GET /api/unifiprotect/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
   } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
     // Loopback JPEG proxy: fetch one camera's snapshot from the console (password
@@ -13413,18 +13159,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ha/cameras' && req.method === 'GET') {
-    // First paint + periodic status poll for the Cameras tile's Home Assistant
-    // source: whether HA is configured and the compact camera list. Opens a live
-    // WS on demand (idle-closes afterwards), never leaks the token. Mirrors the
-    // /api/unifiprotect/state shape so the tile can merge both sources uniformly.
-    try {
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const ha = (s && s.homeAssistant) || {};
-      const configured = !!(ha.url && ha.token);
-      if (!configured) { json({ configured: false, cameras: [] }); return; }
-      try { json({ configured: true, cameras: await deckHa.cameras() }); }
-      catch (e) { json({ configured: true, cameras: [], error: (e && e.message) || 'ha_failed' }); }
-    } catch (e) { err500(e.message); }
+    await smartHomeBranches['GET /api/ha/cameras'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
 
   } else if (reqPath.startsWith('/api/ha/camera/snapshot/') && req.method === 'GET') {
     // Loopback JPEG proxy for a Home Assistant camera: fetch the current frame from
@@ -13449,25 +13184,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/unifiprotect/test' && req.method === 'POST') {
-    // Settings "Connect" button: verify host + credentials by logging in once and
-    // listing cameras. Reads the just-typed values from the body so it works before
-    // a full save; an empty/omitted password falls back to the saved one.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const prev = (await readHubSettings().catch(() => null)) || {};
-      const prevU = (prev && prev.unifi) || {};
-      const host = typeof body.host === 'string' && body.host.trim() ? body.host.trim() : prevU.host;
-      const username = typeof body.username === 'string' && body.username.trim() ? body.username.trim() : prevU.username;
-      // The saved password is reused only for the console + login it was saved
-      // for; host and username come from the request, so a changed one must
-      // arrive with its own password (see the Home Assistant test route).
-      const typedPassword = typeof body.password === 'string' && body.password ? body.password : '';
-      const password = typedPassword || (unifiSameDestination({ host, username }, prevU) ? prevU.password : '');
-      const probe = createUnifiProtect(async () => ({ host, username, password }));
-      const r = await probe.test();
-      try { probe.destroy(); } catch (e) { /* ignore */ }   // free its keep-alive sockets to the console
-      json(r);
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'unifi_failed' }); }
+    await smartHomeBranches['POST /api/unifiprotect/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
     await installBranches['GET /startup/auto-open'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -15186,118 +14903,25 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/search' && req.method === 'GET') {
-    // Local file search (Spotlight). Read-only compute over the Windows Search
-    // catalog + the crawler index — no mutation, no outbound network, so it
-    // stays out of CSRF_MUTATION_PATHS (and is NEVER a JSONP candidate: the
-    // results carry the user's file names). Result paths travel OUT as display
-    // text only; acting on a result goes through the opaque id below.
-    try {
-      // Long enough for a pasted path; filesearch cuts a typed query to 200.
-      const q = String(urlObj.searchParams.get('q') || '').slice(0, 1024);
-      let disable;
-      try {
-        const rawDisable = urlObj.searchParams.get('disable');
-        disable = rawDisable ? JSON.parse(rawDisable) : undefined;
-        if (disable && typeof disable !== 'object') disable = undefined;
-      } catch { disable = undefined; }
-      // The dashboard is answered from the index at once (Windows Search gets
-      // a short head start) and collects the catalog's rows with ?catalog=1.
-      json(urlObj.searchParams.get('catalog') === '1'
-        ? await fileSearch.catalog(q, { disable })
-        : await fileSearch.search(q, { disable, catalogWaitMs: 300 }));
-    } catch (e) { err500(e.message); }
+    await searchFilesBranches['GET /search'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/search/recent' && req.method === 'GET') {
-    // What the empty search shows: files and folders recently opened from
-    // Xenon, re-checked to exist, each with an opaque id. Read-only, from the
-    // usage log in DATA_DIR. The Search TILE asks only when its setting is on.
-    try { json(await fileSearch.recent({ max: 8 })); } catch (e) { err500(e.message); }
+    await searchFilesBranches['GET /search/recent'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/search/thumb' && req.method === 'GET') {
-    // The preview of an image result, by opaque id. Raster types only, bounded,
-    // served as the image it is with nosniff and a sandboxing CSP, never from a
-    // cross-site request (the transfer thumbnail's shape).
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const target = await fileSearch.thumbTarget(urlObj.searchParams.get('id'));
-      if (!target) { res.writeHead(404); res.end(); return; }
-      const body = await fs.promises.readFile(target.path);
-      const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif' };
-      res.writeHead(200, {
-        'Content-Type': MIME[target.ext] || 'application/octet-stream',
-        'Content-Length': String(body.length),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'private, max-age=300',
-      });
-      res.end(body);
-    } catch (e) {
-      if (e && e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message);
-    }
+    await searchFilesBranches['GET /search/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/search/open' && req.method === 'POST') {
-    // Open one search result. The body carries an opaque id minted by the
-    // search above — never a path; filesearch.js resolves it against its own
-    // bounded cache and re-applies the Deck openFile rules (executable/script
-    // extensions refuse with revealable:true). In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await fileSearch.open(body.id));
-    } catch (e) { err500(e.message); }
+    await searchFilesBranches['POST /search/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/search/reveal' && req.method === 'POST') {
-    // Show one search result in Explorer (select-in-folder) — the safe path
-    // for results openFile refuses. Same opaque-id contract as /search/open.
-    // In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await fileSearch.reveal(body.id));
-    } catch (e) { err500(e.message); }
+    await searchFilesBranches['POST /search/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/search/icon' && req.method === 'GET') {
-    // The real logo for a search result: app results get the Store tile logo
-    // (Spotify, WhatsApp) or their Start-Menu shortcut's icon; exe/lnk file
-    // results get their embedded icon. Read-only: takes the opaque result id
-    // — never a path, per the search invariant — and reuses the Deck's cached
-    // extractors. A null extraction is evicted from the cache so a transient
-    // failure retries on the next request instead of pinning "no icon".
-    try {
-      const target = fileSearch.iconTarget(urlObj.searchParams.get('id'));
-      let icon = null;
-      let extractPath = null;
-      if (target && target.app) {
-        if (target.kind === 'store') icon = await resolveStoreAppIcon(target.target);
-        // A Start Menu shortcut has an embedded icon to extract; a macOS bundle
-        // or a .desktop entry does not go through the Windows extractor.
-        else if (target.kind === 'lnk') extractPath = target.target;
-      } else if (target && (target.ext === 'exe' || target.ext === 'lnk')) {
-        extractPath = target.path;
-      }
-      if (extractPath) {
-        const icons = await resolveAppIcons([extractPath]);
-        icon = icons[0] || null;
-        if (!icon) appIconCache.delete(extractPath.toLowerCase());
-      }
-      json({ ok: !!icon, icon: icon || null });
-    } catch { json({ ok: false, icon: null }); }
+    await searchFilesBranches['GET /search/icon'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileSearch });
 
   } else if (reqPath === '/index/status' && req.method === 'GET') {
-    // Living Index state for Settings + the disk widget: on/off, building
-    // progress, file count, resident RAM, roots. Read-only.
-    //
-    // `fdaBlocked` rides along because an index that is off for a REASON and
-    // one that is off because nobody turned it on look identical from here,
-    // and on macOS the reason is the whole story: the permission went away by
-    // itself when Xenon updated.
-    try {
-      json({
-        ...(await livingIndex.stats()),
-        fdaBlocked: process.platform === 'darwin' && !macDiskAccess.granted && macDiskAccess.blockedRoots.length > 0,
-        fdaRoots: macDiskAccess.blockedRoots.slice(0, 8),
-      });
-    } catch (e) { err500(e.message); }
+    await searchFilesBranches['GET /index/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { livingIndex });
 
   } else if (reqPath === '/macos/fda-settings' && req.method === 'POST') {
     await systemBranches['POST /macos/fda-settings'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -15431,12 +15055,7 @@ const handleRequest = async (req, res) => {
     await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {
-    // The Linux shortcut's other end. There is no process pushing key events
-    // here: the desktop runs a command, and that command is a POST to this.
-    // Bound to loopback like the rest of the server, and it carries no payload —
-    // pressing it only ever opens Xenon's own search window.
-    try { routeSpotlightHotkey(); json({ ok: true }); }
-    catch (e) { err500(e.message); }
+    await searchBranches['POST /search/hotkey-press'](req, res, { json, err500, reqPath, urlObj, isRemote }, { routeSpotlightHotkey });
 
   } else if (reqPath === '/pages/hotkey-status' && req.method === 'GET') {
     await deckBranches['GET /pages/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -15454,173 +15073,31 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
-    // Disk widget state: helper presence, scan progress, last summary and —
-    // after a scan — the treemap tree, categories, top files and verified
-    // duplicates. Read-only; the widget polls this only while a scan runs.
-    //
-    // `fdaBlocked` rides along for the same reason it does on /index/status:
-    // without it, a macOS install that lost Full Disk Access shows the widget's
-    // "turn the live index on" card, which is advice for a different problem
-    // and leads the user to a setting that is already correct.
-    try {
-      json({
-        ...(await diskSpace.status()),
-        fdaBlocked: process.platform === 'darwin' && !macDiskAccess.granted && macDiskAccess.blockedRoots.length > 0,
-        // The helper download exists on Windows only (POST /audio/levels/install-helper).
-        canInstallHelper: process.platform === 'win32',
-      });
-    } catch (e) { err500(e.message); }
+    await diskBranches['GET /disk/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/overview' && req.method === 'GET') {
-    // Per-root live overview (Living-Index path): ?i=N indexes the configured
-    // roots — the wire never carries a path (Slideshow shape). Read-only
-    // compute over the in-RAM index; ?refresh=1 skips the 30s cache.
-    // ?stale=1 answers the last persisted overview instead (display only, no
-    // ids): what the widget shows while the index rebuilds after a restart.
-    try {
-      const i = urlObj.searchParams.get('i');
-      json(urlObj.searchParams.get('stale') === '1'
-        ? await diskSpace.snapshot(i)
-        : await diskSpace.overview(i, urlObj.searchParams.get('refresh') === '1'));
-    } catch (e) { err500(e.message); }
+    await diskBranches['GET /disk/overview'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/reveal' && req.method === 'POST') {
-    // "Show in folder" for a file or folder of the current disk overview, by
-    // the opaque id it minted. Reveals, never opens: it runs nothing.
-    try {
-      const body = JSON.parse((await readBody(req)) || '{}');
-      json(await diskSpace.reveal(body.i, body.id));
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /disk/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/browse' && req.method === 'GET') {
-    // One directory level from the current disk overview. The client returns
-    // only the opaque node id minted by diskspace.js — never a filesystem path.
-    try {
-      json(await diskSpace.browse(urlObj.searchParams.get('i'), urlObj.searchParams.get('node')));
-    } catch (e) { err500(e.message); }
+    await diskBranches['GET /disk/browse'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/api/disk/advisor' && req.method === 'POST') {
-    // Dedicated, read-only storage analysis for the Disk modal. It receives a
-    // root INDEX, obtains the real snapshot server-side and calls the selected
-    // provider with NO tools, so it can neither lose `disk_insights` nor run an
-    // action. Clicking the modal button is the explicit quota/privacy action.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const rootIndex = Number(body.rootIndex);
-      if (!Number.isInteger(rootIndex) || rootIndex < 0) {
-        json({ ok: false, error: 'bad_root' }); return;
-      }
-      const insight = await diskSpace.insights(rootIndex);
-      if (!insight || (!insight.totalBytes && !insight.volume)) {
-        json({ ok: false, error: 'index_unavailable' }); return;
-      }
-      const settings = await readHubSettings().catch(() => null);
-      const provider = aiLocal.sanitizeProvider(settings && settings.aiProvider);
-      const uiLang = String(body.lang || 'en').toLowerCase().slice(0, 2);
-      const fullContext = !!(settings && settings.searchSettings &&
-        settings.searchSettings.aiFullContext === true);
-      const optedContext = {};
-      if (fullContext) {
-        const clip = (value, max) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
-        const apps = await getInstalledApps().catch(() => []);
-        optedContext.installedApplications = apps
-          .slice(0, 150).map((app) => clip(app.name, 60)).filter(Boolean);
-        const usage = await fileSearch.usageSnapshot().catch(() => null);
-        if (usage) {
-          optedContext.frequentFolders = (usage.folders || []).slice(0, 12)
-            .map((folder) => clip(folder, 160)).filter(Boolean);
-          optedContext.recentSearchOpens = (usage.opens || []).slice(0, 12)
-            .map((entry) => ({
-              name: clip(entry.name, 80),
-              lastOpened: Number(entry.last) || 0,
-            }));
-        }
-        if (settings && settings.hardwareScan) {
-          optedContext.pcHardwareProfile = settings.hardwareScan;
-        }
-      }
-      const sysText = 'You are Xenon Storage Advisor, a read-only expert embedded in a Windows disk-cleanup interface. ' +
-        'Use ONLY the supplied local snapshot; never invent a file, application, age, purpose or saving. Clearly label any inference. ' +
-        'You cannot delete or run commands. Write a thorough but practical report in ' + aiLangName(uiLang, 'English') + '. ' +
-        'Cover: (1) diagnosis of capacity, free/used/indexed space and any unexplained difference; ' +
-        '(2) a priority cleanup plan with exact sizes/counts; (3) for every present category, what creates it, what it is for, ' +
-        'why cleaning may or may not be sensible, what is recreated afterwards and practical ways to reduce recurrence; ' +
-        '(4) the largest folders/files and likely owning apps only when the names justify that inference; ' +
-        '(5) duplicates and what must be checked before choosing a copy; (6) what must not be touched; ' +
-        '(7) a short ordered next-action checklist. Distinguish recommended cleanup from choices only the user can make. ' +
-        'If the snapshot is capped or incomplete, say so prominently. Never claim personal files are safe to delete.';
-      const userText = 'Local storage snapshot selected by the user:\n' +
-        JSON.stringify({ disk: insight, ...(fullContext ? { optedInPcContext: optedContext } : {}) }).slice(0, 60000);
-      let text = '';
-      if (provider === 'ollama') {
-        const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-        const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings && settings.ollamaModel), settings && settings.hardwareScan);
-        const result = await aiLocal.localChat({
-          baseUrl, model, geminiTools: [],
-          history: [{ role: 'user', parts: [{ text: userText }] }],
-          systemText: sysText,
-          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-        }).catch(() => null);
-        text = result && result.text ? String(result.text).trim() : '';
-      } else if (provider === 'localapi') {
-        text = await localServerOneShot(settings, sysText, userText, 1500).catch(() => '');
-      } else if (provider === 'openai' || provider === 'anthropic') {
-        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-        const key = provider === 'openai'
-          ? settings && settings.openaiApiKey
-          : settings && settings.anthropicApiKey;
-        const model = providerModelFor(provider, 'chat', settings);
-        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
-        text = await mod.oneShot({
-          apiKey: key, model, systemText: sysText, userText, maxTokens: 1500,
-        }).catch(() => '');
-      } else if (provider === 'xenon') {
-        text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 1500, use: 'disk' }).catch(() => '');
-      } else if (aiCli.isCliProvider(provider)) {
-        text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
-      } else {
-        const key = settings && settings.geminiApiKey;
-        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
-        text = await _geminiOneShot(key, [{ text: userText }], sysText, 1500).catch(() => '');
-      }
-      if (!text) { json({ ok: false, error: 'ai_failed' }); return; }
-      json({
-        ok: true,
-        text: String(text).slice(0, 20000),
-        provider,
-        fullContext,
-      });
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /api/disk/advisor'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, cliOneShot, diskSpace, fileSearch, getInstalledApps, readHubSettings });
 
   } else if (reqPath === '/disk/scan' && req.method === 'POST') {
-    // Start a scan (helper-gated, one at a time, manual only — never
-    // automatic). Root is a strictly-validated drive letter. In
-    // CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(diskSpace.startScan(body.root));
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /disk/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/scan/cancel' && req.method === 'POST') {
-    try { json(diskSpace.cancelScan()); } catch (e) { err500(e.message); }
+    await diskBranches['POST /disk/scan/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/clean' && req.method === 'POST') {
-    // Start a cleanup. The body carries category + item ids resolved against
-    // the server's own enumeration (never paths); every resolved path is
-    // re-stated live and re-checked against the guard blocklist, then moved
-    // to the RECYCLE BIN by the helper. Returns as soon as the job is accepted
-    // ({ ok, started, id } or { ok:false, error:'busy' }); progress streams on
-    // the SSE `disk_clean` event and is re-exposed by /disk/status. In
-    // CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await diskSpace.clean(body));
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /disk/clean'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/disk/clean/cancel' && req.method === 'POST') {
-    // Stop a running cleanup after the current batch (never mid-move). In
-    // CSRF_MUTATION_PATHS.
-    try { json(diskSpace.cancelClean()); } catch (e) { err500(e.message); }
+    await diskBranches['POST /disk/clean/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
   } else if (reqPath === '/api/lyrics' && req.method === 'GET') {
     // Lyrics for the song playing now. No parameters: the server reads its own
@@ -15723,30 +15200,13 @@ const handleRequest = async (req, res) => {
     res.end(JSON.stringify({ ok: false, error: 'locked' }));
 
   } else if (reqPath === '/api/devclean/overview' && req.method === 'GET') {
-    // Read-only: sizes per source with opaque item ids. Runs the docker/reg
-    // CLIs and reads Ollama's /api/tags, only when the tile asks (15s cache;
-    // ?refresh=1 skips it).
-    try { json({ ok: true, ...(await devClean.overview({ refresh: urlObj.searchParams.get('refresh') === '1' })) }); }
-    catch (e) { err500(e.message); }
+    await diskBranches['GET /api/devclean/overview'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (reqPath === '/api/devclean/run' && req.method === 'POST') {
-    // { source: docker|ollama|vscode, ids: [...] } — ids from the overview,
-    // never paths or names. A background job; progress on SSE 'devclean'.
-    // In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await devClean.runClean(String(body.source || ''), body.ids));
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /api/devclean/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (reqPath === '/api/devclean/compact' && req.method === 'POST') {
-    // Compact one WSL/Docker .vhdx (Windows). Starts compact-vhdx.ps1, which
-    // raises the UAC prompt and re-validates the disk itself; the item id is
-    // the only input. In CSRF_MUTATION_PATHS + REMOTE_ADMIN: never from a
-    // paired device.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await devClean.compact(String(body.id || '')));
-    } catch (e) { err500(e.message); }
+    await diskBranches['POST /api/devclean/compact'](req, res, { json, err500, reqPath, urlObj, isRemote }, { devClean });
 
   } else if (reqPath === '/api/transfer/upload' && req.method === 'POST') {
     // The ONLY route in this server that streams a request body to disk.
@@ -15863,10 +15323,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/transfer/list' && req.method === 'GET') {
-    // A read. Deliberately NOT in CSRF_MUTATION_PATHS: listing changes nothing,
-    // and a GET listed there is refused on the paired-device door, which would
-    // leave the phone with a widget that can send but never show anything.
-    try { json({ ok: true, ...transferState(!isRemote) }); } catch (e) { err500(e.message); }
+    await transferBranches['GET /api/transfer/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { transferState });
 
   } else if (reqPath === '/api/transfer/file' && (req.method === 'GET' || req.method === 'HEAD')) {
     // Serving a file the user received, to a phone that wants it.
@@ -15909,89 +15366,19 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/transfer/thumb' && req.method === 'GET') {
-    // Preview for the list. Only the raster types a browser really decodes —
-    // nothing is generated or transcoded here, because that would be a
-    // dependency. A HEIC straight off an iPhone answers 404, and the client
-    // turns that into an extension chip rather than a broken image.
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const rec = fileTransfer.get(urlObj.searchParams.get('id') || '');
-      if (!rec || !fileTransferLib.isThumbable(rec.ext)) { res.writeHead(404); res.end(); return; }
-      const abs = fileTransfer.absOf(rec);
-      const stat = await fs.promises.stat(abs);
-      if (!stat.isFile() || stat.size > TRANSFER_THUMB_MAX) { res.writeHead(404); res.end(); return; }
-      const body = await fs.promises.readFile(abs);
-      res.writeHead(200, {
-        'Content-Type': fileTransferLib.downloadMimeFor(rec.ext),
-        'Content-Length': String(body.length),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'private, max-age=300',
-      });
-      res.end(body);
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await transferBranches['GET /api/transfer/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });
 
   } else if (reqPath === '/api/transfer/open' && req.method === 'POST') {
-    // Open a received file on the PC. Same contract as /search/open: an opaque
-    // id in, the Deck registry's blocklist re-applied, and an executable
-    // refused with revealable:true so the UI can offer the one action that
-    // runs nothing. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const rec = fileTransfer.get(body.id);
-      if (!rec) { json({ ok: false, error: 'unknown_id' }); return; }
-      // Prefer the copy in the user's own folder: it carries the real filename,
-      // which is what their apps and their recent-files lists will show.
-      const target = rec.delivered || fileTransfer.absOf(rec);
-      if (isBlockedOpenPath(target)) { json({ ok: false, error: 'blocked_ext', revealable: true }); return; }
-      try { await fs.promises.stat(target); } catch { json({ ok: false, error: 'not_found' }); return; }
-      await openExternalPath(target);
-      json({ ok: true });
-    } catch (e) { json({ ok: false, error: 'open_failed', detail: e.message }); }
+    await transferBranches['POST /api/transfer/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });
 
   } else if (reqPath === '/api/transfer/reveal' && req.method === 'POST') {
-    // Show it in the file manager. The one path an executable may take, since
-    // revealing something runs nothing. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const rec = fileTransfer.get(body.id);
-      if (!rec) { json({ ok: false, error: 'unknown_id' }); return; }
-      const target = rec.delivered || fileTransfer.absOf(rec);
-      try { await fs.promises.stat(target); } catch { json({ ok: false, error: 'not_found' }); return; }
-      revealInFileManager(target);
-      json({ ok: true });
-    } catch (e) { json({ ok: false, error: 'reveal_failed', detail: e.message }); }
+    await transferBranches['POST /api/transfer/reveal'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });
 
   } else if (reqPath === '/api/transfer/delete' && req.method === 'POST') {
-    // Removes XENON's copy. The file already delivered into the user's own
-    // folder is deliberately left alone — this list is ours, that folder is
-    // theirs, and a "clear the list" that reached into Downloads would be the
-    // last surprise this feature ever gave anyone. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      // The blob outlives the record for a few seconds so the delete can be
-      // taken back — "there is no way back" was half of what was reported. The
-      // RECORD comes back here, not a boolean, and it carries this PC's paths:
-      // only `ok` may travel to a phone.
-      const rec = await fileTransfer.remove(body.id, { keepBlob: true });
-      if (rec) holdForUndo(rec);
-      broadcastTransfer();
-      json({ ok: !!rec, undoMs: rec ? TRANSFER_UNDO_MS : 0 });
-    } catch (e) { err500(e.message); }
+    await transferBranches['POST /api/transfer/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TRANSFER_UNDO_MS, broadcastTransfer, fileTransfer, holdForUndo });
 
   } else if (reqPath === '/api/transfer/undo' && req.method === 'POST') {
-    // Put back a record deleted within the window. In CSRF_MUTATION_PATHS.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const ok = await undoTransferDelete(String(body.id || ''));
-      if (ok) broadcastTransfer();
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await transferBranches['POST /api/transfer/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastTransfer, undoTransferDelete });
 
   } else if (reqPath === '/captures' && req.method === 'GET') {
     // The gallery: a page of captures, newest first, with ids and names only
@@ -16243,21 +15630,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {
-    // Loopback-only (REMOTE_DENY), because the answer contains a real folder on
-    // this PC. The phone gets what it actually needs — the size limit — from
-    // /api/transfer/list, which every surface can read.
-    try {
-      const s = transferSettings();
-      json({
-        ok: true,
-        ...s,
-        inboxDir: transferInboxDir(),
-        inboxDefault: fileTransferLib.defaultInboxDir({}),
-        // The folder comes from the system dialog where there is one.
-        canPick: _captureHost.has('pick_folder'),
-        stats: fileTransfer.stats(),
-      });
-    } catch (e) { err500(e.message); }
+    await transferBranches['GET /api/transfer/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, fileTransfer, transferInboxDir, transferSettings });
 
   } else if (reqPath === '/api/transfer/settings' && req.method === 'POST') {
     // The ONLY writer of the fileTransfer settings block. Loopback-only, so a
@@ -16275,15 +15648,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/transfer/settings/pick' && req.method === 'POST') {
-    // The arrival folder from the system's folder dialog, on the PC where the
-    // capture engine runs. Loopback-only and in CSRF_MUTATION_PATHS, like the
-    // POST above; the dialog's answer is validated by the same validInboxDir.
-    try {
-      if (isRemote || !_captureHost.has('pick_folder')) { json({ ok: false, error: 'unavailable' }); return; }
-      const r = await chooseTransferFolder();
-      if (!r.ok || r.cancelled) { json(r); return; }
-      json(await updateTransferSettings({ inboxDir: r.path }));
-    } catch (e) { err500(e.message); }
+    await transferBranches['POST /api/transfer/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseTransferFolder, updateTransferSettings });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
@@ -16679,103 +16044,31 @@ const handleRequest = async (req, res) => {
     });
 
   } else if (reqPath === '/api/calls/test' && req.method === 'POST') {
-    // Ring a fake call, so the feature can be exercised without arranging for
-    // somebody to phone you. OFF unless XENON_CALLS_TEST=1 is in the
-    // environment — same shape as the Discord RPC debug flag, and for the same
-    // reason: a normal install must not carry an endpoint that can take over
-    // the screen. Absent the flag it 404s like any unknown route, so nothing
-    // about a production install even hints it exists.
-    //
-    // It synthesises a NOTIFICATION and feeds it to the real classifier rather
-    // than injecting a finished card. That is the point: it tests the path the
-    // product actually uses — matching, the ring-phrase check, the capability
-    // computation, the broadcast and the push — instead of proving that a
-    // hand-made object can be displayed.
-    if (process.env.XENON_CALLS_TEST !== '1') { res.writeHead(404); res.end(); return; }
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const appId = String(body.app || 'teams');
-      const caller = String(body.caller || 'Marco Rossi').slice(0, 80);
-      const video = body.video === true;
-      const entry = callDetect.DEFAULT_APPS.find(a => a.id === appId);
-      if (!entry) { json({ ok: false, error: 'unknown_app', known: callDetect.DEFAULT_APPS.map(a => a.id) }); return; }
-      const wording = video ? 'Incoming video call' : 'Incoming call';
-      const rec = appId === 'discord'
-        ? calls.onDiscordNotification({ title: caller, body: wording, channelId: '199737254929760257', messageType: 3 })
-        : calls.onNotification({ app: entry.name, aumid: entry.match[0], title: caller, body: wording, at: Date.now() });
-      // A null means the classifier refused it — feature off, app switched off,
-      // or the same ring already counted. Say which rather than a bare false.
-      json(rec
-        ? { ok: true, ringing: calls.current() }
-        : { ok: false, error: calls.enabled() ? 'refused_or_duplicate' : 'calls_disabled' });
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['POST /api/calls/test'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/calls/act' && req.method === 'POST') {
-    // The one place a call button does anything. Every action is re-checked
-    // against the capabilities the server itself computed — the card is not
-    // trusted to have drawn only the buttons it was allowed to.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const id = String(body.id || '').slice(0, 64);
-      const action = String(body.action || '').slice(0, 16);
-      json(await calls.act(id, action));
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['POST /api/calls/act'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/phone' && req.method === 'GET') {
-    // What this machine and this phone can actually do, plus the live call
-    // state. The widget renders its buttons from `canDial` / `canAnswer`, so a
-    // capability that is false here is a control the user never sees rather
-    // than one that fails when tapped.
-    try { json(await phone.status(urlObj.searchParams.get('refresh') === '1')); }
-    catch (e) { err500(e.message); }
+    await transferPhoneBranches['GET /api/phone'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/contacts' && req.method === 'GET') {
-    // The user's own address book, read off their own phone. Never JSONP —
-    // a <script> tag would hand every contact to any page that asked.
-    try { json(await phone.contacts(urlObj.searchParams.get('refresh') === '1')); }
-    catch (e) { err500(e.message); }
+    await transferPhoneBranches['GET /api/phone/contacts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/calls' && req.method === 'GET') {
-    try { json(await phone.calls(urlObj.searchParams.get('refresh') === '1')); }
-    catch (e) { err500(e.message); }
+    await transferPhoneBranches['GET /api/phone/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/messages' && req.method === 'GET') {
-    // The message list. Reachable from a paired device for the same reason the
-    // Windows notification mirror is: it is the user's own dashboard, and that
-    // mirror already shows the text of the very same messages.
-    try {
-      json(await phone.messages(
-        urlObj.searchParams.get('folder') || 'inbox',
-        urlObj.searchParams.get('refresh') === '1',
-      ));
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['GET /api/phone/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/message' && req.method === 'GET') {
-    try {
-      json(await phone.message(
-        urlObj.searchParams.get('folder') || 'inbox',
-        urlObj.searchParams.get('handle') || '',
-      ));
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['GET /api/phone/message'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/send' && req.method === 'POST') {
-    // Sends a real SMS, from the user's number, to somebody else. Same class as
-    // /dial: outward-facing, metered, and impossible to take back — so POST
-    // only, CSRF-guarded, and refused from a paired device.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await phone.sendMessage(String(body.number || '').slice(0, 40), String(body.text || '').slice(0, 2000)));
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['POST /api/phone/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/api/phone/dial' && req.method === 'POST') {
-    // The only outbound action in the feature: it places a real call, on a real
-    // network, that costs the user money. POST-only, CSRF-guarded, and refused
-    // outright from a paired device (see REMOTE_DENY — the audio comes out of
-    // the PC, so dialling from a tablet starts a call nobody can hear).
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await phone.dial(String(body.number || '').slice(0, 40)));
-    } catch (e) { err500(e.message); }
+    await transferPhoneBranches['POST /api/phone/dial'](req, res, { json, err500, reqPath, urlObj, isRemote }, { phone });
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     await widgetSdkPackagesBranches['GET /sdk/widgets'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshSdkScan, widgetCatalogVersionOf, widgetExportable, widgetOptionsStore, widgetOriginOf });
@@ -17385,39 +16678,7 @@ const handleRequest = async (req, res) => {
     });
 
   } else if (reqPath === '/api/remote-access/enable' && req.method === 'POST') {
-    // The opt-in. Turning it OFF also hangs up on every connected device: a
-    // switch that leaves live streams running is a switch that lies.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const value = body.value === true;
-      await withHubSettingsLock(async () => {
-        const cur = await readHubSettingsForUpdate();
-        // Spread the stored block rather than replacing it: this endpoint owns
-        // ONE field of it. Writing `{ enabled: value }` wholesale is how the
-        // sibling flag gets silently reset by an unrelated toggle — the same
-        // shape as the bug that switched paired access off on every save.
-        const saved = await writeHubSettings({
-          ...cur,
-          remoteAccess: { ...(cur.remoteAccess || {}), enabled: value },
-          rev: nextSettingsRev(cur.rev, body.rev),
-        });
-        hub.settings = saved;
-        broadcastSSE('settings', { rev: saved.rev });
-      });
-      if (!value) { remoteAccess.cancelPairing(); _dropRemoteSockets(null); }
-      // Open the listener to the LAN, or close it back to loopback. Without
-      // this the switch changed a flag and nothing else: the QR advertised
-      // http://<lan-ip>:PORT/pair while the socket stayed on 127.0.0.1, and the
-      // phone got a connection error with no explanation anywhere.
-      // The HTTPS door serves the paired-device door and nothing else, so it
-      // follows it down — and back up, if it was on before.
-      _syncRemoteHttps();
-      json({ ok: true, enabled: value });
-      // After the answer is out: moving the listener closes every open
-      // connection, this request's included, so doing it first left the
-      // caller with an empty reply.
-      res.once('finish', () => { setImmediate(() => { try { applyBindHost(); } catch { /* stays where it is */ } }); });
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/enable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, _syncRemoteHttps, applyBindHost, readHubSettingsForUpdate, remoteAccess, writeHubSettings });
 
   } else if (reqPath === '/api/remote-access/https' && req.method === 'POST') {
     // The T2 opt-in. Answers with the REASON when it cannot come up, because
@@ -17476,36 +16737,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/remote-access/pair/cancel' && req.method === 'POST') {
-    try { await readBody(req); remoteAccess.cancelPairing(); json({ ok: true }); }
-    catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/pair/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });
 
   } else if (reqPath === '/api/remote-access/redeem' && req.method === 'POST') {
-    // The one pre-auth write on the paired-device door. Reached ONLY through
-    // _remoteGate, which has already checked Host/Origin/Sec-Fetch-Site and
-    // rate-limited the source address; redeem() rate-limits again per address
-    // and burns the code after a handful of wrong guesses.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const r = await remoteAccess.redeem(body.code, { name: body.name, ip: _peerIp(req) });
-      if (!r.ok) {
-        // A refusal never says which part was wrong.
-        res.writeHead(r.error === 'rate_limited' ? 429 : 403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ ok: false, error: r.error }));
-        return;
-      }
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store',
-        // `Secure` follows the door the pairing happened on: over plain HTTP the
-        // browser would discard a Secure cookie entirely and pairing would look
-        // like it silently did nothing.
-        'Set-Cookie': remoteAccessLib.cookieHeader(r.token, { secure: !!(req.socket && req.socket.encrypted) }),
-      });
-      res.end(JSON.stringify({ ok: true, device: { id: r.device.id, name: r.device.name } }));
-      // Tell the PC's screens (main.js shows a toast): pairing needs only the
-      // code, so the person at the PC should see every device that gets in.
-      broadcastSSE('remote_paired', { name: r.device.name });
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/redeem'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _peerIp, remoteAccess });
 
   } else if (reqPath === '/api/remote-access/whoami' && req.method === 'GET') {
     // Lets the phone show which device it is registered as. Loopback callers
@@ -17513,54 +16748,16 @@ const handleRequest = async (req, res) => {
     json({ device: isRemote && remote.device ? { id: remote.device.id, name: remote.device.name } : null });
 
   } else if (reqPath === '/api/remote-access/rename' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await remoteAccess.rename(String(body.id || ''), body.name));
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/rename'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });
 
   } else if (reqPath === '/api/remote-access/revoke' && req.method === 'POST') {
-    // Revocation must be instant, so drop the device's live sockets too — its
-    // SSE stream would otherwise keep feeding it system data until the phone
-    // gave up on its own.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const id = String(body.id || '');
-      const r = await remoteAccess.revoke(id);
-      if (r.ok) {
-        _dropRemoteSockets(id);
-        // A revoked device cannot unsubscribe itself — its token is already
-        // dead — so a push subscription would outlive the access it was made
-        // under, and the phone would keep being woken by a dashboard it can no
-        // longer open. Dropping it here is the only place that can.
-        await webPush.dropDevice(id).catch((e) => console.warn('[web-push] drop failed:', e.message));
-      }
-      json(r);
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/revoke'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, remoteAccess, webPush });
 
   } else if (reqPath === '/api/remote-access/revoke-all' && req.method === 'POST') {
-    // The kill switch. Mirrors the Remote-Control panel's one-tap revoke.
-    try {
-      await readBody(req);
-      const r = await remoteAccess.revokeAll();
-      _dropRemoteSockets(null);
-      // Same reasoning as the single revoke, for every device at once. The
-      // loopback surface's own subscription (deviceId '') is deliberately kept:
-      // it was never a paired device and the kill switch is about those.
-      for (const s of await webPush.list()) {
-        if (s.deviceId) await webPush.dropDevice(s.deviceId).catch(() => {});
-      }
-      json(r);
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/revoke-all'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, remoteAccess, webPush });
 
   } else if (reqPath === '/api/push/key' && req.method === 'POST') {
-    // POST rather than GET because the FIRST call mints the VAPID key pair and
-    // writes it to disk. A GET that creates a keypair is exactly the shape the
-    // CSRF invariant exists to catch, and calling it a POST costs the client one
-    // character and removes the argument entirely.
-    try {
-      await readBody(req);
-      json({ ok: true, key: await webPush.publicKey() });
-    } catch (e) { err500(e.message); }
+    await pairedPushBranches['POST /api/push/key'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });
 
   } else if (reqPath === '/api/push/subscribe' && req.method === 'POST') {
     // The browser has just been given an address by its push service and is
@@ -17574,45 +16771,13 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/push/unsubscribe' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json(await webPush.unsubscribe(String(body.endpoint || '')));
-    } catch (e) { err500(e.message); }
+    await pairedPushBranches['POST /api/push/unsubscribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });
 
   } else if (reqPath === '/api/push/status' && req.method === 'GET') {
-    // Read-only, and deliberately says nothing an attacker could use: whether a
-    // key exists, how many devices are subscribed, and whether THIS one is —
-    // never an endpoint, which is the bearer address of someone's phone.
-    try {
-      const body = req.headers['x-xenon-endpoint'];
-      json({
-        ok: true,
-        hasKeys: webPush.hasKeys(),
-        count: webPush.count(),
-        subscribed: body ? await webPush.hasSubscription(String(body)) : null,
-        devices: await webPush.list(),
-      });
-    } catch (e) { err500(e.message); }
+    await pairedPushBranches['GET /api/push/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPush });
 
   } else if (reqPath === '/api/push/test' && req.method === 'POST') {
-    // The "did that actually work" button. It is the only way a user can tell:
-    // everything else about push is invisible until something happens at three
-    // in the morning.
-    //
-    // The text comes from the CLIENT because the client is the only side of
-    // this that has all eleven languages; the server holds no UI strings. It is
-    // clamped by webPush.send() like any other message, and this endpoint sends
-    // nothing but what the person pressing the button just wrote on their own
-    // dashboard — reaching it at all already requires being a paired device.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const r = await webPushNotify({
-        title: String(body.title || 'Xenon'),
-        body: String(body.body || 'Notifications are working.'),
-        tag: 'xenon-test',
-      }, { urgency: 'high', ttl: 60 });
-      json(r);
-    } catch (e) { err500(e.message); }
+    await pairedPushBranches['POST /api/push/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { webPushNotify });
 
   } else if (reqPath === '/sse' && req.method === 'GET') {
     // Server-Sent Events stream — replaces client-side polling for status, media,

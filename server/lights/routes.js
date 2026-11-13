@@ -7,8 +7,9 @@ const { execFile } = require('node:child_process');
 const icueSdkInstall = require('../icue-sdk-install.js');
 const { hub } = require('../settings/current.js');
 const signalrgb = require('../signalrgb.js');
+const { withHubSettingsLock } = require('../settings/write-lock.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /api/lighting/status': async (_req, _res, { json }) => {
     try {
@@ -114,6 +115,19 @@ const branches = {
     } catch (e) {
       json({ ok: false, effects: [], error: String((e && e.message) || e) });
     }
+  },
+
+  'POST /api/signalrgb/config': async (req, _res, { json }, { writeHubSettings }) => {
+    // Toggle the SignalRGB integration on/off (persisted like the chroma flag).
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const enabled = body.enabled === true;
+      await withHubSettingsLock(async () => {
+        hub.settings = await writeHubSettings({ ...hub.settings, signalrgb: { enabled } });
+      });
+      signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
+      json({ ok: true, installed: signalrgb.isInstalled(), enabled });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
   },
 };
 
