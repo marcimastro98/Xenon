@@ -18,6 +18,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ownFolders } from './own-folders.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BOOT_LIMIT_MS = 60_000;
 const EVENT_LIMIT_MS = 30_000;
@@ -140,7 +142,7 @@ function listen(port, done) {
 
 function startServer(folder, port, onOutput) {
   const child = spawn(process.execPath, ['server/server.js'], {
-    cwd: folder, env: { ...process.env, XENON_PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: folder, env: { ...process.env, ...ownFolders(folder), XENON_PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stdout.on('data', onOutput);
   child.stderr.on('data', onOutput);

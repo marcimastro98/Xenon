@@ -6,9 +6,12 @@
 //   node tools/ci/boot-check.mjs [log file]      XENON_PORT picks the port (default 3039)
 
 import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+
+import { ownFolders } from './own-folders.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BOOT_LIMIT_MS = 60_000;
@@ -43,8 +46,9 @@ async function main() {
   const port = process.env.XENON_PORT || '3039';
   const base = `http://127.0.0.1:${port}`;
   let output = '';
+  const folder = mkdtempSync(path.join(os.tmpdir(), 'xenon-boot-check-'));
   const child = spawn(process.execPath, ['server/server.js'], {
-    cwd: ROOT, env: { ...process.env, XENON_PORT: port }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: ROOT, env: { ...process.env, ...ownFolders(folder), XENON_PORT: port }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stdout.on('data', (d) => { output += d; });
   child.stderr.on('data', (d) => { output += d; });
@@ -60,7 +64,10 @@ async function main() {
   let catalog = null;
   try { catalog = cat && cat.status === 200 ? JSON.parse(cat.text) : null; } catch { catalog = null; }
   const exitedEarly = child.exitCode !== null;
+  const gone = new Promise((resolve) => { if (exitedEarly) resolve(); else child.once('exit', resolve); });
   child.kill();
+  await gone;
+  try { rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* a file still held: the system clears its temp folder */ }
 
   const problems = bootProblems({ pageStatus: page && page.status, catalog, output });
   if (exitedEarly) problems.unshift(`the server exited with code ${child.exitCode}`);
