@@ -181,7 +181,19 @@
       {"file":"server/media/cover-memory.js","about":"Keeps a track's cover picture on screen when a reading comes without it, and leaves the picture out of an update when the screens already have it.","names":["applyStickyThumb","mediaForBroadcast"]},
       {"file":"server/smart-home/unifi-detections.js","about":"Turns one camera detection into alerts on the screens, one per kind the user switched on, and not again for the same camera and kind until the waiting time is over.","names":["_unifiNotifyCooldown","_onUnifiDetection"]},
       {"file":"server/ai/chime-play.js","about":"Plays a short chime on this machine's speakers, and not twice when two requests for the same one come together.","names":["_lastChimeAt","chimeRequested","playChimeOnServer"]},
-      {"file":"server/ticker/news-refresh.js","about":"Fetches the headlines of the followed feeds, keeps the last good ones when a fetch fails, and sends them to the screens only when they changed.","names":["_pushNews","refreshNews"]}
+      {"file":"server/ticker/news-refresh.js","about":"Fetches the headlines of the followed feeds, keeps the last good ones when a fetch fails, and sends them to the screens only when they changed.","names":["_pushNews","refreshNews"]},
+      {"file":"server/engine/paths.js","about":"Where the engine keeps the user's data, and where the helper program and the bridge for coding tools sit next to it.","names":["HELPER_EXE","DATA_DIR","MCP_BRIDGE_PATH"],"paths":true},
+      {"file":"server/system/script-paths.js","about":"Where the scripts that read this PC's sensors, network, disks and idle time sit, and the worker that keeps them running.","names":["CPU_TEMP_SCRIPT","ENABLE_SENSORS_SCRIPT","GPU_SCRIPT","NETWORK_SCRIPT","DISK_IO_SCRIPT","SENSORS_SCRIPT","IDLE_SCRIPT","PWSH_WORKER_SCRIPT"],"paths":true},
+      {"file":"server/performance/script-paths.js","about":"Where the scripts for the performance mode, the list of running programs and their priority sit.","names":["PERFORMANCE_SCRIPT","PROCESSES_SCRIPT","PERF_PRIORITY_SCRIPT"],"paths":true},
+      {"file":"server/deck/script-paths.js","about":"Where the scripts that carry out Deck keys on Windows sit.","names":["DECK_ACTIONS_SCRIPT","DECK_HOTKEY_SCRIPT","DECK_WINDOW_SCRIPT","DECK_POPUP_TOP_SCRIPT"],"paths":true},
+      {"file":"server/media/script-paths.js","about":"Where the media scripts for Windows and the now-playing bridge for macOS sit.","names":["MEDIA_SCRIPT","MEDIA_KEY_SCRIPT","MEDIAREMOTE_DIR"],"paths":true},
+      {"file":"server/audio/svv-path.js","about":"Where the SoundVolumeView program sits.","names":["SVV"],"paths":true},
+      {"file":"server/windows-tiles/script-paths.js","about":"Where the script that lists and moves windows sits.","names":["WINDOWS_SCRIPT"],"paths":true},
+      {"file":"server/lights/script-paths.js","about":"Where the script that sharpens the iCUE picture sits.","names":["ICUE_SHARPEN_SCRIPT"],"paths":true},
+      {"file":"server/vitals/script-paths.js","about":"Where the script for Bit's reminder popup on Windows sits.","names":["VITALS_NAG_SCRIPT"],"paths":true},
+      {"file":"server/screens/capture-exe.js","about":"Where the capture engine sits.","names":["CAPTURE_EXE"],"paths":true},
+      {"file":"server/install/launcher-paths.js","about":"Where the script that opens the dashboard at logon sits.","names":["OPEN_DASHBOARD_VBS"],"paths":true},
+      {"file":"server/updates/whats-new-file.js","about":"Where the file with the news of this version sits.","names":["WHATSNEW_FILE"],"paths":true}
     ]
   }
 }

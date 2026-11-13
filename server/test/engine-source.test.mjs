@@ -9,13 +9,19 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites } from './engine-source.mjs';
+import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
 const entries = extractedFrom();
 // Variables that became properties of an object in a module of their own: the readers hand out the old names.
 const rewrites = stateRewrites();
-const asWritten = (file) => oldNames(readFileSync(join(ROOT, file), 'utf8'), rewrites);
+// Modules of places next to the engine say SERVER_DIR where server.js said __dirname: the readers hand out the old word.
+const placeModules = new Set(entries.filter((entry) => entry.paths).map((entry) => entry.file));
+const asWritten = (file) => {
+  const text = readFileSync(join(ROOT, file), 'utf8');
+  return oldNames(placeModules.has(file) ? oldPathsText(text) : text, rewrites);
+};
 
 test('every module on the list exists, under the line limit, in a feature folder', () => {
   const seen = new Set();
@@ -81,6 +87,15 @@ test('a value that got a module of its own is required by server.js once, on one
     assert.ok(readFileSync(join(ROOT, file), 'utf8').endsWith(`\nmodule.exports = { ${names[0]} };\n`));
   }
   assert.ok(lifted.some((entry) => entry.names[0] === 'APP_VERSION'), 'the version is one of them');
+});
+
+test('a place next to the engine is handed out as server.js wrote it, whatever its module calls the folder', () => {
+  assert.equal(fileDeclaring('DATA_DIR'), 'server/engine/paths.js');
+  assert.ok(readFileSync(join(ROOT, 'server/engine/paths.js'), 'utf8').includes("\nconst DATA_DIR = path.join(SERVER_DIR, 'data');\n"));
+  assert.equal(declarationSource('DATA_DIR'), "const DATA_DIR = path.join(__dirname, 'data');");
+  assert.equal(declarationSource('HELPER_EXE'), "const HELPER_EXE = path.join(__dirname, 'helper',\n  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');",
+    'a call that goes on after a comma is read to the line that ends it');
+  assert.ok(!engineSource().includes('SERVER_DIR'), 'the joined text does not know the new word');
 });
 
 test('a text written over several lines is read to its closing backtick, and no further', () => {

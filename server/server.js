@@ -94,10 +94,7 @@ const { writeZip } = require('./zip-writer');
 const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./user-folders');
-// The capture engine (apps/capture), started on the first screenshot and gone
-// after a minute without one. Windows only for now; elsewhere it is absent and
-// the capture keys and AI functions are hidden.
-const CAPTURE_EXE = path.join(__dirname, 'capture', process.platform === 'win32' ? 'xenon-capture.exe' : 'xenon-capture');
+const { CAPTURE_EXE } = require('./screens/capture-exe.js');
 const _captureHost = createCaptureHost({ exe: CAPTURE_EXE, log: (m) => console.warn(m) });
 const {
   sanitizeWeatherCity, resolveWeatherLocation, pickWeatherLocationResult,
@@ -707,17 +704,7 @@ const { nextSettingsRev } = require('./settings-rev');   // shared by every sett
 
 const { checkLatestRelease } = require('./updates/latest-release.js');
 
-// ── What's New (curated highlights for the RUNNING version) ─────────────────
-// Distinct from the update-available modal (which nags users who are BEHIND with
-// the remote release notes). This announces the headline features of the version
-// the user is ALREADY on. Content is authored by hand in server/whatsnew.json and
-// shipped with the build, so it always matches the running version and works
-// offline. The client shows it until the user closes its `id`, and it only
-// reappears when a later build ships a NEW `id`: patches and minors keep the `id`
-// and tell their fixes through `releases` (js/release-notice.js). Text fields may be a plain string OR a { <lang>: string } map; the client picks the
-// UI language with an English fallback. Media is GitHub-hosted only (same
-// allowlist as the release-notes media).
-const WHATSNEW_FILE = path.join(__dirname, 'whatsnew.json');
+const { WHATSNEW_FILE } = require('./updates/whats-new-file.js');
 const releaseNotes = require('./release-notes.js');
 const { normalizeWhatsNew } = require('./updates/whats-new-normalize.js');
 
@@ -1132,48 +1119,25 @@ function buildCoreAiFunctions() {
 
 const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 
-const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
+const { SVV } = require('./audio/svv-path.js');
 const svvText = require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
-const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
-const MEDIA_KEY_SCRIPT = path.join(__dirname, 'media-key.ps1');
-// Xenon Helper — optional native companion exe (built from helper/, or shipped
-// with the release). When present it replaces the persistent PowerShell hosts
-// module by module; when absent everything runs on the PS scripts as before.
-// The same companion on every platform, built from a different source tree:
-// helper/ (C#) on Windows, helper-mac/ (Swift) on macOS. Both answer the same
-// modes with the same stdio protocols, so a caller needs the path and not a
-// branch. Linux has no helper and never asks for one.
-const HELPER_EXE = path.join(__dirname, 'helper',
-  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
-// mediaremote-adapter — the macOS equivalent of the helper's media-serve, and
-// optional in the same way: downloaded by the installer, gitignored, absent on
-// a source checkout. Without it the media tile stays empty, which is what it
-// did before macOS had a media path at all.
-const MEDIAREMOTE_DIR = path.join(__dirname, 'mediaremote');
-const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
-const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1'); // one UAC prompt: the sensor service
+const { MEDIA_SCRIPT, MEDIA_KEY_SCRIPT } = require('./media/script-paths.js');
+const { HELPER_EXE } = require('./engine/paths.js');
+const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
+const { CPU_TEMP_SCRIPT, ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
 const sensorService = require('./sensor-service/reader.js').instance();
-const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
-const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
-const DISK_IO_SCRIPT = path.join(__dirname, 'disk-io.ps1');
-const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
-const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
-const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
-const DECK_WINDOW_SCRIPT = path.join(__dirname, 'deck-window.ps1');
-const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
-// Per-process CPU/RAM/GPU for the `processes` SDK stream. Runs ONLY on the
-// persistent worker (see processes.ps1) — its numbers are deltas between calls,
-// so a one-shot spawn would have to sleep for every one of them.
-const PROCESSES_SCRIPT = path.join(__dirname, 'processes.ps1');
-// Every LHM sensor by identifier, for Settings → Sensor sources and the SDK
-// `sensors` stream. Worker-only like processes.ps1: it walks the sessions
-// cpu-temp.ps1 and gpu.ps1 keep alive there and opens none of its own.
-const SENSORS_SCRIPT = path.join(__dirname, 'sensors.ps1');
-const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
-const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
+const { GPU_SCRIPT, NETWORK_SCRIPT, DISK_IO_SCRIPT } = require('./system/script-paths.js');
+const { WINDOWS_SCRIPT } = require('./windows-tiles/script-paths.js');
+const {
+  DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
+} = require('./deck/script-paths.js');
+const { PERFORMANCE_SCRIPT, PROCESSES_SCRIPT } = require('./performance/script-paths.js');
+const { SENSORS_SCRIPT } = require('./system/script-paths.js');
+const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
+const { ICUE_SHARPEN_SCRIPT } = require('./lights/script-paths.js');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
-const IDLE_SCRIPT = path.join(__dirname, 'idle.ps1');
-const VITALS_NAG_SCRIPT = path.join(__dirname, 'vitals-nag.ps1');
+const { IDLE_SCRIPT } = require('./system/script-paths.js');
+const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
 // script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
 const vitalsNag = require('./vitals-nag').createVitalsNag({
@@ -1186,10 +1150,7 @@ const vitalsNag = require('./vitals-nag').createVitalsNag({
   host: layersHost,
   broadcast: (popup) => broadcastSSE('vitals_nag', popup),
 });
-// All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
-// streaming config/tokens) lives in a single DATA_DIR instead of being scattered
-// loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
-const DATA_DIR = path.join(__dirname, 'data');
+const { DATA_DIR } = require('./engine/paths.js');
 // Disk-back the community catalog cache so the Store opens instantly (and offline)
 // right after a server restart, instead of re-blocking on the upstream fetch and
 // erroring when the site is momentarily unreachable. Read is tolerant of an absent
@@ -1262,8 +1223,7 @@ const mcpDev = createMcpDev({
   file: path.join(DATA_DIR, 'mcp-clients.json'),
   broadcast: (event, data) => broadcastSSE(event, data),
 });
-// The bridge as this install ships it, for Settings' one-click connect.
-const MCP_BRIDGE_PATH = path.join(__dirname, '..', 'packages', 'mcp', 'bin', 'xenon-mcp.js');
+const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
@@ -1844,7 +1804,7 @@ const soundPackStore = soundPacks.createSoundPacks({ dir: SOUND_PACKS_DIR });
 // Virtual Deck popup: Edge app-mode children we spawned (closed on shutdown)
 // and the one-shot always-on-top helper script.
 const _deckPopupPids = new Set();
-const DECK_POPUP_TOP_SCRIPT = path.join(__dirname, 'deck-popup-top.ps1');
+const { DECK_POPUP_TOP_SCRIPT } = require('./deck/script-paths.js');
 
 // Open the Virtual Deck as an Edge app-mode window on the main PC. Argv array
 // only; the instance id is charset-validated before it enters the URL. Edge's
@@ -2560,7 +2520,7 @@ async function sendHotkeyCombo(keys) {
 // disk at boot: repointed when the path is stale, removed when there is no
 // launcher left for it to point at.
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
-const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
+const { OPEN_DASHBOARD_VBS } = require('./install/launcher-paths.js');
 const { AUTO_OPEN_SUPPORTED, autoOpenTaskFix } = require('./install/browser-auto-open.js');
 const { psEscape } = require('./ps-quote');
 const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./programs/app-icons.js');
@@ -2657,16 +2617,7 @@ async function reconcileBrowserAutoOpenTask() {
   console.log('[startup] browser auto-open task removed: ' + OPEN_DASHBOARD_VBS + ' is missing');
 }
 
-// ── Persistent PowerShell collector worker ───────────────────────────────────
-// Spawning powershell.exe per poll (~150ms CLR+engine startup) is the server's
-// dominant steady-state CPU cost. This long-lived host runs the read-only sensor
-// collectors (gpu / cpu-temp / network) in one process, paying that cost once.
-// Only exit-free, SMTC-free scripts go through it — media.ps1 has its own
-// dedicated persistent host below (it holds WinRT broker handles and needs
-// graceful retirement, while this worker may be hard-killed when wedged).
-// Any worker problem falls back transparently to runPowerShellScript, so
-// behaviour degrades to the one-shot model and never breaks.
-const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
+const { PWSH_WORKER_SCRIPT } = require('./system/script-paths.js');
 const { _worker, _workerReject, _killWorker } = require('./powershell/worker-state.js');
 
 function _ensureWorker() {
