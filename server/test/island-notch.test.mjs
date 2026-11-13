@@ -154,7 +154,7 @@ test('no strip beside an island that covers the whole tile top, or without a str
 });
 
 // The wiring the browser check (tools/island-tabs-check) exercises on the demo.
-const { readFileSync } = await import('node:fs');
+const { readFileSync } = await import('./browser-source.mjs');
 const TOPBAR_JS = readFileSync(new URL('../js/topbar-minimal.js', import.meta.url), 'utf8');
 const TOPBAR_CSS = readFileSync(new URL('../components/TopbarMinimal/TopbarMinimal.css', import.meta.url), 'utf8');
 

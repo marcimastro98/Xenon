@@ -37,7 +37,7 @@
       'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
-    css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css',
+    css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
       'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
     js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherTile/WeatherTile.css', 'styles/liquid-sheets.css'], js: ['js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css'], js: ['js/dialog-focus.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
@@ -83,7 +83,7 @@
     obs: tile('obs', 'ObsWidget', ['js/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),
     discord: tile('discord', 'DiscordWidget', ['js/tile-tab-memory.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }, null, ['components/DiscordWidget/DiscordWidgetMembers.css', 'components/DiscordWidget/DiscordWidgetSoundboard.css']),
     streamerbot: tile('streamerbot', 'StreamerbotWidget', ['js/tile-tab-memory.js', 'js/streamerbot-widget.js'], { streamerbot: 'onState', streamerbot_event: 'onEvent' }),
-    youtube: tile('youtube', 'YouTubeWidget', ['js/tile-tab-memory.js', 'js/watch-view.js', 'js/youtube-widget.js'], {}),
+    youtube: tile('youtube', 'YouTubeWidget', ['js/tile-tab-memory.js', 'js/watch-view.js', 'js/youtube-widget.js'], {}, null, ['components/YouTubeWidget/YouTubeWidgetLayouts.css']),
     youtubelive: tile('youtubelive', 'YouTubeLiveWidget', ['js/youtubelive-widget.js'], {}),
     twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}, null, ['components/TwitchWatchWidget/TwitchWatchWidgetChat.css']),
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}),
@@ -98,7 +98,7 @@
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css', 'components/Spotlight/SpotlightResults.css']),
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
-    devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean'),
+    devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean', ['components/DevClean/DevCleanPitch.css']),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
       'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home.js'],

@@ -1,0 +1,202 @@
+
+/* ── Details: label over value, as many columns as fit. The grid makes rows only as far as
+   its height goes (auto-fit drops the empty ones); the rest get no height and are clipped,
+   so whole rows leave, never half. The cap is every reading in one column. ── */
+.weather-facts {
+  --wx-fact: clamp(42px, 11cqmin, 52px);
+  flex: 0 100000 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(118px, 100%), 1fr));
+  grid-template-rows: repeat(auto-fit, var(--wx-fact));
+  grid-auto-rows: 0;
+  column-gap: clamp(10px, 3cqmin, 18px);
+  min-height: var(--wx-fact);
+  max-height: calc(14 * var(--wx-fact));
+  margin: 0;
+  overflow: hidden;
+}
+.weather-fact {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.weather-fact dt {
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: clamp(11.5px, 2.9cqmin, 13px);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-fact dd {
+  margin: 0;
+  overflow: hidden;
+  font-size: clamp(14px, 3.7cqmin, 17px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-fact.is-warning dd { color: var(--amber); }
+
+/* ── Sizes ── */
+/* Wide: now on the left, the rest beside it. */
+@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) { flex-direction: row; gap: clamp(16px, 3.4cqi, 28px); }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now {
+    flex: 0 0 auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "place art"
+      "temp art"
+      "lines lines"
+      "next next";
+    align-content: center;
+    row-gap: 2px;
+    width: max-content;
+    max-width: clamp(200px, 34%, 320px);
+  }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now-art { justify-self: start; width: clamp(44px, 24cqh, 88px); margin-left: clamp(4px, 1.4cqi, 14px); }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-now-temp { font-size: clamp(40px, 22cqh, 84px); }
+}
+/* Very wide, like the Edge's strip: now, the hours and the days side by side. */
+@container (min-width: 820px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+    column-gap: clamp(16px, 3cqi, 28px);
+  }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-hours {
+    --wx-hour-art: clamp(28px, 12cqh, 48px);
+    --wx-hour-temp: clamp(16px, 6.4cqh, 24px);
+    grid-row: 1 / -1;
+    align-self: center;
+  }
+}
+/* What stacks under now, the tile's height decides: the line first, then the days, then the
+   details. Days and details leave whole, so nothing is ever half a row. */
+@container (max-height: 232px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-tile-body { display: none; }
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-now { flex: 1 1 auto; align-content: center; }
+}
+@container (max-height: 379px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-forecast--rows { display: none; }
+}
+@container (max-height: 559px) and (not ((min-width: 560px) and (min-aspect-ratio: 13/10))) {
+  .weather-tile-root:not(.weather-tile-root--compact) .weather-facts { display: none; }
+}
+@container (max-height: 399px) and (max-width: 819px) {
+  .weather-facts { display: none; }
+}
+@container (max-height: 219px) {
+  .weather-forecast--rows { display: none; }
+}
+@container (max-height: 124px) {
+  .weather-now-next { display: none; }
+  .weather-now-range { display: none; }
+}
+@container (max-height: 92px) {
+  .weather-now-place { display: none; }
+}
+@container (max-width: 240px) {
+  .weather-now { grid-template-areas: "place art" "temp art" "lines lines" "next next"; grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+/* ── Compact hero: current conditions on one line (GitHub #130) ──
+   Settings → Weather → Current conditions → One line. The big card gives way to a single
+   row so hours and days get the tile. It stays the button that opens the full view, and it
+   never goes side by side: a strip across the top is the whole point, and the wide rules
+   above are scoped away from it. */
+.weather-tile-card.weather-tile-compact {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2.2cqi, 14px);
+  width: 100%;
+  min-height: 0;
+}
+.weather-tile-root--compact:not(.has-body) .weather-tile-compact { flex: 1 1 auto; }
+.weather-compact-icon {
+  flex: 0 0 auto;
+  display: block;
+  width: 38px;
+  height: 38px;
+}
+.weather-compact-temp {
+  flex: 0 0 auto;
+  font-size: clamp(24px, 6cqi, 32px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+.weather-compact-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.weather-compact-condition,
+.weather-compact-feels {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-compact-condition { font-size: clamp(12px, 2.8cqi, 14px); font-weight: 600; }
+.weather-compact-feels { color: var(--muted-text); font-size: clamp(12px, 2.4cqi, 12.5px); }
+/* Wind and rain: present, but a step quieter than the line on the left. */
+.weather-compact-stats {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 2.6cqi, 16px);
+}
+.weather-compact-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+.weather-compact-stat b {
+  font-size: clamp(12px, 2.6cqi, 14px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.weather-compact-stat em {
+  color: var(--muted-text);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.weather-compact-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-left: -2px;
+  fill: none;
+  opacity: 0.6;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+/* Narrow tiles shed from the right, rain before wind; the feels-like line
+   under the condition is never one of them. */
+@container (max-width: 400px) {
+  .weather-compact-stat--rain { display: none; }
+}
+@container (max-width: 330px) {
+  .weather-compact-stats { display: none; }
+}
+@container (max-width: 210px) {
+  .weather-compact-chevron { display: none; }
+}

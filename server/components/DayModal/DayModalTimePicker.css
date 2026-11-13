@@ -1,0 +1,244 @@
+
+/* ── Custom time picker ─────────────────────────────────────── */
+.time-picker-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.time-picker-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  height: 44px;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s;
+}
+.time-picker-display:focus,
+.time-picker-display:hover { border-color: rgba(var(--accent-rgb),0.45); outline: none; }
+.time-picker-icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--muted-text);
+  fill: none;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.time-picker-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 999;
+  background: var(--surface-alt);
+  border: 1px solid rgba(var(--accent-rgb),0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+  padding: 8px 10px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
+}
+.time-picker-dropdown.open { display: flex; }
+
+.tp-sep {
+  font-size: 24.5px;
+  font-weight: 900;
+  color: rgba(var(--accent-rgb),0.7);
+  line-height: 1;
+  padding: 10px 4px 0;
+  align-self: flex-start;
+  user-select: none;
+}
+
+.tp-col {
+  display: flex;
+  flex-direction: column;
+  width: 54px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.tp-col::-webkit-scrollbar { display: none; }
+
+.tp-item {
+  flex-shrink: 0;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dim-text);
+  border-radius: 10px;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: color 0.15s, background 0.15s;
+  user-select: none;
+}
+.tp-item:hover { color: var(--text); background: var(--hover-bg); }
+.tp-item.selected {
+  color: var(--text);
+  background: rgba(var(--accent-rgb),0.22);
+  font-weight: 900;
+}
+/* The arrows move the chosen value (calendar.js): the ring says which column has them. */
+.tp-item:focus { outline: none; }
+.tp-item:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+/* ── End custom time picker ─────────────────────────────────── */
+
+.event-input:focus,
+.event-select:focus { border-color: rgba(var(--accent-rgb),0.45); }
+.event-input::placeholder { color: var(--dim-text); }
+
+.day-modal-keys { display: flex; justify-content: flex-end; padding-top: 6px; }
+
+.event-save {
+  min-width: 120px;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Time, then what, then the key: the times line up down the day, and a note reads under
+   its name. */
+.event-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 48px;
+  padding: 2px 2px 2px 12px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+}
+
+.event-item-top { display: contents; }
+
+.event-name {
+  min-width: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-time {
+  color: var(--muted-text);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.event-item .event-source-badge { margin-right: 18px; }
+
+.event-meta {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: -6px;
+}
+
+.event-note-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted-text);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  /* body sets user-select:none for the touchscreen — opt the note back in, it is
+     the only text here worth copying (meeting links, IDs, passcodes). */
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* Tapped open: the whole note, line breaks kept, long links wrapped instead of
+   pushing the modal sideways. */
+.event-note-text.expanded {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  cursor: text;
+}
+
+.event-note-copy {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.event-note-copy svg { width: 16px; height: 16px; }
+.event-note-copy:hover { background: var(--hover-bg); color: var(--text); }
+.event-note-copy.is-copied { color: var(--accent); }
+
+.event-delete {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.event-delete svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.event-delete:hover { color: var(--color-danger); background: var(--danger-bg); }
+
+.event-empty {
+  padding: 10px;
+  border-radius: 15px;
+  border: 1px dashed rgba(255,255,255,0.10);
+  color: var(--dim-text);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+}
+.day-modal-events .event-empty {
+  padding: 2px 0;
+  border: 0;
+  color: var(--muted-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .event-save { flex: 1 1 auto; }
+}
