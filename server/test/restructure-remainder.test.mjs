@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { analyze } from '../../tools/restructure/analyze.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
-import { orderJobs } from '../../tools/restructure/plan-order.mjs';
+import { orderJobs, pendingJobs } from '../../tools/restructure/plan-order.mjs';
 import { featuresOf, remainder, renderMovable, renderRemainder } from '../../tools/restructure/remainder.mjs';
 
 const parser = parserAvailable() ? await openParser() : null;
@@ -67,4 +67,14 @@ test('two new modules that need each other, or one name in two modules, are refu
     (error) => error instanceof Refusal && /circular require: x\/a\.js, x\/b\.js/.test(error.message));
   assert.throws(() => orderJobs(analysis, [{ to: 'x/a.js', names: ['LIMIT'] }, { to: 'x/b.js', names: ['LIMIT'] }]),
     (error) => error instanceof Refusal && /LIMIT is listed for x\/a\.js and for x\/b\.js/.test(error.message));
+});
+
+test('a plan run again skips what the ledger already holds, whatever order the names are in', () => {
+  const ledger = { 'a.js': [{ file: 'x/one.js', names: ['second', 'first'] }, { file: 'x/two.js', names: ['third'] }] };
+  const jobs = [
+    { from: 'a.js', to: 'x/one.js', names: ['first', 'second'] },
+    { from: 'a.js', to: 'x/two.js', names: ['third', 'fourth'] },
+    { from: 'b.js', to: 'x/one.js', names: ['first', 'second'] },
+  ];
+  assert.deepEqual(pendingJobs(ledger, jobs).map((job) => job.from + ' ' + job.to), ['a.js x/two.js', 'b.js x/one.js']);
 });

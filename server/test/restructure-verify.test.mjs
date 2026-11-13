@@ -57,7 +57,7 @@ test('the names that never move are still where the list says', (t) => {
   }
   const moved = (readLedger(ROOT).sources[ENGINE] ?? []).flatMap((entry) => entry.names);
   assert.deepEqual(moved.filter((name) => kept.names.has(name)), [], 'nothing protected was ever moved');
-  assert.deepEqual(protectedNames(ROOT, 'server/other.js', records), { names: new Set(), missing: [] });
+  assert.deepEqual(protectedNames(ROOT, 'server/other.js', records), { names: new Set(), missing: [], stretches: [] });
 });
 
 test('saved numbers follow the code, and a new finding does not hide in the move', () => {

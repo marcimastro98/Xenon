@@ -4,6 +4,18 @@
 import { Refusal } from './extract-plan.mjs';
 
 /**
+ * @template {{ from: string, to: string, names: string[] }} Job
+ * @param {Record<string, { file: string, names: string[] }[]>} ledger what was moved already, by source file
+ * @param {Job[]} jobs
+ * @returns {Job[]} the jobs still to do: one whose file the ledger already holds with the same names,
+ *   in any order, was done by an earlier run that stopped half way
+ */
+export function pendingJobs(ledger, jobs) {
+  const same = (a, b) => a.length === b.length && a.every((name) => b.includes(name));
+  return jobs.filter((job) => !(ledger[job.from] ?? []).some((entry) => entry.file === job.to && same(entry.names, job.names)));
+}
+
+/**
  * @template {{ to: string, names: string[] }} Job
  * @param {{ bindings: Map<string, any> }} analysis from analyze.mjs, of the file the jobs take from
  * @param {Job[]} jobs

@@ -22,7 +22,7 @@ function planFor({ root, parser, text, source, target, about, names, withDeps, o
     throw new Refusal([`tools/restructure/protected.json names ${guard.missing.join(', ')}, which ${source} no longer declares: correct the list first`]);
   }
   return planExtraction({ text, analysis, names, source, target, about, withDeps, ownModules,
-    rewrite: createSpecRewriter(root), protectedNames: guard.names });
+    rewrite: createSpecRewriter(root), protectedNames: guard.names, protectedStretches: guard.stretches });
 }
 
 /**

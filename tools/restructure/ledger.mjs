@@ -39,13 +39,16 @@ export function appendLedger(root, source, entry) {
  * @param {string} root
  * @param {string} source repo-relative
  * @param {{names: string[], line: number[]}[]} records top-level statements of the file, in order
- * @returns {{ names: Set<string>, missing: string[] }} `missing` are anchors the file no longer declares
+ * @returns {{ names: Set<string>, missing: string[], stretches: number[][] }} `missing` are anchors the file no longer
+ *   declares; `stretches` are the protected runs as [first, last] positions in `records`, first = -1 when the run
+ *   starts with the file
  */
 export function protectedNames(root, source, records) {
   const rules = JSON.parse(readFileSync(path.join(root, PROTECTED), 'utf8')).files?.[source];
   const names = new Set();
   const missing = [];
-  if (!rules) return { names, missing };
+  const stretches = [];
+  if (!rules) return { names, missing, stretches };
   const indexOf = (name) => records.findIndex((record) => record.names.includes(name));
   for (const name of rules.names ?? []) {
     if (indexOf(name) === -1) missing.push(name); else names.add(name);
@@ -55,6 +58,7 @@ export function protectedNames(root, source, records) {
     const last = indexOf(to);
     if (first === -1 || last === -1 || last < first) { missing.push(`${from}..${to}`); continue; }
     for (const record of records.slice(first, last + 1)) for (const name of record.names) names.add(name);
+    stretches.push([from === null ? -1 : first, last]);
   }
-  return { names, missing };
+  return { names, missing, stretches };
 }

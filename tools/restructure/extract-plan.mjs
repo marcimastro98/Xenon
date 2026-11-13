@@ -47,7 +47,7 @@ function selfReasons(record, at, protectedNames) {
 
 // Where the new require can go: after every module it needs is loaded, and before
 // the first statement that could use a moved name while the file is still loading.
-function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source }) {
+function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
   const remaining = records.filter((record) => !movedSet.has(record));
   const reaches = new Set(moved);
   for (let grew = true; grew;) {
@@ -71,6 +71,16 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
   }
   let anchor = Math.min(moved[0].index, before);
   if (anchor <= loaded) anchor = loaded + 1;
+  // The require is a new line, and a protected stretch gets no new line: it goes just above the stretch instead.
+  const inside = stretches.find(([first, last]) => anchor > first && anchor <= last);
+  if (inside) {
+    const [first, last] = inside;
+    if (first <= loaded) {
+      return { reason: `the new require would have to go between lines ${records[Math.max(first, 0)].line[0]} and ${records[last].line[0]} of ${source}, `
+        + 'a protected stretch that is never edited' };
+    }
+    anchor = first;
+  }
   return anchor < records.length ? { anchor } : { reason: `no place in ${source} is left for the new require` };
 }
 
@@ -85,6 +95,8 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
  * @param {(spec: string, from: string, to: string) => any} job.rewrite from module-requires.mjs
  * @param {boolean} [job.withDeps] also move everything the names need from the old file
  * @param {Set<string>} [job.protectedNames] names that never move
+ * @param {number[][]} [job.protectedStretches] runs of the old file that get no new line, as [first, last] positions
+ *   in the analysis records (first = -1: from the start of the file)
  * @param {Set<string>} [job.ownModules] repo-relative modules earlier extractions made out of this file
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, moved: string[], exported: string[], imported: string[],
@@ -95,7 +107,7 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
  */
 export function planExtraction(job) {
   const { text, analysis, names, source, target, about, rewrite, withDeps = false,
-    protectedNames = new Set(), ownModules = new Set(), maxLines = MAX_LINES } = job;
+    protectedNames = new Set(), protectedStretches = [], ownModules = new Set(), maxLines = MAX_LINES } = job;
   const { bindings, records } = analysis;
   if (text.includes('\r')) throw new Refusal([`${source} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`]);
   const unknown = names.filter((name) => !bindings.has(name));
@@ -125,7 +137,8 @@ export function planExtraction(job) {
 
   const needed = [...new Set(moved.flatMap((record) => record.requires))];
   const required = requireLines(needed, bindings, (spec) => rewrite(spec, source, target));
-  const place = placeRequire({ records, moved, movedSet, movedNames, bindings, modules: required.modules, source });
+  const place = placeRequire({ records, moved, movedSet, movedNames, bindings, modules: required.modules, source,
+    stretches: protectedStretches });
   if (place.reason) throw new Refusal([place.reason]);
 
   const lines = text.split('\n');

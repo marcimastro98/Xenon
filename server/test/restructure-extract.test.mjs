@@ -113,3 +113,23 @@ test('the proof notices a changed byte, inside the moved text or outside it', (t
     glue: { ...made.glue, edits: made.glue.edits.map((edit) => ({ ...edit, newLines: ['const { other, evil } = require("./lib");'] })) } };
   assert.match(proven(SOURCE, widened).join('\n'), /gained evil/);
 });
+
+test('the new require never lands inside a protected stretch: it goes just above it, or the move is refused', (t) => {
+  if (!parser) return t.skip(SKIP);
+  // `start()` runs while the file loads and reaches `late`, so the require must come before it:
+  // without the rule it would land between `guard` and `start()`, inside the stretch.
+  const text = ['const first = 1;', 'function guard() { return first; }', 'function begin() { return late(); }', 'begin();',
+    'function gate() { return guard(); }', 'function late() { return 2; }', 'function use() { return late() + gate(); }', ''].join('\n');
+  const records = analyze(text, parser, 'server/demo.js').records;
+  const at = (name) => records.findIndex((record) => record.names.includes(name));
+  const open = plan(text, ['late']);
+  assert.equal(open.newSource.split('\n')[3], "const { late } = require('./part/x.js');", 'with nothing protected: right before the call that needs it');
+  const kept = plan(text, ['late'], { protectedStretches: [[at('guard'), at('gate')]] });
+  assert.deepEqual(kept.newSource.split('\n').slice(0, 3), ['const first = 1;', "const { late } = require('./part/x.js');", ''],
+    'above the stretch, which keeps every line it had');
+  assert.ok(kept.newSource.includes(['function guard() { return first; }', 'function begin() { return late(); }', 'begin();',
+    'function gate() { return guard(); }'].join('\n')), 'the stretch is in one piece');
+  assert.deepEqual(proven(text, kept), []);
+  assert.match(refusal(text, ['late'], { protectedStretches: [[-1, at('gate')]] }), /a protected stretch that is never edited/,
+    'a stretch that starts with the file has no line above it');
+});

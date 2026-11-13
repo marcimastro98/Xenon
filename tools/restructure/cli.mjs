@@ -22,7 +22,7 @@ import { Refusal } from './extract-plan.mjs';
 import { protectedNames, readLedger } from './ledger.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
-import { orderJobs } from './plan-order.mjs';
+import { orderJobs, pendingJobs } from './plan-order.mjs';
 import { carryAll, checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { featureWords, remainder, renderMovable, renderRemainder } from './remainder.mjs';
 import { ownersOf } from './target-rules.mjs';
@@ -80,9 +80,7 @@ function runExtractions(parser, jobs, dryRun) {
 function readPlan(parser, planFile) {
   const jobs = JSON.parse(readFileSync(planFile, 'utf8')).map((job) => ({ ...job, from: posix(job.from), to: posix(job.to) }));
   const ledger = readLedger(REPO_ROOT).sources;
-  const same = (a, b) => a.length === b.length && a.every((name, i) => name === b[i]);
-  const isDone = (job) => (ledger[job.from] ?? []).some((entry) => entry.file === job.to && same(entry.names, job.names));
-  const todo = jobs.filter((job) => !isDone(job));
+  const todo = pendingJobs(ledger, jobs);
   if (todo.length < jobs.length) console.log(`${jobs.length - todo.length} of ${jobs.length} extractions are done already.`);
   const ordered = [];
   for (const from of new Set(todo.map((job) => job.from))) {
