@@ -158,7 +158,8 @@
       {"file":"server/ai/gemini-transcribe.js","about":"The request that turns a recorded voice clip into text with Gemini, and how long it may take.","names":["STT_GEMINI_TIMEOUT_MS","_transcribeAudioOnce"]},
       {"file":"server/ambient/scenes-sanitize.js","about":"The saved Ambient scenes as the settings keep them: within the store limits, and only what can be written to a file.","names":["sanitizeAmbientScenes"]},
       {"file":"server/look/background-custom-normalize.js","about":"The custom background as the settings keep it: its code within the size limit, its pictures and frame rate by the rules shared with the dashboard, and where it came from.","names":["normalizeBgCustom"]},
-      {"file":"server/windows-tiles/slideshow-normalize.js","about":"The slideshow tile's settings as the server keeps them, by the rules shared with the dashboard.","names":["normalizeSlideshow"]}
+      {"file":"server/windows-tiles/slideshow-normalize.js","about":"The slideshow tile's settings as the server keeps them, by the rules shared with the dashboard.","names":["normalizeSlideshow"]},
+      {"file":"server/updates/app-version.js","about":"The version of this build, read once from package.json when the engine starts, always without a leading v.","names":["APP_VERSION"],"lift":true}
     ]
   }
 }
