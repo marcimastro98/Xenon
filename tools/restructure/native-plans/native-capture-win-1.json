@@ -1,0 +1,234 @@
+[
+ {
+  "origin": "apps/capture/src/win/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/shots.rs",
+    "about": "Windows: a screenshot of a screen, a window or a region, from the request to the saved file.",
+    "lines": [
+     [
+      87,
+      107
+     ]
+    ],
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        181,
+        181
+       ],
+       [
+        652,
+        652
+       ],
+       [
+        706,
+        752
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/frames.rs",
+    "about": "Windows: getting the picture a screenshot is made of, and a window on its own without what covers it.",
+    "lines": [
+     [
+      46,
+      86
+     ]
+    ],
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        773,
+        851
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/recording.rs",
+    "about": "Windows: starting and stopping a recording and the replay buffer.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        221,
+        402
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/jobs.rs",
+    "about": "Windows: the other things the engine is asked for: a folder, copies, edits, reading text, inspecting, drawing, steps.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        412,
+        646
+       ]
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/export.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/export/source.rs",
+    "about": "Windows export: opening the saved video and reading its size, length and sound.",
+    "lines": [
+     [
+      100,
+      216
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/export/encode.rs",
+    "about": "Windows export: writing the copy, frame by frame, at the new size and bitrate.",
+    "lines": [
+     [
+      218,
+      479
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/export/copies.rs",
+    "about": "Windows export: the vertical copy and the copy that must fit in a number of megabytes.",
+    "lines": [
+     [
+      481,
+      577
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/export/gif.rs",
+    "about": "Windows export: the GIF copy.",
+    "lines": [
+     [
+      578,
+      714
+     ]
+    ]
+   }
+  ],
+  "drop": {
+   "apps/capture/src/win/export.rs": [
+    "w",
+    "Gif"
+   ],
+   "apps/capture/src/win/export/source.rs": [
+    "w",
+    "Interface"
+   ],
+   "apps/capture/src/win/export/encode.rs": [
+    "w"
+   ],
+   "apps/capture/src/win/export/copies.rs": [
+    "w"
+   ]
+  }
+ },
+ {
+  "origin": "apps/capture/src/win/picker.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/picker/input.rs",
+    "about": "Windows picker: what a key or the mouse does to the selection.",
+    "members": [
+     {
+      "impl": "State",
+      "lines": [
+       [
+        269,
+        340
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/picker/paint.rs",
+    "about": "Windows picker: drawing the dimmed screen, the selection, its size and the hint.",
+    "lines": [
+     [
+      559,
+      605
+     ]
+    ],
+    "members": [
+     {
+      "impl": "State",
+      "lines": [
+       [
+        357,
+        357
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/picker/window.rs",
+    "about": "Windows picker: the window itself, its messages and its keys.",
+    "lines": [
+     [
+      450,
+      558
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/picker/show.rs",
+    "about": "Windows picker: showing it over every screen and handing back what was picked.",
+    "lines": [
+     [
+      616,
+      735
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/win/edit.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/win/edit/thumb.rs",
+    "about": "Windows: the small picture of a saved video or screenshot.",
+    "lines": [
+     [
+      80,
+      214
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/win/edit/trim.rs",
+    "about": "Windows: cutting a saved video to a start and an end without encoding it again.",
+    "lines": [
+     [
+      267,
+      416
+     ]
+    ]
+   }
+  ]
+ }
+]

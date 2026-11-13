@@ -217,7 +217,7 @@ test('has(): a ping reply without a list (an old engine) keeps the defaults', as
 // mac/mod.rs FEATURES for macOS): a feature added on one side only would be
 // hidden on a PC that has it, or offered where it fails.
 test('the feature lists match the Rust engines', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = await import('./native-source.mjs');
   const { WINDOWS_FEATURES, MAC_FEATURES } = require('../capture-host.js');
   const rustList = (file) => {
     const src = readFileSync(new URL(`../../apps/capture/src/${file}`, import.meta.url), 'utf8');

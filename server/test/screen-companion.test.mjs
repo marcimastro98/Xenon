@@ -5,7 +5,8 @@
 // closes the page reloads to give the memory back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 

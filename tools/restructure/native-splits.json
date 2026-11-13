@@ -20,6 +20,28 @@
     "apps/capture/src/sketch/canvas.rs": [
       "apps/capture/src/sketch/canvas/unit_tests.rs"
     ],
+    "apps/capture/src/win/edit.rs": [
+      "apps/capture/src/win/edit/thumb.rs",
+      "apps/capture/src/win/edit/trim.rs"
+    ],
+    "apps/capture/src/win/export.rs": [
+      "apps/capture/src/win/export/copies.rs",
+      "apps/capture/src/win/export/encode.rs",
+      "apps/capture/src/win/export/gif.rs",
+      "apps/capture/src/win/export/source.rs"
+    ],
+    "apps/capture/src/win/mod.rs": [
+      "apps/capture/src/win/frames.rs",
+      "apps/capture/src/win/jobs.rs",
+      "apps/capture/src/win/recording.rs",
+      "apps/capture/src/win/shots.rs"
+    ],
+    "apps/capture/src/win/picker.rs": [
+      "apps/capture/src/win/picker/input.rs",
+      "apps/capture/src/win/picker/paint.rs",
+      "apps/capture/src/win/picker/show.rs",
+      "apps/capture/src/win/picker/window.rs"
+    ],
     "apps/native/src-tauri/src/gpu.rs": [
       "apps/native/src-tauri/src/gpu/displays.rs",
       "apps/native/src-tauri/src/gpu/unit_tests.rs"

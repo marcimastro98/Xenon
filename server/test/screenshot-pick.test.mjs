@@ -3,7 +3,7 @@
 // what it took, or pick anything, or see that it had happened.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
