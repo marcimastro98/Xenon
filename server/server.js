@@ -357,10 +357,10 @@ const capabilityRunner = capabilities.createCapabilities({
     setUsageMode: (mode) => updateUsageModeSetting(mode),
     setScreenAlerts: (on) => updateScreenAlertsSetting(on),
     setDesktopScene: (patch) => updateDesktopSceneSetting(patch),
-    desktopScenes: async () => ({ packages: (await _layerCatalog()).scenes, canvases: (_serverHubSettings || {}).ambientScenes, themes: (_serverHubSettings || {}).customThemes }),
+    desktopScenes: async () => ({ packages: (await _layerCatalog()).scenes, canvases: (hub.settings || {}).ambientScenes, themes: (hub.settings || {}).customThemes }),
   },
   layers: {
-    get: () => _serverHubSettings && _serverHubSettings.layers,
+    get: () => hub.settings && hub.settings.layers,
     update: (edit) => updateLayersSetting(edit),
     catalog: () => _layerCatalog(),
     shots: async () => (await _menuStore()).shots,
@@ -373,7 +373,7 @@ const capabilityRunner = capabilities.createCapabilities({
   },
   // Notifications and Do not disturb (capabilities/notifications.js).
   notifications: {
-    get: () => normalizeNotifications(_serverHubSettings && _serverHubSettings.notifications),
+    get: () => normalizeNotifications(hub.settings && hub.settings.notifications),
     set: (change) => updateNotificationsSetting(change),
   },
   // A Store widget's own options, from the menu (capabilities/widget-option.js).
@@ -387,7 +387,7 @@ const capabilityRunner = capabilities.createCapabilities({
   })),
   // What the Game performance tile shows (capabilities/perf-hud.js).
   perfHud: {
-    get: () => PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud),
+    get: () => PerfHud.normalizePerfHud(hub.settings && hub.settings.perfHud),
     set: (change) => updatePerfHudSetting(change),
   },
   // "Why does it stutter?" (capabilities/stutter-why.js): the answer goes to the
@@ -431,17 +431,17 @@ const capabilityRunner = capabilities.createCapabilities({
     }),
     onNothingCovered: () => broadcastSSE('capture', { kind: 'cover', covered: 0 }),
     // The line over the area picker, in the language the dashboard shows.
-    hint: () => LayerI18n.text('shot_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    hint: () => LayerI18n.text('shot_pick_hint', hub.settings && hub.settings.language),
     // Text from the screen (capabilities/screen-text.js): its own picker line,
     // and a toast that says how much was copied, never the text.
-    textHint: () => LayerI18n.text('text_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    textHint: () => LayerI18n.text('text_pick_hint', hub.settings && hub.settings.language),
     onText: (r) => broadcastSSE('capture', { kind: 'text', lines: r.lines, copied: r.copied === true }),
     // The colour picker and the ruler (capabilities/screen-inspect.js): the
     // toast shows the colour or the size that was copied (not screen content).
-    inspectHint: (mode) => LayerI18n.text(mode === 'colour' ? 'color_pick_hint' : 'measure_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    inspectHint: (mode) => LayerI18n.text(mode === 'colour' ? 'color_pick_hint' : 'measure_pick_hint', hub.settings && hub.settings.language),
     onInspect: (r) => broadcastSSE('capture', { kind: r.mode === 'colour' ? 'color' : 'size', text: r.text, copied: r.copied === true }),
     // Drawing on the screen (capabilities/screen-draw.js): the line under its bar.
-    drawHint: () => LayerI18n.text('draw_hint', _serverHubSettings && _serverHubSettings.language),
+    drawHint: () => LayerI18n.text('draw_hint', hub.settings && hub.settings.language),
     // Recording options (capabilities/record-options.js).
     options: () => captureOptions(),
     setOptions: (change, folders) => updateCaptureSettings(change, folders),
@@ -455,14 +455,14 @@ const capabilityRunner = capabilities.createCapabilities({
   // and, with "widgets only", the on-screen alerts window open it (SSE).
   companion: {
     enabled: () => {
-      const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+      const f = hub.settings && hub.settings.aiFeatures;
       return !!(f && f.enabled === true && f.gameCompanion === true);
     },
     // The session log knows when the game started; without it, the game alone.
     current: () => _gameSessions.current()
       || (gameDetect.isGameRunning() ? { game: gameDetect.getGameProcess() } : null),
     open: (o) => {
-      const hs = _serverHubSettings || {};
+      const hs = hub.settings || {};
       if (UsageMode.widgetsOnly(hs.usageMode) && hs.notifications && hs.notifications.onScreen === false) return false;
       broadcastSSE('game_companion', o);
       return true;
@@ -474,7 +474,7 @@ const capabilityRunner = capabilities.createCapabilities({
   // One key at a time for the capabilities that only flip a setting (game mode,
   // the not-a-game list, sensor history), and the Performance Mode key.
   settingKeys: {
-    get: (key) => (_serverHubSettings || {})[key],
+    get: (key) => (hub.settings || {})[key],
     update: (key, change) => updateHubSettingKey(key, change),
   },
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
@@ -507,7 +507,7 @@ const signalrgb = require('./signalrgb');
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
-gameDetect.setIgnoreSource(() => _serverHubSettings && _serverHubSettings.gameIgnore);
+gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);
 // …and the other way: PresentMon sees every presenter on the machine, so it asks
 // which window is in front before deciding which one is the game. Wired here
 // rather than by requiring across, because these two modules already read each
@@ -818,11 +818,11 @@ const GEMINI_MODEL_KEYS = Object.freeze({
   chat: 'geminiModel', chatPro: 'geminiModelPro', tts: 'geminiModelTts', live: 'geminiModelLive',
 });
 
-// Reads the in-memory settings mirror (`_serverHubSettings`, kept fresh by every
+// Reads the in-memory settings mirror (`hub.settings`, kept fresh by every
 // writer) rather than the disk, because these are read per AI request and several
 // of the callers below are small sync helpers that only ever receive an API key.
 function geminiModelFor(role) {
-  const s = _serverHubSettings || {};
+  const s = hub.settings || {};
   return aiModels.resolve('gemini', role, s[GEMINI_MODEL_KEYS[role]], s.geminiApiKey);
 }
 
@@ -832,22 +832,6 @@ const AI_MODELS = Object.freeze({
   get tts() { return geminiModelFor('tts'); },
   get live() { return geminiModelFor('live'); },
 });
-
-// The same resolution for the two server-mediated cloud providers. `settings` is
-// passed in where the caller already read it (every one of them does, for the
-// server-only key); the mirror is the fallback.
-const PROVIDER_MODEL_KEYS = Object.freeze({
-  openai: { chat: 'openaiModel', stt: 'openaiSttModel', tts: 'openaiTtsModel' },
-  anthropic: { chat: 'anthropicModel' },
-});
-
-function providerModelFor(provider, role, settings) {
-  const s = settings || _serverHubSettings || {};
-  const key = (PROVIDER_MODEL_KEYS[provider] || {})[role];
-  if (!key) return '';
-  const apiKey = provider === 'openai' ? s.openaiApiKey : s.anthropicApiKey;
-  return aiModels.resolve(provider, role, s[key], apiKey);
-}
 
 // One answer through the user's Claude Code / Codex subscription (ai-cli.js),
 // for the features a person starts themselves: a search, a button, the fold of
@@ -1312,7 +1296,7 @@ const roastSparks = createRoastSparks({ dataDir: DATA_DIR });
 // What Bit has to tell the person, one inbox for every screen (bit-messages.js).
 const bitMessages = createBitMessages({
   file: path.join(DATA_DIR, 'bit-messages.json'),
-  settings: () => _serverHubSettings,
+  settings: () => hub.settings,
   onChange: () => broadcastSSE('bit-messages', {}),
 });
 const {
@@ -1330,7 +1314,7 @@ const ratingVotes = createRatingVotes({
   hub: (pathname, body) => supporterRedeem.hubPost(pathname, body),
   redeemSaved: (entryId) => supporterRedeem.redeem({ entryId, code: '', dataDir: DATA_DIR, allowTrial: false }),
   fileAsk: (msg) => bitMessages.post({ messages: [msg] }),
-  settings: () => _serverHubSettings,
+  settings: () => hub.settings,
   watching: () => sseClients.size > 0,
   onVoted: (entryId) => {
     communityRatings.forget(entryId);
@@ -1457,17 +1441,17 @@ const {
 // The keys placed widgets show or hide with (widget-keys.js). What they hide
 // leaves with the rules' answer in the status, pushed at once.
 const _widgetKeys = createWidgetKeys({
-  layers: () => _serverHubSettings && _serverHubSettings.layers,
+  layers: () => hub.settings && hub.settings.layers,
   onChange: () => broadcastStatusNow(),
 });
 function _hotkeyBindings() {
-  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  const cfg = (hub.settings && hub.settings.searchSettings) || {};
   const out = [];
   if (cfg.hotkeyEnabled === true) {
     out.push({ slot: 'spotlight', combo: String(cfg.hotkeyCombo || 'alt+space') });
   }
-  const pages = Array.isArray(_serverHubSettings && _serverHubSettings.pageHotkeys)
-    ? _serverHubSettings.pageHotkeys : [];
+  const pages = Array.isArray(hub.settings && hub.settings.pageHotkeys)
+    ? hub.settings.pageHotkeys : [];
   pages.forEach((b, i) => {
     if (out.length >= MAX_HOTKEY_BINDINGS) return;
     out.push({ slot: 'page-' + i, combo: String(b.combo || ''), target: String(b.target || '') });
@@ -1505,7 +1489,7 @@ function _comboHeldBy(combo, except) {
   const want = DeckShortcuts.normalizeShortcut(combo);
   if (!want) return '';
   const same = (c) => DeckShortcuts.normalizeShortcut(c) === want;
-  const hs = _serverHubSettings || {};
+  const hs = hub.settings || {};
   const search = hs.searchSettings || {};
   if (search.hotkeyEnabled === true && same(search.hotkeyCombo || 'alt+space')) return 'search';
   if ((Array.isArray(hs.pageHotkeys) ? hs.pageHotkeys : []).some((b) => b && same(b.combo))) return 'page';
@@ -1526,7 +1510,7 @@ function _comboHeldBy(combo, except) {
 // The Xenon menu's combo, or '' while no native shell can draw the menu over
 // the screen (screen-menu.js) or the user turned the shortcut off.
 function _menuHotkey() {
-  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
   if (layers.menuKey === 'off' || !screenMenu.available()) return '';
   return DeckShortcuts.normalizeShortcut(layers.menuKey);
 }
@@ -1551,7 +1535,7 @@ function _pressReplayHotkey() {
 // The overlay shortcut's combo, or '' when there is nothing in the overlay to
 // show or hide, or the user turned it off.
 function _overlayHotkey() {
-  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
   if (!layers.enabled || layers.overlayKey === 'off' || !layers.widgets.some((w) => w.surface === 'overlay')) return '';
   return DeckShortcuts.normalizeShortcut(layers.overlayKey);
 }
@@ -1564,7 +1548,7 @@ function _refreshDeckShortcuts(configs) {
   const sig = (s) => s.list.map((x) => x.keyId + '=' + x.combo).join('|');
   const changed = sig(next) !== sig(_deckShortcuts);
   _deckShortcuts = next;
-  if (changed && _serverHubSettings) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
+  if (changed && hub.settings) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
 }
 
 // Why each Deck shortcut is or is not held, for the key editor: the helper's
@@ -1729,7 +1713,7 @@ function refreshLinuxHotkey(want, combo, pages) {
 }
 
 function refreshHotkeyListener() {
-  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  const cfg = (hub.settings && hub.settings.searchSettings) || {};
   const bindings = _hotkeyBindings();
   const combos = bindings.map((b) => b.combo);
   const want = bindings.length > 0;
@@ -1931,7 +1915,7 @@ async function refreshMacFdaState() {
 // Point the Living Index at the configured roots (idempotent — setRoots
 // restarts the host only when they actually changed).
 function refreshLivingIndex() {
-  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  const cfg = (hub.settings && hub.settings.searchSettings) || {};
   try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
 }
 const { sanitizeSettingsBackgroundMedia } = require('./look/background-media.js');
@@ -2266,8 +2250,8 @@ function sdkFeatureEnabled() {
   // and webhooks kept acting for "paused" third-party packages — a false
   // negative in the exact triage safe mode exists for. The stored enabled flag
   // and grants stay untouched, matching the client's sdk() mask.
-  if (_serverHubSettings && _serverHubSettings.safeMode === true) return false;
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  if (hub.settings && hub.settings.safeMode === true) return false;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   return !!(sw && sw.enabled === true);
 }
 
@@ -2275,7 +2259,7 @@ function sdkFeatureEnabled() {
 // the client's isSuspended: the suspend card promises "its Deck keys are paused
 // too", which must cover server-executed macro steps, not only handler frames.
 function sdkPkgSuspended(pkgId) {
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   const s = sw && Array.isArray(sw.suspended) ? sw.suspended : [];
   return typeof pkgId === 'string' && s.includes(pkgId);
 }
@@ -2286,7 +2270,7 @@ function sdkPkgSuspended(pkgId) {
 // consent check fails closed.
 function sdkGrantsFor(pkgId) {
   if (!sdkFeatureEnabled() || sdkPkgSuspended(pkgId)) return { streams: [], actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
     // `streams` is read here too: the audio-meter host decides whether to run at
@@ -2317,7 +2301,7 @@ function sdkGrantsFor(pkgId) {
 // for server work that exists only to feed widgets: fails closed with
 // sdkGrantsFor, so safe mode and a suspended package cost nothing.
 function sdkStreamGranted(stream) {
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;
   return Object.keys(grants).some((pkgId) => sdkGrantsFor(pkgId).streams.includes(stream));
@@ -2554,7 +2538,7 @@ async function dropSdkGrant(id) {
     const grants = { ...sw.grants };
     delete grants[id];
     const next = await writeHubSettings({ ...cur, sdkWidgets: { ...sw, grants }, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = next;
+    hub.settings = next;
     return next;
   }).catch(() => null);
   if (saved) broadcastSSE('settings', { rev: saved.rev });
@@ -2573,7 +2557,7 @@ async function migrateSdkGrantGroups() {
     const m = sdkWidgets.migrateGrantStorageGroups(sw.grants, scan.packages);
     if (!m.changed) return null;
     const next = await writeHubSettings({ ...cur, sdkWidgets: { ...sw, grants: m.grants }, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = next;
+    hub.settings = next;
     return next;
   });
   if (saved) broadcastSSE('settings', { rev: saved.rev });
@@ -3096,7 +3080,7 @@ const batteryMonitor = createBatteryMonitor({
   runScript: runPowerShellScript,
   lighting,
   systemBattery: async () => { const r = await require('./power').read(); return r && r.battery; },
-  peripherals: () => require('./device-battery').read({ ask: !_serverHubSettings || _serverHubSettings.batteryAskDevices !== false }),
+  peripherals: () => require('./device-battery').read({ ask: !hub.settings || hub.settings.batteryAskDevices !== false }),
 });
 
 const { _mediaHost, _mediaHostReject, _retireMediaHost } = require('./media/host-state.js');
@@ -3339,7 +3323,7 @@ setInterval(() => {
 // captured once, so changing it in Settings takes effect on the next reading
 // instead of at the next restart.
 function sensorRateMs() {
-  return normalizeSensorRate(_serverHubSettings && _serverHubSettings.sensorRateMs);
+  return normalizeSensorRate(hub.settings && hub.settings.sensorRateMs);
 }
 
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
@@ -3384,17 +3368,6 @@ setInterval(_sweepStaleStt, 60000).unref();
 
 
 const { _pcmRmsStats, _dbFromRms } = require('./wav/pcm-loudness.js');
-
-// Input gain applied to the captured audio. A Bluetooth hands-free mic produces
-// a very low signal (the browser's getUserMedia hides this with automatic gain
-// control; our raw ffmpeg capture does not), so we boost it both for end-of-
-// speech detection and so Gemini receives an audible clip. The "Microphone
-// sensitivity" slider drives the amount: 0 → 1.5×, 50 → ~3.25×, 100 → 5×.
-function _sttGain() {
-  const s = (_serverHubSettings && Number.isFinite(_serverHubSettings.aiMicSensitivity))
-    ? _serverHubSettings.aiMicSensitivity : 50;
-  return Math.round((1.5 + (s / 100) * 3.5) * 10) / 10;
-}
 
 let mediaPreferredSource = '';
 let mediaReaderRestUntil = 0;
@@ -4135,7 +4108,7 @@ async function getSystemInfo({ partialOk = false } = {}) {
   // tile, Deck, AI, lighting, Guardian, the SDK `system` stream) follows the
   // choice without knowing it exists. `sensorSources` says per metric where
   // the number came from.
-  const sources = SensorSources.normalizeSensorSources(_serverHubSettings && _serverHubSettings.sensorSources);
+  const sources = SensorSources.normalizeSensorSources(hub.settings && hub.settings.sensorSources);
   if (partial) info.partial = true;
   const unread = partial ? null : [];
   const readings = !partial && Object.keys(sources).length ? await readChosenSensors(sources) : unread;
@@ -4539,7 +4512,7 @@ function lookupLyricsOnce(media, key) {
 }
 
 async function getCurrentLyrics() {
-  if (_serverHubSettings.mediaLyrics === false) return { ok: true, state: 'off' };
+  if (hub.settings.mediaLyrics === false) return { ok: true, state: 'off' };
   const media = await getMediaInfo();
   if (!media || !media.active || !String(media.title || '').trim()) return { ok: true, state: 'idle' };
   const key = lyrics.trackKey(media);
@@ -4670,7 +4643,7 @@ async function userAiVisionBlocker() {
 
 // Why translation cannot run right now, or '' when it can.
 async function lyricsTranslateBlocker() {
-  if (_serverHubSettings.lyricsTranslate !== true) return 'off';
+  if (hub.settings.lyricsTranslate !== true) return 'off';
   return userAiBlocker();
 }
 
@@ -4796,7 +4769,7 @@ function setMicMute(mute) {
 // them. Asked on Discord: "would only swap the default device (not the
 // communication device)". macOS and Linux have one default and ignore roles.
 async function setDefaultAudioDevice(id, settings) {
-  const s = settings || _serverHubSettings || {};
+  const s = settings || hub.settings || {};
   if (process.platform !== 'win32' || s.audioSetCommunications !== false) {
     await svvExec(['/SetDefault', id, 'all']);
     return;
@@ -4899,7 +4872,7 @@ const embeddedBrowser = createEmbeddedBrowser({
   // (which tears Edge down — see POST /settings) takes effect on the next open.
   getExtensionDirs: () => {
     try {
-      if (_serverHubSettings && _serverHubSettings.browserAdblock === true) {
+      if (hub.settings && hub.settings.browserAdblock === true) {
         const ext = browserAdblock.extensionDir(DATA_DIR);
         if (ext) return [ext];
       }
@@ -5020,14 +4993,14 @@ function frontAppKnown() {
 // The facts behind the rules on placed widgets and pages. Each closure runs on the
 // status tick, long after every source below has been declared.
 const _situations = createSituations({
-  layers: () => _serverHubSettings && _serverHubSettings.layers,
+  layers: () => hub.settings && hub.settings.layers,
   isOwnApp,
   read: {
     game: () => gameDetect.isGameRunning(),
     live: () => obsState.obsStreaming === true,
     recording: () => obsState.obsRecording === true || _recorder.status().on === true,
     timer: () => _timers.some((t) => t.status === 'running'),
-    dnd: () => !!(_serverHubSettings.notifications && _serverHubSettings.notifications.quiet === 'always'),
+    dnd: () => !!(hub.settings.notifications && hub.settings.notifications.quiet === 'always'),
     cpu: () => getCpuUsage(),
     idleSec: () => ((_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null),
     front: () => gameDetect.getForegroundProcess(),
@@ -5499,7 +5472,7 @@ const deckRegistryDeps = {
   // signalrgb.js). Gated on the user enabling SignalRGB in Settings → Lighting,
   // so a stale Deck key can't drive it after the integration is turned off.
   signalRgbEffect: (effect) => {
-    if (!(_serverHubSettings && _serverHubSettings.signalrgb && _serverHubSettings.signalrgb.enabled === true)) {
+    if (!(hub.settings && hub.settings.signalrgb && hub.settings.signalrgb.enabled === true)) {
       return Promise.resolve({ ok: false, error: 'disabled' });
     }
     return signalrgb.applyEffect(effect);
@@ -5604,7 +5577,7 @@ const deckRegistryDeps = {
   },
   // A Vitals meter marked done from a Deck key or a granted SDK widget: the
   // same locked write as a tap on the bar or telling Bit (vitals-ai-tools.js).
-  vitalsRefill: (vital) => vitalsAiTools.run('refill_vital', { vital }, { read: () => _serverHubSettings, update: updateVitalsSettings }),
+  vitalsRefill: (vital) => vitalsAiTools.run('refill_vital', { vital }, { read: () => hub.settings, update: updateVitalsSettings }),
   // Task-list mutations (the `tasks` action category). All go through writeTasks,
   // which normalises (assigns id/createdAt, caps text to 200, drops empties) and
   // broadcasts the updated `tasks` stream — so the Tasks tile and every granted
@@ -5869,14 +5842,14 @@ const deckRegistryDeps = {
 const deckRegistry = createRegistry(deckRegistryDeps);
 usageStats.configure({
   dataDir: DATA_DIR,
-  enabled: () => !!(_serverHubSettings && _serverHubSettings.usageStats === true),
+  enabled: () => !!(hub.settings && hub.settings.usageStats === true),
 });
 
 // A Deck key's keyboard shortcut runs its tap here, dashboard or not.
 // go_to_page: a page name that matches none is told back to Bit with the real
 // names, before the dashboard is asked to move (js/page-target.js).
 function goToPageMiss(args) {
-  const pages = normalizeDashboardPages(_serverHubSettings.dashboardLayout && _serverHubSettings.dashboardLayout.pages);
+  const pages = normalizeDashboardPages(hub.settings.dashboardLayout && hub.settings.dashboardLayout.pages);
   return PageTarget.pageTargetMiss(args && args.page, pages.map(p => ({ id: p.id, label: p.name || p.id })));
 }
 
@@ -5899,7 +5872,7 @@ async function editFavorites(args) {
     const cur = await readHubSettingsForUpdate();
     const out = FavoritesAi.applyFavorite(cur, plan);
     result = out.result;
-    if (out.patch) _serverHubSettings = await writeHubSettings({ ...cur, ...out.patch });
+    if (out.patch) hub.settings = await writeHubSettings({ ...cur, ...out.patch });
   });
   if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
   return result;
@@ -5909,7 +5882,7 @@ async function editFavorites(args) {
 async function changeSetting(args) {
   const plan = SettingsAi.plan(args);
   if (plan.error) return { ok: false, ...plan };
-  if (plan.read) return { ok: true, settings: SettingsAi.current(_serverHubSettings) };
+  if (plan.read) return { ok: true, settings: SettingsAi.current(hub.settings) };
   let before = null;
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
@@ -5917,16 +5890,16 @@ async function changeSetting(args) {
     before = out.before;
     if (!out.patch) return;
     const written = await writeHubSettings({ ...cur, ...out.patch, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     broadcastSSE('settings', { rev: written.rev });
   });
   if (plan.name === 'visualizer') refreshAudioLevelsWatch();
-  const now = SettingsAi.current(_serverHubSettings)[plan.name];
+  const now = SettingsAi.current(hub.settings)[plan.name];
   return { ok: true, setting: plan.name, before, now, ...(before === now ? { unchanged: true } : {}) };
 }
 // sensor_source: the catalog is read only when a list or a choice needs it.
 async function chooseSensorSource(args) {
-  const current = () => SensorSources.normalizeSensorSources(_serverHubSettings && _serverHubSettings.sensorSources);
+  const current = () => SensorSources.normalizeSensorSources(hub.settings && hub.settings.sensorSources);
   const needsCatalog = args && args.metric && !/^(auto|automatic)$/i.test(String(args.sensor || '').trim());
   const cat = needsCatalog ? await collectSensors(null) : null;
   if (cat && !cat.known) return { ok: false, error: 'sensors_not_ready', hint: 'The sensor reader is still starting: try again in a minute.' };
@@ -5937,7 +5910,7 @@ async function chooseSensorSource(args) {
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const written = await writeHubSettings({ ...cur, sensorSources: SensorSourceAi.nextSources(cur.sensorSources, plan), rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     broadcastSSE('settings', { rev: written.rev });
   });
   return { ok: true, metric: plan.metric, now: current()[plan.metric] || 'auto' };
@@ -5952,7 +5925,7 @@ async function saveTileSettings(body) {
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const written = await writeHubSettings({ ...cur, ...TileSettings.apply(cur, plan.patch), rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     rev = written.rev;
     broadcastSSE('settings', { rev });
   });
@@ -5968,7 +5941,7 @@ async function saveSdkGrant(body) {
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const written = await writeHubSettings({ ...cur, ...SdkGrant.apply(cur, plan), rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     rev = written.rev;
     broadcastSSE('settings', { rev });
   });
@@ -5984,7 +5957,7 @@ async function saveVitalsState(body) {
     const cur = await readHubSettingsForUpdate();
     const vitals = cur.vitals && typeof cur.vitals === 'object' ? cur.vitals : {};
     const written = await writeHubSettings({ ...cur, vitals: { ...vitals, state: VitalsState.mergeState(vitals.state, plan.state) }, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     rev = written.rev;
     broadcastSSE('settings', { rev });
   });
@@ -5992,7 +5965,7 @@ async function saveVitalsState(body) {
 }
 async function tilePlaySearch(tile, q) {
   if (tile === 'twitch') {
-    const r = await streamTwitch.searchChannels(q, { language: _serverHubSettings && _serverHubSettings.language });
+    const r = await streamTwitch.searchChannels(q, { language: hub.settings && hub.settings.language });
     const ch = r && r.ok && Array.isArray(r.channels) ? r.channels.find((c) => c && c.live !== false) || r.channels[0] : null;
     return ch ? { value: ch.login, title: ch.name || ch.login } : { error: (r && r.error) || 'no_match' };
   }
@@ -6028,12 +6001,12 @@ const deckShortcutRunner = createDeckShortcutRunner({
     ffplay: findFfplay,
     spawn,
   }),
-  serverFirst: () => UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode),
+  serverFirst: () => UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode),
 });
 
 // The Deck keys placed on the screen (js/layer-key.js).
 const deckPress = createDeckPress({
-  layers: { get: () => _serverHubSettings && _serverHubSettings.layers, update: (edit) => updateLayersSetting(edit) },
+  layers: { get: () => hub.settings && hub.settings.layers, update: (edit) => updateLayersSetting(edit) },
   readConfigs: readDeckConfigs,
   runner: deckShortcutRunner,
 });
@@ -6519,9 +6492,9 @@ async function _flushLightingPersist() {
   clearTimeout(_lightingPersistTimer);
   _lightingPersistTimer = null;
   // Serialized with every other settings writer: the base is spread from
-  // _serverHubSettings, so a concurrent POST /settings could otherwise commit a
+  // hub.settings, so a concurrent POST /settings could otherwise commit a
   // vitals refill that this flush then overwrites with its pre-refill copy.
-  try { await withHubSettingsLock(async () => { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }); }
+  try { await withHubSettingsLock(async () => { hub.settings = await writeHubSettings({ ...hub.settings, lighting: lighting.getConfig() }); }); }
   catch (e) { console.error('Lighting persist failed:', e.message); }
 }
 // Shutdown / restart / sleep: switch off the lights Xenon drives itself first
@@ -6550,20 +6523,6 @@ async function _persistLighting() {
 const {
   PC_ACTION_TTL_MS, PC_ACTION_TIMEOUT_MS, _pcActions, issuePcAction,
 } = require('./ai/pc-actions.js');
-// PC Control is a PowerShell feature, not merely a Windows-first one: the
-// command the AI writes is PowerShell, the confirmation card shows the user
-// PowerShell, and the runner below spawns it directly rather than through
-// runPowerShellScript — so it is the one place POWERSHELL_SUPPORTED does not
-// already answer for. Off Windows it therefore reports itself disabled at both
-// gates and is never offered to the model, instead of proposing a command,
-// getting the user to approve it, and failing with a spawn ENOENT. Turning it
-// on elsewhere means giving the AI a POSIX shell, which is a product decision
-// about a much larger blast radius, not a translation of this code.
-function _pcControlEnabled() {
-  if (!POWERSHELL_SUPPORTED) return false;
-  const f = _serverHubSettings && _serverHubSettings.aiFeatures;
-  return !!(f && f.enabled === true && f.pcControl === true);
-}
 
 // What the create_preset dry run needs from this file: the real settings
 // normalizer, the built-in tile ids with their default sizes, the SDK switch.
@@ -6618,7 +6577,7 @@ async function runAiTool(fnName, fnArgs, deps) {
   const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
-    const widgetsOnly = UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode);
+    const widgetsOnly = UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode);
     const refused = aiSurface.clientActionRefusal(fnName, surface, widgetsOnly);
     if (refused) {
       if (surface === 'screen') broadcastSSE('needs_dashboard', {});
@@ -6848,7 +6807,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       await lockWorkstation();
       fnResult = { ok: true };
     } else if (vitalsAiTools.NAMES.includes(fnName)) {
-      fnResult = await vitalsAiTools.run(fnName, fnArgs, { read: () => _serverHubSettings, update: updateVitalsSettings });
+      fnResult = await vitalsAiTools.run(fnName, fnArgs, { read: () => hub.settings, update: updateVitalsSettings });
     } else if (fnName === 'capture_screen') {
       if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
         const weatherForAdvice = await getWeather(uiLang, null).catch(e => ({ error: e.message }));
@@ -7012,7 +6971,7 @@ async function runAiTool(fnName, fnArgs, deps) {
           const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
           if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
           const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
-          _serverHubSettings = saved;
+          hub.settings = saved;
         });
         refreshStocks().catch(() => {});
         fnResult = { ok: true, symbol: sym };
@@ -7036,8 +6995,8 @@ async function runAiTool(fnName, fnArgs, deps) {
         const saved = await withHubSettingsLock(async () => {
           const cur = await readHubSettingsForUpdate();
           const next = { ...cur, ...(model ? { xenonModel: model } : {}), ...(effort ? { xenonEffort: effort } : {}), rev: nextSettingsRev(cur.rev) };
-          _serverHubSettings = await writeHubSettings(next);
-          return _serverHubSettings;
+          hub.settings = await writeHubSettings(next);
+          return hub.settings;
         });
         broadcastSSE('settings', { rev: saved.rev });
         fnResult = {
@@ -7282,7 +7241,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         const allowed = aiPcApps.openTarget(rawTarget, PROTOCOL_MAP);
         // From a paired phone, what /windows/launch allows and nothing else: a
         // file sent from the phone could otherwise be started right after it lands.
-        if (remote && !remoteActions.remoteMayLaunch(rawTarget, _serverHubSettings && _serverHubSettings.appFavorites, await readDeckStore())) {
+        if (remote && !remoteActions.remoteMayLaunch(rawTarget, hub.settings && hub.settings.appFavorites, await readDeckStore())) {
           fnResult = phoneRefusal('needs_pc');
         } else if (!allowed.ok) {
           fnResult = { error: `not allowed (${allowed.error}): this tool opens apps by name, websites and documents on this PC. Scripts, network paths and special links are refused; running commands needs PC Control, which asks the user first.` };
@@ -7640,9 +7599,9 @@ async function runAiTool(fnName, fnArgs, deps) {
         }
       }
     } else if (fnName === 'rate_store_item') {
-      const refused = aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));
+      const refused = aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode));
       if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
-      const step = refused ? null : await aiRateStore.plan(fnArgs, { settings: () => _serverHubSettings, stateOf: ratingVotes.stateOf });
+      const step = refused ? null : await aiRateStore.plan(fnArgs, { settings: () => hub.settings, stateOf: ratingVotes.stateOf });
       if (!step || !step.ok) {
         fnResult = refused || step;
       } else {
@@ -7654,7 +7613,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       // A key press, by Bit: same validator, same registry. Risky types wait on
       // a card (ai-deck-run.js), sound and mixer steps play in the chat's page.
       const step = aiDeckRun.plan(fnArgs.action);
-      const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));
+      const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode));
       if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
       // Asked from a paired phone, Bit can do what the phone can (remote-actions.js).
       const phoneVerdict = remote && step.mode && step.mode !== 'client' ? remoteActions.remoteMayRun(step.action, await readDeckStore()) : null;
@@ -8268,9 +8227,16 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   shareNudgeSeen: false,
 });
 
+const { hub } = require('./settings/current.js');
+const { PROVIDER_MODEL_KEYS, providerModelFor } = require('./ai/provider-models.js');
+
+const { _pcControlEnabled } = require('./ai/pc-control-switch.js');
+
+const { _sttGain } = require('./ai/mic-gain.js');
+
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
 // must not hit the disk that often. Populated at startup and on every POST.
-let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
+hub.settings = { ...DEFAULT_HUB_SETTINGS };
 
 // True when settings.json did NOT exist as this process started: the only honest
 // way to tell a brand-new install from an old one that just enabled the version
@@ -8529,7 +8495,7 @@ function normalizeDashboardLayout(value) {
 }
 
 function gameSessionsEnabled() {
-  return !(_serverHubSettings && _serverHubSettings.gameSessions && _serverHubSettings.gameSessions.enabled === false);
+  return !(hub.settings && hub.settings.gameSessions && hub.settings.gameSessions.enabled === false);
 }
 
 // Phone ↔ PC file transfer. Server-owned: there is no twin in
@@ -8563,7 +8529,7 @@ function normalizeFileTransfer(value) {
 async function noteUsageDay() {
   try {
     const today = localDay();
-    const cur = _serverHubSettings || {};
+    const cur = hub.settings || {};
     if (cur.lastUsageDay === today) return;               // already counted today
     await withHubSettingsLock(async () => {
       const prev = await readHubSettingsForUpdate();
@@ -8574,7 +8540,7 @@ async function noteUsageDay() {
         lastUsageDay: today,
         usageDays: (Number(prev.usageDays) || 0) + 1,
       };
-      _serverHubSettings = await writeHubSettings(next);
+      hub.settings = await writeHubSettings(next);
     });
   } catch { /* a counter is never worth failing a page load over */ }
 }
@@ -9065,8 +9031,8 @@ async function updateVitalsSettings(change) {
     const cur = await readHubSettingsForUpdate();
     const next = change(cur);
     if (!next) return cur;
-    _serverHubSettings = await writeHubSettings({ ...next, rev: nextSettingsRev(cur.rev) });
-    return _serverHubSettings;
+    hub.settings = await writeHubSettings({ ...next, rev: nextSettingsRev(cur.rev) });
+    return hub.settings;
   });
   if (saved !== null) broadcastSSE('settings', { rev: saved.rev });
   return saved;
@@ -9083,7 +9049,7 @@ async function saveNoticeSeen(seen) {
   await withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, ...seen, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
   });
 }
@@ -9103,7 +9069,7 @@ async function updateLayersSetting(edit) {
     if (!res || res.error || !res.layers) return res || { error: 'failed' };
     const keys = _layerHotkeys();
     const saved = await writeHubSettings({ ...cur, layers: res.layers, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     layersEdit.touch(saved.layers);
     // A rule just written acts now, not on the next tick.
@@ -9121,7 +9087,7 @@ async function updateGameSessionsSetting(on) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, gameSessions: { enabled: !!on }, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved.gameSessions.enabled;
   });
@@ -9134,7 +9100,7 @@ async function updatePerfHudSetting(change) {
     const cur = await readHubSettingsForUpdate();
     const perfHud = PerfHud.applyPerfHudChange(cur.perfHud, change);
     const saved = await writeHubSettings({ ...cur, perfHud, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved.perfHud;
   });
@@ -9154,7 +9120,7 @@ async function updateCaptureSettings(change, folders = {}) {
     }
     const replayKey = _replayHotkey();
     const saved = await writeHubSettings({ ...cur, capture: next, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     // Instant Replay follows its switch, length and look right away.
     try { _replay.sync(); } catch { /* before startup: the first status tick syncs it */ }
@@ -9190,7 +9156,7 @@ async function replayDiskInfo(o) {
 }
 
 function captureOptions() {
-  return CaptureSettings.normalizeCaptureSettings(_serverHubSettings && _serverHubSettings.capture);
+  return CaptureSettings.normalizeCaptureSettings(hub.settings && hub.settings.capture);
 }
 
 // Per-app volume: macOS has no per-process mixer (docs/MACOS_PORTABILITY.md).
@@ -9205,7 +9171,7 @@ async function _appAudioAvailable() {
 const _menuStore = () => MenuStore.read({
   catalog: () => communityCatalog.fetchVisibleCatalog(false),
   packages: async () => (await sdkPackagesCached()).packages.map((p) => ({ id: p.id, version: p.version, catalogVersion: widgetCatalogVersionOf(p.id) })),
-  installs: (_serverHubSettings || {}).contentInstalls,
+  installs: (hub.settings || {}).contentInstalls,
 });
 
 // A widget key with no row in the hotkey table lost it: to a combination already
@@ -9213,7 +9179,7 @@ const _menuStore = () => MenuStore.read({
 function _widgetKeyStates(held) {
   const table = _hotkeyBindings();
   const out = {};
-  for (const { lead } of LayersModel.boxes(LayersModel.normalize((_serverHubSettings || {}).layers).widgets)) {
+  for (const { lead } of LayersModel.boxes(LayersModel.normalize((hub.settings || {}).layers).widgets)) {
     if (!lead.key) continue;
     const slot = 'widget-' + lead.id;
     out[slot] = table.some((b) => b.slot === slot) ? held(slot)
@@ -9223,7 +9189,7 @@ function _widgetKeyStates(held) {
 }
 
 async function _xenonMenuState() {
-  const hs = _serverHubSettings || {};
+  const hs = hub.settings || {};
   const catalog = await _layerCatalog();
   const store = await _menuStore();
   const last = await _captures.last(null).catch(() => null);
@@ -9284,7 +9250,7 @@ async function updateHubSettingKey(key, change) {
     const next = change(cur[key]);
     if (JSON.stringify(next) === JSON.stringify(cur[key])) return cur[key];
     const saved = await writeHubSettings({ ...cur, [key]: next, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved[key];
   });
@@ -9294,7 +9260,7 @@ async function updateAiEdgeGlowSetting(mode) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, aiEdgeGlow: mode, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved.aiEdgeGlow;
   });
@@ -9309,7 +9275,7 @@ async function updateDesktopSceneSetting(patch) {
     const ambient = require('./capabilities/desktop-scene.js').applyPatch(normalizeAmbientMode(cur.ambientMode), patch);
     const lockWidgets = normalizeLockWidgets(patch.lockWidgets || cur.lockWidgets);
     const saved = await writeHubSettings({ ...cur, lockWidgets, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved.ambientMode;
   });
@@ -9323,7 +9289,7 @@ async function updateScreenAlertsSetting(on) {
     const cur = await readHubSettingsForUpdate();
     const notifications = { ...(cur.notifications || {}), onScreen: on === true };
     const saved = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     // In "widgets only" the alerts window is who answers the wake word.
     refreshWakeWordWatch();
@@ -9343,7 +9309,7 @@ async function updateNotificationsSetting(change) {
     if (Object.keys(notifications).every((k) => notifications[k] === before[k])) return before;
     masterChanged = notifications.enabled !== before.enabled;
     const written = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = written;
+    hub.settings = written;
     broadcastSSE('settings', { rev: written.rev });
     return written.notifications;
   });
@@ -9363,7 +9329,7 @@ async function updatePerformanceSetting(performance) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, performance, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved;
   });
@@ -9373,7 +9339,7 @@ async function updateUsageModeSetting(mode) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     refreshWakeWordWatch();
     return saved.usageMode;
@@ -9736,7 +9702,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // newer rev) adopts the imported settings instead of clobbering them back.
       incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
       const settings = await writeHubSettings(incoming);
-      _serverHubSettings = settings;
+      hub.settings = settings;
       // Same post-save hooks as POST /settings; none of them may fail the import.
       try { lighting.applyConfig(settings.lighting); _syncSessionWatch(); }
       catch (e) { console.error('Backup lighting apply failed:', e.message); }
@@ -9783,11 +9749,11 @@ async function applyBackup(bundle, { remote = false } = {}) {
   if (d.guardian && typeof d.guardian === 'object') await apply('guardian', () => guardian.importStore(d.guardian));
   if (Array.isArray(d.gameSessions)) await apply('gameSessions', () => _gameSessions.importData(d.gameSessions));
 
-  // _serverHubSettings is the maintained in-memory mirror (just updated when the
+  // hub.settings is the maintained in-memory mirror (just updated when the
   // settings section applied) — no need to re-read the file from disk.
   const needsSetup = _backupNeedsSetup(
     bundle.secretsConfigured,
-    _serverHubSettings || {},
+    hub.settings || {},
     await _readStreamTokensSnapshot()
   );
   // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
@@ -9820,10 +9786,10 @@ async function applyBackup(bundle, { remote = false } = {}) {
 
 // Remote Control orchestrator — getSettings reads the in-memory mirror so
 // currentCreds() stays synchronous; saveSettings persists and normalises via
-// writeHubSettings (which updates _serverHubSettings on the next settings read).
+// writeHubSettings (which updates hub.settings on the next settings read).
 const remoteControl = createRemoteControl({
-  getSettings: () => _serverHubSettings,
-  saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { _serverHubSettings = safe; return safe; })),
+  getSettings: () => hub.settings,
+  saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { hub.settings = safe; return safe; })),
 });
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -9876,7 +9842,7 @@ async function readIdleSeconds() {
 async function autoUpdateSignals() {
   const blockers = [];
   try { if (gameDetect.isGaming() || gameDetect.isGameRunning()) blockers.push('game'); } catch { /* probe off */ }
-  const perf = _serverHubSettings && _serverHubSettings.performance;
+  const perf = hub.settings && hub.settings.performance;
   if (perf && perf.active === true) blockers.push('performance');
   try { if (fileTransfer.stats().inflight > 0) blockers.push('transfer'); } catch { /* not ready */ }
   try {
@@ -9891,11 +9857,13 @@ async function autoUpdateSignals() {
   return { blockers, idleSec: await autoUpdateIdleSeconds() };
 }
 
+const { _codexCfg } = require('./codex/widget-config.js');
+
 const autoUpdater = autoUpdateLib.createAutoUpdater({
   currentVersion: APP_VERSION,
   selfUpdate,
   checkRelease: (force) => checkLatestRelease(force),
-  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdate !== false),
+  isEnabled: () => !!(hub.settings && hub.settings.autoUpdate !== false),
   signals: autoUpdateSignals,
   readLastResult: () => readPwshJson(path.join(DATA_DIR, 'update-result.json')),
   store: {
@@ -9916,8 +9884,8 @@ const WIDGET_AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'widget-auto-update.js
 const SDK_STAGING_DIR = path.join(DATA_DIR, 'widget-staging');   // beside the packages dir, never inside it
 const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
   currentVersion: APP_VERSION,
-  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdateWidgets !== false),
-  safeMode: () => !!(_serverHubSettings && _serverHubSettings.safeMode === true),
+  isEnabled: () => !!(hub.settings && hub.settings.autoUpdateWidgets !== false),
+  safeMode: () => !!(hub.settings && hub.settings.safeMode === true),
   signals: autoUpdateSignals,
   fetchCatalog: () => communityCatalog.fetchVisibleCatalog(false),
   fetchCode: (id) => communityCatalog.fetchCode(id),
@@ -9936,7 +9904,7 @@ const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
   // The RAW approved grants: sdkGrantsFor() masks to empty under safe mode and for
   // a suspended package, which would read as "nothing approved" here.
   grantsOf: (id) => {
-    const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+    const sw = hub.settings && hub.settings.sdkWidgets;
     return (sw && sw.grants && typeof sw.grants === 'object' && sw.grants[id]) || {};
   },
   installStaged: async (validated, catalogVersion) => {
@@ -9965,7 +9933,7 @@ const guardian = createGuardian({
   dataDir: DATA_DIR,
   getSystemInfo,
   isEnabled: () => {
-    const s = _serverHubSettings;
+    const s = hub.settings;
     // Collect when EITHER the dedicated sensor-history opt-in is on, OR the AI
     // Guardian feature is on (which reads the same history via guardian_report).
     // So existing AI-Guardian users keep collecting, and history is available on
@@ -9975,7 +9943,7 @@ const guardian = createGuardian({
     const aiGuardian = !!(f && f.enabled === true && f.guardian === true);
     return history || aiGuardian;
   },
-  getEveryMin: () => (_serverHubSettings && _serverHubSettings.sensorHistory || {}).everyMin,
+  getEveryMin: () => (hub.settings && hub.settings.sensorHistory || {}).everyMin,
   onAlert: ({ type, value }) => broadcastSSE('guardian_alert', { type, value }),
   // Foreground-app usage ("PC Screen Time"): the game detector already tracks the
   // focused process cheaply — reuse it, don't add a second probe.
@@ -9990,7 +9958,7 @@ const guardian = createGuardian({
 const briefing = createBriefingEngine({
   emit: (type, data) => broadcastSSE('briefing', Object.assign({ type }, data)),
   isTypeEnabled: (type) => {
-    const p = _serverHubSettings && _serverHubSettings.proactive;
+    const p = hub.settings && hub.settings.proactive;
     return !p || p[type] !== false;
   },
   getFps: () => fpsMonitor.getCurrentFps(),
@@ -10067,11 +10035,11 @@ deckRegistryDeps.spotify = async (action) => {
 // The master switch (Settings → Notifiche). When OFF, every notification source is
 // silenced and its background watcher stops — one place to kill it all.
 function notificationsEnabled() {
-  const n = _serverHubSettings && _serverHubSettings.notifications;
+  const n = hub.settings && hub.settings.notifications;
   return !n || n.enabled !== false;   // default ON
 }
 function discordNotifWanted() {
-  const dn = _serverHubSettings && _serverHubSettings.discordNotifications;
+  const dn = hub.settings && hub.settings.discordNotifications;
   return notificationsEnabled() && !!(dn && dn.enabled);
 }
 // Whether the RPC token needs the notifications SCOPE, which is a different
@@ -10082,7 +10050,7 @@ function discordNotifWanted() {
 // keeps the feed itself gated on its own switch.
 function discordNotifScopeWanted() {
   if (discordNotifWanted()) return true;
-  const c = _serverHubSettings && _serverHubSettings.calls;
+  const c = hub.settings && hub.settings.calls;
   return !!(c && c.enabled);
 }
 let discordRpc = createDiscordProvider({
@@ -10144,14 +10112,14 @@ function pushDiscordNotification(n) {
 // enabled AND a dashboard is open. winnotif.js owns the child + feed buffer.
 function winNotifWanted() {
   if (!notificationsEnabled()) return false;   // master switch off → no mirror child
-  const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
+  const wn = hub.settings && hub.settings.windowsNotifications;
   if (wn && wn.enabled) return true;
   // Calls read the same child: outside Discord, an OS notification is the only
   // thing that can tell us a call is ringing (Windows exposes no toast XML and
   // no "incoming call" flag — measured). So enabling Calls starts the reader
   // even with the Notifications tile switched off, and the Settings copy says
   // so rather than leaving the user to discover that one switch moved another.
-  const c = _serverHubSettings && _serverHubSettings.calls;
+  const c = hub.settings && hub.settings.calls;
   return !!(c && c.enabled);
 }
 winNotif.init({
@@ -10159,7 +10127,7 @@ winNotif.init({
   // otherwise (some Win32 toasts carry no AUMID). Read live from settings so
   // a just-saved mute applies without restarting the child.
   isExcluded(item) {
-    const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
+    const wn = hub.settings && hub.settings.windowsNotifications;
     const list = (wn && Array.isArray(wn.excluded)) ? wn.excluded : [];
     if (!list.length) return false;
     const key = String((item && (item.aumid || item.app)) || '');
@@ -10203,7 +10171,7 @@ function refreshWinNotifWatch() {
 // server. The two sensors are wired at their sources: winNotif.onItem above and
 // pushDiscordNotification below.
 function callsSettings() {
-  const c = (_serverHubSettings && _serverHubSettings.calls) || {};
+  const c = (hub.settings && hub.settings.calls) || {};
   const off = Array.isArray(c.disabledApps) ? c.disabledApps : [];
   const userApps = Array.isArray(c.apps) ? c.apps : [];
   // Stored as "which apps did the user switch OFF", handed to the classifier as
@@ -10227,7 +10195,7 @@ calls.init({
   broadcast: broadcastSSE,
   push: (message) => webPushNotify(message, { urgency: 'high', ttl: 60 }),
   getSettings: callsSettings,
-  getLanguage: () => (_serverHubSettings && _serverHubSettings.language) || 'en',
+  getLanguage: () => (hub.settings && hub.settings.language) || 'en',
   hotkeyAvailable: keySendAvailable,
   listWindows: () => runWindowsTool(['list'], 8000),
   focusWindow: (id) => runWindowsTool(['focus', String(id)], 5000),
@@ -10252,7 +10220,7 @@ calls.init({
 // a fact, and the mirrored toast is demoted to what it is actually good at,
 // which is naming the caller.
 function phoneSettings() {
-  return (_serverHubSettings && _serverHubSettings.phone) || {};
+  return (hub.settings && hub.settings.phone) || {};
 }
 // Whether a Deck key that dials or texts can actually do anything on this
 // machine. Read from the last status the helper gave rather than probed here:
@@ -10375,9 +10343,9 @@ function audioLevelsWanted() {
   // switch of its own for the reason the comment above gives about widgets:
   // turning the feature on IS the consent, and there is exactly one place to do
   // it. A built-in has no grant to ride, so this is that one place.
-  const viz = _serverHubSettings && _serverHubSettings.mediaVisualizer;
+  const viz = hub.settings && hub.settings.mediaVisualizer;
   if (viz && viz !== 'off') return true;
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;
   for (const pkgId of Object.keys(grants)) {
@@ -10533,12 +10501,12 @@ function _whisperReady() {
   return _whisperReadyVal;
 }
 function wakeWordWanted() {
-  const w = _serverHubSettings && _serverHubSettings.wakeWord;
+  const w = hub.settings && hub.settings.wakeWord;
   // "Widgets only" has no dashboard: the on-screen alerts window answers it
   // (js/screen-bit.js). With that window turned off nobody would, so the mic
   // stays closed.
-  if (UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode)) {
-    const n = _serverHubSettings.notifications;
+  if (UsageMode.widgetsOnly(hub.settings && hub.settings.usageMode)) {
+    const n = hub.settings.notifications;
     if (n && n.onScreen === false) return false;
   }
   return !!(w && w.enabled) && _whisperReady();
@@ -10574,7 +10542,7 @@ wakeWord.init({
   },
   // Whisper hint follows the persisted UI language ('' → auto-detect); the
   // matcher is fuzzy enough to catch accented renderings either way.
-  transcribe: (wav) => aiLocal.localStt(wav, (_serverHubSettings && _serverHubSettings.language) || 'auto', __dirname),
+  transcribe: (wav) => aiLocal.localStt(wav, (hub.settings && hub.settings.language) || 'auto', __dirname),
   isBusy: () => _sttPending.size > 0,
   // Every open dashboard gets the event; the /api/stt/start 409 guard already
   // prevents two tabs from double-starting a voice session.
@@ -11010,7 +10978,7 @@ function _syncFpsMonitor() {
 // their fetch also drives user-facing alerts (price moves, goals) that must
 // keep working with the widget hidden (see _stocksAlertsWanted).
 function _feedWidgetInUse(widgetId, tickerSource) {
-  const s = _serverHubSettings;
+  const s = hub.settings;
   if (!s || typeof s !== 'object') return true;
   if (tickerSource) {
     const t = s.ticker;
@@ -11053,27 +11021,6 @@ const _stocksAlerts = stocks.createAlertTracker();
 const _stocksChartCache = new Map(); // bounded LRU: `${symbol}|${range}` → { at, data }
 const _stocksSearchCache = new Map(); // bounded LRU: `query` → { at, results }
 
-function _stocksSettings() {
-  const s = _serverHubSettings && _serverHubSettings.stocks;
-  return (s && typeof s === 'object') ? s : stocks.DEFAULT_STOCKS;
-}
-function _stocksProviderOpts() {
-  return {
-    provider: _stocksSettings().provider,
-    twelveDataKey: (_serverHubSettings && _serverHubSettings.twelveDataKey) || '',
-    finnhubKey: (_serverHubSettings && _serverHubSettings.finnhubKey) || '',
-  };
-}
-
-// A price alert is for someone who chose what to watch or can see the market. A new
-// install watches a default list nobody picked, and the first thing it ever said was
-// a toast about an index, on top of the first question. Strict on purpose: an unknown
-// layout is what a new install has, so it must not count as the tile being there.
-function _stocksAlertsWanted(cfg) {
-  const ticker = _serverHubSettings && _serverHubSettings.ticker;
-  const onTicker = !!ticker && ticker.enabled === true && !!ticker.sources && ticker.sources.stocks !== false;
-  return onTicker || _widgetPlaced('stocks') || !stocks.isDefaultWatchlist(cfg.watchlist);
-}
 
 async function refreshStocks() {
   if (_stocksRefreshing) return _stocksCache;
@@ -11096,7 +11043,7 @@ async function refreshStocks() {
     // LED reaction (same lighting notification effect the other feeds use),
     // gated by the master Notifiche switch — mirrors the client toast gating.
     if (alerts.length) {
-      const master = _serverHubSettings && _serverHubSettings.notifications;
+      const master = hub.settings && hub.settings.notifications;
       if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
     }
     _pushStocks();
@@ -11104,6 +11051,13 @@ async function refreshStocks() {
   finally { _stocksRefreshing = false; }
   return _stocksCache;
 }
+
+const { _widgetPlaced } = require('./grid/widget-placed.js');
+
+const {
+  _stocksSettings, _stocksProviderOpts, _stocksAlertsWanted, _footballSettings, _footballOpts,
+  _newsSettings, _newsOpts,
+} = require('./ticker/feed-settings.js');
 
 // Client-gated cadence: a light 10s heartbeat that only fetches once the user's
 // refreshSec has elapsed and a dashboard is actually open. Zero cost at rest.
@@ -11189,7 +11143,7 @@ async function _warmFootballInfo(favorites) {
     try {
       const fetched = await football.fetchTeamInfo(stale, {
         ..._footballOpts(),
-        lang: (_serverHubSettings && _serverHubSettings.language) || 'en',
+        lang: (hub.settings && hub.settings.language) || 'en',
       });
       for (const [id, teamInfo] of Object.entries(fetched || {})) {
         _footballInfo[id] = teamInfo;
@@ -11204,13 +11158,6 @@ async function _warmFootballInfo(favorites) {
   }
 }
 
-function _footballSettings() {
-  const s = _serverHubSettings && _serverHubSettings.football;
-  return (s && typeof s === 'object') ? s : football.DEFAULT_FOOTBALL;
-}
-function _footballOpts() {
-  return { sportsDbKey: (_serverHubSettings && _serverHubSettings.sportsDbKey) || '' };
-}
 
 async function refreshFootball() {
   if (_footballRefreshing) return _footballCache;
@@ -11231,7 +11178,7 @@ async function refreshFootball() {
     const alerts = _footballAlerts.evaluate(_footballCache.teams, { alerts: cfg.alerts !== false });
     for (const a of alerts) broadcastSSE('football_alert', a);
     if (alerts.length) {
-      const master = _serverHubSettings && _serverHubSettings.notifications;
+      const master = hub.settings && hub.settings.notifications;
       if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
     }
     _pushFootball();
@@ -11269,16 +11216,6 @@ function _pushNews() {
 }
 const _newsSearchCache = new Map(); // bounded LRU: `query` → { at, results }
 
-function _newsSettings() {
-  const s = _serverHubSettings && _serverHubSettings.news;
-  return (s && typeof s === 'object') ? s : news.DEFAULT_NEWS;
-}
-function _newsOpts() {
-  return {
-    lang: (_serverHubSettings && _serverHubSettings.language) || 'en',
-    newsDataKey: (_serverHubSettings && _serverHubSettings.newsDataKey) || '',
-  };
-}
 
 async function refreshNews() {
   if (_newsRefreshing) return _newsCache;
@@ -11488,7 +11425,7 @@ async function _claudeLinkStatus() {
 _claudeLinkStatus().catch(() => {});
 
 function _claudeSettings() {
-  const s = _serverHubSettings && _serverHubSettings.claude;
+  const s = hub.settings && hub.settings.claude;
   return (s && typeof s === 'object') ? s : claudeUsage.DEFAULT_CLAUDE;
 }
 
@@ -11596,7 +11533,7 @@ setInterval(() => {
 const _codexBridge = codexBridge.createBridge({
   onChange: () => _codexChanged(),
   waitMs: () => {
-    const w = _serverHubSettings && _serverHubSettings.codexWidget;
+    const w = hub.settings && hub.settings.codexWidget;
     return (w && Number.isFinite(w.waitSec) ? w.waitSec : 90) * 1000;
   },
 });
@@ -11615,26 +11552,10 @@ let _codexSig = '';
 let _codexLinkCache = null;
 let _codexLinkRepairedAt = 0;
 
-// "Is this tile on the dashboard", answered strictly: an unknown layout is NO.
-// _feedWidgetInUse() answers yes when unsure, which is right for a cheap read
-// and wrong for starting a long-lived child.
-function _widgetPlaced(widgetId) {
-  const layout = _serverHubSettings && _serverHubSettings.dashboardLayout;
-  if (!layout || typeof layout !== 'object') return false;
-  const w = layout.widgets && layout.widgets[widgetId];
-  if (w && typeof w === 'object' && w.visible === true) return true;
-  if (Array.isArray(layout.copies) && layout.copies.some((c) => c && c.widget === widgetId)) return true;
-  const groups = layout.groups && typeof layout.groups === 'object' ? layout.groups : {};
-  for (const gid of Object.keys(groups)) {
-    const members = groups[gid] && Array.isArray(groups[gid].members) ? groups[gid].members : [];
-    if (members.some((m) => m === widgetId || (typeof m === 'string' && m.indexOf(widgetId + '~') === 0))) return true;
-  }
-  return false;
-}
 // Some installed package actually GRANTED this stream (sdkGrantsFor applies safe
 // mode and per-package suspend, so both switch the feed off for free).
 function _sdkStreamGranted(stream) {
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const sw = hub.settings && hub.settings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;
   for (const pkgId of Object.keys(grants)) {
@@ -11688,10 +11609,6 @@ codexLink.ensureToken(DATA_DIR, PORT)
   })
   .catch(() => {});
 
-function _codexCfg() {
-  const w = _serverHubSettings && _serverHubSettings.codexWidget;
-  return w && typeof w === 'object' ? w : { approvals: true, waitSec: 90 };
-}
 function _codexPayload() {
   const app = _codexApp.snapshot();
   return {
@@ -11734,7 +11651,7 @@ const _chatgptAsker = chatgptAsk.createAsker({
   store: _chatgptStore,
   chat: (opts) => aiCli.chat(opts),
   model: () => {
-    const w = _serverHubSettings && _serverHubSettings.chatgptWidget;
+    const w = hub.settings && hub.settings.chatgptWidget;
     return (w && w.model) || 'default';
   },
   onChange: (id) => _chatgptChanged(id),
@@ -11760,6 +11677,8 @@ const { chimeKind, _buildChimeWav, CHIME_COALESCE_MS } = require('./time/chime-s
 const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.js');
 
 const { _perfPlanPrompt, _normalizePerfPlan } = require('./performance/ai-plan.js');
+
+const { vitalsPetCfg } = require('./vitals/pet-config.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -12226,7 +12145,7 @@ const fileTransfer = fileTransferLib.createFileTransfer({
 // from the settings, so they are applied where those are read (the listen
 // callback below, POST /api/transfer/settings, and the backup import) and never
 // from here. Chaining them onto init() looked equivalent and was not: this runs
-// at module evaluation, `_serverHubSettings` is populated inside the listen
+// at module evaluation, `hub.settings` is populated inside the listen
 // callback, and init() won that race on every boot — so the user's maxFileMb,
 // quotaMb and keepDays were silently replaced by the defaults on every restart,
 // until they happened to re-save that one settings pane.
@@ -12241,7 +12160,7 @@ const _transferSweepTimer = setInterval(() => {
 _transferSweepTimer.unref();
 
 function transferSettings() {
-  const s = (_serverHubSettings && _serverHubSettings.fileTransfer) || DEFAULT_HUB_SETTINGS.fileTransfer;
+  const s = (hub.settings && hub.settings.fileTransfer) || DEFAULT_HUB_SETTINGS.fileTransfer;
   return s;
 }
 
@@ -12262,7 +12181,7 @@ const TRANSFER_PUSH_BODY = Object.freeze({
   zh: 'Xenon 上有一个文件在等你',
 });
 function transferPushBody() {
-  const lang = String((_serverHubSettings && _serverHubSettings.language) || '').slice(0, 2).toLowerCase();
+  const lang = String((hub.settings && hub.settings.language) || '').slice(0, 2).toLowerCase();
   return TRANSFER_PUSH_BODY[lang] || TRANSFER_PUSH_BODY.en;
 }
 
@@ -12421,7 +12340,7 @@ const remoteHttpsSetup = remoteHttpsSetupLib.createHttpsSetup({
         remoteAccess: { ...(cur.remoteAccess || {}), https: value === true },
         rev: nextSettingsRev(cur.rev),
       });
-      _serverHubSettings = saved;
+      hub.settings = saved;
       broadcastSSE('settings', { rev: saved.rev });
     });
   },
@@ -12436,7 +12355,7 @@ const remoteHttpsSetup = remoteHttpsSetupLib.createHttpsSetup({
  * switched off it would be a port answering to nobody.
  */
 async function _syncRemoteHttps() {
-  const ra = (_serverHubSettings && _serverHubSettings.remoteAccess) || {};
+  const ra = (hub.settings && hub.settings.remoteAccess) || {};
   const want = ra.enabled === true && ra.https === true;
   try {
     if (want) {
@@ -12456,7 +12375,7 @@ async function _syncRemoteHttps() {
  * never spawns the CLI for it.
  */
 async function _remoteHttpsState() {
-  const ra = (_serverHubSettings && _serverHubSettings.remoteAccess) || {};
+  const ra = (hub.settings && hub.settings.remoteAccess) || {};
   const st = remoteHttps.status();
   if (st.running || ra.enabled !== true || ra.https !== true) return st;
   return await remoteHttps.refreshReason().catch(() => st);
@@ -12479,7 +12398,7 @@ function _ownAddresses() {
 }
 
 function remoteAccessEnabled() {
-  const ra = _serverHubSettings && _serverHubSettings.remoteAccess;
+  const ra = hub.settings && hub.settings.remoteAccess;
   // The store must be read before a token can resolve. Until it is, report the
   // feature as OFF rather than let the gate decide "this device is not paired":
   // in the few ms after boot that would send a perfectly good phone to the
@@ -13378,15 +13297,15 @@ const handleRequest = async (req, res) => {
     // shell hides the window when it sees that URL load. `full=1` is the tray's
     // "Show Xenon": the user asked for the dashboard this once.
     if (!isRemote && query.get('shell') === 'main' && query.get('full') !== '1'
-        && UsageMode.widgetsOnly(_serverHubSettings.usageMode)) {
+        && UsageMode.widgetsOnly(hub.settings.usageMode)) {
       res.writeHead(302, { Location: '/shell-driver', 'Cache-Control': 'no-store' });
       res.end();
       return;
     }
     const layerKey = query.get('layer');
-    if (!isRemote && LayersModel.isSurfaceKey(layerKey) && !LayersModel.needsDashboard(_serverHubSettings.layers, layerKey)) {
+    if (!isRemote && LayersModel.isSurfaceKey(layerKey) && !LayersModel.needsDashboard(hub.settings.layers, layerKey)) {
       const lite = await fs.promises.readFile(path.join(__dirname, 'layer-lite.html'), 'utf8');
-      const tiles = LayersModel.liteTilesFor(_serverHubSettings.layers, layerKey);
+      const tiles = LayersModel.liteTilesFor(hub.settings.layers, layerKey);
       const dashboard = LayerPage.needsDashboardHtml(tiles) ? await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8') : '';
       await sendPage(LayerPage.compose(lite, tiles, dashboard));
       return;
@@ -13538,8 +13457,8 @@ const handleRequest = async (req, res) => {
     // Every page's strings: the saved language and the browser's, plus English.
     // no-store, so a window reloaded after a language change gets it.
     try {
-      const langs = LayerI18n.wantedLanguages(_serverHubSettings.language, req.headers['accept-language']);
-      const js = await LayerI18n.scriptFor(langs, _serverHubSettings.language);
+      const langs = LayerI18n.wantedLanguages(hub.settings.language, req.headers['accept-language']);
+      const js = await LayerI18n.scriptFor(langs, hub.settings.language);
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(js);
     } catch (e) {
@@ -14264,7 +14183,7 @@ const handleRequest = async (req, res) => {
       // From a paired phone, only an app the user already chose: a favourite
       // or a Deck key's app. Otherwise a file sent from the phone could be
       // started right after it lands.
-      if (isRemote && !remoteActions.remoteMayLaunch(appPath, _serverHubSettings && _serverHubSettings.appFavorites, await readDeckStore())) {
+      if (isRemote && !remoteActions.remoteMayLaunch(appPath, hub.settings && hub.settings.appFavorites, await readDeckStore())) {
         json({ ok: false, error: 'needs_pc' }); return;
       }
       json(await deckRegistry.run({ type: 'openApp', path: appPath }));
@@ -14761,7 +14680,7 @@ const handleRequest = async (req, res) => {
     // SignalRGB card in Settings → Lighting: whether the launcher is installed on
     // this PC and whether the user has enabled the integration. Windows-only;
     // elsewhere `installed` is simply false and the card shows the "not found" hint.
-    const s = _serverHubSettings || {};
+    const s = hub.settings || {};
     json({ ok: true, installed: signalrgb.isInstalled(), enabled: !!(s.signalrgb && s.signalrgb.enabled === true) });
 
   } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
@@ -14770,7 +14689,7 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req, 4096) || '{}');
       const enabled = body.enabled === true;
       await withHubSettingsLock(async () => {
-        _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, signalrgb: { enabled } });
+        hub.settings = await writeHubSettings({ ...hub.settings, signalrgb: { enabled } });
       });
       signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
       json({ ok: true, installed: signalrgb.isInstalled(), enabled });
@@ -14781,7 +14700,7 @@ const handleRequest = async (req, res) => {
     // installed; the scan is async + cached in signalrgb.js so repeated opens of
     // the Deck editor don't re-walk the disk.
     try {
-      const s = _serverHubSettings || {};
+      const s = hub.settings || {};
       const enabled = !!(s.signalrgb && s.signalrgb.enabled === true);
       const effects = (enabled && signalrgb.isInstalled()) ? await signalrgb.scanEffects() : [];
       json({ ok: true, effects });
@@ -14824,7 +14743,7 @@ const handleRequest = async (req, res) => {
     json({
       available: embeddedBrowser.available(),
       installed: browserAdblock.isInstalled(DATA_DIR),
-      enabled: !!(_serverHubSettings && _serverHubSettings.browserAdblock),
+      enabled: !!(hub.settings && hub.settings.browserAdblock),
       busy: browserAdblock.isBusy(),
     });
 
@@ -15017,17 +14936,17 @@ const handleRequest = async (req, res) => {
       versionPing.maybePing({
         dataDir: DATA_DIR,
         version: APP_VERSION,
-        enabled: !!(_serverHubSettings && _serverHubSettings.versionPing === true),
+        enabled: !!(hub.settings && hub.settings.versionPing === true),
         // Only a birth observed at boot may produce a cohort — see version-ping.js.
         fresh: _settingsFileMissingAtBoot,
         // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
         // js/settings.js), so reading it costs nothing and adds no new key.
-        lang: (_serverHubSettings && _serverHubSettings.language) || '',
+        lang: (hub.settings && hub.settings.language) || '',
       }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
       // Anonymous feature counts, off unless usageStats is on: same ride, same
       // once-a-day rule. The tier is a boolean (is a supporter code saved here),
       // never the code itself.
-      if (_serverHubSettings && _serverHubSettings.usageStats === true) {
+      if (hub.settings && hub.settings.usageStats === true) {
         supporterRedeem.savedStatus(DATA_DIR)
           .then((st) => usageStats.maybeSend({ enabled: true, supporter: !!(st && st.saved) }))
           .catch(() => { /* best-effort, like the version ping */ });
@@ -15520,7 +15439,7 @@ const handleRequest = async (req, res) => {
       if (isRemote) incoming.usageStats = !!(prev && prev.usageStats === true);
       if (isRemote) incoming.batteryAskDevices = !prev || prev.batteryAskDevices !== false;
       const settings = await writeHubSettings(incoming);
-      _serverHubSettings = settings;
+      hub.settings = settings;
       return { prev, settings };
       });
       if ((prev && prev.autoUpdate !== false) !== (settings.autoUpdate !== false)) {
@@ -15649,7 +15568,7 @@ const handleRequest = async (req, res) => {
     // default, an existing one stays off until the user says otherwise.
     // In CSRF_MUTATION_PATHS (an outbound request, and Origin:null iframes post).
     try {
-      if (!(_serverHubSettings && _serverHubSettings.catalogStats === true)) { json({ ok: false, error: 'disabled' }); return; }
+      if (!(hub.settings && hub.settings.catalogStats === true)) { json({ ok: false, error: 'disabled' }); return; }
       const body = JSON.parse(await readBody(req) || '{}');
       json(await communityInstalls.reportInstall({ entryId: body.entryId }));
     } catch (e) { err500(e.message); }
@@ -15662,7 +15581,7 @@ const handleRequest = async (req, res) => {
     // switched off must not still be collecting answers from you.
     // In CSRF_MUTATION_PATHS.
     try {
-      if (!(_serverHubSettings && _serverHubSettings.hubMessages !== false)) { json({ ok: false, error: 'disabled' }); return; }
+      if (!(hub.settings && hub.settings.hubMessages !== false)) { json({ ok: false, error: 'disabled' }); return; }
       const body = JSON.parse(await readBody(req) || '{}');
       json(await communityInstalls.submitPollVote({ messageId: body.messageId, optionId: body.optionId }));
     } catch (e) { err500(e.message); }
@@ -15933,7 +15852,7 @@ const handleRequest = async (req, res) => {
       }
       const next = { ...cur, stocks: { ...cur.stocks, watchlist: wl } };
       const saved = await writeHubSettings(next);
-      _serverHubSettings = saved;
+      hub.settings = saved;
       refreshStocks().catch(() => {});
       json({ ok: true, watchlist: saved.stocks.watchlist });
       });
@@ -15965,7 +15884,7 @@ const handleRequest = async (req, res) => {
       // elsewhere (the "browser keeps auto location" residual of GitHub #109).
       const rev = nextSettingsRev(cur.rev, body && body.rev);
       const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev });
-      _serverHubSettings = saved;
+      hub.settings = saved;
       broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
       json({ ok: true, weather: saved.weather, rev: saved.rev });
       });
@@ -15996,7 +15915,7 @@ const handleRequest = async (req, res) => {
       if (body.weeklyTokenBudget !== undefined) patch.weeklyTokenBudget = body.weeklyTokenBudget;
       const merged = claudeUsage.normalizeClaude(patch);
       const saved = await writeHubSettings({ ...cur, claude: merged });
-      _serverHubSettings = saved;
+      hub.settings = saved;
       refreshClaude().catch(() => {});
       json({ ok: true, budget: { weekly: claudeUsage.effectiveWeeklyBudget(saved.claude), plan: saved.claude.plan, weeklyTokenBudget: saved.claude.weeklyTokenBudget }, tile: saved.claude.tile });
       });
@@ -16049,8 +15968,8 @@ const handleRequest = async (req, res) => {
     // pending would block the session for the full approval window waiting on a
     // card that is never drawn, which is worse than the prompt the user asked
     // not to see. Same empty answer as a timeout, so the terminal asks instead.
-    if (_serverHubSettings && _serverHubSettings.claudeWidget
-      && _serverHubSettings.claudeWidget.approvals === false) {
+    if (hub.settings && hub.settings.claudeWidget
+      && hub.settings.claudeWidget.approvals === false) {
       req.resume();                                  // drain the body we won't read
       json({});
       return;
@@ -16086,8 +16005,8 @@ const handleRequest = async (req, res) => {
     // route, it can never approve on its own. The mod sends only the one field
     // the card shows (command, path, URL…), never file content or a prompt.
     if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    if (_serverHubSettings && _serverHubSettings.claudeWidget
-      && _serverHubSettings.claudeWidget.approvals === false) {
+    if (hub.settings && hub.settings.claudeWidget
+      && hub.settings.claudeWidget.approvals === false) {
       req.resume();
       json({ decision: null });
       return;
@@ -16138,8 +16057,8 @@ const handleRequest = async (req, res) => {
     // the terminal, exactly as it would if Xenon were not installed. Nothing
     // here can invent a choice the user did not make.
     if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    if (_serverHubSettings && _serverHubSettings.claudeWidget
-      && _serverHubSettings.claudeWidget.questions === false) {
+    if (hub.settings && hub.settings.claudeWidget
+      && hub.settings.claudeWidget.questions === false) {
       req.resume();
       json({});
       return;
@@ -16561,7 +16480,7 @@ const handleRequest = async (req, res) => {
     // opens the tab, and the answer is reused for 15 minutes.
     try {
       const cfg = _footballSettings();
-      const lang = (_serverHubSettings && _serverHubSettings.language) || 'en';
+      const lang = (hub.settings && hub.settings.language) || 'en';
       const feeds = football.newsQueries(cfg.teams, lang);
       if (!feeds.length) { json({ items: [] }); return; }
       const key = lang + '|' + feeds.map(f => f.query).join('|');
@@ -16631,7 +16550,7 @@ const handleRequest = async (req, res) => {
       }
       const next = { ...cur, football: { ...cur.football, teams } };
       const saved = await writeHubSettings(next);
-      _serverHubSettings = saved;
+      hub.settings = saved;
       refreshFootball().catch(() => {});
       json({ ok: true, teams: saved.football.teams });
       });
@@ -16693,7 +16612,7 @@ const handleRequest = async (req, res) => {
       }
       const next = { ...cur, news: { ...cur.news, feeds } };
       const saved = await writeHubSettings(next);
-      _serverHubSettings = saved;
+      hub.settings = saved;
       refreshNews().catch(() => {});
       json({ ok: true, feeds: saved.news.feeds });
       });
@@ -16840,7 +16759,7 @@ const handleRequest = async (req, res) => {
             const curHa = (cur.homeAssistant && typeof cur.homeAssistant === 'object') ? cur.homeAssistant : {};
             const next = { ...cur, homeAssistant: { ...curHa, url, token }, rev: (Number(cur.rev) || 0) + 1 };
             const saved = await writeHubSettings(next);
-            _serverHubSettings = saved;
+            hub.settings = saved;
             refreshHaWatch();                              // open the live socket now that we're configured
             broadcastSSE('settings', { rev: saved.rev });  // other open surfaces adopt the saved token
           });
@@ -17702,7 +17621,7 @@ const handleRequest = async (req, res) => {
           const result = await aiXenon.chat({
             dataDir: DATA_DIR, model: settings && settings.xenonModel, effort: settings && settings.xenonEffort, geminiTools: AI_TOOLS,
             // Read live: set_creation_model may change them during this turn.
-            creation: () => ({ model: _serverHubSettings.xenonModel, effort: _serverHubSettings.xenonEffort }),
+            creation: () => ({ model: hub.settings.xenonModel, effort: hub.settings.xenonEffort }),
             history: currentMessages, systemText, turnNote: SYS_NOW,
             executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
               apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
@@ -17940,7 +17859,7 @@ const handleRequest = async (req, res) => {
       // Server-side opt-in re-check (same spirit as /api/vitals/nag): a forged
       // loopback request can't burn the user's AI quota unless they actually
       // enabled Bit AND AI roasts in Settings.
-      const vitalsCfg = _serverHubSettings && _serverHubSettings.vitals;
+      const vitalsCfg = hub.settings && hub.settings.vitals;
       const petCfg = (vitalsCfg && vitalsCfg.enabled !== false && vitalsCfg.pet) ? vitalsCfg.pet : null;
       if (!petCfg || petCfg.enabled !== true || petCfg.aiRoasts !== true) { json({ text: '' }); return; }
       const raw = await readBodyBuffer(req, 32 * 1024);
@@ -18625,7 +18544,7 @@ const handleRequest = async (req, res) => {
       // Serialized with every other settings writer (see withHubSettingsLock).
       await withHubSettingsLock(async () => {
         const current = await readHubSettings().catch(() => null);
-        if (current) { current.hardwareScan = scan; _serverHubSettings = await writeHubSettings(current).catch(() => _serverHubSettings); }
+        if (current) { current.hardwareScan = scan; hub.settings = await writeHubSettings(current).catch(() => hub.settings); }
       });
       json({ scan });
     } catch (e) {
@@ -18766,7 +18685,7 @@ const handleRequest = async (req, res) => {
     // is the listener actually running right now.
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      enabled: !!(_serverHubSettings && _serverHubSettings.wakeWord && _serverHubSettings.wakeWord.enabled),
+      enabled: !!(hub.settings && hub.settings.wakeWord && hub.settings.wakeWord.enabled),
       whisper: _whisperReady(),
       listening: wakeWord.isActive(),
     }));
@@ -19392,7 +19311,7 @@ const handleRequest = async (req, res) => {
     // Settings → Ricerca row: is the global hotkey listening, or why not
     // ('taken' = another app owns the combo, e.g. PowerToys Run on Alt+Space).
     try {
-      const ss = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+      const ss = (hub.settings && hub.settings.searchSettings) || {};
       json({ state: _hotkey.state, combo: _hotkey.combo || ss.hotkeyCombo || 'alt+space' });
     } catch (e) { err500(e.message); }
 
@@ -19661,8 +19580,8 @@ const handleRequest = async (req, res) => {
       if (!texts) { json({ ok: false, error: 'no_lyrics' }); return; }
       json(await lyricsTranslator.translate({
         songKey: body.key, texts, lang: String(body.lang || '').slice(0, 5),
-        reading: _serverHubSettings.lyricsReading !== false,
-        cap: _serverHubSettings.lyricsTranslateCap, cachedOnly: body.cachedOnly === true,
+        reading: hub.settings.lyricsReading !== false,
+        cap: hub.settings.lyricsTranslateCap, cachedOnly: body.cachedOnly === true,
       }));
     } catch (e) { err500(e.message); }
 
@@ -19675,7 +19594,7 @@ const handleRequest = async (req, res) => {
       const provider = aiLocal.sanitizeProvider(settings.aiProvider);
       const model = await smallTaskModel(provider, settings);
       await lyricsPrices.refresh(); // the published price table, at most every 12 h
-      const usage = await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap, model);
+      const usage = await lyricsTranslator.usage(hub.settings.lyricsTranslateCap, model);
       // Bit on Sparks: the same estimate in Sparks, the unit the user pays in.
       if (provider === 'xenon' && usage.estimate) usage.estimate.sparks = Math.max(1, Math.round(usage.estimate.usd * aiXenon.SPARKS_PER_USD));
       json({ ok: true, ...usage });
@@ -20514,7 +20433,7 @@ const handleRequest = async (req, res) => {
       if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId) || !sdkGrantsFor(pkgId).ai) { json({ ok: false, error: 'not_allowed' }); return; }
       const pkg = (await sdkPackagesCached()).packages.find(p => p.id === pkgId);
       if (!pkg || pkg.ai !== true) { json({ ok: false, error: 'not_allowed' }); return; }
-      json(await sdkAi.ask(pkgId, body, _serverHubSettings.sdkAiDailyCap));
+      json(await sdkAi.ask(pkgId, body, hub.settings.sdkAiDailyCap));
     } catch (e) {
       json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : (e && e.code === 'PAYLOAD_TOO_LARGE' ? 'too_long' : 'failed') });
     }
@@ -20651,7 +20570,7 @@ const handleRequest = async (req, res) => {
     // New items then stream live over the `windows_notification` SSE event.
     // Notification text is private user data — loopback-only like every route,
     // and NEVER a JSONP candidate.
-    const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
+    const wn = normalizeWindowsNotifications(hub.settings && hub.settings.windowsNotifications);
     json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
 
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
@@ -20788,7 +20707,7 @@ const handleRequest = async (req, res) => {
       exportable: widgetExportable(p.id),
       catalogVersion: widgetCatalogVersionOf(p.id),
       optionValues: widgetOptionsStore.valuesFor(p),
-      edition: contentInstalls.editionOf((_serverHubSettings || {}).contentInstalls, p.id),   // init.edition
+      edition: contentInstalls.editionOf((hub.settings || {}).contentInstalls, p.id),   // init.edition
     }));
     // `skipped` is how many installed packages this scan did not load because
     // MAX_PACKAGES was already reached. It travels with the list because a
@@ -21362,7 +21281,7 @@ const handleRequest = async (req, res) => {
     // recent-notification buffer. New items then stream live over the
     // `discord_notification` SSE event. Notification text is private user data —
     // loopback-only like every route, and NEVER a JSONP candidate.
-    const dn = normalizeDiscordNotifications(_serverHubSettings && _serverHubSettings.discordNotifications);
+    const dn = normalizeDiscordNotifications(hub.settings && hub.settings.discordNotifications);
     json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordRpc.notifStatus(), items: discordNotifs });
 
   } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
@@ -21482,7 +21401,7 @@ const handleRequest = async (req, res) => {
       const play = body.play === true;
       // Taken before the launch, so the new computer can be told apart on a Mac.
       const known = play ? await streamSpotify.computerIds() : null;
-      const launched = await spotifyLaunch.launchSpotify({ minimized: _serverHubSettings.spotifyStartMinimized === true });
+      const launched = await spotifyLaunch.launchSpotify({ minimized: hub.settings.spotifyStartMinimized === true });
       if (!launched.ok || !play) { json(launched); return; }
       const played = await streamSpotify.playWhenReady(os.hostname(), known);
       json({ ...played, launched: true, minimized: launched.minimized });
@@ -21639,7 +21558,7 @@ const handleRequest = async (req, res) => {
       // actually happened. Collapsing them would make a switch that silently
       // flicks itself back off — the panel needs to show it on, and next to it
       // the one reason it did not come up.
-      httpsEnabled: !!(_serverHubSettings && _serverHubSettings.remoteAccess && _serverHubSettings.remoteAccess.https === true),
+      httpsEnabled: !!(hub.settings && hub.settings.remoteAccess && hub.settings.remoteAccess.https === true),
       // Whether this machine can bring that door up at all. Everything the door
       // is made of — the Tailscale CLI, its certificate, a TLS listener — exists
       // identically on all three platforms, so this is true everywhere and the
@@ -21680,7 +21599,7 @@ const handleRequest = async (req, res) => {
           remoteAccess: { ...(cur.remoteAccess || {}), enabled: value },
           rev: nextSettingsRev(cur.rev, body.rev),
         });
-        _serverHubSettings = saved;
+        hub.settings = saved;
         broadcastSSE('settings', { rev: saved.rev });
       });
       if (!value) { remoteAccess.cancelPairing(); _dropRemoteSockets(null); }
@@ -21713,7 +21632,7 @@ const handleRequest = async (req, res) => {
           remoteAccess: { ...(cur.remoteAccess || {}), https: value },
           rev: nextSettingsRev(cur.rev, body.rev),
         });
-        _serverHubSettings = saved;
+        hub.settings = saved;
         broadcastSSE('settings', { rev: saved.rev });
       });
       await _syncRemoteHttps();
@@ -22199,7 +22118,7 @@ function _buildLiveSystemInstruction({ langName, summary }) {
   const nowDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const nowTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const memText = (_serverHubSettings && _serverHubSettings.aiMemory !== false && aiMemory.count() > 0)
+  const memText = (hub.settings && hub.settings.aiMemory !== false && aiMemory.count() > 0)
     ? ' ' + aiMemory.formatForPrompt() : '';
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
@@ -22503,7 +22422,7 @@ const BIND_SHARED = '0.0.0.0';
 
 function desiredBindHost() {
   if (BIND_HOST_ENV) return BIND_HOST_ENV;
-  const ra = _serverHubSettings && _serverHubSettings.remoteAccess;
+  const ra = hub.settings && hub.settings.remoteAccess;
   return ra && ra.enabled === true ? BIND_SHARED : BIND_LOOPBACK;
 }
 
@@ -22644,7 +22563,7 @@ function _startListen(host) {
       // file, so asking then would call every late opt-in a new install and
       // corrupt the retention curve permanently. See version-ping.js.
       _settingsFileMissingAtBoot = (s === null);
-      if (s) _serverHubSettings = s;
+      if (s) hub.settings = s;
       // Which store this process is actually running on, written down where a
       // person can read it. Reported on Discord as "my whole layout is back to
       // the factory default after an update", and there was no way to answer it:
@@ -22679,7 +22598,7 @@ function _startListen(host) {
         withHubSettingsLock(async () => {
           const cur = await readHubSettingsForUpdate();
           if (cur.storeId) return;                    // another writer got there first
-          _serverHubSettings = await writeHubSettings(cur);   // writeHubSettings mints
+          hub.settings = await writeHubSettings(cur);   // writeHubSettings mints
         }).catch(e => console.error('[settings] store id init failed:', e.message));
       }
       // The settings are in memory now, so the transfer caps can finally come
@@ -22693,7 +22612,7 @@ function _startListen(host) {
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
       // Layouts a Gen2 controller fills in by itself are saved like the user's own.
       lighting.setNativeChangeHook(() => { _persistLighting(); });
-      try { lighting.applyConfig((s || _serverHubSettings).lighting); _syncSessionWatch(); } catch (e) { console.error('Lighting init failed:', e.message); }
+      try { lighting.applyConfig((s || hub.settings).lighting); _syncSessionWatch(); } catch (e) { console.error('Lighting init failed:', e.message); }
       // Spotlight: start the global-hotkey listener if enabled, and rebuild the
       // crawler index for the user's extra search folders (both no-op/cheap
       // when off; delayed so they never compete with boot).
@@ -22835,19 +22754,15 @@ function applyBindHost() {
 // connected: zero cost at idle. Consumed by statusPayload() and /api/vitals/nag.
 const _idleProbe = { sec: null, at: 0 };
 const _vitalsNagLast = { overlay: 0, minimize: 0, lock: 0 };
-function vitalsPetCfg() {
-  const v = _serverHubSettings && _serverHubSettings.vitals;
-  return (v && v.enabled !== false && v.pet && v.pet.enabled === true) ? v.pet : null;
-}
 function idleProbeWanted() {
-  const v = _serverHubSettings && _serverHubSettings.vitals;
+  const v = hub.settings && hub.settings.vitals;
   if (v && v.enabled !== false) {
     if (v.pet && v.pet.enabled === true) return true; // pet presence gate
     if (v.awayPause !== false) return true;           // meters' away-pause (default on)
   }
   // Ambient screensaver auto-start also needs whole-PC idle, so it doesn't fire
   // while the user is active on another screen (idleMinutes clamped by normalize).
-  const a = _serverHubSettings && _serverHubSettings.ambientMode;
+  const a = hub.settings && hub.settings.ambientMode;
   if (a && a.enabled !== false && Number(a.idleMinutes) > 0) return true;
   // The PC's own screensaver on the screens without the dashboard
   // (js/screen-scene-model.js wantsIdle): the native shell opens it from idleSec.
@@ -22855,7 +22770,7 @@ function idleProbeWanted() {
   // Presenza ambientale (ambient.js): the greeting splash holds a day-part until
   // someone is actually at the PC. Without this signal it falls back to greeting
   // on the clock alone, which spends the morning greeting on an empty room.
-  const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+  const f = hub.settings && hub.settings.aiFeatures;
   if (f && f.enabled === true && f.ambient === true) return true;
   // A widget or a page ruled by "the PC is idle" (situations.js).
   return _situations.needs('idle');
@@ -22934,19 +22849,19 @@ let _lastStatusJson = '';
 let _lastStatusSentAt = 0;
 // A widget page marked "when I play" is shown while a game runs (layer-pages.js).
 const _gamePageSync = LayerPages.createGamePageSync({
-  current: () => _serverHubSettings && _serverHubSettings.layers,
+  current: () => hub.settings && hub.settings.layers,
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
 // A widget page tied to a virtual desktop is shown on it (POST /layers/desk).
 const _deskPageSync = LayerPages.createDeskPageSync({
-  current: () => _serverHubSettings && _serverHubSettings.layers,
+  current: () => hub.settings && hub.settings.layers,
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
 // A widget page with a situation comes forward while it holds (situations.js).
 const _whenPageSync = LayerPages.createWhenPageSync({
-  current: () => _serverHubSettings && _serverHubSettings.layers,
+  current: () => hub.settings && hub.settings.layers,
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
@@ -22954,7 +22869,7 @@ const _whenPageSync = LayerPages.createWhenPageSync({
 function perfWanted() {
   if (_feedWidgetInUse('perf')) return true;
   // A tile on a hidden surface draws nothing, so it wants no feed.
-  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
   if (layers.enabled && layers.widgets.some(w => w.kind === 'tile' && w.widget === 'perf' && !w.off && !layers.hidden.includes(w.surface))) return true;
   // A Store widget granted the `perf` stream (sdk-widgets.js), like `processes`.
   return sdkStreamGranted('perf');
@@ -22963,7 +22878,7 @@ function perfWanted() {
 const _perfNet = createPerfNet({
   read: getNetworkInfo,
   wanted: () => {
-    const hud = PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud);
+    const hud = PerfHud.normalizePerfHud(hub.settings && hub.settings.perfHud);
     return (hud.ping || hud.loss) && perfWanted();
   },
   broadcast: (d) => broadcastSSE('perf_net', d),
@@ -23117,7 +23032,7 @@ let _captureFolderKind = 'recording';
 const _captureFolder = createCaptureFolder({
   host: _captureHost,
   validDir: (dir) => fileTransferLib.validInboxDir(dir, { dataDir: DATA_DIR, appRoot: path.join(__dirname, '..') }),
-  title: () => LayerI18n.text(CAPTURE_FOLDER_TITLES[_captureFolderKind], _serverHubSettings && _serverHubSettings.language),
+  title: () => LayerI18n.text(CAPTURE_FOLDER_TITLES[_captureFolderKind], hub.settings && hub.settings.language),
 });
 async function defaultCaptureFolder(kind) {
   if (kind === 'screenshot') return path.join(await picturesRoot(), 'Xenon');
@@ -23162,7 +23077,7 @@ async function updateTransferSettings(body) {
       fileTransfer: merged,
       rev: nextSettingsRev(cur.rev, body.rev),
     });
-    _serverHubSettings = saved;
+    hub.settings = saved;
     broadcastSSE('settings', { rev: saved.rev });
   });
   _applyTransferLimits();
@@ -23214,7 +23129,7 @@ const _recorder = createRecorder({
 // the user's language in Documents/Xenon/Steps. State to every dashboard over
 // SSE `steps` (the Deck key, the "Recording steps" card); the document over
 // SSE `capture` with the count only, never a step's text.
-const stepsLanguage = () => (_serverHubSettings && _serverHubSettings.language) || 'en';
+const stepsLanguage = () => (hub.settings && hub.settings.language) || 'en';
 // "Open" / "Show" the last steps document or bug report after a restart (capture-last.js).
 const _captureLast = createCaptureLast({
   file: path.join(DATA_DIR, 'capture-last.json'),
@@ -23320,7 +23235,7 @@ const _stutterWatch = createStutterWatch({
 const _exclusiveHint = createExclusiveHint({
   fps: fpsMonitor,
   overlayShown: () => {
-    const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+    const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
     return LayersModel.surfaceKeys(layers).some((k) => k.startsWith('overlay:')
       && LayersModel.shownFor(layers, k).some((w) => w.show !== 'notGaming'));
   },
@@ -23347,7 +23262,7 @@ const _perfStream = createPerfStream({
 // With Game Mode on, or in a Performance Mode session, the background work that can
 // wait does, for as long as a game runs. Everything that answers a person keeps answering.
 function backgroundHeld() {
-  const wanted = _serverHubSettings?.gameMode !== false || _serverHubSettings?.performance?.active === true;
+  const wanted = hub.settings?.gameMode !== false || hub.settings?.performance?.active === true;
   return wanted && gameDetect.isGameRunning();
 }
 
@@ -23356,16 +23271,16 @@ function syncBackgroundHold() {
   livingIndex.hold(on);
   diskSpace.hold(on);
   // A ringing call stays as quick as ever, that switch is why the reader may be running.
-  winNotif.setPace(on && !_serverHubSettings?.calls?.enabled);
+  winNotif.setPace(on && !hub.settings?.calls?.enabled);
 }
 
 // What a game session records, on every path of the status tick.
 function gameSessionFacts(running, game) {
-  return { running, game, perf: { active: _serverHubSettings?.performance?.active === true, moved: perfSession.shield.movedCount() } };
+  return { running, game, perf: { active: hub.settings?.performance?.active === true, moved: perfSession.shield.movedCount() } };
 }
 
 function syncCoreShield() {
-  perfSession.shield.sync(shieldWish(_serverHubSettings?.performance, {
+  perfSession.shield.sync(shieldWish(hub.settings?.performance, {
     running: gameDetect.isGameRunning(),
     pid: gameDetect.getGameDiag().gamePid,
     name: gameDetect.getGameProcess(),

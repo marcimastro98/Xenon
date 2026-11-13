@@ -130,7 +130,15 @@
       {"file":"server/programs/app-icons.js","about":"Icons of the programs on this PC, looked up once and kept: for running apps and for Store apps.","names":["appIconCache","APP_ICON_CACHE_MAX","setAppIcon","resolveAppIcons","resolveStoreAppIcon"]},
       {"file":"server/disk/drive-details.js","about":"Names and models of the drives, asked rarely and kept: the two slow questions, their answers, and when each is asked again.","names":["volumeDetailsProbe","diskModelsProbe","runDiskProbe","refreshVolumeDetails","refreshDiskModels","getDiskDetails","volumeDetails","diskModels"]},
       {"file":"server/system/ram-info.js","about":"Reads what memory is fitted in this PC: modules, size, speed and type.","names":["readRamInfo"]},
-      {"file":"server/widget-sdk/tile-fetch.js","about":"Fetches one picture for an SDK widget through the guarded proxy; two widgets asking for the same picture share one download.","names":["sdkTileFetch"]}
+      {"file":"server/widget-sdk/tile-fetch.js","about":"Fetches one picture for an SDK widget through the guarded proxy; two widgets asking for the same picture share one download.","names":["sdkTileFetch"]},
+      {"file":"server/settings/current.js","about":"The settings the engine works from, as last read from disk or saved: one object every part of the engine shares.","names":["_serverHubSettings"],"state":{"object":"hub","props":{"_serverHubSettings":"settings"},"kept":["_serverHubSettings"],"bare":[]}},
+      {"file":"server/ai/mic-gain.js","about":"How much Xenon AI boosts the microphone before it listens, from the sensitivity slider in the settings.","names":["_sttGain"]},
+      {"file":"server/ai/pc-control-switch.js","about":"Whether Xenon AI may act on this PC: the user's switch, and only where PowerShell exists.","names":["_pcControlEnabled"]},
+      {"file":"server/ai/provider-models.js","about":"Which model each AI provider uses for each job, as chosen in the settings.","names":["PROVIDER_MODEL_KEYS","providerModelFor"]},
+      {"file":"server/grid/widget-placed.js","about":"Whether a tile is on the dashboard right now, answered strictly: an unknown layout is no.","names":["_widgetPlaced"]},
+      {"file":"server/ticker/feed-settings.js","about":"What the stocks, football and news feeds read from the settings: the lists the user follows and the provider keys.","names":["_stocksSettings","_stocksProviderOpts","_stocksAlertsWanted","_footballSettings","_footballOpts","_newsSettings","_newsOpts"]},
+      {"file":"server/codex/widget-config.js","about":"The Codex tile's own choices from the settings, with their defaults.","names":["_codexCfg"]},
+      {"file":"server/vitals/pet-config.js","about":"The Vitals pet's settings, or nothing when the pet or Vitals is switched off.","names":["vitalsPetCfg"]}
     ]
   }
 }

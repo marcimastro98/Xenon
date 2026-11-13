@@ -27,7 +27,7 @@
         "reason": "createCapabilities keeps the object it is handed and returns probes, run and seedKeys without calling any of it; platformDeps and createNotificationOpener build closures over what they are handed, and createStartAppIds keeps its reader for the first tap; power/index.js is only loaded here, as it is today, and is handed nothing."
       },
       {
-        "statement": "gameDetect.setIgnoreSource(() => _serverHubSettings && _serverHubSettings.gameIgnore);",
+        "statement": "gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);",
         "callees": {
           "server/gamedetect.js": "0b99be7871469ff924c7a8cdb581b69a0bc400b32849d0f7c143bd40007b036d"
         },
