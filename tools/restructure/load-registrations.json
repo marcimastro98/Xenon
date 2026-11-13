@@ -53,6 +53,53 @@
           "server/widget-keys.js": "7d41a25dce1bb6b54e7c94754de8edbd777f5271994f5f5fbf9b1d1f4943c13b"
         },
         "reason": "createWidgetKeys calls layers only inside read() and onChange only from press, release and a peek timer that press starts; at creation it makes empty sets and returns its functions."
+      },
+      {
+        "statement": "const nativeMedia =",
+        "callees": {
+          "server/darwin-media.js": "b27192b251a932ab78b88d23302b936ce4c457fd6369ab9d5e3e4152cf8f3885",
+          "server/linux-media.js": "a28f4bcce06ebaf0673a7011175572382c7fdcf3105dbbaaf9fd5f1f3e94f441",
+          "server/linux-mpris.js": "334037ac42ca0f36159874494de1aff20cf34308c85f42c1a0a7d994bd5ca817"
+        },
+        "reason": "createDarwinMedia and createLinuxMedia keep onChange in a variable and return available, start, stop, info and command; onChange is called only from handleLine, retire and command, which run once start() has spawned the reader, and createLinuxMpris, which createLinuxMedia hands it to, calls it only from its poll tick."
+      },
+      {
+        "statement": "const sendMediaCommand = createMediaSender({",
+        "callees": {
+          "server/media-key.js": "9bdc9a316d5dfcc888c3e59f363977cb35184de6664fcd1d3224602d29f6105f"
+        },
+        "reason": "createMediaSender returns one async function and does nothing else; request, tell, press and listResting are called only when that function is."
+      },
+      {
+        "statement": "const _situations = createSituations({",
+        "callees": {
+          "server/situations.js": "a7c314a5c275167b49579d054b136ec5b2151fc5ce32da4c280a9f88e5e5cdd3",
+          "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
+        },
+        "reason": "createSituations makes empty sets and returns tick, hidden and needs; layers, every reader, isOwnApp, onChange, onPlan, onFacts and warn are first called from tick() or needs(); power/index.js is named inside the battery reader and loaded when that reader first runs, as it is today."
+      },
+      {
+        "statement": "const deckRegistry = createRegistry(deckRegistryDeps);",
+        "callees": {
+          "server/actions/registry.js": "a0fa1da9fa694b31aba6a4297692f54a99ee325b9d5a106070ec0a07511951bc"
+        },
+        "reason": "createRegistry keeps the object it is handed, reads its platform property and returns run; everything else in it is the two functions run and runDeckState, so nothing of the object is called before run() is."
+      },
+      {
+        "statement": "const deckShortcutRunner = createDeckShortcutRunner({",
+        "callees": {
+          "server/deck-shortcut-runner.js": "1c63762596f3cc816f1744c385aacd903a21e8c5912e24d74bd5320493139a93",
+          "server/deck-sound-player.js": "be8b1234d8e187e0486c4483bca1197ececd93695efb6475a2ad9698218ccc6e",
+          "server/js/deck-actions.js": "c05569c4ef1f86f539141b8f18ed388569ae185b82766a15c497f8e7538a93c5"
+        },
+        "reason": "createDeckShortcutRunner and createDeckSoundPlayer make empty sets and maps and return their functions; readConfigs, steps, run, broadcast, serverFirst, resolveFile, ffplay and spawn are first called by press, pressKey, handOff or play; deck-actions.js is only asked for its triggerSteps function and is handed nothing."
+      },
+      {
+        "statement": "const deckPress = createDeckPress({",
+        "callees": {
+          "server/deck-press.js": "6c960d9a7b39a01a6f536e27aeaf5736416c8c72517c94ad1da505c5bb0a228c"
+        },
+        "reason": "createDeckPress declares placed, read, press and accept and returns the last three; layers.get, layers.update, readConfigs and runner are first used when one of them is called."
       }
     ]
   }
