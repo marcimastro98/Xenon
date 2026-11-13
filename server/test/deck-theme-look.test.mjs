@@ -2,7 +2,7 @@
 // surface, and theme colours for keys without one, the key well and the music bar.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');

@@ -1,0 +1,277 @@
+
+/* ── Gradient face controls ── */
+.deck-ed-gradwrap { display: flex; flex-direction: column; gap: 7px; }
+.deck-ed-gradwrap > .deck-ed-label { margin-top: 3px; }
+.deck-ed-gradchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
+.deck-ed-gradchip {
+  height: 30px; border-radius: 8px; cursor: pointer; padding: 0;
+  border: 1px solid var(--ded-line);
+}
+.deck-ed-gradchip.sel { outline: 2px solid var(--ded-text); outline-offset: 2px; }
+
+/* Backdrop-picture controls: preview trash + dim slider + auto-tint. */
+.deck-ed-imgdel { flex: 0 0 auto; display: grid; place-items: center; width: 40px; padding: 0; }
+.deck-ed-imgdel svg { width: 18px; height: 18px; }
+.deck-ed-dimrow { display: flex; align-items: center; gap: 10px; }
+.deck-ed-dimrow .deck-ed-label { flex: 0 0 auto; }
+.deck-ed-range { flex: 1; accent-color: var(--accent, #2b6cff); min-width: 0; }
+.deck-ed-autotint { align-self: flex-start; }
+
+/* Bold toggle sits with the label-size segment; a serif "B" reads as weight. */
+.deck-ed-boldbtn { font-weight: 800; font-family: Georgia, 'Times New Roman', serif; min-width: 38px; }
+
+/* ── Live key preview: leads the side rail — always in view while editing,
+   on every screen (the old floating preview vanished under 760px, i.e. on the
+   Xeneon itself). The cap scales with the viewport so short screens still fit. */
+.deck-ed-preview {
+  flex: 0 0 auto; width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.deck-ed-preview-caption { align-self: flex-start; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--ded-muted); }
+/* The preview cap is sized off a fixed footprint (no grid to derive it from). */
+.deck-ed-preview-root { --ed-cap: clamp(84px, 24vh, 132px); --deck-key-min: var(--ed-cap); }
+.deck-ed-preview-root .deck-key { width: var(--ed-cap); height: var(--ed-cap); cursor: default; }
+/* No edit-mode jiggle / hover lift in a static preview. */
+.deck-ed-preview-root .deck-key:hover { transform: none; filter: none; }
+
+/* A key that can light up previews both faces, off and on, side by side. */
+.deck-ed-preview-pair { display: flex; gap: 10px; align-items: flex-start; }
+.deck-ed-preview-pair .deck-ed-preview-root { --ed-cap: clamp(64px, 17vh, 88px); }
+.deck-ed-preview-fig { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.deck-ed-preview-tag { font-size: 12px; font-weight: 600; color: var(--ded-muted); }
+/* Either face can be tapped to edit it in Look; the one being edited is marked. */
+.deck-ed-preview-fig.is-pickable { cursor: pointer; padding: 4px; border-radius: 12px; border: 1px solid transparent; }
+.deck-ed-preview-fig.is-face { border-color: var(--ded-line); background: var(--ded-well); }
+.deck-ed-preview-fig.is-face .deck-ed-preview-tag { color: var(--ded-text); }
+.deck-ed-preview-fig:focus-visible { outline: 2px solid var(--accent, #7aa2ff); outline-offset: 2px; }
+
+/* Look edits one face at a time (Off / On): the other face's cards step aside. */
+.deck-ed-pane[data-face="on"] > .deck-ed-off-face,
+.deck-ed-pane[data-face="off"] > .deck-ed-on-face { display: none; }
+/* A cycle key's further state: only the state picker and that state's cards. */
+.deck-ed-pane[data-face="cycle"] > :not(.deck-ed-faceseg):not(.deck-ed-cycleface) { display: none; }
+.deck-ed-faceseg { margin-bottom: 16px; }
+.deck-ed-faceseg .deck-ed-segbtn { min-width: 64px; }
+/* Word segments that do not fit one row (fit-row.js sets data-fit) become an
+   even grid: two equal columns, an odd last button across the row. Never a
+   ragged wrap with buttons of random widths. */
+.deck-ed-seg-text .deck-ed-segbtn { overflow: hidden; text-overflow: ellipsis; }
+.deck-ed-seg-text[data-fit="1"], .deck-ed-seg-text[data-fit="2"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.deck-ed-seg-text:is([data-fit="1"]:not(.deck-ed-modeseg, .deck-ed-faceseg), [data-fit="2"]) > .deck-ed-segbtn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* Behaviour: five choices in one row; when they do not fit, three over two
+   (each row filled edge to edge), then the two-column grid above. */
+.deck-ed-modeseg .deck-ed-segbtn { min-height: 40px; height: auto; padding: 4px 10px; line-height: 1.2; }
+.deck-ed-modeseg[data-fit="1"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.deck-ed-modeseg[data-fit="1"] > .deck-ed-segbtn { grid-column: span 2; }
+.deck-ed-modeseg[data-fit="1"] > .deck-ed-segbtn:nth-child(n+4) { grid-column: span 3; }
+/* Cycle faces (up to eight): equal cells in rows of four when one row is too narrow. */
+.deck-ed-faceseg[data-fit="1"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.deck-ed-numpair { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0 14px; }
+.deck-ed-numwrap { display: flex; align-items: center; gap: 8px; }
+.deck-ed-numwrap .deck-ed-num { width: 96px; }
+.deck-ed-unit { font-size: 13px; color: var(--ded-muted); }
+.deck-ed-stepper { display: flex; align-items: center; gap: 10px; }
+.deck-ed-stepper .deck-ed-stepbtn { width: 44px; height: 40px; font-size: 18px; }
+.deck-ed-stepper .deck-ed-stepbtn:disabled { opacity: .35; cursor: default; }
+.deck-ed-stepcount { min-width: 20px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Gestures: a cycle key has one per state, so the row wraps. */
+.deck-ed-trigseg { flex-wrap: wrap; width: 100%; }
+.deck-ed-trigseg .deck-ed-trigbtn { min-width: 76px; }
+.deck-ed-facebtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.deck-ed-facebtns .deck-ed-facego { margin-top: 0; }
+
+/* On tab: what lights the key, in one line at the top. */
+.deck-ed-statesum {
+  margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius-control, 10px);
+  font-size: 14px; line-height: 1.4; background: var(--ded-well);
+}
+.deck-ed-statesum.is-idle { color: var(--color-warn, #f5b14c); }
+/* Follow the state the action brings, or keep one face: set apart from the fields under it. */
+.deck-ed-follow { margin-bottom: 12px; }
+/* Under the preview: one look or off and on, the same choice as in State. */
+.deck-ed-facecount { margin-top: 10px; width: 100%; }
+
+/* On/off rows (switch, confirm, ring, dim). */
+.deck-ed-switches { display: flex; flex-direction: column; gap: 2px; }
+.deck-ed-switchrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 44px; padding: 6px 0; border: 0; border-radius: 8px; cursor: pointer;
+  background: none; color: var(--ded-text); font-size: 14px; text-align: left;
+}
+.deck-ed-switchtxt { flex: 1; min-width: 0; }
+.deck-ed-switch {
+  position: relative; flex: 0 0 auto; width: 38px; height: 22px; border-radius: 11px;
+  background: var(--ded-well-hover); transition: background .15s ease;
+}
+.deck-ed-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; transition: transform .15s ease;
+}
+.deck-ed-switchrow[aria-checked="true"] .deck-ed-switch { background: var(--accent, #2b6cff); }
+.deck-ed-switchrow[aria-checked="true"] .deck-ed-switch::after { transform: translateX(16px); }
+.deck-ed-switchrow:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; }
+
+/* Things to do with this key: plain rows in the side rail, the sheet is their frame. */
+.deck-ed-styletools { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.deck-ed-styletools .deck-ed-btn { flex: 0 0 auto; width: 100%; padding: 8px 10px; text-align: left; background: none; border-color: transparent; }
+.deck-ed-styletools .deck-ed-btn:hover:not(:disabled) { background: var(--ded-well); }
+.deck-ed-styletools .deck-ed-btn:disabled { opacity: .4; cursor: default; }
+/* Saved key presets live in the rail too, under the preview. */
+.deck-ed-side .deck-ed-presets { width: 100%; margin: 0; }
+
+@media (max-width: 760px) {
+  .deck-ed-modal { width: 100%; height: 100%; }
+  :is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) { width: 44px; height: 44px; }
+  .deck-ed-head { padding: 8px 8px 8px 16px; }
+  .deck-ed-title { font-size: 18px; }
+  .deck-ed-main { padding: 12px 16px 0; }
+  .deck-ed-pane { margin-right: 0; padding-right: 0; scrollbar-gutter: auto; }
+}
+/* Upright, the rail folds into a strip above the form: the preview stays in view with
+   its tools beside it as plain words, the presets scroll on their own row. A phone on
+   its side has no height for a strip, so it keeps the rail, narrower. */
+@media (max-width: 760px) and (max-height: 520px) {
+  .deck-ed-side { flex-basis: 200px; padding: 12px 10px; }
+}
+@media (max-width: 760px) and (min-height: 521px) {
+  .deck-ed-body { flex-direction: column; }
+  .deck-ed-side {
+    flex: 0 0 auto; flex-flow: row wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; overflow: hidden;
+    border-right: 0; border-bottom: 1px solid var(--ded-line);
+  }
+  .deck-ed-side .deck-ed-presets { order: 2; flex: 1 0 100%; width: 100%; flex-direction: row; gap: 6px; overflow-x: auto; }
+  .deck-ed-presets-label { display: none; }
+  .deck-ed-preset-chip { flex: 0 0 auto; width: auto; max-width: 180px; background: var(--ded-well); }
+  .deck-ed-preview { width: auto; }
+  .deck-ed-preview-caption { display: none; }
+  .deck-ed-preview-root { --ed-cap: 64px; }
+  .deck-ed-preview-pair .deck-ed-preview-root { --ed-cap: 54px; }
+  .deck-ed-styletools { order: 1; flex: 1 1 0; min-width: 0; width: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 2px; }
+  .deck-ed-styletools .deck-ed-btn { min-height: 40px; padding: 4px 10px; font-size: 14px; line-height: 1.15; text-align: left; background: none; }
+}
+/* Short viewports (the Xeneon Edge is wide but low): trim the chrome so the
+   panes keep usable height. */
+@media (max-height: 520px) {
+  .deck-ed-backdrop { padding: 8px; }
+  .deck-ed-modal { height: 100%; }
+  .deck-ed-head { padding: 6px 10px 6px 16px; }
+  .deck-ed-actions { padding: 8px 16px 10px; }
+  .deck-ed-main { padding: 10px 16px 0; }
+  .deck-ed-tabs { margin-bottom: 10px; }
+}
+
+/* Keys suppress the native long-press menu / callout / text-select, but keep
+   'manipulation' so a swipe still pans the dashboard pager (a STATIONARY press
+   doesn't pan, so press-and-hold still fires); 'none' froze the pager swipe. */
+.deck-key { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+/* Multi-Action: a list of step cards inside a trigger's action editor */
+/* Custom-select dropdowns inside the editor: fill the field and match the inputs
+   (the styled trigger replaces the hidden native <select>). */
+:is(.deck-ed-modal, .deck-asw) .cs-wrap { width: 100%; }
+.deck-ed-step-head .cs-wrap { flex: 1; width: auto; min-width: 0; }
+:is(.deck-ed-modal, .deck-asw) .cs-trigger {
+  width: 100%; min-width: 0; min-height: 40px;
+  padding: 9px 11px; font-size: 14px; font-weight: 500;
+  background: var(--ded-well);
+  border: 1px solid var(--ded-line);
+  border-radius: var(--radius-control, 10px); color: var(--ded-text);
+}
+:is(.deck-ed-modal, .deck-asw) .cs-trigger:hover { background: var(--ded-well-hover); }
+:is(.deck-ed-modal, .deck-asw) .cs-wrap.cs-open .cs-trigger { border-color: var(--accent, #2b6cff); box-shadow: none; }
+:is(.deck-ed-modal, .deck-asw) .cs-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.deck-ed-steps { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-step { border: 1px solid var(--ded-line); border-radius: var(--radius-control, 10px); padding: 10px; background: var(--ded-well); }
+.deck-ed-step-head { display: flex; gap: 8px; align-items: center; }
+.deck-ed-step-head .deck-ed-input { flex: 1; }
+.deck-ed-step-tools { display: flex; gap: 4px; flex: 0 0 auto; }
+.deck-ed-stepbtn {
+  display: grid; place-items: center; width: 36px; height: 38px; padding: 0; border-radius: 8px; cursor: pointer;   /* touch-sized reorder/remove */
+  background: var(--ded-well); border: 1px solid transparent; color: var(--ded-text);
+}
+.deck-ed-stepbtn:hover:not([disabled]) { background: var(--ded-well-hover); }
+.deck-ed-stepbtn svg { width: 16px; height: 16px; }
+.deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
+.deck-ed-stepbtn.danger { color: var(--color-danger); }
+.deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.deck-ed-step .deck-ed-params { margin-top: 8px; }
+.deck-ed-addstep {
+  min-height: 40px; padding: 8px 14px; border-radius: var(--radius-control, 10px); cursor: pointer; font-size: 14px; font-weight: 600;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  color: var(--ded-text);
+}
+.deck-ed-addstep::before { content: '+ '; }   /* in CSS: a language change rewrites the text */
+.deck-ed-addstep:hover { background: var(--ded-well-hover); }
+
+/* LED reaction editor section: tighter sub-rows + a muted hint line. */
+.deck-ed-subfield { margin-top: 8px; }
+.deck-ed-hint { margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--ded-muted); }
+
+/* Hotkey composer: modifier toggle chips + a single main-key capture field + a live
+   preview of the resulting combo. Chips avoid having to physically hold Win, which
+   would otherwise fire the OS shortcut before the page could capture it. */
+.deck-ed-hotkey { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-hotkey-mods { display: flex; gap: 6px; flex-wrap: wrap; }
+.deck-ed-hotkey-mod {
+  flex: 1 1 0; min-width: 56px; min-height: 40px; padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  background: var(--ded-well); border: 1px solid transparent;
+  color: var(--ded-muted); font-weight: 600; font-size: 13px;
+  transition: background .15s, color .15s;
+}
+.deck-ed-hotkey-mod:hover { color: var(--ded-text); background: var(--ded-well-hover); }
+.deck-ed-hotkey-mod.active { color: var(--ded-on-ink); background: var(--ded-on); }
+.deck-ed-hotkey-row { display: flex; gap: 8px; align-items: stretch; }
+.deck-ed-hotkey-input { flex: 1; cursor: pointer; text-align: center; text-transform: uppercase; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.deck-ed-hotkey-input:focus { caret-color: transparent; }
+.deck-ed-hotkey-clear {
+  flex: 0 0 auto; display: grid; place-items: center; width: 40px; padding: 0; border: 0;
+  border-radius: var(--radius-control, 10px); cursor: pointer;
+  background: none; color: var(--ded-muted);
+}
+.deck-ed-hotkey-clear svg { width: 18px; height: 18px; }
+.deck-ed-hotkey-clear:hover { color: var(--color-danger); background: var(--ded-well); }
+.deck-ed-hotkey-preview {
+  text-align: center; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums;
+  padding: 6px; border-radius: 8px; background: var(--ded-well);
+  color: var(--ded-text); text-transform: uppercase; font-size: 13px;
+}
+/* Keyboard shortcut card: one button that records the combination. */
+.deck-ed-shortcut-rec { min-height: 44px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.deck-ed-shortcut-rec.is-recording { color: var(--ded-on-ink); background: var(--ded-on); border-color: transparent; }
+.deck-ed-shortcut-rec:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; }
+.deck-ed-hotkey-clear[hidden] { display: none; }
+.deck-ed-shortcut-state.is-bad { color: var(--color-danger); opacity: 1; }
+.deck-ed-hotkey-preview.is-empty { color: var(--ded-muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+/* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
+/* Faders are enlarged from the compact audio panel rows so they're comfortable on a
+   touchscreen. */
+.deck-mix-backdrop {
+  position: fixed; inset: 0; z-index: 62;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity .18s ease;
+}
+.deck-mix-backdrop.visible { opacity: 1; }
+.deck-mix-modal {
+  width: min(520px, 100%); max-height: 100%; overflow-y: auto;
+  padding: 14px 14px 22px 22px;
+  transform: translateY(10px) scale(.97); transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+  scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
+}
+.deck-mix-backdrop.visible .deck-mix-modal { transform: none; }
+.deck-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.deck-mix-title { margin: 0; font-size: 20px; font-weight: 800; }
+.deck-mix-apps { display: flex; flex-direction: column; gap: 14px; padding-right: 8px; }
+.deck-mix-empty { padding: 24px 8px; text-align: center; font-size: 14px; color: var(--ded-muted); }
+/* Enlarge the reused .app-mix-* rows for touch inside the overlay. */
+.deck-mix-apps .app-mix-row { grid-template-columns: 30px minmax(60px, 110px) 1fr auto 36px; gap: 12px; }
+.deck-mix-apps .app-mix-icon { width: 30px; height: 30px; border-radius: 8px; }
+.deck-mix-apps .app-mix-name { font-size: 13px; }
+.deck-mix-apps .app-mix-slider { height: 6px; }
+.deck-mix-apps .app-mix-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-slider::-moz-range-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-vol { font-size: 12px; min-width: 36px; }
+.deck-mix-apps .app-mix-mute { width: 36px; height: 36px; }
+.deck-mix-apps .app-mix-mute svg { width: 16px; height: 16px; }

@@ -1,0 +1,272 @@
+
+/* Footer: docked under the panes, always in view. Save is the last key, as on every
+   sheet of the app; Delete stands apart on the far side, a red word. */
+.deck-ed-actions {
+  flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 22px 14px; border-top: 1px solid var(--ded-line);
+}
+.deck-ed-btn {
+  flex: 1; min-height: 40px; padding: 9px 12px; border-radius: var(--radius-control, 10px); cursor: pointer; font-weight: 600;
+  border: 1px solid var(--ded-line); background: var(--ded-well);
+  color: var(--ded-text); font-size: 14px;
+  transition: filter .15s ease, background .15s ease;
+}
+.deck-ed-btn:hover { background: var(--ded-well-hover); }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: var(--on-accent, #fff); font-weight: 700; }
+.deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
+.deck-ed-btn.danger { color: var(--color-danger); }
+.deck-ed-actions > .deck-ed-btn { flex: 0 0 auto; min-width: 104px; min-height: 44px; padding: 8px 18px; }
+.deck-ed-actions > .deck-ed-btn.danger { min-width: 0; margin-right: auto; padding: 8px 10px; background: none; border-color: transparent; }
+.deck-ed-actions > .deck-ed-btn.danger:hover { background: var(--ded-well); }
+/* On a phone the keys share the row evenly, a long label on two lines. */
+@media (max-width: 520px) {
+  .deck-ed-actions { padding: 10px 14px 12px; }
+  .deck-ed-actions > .deck-ed-btn { flex: 1 1 0; min-width: 0; padding: 6px 8px; line-height: 1.15; }
+}
+
+/* discordSound param: the sound dropdown + a preview (▶) button that auditions the
+   selected sound locally. Row keeps the (enhanced) select filling the width and the
+   preview a fixed square beside it. */
+.deck-ed-sound-row { display: flex; align-items: center; gap: 6px; }
+.deck-ed-sound-row > .deck-ed-input,
+.deck-ed-sound-row > .cs-wrap { flex: 1 1 auto; min-width: 0; }
+.deck-ed-sound-preview {
+  flex: 0 0 auto; width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+}
+.deck-ed-sound-preview svg { width: 15px; height: 15px; }
+
+/* Saved key presets: rows in the rail, each loads a saved key into the form. */
+.deck-ed-presets { display: flex; flex-direction: column; gap: 2px; }
+.deck-ed-presets-label { padding: 0 10px 4px; font-size: 13px; font-weight: 700; color: var(--ded-muted); }
+.deck-ed-preset-chip {
+  position: relative; display: block; width: 100%; min-height: 40px;
+  padding: 8px 40px 8px 10px; cursor: pointer; text-align: left;
+  border: 0; border-radius: 8px; background: none; color: var(--ded-text);
+  font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.deck-ed-preset-chip:hover { background: var(--ded-well); }
+.deck-ed-preset-del {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px;
+  color: var(--ded-muted);
+}
+.deck-ed-preset-del svg { width: 16px; height: 16px; }
+.deck-ed-preset-del:hover { background: var(--ded-well-hover); color: var(--color-danger); }
+
+/* Confirmation is a soft glow that swells then fades — no scale/brightness punch, so
+   it never fights the press depression (the key handles that itself). This is the
+   default ('glow') tap feedback, a ONE-SHOT pulse in the key's effect colour
+   (--fx-color, set per key; falls back to the theme accent). */
+.deck-key.is-running { animation: deck-key-run .5s ease-out; }
+@keyframes deck-key-run {
+  0%   { box-shadow: inset 0 0 0 0 transparent; }
+  30%  { box-shadow: inset 0 0 0 2px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .85)),
+                     0 0 16px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .5)); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+/* ── Persistent (latching) tap effects ──────────────────────────────────
+   These stay applied after a tap and clear on the next tap (toggled in JS), so the
+   cap holds its state. All honour the per-key --fx-color (default white). */
+
+/* "Rimani premuto": the cap stays pushed in, with a coloured inner rim, until tapped
+   again. !important defeats the bevel/accent box-shadows so it reads as held. */
+.deck-key.fx-hold {
+  transform: translateY(2px) scale(.965);
+  filter: brightness(.92);
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, .7),
+    inset 0 0 0 2px var(--fx-color, rgba(255, 255, 255, .5)),
+    inset 0 0 18px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent) !important;
+}
+/* "Lampeggia": the cap blinks in a continuous loop in the effect colour.
+   The pulse lives on ::after animating only opacity (compositor-only) — the old
+   box-shadow keyframes ticked the main-thread style→paint pipeline every display
+   frame for as long as the key stayed latched (GitHub #99). The outer halo can't
+   ride ::after (the cap clips it with overflow: hidden), so it sits statically on
+   the key; the pulsing inset ring + flood carry the blink. :not(.is-glint) yields
+   ::after to the one-shot glint for its 0.5s sweep, then the pulse resumes. */
+.deck-key.fx-blink {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -7px 14px rgba(0,0,0,.55),
+    0 3px 7px rgba(0,0,0,.55),
+    0 1px 0 rgba(0,0,0,.7),
+    0 0 16px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent);
+}
+.deck-key.fx-blink:not(.is-glint)::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  z-index: 3; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
+              inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent);
+  opacity: 0;
+  animation: deck-key-blink 1s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes deck-key-blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+/* Reduced motion: hold the ring steady so the latched state stays readable. */
+@media (prefers-reduced-motion: reduce) {
+  .deck-key.fx-blink:not(.is-glint)::after { animation: none; opacity: 1; }
+}
+/* "Spegni": the cap stays dark (screen powered off) until tapped again; its icon and
+   label dim too. The big inset spread floods the whole face black. */
+.deck-key.fx-dark {
+  filter: saturate(.35);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .86), inset 0 0 0 1px rgba(255, 255, 255, .04) !important;
+}
+.deck-key.fx-dark .deck-ico, .deck-key.fx-dark .deck-label { opacity: .22; }
+.deck-key.fx-dark::before { opacity: 0; }
+
+/* Dynamic state: the `is-on` class is still toggled on a state-bound key (it drives
+   the state-following LED reaction and the OBS scene-preview host in JS), but it no
+   longer paints an automatic on-screen indicator. A key's appearance is determined
+   solely by the effects the user configures during creation — accent colour, touch
+   effect (Stay pressed / Blink / Dark / Glow) and the LED reaction — so the default
+   accent dot + border + breathing no longer overrides those deliberate choices. */
+
+/* The opt-in lit-face extras (Key editor → On tab): dim while off, a glowing ring
+   and a motion that plays only while on. All in --key-on, the lit colour. */
+/* The same two cues set once for the whole deck (Aspetto Deck → Tasti accesi)
+   reach every key that follows a state (.is-stateful). */
+.deck-key.dim-off:not(.is-on),
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) { filter: saturate(.45) brightness(.62); }
+.deck-key.dim-off:not(.is-on) .deck-ico, .deck-key.dim-off:not(.is-on) .deck-label,
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) .deck-ico,
+.deck-root[data-dimoff="1"] .deck-key.is-stateful:not(.is-on) .deck-label { opacity: .7; }
+.deck-key .deck-key-onfx {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit;
+  pointer-events: none; opacity: 0; transition: opacity .18s ease;
+}
+.deck-key.is-on .deck-key-onfx { opacity: 1; }
+.deck-key .deck-key-onfx.has-ring,
+.deck-root[data-litring="1"] .deck-key .deck-key-onfx {
+  box-shadow:
+    inset 0 0 0 2px var(--key-on),
+    inset 0 0 14px color-mix(in srgb, var(--key-on) 55%, transparent);
+}
+.deck-key.is-on .deck-key-onfx[data-anim="pulse"] { animation: deck-key-on-pulse 1.4s ease-in-out infinite; }
+.deck-key.is-on .deck-key-onfx[data-anim="breathe"] { animation: deck-key-breathe 2.8s ease-in-out infinite; }
+.deck-key.is-on .deck-key-onfx[data-anim="blink"] { animation: deck-key-on-blink 1s steps(1, end) infinite; }
+/* Without a ring the motion still needs something to move: a soft wash. */
+.deck-root:not([data-litring="1"]) .deck-key .deck-key-onfx[data-anim]:not(.has-ring) { background: color-mix(in srgb, var(--key-on) 26%, transparent); }
+@keyframes deck-key-on-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes deck-key-on-blink { 0% { opacity: 1; } 50% { opacity: .15; } }
+@media (prefers-reduced-motion: reduce) { .deck-key.is-on .deck-key-onfx { animation: none; } }
+body.perf-mode .deck-key.is-on .deck-key-onfx,
+body.overlay-frozen .deck-key.is-on .deck-key-onfx,
+body.ambient-idle .deck-key.is-on .deck-key-onfx,
+body.game-mode .deck-key.is-on .deck-key-onfx,
+body.low-power-gpu .deck-key.is-on .deck-key-onfx { animation: none; }
+
+/* Confirm keys: the first tap arms the key and asks for a second one. */
+.deck-key.is-arming { box-shadow: inset 0 0 0 2px #f5b14c, 0 0 0 1px rgba(0, 0, 0, .6) !important; }
+.deck-key .deck-key-confirm {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-items: center;
+  padding: 4px; border-radius: inherit; pointer-events: none;
+  background: rgba(20, 12, 0, .78); color: #ffd28a;
+  font-weight: 700; font-size: max(9px, calc(var(--deck-cell, 76px) * .14)); line-height: 1.1;
+}
+
+/* Key Logic: trigger buttons (name + the action assigned to that gesture) */
+.deck-ed-trigbtn {
+  flex: 1; min-height: 48px; padding: 6px; border-radius: 8px; cursor: pointer; position: relative;
+  background: none; border: 0;
+  color: var(--ded-text);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.2;
+}
+.deck-ed-trigbtn:hover:not(.active) { background: var(--ded-well); }
+.deck-ed-trigbtn.active { color: var(--ded-on-ink); background: var(--ded-on); }
+.deck-ed-trigname { font-size: 13px; font-weight: 600; }
+.deck-ed-trigact { font-size: 12px; color: var(--ded-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-ed-trigbtn.active .deck-ed-trigact { color: inherit; }
+
+/* On-key gesture hints (bottom-right): double = two dots, hold = a bar */
+.deck-key-trig { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 4px; align-items: center; opacity: .6; pointer-events: none; }
+.deck-key-trig .tind-double { width: 8px; height: 3px; position: relative; }
+.deck-key-trig .tind-double::before, .deck-key-trig .tind-double::after {
+  content: ''; position: absolute; top: 0; width: 3px; height: 3px; border-radius: 50%; background: var(--text-dim, #8b91a1);
+}
+.deck-key-trig .tind-double::before { left: 0; }
+.deck-key-trig .tind-double::after { right: 0; }
+.deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
+/* A cycle key's states (bottom-left): one dot each, the current one lit */
+.deck-key-cycle { position: absolute; left: 4px; bottom: 4px; display: flex; gap: 3px; align-items: center; pointer-events: none; }
+.deck-key-cycle .pip { width: 4px; height: 4px; border-radius: 50%; background: var(--text-dim, #8b91a1); opacity: .45; }
+.deck-key-cycle .pip.is-at { opacity: 1; background: var(--text, #e7e9ee); }
+
+/* ── Live value badge (timer countdown / SDK widget state text) ── */
+.deck-key-live {
+  position: absolute; left: 8%; right: 8%; top: 6px;
+  font-size: max(12px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135)); font-weight: 700; font-variant-numeric: tabular-nums;
+  text-align: center; letter-spacing: .02em; color: var(--text, #e8eaf0);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  opacity: 0; transition: opacity .18s ease;
+}
+.deck-key.has-live .deck-key-live { opacity: 1; }
+/* When the label sits on top, the badge moves to the bottom edge instead. */
+.deck-key[data-labelpos="top"] .deck-key-live { top: auto; bottom: 6px; }
+/* The badge floats over the cap face, but the cap centres its icon and label in
+   the FULL height — so a key carrying a badge drew the glyph straight under it,
+   both fighting for the same pixels (a soundboard key's slot tag sitting on its
+   icon, a state word crossing a star). Reserve the strip the badge occupies and
+   the centred content clears it on its own. Sliders are exempt: their icon is
+   hidden and their badge already sits low, over the track. */
+.deck-key.has-live:not(.is-slider) { padding-top: max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .247)); }
+.deck-key[data-labelpos="top"].has-live:not(.is-slider) { padding-top: 6px; padding-bottom: max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .247)); }
+
+/* ── Touch faders (slider keys) ── */
+.deck-key.is-slider { touch-action: none; cursor: grab; }
+.deck-key.is-slider:active { cursor: grabbing; }
+.deck-key.is-slider .deck-ico { display: none; }
+.deck-slider {
+  position: absolute; inset: 14% 32%;
+  border-radius: 8px; overflow: hidden;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .45);
+  pointer-events: none;   /* the KEY owns the pointer (capture) — the track is visual */
+}
+.deck-key.is-slider[data-orient="h"] .deck-slider { inset: 36% 12%; }
+.deck-slider-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--key-accent, var(--accent, #2b6cff)) 85%, #fff 15%), var(--key-accent, var(--accent, #2b6cff)));
+  transition: height .08s linear, width .08s linear;
+}
+.deck-key.is-slider[data-orient="h"] .deck-slider-fill { top: 0; bottom: 0; left: 0; right: auto; height: auto; width: 50%; }
+.deck-key.is-slider .deck-key-live { top: auto; bottom: 22%; font-size: max(11px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .124)); }
+.deck-key.is-slider[data-orient="h"] .deck-key-live { bottom: 8%; }
+.deck-key.is-slider .deck-label { z-index: 2; }
+
+/* ── Smart Profiles dialog (app → profile auto-switch rules) ── */
+.deck-asw {
+  width: min(560px, 100%); max-height: 100%; min-height: 0;
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 22px 16px;
+}
+.deck-asw-head { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-right: -8px; }
+.deck-asw-words { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.deck-asw-words .deck-ed-hint { margin: 0; font-size: 14px; }
+.deck-asw-row { display: flex; flex-direction: column; gap: 8px; }
+.deck-asw-rules { flex: 0 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent; }
+.deck-asw-rules:empty { display: none; }
+.deck-asw-rule { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
+.deck-asw-remove {
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0; cursor: pointer;
+  border: 0; border-radius: var(--radius-control, 10px); background: none; color: var(--ded-muted);
+}
+.deck-asw-remove svg { width: 18px; height: 18px; }
+.deck-asw-remove:hover { background: var(--ded-well); color: var(--color-danger); }
+.deck-asw-remove:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 1px; }
+.deck-asw .deck-ed-addstep { flex: 0 0 auto; align-self: flex-start; }
+.deck-asw .deck-ed-actions { padding: 12px 0 0; }
+.deck-pmenu-add.is-on { color: var(--accent, #2b6cff); }
+.deck-pmenu-maker { display: block; text-align: center; text-decoration: none; }
+
+/* Accent preset palette */
+.deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 6px; }   /* ≥32px: finger-sized swatches */
+.deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid var(--ded-line); }
+.deck-ed-swatch.sel { outline: 2px solid var(--ded-text); outline-offset: 2px; }
+.deck-ed-swatch-none {
+  background: var(--ded-well); color: var(--ded-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-ed-swatch-none svg { width: 60%; height: 60%; }

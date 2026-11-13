@@ -1,0 +1,190 @@
+
+/* ── Edit toolbar: two tidy rows (grid controls · device look) instead of one
+   wrapping soup. Each row scrolls horizontally on narrow tiles so controls keep
+   their size and never cram or overlap. ── */
+.deck-tools {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.deck-tools-row {
+  display: flex; align-items: center; gap: 8px;
+  /* Wrap onto more lines rather than scrolling — controls (like the PLATE choices)
+     must never be clipped off the right edge of the toolbar. */
+  flex-wrap: wrap; row-gap: 6px;
+}
+.deck-tools-row::-webkit-scrollbar { display: none; }
+.deck-tools-row > * { flex: 0 0 auto; }
+.deck-tools-grp { display: flex; align-items: center; gap: 6px; }
+.deck-tools-cap {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim, #8b91a1); margin-right: 1px;
+}
+.deck-seg { display: inline-flex; padding: 2px; border-radius: 9px; gap: 2px;
+  background: rgba(8,11,18,.6); border: 1px solid rgba(255,255,255,.07); }
+.deck-seg button {
+  border: 0; background: none; cursor: pointer; color: var(--text-dim, #9aa1b1);
+  font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 7px;
+  transition: background .15s ease, color .15s ease;
+}
+.deck-seg button.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 78%, #fff 0%), var(--accent,#2b6cff));
+  box-shadow: 0 1px 6px rgba(var(--accent-rgb,43,108,255),.45);
+}
+/* Glyph buttons (the cap-shape picker) — outline icons that tint like text. */
+.deck-seg button svg { width: 13px; height: 13px; display: block; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.deck-pill {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 11px; border-radius: 9px; font-size: 11px; font-weight: 600;
+  color: var(--text-dim, #9aa1b1); border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.deck-pill::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.2); box-shadow: none; transition: all .2s ease;
+}
+.deck-pill.on {
+  color: var(--text, #e7e9ee); border-color: rgba(var(--accent-rgb,43,108,255),.5);
+  background: rgba(var(--accent-rgb,43,108,255),.14);
+}
+.deck-pill.on::before { background: var(--accent, #7aa2ff); box-shadow: 0 0 8px rgba(var(--accent-rgb,43,108,255),.9); }
+.deck-step {
+  width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text, #e7e9ee);
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-step:hover { filter: brightness(1.2); }
+.deck-step:active { transform: translateY(1px); }
+.deck-step[disabled] { opacity: .3; cursor: default; }
+/* Accent swatch in the decor tools row. */
+.deck-decor-swatch {
+  width: 30px; height: 24px; padding: 0; cursor: pointer; flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, .16); border-radius: 7px; background: transparent;
+}
+.deck-decor-swatch[disabled] { opacity: .35; cursor: default; }
+/* "Customize" button in the toolbar → opens the appearance modal. */
+.deck-customize { font-weight: 700; }
+.deck-customize.deck-pill { background: rgba(var(--accent-rgb), .16); border-color: rgba(var(--accent-rgb), .4); color: var(--accent); }
+.deck-customize.deck-pill:hover { background: rgba(var(--accent-rgb), .24); }
+
+/* ── The four Deck windows: key editor, mixer, Deck look, Smart Profiles ──────
+   One plate and one set of colours. A skin changes these tokens and nothing else;
+   --ded-on is a selected tab or segment, with its text in --ded-on-ink. */
+.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw {
+  --ded-text: var(--text, #e7e9ee);
+  --ded-muted: var(--text-dim, #9aa1b1);
+  --ded-well: rgba(255, 255, 255, .05);
+  --ded-well-hover: rgba(255, 255, 255, .1);
+  --ded-line: rgba(255, 255, 255, .12);
+  --ded-on: var(--accent, #2b6cff);
+  --ded-on-ink: var(--on-accent, #fff);
+  --ded-lift: 0 26px 70px rgba(0, 0, 0, .6);
+  color: var(--ded-text);
+  background: var(--panel-solid, #14171c);
+  border: 1px solid var(--ded-line);
+  border-radius: var(--radius-modal, 20px);
+  box-shadow: var(--ded-lift);
+}
+:is(.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw):focus { outline: none; }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 40px; height: 40px; padding: 0; cursor: pointer;
+  border: 0; border-radius: var(--radius-control, 10px);
+  background: none; color: var(--ded-muted);
+}
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close) svg { width: 20px; height: 20px; }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close):hover { background: var(--ded-well); color: var(--ded-text); }
+:is(.deck-ed-close, .deck-mix-close, .deck-style-close, .deck-asw-close):focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 1px; }
+
+/* ── Deck look: theme, shape, plate, background, music ────────────────────────
+   Title on top, the deck on the left where it stays in view while the controls
+   scroll on their own beside it: picks show the moment they are made. */
+/* One scrim for the four windows, so none reads lighter than the others on a skin
+   that does not bring its own. */
+.deck-ed-backdrop, .deck-mix-backdrop, .deck-style-modal {
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+}
+.deck-style-modal {
+  position: fixed; inset: 0; z-index: 4000; display: flex;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.deck-style-dialog {
+  width: min(920px, 100%); height: min(680px, 100%); overflow: hidden;
+  display: grid; gap: 16px 22px; padding: 18px 16px 18px 22px;
+  grid-template: "head head" auto "preview body" minmax(0, 1fr) / minmax(0, 1fr) 380px;
+}
+.deck-style-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.deck-style-title { font-size: 20px; font-weight: 800; }
+.deck-style-preview {
+  grid-area: preview; min-height: 0; overflow: auto;
+  display: flex; justify-content: center; align-items: center;
+  padding: 16px; border-radius: var(--radius-control, 10px);
+  background: var(--ded-well);
+}
+.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; height: auto !important; }
+/* The real deck's caps are sized from the WELL via size container queries (100cqh),
+   which need a real height. The modal has no fixed height, so give the well a
+   concrete one (rows × cap) — then the native sizing resolves, the caps are square,
+   and the well contains its grid so the music bar stacks cleanly below it. */
+.deck-style-preview-root .deck-well {
+  flex: 0 0 auto !important;
+  height: calc(var(--deck-rows, 2) * 84px) !important;
+}
+.deck-style-preview-root .deck-device { flex: none; width: 100%; gap: 8px; }
+.deck-style-body {
+  grid-area: body; min-height: 0; overflow-y: auto; padding-right: 6px;
+  display: flex; flex-direction: column; gap: 14px;
+  scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
+}
+.deck-style-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.deck-style-grp:has(> .deck-seg) { flex-direction: column; align-items: flex-start; }
+.deck-style-cap { font-size: 13px; color: var(--ded-muted); min-width: 84px; }
+.deck-style-subhead {
+  font-size: 14px; font-weight: 700; color: var(--ded-text);
+  margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--ded-line);
+}
+.deck-style-subhead-first { margin-top: 0; padding-top: 0; border-top: 0; }
+.deck-style-hint { font-size: 12px; line-height: 1.4; color: var(--ded-muted); margin-top: -6px; }
+/* `hidden` has to win over the flex/inline-block display these controls set. */
+.deck-style-dialog [hidden] { display: none !important; }
+/* The deck's own toolbar controls, at the size of a window. */
+.deck-style-dialog .deck-seg { flex-wrap: wrap; gap: 3px; padding: 3px; border: 0; border-radius: var(--radius-control, 10px); background: var(--ded-well); }
+.deck-style-dialog .deck-seg button { min-height: 36px; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--ded-muted); }
+.deck-style-dialog .deck-seg button:hover { color: var(--ded-text); }
+.deck-style-dialog .deck-seg button.active { color: var(--ded-on-ink); background: var(--ded-on); box-shadow: none; }
+.deck-style-dialog .deck-seg button svg { width: 18px; height: 18px; }
+.deck-style-dialog .deck-pill { min-height: 36px; padding: 6px 14px; font-size: 13px; color: var(--ded-text); border-color: var(--ded-line); background: var(--ded-well); }
+.deck-style-dialog .deck-pill::before { display: none; }
+.deck-style-dialog .deck-step { width: 36px; height: 36px; border-radius: 8px; border-color: var(--ded-line); color: var(--ded-text); background: var(--ded-well); }
+.deck-style-dialog .deck-step svg { width: 16px; height: 16px; }
+.deck-style-dialog .deck-decor-swatch { width: 44px; height: 36px; border-radius: 8px; border-color: var(--ded-line); }
+/* Inline on/off switch: the same knob as the key editor's switch rows, on a
+   44px-tall hit area. */
+.deck-style-toggle {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  min-width: 44px; min-height: 44px; margin: -10px 0; padding: 0;
+  background: none; border: 0; cursor: pointer; color: inherit;
+}
+.deck-style-toggle[aria-checked="true"] .deck-ed-switch { background: var(--accent, #2b6cff); }
+.deck-style-toggle[aria-checked="true"] .deck-ed-switch::after { transform: translateX(16px); }
+.deck-style-toggle:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; border-radius: 8px; }
+.deck-style-range { flex: 1 1 120px; min-width: 110px; accent-color: var(--accent, #7aa2ff); }
+@media (max-width: 760px) {
+  .deck-style-modal { padding: 12px; }
+  .deck-style-dialog {
+    width: 100%; height: 100%; gap: 12px; padding: 12px 10px 14px 16px;
+    grid-template: "head" auto "preview" minmax(0, 34vh) "body" minmax(0, 1fr) / minmax(0, 1fr);
+  }
+}
+.deck-step-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);
+}

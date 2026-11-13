@@ -1,0 +1,286 @@
+
+/* ── Now-playing screen: an embedded LCD strip (Stream Deck +-style) ──── */
+/* A persistent device screen: it's always mounted while the dock is enabled (an
+   idle "standby" state shows when nothing plays) so the cap grid above never
+   reflows as playback comes and goes. The black bezel ring + curved top reflection
+   make it read as a real recessed glass panel, not a flat strip. */
+.deck-np {
+  position: relative; z-index: 1; overflow: hidden; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; padding: 9px 13px;
+  /* Bezel: a hair of black framing the glass, like a moulded screen cutout. */
+  border: 1px solid #05070b;
+  border-radius: clamp(11px, var(--deck-radius), 16px);
+  /* default screen glow when there's no cover colour to sample */
+  background: linear-gradient(115deg, #0a3a52, #15224a 48%, #34164a);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .07),   /* inner glass rim highlight */
+    inset 0 2px 14px rgba(0, 0, 0, .72),         /* depth under the glass */
+    inset 0 -10px 20px rgba(0, 0, 0, .35),       /* lower vignette */
+    0 1px 0 rgba(255, 255, 255, .05);            /* lit lip where it meets the body */
+  transition: filter .4s ease;
+}
+.deck-np[hidden] { display: none; }
+/* Standby: the panel calms to an idle glow and swaps the transport for the active
+   output device's name + a live volume meter (a useful at-rest screen, not blank). */
+.deck-np.is-idle { filter: saturate(.62) brightness(.86); }
+.deck-np.is-idle .deck-np-actions { display: none; }
+.deck-np:not(.is-idle) .deck-np-vol,
+.deck-np:not(.is-idle) .deck-np-spk { display: none; }
+/* Speaker glyph that fills the cover slot while idle (over the ♪ placeholder). */
+.deck-np-spk {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, .92);
+}
+.deck-np-spk svg { width: 21px; height: 21px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+.deck-np.is-idle .deck-np-cover::after { opacity: 0; }      /* hide the ♪ behind the speaker */
+.deck-np.is-muted .deck-np-spk { color: rgba(255, 255, 255, .55); }
+/* Live volume meter (idle only): a slim lit track, fill width = master level. */
+.deck-np-vol {
+  position: relative; z-index: 2; flex: 0 0 auto; width: 74px; height: 6px;
+  border-radius: 4px; overflow: hidden;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.deck-np-vol-fill {
+  height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .85), #fff);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .55);
+  transition: width .28s cubic-bezier(.2, .8, .2, 1);
+}
+.deck-np.is-muted .deck-np-vol-fill { background: rgba(255, 255, 255, .4); box-shadow: none; }
+/* Blurred album art tints the whole screen with the track's colours. */
+.deck-np-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: center/cover no-repeat;
+  filter: blur(22px) saturate(1.6) brightness(.78);
+  transform: scale(1.4); opacity: 0; transition: opacity .45s ease;
+}
+.deck-np.has-cover .deck-np-bg { opacity: 1; }
+/* User backdrop for the strip: an underlay behind the album backdrop, so it shows
+   in standby and tints through when a track plays. */
+.deck-np-userbg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: center/cover no-repeat;
+}
+.deck-np-userbg::after {
+  content: ''; position: absolute; inset: 0; background: #05070d; opacity: var(--deck-np-userdim, .4);
+}
+/* Accent tint for the strip (volume fill, standby speaker, glass wash + rim). */
+.deck-np.has-accent .deck-np-vol-fill { background: var(--deck-np-accent); box-shadow: 0 0 8px var(--deck-np-accent); }
+.deck-np.has-accent .deck-np-spk { color: var(--deck-np-accent); }
+.deck-np.has-accent::before {
+  background:
+    radial-gradient(150% 100% at 50% -40%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(115deg, color-mix(in srgb, var(--deck-np-accent) 40%, transparent), transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 24%),
+    linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--deck-np-accent) 55%, transparent);
+}
+/* Colour wash + readability veil + a curved top reflection → reads as lit glass. */
+.deck-np::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(150% 100% at 50% -40%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(115deg, rgba(0, 190, 255, .22), transparent 42%, rgba(170, 80, 255, .26)),
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 24%),
+    linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
+}
+.deck-np-cover, .deck-np-info, .deck-np-actions { position: relative; z-index: 2; }
+
+.deck-np-cover {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 8px;
+  background: rgba(255, 255, 255, .08) center/cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, .25); overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+}
+.deck-np-cover::after {
+  content: '♪'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: rgba(255, 255, 255, .8); opacity: 1; transition: opacity .2s ease;
+}
+.deck-np-cover.has-image::after { opacity: 0; }
+.deck-np-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.deck-np-title {
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+}
+.deck-np-artist {
+  font-size: 10.5px; color: rgba(255, 255, 255, .82);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+.deck-np-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.deck-np-btn {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .35); color: #fff; background: rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 3px rgba(0, 0, 0, .35);
+  transition: transform .12s ease, background .15s ease;
+}
+.deck-np-btn:hover { background: rgba(255, 255, 255, .28); }
+.deck-np-btn:active { transform: scale(.9); }
+.deck-np-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.deck-np-btn.primary {
+  width: 34px; height: 34px; color: #15171d;
+  background: rgba(255, 255, 255, .95); border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.deck-np-btn.primary:hover { background: #fff; }
+.deck-np-btn.primary svg { width: 16px; height: 16px; }
+
+/* ── Key editor: the preview on the left, the form in tabs on the right, and the keys
+   that end the job always in view. ── */
+.deck-ed-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 14px;
+  animation: deck-ed-fade .18s ease;
+}
+@keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
+.deck-ed-modal {
+  width: min(960px, 100%); height: min(720px, 100%);
+  display: flex; flex-direction: column; overflow: hidden; padding: 0;
+  animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
+}
+/* A macro from the Xenon menu: one short page. More options brings the whole editor back. */
+.deck-ed-modal.deck-ed-modal--simple { width: min(560px, 100%); height: auto; max-height: min(720px, 100%); }
+.deck-ed-modal--simple .deck-ed-pane { margin-right: 0; padding-right: 0; scrollbar-gutter: auto; }
+.deck-ed-modal--simple .deck-ed-side,
+.deck-ed-modal--simple .deck-ed-tabs,
+.deck-ed-modal--simple .deck-ed-advanced { display: none; }
+.deck-ed-more { align-self: flex-start; margin-top: 4px; }
+@keyframes deck-ed-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+/* Header: title + close, fixed above the panes. */
+.deck-ed-head {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 14px 12px 22px; border-bottom: 1px solid var(--ded-line);
+}
+.deck-ed-title { margin: 0; padding: 0; border: 0; font-size: 20px; font-weight: 800; }
+/* Body: side rail + tabbed main, each scrolling on its own. */
+.deck-ed-body { flex: 1; min-height: 0; display: flex; }
+.deck-ed-side {
+  flex: 0 0 252px; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 18px 14px;
+  border-right: 1px solid var(--ded-line);
+}
+/* One thin-scrollbar recipe for every scroll region in the editor. */
+.deck-ed-side, .deck-ed-pickscroll {
+  scrollbar-width: thin; scrollbar-color: var(--ded-line) transparent;
+}
+.deck-ed-pane::-webkit-scrollbar { width: 10px; }
+.deck-ed-pane::-webkit-scrollbar-thumb {
+  border: 2px solid transparent; border-radius: 8px;
+  background: var(--ded-line); background-clip: padding-box;
+}
+.deck-ed-main {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 16px 22px 0;
+}
+.deck-ed-main > .deck-ed-field { flex: 0 0 auto; }
+/* Tab bar: fixed under the name field; only the active pane scrolls. */
+.deck-ed-tabs {
+  flex: 0 0 auto; display: flex; gap: 3px; padding: 3px; margin-bottom: 16px;
+  background: var(--ded-well); border-radius: var(--radius-control, 10px);
+}
+.deck-ed-tab {
+  flex: 1; min-height: 38px; padding: 7px 12px; border: 0; border-radius: 8px; cursor: pointer;
+  background: none; color: var(--ded-muted);
+  font-size: 14px; font-weight: 600; white-space: nowrap;
+  transition: background .15s ease, color .15s ease;
+}
+.deck-ed-tab:hover { color: var(--ded-text); }
+.deck-ed-tab.active { color: var(--ded-on-ink); background: var(--ded-on); font-weight: 800; }
+.deck-ed-pane {
+  flex: 1; min-height: 0; overflow-y: auto;
+  margin-right: -14px; padding: 2px 4px 14px 0;
+  scrollbar-gutter: stable;
+}
+/* Sections are told apart by their name and the room around them: the sheet is the
+   only frame, a box per section would be boxes in boxes. */
+.deck-ed-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.deck-ed-label { font-size: 13px; font-weight: 700; color: var(--ded-muted); }
+.deck-ed-input {
+  width: 100%; box-sizing: border-box; min-height: 40px; padding: 9px 11px;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  border-radius: var(--radius-control, 10px); color: var(--ded-text); font-size: 14px;
+  transition: border-color .15s ease;
+}
+.deck-ed-input:focus { outline: none; border-color: var(--accent, #2b6cff); }
+/* Selects re-apply the shared chevron (the .deck-ed-input `background` shorthand
+   above would otherwise clear it) so they match every other dropdown in the app. */
+select.deck-ed-input {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 34px; cursor: pointer;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 14px;
+}
+.deck-ed-input[type="color"] { height: 40px; padding: 4px; cursor: pointer; }
+.deck-ed-colorrow { display: flex; gap: 8px; align-items: center; }
+.deck-ed-colorrow .deck-ed-input[type="color"] { flex: 1; }
+.deck-ed-input[type="color"].is-unset { opacity: .4; }
+.deck-ed-colorclear {
+  width: 40px; height: 40px; border-radius: var(--radius-control, 10px); cursor: pointer; flex: 0 0 auto;
+  background: var(--ded-well); border: 1px solid var(--ded-line);
+  color: var(--ded-muted); font-size: 13px;
+}
+.deck-ed-colorclear:hover { background: var(--ded-well-hover); color: var(--ded-text); }
+/* Native <select> popup: force a dark, readable option list (Chromium/WebView). */
+.deck-ed-input option { background: #12161f; color: #e7e9ee; }
+.deck-ed-params { display: flex; flex-direction: column; }
+
+/* Icon picker: emoji / built-in icons / image toggle, category grids, upload */
+.deck-ed-seg {
+  display: flex; width: fit-content; max-width: 100%; box-sizing: border-box;
+  gap: 3px; padding: 3px; margin-bottom: 8px;
+  border-radius: var(--radius-control, 10px); background: var(--ded-well);
+}
+.deck-ed-segbtn {
+  width: 40px; height: 38px; border-radius: 8px; cursor: pointer; font-size: 17px;
+  background: none; border: 0; color: var(--ded-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-ed-segbtn:hover { color: var(--ded-text); }
+.deck-ed-segbtn.active { color: var(--ded-on-ink); background: var(--ded-on); }
+.deck-ed-segbtn-icon svg { width: 18px; height: 18px; fill: currentColor; }
+/* Text segments (Colore/Gradiente, label position, size presets): the base
+   segbtn is a fixed 40px square built for the emoji/icon tabs, so word labels
+   overflow and overlap. Here the buttons size to content and share the row. */
+.deck-ed-seg-text { width: 100%; }
+.deck-ed-seg-text .deck-ed-segbtn {
+  flex: 1; width: auto; min-width: 0; padding: 0 10px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+/* Scrollable picker body so a large emoji/icon library never blows up the modal. */
+.deck-ed-pickscroll {
+  max-height: 192px; overflow-y: auto; margin-bottom: 8px;
+  padding-right: 4px;
+}
+.deck-ed-pickscroll::-webkit-scrollbar { width: 8px; }
+.deck-ed-pickscroll::-webkit-scrollbar-thumb { background: var(--ded-line); border-radius: 8px; }
+.deck-ed-cat { margin: 10px 2px 6px; font-size: 12px; font-weight: 700; color: var(--ded-muted); }
+.deck-ed-cat:first-child { margin-top: 0; }
+.deck-ed-emojis {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px;
+}
+.deck-ed-emoji {
+  aspect-ratio: 1; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1;
+  background: var(--ded-well); border: 1px solid transparent; color: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s ease, border-color .12s ease, transform .08s ease;
+}
+.deck-ed-emoji:hover { background: var(--ded-well-hover); }
+.deck-ed-emoji.sel { color: var(--ded-on-ink); background: var(--ded-on); }
+.deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
+/* Installed icon-pack cells: bitmap/SVG files served by /icon-pack/, same cell
+   geometry as the built-in vector icons. */
+.deck-ed-packicon img { width: 20px; height: 20px; object-fit: contain; pointer-events: none; }
+.deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
+.deck-ed-file { display: none; }
+/* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for launch keys. */
+.deck-ed-appicon-row { margin: 8px 0 2px; }
+.deck-ed-appicon-btn { width: 100%; }
+.deck-ed-appicon-btn:disabled { opacity: .6; cursor: default; }
+.deck-ed-imgprev {
+  width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+  border: 1px solid var(--ded-line);
+}

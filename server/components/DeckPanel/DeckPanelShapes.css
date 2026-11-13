@@ -1,0 +1,252 @@
+
+/* Empty slots stay UNLIT under every cap theme — the theme selectors above
+   out-rank the base .is-empty rule on specificity, so the dark powered-off cap
+   is restated here (quieter, to match each theme's flatter material). The
+   edit-mode "+" cell keeps its dashed add affordance below. */
+.deck-root[data-capstyle="flat"] .deck-key.is-empty,
+.deck-root[data-capstyle="neon"] .deck-key.is-empty,
+.deck-root[data-capstyle="glass"] .deck-key.is-empty {
+  background: linear-gradient(180deg, #0e1016, #090b10);
+  border-color: rgba(255, 255, 255, .05);
+  box-shadow: none;
+  color: var(--text, #e7e9ee);
+}
+.deck-root[data-capstyle="flat"] .deck-key.is-add,
+.deck-root[data-capstyle="neon"] .deck-key.is-add,
+.deck-root[data-capstyle="glass"] .deck-key.is-add {
+  background: rgba(var(--accent-rgb, 43, 108, 255), .05);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .45);
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .12);
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
+}
+
+/* ── Cap shape (data-shape on .deck-root) ─────────────────────────── */
+/* Square: tighter corners across caps + well (the radius token drives both). */
+.deck-root[data-shape="square"] { --deck-radius: clamp(4px, calc(var(--deck-key-min, 76px) * .06), 7px); }
+/* Circle: round caps; the delete badge and gesture markers move inward so the
+   rim can't clip them. */
+.deck-root[data-shape="circle"] .deck-key { border-radius: 50%; }
+.deck-root[data-shape="circle"] .deck-key-del { top: 9%; left: 9%; }
+.deck-root[data-shape="circle"] .deck-key-trig { right: 13%; bottom: 11%; }
+.deck-root[data-shape="circle"] .deck-key-cycle { left: 13%; bottom: 11%; }
+.deck-root[data-shape="circle"] .deck-key .deck-label { max-width: 78%; }
+.deck-root[data-shape="circle"] .deck-key.has-image .deck-label { left: 11%; right: 11%; }
+
+/* ── Faceplate finish (data-plate on .deck-root → the device chassis) ── */
+/* Carbon: diagonal twill weave under the same top light as graphite. */
+.deck-root[data-plate="carbon"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, .42) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #17191e, #0d0f13);
+}
+/* Steel: brushed metal — fine horizontal grain with a cooler, lighter body. */
+.deck-root[data-plate="steel"] .deck-device { --plate-edge: rgba(0, 0, 0, .5); }
+.deck-root[data-plate="steel"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 20%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .028) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #383c45, #24272e 55%, #17191f);
+}
+/* Midnight: pure stealth slab — no texture, near-black. */
+.deck-root[data-plate="midnight"] .deck-device::after {
+  background: linear-gradient(180deg, #0c0e13, #08090d);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+/* Glass: a clear slab. Light falls through it from the top, the rim catches it,
+   and the dashboard shows behind. No backdrop blur: that is a per-frame GPU cost
+   on every screen the Deck sits on (invariants-rendering-gpu). */
+.deck-root[data-plate="glass"] .deck-device { --plate-edge: rgba(255, 255, 255, .2); }
+.deck-root[data-plate="glass"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 34%, rgba(255, 255, 255, .025)),
+    rgba(14, 18, 26, .32);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, .35),
+    inset 0 1px 0 rgba(255, 255, 255, .38),
+    inset 0 -1px 0 rgba(255, 255, 255, .08),
+    inset 0 0 0 1px rgba(255, 255, 255, .04);
+}
+.deck-root[data-plate="glass"] .deck-device::before {
+  background: linear-gradient(115deg, rgba(255, 255, 255, .12), transparent 38%);
+}
+.deck-root[data-plate="glass"] .deck-well {
+  background: rgba(0, 0, 0, calc(.16 * var(--deck-well-alpha, 1)));
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, calc(.3 * var(--deck-well-alpha, 1))), inset 0 0 0 1px rgba(255, 255, 255, .05);
+}
+/* Theme: the body is the dashboard's own tile surface (the same --panel colour,
+   border, top line and drop shadow as every other tile, and its corner radius), so
+   it changes with the theme and with the tile opacity setting. Inside a tab group
+   the group tile already is that surface, so the body steps aside there. */
+.deck-root[data-plate="theme"] .deck-device { border-radius: var(--radius-tile, 18px); }
+.deck-root[data-plate="theme"] .deck-device::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.028 * var(--panel-alpha, 1))), rgba(255, 255, 255, 0) 42%),
+    var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: inset 0 1px 0 var(--panel-topline), var(--panel-drop);
+}
+.deck-root[data-plate="theme"] .deck-device::before { display: none; }
+.deck-root[data-plate="theme"] .deck-well {
+  background: rgba(0, 0, 0, calc(.2 * var(--deck-well-alpha, 1)));
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, calc(.35 * var(--deck-well-alpha, 1)));
+}
+.tabgroup-body > .deck-panel .deck-root[data-plate="theme"] .deck-device::after {
+  background: none; border-color: transparent; box-shadow: none;
+}
+/* Theme colours: the key well picks up a little of the accent (the keys and the
+   music strip get it in deck.js, as their own accent). */
+.deck-root[data-themecolors="1"]:not([data-plate="none"]):not([data-capstyle="vivid"]) .deck-well {
+  --well-tint: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent, #7aa2ff) calc(14% * var(--deck-well-alpha, 1)), transparent),
+    color-mix(in srgb, var(--accent, #7aa2ff) calc(6% * var(--deck-well-alpha, 1)), transparent));
+  background-image: var(--well-tint), linear-gradient(180deg,
+    color-mix(in srgb, #070810 var(--well-mix), transparent),
+    color-mix(in srgb, #0a0c12 var(--well-mix), transparent));
+}
+.deck-root[data-themecolors="1"][data-plate="theme"]:not([data-capstyle="vivid"]) .deck-well { background-image: var(--well-tint); }
+/* None: the chassis disappears — bare keys floating on the dashboard. It is the
+   end point of the transparency slider, reached by dropping the whole layer. */
+.deck-root[data-plate="none"] .deck-device { padding: 2px; }
+.deck-root[data-plate="none"] .deck-device::after { display: none; }
+.deck-root[data-plate="none"] .deck-device::before { display: none; }
+.deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
+/* The dashboard tile around it casts a drop shadow of its own, painted just outside
+   its edge (DashboardGrid.css). With the chassis gone it is the only thing left of
+   the tile: a dark strip along the bottom edge of bare keys, "a shadow behind the
+   cards" (reported on Discord). deck.js and dashboard-tabgroups.js mark the tile, or
+   the tab-group tile mounting the Deck, with data-deck-bare; a shadow the user set
+   on that tile (data-tile-shadow) is kept. */
+.grid-stack-item:not([data-tile-shadow]):has(> .grid-stack-item-content > [data-deck-bare]) { box-shadow: none; }
+
+/* …and the header stays, as a ghost. It is the FACEPLATE's header, so on the one
+   finish with no faceplate a full-strength profile name, page badge and pencil hung
+   in mid-air over nothing, which is the "it takes space and looks out of place"
+   this finish exists to avoid (reported from a Xeneon Edge, where the tile is short
+   and 26px of chrome is a row of keys).
+
+   The first answer collapsed it to an invisible strip that appeared on hover or on
+   a tap. That fixed the look and lost the controls: the bar is the ONLY way into
+   edit mode and the only profile switcher, and on a deck made transparent nobody
+   found either. Reported on Discord: "the pencil and the profile switch are gone".
+
+   So it is drawn quietly and always: no key-cap chrome around the pencil, the
+   profile name at about half strength with a soft shadow so it reads on any
+   wallpaper, and a row 20px tall instead of 26. It comes to full strength when it
+   is touched, focused, or in use. The keys sit 6px lower than they did with the
+   strip collapsed; that is the price of the controls being there.
+
+   The bar is the trigger, never the whole device: brightening on any hover over the
+   deck would flicker every time the pointer crossed the tile. */
+.deck-root[data-plate="none"] .deck-bar {
+  min-height: 0;
+  height: 20px;
+  opacity: .55;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .65);
+  transition: opacity .18s ease;
+}
+/* The cap chrome (gradient, hairline, drop shadow) belongs to a faceplate too. Not
+   while editing: the filled pencil there is the "Done" state and must stay lit. */
+.deck-root[data-plate="none"]:not(.is-editing) .deck-bar :is(.deck-edit, .deck-back) {
+  background: none; border-color: transparent; box-shadow: none;
+}
+.deck-root[data-plate="none"] .deck-bar .deck-index {
+  background: none; border-color: transparent; box-shadow: none; text-shadow: inherit;
+}
+.deck-root[data-plate="none"] .deck-bar svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+/* `bar-open` is set while the bar is in USE (edit mode, profile menu open) and
+   `bar-peek` by a tap on a touchscreen, which has no hover to offer — see the
+   pointerdown handler in deck.js. */
+.deck-root[data-plate="none"] .deck-bar:hover,
+.deck-root[data-plate="none"] .deck-bar:focus-within,
+.deck-root[data-plate="none"].bar-open .deck-bar,
+.deck-root[data-plate="none"].bar-peek .deck-bar {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-root[data-plate="none"] .deck-bar { transition: none; }
+}
+
+/* A failed action (path not found, OBS offline, …) flashes the key red + shakes
+   briefly so failures aren't silent. */
+.deck-key.has-error { animation: deck-key-error .55s ease both; }
+@keyframes deck-key-error {
+  0%, 100% { box-shadow: none; transform: none; }
+  10%, 55% { box-shadow: inset 0 0 0 2px rgba(255, 59, 48, .95), 0 0 12px rgba(255, 59, 48, .45); }
+  20% { transform: translateX(-3px); }
+  35% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+  85% { transform: translateX(2px); }
+}
+
+/* ── Edit mode: keys jiggle like a device being reconfigured ───────── */
+.deck-key.is-editing {
+  cursor: pointer; will-change: transform;
+  animation: deck-jiggle .42s ease-in-out infinite alternate;
+}
+/* Desync the wobble so the grid feels hand-placed, not metronomic. */
+.deck-key.is-editing:nth-child(2n)   { animation-delay: -.11s; animation-duration: .47s; }
+.deck-key.is-editing:nth-child(3n)   { animation-delay: -.23s; animation-duration: .39s; }
+.deck-key.is-editing:nth-child(4n+1) { animation-delay: -.31s; animation-duration: .44s; }
+@keyframes deck-jiggle {
+  from { transform: rotate(-.7deg) translateY(-.5px); }
+  to   { transform: rotate(.7deg) translateY(.5px); }
+}
+.deck-key.is-editing:active { animation: none; }
+
+/* ── Edit-mode quick actions: delete badge + drag-to-reorder ───────────── */
+/* In edit mode a placed key is a DRAG HANDLE, not a pan surface. The dashboard
+   pager is a native horizontal scroll-snap container, so with the normal
+   `touch-action: manipulation` the browser would scroll to the next page the
+   instant you start dragging a key (stealing the gesture, so the reorder never
+   starts). `touch-action: none` keeps the touch on the key and lets our pointer
+   drag run. (Outside edit mode the keys keep `manipulation` so a swipe still pans.) */
+.deck-key.is-editing { touch-action: none; }
+/* iOS-style delete badge in the top-left corner of every placed key. */
+.deck-key-del {
+  position: absolute; top: 5px; left: 5px; z-index: 6; padding: 0;
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: linear-gradient(180deg, #ff5b52, #e0352b);
+  border: 1.5px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55);
+  animation: deck-del-in .16s ease both;
+}
+.deck-key-del svg { width: 11px; height: 11px; }
+.deck-key-del:hover { filter: brightness(1.1); }
+.deck-key-del:active { transform: scale(.86); }
+@keyframes deck-del-in { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: none; } }
+
+/* The picked-up cap fades in place (its clone follows the finger); no jiggle. */
+.deck-key.is-dragging { opacity: .26; animation: none !important; }
+.deck-key.is-dragging .deck-key-del { display: none; }
+
+/* The slot currently under the dragged cap — ready to swap (or move into, if empty). */
+.deck-key.is-drop {
+  opacity: 1;
+  outline: 2px dashed rgba(var(--accent-rgb, 43, 108, 255), .95); outline-offset: -3px;
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43, 108, 255), .5),
+              0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .4);
+}
+
+/* The floating clone dragged across the grid — lifted off the device. */
+.deck-drag-clone {
+  z-index: 90; pointer-events: none; animation: none !important;
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .6); opacity: .96;
+}
+.deck-key.is-add {
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
+  font-size: max(20px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)); font-weight: 300;
+  background: rgba(var(--accent-rgb, 43,108,255), .05);
+  border: 1px dashed rgba(var(--accent-rgb, 43,108,255), .45);
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .12);
+  align-items: center; justify-content: center; opacity: 1;
+  animation: deck-add-pulse 2.4s ease-in-out infinite;
+}
+.deck-key.is-add::before { display: none; }
+@keyframes deck-add-pulse {
+  0%, 100% { box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .1); border-color: rgba(var(--accent-rgb,43,108,255), .35); }
+  50%      { box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43,108,255), .28); border-color: rgba(var(--accent-rgb,43,108,255), .65); }
+}

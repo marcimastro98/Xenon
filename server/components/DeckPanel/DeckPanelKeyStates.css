@@ -1,0 +1,253 @@
+
+/* ── Ambient cap animations (opt-in per key; cheap opacity/transform layers).
+   body.perf-mode pauses these globally like every other dashboard animation. ── */
+.deck-key .deck-key-anim {
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  overflow: hidden; pointer-events: none;
+}
+/* When the cap face IS a full-bleed photo, lift the ambient layer above it so
+   the breathe rim / sheen is still visible instead of hiding behind the image. */
+.deck-key.has-image .deck-key-anim { z-index: 2; }
+/* Breathe: the accent rim swells and relaxes. */
+.deck-key.anim-breathe .deck-key-anim {
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 85%, #fff),
+    inset 0 0 18px color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 55%, transparent);
+  animation: deck-key-breathe 2.8s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes deck-key-breathe { 0%, 100% { opacity: .22; } 50% { opacity: 1; } }
+/* Shift ("Sheen"): a soft light band sweeps across the face (transform-only). It
+   starts fully off the left and ends fully off the right — the parent clips
+   (overflow:hidden) — so the band is invisible at BOTH ends of the cycle and the
+   loop restart can't be seen (no hard cut). Previously it slid only ±26%, leaving
+   the band visible at the wrap point, which read as an abrupt reset. */
+.deck-key.anim-shift .deck-key-anim::before {
+  content: ''; position: absolute; top: -40%; bottom: -40%; left: 0; width: 45%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--key-accent2, var(--key-accent, #7aa2ff)) 36%, transparent) 45%,
+    color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 28%, transparent) 55%,
+    transparent 100%);
+  transform: translateX(-220%) skewX(-12deg);
+  animation: deck-key-shift 5.5s linear infinite;
+  will-change: transform;
+}
+@keyframes deck-key-shift {
+  from { transform: translateX(-220%) skewX(-12deg); }  /* off the left — invisible */
+  to   { transform: translateX(460%)  skewX(-12deg); }  /* off the right — invisible */
+}
+/* Reduced-motion and Performance Mode remove the ambient layer entirely — merely
+   stopping the keyframes would freeze the breathe rim at full brightness or leave
+   the sheen band as a permanent diagonal streak, which is worse than no effect. */
+@media (prefers-reduced-motion: reduce) {
+  .deck-key .deck-key-anim { opacity: 0; }
+}
+body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
+/* Same treatment for every other freeze state. These two loops (breathe on the
+   element, sheen on its ::before) animate CONTINUOUSLY, so leaving them out of a
+   freeze set keeps the compositor producing frames for the whole dashboard.
+   They were missing from all four of these; the hybrid-GPU toggle even promised
+   "key decorations stay still" while this file had no low-power-gpu rule at all.
+   `animation: none` is required alongside `opacity: 0` (verified live): the
+   breathe keyframes animate opacity, and a running animation overrides the
+   static declaration in the cascade, so opacity: 0 alone changes nothing. */
+body.overlay-frozen .deck-key .deck-key-anim,
+body.ambient-idle .deck-key .deck-key-anim,
+body.game-mode .deck-key .deck-key-anim,
+body.low-power-gpu .deck-key .deck-key-anim { animation: none; opacity: 0; }
+body.overlay-frozen .deck-key.anim-shift .deck-key-anim::before,
+body.ambient-idle .deck-key.anim-shift .deck-key-anim::before,
+body.game-mode .deck-key.anim-shift .deck-key-anim::before,
+body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none; }
+
+.deck-key.is-folder {
+  border-color: rgba(180, 150, 230, .4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16), inset 0 -3px 8px rgba(0,0,0,.55),
+    0 0 10px rgba(150,110,230,.25), 0 2px 4px rgba(0,0,0,.45);
+}
+.deck-key.is-folder .deck-ico { text-shadow: 0 0 10px rgba(170,130,240,.5); }
+
+/* Empty slot = an UNLIT key: same moulded cap, screen off. Reads like real
+   Stream Deck hardware (dark keys waiting to be assigned) instead of a dashed
+   placeholder ghost; the edit-mode "+" cell keeps its dashed add affordance. */
+.deck-key.is-empty {
+  background:
+    radial-gradient(120% 80% at 50% -12%, rgba(255, 255, 255, .05), transparent 50%),
+    linear-gradient(180deg, #101319, #0a0c11 58%, #07080c);
+  border: 1px solid rgba(0, 0, 0, .85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .05),
+    inset 0 -5px 10px rgba(0, 0, 0, .5),
+    0 2px 5px rgba(0, 0, 0, .5);
+  opacity: 1; cursor: default;
+}
+.deck-key.is-empty::before { opacity: .3; }   /* faint glass over the dark cap */
+
+/* ── Footer: tactile page arrows + LED dots ───────────────────────── */
+.deck-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 20px; }
+.deck-arrow {
+  width: 24px; height: 22px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text-dim, #9aa1b1); font-size: 13px;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 2px rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s ease, filter .12s ease;
+}
+.deck-arrow:hover:not([disabled]) { filter: brightness(1.25); color: var(--text, #e7e9ee); }
+.deck-arrow:active:not([disabled]) { transform: translateY(1px); }
+.deck-arrow[disabled] { opacity: .3; cursor: default; }
+/* Edit mode: a dragged cap held over an arrow moves to that page on release. Same
+   accent language as a slot drop target, on the arrow's own 7px radius. */
+.deck-arrow.is-drop {
+  color: var(--text, #e7e9ee);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .95);
+  background: rgba(var(--accent-rgb, 43, 108, 255), .28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .5);
+}
+.deck-dots { display: flex; gap: 6px; align-items: center; }
+.deck-dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.18);
+  transition: width .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.deck-dots i.active {
+  background: var(--accent, #7aa2ff); width: 16px; border-radius: 3px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 43,108,255), .8);
+}
+
+/* OBS scene preview: the on-air scene thumbnail fills the host key, under a dark
+   veil so the icon and label stay readable. !important beats the inline accent
+   gradient; clearing the class/var restores the accent. */
+.deck-key.has-preview {
+  background-image: linear-gradient(rgba(8, 10, 14, .42), rgba(8, 10, 14, .66)), var(--deck-preview) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  border-color: rgba(255, 255, 255, .22);
+}
+.deck-key.has-preview .deck-label { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+
+/* Image caps: the picture fills the whole key (Stream Deck style) and the title
+   sits in a readable gradient scrim along the bottom, so text stays legible over
+   any artwork instead of disappearing into it. */
+.deck-key.has-image .deck-ico { position: absolute; inset: 0; filter: none; }
+.deck-key.has-image .deck-ico img {
+  width: 100%; height: 100%; max-width: none; max-height: none;
+  object-fit: cover; border-radius: inherit; filter: none;
+}
+.deck-key.has-image .deck-label {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 3px 6px 4px;
+  background: linear-gradient(0deg, rgba(6, 8, 12, .85), rgba(6, 8, 12, .45) 72%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .95);
+}
+/* An empty title shouldn't render an empty scrim strip. */
+.deck-key .deck-label:empty { display: none; }
+
+/* Image fit modes (chosen per key in the editor):
+   · cover   → full-bleed (the .has-image default above)
+   · contain → the whole picture, padded, centred inside the full-bleed area
+   · small   → a compact centred icon (no .has-image): rendered like a glyph with the
+               title beneath it, sized to about half the cap. */
+.deck-key.has-image.fit-contain .deck-ico img {
+  object-fit: contain; box-sizing: border-box; padding: 9%;
+}
+/* display:flex so the picture stops being an inline box: on a baseline it drags
+   the descent of .deck-ico's own (icon-sized) font along under it — a band of
+   dead space as tall as a sixth of the icon, taken straight out of the title. */
+.deck-key .deck-ico.is-img-small { display: flex; min-height: 0; }
+.deck-key .deck-ico.is-img-small img {
+  width: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
+  height: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+}
+/* Label-on-top over a full-bleed picture: the scrim flips to the upper edge. */
+.deck-key.has-image[data-labelpos="top"] .deck-label {
+  top: 0; bottom: auto;
+  padding: 4px 6px 3px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, .85), rgba(6, 8, 12, .45) 72%, transparent);
+}
+
+/* ── Whole-device looks: cap material (data-capstyle on .deck-root) ─────────
+   'lcd' is the classic default above; each theme restyles the cap face while
+   inline per-key colours (accent/gradient vars) keep working through it. */
+
+/* Flat: quiet matte tiles — no bevel, no gloss, colour as a plain field. */
+.deck-root[data-capstyle="flat"] .deck-key {
+  background: #171a21;
+  border-color: rgba(255, 255, 255, .07);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key::before { display: none; }
+.deck-root[data-capstyle="flat"] .deck-key.has-accent {
+  background: color-mix(in srgb, var(--key-accent, #2b6cff) 32%, #14171d);
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, #14171d);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key.has-gradient {
+  background: var(--kg-face);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key:active,
+.deck-root[data-capstyle="flat"] .deck-key.is-pressed {
+  transform: scale(.94); filter: brightness(.82); box-shadow: none;
+}
+
+/* Neon: near-black glass with a lit accent rim — icon and label glow to match.
+   Un-tinted keys fall back to the dashboard accent so the deck reads as one rig. */
+.deck-root[data-capstyle="neon"] .deck-key {
+  --neon: var(--key-accent, var(--accent, #7aa2ff));
+  background: linear-gradient(180deg, #0b0d13, #07080d);
+  border-color: color-mix(in srgb, var(--neon) 62%, #0a0c12);
+  color: color-mix(in srgb, var(--neon) 72%, #eef1f7);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--neon) 28%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--neon) 13%, transparent);
+}
+.deck-root[data-capstyle="neon"] .deck-key::before { display: none; }
+.deck-root[data-capstyle="neon"] .deck-key .deck-ico { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon) 55%, transparent)); }
+.deck-root[data-capstyle="neon"] .deck-key .deck-label { text-shadow: 0 0 8px color-mix(in srgb, var(--neon) 45%, transparent); }
+.deck-root[data-capstyle="neon"] .deck-key.has-gradient {
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 55%, #0a0c12);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--key-accent, #2b6cff) 26%, transparent),
+    0 0 10px color-mix(in srgb, var(--key-accent2, #7aa2ff) 22%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--key-accent2, #7aa2ff) 12%, transparent);
+}
+.deck-root[data-capstyle="neon"] .deck-key.is-empty { border-color: rgba(255, 255, 255, .08); box-shadow: none; color: var(--text, #e7e9ee); }
+/* Press depression: the theme's resting box-shadow out-ranks the base
+   `.deck-key:active` rule on specificity, so restate it per theme. */
+.deck-root[data-capstyle="neon"] .deck-key:active,
+.deck-root[data-capstyle="neon"] .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92); filter: brightness(.86);
+  box-shadow: inset 0 3px 9px rgba(0, 0, 0, .7);
+}
+
+/* Glass: frosted translucent caps in the dashboard's Liquid Glass language
+   (translucent fills + highlights only — no per-key backdrop blur). */
+.deck-root[data-capstyle="glass"] .deck-key {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .15), rgba(255, 255, 255, .05) 42%, rgba(255, 255, 255, .02));
+  border-color: rgba(255, 255, 255, .17);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .3),
+    inset 0 -8px 16px rgba(0, 0, 0, .22),
+    0 4px 10px rgba(0, 0, 0, .35);
+}
+.deck-root[data-capstyle="glass"] .deck-key.has-accent {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16), transparent 42%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--key-accent, #2b6cff) 38%, rgba(255, 255, 255, .07)),
+      color-mix(in srgb, var(--key-accent, #2b6cff) 20%, rgba(10, 12, 18, .3)));
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, rgba(255, 255, 255, .16));
+}
+.deck-root[data-capstyle="glass"] .deck-key.has-gradient {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .2), transparent 45%), var(--kg-face);
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, rgba(255, 255, 255, .16));
+}
+.deck-root[data-capstyle="glass"] .deck-key:active,
+.deck-root[data-capstyle="glass"] .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92); filter: brightness(.9);
+  box-shadow: inset 0 3px 9px rgba(0, 0, 0, .4);
+}

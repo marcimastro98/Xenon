@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 327,
+  "count": 326,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -104,7 +104,6 @@
     "server/components/DashboardGrid/DashboardGrid.css": 990,
     "server/components/DashboardLayout/DashboardLayout.css": 595,
     "server/components/DayModal/DayModal.css": 413,
-    "server/components/DeckPanel/DeckPanel.css": 2063,
     "server/components/DevClean/DevClean.css": 432,
     "server/components/DiscordWidget/DiscordWidget.css": 572,
     "server/components/LayerHost/LayerHost.css": 1022,
