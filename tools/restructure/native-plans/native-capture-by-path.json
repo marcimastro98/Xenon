@@ -1,0 +1,32 @@
+[
+ {
+  "origin": "apps/capture/src/mac/tools.rs",
+  "parts": [
+   { "file": "apps/capture/src/mac/tools/reading.rs", "about": "macOS: reading what the helper scripts print: the text found on screen, a picked region, a sampled colour.", "lines": [[257, 365]] },
+   { "file": "apps/capture/src/mac/tools/unit_tests.rs", "about": "Tests of the macOS command lines and of the reading of their output.", "items": ["mod tests"] }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/bubble_nv12.rs",
+  "parts": [
+   { "file": "apps/capture/src/mac/bubble_nv12/unit_tests.rs", "about": "Tests of the camera bubble drawn into a video frame.", "items": ["mod tests"] }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/linux/export_plan.rs",
+  "parts": [
+   { "file": "apps/capture/src/linux/export_plan/progress.rs", "about": "Linux export: reading ffmpeg's progress lines, and why it failed.", "lines": [[271, 298]] },
+   { "file": "apps/capture/src/linux/export_plan/unit_tests.rs", "about": "Tests of the Linux export plan.", "items": ["mod tests"] }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/linux/tools.rs",
+  "parts": [
+   { "file": "apps/capture/src/linux/tools/kit.rs", "about": "Linux: which desktop this is, and which of the system's tools it has.", "lines": [[9, 255]] },
+   { "file": "apps/capture/src/linux/tools/screens.rs", "about": "Linux: reading the screens and the window in front from what the tools print.", "lines": [[256, 448]] },
+   { "file": "apps/capture/src/linux/tools/shot.rs", "about": "Linux: the command line of a screenshot, and reading a picked region.", "lines": [[449, 552]] },
+   { "file": "apps/capture/src/linux/tools/record.rs", "about": "Linux: the command lines of a recording, its sound and its encoder.", "lines": [[553, 819]] },
+   { "file": "apps/capture/src/linux/tools/files.rs", "about": "Linux: thumbnails, trims, speech, reading text from a picture, and the folder picker.", "lines": [[820, 1031]] }
+  ]
+ }
+]
