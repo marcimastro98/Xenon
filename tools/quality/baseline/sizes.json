@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 277,
+  "count": 273,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -95,8 +95,6 @@
     "server/components/AmbientCanvas/AmbientCanvas.css": 557,
     "server/components/DashboardGrid/DashboardGrid.css": 990,
     "server/components/LockScreen/LockScreen.css": 565,
-    "server/components/Toast/Toast.css": 495,
-    "server/components/TopbarMinimal/TopbarMinimal.css": 847,
     "server/components/WeatherModal/WeatherClassicWindow.css": 387,
     "server/components/WeatherTile/WeatherClassic.css": 730,
     "server/components/WhatsNew/WhatsNew.css": 745,
@@ -256,8 +254,6 @@
     "server/stream-spotify.js": 1055,
     "server/stream-twitch.js": 595,
     "server/stream-youtube.js": 781,
-    "server/styles/theme-contract.css": 417,
-    "server/styles/themes-light.css": 744,
     "server/supporter-redeem.js": 407,
     "server/trial-vault.js": 329,
     "server/uninstall.ps1": 644,

@@ -1,0 +1,266 @@
+
+/* ── Calendar ────────────────────────────────────────────── */
+:root[data-appearance="light"] .calendar-card {
+  background: var(--surface-alt);
+  border-color: var(--lt-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+:root[data-appearance="light"] .calendar-month { color: var(--lt-strong); }
+:root[data-appearance="light"] .calendar-weekdays span { color: var(--lt-soft); }
+:root[data-appearance="light"] .calendar-arrow {
+  background: var(--control-bg);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .calendar-arrow:hover { background: rgba(var(--accent-rgb),0.10); }
+
+/* ── Layout editor dock + chips ──────────────────────────── */
+:root[data-appearance="light"] .layout-dock {
+  background: var(--surface);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-lg);
+}
+:root[data-appearance="light"] .layout-control-btn,
+:root[data-appearance="light"] .layout-chip { background: var(--control-bg); }
+:root[data-appearance="light"] .layout-control-btn:hover,
+:root[data-appearance="light"] .layout-chip:hover { background: var(--hover-bg); }
+/* The per-panel control cluster (move/resize/hide on each tile) was a dark
+   slab behind the now-light buttons → a black rectangle over light tiles. */
+:root[data-appearance="light"] .layout-controls {
+  background: var(--surface);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Weather pill in the topbar (light) ──────────────────────
+   The pill text/icon were white (built for the dark topbar); on the light
+   topbar they vanished. Darken them and the animated condition icon. */
+:root[data-appearance="light"] .clock-weather {
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .clock-weather .weather-temp { color: var(--lt-strong); }
+:root[data-appearance="light"] .clock-weather .weather-place { color: var(--lt-soft); }
+:root[data-appearance="light"] .clock-weather .weather-mini-icon { filter: brightness(0.6) saturate(1.2); }
+
+/* ── Audio device rows (Volume tile) + picker modal ──────── */
+:root[data-appearance="light"] .device-row { border-color: var(--lt-border); }
+:root[data-appearance="light"] .device-row:active { background: var(--hover-bg); }
+:root[data-appearance="light"] .device-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .device-icon {
+  background: var(--surface-alt);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .device-chevron { color: var(--lt-soft); }
+:root[data-appearance="light"] .picker-panel { background: var(--surface); border-color: var(--lt-border); }
+:root[data-appearance="light"] .picker-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .picker-close {
+  background: var(--control-bg);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .picker-item { border-bottom-color: var(--lt-divider); }
+:root[data-appearance="light"] .picker-item:hover { background: var(--lt-hover); }
+:root[data-appearance="light"] .picker-item-name { color: var(--lt-strong); }
+
+/* ── Hub tab labels (light) — darker for readability ─────────
+   Scoped away from the Media tile (a dark island) so its tabs stay light. */
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active),
+:root[data-appearance="light"] .sys-tab:not(.active) { color: var(--lt-soft); }
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active):hover,
+:root[data-appearance="light"] .sys-tab:not(.active):hover { color: var(--lt-strong); }
+
+:root[data-appearance="light"] .settings-slider-end { color: var(--lt-soft); }
+
+/* ── AI chat (Bit) — follows the theme ────────────────────────────────
+   The chat is drawn with theme tokens, so it stays light here. Only the
+   blurred album cover behind it needs lifting: the dark-mode dimming would
+   put the dark chat text on a muddy backdrop. */
+:root[data-appearance="light"] .chat-bg { filter: blur(26px) brightness(1.2) saturate(1.1); }
+:root[data-appearance="light"] .chat-panel.has-cover .chat-bg { opacity: 0.35; }
+
+/* ── The "+" gallery: a light surface, and the tokens of what stands on it ── */
+:root[data-appearance="light"] .widget-palette-modal {
+  --pal-text: var(--lt-strong);
+  --pal-muted: var(--lt-soft);
+  --pal-well: rgba(24, 26, 44, 0.06);
+  --pal-well-hover: rgba(24, 26, 44, 0.1);
+  --pal-line: var(--lt-border);
+  background: var(--surface);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .pager-page-tools { border-left-color: var(--lt-border); }
+
+/* ── Layout edit-mode controls — light chips, not dark blobs ──────────
+   The per-tile size / save-preset / resize handles use a near-black fill
+   built for the dark dashboard; on light tiles they read as harsh dark
+   blocks. Match the light layout-dock treatment. */
+:root[data-appearance="light"] .layout-editing .gs-edit-bar > button,
+:root[data-appearance="light"] .layout-editing .gs-edit-bar .layout-control-btn {
+  background: var(--surface); border-color: var(--lt-border); color: var(--lt-strong);
+}
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se,
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw {
+  background: var(--surface);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
+/* The "+" add-widget drop zone — accent-on-light needs more weight. */
+:root[data-appearance="light"] .layout-editing .page-add-widget {
+  background: rgba(var(--accent-rgb), 0.10);
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+:root[data-appearance="light"] .layout-editing .page-add-widget:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+/* ── Deck widget — a dark device island (like the Media tile) ─────────
+   The Deck draws a physical dark Stream-Deck chassis. Its labels, key
+   captions and built-in vector icons resolve `var(--text)`, which flips
+   dark in light mode → dark-on-dark. Re-scope the text token back to a
+   light value for the device. A Deck on the tile's own surface has no chassis: only
+   its keys stay dark, and the bar above them follows the theme. Portaled
+   menus/editors are regular semantic application surfaces and therefore follow the
+   selected theme. */
+:root[data-appearance="light"] .deck-root:not([data-plate="theme"], [data-plate="none"]),
+:root[data-appearance="light"] .deck-root .deck-well {
+  --text: #e7e9ee;
+}
+
+/* ── Microphone level / sensitivity box ──────────────────────────────
+   The level box is hard-coded dark. Light mode already darkens its text
+   (mic-vol-value/label above) but left the box dark → dark-on-dark. Lift
+   the surface and the unfilled track so the readout is legible. Covers
+   both the Mic tile and the System-hub "Microfono" sensitivity row. */
+:root[data-appearance="light"] .mic-vol {
+  background: var(--surface-alt);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .system-mic-pane .mic-vol-track::before {
+  background: linear-gradient(to right,
+    var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
+    var(--control-bg) var(--mic-level), var(--control-bg) 100%) !important;
+}
+
+/* Discord widget, Notifications tab: the dark theme's pale blurple (#b7c0ff)
+   reads as a smudge on a light panel. Discord's own darker blurple keeps the
+   sender's name and the Reply button at a readable contrast (about 6:1). */
+:root[data-appearance="light"] .dc-notif-title,
+:root[data-appearance="light"] .dc-notif-cta,
+:root[data-appearance="light"] .dc-notif-reply { color: #4752c4; }
+:root[data-appearance="light"] .dc-notif-reply { border-color: rgba(71, 82, 196, 0.45); }
+:root[data-appearance="light"] .dc-notif-reply:hover,
+:root[data-appearance="light"] .dc-notif-reply:focus-visible {
+  background: rgba(88, 101, 242, 0.12);
+  border-color: rgba(71, 82, 196, 0.8);
+}
+
+/* Discord widget, member strip: the dark theme's pale green and red are too
+   faint on a light panel. */
+:root[data-appearance="light"] .dc-member.is-speaking { color: #1f7a45; }
+:root[data-appearance="light"] .dc-member-state { color: #d83c3e; }
+/* Discord widget, Channels tab: the server heading was a dark bar whose label
+   the light theme's own button text colour made unreadable, and the member
+   count was pale blurple on white. Light tints, Discord's darker blurple. */
+:root[data-appearance="light"] .dc-guild,
+:root[data-appearance="light"] button.dc-guild {
+  background: rgba(88, 101, 242, 0.08);
+  border-color: rgba(88, 101, 242, 0.28);
+  color: #3c45a5;
+}
+:root[data-appearance="light"] button.dc-guild:hover { background: rgba(88, 101, 242, 0.14); color: #2f378a; }
+:root[data-appearance="light"] button.dc-guild.is-collapsed { background: rgba(88, 101, 242, 0.05); color: #5a62a8; }
+:root[data-appearance="light"] .dc-guild-caret,
+:root[data-appearance="light"] button.dc-guild:hover .dc-guild-caret { color: #5a62a8; }
+:root[data-appearance="light"] .dc-guild-count,
+:root[data-appearance="light"] .dc-chan-count { color: #3c45a5; background: rgba(88, 101, 242, 0.14); }
+
+/* ── Literal colours in Settings and the mixer ─── */
+:root[data-appearance="light"] .sh-set-desc,
+:root[data-appearance="light"] .sh-set-help,
+:root[data-appearance="light"] .sh-set-hint { color: var(--muted-text); }
+:root[data-appearance="light"] .sh-set-label { color: var(--text); }
+:root[data-appearance="light"] .feed-add { color: var(--accent-ink, var(--accent)); }
+:root[data-appearance="light"] .ra-beta { color: color-mix(in srgb, #ffc44d 40%, var(--text)); }
+:root[data-appearance="light"] .remote-state-blocked { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
+:root[data-appearance="light"] .remote-btn.danger { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
+:root[data-appearance="light"] .nw-chip--topic { color: color-mix(in srgb, var(--accent-ink, var(--accent)) 75%, var(--text)); }
+:root[data-appearance="light"] :is(.deck-ed-modal, .deck-mix-modal, .deck-style-dialog, .deck-asw) {
+  --ded-well: var(--control-bg);
+  --ded-well-hover: var(--lt-hover);
+  --ded-line: var(--lt-border);
+  --ded-lift: 0 18px 48px rgba(0, 0, 0, .22);
+}
+
+/* ── Floating surfaces with a dark literal ────────
+   The contract paints background-color, but these rules set a gradient or a
+   dark glass that stays on top of it. Keys, device frames, pictures, video and
+   backdrops stay dark on purpose: they show content, not paper.
+   Controls use :where so their active and primary variants keep winning. */
+:root[data-appearance="light"] .upd-card,
+:root[data-appearance="light"] .call-card {
+  color: var(--text);
+  background: radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .10), transparent 60%), var(--surface);
+  border-color: var(--lt-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .22);
+}
+:root[data-appearance="light"] .tile-style-pop,
+:root[data-appearance="light"] .discord-invite,
+:root[data-appearance="light"] .deck-toast,
+:root[data-appearance="light"] .onb-card,
+:root[data-appearance="light"] .tab-panel,
+:root[data-appearance="light"] .layout-fab {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--lt-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .22);
+}
+:root[data-appearance="light"] .layout-fab:hover { background: var(--control-bg); }
+:where(:root[data-appearance="light"]) .deck-ed-btn,
+:where(:root[data-appearance="light"]) .deck-ed-stepbtn,
+:where(:root[data-appearance="light"]) .deck-ed-hotkey-mod,
+:where(:root[data-appearance="light"]) .deck-ed-hotkey-preview,
+:where(:root[data-appearance="light"]) .deck-ed-colorclear,
+:where(:root[data-appearance="light"]) .deck-ed-emoji,
+:where(:root[data-appearance="light"]) .deck-ed-swatch-none,
+:where(:root[data-appearance="light"]) .deck-pmenu-count,
+:where(:root[data-appearance="light"]) .upd-close,
+:where(:root[data-appearance="light"]) .upd-btn,
+:where(:root[data-appearance="light"]) .call-btn,
+:where(:root[data-appearance="light"]) .call-life,
+:where(:root[data-appearance="light"]) .calendar-chip,
+:where(:root[data-appearance="light"]) .calendar-mini-btn {
+  color: var(--text);
+  background: var(--control-bg);
+  border-color: var(--lt-border);
+}
+:where(:root[data-appearance="light"]) .deck-ed-btn:not(.primary):hover,
+:where(:root[data-appearance="light"]) .deck-ed-colorclear:hover,
+:where(:root[data-appearance="light"]) .deck-ed-emoji:hover,
+:where(:root[data-appearance="light"]) .upd-close:hover,
+:where(:root[data-appearance="light"]) .upd-btn:not(.primary):hover,
+:where(:root[data-appearance="light"]) .call-btn:hover,
+:where(:root[data-appearance="light"]) .calendar-chip:hover,
+:where(:root[data-appearance="light"]) .calendar-mini-btn:hover {
+  background: var(--lt-hover);
+}
+:root[data-appearance="light"] .deck-ed-input option,
+:root[data-appearance="light"] .settings-select option,
+:root[data-appearance="light"] .lgt-mode option {
+  color: var(--text);
+  background: var(--surface);
+}
+:root[data-appearance="light"] .deck-ed-tabs,
+:root[data-appearance="light"] .deck-seg {
+  background: var(--lt-track);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .deck-ed-tab.active,
+:root[data-appearance="light"] .deck-seg button.active { color: var(--on-accent, #fff); }
+:root[data-appearance="light"] .deck-ed-preview-root { --text: #e8ebf2; --text-dim: #9aa1b1; }
+:root[data-appearance="light"] .deck-pmenu-input { background: var(--input-bg); }
+:where(:root[data-appearance="light"]) .deck-ed-switch { background: var(--toggle-off); }
+:root[data-appearance="light"] .call-btn--decline { color: var(--color-danger); }
+:root[data-appearance="light"] .deck-ed-pickscroll::-webkit-scrollbar-thumb,
+:root[data-appearance="light"] .upd-notes::-webkit-scrollbar-thumb { background: var(--lt-border); }

@@ -74,6 +74,18 @@
           "otherPage"
         ]
       }
+    },
+    "server/components/TopbarMinimal/TopbarMinimal.css": {
+      "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
+    },
+    "server/styles/themes-light.css": {
+      "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
+    },
+    "server/components/Toast/Toast.css": {
+      "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
+    },
+    "server/styles/theme-contract.css": {
+      "tools/toast-gallery/gallery.html": "A dev tool's own page, served over server/ by tools/toast-gallery/serve.mjs. The split tool does not edit it: it links the parts by hand right after the sheet, and server/test/restructure-browser-tool-pages.test.mjs fails when one is missing or out of place."
     }
   }
 }

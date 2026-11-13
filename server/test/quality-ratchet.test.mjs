@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 
 import { countLintFindings } from '../../tools/quality/lint.mjs';

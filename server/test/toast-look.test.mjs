@@ -4,7 +4,7 @@
 // the island's own spring; reduced motion stops every flourish.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const CSS = readFileSync(new URL('../components/Toast/Toast.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const TOAST = readFileSync(new URL('../js/toast.js', import.meta.url), 'utf8');

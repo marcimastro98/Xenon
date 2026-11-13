@@ -1,0 +1,198 @@
+
+/* Vitals fill segments are data, not material: the list above themes the empty
+   cells, but a lit cell must keep its per-vital colour (.vt-seg.on has the same
+   specificity and this sheet loads later — restore it one level stronger). */
+.panel .vt-row .vt-seg.on { background-color: rgb(var(--vt-rgb)); }
+
+/* Today and the picked day are state, not material — same hazard as .vt-seg.on,
+   and here it had erased the calendar's today marker outright. `.day-cell` is in
+   the list above, so at equal specificity from a later sheet it flattened
+   `.day-cell.today`'s accent ring and `.day-cell.selected`'s accent tint down to
+   the resting surface. The accent number lost twice over: to `.day-cell.selected`
+   (the grid opens with today selected, and that rule is later in CalendarView.css)
+   and, on a light palette, to `:root[data-appearance="light"] .day-cell`. Restoring
+   all three one level stronger here beats both, while the Comic skin's own
+   day-cell rules stay stronger still and keep their ink. */
+.panel .day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb), 0.55); }
+.panel .day-cell.selected {
+  background-color: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.56);
+}
+
+.panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .ss-btn, .ss-tune-opt,
+  .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
+  .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
+  .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn,
+  .remote-btn-secondary, .up-move-btn
+) {
+  color: var(--text);
+  background-color: var(--control-bg);
+  border-color: var(--control-edge, var(--line));
+}
+
+.panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .browser-tab, .browser-fav,
+  .ss-btn, .ss-tune-opt, .dc-btn, .dc-vol-btn, .dc-chip, .dc-chan, .dc-sound,
+  .obs-btn, .obs-scene, .twitch-act-btn, .twitch-chat-toggle, .yt-btn,
+  .wn-hbtn, .wn-back, .wn-item, .sw-back, .sw-detail-rm, .sw-row,
+  .fw-back, .fw-detail-rm, .fw-row, .fw-match, .fw-idcard, .fw-news, .fw-tab, .fw-lchip,
+  .nw-manage, .nw-item, .cw-budget-back,
+  .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn, .sh-icobtn, .sh-step,
+  .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary, .up-move-btn
+):hover {
+  color: var(--text);
+  background-color: var(--hover-bg);
+  border-color: var(--control-edge, var(--line));
+}
+
+.panel :is(
+  .section-title, .sys-uptime, .stat-value, .stat-detail, .bw-value, .stat-unit, .bw-unit,
+  .vol-title, .vol-value, .mic-vol-value, .audio-unavailable-title, .app-mix-name,
+  .timer-time, .dc-user, .dc-vol-val, .dc-guild, .dc-chan, .dc-notif-body,
+  .yt-viewers-num, .twitch-viewers-num, .obs-scene.is-active,
+  .up-setup-title, .remote-intro-title, .remote-ready-val,
+  .sh-item-name, .sh-item-value, .sh-now-title,
+  .sw-title, .sw-row-name, .sw-row-price, .sw-detail-name, .sw-detail-big, .sw-stat-value,
+  .fw-title, .fw-result-name, .fw-row-name, .fw-cell-res, .fw-detail-name,
+  .fw-hero-team, .fw-hero-score, .fw-mini-opp, .fw-td-team, .fw-pts,
+  .fw-match-team, .fw-match-score, .fw-idcard-name, .fw-news-title, .fw-fact-v, .nw-item-title
+) { color: var(--text); }
+
+.panel :is(
+  .stat-head, .stat-head-value, .stat-muted-detail, .sys-subsection, .stat-na,
+  .audio-unavailable, .app-mix-vol, .mic-context, .mic-vol-label,
+  .timer-format-hint, .timer-empty, .timer-label, .timer-done .timer-time, .timer-delete-btn,
+  .dc-pill:not(.in-voice), .dc-tab:not(.is-active), .dc-vol-lbl, .dc-sec-label,
+  .dc-member:not(.is-speaking), .dc-chip, .sbw-pill:not(.is-live),
+  .yt-pill:not(.live), .twitch-status-pill:not(.live),
+  .up-setup-msg, .up-move-btn,
+  .remote-hint, .remote-panel-label, .remote-ready-label,
+  .sh-item-ico, .sh-item-sub, .sh-item-go, .sh-item-unit,
+  .sh-item--value .sh-item-name, .sh-sheet-sub, .sh-sheet-close,
+  .sh-thermo-current, .sh-thermo-action, .sh-now-artist, .sh-empty-msg
+) { color: var(--muted-text); }
+
+.panel :is(
+  .obs-scene.is-active, .ss-tune-opt.is-active,
+  .wl-seg-btn.is-active, .sh-seg-btn.is-active, .sh-abtn.is-active,
+  .sh-chip.is-active, .sh-chan-go, .lgt-chip.is-active,
+  .dc-tab.is-active, .dc-ptt.is-on, .dc-chan.is-active, .dc-chip.is-on,
+  .sbw-tab.is-active
+) {
+  color: var(--on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.panel :is(
+  .yt-btn.is-live, .twitch-golive.is-live, .twitch-mic.is-muted,
+  .dc-mute.is-on, .dc-deaf.is-on
+) {
+  color: var(--color-danger);
+  background-color: var(--danger-bg);
+  border-color: var(--color-danger);
+}
+
+.panel .dc-member.is-speaking {
+  color: var(--color-success);
+  background-color: var(--success-bg);
+  border-color: var(--color-success);
+}
+.panel :is(.yt-pill.live, .twitch-status-pill.live, .obs-pill-live.on) {
+  color: var(--color-danger);
+  background-color: var(--danger-bg);
+  border-color: var(--color-danger);
+}
+.panel .obs-pill-rec.on {
+  color: var(--color-warn);
+  background-color: var(--warning-bg);
+  border-color: var(--color-warn);
+}
+.panel :is(.dc-pill.in-voice, .sbw-pill.is-live) {
+  color: var(--color-info);
+  background-color: var(--info-bg);
+  border-color: var(--color-info);
+}
+.panel .yt-health-good .yt-health-dot { background-color: var(--color-success); }
+.panel .yt-health-ok .yt-health-dot { background-color: var(--color-warn); }
+.panel .yt-health-bad .yt-health-dot { background-color: var(--color-danger); }
+
+/* Status semantics. These aliases also replace the historical red/amber/cyan
+   variables, so old components inherit user-selected state colours. */
+.success, .status-ok, [data-status="success"] { color: var(--color-success); }
+.warning, .status-warn, [data-status="warning"] { color: var(--color-warn); }
+.danger, .error, .status-error, [data-status="danger"] { color: var(--color-danger); }
+.info, [data-status="info"] { color: var(--color-info); }
+
+/* ── Xenon AI chat inside a dashboard tile ─────────────────────────────
+   The chat log, composer and their icons are authored in AIPanel.css for the
+   immersive dark voice overlay — a deep light-on-dark "room" where hardcoded
+   white text is correct. initMediaChat() (js/media.js) relocates that same
+   markup into the Chat tile ([data-chatf="pane"]: the primary pane, its mirror
+   copies and the media tile's Chat tab). There the tile is regular dashboard
+   chrome, so on a light skin (Comic/POW, Light) the white text and near-white
+   icons vanish against the paper. Re-bind every hardcoded colour to a theme
+   role ONLY in the tile context — the `.ai-overlay` voice room is untouched and
+   keeps its own contrast contract. The accent is already token-based, so it
+   carries through unchanged. */
+[data-chatf="pane"] :is(.ai-msg-bubble, .ai-msg-assistant .ai-msg-bubble) { color: var(--text); }
+[data-chatf="pane"] .ai-msg-user .ai-msg-bubble {
+  color: var(--text);
+  background: rgba(var(--accent-rgb), .15);
+  border-color: rgba(var(--accent-rgb), .28);
+}
+[data-chatf="pane"] .ai-status { color: var(--muted-text); }
+
+/* Composer field + icon buttons */
+[data-chatf="pane"] .ai-text-input {
+  color: var(--text);
+  background: var(--input-bg);
+  border-color: var(--line);
+}
+[data-chatf="pane"] .ai-text-input::placeholder { color: var(--dim-text); }
+[data-chatf="pane"] .ai-text-input:focus {
+  border-color: var(--accent);
+  background: var(--input-bg);
+}
+[data-chatf="pane"] .ai-attach-btn {
+  color: var(--muted-text);
+  background: transparent;
+  border-color: transparent;
+}
+[data-chatf="pane"] .ai-attach-btn:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+/* The main button (dictate / send) is Bit's green on every theme: colour means
+   Bit, and its dark ink reads on light and dark palettes alike. The stop square
+   follows the palette (AIPanel.css). */
+
+/* Per-message copy button */
+[data-chatf="pane"] .ai-msg-copy { color: var(--muted-text); }
+[data-chatf="pane"] .ai-msg-copy:hover { color: var(--text); background: var(--hover-bg); }
+
+/* Assistant markdown typography */
+[data-chatf="pane"] .ai-msg-markdown :is(.ai-h3, .ai-h4, strong) { color: var(--text); }
+[data-chatf="pane"] .ai-msg-markdown em { color: var(--muted-text); }
+[data-chatf="pane"] .ai-msg-markdown .ai-hr { border-top-color: var(--divider); }
+[data-chatf="pane"] .ai-msg-markdown .ai-inline-code {
+  color: var(--accent);
+  background: var(--surface-alt);
+}
+
+/* The same words in the Codex and ChatGPT tiles: outside the chat pane, on any look. */
+:is(.cx-bubble, .cg-bubble).ai-msg-markdown :is(.ai-h3, .ai-h4, strong, em) { color: inherit; }
+:is(.cx-bubble, .cg-bubble).ai-msg-markdown .ai-hr { border-top-color: var(--divider); }
+
+/* Attachments (image thumbs + document chips) rendered in the transcript */
+[data-chatf="pane"] :is(.ai-bubble-img, .ai-attach-thumb) { border-color: var(--line); }
+[data-chatf="pane"] :is(.ai-attach-doc, .ai-bubble-doc) {
+  background: var(--surface-alt);
+  border-color: var(--line);
+}
+/* Two classes: in the search window AIPanel.css loads after this sheet. */
+[data-chatf="pane"] :is(.ai-attach-doc-name, .ai-bubble-doc .ai-attach-doc-name) { color: var(--text); }

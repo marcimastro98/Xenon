@@ -1,0 +1,289 @@
+
+/* Full-bar activity (`"island": { "full": true }`, layout: 'full') — the widest
+   step, for an activity that genuinely needs the room. It stays a CAPSULE: still
+   `width: max-content`, so it hugs its content and grows only as far as it must,
+   and it keeps the island's height, radius and padding. It is deliberately NOT
+   pinned edge to edge — a capsule stretched across the screen stops reading as
+   an island, leaves a wide empty middle, and pushes the content to the corners.
+   Only the cap moves. */
+.sdk-island.is-structured.is-full { max-width: min(1040px, 94vw); padding: 12px 18px; gap: 14px; }
+.sdk-island.is-structured.is-full .sdk-island-blocks { gap: 14px; }
+.sdk-island.is-structured .sdk-island-flow,
+.sdk-island.is-structured .sdk-island-meta { display: none; }
+.sdk-island-blocks {
+  display: none;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+.sdk-island.is-structured .sdk-island-blocks { display: flex; }
+.sdk-island-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 24px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--island-accent);
+}
+.sdk-island-text {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.sdk-island-text.two-lines {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.sdk-island-text.is-strong { font-weight: 850; }
+.sdk-island-text.tone-muted { color: var(--muted-text); }
+.sdk-island-text.tone-accent { color: var(--island-accent); }
+.sdk-island-text.tone-success { color: var(--color-success); }
+.sdk-island-text.tone-warning { color: var(--color-warn); }
+.sdk-island-text.tone-danger { color: var(--color-danger); }
+.sdk-island-progress {
+  width: 72px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.12);
+}
+.sdk-island-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: var(--island-accent);
+  transition: transform 0.24s ease;
+}
+.sdk-island-bars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 42px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.sdk-island-bars > i {
+  width: 2.5px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--island-accent);
+  transform: scaleY(var(--bar-level));
+  will-change: transform;
+}
+@keyframes sdk-island-bar-pulse {
+  0%, 100% { transform: scaleY(var(--bar-level)); }
+  50% { transform: scaleY(1); }
+}
+.sdk-island-bars.is-animated > i {
+  animation: sdk-island-bar-pulse calc(0.72s + var(--bar-i) * 0.035s) ease-in-out infinite alternate;
+  animation-delay: calc(var(--bar-i) * -0.08s);
+}
+body.overlay-frozen .sdk-island-bars.is-animated > i,
+body.ambient-idle .sdk-island-bars.is-animated > i,
+body.game-mode .sdk-island-bars.is-animated > i,
+body.low-power-gpu .sdk-island-bars.is-animated > i { animation: none; }
+.sdk-island-builtin {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--muted-text);
+  white-space: nowrap;
+}
+.sdk-island-builtin-time { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.sdk-island-action {
+  min-height: 30px;
+  max-width: 120px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid var(--floating-ui-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.sdk-island-action.is-emphasis { color: var(--on-accent); background: var(--island-accent); border-color: transparent; }
+.sdk-island-spacer { width: 5px; flex: 0 0 auto; }
+.sdk-island-spacer.is-large { width: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island { animation: none; }
+  .sdk-island-flow { transition: none; }
+  .sdk-island-row { transition: none; animation: none; }
+  .sdk-island-bars.is-animated > i { animation: none; }
+}
+
+/* ── Edge rails ───────────────────────────────────────────────
+   Fixed capsules, vertically centred. Structure: [body][handle]
+   (mirrored on the right). Collapsing slides the capsule off-screen
+   leaving only the drawer-pull handle flush with the edge. */
+.edge-rail { display: none; }
+
+body.topbar-minimal:not([data-panel]) .edge-rail {
+  position: fixed;
+  top: 50%;
+  z-index: 58; /* above tiles, below every modal/overlay */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* --rail-y and --rail-hide-peek are set only by a chosen look (TopbarLook.css). */
+  transform: translateY(var(--rail-y, -50%));
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.edge-rail-left  { left: 0;  padding-left: 8px; }
+.edge-rail-right { right: 0; padding-right: 8px; flex-direction: row-reverse; }
+
+/* While editing the layout, the fixed edge rails sit in the SAME z-band, and on
+   the same screen edges, as the tiles' left-edge move grips and bottom-right
+   resize corners — so an edge-column tile can't be grabbed or resized (the rail
+   swallows the pointer). The rails aren't needed mid-edit (you exit through the
+   layout dock's Done, and add widgets from the palette pull), so hide them while
+   editing: the tile handles along both edges become reachable again. */
+body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none; }
+
+/* A rail with nothing in it goes away, handle and all. Since v4.11.4 every button
+   can be hidden or sent to the other side, so a rail can end up holding nothing
+   — and what was left on screen was a lone arrow that opened an empty capsule:
+   a control that promises something and delivers a blank.
+   Deliberately CSS rather than a JS pass: the two things that can fill a rail
+   without any settings change are the favourites strip (starring an app) and the
+   SDK mini slot (a package drawing into it), so a class computed on the settings
+   apply would be stale exactly when it mattered. `:has()` re-evaluates itself.
+   Note this can never hide BOTH rails: Settings and Layout cannot be hidden, so
+   whichever side they are on always has content. */
+body.topbar-minimal:not([data-panel]) .edge-rail:not(:has(
+  .edge-rail-body .topbtn:not(.topbar-item-hidden),
+  .edge-rail-body .app-favorites:not(:empty):not(.topbar-item-hidden),
+  .edge-rail-body .topbar-mini-slot:not([hidden]):not(.topbar-item-hidden)
+)) { display: none; }
+
+body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), var(--rail-y, -50%)); }
+
+/* Auto-hidden after ~10s idle (js/topbar-minimal.js): tuck the rail body off the
+   edge but leave the 22px handle peeking — same as .is-collapsed — so there's a
+   visible arrow to bring it back (tapping the handle, or anywhere in the edge
+   strip, reveals it). Fully hiding the handle left no discoverable way to reopen.
+   Listed after .is-collapsed so it wins when a rail is both (equal specificity →
+   source order); both land on the same peek, so the transition stays smooth. */
+body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
+
+.edge-rail-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 7px;
+  border-radius: 19px;
+  border: 1px solid var(--floating-ui-border);
+  /* Rails float OVER tile content (unlike the in-flow topbar/pill), so they use
+     the frosted floating-UI surface for readability on busy backgrounds. */
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+  max-height: 76vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.edge-rail-body::-webkit-scrollbar { display: none; }
+
+/* Drawer pull — slim tab, chevron flips to always point "the way out" */
+.edge-rail-handle {
+  width: 22px;
+  height: 62px;
+  padding: 0;
+  border-radius: 9px;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--dim-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.edge-rail-handle:hover { color: var(--text); }
+.edge-rail-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.edge-rail-handle svg { width: 14px; height: 14px; transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1); }
+.edge-rail-left  .edge-rail-handle svg { transform: rotate(180deg); }
+/* Collapsed OR auto-hidden: the rail is tucked away, so the chevron points "out"
+   (tap to reveal). */
+.edge-rail-left.is-collapsed  .edge-rail-handle svg,
+.edge-rail-left.is-auto-hidden  .edge-rail-handle svg { transform: rotate(0deg); }
+.edge-rail-right.is-collapsed .edge-rail-handle svg,
+.edge-rail-right.is-auto-hidden .edge-rail-handle svg { transform: rotate(180deg); }
+
+/* ── Reparented topbar actions: stack vertically, icon-only ── */
+body.topbar-minimal .edge-rail .quickbar,
+body.topbar-minimal .edge-rail .top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+body.topbar-minimal .edge-rail .topbtn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 14px;
+  /* The rail capsule is the glass surface — buttons sit on it as quiet tiles */
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.topbar-minimal .edge-rail .topbtn:hover { background: rgba(255,255,255,0.07); }
+body.topbar-minimal .edge-rail .topbtn svg { width: 19px; height: 19px; }
+/* Hide labels (keep the settings-update dot, which is also a span) */
+body.topbar-minimal .edge-rail .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
+/* Xenon keeps its solid accent identity even as a compact tile */
+body.topbar-minimal .edge-rail .topbtn.topbtn-xenon {
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.42);
+}
+body.topbar-minimal .edge-rail .topbtn.qbtn-layout.active {
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.4);
+}
+/* Favorites stack under the main actions past a hairline divider */
+body.topbar-minimal .edge-rail .app-favorites {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: none;
+  overflow: visible;
+}
+body.topbar-minimal .edge-rail .app-favorites:not(:empty) {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-rail,
+  .edge-rail-handle svg { transition: none; }
+}

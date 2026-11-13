@@ -6,7 +6,7 @@
 // screen, carrying a copy of its face, and otherwise settles out in place.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const SRC = readFileSync(new URL('../js/toast-island.js', import.meta.url), 'utf8');
