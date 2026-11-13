@@ -44,7 +44,8 @@ function crateWords(origin, skip, root) {
   let dir = path.posix.dirname(origin);
   while (dir !== '.' && !fs.existsSync(path.join(root, dir, 'Cargo.toml'))) dir = path.posix.dirname(dir);
   const words = new Set();
-  for (const file of git(['ls-files', '--', `${dir}/*.rs`], root).split('\n').filter(Boolean)) {
+  // (files a split of this same run has just written count too: they are not in git yet)
+  for (const file of git(['ls-files', '--cached', '--others', '--exclude-standard', '--', `${dir}/*.rs`], root).split('\n').filter(Boolean)) {
     if (skip.has(file) || !fs.existsSync(path.join(root, file))) continue;
     const text = fs.readFileSync(path.join(root, file), 'utf8');
     const tokens = lex(text, 'rust');
