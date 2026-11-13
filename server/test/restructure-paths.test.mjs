@@ -5,9 +5,10 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { replay } from '../../tools/restructure/extract.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
@@ -52,23 +53,68 @@ test('the lines go to the module with SERVER_DIR for __dirname, and the file req
   assert.deepEqual([...quietModules([{ file: NEW, paths: true }, { file: 'server/part/x.js', lift: true }])], [NEW], 'the module runs nothing: a later move may drop its require');
 });
 
-test('the engine gets the same places: both forms run and print the same', (t) => {
-  if (!parser) return t.skip(SKIP);
-  const root = mkdtempSync(path.join(os.tmpdir(), 'xenon-paths-'));
+// A sample engine in a temp folder, named by its real path: Node gives a file the real path of its folder,
+// and on macOS the temp folder is reached through a link (/var is /private/var).
+function sampleFolder(t) {
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'xenon-paths-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, 'server', 'part'), { recursive: true });
+  return root;
+}
+const placesUnder = (root) => `0|${[path.join(root, 'server', 'data'), path.join(root, 'server', 'tools', process.platform === 'win32' ? 'tool.exe' : 'tool'),
+  path.join(root, 'package.json'), path.join(root, 'server', 'data', 'notes.txt')].join('|')}`;
+// Runs the sample, started through `reached` (the folder itself, or a link to it), in its old form and then in its new one.
+function bothForms(root, reached) {
   const run = () => {
-    const done = spawnSync(process.execPath, [path.join(root, 'server', 'demo.js')], { encoding: 'utf8', timeout: 20000 });
+    const done = spawnSync(process.execPath, [path.join(reached, 'server', 'demo.js')], { encoding: 'utf8', timeout: 20000 });
     return `${done.status}|${done.stdout}`;
   };
   writeFileSync(path.join(root, 'server', 'demo.js'), SOURCE);
   const before = run();
-  assert.equal(before, `0|${[path.join(root, 'server', 'data'), path.join(root, 'server', 'tools', process.platform === 'win32' ? 'tool.exe' : 'tool'),
-    path.join(root, 'package.json'), path.join(root, 'server', 'data', 'notes.txt')].join('|')}`);
   const made = plan(SOURCE, ['DATA', 'TOOL', 'ROOT_FILE']);
   writeFileSync(path.join(root, 'server', 'demo.js'), made.newSource);
   writeFileSync(path.join(root, NEW), made.moduleText);
-  assert.equal(run(), before);
+  return { before, after: run() };
+}
+
+test('the engine gets the same places: both forms run and print the same', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const root = sampleFolder(t);
+  const { before, after } = bothForms(root, root);
+  assert.equal(before, placesUnder(root));
+  assert.equal(after, before);
+});
+
+test('started through a link to its folder, both forms still print the same places', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const root = sampleFolder(t);
+  const link = `${root}-link`;
+  try {
+    // A junction on Windows needs no special right; elsewhere an ordinary link to a folder.
+    symlinkSync(root, link, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    return t.skip(`this system does not let the test make a link to a folder (${error.code})`);
+  }
+  t.after(() => rmSync(link, { recursive: true, force: true }));
+  const { before, after } = bothForms(root, link);
+  // Node names a file by the real path of its folder, the file it was started with too: neither form sees the link.
+  assert.equal(before, placesUnder(root), 'the old form names the real folder');
+  assert.equal(after, before, 'and the module one folder down works out the very same text');
+});
+
+test('nothing that starts the engine asks Node to keep links in the paths it hands out', () => {
+  // The one start where the two forms would name the folder differently: --preserve-symlinks-main without
+  // --preserve-symlinks, from a folder reached through a link. No launcher passes either, or sets them through
+  // the environment.
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  const starters = [path.join(repo, 'package.json'),
+    ...readdirSync(path.join(repo, 'server')).filter((name) => /.(ps1|sh|vbs|cmd|bat|plist|service)$/.test(name)).map((name) => path.join(repo, 'server', name)),
+    ...readdirSync(path.join(repo, 'apps', 'native', 'src-tauri', 'src'), { recursive: true }).filter((name) => String(name).endsWith('.rs'))
+      .map((name) => path.join(repo, 'apps', 'native', 'src-tauri', 'src', String(name)))].filter((file) => statSync(file).isFile());
+  assert.ok(starters.length > 20, 'the launchers were found');
+  for (const file of starters) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /preserve-symlinks|NODE_PRESERVE_SYMLINKS|NODE_OPTIONS/i, path.relative(repo, file));
+  }
 });
 
 test('what is not a place next to the file, or could change, is refused', (t) => {
