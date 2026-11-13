@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "target": "es2023",
+    "module": "nodenext",
+    "skipLibCheck": true,
+    "types": ["node"],
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": ["../../server/*.js", "../../server/*/*.js", "../../packages/core/src/**/*.js", "../../packages/mcp/src/**/*.js", "../../packages/mcp/bin/*"],
+  "exclude": [
+    "../../server/js", "../../server/components", "../../server/styles", "../../server/vendor",
+    "../../server/public", "../../server/assets", "../../server/shared", "../../server/sdk-example",
+    "../../server/test", "../../server/data", "../../server/helper", "../../server/capture",
+    "../../server/sw.js"
+  ]
+}

@@ -39,6 +39,10 @@ jobs:
 
       - run: npm ci
 
+      # Types and lint live in their own package so an install never downloads
+      # them. Without this step their two tests skip instead of running.
+      - run: npm run quality:install
+
       # Kept going on failure: the boot and the doctor below say more about a
       # broken platform than the test count alone. A few tests carry Windows
       # paths in their fixtures; compare with tools/linux-suite.mjs.

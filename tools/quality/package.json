@@ -1,0 +1,13 @@
+{
+  "name": "xenon-quality-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development-only checks for the Xenon repo: types and lint. Kept out of the root package.json on purpose: installs and updates run a plain `npm install` there, so anything listed in the root would be downloaded onto every user's PC.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "engines": { "node": ">=22.23.4" },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.7",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}

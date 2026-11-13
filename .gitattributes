@@ -74,6 +74,12 @@ icue-widget/                    export-ignore
 .github/                        export-ignore
 site-host/                      export-ignore
 
+# Code checks (types, lint, file length) and the repo map. Only a contributor
+# runs them, and their own node_modules never reach an install.
+tools/quality/                  export-ignore
+tools/map/                      export-ignore
+MAP.md                          export-ignore
+
 # Shell scripts must stay LF in the working tree on EVERY platform. This repo is
 # developed on Windows with core.autocrlf=true, and a CRLF checkout of a .sh dies
 # on macOS/Linux with "bad interpreter: /bin/bash^M" — before printing anything

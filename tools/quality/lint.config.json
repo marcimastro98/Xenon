@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "root": true,
+  "vcs": { "enabled": false },
+  "files": {
+    "ignoreUnknown": true,
+    "maxSize": 4194304,
+    "includes": [
+      "**/*.js", "**/*.mjs", "**/*.cjs",
+      "!**/node_modules", "!**/vendor", "!**/*.min.js",
+      "!**/test", "!**/sdk-example", "!**/data", "!**/target", "!**/gen", "!**/engine",
+      "!**/i18n.js"
+    ]
+  },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": { "noRedundantUseStrict": "off" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/server/js/**", "**/server/components/**"],
+      "linter": { "rules": { "correctness": { "noUnusedVariables": "off" } } }
+    }
+  ]
+}

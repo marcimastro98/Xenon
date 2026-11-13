@@ -1,0 +1,1071 @@
+{
+  "intro": [
+    "Xenon is four pieces that talk to each other:",
+    "",
+    "- **The engine** (`server/`, Node.js): a small local web server on `127.0.0.1:3030`. It reads the PC, runs actions and keeps the data.",
+    "- **The screen** (`server/index.html`, `server/js/`, `server/components/`, `server/styles/`): the dashboard, a web page the engine serves. A phone opens the same page.",
+    "- **The app** (`apps/native/`, Rust + Tauri): the window that shows the screen, starts the engine and draws widgets over the desktop.",
+    "- **The helpers** (`helper/` in C#, `helper-mac/` in Swift): small programs for the things only the operating system can do.",
+    "",
+    "Below, every feature has one line saying what it does and where its files are. A file belongs to the first feature that names it."
+  ],
+  "areas": [
+    {
+      "id": "engine",
+      "name": "Engine",
+      "what": "The program behind everything: it starts, answers the screen, saves settings, updates itself."
+    },
+    {
+      "id": "dashboard",
+      "name": "Dashboard",
+      "what": "The screen itself: the grid of tiles, how it looks, the top bar, the scenes shown when idle."
+    },
+    {
+      "id": "widgets",
+      "name": "Widgets",
+      "what": "One row per tile on the dashboard."
+    },
+    {
+      "id": "bit",
+      "name": "Bit and AI",
+      "what": "The assistant: chat, voice, memory and the things it can do on the PC."
+    },
+    {
+      "id": "store",
+      "name": "Store and supporters",
+      "what": "The catalog of looks and widgets, and what supporters get."
+    },
+    {
+      "id": "desktop",
+      "name": "On top of the desktop",
+      "what": "What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts, captures."
+    },
+    {
+      "id": "apps",
+      "name": "Connected apps",
+      "what": "Other programs Xenon talks to."
+    },
+    {
+      "id": "makers",
+      "name": "For widget makers",
+      "what": "What lets other people build widgets safely."
+    },
+    {
+      "id": "native",
+      "name": "App and helpers",
+      "what": "The native programs around the engine, and the code that differs per operating system."
+    },
+    {
+      "id": "upkeep",
+      "name": "Repo upkeep",
+      "what": "Tests, tools, the website and the project files."
+    }
+  ],
+  "features": [
+    {
+      "id": "tests",
+      "area": "upkeep",
+      "name": "Tests",
+      "what": "The automatic checks, run by `npm test`.",
+      "files": [
+        "server/test/**",
+        "packages/core/test/**",
+        "packages/mcp/test/**"
+      ]
+    },
+    {
+      "id": "mcp",
+      "area": "makers",
+      "name": "xenon-mcp",
+      "what": "Lets Claude Code or Codex build and test a widget on a running Xenon.",
+      "files": [
+        "packages/mcp/**",
+        "server/mcp-dev.js",
+        "server/mcp-dev-tools.js",
+        "server/ai-mcp-bridge.js",
+        "server/js/mcp-dev-client.js"
+      ]
+    },
+    {
+      "id": "shared-core",
+      "area": "makers",
+      "name": "Shared core and brand",
+      "what": "Constants and formatters used by engine and screen alike, and the brand reference.",
+      "files": [
+        "packages/core/**",
+        "packages/design-system/**"
+      ]
+    },
+    {
+      "id": "store-supporters",
+      "area": "store",
+      "name": "Supporters and Sparks",
+      "what": "Supporter codes, the Sparks wallet, the trial pass and what they unlock.",
+      "files": [
+        "server/supporter-redeem.js",
+        "server/feature-unlock.js",
+        "server/sparks-wallet.js",
+        "server/welcome-sparks.js",
+        "server/trial-*.js",
+        "server/ai-xenon-credits.js",
+        "server/vitals-roast-sparks.js",
+        "server/js/sparks-*.js",
+        "server/js/spark-path.js",
+        "server/js/support-*.js",
+        "server/js/trial-pass-ui.js",
+        "server/js/xenon-credits.js",
+        "server/js/hub-*.js",
+        "server/js/share-nudge.js",
+        "server/js/discord-invite.js",
+        "server/js/devclean-pitch.js",
+        "server/components/SparksStore/**",
+        "server/components/SupportAsk/**",
+        "server/components/SupportGoal/**",
+        "server/components/XenonCredits/**",
+        "server/components/DiscordInvite/**"
+      ]
+    },
+    {
+      "id": "store-catalog",
+      "area": "store",
+      "name": "Store",
+      "what": "The catalog: browse, buy, install, rate and update looks, widgets and packs.",
+      "files": [
+        "server/community-*.js",
+        "server/sdk-store.js",
+        "server/store-snapshots.js",
+        "server/rating-votes.js",
+        "server/widget-auto-update.js",
+        "server/icon-packs.js",
+        "server/sound-packs.js",
+        "server/menu-store.js",
+        "server/ai-rate-store.js",
+        "server/js/community-gallery.js",
+        "server/js/catalog-drop.js",
+        "server/js/deck-store.js",
+        "server/js/rating-card.js",
+        "server/js/store-update-mail.js",
+        "server/js/buy-sheet*.js",
+        "server/js/content-installs.js",
+        "server/js/installed-manager.js",
+        "server/js/place-installed.js",
+        "server/components/CommunityStore/**",
+        "server/components/RatingCard/**",
+        "server/components/BuySheet/**"
+      ]
+    },
+    {
+      "id": "presets",
+      "area": "store",
+      "name": "Sharing a look",
+      "what": "Export and import of themes, pages and packs as a code, with the safety checks on what comes in.",
+      "files": [
+        "server/js/preset-share.js",
+        "server/js/share-*.js",
+        "server/js/dashboard-presets.js",
+        "server/js/topbar-share.js"
+      ]
+    },
+    {
+      "id": "widget-sdk",
+      "area": "makers",
+      "name": "Widget SDK",
+      "what": "Runs other people's widgets in a sandbox, with only the permissions they were given.",
+      "files": [
+        "server/sdk-*.js",
+        "server/sdk-limits/**",
+        "server/sdk-example/**",
+        "server/sdk-service.html",
+        "server/shell-driver.html",
+        "server/widget-keys.js",
+        "server/js/custom-widget.js",
+        "server/js/sdk-*.js",
+        "server/js/driver-sdk-host.js",
+        "server/js/shell-driver.js",
+        "server/js/icue-host.js",
+        "server/components/CustomWidget/**",
+        "docs/WIDGET_SDK.md"
+      ]
+    },
+    {
+      "id": "claude-code",
+      "area": "apps",
+      "name": "Claude Code",
+      "what": "The Claude tile: live sessions, permission requests answered from the screen, usage.",
+      "files": [
+        "server/claude-*.js",
+        "server/js/claude-*.js",
+        "server/components/ClaudeWidget/**",
+        "integrations/claude-code/**",
+        ".claude-plugin/**"
+      ]
+    },
+    {
+      "id": "codex",
+      "area": "apps",
+      "name": "Codex and ChatGPT",
+      "what": "The Codex tile and the Ask ChatGPT tile.",
+      "files": [
+        "server/codex-*.js",
+        "server/chatgpt-ask.js",
+        "server/js/codex-widget.js",
+        "server/js/chatgpt-widget.js",
+        "server/components/CodexWidget/**",
+        "server/components/ChatGPTWidget/**"
+      ]
+    },
+    {
+      "id": "discord",
+      "area": "apps",
+      "name": "Discord",
+      "what": "Voice channel, who is talking, mute and volume per person.",
+      "files": [
+        "server/discord-*.js",
+        "server/js/discord-widget.js",
+        "server/components/DiscordWidget/**",
+        "server/public/images/discord/**"
+      ]
+    },
+    {
+      "id": "streaming",
+      "area": "apps",
+      "name": "Streaming",
+      "what": "Twitch, YouTube, OBS and Streamer.bot: chat, watching, scene and stream controls.",
+      "files": [
+        "server/stream-twitch.js",
+        "server/stream-youtube.js",
+        "server/stream-common.js",
+        "server/stream-creds.js",
+        "server/stream-history.js",
+        "server/stream-config.example.json",
+        "server/actions/obs*.js",
+        "server/actions/streamerbot.js",
+        "server/js/twitch*.js",
+        "server/js/youtube*.js",
+        "server/js/obs-widget.js",
+        "server/js/streamerbot-widget.js",
+        "server/js/streaming-page.js",
+        "server/js/live-stream.js",
+        "server/js/watch-view.js",
+        "server/components/TwitchPanel/**",
+        "server/components/TwitchWatchWidget/**",
+        "server/components/YouTubeWidget/**",
+        "server/components/YouTubeLiveWidget/**",
+        "server/components/ObsWidget/**",
+        "server/components/StreamerbotWidget/**",
+        "server/public/images/twitch/**",
+        "server/public/images/youtube/**",
+        "docs/streaming-setup.md"
+      ]
+    },
+    {
+      "id": "remote-control",
+      "area": "apps",
+      "name": "Remote control",
+      "what": "Using the PC from another device through Sunshine, Moonlight and Tailscale.",
+      "files": [
+        "server/remote-control/**",
+        "server/js/remote-control.js",
+        "server/components/RemoteControlSettings/**"
+      ]
+    },
+    {
+      "id": "search",
+      "area": "desktop",
+      "name": "Search",
+      "what": "One box that finds files and apps and can ask Bit.",
+      "files": [
+        "server/filesearch.js",
+        "server/search-*.js",
+        "server/search.ps1",
+        "server/mdfind.js",
+        "server/installed-apps.js",
+        "server/living-index.js",
+        "server/linux-index.js",
+        "server/linux-app-icons.js",
+        "server/spotlight.html",
+        "server/js/spotlight*.js",
+        "server/js/search-widget.js",
+        "server/components/Spotlight/**",
+        "server/components/SearchWidget/**"
+      ]
+    },
+    {
+      "id": "capture",
+      "area": "desktop",
+      "name": "Capture",
+      "what": "Screenshots, recording, instant replay, the gallery and the steps recorder.",
+      "files": [
+        "server/capture*.js",
+        "server/recorder.js",
+        "server/replay.js",
+        "server/screen-capture.js",
+        "server/steps-*.js",
+        "server/ffmpeg-install/**",
+        "server/js/capture-*.js",
+        "server/js/ffmpeg-offer.js",
+        "server/components/CaptureGallery/**",
+        "apps/capture/**"
+      ]
+    },
+    {
+      "id": "menu",
+      "area": "desktop",
+      "name": "Xenon menu",
+      "what": "The menu that opens over the desktop: widgets, screens, looks, the Store.",
+      "files": [
+        "server/xenon-menu.js",
+        "server/menu-*.js",
+        "server/menu.html",
+        "server/screen-menu.js",
+        "server/js/xenon-menu*.js",
+        "server/js/menu-gamepad.js",
+        "server/js/screen-menu-page.js",
+        "server/components/XenonMenu/**"
+      ]
+    },
+    {
+      "id": "layers",
+      "area": "desktop",
+      "name": "Widgets on the desktop",
+      "what": "Widgets outside the dashboard: on the desktop or over a game, where and when they show.",
+      "files": [
+        "server/layer-*.js",
+        "server/layers-*.js",
+        "server/layer-lite.html",
+        "server/widget-options/**",
+        "server/js/layer-*.js",
+        "server/js/layers-*.js",
+        "server/js/widget-options-panel.js",
+        "server/js/widget-feed.js",
+        "server/components/LayerHost/**"
+      ]
+    },
+    {
+      "id": "alerts",
+      "area": "desktop",
+      "name": "Alerts and drawing",
+      "what": "Notifications at the top centre of the screen, and drawing over the screen.",
+      "files": [
+        "server/screen-alerts-page.js",
+        "server/screen-alerts.html",
+        "server/screen-draw-shell.js",
+        "server/draw.html",
+        "server/js/screen-alerts.js",
+        "server/js/screen-draw-*.js",
+        "server/js/screen-release.js",
+        "server/js/screen-tile.js",
+        "server/js/screen-name.js",
+        "server/js/alert-*.js",
+        "server/js/toast*.js",
+        "server/js/island-notch.js",
+        "server/js/interrupt-queue.js",
+        "server/components/ScreenAlerts/**",
+        "server/components/ScreenDraw/**",
+        "server/components/Toast/**"
+      ]
+    },
+    {
+      "id": "bit",
+      "area": "bit",
+      "name": "Bit",
+      "what": "The assistant: chat and voice, the AI providers, its memory and the tools it may use.",
+      "files": [
+        "server/ai-*.js",
+        "server/ai/**",
+        "server/briefing.js",
+        "server/bit-messages.js",
+        "server/wakeword.js",
+        "server/stt-voice-gate.js",
+        "server/tts-chunks.js",
+        "server/favorites-ai.js",
+        "server/settings-ai.js",
+        "server/sensor-source-ai.js",
+        "server/js/ai.js",
+        "server/js/ai-*.js",
+        "server/js/bit-*.js",
+        "server/js/audio-feedback.js",
+        "server/js/sheet-*.js",
+        "server/js/screen-bit.js",
+        "server/js/screen-companion.js",
+        "server/js/local-server-fields.js",
+        "server/components/AIPanel/**",
+        "server/components/AskSheet/**",
+        "server/components/BitMessage/**",
+        "server/components/SheetPage/**",
+        "server/public/images/loader/**"
+      ]
+    },
+    {
+      "id": "capabilities",
+      "area": "bit",
+      "name": "Capabilities",
+      "what": "The one list of things the PC can do, shared by Bit, the Deck and the menu.",
+      "files": [
+        "server/capabilities/**",
+        "server/js/capability-catalog.js",
+        "server/situations.js"
+      ]
+    },
+    {
+      "id": "media",
+      "area": "widgets",
+      "name": "Music",
+      "what": "What is playing, the player buttons, lyrics and Spotify.",
+      "files": [
+        "server/media-*.js",
+        "server/media.ps1",
+        "server/media-key.ps1",
+        "server/lyrics*.js",
+        "server/darwin-media.js",
+        "server/linux-media.js",
+        "server/linux-mpris.js",
+        "server/stream-spotify.js",
+        "server/spotify-launch.js",
+        "server/js/media*.js",
+        "server/js/lyrics-*.js",
+        "server/js/spotify-*.js",
+        "server/js/album-theme.js",
+        "server/components/MediaPanel/**",
+        "server/components/LyricsView/**",
+        "server/components/LyricsWidget/**",
+        "server/components/SpotifyWidget/**"
+      ]
+    },
+    {
+      "id": "audio",
+      "area": "widgets",
+      "name": "Sound",
+      "what": "Volume, output devices, the microphone and Wave Link.",
+      "files": [
+        "server/audio-levels.js",
+        "server/mic-use.js",
+        "server/svv-text.js",
+        "server/soundvolumeview-x64/**",
+        "server/actions/wavelink.js",
+        "server/actions/voicemeeter.js",
+        "server/js/volume.js",
+        "server/js/mic.js",
+        "server/js/picker.js",
+        "server/js/wavelink-widget.js",
+        "server/components/AudioSection/**",
+        "server/components/MicPanel/**",
+        "server/components/DevicePicker/**",
+        "server/components/WaveLinkWidget/**"
+      ]
+    },
+    {
+      "id": "weather",
+      "area": "widgets",
+      "name": "Weather",
+      "what": "The weather tile and its full window.",
+      "files": [
+        "server/js/weather-*.js",
+        "server/components/WeatherModal/**",
+        "server/components/WeatherTile/**"
+      ]
+    },
+    {
+      "id": "time",
+      "area": "widgets",
+      "name": "Clock, calendar, tasks, notes",
+      "what": "The clock, the calendar with its feeds, tasks, timers and notes.",
+      "files": [
+        "server/ics-feeds.js",
+        "server/calendar-reminders.js",
+        "server/timer-actions.js",
+        "server/agenda-ai.js",
+        "server/notes-ai.js",
+        "server/actions/widget-timers.js",
+        "server/js/clock.js",
+        "server/js/calendar.js",
+        "server/js/tasks.js",
+        "server/js/timer.js",
+        "server/js/notes.js",
+        "server/components/CalendarView/**",
+        "server/components/DayModal/**",
+        "server/components/TasksPanel/**",
+        "server/components/TimerPanel/**",
+        "server/components/NotesPanel/**"
+      ]
+    },
+    {
+      "id": "performance",
+      "area": "widgets",
+      "name": "Performance and FPS",
+      "what": "Game detection, the frame counter, Performance Mode and Core Shield.",
+      "files": [
+        "server/perf-session/**",
+        "server/perf-*.js",
+        "server/performance.ps1",
+        "server/perf-priority.ps1",
+        "server/processes.ps1",
+        "server/process-stats.js",
+        "server/fps*.js",
+        "server/frame-stats.js",
+        "server/gamedetect.js",
+        "server/game-sessions.js",
+        "server/stutter-why.js",
+        "server/exclusive-hint.js",
+        "server/benchmark.js",
+        "server/linux-fps.js",
+        "server/actions/perf-registry.js",
+        "server/js/performance*.js",
+        "server/js/perf-*.js",
+        "server/js/game-*.js",
+        "server/js/driver-perf.js",
+        "server/js/gpu-hint.js",
+        "server/components/PerformancePanel/**",
+        "server/components/PerfWidget/**",
+        "server/components/PerfMarker/**",
+        "server/components/GameCompanion/**"
+      ]
+    },
+    {
+      "id": "system",
+      "area": "widgets",
+      "name": "PC numbers",
+      "what": "CPU, GPU, memory, network, fans, battery and power, with their history.",
+      "files": [
+        "server/battery.js",
+        "server/battery.ps1",
+        "server/power/**",
+        "server/device-battery/**",
+        "server/sensor-service/**",
+        "server/sensor-service.ps1",
+        "server/sensor-history/**",
+        "server/cpu-temp.ps1",
+        "server/gpu.ps1",
+        "server/network.ps1",
+        "server/sensors.ps1",
+        "server/enable-sensors.ps1",
+        "server/pwsh-worker.ps1",
+        "server/disk-io.ps1",
+        "server/idle.ps1",
+        "server/guardian.js",
+        "server/packet-loss.js",
+        "server/net-path/**",
+        "server/first-reading.js",
+        "server/js/system.js",
+        "server/js/network.js",
+        "server/js/fans-widget.js",
+        "server/js/battery-widget.js",
+        "server/js/power-widget.js",
+        "server/js/sensor-*.js",
+        "server/js/guardian-history.js",
+        "server/js/history-chart.js",
+        "server/js/macos-fda.js",
+        "server/components/SystemPanel/**",
+        "server/components/FansWidget/**",
+        "server/components/BatteryWidget/**",
+        "server/components/PowerWidget/**",
+        "server/components/GuardianHistory/**"
+      ]
+    },
+    {
+      "id": "disk",
+      "area": "widgets",
+      "name": "Disk space",
+      "what": "What fills the drive, safe clean-up, duplicates and the developer clean-up.",
+      "files": [
+        "server/disk*.js",
+        "server/devclean*.js",
+        "server/compact-vhdx.ps1",
+        "server/mounted-disks.js",
+        "server/linux-trash.js",
+        "server/js/disk-*.js",
+        "server/js/devclean-widget.js",
+        "server/components/DiskWidget/**",
+        "server/components/DevClean/**"
+      ]
+    },
+    {
+      "id": "deck",
+      "area": "widgets",
+      "name": "Deck",
+      "what": "Buttons that run actions, with the editor, shortcuts and the one gate every action passes.",
+      "files": [
+        "server/deck-*.js",
+        "server/deck-*.ps1",
+        "server/deck-popup.html",
+        "server/actions/registry.js",
+        "server/linux-hotkey.js",
+        "server/altgr-keys-windows.js",
+        "server/js/deck*.js",
+        "server/js/approval-keys.js",
+        "server/components/DeckPanel/**"
+      ]
+    },
+    {
+      "id": "lighting",
+      "area": "widgets",
+      "name": "Lighting",
+      "what": "RGB devices, effects and the per-LED map.",
+      "files": [
+        "server/lighting*.js",
+        "server/lighting-native/**",
+        "server/lighting-providers/**",
+        "server/signalrgb.js",
+        "server/hid/**",
+        "server/actions/chroma.js",
+        "server/icue-sharpen.ps1",
+        "server/js/lighting-*.js",
+        "server/js/driver-album-lights.js",
+        "server/components/LightingPage/**",
+        "server/components/LightingWidget/**"
+      ]
+    },
+    {
+      "id": "smart-home",
+      "area": "widgets",
+      "name": "Smart home",
+      "what": "Home Assistant and UniFi: lights, switches, cameras.",
+      "files": [
+        "server/actions/home-assistant*.js",
+        "server/actions/unifi.js",
+        "server/unifi-events.js",
+        "server/js/smart-home*.js",
+        "server/js/unifi-widget.js",
+        "server/components/SmartHomePanel/**",
+        "server/components/UnifiPanel/**"
+      ]
+    },
+    {
+      "id": "phone",
+      "area": "widgets",
+      "name": "Phone",
+      "what": "Calls, messages and contacts from the phone, and sending files between phone and PC.",
+      "files": [
+        "server/phone*.js",
+        "server/calls.js",
+        "server/call-detect.js",
+        "server/linux-phone.js",
+        "server/file-transfer.js",
+        "server/js/phone-*.js",
+        "server/js/call-modal.js",
+        "server/js/transfer-widget.js",
+        "server/components/PhoneView/**",
+        "server/components/PhoneWidget/**",
+        "server/components/CallModal/**",
+        "server/components/TransferWidget/**"
+      ]
+    },
+    {
+      "id": "notifications",
+      "area": "widgets",
+      "name": "Notifications",
+      "what": "The PC's notifications shown on the dashboard, and opening the app they came from.",
+      "files": [
+        "server/winnotif.js",
+        "server/notifications.ps1",
+        "server/linux-notif.js",
+        "server/notification-open/**",
+        "server/js/notifications-widget.js",
+        "server/js/notification-open.js",
+        "server/components/NotificationsWidget/**"
+      ]
+    },
+    {
+      "id": "ticker",
+      "area": "widgets",
+      "name": "News, stocks, football",
+      "what": "The three tickers and where their data comes from.",
+      "files": [
+        "server/stocks*.js",
+        "server/football*.js",
+        "server/news*.js",
+        "server/js/stock-widget.js",
+        "server/js/football-widget.js",
+        "server/js/news-widget.js",
+        "server/js/ticker.js",
+        "server/components/StockWidget/**",
+        "server/components/FootballWidget/**",
+        "server/components/NewsWidget/**",
+        "server/components/Ticker/**"
+      ]
+    },
+    {
+      "id": "windows-tiles",
+      "area": "widgets",
+      "name": "Browser, second screen, slideshow",
+      "what": "Tiles that show something else: a web page, another screen, pictures, the open apps.",
+      "files": [
+        "server/embedded-browser*.js",
+        "server/second-screen.js",
+        "server/browser-surface-sync.js",
+        "server/slideshow-folder.js",
+        "server/windows.ps1",
+        "server/foreground.ps1",
+        "server/linux-foreground.js",
+        "server/tile-play.js",
+        "server/js/browser-tile.js",
+        "server/js/second-screen-tile.js",
+        "server/js/slideshow-widget.js",
+        "server/js/app-switcher.js",
+        "server/js/tile-play.js",
+        "server/components/BrowserPanel/**",
+        "server/components/SecondScreenPanel/**",
+        "server/components/SlideshowWidget/**",
+        "server/components/AppSwitcher/**"
+      ]
+    },
+    {
+      "id": "vitals",
+      "area": "widgets",
+      "name": "Vitals and the pet",
+      "what": "Reminders to take a break, and Bit as a pet that reacts to the PC.",
+      "files": [
+        "server/vitals-*.js",
+        "server/vitals-nag.ps1",
+        "server/js/vitals*.js",
+        "server/components/VitalsPet/**",
+        "server/components/VitalsWidget/**"
+      ]
+    },
+    {
+      "id": "ambient",
+      "area": "dashboard",
+      "name": "Scenes",
+      "what": "What the screen shows when idle or as a desktop scene: clock, weather, pictures.",
+      "files": [
+        "server/scene-*.js",
+        "server/scene.html",
+        "server/js/ambient*.js",
+        "server/js/lockscreen.js",
+        "server/js/lock-digits.js",
+        "server/js/scene-*.js",
+        "server/js/screen-scene*.js",
+        "server/components/AmbientCanvas/**",
+        "server/components/AmbientCanvasEditor/**",
+        "server/components/LockScreen/**",
+        "server/components/ScreenScene/**"
+      ]
+    },
+    {
+      "id": "topbar",
+      "area": "dashboard",
+      "name": "Top bar",
+      "what": "The bar at the top: its layout, look, media strip and buttons.",
+      "files": [
+        "server/js/topbar-*.js",
+        "server/js/status.js",
+        "server/components/Topbar/**",
+        "server/components/TopbarMedia/**",
+        "server/components/TopbarMinimal/**"
+      ]
+    },
+    {
+      "id": "look",
+      "area": "dashboard",
+      "name": "Look",
+      "what": "Themes, materials, tile styles, backgrounds and fonts.",
+      "files": [
+        "server/styles/**",
+        "server/os-theme.js",
+        "server/js/theme-*.js",
+        "server/js/palette-model.js",
+        "server/js/tile-style-*.js",
+        "server/js/tile-decor-*.js",
+        "server/js/tile-material.js",
+        "server/js/tile-dress.js",
+        "server/js/tile-shape-presets.js",
+        "server/js/custom-bg.js",
+        "server/js/decor-bg.js",
+        "server/js/bg-guard.js",
+        "server/js/skin-fonts.js",
+        "server/js/view-melt.js",
+        "server/js/anim-picture.js",
+        "server/js/gif-*.js",
+        "server/js/viewer-theme.js",
+        "server/js/look-trial.js",
+        "server/components/Base/**",
+        "docs/THEME_SYSTEM.md"
+      ]
+    },
+    {
+      "id": "grid",
+      "area": "dashboard",
+      "name": "Grid and pages",
+      "what": "The dashboard page: tiles on a grid, pages, tabs, moving and resizing.",
+      "files": [
+        "server/index.html",
+        "server/tile-previews.js",
+        "server/tile-settings.js",
+        "server/js/main.js",
+        "server/js/dashboard-*.js",
+        "server/js/tab-switcher.js",
+        "server/js/tile-controls.js",
+        "server/js/tile-tab-memory.js",
+        "server/js/page-target.js",
+        "server/js/fit-row.js",
+        "server/js/edge-preview.js",
+        "server/js/context-profiles.js",
+        "server/vendor/**",
+        "server/components/DashboardGrid/**",
+        "server/components/DashboardLayout/**",
+        "server/components/DashboardPager/**",
+        "server/components/TabSwitcher/**"
+      ]
+    },
+    {
+      "id": "updates",
+      "area": "engine",
+      "name": "Updates",
+      "what": "Finds a new version, checks its signature, installs it and shows what is new.",
+      "files": [
+        "server/self-update.js",
+        "server/auto-update.js",
+        "server/update-apply.ps1",
+        "server/update-apply.sh",
+        "server/helper-update.js",
+        "server/helper-update.ps1",
+        "server/helper-first-install.js",
+        "server/release-notes.js",
+        "server/release-asset-cli.js",
+        "server/native-installer.js",
+        "server/native-installer-cli.js",
+        "server/version-ping.js",
+        "server/icue-sdk-install.js",
+        "server/icue-sdk-update.ps1",
+        "server/whatsnew.json",
+        "server/js/update.js",
+        "server/js/release-*.js",
+        "server/js/whats-new*.js",
+        "server/components/UpdateModal/**",
+        "server/components/WhatsNew/**",
+        "CHANGELOG.md"
+      ]
+    },
+    {
+      "id": "install",
+      "area": "engine",
+      "name": "Install and uninstall",
+      "what": "The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux.",
+      "files": [
+        "server/install.ps1",
+        "server/install.sh",
+        "server/uninstall.ps1",
+        "server/uninstall.sh",
+        "server/install-native.ps1",
+        "server/start.bat",
+        "server/start-hidden.vbs",
+        "server/open-dashboard.vbs",
+        "server/startup-task.js",
+        "INSTALL.*",
+        "UNINSTALL.*"
+      ]
+    },
+    {
+      "id": "first-run",
+      "area": "engine",
+      "name": "First run",
+      "what": "The loader, the welcome, and the one question about how the screen is used.",
+      "files": [
+        "server/js/onboarding.js",
+        "server/js/usage-*.js",
+        "server/js/boot-splash.js",
+        "server/js/xenon-loader.js",
+        "server/js/greeting*.js",
+        "server/js/genesis.js",
+        "server/components/Onboarding/**",
+        "server/components/UsageAsk/**",
+        "server/components/BootSplash/**",
+        "server/components/XenonLoader/**",
+        "server/components/GreetingSplash/**"
+      ]
+    },
+    {
+      "id": "paired",
+      "area": "engine",
+      "name": "Phones and tablets",
+      "what": "Pairing another device, HTTPS for it, and notifications sent to it.",
+      "files": [
+        "server/remote-access.js",
+        "server/remote-https*.js",
+        "server/remote-actions.js",
+        "server/web-push.js",
+        "server/pair.html",
+        "server/sw.js",
+        "server/js/remote-access-*.js",
+        "server/js/remote-surface.js",
+        "server/js/pwa.js",
+        "server/js/surface-picker.js",
+        "server/js/vendor/**",
+        "server/components/RemoteAccessSettings/**",
+        "server/components/SurfacePicker/**"
+      ]
+    },
+    {
+      "id": "settings",
+      "area": "engine",
+      "name": "Settings",
+      "what": "The settings pages, their search, and saving without losing a change.",
+      "files": [
+        "server/settings-rev.js",
+        "server/js/settings.js",
+        "server/js/settings-*.js",
+        "server/components/SettingsModal/**"
+      ]
+    },
+    {
+      "id": "words",
+      "area": "engine",
+      "name": "Words",
+      "what": "Every text of the app in 11 languages.",
+      "files": [
+        "server/js/i18n.js",
+        "server/js/i18n-load.js",
+        "server/app-strings/**"
+      ]
+    },
+    {
+      "id": "platform",
+      "area": "native",
+      "name": "Per-system readers",
+      "what": "The same facts read three ways: one file for Windows, one for macOS, one for Linux.",
+      "files": [
+        "server/linux-collectors.js",
+        "server/darwin-collectors.js",
+        "server/linux-session-watch.js",
+        "server/session-watch.js",
+        "server/session-watch.ps1",
+        "server/user-folders.js"
+      ]
+    },
+    {
+      "id": "engine-core",
+      "area": "engine",
+      "name": "Engine core",
+      "what": "Starts the engine, answers every request and decides who is allowed to ask.",
+      "files": [
+        "server/server.js",
+        "server/feature-routes.js",
+        "server/http/**",
+        "server/http-range.js",
+        "server/listener-sockets.js",
+        "server/sse-*.js",
+        "server/cross-site.js",
+        "server/net-guard.js",
+        "server/asset-version.js",
+        "server/startup-log.js",
+        "server/node-version.js",
+        "server/usage-stats.js",
+        "server/bug-report.js",
+        "server/js/state.js",
+        "server/js/native-bridge.js",
+        "server/public/images/logo/**",
+        "server/assets/**"
+      ]
+    },
+    {
+      "id": "helpers-shared",
+      "area": "engine",
+      "name": "Small shared tools",
+      "what": "Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs.",
+      "files": [
+        "server/atomic-write.js",
+        "server/json-lru.js",
+        "server/list-ops.js",
+        "server/semver.js",
+        "server/ps-quote.js",
+        "server/win-reserved.js",
+        "server/zip-writer.js",
+        "server/pinned-hash.js",
+        "server/child-priority.js",
+        "server/private-tmp.js",
+        "server/pc-id.js",
+        "server/transcript-format.js",
+        "server/js/utils.js",
+        "server/js/fuzzy-find.js",
+        "server/js/list-sync.js",
+        "server/js/save-file.js",
+        "server/js/dialog-focus.js",
+        "server/js/custom-select.js",
+        "server/js/color-picker.js",
+        "server/components/CustomSelect/**",
+        "server/components/ColorPicker/**"
+      ]
+    },
+    {
+      "id": "native-app",
+      "area": "native",
+      "name": "The app",
+      "what": "The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop.",
+      "files": [
+        "apps/native/**"
+      ]
+    },
+    {
+      "id": "helper-windows",
+      "area": "native",
+      "name": "Helper for Windows",
+      "what": "A small C# program for media, windows, audio levels and the file index.",
+      "files": [
+        "helper/**"
+      ]
+    },
+    {
+      "id": "helper-mac",
+      "area": "native",
+      "name": "Helper for macOS",
+      "what": "The same helper in Swift, speaking the same protocol.",
+      "files": [
+        "helper-mac/**"
+      ]
+    },
+    {
+      "id": "site",
+      "area": "upkeep",
+      "name": "Website",
+      "what": "xenon-app.com in 7 languages. Editing it changes the live site.",
+      "files": [
+        "docs/**",
+        "site-host/**"
+      ]
+    },
+    {
+      "id": "icue",
+      "area": "upkeep",
+      "name": "iCUE widget",
+      "what": "The widget package for CORSAIR iCUE (on hold).",
+      "files": [
+        "widget/**",
+        "icue-widget/**"
+      ]
+    },
+    {
+      "id": "quality-tools",
+      "area": "upkeep",
+      "name": "Quality checks and this map",
+      "what": "Types, lint, file length, and the tool that writes this map.",
+      "files": [
+        "tools/quality/**",
+        "tools/map/**",
+        "MAP.md"
+      ]
+    },
+    {
+      "id": "tools",
+      "area": "upkeep",
+      "name": "Tools",
+      "what": "Scripts for building, releasing, measuring and checking.",
+      "files": [
+        "tools/**"
+      ]
+    },
+    {
+      "id": "project",
+      "area": "upkeep",
+      "name": "Project files",
+      "what": "Readme, licence, package manifest, CI workflows and store listings.",
+      "files": [
+        ".github/**",
+        "*.md",
+        "LICENSE",
+        "package.json",
+        "package-lock.json",
+        ".*"
+      ]
+    }
+  ]
+}
