@@ -4,7 +4,7 @@
 // and the app catching up with its dashboard from the hidden driver page.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from './browser-source.mjs';
+import { readFileSync } from './native-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);

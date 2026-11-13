@@ -1,4 +1,17 @@
 {
   "note": "Files cut by tools/restructure/native-cli.mjs, each with the files that came out of it. Written by the tool.",
-  "splits": {}
+  "splits": {
+    "apps/native/src-tauri/src/monitor.rs": [
+      "apps/native/src-tauri/src/monitor/driver.rs",
+      "apps/native/src-tauri/src/monitor/home.rs",
+      "apps/native/src-tauri/src/monitor/ids.rs",
+      "apps/native/src-tauri/src/monitor/pick.rs",
+      "apps/native/src-tauri/src/monitor/placement.rs",
+      "apps/native/src-tauri/src/monitor/reveal.rs",
+      "apps/native/src-tauri/src/monitor/screens.rs",
+      "apps/native/src-tauri/src/monitor/target.rs",
+      "apps/native/src-tauri/src/monitor/watch_notes.rs",
+      "apps/native/src-tauri/src/monitor/watchdog.rs"
+    ]
+  }
 }

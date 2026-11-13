@@ -18,7 +18,7 @@
 // different backing scale had the same fate.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 
 const MON = readFileSync(new URL('../../apps/native/src-tauri/src/monitor.rs', import.meta.url), 'utf8');
 

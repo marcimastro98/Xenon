@@ -13,7 +13,7 @@
 // `npm test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const MON = read('../../apps/native/src-tauri/src/monitor.rs');

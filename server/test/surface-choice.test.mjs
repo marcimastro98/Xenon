@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { readFileSync } from './browser-source.mjs';
+import { readFileSync } from './native-source.mjs'; // browser files too: it reads them through ./browser-source.mjs
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { engineSource } from './engine-source.mjs';

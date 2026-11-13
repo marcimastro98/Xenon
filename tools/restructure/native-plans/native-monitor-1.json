@@ -1,0 +1,130 @@
+{
+  "origin": "apps/native/src-tauri/src/monitor.rs",
+  "parts": [
+    {
+      "file": "apps/native/src-tauri/src/monitor/driver.rs",
+      "about": "Who chooses the screen right now (the user, or a test driver), and the short visit to another screen.",
+      "lines": [
+        [
+          160,
+          289
+        ],
+        [
+          2642,
+          2705
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/screens.rs",
+      "about": "Asks the system for its screens, always on the main thread, and keeps the last answer for the threads that may not ask.",
+      "lines": [
+        [
+          297,
+          417
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/ids.rs",
+      "about": "A lasting name for each screen: the system's id, or a fingerprint of the panel when there is none.",
+      "lines": [
+        [
+          1138,
+          1238
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/pick.rs",
+      "about": "Finds the screen the user chose among the screens attached now, also after ports or ids changed.",
+      "lines": [
+        [
+          1239,
+          1420
+        ],
+        [
+          2834,
+          2931
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/target.rs",
+      "about": "The one place that decides where the window goes: the saved choice and the live screens in, a target out.",
+      "lines": [
+        [
+          1432,
+          1562
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/reveal.rs",
+      "about": "Shows the window for the first time and loads the dashboard into it.",
+      "lines": [
+        [
+          1563,
+          1717
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/home.rs",
+      "about": "Home mode: the window shrinks to a round button and grows back.",
+      "lines": [
+        [
+          1718,
+          1766
+        ],
+        [
+          1913,
+          1996
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/placement.rs",
+      "about": "Applies a change of screen or of fullscreen that the user made in the dashboard or the tray.",
+      "lines": [
+        [
+          2139,
+          2242
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/watch_notes.rs",
+      "about": "What the watchdog writes to the log: screens that came and went, and the window's state.",
+      "lines": [
+        [
+          2243,
+          2365
+        ],
+        [
+          2706,
+          2759
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/monitor/watchdog.rs",
+      "about": "The thread that keeps the window on its screen through replug, reorder, sleep and wake.",
+      "lines": [
+        [
+          2366,
+          2641
+        ]
+      ],
+      "compact": true
+    }
+  ],
+  "drop": {
+    "apps/native/src-tauri/src/monitor/driver.rs": [
+      "is_edge"
+    ],
+    "apps/native/src-tauri/src/monitor/pick.rs": [
+      "describe"
+    ]
+  }
+}
