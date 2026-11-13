@@ -1,0 +1,224 @@
+[
+ {
+  "origin": "helper/ScreenHost.cs",
+  "parts": [
+   {
+    "file": "helper/ScreenHost.Monitors.cs",
+    "about": "Screen mirror: which monitors there are, picking one, and setting its resolution.",
+    "type": "ScreenHost",
+    "lines": [
+     [
+      161,
+      296
+     ]
+    ]
+   },
+   {
+    "file": "helper/ScreenHost.Capture.cs",
+    "about": "Screen mirror: the loop that captures one monitor and sends its frames.",
+    "type": "ScreenHost",
+    "lines": [
+     [
+      297,
+      478
+     ]
+    ]
+   },
+   {
+    "file": "helper/ScreenHost.Input.cs",
+    "about": "Screen mirror: turning a touch or a key from the tile into mouse and keyboard input.",
+    "type": "ScreenHost",
+    "lines": [
+     [
+      479,
+      560
+     ]
+    ]
+   },
+   {
+    "file": "helper/ScreenHost.Native.cs",
+    "about": "Screen mirror: the Windows functions and structures it calls.",
+    "type": "ScreenHost",
+    "lines": [
+     [
+      625,
+      751
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "helper/PhoneHost.cs",
+  "parts": [
+   {
+    "file": "helper/PhoneHost.Contacts.cs",
+    "about": "Phone over Bluetooth: which phone is paired and what it offers, and reading its contacts and call log.",
+    "type": "PhoneHost",
+    "lines": [
+     [
+      246,
+      400
+     ]
+    ]
+   },
+   {
+    "file": "helper/PhoneHost.Messages.cs",
+    "about": "Phone over Bluetooth: listing, reading and sending text messages.",
+    "type": "PhoneHost",
+    "lines": [
+     [
+      401,
+      550
+     ]
+    ]
+   },
+   {
+    "file": "helper/PhoneHost.Calls.cs",
+    "about": "Phone over Bluetooth: dialling, and telling the server when a call starts or ends.",
+    "type": "PhoneHost",
+    "lines": [
+     [
+      551,
+      599
+     ]
+    ]
+   },
+   {
+    "file": "helper/PhoneHost.Channel.cs",
+    "about": "Phone over Bluetooth: the Bluetooth socket the requests travel on.",
+    "type": "PhoneHost",
+    "lines": [
+     [
+      600,
+      649
+     ]
+    ]
+   },
+   {
+    "file": "helper/PhoneHost.Frames.cs",
+    "about": "Phone over Bluetooth: writing an answer to the server and reading the fields of a request.",
+    "type": "PhoneHost",
+    "lines": [
+     [
+      650,
+      695
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "helper/MediaHost.cs",
+  "parts": [
+   {
+    "file": "helper/MediaHost.Seek.cs",
+    "about": "Media: moving to a position in the track.",
+    "type": "MediaHost",
+    "lines": [
+     [
+      234,
+      307
+     ]
+    ]
+   },
+   {
+    "file": "helper/MediaHost.Sessions.cs",
+    "about": "Media: reading what is playing, its app, its cover and the list of players.",
+    "type": "MediaHost",
+    "lines": [
+     [
+      308,
+      513
+     ]
+    ]
+   },
+   {
+    "file": "helper/MediaHost.Events.cs",
+    "about": "Media: listening for changes in Windows and telling the server.",
+    "type": "MediaHost",
+    "lines": [
+     [
+      514,
+      603
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "helper/WindowsTool.cs",
+  "parts": [
+   {
+    "file": "helper/WindowsTool.List.cs",
+    "about": "Open windows: listing the windows a person would call open.",
+    "type": "WindowsTool",
+    "lines": [
+     [
+      54,
+      246
+     ]
+    ]
+   },
+   {
+    "file": "helper/WindowsTool.Pictures.cs",
+    "about": "Open windows: a window's picture, and an app's icon or tile logo.",
+    "type": "WindowsTool",
+    "lines": [
+     [
+      297,
+      442
+     ]
+    ]
+   },
+   {
+    "file": "helper/WindowsTool.Native.cs",
+    "about": "Open windows: the Windows functions and structures it calls.",
+    "type": "WindowsTool",
+    "lines": [
+     [
+      443,
+      504
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "helper/Obex.cs",
+  "parts": [
+   {
+    "file": "helper/ObexPacket.cs",
+    "about": "OBEX: the request codes, the header ids, and one packet as it arrives.",
+    "types": [
+     "ObexOp",
+     "ObexHdr",
+     "ObexPacket"
+    ]
+   },
+   {
+    "file": "helper/ObexAppParams.cs",
+    "about": "OBEX: building and reading the small tagged values a request carries.",
+    "types": [
+     "ObexAppParams"
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "helper/AudioHost.cs",
+  "parts": [
+   {
+    "file": "helper/AudioHost.Sessions.cs",
+    "about": "App sound levels: finding the apps that play sound, reading their level and sending it.",
+    "type": "AudioHost",
+    "lines": [
+     [
+      180,
+      325
+     ]
+    ]
+   }
+  ]
+ }
+]

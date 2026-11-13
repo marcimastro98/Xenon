@@ -101,6 +101,9 @@
       "apps/native/src-tauri/src/monitor/watch_notes.rs",
       "apps/native/src-tauri/src/monitor/watchdog.rs"
     ],
+    "helper/AudioHost.cs": [
+      "helper/AudioHost.Sessions.cs"
+    ],
     "helper/IndexHost.cs": [
       "helper/IndexHost.Names.cs",
       "helper/IndexHost.Ops.cs",
@@ -112,6 +115,33 @@
       "helper/IndexHost.Tree.cs",
       "helper/IndexHost.Walk.cs",
       "helper/IndexHost.Watch.cs"
+    ],
+    "helper/MediaHost.cs": [
+      "helper/MediaHost.Events.cs",
+      "helper/MediaHost.Seek.cs",
+      "helper/MediaHost.Sessions.cs"
+    ],
+    "helper/Obex.cs": [
+      "helper/ObexAppParams.cs",
+      "helper/ObexPacket.cs"
+    ],
+    "helper/PhoneHost.cs": [
+      "helper/PhoneHost.Calls.cs",
+      "helper/PhoneHost.Channel.cs",
+      "helper/PhoneHost.Contacts.cs",
+      "helper/PhoneHost.Frames.cs",
+      "helper/PhoneHost.Messages.cs"
+    ],
+    "helper/ScreenHost.cs": [
+      "helper/ScreenHost.Capture.cs",
+      "helper/ScreenHost.Input.cs",
+      "helper/ScreenHost.Monitors.cs",
+      "helper/ScreenHost.Native.cs"
+    ],
+    "helper/WindowsTool.cs": [
+      "helper/WindowsTool.List.cs",
+      "helper/WindowsTool.Native.cs",
+      "helper/WindowsTool.Pictures.cs"
     ]
   }
 }

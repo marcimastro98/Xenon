@@ -32,66 +32,6 @@ internal interface IByteChannel : IDisposable
     Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct = default);
 }
 
-internal static class ObexOp
-{
-    public const byte Connect = 0x80;
-    public const byte Disconnect = 0x81;
-    public const byte PutFinal = 0x82;
-    public const byte GetFinal = 0x83;
-    public const byte SetPath = 0x85;
-}
-
-internal static class ObexHdr
-{
-    public const byte Name = 0x01;
-    public const byte Type = 0x42;
-    public const byte Length = 0xC3;
-    public const byte Body = 0x48;
-    public const byte EndOfBody = 0x49;
-    public const byte Target = 0x46;
-    public const byte ConnectionId = 0xCB;
-    public const byte AppParameters = 0x4C;
-}
-
-internal sealed class ObexPacket
-{
-    public byte Code;
-    public byte[] Payload = Array.Empty<byte>();
-    public List<(byte Id, byte[] Data)> Headers = new();
-
-    public bool IsSuccess => Code == 0xA0;
-    public bool IsContinue => Code == 0x90;
-
-    public byte[]? Header(byte id)
-    {
-        foreach (var (hid, data) in Headers) if (hid == id) return data;
-        return null;
-    }
-
-    public IEnumerable<byte[]> BodyChunks()
-    {
-        foreach (var (id, data) in Headers)
-            if (id == ObexHdr.Body || id == ObexHdr.EndOfBody) yield return data;
-    }
-
-    // The refusals worth telling a human apart: Forbidden is what a phone
-    // answers when the user has not granted this pairing access to contacts,
-    // which is a thing they can fix, unlike a protocol error.
-    public string CodeName() => Code switch
-    {
-        0x90 => "continue",
-        0xA0 => "success",
-        0xC0 => "bad_request",
-        0xC1 => "unauthorized",
-        0xC3 => "forbidden",
-        0xC4 => "not_found",
-        0xC6 => "not_acceptable",
-        0xD0 => "server_error",
-        0xD1 => "not_implemented",
-        _ => "0x" + Code.ToString("X2"),
-    };
-}
-
 internal sealed class ObexClient : IDisposable
 {
     private readonly IByteChannel _ch;
@@ -314,51 +254,4 @@ internal sealed class ObexClient : IDisposable
     }
 
     public void Dispose() => _ch.Dispose();
-}
-
-// Both PBAP and MAP carry their options inside ONE OBEX header as a
-// tag/length/value list. The tag numbers are NOT shared between the two
-// profiles (MaxListCount is 0x04 in PBAP and 0x01 in MAP), so a profile always
-// names its own constants rather than importing another's.
-internal static class ObexAppParams
-{
-    public static byte[] Build(params (byte Tag, byte[] Value)[] items)
-    {
-        var buf = new List<byte>();
-        foreach (var (tag, value) in items)
-        {
-            buf.Add(tag);
-            buf.Add((byte)value.Length);
-            buf.AddRange(value);
-        }
-        return buf.ToArray();
-    }
-
-    public static Dictionary<byte, byte[]> Parse(byte[] buf)
-    {
-        var map = new Dictionary<byte, byte[]>();
-        var i = 0;
-        while (i + 2 <= buf.Length)
-        {
-            var tag = buf[i];
-            var len = buf[i + 1];
-            if (i + 2 + len > buf.Length) break;
-            var value = new byte[len];
-            Array.Copy(buf, i + 2, value, 0, len);
-            map[tag] = value;
-            i += 2 + len;
-        }
-        return map;
-    }
-
-    public static byte[] U16(int v) => new[] { (byte)(v >> 8), (byte)(v & 0xFF) };
-    public static byte[] U8(int v) => new[] { (byte)v };
-    public static byte[] U64(ulong v)
-    {
-        var b = new byte[8];
-        for (var i = 0; i < 8; i++) b[i] = (byte)(v >> (56 - i * 8));
-        return b;
-    }
-
-    public static int AsU16(byte[]? v) => v is { Length: 2 } ? (v[0] << 8) | v[1] : -1;
 }

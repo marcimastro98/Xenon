@@ -16,7 +16,7 @@
 // three things off.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 import { engineSource } from './engine-source.mjs';
 
 const SERVER = engineSource();
