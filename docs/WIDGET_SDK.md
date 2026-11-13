@@ -1242,7 +1242,10 @@ if (m.type === 'data' && m.stream === 'perf') {
     // A game that runs but draws no readable frames comes as
     // { active: false, game: 'Game.exe' }, plus reader: false when the frame
     // reader (PresentMon) is not installed: name it instead of "no game".
-    if (d.game) return showUnreadable(d.game, d.reader === false);
+    // On Windows, from Xenon 5.1.1, access: 'signin' means Windows lets Xenon
+    // read frame rates from the next sign-in (sign out and back in), access:
+    // 'rights' that the permission is missing (Settings → Performance → Allow FPS).
+    if (d.game) return showUnreadable(d.game, d.reader === false, d.access);
     return showIdle(d.last);
   }
   // d.process  the game's process name, 'Cyberpunk2077.exe'
