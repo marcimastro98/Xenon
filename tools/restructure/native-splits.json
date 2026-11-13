@@ -148,6 +148,8 @@
     "apps/native/src-tauri/src/lib.rs": [
       "apps/native/src-tauri/src/autostart.rs",
       "apps/native/src-tauri/src/backend_bootstrap.rs",
+      "apps/native/src-tauri/src/backend_child_macos.rs",
+      "apps/native/src-tauri/src/backend_nudge_macos.rs",
       "apps/native/src-tauri/src/backend_nudge_windows.rs",
       "apps/native/src-tauri/src/backend_probe.rs",
       "apps/native/src-tauri/src/backend_task.rs",

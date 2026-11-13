@@ -22,6 +22,10 @@ mod backend_bootstrap;
 mod shell_update;
 mod autostart;
 mod backend_probe;
+#[cfg(target_os = "macos")]
+mod backend_child_macos;
+#[cfg(target_os = "macos")]
+mod backend_nudge_macos;
 #[cfg(windows)]
 pub use layers::{pad_reader, PAD_READER_ARG};
 
@@ -39,6 +43,7 @@ pub(crate) use webview_setup::browser_args;
 
 pub(crate) use autostart::sync_autostart;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 use backend_probe::backend_answers;
 use shell_update::shell_self_update;
 #[cfg(desktop)]
@@ -46,6 +51,15 @@ use shell_update::{legacy_rescue_js, LEGACY_RESCUE_STARTED, spawn_update_check, 
 // Only the Windows files ask these by name: the other systems go through backend_answers.
 #[cfg(windows)]
 use backend_probe::{backend_answers_once, backend_answers_within, LOGON_PROBE_TRIES, PROBE_TRIES};
+
+#[cfg(target_os = "macos")]
+pub use backend_child_macos::stop_owned_backend;
+#[cfg(target_os = "macos")]
+use backend_child_macos::backend_entry;
+#[cfg(target_os = "macos")]
+pub(crate) use backend_child_macos::start_backend_child;
+#[cfg(target_os = "macos")]
+use backend_nudge_macos::{current_uid, spawn_backend_nudge};
 
 /// First argument that turns this binary into the engine install self-test.
 pub const ENGINE_SELFTEST_ARG: &str = "--install-engine-selftest";
@@ -90,312 +104,10 @@ pub(crate) fn system32_exe(name: &str) -> std::path::PathBuf {
     std::path::Path::new(&root).join("System32").join(name)
 }
 
-/// macOS twin of the Windows nudge above. The two signals differ from Windows
-/// because
-/// the install shapes do: the per-user LaunchAgent registered by
-/// `server/install.sh` is the "backend installed" marker (the analogue of the
-/// "Xenon Edge Widget" scheduled task), and a `.dmg` has no install hook at all
-/// — so a first launch that finds NO agent is also the only moment this app can
-/// offer to set the backend up. That is what the bundled bootstrap does, in a
-/// visible Terminal window the user can read and interrupt; it is idempotent and
-/// exits within a second or two when anything is already installed.
-/// The backend process this app owns on macOS, so it can be stopped on exit
-/// instead of being orphaned (the process invariant: nothing we spawn outlives
-/// us silently).
-#[cfg(target_os = "macos")]
-static BACKEND_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
-
 /// No-op twin so every caller can say "stop what we own" without a `cfg`. Only
 /// macOS ever owns the backend process.
 #[cfg(not(target_os = "macos"))]
 pub fn stop_owned_backend() {}
-
-/// Stop the backend this app started.
-///
-/// Called from the run loop's Exit event AND before every `restart()`. The
-/// second is not belt-and-braces: `AppHandle::restart()` skips the run loop's
-/// events entirely when it is called on the main thread (which the tray item and
-/// the dashboard's `xenon-app:restart` both are), so the Exit arm never fires and
-/// the `node` child was exec'd away from — reparented to launchd, still holding
-/// port 3030. The relaunched app then found a backend answering, left
-/// BACKEND_CHILD empty, and quitting later left that server running forever.
-/// Idempotent: the child is taken out of the mutex, so a later Exit finds None.
-#[cfg(target_os = "macos")]
-pub fn stop_owned_backend() {
-    let Ok(mut guard) = BACKEND_CHILD.lock() else { return };
-    let Some(mut child) = guard.take() else { return };
-    // SIGTERM, not kill: server.js's _gracefulShutdown stops the helper hosts,
-    // the index and any running cleanup, and exits 0. Killing it outright would
-    // orphan every one of those children.
-    let _ = std::process::Command::new("kill")
-        .args(["-TERM", &child.id().to_string()])
-        .status();
-    let _ = child.wait();
-}
-
-/// Where the backend lives.
-///
-/// `install.sh` writes `~/Library/Application Support/Xenon/backend.json` for
-/// exactly this question, because the agent it registers now launches THIS APP
-/// rather than node — so the plist no longer names server.js and there is
-/// nothing else to ask. The plist is still read as a fallback: an install made
-/// before that change has no pointer file, and it should keep working rather
-/// than silently start nothing.
-#[cfg(target_os = "macos")]
-fn backend_entry(home: &std::path::Path) -> Option<std::path::PathBuf> {
-    let pointer = home.join("Library/Application Support/Xenon/backend.json");
-    if let Ok(text) = std::fs::read_to_string(&pointer) {
-        // One key, written by us. A hand-rolled read keeps this off serde for a
-        // file that will never grow a second shape.
-        if let Some(rest) = text.split("\"entry\"").nth(1) {
-            if let Some(open) = rest.find('"') {
-                if let Some(close) = rest[open + 1..].find('"') {
-                    let value = &rest[open + 1..open + 1 + close];
-                    let path = std::path::PathBuf::from(value);
-                    if path.exists() {
-                        return Some(path);
-                    }
-                }
-            }
-        }
-    }
-    // Legacy: the agent that ran node named server.js as its second argument.
-    let plist = home.join("Library/LaunchAgents/com.marcimastro98.xenon.backend.plist");
-    let text = std::fs::read_to_string(plist).ok()?;
-    for chunk in text.split("<string>").skip(1) {
-        let value = chunk.split("</string>").next()?.trim();
-        if value.ends_with("server.js") {
-            let path = std::path::PathBuf::from(value);
-            if path.exists() {
-                return Some(path);
-            }
-        }
-    }
-    None
-}
-
-/// The node the installer found. `install.sh` requires it on PATH, but a GUI app
-/// does not inherit the shell's PATH, so the usual locations are tried first.
-#[cfg(target_os = "macos")]
-fn find_node() -> Option<std::path::PathBuf> {
-    for candidate in [
-        "/opt/homebrew/bin/node",
-        "/usr/local/bin/node",
-        "/usr/bin/node",
-    ] {
-        let path = std::path::PathBuf::from(candidate);
-        if path.exists() {
-            return Some(path);
-        }
-    }
-    // nvm keeps node outside every fixed prefix, and a GUI process inherits
-    // launchd's minimal PATH, so the `which` below cannot see it either — an
-    // nvm-only machine (a very common way to have Node on macOS) used to fall
-    // out of this function with None, and the backend then silently never
-    // started on any launch. The layout is versioned directories; the newest
-    // wins, matching what `nvm use default` would put first in a shell.
-    if let Some(home) = std::env::var_os("HOME") {
-        let versions = std::path::Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(&versions) {
-            let mut best: Option<(Vec<u64>, std::path::PathBuf)> = None;
-            for e in entries.flatten() {
-                let node = e.path().join("bin/node");
-                if !node.is_file() {
-                    continue;
-                }
-                let name = e.file_name().to_string_lossy().into_owned();
-                let key: Vec<u64> = name
-                    .trim_start_matches('v')
-                    .split('.')
-                    .map(|p| p.parse::<u64>().unwrap_or(0))
-                    .collect();
-                if best.as_ref().map(|(k, _)| key > *k).unwrap_or(true) {
-                    best = Some((key, node));
-                }
-            }
-            if let Some((_, node)) = best {
-                return Some(node);
-            }
-        }
-    }
-    let out = std::process::Command::new("/usr/bin/which")
-        .arg("node")
-        .output()
-        .ok()?;
-    let found = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    if !found.is_empty() {
-        return Some(std::path::PathBuf::from(found));
-    }
-    // Last resort: ask the user's login shell, which sources the profile that
-    // nvm/asdf/volta modify. One spawn, and only on the path where nothing
-    // else answered.
-    let out = std::process::Command::new("/bin/zsh")
-        .args(["-lc", "command -v node"])
-        .output()
-        .ok()?;
-    let found = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    (!found.is_empty()).then(|| std::path::PathBuf::from(found))
-}
-
-/// Start server.js as this app's child (see spawn_backend_nudge for why it must
-/// be a child here). The node an install carries in `node-runtime` wins over
-/// any system one: it is the version that engine was built and tested with.
-#[cfg(target_os = "macos")]
-pub(crate) fn start_backend_child(entry: &std::path::Path) -> bool {
-    let root = entry.parent().and_then(|p| p.parent());
-    let bundled = root
-        .map(|r| r.join(engine_install::RUNTIME_DIR).join("bin/node"))
-        .filter(|p| p.is_file());
-    let Some(node) = bundled.or_else(find_node) else { return false };
-    let mut cmd = std::process::Command::new(node);
-    cmd.arg(entry);
-    if let Some(root) = root {
-        cmd.current_dir(root);
-    }
-    let Ok(child) = cmd.spawn() else { return false };
-    if let Ok(mut guard) = BACKEND_CHILD.lock() {
-        *guard = Some(child);
-    }
-    true
-}
-
-/// Open a script in Terminal.app and, when `marker` is given, make sure it
-/// actually ran.
-///
-/// macOS cannot hand a command to Terminal. `open -a Terminal <file>` starts a
-/// window, starts a shell in it, and TYPES the file's path at that shell — so
-/// the install depends on a race it cannot see: if the shell is still sourcing
-/// its startup files, the typed text arrives corrupted. Observed on a first
-/// launch as `o cer/Users/.../xenon-bootstrap.sh`, answered by zsh with
-/// "command not found: o". The window was there, the user watched it do
-/// nothing, and the splash waited for a backend that was never being installed.
-///
-/// There is no API that avoids the typing (Terminal's own `do script` is the
-/// same mechanism, plus an Automation prompt), so the fix is to VERIFY instead:
-/// the bootstrap touches `marker` on its first line, and a window that never
-/// gets there is opened once more. The retry is the cheap half — the second
-/// attempt meets a Terminal that is already running, which is the state the
-/// garbling was never reproducible in (measured: 1/1 warm, 3/3 cold-started
-/// here, so this is a rare race and not a certainty).
-///
-/// One retry, never a loop: two windows is a wart, an endless stack of them is
-/// a worse bug than the one being fixed.
-#[cfg(target_os = "macos")]
-fn open_bootstrap_terminal(script: &std::path::Path, marker: Option<&std::path::Path>) {
-    use std::os::unix::fs::PermissionsExt;
-    // Tauri copies resources without the executable bit, and `open -a Terminal`
-    // on a non-executable file opens it in an editor instead of running it.
-    let _ = std::fs::set_permissions(script, std::fs::Permissions::from_mode(0o755));
-    for _ in 0..2 {
-        if let Some(m) = marker {
-            // A marker from an earlier run would answer for this one.
-            let _ = std::fs::remove_file(m);
-        }
-        let _ = std::process::Command::new("open")
-            .args(["-a", "Terminal"])
-            .arg(script)
-            .status();
-        let Some(m) = marker else { return };
-        // Generous on purpose: the window has to appear, a login shell has to
-        // source the user's startup files, and only then does line one run.
-        for _ in 0..40 {
-            if m.exists() {
-                return;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(500));
-        }
-    }
-}
-
-/// The file `xenon-bootstrap.sh` touches as it starts, on macOS. Built from
-/// `$HOME` alone, with no environment lookup, because the script and this app
-/// must agree on it exactly — a path either could resolve differently would
-/// make every launch open a second window.
-#[cfg(target_os = "macos")]
-fn bootstrap_marker(home: &std::path::Path) -> std::path::PathBuf {
-    home.join("Library/Application Support/Xenon/.bootstrap-started")
-}
-
-#[cfg(target_os = "macos")]
-fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
-    use tauri::path::BaseDirectory;
-    use tauri::Manager;
-    let script = app
-        .path()
-        .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
-        .ok();
-    let home = app.path().home_dir().ok();
-    let handle = app.clone();
-    std::thread::spawn(move || {
-        if backend_answers(port) {
-            return;
-        }
-        if port != 3030 {
-            return;
-        }
-        // THE BACKEND IS OUR CHILD ON THIS PLATFORM, and that is a privacy
-        // decision, not a lifecycle preference. macOS attributes a process's
-        // file-access permissions to the RESPONSIBLE process — for a child, its
-        // parent. Launched by launchd the backend is responsible for itself, so
-        // Full Disk Access would have to be granted to the `node` binary: an
-        // interpreter, which would then carry that grant into every unrelated
-        // script the user ever runs. Launched by this app it inherits Xenon's
-        // own grant, which the user can see, understand and revoke.
-        //
-        // The measurable difference on a real machine: the launchd-run backend
-        // indexed 253,519 files / 90.5 GB of the same home directory that a
-        // grant-carrying process saw as 403,404 files / 103.4 GB. The Trash and
-        // most of ~/Library/Caches were simply invisible, so the cleanup
-        // categories were empty and the disk map under-reported by 13 GB.
-        if let Some(entry) = home.as_deref().and_then(backend_entry) {
-            // An older install may still have an agent that runs node itself.
-            // Retire it before starting our own copy: two backends would fight
-            // for the port and the winner would be whichever raced faster.
-            if let Some(uid) = current_uid() {
-                let _ = std::process::Command::new("launchctl")
-                    .args([
-                        "bootout",
-                        &format!("gui/{uid}/com.marcimastro98.xenon.backend"),
-                    ])
-                    .status();
-            }
-            if start_backend_child(&entry) {
-                if let Some(root) = entry.parent().and_then(|p| p.parent()) {
-                    engine_install::ensure_login_item(root);
-                }
-                return;
-            }
-            if let Some(installer) = entry
-                .parent()
-                .map(|p| p.join("install.sh"))
-                .filter(|p| p.exists())
-            {
-                // An install is present but no node is visible to this GUI
-                // process. Doing nothing here left the splash waiting forever
-                // with no error anywhere, on every launch. install.sh resolves
-                // node in a real shell and can install it with Homebrew, so
-                // hand the problem to it in a Terminal the user can read.
-                // No marker: install.sh is not the bootstrap and does not write
-                // one, so this window is opened without the verify-and-retry.
-                open_bootstrap_terminal(&installer, None);
-            }
-            return;
-        }
-        // Nothing installed here at all. A build that carries the engine sets it
-        // up itself, with progress on the splash; an older one opens the
-        // bootstrap in Terminal so the install has a UI and an exit.
-        if engine_install::packaged(&handle).is_some() {
-            engine_install::spawn(&handle, port);
-            return;
-        }
-        let Some(script) = script else { return };
-        if !script.exists() {
-            return;
-        }
-        let marker = home.as_deref().map(bootstrap_marker);
-        open_bootstrap_terminal(&script, marker.as_deref());
-    });
-}
 
 /// Linux twin. Same two signals, written by `server/install.sh`: the
 /// `systemd --user` unit, or the XDG autostart entry it falls back to where
@@ -609,18 +321,6 @@ fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
 
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
-
-/// The current user id, via `id -u` — launchctl addresses its domains by uid and
-/// there is no std API for it (and no libc dependency in this crate).
-#[cfg(target_os = "macos")]
-fn current_uid() -> Option<String> {
-    let out = std::process::Command::new("id").arg("-u").output().ok()?;
-    let uid = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    if uid.is_empty() || !uid.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    Some(uid)
-}
 
 /// The libraries an AppImage must NOT be allowed to shadow, and why this exists
 /// at all.

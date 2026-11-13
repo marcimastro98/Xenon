@@ -1,0 +1,57 @@
+{
+ "origin": "apps/native/src-tauri/src/lib.rs",
+ "parts": [
+  {
+   "file": "apps/native/src-tauri/src/backend_child_macos.rs",
+   "about": "macOS: the engine process this app starts and owns: where it lives, which node runs it, and stopping it on exit.",
+   "lines": [
+    [
+     105,
+     105
+    ],
+    [
+     123,
+     243
+    ]
+   ]
+  },
+  {
+   "file": "apps/native/src-tauri/src/backend_nudge_macos.rs",
+   "about": "macOS: waking an engine that does not answer, or offering to set it up in a Terminal window.",
+   "lines": [
+    [
+     283,
+     319
+    ],
+    [
+     615,
+     615
+    ]
+   ]
+  }
+ ],
+ "drop": {
+  "apps/native/src-tauri/src/backend_child_macos.rs": [
+   "Manager",
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState",
+   "backend_answers_once",
+   "backend_answers_within",
+   "LOGON_PROBE_TRIES",
+   "PROBE_TRIES"
+  ],
+  "apps/native/src-tauri/src/backend_nudge_macos.rs": [
+   "Manager",
+   "BACKEND_TASK",
+   "backend_task_state",
+   "decode_console_bytes",
+   "TaskState",
+   "backend_answers_once",
+   "backend_answers_within",
+   "LOGON_PROBE_TRIES",
+   "PROBE_TRIES"
+  ]
+ }
+}
