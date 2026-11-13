@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 🔒 Security
 - **A paired phone or tablet can no longer press the keyboard shortcuts of the PC.** The two addresses a Linux desktop calls when you press one of your Xenon shortcuts also answered a paired device. One opened the search window on the PC; the other ran the Deck key behind that shortcut without the rules a paired device is held to (for example a key that places a call). Both now answer only on the PC itself.
+- **Restoring a backup no longer changes access for paired devices.** A backup made on another PC, or before you turned access on or off, could flip that switch on this PC without closing or opening the connection properly. The switch now stays as it is here; you change it only in Settings on the PC.
+- **Restoring a backup keeps your saved keys even when the settings file is busy.** If Xenon could not read its settings at the moment of the restore, it went ahead as if nothing was saved and dropped the keys and passwords stored on this PC. It now stops and tells you that the settings were not restored, so you can try again.
+- **Restoring a backup made on another PC sent your incoming files to a folder that does not exist here.** The bundle carries the folder you chose for phone transfers, which is a path on the machine it was taken from, and the import was preferring it over the one set on this PC. The folder is now always the one this machine already had. It can still be changed where it always could, in Settings, from the PC.
 
 ### 🐛 Fixed
 - **The music keys stay put when a song starts or stops** ([#154](https://github.com/marcimastro98/Xenon/issues/154)). On a short, wide music tile, the play keys moved to the middle when nothing was playing and jumped back beside the picture as soon as a song started. They now keep the same place in both cases.

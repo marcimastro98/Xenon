@@ -6790,6 +6790,7 @@ const {
 } = require('./settings/backup-format.js');
 
 const { _backupSecretFlags, _backupNeedsSetup } = require('./settings/backup-secrets.js');
+const { settingsBeforeImport, keepThisPcOnImport } = require('./settings/backup-keep.js');
 
 const { _buildBackupBackground, _buildBackupFont } = require('./settings/backup-uploads.js');
 
@@ -6937,7 +6938,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
 
   if (d.settings && typeof d.settings === 'object' && !Array.isArray(d.settings)) {
     await apply('settings', async () => {
-      const prev = await readHubSettings().catch(() => null);
+      const prev = await settingsBeforeImport(readHubSettings);
       // Backups never carry secrets — keep EVERY one configured on THIS machine
       // (the same composed preserve helper as POST /settings; a hand-built chain
       // here once missed the stock/football/news keys and wiped them on import).
@@ -6946,8 +6947,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // from outside, and a tampered one must not be able to redirect a saved
       // token to a host of its choosing. A changed address then shows up as
       // "needs setup" like any other missing secret.
-      const incoming = preserveSettingsSecrets({ ...d.settings }, prev);
-      if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
+      const incoming = keepThisPcOnImport(preserveSettingsSecrets({ ...d.settings }, prev), prev);
       // lighting.providers / deviceModes / native are bridge-owned (and the backup's copy
       // is token-less by design) — refill from the live bridge exactly like
       // POST /settings, so an import can never wipe this machine's pairings.
