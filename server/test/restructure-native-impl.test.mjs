@@ -5,9 +5,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { lex } from '../../tools/restructure/native-lex.mjs';
 import { compareGroups } from '../../tools/restructure/native-proof.mjs';
 import { splitRust } from '../../tools/restructure/native-split-rust.mjs';
 import { namesFile, retargetNativeTests, toNativeReader } from '../../tools/restructure/native-test-readers.mjs';
+import { reachedThrough } from '../../tools/restructure/native-wire.mjs';
 import { nativeSplits } from './native-source.mjs';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
@@ -105,4 +107,28 @@ test('a moved item that says super::name still finds it: the parent imports the 
   assert.match(files['src/layers/win32/sync.rs'], /^ {4}!super::menu_aside\(\)$/m);
   const own = text.replace('#[cfg(test)]', 'fn menu_aside() -> bool { true }\n\n#[cfg(test)]');
   assert.throws(() => splitRust({ origin: plan.origin, text: own, plan, otherWords: new Set() }), /has a menu_aside of its own/);
+});
+
+test('a private item another module reaches as crate::NAME is still found in the parent', () => {
+  const text = ['const TASK: &str = "task";', '', 'fn start() -> &\'static str {', '    TASK', '}', '', 'fn other() {}', ''].join('\n');
+  const plan = { origin: 'src/lib.rs', parts: [{ file: 'src/task.rs', about: 'The task.', items: ['const TASK', 'fn start', 'fn other'] }] };
+  const other = 'use crate::{start, TASK};\nfn f() { crate::other(); super::far(); }\n';
+  const reached = reachedThrough(other, lex(other, 'rust'), new Set(['crate']));
+  assert.deepEqual([...reached].sort(), ['TASK', 'other', 'start']);
+  const { files } = splitRust({ origin: plan.origin, text, plan, otherWords: new Set(), reached: new Set(['TASK', 'start']) });
+  assert.match(files['src/lib.rs'], /^use task::\{start, TASK\};$/m);
+  assert.match(files['src/task.rs'], /^pub\(crate\) const TASK: /m);
+  assert.match(files['src/task.rs'], /^pub\(crate\) fn start\(/m);
+  assert.match(files['src/task.rs'], /^fn other\(/m);
+});
+
+test('a function written once per system and a constant inside a format string are still imported', () => {
+  const text = ['const SHIM: &str = "x";', '', '#[cfg(windows)]', 'fn nudge() {}', '', '#[cfg(target_os = "macos")]', 'fn nudge() {}', '', 'fn run() -> String {', '    nudge();', '    format!("{SHIM}\\n")', '}', ''].join('\n');
+  const plan = { origin: 'src/lib.rs', parts: [{ file: 'src/nudge_windows.rs', about: 'The nudge on Windows.', lines: [[1, 4]] }] };
+  const { files } = splitRust({ origin: plan.origin, text, plan, otherWords: new Set() });
+  assert.match(files['src/lib.rs'], /^#\[cfg\(windows\)\]\nuse nudge_windows::nudge;$/m);
+  assert.match(files['src/lib.rs'], /^use nudge_windows::SHIM;$/m);
+  assert.match(files['src/nudge_windows.rs'], /^pub\(crate\) const SHIM: /m);
+  // The file with the Windows one does not import the macOS one: nothing in it calls that.
+  assert.doesNotMatch(files['src/nudge_windows.rs'], /macos/);
 });

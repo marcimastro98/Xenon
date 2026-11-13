@@ -11,7 +11,7 @@ import { langOf, lex } from './native-lex.mjs';
 import { splitMembers } from './native-split-members.mjs';
 import { splitRust } from './native-split-rust.mjs';
 import { retargetNativeTests } from './native-test-readers.mjs';
-import { mergeWords, wordsOf } from './native-wire.mjs';
+import { mergeWords, reachedThrough, wordsOf } from './native-wire.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const LEDGER = path.join(ROOT, 'tools', 'restructure', 'native-splits.json');
@@ -34,17 +34,24 @@ export function recordSplit(ledger, origin, parts) {
   return Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-/** Every word of the crate's other Rust files: the names another module may reach for. */
+/** What the crate's other Rust files say: every word, and the names they reach through the file being cut. */
 function crateWords(origin, skip, root) {
+  const base = path.posix.basename(origin, '.rs');
+  const isRoot = base === 'lib' || base === 'main';
+  const home = isRoot || base === 'mod' ? path.posix.dirname(origin) : origin.replace(/\.rs$/, '');
+  const self = isRoot ? 'crate' : path.posix.basename(home);
+  const reached = new Set();
   let dir = path.posix.dirname(origin);
   while (dir !== '.' && !fs.existsSync(path.join(root, dir, 'Cargo.toml'))) dir = path.posix.dirname(dir);
   const words = new Set();
   for (const file of git(['ls-files', '--', `${dir}/*.rs`], root).split('\n').filter(Boolean)) {
     if (skip.has(file) || !fs.existsSync(path.join(root, file))) continue;
     const text = fs.readFileSync(path.join(root, file), 'utf8');
-    for (const token of lex(text, 'rust')) if (token.kind === 'word') words.add(text.slice(token.start, token.end));
+    const tokens = lex(text, 'rust');
+    for (const token of tokens) if (token.kind === 'word') words.add(text.slice(token.start, token.end));
+    for (const name of reachedThrough(text, tokens, new Set(file.startsWith(`${home}/`) ? [self, 'super'] : [self]))) reached.add(name);
   }
-  return words;
+  return { words, reached };
 }
 
 /**
@@ -66,7 +73,8 @@ export function planSplit(plan, root = ROOT) {
     const sibling = fs.readFileSync(path.join(root, file), 'utf8');
     return wordsOf(sibling, lex(sibling, 'rust'), { start: 0, end: sibling.length });
   });
-  return splitRust({ origin: plan.origin, text, plan, otherWords: crateWords(plan.origin, skip, root), siblingWords: mergeWords(siblings) });
+  const { words, reached } = crateWords(plan.origin, skip, root);
+  return splitRust({ origin: plan.origin, text, plan, otherWords: words, siblingWords: mergeWords(siblings), reached });
 }
 
 const lineCount = (text) => text.split('\n').length - 1;

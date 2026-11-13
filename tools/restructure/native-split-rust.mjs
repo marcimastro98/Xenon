@@ -53,9 +53,10 @@ function privateFields(text, tokens, item) {
  * @param {object} input.plan parts (file, about, lines, items) and the corrections widen, uses, drop, keep, traits
  * @param {Set<string>} input.otherWords every word of the crate's other files: who may name a moved item from outside
  * @param {import('./native-wire.mjs').Words} [input.siblingWords] the words of the files an earlier split cut out of this one: they reach its items through it
+ * @param {Set<string>} [input.reached] the names the crate's other files reach through this one (`crate::NAME`), private ones included
  * @returns {{ files: Record<string, string>, notes: string[] }}
  */
-export function splitRust({ origin, text, plan, otherWords, siblingWords = mergeWords([]) }) {
+export function splitRust({ origin, text, plan, otherWords, siblingWords = mergeWords([]), reached = new Set() }) {
   const { tokens, items: read, header, trailer } = fileItems(text, 'rust');
   const items = withMemberGroups(text, tokens, read, plan.parts);
   const notes = [];
@@ -106,14 +107,23 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
     }
   });
 
+  /** True when an item of file `f` calls `name` outside the system `f`'s own version of it is written for. */
+  const callsAnother = (f, name) => {
+    const own = defs.get(name).filter((def) => def.file === f);
+    const covered = (item) => own.some((def) => def.item.cfg.length > 0 && def.item.cfg.every((line) => item.cfg.includes(line)));
+    return moving(f).some(({ item, i }) => !own.some((def) => def.i === i) && words[i].used.has(name) && !covered(item));
+  };
+
   /** The imports file `f` needs for names that live in another file of the split. */
   const importsFor = (f) => {
     const out = [];
     const mine = new Set([...defs].filter(([, list]) => list.some((def) => def.file === f)).map(([name]) => name));
     const need = f < 0 ? new Set([...fileWords.get(f).used, ...siblingWords.used]) : fileWords.get(f).used;
     for (const name of [...need].sort()) {
-      if (mine.has(name) || dropped(f, name)) continue;
+      if (dropped(f, name)) continue;
+      // (a name this file has too is one function written once per system: the other system's one is still imported)
       const found = (defs.get(name) ?? []).filter((def) => def.file !== f);
+      if (mine.has(name) && (found.length === 0 || (f >= 0 && !callsAnother(f, name)))) continue;
       for (const g of new Set(found.map((def) => def.file))) {
         const variants = found.filter((def) => def.file === g);
         const cfgs = coversEverything(variants.map((def) => def.item.cfg)) ? [[]] : variants.map((def) => def.item.cfg);
@@ -136,7 +146,10 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       // Names nothing in this file uses any more, but another module of the crate still reaches through it.
       for (const [name, list] of defs) {
         const def = list[0];
-        if (def.file >= 0 && !def.macro && def.item.vis && !need.has(name) && otherWords.has(name) && !dropped(f, name)) out.push({ cfg: union(def.item.cfg), vis: def.item.vis, leaf: { path: [modOf[def.file]], name } });
+        if (def.file < 0 || def.macro || need.has(name) || dropped(f, name) || !(def.item.vis ? otherWords.has(name) : reached.has(name))) continue;
+        // (a private one a module below reaches as `crate::NAME` or `super::NAME` is still found here, and opened that far)
+        if (!def.item.vis) widened.add(name);
+        out.push({ cfg: union(def.item.cfg), vis: def.item.vis, leaf: { path: [modOf[def.file]], name } });
       }
       return out;
     }

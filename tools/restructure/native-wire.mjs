@@ -3,7 +3,8 @@
 // It errs towards one import too many, which the compiler reports as a warning,
 // never towards one too few on code this PC cannot compile.
 
-import { cursor } from './native-lex.mjs';
+import { cursor, matching } from './native-lex.mjs';
+import { useLeaves } from './native-use.mjs';
 
 /**
  * @typedef {object} Words how an item uses names
@@ -33,6 +34,8 @@ export function wordsOf(text, tokens, item) {
   let beforeTwo = '';
   for (let k = c.next(lo); k < hi; k = c.next(k + 1)) {
     const w = c.word(k);
+    // A constant written inside a format string: format!("{NAME}").
+    if (tokens[k].kind === 'string') for (const named of c.str(k).matchAll(/\{([A-Z_][A-Z0-9_]*)[}:]/g)) { words.all.add(named[1]); bare.add(named[1]); }
     if (w && !/^\d/.test(w)) {
       const after = c.next(k + 1);
       const colon = c.str(after) === ':';
@@ -71,6 +74,29 @@ export function namesAbove(text, tokens, item) {
     const colon = c.next(k + 1);
     const second = c.next(colon + 1);
     if (c.str(colon) === ':' && c.str(second) === ':' && c.word(c.next(second + 1))) names.add(c.word(c.next(second + 1)));
+  }
+  return names;
+}
+
+/**
+ * The names a file reaches through a module it names: `crate::NAME`, `use super::{A, B}`.
+ * @param {string} text a Rust file @param {import('./native-lex.mjs').Token[]} tokens
+ * @param {Set<string>} through how the file may call that module: `crate`, `super`, its own name
+ * @returns {Set<string>}
+ */
+export function reachedThrough(text, tokens, through) {
+  const c = cursor(text, tokens, tokens.length);
+  const names = new Set();
+  for (let k = c.next(0); k < tokens.length; k = c.next(k + 1)) {
+    if (!through.has(c.word(k))) continue;
+    const colon = c.next(k + 1);
+    const second = c.next(colon + 1);
+    if (c.str(colon) !== ':' || c.str(second) !== ':') continue;
+    const after = c.next(second + 1);
+    if (c.word(after)) names.add(c.word(after));
+    if (c.str(after) !== '{') continue;
+    const close = matching(text, tokens, after);
+    for (const leaf of useLeaves(text.slice(tokens[after].start, tokens[close].end))) if (leaf.path.length === 0) names.add(leaf.name);
   }
   return names;
 }
