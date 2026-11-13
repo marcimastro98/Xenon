@@ -23,6 +23,9 @@ const CALL = new RegExp(String.raw`^ {4}await (${WORD})\['(${KEY})'\]\(req, res,
 const REQUIRE = new RegExp(String.raw`^const \{ branches: (${WORD}) \} = require\('(\./[^']+)'\);$`);
 const HEAD = new RegExp(String.raw`^ {2}'(${KEY})': async \(([^)]*)\) => \{$`);
 
+// Says what the table holds, so the type check reads a call with the handler's five values as a call of any
+// of its functions, whichever of them a body takes.
+export const TYPE_LINE = '/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */';
 export const OPEN_LINE = 'const branches = {';
 export const CLOSE_LINE = '};';
 export const ENTRY_END = '  },';
@@ -40,7 +43,7 @@ export const readRequire = (line) => { const m = REQUIRE.exec(line); return m ? 
 export const readHead = (line) => { const m = HEAD.exec(line); return m ? { key: m[1], params: m[2] } : null; };
 
 /** A line of a body that would be taken for the module's own frame when read back. */
-export const frameLine = (line) => line === ENTRY_END || line === CLOSE_LINE || line === OPEN_LINE || HEAD.test(line);
+export const frameLine = (line) => line === ENTRY_END || line === CLOSE_LINE || line === OPEN_LINE || line === TYPE_LINE || HEAD.test(line);
 
 /**
  * @param {string} moduleText a module the command wrote
@@ -51,6 +54,7 @@ export function readModule(moduleText) {
   const lines = moduleText.split('\n');
   const open = lines.indexOf(OPEN_LINE);
   if (open === -1) throw new Error('the module has no table of branches');
+  if (lines[open - 1] !== TYPE_LINE) throw new Error('the table of branches does not say what it holds on the line above it');
   const entries = [];
   let at = open + 1;
   while (at < lines.length && lines[at] !== CLOSE_LINE) {
@@ -62,7 +66,7 @@ export function readModule(moduleText) {
     at = end + 1;
   }
   if (at >= lines.length) throw new Error('the table of branches is not closed');
-  return { head: lines.slice(0, open), entries, tail: lines.slice(at + 1) };
+  return { head: lines.slice(0, open - 1), entries, tail: lines.slice(at + 1) };
 }
 
 /**

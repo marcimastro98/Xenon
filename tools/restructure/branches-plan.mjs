@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
 import { readBranches } from './branches-scope.mjs';
-import { callLine, CLOSE_LINE, CONTEXT, ENTRY_END, EXPORT_LINE, headLine, OPEN_LINE, readModule, readRequire, requireLine } from './branches-text.mjs';
+import { callLine, CLOSE_LINE, CONTEXT, ENTRY_END, EXPORT_LINE, headLine, OPEN_LINE, readModule, readRequire, requireLine, TYPE_LINE } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 import { requireEdit } from './require-edits.mjs';
@@ -84,7 +84,7 @@ function moduleFor({ moduleBefore, about, requireLines, added, target }) {
   if (taken.length) throw new Refusal([`${target} already has a body for ${taken.join(', ')}`]);
   const entries = [...before.entries, ...added];
   const table = entries.flatMap((entry, index) => [...(index ? [''] : []), headLine(entry.key, entry.params), ...entry.lines, ENTRY_END]);
-  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
+  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), TYPE_LINE, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
 }
 
 // The requires of the file that lost names only the moved bodies used, as edits of `text`, top to bottom.

@@ -9,7 +9,7 @@ import { analyze } from '../../tools/restructure/analyze.mjs';
 import { paramsFor, planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
 import { proveBranches } from '../../tools/restructure/branches-proof.mjs';
 import { keyOf, readBranches } from '../../tools/restructure/branches-scope.mjs';
-import { callLine, frameLine, headLine, putBack, readCall, readHead, readModule, readRequire, requireLine, undoBranchesText } from '../../tools/restructure/branches-text.mjs';
+import { callLine, frameLine, headLine, putBack, readCall, readHead, readModule, readRequire, requireLine, TYPE_LINE, undoBranchesText } from '../../tools/restructure/branches-text.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 import { ALLOWED, idOf, OLD, rewrite, SOURCE, TABLE } from './restructure-branches-fixture.mjs';
@@ -81,6 +81,7 @@ const lights = require('../lights-lib.js');
 const { readBody } = require('../http/read-body.js');
 const fs = require('node:fs');
 
+/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
 const branches = {
   'GET /a': async (_req, _res, { json }) => {
     // Says a.
@@ -106,7 +107,7 @@ module.exports = { branches };
     .replace(/ {4}try \{\n[\s\S]*?catch \(e\) \{ err500\(e\.message\); \}\n/, `${callLine('lightsBranches', 'POST /b')}\n`);
   assert.equal(made.newSource, expected, 'lights is still used by another route and keeps its require; fs and readBody are asked for by the table now');
   assert.deepEqual(proven(made), []);
-  assert.deepEqual([made.addedRequire, made.lines, made.sourceLines], [true, 22, 4]);
+  assert.deepEqual([made.addedRequire, made.lines, made.sourceLines], [true, 23, 4]);
 });
 
 test('a required name only the moved body used leaves the file, and an app module is still loaded where it was', (t) => {
@@ -128,7 +129,7 @@ test('what would mean something else in another function is refused, with every 
   assert.match(refusal(['GET /a'], { allowed: new Set() }), /protected\.json does not let the bodies of handleRequest move/);
   assert.match(refusal(['GET /a'], { target: 'server/lights/answers.js' }), /is not <feature>\/routes\.js or <feature>\/routes-<word>\.js/);
   assert.match(refusal(['GET /a'], { about: ' ' }), /say in one sentence what the new file does/);
-  assert.match(refusal(['GET /a'], { moduleBefore: 'const branches = {\n};\n\nmodule.exports = { branches };\n' }), /do not go together/);
+  assert.match(refusal(['GET /a'], { moduleBefore: `${TYPE_LINE}\nconst branches = {\n};\n\nmodule.exports = { branches };\n` }), /do not go together/);
   assert.match(refusal(['GET /a'], { text: SOURCE.replace('const LIMIT = 3;', 'const lightsBranches = 3;') }), /already has the word lightsBranches/);
   assert.match(refusal(['GET /a'], { text: SOURCE.replace("reqPath === '/d'", "reqPath === '/a'") }), /2 branches of handleRequest answer GET \/a, one was expected/);
   assert.match(refusal([]), /no branch was named/);
@@ -141,8 +142,8 @@ test('more bodies join a table that is there: its requires grow, its bodies stay
   assert.equal(second.addedRequire, false);
   assert.equal(second.newSource.split('\n').filter((line) => readRequire(line)).length, 1);
   assert.deepEqual(readModule(second.moduleText).entries.map((entry) => entry.key), ['GET /a', 'POST /b', 'GET /j']);
-  assert.deepEqual(second.moduleText.split('\n').slice(0, 6), ['// What the lights answer.', '', "const lights = require('../lights-lib.js');", "const { readBody } = require('../http/read-body.js');",
-    "const fs = require('node:fs');", '']);
+  assert.deepEqual(second.moduleText.split('\n').slice(0, 7), ['// What the lights answer.', '', "const lights = require('../lights-lib.js');", "const { readBody } = require('../http/read-body.js');",
+    "const fs = require('node:fs');", '', TYPE_LINE]);
   const proof = (more = {}) => proveBranches({ before: first.newSource, after: second.newSource, moduleBefore: first.moduleText, moduleText: second.moduleText, plan: second,
     parser, source: OLD, target: TABLE, idOf, ...more });
   assert.deepEqual(proof(), []);
@@ -161,7 +162,7 @@ test('the proof stands on the three texts, not on what the planner says it did',
   assert.match(wrong({ plan: { newSource: made.newSource.replace("reqPath === '/d'", "reqPath === '/dd'") } }), /the tests of handleRequest are not the same, in the same order/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace('const secret = 1;', 'const secret = 2;') } }), /handleRequest changed before its chain of routes/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace('json({ d: secret });', 'json({ d: 0 });') } }), /the body of GET \/d changed and was not asked to move/);
-  assert.match(wrong({ plan: { moduleText: made.moduleText.replace('const branches = {', 'lights.start();\nconst branches = {') } }), /has a statement that is not a require, the table or the export/);
+  assert.match(wrong({ plan: { moduleText: made.moduleText.replace(TYPE_LINE, `lights.start();\n${TYPE_LINE}`) } }), /has a statement that is not a require, the table or the export/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace("require('../lights-lib.js')", "require('../other-lib.js')") } }), /lights in server\/lights\/routes\.js is not what server\/demo\.js required under that name/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace('{ json, err500, isRemote }', '{ json, err500 }') } }), /POST \/b uses isRemote, which its function is not handed/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace("const { branches: lightsBranches } = require('./lights/routes.js');\n\n", '')
@@ -185,4 +186,6 @@ test('the bodies are put back for the tests that read the handler as text', (t) 
     'one table put back leaves the other, and the empty line');
   assert.throws(() => putBack(two.newSource, { local: 'lightsMoreBranches', bodies: new Map() }), /the module has no body for GET \/a/);
   assert.throws(() => readModule('const x = 1;\n'), /the module has no table of branches/);
+  assert.throws(() => readModule('const branches = {\n};\n'), /does not say what it holds/);
+  assert.ok(frameLine(TYPE_LINE));
 });
