@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 
 // One run from the build folder used to rewrite the real Run entry and the login task, and the
 // PC then started the unoptimized shell at every sign-in. No Rust test can see this: the tests

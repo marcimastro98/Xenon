@@ -1,0 +1,67 @@
+{
+  "origin": "apps/native/src-tauri/src/lib.rs",
+  "parts": [
+    {
+      "file": "apps/native/src-tauri/src/webview_setup.rs",
+      "about": "What every page in the app's windows starts with: the browser arguments and the script that sends outside links to the browser.",
+      "lines": [
+        [
+          76,
+          95
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/display_signal.rs",
+      "about": "The dashboard asking the app about screens: the list it gets back and the signal it sends to move the window.",
+      "lines": [
+        [
+          216,
+          216
+        ],
+        [
+          317,
+          369
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/backend_task.rs",
+      "about": "The Windows startup task of the engine: reading its state, starting it and switching it back on.",
+      "lines": [
+        [
+          605,
+          656
+        ],
+        [
+          767,
+          802
+        ],
+        [
+          2748,
+          2748
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/backend_nudge_windows.rs",
+      "about": "Windows: what the app does when the engine does not answer, and how it tells the splash.",
+      "lines": [
+        [
+          670,
+          753
+        ]
+      ]
+    },
+    {
+      "file": "apps/native/src-tauri/src/backend_bootstrap.rs",
+      "about": "Windows: the bundled first-install script, run in a console when the splash's button is pressed.",
+      "lines": [
+        [
+          860,
+          941
+        ]
+      ]
+    }
+  ]
+}

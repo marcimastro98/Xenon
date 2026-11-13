@@ -9,7 +9,7 @@
 // fire for it - the install that works today and is gone after a restart.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 import { spawnSync } from 'node:child_process';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
