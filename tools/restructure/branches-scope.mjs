@@ -9,7 +9,11 @@
 // `this`, no `arguments`, no `return` with a value (no `return` at all where the
 // function goes on after the chain), no `var` and no function declared straight in
 // the body (both would be seen by the whole handler today), no label, no `eval`.
-// The one name a body may assign is the result its kind of chain gives back.
+// The one name a body may assign is the result its kind of chain gives back. A body
+// that sets it once, in a statement of its own straight in the body, stays too: its
+// function would declare the result on one line and set it once further down, which
+// the lint check reads as code to rewrite (style/useConst), and a move writes nothing
+// that adds a finding.
 
 import { ROUTES } from './branches-kinds.mjs';
 import { createUseReader } from './scope-uses.mjs';
@@ -82,6 +86,13 @@ function handlerNames(handler, { K, NodeFlags }) {
   return names;
 }
 
+// True when a body sets the result exactly once and does so in a statement straight in the body.
+function setsOnceAtTop(block, name, uses, K) {
+  const sets = (statement) => statement.kind === K.ExpressionStatement && statement.expression.kind === K.BinaryExpression
+    && statement.expression.left.kind === K.Identifier && statement.expression.left.text === name;
+  return uses.get(name)?.write === 1 && block.statements.some(sets);
+}
+
 // The lines of a body: between the line its test ends on and the line its `}` starts, blank lines at both ends left out.
 function bodyLines(block, sourceFile, starts, lines) {
   const open = lineAt(starts, block.getStart(sourceFile));
@@ -144,6 +155,7 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
       else if (use.write > 0) reasons.push(`it assigns ${name}`);
     }
     reasons.push(...placeBound(block, parser, { anyReturn: Boolean(kind.result) }).map((what) => `it has ${what}`));
+    if (kind.result && setsOnceAtTop(block, kind.result, uses, parser.K)) reasons.push(`it sets ${kind.result} once, in a line of its own: a function that declares it first would read as code to rewrite`);
     reasons.push(...holders.map((name) => `it needs ${name}, which the file still declares (line ${analysis.bindings.get(name).record.line[0]})`));
     return { key, test, line: lineAt(starts, block.getStart(sourceFile)) + 1, first: at?.first ?? -1, last: at?.last ?? -1,
       lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, holders, reasons };

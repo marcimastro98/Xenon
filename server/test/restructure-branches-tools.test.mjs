@@ -60,12 +60,17 @@ async function runAiTool(fnName, fnArgs, deps) {
         clientActions.push({ action: 'notes_changed' });
       }
     } else if (fnName === 'read_file') {
-      fnResult = { exists: fs.existsSync(String(fnArgs.file)), lang: uiLang };
+      if (!fnArgs.file) fnResult = { error: 'no_file' };
+      else fnResult = { exists: fs.existsSync(String(fnArgs.file)), lang: uiLang };
     } else if (fnName === 'boom') {
       fnResult = { half: true };
-      throw new Error(\`no \${fnArgs.what}\`);
+      if (fnArgs.what) throw new Error(\`no \${fnArgs.what}\`);
+      fnResult = { whole: true };
     } else if (fnName === 'run') {
+      fnResult = { asked: fnArgs.action };
       fnResult = await runAction(fnArgs.action);
+    } else if (fnName === 'once') {
+      fnResult = { ok: fnArgs.ok };
     } else if (fnName === 'limit') {
       fnResult = { limit: LIMIT };
     } else if (fnName === 'early') {
@@ -123,20 +128,22 @@ test('the bodies of tools move as written into functions that give the result ba
   const module = readModule(made.moduleText);
   assert.equal(module.kind, TOOLS);
   assert.deepEqual(module.entries.map((entry) => [entry.key, entry.params]), [['add_note', '{ fnArgs, clientActions }'], ['read_file', '{ fnArgs, uiLang }'], ['boom', '{ fnArgs }'], ['run', '{ fnArgs, runAction }']]);
-  assert.ok(made.moduleText.includes(["  'boom': async ({ fnArgs }) => {", '      let fnResult;', '      fnResult = { half: true };', '      throw new Error(`no ${fnArgs.what}`);', '      return fnResult;', '  },'].join('\n')));
+  assert.ok(made.moduleText.includes(["  'boom': async ({ fnArgs }) => {", '      let fnResult;', '      fnResult = { half: true };', '      if (fnArgs.what) throw new Error(`no ${fnArgs.what}`);', '      fnResult = { whole: true };', '      return fnResult;', '  },'].join('\n')));
   assert.ok(made.moduleText.includes("/** @type {Record<string, (context: any) => Promise<any>>} */\nconst branches = {\n  'add_note': async"));
   const lines = made.newSource.split('\n');
   assert.equal(lines[lines.indexOf("    } else if (fnName === 'run') {") + 1], callLine('aiToolsBranches', 'run', TOOLS));
   assert.equal(lines.indexOf("const { branches: aiToolsBranches } = require('./ai/tools.js');") + 2, lines.indexOf('// Runs one tool for the assistant.'), 'the table is required right above the function');
   assert.equal(undoBranchesText(made.newSource, () => made.moduleText), SOURCE, 'read as text, the bodies are back under their tests');
   const survey = surveyBranches({ text: SOURCE, parser, source: OLD, kind: TOOLS });
-  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [9, MOVED, ['LIMIT']]);
+  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [10, MOVED, ['LIMIT']]);
+  assert.ok(survey.other.some((row) => /^it sets fnResult once, in a line of its own/.test(row.reason) && row.branches === 6), 'a body that sets the result just once is counted with what keeps it');
 });
 
 test('a body that would end the function, or set something else of it, stays; so does every body when the function is not safe to call them from', (t) => {
   if (!parser) return t.skip(SKIP);
-  const said = refusal(['limit', 'early', 'screen', 'bare', 'a', 'nothing']);
-  for (const reason of [/limit \(server\/demo\.js:\d+\): it needs LIMIT, which the file still declares/, /early .*it has a `return`/, /bare .*it has a `return`/,
+  const said = refusal(['limit', 'early', 'screen', 'bare', 'once', 'a', 'nothing']);
+  for (const reason of [/once \(server\/demo\.js:\d+\): it sets fnResult once, in a line of its own: a function that declares it first would read as code to rewrite/,
+    /limit \(server\/demo\.js:\d+\): it needs LIMIT, which the file still declares/, /early .*it has a `return`/, /bare .*it has a `return`/,
     /screen .*it uses pending, which the handler works out for itself/, /0 branches of runAiTool answer a, one was expected/, /0 branches of runAiTool answer nothing/]) assert.match(said, reason);
   assert.match(refusal(['run'], { allowed: new Set(['handleRequest']) }), /protected\.json does not let the bodies of runAiTool move/);
   assert.match(refusal(['run'], { target: 'server/ai/routes.js' }), /protected.json does not let the bodies of handleRequest move/);
@@ -157,7 +164,7 @@ test('the proof stands on the three texts: a changed body, a `return` slipped in
   const made = plan(MOVED);
   assert.match(proven(made, { moduleText: swap(made.moduleText, "exists: fs.existsSync(String(fnArgs.file))", "exists: !fs.existsSync(String(fnArgs.file))") }).join('\n'), /the body of read_file in server\/ai\/tools\.js is not the old lines byte for byte/);
   assert.match(proven(made, { moduleText: swap(made.moduleText, "      fnResult = { half: true };\n", "      fnResult = { half: true };\n      if (fnResult) return;\n") }).join('\n'), /boom has a `return`/);
-  assert.match(proven(made, { moduleText: swap(made.moduleText, "      throw new Error(`no ${fnArgs.what}`);\n      return fnResult;\n", "      throw new Error(`no ${fnArgs.what}`);\n") }).join('\n'), /the function of boom does not declare fnResult first and give it back last/);
+  assert.match(proven(made, { moduleText: swap(made.moduleText, "      fnResult = { whole: true };\n      return fnResult;\n", "      fnResult = { whole: true };\n") }).join('\n'), /the function of boom does not declare fnResult first and give it back last/);
   assert.match(proven(made, { after: swap(made.newSource, '    fnResult = { error: fnErr.message };', '    fnResult = { error: String(fnErr.message) };') }).join('\n'), /runAiTool changed after its chain/);
   assert.match(proven(made, { after: swap(made.newSource, "fnName === 'boom'", "fnName === 'bang'") }).join('\n'), /the tests of runAiTool are not the same, in the same order/);
   assert.match(proven(made, { after: swap(made.newSource, "    return { fnResult: phoneRefusal('pc_only'), clientActions, pending };\n", '') }).join('\n'), /runAiTool changed before its chain/);
@@ -178,7 +185,7 @@ function demoRepo() {
 async function resultsOf(root) {
   const { runAiTool } = createRequire(path.join(root, 'server', 'x.js'))('./demo.js');
   const asked = [['add_note', { text: ' milk ' }], ['add_note', { text: '' }], ['add_note', { text: 'eggs' }], ['read_file', { file: '.' }], ['boom', { what: 'luck' }], ['run', { action: 'lock' }],
-    ['run', { action: 'lock' }, { remote: true }], ['lock', {}, { remote: true }], ['open', {}], ['limit', {}], ['early', {}], ['screen', {}], ['nothing', {}], ['add_note', null]];
+    ['run', { action: 'lock' }, { remote: true }], ['lock', {}, { remote: true }], ['open', {}], ['limit', {}], ['once', { ok: 1 }], ['boom', {}], ['read_file', {}], ['early', {}], ['screen', {}], ['nothing', {}], ['add_note', null]];
   const out = [];
   for (const [name, args, more] of asked) out.push(`${name} ${JSON.stringify(await runAiTool(name, args, { uiLang: 'it', ...more }))}`);
   return out;

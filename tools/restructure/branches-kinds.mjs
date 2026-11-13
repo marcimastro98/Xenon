@@ -8,7 +8,8 @@
 //   tools   the function that runs a tool for the assistant: `if (fnName === 'x') {`.
 //           A body is handed twelve values of the function and gives back the one
 //           thing it may assign, the tool's result; it may not `return` at all,
-//           because the function goes on after the chain.
+//           because the function goes on after the chain. A body that sets the
+//           result just once, straight in its lines, stays (branches-scope.mjs).
 
 import { routeChain } from './routes-list.mjs';
 
