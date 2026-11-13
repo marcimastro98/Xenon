@@ -56,6 +56,8 @@ export function splitMembers({ origin, text, plan, lang }) {
     for (const member of members) {
       const initialised = member.kind === 'field' && text.slice(member.start, member.end).includes('=');
       if (lang === 'cs' && initialised && !(plan.allowFields ?? []).includes(member.name)) {
+        // (taken by a range of lines it simply stays; named outright it is a mistake in the plan)
+        if (!(part.items ?? []).includes(member.key)) continue;
         throw new Error(`${member.name} (line ${member.line}) is a field with a starting value: it stays in ${origin}, where the order of such fields is kept.`);
       }
       made[part.file].pieces.push(text.slice(member.lead, member.end));
@@ -110,6 +112,9 @@ export function splitMembers({ origin, text, plan, lang }) {
   for (const cut of cuts.sort((a, b) => a.from - b.from || (a.with ? -1 : 1))) {
     if (cut.from < at) throw new Error(`Two parts take the same lines of ${origin}.`);
     rest += text.slice(at, cut.from) + (cut.with ?? '');
+    // A member that stays after one that left keeps an empty line above it.
+    const gone = cut.to > cut.from && /^[ \t]*\n/.test(text.slice(cut.from, cut.to)) && !/\n[ \t]*\n$/.test(rest);
+    if (gone && !/^(?:[ \t]*\n|[ \t]*\})/.test(text.slice(cut.to)) && !cuts.some((other) => other.from === cut.to && other.to > other.from)) rest += '\n';
     at = cut.to;
   }
   out[origin] = unprivate(rest + text.slice(at));

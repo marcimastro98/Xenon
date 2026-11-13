@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { lex } from '../../tools/restructure/native-lex.mjs';
 import { compareGroups } from '../../tools/restructure/native-proof.mjs';
+import { splitMembers } from '../../tools/restructure/native-split-members.mjs';
 import { splitRust } from '../../tools/restructure/native-split-rust.mjs';
 import { namesFile, retargetNativeTests, toNativeReader } from '../../tools/restructure/native-test-readers.mjs';
 import { reachedThrough } from '../../tools/restructure/native-wire.mjs';
@@ -152,4 +153,28 @@ test('a name the parent has once per system, imported or written, is taken from 
   const serve = splitRust({ origin: plan.origin, text, plan, otherWords: new Set() }).files['src/serve.rs'];
   assert.match(serve, /^use crate::Backend;$/m);
   assert.doesNotMatch(serve, /cfg/);
+});
+
+test('C# lines taken by range leave a field with a starting value in place, with an empty line above it', () => {
+  const text = [
+    'namespace Demo;',
+    '',
+    'internal static class Host',
+    '{',
+    '    private static int Limit() => 3;',
+    '',
+    '    // The table.',
+    '    private struct Entry { public int Id; }',
+    '    // One slot per entry.',
+    '    private static readonly int[] Next = new int[4];',
+    '',
+    '    private static int Count;',
+    '}',
+    '',
+  ].join('\n');
+  const plan = { origin: 'helper/Host.cs', parts: [{ file: 'helper/Host.Store.cs', about: 'The table.', type: 'Host', lines: [[7, 12]] }] };
+  const { files } = splitMembers({ origin: plan.origin, text, plan, lang: 'cs' });
+  assert.match(files['helper/Host.cs'], /Limit\(\) => 3;\n\n {4}\/\/ One slot per entry\.\n {4}private static readonly int\[\] Next = new int\[4\];\n\}\n$/);
+  assert.match(files['helper/Host.Store.cs'], /struct Entry \{ public int Id; \}\n\n {4}private static int Count;\n\}\n$/);
+  assert.deepEqual(compareGroups({ 'helper/Host.cs': text }, files).problems, []);
 });
