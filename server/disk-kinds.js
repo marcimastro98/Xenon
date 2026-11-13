@@ -4,7 +4,7 @@
 // anything inside a game library folder is a game whatever its extension: a
 // 90 GB game is .pak/.bin/.dat files that would otherwise all read as "other".
 //
-// The Windows helper (helper/IndexHost.cs, BuildExtKinds/GameLibraryNames) and
+// The Windows helper (helper/IndexHost.Totals.cs BuildExtKinds, helper/IndexHost.cs GameLibraryNames) and
 // the macOS one (helper-mac IndexHost.swift) carry the same two lists; a change
 // here belongs there too, or one platform splits the bar differently.
 
