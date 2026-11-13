@@ -100,7 +100,10 @@ test('the Xenon app never registers or removes the browser-at-logon task', () =>
 // means it would have opened one, 1 that it waited and gave up, 0 that it left
 // the dashboard to the app.
 const VBS = readFileSync(join(__dirname, '..', 'open-dashboard.vbs'), 'utf8');
-const TEST_KEY = 'HKCU\\Software\\XenonTestAutoOpen';
+// One key per run. Under a fixed name, two checkouts tested at the same moment
+// shared it: one run's "the app starts at logon" made the other's launcher leave
+// at once instead of waiting for its server.
+const TEST_KEY = 'HKCU\\Software\\XenonTestAutoOpen-' + process.pid;
 
 async function runLauncher(t, url = 'http://127.0.0.1:1/') {
   const { execFileSync, spawn } = await import('node:child_process');
