@@ -78,7 +78,7 @@ const branches = {
       // even when not followed. An empty query is rejected (would match anything).
       const fav = wanted ? (fresh.teams || []).find(x => String(x.name || '').toLowerCase().includes(wanted)) : null;
       let leagueId = fav ? (fav.type === 'league' ? fav.id : fav.leagueId) : '';
-      let season = fav ? fav.season : '';
+      const season = fav ? fav.season : '';
       if (!leagueId && wanted) { const L = football.searchLeagues(wanted)[0]; if (L) leagueId = L.id; }
       if (!leagueId) { fnResult = { error: 'no league found: name a competition (e.g. "Serie A", "Champions League") or a team you follow' }; }
       else {
