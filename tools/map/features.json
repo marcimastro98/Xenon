@@ -302,6 +302,7 @@
       "name": "Capture",
       "what": "Screenshots, recording, instant replay, the gallery and the steps recorder.",
       "files": [
+        "server/screens/**",
         "server/capture*.js",
         "server/recorder.js",
         "server/replay.js",
@@ -599,6 +600,7 @@
       "name": "Deck",
       "what": "Buttons that run actions, with the editor, shortcuts and the one gate every action passes.",
       "files": [
+        "server/deck/**",
         "server/deck-*.js",
         "server/deck-*.ps1",
         "server/deck-popup.html",
@@ -636,6 +638,7 @@
       "name": "Smart home",
       "what": "Home Assistant and UniFi: lights, switches, cameras.",
       "files": [
+        "server/smart-home/**",
         "server/actions/home-assistant*.js",
         "server/actions/unifi.js",
         "server/unifi-events.js",

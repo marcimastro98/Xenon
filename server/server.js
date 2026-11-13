@@ -47,19 +47,13 @@ const { createFpsDemand } = require('./fps-demand');
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
 const { createNotificationOpener, platformDeps: notificationOpenDeps } = require('./notification-open/index.js');
-const { readStartApps } = require('./notification-open/start-apps.js');
+require('./notification-open/start-apps.js');
 const layersHost = require('./layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
 const DeckShortcuts = require('./js/deck-shortcuts.js');
-const AltGrKeys = require('./altgr-keys-windows.js');
-// What this PC's keyboards type with AltGr: a Ctrl+Alt letter none of them types
-// is a shortcut like any other. Read again at most once a minute (altgr-keys-windows.js).
-function _altGrKeys() {
-  const list = AltGrKeys.altGrKeys();
-  DeckShortcuts.useAltGrKeys(list);
-  return list;
-}
+require('./altgr-keys-windows.js');
+const { _altGrKeys } = require('./deck/altgr-keys.js');
 _altGrKeys();
 const { createDeckShortcutRunner } = require('./deck-shortcut-runner');
 const { createDeckPress } = require('./deck-press');
@@ -286,6 +280,18 @@ const {
 const { VOLUME_DETAILS_COMMAND, DISK_MODELS_COMMAND } = require('./disk/details-commands.js');
 
 const { psRows, joinDiskDetails } = require('./disk/details-shape.js');
+
+const {
+  DECK_SOUND_MAX_BYTES, DECK_SOUND_EXTS, DECK_SOUND_NAME_RE, DECK_MAX_BYTES,
+} = require('./deck/limits.js');
+
+const { resolveExecInDir } = require('./deck/open-app-folder.js');
+
+const { POSIX_SCRIPT_RUNNERS } = require('./deck/script-runners.js');
+
+const {
+  INSTALLED_APPS_TTL_MS, _enumStartMenuLnks, _enumStoreApps,
+} = require('./search/installed-apps-windows.js');
 
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
@@ -1369,9 +1375,6 @@ const MCP_BRIDGE_PATH = path.join(__dirname, '..', 'packages', 'mcp', 'bin', 'xe
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
-const DECK_SOUND_MAX_BYTES = 15 * 1024 * 1024;
-const DECK_SOUND_EXTS = new Set(['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba']);
-const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
 // ── Installed applications (the search's Applications tier) ────────────────
 // Two sources, merged and cached: Start Menu .lnk shortcuts (classic desktop
 // apps — Steam, Chrome) and Get-StartApps UWP entries (Store apps — Spotify,
@@ -1381,43 +1384,6 @@ const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
 // only: launching resolves an opaque result id back to THIS list — never a
 // caller-supplied path or AUMID.
 const _installedApps = { list: [], at: 0, inflight: null };
-const INSTALLED_APPS_TTL_MS = 15 * 60 * 1000;
-
-async function _enumStartMenuLnks() {
-  const roots = [
-    path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-    process.env.APPDATA ? path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs') : '',
-  ];
-  const out = [];
-  for (const root of roots) {
-    if (!root) continue;
-    const stack = [root];
-    let guard = 0;
-    while (stack.length && guard++ < 400) {
-      const dir = stack.pop();
-      let entries = [];
-      try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch { continue; }
-      for (const ent of entries) {
-        const full = path.join(dir, ent.name);
-        if (ent.isDirectory()) {
-          stack.push(full);
-        } else if (ent.isFile() && /\.lnk$/i.test(ent.name)) {
-          const name = ent.name.replace(/\.lnk$/i, '');
-          // Uninstallers and doc links masquerade as apps — drop the obvious ones.
-          if (/uninstall|disinstalla|readme|website|web site|documentation|user manual|release notes/i.test(name)) continue;
-          out.push({ name, kind: 'lnk', target: full });
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function _enumStoreApps() {
-  // Packaged apps only, by the same strict AUMID shape the Deck's storeapp action validates.
-  return readStartApps(execFile).then((apps) => apps.filter((a) => /^[\w.-]+![\w.-]+$/.test(a.id))
-    .map((a) => ({ name: a.name, kind: 'store', target: a.id })));
-}
 
 function getInstalledApps() {
   const now = Date.now();
@@ -2218,9 +2184,6 @@ async function performAiUndo(entry) {
 const DECK_FILE = path.join(DATA_DIR, 'deck.json');
 const STREAM_CONFIG_FILE = path.join(DATA_DIR, 'stream-config.json');
 const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
-// Deck configs hold image-icon data URLs (up to ~1.5 MB each), so the store can
-// run to several MB across many keys; cap generously to bound disk use.
-const DECK_MAX_BYTES = 8 * 1024 * 1024;
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // Third-party widget packages (sandboxed SDK widgets): one folder per package.
 // Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
@@ -5727,10 +5690,10 @@ let haNotifyTimer = null;
 // surface's watch list. Bounded + TTL-pruned; the shared HA watch already
 // receives every state_changed, so this only widens what gets BROADCAST.
 const _haDeckWatchClients = new Map();   // clientId → { ids, at }
-const HA_DECK_WATCH_MAX = 32;
-const HA_DECK_WATCH_CLIENTS_MAX = 8;
-const HA_DECK_WATCH_TTL_MS = 15 * 60 * 1000;   // a vanished surface stops mattering
-const HA_ENTITY_ID_RE = /^[a-z_]+\.[a-z0-9_]+$/;
+const {
+  HA_DECK_WATCH_MAX, HA_DECK_WATCH_CLIENTS_MAX, HA_DECK_WATCH_TTL_MS, HA_ENTITY_ID_RE,
+  UNIFI_COOLDOWN_MAX,
+} = require('./smart-home/limits.js');
 
 function haDeckWatchUnion() {
   const now = Date.now();
@@ -5981,7 +5944,6 @@ let unifiEventsStopWatch = null;
 let _unifiNotifyConfigSig = null;
 let _unifiNotifySnapshot = null;          // { enabled, types, cooldownMs } — refreshed by refreshUnifiEventsWatch
 const _unifiNotifyCooldown = new Map();   // "camId|kind" -> last-broadcast ms
-const UNIFI_COOLDOWN_MAX = 200;           // bound the map (many cameras × kinds)
 
 // Handle one decoded detection: fan its kinds out to individual toasts, each gated
 // by the user's per-kind toggle and the per-camera+kind cooldown. Reads the notify
@@ -6065,66 +6027,6 @@ async function ensureObsRun(runFn) {
   }
 }
 
-// Sort 'app-1.2.3'-style names newest-first by their numeric parts.
-function _compareAppDirDesc(a, b) {
-  const va = (a.match(/\d+/g) || []).map(Number);
-  const vb = (b.match(/\d+/g) || []).map(Number);
-  for (let i = 0; i < Math.max(va.length, vb.length); i++) {
-    const diff = (vb[i] || 0) - (va[i] || 0);
-    if (diff) return diff;
-  }
-  return 0;
-}
-
-// Resolve a FOLDER the user pointed an "open app" key at to the executable that
-// should actually launch — so pointing at an app's install directory just works.
-// Handled shapes (newest version first; re-resolved on every tap so updates don't
-// break the key):
-//   1. Squirrel layout (Discord/Slack/Teams classic): a dir with Update.exe and
-//      'app-X.Y.Z' subfolders → newest app-*/<Name>.exe.
-//   2. A versioned dir itself (…/Discord/app-1.2.3) → an exe named after the parent.
-//   3. A plain app dir holding exactly one executable.
-// Returns '' when the path isn't a directory or no single clear target exists.
-function resolveExecInDir(dir) {
-  try {
-    const d = String(dir || '').trim();
-    if (!d) return '';
-    let st;
-    try { st = fs.statSync(d); } catch { return ''; }
-    if (!st.isDirectory()) return '';
-    const names = fs.readdirSync(d);
-    const exes = names.filter((n) => /\.exe$/i.test(n));
-    const leaf = path.basename(d).toLowerCase();
-    const parentLeaf = path.basename(path.dirname(d)).toLowerCase();
-
-    // 1) Squirrel: Update.exe + app-* subfolders → newest version's <leaf>.exe.
-    if (exes.some((n) => n.toLowerCase() === 'update.exe')) {
-      const appDirs = names
-        .filter((n) => { try { return /^app-[\d.]+$/i.test(n) && fs.statSync(path.join(d, n)).isDirectory(); } catch { return false; } })
-        .sort(_compareAppDirDesc);
-      for (const ad of appDirs) {
-        const inner = path.join(d, ad);
-        let innerExes;
-        try { innerExes = fs.readdirSync(inner).filter((n) => /\.exe$/i.test(n) && n.toLowerCase() !== 'update.exe'); }
-        catch { continue; }                                    // unreadable; try next version
-        const match = innerExes.find((n) => n.toLowerCase() === leaf + '.exe');  // e.g. Discord/app-*/Discord.exe
-        if (match) return path.join(inner, match);
-        if (innerExes.length === 1) return path.join(inner, innerExes[0]);
-      }
-    }
-
-    // 2) An exe named after this folder, or after its parent (versioned-dir case).
-    const named = exes.find((n) => n.toLowerCase() === leaf + '.exe')
-      || exes.find((n) => n.toLowerCase() === parentLeaf + '.exe');
-    if (named) return path.join(d, named);
-
-    // 3) Exactly one launchable executable → unambiguous.
-    const launchable = exes.filter((n) => n.toLowerCase() !== 'update.exe');
-    if (launchable.length === 1) return path.join(d, launchable[0]);
-    return '';
-  } catch { return ''; }
-}
-
 // Lock the session. Single source of truth for the lock call, shared by the
 // Deck lockWorkstation action, the AI lock_pc tool, the /lock endpoint and the
 // idle auto-lock flow. execFile with an argv array — never a shell string.
@@ -6187,33 +6089,6 @@ function openExternalPath(p, args) {
   });
 }
 
-// The interpreter a user script runs under, by extension. The Windows set lives
-// in deck-actions.ps1; this is its POSIX twin, and it must cover exactly the
-// extensions actions/registry.js accepts off Windows — an extension the gate
-// lets through and this table has no entry for would be a key that validates
-// and then fails, which is the worst of both. AppleScript is the one darwin-only
-// pair: there is no osascript to hand it to anywhere else.
-const POSIX_SCRIPT_RUNNERS = {
-  '.sh': ['/bin/sh'],
-  '.command': ['/bin/sh'],
-  '.zsh': ['/bin/zsh'],
-  '.bash': ['/bin/bash'],
-  '.py': ['/usr/bin/env', 'python3'],
-  '.pyw': ['/usr/bin/env', 'python3'],
-  '.js': ['/usr/bin/env', 'node'],
-  '.cjs': ['/usr/bin/env', 'node'],
-  '.mjs': ['/usr/bin/env', 'node'],
-  '.rb': ['/usr/bin/env', 'ruby'],
-  '.pl': ['/usr/bin/env', 'perl'],
-  '.php': ['/usr/bin/env', 'php'],
-  '.lua': ['/usr/bin/env', 'lua'],
-  '.r': ['/usr/bin/env', 'Rscript'],
-  '.jar': ['/usr/bin/env', 'java', '-jar'],
-  ...(process.platform === 'darwin' ? {
-    '.scpt': ['/usr/bin/osascript'],
-    '.applescript': ['/usr/bin/osascript'],
-  } : {}),
-};
 function runUserScript(p, hidden) {
   if (process.platform === 'win32') {
     return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000);
@@ -6917,44 +6792,9 @@ function cleanupUnreferencedSlideshowAssets(slideshow) {
   )).catch(() => {});
 }
 
-// ── Screen enumeration + capture (shared by /api/screens, /api/screenshot,
-//    and the AI capture_screen function) ───────────────────────────────────
-async function listScreens() {
-  const psScript = 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.X)|$($_.Bounds.Y)|$($_.Bounds.Width)|$($_.Bounds.Height)|$($_.Primary)|$($_.DeviceName)" }';
-  try {
-    const stdout = await new Promise((resolve, reject) =>
-      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript],
-        { maxBuffer: 64 * 1024, windowsHide: true },
-        (err, out) => err ? reject(err) : resolve(out)
-      )
-    );
-    return stdout.trim().split(/\r?\n/).filter(Boolean).map((line, i) => {
-      const [x, y, w, h, primary, dev] = line.trim().split('|');
-      const label = (dev || '').replace(/^\\\\.\\/, '').trim() || `DISPLAY${i + 1}`;
-      return { index: i, x: parseInt(x) || 0, y: parseInt(y) || 0, width: parseInt(w) || 1920, height: parseInt(h) || 1080, primary: primary === 'True', name: label };
-    });
-  } catch {
-    return [{ index: 0, x: 0, y: 0, width: 1920, height: 1080, primary: true, name: 'DISPLAY1' }];
-  }
-}
+const { listScreens } = require('./screens/list-screens.js');
 
-// Cap a capture's width in place, the way the ffmpeg filter
-// (scale='min(maxWidth,iw)') does elsewhere. screencapture writes the display's
-// BACKING resolution, so a Retina panel produces a 5K JPEG where the same call
-// on Windows produces a 1920-wide one — several megabytes of base64 on every AI
-// vision request. sips ships with macOS, and reading the width first keeps it
-// from doing the one thing `min()` never does: enlarge a smaller capture.
-async function _capShrinkToWidth(file, maxWidth) {
-  try {
-    const { stdout } = await execFilePromise('/usr/bin/sips', ['-g', 'pixelWidth', file], { timeout: 8000 });
-    const m = String(stdout || '').match(/pixelWidth:\s*(\d+)/);
-    if (!m || Number(m[1]) <= maxWidth) return;
-    await execFilePromise('/usr/bin/sips', ['--resampleWidth', String(maxWidth), file], { timeout: 15000 });
-  } catch {
-    // A capture at full resolution is still a usable capture — never fail the
-    // screenshot over the size of it.
-  }
-}
+const { _capShrinkToWidth } = require('./screens/shrink-to-width.js');
 
 // Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
 // Returns base64 JPEG.

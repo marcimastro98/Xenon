@@ -98,7 +98,15 @@
       {"file":"server/system/pwsh-worker-memory.js","about":"The memory budget given to the PowerShell process that reads the sensors.","names":["PWSH_WORKER_GC_BUDGET"]},
       {"file":"server/disk/details-timings.js","about":"How long drive details are reused and how long a read may take, and the test that says a stored answer is still fresh.","names":["DISK_DETAILS_TTL_MS","DISK_DETAILS_RETRY_MS","DISK_DETAILS_TIMEOUT_MS","DISK_DETAILS_BG_TIMEOUT_MS","DISK_MODELS_TIMEOUT_MS","diskProbeFresh","DISK_LETTERS_TTL"]},
       {"file":"server/disk/details-commands.js","about":"The two PowerShell questions that read drive details on Windows: volumes, and the name of each physical disk.","names":["VOLUME_DETAILS_COMMAND","DISK_MODELS_COMMAND"]},
-      {"file":"server/disk/details-shape.js","about":"Shapes the drive details: PowerShell rows as a list, and volumes joined with the names of their disks.","names":["psRows","joinDiskDetails"]}
+      {"file":"server/disk/details-shape.js","about":"Shapes the drive details: PowerShell rows as a list, and volumes joined with the names of their disks.","names":["psRows","joinDiskDetails"]},
+      {"file":"server/deck/limits.js","about":"Limits of the Deck: the size of its saved configuration and of a sound, and the sound files it accepts.","names":["DECK_SOUND_MAX_BYTES","DECK_SOUND_EXTS","DECK_SOUND_NAME_RE","DECK_MAX_BYTES"]},
+      {"file":"server/deck/open-app-folder.js","about":"Finds the program to start when an \"open app\" key points at a folder, newest version first.","names":["_compareAppDirDesc","resolveExecInDir"]},
+      {"file":"server/deck/script-runners.js","about":"Which program runs a user script on macOS and Linux, by file extension.","names":["POSIX_SCRIPT_RUNNERS"]},
+      {"file":"server/deck/altgr-keys.js","about":"Reads which letters this keyboard types with AltGr and tells the shortcut checker.","names":["_altGrKeys"]},
+      {"file":"server/smart-home/limits.js","about":"Limits of the smart home links: Home Assistant devices watched for Deck keys, the shape of a device id, and remembered camera alerts.","names":["HA_DECK_WATCH_MAX","HA_DECK_WATCH_CLIENTS_MAX","HA_DECK_WATCH_TTL_MS","HA_ENTITY_ID_RE","UNIFI_COOLDOWN_MAX"]},
+      {"file":"server/search/installed-apps-windows.js","about":"Lists the apps installed on Windows, from the Start menu and from the Store, and says how long the list is reused.","names":["INSTALLED_APPS_TTL_MS","_enumStartMenuLnks","_enumStoreApps"]},
+      {"file":"server/screens/list-screens.js","about":"Lists the screens connected to this PC with their position and size.","names":["listScreens"]},
+      {"file":"server/screens/shrink-to-width.js","about":"Makes a screenshot narrower in place when it is wider than asked, on macOS.","names":["_capShrinkToWidth"]}
     ]
   }
 }
