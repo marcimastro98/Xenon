@@ -13,13 +13,17 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 import { undoStateText } from '../../tools/restructure/state-undo.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LEDGER = join(REPO, 'tools', 'restructure', 'extracted.json');
 const ENGINE = 'server/server.js';
 
-const read = (file) => readFileSync(join(REPO, file), 'utf8');
+const readAsIs = (file) => readFileSync(join(REPO, file), 'utf8');
+// A module of places next to the engine says SERVER_DIR where the old file said __dirname: the old word is put back.
+const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
+const read = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
 
 function ledgerOf(source) {
   let ledger;

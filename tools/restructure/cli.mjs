@@ -13,7 +13,10 @@
 //   node tools/restructure/cli.mjs lift --from <file> --to <dir>/<feature>/<file>.js --about "<one sentence>" [--dry-run] <name>
 //                                                                  a value the file works out while it loads gets a module of
 //                                                                  its own, required on the line where it was worked out
-//   node tools/restructure/cli.mjs verify [--base HEAD]            redo the recorded moves and rewrites from a revision, compare bytes
+//   node tools/restructure/cli.mjs paths --from <file> --to <dir>/<feature>/<file>.js --about "<one sentence>" [--dry-run] <name> [...]
+//                                                                  constants built from __dirname get a module of their own,
+//                                                                  which works out the same folder under the name SERVER_DIR
+//   node tools/restructure/cli.mjs verify [--base HEAD]           redo the recorded moves and rewrites from a revision, compare bytes
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
 //   node tools/restructure/cli.mjs remainder <file> --movable      the names that can move now, by feature
@@ -30,6 +33,7 @@ import { protectedNames, readLedger } from './ledger.mjs';
 import { liftValue } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
+import { movePaths } from './paths.mjs';
 import { orderJobs, pendingJobs } from './plan-order.mjs';
 import { carryAll, checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { rewriteState } from './state.mjs';
@@ -120,6 +124,15 @@ function runLift(parser, { flags, rest }) {
   return 0;
 }
 
+function runPaths(parser, { flags, rest }) {
+  const dryRun = Boolean(flags['dry-run']);
+  const done = movePaths({ root: REPO_ROOT, parser, source: posix(flags.from), target: posix(flags.to), about: flags.about, names: rest, dryRun });
+  console.log(`${dryRun ? 'would make' : 'made'} ${done.target} (${done.lines} lines) with ${done.names.join(', ')}; ${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} `
+    + `${done.sourceLines} lines and requires each name where it stood. Old and new value are the same text on Windows, macOS and Linux.`);
+  if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
+  return 0;
+}
+
 // The jobs of a plan file that are still to do, dependencies first.
 function readPlan(parser, planFile) {
   const jobs = JSON.parse(readFileSync(planFile, 'utf8')).map((job) => ({ ...job, from: posix(job.from), to: posix(job.to) }));
@@ -186,12 +199,12 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'verify', 'remainder'].includes(command);
+  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'paths', 'verify', 'remainder'].includes(command);
   const aimed = args.flags.from && args.flags.to && args.rest.length;
-  const incomplete = (command === 'extract' && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
+  const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
   if (!known || args.rest.length < needsFile || incomplete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 21).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 24).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   const parser = await openParser();
@@ -201,6 +214,7 @@ async function main(argv) {
     if (command === 'verify') return verify(parser, args);
     if (command === 'state') return runState(parser, args);
     if (command === 'lift') return runLift(parser, args);
+    if (command === 'paths') return runPaths(parser, args);
     const dryRun = Boolean(args.flags['dry-run']);
     if (command === 'apply') return runExtractions(parser, readPlan(parser, args.rest[0]), false);
     return runExtractions(parser, [{ from: args.flags.from, to: args.flags.to, about: args.flags.about,
