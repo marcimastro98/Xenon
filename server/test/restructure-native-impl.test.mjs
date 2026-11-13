@@ -9,6 +9,7 @@ import { lex } from '../../tools/restructure/native-lex.mjs';
 import { compareGroups } from '../../tools/restructure/native-proof.mjs';
 import { splitMembers } from '../../tools/restructure/native-split-members.mjs';
 import { splitRust } from '../../tools/restructure/native-split-rust.mjs';
+import { takesAll } from '../../tools/restructure/native-split.mjs';
 import { namesFile, retargetNativeTests, toNativeReader } from '../../tools/restructure/native-test-readers.mjs';
 import { reachedThrough } from '../../tools/restructure/native-wire.mjs';
 import { nativeSplits } from './native-source.mjs';
@@ -177,4 +178,11 @@ test('C# lines taken by range leave a field with a starting value in place, with
   assert.match(files['helper/Host.cs'], /Limit\(\) => 3;\n\n {4}\/\/ One slot per entry\.\n {4}private static readonly int\[\] Next = new int\[4\];\n\}\n$/);
   assert.match(files['helper/Host.Store.cs'], /struct Entry \{ public int Id; \}\n\n {4}private static int Count;\n\}\n$/);
   assert.deepEqual(compareGroups({ 'helper/Host.cs': text }, files).problems, []);
+});
+
+test('a child file that takes everything from its parent counts as a user of the parent', () => {
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const children = takesAll('apps/native/src-tauri/src/engine_install/mod.rs', root);
+  assert.ok(children.includes('apps/native/src-tauri/src/engine_install/tests.rs'));
+  assert.ok(!children.includes('apps/native/src-tauri/src/engine_install/mod.rs'));
 });

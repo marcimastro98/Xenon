@@ -55,6 +55,19 @@ function crateWords(origin, skip, root) {
 }
 
 /**
+ * The child files of a Rust file that begin with `use super::*;`: they name its items without listing them.
+ * @param {string} origin @param {string} root
+ * @returns {string[]}
+ */
+export function takesAll(origin, root) {
+  const base = path.posix.basename(origin, '.rs');
+  const home = ['lib', 'main', 'mod'].includes(base) ? path.posix.dirname(origin) : origin.replace(/\.rs$/, '');
+  const children = git(['ls-files', '--', `${home}/*.rs`], root).split('\n').filter((file) => file && file !== origin)
+    .filter((file) => path.posix.dirname(file) === home || (path.posix.basename(file) === 'mod.rs' && path.posix.dirname(path.posix.dirname(file)) === home));
+  return children.filter((file) => fs.existsSync(path.join(root, file)) && /^use super::\*;/m.test(fs.readFileSync(path.join(root, file), 'utf8')));
+}
+
+/**
  * @param {object} plan origin, parts and corrections
  * @param {string} [root] the checkout
  * @returns {{ files: Record<string, string>, notes: string[] }} every file the split writes, \n line ends
@@ -69,7 +82,8 @@ export function planSplit(plan, root = ROOT) {
   if (lang !== 'rust') return splitMembers({ origin: plan.origin, text, plan, lang });
   const skip = new Set([plan.origin, ...plan.parts.map((part) => part.file)]);
   // The files an earlier split cut out of this one name its items as `super::name`: they must keep finding them.
-  const siblings = (readLedger()[plan.origin] ?? []).filter((file) => !skip.has(file) && fs.existsSync(path.join(root, file))).map((file) => {
+  // So does a child file that takes everything at once (`use super::*;`, as a file of tests does).
+  const siblings = [...new Set([...(readLedger()[plan.origin] ?? []), ...takesAll(plan.origin, root)])].filter((file) => !skip.has(file) && fs.existsSync(path.join(root, file))).map((file) => {
     const sibling = fs.readFileSync(path.join(root, file), 'utf8');
     return wordsOf(sibling, lex(sibling, 'rust'), { start: 0, end: sibling.length });
   });
