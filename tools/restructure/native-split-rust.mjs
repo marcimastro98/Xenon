@@ -54,9 +54,11 @@ function privateFields(text, tokens, item) {
  * @param {Set<string>} input.otherWords every word of the crate's other files: who may name a moved item from outside
  * @param {import('./native-wire.mjs').Words} [input.siblingWords] the words of the files an earlier split cut out of this one: they reach its items through it
  * @param {Set<string>} [input.reached] the names the crate's other files reach through this one (`crate::NAME`), private ones included
+ * @param {boolean} [input.byPath] the file is also built from another place with `#[path = "..."]`. Rust then looks for
+ *   its child files next to it instead of in its folder, so each `mod` line says where its file is.
  * @returns {{ files: Record<string, string>, notes: string[] }}
  */
-export function splitRust({ origin, text, plan, otherWords, siblingWords = mergeWords([]), reached = new Set() }) {
+export function splitRust({ origin, text, plan, otherWords, siblingWords = mergeWords([]), reached = new Set(), byPath = false }) {
   const { tokens, items: read, header, trailer } = fileItems(text, 'rust');
   const items = withMemberGroups(text, tokens, read, plan.parts);
   const notes = [];
@@ -133,8 +135,12 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
         if (g >= 0 && variants[0].macro) throw new Error(`${name} is declared inside a macro in ${plan.parts[g].file} and used from another file: leave that macro in ${origin}.`);
         if (g >= 0 && !vis) widened.add(name);
         const from = f < 0 ? [modOf[g]] : g < 0 ? up : [...up, modOf[g]];
+        // A name the parent hands on to other files is there whenever the item is, not only when the parent's own code uses it.
+        const handedOn = f < 0 && g >= 0 && ((vis && otherWords.has(name)) || reached.has(name) || siblingWords.used.has(name));
         for (const cfg of cfgs) {
-          out.push({ cfg: union(cfg, gate.get(g), userCfg(f, name)).filter((line) => !gate.get(f).includes(line)), vis: f < 0 && vis && otherWords.has(name) ? vis : '', leaf: { path: from, name } });
+          const when = union(cfg, gate.get(g), handedOn ? [] : userCfg(f, name)).filter((line) => !gate.get(f).includes(line));
+          // (built by path for another system's tests, not every name handed on is used there)
+          out.push({ cfg: handedOn && byPath ? [...when, '#[allow(unused_imports)]'] : when, vis: f < 0 && vis && otherWords.has(name) ? vis : '', leaf: { path: from, name } });
         }
       }
       if (found.length === 0 && f >= 0) {
@@ -152,7 +158,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
         if (def.file < 0 || def.macro || need.has(name) || dropped(f, name) || !(def.item.vis ? otherWords.has(name) : reached.has(name))) continue;
         // (a private one a module below reaches as `crate::NAME` or `super::NAME` is still found here, and opened that far)
         if (!def.item.vis) widened.add(name);
-        out.push({ cfg: union(def.item.cfg), vis: def.item.vis, leaf: { path: [modOf[def.file]], name } });
+        out.push({ cfg: byPath ? [...union(def.item.cfg), '#[allow(unused_imports)]'] : union(def.item.cfg), vis: def.item.vis, leaf: { path: [modOf[def.file]], name } });
       }
       return out;
     }
@@ -258,7 +264,10 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
   const kept = inFile(-1);
   let preamble = -1;
   kept.forEach(({ item }, n) => { if (preamble === n - 1 && STAYS(item)) preamble = n; });
-  const mods = plan.parts.map((_, f) => `${gate.get(f).map((cfg) => `${cfg}\n`).join('')}mod ${modOf[f]};\n`).join('');
+  if (byPath && (isRoot || base === 'mod.rs')) throw new Error(`${origin} is built by path from another file: only a file that is not mod.rs can be cut then.`);
+  const folder = byPath ? path.posix.basename(partDir) : '';
+  const why = byPath ? '// This file is also built by path for the tests of the other systems, where Rust looks for child files next to\n// it: so each one is named in full, and a name handed on below may go unused there.\n' : '';
+  const mods = why + plan.parts.map((_, f) => `${gate.get(f).map((cfg) => `${cfg}\n`).join('')}${byPath ? `#[path = "${folder}/${modOf[f]}.rs"]\n` : ''}mod ${modOf[f]};\n`).join('');
   const piece = ({ item }) => (item.kind === 'use' ? pruned(item) : textOfItem(text, item));
   // The new `mod` lines join the ones the file has; without any, they open the block of new imports.
   const lastMod = kept.slice(0, preamble + 1).findLastIndex(({ item }) => item.kind === 'mod');

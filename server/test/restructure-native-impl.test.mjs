@@ -186,3 +186,22 @@ test('a child file that takes everything from its parent counts as a user of the
   assert.ok(children.includes('apps/native/src-tauri/src/engine_install/tests.rs'));
   assert.ok(!children.includes('apps/native/src-tauri/src/engine_install/mod.rs'));
 });
+
+test('a file that is also built by path says where each of its child files is', () => {
+  const text = ['pub fn plan() -> u32 {', '    size()', '}', '', 'fn size() -> u32 {', '    3', '}', ''].join('\n');
+  const plan = { origin: 'src/linux/tools.rs', parts: [{ file: 'src/linux/tools/sizes.rs', about: 'Sizes.', items: ['fn size'] }] };
+  const { files } = splitRust({ origin: plan.origin, text, plan, otherWords: new Set(), byPath: true });
+  assert.match(files['src/linux/tools.rs'], /^#\[path = "tools\/sizes\.rs"\]\nmod sizes;$/m);
+  const inFolder = { origin: 'src/linux/mod.rs', parts: [{ file: 'src/linux/sizes.rs', about: 'Sizes.', items: ['fn size'] }] };
+  assert.throws(() => splitRust({ origin: inFolder.origin, text, plan: inFolder, otherWords: new Set(), byPath: true }), /built by path/);
+});
+
+test('a name handed on to other files is not tied to the tests that also use it', () => {
+  const text = ['pub fn size() -> u32 {', '    3', '}', '', 'pub fn only_tested() -> u32 {', '    4', '}', '', '#[cfg(test)]', 'mod tests {', '    use super::*;', '', '    #[test]', '    fn sizes() {', '        assert_eq!(size() + only_tested(), 7);', '    }', '}', ''].join('\n');
+  const plan = { origin: 'src/linux/tools.rs', parts: [{ file: 'src/linux/tools/sizes.rs', about: 'Sizes.', items: ['fn size', 'fn only_tested'] }] };
+  const parent = splitRust({ origin: plan.origin, text, plan, otherWords: new Set(['size']) }).files['src/linux/tools.rs'];
+  assert.match(parent, /^pub use sizes::size;$/m);
+  assert.match(parent, /^#\[cfg\(test\)\]\nuse sizes::only_tested;$/m);
+  const byPath = splitRust({ origin: plan.origin, text, plan, otherWords: new Set(['size']), byPath: true }).files['src/linux/tools.rs'];
+  assert.match(byPath, /^#\[allow\(unused_imports\)\]\npub use sizes::size;$/m);
+});

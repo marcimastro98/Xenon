@@ -44,15 +44,18 @@ function crateWords(origin, skip, root) {
   let dir = path.posix.dirname(origin);
   while (dir !== '.' && !fs.existsSync(path.join(root, dir, 'Cargo.toml'))) dir = path.posix.dirname(dir);
   const words = new Set();
+  let byPath = false;
   // (files a split of this same run has just written count too: they are not in git yet)
   for (const file of git(['ls-files', '--cached', '--others', '--exclude-standard', '--', `${dir}/*.rs`], root).split('\n').filter(Boolean)) {
     if (skip.has(file) || !fs.existsSync(path.join(root, file))) continue;
     const text = fs.readFileSync(path.join(root, file), 'utf8');
     const tokens = lex(text, 'rust');
     for (const token of tokens) if (token.kind === 'word') words.add(text.slice(token.start, token.end));
+    // A file another one also builds with #[path = "..."] must name its own child files in full (see splitRust).
+    if ([...text.matchAll(/#\[path = "([^"]+)"\]/g)].some((found) => path.posix.join(path.posix.dirname(file), found[1]) === origin)) byPath = true;
     for (const name of reachedThrough(text, tokens, new Set(file.startsWith(`${home}/`) ? [self, 'super'] : [self]))) reached.add(name);
   }
-  return { words, reached };
+  return { words, reached, byPath };
 }
 
 /**
@@ -88,8 +91,8 @@ export function planSplit(plan, root = ROOT) {
     const sibling = fs.readFileSync(path.join(root, file), 'utf8');
     return wordsOf(sibling, lex(sibling, 'rust'), { start: 0, end: sibling.length });
   });
-  const { words, reached } = crateWords(plan.origin, skip, root);
-  return splitRust({ origin: plan.origin, text, plan, otherWords: words, siblingWords: mergeWords(siblings), reached });
+  const { words, reached, byPath } = crateWords(plan.origin, skip, root);
+  return splitRust({ origin: plan.origin, text, plan, otherWords: words, siblingWords: mergeWords(siblings), reached, byPath });
 }
 
 const lineCount = (text) => text.split('\n').length - 1;
