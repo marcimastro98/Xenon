@@ -152,6 +152,9 @@ test('the page check says what a split changed in a page, and nothing when it ch
   assert.equal(diff({ pageErrors: ['old', 'x is not defined'] }), 'wide: new page error: x is not defined', 'an error the page had before the split is not the split');
   assert.match(diff({ consoleErrors: ['one', 'one'] }), /new console error: one/);
   assert.match(diff({ failedRequests: ['/js/gone.js 404'] }), /new failed request: \/js\/gone\.js 404/);
+  assert.equal(diff({ refused: ['http://127.0.0.1:3030', 'https://example.com'] }), 'wide: asks another server of this PC, which the check refused: http://127.0.0.1:3030',
+    'a site outside comes and goes with what the page shows; a recording made before the check refused anything has no list');
+  assert.equal(compareRecordings(recording({ refused: ['http://127.0.0.1:3030'] }), recording({ refused: ['http://127.0.0.1:3030'] }), MOVES).join('\n'), '');
   assert.match(diff({ globals: ['a', 'c'] }), /no longer on window: b\n.*new on window: c/);
   assert.match(diff({ declared: { a: 'missing', n: 'number' } }), /top-level names that answer differently: a \(function -> missing\)/);
   assert.match(diff({ declared: { a: 'function' } }), /top-level names that answer differently: n \(number -> not there\)/);

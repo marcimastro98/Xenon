@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PAGES, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
+import { PAGES, onThisPc, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { openParser } from './parser.mjs';
 
@@ -30,6 +30,8 @@ const DAILY_PORT = 3030;
 const LOAD_TIMEOUT_MS = 60000;
 const SAVE_WAIT_MS = 2500;
 const LISTS = ['scripts', 'stylesheets'];
+// The browser finds no address but this PC's own number, so nothing a page opens (a socket too) leaves this PC.
+const NO_OUTSIDE = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1';
 
 function loadPlaywright() {
   const from = process.env.XENON_PLAYWRIGHT || path.resolve(REPO_ROOT, '..', 'xenon-maker', 'node_modules', 'playwright');
@@ -72,14 +74,14 @@ async function settingsRoundTrip(browser, port, settleMs) {
 }
 
 const sayPage = (view) => `${view.name} (${view.address}): ${view.pageErrors.length} page errors, ${view.consoleErrors.length} console errors, `
-  + `${view.failedRequests.length} failed requests, ${view.globals.length} names on window, ${Object.keys(view.declared).length} top-level names, `
+  + `${view.failedRequests.length} failed requests, ${view.refused.length} servers outside the copy refused, ${view.globals.length} names on window, ${Object.keys(view.declared).length} top-level names, `
   + `${view.scripts.length} scripts, ${view.stylesheets.length} stylesheets, ${view.ruleCount} style rules.`;
 
 async function record(port, outFile, settleMs) {
   if (port === DAILY_PORT) throw new Error(`port ${DAILY_PORT} is the server in daily use: start a test copy on another port`);
   const { chromium } = loadPlaywright();
   const parser = await openParser();
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || undefined });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || undefined, args: [NO_OUTSIDE] });
   const known = new Map();
   const views = [];
   let settings;
@@ -145,6 +147,8 @@ export function compareRecordings(before, after, ledger = readBrowserLedger(REPO
     for (const error of extra(was.pageErrors, now.pageErrors)) say(`new page error: ${error}`);
     for (const error of extra(was.consoleErrors, now.consoleErrors)) say(`new console error: ${error}`);
     for (const request of extra(was.failedRequests, now.failedRequests)) say(`new failed request: ${request}`);
+    // A site outside changes with the news of the day; a server of this PC a page asks is in its code.
+    for (const server of extra(was.refused ?? [], now.refused ?? [])) if (onThisPc(server)) say(`asks another server of this PC, which the check refused: ${server}`);
     const gone = was.globals.filter((name) => !now.globals.includes(name));
     const added = now.globals.filter((name) => !was.globals.includes(name));
     if (gone.length) say(`no longer on window: ${gone.join(', ')}`);

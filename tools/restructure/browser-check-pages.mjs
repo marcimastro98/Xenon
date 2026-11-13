@@ -40,8 +40,41 @@ export function uncheckedPages(pages) {
   return pages.filter((page) => !opened.has(page));
 }
 
-// An address without what changes from run to run: the port and the cache stamp.
-export const plain = (text) => String(text).replace(/https?:\/\/127\.0\.0\.1:\d+/g, '').replace(/\?v=[\w.%-]+/g, '');
+/**
+ * Whether a request of a page stays on the test copy. A page of the app can name another address in its code
+ * (the native bridge calls the fixed address of the installed app), and the check must never reach that one,
+ * nor any site outside this PC: only the copy answers, and what is made in the page itself (data, blob, about).
+ * @param {string} address @param {number} port @returns {boolean}
+ */
+export function staysOnCopy(address, port) {
+  let url;
+  try { url = new URL(address); } catch { return false; }
+  if (['data:', 'blob:', 'about:'].includes(url.protocol)) return true;
+  return ['http:', 'ws:'].includes(url.protocol) && url.hostname === '127.0.0.1' && url.port === String(port);
+}
+
+// Where a refused request was going: the server, without the path (a news picture has a new one every hour).
+export function serverOf(address) {
+  try { const url = new URL(address); return `${url.protocol}//${url.host}`; } catch { return String(address); }
+}
+
+/** @param {string} server as serverOf gives it @returns {boolean} whether it is a server of this PC (the installed app is one) */
+export function onThisPc(server) {
+  try { return /^(?:localhost|127(?:\.\d+){3}|\[::1\])$/.test(new URL(server).hostname); } catch { return false; }
+}
+
+// What the browser writes in the console for a request the check refused.
+const REFUSED = /net::ERR_BLOCKED_BY_CLIENT/;
+
+/**
+ * An address without what changes from run to run: the copy's own port and the cache stamp. Any other address
+ * keeps its host and port, so a request the check refused is written down with where it was going.
+ * @param {number} port @returns {(text: string) => string}
+ */
+export function plainFor(port) {
+  const own = `http://127.0.0.1:${port}`;
+  return (text) => String(text).replaceAll(own, '').replace(/\?v=[\w.%-]+/g, '');
+}
 
 // What the page holds once it has loaded. Runs in the page.
 function readPage() {
@@ -89,22 +122,32 @@ async function declaredNames(scripts, parser, known) {
 
 /**
  * Opens one address in a window of its own and hands the page to `run`. One window at a time, closed whatever happens.
+ * Every request of the window that would leave the test copy is refused before it is sent, and the server it
+ * was going to is kept in `refused`. A socket is not a request: the page check starts the browser so that it
+ * finds no site outside this PC (browser-page-check.mjs), and no page of the app opens a socket to another port.
  * @param {any} browser @param {number} port @param {{ path: string, width: number, height: number, stay?: boolean }} page @param {number} settleMs
- * @param {(page: any, seen: { pageErrors: string[], consoleErrors: string[], failedRequests: string[] }) => Promise<any>} run
+ * @param {(page: any, seen: { pageErrors: string[], consoleErrors: string[], failedRequests: string[], refused: string[] }) => Promise<any>} run
  */
 export async function openPage(browser, port, page, settleMs, run) {
   const context = await browser.newContext({ viewport: { width: page.width, height: page.height }, serviceWorkers: 'block' });
   try {
     const tab = await context.newPage();
     const first = `http://127.0.0.1:${port}${page.path}`;
-    if (page.stay) {
-      await tab.route('**/*', (route) => (route.request().isNavigationRequest() && route.request().frame() === tab.mainFrame() && route.request().url() !== first
-        ? route.fulfill({ status: 204 }) : route.continue()));
-    }
-    const seen = { pageErrors: [], consoleErrors: [], failedRequests: [] };
+    const plain = plainFor(port);
+    const seen = { pageErrors: [], consoleErrors: [], failedRequests: [], refused: [] };
+    await context.route('**/*', (route) => {
+      const request = route.request();
+      if (!staysOnCopy(request.url(), port)) {
+        const server = serverOf(request.url());
+        if (!seen.refused.includes(server)) seen.refused.push(server);
+        return route.abort('blockedbyclient');
+      }
+      const leaves = page.stay && request.isNavigationRequest() && request.frame() === tab.mainFrame() && request.url() !== first;
+      return leaves ? route.fulfill({ status: 204 }) : route.continue();
+    });
     tab.on('pageerror', (error) => seen.pageErrors.push(plain(error.message)));
-    tab.on('console', (message) => { if (message.type() === 'error') seen.consoleErrors.push(plain(message.text())); });
-    tab.on('requestfailed', (request) => seen.failedRequests.push(`${plain(request.url())} ${request.failure()?.errorText ?? ''}`.trim()));
+    tab.on('console', (message) => { if (message.type() === 'error' && !REFUSED.test(message.text())) seen.consoleErrors.push(plain(message.text())); });
+    tab.on('requestfailed', (request) => { if (staysOnCopy(request.url(), port)) seen.failedRequests.push(`${plain(request.url())} ${request.failure()?.errorText ?? ''}`.trim()); });
     tab.on('response', (response) => { if (response.status() >= 400) seen.failedRequests.push(`${plain(response.url())} ${response.status()}`); });
     await tab.goto(first, { waitUntil: 'load', timeout: LOAD_TIMEOUT_MS });
     await tab.waitForTimeout(settleMs);
@@ -120,12 +163,13 @@ export async function openPage(browser, port, page, settleMs, run) {
  * @returns {Promise<any>} what the page check keeps of one page
  */
 export function recordPage(browser, port, page, settleMs, parser, known) {
+  const plain = plainFor(port);
   return openPage(browser, port, page, settleMs, async (tab, seen) => {
     const held = await tab.evaluate(readPage);
     const names = await declaredNames(held.scripts, parser, known);
     const types = names.length ? await tab.evaluate(typesOf(names)) : [];
     return {
-      name: page.name, path: page.path, address: held.address, width: page.width, height: page.height, ...seen,
+      name: page.name, path: page.path, address: held.address, width: page.width, height: page.height, ...seen, refused: [...seen.refused].sort(),
       globals: held.globals,
       scripts: held.scripts.map(plain), stylesheets: held.sheets.map(plain),
       rules: createHash('sha256').update(held.rules.join('\n')).digest('hex'), ruleCount: held.rules.length,

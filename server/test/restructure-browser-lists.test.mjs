@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PAGES, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
+import { PAGES, onThisPc, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
 import { addToLists, BUILT_LIST, listRunProblems, listsHold, readLists } from '../../tools/restructure/browser-lists.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
 import { listPages, tagsOf } from '../../tools/restructure/browser-pages.mjs';
@@ -113,4 +113,29 @@ test('the page check opens every page of the app that loads a file of its own', 
   assert.deepEqual(unopened.filter((page) => !/^server\/sdk-example\/[a-z0-9-]+\/index\.html$/.test(page)), []);
   assert.deepEqual(uncheckedPages(['server/index.html', 'server/sdk-example/hello-xenon/index.html']), ['server/sdk-example/hello-xenon/index.html']);
   assert.deepEqual(PAGES.map((page) => page.name).filter((name, at, all) => all.indexOf(name) !== at), [], 'a page has one name in a recording');
+});
+
+test('a page the check opens can reach the test copy and nothing else', () => {
+  for (const address of ['http://127.0.0.1:3041/', 'http://127.0.0.1:3041/api/native/status?x=1', 'ws://127.0.0.1:3041/api/ai/live',
+    'data:image/png;base64,AAAA', 'blob:http://127.0.0.1:3041/1b2c', 'about:blank']) {
+    assert.equal(staysOnCopy(address, 3041), true, address);
+  }
+  // The installed app answers on a fixed port of the same PC: a page of the copy that names it must not get there.
+  for (const address of ['http://127.0.0.1:3030/api/native/status', 'http://localhost:3041/', 'http://127.0.0.1/', 'https://127.0.0.1:3041/',
+    'http://127.0.0.1:30411/', 'http://127.0.0.1:3041@example.com/', 'https://example.com/font.woff2', 'wss://example.com:443', 'ws://127.0.0.1:3030/ws',
+    'file:///C:/x.html', 'not an address', '']) {
+    assert.equal(staysOnCopy(address, 3041), false, address);
+  }
+  assert.equal(serverOf('http://127.0.0.1:3030/api/native/status?x=1'), 'http://127.0.0.1:3030');
+  assert.equal(serverOf('https://example.com/img/a.jpg?width=140'), 'https://example.com');
+  assert.deepEqual(['http://127.0.0.1:3030', 'http://localhost:8080', 'http://[::1]:3030', 'https://example.com', 'https://127.example.com', 'no'].map(onThisPc),
+    [true, true, true, false, false, false]);
+});
+
+test('a recording drops the address of the test copy and keeps any other, so a refused request says where it was going', () => {
+  const plain = plainFor(3041);
+  assert.equal(plain('http://127.0.0.1:3041/js/app.js?v=5.1.0'), '/js/app.js');
+  assert.equal(plain('http://127.0.0.1:3030/api/native/status net::ERR_BLOCKED_BY_CLIENT'), 'http://127.0.0.1:3030/api/native/status net::ERR_BLOCKED_BY_CLIENT');
+  assert.equal(plain("blocked at 'http://127.0.0.1:3041/a' from origin 'http://127.0.0.1:3041'"), "blocked at '/a' from origin ''");
+  assert.equal(['http://127.0.0.1:3041/a.css', 'http://127.0.0.1:3041/b.css'].map(plain).join(' '), '/a.css /b.css', 'usable as the function of a map');
 });
