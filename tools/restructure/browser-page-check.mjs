@@ -8,10 +8,10 @@
 //   node tools/restructure/browser-page-check.mjs compare <before.json> <after.json>
 //
 // Run `record` on the commit before the split and on the split, then `compare`.
-// The pages are listed in browser-check-pages.mjs. Point it at a test copy of the
-// server with data of its own, never at the one in daily use (it refuses port
-// 3030): the check changes the clock format and the widgets on the desktop, and
-// puts both back. Playwright is not a dependency of this repo: it is borrowed from
+// The pages are listed in browser-check-pages.mjs. It only opens a copy made and
+// started by side-copy.mjs (the copy answers a marker file; port 3030 and any other
+// server are refused): the check changes the clock format and the widgets on the
+// desktop, and puts both back. Playwright is not a dependency of this repo: it is borrowed from
 // the sibling xenon-maker checkout, or from the folder XENON_PLAYWRIGHT names.
 // CHROME_EXE picks the browser. One browser, one window at a time, never shown.
 
@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { PAGES, onThisPc, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { openParser } from './parser.mjs';
+import { mustBeSideCopy } from './side-copy.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
@@ -79,6 +80,7 @@ const sayPage = (view) => `${view.name} (${view.address}): ${view.pageErrors.len
 
 async function record(port, outFile, settleMs) {
   if (port === DAILY_PORT) throw new Error(`port ${DAILY_PORT} is the server in daily use: start a test copy on another port`);
+  await mustBeSideCopy(port);
   const { chromium } = loadPlaywright();
   const parser = await openParser();
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || undefined, args: [NO_OUTSIDE] });
