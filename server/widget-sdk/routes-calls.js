@@ -7,9 +7,9 @@ const { hub } = require('../settings/current.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const sdkStore = require('../sdk-store.js');
 const { sdkSecretsLoad, sdkStoreLoad, sdkStoreSave, sdkSecretsSave } = require('./store-files.js');
-const { sdkFetchGateAcquire, sdkStoreGateOk } = require('./request-gates.js');
+const { sdkFetchGateAcquire, sdkStoreGateOk, sdkHookGateOk } = require('./request-gates.js');
 const sdkProxy = require('../sdk-proxy.js');
-const { broadcastSSE } = require('../http/sse-clients.js');
+const { broadcastSSE, sseClients } = require('../http/sse-clients.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -178,6 +178,46 @@ const branches = {
     } catch (e) {
       if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
       else json({ ok: false, error: (e && e.message) || 'bad_request' });
+    }
+  },
+
+  'POST /sdk/hook/*': async (req, _res, { json, err500, reqPath }, { sdkPackagesCached }) => {
+    // Local webhook ingress for SDK widgets: any loopback process (Streamer.bot,
+    // AutoHotkey, a script) can push an event to a widget with
+    // `POST /sdk/hook/<pkg>/<hookId>`. The hook id must be DECLARED in the
+    // package manifest and the payload is bounded; delivery is live-only over
+    // the `sdk_hook` SSE event (no buffer — hooks are events, not storage) and
+    // the dashboard host forwards it only to widgets the user granted the hook
+    // to. Loopback-only like every route; NEVER a JSONP candidate.
+    try {
+      const m = /^\/sdk\/hook\/([^/]+)\/([^/]+)$/.exec(reqPath);
+      const pkgId = m ? m[1] : '';
+      const hookId = m ? m[2] : '';
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      // Per-package/hook rate floor (mirrors the fetch gate): a misbehaving local
+      // script can't turn one hook into an SSE flood across every surface.
+      if (!sdkHookGateOk(pkgId + '/' + hookId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const body = await readBody(req, 64 * 1024);
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (!pkg.hooks.includes(hookId)) { json({ ok: false, error: 'unknown_hook' }); return; }
+      // Server-side consent: only fan out a hook the user actually granted to the
+      // package. Grants are the shared settings blob (same across surfaces), so
+      // this is authoritative — and `delivered` now means "a granted listener
+      // could receive it", not merely "some SSE client exists".
+      if (!sdkGrantsFor(pkgId).hooks.includes(hookId)) { json({ ok: false, error: 'not_granted' }); return; }
+      let data = body;
+      const ct = String(req.headers['content-type'] || '');
+      if (ct.includes('json') || /^\s*[[{]/.test(body)) {
+        try { data = JSON.parse(body); } catch { /* keep raw string */ }
+      }
+      const delivered = sseClients.size > 0;
+      if (delivered) broadcastSSE('sdk_hook', { pkg: pkgId, hook: hookId, data });
+      json({ ok: true, delivered });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else err500(e.message);
     }
   },
 };

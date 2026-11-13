@@ -58,19 +58,19 @@ const { createPerfNet } = require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
 require('./capabilities/over-screen');
-const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
+const { createGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
 const { createCaptureHost } = require('./capture-host');
-const { createCaptures, VIDEO_KINDS, KINDS: CAPTURE_KINDS } = require('./captures');
+const { createCaptures } = require('./captures');
 const { createCaptureGallery } = require('./capture-gallery');
 const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
 require('./notes-ai');
 require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
-const TimerActions = require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
+require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
@@ -229,7 +229,7 @@ const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
 const { joinDiskDetails } = require('./disk/details-shape.js');
 
-const { DECK_SOUND_EXTS, DECK_SOUND_NAME_RE } = require('./deck/limits.js');
+const { DECK_SOUND_EXTS } = require('./deck/limits.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
@@ -1182,7 +1182,7 @@ const mcpDev = createMcpDev({
   broadcast: (event, data) => broadcastSSE(event, data),
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
-const { DECK_SOUNDS_DIR, ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
+const { ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
 const {
   _installedApps, INDEX_START_DELAY_MS, _spotlightPopupPids,
 } = require('./search/spotlight-state.js');
@@ -10058,6 +10058,8 @@ const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch
 const { branches: streamingYoutubeBranches } = require('./streaming/routes-youtube.js');
 const { branches: streamingSpotifyBranches } = require('./streaming/routes-spotify.js');
 const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
+const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');
+const { branches: screensCapturesBranches } = require('./screens/routes-captures.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -10370,9 +10372,7 @@ const handleRequest = async (req, res) => {
     await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });
 
   } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
-    audioCache.muted = !audioCache.muted;
-    setMicMute(audioCache.muted);
-    json({ muted: audioCache.muted });
+    await audioVolumeBranches['POST|GET /toggle'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setMicMute });
 
   } else if (reqPath === '/ping' && req.method === 'GET') {
     await engineBranches['GET /ping'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -10408,14 +10408,10 @@ const handleRequest = async (req, res) => {
     await systemInfoBranches['GET /system/sensors'](req, res, { json, err500, reqPath, urlObj, isRemote }, { collectSensors });
 
   } else if (reqPath === '/perf' && req.method === 'GET') {
-    // Read-only seed for the Game performance tile (SSE 'perf' pushes the rest).
-    json(_perfStream.snapshot());
+    await performanceBranches['GET /perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _perfStream });
 
   } else if (reqPath === '/perf/sessions' && req.method === 'GET') {
-    // Read-only: the games played and how they ran, for an SDK widget granted
-    // `gameSessions` (js/custom-widget.js loader). Names and numbers, no paths.
-    const limit = Number(urlObj.searchParams.get('limit')) || 20;
-    json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
+    await performanceBranches['GET /perf/sessions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _gameSessions });
 
   } else if (reqPath === '/api/battery' && req.method === 'GET') {
     await systemInfoBranches['GET /api/battery'](req, res, { json, err500, reqPath, urlObj, isRemote }, { batteryMonitor });
@@ -10613,24 +10609,16 @@ const handleRequest = async (req, res) => {
     await mediaBranches['GET /media'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getMediaInfo, setMediaPreferredSource });
 
   } else if (reqPath === '/media/source' && (req.method === 'POST' || req.method === 'GET')) {
-    try {
-      let body = {};
-      if (req.method === 'POST') body = JSON.parse(await readBody(req) || '{}');
-      const source = body.source ?? urlObj.searchParams.get('source') ?? '';
-      json({ ok: true, preferredSource: setMediaPreferredSource(source) });
-    } catch (e) { err500(e.message); }
+    await mediaBranches['POST|GET /media/source'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setMediaPreferredSource });
 
   } else if (reqPath === '/media/playpause' && (req.method === 'POST' || req.method === 'GET')) {
-    try   { json(await mediaAction('playpause')); }
-    catch (e) { err500(e.message); }
+    await mediaBranches['POST|GET /media/playpause'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
 
   } else if (reqPath === '/media/next' && (req.method === 'POST' || req.method === 'GET')) {
-    try   { json(await mediaAction('next')); }
-    catch (e) { err500(e.message); }
+    await mediaBranches['POST|GET /media/next'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
 
   } else if (reqPath === '/media/previous' && (req.method === 'POST' || req.method === 'GET')) {
-    try   { json(await mediaAction('previous')); }
-    catch (e) { err500(e.message); }
+    await mediaBranches['POST|GET /media/previous'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
 
   } else if (reqPath === '/windows' && req.method === 'GET') {
     await windowsTilesBranches['GET /windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -10645,105 +10633,25 @@ const handleRequest = async (req, res) => {
     await windowsTilesTilesBranches['POST /windows/launch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
 
   } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
-    try {
-      let level;
-      if (req.method === 'GET') {
-        level = parseInt(urlObj.searchParams.get('level'));
-      } else {
-        ({ level } = JSON.parse(await readBody(req)));
-      }
-      const vol = Math.max(0, Math.min(100, parseInt(level)));
-      if (!audioCache.speakerId) { err500('Cache not ready'); return; }
-      svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).then(() => json({ ok: true, level: vol }), e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioVolumeBranches['POST|GET /volume/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/mic/volume' && (req.method === 'POST' || req.method === 'GET')) {
-    try {
-      let level;
-      if (req.method === 'GET') {
-        level = parseInt(urlObj.searchParams.get('level'));
-      } else {
-        ({ level } = JSON.parse(await readBody(req)));
-      }
-      const vol = Math.max(0, Math.min(100, parseInt(level)));
-      if (!audioCache.micId) { err500('Cache not ready'); return; }
-      // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
-      svvExec(['/SetVolume', audioCache.micId, String(vol)])
-        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', audioCache.micId]))
-        .then(() => json({ ok: true, level: vol }), e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioVolumeBranches['POST|GET /mic/volume'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/speaker/mute' && (req.method === 'POST' || req.method === 'GET')) {
-    if (!audioCache.speakerId) { err500('Cache not ready'); return; }
-    svvExec(['/Switch', audioCache.speakerId]).then(() => json({ ok: true }), e => err500(e.message));
+    await audioVolumeBranches['POST|GET /speaker/mute'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
-    try {
-      let id, level, proc;
-      if (req.method === 'GET') {
-        id = urlObj.searchParams.get('id');
-        proc = urlObj.searchParams.get('proc');
-        level = parseInt(urlObj.searchParams.get('level'));
-      } else {
-        ({ id, level, proc } = JSON.parse(await readBody(req)));
-      }
-      // Prefer the durable process-name target over the session CLI id, which
-      // SoundVolumeView rotates across app restarts (a stale id is a silent miss).
-      const target = proc ? appAudioTarget(proc) : String(id || '').trim();
-      // Checked AFTER normalisation, never on the raw fields: proc="   " (or
-      // ".exe") passed the old `!id && !proc` test and reduced to a target the
-      // Linux matcher read as "every audio stream on this machine".
-      if (!target) { err500('Missing id'); return; }
-      const vol = Math.max(0, Math.min(100, parseInt(level)));
-      // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
-      svvExec(['/SetVolume', target, String(vol)])
-        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', target]))
-        .then(() => json({ ok: true, level: vol }), e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioBranches['POST|GET /audio/app/volume'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
-    try {
-      let id, muted, proc;
-      if (req.method === 'GET') {
-        id = urlObj.searchParams.get('id');
-        proc = urlObj.searchParams.get('proc');
-        muted = urlObj.searchParams.get('muted');
-      } else {
-        ({ id, muted, proc } = JSON.parse(await readBody(req)));
-      }
-      // Prefer the durable process-name target over the volatile session CLI id.
-      const target = proc ? appAudioTarget(proc) : String(id || '').trim();
-      // See /audio/app/volume: an empty target used to select every stream.
-      if (!target) { err500('Missing id'); return; }
-      // Explicit state (deterministic) when the client tells us; else toggle.
-      const action = muted === undefined || muted === null
-        ? '/Switch'
-        : ((muted === true || muted === 'true' || muted === '1') ? '/Mute' : '/Unmute');
-      svvExec([action, target]).then(() => json({ ok: true }), e => err500(e.message));
-    } catch (e) { err500(e.message); }
+    await audioBranches['POST|GET /audio/app/mute'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
 
   } else if (reqPath === '/audio/levels/status' && req.method === 'GET') {
     await audioBranches['GET /audio/levels/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/audio/levels/install-helper' && req.method === 'POST') {
-    // "Install Xenon Helper", under the wave switch in Settings. The boot heal
-    // only ever replaces a helper that is already there, so one that never
-    // arrived had no way in short of re-running the setup. This is the same
-    // verified download (signed SHA256SUMS, pinned key, fail closed), for this
-    // version's release. A paired device cannot reach it (remote-access.js).
-    try {
-      await readBody(req);
-      if (process.platform !== 'win32') { json({ ok: false, status: 'unsupported' }); return; }
-      if (!_helperInstall) {
-        _helperInstall = createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION }).install()
-          .finally(() => { _helperInstall = null; });
-      }
-      const status = await _helperInstall;
-      const ok = status === 'installed' || status === 'up-to-date';
-      startupLog.write('helper install from Settings: ' + status);
-      if (ok) helperArrived();
-      json({ ok, status });
-    } catch (e) { json({ ok: false, status: 'error', detail: String(e && e.message || e) }); }
+    await audioBranches['POST /audio/levels/install-helper'](req, res, { json, err500, reqPath, urlObj, isRemote }, { helperArrived, helperInstall });
 
   } else if (reqPath === '/audio/watch' && req.method === 'GET') {
     await audioBranches['GET /audio/watch'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -10761,19 +10669,7 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /deck/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
-    // Remove one library clip. The name must match the server-generated shape
-    // (no separators survive the regex) and is unlinked under a prefix assert.
-    try {
-      const name = decodeURIComponent(reqPath.slice('/deck/sounds/'.length));
-      if (!DECK_SOUND_NAME_RE.test(name)) { res.writeHead(400); res.end(); return; }
-      const abs = path.join(DECK_SOUNDS_DIR, name);
-      if (!abs.startsWith(DECK_SOUNDS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
-      await fs.promises.unlink(abs);
-      json({ ok: true });
-    } catch (e) {
-      if (e.code === 'ENOENT') json({ ok: true });
-      else err500(e.message);
-    }
+    await deckBranches['DELETE /deck/sounds/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/apps/store' && req.method === 'GET') {
     await deckBranches['GET /apps/store'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -10883,33 +10779,10 @@ const handleRequest = async (req, res) => {
     await lightsBranches['GET /api/signalrgb/effects'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
-    // Lets the Browser widget render a friendly "no browser found" state instead
-    // of silently failing.
-    //
-    // `canInstall` is the difference between a dead end and a button. The widget
-    // drives ANY Chromium over the DevTools protocol, and off Windows Chromium
-    // is one flatpak away — so a machine without one is not a machine that
-    // cannot have one. On Windows this stays false: Edge ships with the OS, so
-    // if it is missing something is wrong that installing will not fix.
-    json({
-      available: embeddedBrowser.available(),
-      canInstall: process.platform === 'win32'
-        ? false
-        : await remoteHttpsInstaller.canInstall('chromium').catch(() => false),
-    });
+    await windowsTilesBranches['GET /embedded-browser/available'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });
 
   } else if (reqPath === '/embedded-browser/install' && req.method === 'POST') {
-    // One click, same machinery as everything else: flatpak where it can (no
-    // password at all), the distribution's package manager behind one
-    // authorisation prompt otherwise.
-    try {
-      await readBody(req);
-      if (process.platform === 'win32') { json({ ok: false, error: 'unsupported' }); return; }
-      const r = await remoteHttpsInstaller.install('chromium');
-      // `available()` re-probes the filesystem, so this is the real answer
-      // rather than the installer's opinion of itself.
-      json({ ok: r.code === 0 && embeddedBrowser.available(), reason: r.reason || '' });
-    } catch (e) { err500(e.message); }
+    await windowsTilesBranches['POST /embedded-browser/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser, remoteHttpsInstaller });
 
   } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
     await windowsTilesTilesBranches['GET /embedded-browser/adblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { embeddedBrowser });
@@ -10974,20 +10847,7 @@ const handleRequest = async (req, res) => {
     await updatesUpdateBranches['GET /update/check'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/startup-task' && req.method === 'GET') {
-    // Will Xenon still be here after the next sign-in? Answered from the last
-    // check (boot, then every few hours) rather than by spawning schtasks per
-    // request — the answer changes on the timescale of somebody running a
-    // cleanup tool, not of a page load. `repaired` names conditions this engine
-    // put back on its own, which the user is entitled to be told about.
-    json({
-      ok: true,
-      checked: _startupTaskState.checked,
-      found: _startupTaskState.found,
-      problems: _startupTaskState.problems,
-      repaired: _startupTaskState.repaired,
-      failed: _startupTaskState.failed,
-      at: _startupTaskState.at,
-    });
+    await installBranches['GET /api/startup-task'](req, res, { json, err500, reqPath, urlObj, isRemote }, { startupTaskCheck });
 
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
     await updatesUpdateBranches['GET /update/self-status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { selfUpdate });
@@ -11676,51 +11536,13 @@ const handleRequest = async (req, res) => {
     await smartHomeBranches['GET /api/unifiprotect/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
   } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
-    // Loopback JPEG proxy: fetch one camera's snapshot from the console (password
-    // stays server-side) and stream it back. The id is strictly validated before
-    // it reaches the console path. no-store so each ?ts= pull is a fresh frame.
-    // decodeURIComponent must stay INSIDE the try: a malformed escape (e.g. a bare
-    // "%") throws URIError, and an unhandled throw out of this async handler would
-    // crash the process (Node's default unhandledRejection = throw). The other
-    // decode routes (/api/timers, /uploads) guard their decode the same way.
-    try {
-      const id = decodeURIComponent(reqPath.slice('/api/unifiprotect/snapshot/'.length));
-      if (!/^[A-Za-z0-9]{4,64}$/.test(id)) { res.writeHead(400); res.end('bad camera id'); return; }
-      const s = (await readHubSettings().catch(() => null)) || {};
-      const u = (s && s.unifi) || {};
-      if (!(u.host && u.username && u.password)) { res.writeHead(404); res.end(); return; }
-      const jpeg = await deckUnifi.snapshot(id);
-      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
-      res.end(jpeg);
-    } catch (e) {
-      res.writeHead(502, { 'Content-Type': 'text/plain' });
-      res.end('snapshot failed');
-    }
+    await smartHomeCamerasBranches['GET /api/unifiprotect/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
   } else if (reqPath === '/api/ha/cameras' && req.method === 'GET') {
     await smartHomeBranches['GET /api/ha/cameras'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
 
   } else if (reqPath.startsWith('/api/ha/camera/snapshot/') && req.method === 'GET') {
-    // Loopback JPEG proxy for a Home Assistant camera: fetch the current frame from
-    // HA's camera_proxy (token stays server-side) and stream it back. The entity id
-    // is strictly validated before it reaches the HA path. decodeURIComponent stays
-    // INSIDE the try — a malformed "%" escape throws URIError, and an unhandled
-    // throw from this async handler would crash the process (mirrors the UniFi
-    // snapshot proxy above). no-store so each ?ts= pull is a fresh frame.
-    try {
-      const entity = decodeURIComponent(reqPath.slice('/api/ha/camera/snapshot/'.length));
-      if (!/^camera\.[a-z0-9_]+$/.test(entity)) { res.writeHead(400); res.end('bad camera id'); return; }
-      // No settings pre-read here: cameraSnapshot reads the config itself and
-      // throws ha_not_configured — a second full readHubSettings on this per-frame
-      // hot path (default 1.5s per camera) would double the parse+normalize cost.
-      const jpeg = await deckHa.cameraSnapshot(entity);
-      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
-      res.end(jpeg);
-    } catch (e) {
-      if (e && e.message === 'ha_not_configured') { res.writeHead(404); res.end(); return; }
-      res.writeHead(502, { 'Content-Type': 'text/plain' });
-      res.end('snapshot failed');
-    }
+    await smartHomeCamerasBranches['GET /api/ha/camera/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa });
 
   } else if (reqPath === '/api/unifiprotect/test' && req.method === 'POST') {
     await smartHomeBranches['POST /api/unifiprotect/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
@@ -11761,27 +11583,10 @@ const handleRequest = async (req, res) => {
     await timeBranches['POST /api/timers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {
-    try {
-      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
-      const body = JSON.parse(await readBody(req));
-      const action = String(body.action || '').trim();
-      const idx = timerState.list.findIndex(t => t.id === tid);
-      if (idx < 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
-      const t = TimerActions.applyTimerAction(timerState.list[idx], action, Date.now()) || { ...timerState.list[idx] };
-      timerState.list[idx] = t;
-      await _saveTimers();
-      broadcastSSE('timer_update', { timers: timerState.list });
-      json({ timer: t });
-    } catch (e) { err500(e.message); }
+    await timeBranches['PATCH /api/timers/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath.startsWith('/api/timers/') && req.method === 'DELETE') {
-    try {
-      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
-      timerState.list = timerState.list.filter(t => t.id !== tid);
-      await _saveTimers();
-      broadcastSSE('timer_update', { timers: timerState.list });
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await timeBranches['DELETE /api/timers/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _saveTimers });
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
     await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12750,16 +12555,7 @@ const handleRequest = async (req, res) => {
     await lookBranches['POST /font'](req, res, { json, err500, reqPath, urlObj, isRemote }, { FONT_EXT_BY_MIME });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
-    // Imported-theme cleanup. Only a generated font filename inside UPLOADS_DIR
-    // is accepted; arbitrary uploads and paths remain unreachable.
-    try {
-      const name = decodeURIComponent(reqPath.slice('/font/'.length));
-      if (!/^[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i.test(name)) { res.writeHead(400); res.end(); return; }
-      const abs = path.join(UPLOADS_DIR, name);
-      if (!abs.startsWith(UPLOADS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
-      await fs.promises.rm(abs, { force: true });
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await lookBranches['DELETE /font/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/icon-pack' && req.method === 'POST') {
     await storeCatalogPacksBranches['POST /icon-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
@@ -12768,35 +12564,10 @@ const handleRequest = async (req, res) => {
     await storeCatalogPacksBranches['GET /icon-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {
-    // Serve one pack icon (/icon-pack/<packId>/<file>). Both segments are
-    // regex-validated + prefix-asserted in icon-packs.js. The deny-all CSP +
-    // nosniff keep an SVG inert even opened top-level — defense-in-depth on top
-    // of the install-time reject-list.
-    try {
-      const parts = reqPath.slice('/icon-pack/'.length).split('/');
-      const hit = parts.length === 2
-        ? iconPackStore.resolve(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]))
-        : null;
-      if (!hit) { res.writeHead(404); res.end(); return; }
-      const data = await fs.promises.readFile(hit.abs);
-      res.writeHead(200, {
-        'Content-Type': hit.mime,
-        'Content-Security-Policy': "default-src 'none'",
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-store',
-      });
-      res.end(data);
-    } catch { res.writeHead(404); res.end(); }
+    await storeCatalogPacksBranches['GET /icon-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/icon-pack/')) {
-    // Uninstall a pack (Installed content cleanup). Id is regex-gated in
-    // icon-packs.js; keys that embedded a pack icon keep their copy.
-    try {
-      const id = decodeURIComponent(reqPath.slice('/icon-pack/'.length));
-      const ok = await iconPackStore.remove(id);
-      if (!ok) { res.writeHead(400); res.end(); return; }
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await storeCatalogPacksBranches['DELETE /icon-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { iconPackStore });
 
   } else if (reqPath === '/sound-pack' && req.method === 'POST') {
     await storeCatalogPacksBranches['POST /sound-pack'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
@@ -12805,14 +12576,7 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /deck/sound-packs'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
-    // Uninstall a pack (Installed content cleanup). Deck keys referencing its
-    // clips degrade to a no-op flash — same as any missing local file.
-    try {
-      const id = decodeURIComponent(reqPath.slice('/sound-pack/'.length));
-      const ok = await soundPackStore.remove(id);
-      if (!ok) { res.writeHead(400); res.end(); return; }
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await storeCatalogPacksBranches['DELETE /sound-pack/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
   } else if (reqPath === '/tile-asset' && req.method === 'POST') {
     await gridBranches['POST /tile-asset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { TILE_ASSET_EXT_BY_MIME });
@@ -12925,25 +12689,7 @@ const handleRequest = async (req, res) => {
     await widgetOptionsBranches['POST /layers/host'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _menuHotkey, layersHost, refreshHotkeyListener });
 
   } else if (reqPath === '/layers/desk' && req.method === 'POST') {
-    // The shell says which virtual desktop is shown (apps/native layers/desks.rs,
-    // through js/layers-shell.js); a page tied to it is shown (layer-pages.js).
-    // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      const current = Number(body && body.current);
-      const count = Number(body && body.count);
-      if (!Number.isInteger(current) || current < 0 || current > 64 || !Number.isInteger(count) || count < 0 || count > 64) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-        return;
-      }
-      layersHost.setDesk(current, count);
-      _deskPageSync(current);
-      json({ ok: true });
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-    }
+    await widgetOptionsBranches['POST /layers/desk'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deskPageSync, layersHost });
 
   } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
     await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13147,44 +12893,7 @@ const handleRequest = async (req, res) => {
     await transferBranches['GET /api/transfer/list'](req, res, { json, err500, reqPath, urlObj, isRemote }, { transferState });
 
   } else if (reqPath === '/api/transfer/file' && (req.method === 'GET' || req.method === 'HEAD')) {
-    // Serving a file the user received, to a phone that wants it.
-    //
-    // This is not an arbitrary-file-read primitive, and the reason is
-    // structural rather than a check: the wire carries an OPAQUE ID, resolved
-    // against a manifest this server minted, whose `file` field was generated
-    // here and is re-asserted against its shape before path.join sees it.
-    // There is no caller-supplied path component to contain — strictly
-    // stronger than /deck/sound, from which it borrows the cross-site reject.
-    //
-    // NOT in CSRF_MUTATION_PATHS on purpose: it is a pure read AND the user
-    // taps Download, which is a top-level navigation — the isTopLevelNav reject
-    // above would refuse the very download that was just asked for.
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const rec = fileTransfer.get(urlObj.searchParams.get('id') || '');
-      if (!rec) { res.writeHead(404); res.end(); return; }
-      const abs = fileTransfer.absOf(rec);
-      const stat = await fs.promises.stat(abs);
-      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
-      serveFileRange(req, res, abs, stat, {
-        // From a closed server-side map keyed on the extension WE stored, never
-        // the client's declared type. A phone needs the real media MIME or it
-        // cannot offer "Save to Photos" at all; the types where a real MIME
-        // could become script in our origin are forced to octet-stream there.
-        'Content-Type': fileTransferLib.downloadMimeFor(rec.ext),
-        // The primary guarantee that a received file never renders inline here.
-        'Content-Disposition': fileTransferLib.contentDisposition(rec.name),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'no-store',
-        'Accept-Ranges': 'bytes',
-      });
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await transferBranches['GET|HEAD /api/transfer/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });
 
   } else if (reqPath === '/api/transfer/thumb' && req.method === 'GET') {
     await transferBranches['GET /api/transfer/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { fileTransfer });
@@ -13202,144 +12911,25 @@ const handleRequest = async (req, res) => {
     await transferBranches['POST /api/transfer/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastTransfer, undoTransferDelete });
 
   } else if (reqPath === '/captures' && req.method === 'GET') {
-    // The gallery: a page of captures, newest first, with ids and names only
-    // (captures.js keeps the paths). Readable from a paired phone, which may
-    // look and download; deleting, trimming, copying and "show in folder" are
-    // the PC's (REMOTE_DENY).
-    try {
-      const q = urlObj.searchParams;
-      const page = await _captures.browse({
-        kind: q.get('kind') || '', game: q.get('game') || '',
-        before: q.get('before'), limit: q.get('limit'),
-      });
-      const first = !(Number(q.get('before')) > 0);
-      // A video with its words written down says so (capture-transcripts.js).
-      const entries = page.entries.map(e => (_transcripts.has(e.id) ? { ...e, transcript: true } : e));
-      json({
-        ok: true, ...page, entries,
-        ...(first ? { games: _captures.games(), usedBytes: await _captures.usage(CAPTURE_KINDS) } : {}),
-        editable: _captureHost.available(),
-        // What this engine can do (the macOS one makes no shareable copies and
-        // finds no private data; a Linux one without ffmpeg cannot trim):
-        // hidden, not refused.
-        can: {
-          trim: _captureHost.has('trim'),
-          copy: _captureHost.has('copy_files'),
-          export: _captureHost.has('export'),
-          cover: _captureHost.has('cover'),
-          speech: _captureHost.has('speech'),
-        },
-        // A screenshot can be pinned over every window (capabilities/screen-pin.js).
-        pinnable: layersHost.available(),
-        // "To phone" needs the file transfer on and a paired phone to see it.
-        sendable: transferEnabled() && remoteAccess.count() > 0,
-        transcribing: _transcripts.status().working || '',
-        // A copy being made (capture-export.js), for a gallery opened halfway.
-        exporting: _captureExport.status(),
-      });
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['GET /captures'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport, _captureHost, _captures, _transcripts, layersHost, remoteAccess, transferEnabled });
 
   } else if (reqPath === '/captures/transcript' && req.method === 'GET') {
-    // A video's transcript by opaque id: the lines and chapters for the
-    // gallery, or a subtitle file (`format=srt|vtt`). Readable from a paired
-    // phone like the video itself; making one is the PC's (/captures/transcribe).
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const id = urlObj.searchParams.get('id') || '';
-      const e = _captures.get(id);
-      const t = e ? await _transcripts.read(e.id) : null;
-      const format = urlObj.searchParams.get('format') || 'json';
-      if (format === 'json') { json(t ? { ok: true, ...t } : { ok: false, error: e ? 'no_transcript' : 'not_found' }); return; }
-      if (!t || (format !== 'srt' && format !== 'vtt')) { res.writeHead(404); res.end(); return; }
-      const body = Buffer.from(format === 'srt' ? TranscriptFormat.toSrt(t.lines) : TranscriptFormat.toVtt(t.lines), 'utf8');
-      res.writeHead(200, {
-        'Content-Type': format === 'srt' ? 'application/x-subrip; charset=utf-8' : 'text/vtt; charset=utf-8',
-        'Content-Length': String(body.length),
-        'Content-Disposition': fileTransferLib.contentDisposition(e.name.replace(/\.[^.]+$/, '') + '.' + format),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'no-store',
-      });
-      res.end(body);
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['GET /captures/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures, _transcripts });
 
   } else if (reqPath === '/captures/transcribe' && req.method === 'POST') {
-    // Starts writing down what is said in a video; answers at once, progress
-    // and the end come over SSE `transcript`. The PC's only (REMOTE_DENY).
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      const r = await _transcripts.start(String((body && body.id) || ''));
-      json(r.ok ? { ok: true, working: true } : r);
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/transcribe'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _transcripts });
 
   } else if (reqPath === '/captures/export' && req.method === 'POST') {
-    // A copy of a video for sharing (vertical, fitted to a size, GIF): answers
-    // at once, progress and the end come over SSE `capture_export`. The PC's
-    // only (REMOTE_DENY + CSRF).
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}') || {};
-      const r = await _captureExport.start(String(body.id || ''), {
-        kind: body.kind, focus: body.focus, webcam: body.webcam === true, mb: body.mb,
-      });
-      json(r.ok ? { ok: true, working: true, kind: r.kind } : r);
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/export'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });
 
   } else if (reqPath === '/captures/export-cancel' && req.method === 'POST') {
-    // Stops the copy being made; nothing is left on disk.
-    try { json(await _captureExport.cancel()); } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/export-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureExport });
 
   } else if (reqPath === '/captures/thumb' && req.method === 'GET') {
-    // A capture's preview (JPEG made by the engine, cached under DATA_DIR).
-    // 404 = none: the gallery draws the kind's icon instead.
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const file = await _captureGallery.thumb(urlObj.searchParams.get('id') || '');
-      if (!file) { res.writeHead(404); res.end(); return; }
-      const body = await fs.promises.readFile(file);
-      res.writeHead(200, {
-        'Content-Type': 'image/jpeg',
-        'Content-Length': String(body.length),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        // An id never names another file: a trim is a new capture.
-        'Cache-Control': 'private, max-age=86400',
-      });
-      res.end(body);
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await screensCapturesBranches['GET /captures/thumb'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureGallery });
 
   } else if (reqPath === '/captures/file' && (req.method === 'GET' || req.method === 'HEAD')) {
-    // The capture itself, by opaque id, with Range for the player's seeking;
-    // `dl=1` asks the browser to save it. Same shape as /api/transfer/file:
-    // no caller-supplied path exists to contain. Not CSRF-listed: a pure read,
-    // and Download is a top-level navigation.
-    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
-      res.writeHead(403); res.end(); return;
-    }
-    try {
-      const e = _captures.get(urlObj.searchParams.get('id') || '');
-      if (!e) { res.writeHead(404); res.end(); return; }
-      const stat = await fs.promises.stat(e.file);
-      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
-      const disposition = fileTransferLib.contentDisposition(e.name);
-      serveFileRange(req, res, e.file, stat, {
-        'Content-Type': VIDEO_KINDS.includes(e.kind) ? 'video/mp4' : e.kind === 'gif' ? 'image/gif' : 'image/png',
-        'Content-Disposition': urlObj.searchParams.get('dl') === '1' ? disposition : disposition.replace(/^attachment/, 'inline'),
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'no-store',
-        'Accept-Ranges': 'bytes',
-      });
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await screensCapturesBranches['GET|HEAD /captures/file'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captures });
 
   } else if ((reqPath === '/captures/delete' && req.method === 'POST')
     || (reqPath === '/captures/reveal' && req.method === 'POST')
@@ -13371,45 +12961,13 @@ const handleRequest = async (req, res) => {
     await screensCaptureBranches['POST /captures/send'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sendCaptureToPhone });
 
   } else if (reqPath === '/captures/spots' && req.method === 'POST') {
-    // The gallery's editor: where a screenshot shows an e-mail, an IBAN or a
-    // long number (rectangles only, never the text). Loopback-only.
-    try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      json(await _captureCovers.spots(String((body && body.id) || '')));
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/spots'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });
 
   } else if (reqPath === '/captures/save' && req.method === 'POST') {
-    // The editor's drawing as a new screenshot beside the original: the body is
-    // the PNG itself, the id in the query. Loopback-only, CSRF-checked.
-    try {
-      const id = String(urlObj.searchParams.get('id') || '');
-      let png;
-      try { png = await readBodyBuffer(req, CaptureCovers.MAX_PNG_BYTES); } catch (e) {
-        if (e.code === 'PAYLOAD_TOO_LARGE') { json({ ok: false, error: 'too_large' }); return; }
-        throw e;
-      }
-      const r = await _captureCovers.save(id, png);
-      if (r.ok) broadcastSSE('captures', { changed: true });
-      json(r);
-    } catch (e) { err500(e.message); }
+    await screensCapturesBranches['POST /captures/save'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureCovers });
 
   } else if (reqPath === '/capture/settings' && req.method === 'GET') {
-    // Loopback-only (REMOTE_DENY): the answer names the recordings folder on
-    // this PC. The settings blob carries only `folderSet`.
-    try {
-      const o = captureOptions();
-      json({
-        ok: true, ...o,
-        defaultFolder: await defaultCaptureFolder('recording'),
-        defaultShotFolder: await defaultCaptureFolder('screenshot'),
-        defaultBenchFolder: await defaultCaptureFolder('benchmark'),
-        defaultBugFolder: await defaultCaptureFolder('bugreport'),
-        usedBytes: await _captures.usage(VIDEO_KINDS),
-        picking: _captureFolder.picking(),
-        replayState: _replay.status(),
-        ...(await replayDiskInfo(o)),
-      });
-    } catch (e) { err500(e.message); }
+    await screensCaptureBranches['GET /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureFolder, _captures, _replay, defaultCaptureFolder, replayDiskInfo });
 
   } else if (reqPath === '/capture/settings' && req.method === 'POST') {
     await screensCaptureBranches['POST /capture/settings'](req, res, { json, err500, reqPath, urlObj, isRemote }, { updateCaptureSettings });
@@ -13439,25 +12997,7 @@ const handleRequest = async (req, res) => {
     await transferBranches['POST /api/transfer/settings/pick'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _captureHost, chooseTransferFolder, updateTransferSettings });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
-    try {
-      const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
-      if (!/^[A-Za-z0-9._-]+$/.test(name)) { res.writeHead(403); res.end('Forbidden'); return; }
-      const abs = path.join(UPLOADS_DIR, name);
-      const ext = path.extname(name).toLowerCase();
-      const mime = BACKGROUND_MIME_BY_EXT.get(ext) || FONT_MIME_BY_EXT.get(ext);
-      if (!mime) { res.writeHead(404); res.end(); return; }
-      const stat = await fs.promises.stat(abs);
-      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
-
-      serveFileRange(req, res, abs, stat, {
-        'Content-Type': mime,
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      });
-    } catch (e) {
-      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
-      else err500(e.message);
-    }
+    await lookBranches['GET /uploads/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public|shared|assets)(\/|$)/.test(reqPath)) {
     // Static asset handler for refactored CSS/JS files, vendored libs (GridStack),
@@ -13791,43 +13331,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
-    // Local webhook ingress for SDK widgets: any loopback process (Streamer.bot,
-    // AutoHotkey, a script) can push an event to a widget with
-    // `POST /sdk/hook/<pkg>/<hookId>`. The hook id must be DECLARED in the
-    // package manifest and the payload is bounded; delivery is live-only over
-    // the `sdk_hook` SSE event (no buffer — hooks are events, not storage) and
-    // the dashboard host forwards it only to widgets the user granted the hook
-    // to. Loopback-only like every route; NEVER a JSONP candidate.
-    try {
-      const m = /^\/sdk\/hook\/([^/]+)\/([^/]+)$/.exec(reqPath);
-      const pkgId = m ? m[1] : '';
-      const hookId = m ? m[2] : '';
-      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
-      // Per-package/hook rate floor (mirrors the fetch gate): a misbehaving local
-      // script can't turn one hook into an SSE flood across every surface.
-      if (!sdkHookGateOk(pkgId + '/' + hookId)) { json({ ok: false, error: 'rate_limited' }); return; }
-      const body = await readBody(req, 64 * 1024);
-      const scan = await sdkPackagesCached();
-      const pkg = scan.packages.find(p => p.id === pkgId);
-      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      if (!pkg.hooks.includes(hookId)) { json({ ok: false, error: 'unknown_hook' }); return; }
-      // Server-side consent: only fan out a hook the user actually granted to the
-      // package. Grants are the shared settings blob (same across surfaces), so
-      // this is authoritative — and `delivered` now means "a granted listener
-      // could receive it", not merely "some SSE client exists".
-      if (!sdkGrantsFor(pkgId).hooks.includes(hookId)) { json({ ok: false, error: 'not_granted' }); return; }
-      let data = body;
-      const ct = String(req.headers['content-type'] || '');
-      if (ct.includes('json') || /^\s*[[{]/.test(body)) {
-        try { data = JSON.parse(body); } catch { /* keep raw string */ }
-      }
-      const delivered = sseClients.size > 0;
-      if (delivered) broadcastSSE('sdk_hook', { pkg: pkgId, hook: hookId, data });
-      json({ ok: true, delivered });
-    } catch (e) {
-      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
-      else err500(e.message);
-    }
+    await widgetSdkCallsBranches['POST /sdk/hook/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
 
   } else if (reqPath === '/sdk/handler-ack' && req.method === 'POST') {
     await widgetSdkBranches['POST /sdk/handler-ack'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13872,50 +13376,13 @@ const handleRequest = async (req, res) => {
     await widgetSdkPackagesBranches['POST /sdk/claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, sdkPackagesCached, widgetOriginOf });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {
-    // Read an installed package's files as an embeddable payload for a bundle
-    // export. Read-only; the files are already reachable via /sdk/widget/, so this
-    // is no new exposure. readPackagePayload applies the same asset allowlist/caps.
-    // Redistribution gate: only the user's OWN creations may leave as a share
-    // code — packages that arrived via import/gallery (or the bundled example)
-    // are refused here, server-side, regardless of what the client asks for.
-    const id = decodeURIComponent(reqPath.slice('/sdk/export/'.length));
-    if (!widgetExportable(id)) { json({ ok: false, error: 'not_exportable' }); return; }
-    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
-    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
-    json({ ok: true, payload });
+    await widgetSdkPackagesBranches['GET /sdk/export/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { widgetExportable });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/check/')) {
-    // Sandbox diagnostics for a widget's author: a static read of the package's
-    // own HTML/JS/CSS naming what the sandbox will refuse (CDN scripts, inline
-    // code, direct fetch, localStorage...). Read-only, and it answers kinds,
-    // file names and hostnames only, for files /sdk/widget/ already serves.
-    // readPackagePayload validates the id and applies the asset allowlist/caps.
-    let id = '';
-    try { id = decodeURIComponent(reqPath.slice('/sdk/check/'.length)); } catch { id = ''; }
-    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
-    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
-    const files = payload.files
-      .filter((f) => /\.(html?|m?js|css)$/i.test(f.path))
-      .map((f) => ({ path: f.path, text: Buffer.from(f.data, 'base64').toString('utf8') }));
-    json({ ok: true, issues: SdkDiagnostics.scanWidgetSource(files) });
+    await widgetSdkPackagesBranches['GET /sdk/check/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sdk/widget/')) {
-    // Remove one installed package (Settings → installed-packages manager).
-    // DELETE + JSON → covered by the loopback Origin layer; the id is validated
-    // against the package-id charset and the resolved dir prefix-checked before
-    // anything is unlinked. Never GET, never a JSONP candidate.
-    try {
-      const id = decodeURIComponent(reqPath.slice('/sdk/widget/'.length));
-      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) { res.writeHead(400); res.end(); return; }
-      const dir = path.join(SDK_WIDGETS_DIR, id);
-      if (!dir.startsWith(SDK_WIDGETS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
-      await fs.promises.rm(dir, { recursive: true, force: true });
-      await recordWidgetOrigin(id, 'forget');   // drop the origin record with the files
-      if (trialVault.has(id)) await trialVault.remove(id);
-      refreshSdkScan();
-      await updateLayersSetting((cur) => LayersModel.removePackage(cur, id));
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await widgetSdkPackagesBranches['DELETE /sdk/widget/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, refreshSdkScan, trialVault, updateLayersSetting });
 
   } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/widget/') || reqPath.startsWith(remoteAccessLib.WIDGET_ASSET_PREFIX))) {
     // Sandboxed widget assets. resolveAsset() is the trust boundary (package id
@@ -14099,101 +13566,19 @@ const handleRequest = async (req, res) => {
     await remoteControlBranches['POST /remote/unblock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
 
   } else if (reqPath === '/api/remote-access/status' && req.method === 'GET') {
-    // Everything the Settings panel needs to render itself, in one read.
-    const addresses = remoteAccessLib.pairingAddresses();
-    json({
-      enabled: remoteAccessEnabled(),
-      port: PORT,
-      addresses,
-      devices: remoteAccess.list(),
-      maxDevices: remoteAccessLib.MAX_DEVICES,
-      pairing: remoteAccess.pairingState(),
-      // The T2 door, as two separate facts: what the user ASKED for, and what
-      // actually happened. Collapsing them would make a switch that silently
-      // flicks itself back off — the panel needs to show it on, and next to it
-      // the one reason it did not come up.
-      httpsEnabled: !!(hub.settings && hub.settings.remoteAccess && hub.settings.remoteAccess.https === true),
-      // Whether this machine can bring that door up at all. Everything the door
-      // is made of — the Tailscale CLI, its certificate, a TLS listener — exists
-      // identically on all three platforms, so this is true everywhere and the
-      // flag stays only because a future platform may not manage it.
-      httpsSupported: true,
-      // Whether Xenon can INSTALL Tailscale itself, which is a different
-      // question — and no longer a Windows-only yes. winget, Homebrew and
-      // pkexec+dnf/apt are the same offer wearing three faces, so this is asked
-      // of the machine rather than assumed from the platform: a Linux box with
-      // no polkit agent and a Mac with no Homebrew both answer false, and there
-      // the panel prints the exact command instead of offering a dead button.
-      httpsAutoInstall: await remoteHttpsInstaller.canInstall('tailscale').catch(() => false),
-      // Probed live while the door is down (see refreshReason): the cached
-      // reason belongs to whenever the last attempt ran, which at boot is
-      // before Tailscale's own client has attached — and printing THAT at
-      // somebody staring at a connected Tailscale is how this reads as Xenon
-      // being unable to see it.
-      https: await _remoteHttpsState(),
-      // The guided setup, when one is running: which step, and whether it is
-      // parked on the one thing the user has to do elsewhere.
-      httpsSetup: remoteHttpsSetup.status(),
-    });
+    await pairedAccessBranches['GET /api/remote-access/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, _remoteHttpsState, remoteAccess, remoteAccessEnabled, remoteHttpsInstaller, remoteHttpsSetup });
 
   } else if (reqPath === '/api/remote-access/enable' && req.method === 'POST') {
     await pairedAccessBranches['POST /api/remote-access/enable'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _dropRemoteSockets, _syncRemoteHttps, applyBindHost, readHubSettingsForUpdate, remoteAccess, writeHubSettings });
 
   } else if (reqPath === '/api/remote-access/https' && req.method === 'POST') {
-    // The T2 opt-in. Answers with the REASON when it cannot come up, because
-    // every failure here is fixable and each one somewhere different: install
-    // Tailscale, start it, log in, or — the one that is not on this machine at
-    // all — switch HTTPS Certificates on for the tailnet in the admin console.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const value = body.value === true;
-      await withHubSettingsLock(async () => {
-        const cur = await readHubSettingsForUpdate();
-        const saved = await writeHubSettings({
-          ...cur,
-          remoteAccess: { ...(cur.remoteAccess || {}), https: value },
-          rev: nextSettingsRev(cur.rev, body.rev),
-        });
-        hub.settings = saved;
-        broadcastSSE('settings', { rev: saved.rev });
-      });
-      await _syncRemoteHttps();
-      json({ ok: true, https: value, state: remoteHttps.status() });
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/https'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _syncRemoteHttps, readHubSettingsForUpdate, remoteHttps, writeHubSettings });
 
   } else if (reqPath === '/api/remote-access/https/setup' && req.method === 'POST') {
-    // The one button. Installs Tailscale if it is missing, opens the sign-in if
-    // it is not signed in, then waits — politely and for a long time — for the
-    // certificate switch that lives in Tailscale's own admin console and cannot
-    // be flipped from here. Returns immediately; the panel polls /status.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      if (body.cancel === true) { json(remoteHttpsSetup.cancel()); return; }
-      json(remoteHttpsSetup.start());
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/https/setup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteHttpsSetup });
 
   } else if (reqPath === '/api/remote-access/pair' && req.method === 'POST') {
-    // Open a pairing window. The code is returned to the LOCAL dashboard only,
-    // which renders it as a QR; it never travels anywhere else.
-    try {
-      await readBody(req);
-      if (!remoteAccessEnabled()) { json({ ok: false, error: 'disabled' }); return; }
-      const addresses = remoteAccessLib.pairingAddresses();
-      if (!addresses.length) { json({ ok: false, error: 'no_network' }); return; }
-      const p = remoteAccess.startPairing();
-      // When the HTTPS door is up, its URL is the one to hand out — and the only
-      // one. It reaches the PC both at home and away, it is a secure context (so
-      // the phone can install it as an app and use its microphone), and its name
-      // does not change when the router hands out a different lease. Cookies are
-      // scoped per host, so a phone paired on the LAN IP is NOT paired on the
-      // MagicDNS name: offering both would mean pairing the same phone twice.
-      const tls = remoteHttps.status();
-      json({
-        ok: true, code: p.code, display: p.display, expiresAt: p.expiresAt,
-        addresses, port: PORT,
-        secureUrl: tls.running ? tls.url : '',
-      });
-    } catch (e) { err500(e.message); }
+    await pairedAccessBranches['POST /api/remote-access/pair'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, remoteAccess, remoteAccessEnabled, remoteHttps });
 
   } else if (reqPath === '/api/remote-access/pair/cancel' && req.method === 'POST') {
     await pairedAccessBranches['POST /api/remote-access/pair/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteAccess });
@@ -14699,23 +14084,11 @@ function _handleLiveClient(client) {
   client.on('error', onGone);
 }
 
-// The in-app updater applies only the signed source zip, and the native helper is
-// a separate release asset (the Windows exe, the macOS tar.gz), so an updated install
-// kept a stale helper until INSTALL ran again. Heal it here — once per app version, and only
-// when a helper is already present — via helper-update.js, which installs only bytes
-// whose SHA-256 the release's Ed25519-SIGNED SHA256SUMS lists (pinned key, fail closed),
-// so this auto path never runs a swapped/MITM'd binary. Best-effort, off the boot hot
-// path; the fallbacks cover the gap until the next restart.
-// Last look at the per-logon startup task: whether Xenon will still be here
-// after the next sign-in. Held in memory so the dashboard can ask without
-// paying for a schtasks spawn per page load — see startup-task.js for why this
-// is checked at all, and why the three conditions are repaired while `disabled`
-// is only ever reported.
-let _startupTaskState = { checked: false, found: false, problems: [], repaired: [], failed: '', at: 0 };
+const { startupTaskCheck } = require('./install/startup-task-state.js');
 async function refreshStartupTaskState() {
   const res = await startupTask.checkStartupTask({ dataDir: DATA_DIR }).catch(() => null);
-  if (!res) return _startupTaskState;
-  _startupTaskState = { ...res, at: Date.now() };
+  if (!res) return startupTaskCheck.last;
+  startupTaskCheck.last = { ...res, at: Date.now() };
   // Both halves belong in the log, and for opposite reasons: a repair is a
   // change made to this PC without the user asking, and an unrepaired problem is
   // the reason Xenon will not be there tomorrow.
@@ -14731,11 +14104,11 @@ async function refreshStartupTaskState() {
       + ' Xenon will not start at the next sign-in until it is switched back on'
       + ' (Task Manager > Startup apps). Xenon never switches it off itself.');
   }
-  return _startupTaskState;
+  return startupTaskCheck.last;
 }
 
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
-let _helperInstall = null;   // one Settings install at a time; a second tap waits on the first
+const { helperInstall } = require('./audio/helper-install-state.js');
 // A helper that just arrived: this version counts as checked, and meters that gave up start fresh now.
 function helperArrived() {
   writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {});

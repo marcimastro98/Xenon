@@ -13,6 +13,7 @@ const { broadcastSSE } = require('../http/sse-clients.js');
 const { agendaState } = require('./agenda-state.js');
 const { readEvents, readTasks } = require('./store-read.js');
 const { EXTERNAL_FEEDS_INTERVAL_MS } = require('../ticker/feeds-interval.js');
+const TimerActions = require('../timer-actions.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -171,6 +172,31 @@ const branches = {
   'GET /tasks': async (_req, _res, { json, err500 }) => {
     try { const seq = agendaState.tasksSeq; json({ tasks: await readTasks(), seq }); }
     catch (e) { err500(e.message); }
+  },
+
+  'PATCH /api/timers/*': async (req, res, { json, err500, reqPath }, { _saveTimers }) => {
+    try {
+      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
+      const body = JSON.parse(await readBody(req));
+      const action = String(body.action || '').trim();
+      const idx = timerState.list.findIndex(t => t.id === tid);
+      if (idx < 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+      const t = TimerActions.applyTimerAction(timerState.list[idx], action, Date.now()) || { ...timerState.list[idx] };
+      timerState.list[idx] = t;
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: timerState.list });
+      json({ timer: t });
+    } catch (e) { err500(e.message); }
+  },
+
+  'DELETE /api/timers/*': async (_req, _res, { json, err500, reqPath }, { _saveTimers }) => {
+    try {
+      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
+      timerState.list = timerState.list.filter(t => t.id !== tid);
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: timerState.list });
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
   },
 };
 

@@ -9,6 +9,7 @@ const { readBody } = require('../http/read-body.js');
 const { isBlockedOpenPath } = require('../actions/registry.js');
 const { openExternalPath } = require('../deck/open-external-path.js');
 const { revealInFileManager } = require('../files/reveal-in-file-manager.js');
+const { serveFileRange } = require('../http-range.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -137,6 +138,47 @@ const branches = {
       if (!r.ok || r.cancelled) { json(r); return; }
       json(await updateTransferSettings({ inboxDir: r.path }));
     } catch (e) { err500(e.message); }
+  },
+
+  'GET|HEAD /api/transfer/file': async (req, res, { err500, urlObj }, { fileTransfer }) => {
+    // Serving a file the user received, to a phone that wants it.
+    //
+    // This is not an arbitrary-file-read primitive, and the reason is
+    // structural rather than a check: the wire carries an OPAQUE ID, resolved
+    // against a manifest this server minted, whose `file` field was generated
+    // here and is re-asserted against its shape before path.join sees it.
+    // There is no caller-supplied path component to contain — strictly
+    // stronger than /deck/sound, from which it borrows the cross-site reject.
+    //
+    // NOT in CSRF_MUTATION_PATHS on purpose: it is a pure read AND the user
+    // taps Download, which is a top-level navigation — the isTopLevelNav reject
+    // above would refuse the very download that was just asked for.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const rec = fileTransfer.get(urlObj.searchParams.get('id') || '');
+      if (!rec) { res.writeHead(404); res.end(); return; }
+      const abs = fileTransfer.absOf(rec);
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+      serveFileRange(req, res, abs, stat, {
+        // From a closed server-side map keyed on the extension WE stored, never
+        // the client's declared type. A phone needs the real media MIME or it
+        // cannot offer "Save to Photos" at all; the types where a real MIME
+        // could become script in our origin are forced to octet-stream there.
+        'Content-Type': fileTransferLib.downloadMimeFor(rec.ext),
+        // The primary guarantee that a received file never renders inline here.
+        'Content-Disposition': fileTransferLib.contentDisposition(rec.name),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'no-store',
+        'Accept-Ranges': 'bytes',
+      });
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
   },
 };
 

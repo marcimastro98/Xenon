@@ -234,6 +234,22 @@ const branches = {
     // loose-upload library keeps its own GET /deck/sounds contract untouched.
     try { json({ ok: true, packs: await soundPackStore.list() }); } catch (e) { err500(e.message); }
   },
+
+  'DELETE /deck/sounds/*': async (_req, res, { json, err500, reqPath }) => {
+    // Remove one library clip. The name must match the server-generated shape
+    // (no separators survive the regex) and is unlinked under a prefix assert.
+    try {
+      const name = decodeURIComponent(reqPath.slice('/deck/sounds/'.length));
+      if (!DECK_SOUND_NAME_RE.test(name)) { res.writeHead(400); res.end(); return; }
+      const abs = path.join(DECK_SOUNDS_DIR, name);
+      if (!abs.startsWith(DECK_SOUNDS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.unlink(abs);
+      json({ ok: true });
+    } catch (e) {
+      if (e.code === 'ENOENT') json({ ok: true });
+      else err500(e.message);
+    }
+  },
 };
 
 module.exports = { branches };

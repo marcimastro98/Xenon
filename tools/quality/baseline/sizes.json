@@ -206,7 +206,7 @@
     "server/sdk-asset-cache.js": 402,
     "server/sdk-widgets.js": 1627,
     "server/self-update.js": 441,
-    "server/server.js": 16002,
+    "server/server.js": 15375,
     "server/stocks.js": 431,
     "server/stream-spotify.js": 1055,
     "server/stream-twitch.js": 595,

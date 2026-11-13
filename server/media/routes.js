@@ -79,6 +79,30 @@ const branches = {
       json({ ok: true, ...usage });
     } catch (e) { err500(e.message); }
   },
+
+  'POST|GET /media/source': async (req, _res, { json, err500, urlObj }, { setMediaPreferredSource }) => {
+    try {
+      let body = {};
+      if (req.method === 'POST') body = JSON.parse(await readBody(req) || '{}');
+      const source = body.source ?? urlObj.searchParams.get('source') ?? '';
+      json({ ok: true, preferredSource: setMediaPreferredSource(source) });
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST|GET /media/playpause': async (_req, _res, { json, err500 }, { mediaAction }) => {
+    try   { json(await mediaAction('playpause')); }
+    catch (e) { err500(e.message); }
+  },
+
+  'POST|GET /media/next': async (_req, _res, { json, err500 }, { mediaAction }) => {
+    try   { json(await mediaAction('next')); }
+    catch (e) { err500(e.message); }
+  },
+
+  'POST|GET /media/previous': async (_req, _res, { json, err500 }, { mediaAction }) => {
+    try   { json(await mediaAction('previous')); }
+    catch (e) { err500(e.message); }
+  },
 };
 
 module.exports = { branches };

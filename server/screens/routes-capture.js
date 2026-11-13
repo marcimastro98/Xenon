@@ -6,6 +6,7 @@ const { listScreens } = require('./list-screens.js');
 const { readBody } = require('../http/read-body.js');
 const CaptureSettings = require('../capture-settings.js');
 const { captureOptions } = require('./capture-options.js');
+const { VIDEO_KINDS } = require('../captures.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -111,6 +112,25 @@ const branches = {
       if (!r.ok || r.cancelled) { json(r); return; }
       const saved = await updateCaptureSettings({}, { [key]: r.path });
       json({ ok: true, [key]: saved[key] });
+    } catch (e) { err500(e.message); }
+  },
+
+  'GET /capture/settings': async (_req, _res, { json, err500 }, { _captureFolder, _captures, _replay, defaultCaptureFolder, replayDiskInfo }) => {
+    // Loopback-only (REMOTE_DENY): the answer names the recordings folder on
+    // this PC. The settings blob carries only `folderSet`.
+    try {
+      const o = captureOptions();
+      json({
+        ok: true, ...o,
+        defaultFolder: await defaultCaptureFolder('recording'),
+        defaultShotFolder: await defaultCaptureFolder('screenshot'),
+        defaultBenchFolder: await defaultCaptureFolder('benchmark'),
+        defaultBugFolder: await defaultCaptureFolder('bugreport'),
+        usedBytes: await _captures.usage(VIDEO_KINDS),
+        picking: _captureFolder.picking(),
+        replayState: _replay.status(),
+        ...(await replayDiskInfo(o)),
+      });
     } catch (e) { err500(e.message); }
   },
 };

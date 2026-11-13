@@ -3,6 +3,7 @@
 
 const { readBodyBuffer } = require('../http/read-body.js');
 const { ICON_PACK_BODY_MAX, SOUND_PACK_BODY_MAX } = require('../deck/pack-places.js');
+const fs = require('node:fs');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -72,6 +73,50 @@ const branches = {
         res.end(JSON.stringify({ error: e.message }));
       }
     }
+  },
+
+  'GET /icon-pack/*': async (_req, res, { reqPath }, { iconPackStore }) => {
+    // Serve one pack icon (/icon-pack/<packId>/<file>). Both segments are
+    // regex-validated + prefix-asserted in icon-packs.js. The deny-all CSP +
+    // nosniff keep an SVG inert even opened top-level — defense-in-depth on top
+    // of the install-time reject-list.
+    try {
+      const parts = reqPath.slice('/icon-pack/'.length).split('/');
+      const hit = parts.length === 2
+        ? iconPackStore.resolve(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]))
+        : null;
+      if (!hit) { res.writeHead(404); res.end(); return; }
+      const data = await fs.promises.readFile(hit.abs);
+      res.writeHead(200, {
+        'Content-Type': hit.mime,
+        'Content-Security-Policy': "default-src 'none'",
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+  },
+
+  'DELETE /icon-pack/*': async (_req, res, { json, err500, reqPath }, { iconPackStore }) => {
+    // Uninstall a pack (Installed content cleanup). Id is regex-gated in
+    // icon-packs.js; keys that embedded a pack icon keep their copy.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/icon-pack/'.length));
+      const ok = await iconPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+  },
+
+  'DELETE /sound-pack/*': async (_req, res, { json, err500, reqPath }, { soundPackStore }) => {
+    // Uninstall a pack (Installed content cleanup). Deck keys referencing its
+    // clips degrade to a no-op flash — same as any missing local file.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/sound-pack/'.length));
+      const ok = await soundPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
   },
 };
 

@@ -5,8 +5,10 @@ const gameDetect = require('../gamedetect.js');
 const perfScreen = require('../perf-screen.js');
 const { readBody } = require('../http/read-body.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
+const { widgetSnapshot: widgetGameSessions } = require('../game-sessions.js');
+const { gameSessionsEnabled } = require('./game-sessions-switch.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'GET /api/gamemode/status': async (_req, _res, { json, err500 }) => {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
@@ -43,6 +45,18 @@ const branches = {
     if (!ev) { res.writeHead(400); res.end('Invalid event'); return; }
     broadcastSSE('perf_screen', ev);
     json({ ok: true });
+  },
+
+  'GET /perf': async (_req, _res, { json }, { _perfStream }) => {
+    // Read-only seed for the Game performance tile (SSE 'perf' pushes the rest).
+    json(_perfStream.snapshot());
+  },
+
+  'GET /perf/sessions': async (_req, _res, { json, urlObj }, { _gameSessions }) => {
+    // Read-only: the games played and how they ran, for an SDK widget granted
+    // `gameSessions` (js/custom-widget.js loader). Names and numbers, no paths.
+    const limit = Number(urlObj.searchParams.get('limit')) || 20;
+    json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
   },
 };
 

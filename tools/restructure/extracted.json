@@ -291,7 +291,9 @@
       {"file":"server/ai/live-voice-state.js","about":"Whether a live voice session is open.","names":["_liveActive"],"state":{"object":"liveVoice","props":{"_liveActive":"active"},"kept":[],"bare":[]}},
       {"file":"server/ai/whisper-probe.js","about":"When the local speech model was last looked for.","names":["_whisperProbedAt"],"state":{"object":"whisperProbe","props":{"_whisperProbedAt":"lastAt"},"kept":[],"bare":[]}},
       {"file":"server/ai/companion-state.js","about":"What the last companion insight cost in Sparks.","names":["_companionLastSparks"],"state":{"object":"companionState","props":{"_companionLastSparks":"lastSparks"},"kept":[],"bare":[]}},
-      {"file":"server/search/shortcut-claim.js","about":"Whether the app's own search window answered the last press of the search shortcut.","names":["_spotlightClaimed"],"state":{"object":"searchShortcut","props":{"_spotlightClaimed":"claimed"},"kept":[],"bare":[]}}
+      {"file":"server/search/shortcut-claim.js","about":"Whether the app's own search window answered the last press of the search shortcut.","names":["_spotlightClaimed"],"state":{"object":"searchShortcut","props":{"_spotlightClaimed":"claimed"},"kept":[],"bare":[]}},
+      {"file":"server/audio/helper-install-state.js","about":"The install of the audio helper started from Settings, while it runs: a second tap waits on the first.","names":["_helperInstall"],"state":{"object":"helperInstall","props":{"_helperInstall":"running"},"kept":[],"bare":[]}},
+      {"file":"server/install/startup-task-state.js","about":"What the last look at the task that starts Xenon at sign-in found, and what was repaired.","names":["_startupTaskState"],"state":{"object":"startupTaskCheck","props":{"_startupTaskState":"last"},"kept":[],"bare":[]}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]}
@@ -406,7 +408,25 @@
       {"file":"server/time/routes.js","about":"","keys":["GET /events","GET /external-events","POST /external-events/refresh","GET /tasks"],"after":290},
       {"file":"server/ai/routes-memory.js","about":"","keys":["POST /api/companion/insight"],"after":290},
       {"file":"server/ai/routes-dictation.js","about":"What starting to listen to the microphone does: it picks the device and starts the recording the answer is read from.","keys":["POST /api/stt/start"],"after":290},
-      {"file":"server/search/routes.js","about":"","keys":["POST /spotlight/claimed"],"after":290}
+      {"file":"server/search/routes.js","about":"","keys":["POST /spotlight/claimed"],"after":290},
+      {"file":"server/audio/routes-volume.js","about":"","keys":["POST|GET /toggle","POST|GET /volume/set","POST|GET /mic/volume","POST|GET /speaker/mute"],"after":292},
+      {"file":"server/audio/routes.js","about":"","keys":["POST|GET /audio/app/volume","POST|GET /audio/app/mute","POST /audio/levels/install-helper"],"after":292},
+      {"file":"server/performance/routes.js","about":"","keys":["GET /perf","GET /perf/sessions"],"after":292},
+      {"file":"server/media/routes.js","about":"","keys":["POST|GET /media/source","POST|GET /media/playpause","POST|GET /media/next","POST|GET /media/previous"],"after":292},
+      {"file":"server/deck/routes.js","about":"","keys":["DELETE /deck/sounds/*"],"after":292},
+      {"file":"server/windows-tiles/routes.js","about":"","keys":["GET /embedded-browser/available","POST /embedded-browser/install"],"after":292},
+      {"file":"server/install/routes.js","about":"","keys":["GET /api/startup-task"],"after":292},
+      {"file":"server/smart-home/routes-cameras.js","about":"The still pictures of the cameras of the house: one from UniFi Protect, one from Home Assistant.","keys":["GET /api/unifiprotect/snapshot/*","GET /api/ha/camera/snapshot/*"],"after":292},
+      {"file":"server/time/routes.js","about":"","keys":["PATCH /api/timers/*","DELETE /api/timers/*"],"after":292},
+      {"file":"server/look/routes.js","about":"","keys":["DELETE /font/*","GET /uploads/*"],"after":292},
+      {"file":"server/store-catalog/routes-packs.js","about":"","keys":["GET /icon-pack/*","DELETE /icon-pack/*","DELETE /sound-pack/*"],"after":292},
+      {"file":"server/widget-options/routes.js","about":"","keys":["POST /layers/desk"],"after":292},
+      {"file":"server/transfer/routes.js","about":"","keys":["GET|HEAD /api/transfer/file"],"after":292},
+      {"file":"server/screens/routes-capture.js","about":"","keys":["GET /capture/settings"],"after":292},
+      {"file":"server/screens/routes-captures.js","about":"The captures kept on this computer: the list, a file, its small picture, its transcript, the export and the spots saved.","keys":["GET /captures","GET /captures/transcript","POST /captures/transcribe","POST /captures/export","POST /captures/export-cancel","GET /captures/thumb","GET|HEAD /captures/file","POST /captures/spots","POST /captures/save"],"after":292},
+      {"file":"server/widget-sdk/routes-calls.js","about":"","keys":["POST /sdk/hook/*"],"after":292},
+      {"file":"server/widget-sdk/routes-packages.js","about":"","keys":["GET /sdk/export/*","GET /sdk/check/*","DELETE /sdk/widget/*"],"after":292},
+      {"file":"server/paired/routes-access.js","about":"","keys":["GET /api/remote-access/status","POST /api/remote-access/https","POST /api/remote-access/https/setup","POST /api/remote-access/pair"],"after":292}
     ]
   }
 }

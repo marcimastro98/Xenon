@@ -11,6 +11,7 @@ const fs = require('node:fs');
 const { UPLOADS_DIR } = require('../engine/uploads-dir.js');
 const { cleanupOldBackgrounds, cleanupOldFonts } = require('./upload-cleanup.js');
 const { isFfmpegMissing } = require('../ffmpeg-install/lookup.js');
+const { serveFileRange } = require('../http-range.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -109,6 +110,41 @@ const branches = {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       }
+    }
+  },
+
+  'DELETE /font/*': async (_req, res, { json, err500, reqPath }) => {
+    // Imported-theme cleanup. Only a generated font filename inside UPLOADS_DIR
+    // is accepted; arbitrary uploads and paths remain unreachable.
+    try {
+      const name = decodeURIComponent(reqPath.slice('/font/'.length));
+      if (!/^[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i.test(name)) { res.writeHead(400); res.end(); return; }
+      const abs = path.join(UPLOADS_DIR, name);
+      if (!abs.startsWith(UPLOADS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.rm(abs, { force: true });
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+  },
+
+  'GET /uploads/*': async (req, res, { err500, reqPath }) => {
+    try {
+      const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
+      if (!/^[A-Za-z0-9._-]+$/.test(name)) { res.writeHead(403); res.end('Forbidden'); return; }
+      const abs = path.join(UPLOADS_DIR, name);
+      const ext = path.extname(name).toLowerCase();
+      const mime = BACKGROUND_MIME_BY_EXT.get(ext) || FONT_MIME_BY_EXT.get(ext);
+      if (!mime) { res.writeHead(404); res.end(); return; }
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+
+      serveFileRange(req, res, abs, stat, {
+        'Content-Type': mime,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      });
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
     }
   },
 };

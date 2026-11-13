@@ -44,6 +44,28 @@ const branches = {
       res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
     }
   },
+
+  'POST /layers/desk': async (req, res, { json }, { _deskPageSync, layersHost }) => {
+    // The shell says which virtual desktop is shown (apps/native layers/desks.rs,
+    // through js/layers-shell.js); a page tied to it is shown (layer-pages.js).
+    // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const current = Number(body && body.current);
+      const count = Number(body && body.count);
+      if (!Number.isInteger(current) || current < 0 || current > 64 || !Number.isInteger(count) || count < 0 || count > 64) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+        return;
+      }
+      layersHost.setDesk(current, count);
+      _deskPageSync(current);
+      json({ ok: true });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
+  },
 };
 
 module.exports = { branches };

@@ -122,6 +122,104 @@ const branches = {
       json(r);
     } catch (e) { err500(e.message); }
   },
+
+  'GET /api/remote-access/status': async (_req, _res, { json }, { PORT, _remoteHttpsState, remoteAccess, remoteAccessEnabled, remoteHttpsInstaller, remoteHttpsSetup }) => {
+    // Everything the Settings panel needs to render itself, in one read.
+    const addresses = remoteAccessLib.pairingAddresses();
+    json({
+      enabled: remoteAccessEnabled(),
+      port: PORT,
+      addresses,
+      devices: remoteAccess.list(),
+      maxDevices: remoteAccessLib.MAX_DEVICES,
+      pairing: remoteAccess.pairingState(),
+      // The T2 door, as two separate facts: what the user ASKED for, and what
+      // actually happened. Collapsing them would make a switch that silently
+      // flicks itself back off — the panel needs to show it on, and next to it
+      // the one reason it did not come up.
+      httpsEnabled: !!(hub.settings && hub.settings.remoteAccess && hub.settings.remoteAccess.https === true),
+      // Whether this machine can bring that door up at all. Everything the door
+      // is made of — the Tailscale CLI, its certificate, a TLS listener — exists
+      // identically on all three platforms, so this is true everywhere and the
+      // flag stays only because a future platform may not manage it.
+      httpsSupported: true,
+      // Whether Xenon can INSTALL Tailscale itself, which is a different
+      // question — and no longer a Windows-only yes. winget, Homebrew and
+      // pkexec+dnf/apt are the same offer wearing three faces, so this is asked
+      // of the machine rather than assumed from the platform: a Linux box with
+      // no polkit agent and a Mac with no Homebrew both answer false, and there
+      // the panel prints the exact command instead of offering a dead button.
+      httpsAutoInstall: await remoteHttpsInstaller.canInstall('tailscale').catch(() => false),
+      // Probed live while the door is down (see refreshReason): the cached
+      // reason belongs to whenever the last attempt ran, which at boot is
+      // before Tailscale's own client has attached — and printing THAT at
+      // somebody staring at a connected Tailscale is how this reads as Xenon
+      // being unable to see it.
+      https: await _remoteHttpsState(),
+      // The guided setup, when one is running: which step, and whether it is
+      // parked on the one thing the user has to do elsewhere.
+      httpsSetup: remoteHttpsSetup.status(),
+    });
+  },
+
+  'POST /api/remote-access/https': async (req, _res, { json, err500 }, { _syncRemoteHttps, readHubSettingsForUpdate, remoteHttps, writeHubSettings }) => {
+    // The T2 opt-in. Answers with the REASON when it cannot come up, because
+    // every failure here is fixable and each one somewhere different: install
+    // Tailscale, start it, log in, or — the one that is not on this machine at
+    // all — switch HTTPS Certificates on for the tailnet in the admin console.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const value = body.value === true;
+      await withHubSettingsLock(async () => {
+        const cur = await readHubSettingsForUpdate();
+        const saved = await writeHubSettings({
+          ...cur,
+          remoteAccess: { ...(cur.remoteAccess || {}), https: value },
+          rev: nextSettingsRev(cur.rev, body.rev),
+        });
+        hub.settings = saved;
+        broadcastSSE('settings', { rev: saved.rev });
+      });
+      await _syncRemoteHttps();
+      json({ ok: true, https: value, state: remoteHttps.status() });
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/remote-access/https/setup': async (req, _res, { json, err500 }, { remoteHttpsSetup }) => {
+    // The one button. Installs Tailscale if it is missing, opens the sign-in if
+    // it is not signed in, then waits — politely and for a long time — for the
+    // certificate switch that lives in Tailscale's own admin console and cannot
+    // be flipped from here. Returns immediately; the panel polls /status.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body.cancel === true) { json(remoteHttpsSetup.cancel()); return; }
+      json(remoteHttpsSetup.start());
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST /api/remote-access/pair': async (req, _res, { json, err500 }, { PORT, remoteAccess, remoteAccessEnabled, remoteHttps }) => {
+    // Open a pairing window. The code is returned to the LOCAL dashboard only,
+    // which renders it as a QR; it never travels anywhere else.
+    try {
+      await readBody(req);
+      if (!remoteAccessEnabled()) { json({ ok: false, error: 'disabled' }); return; }
+      const addresses = remoteAccessLib.pairingAddresses();
+      if (!addresses.length) { json({ ok: false, error: 'no_network' }); return; }
+      const p = remoteAccess.startPairing();
+      // When the HTTPS door is up, its URL is the one to hand out — and the only
+      // one. It reaches the PC both at home and away, it is a secure context (so
+      // the phone can install it as an app and use its microphone), and its name
+      // does not change when the router hands out a different lease. Cookies are
+      // scoped per host, so a phone paired on the LAN IP is NOT paired on the
+      // MagicDNS name: offering both would mean pairing the same phone twice.
+      const tls = remoteHttps.status();
+      json({
+        ok: true, code: p.code, display: p.display, expiresAt: p.expiresAt,
+        addresses, port: PORT,
+        secureUrl: tls.running ? tls.url : '',
+      });
+    } catch (e) { err500(e.message); }
+  },
 };
 
 module.exports = { branches };

@@ -107,6 +107,48 @@ const branches = {
       res.writeHead(204); res.end();
     } catch { res.writeHead(204); res.end(); }
   },
+
+  'POST|GET /toggle': async (_req, _res, { json }, { setMicMute }) => {
+    audioCache.muted = !audioCache.muted;
+    setMicMute(audioCache.muted);
+    json({ muted: audioCache.muted });
+  },
+
+  'POST|GET /volume/set': async (req, _res, { json, err500, urlObj }, { svvExec }) => {
+    try {
+      let level;
+      if (req.method === 'GET') {
+        level = parseInt(urlObj.searchParams.get('level'));
+      } else {
+        ({ level } = JSON.parse(await readBody(req)));
+      }
+      const vol = Math.max(0, Math.min(100, parseInt(level)));
+      if (!audioCache.speakerId) { err500('Cache not ready'); return; }
+      svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).then(() => json({ ok: true, level: vol }), e => err500(e.message));
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST|GET /mic/volume': async (req, _res, { json, err500, urlObj }, { svvExec }) => {
+    try {
+      let level;
+      if (req.method === 'GET') {
+        level = parseInt(urlObj.searchParams.get('level'));
+      } else {
+        ({ level } = JSON.parse(await readBody(req)));
+      }
+      const vol = Math.max(0, Math.min(100, parseInt(level)));
+      if (!audioCache.micId) { err500('Cache not ready'); return; }
+      // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
+      svvExec(['/SetVolume', audioCache.micId, String(vol)])
+        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', audioCache.micId]))
+        .then(() => json({ ok: true, level: vol }), e => err500(e.message));
+    } catch (e) { err500(e.message); }
+  },
+
+  'POST|GET /speaker/mute': async (_req, _res, { json, err500 }, { svvExec }) => {
+    if (!audioCache.speakerId) { err500('Cache not ready'); return; }
+    svvExec(['/Switch', audioCache.speakerId]).then(() => json({ ok: true }), e => err500(e.message));
+  },
 };
 
 module.exports = { branches };

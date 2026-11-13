@@ -8,6 +8,8 @@ const sdkWidgets = require('../sdk-widgets.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const { SDK_WIDGETS_DIR } = require('./data-places.js');
+const SdkDiagnostics = require('../js/sdk-diagnostics.js');
+const LayersModel = require('../js/layers-model.js');
 
 /** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
@@ -134,6 +136,55 @@ const branches = {
     if (widgetOriginOf(id) !== 'unknown') { json({ ok: false, error: 'not_claimable' }); return; }
     await recordWidgetOrigin(id, 'local');
     json({ ok: true });
+  },
+
+  'GET /sdk/export/*': async (_req, _res, { json, reqPath }, { widgetExportable }) => {
+    // Read an installed package's files as an embeddable payload for a bundle
+    // export. Read-only; the files are already reachable via /sdk/widget/, so this
+    // is no new exposure. readPackagePayload applies the same asset allowlist/caps.
+    // Redistribution gate: only the user's OWN creations may leave as a share
+    // code — packages that arrived via import/gallery (or the bundled example)
+    // are refused here, server-side, regardless of what the client asks for.
+    const id = decodeURIComponent(reqPath.slice('/sdk/export/'.length));
+    if (!widgetExportable(id)) { json({ ok: false, error: 'not_exportable' }); return; }
+    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
+    json({ ok: true, payload });
+  },
+
+  'GET /sdk/check/*': async (_req, _res, { json, reqPath }) => {
+    // Sandbox diagnostics for a widget's author: a static read of the package's
+    // own HTML/JS/CSS naming what the sandbox will refuse (CDN scripts, inline
+    // code, direct fetch, localStorage...). Read-only, and it answers kinds,
+    // file names and hostnames only, for files /sdk/widget/ already serves.
+    // readPackagePayload validates the id and applies the asset allowlist/caps.
+    let id = '';
+    try { id = decodeURIComponent(reqPath.slice('/sdk/check/'.length)); } catch { id = ''; }
+    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
+    const files = payload.files
+      .filter((f) => /\.(html?|m?js|css)$/i.test(f.path))
+      .map((f) => ({ path: f.path, text: Buffer.from(f.data, 'base64').toString('utf8') }));
+    json({ ok: true, issues: SdkDiagnostics.scanWidgetSource(files) });
+  },
+
+  'DELETE /sdk/widget/*': async (_req, res, { json, err500, reqPath }, { recordWidgetOrigin, refreshSdkScan, trialVault, updateLayersSetting }) => {
+    // Remove one installed package (Settings → installed-packages manager).
+    // DELETE + JSON → covered by the loopback Origin layer; the id is validated
+    // against the package-id charset and the resolved dir prefix-checked before
+    // anything is unlinked. Never GET, never a JSONP candidate.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/sdk/widget/'.length));
+      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) { res.writeHead(400); res.end(); return; }
+      const dir = path.join(SDK_WIDGETS_DIR, id);
+      if (!dir.startsWith(SDK_WIDGETS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.rm(dir, { recursive: true, force: true });
+      await recordWidgetOrigin(id, 'forget');   // drop the origin record with the files
+      if (trialVault.has(id)) await trialVault.remove(id);
+      refreshSdkScan();
+      await updateLayersSetting((cur) => LayersModel.removePackage(cur, id));
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
   },
 };
 
