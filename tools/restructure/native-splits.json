@@ -1,6 +1,14 @@
 {
   "note": "Files cut by tools/restructure/native-cli.mjs, each with the files that came out of it. Written by the tool.",
   "splits": {
+    "apps/native/src-tauri/src/layers/win32.rs": [
+      "apps/native/src-tauri/src/layers/win32/anchored.rs",
+      "apps/native/src-tauri/src/layers/win32/front.rs",
+      "apps/native/src-tauri/src/layers/win32/region.rs",
+      "apps/native/src-tauri/src/layers/win32/styles.rs",
+      "apps/native/src-tauri/src/layers/win32/sync.rs",
+      "apps/native/src-tauri/src/layers/win32/wallpaper.rs"
+    ],
     "apps/native/src-tauri/src/monitor.rs": [
       "apps/native/src-tauri/src/monitor/driver.rs",
       "apps/native/src-tauri/src/monitor/home.rs",

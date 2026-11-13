@@ -1,0 +1,11 @@
+{
+  "origin": "apps/native/src-tauri/src/layers/win32.rs",
+  "parts": [
+    { "file": "apps/native/src-tauri/src/layers/win32/styles.rs", "about": "Windows: the styles, size and shape a layer window is given so it stays where it is put.", "lines": [[126, 264]] },
+    { "file": "apps/native/src-tauri/src/layers/win32/sync.rs", "about": "Windows: one sync applied, windows that left forgotten, new ones set up, all of them placed.", "lines": [[269, 356]] },
+    { "file": "apps/native/src-tauri/src/layers/win32/wallpaper.rs", "about": "Windows: the wallpaper stops under a window that fills its monitor, and starts again after.", "lines": [[400, 405], [411, 457]] },
+    { "file": "apps/native/src-tauri/src/layers/win32/region.rs", "about": "Windows: the part of a layer window that is drawn and takes the mouse, cards closing included.", "lines": [[465, 561]] },
+    { "file": "apps/native/src-tauri/src/layers/win32/front.rs", "about": "Windows: following the window in front, so desktop layers lift, hide and come back at the right time.", "lines": [[573, 752]] },
+    { "file": "apps/native/src-tauri/src/layers/win32/anchored.rs", "about": "Windows: a widget that follows the window of another app.", "lines": [[772, 862]] }
+  ]
+}
