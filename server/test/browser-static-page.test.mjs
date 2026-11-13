@@ -4,7 +4,7 @@
 // used to offer one button only, "Show toolbar".
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const JS = read('../js/browser-tile.js');

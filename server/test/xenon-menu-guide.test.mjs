@@ -3,12 +3,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const Guide = require('../js/xenon-menu-guide.js');
 const Place = require('../js/xenon-menu-place.js');
-const src = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const src = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const CSS = src('components/XenonMenu/XenonMenuGuide.css');
 
 function node(tag, cls = '', txt = '') {

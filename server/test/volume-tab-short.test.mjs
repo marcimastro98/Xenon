@@ -8,7 +8,7 @@
 //    rows kept their full height.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStrings } from './i18n-source.mjs';
 
 // LF only, so slices find their ends on a CRLF (Windows) checkout too.

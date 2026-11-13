@@ -30,7 +30,7 @@
 
   const SYSTEM = {
     css: ['components/SystemPanel/SystemPanel.css', 'components/SystemPanel/SystemPanelSparkline.css', 'components/DashboardLayout/DashboardLayout.css', 'components/DashboardLayout/DashboardLayoutEditor.css', 'components/DashboardLayout/DashboardLayoutBars.css',
-      'components/AudioSection/AudioSection.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
+      'components/AudioSection/AudioSection.css', 'components/AudioSection/AudioSectionAppMixer.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
@@ -38,7 +38,7 @@
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
-      'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
+      'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/TimerPanel/TimerPanelCards.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
     js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
 
@@ -56,7 +56,7 @@
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
-      css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/LyricsView/LyricsView.css'],
+      css: ['components/MediaPanel/MediaPanel.css', 'components/MediaPanel/MediaPanelBackdrop.css', 'components/MediaPanel/MediaPanelTitles.css', 'components/MediaPanel/MediaPanelSpotify.css', 'components/MediaPanel/MediaPanelSizes.css', 'components/MediaPanel/LiquidPlayer.css', 'components/MediaPanel/LiquidPlayerSpotify.css', 'components/LyricsView/LyricsView.css'],
       js: ['js/album-theme.js', 'js/media.js', 'js/media-spotify.js', 'js/media-progress.js', 'js/lyrics-core.js',
         'js/lyrics-view.js', 'js/media-lyrics.js', 'js/media-viz.js'],
       markup: ['media'],
@@ -86,7 +86,7 @@
     youtube: tile('youtube', 'YouTubeWidget', ['js/tile-tab-memory.js', 'js/watch-view.js', 'js/youtube-widget.js'], {}, null, ['components/YouTubeWidget/YouTubeWidgetLayouts.css']),
     youtubelive: tile('youtubelive', 'YouTubeLiveWidget', ['js/youtubelive-widget.js'], {}),
     twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}, null, ['components/TwitchWatchWidget/TwitchWatchWidgetChat.css']),
-    spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}),
+    spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}, null, ['components/SpotifyWidget/SpotifyWidgetTabs.css']),
     claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
       'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget.js'], { claude: 'onSSE' },
       'ClaudeWidget', ['components/ClaudeWidget/ClaudeWidgetDecisions.css', 'components/ClaudeWidget/ClaudeWidgetHeader.css', 'components/ClaudeWidget/ClaudeWidgetConsole.css', 'components/ClaudeWidget/ClaudeWidgetComposer.css', 'components/ClaudeWidget/ClaudeWidgetPanels.css', 'components/CustomSelect/CustomSelect.css', 'components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),

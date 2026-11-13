@@ -1,0 +1,194 @@
+
+/* The Spotify strip in the same language: its seek bar is the progress line, its
+   keys bare glyphs, its two lists plain keys, and the cover's colour for what is on. */
+:root[data-style="liquid"] .media-panel :is(.media-pane-play, .msp) { --msp-green: var(--accent); }
+:root[data-style="liquid"] .media-panel .msp-time { font-size: 12px; font-weight: 600; }
+:root[data-style="liquid"] .media-panel .msp-ctl {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--muted-text);
+}
+:root[data-style="liquid"] .media-panel .msp-ctl:hover:not(:disabled) { background: var(--lg-key); color: var(--text); }
+:root[data-style="liquid"] .media-panel .msp-ctl.is-on { color: var(--accent); }
+:root[data-style="liquid"] .media-panel .msp-ctl.err { color: var(--color-danger); }
+:root[data-style="liquid"] .media-panel .msp-pill {
+  border: 0;
+  border-radius: 10px;
+  background: var(--lg-key);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--text);
+  font-weight: 600;
+}
+:root[data-style="liquid"] .media-panel .msp-pill:hover { background: var(--lg-key-hover); color: var(--text); }
+:root[data-style="liquid"] .media-panel .msp-pill.is-open { background: color-mix(in srgb, var(--accent), transparent 80%); color: var(--text); }
+
+/* Playlists and Devices: a Liquid sheet over the player, readable in light too. */
+:root[data-style="liquid"] .media-panel .msp-sheet {
+  border: 0;
+  background: var(--sheet-fill);
+  -webkit-backdrop-filter: var(--sheet-blur);
+  backdrop-filter: var(--sheet-blur);
+  box-shadow: var(--sheet-rim), var(--sheet-lift);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] .media-panel :is(.msp-sheet-title, .msp-item-name, .msp-item.is-active .msp-item-name) { color: var(--sheet-text); }
+:root[data-style="liquid"] .media-panel :is(.msp-item-sub, .msp-hint, .msp-item-ico) { color: var(--sheet-muted); }
+:root[data-style="liquid"] .media-panel :is(.msp-sheet-ico, .msp-item.is-active .msp-item-ico) { color: var(--accent); }
+:root[data-style="liquid"] .media-panel .msp-sheet-close {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--sheet-well);
+  color: var(--sheet-text);
+}
+:root[data-style="liquid"] .media-panel .msp-sheet-close:hover { background: var(--sheet-well-hover); color: var(--sheet-text); }
+:root[data-style="liquid"] .media-panel .msp-item { border: 0; border-radius: 10px; background: var(--sheet-well); }
+:root[data-style="liquid"] .media-panel .msp-item:hover:not(.is-active):not(:disabled) { background: var(--sheet-well-hover); }
+:root[data-style="liquid"] .media-panel .msp-item.is-active { background: color-mix(in srgb, var(--accent), transparent 80%); }
+:root[data-style="liquid"] .media-panel .msp-item.ok { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 40%); }
+:root[data-style="liquid"] .media-panel .msp-item.err { box-shadow: inset 0 0 0 1px rgba(var(--danger-rgb), 0.6); }
+:root[data-style="liquid"] .media-panel .msp-item-go { background: var(--accent); color: var(--on-accent); }
+/* The chosen device already wears the cover's colour: no dot beside it. */
+:root[data-style="liquid"] .media-panel .msp-item-dot { display: none; }
+:root[data-style="liquid"] .media-panel .msp-sheet-list { scrollbar-color: var(--sheet-line) transparent; }
+:root[data-style="liquid"] .media-panel .msp-sheet-list::-webkit-scrollbar-thumb { background: var(--sheet-line); }
+
+/* ── A tile with room ────────────────────────────────────────────────────────
+   One grid for the words and the keys: the source, the title with the lyrics key
+   at its end, the progress line, the transport centred, then Spotify's row and the
+   volume. Rows are placed in order, so a part that is not there leaves no gap. */
+@container mediatile (min-height: 400px) and (min-width: 300px) {
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content {
+    --mp-key: clamp(40px, 12cqw, 56px);
+    --mp-play: clamp(52px, 15cqw, 68px);
+    --mp-gap: clamp(10px, 4cqw, 22px);
+    --mp-lyr: 0px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px 0;
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content:has(> .media-actions > .media-lyrics-btn:not([hidden])) { --mp-lyr: 56px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-app-row, .media-textblock, .media-progress, .msp-seek, .msp-row, .media-volume) { grid-column: 1 / -1; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-app-row { margin-bottom: -4px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .app-pill { font-size: 13px; }
+  /* The title and the lyrics key share the second row; the words stop short of the key. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-textblock { grid-row: 2; padding-inline-end: var(--mp-lyr); }
+  /* Nothing playing: the title is out of the flow, so it holds no row and the keys centre. */
+  :root[data-style="liquid"] .media-panel.is-empty:not(.lyrics-open) .media-textblock { grid-row: auto; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-progress:not([hidden]) { display: flex; }
+  /* Spotify's own seek bar takes the line's place; it knows the track better. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content:has(> .msp:not([hidden])) > .media-progress { display: none; }
+
+  /* The transport, centred; what comes after it follows in order. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions { display: contents; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-actions > .control-btn, .msp-row, .media-volume) { order: 1; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .control-btn:first-child { grid-column: 2; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .control-btn.primary { grid-column: 3; margin-inline: var(--mp-gap); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .control-btn.primary + .control-btn { grid-column: 4; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .control-btn { width: var(--mp-key); height: var(--mp-key); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .control-btn.primary { width: var(--mp-play); height: var(--mp-play); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .media-lyrics-btn {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: end;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    border-radius: 12px;
+    background: var(--lg-key);
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .media-lyrics-btn:hover { background: var(--lg-key-hover); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-actions > .media-lyrics-btn.is-on { background: color-mix(in srgb, var(--accent), transparent 84%); }
+
+  /* Spotify: the seek bar where the progress line is, its keys under the transport. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp { display: contents; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-seek { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-range { grid-column: 1 / -1; height: 28px; touch-action: pan-y; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-range:is(:hover, :active, :focus-visible):not(:disabled)::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-time { grid-row: 2; min-width: 0; margin-top: -2px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-tot { grid-column: 2; }
+  /* Spotify's row: its keys spread on one line and the two lists side by side under
+     them; a column wide enough takes it all on one line. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-row {
+    container: msprow / inline-size;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-ctl { width: 40px; height: 40px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-ctl svg { width: 20px; height: 20px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-spacer { flex: 0 0 100%; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-pill { flex: 1 1 auto; justify-content: center; height: 40px; padding: 0 12px; font-size: 13px; }
+  @container msprow (min-width: 420px) {
+    :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-spacer { flex: 1 1 auto; }
+    :root[data-style="liquid"] .media-panel:not(.lyrics-open) .msp-pill { flex: 0 0 auto; }
+  }
+
+  /* The volume at a finger's size, as the mixer's channels. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-volume { max-width: none; margin: 0; gap: 10px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-vol-mute { width: 44px; height: 44px; border-radius: 12px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-vol-mute svg { width: 18px; height: 18px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-vol-slider { height: 44px; border-radius: 12px; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-vol-val { font-size: 13px; }
+}
+
+/* Tall tile: the cover on top, the words and the keys under it, lined up with its
+   edges as Apple Music does. The cover takes what the rows under it leave. */
+@container mediatile (orientation: portrait) and (min-height: 520px) and (min-width: 300px) {
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play {
+    --mp-art: clamp(120px, min(100cqw - 36px, 100cqh - 380px), 560px);
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open):has(.msp:not([hidden])) .media-pane-play {
+    --mp-art: clamp(120px, min(100cqw - 36px, 100cqh - 430px), 560px);
+  }
+  /* One column even where the phone step of MediaPanel.css sets the cover beside the words. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 24px;
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: var(--mp-art); max-width: none; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { width: min(100%, max(var(--mp-art), 300px)); text-align: start; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-app-row { justify-content: flex-start; }
+}
+
+/* Tall but short of that: a cover on top would leave it a stamp, so it stays
+   beside the words, as on a square tile. */
+@container mediatile (orientation: portrait) and (min-height: 400px) and (max-height: 519px) and (min-width: 300px) {
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 18px;
+  }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(34cqw, 44cqh, 170px); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { width: auto; text-align: start; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-app-row { justify-content: flex-start; }
+}
+
+/* Wide tile: the cover as tall as the tile allows and the words beside it, the
+   title level with its top and the keys level with its bottom. The pair starts at
+   the top: centred, what the tile had left over opened a gap between the tabs and
+   the cover. */
+@container mediatile (orientation: landscape) and (min-width: 560px) and (min-height: 400px) {
+  /* Past 640px the bars only get longer, so a very wide tile centres the pair. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+    grid-template-columns: auto minmax(0, 640px);
+    justify-content: center;
+    align-content: start;
+    gap: 30px;
+  }
+  /* The words keep 270px: the transport, Spotify's keys and the volume fit there. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-art { width: min(100cqh, 100cqw - 300px, 560px); max-width: none; }
+  /* With the waveform on, the cover leaves it its strip at the bottom. */
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open):has(> .media-viz) .media-art { width: min(100cqh - 60px, 100cqw - 300px, 560px); }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) .media-content { align-self: stretch; grid-template-rows: auto 1fr; }
+  /* Nothing playing: no words above the keys, so the keys sit level with the cover's centre. */
+  :root[data-style="liquid"] .media-panel.is-empty:not(.lyrics-open) .media-content { grid-template-rows: auto; }
+  :root[data-style="liquid"] .media-panel:not(.lyrics-open) :is(.media-textblock, .media-actions > .media-lyrics-btn) { align-self: start; }
+}

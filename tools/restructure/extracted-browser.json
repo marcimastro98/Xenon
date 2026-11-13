@@ -93,6 +93,12 @@
     {"kind":"style","from":"server/components/YouTubeWidget/YouTubeWidget.css","parts":[{"file":"server/components/YouTubeWidget/YouTubeWidgetLayouts.css","at":226}]},
     {"kind":"style","from":"server/components/WeatherModal/WeatherModal.css","parts":[{"file":"server/components/WeatherModal/WeatherModalBlocks.css","at":253}]},
     {"kind":"style","from":"server/components/CustomWidget/CustomWidget.css","parts":[{"file":"server/components/CustomWidget/CustomWidgetPicker.css","at":188}]},
-    {"kind":"style","from":"server/components/DayModal/DayModal.css","parts":[{"file":"server/components/DayModal/DayModalTimePicker.css","at":170}]}
+    {"kind":"style","from":"server/components/DayModal/DayModal.css","parts":[{"file":"server/components/DayModal/DayModalTimePicker.css","at":170}]},
+    {"kind":"style","from":"server/components/XenonMenu/XenonMenu.css","parts":[{"file":"server/components/XenonMenu/XenonMenuChoices.css","at":222}]},
+    {"kind":"style","from":"server/components/AudioSection/AudioSection.css","parts":[{"file":"server/components/AudioSection/AudioSectionAppMixer.css","at":171}]},
+    {"kind":"style","from":"server/components/MediaPanel/LiquidPlayer.css","parts":[{"file":"server/components/MediaPanel/LiquidPlayerSpotify.css","at":194}]},
+    {"kind":"style","from":"server/components/SpotifyWidget/SpotifyWidget.css","parts":[{"file":"server/components/SpotifyWidget/SpotifyWidgetTabs.css","at":194}]},
+    {"kind":"style","from":"server/components/TimerPanel/TimerPanel.css","parts":[{"file":"server/components/TimerPanel/TimerPanelCards.css","at":175}]},
+    {"kind":"style","from":"server/components/BrowserPanel/BrowserPanel.css","parts":[{"file":"server/components/BrowserPanel/BrowserPanelStage.css","at":171}]}
   ]
 }
