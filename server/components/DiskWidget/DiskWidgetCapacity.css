@@ -1,0 +1,271 @@
+
+/* Capacity bar. Kind colours are the categorical slots of a palette checked
+   for colour-blind separation between neighbours, in that fixed order and
+   with their own steps for a light theme. They are never the theme accent:
+   identity must not change when the user changes theme. Status colours stay
+   reserved for the "% used" warning. */
+
+.diskw-cap {
+  --k-video: #3987e5;
+  --k-image: #d95926;
+  --k-audio: #199e70;
+  --k-document: #c98500;
+  --k-archive: #d55181;
+  --k-app: #008300;
+  --k-game: #9085e9;
+  --k-other: color-mix(in srgb, var(--text), transparent 60%);
+  --k-unlisted: color-mix(in srgb, var(--text), transparent 80%);
+  --k-free: color-mix(in srgb, var(--text), transparent 92%);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+:root[data-appearance="light"] .diskw-cap {
+  --k-video: #2a78d6;
+  --k-image: #eb6834;
+  --k-audio: #1baf7a;
+  --k-document: #eda100;
+  --k-archive: #e87ba4;
+  --k-app: #008300;
+  --k-game: #4a3aa7;
+}
+
+.diskw-cap-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diskw-cap-free {
+  overflow: hidden;
+  font-size: clamp(15px, 2.2cqw, 20px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-cap-used {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-cap[data-pressure="critical"] .diskw-cap-used {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.diskw-cap[data-pressure="low"] .diskw-cap-used {
+  color: var(--color-warn);
+  font-weight: 700;
+}
+
+.diskw-cap-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.diskw-seg {
+  flex: var(--grow) 1 0;
+  min-width: 0;
+  background: var(--k-other);
+}
+
+.diskw-seg[data-kind="video"], .diskw-swatch[data-kind="video"] { background: var(--k-video); }
+.diskw-seg[data-kind="image"], .diskw-swatch[data-kind="image"] { background: var(--k-image); }
+.diskw-seg[data-kind="audio"], .diskw-swatch[data-kind="audio"] { background: var(--k-audio); }
+.diskw-seg[data-kind="document"], .diskw-swatch[data-kind="document"] { background: var(--k-document); }
+.diskw-seg[data-kind="archive"], .diskw-swatch[data-kind="archive"] { background: var(--k-archive); }
+.diskw-seg[data-kind="app"], .diskw-swatch[data-kind="app"] { background: var(--k-app); }
+.diskw-seg[data-kind="game"], .diskw-swatch[data-kind="game"] { background: var(--k-game); }
+.diskw-seg[data-kind="other"], .diskw-swatch[data-kind="other"] { background: var(--k-other); }
+.diskw-seg[data-kind="unlisted"], .diskw-swatch[data-kind="unlisted"] { background: var(--k-unlisted); }
+.diskw-seg-free { background: var(--k-free); }
+
+.diskw-cap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 9px;
+}
+
+.diskw-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-legend-item b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.diskw-swatch {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* What is worth doing: plain rows, the whole row is the tap target. */
+
+.diskw-acts .diskw-section-head {
+  margin-bottom: 2px;
+}
+
+.diskw-act {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.diskw-section-head + .diskw-act {
+  border-top: 0;
+}
+
+.diskw-act:not(.is-static):hover {
+  background: var(--hover-bg);
+}
+
+.diskw-act.is-static {
+  cursor: default;
+}
+
+.diskw-act-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diskw-act-copy strong,
+.diskw-act-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-act-copy strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.diskw-act-copy span {
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-act-go {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Where the map is: each level a tap back up. */
+
+.diskw-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin: -2px 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.diskw-crumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.diskw-crumb {
+  flex: 0 1 auto;
+  max-width: 16em;
+  min-height: 30px;
+  padding: 0 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted-text) !important;
+  cursor: pointer;
+  font-size: 11px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.diskw-crumb:hover {
+  background: var(--hover-bg);
+  color: var(--text) !important;
+}
+
+.diskw-crumb.is-current {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text) !important;
+  cursor: default;
+  font-weight: 700;
+}
+
+.diskw-crumb-sep {
+  flex: 0 0 auto;
+  color: var(--dim-text);
+  font-size: 12px;
+}
+
+.diskw-cell-file.is-revealable {
+  cursor: pointer;
+}
+
+@container (min-width: 860px) {
+  .diskw-overview {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
+
+  .diskw-overview .diskw-treemap {
+    height: clamp(200px, 62cqh, 460px);
+  }
+}
+
+.diskw-ai-btn {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 44%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+  color: var(--accent) !important;
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+}

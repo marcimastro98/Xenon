@@ -97,7 +97,7 @@
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css']),
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
-      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
+      { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean'),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
       'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsView/LyricsView.css']),

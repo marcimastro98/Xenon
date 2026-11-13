@@ -1,0 +1,239 @@
+
+/* Explorer and duplicate rows */
+
+.diskw-explore {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.diskw-path-row {
+  display: grid;
+  /* icon, name and path, size, then one or two buttons (show, copy) */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 47px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-path-row:last-child {
+  border-bottom: 0;
+}
+
+.diskw-path-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+  color: var(--accent);
+  font-size: 10px;
+  place-items: center;
+}
+
+.diskw-path-copy {
+  min-width: 0;
+}
+
+.diskw-path-copy strong,
+.diskw-path-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-path-copy strong {
+  font-size: 10.5px;
+  font-weight: 690;
+}
+
+.diskw-path-copy span {
+  margin-top: 2px;
+  color: var(--dim-text);
+  direction: rtl;
+  font-size: 8.5px;
+  text-align: left;
+}
+
+.diskw-path-size {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.diskw-copy-btn {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  color: var(--muted-text) !important;
+  cursor: pointer;
+  font-size: 12px !important;
+  place-items: center;
+}
+
+.diskw-dupe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diskw-dupe-group {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-dupe-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-dupe-head strong {
+  font-size: 11px;
+}
+
+.diskw-dupe-head span {
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.diskw-dupe-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 39px;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-dupe-path:last-child {
+  border-bottom: 0;
+}
+
+.diskw-dupe-path > span {
+  overflow: hidden;
+  color: var(--muted-text);
+  direction: rtl;
+  font-size: 9.5px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Loading, reports, empty and helper states */
+
+.diskw-state-card,
+.diskw-hint,
+.diskw-empty-card {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+  text-align: center;
+}
+
+.diskw-state-card strong,
+.diskw-hint-title {
+  margin-top: 9px;
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.diskw-state-card p,
+.diskw-hint-text {
+  max-width: 500px;
+  margin: 5px 0 0;
+  color: var(--muted-text);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.diskw-state-card .diskw-btn,
+.diskw-hint .diskw-btn {
+  margin-top: 12px;
+}
+
+/* Why the helper download did not work: said under the button, in the danger colour. */
+.diskw-hint-result {
+  color: var(--color-danger);
+}
+
+.diskw-state-error {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
+  background: var(--danger-bg);
+}
+
+body.overlay-frozen .diskw-clean-track > span,
+body.ambient-idle .diskw-clean-track > span,
+body.game-mode .diskw-clean-track > span,
+body.low-power-gpu .diskw-clean-track > span {
+  animation: none;
+}
+
+.diskw-hint-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 58%);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+  color: var(--accent);
+  font-size: 18px;
+  place-items: center;
+}
+
+.diskw-report {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 68%);
+  border-radius: var(--radius-control);
+  background: var(--success-bg);
+  color: var(--text);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.diskw-index-note {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-warn), transparent 64%);
+  border-radius: var(--radius-control);
+  background: var(--warning-bg);
+  color: var(--muted-text);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.diskw-report.is-warning {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 64%);
+  background: var(--warning-bg);
+}
+
+.diskw-report.is-error {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 64%);
+  background: var(--danger-bg);
+}
+
+.diskw-empty {
+  padding: 12px 2px;
+  color: var(--muted-text);
+  font-size: 10.5px;
+}

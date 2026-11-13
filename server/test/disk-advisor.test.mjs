@@ -2,7 +2,7 @@
 // behind when it closes, and the tile's confirm panel with the keys of every other window.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
 

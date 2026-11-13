@@ -1,0 +1,291 @@
+
+/* Sections and treemap */
+
+.diskw-section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-section > h3,
+.diskw-section-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 760;
+}
+
+.diskw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.diskw-section-head p {
+  max-width: min(70cqw, 520px);
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--muted-text);
+  direction: rtl;
+  font-size: 9.5px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-small-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--muted-text) !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+}
+
+.diskw-treemap {
+  position: relative;
+  width: 100%;
+  height: clamp(180px, 38cqh, 300px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.diskw-cell {
+  position: absolute;
+  left: calc(var(--x) + 1px);
+  top: calc(var(--y) + 1px);
+  display: flex;
+  width: calc(var(--w) - 2px);
+  height: calc(var(--h) - 2px);
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: clamp(4px, 0.75cqw, 8px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text), transparent 89%);
+  border-radius: calc(var(--radius-control) - 4px);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 72%),
+      color-mix(in srgb, var(--surface-strong), transparent 12%));
+  cursor: pointer;
+  text-align: left;
+}
+
+.diskw-cell:nth-child(3n + 2) {
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 79%),
+      color-mix(in srgb, var(--surface-strong), transparent 7%));
+}
+
+.diskw-cell:nth-child(3n) {
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 84%),
+      color-mix(in srgb, var(--surface-strong), transparent 3%));
+}
+
+.diskw-cell:hover {
+  z-index: 2;
+  border-color: color-mix(in srgb, var(--accent), transparent 42%);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 62%),
+      var(--surface-strong));
+}
+
+.diskw-cell-other {
+  cursor: default;
+  opacity: 0.56;
+}
+
+/* The grouped tile IS tappable (opens the list), so it reads as an action:
+   dashed accent border, a subtle stripe, and it lifts on hover like the rest. */
+.diskw-cell-grouped {
+  cursor: pointer;
+  opacity: 1;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent), transparent 55%);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--accent), transparent 88%) 0 7px,
+      color-mix(in srgb, var(--accent), transparent 94%) 7px 14px);
+}
+.diskw-cell-grouped:hover {
+  border-color: color-mix(in srgb, var(--accent), transparent 30%);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--accent), transparent 80%) 0 7px,
+      color-mix(in srgb, var(--accent), transparent 90%) 7px 14px);
+}
+.diskw-cell-grouped .diskw-cell-name::before {
+  content: "⊞ ";
+  color: var(--accent);
+}
+
+/* The "Altre N voci" list, floating over the map area. */
+.diskw-otherlist {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--bg), transparent 30%);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+}
+.diskw-otherlist-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(340px, 78%);
+  background: var(--surface-strong);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 30px color-mix(in srgb, var(--bg), transparent 40%);
+}
+.diskw-otherlist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.diskw-otherlist-head strong { font-size: 11px; }
+.diskw-otherlist-sub {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.diskw-otherlist-rows {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.diskw-otherlist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.diskw-otherlist-row:hover { background: color-mix(in srgb, var(--accent), transparent 88%); }
+.diskw-otherlist-row.is-file { cursor: default; color: var(--muted-text); }
+.diskw-otherlist-row.is-file:hover { background: transparent; }
+.diskw-otherlist-icon { flex: 0 0 auto; color: var(--accent); opacity: 0.8; }
+.diskw-otherlist-row.is-file .diskw-otherlist-icon { color: var(--muted-text); }
+.diskw-otherlist-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diskw-otherlist-size {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-variant-numeric: tabular-nums;
+}
+.diskw-otherlist-arrow { flex: 0 0 auto; color: var(--muted-text); font-size: 13px; }
+
+.diskw-cell-file {
+  border-style: dashed;
+  cursor: default;
+}
+
+.diskw-cell-name,
+.diskw-cell-value {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.diskw-cell-value { font-size: 9px; opacity: 0.82; }
+
+/* Short-but-wide cells: name and value share one row so neither is clipped by
+   the cell's height (the "Program Files / 18.6 GB" that got cut in half). */
+.diskw-cell.is-flat {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.diskw-cell.is-flat .diskw-cell-name { flex: 1 1 auto; min-width: 0; }
+.diskw-cell.is-flat .diskw-cell-value { flex: 0 0 auto; }
+
+/* Unattributed space: a quiet, non-interactive tile, visibly not a folder. */
+.diskw-cell-residual {
+  cursor: default;
+  opacity: 0.66;
+  border-style: dashed;
+  background:
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--text), transparent 92%) 0 6px,
+      color-mix(in srgb, var(--text), transparent 96%) 6px 12px);
+}
+
+.diskw-map-note {
+  margin: 7px 1px 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.diskw-map-loading,
+.diskw-map-error {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-map-error {
+  flex-direction: column;
+  border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
+  background: var(--danger-bg);
+  text-align: center;
+}
+
+.diskw-map-error strong {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.diskw-cell-name {
+  font-size: clamp(9px, 1.5cqw, 12px);
+  font-weight: 740;
+}
+
+.diskw-cell-value {
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: clamp(8px, 1.2cqw, 10px);
+  font-variant-numeric: tabular-nums;
+}

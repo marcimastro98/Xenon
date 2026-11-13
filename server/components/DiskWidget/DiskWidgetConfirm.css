@@ -1,0 +1,237 @@
+
+.diskw-risk-review .diskw-cat-icon {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 67%);
+  background: var(--warning-bg);
+  color: var(--color-warn);
+}
+
+.diskw-risk-permanent .diskw-cat-icon {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 67%);
+  background: var(--danger-bg);
+  color: var(--color-danger);
+}
+
+.diskw-cat-title {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.diskw-cat-title > span {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 730;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-risk {
+  margin-top: 1px;
+  color: var(--color-success);
+  font-size: 8.5px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.diskw-risk-review .diskw-risk {
+  color: var(--color-warn);
+}
+
+.diskw-risk-permanent .diskw-risk {
+  color: var(--color-danger);
+}
+
+.diskw-cat-size {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-cat-desc {
+  display: -webkit-box;
+  margin: 9px 0;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 10.5px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-height: 1.4;
+}
+
+.diskw-cat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.diskw-cat-foot > span {
+  overflow: hidden;
+  color: var(--dim-text);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-review-btn {
+  min-height: 31px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 58%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 89%);
+  color: var(--accent) !important;
+  cursor: pointer;
+  font-size: 10px !important;
+  font-weight: 730 !important;
+}
+
+/* Confirmation */
+
+.diskw-confirm {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diskw-confirm-head,
+.diskw-selection-summary,
+.diskw-confirm-actions {
+  display: flex;
+  align-items: center;
+}
+
+.diskw-confirm-head {
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diskw-confirm-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.diskw-confirm-risk {
+  flex: none;
+  color: var(--muted-text);
+  font-size: 12.5px;
+}
+
+.diskw-selection-summary {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diskw-selection-summary strong {
+  font-size: 16px;
+}
+
+.diskw-selection-summary > span {
+  flex: 1 1 auto;
+  color: var(--muted-text);
+  font-size: 13px;
+}
+
+.diskw-selection-summary .diskw-small-btn {
+  min-height: 36px;
+  font-size: 12.5px !important;
+}
+
+.diskw-confirm-list {
+  display: flex;
+  max-height: min(38cqh, 320px);
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.diskw-confirm-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.diskw-confirm-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.diskw-confirm-copy,
+.diskw-confirm-path,
+.diskw-confirm-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.diskw-confirm-path {
+  overflow: hidden;
+  direction: rtl;
+  font-size: 13px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-confirm-copy small {
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.diskw-confirm-note {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.diskw-permanent-callout {
+  color: var(--color-danger);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.diskw-confirm-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.diskw-confirm-actions .diskw-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 13px !important;
+}
+
+.diskw-btn {
+  min-height: 37px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 730 !important;
+}
+
+.diskw-btn-accent {
+  border-color: color-mix(in srgb, var(--accent), transparent 52%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent) !important;
+}
+
+.diskw-btn-danger {
+  color: var(--color-danger) !important;
+}
