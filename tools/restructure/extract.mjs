@@ -12,6 +12,7 @@ import { planExtraction, Refusal } from './extract-plan.mjs';
 import { appendLedger, protectedNames, readLedger } from './ledger.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
+import { planStateFor, proveState } from './state.mjs';
 import { targetReasons } from './target-rules.mjs';
 import { proveMove, syntaxProblems, unknownNameProblems } from './verify.mjs';
 
@@ -98,13 +99,18 @@ export function replay({ root, parser, base, show = gitShow }) {
       replayed += 1;
       let plan;
       try {
-        plan = planFor({ root, parser, text, source, target: entry.file, about: entry.about, names: entry.names, withDeps: false,
-          ownModules: new Set([...earlier].filter((file) => file !== entry.file)) });
+        plan = entry.state
+          ? planStateFor({ root, parser, text, source, target: entry.file, about: entry.about, object: entry.state.object,
+            vars: Object.entries(entry.state.props).map(([name, prop]) => ({ name, prop })) })
+          : planFor({ root, parser, text, source, target: entry.file, about: entry.about, names: entry.names, withDeps: false,
+            ownModules: new Set([...earlier].filter((file) => file !== entry.file)) });
       } catch (error) {
-        problems.push(`${entry.file}: the recorded move cannot be redone from ${base}: ${error.message}`);
+        problems.push(`${entry.file}: the recorded ${entry.state ? 'rewrite' : 'move'} cannot be redone from ${base}: ${error.message}`);
         break;
       }
-      problems.push(...proveMove({ before: text, after: plan.newSource, moduleText: plan.moduleText, plan }).map((p) => `${entry.file}: ${p}`));
+      const proof = entry.state ? proveState({ before: text, after: plan.newSource, moduleText: plan.moduleText, plan, parser, source })
+        : proveMove({ before: text, after: plan.newSource, moduleText: plan.moduleText, plan });
+      problems.push(...proof.map((p) => `${entry.file}: ${p}`));
       const onDisk = existsSync(path.join(root, entry.file)) ? readFileSync(path.join(root, entry.file), 'utf8') : null;
       if (onDisk !== plan.moduleText) problems.push(`${entry.file} is not what the tool writes: it was edited by hand after the move, or is missing`);
       text = plan.newSource;

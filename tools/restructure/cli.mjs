@@ -7,7 +7,10 @@
 //                                          [--with-deps] [--dry-run] <name> [<name> ...]
 //   node tools/restructure/cli.mjs apply <plan.json>               several extractions: [{ from, to, about, names }], put in an
 //                                                                  order that works; run again after a refusal, done ones are skipped
-//   node tools/restructure/cli.mjs verify [--base HEAD]            redo the recorded moves from a revision, compare bytes
+//   node tools/restructure/cli.mjs state --from <file> --to <dir>/<feature>/<file>.js --object <name> --about "<one sentence>"
+//                                        [--dry-run] <variable>=<property> [...]   top-level lets become properties of one
+//                                                                  object in a module of its own, shared by require
+//   node tools/restructure/cli.mjs verify [--base HEAD]            redo the recorded moves and rewrites from a revision, compare bytes
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
 //   node tools/restructure/cli.mjs remainder <file> --movable      the names that can move now, by feature
@@ -24,11 +27,12 @@ import { createSpecRewriter } from './module-requires.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
 import { orderJobs, pendingJobs } from './plan-order.mjs';
 import { carryAll, checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
+import { rewriteState } from './state.mjs';
 import { featureWords, remainder, renderMovable, renderRemainder } from './remainder.mjs';
 import { ownersOf } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
 
-const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--names']);
+const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--names', '--object']);
 
 function readArgs(argv) {
   const flags = {};
@@ -85,6 +89,21 @@ function runExtractions(parser, jobs, dryRun) {
   return 0;
 }
 
+function runState(parser, { flags, rest }) {
+  const vars = rest.map((pair) => { const [name, prop] = pair.split('='); return { name, prop }; });
+  const dryRun = Boolean(flags['dry-run']);
+  const done = rewriteState({ root: REPO_ROOT, parser, source: posix(flags.from), target: posix(flags.to), about: flags.about,
+    object: flags.object, vars, dryRun });
+  console.log(`${dryRun ? 'would make' : 'made'} ${done.target} (${done.lines} lines); ${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
+  for (const [name, count] of Object.entries(done.counts)) {
+    const prop = vars.find((entry) => entry.name === name).prop;
+    console.log(`  ${name} -> ${flags.object}.${prop}: ${count.found} uses rewritten (${count.inProtected} of them in protected code, the name only); `
+      + (count.moved ? 'its first value is in the new module' : 'its first value is still given on the line where the let stood'));
+  }
+  if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
+  return 0;
+}
+
 // The jobs of a plan file that are still to do, dependencies first.
 function readPlan(parser, planFile) {
   const jobs = JSON.parse(readFileSync(planFile, 'utf8')).map((job) => ({ ...job, from: posix(job.from), to: posix(job.to) }));
@@ -109,7 +128,7 @@ function verify(parser, { flags }) {
     for (const group of files) problems.push(...unknownNameProblems(counts, typeBaseline(REPO_ROOT), group));
   }
   if (problems.length) { console.error(problems.join('\n')); return 1; }
-  console.log(`Proven: ${replayed} moves redone from ${base} give the ${all.length} files on disk byte for byte; every moved line is unchanged, `
+  console.log(`Proven: ${replayed} recorded steps redone from ${base} give the ${all.length} files on disk byte for byte; every moved line is unchanged, `
     + 'every file parses, no name lost its declaration.');
   return 0;
 }
@@ -150,9 +169,12 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'verify', 'remainder'].includes(command);
-  if (!known || args.rest.length < needsFile || (command === 'extract' && !(args.flags.from && args.flags.to && args.rest.length))) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 14).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+  const known = ['analyze', 'extract', 'apply', 'state', 'verify', 'remainder'].includes(command);
+  const aimed = args.flags.from && args.flags.to && args.rest.length;
+  const incomplete = (command === 'extract' && !aimed)
+    || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
+  if (!known || args.rest.length < needsFile || incomplete) {
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 17).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   const parser = await openParser();
@@ -160,6 +182,7 @@ async function main(argv) {
     if (command === 'analyze') return showAnalysis(parser, args);
     if (command === 'remainder') return showRemainder(parser, args);
     if (command === 'verify') return verify(parser, args);
+    if (command === 'state') return runState(parser, args);
     const dryRun = Boolean(args.flags['dry-run']);
     if (command === 'apply') return runExtractions(parser, readPlan(parser, args.rest[0]), false);
     return runExtractions(parser, [{ from: args.flags.from, to: args.flags.to, about: args.flags.about,

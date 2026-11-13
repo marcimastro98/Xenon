@@ -24,7 +24,8 @@ export class Refusal extends Error {
   }
 }
 
-function wrapComment(sentence) {
+/** @param {string} sentence @returns {string[]} the sentence as `//` lines of a readable width */
+export function wrapComment(sentence) {
   const lines = [];
   let row = '//';
   for (const word of sentence.trim().split(/\s+/)) {
@@ -49,11 +50,16 @@ function selfReasons(record, at, protectedNames) {
   return reasons;
 }
 
-// Where the new require can go: after every module it needs is loaded, and before
-// the first statement that could use a moved name while the file is still loading.
-function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
-  const remaining = records.filter((record) => !movedSet.has(record));
-  const reaches = new Set(moved);
+/**
+ * Says which statements could use `names` while the file is still loading: the ones that touch a name as they run,
+ * and the ones that run code which reaches `seeds` (the declarations of the names) through any chain of uses.
+ * @param {{ records: any[], seeds: any[], names: string[], bindings: Map<string, any> }} job
+ * @returns {(record: any) => boolean}
+ */
+export function loadUseTest({ records, seeds, names, bindings }) {
+  const seedSet = new Set(seeds);
+  const remaining = records.filter((record) => !seedSet.has(record));
+  const reaches = new Set(seeds);
   for (let grew = true; grew;) {
     grew = false;
     for (const record of remaining) {
@@ -67,8 +73,13 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
   // A statement that only hands over functions (load-registrations.json) runs what stands outside them, nothing else.
   const runsMoved = (record) => (record.registersOnly
     ? namesRunAtLoad(record).some((name) => bindings.has(name) && reaches.has(bindings.get(name).record)) : reaches.has(record));
-  const usesAtLoad = (record) => (record.loadTime && runsMoved(record)) || movedNames.some((name) => record.uses.get(name)?.eager);
-  const firstUse = remaining.find(usesAtLoad);
+  return (record) => (record.loadTime && runsMoved(record)) || names.some((name) => record.uses.get(name)?.eager);
+}
+
+// Where the new require can go: after every module it needs is loaded, and before
+// the first statement that could use a moved name while the file is still loading.
+function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
+  const firstUse = records.filter((record) => !movedSet.has(record)).find(loadUseTest({ records, seeds: moved, names: movedNames, bindings }));
   const before = firstUse ? firstUse.index : records.length;
   const loaded = modules.filter((m) => m.kind !== 'builtin').reduce((max, m) => Math.max(max, m.index), -1);
   if (loaded >= before) {

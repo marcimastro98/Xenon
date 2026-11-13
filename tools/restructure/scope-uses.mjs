@@ -12,12 +12,15 @@ const CHANGING_STATICS = new Set(['Object.assign', 'Object.defineProperty', 'Obj
 /**
  * @param {Record<string, number>} K SyntaxKind
  * @param {Record<string, number>} NodeFlags
- * @returns {(statement: any, handedTo?: Set<string>) => Map<string, {read: number, write: number, change: number, eager: boolean, called: boolean}>}
+ * @returns {(statement: any, handedTo?: Set<string>, seen?: (node: any, how: string, isLocal: (name: string) => boolean) => void) =>
+ *   Map<string, {read: number, write: number, change: number, eager: boolean, called: boolean}>}
  *   `eager` is true when the name is touched while the statement itself runs,
  *   false when only code inside a function body touches it. `called` is true when
  *   the statement itself calls the name, or a method of it, or builds it with `new`.
  *   `handedTo` receives, for every function the statement writes in place and does not
  *   call itself, the name the call around it starts with ('' when there is none to name).
+ *   `seen` is told every identifier that stands for an outside name, with what is done to it
+ *   and a test for whether a name is a local at that place: the state rewrite works from it.
  */
 export function createUseReader(K, NodeFlags) {
   const FUNCTIONS = new Set([K.FunctionDeclaration, K.FunctionExpression, K.ArrowFunction, K.MethodDeclaration,
@@ -32,12 +35,14 @@ export function createUseReader(K, NodeFlags) {
   let uses;
   let handed = new Set();
   let receiver = '';
+  let seen = null;
   const isLocal = (name, scope) => {
     for (let s = scope; s; s = s.parent) if (s.names.has(name)) return true;
     return false;
   };
-  const note = (name, scope, how, deferred) => {
+  const note = (name, scope, how, deferred, node) => {
     for (let s = scope; s; s = s.parent) if (s.names.has(name)) return;
+    if (seen && node) seen(node, how, (other) => isLocal(other, scope));
     let entry = uses.get(name);
     if (!entry) {
       entry = { read: 0, write: 0, change: 0, eager: false, called: false };
@@ -99,7 +104,7 @@ export function createUseReader(K, NodeFlags) {
   };
   const changeRoot = (node, scope, deferred) => {
     const root = rootOf(node);
-    if (root) note(root.text, scope, 'change', deferred);
+    if (root) note(root.text, scope, 'change', deferred, root);
   };
   const dotted = (node) => (node.kind === K.PropertyAccessExpression && node.expression.kind === K.Identifier
     ? `${node.expression.text}.${node.name.text}` : '');
@@ -109,8 +114,8 @@ export function createUseReader(K, NodeFlags) {
     if (!target) return;
     switch (target.kind) {
       case K.Identifier:
-        note(target.text, scope, 'write', deferred);
-        if (alsoRead) note(target.text, scope, 'read', deferred);
+        note(target.text, scope, 'write', deferred, target);
+        if (alsoRead) note(target.text, scope, 'read', deferred, target);
         return;
       case K.PropertyAccessExpression: case K.ElementAccessExpression:
         changeRoot(target.expression, scope, deferred);
@@ -123,7 +128,7 @@ export function createUseReader(K, NodeFlags) {
       case K.ObjectLiteralExpression:
         for (const property of target.properties) {
           if (property.kind === K.ShorthandPropertyAssignment) {
-            note(property.name.text, scope, 'write', deferred);
+            note(property.name.text, scope, 'write', deferred, property.name);
             visit(property.objectAssignmentInitializer, scope, deferred);
           } else if (property.kind === K.PropertyAssignment) {
             if (property.name.kind === K.ComputedPropertyName) visit(property.name, scope, deferred);
@@ -211,7 +216,7 @@ export function createUseReader(K, NodeFlags) {
     }
     if (CLASSES.has(node.kind)) return visitClass(node, scope, deferred);
     switch (node.kind) {
-      case K.Identifier: return note(node.text, scope, 'read', deferred);
+      case K.Identifier: return note(node.text, scope, 'read', deferred, node);
       case K.PropertyAccessExpression: return visit(node.expression, scope, deferred);
       case K.MetaProperty: case K.BreakStatement: case K.ContinueStatement: return;
       case K.LabeledStatement: return visit(node.statement, scope, deferred);
@@ -219,7 +224,7 @@ export function createUseReader(K, NodeFlags) {
         if (node.name.kind === K.ComputedPropertyName) visit(node.name, scope, deferred);
         return visit(node.initializer, scope, deferred);
       case K.ShorthandPropertyAssignment:
-        note(node.name.text, scope, 'read', deferred);
+        note(node.name.text, scope, 'read', deferred, node.name);
         return visit(node.objectAssignmentInitializer, scope, deferred);
       case K.VariableDeclaration: case K.Parameter: case K.BindingElement:
         if (node.propertyName && node.propertyName.kind === K.ComputedPropertyName) visit(node.propertyName, scope, deferred);
@@ -261,10 +266,11 @@ export function createUseReader(K, NodeFlags) {
     node.forEachChild((child) => { visit(child, scope, deferred); });
   }
 
-  return (statement, handedTo = new Set()) => {
+  return (statement, handedTo = new Set(), told = null) => {
     uses = new Map();
     handed = handedTo;
     receiver = '';
+    seen = told;
     // A top-level function's body runs only when called; everything else runs now.
     visit(statement, null, false);
     return uses;
