@@ -92,10 +92,6 @@ test('the declaration keeps the shape the demo build anchors on', () => {
 // addressing its own backend, because that is the whole distinction the rule
 // draws. Widening this list is the review; anything else fails.
 const LOOPBACK_EXEMPT = [
-  // Everything in native-bridge.js runs inside the native shell, on the machine
-  // hosting the backend, where the loopback origin IS the same origin. Its one
-  // non-native path now refuses to run on a remote surface at all.
-  { file: 'native-bridge.js' },
   // Prose.
   { file: 'ambient-idle.js' },
   // The address of the user's OLLAMA, not of Xenon: a default for a setting the
@@ -108,6 +104,34 @@ const LOOPBACK_EXEMPT = [
   // would make the callback fail the moment it is not the registered one.
   { match: '/stream/spotify/callback' },
 ];
+
+// js/native-bridge.js asks the engine about the native app and loads the home bar's logo.
+// It used to aim at 127.0.0.1:3030 whatever served the page: with the engine on another
+// port (XENON_PORT) that is another server, and from the online demo it is the visitor's
+// own PC. It follows the same rule as SERVER, read here from the shipped file.
+const BRIDGE_SRC = fs.readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8');
+function resolveBridgeServer(location) {
+  const at = BRIDGE_SRC.indexOf('const SERVER = ');
+  assert.notEqual(at, -1, 'native-bridge.js must still declare `const SERVER =`');
+  assert.equal(BRIDGE_SRC.indexOf('const SERVER = ', at + 1), -1, 'one declaration only');
+  const expr = BRIDGE_SRC.slice(at + 'const SERVER = '.length, BRIDGE_SRC.indexOf(';', at));
+  // Our own source, read from disk, as in resolveServer above.
+  return new Function('window', 'return (' + expr + ');')({ location, Xenon: { constants: { LOOPBACK_ORIGIN: FALLBACK } } });
+}
+
+test('the native bridge talks to the origin that served the page, on any port', () => {
+  for (const href of ['http://127.0.0.1:3030/', 'http://127.0.0.1:3043/', 'http://localhost:3050/menu', 'http://192.168.1.3:3030/', 'https://xenon-app.com/demo/']) {
+    assert.equal(resolveBridgeServer(loc(href)), new URL(href).origin, href);
+  }
+  assert.notEqual(resolveBridgeServer(loc('http://127.0.0.1:3043/')), FALLBACK, 'another port is another server');
+  assert.equal(resolveBridgeServer(loc('file:///C:/x/index.html')), FALLBACK, 'a page not served over http has only the local backend');
+});
+
+test('every call of the native bridge to the engine goes through that origin', () => {
+  const calls = BRIDGE_SRC.split('\n').filter((line) => (line.includes('fetch(') || line.includes('.src = ')) && /['"`]\/(?:api|public)\//.test(line));
+  assert.ok(calls.length >= 4, 'the three calls of the offer and the logo of the home bar');
+  for (const line of calls) assert.ok(line.includes("SERVER + '/"), line.trim());
+});
 
 test('no client module hardcodes the loopback origin as a fetch base', () => {
   const dir = path.join(HERE, '..', 'js');

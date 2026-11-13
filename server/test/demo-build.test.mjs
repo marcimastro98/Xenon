@@ -176,3 +176,11 @@ test('the demo notes carry the field the notes tile reads', async () => {
     assert.ok(!n.body.includes('—'), `note ${n.id} has an em-dash`);
   }
 });
+
+// The native bridge asks the origin that served the page, so on the demo its question
+// reaches the demo's own answers. A website installs nothing: the offer stays hidden.
+test('the demo answers that the native app needs no offer', () => {
+  const boot = read('tools', 'demo', 'boot.js');
+  assert.ok(boot.includes("case '/api/native/status': return ok({ installed: true });"));
+  assert.ok(read('server', 'js', 'native-bridge.js').includes('if (!status || status.installed) return;'));
+});

@@ -178,8 +178,8 @@ test('no site can frame a page of ours, and no answer is ever type-sniffed', () 
 });
 
 test('our own page under its other name is still ours', () => {
-  // The dashboard opened at http://localhost:3030 calls http://127.0.0.1:3030
-  // (native-bridge.js): cross-site to the browser, but the Origin is ours.
+  // A page of ours opened at http://localhost:3030 that calls http://127.0.0.1:3030
+  // is cross-site to the browser, but the Origin is ours.
   const r = req('GET', { origin: 'http://localhost:3030', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' });
   assert.equal(refused(r, '/api/native/status'), false);
   assert.equal(refused(req('POST', { origin: 'http://localhost:3030', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' }), '/api/native/install'), false);

@@ -28,7 +28,10 @@
   // dropped one sent while the page loads still cancels the page's `load` event.
   const isNative = window.__XENON_LAYER_SHELL__ !== true
     && (window.__XENON_NATIVE__ === true || window.isTauri === true);
-  const SERVER = (window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '';
+  // The origin that served this page, as SERVER in js/state.js: the engine can run on another
+  // port, and the page can be the online demo. Not served over http: the local backend.
+  const SERVER = /^https?:$/.test(window.location.protocol) ? window.location.origin
+    : ((window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '');
 
   // Every shell signal below goes through `(window.__xenonSignal || String)(url)`.
   // The native shell only obeys a signal that carries this launch's random nonce
@@ -230,11 +233,8 @@
 
   async function initNativePromo() {
     if (isNative) return; // already running the native app
-    // A paired phone or tablet is not a machine the native Windows app installs
-    // on, and this file's SERVER is deliberately the LOOPBACK origin (everything
-    // else here only runs inside the native shell, where they are the same). So
-    // without this the probe below dials the PHONE's own loopback, fails, and
-    // the promo stays hidden for the right reason by accident. Say it instead.
+    // A paired phone or tablet is not a machine the native app installs on: SERVER
+    // is the PC there, and the PC would be told to install. Never offered.
     if (window.__xenonRemote) return;
     const chip = document.getElementById('native-promo-chip');
     const card = document.getElementById('native-promo');

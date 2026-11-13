@@ -371,7 +371,7 @@
       case '/api/football/news': return ok({ items: D.football.news, refreshedAt: Date.now() });
       case '/api/football/search': return ok({ results: [] });
       case '/api/gamemode/status': return ok({ gaming: false });
-      case '/api/native/status': case '/api/native/install-status': return ok({ installed: false });
+      case '/api/native/status': return ok({ installed: true }); // a website installs nothing: no offer of the native app (js/native-bridge.js)
       // Paired-device access, honestly off: the demo IS a browser tab on the
       // public site, so there is no PC to pair with and no LAN address to show.
       // Mocked rather than left to the Tier C default so the panel renders its

@@ -42,7 +42,7 @@ export function uncheckedPages(pages) {
 
 /**
  * Whether a request of a page stays on the test copy. A page of the app can name another address in its code
- * (the native bridge calls the fixed address of the installed app), and the check must never reach that one,
+ * (the native bridge called the fixed address of the installed app until it followed the page), and the check must never reach that one,
  * nor any site outside this PC: only the copy answers, and what is made in the page itself (data, blob, about).
  * @param {string} address @param {number} port @returns {boolean}
  */
