@@ -471,8 +471,8 @@ const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const SdkGrant = require('./sdk-grant.js');
-const sdkProxy = require('./sdk-proxy');
-const sdkStore = require('./sdk-store');
+require('./sdk-proxy');
+require('./sdk-store');
 const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
@@ -1923,9 +1923,7 @@ async function recordWidgetOrigin(id, origin, catalogVersion) {
   catch { /* origin records are advisory — never fail an install over them */ }
 }
 
-const {
-  sdkFetchGateAcquire, sdkHookGateOk, sdkStoreGateOk,
-} = require('./widget-sdk/request-gates.js');
+const { sdkHookGateOk } = require('./widget-sdk/request-gates.js');
 
 
 const sdkAssetCache = require('./sdk-asset-cache');
@@ -2206,10 +2204,6 @@ const FRESH_INSTALL = welcomeSparks.isFreshDataDir([...DURABLE_STORES, path.join
 // temp+rename copies that can race each other.
 const { writeFileAtomic } = require('./atomic-write');
 
-
-const {
-  sdkStoreLoad, sdkStoreSave, sdkSecretsLoad, sdkSecretsSave,
-} = require('./widget-sdk/store-files.js');
 
 // The single Range-aware file responder. /uploads/, /deck/sound and the
 // transfer download all answer through it, so seeking cannot work in one place
@@ -6525,7 +6519,7 @@ const {
   sdkFeatureEnabled, sdkPkgSuspended, sdkGrantsFor, sdkStreamGranted, _sdkStreamGranted,
 } = require('./widget-sdk/grants.js');
 
-const { PROVIDER_MODEL_KEYS, providerModelFor } = require('./ai/provider-models.js');
+const { providerModelFor } = require('./ai/provider-models.js');
 
 const { _pcControlEnabled } = require('./ai/pc-control-switch.js');
 
@@ -9345,8 +9339,6 @@ const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.
 
 const { _perfPlanPrompt, _normalizePerfPlan } = require('./performance/ai-plan.js');
 
-const { vitalsPetCfg } = require('./vitals/pet-config.js');
-
 const { _geminiWebSearchOnce, _geminiGenerateJSONOnce } = require('./ai/gemini-search-json.js');
 
 const { _transcribeAudioOnce } = require('./ai/gemini-transcribe.js');
@@ -9358,8 +9350,6 @@ const {
 const { batteryWanted } = require('./device-battery/wanted.js');
 
 const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
-
-const { _vitalsNagLast } = require('./vitals/nag-last.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -10721,6 +10711,13 @@ const { branches: searchBranches } = require('./search/routes.js');
 const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
 const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');
 const { branches: pairedBranches } = require('./paired/routes.js');
+const { branches: claudeCodeSessionBranches } = require('./claude-code/routes-session.js');
+const { branches: claudeCodeRunBranches } = require('./claude-code/routes-run.js');
+const { branches: widgetSdkCallsBranches } = require('./widget-sdk/routes-calls.js');
+const { branches: widgetSdkPackagesBranches } = require('./widget-sdk/routes-packages.js');
+const { branches: aiMemoryBranches } = require('./ai/routes-memory.js');
+const { branches: aiVoiceBranches } = require('./ai/routes-voice.js');
+const { branches: vitalsBranches } = require('./vitals/routes.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -11194,22 +11191,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/sdk/grant' && req.method === 'POST') {
-    let body = null;
-    try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
-    try {
-      const out = await saveSdkGrant(body);
-      if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
-      json(out);
-    } catch (e) { err500(e.message); }
+    await widgetSdkPackagesBranches['POST /sdk/grant'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveSdkGrant });
 
   } else if (reqPath === '/api/vitals/state' && req.method === 'POST') {
-    let body = null;
-    try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
-    try {
-      const out = await saveVitalsState(body);
-      if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
-      json(out);
-    } catch (e) { err500(e.message); }
+    await vitalsBranches['POST /api/vitals/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveVitalsState });
 
   } else if (reqPath === '/api/performance/state' && req.method === 'POST') {
     // The driver page's save of the `performance` block (an optimize session
@@ -11288,68 +11273,13 @@ const handleRequest = async (req, res) => {
     await lightsBranches['POST /api/lighting/event'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/vitals/nag' && req.method === 'POST') {
-    // Bit's PC-side nag actions (vitals-pet.js). Defense in depth — each rung
-    // re-checks its own strict opt-in from the SERVER settings mirror (a forged
-    // loopback request can never exceed what the user enabled), respects the
-    // in-game truce, requires FRESH real input for minimize/lock (never punish
-    // an empty chair), and rate-limits itself. The overlay script is one-shot
-    // and self-terminating (≤30s), so there is nothing to stop at shutdown.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const action = String(body && body.action || '');
-      const pet = vitalsPetCfg();
-      if (!pet) { json({ ok: false, error: 'pet_disabled' }); return; }
-      let gaming = false;
-      try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
-      if (gaming && pet.quietInGame !== false) { json({ ok: false, error: 'in_game' }); return; }
-      const now = Date.now();
-      const idleFresh = _idleProbe.at > 0 && (now - _idleProbe.at) < 60000 && typeof _idleProbe.sec === 'number';
-      const presentNow = idleFresh && _idleProbe.sec < 240;
-      const text = body && typeof body.text === 'string' ? body.text : '';
-      const lang = body && typeof body.lang === 'string' ? body.lang : '';
-      const mood = body && typeof body.mood === 'string' ? body.mood : '';
-      if (action === 'overlay') {
-        if (pet.monitors !== true) { json({ ok: false, error: 'not_enabled' }); return; }
-        if (now - _vitalsNagLast.overlay < 40000) { json({ ok: false, error: 'cooldown' }); return; }
-        const shown = await vitalsNag.popup({ text, mood, lang, all: body && body.all === true });
-        if (shown.ok) _vitalsNagLast.overlay = now;
-        json(shown);
-      } else if (action === 'minimize') {
-        if (pet.minimize !== true) { json({ ok: false, error: 'not_enabled' }); return; }
-        if (!presentNow) { json({ ok: false, error: 'away' }); return; }
-        if (now - _vitalsNagLast.minimize < 4 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
-        // An honest answer: where nothing can hide the windows, Bit must not
-        // say it did (vitals-pet.js reads `ok`).
-        const hidden = await vitalsNag.hide({ text, lang });
-        if (hidden.ok) _vitalsNagLast.minimize = now;
-        json(hidden);
-      } else if (action === 'lock') {
-        if (pet.lock !== true) { json({ ok: false, error: 'not_enabled' }); return; }
-        if (!presentNow) { json({ ok: false, error: 'away' }); return; }
-        if (now - _vitalsNagLast.lock < 10 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
-        _vitalsNagLast.lock = now;
-        // Make the attribution unmissable on the PC itself: flash Bit's "I'm
-        // locking this" popup on every monitor FIRST, then lock a few seconds
-        // later — otherwise the lock screen swallows the message and the
-        // user never learns it was Bit. Falls back to an immediate lock if the
-        // client sent no text (older dashboards).
-        if (text) await vitalsNag.popup({ text, mood, lang, all: true });
-        setTimeout(() => { lockWorkstation().catch(() => {}); }, text ? 3500 : 0);
-        json({ ok: true });
-      } else {
-        json({ ok: false, error: 'unknown_action' });
-      }
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await vitalsBranches['POST /api/vitals/nag'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
 
   } else if (reqPath === '/api/vitals/caps' && req.method === 'GET') {
-    // Which of Bit's PC-side steps work on this PC (vitals-nag.js): Settings
-    // hides the ones that cannot, with the reason, instead of offering them.
-    try { json({ ok: true, ...(await vitalsNag.capabilities()) }); } catch (e) { json({ ok: false, error: e.message }); }
+    await vitalsBranches['GET /api/vitals/caps'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
 
   } else if (reqPath === '/api/vitals/popup' && req.method === 'GET') {
-    // The popup Bit is showing now, for the app's alerts window that opened
-    // just to show it and missed the SSE push (js/screen-alerts.js).
-    json({ ok: true, popup: vitalsNag.current() });
+    await vitalsBranches['GET /api/vitals/popup'](req, res, { json, err500, reqPath, urlObj, isRemote }, { vitalsNag });
 
   } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
     // Ambient animation (none|solid|breathing|cycle). Persisted so it survives a
@@ -11468,46 +11398,19 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
     await aiBranches['GET /api/ai/turn'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {
-    // Persistent AI memory — list what Xenon remembers about the user (for the
-    // Settings → Funzioni AI viewer). Local data; loopback-guarded like all routes.
-    try {
-      const s = await readHubSettings().catch(() => null);
-      json({ enabled: !(s && s.aiMemory === false), facts: aiMemory.list() });
-    } catch (e) { json({ enabled: true, facts: [], error: e.message }); }
+    await aiMemoryBranches['GET /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory, readHubSettings });
 
   } else if (reqPath === '/api/ai/memory' && req.method === 'POST') {
-    // Add a fact by hand from Settings (the AI adds facts via remember_fact).
-    try {
-      const raw = await readBodyBuffer(req, 4 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      json(await aiMemory.add(String(body.text || body.fact || '')));
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await aiMemoryBranches['POST /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });
 
   } else if (reqPath === '/api/ai/memory' && req.method === 'DELETE') {
-    // Remove one fact (by id) or clear everything ({ all: true }).
-    try {
-      const raw = await readBodyBuffer(req, 4 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      json(body.all === true ? await aiMemory.clear() : await aiMemory.remove(String(body.id || body.text || '')));
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await aiMemoryBranches['DELETE /api/ai/memory'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiMemory });
 
   } else if (reqPath === '/api/ai/actions' && req.method === 'GET') {
-    // Recent AI actions + the latest still-undoable one (for the chat's "undo"
-    // affordance and a "what did you just do" view). Local, loopback-guarded.
-    const last = aiActionLog.lastUndoable();
-    json({ actions: aiActionLog.list(), last: last ? { id: last.id, label: last.label, name: last.name } : null });
+    await aiMemoryBranches['GET /api/ai/actions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog });
 
   } else if (reqPath === '/api/ai/actions/undo' && req.method === 'POST') {
-    // Undo an AI action by id, or the most recent undoable one when no id given.
-    try {
-      const raw = await readBodyBuffer(req, 4 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      const entry = body.id ? aiActionLog.get(String(body.id)) : aiActionLog.lastUndoable();
-      if (!entry) { json({ ok: false, error: 'not_found' }); return; }
-      const r = await performAiUndo(entry);
-      if (r.ok) aiActionLog.markUndone(entry.id);
-      json(r);
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await aiMemoryBranches['POST /api/ai/actions/undo'](req, res, { json, err500, reqPath, urlObj, isRemote }, { aiActionLog, performAiUndo });
 
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     // One-click download of the classic single-binary PresentMon CLI (the same
@@ -11837,26 +11740,10 @@ const handleRequest = async (req, res) => {
     await aiBranches['POST /ai/pc-run'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/ai/deck-run' && req.method === 'POST') {
-    // A Deck action Bit proposed and the user approved on the card. The action
-    // comes from the server's own store by nonce, never from this body.
-    try {
-      const { nonce } = JSON.parse(await readBody(req) || '{}');
-      const action = _deckConfirms.take(nonce);
-      if (!action) { json({ ok: false, error: 'expired' }); return; }
-      if (action.type === aiRateStore.TYPE) { json(await ratingVotes.vote(action)); return; }
-      if (isRemote) {
-        const verdict = remoteActions.remoteMayRun(action, await readDeckStore());
-        if (!verdict.ok) { json({ ok: false, error: verdict.error }); return; }
-      }
-      json(await deckRegistry.run(action));
-    } catch (e) { err500(e.message); }
+    await aiMemoryBranches['POST /ai/deck-run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms, deckRegistry, ratingVotes });
 
   } else if (reqPath === '/ai/deck-cancel' && req.method === 'POST') {
-    try {
-      const { nonce } = JSON.parse(await readBody(req) || '{}');
-      _deckConfirms.cancel(nonce);
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await aiMemoryBranches['POST /ai/deck-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _deckConfirms });
 
   } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {
     await aiBranches['POST /ai/pc-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -12161,9 +12048,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/bit/messages' && req.method === 'GET') {
-    // The inbox behind Bit's card: what has been said, and the one message this
-    // screen may show now. `surface=screen` is the alerts window of "widgets only".
-    try { json(await bitMessages.view(urlObj.searchParams.get('surface'))); } catch (e) { err500(e.message); }
+    await aiVoiceBranches['GET /bit/messages'](req, res, { json, err500, reqPath, urlObj, isRemote }, { bitMessages });
 
   } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {
     // Filed, imported from the old mail, shown, read. Everything is rebuilt in
@@ -12983,58 +12868,16 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {
-    // Widget-owned: set the plan / weekly token budget the reactor gauges against
-    // (there is no official quota API, so the user picks the ceiling). Persisted in
-    // settings.claude via the atomic writer, then a refresh repaints the reactor.
-    try {
-      await withHubSettingsLock(async () => {          // serialized with every other settings writer
-      const body = JSON.parse(await readBody(req));
-      const cur = await readHubSettingsForUpdate();
-      const patch = { ...(cur.claude && typeof cur.claude === 'object' ? cur.claude : {}) };
-      if (body.plan !== undefined) patch.plan = body.plan;
-      if (body.weeklyTokenBudget !== undefined) patch.weeklyTokenBudget = body.weeklyTokenBudget;
-      const merged = claudeUsage.normalizeClaude(patch);
-      const saved = await writeHubSettings({ ...cur, claude: merged });
-      hub.settings = saved;
-      refreshClaude().catch(() => {});
-      json({ ok: true, budget: { weekly: claudeUsage.effectiveWeeklyBudget(saved.claude), plan: saved.claude.plan, weeklyTokenBudget: saved.claude.weeklyTokenBudget }, tile: saved.claude.tile });
-      });
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/budget'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettingsForUpdate, refreshClaude, writeHubSettings });
 
   } else if (reqPath === '/api/claude/event' && req.method === 'POST') {
-    // Ingest from Claude Code: the statusline payload (X-Xenon-Source: statusline)
-    // or a non-blocking lifecycle hook. Answers 204 with NO body on purpose — a
-    // hook response body is parsed as a decision, and this endpoint must never
-    // accidentally influence what Claude Code does.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    try {
-      const data = JSON.parse(await readBody(req));
-      if (String(req.headers['x-xenon-source'] || '') === 'statusline') _claudeBridge.applyStatus(data);
-      else _claudeBridge.applyHook(data);
-    } catch { /* a malformed event must never fail the caller's tool call */ }
-    res.writeHead(204); res.end();
+    await claudeCodeSessionBranches['POST /api/claude/event'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });
 
   } else if (reqPath === '/api/claude/mod' && req.method === 'POST') {
-    // The Xenon mod for Claude Code (integrations/claude-code/): its feed of
-    // subagent models, context and quota. Same token as the hooks. Unlike a
-    // hook, the mod reads this body, so it may answer; nothing in it acts on
-    // Claude Code.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    let accepted = false;
-    let needCommands = false;
-    try {
-      const body = JSON.parse(await readBody(req));
-      accepted = _claudeBridge.applyMod(body);
-      // This server restarted since the mod last sent its command list, and the
-      // mod only resends a list that changed: ask for it, or the tile's "/" is empty.
-      needCommands = accepted && body.kind === 'hello' && _claudeBridge.wantsCommandList(body.sessionId);
-    } catch { /* malformed: answered as not accepted */ }
-    json({ ..._claudeModReply(), accepted, needCommands });
+    await claudeCodeSessionBranches['POST /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeModReply });
 
   } else if (reqPath === '/api/claude/mod' && req.method === 'GET') {
-    // The mod's /xenon command: does the hub hear this install at all.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    json(_claudeModReply());
+    await claudeCodeSessionBranches['GET /api/claude/mod'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeModReply });
 
   } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {
     // The blocking one. Claude Code holds its tool call open while this request
@@ -13076,175 +12919,28 @@ const handleRequest = async (req, res) => {
     } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
 
   } else if (reqPath === '/api/claude/mod/permission' && req.method === 'POST') {
-    // The mod's approvals: the same card as /api/claude/permission, held only
-    // for the short wait the user chose in the mod (10-120 s). The mod runs
-    // before Claude Code's own PermissionRequest hook, so an explicit tap here
-    // settles the call and the hook never fires; anything else answers
-    // { decision: null } and the mod lets Claude Code go on, which reaches the
-    // hook, which takeHandBack turns into the terminal prompt. Like the hook
-    // route, it can never approve on its own. The mod sends only the one field
-    // the card shows (command, path, URL…), never file content or a prompt.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    if (hub.settings && hub.settings.claudeWidget
-      && hub.settings.claudeWidget.approvals === false) {
-      req.resume();
-      json({ decision: null });
-      return;
-    }
-    try {
-      const body = JSON.parse(await readBody(req));
-      const data = body && body.v === 1 && typeof body.sessionId === 'string' ? {
-        session_id: body.sessionId,
-        tool_name: body.tool,
-        tool_input: body.input,
-        cwd: body.cwd,
-      } : null;
-      if (!data || data.tool_name === 'AskUserQuestion' || data.tool_name === 'ExitPlanMode') { json({ decision: null }); return; }
-      const ttlMs = Math.max(10, Math.min(120, Number(body.waitSec) || 30)) * 1000;
-      const decision = await _claudeHoldPermission(res, data, { ttlMs, fromMod: true });
-      if (res.writableEnded || res.destroyed) return;
-      json({ decision });
-    } catch { try { if (!res.writableEnded && !res.destroyed) json({ decision: null }); } catch { /* caller already gone */ } }
+    await claudeCodeSessionBranches['POST /api/claude/mod/permission'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeHoldPermission });
 
   } else if (reqPath === '/api/claude/mod/inbox' && req.method === 'POST') {
-    // The mod (0.3.0+) asking, from a timer in an interactive session, whether
-    // the tile has a message for it. Held open until one is queued or the hold
-    // runs out (claude-inbox.js), and a session with a request held here is
-    // what the tile offers "goes into the open session" for. The answer is
-    // { text } or {}: only an idle session is handed anything, and only once
-    // (claude-bridge.js, takeForTerminal). The text is never logged.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    let sessionId = '';
-    try {
-      const body = JSON.parse(await readBody(req, 4096));
-      if (body && body.v === 1 && typeof body.sessionId === 'string') sessionId = body.sessionId;
-    } catch { /* malformed: refused below as a bad session */ }
-    if (res.writableEnded || res.destroyed) return;
-    const held = _claudeInbox.hold(sessionId, res);
-    if (held === 'bad_session') { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('Bad session'); }
-    else if (held === 'busy') { res.writeHead(429, { 'Content-Type': 'text/plain' }); res.end('Busy'); }
+    await claudeCodeSessionBranches['POST /api/claude/mod/inbox'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridgeAuth, _claudeInbox });
 
   } else if (reqPath === '/api/claude/question' && req.method === 'POST') {
-    // A question from Claude, answered on the touchscreen.
-    //
-    // This is a PreToolUse hook scoped to AskUserQuestion, and it blocks the
-    // same way the permission route does. The answer is returned as an ALLOW
-    // whose updatedInput is the tool's own input with `answers` filled in, so
-    // the tool runs and hands Claude the choice as its normal result — what the
-    // terminal would have produced (claude-bridge.js, header note 2).
-    //
-    // Every non-answer path is an empty object: the tool then runs and asks in
-    // the terminal, exactly as it would if Xenon were not installed. Nothing
-    // here can invent a choice the user did not make.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    if (hub.settings && hub.settings.claudeWidget
-      && hub.settings.claudeWidget.questions === false) {
-      req.resume();
-      json({});
-      return;
-    }
-    try {
-      const data = JSON.parse(await readBody(req));
-      const ask = _claudeBridge.askQuestion(data);
-      if (!ask) { json({}); return; }               // unreadable, or too many waiting
-      const onGone = () => _claudeBridge.cancel(ask.id);
-      res.on('close', onGone);
-      const out = await ask.promise;
-      res.off('close', onGone);
-      if (res.writableEnded || res.destroyed) return;
-      if (out.verdict === 'answer' && out.updatedInput) {
-        // For an allow the reason is shown to the user, not to Claude: it is
-        // the line in the terminal that says where the answer came from.
-        json({ hookSpecificOutput: {
-          hookEventName: 'PreToolUse', permissionDecision: 'allow',
-          permissionDecisionReason: 'Answered on the Xenon dashboard',
-          updatedInput: out.updatedInput,
-        } });
-      } else {
-        json({});                                    // skipped or timed out → the terminal asks
-      }
-    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+    await claudeCodeSessionBranches['POST /api/claude/question'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth });
 
   } else if (reqPath === '/api/claude/turn-end' && req.method === 'POST') {
-    // The Stop hook, and the ONE ingest endpoint allowed to answer with a
-    // decision. /api/claude/event stays inert (204, no body) precisely so that
-    // the ability to influence a session lives in one named place instead of
-    // being a property any lifecycle event might quietly acquire.
-    //
-    // What it does: records the end of the turn like any other event, then, if
-    // the user typed a follow-up on the dashboard while Claude was working,
-    // hands it over as { decision: 'block', reason }. Claude does not stop — the
-    // text arrives as a new instruction in the SAME session. With nothing
-    // queued it answers {} and the turn ends normally, which is also the loop
-    // guard: takeFollowUp() clears the queue, so a second Stop finds it empty.
-    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
-    try {
-      const data = JSON.parse(await readBody(req));
-      _claudeBridge.applyHook(data);
-      const sid = String(data && data.session_id || '');
-      const reason = _claudeBridge.takeFollowUp(sid);
-      json(reason ? { decision: 'block', reason } : {});
-      // A command typed on the tile during the turn waits for the terminal: hand
-      // it to the mod's parked request now, not when that request times out.
-      if (!reason && sid) setImmediate(() => { try { _claudeInbox.wake(sid); } catch { /* next ask takes it */ } });
-    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+    await claudeCodeSessionBranches['POST /api/claude/turn-end'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeBridgeAuth, _claudeInbox });
 
   } else if (reqPath === '/api/claude/answer' && req.method === 'POST') {
-    // The touchscreen answering a question. Browser-originated, so CSRF-guarded
-    // rather than token-gated, like /decide. `selections` is one array of option
-    // labels per question; the bridge matches them against the options Claude
-    // itself published and refuses anything else. `typed` is one string per
-    // question: the "Other" box, or a text/number answer — the user's own words,
-    // as the terminal's "Other" row would send them.
-    try {
-      const body = JSON.parse(await readBody(req));
-      const id = String(body && body.id || '');
-      const ok = body && body.skip === true
-        ? _claudeBridge.skipQuestion(id)
-        : _claudeBridge.answer(id,
-          Array.isArray(body && body.selections) ? body.selections : [],
-          Array.isArray(body && body.typed) ? body.typed : []);
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await claudeCodeSessionBranches['POST /api/claude/answer'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
 
   } else if (reqPath === '/api/claude/reply' && req.method === 'POST') {
-    // A follow-up typed on the dashboard for a live session. It is QUEUED, not
-    // sent, and the tile shows that state, because "sent" would be a lie until
-    // it arrives. Two delivery points (claude-bridge.js, queueFollowUp): the end
-    // of the running turn, via /api/claude/turn-end, or, for an idle session
-    // whose mod is listening, the mod, woken here so it arrives at once.
-    //
-    // An idle session with no mod listening will never fire Stop again, so
-    // nothing here could deliver it: it is refused (session_idle), and the tile
-    // offers a resume run instead, the same conversation continued as a run.
-    try {
-      const body = JSON.parse(await readBody(req));
-      const sessionId = String(body && body.sessionId || '');
-      if (body && body.cancel === true) { json({ ok: _claudeBridge.cancelFollowUp(sessionId) }); return; }
-      const out = _claudeBridge.queueFollowUp(sessionId, String(body && body.text || ''));
-      if (out.ok && out.via === 'terminal') _claudeInbox.wake(sessionId);
-      json(out);
-    } catch (e) { err500(e.message); }
+    await claudeCodeSessionBranches['POST /api/claude/reply'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeInbox });
 
   } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {
-    // The touchscreen answering a pending request. Browser-originated, so it is
-    // CSRF-guarded rather than token-gated.
-    try {
-      const body = JSON.parse(await readBody(req));
-      // mode/feedback only mean something for a plan card; the bridge ignores
-      // them for any other request.
-      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny', {
-        mode: typeof (body && body.mode) === 'string' ? body.mode : '',
-        feedback: typeof (body && body.feedback) === 'string' ? body.feedback : '',
-      });
-      // ok:false means the request already expired or was answered on another
-      // surface — the widget tells the user rather than silently doing nothing.
-      json({ ok });
-    } catch (e) { err500(e.message); }
+    await claudeCodeSessionBranches['POST /api/claude/decide'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
 
   } else if (reqPath === '/api/claude/link' && req.method === 'GET') {
-    try { json(await _claudeLinkStatus()); }
-    catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['GET /api/claude/link'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeLinkStatus });
 
   } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
     // Writes the hub's hooks + statusline into the user's Claude Code
@@ -13256,32 +12952,16 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/unlink' && req.method === 'POST') {
-    try { json({ ok: true, ...(await claudeLink.unlink(DATA_DIR, PORT)) }); }
-    catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/unlink'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT });
 
   } else if (reqPath === '/api/claude/projects' && req.method === 'GET') {
-    // The places the dashboard is allowed to start work in: read out of Claude
-    // Code's own transcripts, so it is exactly the set of projects the user
-    // already works in. The client picks one by id — it never sends a path.
-    try {
-      const list = await _claudeRunner.listProjects(urlObj.searchParams.has('refresh'));
-      // What this Claude Code accepts for a run (permission modes, effort), so
-      // the prompt box offers only what will take effect.
-      const options = await claudeRun.cliOptions();
-      json({ projects: list.map(p => ({ id: p.id, name: p.name, path: p.path })), options });
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['GET /api/claude/projects'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
 
   } else if (reqPath === '/api/claude/commands' && req.method === 'GET') {
-    // Names and one-line descriptions only, for the prompt box's "/" picker.
-    try { json({ commands: await _claudeCommands.list(urlObj.searchParams.get('project') || '') }); }
-    catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['GET /api/claude/commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeCommands });
 
   } else if (reqPath === '/api/claude/session-commands' && req.method === 'GET') {
-    // The slash commands an OPEN session lists (its mod reports the terminal's
-    // own typeahead), for the tile's "/" list. Names and one line each; null
-    // when that session's mod is too old to report them.
-    try { json({ commands: _claudeBridge.commandListFor(urlObj.searchParams.get('session') || '') }); }
-    catch (e) { err500(e.message); }
+    await claudeCodeSessionBranches['GET /api/claude/session-commands'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge });
 
   } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
     await claudeCodeBranches['GET /api/claude/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -13296,77 +12976,22 @@ const handleRequest = async (req, res) => {
     await claudeCodeBranches['GET /api/claude/plan'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/claude/history' && req.method === 'GET') {
-    // Every chat Claude Code keeps on this PC: id, title, project name, size,
-    // last activity. Read only when the tile's Chats face asks.
-    try { json(await _claudeHistory.list()); }
-    catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['GET /api/claude/history'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });
 
   } else if (reqPath === '/api/claude/history/delete' && req.method === 'POST') {
-    // Session ids only; the module resolves them against its own listing and
-    // sends the files to the Recycle Bin/Trash.
-    try {
-      const body = JSON.parse(await readBody(req));
-      json(await _claudeHistory.remove(body && body.ids));
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/history/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeHistory });
 
   } else if (reqPath === '/api/claude/attach' && req.method === 'POST') {
-    // One file, raw bytes, with the browser's filename in the query string as a
-    // LABEL: the module validates its extension and builds the name that lands
-    // on disk, so nothing the page sends is ever used as a path component.
-    try {
-      const data = await readBodyBuffer(req, claudeAttach.MAX_BYTES);
-      json(await _claudeAttach.save(urlObj.searchParams.get('name') || '', data));
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/attach'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeAttach });
 
   } else if (reqPath === '/api/claude/run' && req.method === 'POST') {
-    // Starts a Claude Code run from the touchscreen. Browser-originated, so it
-    // is CSRF-guarded like /decide. The runner refuses anything it cannot vouch
-    // for (unknown project, malformed session/model, empty prompt) and never
-    // takes a filesystem path from this body.
-    try {
-      const body = JSON.parse(await readBody(req));
-      const resume = String(body && body.resume || '');
-      let projectId = String(body && body.projectId || '');
-      // Continuing a session: the folder is the session's own, so resolve it
-      // here from the live bridge rather than trusting the client to have
-      // matched it. The client only ever saw the folder's NAME, which is not
-      // unique — two checkouts can both be called `xenon`, and a session Xenon
-      // learned about late has no name at all. Matching on the real path picks
-      // the right project or none.
-      if (resume) {
-        const cwd = _claudeBridge.cwdFor(resume);
-        if (cwd) {
-          const want = path.resolve(cwd).toLowerCase();
-          const hit = (await _claudeRunner.listProjects(false))
-            .find(p => path.resolve(p.path).toLowerCase() === want);
-          if (hit) projectId = hit.id;
-        }
-      }
-      const out = await _claudeRunner.start({
-        projectId,
-        prompt: String(body && body.prompt || ''),
-        model: String(body && body.model || ''),
-        mode: String(body && body.mode || ''),
-        effort: String(body && body.effort || ''),
-        resume,
-      });
-      json(out);
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeBridge, _claudeRunner });
 
   } else if (reqPath === '/api/claude/folder' && req.method === 'POST') {
-    // Adds a folder to the places a run may start in. The only route that takes
-    // a path for this: it is validated and stored, never run, and a paired
-    // device cannot reach it (REMOTE_ADMIN).
-    try {
-      const body = JSON.parse(await readBody(req));
-      json(await _claudeRunner.addFolder(body && body.path));
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/folder'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
 
   } else if (reqPath === '/api/claude/run/stop' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      json({ ok: _claudeRunner.stop(String(body && body.id || '')) });
-    } catch (e) { err500(e.message); }
+    await claudeCodeRunBranches['POST /api/claude/run/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _claudeRunner });
 
   } else if (reqPath === '/api/codex' && req.method === 'GET') {
     // The Codex tile's whole state: account side from app-server, live side from
@@ -14046,13 +13671,7 @@ const handleRequest = async (req, res) => {
     await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/companion/cost' && req.method === 'GET') {
-    // Read-only: what a Game Companion look costs, in Sparks, when Bit runs on
-    // Sparks; null on any other AI (the user's own key or plan, nothing to show).
-    try {
-      const settings = await readHubSettings().catch(() => null) || {};
-      const onSparks = aiLocal.sanitizeProvider(settings.aiProvider) === 'xenon';
-      json({ ok: true, sparks: onSparks ? companionLookSparks() : null });
-    } catch (e) { err500(e.message); }
+    await aiVoiceBranches['GET /api/companion/cost'](req, res, { json, err500, reqPath, urlObj, isRemote }, { companionLookSparks, readHubSettings });
 
   } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
     // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
@@ -14730,163 +14349,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai/summarize' && req.method === 'POST') {
-    // Rolling conversation summary: fold older turns (that scrolled out of the
-    // client's window) into a compact running summary the next /api/ai turn
-    // injects as context. Provider-aware; best-effort — on any failure the
-    // client keeps its raw history under the hard cap.
-    try {
-      const raw = await readBodyBuffer(req, 256 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      const provider = aiLocal.sanitizeProvider(body.provider);
-      const apiKey = await geminiKeyFor(body.key);
-      const prev = String(body.prevSummary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
-      const turns = Array.isArray(body.messages) ? body.messages.slice(0, 60) : [];
-      const uiLang = String(body.lang || '').toLowerCase().slice(0, 2);
-      const langName = aiLangName(uiLang, 'English');
-      // Flatten the turns to plain "Role: text" lines (text parts only — images
-      // and audio are not carried in history anyway).
-      const transcript = turns.map((m) => {
-        if (!m || !Array.isArray(m.parts)) return '';
-        const txt = m.parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join(' ').trim();
-        return txt ? `${m.role === 'model' ? 'Assistant' : 'User'}: ${txt}` : '';
-      }).filter(Boolean).join('\n').slice(0, 8000);
-      if (!transcript) { json({ summary: prev }); return; }
-      const sysText = `You maintain a running summary of a conversation between a user and Xenon (a dashboard assistant). Update the summary so it captures the durable context: what the user wants, decisions made, facts they shared, and any open thread, written in ${langName}. Be concise (at most ~8 short sentences). Output ONLY the updated summary, with no preamble.`;
-      const userText = (prev ? `Current summary:\n${prev}\n\n` : '') + `New conversation turns to fold in:\n${transcript}\n\nUpdated summary:`;
-      let summary = prev;
-      if (provider === 'ollama') {
-        const settings = await readHubSettings().catch(() => null);
-        const baseUrl = aiLocal.sanitizeOllamaUrl(body.ollamaUrl || (settings && settings.ollamaUrl));
-        const concreteModel = aiLocal.resolveModel(aiLocal.sanitizeModel(body.model), settings && settings.hardwareScan);
-        const result = await aiLocal.localChat({
-          baseUrl, model: concreteModel, geminiTools: [],
-          history: [{ role: 'user', parts: [{ text: userText }] }],
-          systemText: sysText,
-          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-        }).catch(() => null);
-        if (result && result.text) summary = String(result.text).trim().slice(0, 2000);
-      } else if (provider === 'localapi') {
-        const settings = await readHubSettings().catch(() => null);
-        const out = await localServerOneShot(settings, sysText, userText, 400).catch(() => '');
-        if (out) summary = String(out).trim().slice(0, 2000);
-      } else if (provider === 'openai' || provider === 'anthropic') {
-        const settings = await readHubSettings().catch(() => null);
-        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = providerModelFor(provider, 'chat', settings);
-        if (!provKey) { json({ summary: prev }); return; }
-        const out = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
-        if (out) summary = String(out).trim().slice(0, 2000);
-      } else if (provider === 'xenon') {
-        const out = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 400, use: 'summary' }).catch(() => '');
-        if (out) summary = String(out).trim().slice(0, 2000);
-      } else if (aiCli.isCliProvider(provider)) {
-        const out = await cliOneShot(provider, sysText, userText).catch(() => '');
-        if (out) summary = String(out).trim().slice(0, 2000);
-      } else {
-        if (!apiKey) { json({ summary: prev }); return; }
-        const out = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 400).catch(() => '');
-        if (out) summary = String(out).trim().slice(0, 2000);
-      }
-      json({ summary });
-    } catch (e) { json({ error: e.message }); }
+    await aiMemoryBranches['POST /api/ai/summarize'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, cliOneShot, geminiKeyFor, readHubSettings });
 
   } else if (reqPath === '/api/vitals/roast' && req.method === 'POST') {
-    // Bit's opt-in AI roasts: ONE short in-character line generated by the
-    // user's configured Xenon AI provider from real context (which vital died,
-    // for how long, streak, gaming, time of day, now playing, weather). The
-    // client hard-times-out and falls back to the offline phrase bank on ANY
-    // failure or empty result, so this is best-effort by design. POST-only,
-    // never a JSONP candidate; the Gemini key travels in the body exactly like
-    // /api/ai/summarize (established pattern). Keys are never logged.
-    try {
-      // Server-side opt-in re-check (same spirit as /api/vitals/nag): a forged
-      // loopback request can't burn the user's AI quota unless they actually
-      // enabled Bit AND AI roasts in Settings.
-      const vitalsCfg = hub.settings && hub.settings.vitals;
-      const petCfg = (vitalsCfg && vitalsCfg.enabled !== false && vitalsCfg.pet) ? vitalsCfg.pet : null;
-      if (!petCfg || petCfg.enabled !== true || petCfg.aiRoasts !== true) { json({ text: '' }); return; }
-      const raw = await readBodyBuffer(req, 32 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      const provider = aiLocal.sanitizeProvider(body.provider);
-      const apiKey = await geminiKeyFor(body.key);
-      // Every context string is length-bounded and stripped of control chars
-      // before it goes anywhere near a prompt.
-      const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
-      const uiLang = clean(body.lang, 5).toLowerCase().slice(0, 2);
-      const langName = aiLangName(uiLang, 'English');
-      const tone = ['soft', 'spicy', 'savage'].includes(body.tone) ? body.tone : 'spicy';
-      const TONE_DESC = {
-        soft: 'a gentle, warm nudge',
-        spicy: 'sarcastic and cheeky',
-        savage: 'merciless and absurd, but never genuinely cruel',
-      };
-      const ctx = body.ctx && typeof body.ctx === 'object' ? body.ctx : {};
-      const KIND_DESC = {
-        zero: 'one of the meters just hit zero: roast the user into fixing it',
-        nag: 'the meter is STILL at zero: nag again from a fresh angle',
-        welcomeback: 'the user just finished a game session during which a meter died: congratulate and roast',
-        return: 'the user just came back to the PC after being away: welcome them back with a wink',
-      };
-      const kindDesc = KIND_DESC[clean(ctx.kind, 20)] || KIND_DESC.nag;
-      const facts = [];
-      const vitalName = clean(ctx.vital, 40);
-      if (vitalName) facts.push('neglected meter: ' + vitalName);
-      const min = Math.max(0, Math.min(100000, Math.round(Number(ctx.min) || 0)));
-      if (min > 0) facts.push('minutes in this state: ' + min);
-      const streak = Math.max(0, Math.min(100000, Math.round(Number(ctx.streak) || 0)));
-      if (streak > 1) facts.push('current self-care streak: ' + streak + ' days');
-      if (ctx.gaming === true) facts.push('the user is gaming right now');
-      const timeOfDay = clean(ctx.timeOfDay, 20);
-      if (timeOfDay) facts.push('time of day: ' + timeOfDay);
-      const media = clean(ctx.media, 80);
-      if (media) facts.push('now playing: ' + media);
-      const weather = clean(ctx.weather, 60);
-      if (weather) facts.push('weather outside: ' + weather);
-      const sysText = 'You are Bit, an 8-bit pixel guardian who lives on the user\'s PC dashboard and guards their self-care meters (hydration, energy, movement, eye rest, posture). '
-        + `Write exactly ONE line in ${langName}, maximum 140 characters. No quotes, no emoji, no preamble, no explanations. `
-        + `Tone: ${TONE_DESC[tone]}. Funny, like a friend teasing: never a bully. Situation: ${kindDesc}.`;
-      const userText = 'Context:\n' + (facts.length ? facts.join('\n') : '(no extra context)') + '\n\nBit\'s one-liner:';
-      let text = '';
-      if (provider === 'ollama') {
-        const settings = await readHubSettings().catch(() => null);
-        const baseUrl = aiLocal.sanitizeOllamaUrl(body.ollamaUrl || (settings && settings.ollamaUrl));
-        const concreteModel = aiLocal.resolveModel(aiLocal.sanitizeModel(body.model), settings && settings.hardwareScan);
-        const result = await aiLocal.localChat({
-          baseUrl, model: concreteModel, geminiTools: [],
-          history: [{ role: 'user', parts: [{ text: userText }] }],
-          systemText: sysText,
-          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-        }).catch(() => null);
-        if (result && result.text) text = String(result.text);
-      } else if (provider === 'localapi') {
-        const settings = await readHubSettings().catch(() => null);
-        text = await localServerOneShot(settings, sysText, userText, 100).catch(() => '');
-      } else if (provider === 'openai' || provider === 'anthropic') {
-        const settings = await readHubSettings().catch(() => null);
-        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = providerModelFor(provider, 'chat', settings);
-        if (provKey) text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 100 }).catch(() => '');
-      } else if (provider === 'xenon') {
-        // Only within the Sparks a day the user chose for roasts (none by default).
-        text = await roastSparks.spend(petCfg.roastSparksCap, async () => {
-          let credits = NaN;
-          const out = await aiXenon.oneShot({
-            dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 100, use: 'roast',
-            onUsage: (_tokens, u) => { credits = u && u.credits; },
-          });
-          return { text: out, credits };
-        });
-      } else if (aiCli.isCliProvider(provider)) {
-        // Bit speaks up on its own, so it never spends the user's Claude Code /
-        // Codex subscription: an empty line sends the client to its phrase bank.
-        text = '';
-      } else {
-        if (apiKey) text = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 100).catch(() => '');
-      }
-      json({ text: clean(text, 200) });
-    } catch (e) { json({ error: e.message }); }
+    await vitalsBranches['POST /api/vitals/roast'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _geminiOneShot, geminiKeyFor, readHubSettings, roastSparks });
 
   } else if (reqPath === '/api/log' && req.method === 'POST') {
     await engineBranches['POST /api/log'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -15191,45 +14657,7 @@ const handleRequest = async (req, res) => {
     await aiBranches['GET /api/ai/cli/models'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
-    // Live model list for the picker, fetched from each provider's own models
-    // API with the user's key so it always reflects what that provider currently
-    // offers. Degrades to whatever the cache holds (never an error page) when
-    // there is no key or the call fails.
-    //
-    // `resolved` is the half the UI cannot compute for itself: it says which
-    // concrete id each `auto` role lands on right now. A sentinel the panel
-    // cannot explain is a setting the user has no way to reason about.
-    try {
-      const prov = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
-      const settings = await readHubSettings().catch(() => null);
-      const s = settings || {};
-      if (prov === 'ollama') {
-        // The local provider has no key and no remote resolution: what it can
-        // offer is the curated download catalog plus what is already installed.
-        await aiModels.refreshOllamaCatalog({ force: urlObj.searchParams.has('refresh') });
-        json({ models: [], catalog: aiModels.ollamaCatalog() });
-        return;
-      }
-      if (prov === 'localapi') {
-        // Whatever the server on this PC says it has, right now: the panel's
-        // status line and model list both come from this answer.
-        json(await aiLocalServer.catalog(aiLocalServer.configFrom(s)));
-        return;
-      }
-      const keyFor = { gemini: s.geminiApiKey, openai: s.openaiApiKey, anthropic: s.anthropicApiKey };
-      const apiKey = String(keyFor[prov] || '').trim();
-      if (apiKey) {
-        await aiModels.refresh(prov, apiKey, { force: urlObj.searchParams.has('refresh') });
-      }
-      const stored = {};
-      const roles = (aiModels.PROVIDERS[prov] && aiModels.PROVIDERS[prov].ROLES) || {};
-      for (const role of Object.keys(roles)) {
-        stored[role] = prov === 'gemini' ? s[GEMINI_MODEL_KEYS[role]] : s[(PROVIDER_MODEL_KEYS[prov] || {})[role]];
-      }
-      json(aiModels.catalog(prov, stored, apiKey));
-    } catch (e) {
-      json({ models: [], resolved: {}, families: [], error: e.message });
-    }
+    await aiVoiceBranches['GET /api/ai/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
     try {
@@ -15295,157 +14723,16 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/tts' && req.method === 'POST') {
-    try {
-      const ttsRaw = await readBodyBuffer(req, 64 * 1024);
-      const ttsBody = JSON.parse(ttsRaw.toString('utf8') || '{}');
-      const apiKey = String(ttsBody.key || '').trim().slice(0, 200);
-      const rawText = String(ttsBody.text || '').trim().slice(0, 1000);
-      // Default to a male Gemini voice; the client may override via `voice`.
-      const voice = String(ttsBody.voice || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 30) || 'Charon';
-      const ttsProvider = aiLocal.sanitizeProvider(ttsBody.provider);
-      const ttsLang = String(ttsBody.lang || 'en').slice(0, 5);
-      if (!rawText) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_params' })); return;
-      }
-      // Non-Gemini providers return a ready WAV. Ollama and Claude use the free
-      // local Edge neural TTS, and so do Xenon credits; ChatGPT uses OpenAI TTS
-      // (server-only key).
-      if (ttsProvider === 'ollama' || ttsProvider === 'localapi' || ttsProvider === 'anthropic' || ttsProvider === 'xenon' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
-        try {
-          let wavBuf;
-          if (ttsProvider === 'openai') {
-            const s = await readHubSettings().catch(() => null);
-            const oKey = String((s && s.openaiApiKey) || '').trim();
-            if (!oKey) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_key' })); return; }
-            wavBuf = await aiOpenai.tts({ apiKey: oKey, text: rawText, model: providerModelFor('openai', 'tts', s) });
-          } else {
-            wavBuf = await aiLocal.localTts(rawText, ttsLang, getFfmpegPath());
-          }
-          if (!wavBuf || !wavBuf.length) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'no_audio' })); return; }
-          res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': String(wavBuf.length), 'Cache-Control': 'no-store' });
-          res.end(wavBuf); return;
-        } catch (e) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: e.message })); return;
-        }
-      }
-      if (!apiKey) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_params' })); return;
-      }
-      const ttsPayload = JSON.stringify({
-        contents: [{ parts: [{ text: rawText }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-        },
-      });
-      process.stdout.write(`[TTS] request voice=${voice} chars=${rawText.length}\n`);
-      const _ttsStart = Date.now();
-      const ttsModel = AI_MODELS.tts;
-      const askGemini = () => new Promise((resolve, reject) => {
-        const ttsReq = https.request({
-          hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/${ttsModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'Xenon/2.0' },
-        }, (ttsRes) => {
-          let d = '';
-          ttsRes.on('data', c => { d += c; });
-          ttsRes.on('end', () => {
-            process.stdout.write(`[TTS] Gemini HTTP ${ttsRes.statusCode} in ${Date.now() - _ttsStart}ms\n`);
-            try {
-              const parsed = JSON.parse(d);
-              if (parsed.error) {
-                process.stdout.write(`[TTS] Gemini error: ${parsed.error.message || JSON.stringify(parsed.error).slice(0, 160)}\n`);
-                return reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
-              }
-              const part = parsed?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-              if (!part || !part.data) return reject(new Error('no audio data in TTS response'));
-              resolve(part);
-            } catch (e) { reject(e); }
-          });
-        });
-        ttsReq.on('error', reject);
-        ttsReq.setTimeout(60000, () => { ttsReq.destroy(); reject(new Error('TTS timeout')); });
-        ttsReq.write(ttsPayload);
-        ttsReq.end();
-      });
-
-      // Gemini TTS runs on a preview model, and a preview model is a thing that
-      // gets retired. Losing the assistant's voice outright over that would be a
-      // hard failure where a soft one exists: the local Edge neural voice is
-      // already installed, already used by two other providers on the lines
-      // above, and needs no key. So a Gemini TTS failure degrades to it instead
-      // of answering 500 — the voice changes, the feature keeps working.
-      let inlineData;
-      try {
-        inlineData = await askGemini();
-      } catch (err) {
-        process.stdout.write(`[TTS] Gemini failed (${err.message}): falling back to the local voice\n`);
-        if (/not found|not supported|NOT_FOUND|404/i.test(String(err.message || ''))) {
-          aiModels.markMissing('gemini', ttsModel);
-        }
-        const localWav = await aiLocal.localTts(rawText, ttsLang, getFfmpegPath()).catch(() => null);
-        if (localWav && localWav.length) {
-          res.writeHead(200, {
-            'Content-Type': 'audio/wav', 'Content-Length': String(localWav.length),
-            'Cache-Control': 'no-store', 'X-Xenon-Tts-Fallback': 'local',
-          });
-          res.end(localWav);
-          return;
-        }
-        throw err;
-      }
-      const pcmBytes = Buffer.from(inlineData.data, 'base64');
-      const rateMatch = String(inlineData.mimeType || '').match(/rate=(\d+)/);
-      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
-      const wavBuf = pcmToWav(pcmBytes, sampleRate);
-      process.stdout.write(`[TTS] OK wav=${wavBuf.length} bytes rate=${sampleRate}\n`);
-      res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': String(wavBuf.length), 'Cache-Control': 'no-store' });
-      res.end(wavBuf);
-    } catch (e) {
-      process.stdout.write(`[TTS] FAIL ${e.message}\n`);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiVoiceBranches['POST /api/tts'](req, res, { json, err500, reqPath, urlObj, isRemote }, { AI_MODELS, getFfmpegPath, readHubSettings });
 
   } else if (reqPath === '/api/speak' && req.method === 'POST') {
-    // Server-side voice output (Windows SAPI) — instant and focus-independent.
-    // Resolves when speech finishes so the client knows when to re-open listening.
-    try {
-      const b = JSON.parse(await readBody(req) || '{}');
-      const text = String(b.text || '').slice(0, 2000);
-      const langp = String(b.lang || 'en').slice(0, 5);
-      const key = await geminiKeyFor(b.key);
-      if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_text' })); return; }
-      const speakProvider = aiLocal.sanitizeProvider(b.provider);
-      await speakOnServer(text, langp, key, speakProvider);
-      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiVoiceBranches['POST /api/speak'](req, res, { json, err500, reqPath, urlObj, isRemote }, { geminiKeyFor, speakOnServer });
 
   } else if (reqPath === '/api/speak/stop' && req.method === 'POST') {
-    try { await readBody(req); } catch {}
-    stopServerSpeak();
-    res.writeHead(204); res.end();
+    await aiVoiceBranches['POST /api/speak/stop'](req, res, { json, err500, reqPath, urlObj, isRemote }, { stopServerSpeak });
 
   } else if (reqPath === '/api/ai-local/scan' && req.method === 'GET') {
-    try {
-      const scan = await aiLocal.scanHardware();
-      // Persist into settings so the client and resolveModel can use it.
-      // Serialized with every other settings writer (see withHubSettingsLock).
-      await withHubSettingsLock(async () => {
-        const current = await readHubSettings().catch(() => null);
-        if (current) { current.hardwareScan = scan; hub.settings = await writeHubSettings(current).catch(() => hub.settings); }
-      });
-      json({ scan });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiBranches['GET /api/ai-local/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, writeHubSettings });
 
   } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {
     try {
@@ -15459,29 +14746,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai-local/capabilities' && req.method === 'GET') {
-    // What an INSTALLED model can actually do, straight from Ollama's /api/show,
-    // so the Settings row can say "tool calling: yes" about a model published
-    // after this release instead of guessing from its name.
-    try {
-      const settings = await readHubSettings().catch(() => null);
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-      const model = aiLocal.sanitizeModel(urlObj.searchParams.get('model'));
-      const caps = await aiLocal.capabilitiesFor(baseUrl, model);
-      json({ model, capabilities: caps });
-    } catch {
-      json({ model: '', capabilities: [] });
-    }
+    await aiBranches['GET /api/ai-local/capabilities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {
-    try {
-      const settings = await readHubSettings().catch(() => null);
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-      const models = await aiLocal.listOllamaModels(baseUrl);
-      json({ models });
-    } catch {
-      // Graceful: an empty list keeps the UI usable even if Ollama is offline.
-      json({ models: [] });
-    }
+    await aiBranches['GET /api/ai-local/models'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {
     try {
@@ -15527,16 +14795,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {
-    try {
-      await readBody(req);
-      const settings = await readHubSettings().catch(() => null);
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-      const result = await aiLocal.startOllama(baseUrl);
-      json(result);
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: e.message }));
-    }
+    await aiBranches['POST /api/ai-local/ollama-start'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
     await aiBranches['GET /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -15563,14 +14822,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/wake/status' && req.method === 'GET') {
-    // Settings → Xenon AI wake-word row: is the toggle on, is whisper installed,
-    // is the listener actually running right now.
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      enabled: !!(hub.settings && hub.settings.wakeWord && hub.settings.wakeWord.enabled),
-      whisper: _whisperReady(),
-      listening: wakeWord.isActive(),
-    }));
+    await aiVoiceBranches['GET /api/wake/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _whisperReady });
 
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -17268,20 +16520,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/sdk/ai' && req.method === 'POST') {
-    // A widget's question to the AI the user set for Bit (sdk-ai.js), sent by
-    // the dashboard host for a frame it bridged. Needs the `ai` grant (which safe
-    // mode and a suspend empty) AND the manifest asking for it, and runs under
-    // the user's daily number per widget. In CSRF_MUTATION_PATHS: it spends.
-    try {
-      const body = JSON.parse(await readBody(req, 64 * 1024) || '{}');
-      const pkgId = String(body.pkg || '');
-      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId) || !sdkGrantsFor(pkgId).ai) { json({ ok: false, error: 'not_allowed' }); return; }
-      const pkg = (await sdkPackagesCached()).packages.find(p => p.id === pkgId);
-      if (!pkg || pkg.ai !== true) { json({ ok: false, error: 'not_allowed' }); return; }
-      json(await sdkAi.ask(pkgId, body, hub.settings.sdkAiDailyCap));
-    } catch (e) {
-      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : (e && e.code === 'PAYLOAD_TOO_LARGE' ? 'too_long' : 'failed') });
-    }
+    await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });
 
   } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
     // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what
@@ -17539,174 +16778,16 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
-    // Installed third-party widget packages — validated manifests only (see
-    // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
-    // renders it via textContent. NEVER a JSONP candidate. Always rescans (the
-    // Rescan button) and refreshes the shared scan cache. Each package is a copy
-    // decorated with origin + exportable (exports limited to the user's own creations).
-    const scan = await refreshSdkScan();
-    await widgetOptionsStore.load();
-    const packages = scan.packages.map(p => ({
-      ...p,
-      origin: widgetOriginOf(p.id),
-      exportable: widgetExportable(p.id),
-      catalogVersion: widgetCatalogVersionOf(p.id),
-      optionValues: widgetOptionsStore.valuesFor(p),
-      edition: contentInstalls.editionOf((hub.settings || {}).contentInstalls, p.id),   // init.edition
-    }));
-    // `skipped` is how many installed packages this scan did not load because
-    // MAX_PACKAGES was already reached. It travels with the list because a
-    // shorter list is indistinguishable from a smaller library — which is
-    // exactly how a widget came to be installed, working and unfindable.
-    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, limits: sdkWidgets.SDK_LIMITS, packages, invalid: scan.invalid, skipped: scan.skipped || 0 });
+    await widgetSdkPackagesBranches['GET /sdk/widgets'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshSdkScan, widgetCatalogVersionOf, widgetExportable, widgetOptionsStore, widgetOriginOf });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
-    // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
-    // (CSP connect-src 'none' — never weakened); instead the dashboard host
-    // relays a widget's request here after checking the user's host grants, and
-    // this handler re-validates everything against the package's DECLARED host
-    // allowlist (manifest = authority): http(s) only, loopback/link-local
-    // unreachable even via DNS rebinding (sdk-proxy guarded lookup), plain http
-    // only to private-network targets, headers rebuilt from an allowlist, no
-    // redirect following, bounded request/response bodies. NEVER a JSONP
-    // candidate.
-    try {
-      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
-      const body = JSON.parse(await readBody(req, 512 * 1024) || '{}');
-      const pkgId = String(body.pkg || '');
-      const scan = await sdkPackagesCached();
-      const pkg = scan.packages.find(p => p.id === pkgId);
-      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      const grants = sdkGrantsFor(pkgId);
-      // Addresses the user typed into the manifest's declared userHosts slots.
-      // resolveUserHosts re-validates every stored value against the manifest's
-      // own rules, so this can only ever widen the allowlist to hosts the
-      // manifest could have declared itself.
-      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
-      const v = sdkWidgets.validateProxyRequest(pkg, body, filled.hosts);
-      if (!v.ok) { json({ ok: false, error: v.error, limit: sdkWidgets.limitFor(v.error) }); return; }
-      // Server-side consent: the manifest is the authority for WHICH hosts are
-      // reachable, but the user's per-package grant is the authority for whether
-      // they approved this one. Enforce it here too, not only in the client bridge
-      // — the route is reachable without a mounted widget frame. A filled slot IS
-      // the user's consent (they typed that address), so it needs no second grant.
-      let host = '';
-      try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* v.url already validated */ }
-      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
-      // Secret injection: replace {{secret:NAME}} placeholders in the (already
-      // validated) url/headers/body with the package's stored secrets, so the
-      // real API key lives server-side and never rode through the sandboxed
-      // frame. Gated on the package DECLARING and being GRANTED `secrets`;
-      // resolveProxySecrets re-pins the host (a secret can't redirect the
-      // request) and re-checks headers for CRLF.
-      let outReq = v;
-      if (pkg.secrets === true && grants.secrets) {
-        const rs = sdkStore.resolveProxySecrets(v, sdkSecretsLoad(pkgId), pkg.hosts.concat(filled.hosts));
-        if (!rs.ok) { json({ ok: false, error: rs.error }); return; }
-        outReq = rs.req;
-      }
-      const release = sdkFetchGateAcquire(pkgId);
-      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
-      try {
-        const r = await sdkProxy.proxyFetch({ ...outReq, maxBytes: sdkProxy.PROXY_MAX_FETCH_BYTES });
-        const textual = sdkProxy.isTextualContentType(r.contentType);
-        json({
-          ok: true,
-          status: r.status,
-          contentType: r.contentType,
-          location: r.location || undefined,
-          encoding: textual ? 'utf8' : 'base64',
-          body: textual ? r.buffer.toString('utf8') : r.buffer.toString('base64'),
-        });
-      } catch (e) {
-        const msg = String((e && e.message) || 'fetch_failed');
-        json({ ok: false, error: ['timeout', 'blocked_address', 'response_too_large'].includes(msg) ? msg : 'fetch_failed', limit: sdkWidgets.limitFor(msg) });
-      } finally {
-        release();
-      }
-    } catch (e) {
-      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
-      else err500(e.message);
-    }
+    await widgetSdkCallsBranches['POST /sdk/fetch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
 
   } else if (reqPath === '/sdk/store' && req.method === 'POST') {
-    // Persistent key/value store for a widget's own settings (followed teams,
-    // chosen sources, a map's last view). Gated on the package DECLARING
-    // `storage` and being GRANTED it; the namespace is the package id, or a
-    // shared `storageGroup` so sibling widgets can share one store. Values
-    // round-trip through JSON and are size/count-capped in sdk-store.js; writes
-    // are change-driven. Data lives in DATA_DIR/widget-store (outside the package
-    // folder, so updates/exports never touch it). NEVER a JSONP candidate.
-    try {
-      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
-      const body = JSON.parse(await readBody(req, 512 * 1024) || '{}');
-      const pkgId = String(body.pkg || '');
-      const scan = await sdkPackagesCached();
-      const pkg = scan.packages.find(p => p.id === pkgId);
-      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      const grant = sdkGrantsFor(pkgId);
-      if (pkg.storage !== true || !grant.storage) { json({ ok: false, error: 'not_granted' }); return; }
-      // A shared group is opened only when it is the group the user approved.
-      // Without this, an update (or a replacement under the same id) could
-      // declare another widget set's group and read that set's stored data on
-      // the strength of a "keep its own settings" approval.
-      if (pkg.storageGroup && grant.storageGroup !== pkg.storageGroup) { json({ ok: false, error: 'not_granted' }); return; }
-      const isWrite = body.op && ['set', 'delete', 'clear'].includes(body.op.op);
-      if (isWrite && !sdkStoreGateOk(pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
-      const ns = sdkStore.storeNamespace(pkg, grant.storageGroup);
-      if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
-      const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
-      if (!r.ok) { json({ ok: false, error: r.error }); return; }
-      if (r.changed) {
-        await sdkStoreSave(ns, r.store);
-        // Tell OTHER surfaces so their mounted frames of this package (and any
-        // storageGroup siblings sharing this namespace) re-mount and re-read the
-        // store — the cross-surface "custom widget not 1:1 on the XENON" fix
-        // (GitHub #109). The writer's own surface filters this out by origin.
-        // Writes only (r.changed is never set by a read), so no spurious remounts.
-        //
-        // `quiet` writes are stored but NOT announced. The host sets it while a
-        // package is settling after a sync re-mount, because a widget that saves
-        // its own start-up state would otherwise echo the re-mount straight back
-        // and the two surfaces would reload each other without end (the v4.6.1
-        // regression). Persisting still matters: the data must be there for the
-        // next read, it just isn't news to anyone.
-        if (!body.quiet) {
-          const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p, sdkGrantsFor(p.id).storageGroup) === ns).map(p => p.id);
-          broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
-        }
-      }
-      json({ ok: true, value: r.value, keys: r.keys });
-    } catch (e) {
-      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
-      else json({ ok: false, error: (e && e.message) || 'bad_request' });
-    }
+    await widgetSdkCallsBranches['POST /sdk/store'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
 
   } else if (reqPath === '/sdk/secret' && req.method === 'POST') {
-    // Write-only secret vault for API keys. The widget can SET/DELETE named
-    // secrets and LIST their names or test existence (`has`), but a read NEVER
-    // returns a value — secrets are consumed only by {{secret:NAME}} substitution
-    // inside the fetch proxy, server-side, so a published package ships no keys
-    // and the sandboxed frame never sees them. Gated on the package DECLARING and
-    // being GRANTED `secrets`. Stored in DATA_DIR/widget-secrets. Never JSONP.
-    try {
-      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
-      const body = JSON.parse(await readBody(req, 32 * 1024) || '{}');
-      const pkgId = String(body.pkg || '');
-      const scan = await sdkPackagesCached();
-      const pkg = scan.packages.find(p => p.id === pkgId);
-      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      if (pkg.secrets !== true || !sdkGrantsFor(pkgId).secrets) { json({ ok: false, error: 'not_granted' }); return; }
-      const isWrite = body.op && ['set', 'delete'].includes(body.op.op);
-      if (isWrite && !sdkStoreGateOk('sec:' + pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
-      const r = sdkStore.applySecretOp(sdkSecretsLoad(pkgId), body.op);
-      if (!r.ok) { json({ ok: false, error: r.error }); return; }
-      if (r.changed) await sdkSecretsSave(pkgId, r.secrets);
-      json({ ok: true, names: r.names, has: r.has });
-    } catch (e) {
-      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
-      else json({ ok: false, error: (e && e.message) || 'bad_request' });
-    }
+    await widgetSdkCallsBranches['POST /sdk/secret'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkPackagesCached });
 
   } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {
     // Same-origin image proxy for map/radar tiles, and for widget artwork. The
@@ -17868,94 +16949,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/sdk/install' && req.method === 'POST') {
-    // Install a widget package shipped inside a shared bundle. The payload is
-    // validated EXACTLY like a folder scan (manifest rebuilt via normalizeManifest,
-    // every file path + extension re-checked, caps enforced) BEFORE a single byte
-    // is written; then the files land in DATA_DIR/widgets/<id>/ and the scan
-    // refreshes. Grants are NOT auto-issued here — the package renders nothing and
-    // reaches no service until the user approves its permissions through the normal
-    // grant flow, and the SDK master toggle still gates all runtime ingress.
-    // `origin` rides OUTSIDE the validated payload shape (extra keys are ignored
-    // by validateWidgetPayload): only 'creator' (the Widget Creator declaring the
-    // user's own build) is honoured — anything else records as an import, so a
-    // share-code install can never claim to be the user's own work. And even a
-    // 'creator' claim can't relabel an id already recorded as an import
-    // (mergeOrigin makes 'import' sticky), so replaying an imported payload with
-    // origin:'creator' no longer launders it into an exportable "own" widget.
-    const body = await readBody(req);
-    let payload; try { payload = JSON.parse(body); } catch { payload = null; }
-    // A package opened with the pass trial: the files are already in the vault,
-    // the import flow only confirms which one to put in place.
-    if (payload && payload.trialVault === true) {
-      const r = await trialVault.accept(payload.id);
-      if (r.ok) await refreshSdkScan();
-      json(r);
-      return;
-    }
-    const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
-    // Optional: the version of the catalog ENTRY this payload came from. Only the
-    // caller knows it (the manifest carries its own, unrelated number), and it is
-    // what makes 'is there an update' comparable — see recordWidgetOrigin.
-    const catalogVersion = (payload && typeof payload.catalogVersion === 'string') ? payload.catalogVersion : '';
-    // Writing over an installed id needs a reason (sdkWidgets.installOverwrite):
-    // a share code must not inherit the grants of the widget it replaces.
-    const v = sdkWidgets.validateWidgetPayload(payload);
-    if (!v.ok) { json({ ok: false, error: v.reason }); return; }
-    const scan = await sdkPackagesCached();
-    const existing = scan.packages.find((p) => p.id === v.id) || null;
-    const exists = !!existing || trialVault.has(v.id)
-      || await fs.promises.access(path.join(SDK_WIDGETS_DIR, v.id)).then(() => true, () => false);
-    const facts = {
-      exists,
-      origin,
-      own: exists && widgetExportable(v.id),
-      catalogUpdate: exists && origin === 'import' && await isCatalogUpdateOf(v.id, catalogVersion),
-    };
-    // The import review asks first, with nothing written: what the SERVER read in
-    // the package (never the share code's own description of itself), and
-    // whether it would replace a widget that is already here.
-    if (payload.dryRun === true) {
-      const m = v.manifest;
-      const decided = sdkWidgets.installOverwrite({ ...facts, replace: false });
-      json({
-        ok: true, dryRun: true, id: v.id, name: m.name, version: m.version || '', surface: m.surface || 'tile',
-        streams: m.streams, actions: m.actions, hosts: m.hosts, hooks: m.hooks,
-        userHosts: Array.isArray(m.userHosts) ? m.userHosts.length : 0,
-        storage: m.storage === true, secrets: m.secrets === true, ai: m.ai === true,
-        exists, replaces: !decided.ok,
-        existingName: existing ? String(existing.name || '') : '',
-        existingVersion: existing ? String(existing.version || '') : '',
-      });
-      return;
-    }
-    const decided = sdkWidgets.installOverwrite({ ...facts, replace: payload.replace === true });
-    if (!decided.ok) {
-      json({ ok: false, error: decided.error, id: v.id, name: existing ? String(existing.name || '') : '' });
-      return;
-    }
-    const r = await installWidgetPayload(payload, origin, catalogVersion);
-    if (r.ok && decided.dropGrants) {
-      await dropSdkGrant(v.id);
-      r.replaced = true;
-    }
-    json(r);
+    await widgetSdkPackagesBranches['POST /sdk/install'](req, res, { json, err500, reqPath, urlObj, isRemote }, { dropSdkGrant, installWidgetPayload, isCatalogUpdateOf, refreshSdkScan, sdkPackagesCached, trialVault, widgetExportable });
 
   } else if (reqPath === '/sdk/claim' && req.method === 'POST') {
-    // Mark an installed package as the user's OWN creation — a folder they built
-    // by hand in server/data/widgets — which makes it exportable again. A
-    // deliberate ownership assertion by the user; the install boundary is
-    // untouched. Only an 'unknown'-origin package (no record yet) can be claimed:
-    // never one recorded as an import or the bundled example. POST + JSON →
-    // covered by the loopback Origin layer; NEVER a JSONP candidate.
-    const body = await readBody(req);
-    let id = '';
-    try { id = String((JSON.parse(body || '{}') || {}).id || ''); } catch { id = ''; }
-    if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) { json({ ok: false, error: 'bad_id' }); return; }
-    const scan = await sdkPackagesCached();
-    if (!scan.packages.some(p => p.id === id)) { json({ ok: false, error: 'not_found' }); return; }
-    if (widgetOriginOf(id) !== 'unknown') { json({ ok: false, error: 'not_claimable' }); return; }
-    await recordWidgetOrigin(id, 'local');
-    json({ ok: true });
+    await widgetSdkPackagesBranches['POST /sdk/claim'](req, res, { json, err500, reqPath, urlObj, isRemote }, { recordWidgetOrigin, sdkPackagesCached, widgetOriginOf });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {
     // Read an installed package's files as an embeddable payload for a bundle

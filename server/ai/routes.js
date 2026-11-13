@@ -11,8 +11,10 @@ const aiXenon = require('../ai-xenon-credits.js');
 const { DATA_DIR } = require('../engine/paths.js');
 const aiLocal = require('../ai-local.js');
 const { chimeRequested } = require('./chime-play.js');
+const { withHubSettingsLock } = require('../settings/write-lock.js');
+const { hub } = require('../settings/current.js');
 
-/** @type {Record<string, (req: any, res: any, context: any) => Promise<void>>} */
+/** @type {Record<string, (req: any, res: any, context: any, engine?: any) => Promise<void>>} */
 const branches = {
   'POST /api/ai/turn/stop': async (req, _res, { json }) => {
     // The chat's stop button. Only stops: the turn ends at its next tool or
@@ -131,6 +133,62 @@ const branches = {
       chimeRequested(b.kind);
     } catch {}
     res.writeHead(204); res.end();
+  },
+
+  'GET /api/ai-local/scan': async (_req, res, { json }, { readHubSettings, writeHubSettings }) => {
+    try {
+      const scan = await aiLocal.scanHardware();
+      // Persist into settings so the client and resolveModel can use it.
+      // Serialized with every other settings writer (see withHubSettingsLock).
+      await withHubSettingsLock(async () => {
+        const current = await readHubSettings().catch(() => null);
+        if (current) { current.hardwareScan = scan; hub.settings = await writeHubSettings(current).catch(() => hub.settings); }
+      });
+      json({ scan });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+  },
+
+  'GET /api/ai-local/capabilities': async (_req, _res, { json, urlObj }, { readHubSettings }) => {
+    // What an INSTALLED model can actually do, straight from Ollama's /api/show,
+    // so the Settings row can say "tool calling: yes" about a model published
+    // after this release instead of guessing from its name.
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const model = aiLocal.sanitizeModel(urlObj.searchParams.get('model'));
+      const caps = await aiLocal.capabilitiesFor(baseUrl, model);
+      json({ model, capabilities: caps });
+    } catch {
+      json({ model: '', capabilities: [] });
+    }
+  },
+
+  'GET /api/ai-local/models': async (_req, _res, { json }, { readHubSettings }) => {
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const models = await aiLocal.listOllamaModels(baseUrl);
+      json({ models });
+    } catch {
+      // Graceful: an empty list keeps the UI usable even if Ollama is offline.
+      json({ models: [] });
+    }
+  },
+
+  'POST /api/ai-local/ollama-start': async (req, res, { json }, { readHubSettings }) => {
+    try {
+      await readBody(req);
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const result = await aiLocal.startOllama(baseUrl);
+      json(result);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
   },
 };
 

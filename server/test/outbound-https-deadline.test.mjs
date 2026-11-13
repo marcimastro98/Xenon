@@ -32,11 +32,15 @@ const SERVER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // armDeadline (0 when they reach https only through a variable the scan cannot
 // see). The count must match exactly, so the list shrinks as gaps close.
 const EXEMPT = {
-  // The seven Gemini calls that were all in server.js: three are still there, four moved
-  // with their functions into server/ai/ (tools/restructure). The total stays seven.
+  // The seven Gemini calls that were all in server.js: two are still there, five moved
+  // with their functions or routes into server/ai/ (tools/restructure). The total stays seven.
   'server.js': {
-    undeadlined: 3,
-    reason: 'the Gemini calls still here (the chat and the two speech requests) go to the fixed Google API host with an idle timeout each; a total deadline for them is still to do. The artwork lookup in the same file uses armDeadline.',
+    undeadlined: 2,
+    reason: 'the Gemini calls still here (the chat and one speech request) go to the fixed Google API host with an idle timeout each; a total deadline for them is still to do. The artwork lookup in the same file uses armDeadline.',
+  },
+  'ai/routes-voice.js': {
+    undeadlined: 1,
+    reason: 'the Gemini speech request of /api/tts, moved out of server.js unchanged with its route: fixed Google API host, idle timeout, total deadline still to do.',
   },
   'ai/gemini-one-shot.js': {
     undeadlined: 1,
