@@ -1,0 +1,166 @@
+[
+ {
+  "origin": "apps/capture/src/mac/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/recording.rs",
+    "about": "macOS: starting and stopping a recording and the replay buffer.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        194,
+        375
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/mac/jobs.rs",
+    "about": "macOS: the other things the engine is asked for: a folder, copies, edits, reading text, inspecting, drawing, steps.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        376,
+        549
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/mac/shots.rs",
+    "about": "macOS: a screenshot of a screen, a window or a region, from the target to the saved file.",
+    "lines": [
+     [
+      578,
+      738
+     ]
+    ]
+   }
+  ],
+  "widen": [
+   "Aimed.points"
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/export.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/export/source.rs",
+    "about": "macOS export: opening the saved video and taking its frames, cropped to even sizes.",
+    "lines": [
+     [
+      99,
+      207
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/mac/export/copies.rs",
+    "about": "macOS export: the smaller copy, the vertical copy, the copy that must fit in a number of megabytes, and the GIF.",
+    "lines": [
+     [
+      273,
+      422
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/replay.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/replay/running.rs",
+    "about": "macOS replay: the thread that keeps recording into short files.",
+    "lines": [
+     [
+      232,
+      425
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/mac/replay/saving.rs",
+    "about": "macOS replay: joining the newest short files into the saved clip, and clearing them.",
+    "lines": [
+     [
+      426,
+      482
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/capture.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/capture/running.rs",
+    "about": "macOS recording: the thread that captures, encodes and finishes one recording.",
+    "lines": [
+     [
+      192,
+      417
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/writer.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/writer/settings.rs",
+    "about": "macOS file writer: the picture and sound settings handed to the system's writer.",
+    "lines": [
+     [
+      67,
+      211
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/mac/sck.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/sck/target.rs",
+    "about": "macOS screen capture: finding the screen or window to capture, and the settings of its stream.",
+    "lines": [
+     [
+      127,
+      256
+     ]
+    ]
+   }
+  ],
+  "drop": {
+   "apps/capture/src/mac/sck/target.rs": [
+    "ClassType",
+    "DefinedClass"
+   ]
+  }
+ },
+ {
+  "origin": "apps/capture/src/mac/replay_join.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/mac/replay_join/part.rs",
+    "about": "macOS replay: one short file being read back, and its times moved onto the clip's clock.",
+    "lines": [
+     [
+      49,
+      124
+     ]
+    ]
+   }
+  ]
+ }
+]

@@ -4,6 +4,31 @@
     "apps/capture/src/audio.rs": [
       "apps/capture/src/audio/unit_tests.rs"
     ],
+    "apps/capture/src/mac/capture.rs": [
+      "apps/capture/src/mac/capture/running.rs"
+    ],
+    "apps/capture/src/mac/export.rs": [
+      "apps/capture/src/mac/export/copies.rs",
+      "apps/capture/src/mac/export/source.rs"
+    ],
+    "apps/capture/src/mac/mod.rs": [
+      "apps/capture/src/mac/jobs.rs",
+      "apps/capture/src/mac/recording.rs",
+      "apps/capture/src/mac/shots.rs"
+    ],
+    "apps/capture/src/mac/replay_join.rs": [
+      "apps/capture/src/mac/replay_join/part.rs"
+    ],
+    "apps/capture/src/mac/replay.rs": [
+      "apps/capture/src/mac/replay/running.rs",
+      "apps/capture/src/mac/replay/saving.rs"
+    ],
+    "apps/capture/src/mac/sck.rs": [
+      "apps/capture/src/mac/sck/target.rs"
+    ],
+    "apps/capture/src/mac/writer.rs": [
+      "apps/capture/src/mac/writer/settings.rs"
+    ],
     "apps/capture/src/main.rs": [
       "apps/capture/src/serve.rs"
     ],
