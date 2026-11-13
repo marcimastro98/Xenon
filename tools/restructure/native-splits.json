@@ -8,6 +8,16 @@
       "apps/capture/src/linux/export_plan/progress.rs",
       "apps/capture/src/linux/export_plan/unit_tests.rs"
     ],
+    "apps/capture/src/linux/mod.rs": [
+      "apps/capture/src/linux/jobs.rs",
+      "apps/capture/src/linux/kit_detect.rs",
+      "apps/capture/src/linux/reader.rs",
+      "apps/capture/src/linux/recording.rs",
+      "apps/capture/src/linux/shots.rs"
+    ],
+    "apps/capture/src/linux/replay.rs": [
+      "apps/capture/src/linux/replay/recorders.rs"
+    ],
     "apps/capture/src/linux/tools.rs": [
       "apps/capture/src/linux/tools/files.rs",
       "apps/capture/src/linux/tools/kit.rs",

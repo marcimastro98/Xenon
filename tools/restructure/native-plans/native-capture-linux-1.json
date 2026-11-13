@@ -1,0 +1,92 @@
+[
+ {
+  "origin": "apps/capture/src/linux/mod.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/linux/reader.rs",
+    "about": "Linux: the process that reads the pictures of a recording made through the desktop's portal.",
+    "lines": [
+     [
+      103,
+      164
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/linux/kit_detect.rs",
+    "about": "Linux: finding which of the system's tools are installed.",
+    "lines": [
+     [
+      169,
+      227
+     ]
+    ]
+   },
+   {
+    "file": "apps/capture/src/linux/recording.rs",
+    "about": "Linux: starting and stopping a recording and the replay buffer.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        288,
+        548
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/linux/jobs.rs",
+    "about": "Linux: the other things the engine is asked for: a folder, copies, edits, reading text, drawing, steps.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        549,
+        747
+       ]
+      ]
+     }
+    ]
+   },
+   {
+    "file": "apps/capture/src/linux/shots.rs",
+    "about": "Linux: the screens, the window in front, and a screenshot from the target to the saved file.",
+    "members": [
+     {
+      "impl": "Backend",
+      "lines": [
+       [
+        775,
+        1018
+       ]
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "origin": "apps/capture/src/linux/replay.rs",
+  "parts": [
+   {
+    "file": "apps/capture/src/linux/replay/recorders.rs",
+    "about": "Linux replay: the recording processes that fill the buffer, started, watched and ended.",
+    "lines": [
+     [
+      108,
+      208
+     ]
+    ]
+   }
+  ],
+  "drop": {
+   "apps/capture/src/linux/replay.rs": [
+    "Write"
+   ]
+  }
+ }
+]
