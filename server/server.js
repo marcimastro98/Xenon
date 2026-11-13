@@ -25,14 +25,7 @@ if (process.platform !== 'win32') process.umask(0o077);
 // Screenshots, recordings and speech go to a private temp folder (0700), not
 // as predictable names in the shared /tmp.
 const { privateTmpDir, privateTmpFile } = require('./private-tmp');
-// Non-Windows native collectors (GPU/disk/CPU-temp/network/windows/audio).
-// Windows keeps the PowerShell path; elsewhere those spawns fail
-// (powershell.exe ENOENT) so the system tiles fall back to these. Each module
-// returns the SAME shapes the Windows collectors produced, so every consumer
-// below is platform-agnostic. See linux-collectors.js / darwin-collectors.js.
-const nativeCollectors =
-  process.platform === 'linux' ? require('./linux-collectors') :
-  process.platform === 'darwin' ? require('./darwin-collectors') : null;
+const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
 const { createFpsDemand } = require('./fps-demand');
@@ -1828,15 +1821,7 @@ let _macFdaGranted = true;
 let _macFdaBlockedRoots = [];
 let _macFdaTimer = null;
 
-// The roots that make the home directory reachable, and therefore every folder
-// macOS protects. Dropping exactly these is the difference between one honest
-// message and a dialog per protected folder, per walk. The test lives with the
-// rest of the macOS seam (darwin-collectors.js), where it can be run against a
-// home directory that is not this machine's.
-function macRootReachesHome(root) {
-  if (!nativeCollectors || typeof nativeCollectors.rootReachesHome !== 'function') return false;
-  return nativeCollectors.rootReachesHome(root, os.homedir());
-}
+const { macRootReachesHome } = require('./search/mac-home-roots.js');
 
 function usableIndexRoots(saved) {
   const platformDefault = POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir();
@@ -5277,21 +5262,7 @@ async function ensureObsRun(runFn) {
   }
 }
 
-// Lock the session. Single source of truth for the lock call, shared by the
-// Deck lockWorkstation action, the AI lock_pc tool, the /lock endpoint and the
-// idle auto-lock flow. execFile with an argv array — never a shell string.
-function lockWorkstation() {
-  // Locking is per-platform in a way no single command spans, so it goes
-  // through the collector seam like every other such reading — this used to
-  // branch here on process.platform and pointed macOS at a CGSession binary the
-  // OS has since removed, which is exactly the drift the seam exists to stop.
-  if (nativeCollectors) return nativeCollectors.lock();
-  return new Promise((resolve, reject) => {
-    execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
-      if (err) reject(err); else resolve();
-    });
-  });
-}
+const { lockWorkstation } = require('./system/lock-workstation.js');
 
 // Open a file, folder or URL with the system handler — the single place that
 // answers "hand this to the desktop". On Windows it is deck-actions.ps1's `open`

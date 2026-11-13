@@ -3,6 +3,7 @@
   "files": {
     "server/server.js": {
       "names": ["handleRequest", "server"],
+      "liftable": ["nativeCollectors"],
       "between": [
         [null, "nativeCollectors"],
         ["LOOPBACK_IPS", "_remoteGate"]

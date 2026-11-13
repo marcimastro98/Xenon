@@ -159,7 +159,10 @@
       {"file":"server/ambient/scenes-sanitize.js","about":"The saved Ambient scenes as the settings keep them: within the store limits, and only what can be written to a file.","names":["sanitizeAmbientScenes"]},
       {"file":"server/look/background-custom-normalize.js","about":"The custom background as the settings keep it: its code within the size limit, its pictures and frame rate by the rules shared with the dashboard, and where it came from.","names":["normalizeBgCustom"]},
       {"file":"server/windows-tiles/slideshow-normalize.js","about":"The slideshow tile's settings as the server keeps them, by the rules shared with the dashboard.","names":["normalizeSlideshow"]},
-      {"file":"server/updates/app-version.js","about":"The version of this build, read once from package.json when the engine starts, always without a leading v.","names":["APP_VERSION"],"lift":true}
+      {"file":"server/updates/app-version.js","about":"The version of this build, read once from package.json when the engine starts, always without a leading v.","names":["APP_VERSION"],"lift":true},
+      {"file":"server/system/native-collectors.js","about":"The collectors that read this machine where PowerShell cannot: the Linux ones, the macOS ones, or none on Windows.","names":["nativeCollectors"],"lift":true},
+      {"file":"server/search/mac-home-roots.js","about":"Whether a folder the file index is asked to walk makes the whole home folder reachable on macOS, which is what brings up the system's permission dialogs.","names":["macRootReachesHome"]},
+      {"file":"server/system/lock-workstation.js","about":"Locks the session: the one call the Deck action, Bit, the lock endpoint and the idle lock all use.","names":["lockWorkstation"]}
     ]
   }
 }
