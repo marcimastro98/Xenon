@@ -209,7 +209,7 @@ test('shrinkGif fits the budget, keeps the motion and its timing', async () => {
 });
 
 // --- wiring: every editor that used to flatten a moving picture now asks first.
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { languagesWith } from './i18n-source.mjs';
 const src = f => readFileSync(new URL(f, import.meta.url), 'utf8');
 

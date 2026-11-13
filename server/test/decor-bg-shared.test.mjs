@@ -6,11 +6,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const read = (f) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
 test('every page with deck.js loads decor-bg.js before it', () => {
   for (const page of ['index.html', 'deck-popup.html']) {

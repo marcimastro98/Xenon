@@ -16,7 +16,7 @@
 // visibly blurs the wallpaper behind the Lyrics tile with the cutout intact.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LAYOUT = read('../js/dashboard-layout.js');
