@@ -1,0 +1,273 @@
+// Draws the notes tile: tabs, titles and word count, and takes in the notes the engine sends.
+'use strict';
+
+// Multi-note scratchpad. The structured store lives server-side (GET/POST
+// /notes/list); `notesState` (state.js) mirrors it and is rendered into every
+// notes widget instance — the Agenda "Appunti" tab, an extracted standalone
+// panel, and any duplicated copies. Note titles/bodies are user text and are
+// always written with textContent/value, never innerHTML.
+
+const NOTES_TAB_TITLE_MAX = 28;
+
+function notesRoots() {
+  return Array.from(document.querySelectorAll('[data-notesf="root"]'));
+}
+
+function noteById(id) {
+  return notesState.notes.find(n => n.id === id) || null;
+}
+
+function activeNote() {
+  return noteById(notesState.activeId) || notesState.notes[0] || null;
+}
+
+// Pinned notes float to the top; order is otherwise preserved.
+function notesInDisplayOrder() {
+  const pinned = notesState.notes.filter(n => n.pinned);
+  const rest = notesState.notes.filter(n => !n.pinned);
+  return pinned.concat(rest);
+}
+
+function noteTitle(body) {
+  const firstLine = String(body || '').split('\n').find(l => l.trim()) || '';
+  const trimmed = firstLine.trim();
+  if (!trimmed) return t('notes_untitled');
+  return trimmed.length > NOTES_TAB_TITLE_MAX ? trimmed.slice(0, NOTES_TAB_TITLE_MAX - 1) + '…' : trimmed;
+}
+
+function noteWordCount(body) {
+  const s = String(body || '').trim();
+  if (!s) return 0;
+  return s.split(/\s+/).length;
+}
+
+function notesCountLabel(body) {
+  const n = noteWordCount(body);
+  return n + ' ' + t(n === 1 ? 'notes_word' : 'notes_words');
+}
+
+function setNotesStatus(state) {
+  document.querySelectorAll('[data-notesf="status"]').forEach(el => {
+    el.classList.remove('saving', 'saved', 'error');
+    if (state) el.classList.add(state);
+  });
+  const label = state === 'saving' ? t('notes_saving')
+    : state === 'saved' ? t('notes_saved')
+    : state === 'error' ? t('notes_error') : '';
+  document.querySelectorAll('[data-notesf="status-text"]').forEach(el => { el.textContent = label; });
+}
+
+// ── Rendering ────────────────────────────────────────────────────
+const _NOTES_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm8 1.5V9h4.5L13 4.5ZM7 12h10v1.6H7V12Zm0 4h10v1.6H7V16Zm0-8h4v1.6H7V8Z"/></svg>';
+const _NOTES_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3l5 5-3 1-4 4v5l-2 2-3-5-5 3 3-5-5-3 2-2h5l4-4 1-3Z"/></svg>';
+const _NOTES_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Z"/></svg>';
+const _NOTES_ADD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>';
+
+// Delegated from the document so a cloned Notes tile (cloneNode copies
+// attributes, not listeners) selects notes exactly like the primary one.
+let _notesTabsWired = false;
+function _wireNotesTabs() {
+  if (_notesTabsWired) return;
+  _notesTabsWired = true;
+  document.addEventListener('click', (e) => {
+    const tab = e.target && e.target.closest ? e.target.closest('.notes-tab[data-note-id]') : null;
+    if (tab) notesSelect(tab.dataset.noteId);
+  });
+}
+
+function renderNotesInto(root) {
+  _wireNotesTabs();
+  const note = activeNote();
+  const hasNotes = notesState.notes.length > 0;
+  root.textContent = '';
+
+  // Head: title + save status.
+  const head = document.createElement('div');
+  head.className = 'notes-head';
+  const title = document.createElement('div');
+  title.className = 'notes-title';
+  title.innerHTML = _NOTES_ICON;
+  const titleText = document.createElement('span');
+  titleText.setAttribute('data-i18n', 'notes_title');
+  titleText.textContent = t('notes_title');
+  title.appendChild(titleText);
+  const status = document.createElement('div');
+  status.className = 'notes-status';
+  status.setAttribute('data-notesf', 'status');
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  const statusText = document.createElement('span');
+  statusText.className = 'notes-status-text';
+  statusText.setAttribute('data-notesf', 'status-text');
+  status.appendChild(dot);
+  status.appendChild(statusText);
+  head.appendChild(title);
+  head.appendChild(status);
+  root.appendChild(head);
+
+  // Tab strip: one chip per note (pinned first) + an add button.
+  const tabs = document.createElement('div');
+  tabs.className = 'notes-tabs';
+  tabs.setAttribute('data-notesf', 'tabs');
+  notesInDisplayOrder().forEach(n => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'notes-tab' + (note && n.id === note.id ? ' active' : '') + (n.pinned ? ' pinned' : '');
+    // Selected through the document-level listener (_wireNotesTabs), which reads
+    // data-note-id. An inline onclick="notesSelect('<id>')" made the id part of
+    // a script, and a quote in it (a restored backup's notes) ran as code.
+    tab.dataset.noteId = n.id;
+    if (n.pinned) {
+      const pin = document.createElement('span');
+      pin.className = 'notes-tab-pin';
+      pin.innerHTML = _NOTES_PIN;
+      tab.appendChild(pin);
+    }
+    const label = document.createElement('span');
+    label.className = 'notes-tab-title';
+    label.textContent = noteTitle(n.body);
+    tab.appendChild(label);
+    tabs.appendChild(tab);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'notes-tab-add';
+  addBtn.setAttribute('onclick', 'notesCreate()');
+  addBtn.setAttribute('data-i18n-title', 'notes_new');
+  addBtn.title = t('notes_new');
+  addBtn.setAttribute('aria-label', t('notes_new'));
+  addBtn.innerHTML = _NOTES_ADD;
+  tabs.appendChild(addBtn);
+  root.appendChild(tabs);
+
+  // Editor or empty state.
+  const editorWrap = document.createElement('div');
+  editorWrap.className = 'notes-editor-wrap';
+  if (hasNotes && note) {
+    const ta = document.createElement('textarea');
+    ta.className = 'notes-area';
+    ta.setAttribute('data-notesf', 'area');
+    ta.spellcheck = false;
+    ta.setAttribute('data-i18n-placeholder', 'notes_placeholder');
+    ta.placeholder = t('notes_placeholder');
+    ta.value = note.body;
+    ta.setAttribute('oninput', 'onNotesInput(this)');
+    ta.setAttribute('onfocus', 'scheduleNotesIdleBlur()');
+    ta.setAttribute('onblur', 'clearTimeout(notesIdleBlurTimer)');
+    editorWrap.appendChild(ta);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'notes-empty';
+    const msg = document.createElement('div');
+    msg.className = 'notes-empty-msg';
+    msg.setAttribute('data-i18n', 'notes_empty');
+    msg.textContent = t('notes_empty');
+    const create = document.createElement('button');
+    create.type = 'button';
+    create.className = 'notes-empty-btn';
+    create.setAttribute('onclick', 'notesCreate()');
+    create.setAttribute('data-i18n', 'notes_empty_hint');
+    create.textContent = t('notes_empty_hint');
+    empty.appendChild(msg);
+    empty.appendChild(create);
+    editorWrap.appendChild(empty);
+  }
+  root.appendChild(editorWrap);
+
+  // Footer: word count + pin/delete for the active note.
+  const foot = document.createElement('div');
+  foot.className = 'notes-foot';
+  const count = document.createElement('span');
+  count.className = 'notes-count';
+  count.setAttribute('data-notesf', 'count');
+  count.textContent = note ? notesCountLabel(note.body) : '';
+  foot.appendChild(count);
+  const actions = document.createElement('div');
+  actions.className = 'notes-foot-actions';
+  const pinBtn = document.createElement('button');
+  pinBtn.type = 'button';
+  pinBtn.className = 'notes-foot-btn' + (note && note.pinned ? ' active' : '');
+  pinBtn.setAttribute('onclick', 'notesTogglePin()');
+  pinBtn.disabled = !note;
+  const pinLabel = note && note.pinned ? t('notes_unpin') : t('notes_pin');
+  pinBtn.title = pinLabel;
+  pinBtn.setAttribute('aria-label', pinLabel);
+  pinBtn.innerHTML = _NOTES_PIN;
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'notes-foot-btn notes-del-btn';
+  delBtn.setAttribute('onclick', 'notesDeleteActive()');
+  delBtn.disabled = !note;
+  delBtn.title = t('notes_delete');
+  delBtn.setAttribute('aria-label', t('notes_delete'));
+  delBtn.innerHTML = _NOTES_TRASH;
+  actions.appendChild(pinBtn);
+  actions.appendChild(delBtn);
+  foot.appendChild(actions);
+  root.appendChild(foot);
+}
+
+// Re-render every notes instance from notesState. `focus` puts the caret at the
+// end of the active editor in the first visible instance (used after create).
+function renderNotes(opts) {
+  const roots = notesRoots();
+  if (!roots.length) return;
+  roots.forEach(renderNotesInto);
+  if (opts && opts.focus) {
+    const ta = notesRoots()
+      .map(r => r.querySelector('[data-notesf="area"]'))
+      .find(el => el && el.offsetParent !== null);
+    if (ta) {
+      ta.focus();
+      const end = ta.value.length;
+      try { ta.setSelectionRange(end, end); } catch { /* ignore */ }
+      scheduleNotesIdleBlur();
+    }
+  }
+}
+
+// ── Load / save ──────────────────────────────────────────────────
+
+// Local structural intent since the last adopted server state / confirmed save:
+// which note ids were created and deleted on THIS surface. The stale-save merge
+// needs them to tell "created here — keep" apart from "deleted elsewhere — stay
+// deleted" when a local-only or server-only note turns up.
+const notesLocalCreated = new Set();
+const notesLocalDeleted = new Set();
+
+// Swap in a new notes snapshot. When only note bodies changed (same tabs, same
+// order, same active note) it patches the text in place — mirroring
+// onNotesInput's live-update — so remote typing doesn't tear down and rebuild
+// the widgets on every debounced save.
+function _applyNotesState(next) {
+  if (!next.notes.some(n => n.id === next.activeId)) next.activeId = next.notes[0] ? next.notes[0].id : '';
+  const structure = (s) => s.activeId + '|' + s.notes.map(n => n.id + (n.pinned ? '*' : '')).join(',');
+  const inPlace = structure(next) === structure(notesState);
+  notesState = next;
+  notesLoaded = true;
+  if (!inPlace) { renderNotes(); return; }
+  const note = activeNote();
+  notesRoots().forEach(root => {
+    notesState.notes.forEach(n => {
+      const tab = root.querySelector(`.notes-tab[data-note-id="${cssId(n.id)}"] .notes-tab-title`);
+      if (tab) tab.textContent = noteTitle(n.body);
+    });
+    const count = root.querySelector('[data-notesf="count"]');
+    if (count && note) count.textContent = notesCountLabel(note.body);
+    const ta = root.querySelector('[data-notesf="area"]');
+    if (ta && note && ta !== document.activeElement && ta.value !== note.body) ta.value = note.body;
+  });
+}
+
+// Adopt a server notes payload (initial GET, SSE push, stale-save handback):
+// one place owns the notesState shape. Adoption supersedes any local structural
+// intent, so the created/deleted markers reset here.
+function adoptServerNotes(data) {
+  notesLocalCreated.clear();
+  notesLocalDeleted.clear();
+  _applyNotesState({
+    v: 1,
+    activeId: typeof data.activeId === 'string' ? data.activeId : '',
+    notes: Array.isArray(data.notes) ? data.notes : [],
+  });
+}

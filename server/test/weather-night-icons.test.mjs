@@ -3,7 +3,7 @@
 // A forecast day is its daytime, never a moon.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const SRC = readFileSync(new URL('../js/system.js', import.meta.url), 'utf8');

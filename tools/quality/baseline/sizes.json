@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 287,
+  "count": 284,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -127,7 +127,6 @@
     "server/js/ambient-canvas.js": 793,
     "server/js/ambient-mode.js": 634,
     "server/js/ambient-scene.js": 464,
-    "server/js/app-switcher.js": 481,
     "server/js/bit-message-card.js": 321,
     "server/js/browser-tile.js": 1285,
     "server/js/call-modal.js": 329,
@@ -184,7 +183,6 @@
     "server/js/media-viz.js": 419,
     "server/js/native-bridge.js": 1206,
     "server/js/news-widget.js": 337,
-    "server/js/notes.js": 504,
     "server/js/notifications-widget.js": 461,
     "server/js/onboarding.js": 309,
     "server/js/perf-widget.js": 348,
@@ -207,7 +205,6 @@
     "server/js/stock-widget.js": 703,
     "server/js/streaming-page.js": 807,
     "server/js/surface-picker.js": 393,
-    "server/js/system.js": 543,
     "server/js/tasks.js": 459,
     "server/js/tile-style-editor.js": 355,
     "server/js/timer.js": 472,

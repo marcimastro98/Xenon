@@ -15,6 +15,14 @@
         ]
       },
       "server/test/restructure-engine-test-readers.test.mjs": "Names the file only inside sample test text it hands to the tool that re-points tests; it never opens it."
+    },
+    "server/js/notes.js": {
+      "server/test/classic-script-globals.test.mjs": {
+        "how": "Reads every script of a page as its own file, never through the reader, and names this file as one of the two that may both declare cssId, so cssId stays in it.",
+        "keeps": [
+          "cssId"
+        ]
+      }
     }
   }
 }
