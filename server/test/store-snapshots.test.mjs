@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-snapshots.js');
@@ -114,7 +114,7 @@ test('a settings update really fails when the file cannot be read', async () => 
   const d = tmpData();
   const SETTINGS_FILE = d.file('settings.json');
   fs.writeFileSync(SETTINGS_FILE, '{"dashboardLayout": {"pages": [');
-  const src = SERVER.slice(SERVER.indexOf('const _SETTINGS_READ_BUSY'), SERVER.indexOf('async function readHubSettingsForUpdate()'));
+  const src = declarationSource('_SETTINGS_READ_BUSY') + '\n' + declarationSource('readHubSettings') + '\n';
   const make = new Function('fs', 'SETTINGS_FILE', 'normalizeHubSettings', 'DEFAULT_HUB_SETTINGS',
     'let _settingsStoreId = "";' + src + SERVER.slice(SERVER.indexOf('async function readHubSettingsForUpdate()'), SERVER.indexOf('async function readHubSettingsForUpdate()') + 120).split('\n}\n')[0] + '\n}\nreturn readHubSettingsForUpdate;');
   const forUpdate = make(fs, SETTINGS_FILE, (x) => x, { factory: true });

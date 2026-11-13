@@ -20,7 +20,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 |---|---|---|
 | **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` `server/helper-update.ps1` and 15 more |
 | **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux. | `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` `server/start.bat` and 5 more |
-| **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/js/onboarding.js` `server/js/usage-*.js` `server/js/boot-splash.js` `server/js/xenon-loader.js` `server/js/greeting*.js` `server/js/genesis.js` and 5 more |
+| **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding.js` `server/js/usage-*.js` `server/js/boot-splash.js` `server/js/xenon-loader.js` `server/js/greeting*.js` and 6 more |
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` `server/sw.js` and 7 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings-*.js` `server/components/SettingsModal/**` |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
@@ -33,9 +33,9 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/lockscreen.js` `server/js/lock-digits.js` `server/js/scene-*.js` and 5 more |
+| **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/lockscreen.js` `server/js/lock-digits.js` and 6 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-*.js` `server/js/status.js` `server/components/Topbar/**` `server/components/TopbarMedia/**` `server/components/TopbarMinimal/**` |
-| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` `server/js/tile-decor-*.js` and 14 more |
+| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` and 15 more |
 | **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` and 12 more |
 
 ## Widgets
@@ -45,20 +45,20 @@ One row per tile on the dashboard.
 | Feature | What it does | Where |
 |---|---|---|
 | **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media-*.js` `server/media.ps1` `server/media-key.ps1` `server/lyrics*.js` `server/darwin-media.js` and 12 more |
-| **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio-levels.js` `server/mic-use.js` `server/svv-text.js` `server/soundvolumeview-x64/**` `server/actions/wavelink.js` `server/actions/voicemeeter.js` and 8 more |
+| **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio/**` `server/audio-levels.js` `server/mic-use.js` `server/svv-text.js` `server/soundvolumeview-x64/**` `server/actions/wavelink.js` and 9 more |
 | **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-*.js` `server/components/WeatherModal/**` `server/components/WeatherTile/**` |
 | **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/ics-feeds.js` `server/calendar-reminders.js` `server/timer-actions.js` `server/agenda-ai.js` `server/notes-ai.js` `server/actions/widget-timers.js` and 10 more |
-| **Performance and FPS** | Game detection, the frame counter, Performance Mode and Core Shield. | `server/perf-session/**` `server/perf-*.js` `server/performance.ps1` `server/perf-priority.ps1` `server/processes.ps1` `server/process-stats.js` and 18 more |
-| **PC numbers** | CPU, GPU, memory, network, fans, battery and power, with their history. | `server/battery.js` `server/battery.ps1` `server/power/**` `server/device-battery/**` `server/sensor-service/**` `server/sensor-service.ps1` and 27 more |
-| **Disk space** | What fills the drive, safe clean-up, duplicates and the developer clean-up. | `server/disk*.js` `server/devclean*.js` `server/compact-vhdx.ps1` `server/mounted-disks.js` `server/linux-trash.js` `server/js/disk-*.js` and 3 more |
+| **Performance and FPS** | Game detection, the frame counter, Performance Mode and Core Shield. | `server/performance/**` `server/perf-session/**` `server/perf-*.js` `server/performance.ps1` `server/perf-priority.ps1` `server/processes.ps1` and 19 more |
+| **PC numbers** | CPU, GPU, memory, network, fans, battery and power, with their history. | `server/system/**` `server/battery.js` `server/battery.ps1` `server/power/**` `server/device-battery/**` `server/sensor-service/**` and 28 more |
+| **Disk space** | What fills the drive, safe clean-up, duplicates and the developer clean-up. | `server/disk/**` `server/disk*.js` `server/devclean*.js` `server/compact-vhdx.ps1` `server/mounted-disks.js` `server/linux-trash.js` and 4 more |
 | **Deck** | Buttons that run actions, with the editor, shortcuts and the one gate every action passes. | `server/deck-*.js` `server/deck-*.ps1` `server/deck-popup.html` `server/actions/registry.js` `server/linux-hotkey.js` `server/altgr-keys-windows.js` and 3 more |
-| **Lighting** | RGB devices, effects and the per-LED map. | `server/lighting*.js` `server/lighting-native/**` `server/lighting-providers/**` `server/signalrgb.js` `server/hid/**` `server/actions/chroma.js` and 5 more |
+| **Lighting** | RGB devices, effects and the per-LED map. | `server/lights/**` `server/lighting*.js` `server/lighting-native/**` `server/lighting-providers/**` `server/signalrgb.js` `server/hid/**` and 6 more |
 | **Smart home** | Home Assistant and UniFi: lights, switches, cameras. | `server/actions/home-assistant*.js` `server/actions/unifi.js` `server/unifi-events.js` `server/js/smart-home*.js` `server/js/unifi-widget.js` `server/components/SmartHomePanel/**` and 1 more |
-| **Phone** | Calls, messages and contacts from the phone, and sending files between phone and PC. | `server/phone*.js` `server/calls.js` `server/call-detect.js` `server/linux-phone.js` `server/file-transfer.js` `server/js/phone-*.js` and 6 more |
+| **Phone** | Calls, messages and contacts from the phone, and sending files between phone and PC. | `server/transfer/**` `server/phone*.js` `server/calls.js` `server/call-detect.js` `server/linux-phone.js` `server/file-transfer.js` and 7 more |
 | **Notifications** | The PC's notifications shown on the dashboard, and opening the app they came from. | `server/winnotif.js` `server/notifications.ps1` `server/linux-notif.js` `server/notification-open/**` `server/js/notifications-widget.js` `server/js/notification-open.js` and 1 more |
-| **News, stocks, football** | The three tickers and where their data comes from. | `server/stocks*.js` `server/football*.js` `server/news*.js` `server/js/stock-widget.js` `server/js/football-widget.js` `server/js/news-widget.js` and 5 more |
+| **News, stocks, football** | The three tickers and where their data comes from. | `server/ticker/**` `server/stocks*.js` `server/football*.js` `server/news*.js` `server/js/stock-widget.js` `server/js/football-widget.js` and 6 more |
 | **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/embedded-browser*.js` `server/second-screen.js` `server/browser-surface-sync.js` `server/slideshow-folder.js` `server/windows.ps1` `server/foreground.ps1` and 11 more |
-| **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals-*.js` `server/vitals-nag.ps1` `server/js/vitals*.js` `server/components/VitalsPet/**` `server/components/VitalsWidget/**` |
+| **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals/**` `server/vitals-*.js` `server/vitals-nag.ps1` `server/js/vitals*.js` `server/components/VitalsPet/**` `server/components/VitalsWidget/**` |
 
 ## Bit and AI
 
@@ -85,7 +85,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Search** | One box that finds files and apps and can ask Bit. | `server/filesearch.js` `server/search-*.js` `server/search.ps1` `server/mdfind.js` `server/installed-apps.js` `server/living-index.js` and 7 more |
+| **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/filesearch.js` `server/search-*.js` `server/search.ps1` `server/mdfind.js` `server/installed-apps.js` and 8 more |
 | **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/capture*.js` `server/recorder.js` `server/replay.js` `server/screen-capture.js` `server/steps-*.js` `server/ffmpeg-install/**` and 4 more |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/xenon-menu.js` `server/menu-*.js` `server/menu.html` `server/screen-menu.js` `server/js/xenon-menu*.js` `server/js/menu-gamepad.js` and 2 more |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layer-*.js` `server/layers-*.js` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-*.js` `server/js/layers-*.js` and 3 more |
@@ -97,9 +97,9 @@ Other programs Xenon talks to.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Claude Code** | The Claude tile: live sessions, permission requests answered from the screen, usage. | `server/claude-*.js` `server/js/claude-*.js` `server/components/ClaudeWidget/**` `integrations/claude-code/**` `.claude-plugin/**` |
-| **Codex and ChatGPT** | The Codex tile and the Ask ChatGPT tile. | `server/codex-*.js` `server/chatgpt-ask.js` `server/js/codex-widget.js` `server/js/chatgpt-widget.js` `server/components/CodexWidget/**` `server/components/ChatGPTWidget/**` |
-| **Discord** | Voice channel, who is talking, mute and volume per person. | `server/discord-*.js` `server/js/discord-widget.js` `server/components/DiscordWidget/**` `server/public/images/discord/**` |
+| **Claude Code** | The Claude tile: live sessions, permission requests answered from the screen, usage. | `server/claude-code/**` `server/claude-*.js` `server/js/claude-*.js` `server/components/ClaudeWidget/**` `integrations/claude-code/**` `.claude-plugin/**` |
+| **Codex and ChatGPT** | The Codex tile and the Ask ChatGPT tile. | `server/codex/**` `server/codex-*.js` `server/chatgpt-ask.js` `server/js/codex-widget.js` `server/js/chatgpt-widget.js` `server/components/CodexWidget/**` and 1 more |
+| **Discord** | Voice channel, who is talking, mute and volume per person. | `server/discord/**` `server/discord-*.js` `server/js/discord-widget.js` `server/components/DiscordWidget/**` `server/public/images/discord/**` |
 | **Streaming** | Twitch, YouTube, OBS and Streamer.bot: chat, watching, scene and stream controls. | `server/stream-twitch.js` `server/stream-youtube.js` `server/stream-common.js` `server/stream-creds.js` `server/stream-history.js` `server/stream-config.example.json` and 18 more |
 | **Remote control** | Using the PC from another device through Sunshine, Moonlight and Tailscale. | `server/remote-control/**` `server/js/remote-control.js` `server/components/RemoteControlSettings/**` |
 

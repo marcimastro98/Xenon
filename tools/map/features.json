@@ -193,6 +193,7 @@
       "name": "Claude Code",
       "what": "The Claude tile: live sessions, permission requests answered from the screen, usage.",
       "files": [
+        "server/claude-code/**",
         "server/claude-*.js",
         "server/js/claude-*.js",
         "server/components/ClaudeWidget/**",
@@ -206,6 +207,7 @@
       "name": "Codex and ChatGPT",
       "what": "The Codex tile and the Ask ChatGPT tile.",
       "files": [
+        "server/codex/**",
         "server/codex-*.js",
         "server/chatgpt-ask.js",
         "server/js/codex-widget.js",
@@ -220,6 +222,7 @@
       "name": "Discord",
       "what": "Voice channel, who is talking, mute and volume per person.",
       "files": [
+        "server/discord/**",
         "server/discord-*.js",
         "server/js/discord-widget.js",
         "server/components/DiscordWidget/**",
@@ -275,6 +278,7 @@
       "name": "Search",
       "what": "One box that finds files and apps and can ask Bit.",
       "files": [
+        "server/search/**",
         "server/filesearch.js",
         "server/search-*.js",
         "server/search.ps1",
@@ -439,6 +443,7 @@
       "name": "Sound",
       "what": "Volume, output devices, the microphone and Wave Link.",
       "files": [
+        "server/audio/**",
         "server/audio-levels.js",
         "server/mic-use.js",
         "server/svv-text.js",
@@ -497,6 +502,7 @@
       "name": "Performance and FPS",
       "what": "Game detection, the frame counter, Performance Mode and Core Shield.",
       "files": [
+        "server/performance/**",
         "server/perf-session/**",
         "server/perf-*.js",
         "server/performance.ps1",
@@ -529,6 +535,7 @@
       "name": "PC numbers",
       "what": "CPU, GPU, memory, network, fans, battery and power, with their history.",
       "files": [
+        "server/system/**",
         "server/battery.js",
         "server/battery.ps1",
         "server/power/**",
@@ -570,6 +577,7 @@
       "name": "Disk space",
       "what": "What fills the drive, safe clean-up, duplicates and the developer clean-up.",
       "files": [
+        "server/disk/**",
         "server/disk*.js",
         "server/devclean*.js",
         "server/compact-vhdx.ps1",
@@ -604,6 +612,7 @@
       "name": "Lighting",
       "what": "RGB devices, effects and the per-LED map.",
       "files": [
+        "server/lights/**",
         "server/lighting*.js",
         "server/lighting-native/**",
         "server/lighting-providers/**",
@@ -638,6 +647,7 @@
       "name": "Phone",
       "what": "Calls, messages and contacts from the phone, and sending files between phone and PC.",
       "files": [
+        "server/transfer/**",
         "server/phone*.js",
         "server/calls.js",
         "server/call-detect.js",
@@ -673,6 +683,7 @@
       "name": "News, stocks, football",
       "what": "The three tickers and where their data comes from.",
       "files": [
+        "server/ticker/**",
         "server/stocks*.js",
         "server/football*.js",
         "server/news*.js",
@@ -717,6 +728,7 @@
       "name": "Vitals and the pet",
       "what": "Reminders to take a break, and Bit as a pet that reacts to the PC.",
       "files": [
+        "server/vitals/**",
         "server/vitals-*.js",
         "server/vitals-nag.ps1",
         "server/js/vitals*.js",
@@ -730,6 +742,7 @@
       "name": "Scenes",
       "what": "What the screen shows when idle or as a desktop scene: clock, weather, pictures.",
       "files": [
+        "server/ambient/**",
         "server/scene-*.js",
         "server/scene.html",
         "server/js/ambient*.js",
@@ -763,6 +776,7 @@
       "name": "Look",
       "what": "Themes, materials, tile styles, backgrounds and fonts.",
       "files": [
+        "server/look/**",
         "server/styles/**",
         "server/os-theme.js",
         "server/js/theme-*.js",
@@ -865,6 +879,7 @@
       "name": "First run",
       "what": "The loader, the welcome, and the one question about how the screen is used.",
       "files": [
+        "server/first-run/**",
         "server/js/onboarding.js",
         "server/js/usage-*.js",
         "server/js/boot-splash.js",

@@ -24,6 +24,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import os from 'node:os';
 
+import { engineSource } from './engine-source.mjs';
+
 const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'lighting-providers', 'hue.js'), 'utf8');
 const REAL_ID = '001788fffe1234ab';
 const TOKEN = 'the-bridge-key';
@@ -129,7 +131,7 @@ test('the paired bridge id survives a settings save', () => {
   // normalizeLightingProviders rebuilds each device from a whitelist, so a new
   // field that is not listed is wiped on the next save from any surface — and
   // the check would quietly fall back to trusting whatever answers the address.
-  const server = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server.js'), 'utf8');
+  const server = engineSource();
   const client = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'settings.js'), 'utf8');
   for (const [side, src] of [['server', server], ['client', client]]) {
     const m = /function normalizeLightingProviders\(value\) \{[\s\S]*?\n\}/.exec(src);

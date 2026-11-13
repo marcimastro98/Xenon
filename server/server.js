@@ -163,6 +163,64 @@ const { SSE_MAX_BUFFERED, SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js')
 
 const { findFirstFile, isFfmpegMissing } = require('./ffmpeg-install/lookup.js');
 
+const { SETTINGS_STORE_ID_RE, _SETTINGS_READ_BUSY } = require('./settings/store-file.js');
+
+const {
+  sanitizeDashboardPresets, SDK_WIDGETS_SETTINGS_MAX, sanitizeServerPassthrough,
+} = require('./settings/normalize-passthrough.js');
+
+const { normalizeSurfaceChoice, surfaceChoiceFrom } = require('./settings/normalize-surface.js');
+
+const { DAY_RE, localDay } = require('./settings/usage-day.js');
+
+const {
+  normalizeServerAiFeatures, normalizeProactive, normalizeWakeWord,
+} = require('./ai/settings-normalize.js');
+
+const {
+  VITALS_IDS, VITALS_DEFAULT_MIN, VITALS_DEFAULT_ON, VITALS_PET_STAGES, VITALS_PET_DEFAULT_THR,
+  vitalsHour,
+} = require('./vitals/settings-values.js');
+
+const {
+  AMBIENT_IDLE_MINUTES, AMBIENT_SCENE_ID_RE, AMBIENT_CANVAS_REF_RE, AMBIENT_THEME_REF_RE,
+} = require('./ambient/settings-values.js');
+
+const {
+  SETTINGS_MIN_PANEL_ALPHA, BG_SVG_DATA_RE, BG_SVG_MAX_CHARS, BG_STATIC_STYLES, BG_CUSTOM_CODE_MAX,
+} = require('./look/background-values.js');
+
+const { sanitizeSettingsUiFont } = require('./look/font-setting.js');
+
+const { normalizeSearchSettings } = require('./search/settings-normalize.js');
+
+const { normalizePageHotkeys } = require('./grid/page-hotkeys-normalize.js');
+
+const { normalizeDiskSettings } = require('./disk/settings-normalize.js');
+
+const { normalizeTicker } = require('./ticker/settings-normalize.js');
+
+const { WL_OFF_STATE, normalizeWaveLinkSettings } = require('./audio/wavelink-values.js');
+
+const { normalizeSnowflakeList } = require('./discord/snowflake-list.js');
+
+const { normalizeSensorRate, normalizeServerFanLabels } = require('./system/settings-normalize.js');
+
+const { normalizeServerOnboarding } = require('./first-run/settings-normalize.js');
+
+const { normalizeGameSessionsSetting } = require('./performance/settings-normalize.js');
+
+const { normalizeClaudeWidget } = require('./claude-code/settings-normalize.js');
+
+const { normalizeCodexWidget } = require('./codex/settings-normalize.js');
+
+const {
+  LIGHTING_ANIM_STYLES, normalizeLightingAnimation, normalizeLightingProviders,
+  LIGHTING_DEVICE_MODES, LIGHTING_ANIM_SUB, normalizeLightingEvent,
+} = require('./lights/settings-normalize.js');
+
+const { WEATHER_LANGS, WEATHER_FIELD_IDS } = require('./weather/setting-values.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -468,7 +526,7 @@ const { withThinking, applyThinking } = require('./ai-gemini-thinking');
 const { hasVoice, wavPcm, transcriptionPrompt, geminiTranscript } = require('./stt-voice-gate');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
-const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
+require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
 const { createBatteryMonitor } = require('./battery');
 const { createAiMemory } = require('./ai-memory');
@@ -486,7 +544,7 @@ const { createPerfSession } = require('./perf-session');
 const { shieldWish } = require('./perf-session/shield-wish');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
-const { createHomeAssistant, normalizeHomeAssistant, haSameDestination, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
+const { createHomeAssistant, normalizeHomeAssistant, haSameDestination } = require('./actions/home-assistant');
 const { createHaQuery, normalizeHistoryRequest } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
@@ -497,16 +555,16 @@ const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
-const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
-const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
-const { createUnifiProtect, normalizeUnifi, unifiSameDestination, preserveUnifiCreds, redactUnifiCreds } = require('./actions/unifi');
+const { normalizeRemoteControl } = require('./remote-control/settings');
+require('./stream-creds');
+const { createUnifiProtect, normalizeUnifi, unifiSameDestination } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
-const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
+require('./stocks-creds');
 const football = require('./football');
-const { preserveFootballCreds, redactFootballCreds } = require('./football-creds');
+require('./football-creds');
 const news = require('./news');
-const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
+require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const claudeBridge = require('./claude-bridge');
 const claudeInbox = require('./claude-inbox');
@@ -1325,7 +1383,9 @@ const bitMessages = createBitMessages({
   settings: () => _serverHubSettings,
   onChange: () => broadcastSSE('bit-messages', {}),
 });
-const BIT_MESSAGE_BODY_MAX = 256 * 1024;
+const {
+  BIT_MESSAGE_BODY_MAX, COMPANION_TYPICAL_SPARKS, LIVE_MAX_SESSION_MS,
+} = require('./ai/limits.js');
 
 // Votes on Store entries (rating-votes.js): tickets, real use, and Bit's one ask.
 const ratingVotes = createRatingVotes({
@@ -2969,14 +3029,8 @@ const { writeFileAtomic } = require('./atomic-write');
 // and quietly not in another.
 const { serveFileRange } = require('./http-range');
 
-// Never let a transfer be the thing that fills the system drive: refuse an
-// upload that would leave less than this free, before it starts.
-const TRANSFER_DISK_HEADROOM = 1024 * 1024 * 1024;
-// A list preview is read whole into memory, so it is only offered for files
-// small enough that doing so is free. Bigger images show an extension chip.
-const TRANSFER_THUMB_MAX = 12 * 1024 * 1024;
+const { TRANSFER_DISK_HEADROOM, TRANSFER_THUMB_MAX } = require('./transfer/limits.js');
 
-const SETTINGS_MIN_PANEL_ALPHA = 0.18;
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
 const FONT_EXT_BY_MIME = new Map([...FONT_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
@@ -3897,16 +3951,10 @@ const SOUND_ROWS_REUSE_MS = 2500;
 let _soundRows = { rows: null, at: 0 };
 const heardPlayer = createHeardPlayer(F);
 const musicNow = createMusicFact();
-const WEATHER_CACHE_MS = 10 * 60 * 1000;
-// The forecast cache must stay STRICTLY below the shortest client refresh the user
-// can pick (Settings → Meteo → 10 min). If it equals the poll interval, the small
-// server-side fetch latency means every other client poll lands just inside the
-// cache window and returns stale data — halving the effective refresh (a 10-min
-// setting behaved like ~20 min). Kept separate from WEATHER_CACHE_MS so geocoding /
-// IP-location caches (which change rarely) still coalesce for the full 10 min.
-const WEATHER_FORECAST_CACHE_MS = 5 * 60 * 1000;
+const {
+  WEATHER_CACHE_MS, WEATHER_FORECAST_CACHE_MS, WEATHER_GEO_FAIL_COOLDOWN_MS,
+} = require('./weather/timings.js');
 const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
-const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
 
@@ -4268,7 +4316,6 @@ let weatherGeoFailAt = 0;     // last failed lookup — skip retrying for a cool
 // "unavailable" — the whole reason this class of bug took three reports to place.
 let weatherGeoSource = '';
 let weatherGeoAttempts = '';
-const WEATHER_GEO_FAIL_COOLDOWN_MS = 60 * 1000;
 async function resolveAutoLocation() {
   if (!weatherGeoLoad) weatherGeoLoad = loadPersistedAutoLocation();
   await weatherGeoLoad;
@@ -5593,11 +5640,6 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
   return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output, sparks };
 }
 
-// What one Game Companion look costs on Sparks, for the line under "Analyze
-// screen": the hub's charge for the last look, or a measured typical one until
-// then (30 Oct 2026: one 1920px screenshot on Haiku was charged 0.3; the price
-// table alone said 0.05, it misses what the hub adds). Display only.
-const COMPANION_TYPICAL_SPARKS = 0.3;
 let _companionLastSparks = null;
 function companionLookSparks() {
   return Number.isFinite(_companionLastSparks) ? _companionLastSparks : COMPANION_TYPICAL_SPARKS;
@@ -6239,15 +6281,6 @@ async function refreshSbWatch() {
 // default) so a dashboard never probes localhost:1824 for users who don't use it.
 let wlStopWatch = null;
 let wlNotifyTimer = null;
-
-// The disabled shape must carry the same KEYS as the live one, or the widget
-// reads `channels` as undefined the moment the integration is switched off and
-// renders an error instead of the "turn it on in Settings" line it has.
-const WL_OFF_STATE = Object.freeze({
-  enabled: false, connected: false, dialect: 0, version: '',
-  channels: [], mixes: [], outputs: { mainId: '', mainOutputId: '', mainListed: false, devices: [] }, monitor: null,
-  capabilities: { meters: false, effects: false, outputDevices: false, monitorSwitch: false, namedMixes: false },
-});
 
 async function buildWlState() {
   const s = (await readHubSettings().catch(() => null)) || {};
@@ -9065,24 +9098,10 @@ const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
 
-// Individually toggleable weather fields (hero chips + detail metrics); mirror of
-// the client list. Hiding one removes it from both the tile and the modal.
-const WEATHER_FIELD_IDS = Object.freeze([
-  'feels', 'wind', 'rain',
-  'aqi', 'humidity', 'pm25', 'pm10', 'no2', 'pollen', 'pressure', 'visibility', 'uv', 'clouds',
-]);
 const WEATHER_FIELDS_ALL_ON = Object.freeze(
   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
 );
 
-// How often the sensor readings refresh, in ms. 5000 is the cadence everything
-// was built around and stays the default; the two faster steps are opt-in and
-// say what they cost, because the cost is real (see SENSOR_RATES).
-const SENSOR_RATE_MS = Object.freeze([5000, 2000, 1000]);
-function normalizeSensorRate(value) {
-  const n = Math.round(Number(value));
-  return SENSOR_RATE_MS.includes(n) ? n : 5000;
-}
 
 // What a saved layout with no `groups` gets: the tabs every install had before 5.0.0,
 // when the chat shared the media tile and the Agenda had a tile of its own.
@@ -9583,12 +9602,6 @@ let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 // wrong reads as "not new" — under-counting births is the recoverable direction.
 let _settingsFileMissingAtBoot = false;
 
-// Mirror of the client sanitizeBackgroundMedia. A pasted-SVG wallpaper is stored
-// inline as a bounded base64 data:image/svg+xml URI (rendered only as an <img>
-// source — secure static mode, no scripts); anything else must be a
-// server-generated /uploads/ path.
-const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
-const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeSettingsBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
@@ -9613,20 +9626,6 @@ function sanitizeSettingsBackgroundMedia(value) {
   return out;
 }
 
-// The custom UI font reference mirrors backgroundMedia: only a server-generated
-// /uploads/ path with a known font extension is kept; anything else resets to
-// "use the default typeface". The binary itself lives in UPLOADS_DIR.
-function sanitizeSettingsUiFont(value) {
-  if (!value || typeof value !== 'object') return null;
-  const url = String(value.url || '').trim();
-  const name = String(value.name || '').trim().slice(0, 120);
-  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
-  const ext = url.slice(url.lastIndexOf('.')).toLowerCase();
-  if (!FONT_MIME_BY_EXT.has(ext)) return null;
-  return { url, name: name || url.split('/').pop(), version };
-}
-
 function normalizeLockWidgets(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.lockWidgets;
@@ -9638,11 +9637,6 @@ function normalizeLockWidgets(value) {
   };
 }
 
-// Ambient / Screensaver mode — mirror of normalizeAmbientMode in js/settings.js.
-const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);
-const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
-const AMBIENT_CANVAS_REF_RE = /^canvas:[a-z0-9][a-z0-9-]{1,40}$/;
-const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;
 function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
@@ -9719,7 +9713,6 @@ function normalizeBgAurora(value) {
   };
 }
 
-const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo', 'dusk'];
 function normalizeBgStatic(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.bgStatic;
@@ -9729,14 +9722,6 @@ function normalizeBgStatic(value) {
   };
 }
 
-// Code-defined animated background. The code is a client-only, sandboxed-iframe
-// concern (see server/js/custom-bg.js) — the server just stores it as a bounded
-// string, never executes it. It may bundle its own images as data: URIs
-// (assets), so a shared background is self-contained: the sandbox CSP still
-// blocks every remote load. Asset validation is the required custom-bg.js
-// sanitizeBgAssets — the SAME code the browser and the sandbox use, so the
-// rules cannot drift between the two sides.
-const BG_CUSTOM_CODE_MAX = 60000; // keep in step with CODE_MAX in js/custom-bg.js
 function normalizeBgCustom(value) {
   const source = value && typeof value === 'object' ? value : {};
   const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
@@ -9764,24 +9749,6 @@ function normalizeBgCustom(value) {
 // never drift — exactly like sanitizeBgAssets above.
 function normalizeSlideshow(value) {
   return sanitizeSlideshow(value);
-}
-
-// Claude Code widget surfaces that show up outside its tile: the permission /
-// question cards and the topbar marker. Both on unless explicitly stored false,
-// so an existing install keeps what it has. `approvals` is not display-only —
-// /api/claude/permission reads it and hands the prompt straight back to the
-// terminal when it is off. Twin of normalizeClaudeWidget in js/settings.js.
-function normalizeClaudeWidget(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  return {
-    approvals: source.approvals !== false,
-    // Separate from `approvals` because they are different bargains. A
-    // permission decides whether something RUNS on this PC; a question only
-    // picks how Claude proceeds. Someone can reasonably want the second on the
-    // touchscreen and the first only at the keyboard.
-    questions: source.questions !== false,
-    topbar: source.topbar !== false,
-  };
 }
 
 function normalizeBgGrid(value) {
@@ -10055,53 +10022,10 @@ function normalizeHardwareScan(value) {
   };
 }
 
-// Mirrors the client-side normalizeAiFeatures: every flag must be exactly
-// `true` to count — anything else collapses to false (opt-in by design).
-function normalizeServerAiFeatures(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    enabled: v.enabled === true,
-    genesis: v.genesis === true,
-    gameCompanion: v.gameCompanion === true,
-    guardian: v.guardian === true,
-    ambient: v.ambient === true,
-    pcControl: v.pcControl === true,
-  };
-}
-
-// Local sensor-history opt-in (Settings → Performance). A tiny known-key rebuild
-// so an unknown/malformed value collapses to the safe default (off).
-// Default ON: only an explicit false turns the game-session log off.
-function normalizeGameSessionsSetting(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled !== false };
-}
-
 function gameSessionsEnabled() {
   return !(_serverHubSettings && _serverHubSettings.gameSessions && _serverHubSettings.gameSessions.enabled === false);
 }
 
-function normalizeProactive(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    thermal: v.thermal !== false,
-    recap: v.recap !== false,
-    morning: v.morning !== false,
-    anomaly: v.anomaly !== false,
-  };
-}
-
-// Vitals — game-style self-care meters. Known-key rebuild, identical to the
-// client normalizer (settings.js): per-vital enable + interval, plus the
-// client-owned state (last-refill timestamps, XP, daily fill counter).
-const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
-const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
-const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
-// Bit's escalation ladder — minutes at zero before each rung (mirror of the
-// client VITALS_PET_DEFAULT_THR / core.STAGE_AT; user-tunable in Settings → Bit).
-const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
-const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
-function vitalsHour(h) { return Number.isInteger(h) && h >= 0 && h <= 23; }
 function normalizeVitals(value) {
   const v = value && typeof value === 'object' ? value : {};
   const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
@@ -10216,207 +10140,6 @@ function normalizeVitals(value) {
   };
 }
 
-// Local "Hey Bit" wake word — strict opt-in (privacy: enabling means the
-// server keeps the microphone open while a dashboard is on screen).
-function normalizeWakeWord(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled === true };
-}
-
-// Local file search (Spotlight). extraFolders are the crawler's roots — real
-// absolute directories the user names in Settings; the crawl enumerates them
-// server-side and search results address by opaque id, so this list is the
-// only place a path exists. The global hotkey is helper-gated and OFF by
-// default (it registers a system-wide key).
-function normalizeSearchSettings(value, defaultRoot) {
-  const v = value && typeof value === 'object' ? value : {};
-  // indexRoots: the Living Index roots (drives or folders). Migration: older
-  // saves carried extraFolders (the retired one-shot crawl) — adopt them.
-  // Never-set → default to the whole system drive on Windows, and to the
-  // user's HOME elsewhere (`defaultRoot`): the POSIX analogue of "the system
-  // drive" would walk /System and /Applications, millions of entries the index
-  // caps out on, none of which is a file the user is looking for. An
-  // explicitly emptied list means the user turned the index off and stays empty.
-  const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
-    : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
-  // A root is either a Windows drive path or a POSIX absolute one, and BOTH
-  // shapes are accepted on both sides whatever the machine is. That is not
-  // laxity: this same function runs in the BROWSER, which cannot know what the
-  // host is, so a validator that guessed would silently drop the user's root
-  // on the next settings save. The platform decides only the DEFAULT, which
-  // the server passes in.
-  //
-  // The separator rewrite applies to the Windows shape ONLY. Off Windows a
-  // backslash is a legal filename character, and rewriting "/" there turned
-  // "/Users/me" into "\Users\me", which then failed the drive-letter test —
-  // so indexRoots could never hold anything but the default "C:\", which does
-  // not exist on a Mac. The Living Index therefore never started, and search
-  // AND the disk widget (which addresses these same roots by index) were both
-  // dead with nothing the user could type to fix it.
-  const cleanRoot = (raw) => {
-    const s = String(raw || '').trim().slice(0, 4096);
-    // A single leading slash is POSIX; two is a UNC share, which is not a
-    // local root and stays rejected as it always was.
-    if (/^\/(?!\/)/.test(s)) return s.length > 1 ? s.replace(/\/+$/, '') : s;
-    // Every Windows consumer downstream (the disk overview's root prefix test,
-    // registerBrowsePath, the guard) compares backslash paths, so a root saved
-    // as "C:/Projects" passed validation and then matched nothing — an empty
-    // treemap with no explanation.
-    const w = s.slice(0, 260).replace(/\//g, '\\');
-    if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
-    return w.length === 2 ? w + '\\' : w;
-  };
-  // No `|| 'C:\\'` fallback. A caller that knows the machine passes
-  // `defaultRoot`; one that does not must get NO root rather than a Windows
-  // drive letter, because the copy of this function that runs in the browser
-  // is exactly such a caller, and its guess was written to settings.json on
-  // every Mac and Linux install — a root nothing could walk, with Settings
-  // showing it as configured the whole time.
-  const roots = rawRoots == null
-    ? (defaultRoot ? [defaultRoot] : null)
-    : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
-  const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
-  return {
-    ...(roots ? { indexRoots: roots } : {}),
-    hotkeyEnabled: v.hotkeyEnabled === true,
-    hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
-    // AI full context ("the brain"): enriches a Disk Advisor request the user
-    // pressed for with the hardware profile and the names of the largest items.
-    // Privacy-touching → strict opt-in, anything not literally true stays off
-    // (same rule as the wake word).
-    aiFullContext: v.aiFullContext === true,
-    // The Search TILE listing recently opened files when its box is empty. Off
-    // unless literally true: the tile sits on a dashboard others can see.
-    recentInTile: v.recentInTile === true,
-  };
-}
-
-// Disk widget knobs: dev folders (the ONLY places build-output dirs become
-// cleanable) and how old a Downloads installer must be before it classifies.
-// Global shortcuts that flip the dashboard to a page while another app has
-// focus — the whole point of a second screen you are not clicking on. Each
-// entry is a combo and what it goes to: a page id, or one of the relative
-// moves, which are what "toggle between my two pages" is actually asking for.
-//
-// The page id is NOT validated against the current pages here. Pages live in
-// the dashboard layout, which is per device, and this list is shared by all of
-// them: dropping an id the saving device happens not to have would delete
-// another screen's shortcut every time the user saved anything. The client
-// resolves the id when the shortcut fires and does nothing if it is not there.
-const MAX_PAGE_HOTKEYS = 8;
-
-function normalizePageHotkeys(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const raw of value) {
-    if (!raw || typeof raw !== 'object') continue;
-    const combo = String(raw.combo || '').toLowerCase().trim().slice(0, 40);
-    // The same shape the Spotlight combo is held to, and the same reason: the
-    // helpers parse it themselves and report a combo they cannot read, so this
-    // only has to keep the argument list free of anything shell-shaped.
-    if (!/^[a-z0-9+ ]{3,40}$/.test(combo)) continue;
-    if (seen.has(combo)) continue;            // two actions on one combo: the desktop fires neither
-    const target = String(raw.target || '').trim().slice(0, 64);
-    if (!target) continue;
-    seen.add(combo);
-    out.push({ combo, target });
-    if (out.length >= MAX_PAGE_HOTKEYS) break;
-  }
-  return out;
-}
-
-function normalizeDiskSettings(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const folders = Array.isArray(v.devFolders)
-    ? v.devFolders
-      .map((f) => String(f || '').trim().slice(0, 260))
-      .filter((f) => /^[A-Za-z]:[\\/]/.test(f))
-      .slice(0, 10)
-    : [];
-  return {
-    devFolders: folders,
-    installerAgeDays: clampNumber(v.installerAgeDays, 7, 365, 30),
-  };
-}
-
-// OpenAI Codex widget surfaces outside its tile. Twin of normalizeCodexWidget
-// in js/settings.js. `approvals` is read by /api/codex/permission, which answers
-// "no decision" at once when it is off; `waitSec` is how long a card waits
-// before the decision goes back to Codex (Codex shows nothing else meanwhile).
-function normalizeCodexWidget(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const w = Math.round(Number(source.waitSec));
-  return {
-    approvals: source.approvals !== false,
-    waitSec: Number.isFinite(w) ? Math.max(30, Math.min(540, w)) : 90,
-  };
-}
-
-
-
-// Scrolling ticker bar config: enabled, edge position, marquee speed and which
-// data sources feed it. Known-key rebuild (no untrusted spread).
-function normalizeTicker(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const src = v.sources && typeof v.sources === 'object' ? v.sources : {};
-  return {
-    enabled: v.enabled === true,
-    position: v.position === 'top' ? 'top' : 'bottom',
-    speed: clampNumber(v.speed, 10, 100, 50),
-    sources: {
-      stocks: src.stocks !== false,
-      football: src.football !== false,
-      news: src.news !== false,
-    },
-  };
-}
-
-// Elgato Wave Link config: opt-in enable + optional pinned port (0 = auto-scan
-// the 1824..1834 range). No secrets — the local WS is unauthenticated.
-function normalizeWaveLinkSettings(v) {
-  const s = v && typeof v === 'object' ? v : {};
-  const port = parseInt(s.port, 10);
-  return { enabled: s.enabled === true, port: (port >= 1 && port <= 65535) ? port : 0 };
-}
-
-// The screen the user chose for Xenon. Mirrors normalizeSurface in
-// js/settings.js key for key — the client owns this one, and a drift between the
-// two halves is what silently resets a key on every save.
-const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
-function normalizeSurfaceChoice(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    kind: SURFACE_KINDS.includes(v.kind) ? v.kind : 'auto',
-    asked: v.asked === true,
-    monitor: typeof v.monitor === 'string' ? v.monitor.slice(0, 256) : '',
-    label: typeof v.label === 'string' ? v.label.slice(0, 120) : '',
-  };
-}
-
-// The screen choice used to be stored as `surface`, which is ALSO the name of
-// the theme's main panel colour — and both were assigned in the same object
-// literal of normalizeHubSettings, so the later one won and every save replaced
-// the colour with `{kind, asked, monitor, label}`. Two features, one key, no
-// error: the theme role was silently destroyed, and Settings then threw
-// `val.toUpperCase is not a function` and stopped rendering, taking with it
-// every panel mounted after that line (paired devices, file transfer, the
-// Sunshine wizard, Streaming, Spotify, Smart Home, Cameras, external calendars).
-//
-// The choice moved to `surfaceChoice` rather than the colour moving, because the
-// colour is the entrenched one: it is a theme-code field, a preset-sharing field
-// and a CSS variable mapping, and renaming it would break every shared theme in
-// existence. This reads the old spelling once so a machine that already stored
-// the object keeps its screen, and the corrupted colour goes back to auto.
-function surfaceChoiceFrom(source) {
-  const s = source && typeof source === 'object' ? source : {};
-  if (s.surfaceChoice && typeof s.surfaceChoice === 'object') return s.surfaceChoice;
-  // A legacy value is an OBJECT under `surface`; a real colour there is a string
-  // and must never be read as a screen choice.
-  if (s.surface && typeof s.surface === 'object') return s.surface;
-  return null;
-}
-
 // Phone ↔ PC file transfer. Server-owned: there is no twin in
 // js/settings.js normalizeSettings, on purpose, because `inboxDir` names a
 // folder on this machine and the settings blob reaches every paired phone. The
@@ -10437,49 +10160,6 @@ function normalizeFileTransfer(value) {
     keepDays: clampNumber(v.keepDays, 1, 365, d.keepDays),
     notifyPhone: v.notifyPhone === true,
   };
-}
-
-// Identity of this settings STORE — a random value minted the first time
-// settings.json is written and never again (the keep-prev guard in POST
-// /settings is what makes "never again" true). It is not an install id and has
-// nothing to do with supporter-redeem.js's: it identifies the FILE, so deleting
-// server/data mints a new one, which is exactly the "start clean" signal.
-//
-// Why it exists: every surface mirrors the settings blob into its browser's
-// localStorage, keyed by origin, and the boot hydrate resolves a conflict by
-// comparing `rev`. But `rev` counts up from 0 per store, so a store that was
-// just created loses to ANY surface that still holds an older mirror of the
-// same origin. Measured on Discord: a user reinstalled Windows and Xenon, the
-// PC's LAN address came back the same, and the phone paired before the wipe
-// re-published its months-old layout over the fresh install — pleasant that
-// time, but the symmetric case is a freshly configured dashboard overwritten by
-// a mirror nobody meant to restore. Comparing the store id turns "higher rev"
-// into "higher rev in the SAME store"; a mirror from another store is not newer,
-// it is somebody else's. The client half is in js/settings.js.
-const SETTINGS_STORE_ID_RE = /^[0-9a-f]{32}$/;
-
-// A bounded, deduped list of Discord snowflake ids. Shared by the server store
-// and mirrored in js/settings.js — see discordFavChannels.
-function normalizeSnowflakeList(value, max = 50) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const raw of value) {
-    const id = String(raw == null ? '' : raw).trim();
-    if (!/^\d{5,25}$/.test(id) || out.includes(id)) continue;
-    out.push(id);
-    if (out.length >= max) break;
-  }
-  return out;
-}
-
-// A calendar day as this file stores it. Local time on purpose: "days I used
-// Xenon" is a human unit, and a UTC boundary would count an evening session as
-// tomorrow for a whole hemisphere.
-const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-function localDay(d) {
-  const t = d || new Date();
-  const p = (n) => String(n).padStart(2, '0');
-  return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
 }
 
 // One day of real use, counted once. Called when a dashboard connects, which is
@@ -10802,43 +10482,6 @@ function normalizeHubSettings(value) {
   };
 }
 
-// Mirror of the client's normalizeFanLabels (settings.js): explicit bounded
-// rebuild of the flat { "<kind>|<sensor name>": "label" } rename map.
-function normalizeServerFanLabels(value) {
-  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const out = {};
-  let n = 0;
-  for (const key of Object.keys(v)) {
-    if (n >= 64) break;
-    if (typeof key !== 'string' || key.length > 60 || !key.includes('|')) continue;
-    const label = typeof v[key] === 'string' ? v[key].trim().slice(0, 32) : '';
-    if (!label) continue;
-    out[key] = label;
-    n++;
-  }
-  return out;
-}
-
-
-function normalizeServerOnboarding(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const seen = Number(v.seenVersion);
-  return { seenVersion: Number.isFinite(seen) && seen > 0 ? Math.floor(seen) : 0 };
-}
-
-// Bounded passthrough for the client-owned saved presets array. Templates are
-// small (base widget ids + geometry, no image data), so a generous size cap is
-// plenty; anything bigger or malformed is dropped to an empty list.
-function sanitizeDashboardPresets(value) {
-  if (!Array.isArray(value)) return [];
-  try {
-    const json = JSON.stringify(value);
-    if (json.length > 200000) return [];
-    const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.slice(0, 60) : [];
-  } catch { return []; }
-}
-
 // Client-owned imported themes: bounded round-trip (the client is authoritative
 // and re-validates every field on load). A theme may embed a small font ref but
 // not the font bytes, so the cap can stay tight.
@@ -10879,69 +10522,7 @@ function sanitizeCustomThemes(value) {
   } catch { return []; }
 }
 
-// Defensive passthrough for a client-owned settings object: keep it only if it's
-// a plain object that serializes within a sane size, returning a clean copy.
-const SDK_WIDGETS_SETTINGS_MAX = 128 * 1024;
-function sanitizeServerPassthrough(value, maxLen = 8000) {
-  if (!value || typeof value !== 'object') return undefined;
-  try {
-    const json = JSON.stringify(value);
-    if (json.length > maxLen) return undefined;
-    return JSON.parse(json);
-  } catch { return undefined; }
-}
 
-// RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
-// the legacy effect-booleans and the new {enabled,color,style} event objects.
-const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
-const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
-// User palette for the 'palette' ambient style: 2–5 hex colours.
-function normalizeLightingPalette(value, fallback) {
-  const hexes = (Array.isArray(value) ? value : []).slice(0, 5)
-    .map(h => (/^#?[0-9a-f]{6}$/i.test(String(h)) ? normalizeHex(h, null) : null))
-    .filter(Boolean);
-  return hexes.length >= 2 ? hexes : fallback.slice();
-}
-const LIGHTING_PROVIDER_IDS = ['govee', 'lifx', 'wled', 'hue', 'nanoleaf', 'openrgb', 'homeassistant', 'yeelight'];
-function normalizeLightingAnimation(value, fallback) {
-  const f = fallback || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    style: LIGHTING_ANIM_STYLES.includes(v.style) ? v.style : f.style,
-    color: normalizeHex(v.color, f.color),
-    speed: clampNumber(v.speed, 1, 100, f.speed),
-    palette: normalizeLightingPalette(v.palette, f.palette || ['#1ed760', '#0066ff']),
-  };
-}
-function normalizeLightingProviders(value) {
-  const out = {};
-  if (!value || typeof value !== 'object') return out;
-  for (const id of LIGHTING_PROVIDER_IDS) {
-    const p = value[id];
-    if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
-    const devices = p.devices.map(d => {
-      const host = String(d && d.host || '').trim().slice(0, 120);
-      if (!host) return null;
-      const dev = {
-        id: String(d.id || `${id}:${host}`).slice(0, 160),
-        name: String(d && d.name || id).slice(0, 80),
-        host,
-        optedIn: !(d && d.optedIn === false),
-      };
-      if (d && d.token) dev.token = String(d.token).slice(0, 256); // pairing token (Hue/Nanoleaf)
-      // The paired bridge's own id. Dropped here, it would be re-learned from
-      // whatever answers the address instead of from what was paired.
-      if (d && d.bridgeId) dev.bridgeId = String(d.bridgeId).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 32);
-      return dev;
-    }).filter(Boolean).slice(0, 32);
-    if (devices.length) out[id] = { devices };
-  }
-  return out;
-}
-const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
-// Per-device styles: no 'palette' (its colour list lives on the global animation)
-// and no 'wave' (per-device renders uniform = identical to 'cycle').
-const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle', 'aurora', 'candle'];
 function normalizeLightingDeviceModes(value) {
   const out = {};
   if (!value || typeof value !== 'object') return out;
@@ -10961,18 +10542,6 @@ function normalizeLightingDeviceModes(value) {
     out[key] = e;
   }
   return out;
-}
-function normalizeLightingEvent(value, fallback) {
-  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
-  const fDur = clampNumber(f.durationMs, 500, 10000, 1800);
-  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style, durationMs: fDur }; // legacy
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
-    color: normalizeHex(v.color, f.color),
-    style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
-    durationMs: clampNumber(v.durationMs, 500, 10000, fDur),
-  };
 }
 function normalizeLighting(value) {
   const v = value && typeof value === 'object' ? value : {};
@@ -11017,11 +10586,6 @@ function normalizeLightingNative(value) {
 // copy of the settings. A new id is minted only when this process has never
 // seen one, i.e. a genuinely new store.
 let _settingsStoreId = '';
-
-// Windows can refuse a read for a moment while another program (an antivirus
-// scan, the search indexer, a second Xenon) holds the file. That is not damage,
-// so it is retried briefly before it counts as a failure.
-const _SETTINGS_READ_BUSY = new Set(['EBUSY', 'EPERM', 'EACCES']);
 
 async function readHubSettings() {
   for (let attempt = 0; ; attempt++) {
@@ -11559,93 +11123,8 @@ function updateDeckConfigs(edit) {
   });
 }
 
-// ── Settings secrets — one composed helper per direction ─────────────────────
-// Every server-only secret must be redacted at EVERY settings→browser exit
-// (GET /settings, POST /settings response, backup export) and preserved on
-// every settings write path (POST /settings, backup import). These composed
-// helpers are the single place a future secret gets added — the stock/football/
-// news keys were once wiped on import precisely because one hand-built chain
-// missed them.
-//
-// The credentials tied to a destination (Home Assistant token, UniFi / OBS /
-// Streamer.bot passwords) are preserved only while that destination is
-// unchanged — see each helper. Otherwise one write that changes only the URL
-// (a settings save, or an imported backup) would aim the saved secret at a new
-// host.
-function redactSettingsSecrets(settings) {
-  return icsFeeds.redactCalendarFeedUrls(CaptureSettings.redactCaptureFolder(redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings))))))))))));
-}
-function preserveSettingsSecrets(incoming, prev) {
-  return icsFeeds.preserveCalendarFeedUrls(CaptureSettings.preserveCaptureFolder(preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev), prev), prev);
-}
 
-// The transfer inbox is a folder on THIS PC. It is not a secret, but it is a
-// fact about this machine that no browser needs and that every paired phone
-// would otherwise receive and mirror into its own localStorage — so it travels
-// exactly like one does not. The PC's own Settings pane reads the real value
-// back from GET /api/transfer/settings, which is loopback-only; the wire
-// carries a boolean instead, the `xKeySet` shape the credentials already use.
-//
-// Redacted unconditionally rather than only when `isRemote`, because a
-// conditional has to be remembered at every exit point and this does not.
-function redactTransferPaths(settings) {
-  if (!settings || !settings.fileTransfer || typeof settings.fileTransfer !== 'object') return settings;
-  const ft = settings.fileTransfer;
-  return { ...settings, fileTransfer: { ...ft, inboxDir: '', inboxDirSet: !!ft.inboxDir } };
-}
-// …and the other half, or the round trip wipes the folder the user chose. The
-// keep-prev guard in POST /settings covers the normal save; this covers the
-// wholesale writers that deliberately bypass it (the backup import).
-//
-// THIS MACHINE's folder always wins, and an incoming one is dropped rather than
-// preferred. It used to be `incoming || prev`, which made the sentence "its only
-// writer is POST /api/transfer/settings" false: a backup bundle carries the key,
-// /backup/import is reachable from a paired device, and that route performs none
-// of the validation the settings route does — so the one door deliberately left
-// in REMOTE_DENY had a second one beside it. It is also wrong on its own terms,
-// with nothing to do with security: a backup taken on another PC names a folder
-// that need not exist here, and importing it pointed every future arrival at a
-// path on someone else's disk.
-function preserveTransferPaths(incoming, prev) {
-  if (!incoming || !incoming.fileTransfer || typeof incoming.fileTransfer !== 'object') return incoming;
-  const prevDir = (prev && prev.fileTransfer && prev.fileTransfer.inboxDir) || '';
-  return {
-    ...incoming,
-    fileTransfer: { ...incoming.fileTransfer, inboxDir: prevDir },
-  };
-}
-
-// Hue/Nanoleaf pairing tokens live inside lighting.providers[].devices[].token.
-// They are bridge-owned server-only secrets: blank them on the wire (a
-// `tokenSet` flag keeps "paired" visible). No preserve half is needed — the
-// server refills lighting.providers from the live bridge on every settings
-// write (POST /settings and backup import), so a token-less round-trip can
-// never wipe a pairing.
-function redactLightingTokens(settings) {
-  const providers = settings && settings.lighting && settings.lighting.providers;
-  if (!providers || typeof providers !== 'object') return settings;
-  let changed = false;
-  const safe = {};
-  for (const [id, p] of Object.entries(providers)) {
-    if (!p || !Array.isArray(p.devices)) { safe[id] = p; continue; }
-    safe[id] = {
-      ...p,
-      devices: p.devices.map((d) => {
-        if (!d || !d.token) return d;
-        changed = true;
-        const { token, ...rest } = d;
-        return { ...rest, tokenSet: true };
-      }),
-    };
-  }
-  return changed ? { ...settings, lighting: { ...settings.lighting, providers: safe } } : settings;
-}
-
-function hasLightingProviderTokens(settings) {
-  const providers = settings && settings.lighting && settings.lighting.providers;
-  if (!providers || typeof providers !== 'object') return false;
-  return Object.values(providers).some((p) => p && Array.isArray(p.devices) && p.devices.some((d) => d && d.token));
-}
+const { redactSettingsSecrets, preserveSettingsSecrets } = require('./settings/secrets.js');
 
 // ── Configuration backup ──────────────────────────────────────────────────────
 // Export/import of the user's configuration as ONE portable JSON file (layout,
@@ -11682,32 +11161,7 @@ async function _readStreamTokensSnapshot() {
   catch { return {}; }
 }
 
-// Which secret-backed services are configured — booleans only. Exported with
-// the bundle so the import side can report "these need re-setup" precisely.
-function _backupSecretFlags(settings, tokens) {
-  const s = settings && typeof settings === 'object' ? settings : {};
-  const tok = (name) => { const t = tokens && tokens[name]; return !!(t && (t.refreshToken || t.accessToken)); };
-  return {
-    gemini: !!s.geminiApiKey,
-    openai: !!s.openaiApiKey,
-    anthropic: !!s.anthropicApiKey,
-    localApi: !!s.localApiKey,
-    obs: !!s.obsPassword,
-    streamerbot: !!s.streamerbotPassword,
-    homeAssistant: !!(s.homeAssistant && s.homeAssistant.token),
-    unifi: !!(s.unifi && s.unifi.password),
-    sunshine: !!(s.remoteControl && (s.remoteControl.sunshineUser || s.remoteControl.sunshinePass)),
-    twelveData: !!s.twelveDataKey,
-    finnhub: !!s.finnhubKey,
-    sportsDb: !!s.sportsDbKey,
-    newsData: !!s.newsDataKey,
-    lightingProviders: hasLightingProviderTokens(s),
-    spotify: tok('spotify'),
-    twitch: tok('twitch'),
-    youtube: tok('youtube'),
-    discord: tok('discord'),
-  };
-}
+const { _backupSecretFlags, _backupNeedsSetup } = require('./settings/backup-secrets.js');
 
 // The custom background binary, embedded as base64 when it is small enough
 // (images; a 200MB video would dwarf the bundle — skipped, and the import then
@@ -11831,16 +11285,6 @@ async function saveBackupToDisk(chosen = '') {
   // that can embed a multi-MB background roughly doubles the work and the size.
   await writeFileAtomic(dest, JSON.stringify(bundle));
   return { ok: true, path: dest, fileName };
-}
-
-// Services the imported configuration uses whose secrets could NOT travel in
-// the backup and are also absent on THIS machine — surfaced to the user after
-// the import ("re-connect Spotify, re-enter the TwelveData key, …") instead of
-// each feature silently failing later. v1 bundles carry no flags → empty list.
-function _backupNeedsSetup(flags, settings, tokens) {
-  if (!flags || typeof flags !== 'object') return [];
-  const local = _backupSecretFlags(settings, tokens);
-  return Object.keys(local).filter((k) => flags[k] === true && !local[k]);
 }
 
 async function applyBackup(bundle, { remote = false } = {}) {
@@ -24867,8 +24311,6 @@ async function _teardownLiveSession(reason) {
   }
   process.stdout.write(`[Live] session ended (${reason || 'done'})\n`);
 }
-
-const LIVE_MAX_SESSION_MS = 5 * 60 * 1000;
 
 function _handleLiveClient(client) {
   const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
