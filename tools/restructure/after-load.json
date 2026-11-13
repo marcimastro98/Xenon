@@ -1,0 +1,18 @@
+{
+  "note": "Functions that run only after the file has loaded, whatever the file does while it loads. A file loads in one go: nothing from the network, no timer and no promise is answered until its last line has run. So a function that is only ever called from such an answer cannot run before every `const` of the file has its value, and `branches` may hand a body of it any `const` of the file, wherever it is declared (without an entry, only the ones above the first line that might already run the function). An entry names the function, every statement of the file that names it (its first line, with the SHA-256 of the whole statement, line endings as LF), the files those statements hand a function to (read, each with the SHA-256 of its text) and the reason in one sentence or two. The tool checks what it can and drops the entry when a check fails: the function is declared once and never assigned again; the statements listed are all the ones that name it and are the text that was read; each names it only inside a function it writes in place, and hands the functions it writes only to a module of Node or to a file in read, which is the text that was read; nothing in the file emits 'request' by hand. What the tool cannot check is the reason itself: add an entry only after reading each statement and each file and confirming that whoever keeps the function calls it from an answer of the network or a timer, never at once and never from a method the file calls while it loads. When in doubt, leave the function held.",
+  "files": {
+    "server/server.js": [
+      {
+        "name": "handleRequest",
+        "statements": {
+          "const remoteHttps = remoteHttpsLib.createRemoteHttps({": "c8fddc70efee6f7569b11db6afe97a6a160009fc721f6831bd2c93497b2520b7",
+          "const server = http.createServer((req, res) => runGuarded(handleRequest, req, res));": "355e7f7b60d0c94a70a33d70f1b691079a5e7d7d9a5ff9f39753a3b40020287a"
+        },
+        "read": {
+          "server/remote-https.js": "d0d989268b0260711b007ef95ee6a6e2577682531ae8d28b38d8dbd77618bf35"
+        },
+        "reason": "Both statements write a function that calls runGuarded(handleRequest, req, res) and hand it on. http.createServer keeps it as the listener of 'request', which Node calls when a request has arrived from a socket. createRemoteHttps keeps it as `handler` in its closure and uses it in one place, as the listener of the https.createServer it makes inside an async function, after an await, once the user has turned the Tailscale door on; none of the functions it returns calls it."
+      }
+    ]
+  }
+}

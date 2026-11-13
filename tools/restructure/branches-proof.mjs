@@ -80,9 +80,10 @@ function originOf(analysis, name, file, idOf) {
  * @param {string} [move.handler] the kind's own when left out (the kind is said by the target's file name)
  * @param {(string | null)[][]} [move.between] the protected stretches of the file, as pairs of names (protected.json)
  * @param {(spec: string, from: string) => string} move.idOf what a require leads to, as one text per module
+ * @param {Parameters<typeof analyze>[3]} [move.rules] the lists the files are read with (analyze.mjs); the ones of this folder when left out
  * @returns {string[]} problems; empty when the move is proven
  */
-export function proveBranches({ before, after, moduleBefore, moduleText, plan, parser, source, target, handler: named, between = [], idOf }) {
+export function proveBranches({ before, after, moduleBefore, moduleText, plan, parser, source, target, handler: named, between = [], idOf, rules }) {
   const problems = [];
   const kind = kindOf(target);
   if (!kind) return [`${target} is not named as a table of routes or of tools`];
@@ -110,7 +111,7 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
   if (restored !== before) problems.push(`with the bodies put back, ${source} is not the old file byte for byte`);
 
   // b, c. Both chains, read again.
-  const [oldFile, newFile] = [analyze(before, parser, source), analyze(after, parser, source)];
+  const [oldFile, newFile] = [analyze(before, parser, source, rules), analyze(after, parser, source, rules)];
   const old = readBranches({ text: before, parser, analysis: oldFile, kind, handler });
   const now = readBranches({ text: after, parser, analysis: newFile, kind, handler });
   const tests = (read) => read.branches.map((branch) => branch.test).join('\n');

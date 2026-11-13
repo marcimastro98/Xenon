@@ -3,6 +3,7 @@
 
 import { isBuiltin } from 'node:module';
 
+import { afterLoadFor, afterLoadNames } from './after-load.mjs';
 import { markRegistrations, namesHeldAtLoad, namesRunAtLoad, registrationsFor, repoFileOf } from './load-registrations.mjs';
 import { readTopLevel } from './top-level.mjs';
 
@@ -15,10 +16,12 @@ const CAN_MOVE = new Set(['function', 'class', 'const']);
  * @param {any} parser from parser.mjs
  * @param {string} [file] name shown in the result
  * @param {{ calls?: import('./load-time-calls.mjs').LoadTimeCalls, registrations?: { statement: string, callees?: string[], current: boolean }[],
- *   fileOf?: (spec: string) => string | null }} [rules]
- *   what may run at load and still move, and the load statements that only hand over functions (with where a require of
- *   this file leads, to check them); the lists of this folder when left out
- * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any>, listProblems: string[] }}
+ *   afterLoad?: ReturnType<typeof afterLoadFor>, fileOf?: (spec: string) => string | null }} [rules]
+ *   what may run at load and still move, the load statements that only hand over functions, and the functions nothing
+ *   runs while the file loads (with where a require of this file leads, to check them); the lists of this folder when left out
+ * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any>, listProblems: string[],
+ *   afterLoad: Set<string>, afterLoadProblems: string[] }}
+ *   `afterLoad` are the functions of after-load.json whose entry passed every check, `afterLoadProblems` what was wrong with the others;
  *   `records` are the top-level statements with, added here: `deps` (other top-level
  *   names used), `requires` (required modules used), `writes`, `changes`, `state`,
  *   `fileBound`, `movable` and `blockers`.
@@ -48,12 +51,14 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
       && ![...binding.record.uses.keys()].some((name) => bindings.has(name));
     binding.state = binding.kind === 'let' || binding.kind === 'var' || binding.reassigned || (binding.changed && !binding.shared);
   }
-  const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file),
-    { bindings, fileOf: rules.fileOf ?? repoFileOf(file) });
+  const fileOf = rules.fileOf ?? repoFileOf(file);
+  const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file), { bindings, fileOf });
+  const served = afterLoadNames(records, text, rules.afterLoad ?? afterLoadFor(file), { bindings, fileOf });
   for (const record of records) describe(record, bindings, duplicates);
   markLateModules(records, bindings);
   settleMovable(records, bindings);
-  return { file, lineCount: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), records, bindings, listProblems };
+  return { file, lineCount: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), records, bindings, listProblems,
+    afterLoad: served.names, afterLoadProblems: served.problems };
 }
 
 function describe(record, bindings, duplicates) {

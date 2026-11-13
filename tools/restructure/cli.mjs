@@ -82,6 +82,9 @@ function analyzeFile(parser, file) {
   if (analysis.listProblems.length) {
     console.error(`tools/restructure/load-registrations.json, entries that do not count:\n  ${analysis.listProblems.join('\n  ')}`);
   }
+  if (analysis.afterLoadProblems.length) {
+    console.error(`tools/restructure/after-load.json, entries that do not count:\n  ${analysis.afterLoadProblems.join('\n  ')}`);
+  }
   return analysis;
 }
 

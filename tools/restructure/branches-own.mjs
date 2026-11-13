@@ -15,7 +15,8 @@
 //     hands over at once, where the body in place read one only when it reached
 //     it, so the const must stand above the first line that, while the file loads,
 //     may reach the function the chain is in. A declared function has its value
-//     from the start.
+//     from the start. When nothing can run that function while the file loads
+//     (after-load.json), no such line exists and every const has its value by then.
 //
 // A module the file requires above the function, or one that is part of Node, is
 // not handed: the table requires it itself, which loads nothing earlier.
@@ -26,11 +27,12 @@ import { isBuiltin } from 'node:module';
  * @param {{ records: any[], bindings: Map<string, any> }} analysis from analyze.mjs
  * @param {string} handler
  * @returns {any | null} the first statement that runs while the file loads and may reach the function (through
- *   anything it names, callbacks included); null when none does
+ *   anything it names, callbacks included); null when none does, or when nothing runs the function before the file
+ *   has loaded (after-load.json)
  */
 export function firstReach(analysis, handler) {
   const target = analysis.bindings.get(handler)?.record;
-  if (!target) return null;
+  if (!target || analysis.afterLoad?.has(handler)) return null;
   for (const start of analysis.records) {
     if (!start.loadTime || start === target) continue;
     const seen = new Set([start]);
