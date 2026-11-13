@@ -17,7 +17,7 @@ import { analyze } from './analyze.mjs';
 import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
 import { kindOf, ROUTES } from './branches-kinds.mjs';
 import { readBranches } from './branches-scope.mjs';
-import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, ownOf, readModule, readRequire, requireLine, typeLine } from './branches-text.mjs';
+import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, ownOf, readModule, readRequire, requireLine, SET_ONCE_LINE, typeLine } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 import { requireEdit } from './require-edits.mjs';
@@ -94,7 +94,7 @@ function requiresOf({ moduleBefore, parser, target, needed, bindings, rewriteSpe
 
 // The module: its first comment, its requires, the table with every body it had and the new ones after them.
 function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
-  const before = moduleBefore === null ? { head: wrapComment(about), entries: [], tail: ['', EXPORT_LINE, ''] } : readModule(moduleBefore);
+  const before = moduleBefore === null ? { head: wrapComment(about), entries: [], tail: ['', EXPORT_LINE, ''], setOnce: false } : readModule(moduleBefore);
   if (before.kind && before.kind !== kind) throw new Refusal([`${target} is a table of ${before.kind.id}, not of ${kind.id}`]);
   const comment = before.head.filter((_line, index) => before.head.slice(0, index + 1).every((other) => other.startsWith('//')));
   const taken = added.filter((entry) => before.entries.some((other) => other.key === entry.key)).map((entry) => entry.key);
@@ -102,7 +102,9 @@ function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
   const entries = [...before.entries, ...added];
   const table = entries.flatMap((entry, index) => [...(index ? [''] : []), headLine(entry.key, entry.params), ...entryLines(entry.lines, kind), ENTRY_END]);
   const type = typeLine(kind, entries.some((entry) => ownOf(entry.params, kind).length > 0));
-  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), type, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
+  // The lint line of a result set once: there from the first such body on, and never without one.
+  const quiet = before.setOnce || added.some((entry) => entry.once) ? [SET_ONCE_LINE, ''] : [];
+  return [...comment, '', ...quiet, ...requireLines, ...(requireLines.length ? [''] : []), type, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
 }
 
 // The requires of the file that lost names only the moved bodies used, as edits of `text`, top to bottom.
@@ -197,7 +199,7 @@ export function planBranches(job) {
   const home = analysis.bindings.get(handler).record;
   if (required.reasons.length) throw new Refusal(required.reasons);
 
-  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind, branch.own), lines: lines.slice(branch.first, branch.last + 1) }));
+  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind, branch.own), lines: lines.slice(branch.first, branch.last + 1), once: branch.once }));
   const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target, kind });
   const moduleLines = moduleText.split('\n').length - 1;
   if (moduleLines > maxLines) {

@@ -14,7 +14,7 @@ import { moveBranches, surveyBranches } from '../../tools/restructure/branches.m
 import { kindOf, ROUTES, TOOLS } from '../../tools/restructure/branches-kinds.mjs';
 import { paramsFor, planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
 import { proveBranches } from '../../tools/restructure/branches-proof.mjs';
-import { callLine, entryLines, readCall, readModule, undoBranchesText } from '../../tools/restructure/branches-text.mjs';
+import { callLine, entryLines, readCall, readModule, SET_ONCE_LINE, undoBranchesText } from '../../tools/restructure/branches-text.mjs';
 import { replay } from '../../tools/restructure/extract.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { PROTECTED, readLedger } from '../../tools/restructure/ledger.mjs';
@@ -139,17 +139,18 @@ test('the bodies of tools move as written into functions that give the result ba
   assert.equal(lines[lines.indexOf("    } else if (fnName === 'run') {") + 1], callLine('aiToolsBranches', 'run', TOOLS));
   assert.equal(lines.indexOf("const { branches: aiToolsBranches } = require('./ai/tools.js');") + 2, lines.indexOf('// Runs one tool for the assistant.'), 'the table is required right above the function');
   assert.equal(undoBranchesText(made.newSource, () => made.moduleText), SOURCE, 'read as text, the bodies are back under their tests');
+  assert.ok(!made.moduleText.includes('biome-ignore'), 'no body here sets the result just once: the table silences nothing');
   const survey = surveyBranches({ text: SOURCE, parser, source: OLD, kind: TOOLS });
-  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [11, [...MOVED, 'count'], []]);
+  assert.deepEqual([survey.branches, survey.movable.map((row) => row.key), survey.held.map((row) => row.name)], [11, [...MOVED, 'once', 'limit', 'count'], []]);
   assert.deepEqual(survey.bodies.find((row) => row.key === 'count'), { key: 'count', test: "fnName === 'count'", group: 'tools', line: 47, lines: 2, state: 'handed', own: ['LIMIT', 'bonus', 'more'], reasons: [] });
-  assert.ok(survey.other.some((row) => /^it sets fnResult once, in a line of its own/.test(row.reason) && row.branches === 6), 'a body that sets the result just once is counted with what keeps it');
+  assert.ok(!survey.other.some((row) => /sets fnResult once/.test(row.reason)), 'setting the result just once keeps no body');
 });
 
 test('a body that would end the function, or set something else of it, stays; so does every body when the function is not safe to call them from', (t) => {
   if (!parser) return t.skip(SKIP);
   const said = refusal(['limit', 'early', 'screen', 'bare', 'once', 'a', 'nothing']);
-  for (const reason of [/once \(server\/demo\.js:\d+\): it sets fnResult once, in a line of its own: a function that declares it first would read as code to rewrite/,
-    /limit \(server\/demo\.js:\d+\): it sets fnResult once, in a line of its own/, /early .*it has a `return`/, /bare .*it has a `return`/,
+  assert.doesNotMatch(said, /^(?:once|limit) /m, 'a body that sets the result just once may move');
+  for (const reason of [/early .*it has a `return`/, /bare .*it has a `return`/,
     /screen .*it uses pending, which the handler works out for itself/, /0 branches of runAiTool answer a, one was expected/, /0 branches of runAiTool answer nothing/]) assert.match(said, reason);
   assert.match(refusal(['run'], { allowed: new Set(['handleRequest']) }), /protected\.json does not let the bodies of runAiTool move/);
   assert.match(refusal(['run'], { target: 'server/ai/routes.js' }), /protected.json does not let the bodies of handleRequest move/);
@@ -175,6 +176,33 @@ test('the proof stands on the three texts: a changed body, a `return` slipped in
   assert.match(proven(made, { after: swap(made.newSource, "fnName === 'boom'", "fnName === 'bang'") }).join('\n'), /the tests of runAiTool are not the same, in the same order/);
   assert.match(proven(made, { after: swap(made.newSource, "    return { fnResult: phoneRefusal('pc_only'), clientActions, pending };\n", '') }).join('\n'), /runAiTool changed before its chain/);
   assert.match(proven(made, { target: 'server/ai/routes.js' }).join('\n'), /holds a table of tools, its name says routes/);
+});
+
+test('a body that sets the result just once moves too, and its table says so to the lint check in one line', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const made = plan(['add_note', 'once', 'limit']);
+  assert.deepEqual(proven(made), []);
+  const lines = made.moduleText.split('\n');
+  assert.deepEqual(lines.slice(0, 4), [`// ${ABOUT}`, '', SET_ONCE_LINE, ''], 'under the comment that says what the table is, above its requires');
+  assert.equal(lines.filter((line) => line.includes('biome-ignore')).length, 1);
+  assert.match(SET_ONCE_LINE, /^\/\/ biome-ignore-all lint\/style\/useConst: \S/, 'one rule, for the file, with its reason');
+  assert.ok(made.moduleText.includes(["  'once': async ({ fnArgs }) => {", '      let fnResult;', '      fnResult = { ok: fnArgs.ok };', '      return fnResult;', '  },'].join('\n')));
+  assert.equal(lines.at(lines.indexOf("  'limit': async (_context, { LIMIT }) => {") + 2), '      fnResult = { limit: LIMIT };');
+  assert.equal(undoBranchesText(made.newSource, () => made.moduleText), SOURCE);
+  // The line comes with the first such body, also into a table that had none, and then stays.
+  const first = plan(MOVED);
+  const later = (from, keys) => planBranches({ text: from.newSource, parser, source: OLD, target: TABLE, about: '', keys, moduleBefore: from.moduleText, rewrite, allowed: ALLOWED });
+  const stepProven = (from, to, more = {}) => proveBranches({ before: from.newSource, after: to.newSource, moduleBefore: from.moduleText, moduleText: to.moduleText, plan: to, parser, source: OLD, target: TABLE, idOf, ...more });
+  const second = later(first, ['once']);
+  const third = later(second, ['count']);
+  assert.deepEqual([readModule(first.moduleText).setOnce, readModule(second.moduleText).setOnce, readModule(third.moduleText).setOnce], [false, true, true]);
+  assert.deepEqual([stepProven(first, second), stepProven(second, third)], [[], []]);
+  assert.equal(third.moduleText.split(SET_ONCE_LINE).length, 2, 'once in the file');
+  // By hand the line can be neither dropped, nor added, nor widened.
+  assert.match(proven(made, { moduleText: swap(made.moduleText, `${SET_ONCE_LINE}\n\n`, '') }).join('\n'), /has a body that sets fnResult once in a line of its own, and not the line that says so to the lint check/);
+  assert.match(proven(first, { moduleText: swap(first.moduleText, '/** @type', `${SET_ONCE_LINE}\n\n/** @type`) }).join('\n'), /silences a lint finding and has no body that sets its result once/);
+  assert.match(stepProven(second, third, { moduleText: swap(third.moduleText, `${SET_ONCE_LINE}\n\n`, '') }).join('\n'), /not the line that says so/, 'a table that had the line keeps it');
+  assert.match(proven(made, { moduleText: swap(made.moduleText, SET_ONCE_LINE, `${SET_ONCE_LINE}\n// biome-ignore-all lint/suspicious/noExplicitAny: more`) }).join('\n'), /silences more of the lint check than the one line/);
 });
 
 function demoRepo() {
@@ -203,10 +231,11 @@ test('on disk: the move is written and recorded, the replay redoes it, and the f
   const [root, untouched] = [demoRepo(), demoRepo()];
   try {
     moveBranches({ root, parser, source: OLD, target: TABLE, about: ABOUT, keys: ['add_note', 'boom'] });
-    moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['run', 'read_file', 'count'] });
-    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: ABOUT, keys: ['add_note', 'boom'], after: 0 }, { file: TABLE, about: '', keys: ['read_file', 'run', 'count'], after: 0 }] });
+    moveBranches({ root, parser, source: OLD, target: TABLE, keys: ['run', 'read_file', 'count', 'once'] });
+    assert.deepEqual(readLedger(root).branches, { [OLD]: [{ file: TABLE, about: ABOUT, keys: ['add_note', 'boom'], after: 0 }, { file: TABLE, about: '', keys: ['read_file', 'run', 'once', 'count'], after: 0 }] });
     const written = readModule(readFileSync(path.join(root, TABLE), 'utf8'));
-    assert.deepEqual(written.entries.map((entry) => entry.key), ['add_note', 'boom', 'read_file', 'run', 'count']);
+    assert.deepEqual(written.entries.map((entry) => entry.key), ['add_note', 'boom', 'read_file', 'run', 'once', 'count']);
+    assert.equal(written.setOnce, true, 'the second step brought a body that sets the result once, and the lint line with it');
     assert.equal(written.entries.at(-1).params, '{ fnArgs }, { LIMIT, bonus, more }', 'a const, a function and a module the file loads further down are handed over by the call');
     assert.ok(readFileSync(path.join(root, OLD), 'utf8').includes(`${callLine('aiToolsBranches', 'count', TOOLS, ['LIMIT', 'bonus', 'more'])}\n`));
     assert.ok(!readFileSync(path.join(root, TABLE), 'utf8').includes('more-lib'), 'the table does not require what the file loads below the function');

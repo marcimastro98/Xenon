@@ -22,7 +22,9 @@
 //      and has its value before anything can run the handler (branches-own.mjs), in
 //      the old file and in the new one; the handler declares nothing under that name,
 //      so the call reads the file's; the call lists plain names and nothing else, the
-//      ones the body uses, in order, and the function takes them under the same names.
+//      ones the body uses, in order, and the function takes them under the same names;
+//   g. the one lint line a table may carry (branches-text.mjs) is there exactly when the table had it or a body
+//      that sets the result once in a line of its own came in, once, and silences nothing else.
 
 import { analyze } from './analyze.mjs';
 import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
@@ -30,7 +32,7 @@ import { kindOf } from './branches-kinds.mjs';
 import { ownRule } from './branches-own.mjs';
 import { paramsFor } from './branches-plan.mjs';
 import { placeBoundIn, readBranches } from './branches-scope.mjs';
-import { callLine, ownOf, putBack, readModule, readRequire } from './branches-text.mjs';
+import { callLine, ownOf, putBack, readModule, readRequire, SET_ONCE_LINE } from './branches-text.mjs';
 import { requireEditProblem } from './require-edits.mjs';
 import { createUseReader } from './scope-uses.mjs';
 
@@ -201,5 +203,12 @@ export function proveBranches({ before, after, moduleBefore, moduleText, plan, p
       if (name !== 'branches' && originOf(had, name, target, idOf) !== originOf(module, name, target, idOf)) problems.push(`${name} in ${target} no longer comes from the same place`);
     }
   }
+
+  // g. The lint line of a result set once.
+  const wanted = (moduleBefore !== null && readModule(moduleBefore).setOnce) || moving.some((branch) => branch.once);
+  if (table.setOnce && !wanted) problems.push(`${target} silences a lint finding and has no body that sets its result once in a line of its own`);
+  if (!table.setOnce && wanted) problems.push(`${target} has a body that sets ${kind.result} once in a line of its own, and not the line that says so to the lint check`);
+  const quiet = moduleText.split('\n').filter((line) => /^\s*(?:\/\/|\/\*+|\*)\s*biome-ignore/.test(line));
+  if (quiet.length > 1 || quiet.some((line) => line !== SET_ONCE_LINE)) problems.push(`${target} silences more of the lint check than the one line of a result set once`);
   return problems;
 }

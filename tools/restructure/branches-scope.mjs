@@ -13,10 +13,10 @@
 // function goes on after the chain), no `var` and no function declared straight in
 // the body (both would be seen by the whole handler today), no label, no `eval`.
 // The one name a body may assign is the result its kind of chain gives back. A body
-// that sets it once, in a statement of its own straight in the body, stays too: its
-// function would declare the result on one line and set it once further down, which
-// the lint check reads as code to rewrite (style/useConst), and a move writes nothing
-// that adds a finding.
+// that sets it once, in a statement of its own straight in the body, is marked (`once`):
+// its function declares the result on one line and sets it once further down, which
+// the lint check reads as code to rewrite (style/useConst), so its table carries the
+// one line that silences that finding for the file (branches-text.mjs).
 
 import { ROUTES } from './branches-kinds.mjs';
 import { ownRule } from './branches-own.mjs';
@@ -120,10 +120,11 @@ function bodyLines(block, sourceFile, starts, lines) {
  * @param {typeof ROUTES} [job.kind] which chain (branches-kinds.mjs)
  * @returns {{ sourceFile: any, chain: any, locals: Set<string>, branches: { key: string | null, test: string,
  *   line: number, first: number, last: number, lines: number, moved: boolean, block: any, uses: Map<string, any>, handed: string[],
- *   needed: string[], own: string[], holders: string[], reasons: string[] }[] }}
+ *   needed: string[], own: string[], holders: string[], once: boolean, reasons: string[] }[] }}
  *   `first`/`last` are 0-based lines of the body, `handed` the handler values it uses, `needed` the names it uses that its
  *   table would require, `own` the names of the file its call would hand over (sorted), `holders` the names of the file
- *   that cannot be handed and keep it, `reasons` everything that keeps it (one per holder, last);
+ *   that cannot be handed and keep it, `once` whether it sets the result of its chain once in a line of its own,
+ *   `reasons` everything that keeps it (one per holder, last);
  *   `moved` is true when the body is one call of a table already
  */
 export function readBranches({ text, parser, analysis, kind = ROUTES, handler = kind.handler }) {
@@ -163,10 +164,10 @@ export function readBranches({ text, parser, analysis, kind = ROUTES, handler = 
       else if (use.write > 0) reasons.push(`it assigns ${name}`);
     }
     reasons.push(...placeBound(block, parser, { anyReturn: Boolean(kind.result) }).map((what) => `it has ${what}`));
-    if (kind.result && setsOnceAtTop(block, kind.result, uses, parser.K)) reasons.push(`it sets ${kind.result} once, in a line of its own: a function that declares it first would read as code to rewrite`);
     reasons.push(...holders.map((name) => `it needs ${name}, which cannot be handed over: ${rule.whyNot(name)}`));
     return { key, test, line: lineAt(starts, block.getStart(sourceFile)) + 1, first: at?.first ?? -1, last: at?.last ?? -1,
-      lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, own: own.sort(), holders, reasons };
+      lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, own: own.sort(), holders,
+      once: Boolean(kind.result) && setsOnceAtTop(block, kind.result, uses, parser.K), reasons };
   });
   return { sourceFile, chain, locals, branches };
 }

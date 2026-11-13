@@ -53,6 +53,12 @@ export const OPEN_LINE = 'const branches = {';
 export const CLOSE_LINE = '};';
 export const ENTRY_END = '  },';
 export const EXPORT_LINE = 'module.exports = { branches };';
+/**
+ * The one lint finding a table may silence, for the whole file, and only a table with a body that sets the result of its
+ * chain once in a line of its own (branches-scope.mjs): its function declares the result on the line above, which the
+ * check would have rewritten as one line. server/test/restructure-lint-line.test.mjs lists the files that carry it.
+ */
+export const SET_ONCE_LINE = '// biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.';
 
 export const callLine = (local, key, kind = ROUTES, own = []) => `${before(kind)}${local}['${key}'](${handed(kind)}${own.length ? `, { ${own.join(', ')} }` : ''});`;
 export const requireLine = (local, spec) => `const { branches: ${local} } = require('${spec}');`;
@@ -86,9 +92,10 @@ export const frameLine = (line) => line === ENTRY_END || line === CLOSE_LINE || 
 
 /**
  * @param {string} moduleText a module the command wrote
- * @returns {{ head: string[], entries: { key: string, params: string, lines: string[] }[], tail: string[], kind: typeof ROUTES }}
- *   the lines before the table, every body in order as it stood in the file, the lines after the table, and which
- *   chain the table belongs to (said by the line above it); throws when the text is not such a module
+ * @returns {{ head: string[], entries: { key: string, params: string, lines: string[] }[], tail: string[], kind: typeof ROUTES, setOnce: boolean }}
+ *   the lines before the table, every body in order as it stood in the file, the lines after the table, which
+ *   chain the table belongs to (said by the line above it), and whether it carries the lint line of a result set once;
+ *   throws when the text is not such a module
  */
 export function readModule(moduleText) {
   const lines = moduleText.split('\n');
@@ -111,7 +118,7 @@ export function readModule(moduleText) {
     at = end + 1;
   }
   if (at >= lines.length) throw new Error('the table of branches is not closed');
-  return { head: lines.slice(0, open - 1), entries, tail: lines.slice(at + 1), kind };
+  return { head: lines.slice(0, open - 1), entries, tail: lines.slice(at + 1), kind, setOnce: lines.slice(0, open - 1).includes(SET_ONCE_LINE) };
 }
 
 /**
