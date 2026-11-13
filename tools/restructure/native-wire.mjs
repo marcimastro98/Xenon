@@ -41,7 +41,9 @@ export function wordsOf(text, tokens, item) {
       const colon = c.str(after) === ':';
       const doubleColon = colon && text[tokens[after].end] === ':' && c.str(c.next(after + 1)) === ':';
       words.all.add(w);
-      if (before === '.') words.dotted.add(w);
+      // (`0..MAX` is a range, not a field; `fn name(` declares the name)
+      if (before === '.' && beforeTwo !== '.') words.dotted.add(w);
+      else if (before === 'fn') words.bound.add(w);
       else if (before === ':' && beforeTwo === ':') words.pathed.add(w);
       else if (doubleColon || c.str(after) === '(' || c.str(after) === '!') words.used.add(w);
       else if (/^[A-Z]/.test(w)) bare.add(w);
@@ -76,6 +78,29 @@ export function namesAbove(text, tokens, item) {
     if (c.str(colon) === ':' && c.str(second) === ':' && c.word(c.next(second + 1))) names.add(c.word(c.next(second + 1)));
   }
   return names;
+}
+
+/**
+ * Where an item says `pub(super)`: the offset of each `super`. One module further down the same words
+ * would stop one module short, so the splitter writes `pub(in super::super)` there: the same place as before.
+ * @param {string} text @param {import('./native-lex.mjs').Token[]} tokens
+ * @param {{ start: number, end: number }} item
+ * @returns {number[]}
+ */
+export function superVisibilities(text, tokens, item) {
+  let lo = 0;
+  while (lo < tokens.length && tokens[lo].start < item.start) lo += 1;
+  let hi = lo;
+  while (hi < tokens.length && tokens[hi].start < item.end) hi += 1;
+  const c = cursor(text, tokens, hi);
+  const found = [];
+  for (let k = c.next(lo); k < hi; k = c.next(k + 1)) {
+    if (c.word(k) !== 'pub') continue;
+    const paren = c.next(k + 1);
+    const inner = c.next(paren + 1);
+    if (c.str(paren) === '(' && c.word(inner) === 'super' && c.str(c.next(inner + 1)) === ')') found.push(tokens[inner].start);
+  }
+  return found;
 }
 
 /**

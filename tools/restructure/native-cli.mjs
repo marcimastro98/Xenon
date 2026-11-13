@@ -27,7 +27,8 @@ function outline(file, deep) {
     if (item.kind === 'use' || item.kind === 'using') continue;
     console.log(row(item, ''));
     const nested = deep || (lang !== 'rust' && item.kind === 'type') || (lang === 'swift' && item.open !== undefined && item.kind !== 'func');
-    if (nested && item.kind !== 'fn' && item.kind !== 'method') for (const inner of bodyItems(text, tokens, lang, item)) console.log(row(inner, '    '));
+    const holds = lang === 'rust' ? ['impl', 'trait', 'mod'].includes(item.kind) && item.open !== undefined : item.kind !== 'method';
+    if (nested && holds) for (const inner of bodyItems(text, tokens, lang, item)) console.log(row(inner, '    '));
   }
 }
 

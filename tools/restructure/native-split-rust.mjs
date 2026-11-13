@@ -7,7 +7,7 @@ import { cursor, matching } from './native-lex.mjs';
 import { bodyItems, fileItems } from './native-items.mjs';
 import { textOfItem, withMemberGroups, wordsOfItem } from './native-split-impl.mjs';
 import { boundName, deeperPath, useLeaves, writeUses } from './native-use.mjs';
-import { callsTrait, commonCfg, coversEverything, mergeWords, namesAbove, wordsOf } from './native-wire.mjs';
+import { callsTrait, commonCfg, coversEverything, mergeWords, namesAbove, superVisibilities, wordsOf } from './native-wire.mjs';
 
 const NAMED = new Set(['fn', 'struct', 'enum', 'union', 'trait', 'type', 'const', 'static', 'mod', 'macro']);
 const STAYS = (item) => item.kind === 'use' || item.kind === 'inner' || item.kind === 'extern crate' || (item.kind === 'mod' && item.open === undefined);
@@ -123,7 +123,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       if (dropped(f, name)) continue;
       // (a name this file has too is one function written once per system: the other system's one is still imported)
       const found = (defs.get(name) ?? []).filter((def) => def.file !== f);
-      if (mine.has(name) && (found.length === 0 || (f >= 0 && !callsAnother(f, name)))) continue;
+      if (mine.has(name) && found.length > 0 && f >= 0 && !callsAnother(f, name)) continue;
       for (const g of new Set(found.map((def) => def.file))) {
         const variants = found.filter((def) => def.file === g);
         const cfgs = coversEverything(variants.map((def) => def.item.cfg)) ? [[]] : variants.map((def) => def.item.cfg);
@@ -136,6 +136,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
         }
       }
       if (found.length === 0 && f >= 0) {
+        // (also for a name the file has itself: a function and an imported module may share one)
         for (const { leaf, item } of leaves.filter((entry) => boundName(entry.leaf) === name)) {
           out.push({ cfg: union(item.cfg, userCfg(f, name)).filter((line) => !gate.get(f).includes(line)), vis: '', leaf: deeper(leaf) });
         }
@@ -198,6 +199,11 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       if (member.vis || inserts.has(member.visAt)) shown.get(f).push(signature(member));
     }
   });
+  // `pub(super)` one module further down must still mean the module above this file.
+  items.forEach((item, i) => {
+    if (where[i] < 0 || item.kind === 'mod' || isRoot) return;
+    for (const one of item.members ?? [item]) for (const at of superVisibilities(text, tokens, one)) inserts.set(at, 'in super::');
+  });
   const TYPES = new Set(['struct', 'enum', 'union', 'type', 'trait']);
   for (let grew = true; grew;) {
     grew = false;
@@ -220,6 +226,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
     const rest = fileWords.get(-1);
     const stays = (entry) => {
       const name = boundName(entry.leaf);
+      if (dropped(-1, name)) return false;
       if (item.vis || entry.leaf.name === '*' || (plan.keep ?? []).includes(name)) return true;
       if (isTraitLike(entry)) return callsTrait(entry.leaf.name, rest, plan.traits) !== false;
       return rest.used.has(name);

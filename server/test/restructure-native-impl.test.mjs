@@ -132,3 +132,16 @@ test('a function written once per system and a constant inside a format string a
   // The file with the Windows one does not import the macOS one: nothing in it calls that.
   assert.doesNotMatch(files['src/nudge_windows.rs'], /macos/);
 });
+
+test('pub(super) on a moved item keeps meaning the module above the cut file', () => {
+  const text = ['use crate::inspect;', '', 'const TRIES: u32 = 3;', '', 'pub(super) fn text() -> u32 {', '    (0..TRIES).count() as u32', '}', '', 'pub fn inspect() -> u32 {', '    inspect::pixel()', '}', '', 'fn here() -> u32 { text() }', ''].join('\n');
+  const plan = { origin: 'src/win/edit.rs', parts: [{ file: 'src/win/edit/trim.rs', about: 'Cuts a video.', items: ['fn text', 'fn inspect'] }] };
+  const { files } = splitRust({ origin: plan.origin, text, plan, otherWords: new Set(['text']) });
+  const trim = files['src/win/edit/trim.rs'];
+  assert.match(trim, /^pub\(in super::super\) fn text\(/m);
+  assert.match(files['src/win/edit.rs'], /^pub\(super\) use trim::text;$/m);
+  // A constant after the two dots of a range is used, and a module that shares a function's name is imported.
+  assert.match(trim, /^use super::TRIES;$/m);
+  assert.match(trim, /^use crate::inspect;$/m);
+  assert.deepEqual(compareGroups({ 'src/win/edit.rs': text }, files).problems, []);
+});
