@@ -236,9 +236,7 @@ const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
 const { joinDiskDetails } = require('./disk/details-shape.js');
 
-const {
-  DECK_SOUND_MAX_BYTES, DECK_SOUND_EXTS, DECK_SOUND_NAME_RE, DECK_MAX_BYTES,
-} = require('./deck/limits.js');
+const { DECK_SOUND_EXTS, DECK_SOUND_NAME_RE, DECK_MAX_BYTES } = require('./deck/limits.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
@@ -497,7 +495,7 @@ const lighting = require('./lighting');
 const { createSessionWatch } = require('./session-watch');
 require('./lighting-led-colors');
 require('./lighting-layouts');
-const icueSdkInstall = require('./icue-sdk-install');
+require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
@@ -2305,7 +2303,6 @@ const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./progra
 
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
-const { isNetworkPath } = require('./files/network-path.js');
 
 const { _killWorker } = require('./powershell/worker-state.js');
 
@@ -5399,9 +5396,7 @@ async function _persistLighting() {
   _lightingPersistTimer.unref();
 }
 
-const {
-  PC_ACTION_TTL_MS, PC_ACTION_TIMEOUT_MS, _pcActions, issuePcAction,
-} = require('./ai/pc-actions.js');
+const { issuePcAction } = require('./ai/pc-actions.js');
 
 // What the create_preset dry run needs from this file: the real settings
 // normalizer, the built-in tile ids with their default sizes, the SDK switch.
@@ -8825,7 +8820,6 @@ function _pushStocks() {
   broadcastSSE('stocks', _stocksCache);
 }
 const _stocksAlerts = stocks.createAlertTracker();
-const { _stocksChartCache, _stocksSearchCache } = require('./ticker/stocks-caches.js');
 
 
 async function refreshStocks() {
@@ -8898,10 +8892,7 @@ function _pushFootball() {
   broadcastSSE('football', _footballPayload());
 }
 const _footballAlerts = football.createAlertTracker();
-const {
-  _footballStandingsCache, _footballSearchCache, _footballNewsCache, FOOTBALL_NEWS_TTL_MS,
-  FOOTBALL_INFO_FILE, FOOTBALL_INFO_TTL_MS,
-} = require('./ticker/football-caches.js');
+const { FOOTBALL_INFO_FILE, FOOTBALL_INFO_TTL_MS } = require('./ticker/football-caches.js');
 
 let _footballInfo = {};        // id → info
 let _footballInfoAt = {};      // id → ms stamp of the fetch
@@ -9001,7 +8992,6 @@ setInterval(() => {
 const { newsState } = require('./ticker/news-state.js');
 
 const { refreshNews } = require('./ticker/news-refresh.js');
-const { _newsSearchCache } = require('./ticker/news-search-cache.js');
 
 
 // Display-only feed: also gated on the widget/ticker actually using it, so a
@@ -9421,8 +9411,6 @@ function _chatgptChanged(id) {
 }
 
 const { pcmToWav } = require('./wav/pcm-to-wav.js');
-
-const { chimeRequested } = require('./ai/chime-play.js');
 
 const { LEAKED_CALL_RE, _parseLeakedToolCall } = require('./ai/leaked-tool-call.js');
 
@@ -10785,6 +10773,11 @@ data: ${JSON.stringify({ ...st, seed: true })}
   try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 }
 
+const { branches: lightsBranches } = require('./lights/routes.js');
+const { branches: tickerBranches } = require('./ticker/routes.js');
+const { branches: deckBranches } = require('./deck/routes.js');
+const { branches: aiBranches } = require('./ai/routes.js');
+
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
   // it decides whether a certificate name is an acceptable Host and which scheme
@@ -11383,35 +11376,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
-    try {
-      // If the session is up but the device list looks incomplete — empty, or a
-      // device enumerated with 0 LEDs (the iCUE LINK hub reports 0 until iCUE
-      // finishes registering the cooler/fans behind it, common right after a boot)
-      // — kick a throttled, bounded re-enumeration so a follow-up status refresh
-      // (and the next paint) see the real LED layout.
-      if (lighting.isConnected()) {
-        Promise.resolve(lighting.boundedReenumerate()).catch(() => {});
-      }
-      json(lighting.getStatus());
-    }
-    catch (e) { json({ available: false, reason: e.message }); }
+    await lightsBranches['GET /api/lighting/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/devices' && req.method === 'GET') {
-    // Flat device list for the Deck editor's per-device lighting picker:
-    // [{ value: id, label }] — iCUE devices plus every external-provider device.
-    try {
-      const ls = lighting.getStatus();
-      const out = [];
-      (ls.devices || []).forEach((dv) => out.push({ value: dv.id, label: dv.name || dv.model || dv.id }));
-      (ls.providers || []).forEach((p) => (p.devices || []).forEach((dv) => out.push({ value: dv.id, label: (p.name ? p.name + ' · ' : '') + (dv.name || dv.id) })));
-      // The parts of each device with a map, for the "colour one part" picker;
-      // the editor names them the way the lighting map does.
-      const parts = (ls.devices || []).filter(dv => (dv.segments || []).length > 1).map(dv => ({
-        device: dv.id, label: dv.model || dv.id,
-        segments: dv.segments.map(sg => ({ kind: sg.kind, output: sg.output, piece: sg.piece, name: sg.name })),
-      }));
-      json({ devices: out, parts });
-    } catch (e) { json({ devices: [] }); }
+    await lightsBranches['GET /api/lighting/devices'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
     // Apply a partial config change immediately, then persist it so Lighting-page
@@ -11439,22 +11407,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
-    // Live now-playing cover colour from the client. Transient (not persisted),
-    // like the manual override; the bridge ignores it when the effect is off.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      if (body && body.clear) { lighting.clearAlbum(); json({ ok: true }); }
-      else json({ ok: lighting.setAlbumColor(body && body.color, body && body.palette) });
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await lightsBranches['POST /api/lighting/album'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
-    // Client-originated event flash (reminder / notification). Timer is fired
-    // server-side from _checkTimers. Never throws; unknown/disabled type = no-op.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      lighting.onEvent(String(body && body.type || ''));
-      json({ ok: true });
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await lightsBranches['POST /api/lighting/event'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/vitals/nag' && req.method === 'POST') {
     // Bit's PC-side nag actions (vitals-pet.js). Defense in depth — each rung
@@ -11620,33 +11576,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
-    // Open a provider's official download page in the default browser. The URL is
-    // resolved server-side from the provider catalogue, never taken from the client.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const provider = String(body && body.provider || '');
-      const entry = lighting.getExternalStatus().providers.find(p => p.id === provider);
-      const url = entry && entry.download;
-      if (url && /^https:\/\//i.test(url)) {
-        execFile('cmd', ['/c', 'start', '', url], () => {});
-        json({ ok: true, url });
-      } else {
-        json({ ok: false, error: 'no download url' });
-      }
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await lightsBranches['POST /api/lighting/open-download'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/lighting/sdk-install' && req.method === 'POST') {
-    // Fetches the CORSAIR iCUE SDK client component from Corsair's official
-    // release (pinned version + SHA-256, both in icue-sdk-update.ps1). The
-    // installer does this too, but an existing install never re-runs it, so
-    // without this button a self-updated install has no route to CORSAIR RGB.
-    // Never throws: a failed fetch is a message the lighting page shows.
-    try {
-      const r = await icueSdkInstall.install();
-      // The memoized DLL probe would keep reporting "missing" for its whole TTL.
-      if (r.ok) lighting.refreshAvailability();
-      json({ ok: r.ok, status: r.status, error: r.ok ? null : r.detail, lighting: lighting.getStatus() });
-    } catch (e) { json({ ok: false, error: e.message }); }
+    await lightsBranches['POST /api/lighting/sdk-install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {
     // Guardian hardware-health history for the dashboard charts (same local data
@@ -11656,15 +11589,9 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
 
   } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
-    // The chat's stop button. Only stops: the turn ends at its next tool or
-    // round (ai-turns.js), and whoever holds the random id is the chat that sent it.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      json({ ok: aiTurns.stop(body.id) });
-    } catch { json({ ok: false }); }
+    await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
-    // How far a running AI turn has got, or its answer once sent (ai-turns.js).
-    json(aiTurns.status(urlObj.searchParams.get('id')));
+    await aiBranches['GET /api/ai/turn'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {
     // Persistent AI memory — list what Xenon remembers about the user (for the
     // Settings → Funzioni AI viewer). Local data; loopback-guarded like all routes.
@@ -12025,59 +11952,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/deck/sound-upload' && req.method === 'POST') {
-    // Soundboard library upload: store the clip under DATA_DIR/sounds with a
-    // SERVER-GENERATED name (the client filename never reaches the path — same
-    // shape as /background). Playback still flows through /deck/sound?path=,
-    // which stays the single extension-gated reader of audio contents.
-    try {
-      const body = await readBodyBuffer(req, DECK_SOUND_MAX_BYTES);
-      const file = parseMultipartBackground(req, body, 'sound');
-      const ext = path.extname(file.originalName).toLowerCase();
-      if (!DECK_SOUND_EXTS.has(ext)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unsupported file type' }));
-        return;
-      }
-      // MIME consistency check, same shape as /background: a declared non-audio
-      // content type must not land under an audio extension. Browsers report
-      // audio types inconsistently, so only an explicit NON-audio type rejects
-      // (octet-stream/empty pass — the extension allowlist stays the real gate).
-      const ct = String(file.contentType || '').toLowerCase();
-      if (ct && ct !== 'application/octet-stream' && !ct.startsWith('audio/') && ct !== 'video/webm') {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'File type mismatch' }));
-        return;
-      }
-      await fs.promises.mkdir(DECK_SOUNDS_DIR, { recursive: true });
-      const safeName = `sound-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      const safePath = path.join(DECK_SOUNDS_DIR, safeName);
-      await fs.promises.writeFile(safePath, file.data);
-      json({ ok: true, path: safePath, name: file.originalName, size: file.data.length });
-    } catch (e) {
-      if (e.code === 'PAYLOAD_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Payload too large' }));
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    }
+    await deckBranches['POST /deck/sound-upload'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck/sounds' && req.method === 'GET') {
-    // The uploaded soundboard library (for the editor's sound picker).
-    try {
-      let entries = [];
-      try { entries = await fs.promises.readdir(DECK_SOUNDS_DIR, { withFileTypes: true }); } catch { /* none yet */ }
-      const names = entries.filter((ent) => ent.isFile() && DECK_SOUND_NAME_RE.test(ent.name)).map((ent) => ent.name);
-      // Stat in parallel — a large library shouldn't pay the sum of its stats.
-      const stats = await Promise.all(names.map((n) => fs.promises.stat(path.join(DECK_SOUNDS_DIR, n)).catch(() => null)));
-      const sounds = [];
-      for (let i = 0; i < names.length; i++) {
-        if (stats[i]) sounds.push({ name: names[i], path: path.join(DECK_SOUNDS_DIR, names[i]), size: stats[i].size, mtime: stats[i].mtimeMs });
-      }
-      sounds.sort((a, b) => b.mtime - a.mtime);
-      json({ ok: true, sounds });
-    } catch (e) { err500(e.message); }
+    await deckBranches['GET /deck/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
     // Remove one library clip. The name must match the server-generated shape
@@ -12095,58 +11973,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/apps/store' && req.method === 'GET') {
-    // Installed Store/UWP apps for the Deck "open Store app" picker. Get-StartApps
-    // lists every Start-menu entry; we keep only UWP ones (an AppID carrying the
-    // PackageFamilyName!AppId separator) so a key can launch e.g. the Store Spotify,
-    // which lives in a protected WindowsApps folder and can't be opened by path.
-    try {
-      const out = await new Promise((resolve) => {
-        execFile('powershell.exe',
-          ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
-            "Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name,AppID | ConvertTo-Json -Compress"],
-          { timeout: 9000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
-          (e, stdout) => resolve(e ? '' : String(stdout || '')));
-      });
-      const apps = [];
-      if (out.trim()) {
-        const parsed = JSON.parse(out);
-        const arr = Array.isArray(parsed) ? parsed : [parsed];
-        const seen = new Set();
-        for (const a of arr) {
-          const value = (a && a.AppID) ? String(a.AppID) : '';
-          if (!value || !value.includes('!') || seen.has(value.toLowerCase())) continue;
-          seen.add(value.toLowerCase());
-          apps.push({ value, label: (a && a.Name) ? String(a.Name) : value });
-        }
-        apps.sort((x, y) => x.label.localeCompare(y.label));
-      }
-      json({ ok: true, apps });
-    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
+    await deckBranches['GET /apps/store'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck/app-icon' && req.method === 'GET') {
-    // The app's OWN icon for a Deck launch key, so "open app" / "open Store app"
-    // keys need no external image. `path` → an exe/lnk's embedded icon (via
-    // resolveAppIcons); `aumid` → a Store/UWP app's tile logo (via
-    // resolveStoreAppIcon). It mutates nothing, but it runs PowerShell on a
-    // path from the query string, so it is in CSRF_MUTATION_PATHS: a page on
-    // another site must not be able to aim it with an <img>. The path is
-    // quoted by psQuote() (every PowerShell quote character), a network path
-    // is refused, and the AUMID is charset-checked before use.
-    try {
-      const aumid = (urlObj.searchParams.get('aumid') || '').trim();
-      const appPath = (urlObj.searchParams.get('path') || '').trim();
-      let icon = null;
-      if (aumid) {
-        if (/^[\w.-]+![\w.-]+$/.test(aumid)) icon = await resolveStoreAppIcon(aumid);
-      } else if (appPath && !isNetworkPath(appPath)) {
-        // A network path is never read: asking Windows whether
-        // \\host\share\x.exe exists already sends the user's NTLM hash to
-        // that host. The path itself reaches PowerShell through psQuote().
-        const icons = await resolveAppIcons([appPath]);
-        icon = icons[0] || null;
-      }
-      json({ ok: !!icon, icon });
-    } catch (e) { json({ ok: false, icon: null, error: e.message }); }
+    await deckBranches['GET /deck/app-icon'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
@@ -12177,26 +12007,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {
-    // Execute a PREVIOUSLY-PROPOSED, user-approved PC command. The command text
-    // is looked up by nonce server-side (never taken from the request body), and
-    // the feature flag is re-checked here — so this endpoint can only run
-    // something the AI proposed AND the user confirmed on the card, and only
-    // while PC Control is enabled.
-    try {
-      const { nonce } = JSON.parse(await readBody(req) || '{}');
-      if (!_pcControlEnabled()) { json({ ok: false, error: 'pc_control_disabled' }); return; }
-      const entry = nonce && _pcActions.get(String(nonce));
-      if (!entry) { json({ ok: false, error: 'expired' }); return; }
-      _pcActions.delete(String(nonce)); // single-use
-      if (Date.now() - entry.ts > PC_ACTION_TTL_MS) { json({ ok: false, error: 'expired' }); return; }
-      execFile('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', entry.command],
-        { timeout: PC_ACTION_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true },
-        (e, stdout, stderr) => {
-          const clip = (s) => String(s || '').slice(0, 4000);
-          if (e && e.killed) { json({ ok: false, error: 'timeout', stdout: clip(stdout), stderr: clip(stderr) }); return; }
-          json({ ok: !e, code: (e && typeof e.code === 'number') ? e.code : 0, stdout: clip(stdout), stderr: clip(stderr), errorMessage: (e && typeof e.code !== 'number') ? e.message : undefined });
-        });
-    } catch (e) { err500(e.message); }
+    await aiBranches['POST /ai/pc-run'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/ai/deck-run' && req.method === 'POST') {
     // A Deck action Bit proposed and the user approved on the card. The action
@@ -12221,12 +12032,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {
-    // Drop a pending proposal when the user declines the confirmation card.
-    try {
-      const { nonce } = JSON.parse(await readBody(req) || '{}');
-      if (nonce) _pcActions.delete(String(nonce));
-      json({ ok: true });
-    } catch (e) { err500(e.message); }
+    await aiBranches['POST /ai/pc-cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/actions/perf' && req.method === 'POST') {
     // Performance Mode system actions (guided app close/relaunch). Allowlisted
@@ -12332,11 +12138,7 @@ const handleRequest = async (req, res) => {
     try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
 
   } else if (reqPath === '/api/signalrgb/status' && req.method === 'GET') {
-    // SignalRGB card in Settings → Lighting: whether the launcher is installed on
-    // this PC and whether the user has enabled the integration. Windows-only;
-    // elsewhere `installed` is simply false and the card shows the "not found" hint.
-    const s = hub.settings || {};
-    json({ ok: true, installed: signalrgb.isInstalled(), enabled: !!(s.signalrgb && s.signalrgb.enabled === true) });
+    await lightsBranches['GET /api/signalrgb/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
     // Toggle the SignalRGB integration on/off (persisted like the chroma flag).
@@ -12351,17 +12153,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
 
   } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
-    // Effect list for the Deck picker. Empty unless the integration is enabled AND
-    // installed; the scan is async + cached in signalrgb.js so repeated opens of
-    // the Deck editor don't re-walk the disk.
-    try {
-      const s = hub.settings || {};
-      const enabled = !!(s.signalrgb && s.signalrgb.enabled === true);
-      const effects = (enabled && signalrgb.isInstalled()) ? await signalrgb.scanEffects() : [];
-      json({ ok: true, effects });
-    } catch (e) {
-      json({ ok: false, effects: [], error: String((e && e.message) || e) });
-    }
+    await lightsBranches['GET /api/signalrgb/effects'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
     // Lets the Browser widget render a friendly "no browser found" state instead
@@ -13446,40 +13238,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks/chart' && req.method === 'GET') {
-    // Chart candles for the detail view (on-demand, short-cached so range
-    // toggles don't re-hit the provider every tap).
-    try {
-      const symbol = urlObj.searchParams.get('symbol') || '';
-      const range = urlObj.searchParams.get('range') || '1d';
-      const key = `${symbol}|${range}`;
-      const now = Date.now();
-      const hit = _stocksChartCache.get(key);
-      if (hit && now - hit.at < 30000) { json(hit.data); }
-      else {
-        const data = await stocks.fetchChart(symbol, range, _stocksProviderOpts());
-        if (!data) { res.writeHead(404); res.end('unknown symbol'); return; }
-        if (_stocksChartCache.size > 40) _stocksChartCache.delete(_stocksChartCache.keys().next().value);
-        _stocksChartCache.set(key, { at: now, data });
-        json(data);
-      }
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/stocks/chart'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/stocks/search' && req.method === 'GET') {
-    // Resolve free text ("apple", "ftse mib") to real tickers so the widget's
-    // add box is a search, not a "know the exact symbol" field. Keyless (Yahoo),
-    // briefly cached so typing doesn't hammer the endpoint on every keystroke.
-    try {
-      const q = (urlObj.searchParams.get('q') || '').trim();
-      if (!q) { json({ results: [] }); return; }
-      const key = q.toLowerCase();
-      const now = Date.now();
-      const hit = _stocksSearchCache.get(key);
-      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
-      const results = await stocks.searchSymbols(q);
-      if (_stocksSearchCache.size > 40) _stocksSearchCache.delete(_stocksSearchCache.keys().next().value);
-      _stocksSearchCache.set(key, { at: now, results });
-      json({ results });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/stocks/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/stocks/watchlist' && req.method === 'POST') {
     // Add / remove a favorite symbol (or replace the whole list). Persisted in
@@ -14111,74 +13873,13 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football/standings' && req.method === 'GET') {
-    // League table for the detail view (on-demand, short-cached). `season` is
-    // supplied by the widget from the team's own fixtures.
-    try {
-      const leagueId = urlObj.searchParams.get('league') || '';
-      const season = urlObj.searchParams.get('season') || '';
-      const key = `${leagueId}|${season}`;
-      const now = Date.now();
-      const hit = _footballStandingsCache.get(key);
-      if (hit && now - hit.at < 5 * 60 * 1000) { json(hit.data || {}); return; }
-      const data = await football.fetchStandings(leagueId, season, _footballOpts());
-      if (!data) { res.writeHead(404); res.end('no standings'); return; }
-      if (_footballStandingsCache.size > 40) _footballStandingsCache.delete(_footballStandingsCache.keys().next().value);
-      _footballStandingsCache.set(key, { at: now, data });
-      json(data);
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/football/standings'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/football/news' && req.method === 'GET') {
-    // Headlines about the followed teams/competitions. TheSportsDB has no news
-    // feed, so each favorite becomes a Google News topic and news.js does the
-    // fetching, merging and deduping it already does for the News widget.
-    // Deliberately OFF the SSE cycle: the network is only touched when the user
-    // opens the tab, and the answer is reused for 15 minutes.
-    try {
-      const cfg = _footballSettings();
-      const lang = (hub.settings && hub.settings.language) || 'en';
-      const feeds = football.newsQueries(cfg.teams, lang);
-      if (!feeds.length) { json({ items: [] }); return; }
-      const key = lang + '|' + feeds.map(f => f.query).join('|');
-      const now = Date.now();
-      if (_footballNewsCache.key === key && now - _footballNewsCache.at < FOOTBALL_NEWS_TTL_MS) {
-        json({ items: _footballNewsCache.items, refreshedAt: _footballNewsCache.at });
-        return;
-      }
-      // In-flight dedup: three tiles (Edge, browser, phone) opening the tab at
-      // once must not each fire four Google News requests.
-      if (!_footballNewsCache.inflight || _footballNewsCache.key !== key) {
-        _footballNewsCache.key = key;
-        _footballNewsCache.inflight = news.fetchHeadlines(feeds, { lang })
-          .then(d => {
-            const items = (d && Array.isArray(d.items) ? d.items : []).slice(0, 20);
-            _footballNewsCache.at = Date.now();
-            _footballNewsCache.items = items;
-            return items;
-          })
-          .catch(() => [])
-          .finally(() => { _footballNewsCache.inflight = null; });
-      }
-      const items = await _footballNewsCache.inflight;
-      json({ items, refreshedAt: _footballNewsCache.at });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/football/news'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/football/search' && req.method === 'GET') {
-    // Resolve free text ("napoli") to real teams so the add box is a search.
-    try {
-      const q = (urlObj.searchParams.get('q') || '').trim();
-      if (!q) { json({ results: [] }); return; }
-      const key = q.toLowerCase();
-      const now = Date.now();
-      const hit = _footballSearchCache.get(key);
-      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
-      // Competitions (curated, instant) first, then clubs (live search).
-      const leagues = football.searchLeagues(q);
-      const teams = await football.searchTeams(q, _footballOpts());
-      const results = [...leagues, ...teams].slice(0, 12);
-      if (_footballSearchCache.size > 40) _footballSearchCache.delete(_footballSearchCache.keys().next().value);
-      _footballSearchCache.set(key, { at: now, results });
-      json({ results });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/football/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/football/teams' && req.method === 'POST') {
     // Add / remove a favorite team (or replace the whole list). Persisted in
@@ -14212,31 +13913,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/news' && req.method === 'GET') {
-    // Current merged headlines (+ the config the widget needs to render).
-    try {
-      if (urlObj.searchParams.has('refresh')) await refreshNews();
-      // A GET is proof someone wants the data (widget just added, ticker source
-      // just enabled) — the gated timers may not have run yet, so if the cache
-      // is cold, refresh in background; the SSE push repaints when it lands.
-      else if (!newsState.cache.refreshedAt || Date.now() - newsState.cache.refreshedAt > 15 * 60 * 1000) refreshNews().catch(() => {});
-      const cfg = _newsSettings();
-      json({ items: newsState.cache.items, refreshedAt: newsState.cache.refreshedAt, feeds: cfg.feeds, tile: cfg.tile });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/news'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/news/search' && req.method === 'GET') {
-    // Resolve free text to curated sources (the caller can also add it as a topic).
-    try {
-      const q = (urlObj.searchParams.get('q') || '').trim();
-      if (!q) { json({ results: [] }); return; }
-      const key = q.toLowerCase();
-      const now = Date.now();
-      const hit = _newsSearchCache.get(key);
-      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
-      const results = news.searchSources(q);
-      if (_newsSearchCache.size > 40) _newsSearchCache.delete(_newsSearchCache.keys().next().value);
-      _newsSearchCache.set(key, { at: now, results });
-      json({ results });
-    } catch (e) { err500(e.message); }
+    await tickerBranches['GET /api/news/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/news/feeds' && req.method === 'POST') {
     // Add / remove a followed source or topic (or replace the whole list).
@@ -14559,10 +14239,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
-    try {
-      const store = await readDeckStore();
-      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt, instanceRevs: store.instanceRevs, presets: store.presets, keyPresets: store.keyPresets });
-    } catch (e) { err500(e.message); }
+    await deckBranches['GET /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck-config' && req.method === 'POST') {
     try {
@@ -15911,44 +15588,16 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {
-    // Xenon's tools for a Claude Code / Codex turn, asked for by the MCP bridge
-    // (ai-mcp-bridge.js) that the program started. The token names one live
-    // turn and dies with it; ai-cli.js refuses everything else, and each call
-    // runs through executeAiTool exactly as it does for the other providers.
-    try {
-      const raw = await readBodyBuffer(req, 256 * 1024);
-      const body = JSON.parse(raw.toString('utf8') || '{}');
-      const out = await aiCli.handleMcp(String(req.headers['x-xenon-mcp-token'] || ''), body);
-      res.writeHead(out.status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify(out.body));
-    } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'bad_request' }));
-    }
+    await aiBranches['POST /api/ai/cli/mcp'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai/xenon/balance' && req.method === 'GET') {
-    // Xenon credits left on this PC's supporter pass, for Settings. Numbers only:
-    // the pass and the hub's session token never leave this server.
-    json(await aiXenon.balance(DATA_DIR));
+    await aiBranches['GET /api/ai/xenon/balance'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {
-    // Claude Code / Codex: is the program there, and is the user signed in to
-    // it. Asked by Settings; `fresh=1` skips the 30s cache so the answer
-    // changes as soon as the user has signed in.
-    const provider = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
-    if (!aiCli.isCliProvider(provider)) { json({ ok: false, error: 'bad_provider' }); return; }
-    try { json(Object.assign({ ok: true }, await aiCli.status(provider, { fresh: urlObj.searchParams.get('fresh') === '1' }))); }
-    catch (e) { json({ ok: false, error: 'status_failed' }); }
+    await aiBranches['GET /api/ai/cli/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai/cli/models' && req.method === 'GET') {
-    // The models the program itself offers this account today: Claude Code's
-    // own list (its `initialize` answer, what its /model picker shows), Codex's
-    // own catalog (`codex debug models`). `fresh=1` when Settings opens, so the
-    // picker is never older than the program.
-    const provider = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
-    if (!aiCli.isCliProvider(provider)) { json({ ok: false, error: 'bad_provider' }); return; }
-    try { json({ ok: true, provider, models: await aiCli.models(provider, { fresh: urlObj.searchParams.get('fresh') === '1' }) }); }
-    catch (e) { json({ ok: true, provider, models: [] }); }
+    await aiBranches['GET /api/ai/cli/models'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
     // Live model list for the picker, fetched from each provider's own models
@@ -16299,23 +15948,10 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
-    try {
-      const enabled = await aiLocal.getOllamaAutostart();
-      json({ enabled, supported: aiLocal.ollamaAutostartSupported() });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
+    await aiBranches['GET /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const result = await aiLocal.setOllamaAutostart(body.enabled === true);
-      json(result);
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: e.message }));
-    }
+    await aiBranches['POST /api/ai-local/ollama-autostart'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {
     try {
@@ -16346,11 +15982,7 @@ const handleRequest = async (req, res) => {
     }));
 
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
-    try {
-      const b = JSON.parse(await readBody(req) || '{}');
-      chimeRequested(b.kind);
-    } catch {}
-    res.writeHead(204); res.end();
+    await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/volume/duck' && req.method === 'POST') {
     // Lower system volume before TTS speaks so Xenon's voice is foregrounded.
@@ -16979,25 +16611,7 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/pages/hotkey-status' && req.method === 'GET') {
-    // Settings → the page-shortcuts list: one state per row, so a combo another
-    // app already owns says so on the row that has it rather than as one verdict
-    // over the whole feature.
-    try {
-      json({
-        slots: _hotkey.slots || {},
-        bindings: (_hotkey.bindings || [])
-          .filter((b) => b.slot !== 'spotlight' && !b.keyId)
-          .map((b) => ({ slot: b.slot, combo: b.combo, target: b.target })),
-        // The Deck keys' shortcuts, one verdict per key (the key editor).
-        // `taken` = every combo already in use here, so the editor can refuse
-        // one before it is saved.
-        state: _hotkey.state,
-        deck: _deckShortcutStatus(),
-        taken: (_hotkey.bindings || []).map((b) => ({ combo: b.combo, keyId: b.keyId || '', slot: b.slot })),
-        // The keys this PC types with AltGr, for the recorders' own check (null: all).
-        altGrKeys: _altGrKeys(),
-      });
-    } catch (e) { err500(e.message); }
+    await deckBranches['GET /pages/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/pages/hotkey-press' && req.method === 'POST') {
     // The Linux page shortcuts' other end, one URL per slot: the desktop runs a
@@ -18652,27 +18266,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
 
   } else if (reqPath === '/state/set' && req.method === 'POST') {
-    // Local scripts only. On the CSRF-sensitive list below, which refuses any
-    // cross-site fetch and any top-level navigation — so a page cannot reach it
-    // and neither can a sandboxed widget iframe (origin null reads as
-    // cross-site). A shell has no Sec-Fetch headers at all and is allowed.
-    //
-    //   curl -X POST 127.0.0.1:3030/state/set \
-    //        -H 'Content-Type: application/json' \
-    //        -d '{"name":"audio-out","value":"speakers"}'
-    //
-    // Omit `value` (or send null) to clear it.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const err = setScriptState(body.name, body.value);
-      if (err) { json({ ok: false, error: err }); return; }
-      json({ ok: true, states: _scriptStates.states });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+    await deckBranches['POST /state/set'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/state/get' && req.method === 'GET') {
-    // So a script can read back what it set (and a person can check their curl
-    // landed) without opening the dashboard.
-    json({ ok: true, states: _scriptStates.states });
+    await deckBranches['GET /state/get'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
     // The HOST page mirrors widget-published deck states here so the Virtual

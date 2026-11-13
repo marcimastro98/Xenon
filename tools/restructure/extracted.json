@@ -282,5 +282,13 @@
     "server/server.js": [
       {"name":"DEFAULT_HUB_SETTINGS","parts":[{"name":"HUB_DEFAULTS_LOOK","first":"appearance"},{"name":"HUB_DEFAULTS_SCREEN","first":"ambientMode"},{"name":"HUB_DEFAULTS_APP","first":"swipeHomeGesture"},{"name":"HUB_DEFAULTS_TILES","first":"browserAdblock"},{"name":"HUB_DEFAULTS_ASSISTANT","first":"aiProvider"},{"name":"HUB_DEFAULTS_FEATURES","first":"aiFeatures"},{"name":"HUB_DEFAULTS_CONNECTIONS","first":"stocks"},{"name":"HUB_DEFAULTS_INSTALL","first":"surfaceChoice"}],"after":258}
     ]
+  },
+  "branches": {
+    "server/server.js": [
+      {"file":"server/lights/routes.js","about":"What the engine answers about the lights: the state of the lighting, its devices, the album colours, an event, the download page and the install of the iCUE kit, and SignalRGB.","keys":["GET /api/lighting/status","GET /api/lighting/devices","POST /api/lighting/album","POST /api/lighting/event","POST /api/lighting/open-download","POST /api/lighting/sdk-install","GET /api/signalrgb/status","GET /api/signalrgb/effects"],"after":274},
+      {"file":"server/ticker/routes.js","about":"What the engine answers for the stocks, football and news tiles: charts, standings, headlines and the searches.","keys":["GET /api/stocks/chart","GET /api/stocks/search","GET /api/football/standings","GET /api/football/news","GET /api/football/search","GET /api/news","GET /api/news/search"],"after":274},
+      {"file":"server/deck/routes.js","about":"What the engine answers for the Deck: its sounds, the icon of a program, the Store apps a key can open, the saved Deck, the states scripts set and whether the page shortcuts are held.","keys":["POST /deck/sound-upload","GET /deck/sounds","GET /apps/store","GET /deck/app-icon","GET /deck-config","GET /pages/hotkey-status","POST /state/set","GET /state/get"],"after":274},
+      {"file":"server/ai/routes.js","about":"What the engine answers about the assistant: a turn and its stop, the command line assistants, the local models, the balance, an action on the PC and the chime.","keys":["POST /api/ai/turn/stop","GET /api/ai/turn","POST /ai/pc-run","POST /ai/pc-cancel","POST /api/ai/cli/mcp","GET /api/ai/xenon/balance","GET /api/ai/cli/status","GET /api/ai/cli/models","GET /api/ai-local/ollama-autostart","POST /api/ai-local/ollama-autostart","POST /api/chime"],"after":274}
+    ]
   }
 }
