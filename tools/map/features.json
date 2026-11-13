@@ -459,6 +459,7 @@
         "server/actions/wavelink.js",
         "server/actions/voicemeeter.js",
         "server/js/volume.js",
+        "server/js/volume/**",
         "server/js/mic.js",
         "server/js/picker.js",
         "server/js/wavelink-widget.js",
@@ -476,6 +477,7 @@
       "files": [
         "server/weather/**",
         "server/js/weather-*.js",
+        "server/js/weather-tile/**",
         "server/components/WeatherModal/**",
         "server/components/WeatherTile/**"
       ]
@@ -497,7 +499,9 @@
         "server/js/calendar.js",
         "server/js/calendar/**",
         "server/js/tasks.js",
+        "server/js/tasks/**",
         "server/js/timer.js",
+        "server/js/timer/**",
         "server/js/notes.js",
         "server/js/notes/**",
         "server/components/CalendarView/**",

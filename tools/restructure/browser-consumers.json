@@ -23,6 +23,14 @@
           "cssId"
         ]
       }
+    },
+    "server/js/timer.js": {
+      "server/test/classic-script-globals.test.mjs": {
+        "how": "Reads every script of a page as its own file, never through the reader, and names this file as one of the two that may both declare cssId, so cssId stays in it.",
+        "keeps": [
+          "cssId"
+        ]
+      }
     }
   }
 }

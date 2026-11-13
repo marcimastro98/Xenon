@@ -1,7 +1,7 @@
 {
   "note": "Code files longer than 300 lines, with their length. Written by tools/quality/sizes.mjs: a number only goes down, and a file leaves the list when it fits.",
   "limit": 300,
-  "count": 284,
+  "count": 280,
   "files": {
     "apps/capture/src/audio.rs": 336,
     "apps/capture/src/linux/export_plan.rs": 418,
@@ -205,9 +205,7 @@
     "server/js/stock-widget.js": 703,
     "server/js/streaming-page.js": 807,
     "server/js/surface-picker.js": 393,
-    "server/js/tasks.js": 459,
     "server/js/tile-style-editor.js": 355,
-    "server/js/timer.js": 472,
     "server/js/toast-island.js": 573,
     "server/js/toast.js": 521,
     "server/js/topbar-look-settings.js": 308,
@@ -223,9 +221,7 @@
     "server/js/vitals-pet-core.js": 2775,
     "server/js/vitals-pet.js": 950,
     "server/js/vitals.js": 596,
-    "server/js/volume.js": 345,
     "server/js/wavelink-widget.js": 453,
-    "server/js/weather-tile.js": 340,
     "server/js/whats-new.js": 336,
     "server/js/xenon-credits.js": 481,
     "server/js/xenon-menu-widgets.js": 407,

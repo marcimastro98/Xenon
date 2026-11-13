@@ -34,12 +34,12 @@
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
-      'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
+      'js/volume/speaker-and-apps.js', 'js/volume/mic-and-watch.js', 'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css', 'components/DayModal/DayModalTimePicker.css',
       'components/TasksPanel/TasksPanel.css', 'components/TasksPanel/TasksPanelList.css', 'components/TimerPanel/TimerPanel.css', 'components/TimerPanel/TimerPanelCards.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'],
-    js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar/month-grid.js', 'js/calendar/upcoming-and-day-window.js', 'js/calendar/events-sync.js', 'js/calendar.js', 'js/notes/render.js', 'js/notes/sync-and-edits.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
+    js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar/month-grid.js', 'js/calendar/upcoming-and-day-window.js', 'js/calendar/events-sync.js', 'js/calendar.js', 'js/notes/render.js', 'js/notes/sync-and-edits.js', 'js/notes.js', 'js/tasks/list.js', 'js/tasks/placement.js', 'js/tasks.js', 'js/timer/render.js', 'js/timer/actions.js', 'js/timer.js'],
   };
 
   const TILES = {
@@ -52,7 +52,7 @@
     mic: { ...SYSTEM, markup: ['system', 'mic', '#picker-overlay'] },
     audio: { ...SYSTEM, markup: ['system', 'mic', 'audio', '#picker-overlay'] },
     // The page builds the tile itself; a tap opens its details, cut from index.html.
-    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
+    weather: { css: ['components/WeatherModal/WeatherModal.css', 'components/WeatherModal/WeatherModalBlocks.css', 'components/WeatherTile/WeatherTile.css', 'components/WeatherTile/WeatherTileDetails.css', 'styles/liquid-sheets.css', 'styles/liquid-sheets-windows.css'], js: ['js/dialog-focus.js', 'js/system/readings.js', 'js/system/weather.js', 'js/system/weather-state.js', 'js/system.js', 'js/weather-art.js', 'js/weather-outlook.js', 'js/weather-tile/parts.js', 'js/weather-tile/facts-and-render.js', 'js/weather-tile.js', 'js/weather-look.js', 'js/weather-window.js'], markup: ['#weather-overlay'], copies: true },
     // The Media tile with what draws inside it: Spotify extras, lyrics, the
     // waveform and its cover tint. Not the Lyrics widget's stage or translation.
     media: {
