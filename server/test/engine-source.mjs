@@ -13,10 +13,15 @@
 // A big frozen object may have been cut into parts (`DEFAULT_HUB_SETTINGS` is
 // several constants spread together now). The text handed out here has every key
 // back inside the one literal, and the parts gone, as the tests found it before.
+//
+// The body of a route may live in a table in a module of its feature, with one
+// call of the table left under the route's test (tools/restructure `branches`).
+// The text handed out here has every body back under its test.
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { undoBranchesText } from '../../tools/restructure/branches-text.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 import { dropPart, undoSpreadText } from '../../tools/restructure/spread-undo.mjs';
 import { undoStateText } from '../../tools/restructure/state-undo.mjs';
@@ -31,7 +36,7 @@ const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map
 const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
 const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
 const oldPlaces = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
-const read = (file) => wholeObjects(file, oldPlaces(file));
+const read = (file) => wholeObjects(file, bodiesBack(file, oldPlaces(file)));
 
 /**
  * @param {string} file repo-relative @param {string} text its text
@@ -44,6 +49,15 @@ export function wholeObjects(file, text) {
     for (const part of spread.parts) if (plainFileOf(part.name) === file) out = dropPart(out, part.name);
   }
   return out;
+}
+
+/**
+ * @param {string} file repo-relative @param {string} text its text
+ * @returns {string} the text with the body of every route back under its test, when bodies of the file went into tables
+ */
+export function bodiesBack(file, text) {
+  if (!readLedger().branches?.[file]) return text;
+  return undoBranchesText(text, (spec) => readAsIs(posix.join(posix.dirname(file), spec)));
 }
 
 // Where a constant that was moved as it is lives today.

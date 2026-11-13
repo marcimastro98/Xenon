@@ -24,7 +24,7 @@ const IMPORT_LINE = `import { engineSource } from '${HELPER}';`;
 // its statements) or about the tools that take it apart: they keep reading the file.
 export const BY_HAND = new Set([
   'engine-source.mjs', 'engine-source.test.mjs', 'restructure-analyze.test.mjs', 'restructure-extract.test.mjs',
-  'restructure-verify.test.mjs', 'restructure-remainder.test.mjs', 'restructure-engine-test-readers.test.mjs',
+  'restructure-verify.test.mjs', 'restructure-remainder.test.mjs', 'restructure-branches-move.test.mjs', 'restructure-engine-test-readers.test.mjs',
   'quality-ratchet.test.mjs', 'structure-frozen-paths.test.mjs', 'structure-map.test.mjs', 'structure-requires-resolve.test.mjs',
 ]);
 

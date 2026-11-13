@@ -44,9 +44,10 @@ function isIgnored(root, file) {
  * @param {string} job.source repo-relative file the code leaves
  * @param {string} job.target repo-relative file it goes to
  * @param {string[]} [job.requires] repo-relative files the new module will require
+ * @param {boolean} [job.existing] the target is a module the tool adds to: it is there already
  * @returns {string[]} reasons to refuse, empty when the target is fine
  */
-export function targetReasons({ root, source, target, requires = [] }) {
+export function targetReasons({ root, source, target, requires = [], existing = false }) {
   const reasons = [];
   const home = path.posix.dirname(source);
   const shape = new RegExp(`^${home}/(${KEBAB})/${KEBAB}\\.js$`).exec(target);
@@ -58,7 +59,7 @@ export function targetReasons({ root, source, target, requires = [] }) {
   if (existsSync(path.join(root, home, `${feature}.js`))) {
     reasons.push(`${home}/${feature}.js exists: an update leaves old files behind, so ${feature}.js can never become ${feature}/`);
   }
-  if (existsSync(path.join(root, target))) reasons.push(`${target} exists already: give the new module its own file`);
+  if (!existing && existsSync(path.join(root, target))) reasons.push(`${target} exists already: give the new module its own file`);
   const owners = ownersOf([target, ...requires]);
   const owner = owners.get(target);
   if (!owner) {

@@ -12,7 +12,8 @@ const NOTE = 'What tools/restructure took out of which file, in order. Written b
 /**
  * @param {string} root
  * @returns {{ note: string, sources: Record<string, {file: string, about: string, names: string[]}[]>,
- *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number }[]> }}
+ *   spreads?: Record<string, { name: string, parts: { name: string, first: string }[], after: number }[]>,
+ *   branches?: Record<string, { file: string, about: string, keys: string[], after: number }[]> }}
  */
 export function readLedger(root) {
   try {
@@ -30,8 +31,8 @@ function rowsOf(lists) {
 }
 
 function writeLedger(root, ledger) {
-  const spreads = ledger.spreads ? `,\n  "spreads": {\n${rowsOf(ledger.spreads)}\n  }` : '';
-  writeFileSync(path.join(root, LEDGER), `{\n  "note": ${JSON.stringify(ledger.note)},\n  "sources": {\n${rowsOf(ledger.sources)}\n  }${spreads}\n}\n`);
+  const more = ['spreads', 'branches'].filter((list) => ledger[list]).map((list) => `,\n  "${list}": {\n${rowsOf(ledger[list])}\n  }`).join('');
+  writeFileSync(path.join(root, LEDGER), `{\n  "note": ${JSON.stringify(ledger.note)},\n  "sources": {\n${rowsOf(ledger.sources)}\n  }${more}\n}\n`);
 }
 
 /**
@@ -59,6 +60,45 @@ export function recordSpread(root, source, spread) {
   ledger.spreads[source] ??= [];
   ledger.spreads[source].push(spread);
   writeLedger(root, ledger);
+}
+
+/**
+ * Bodies of a request handler's routes that went into a table in a module (branches.mjs). One record per run of the
+ * command; a module may get several. `after` says how many entries the file had then, which is where the replay redoes it.
+ * @param {string} root
+ * @param {string} source repo-relative file with the handler
+ * @param {{ file: string, about: string, keys: string[], after: number }} record
+ */
+export function recordBranches(root, source, record) {
+  const ledger = readLedger(root);
+  ledger.branches ??= {};
+  ledger.branches[source] ??= [];
+  ledger.branches[source].push(record);
+  writeLedger(root, ledger);
+}
+
+/**
+ * @param {ReturnType<typeof readLedger>} ledger
+ * @returns {string[][]} per old file: itself, then every module made out of it, each once
+ */
+export function groupsOf(ledger) {
+  const sources = new Set([...Object.keys(ledger.sources), ...Object.keys(ledger.spreads ?? {}), ...Object.keys(ledger.branches ?? {})]);
+  return [...sources].map((source) => [...new Set([source, ...(ledger.sources[source] ?? []).map((entry) => entry.file),
+    ...(ledger.branches?.[source] ?? []).map((record) => record.file)])]);
+}
+
+/**
+ * The handlers of a file whose route bodies may move into tables: their tests and everything before the chain stay.
+ * @param {string} root @param {string} source repo-relative
+ * @returns {Set<string>}
+ */
+export function branchHandlers(root, source) {
+  return new Set(JSON.parse(readFileSync(path.join(root, PROTECTED), 'utf8')).files?.[source]?.branches ?? []);
+}
+
+/** @param {string} root @param {string} source @returns {(string | null)[][]} the protected stretches as written: pairs of names */
+export function protectedBetween(root, source) {
+  return JSON.parse(readFileSync(path.join(root, PROTECTED), 'utf8')).files?.[source]?.between ?? [];
 }
 
 /**

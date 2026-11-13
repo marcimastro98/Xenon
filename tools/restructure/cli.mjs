@@ -19,6 +19,12 @@
 //   node tools/restructure/cli.mjs spread --from <file> --name <NAME> [--dry-run] <PART>=<first key> [...]
 //                                                                  one big frozen object is cut into constants where it stands and
 //                                                                  made of them again in the same order; `extract` moves them after
+//   node tools/restructure/cli.mjs branches --from <file> --to <dir>/<feature>/routes[-<word>].js [--about "<one sentence>"] [--dry-run]
+//                                           [--under <address>] ["<METHOD> <address>" ...]
+//                                                                  the bodies of routes of the request handler go into a table in
+//                                                                  a module of the feature; each test stays where it is. --under
+//                                                                  takes every body under an address that can move now
+//   node tools/restructure/cli.mjs branches --from <file> --survey [--json]   what can move now and what keeps the rest
 //   node tools/restructure/cli.mjs verify [--base HEAD]           redo the recorded moves and rewrites from a revision, compare bytes
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
@@ -30,9 +36,10 @@ import path from 'node:path';
 
 import { readMap } from '../map/map.mjs';
 import { analyze, toJson } from './analyze.mjs';
+import { moveBranches, renderSurvey, surveyBranches } from './branches.mjs';
 import { extract, replay } from './extract.mjs';
 import { Refusal } from './extract-plan.mjs';
-import { protectedNames, readLedger } from './ledger.mjs';
+import { groupsOf, protectedNames, readLedger } from './ledger.mjs';
 import { liftValue } from './lift.mjs';
 import { createSpecRewriter } from './module-requires.mjs';
 import { openParser, REPO_ROOT } from './parser.mjs';
@@ -45,7 +52,7 @@ import { featureWords, remainder, renderMovable, renderRemainder } from './remai
 import { ownersOf } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
 
-const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--names', '--object', '--name']);
+const VALUE_FLAGS = new Set(['--from', '--to', '--about', '--base', '--names', '--object', '--name', '--under']);
 
 function readArgs(argv) {
   const flags = {};
@@ -148,6 +155,24 @@ function runSpread(parser, { flags, rest }) {
   return 0;
 }
 
+function runBranches(parser, { flags, rest }) {
+  const source = posix(flags.from);
+  if (flags.survey) {
+    const survey = surveyBranches({ text: readSource(source), parser, source });
+    console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source));
+    return 0;
+  }
+  const dryRun = Boolean(flags['dry-run']);
+  const below = (address) => address === flags.under || address.startsWith(`${String(flags.under).replace(/[/]$/, '')}/`);
+  const under = flags.under ? surveyBranches({ text: readSource(source), parser, source }).movable.map((row) => row.key).filter((key) => below(key.split(' ')[1])) : [];
+  const done = moveBranches({ root: REPO_ROOT, parser, source, target: posix(flags.to), about: flags.about, keys: [...under, ...rest], dryRun });
+  console.log(`${dryRun ? 'would move' : 'moved'} ${done.keys.length} ${done.keys.length === 1 ? 'body' : 'bodies'} to ${done.target} (${done.lines} lines${done.added ? ', a new file' : ''}); `
+    + `${source} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines. Every test of the handler is where it was.`);
+  for (const key of done.keys) console.log(`  ${key}`);
+  if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');
+  return 0;
+}
+
 // The jobs of a plan file that are still to do, dependencies first.
 function readPlan(parser, planFile) {
   const jobs = JSON.parse(readFileSync(planFile, 'utf8')).map((job) => ({ ...job, from: posix(job.from), to: posix(job.to) }));
@@ -178,7 +203,7 @@ function verify(parser, { flags }) {
 }
 
 function carry() {
-  const groups = Object.entries(readLedger(REPO_ROOT).sources).map(([source, entries]) => [source, ...entries.map((entry) => entry.file)]);
+  const groups = groupsOf(readLedger(REPO_ROOT));
   let failed = false;
   for (const { check, problems, before, after } of carryAll(REPO_ROOT, groups)) {
     if (problems.length) { failed = true; console.error(`${check}: the moved code has more findings than before, nothing saved:\n  ${problems.join('\n  ')}`); }
@@ -214,13 +239,14 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'paths', 'spread', 'verify', 'remainder'].includes(command);
+  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'paths', 'spread', 'branches', 'verify', 'remainder'].includes(command);
   const aimed = args.flags.from && args.flags.to && args.rest.length;
   const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))))
+    || (command === 'branches' && !(args.flags.from && (args.flags.survey || (args.flags.to && (args.flags.under || args.rest.length)))))
     || (command === 'spread' && !(args.flags.from && args.flags.name && args.rest.length > 1 && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))));
   if (!known || args.rest.length < needsFile || incomplete) {
-    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 27).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
+    console.error(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 33).map((line) => line.replace(/^\/\/ ?/, '')).join('\n'));
     return 2;
   }
   const parser = await openParser();
@@ -232,6 +258,7 @@ async function main(argv) {
     if (command === 'lift') return runLift(parser, args);
     if (command === 'paths') return runPaths(parser, args);
     if (command === 'spread') return runSpread(parser, args);
+    if (command === 'branches') return runBranches(parser, args);
     const dryRun = Boolean(args.flags['dry-run']);
     if (command === 'apply') return runExtractions(parser, readPlan(parser, args.rest[0]), false);
     return runExtractions(parser, [{ from: args.flags.from, to: args.flags.to, about: args.flags.about,

@@ -1,9 +1,10 @@
 {
-  "note": "Declarations `extract` refuses to move: the start-up prelude and the code that decides who may ask the engine what. `names` are single declarations, `between` are stretches of the file from one declaration to another, both included (null = from the first line). A name listed here that the file no longer declares stops every extraction until this list is corrected. `liftable` are protected values that `lift` may give a module of their own: the file then requires that module on the very line where the value was worked out, under the same name, so a stretch keeps its length in statements, its order and its last name. Nothing else in a stretch is touched by any command.",
+  "note": "Declarations `extract` refuses to move: the start-up prelude and the code that decides who may ask the engine what. `names` are single declarations, `between` are stretches of the file from one declaration to another, both included (null = from the first line). A name listed here that the file no longer declares stops every extraction until this list is corrected. `liftable` are protected values that `lift` may give a module of their own: the file then requires that module on the very line where the value was worked out, under the same name, so a stretch keeps its length in statements, its order and its last name. Nothing else in a stretch is touched by any command. `branches` are protected request handlers whose routes `branches` may empty: the body of a route goes, as written, into a table in a module of its feature and one call of that table takes its place. Every test of the handler stays where it is, in the same order, and so does every statement before the chain of routes; the file gains one line that requires the table, right above the handler.",
   "files": {
     "server/server.js": {
       "names": ["handleRequest", "server"],
       "liftable": ["nativeCollectors"],
+      "branches": ["handleRequest"],
       "between": [
         [null, "nativeCollectors"],
         ["LOOPBACK_IPS", "_remoteGate"]

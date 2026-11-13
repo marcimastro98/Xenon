@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites, wholeObjects } from './engine-source.mjs';
+import { bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, stateRewrites, wholeObjects } from './engine-source.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -20,7 +20,7 @@ const rewrites = stateRewrites();
 const placeModules = new Set(entries.filter((entry) => entry.paths).map((entry) => entry.file));
 const asWritten = (file) => {
   const text = readFileSync(join(ROOT, file), 'utf8');
-  return oldNames(wholeObjects(file, placeModules.has(file) ? oldPathsText(text) : text), rewrites);
+  return oldNames(wholeObjects(file, bodiesBack(file, placeModules.has(file) ? oldPathsText(text) : text)), rewrites);
 };
 // The parts a big list was cut into: the readers hand out the list in one piece, and a part only when asked by name.
 const partNames = new Set(cutObjects().flatMap((cut) => cut.parts.map((part) => part.name)));
