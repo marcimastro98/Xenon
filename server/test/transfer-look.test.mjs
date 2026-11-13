@@ -3,7 +3,7 @@
 // words at a reading size, and the keys at the foot once there are files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { topRules, declsIn } from './css-rules.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');

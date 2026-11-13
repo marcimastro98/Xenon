@@ -93,7 +93,7 @@
     openaicodex: tile('openaicodex', 'CodexWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/codex-widget.js'], { codex: 'onSSE' },
       'CodexWidget', ['components/AskSheet/AskSheet.css', 'styles/liquid-sheets.css']),
     chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/approval-keys.js', 'js/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
-    transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }),
+    transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }, null, ['components/TransferWidget/TransferWidgetList.css', 'components/TransferWidget/TransferWidgetRows.css', 'components/TransferWidget/TransferWidgetSheet.css']),
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
     search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css']),
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],

@@ -1,0 +1,203 @@
+
+/* Filenames come off the network and off other people's devices. One line,
+   never wrapping the row into two, full text in the title attribute. */
+.xfer-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xfer-meta {
+  font-size: 10.5px;
+  color: var(--text-dim, rgba(255, 255, 255, .42));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xfer-bad { color: var(--danger, #ff6b6b); opacity: .95; }
+
+.xfer-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .1);
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.xfer-bar-fill {
+  height: 100%;
+  background: rgb(var(--accent-rgb));
+  /* Width only, and short: this element is repainted several times a second
+     during an upload, so anything expensive here runs the whole time. */
+  transition: width .2s linear;
+}
+
+.xfer-row-acts {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1px;
+}
+
+.xfer-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: .5;
+  text-decoration: none;
+  transition: opacity .14s ease, background-color .14s ease;
+}
+
+.xfer-icon:hover { opacity: 1; background: rgba(255, 255, 255, .09); }
+.xfer-icon:focus-visible { opacity: 1; outline: 2px solid rgba(var(--accent-rgb), .6); outline-offset: -2px; }
+.xfer-icon svg { width: 15px; height: 15px; }
+.xfer-icon-primary { opacity: .95; color: rgb(var(--accent-rgb)); }
+
+/* Three icons at full strength on every row pulled the eye to the controls
+   instead of to the files, so they are dimmed. They are NOT hidden until hover,
+   and that is a decision about this product rather than a matter of taste: the
+   Xeneon Edge is a touchscreen attached to a PC that also has a mouse, so
+   `@media (hover: hover)` is TRUE there — the primary pointer is the mouse —
+   while the finger on the panel can never produce a hover. Gating them that way
+   would have left the Edge, the surface Xenon was built for, with three
+   invisible buttons. Dim plus a hover lift gets the same calm row and costs
+   nothing on a screen that cannot hover. */
+.xfer-row:hover .xfer-icon { opacity: .75; }
+.xfer-row:hover .xfer-icon:hover { opacity: 1; }
+
+.xfer-btn-retry {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+/* A refusal, appended into the zone (a dropped folder) or into a row. It is a
+   real line in a column now, not a wrapped item in the old actions row, so the
+   `flex-basis: 100%` it used to carry is gone rather than left as decoration. */
+.xfer-note {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 2px 0;
+  color: var(--text-muted, rgba(255, 255, 255, .6));
+}
+
+/* Narrow tile: the two pickers stack rather than becoming two half-words, and
+   the hint gives up a point so it stays one or two lines. */
+@container (max-width: 320px) {
+  .xfer-actions { flex-direction: column; }
+  .xfer-drop-text { font-size: 11px; }
+  .xfer-meta { font-size: 10px; }
+}
+
+/* ── the phone sheet ─────────────────────────────────────────────────────── */
+
+.xfer-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* A percentage, not vh: a phone's vh counts the browser bar, so 88vh could start above
+   the visible page. The backdrop is exactly the visible page. */
+.xfer-sheet {
+  width: min(560px, 100%);
+  max-height: min(88%, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--radius-modal, 20px) var(--radius-modal, 20px) 0 0;
+  background: var(--panel-solid, #14171c);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, .45);
+}
+
+.xfer-sheet:focus { outline: none; }
+
+.xfer-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.xfer-sheet .transfer-widget-mount {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The sheet already has its own title bar — and its own ? in it, driving the
+   same panel inside the mount. */
+.xfer-sheet .xfer-head { display: none; }
+/* The sheet prints the boundaries permanently, under the list (.xfer-notes),
+   and has since 4.11.0. The panel carries the same lines for the tile, which
+   never had them — so inside a sheet that half of the panel would be the same
+   text twice on one screen. One source, shown once. */
+.xfer-sheet .xfer-help-note { display: none; }
+
+/* The X lines up with the keys under it, not its 40px box. */
+.xfer-sheet-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: -10px;
+}
+
+.xfer-sheet-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* One size at full strength: the tile dims its keys so the files lead, here there are
+   few and a finger has to find them. */
+.xfer-sheet .xfer-icon,
+.xfer-sheet .xfer-icon.xfer-help-btn {
+  width: 40px;
+  height: 40px;
+  margin-right: 0;
+  border-radius: var(--radius-control, 10px);
+  color: var(--muted-text);
+  opacity: 1;
+  transform: none;
+}
+
+.xfer-sheet .xfer-icon svg,
+.xfer-sheet .xfer-icon.xfer-help-btn svg { width: 20px; height: 20px; }
+.xfer-sheet .xfer-row:hover .xfer-icon { opacity: 1; }
+.xfer-sheet .xfer-icon:hover { background: var(--hover-bg); color: var(--text); }
+.xfer-sheet .xfer-help-btn.is-on { background: var(--control-bg); color: var(--text); }
+:root .xfer-sheet .xfer-row .xfer-icon-primary { color: var(--text); }
+
+.xfer-sheet .xfer-btn:focus-visible,
+.xfer-sheet .xfer-icon:focus-visible {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: 2px;
+}

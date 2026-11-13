@@ -1,0 +1,184 @@
+
+/* With a list above it the panel is an invitation, not an announcement: the
+   glyph goes and the hint shrinks to one quiet line, leaving the buttons. */
+/* Never shorter than its line and keys: on a short tile it shrank with the list, and
+   its keys slid up over the files. The list gives up the room and scrolls instead. */
+.xfer-drop.is-compact { min-height: 0; flex-shrink: 0; }
+.xfer-drop.is-compact .xfer-drop-glyph { display: none; }
+.xfer-drop.is-compact .xfer-drop-inner { gap: 8px; }
+.xfer-drop.is-compact .xfer-drop-text { font-size: 11.5px; opacity: .85; }
+
+.xfer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.xfer-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  /* 40px keeps a comfortable thumb target while letting the list, which is what
+     the tile is for, keep the room. The 44px version was taller than a row. */
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .045);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.xfer-btn-ic { flex: 0 0 auto; line-height: 0; }
+.xfer-btn-ic svg { width: 15px; height: 15px; }
+.xfer-btn-label { overflow: hidden; text-overflow: ellipsis; }
+
+.xfer-btn:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .18);
+}
+
+/* One of the two carries the accent, and it is the one people came for. Both
+   tinted the same made the pair read as a segmented control with no default. */
+.xfer-btn-primary {
+  background: rgba(var(--accent-rgb), .14);
+  border-color: rgba(var(--accent-rgb), .38);
+  color: var(--accent, #1ed760);
+}
+
+.xfer-btn-primary:hover {
+  background: rgba(var(--accent-rgb), .22);
+  border-color: rgba(var(--accent-rgb), .55);
+}
+
+/* The file inputs are driven by the two buttons above and must never be seen,
+   but must stay focusable-by-click — display:none would stop .click() firing
+   in some engines. */
+.xfer-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Any class here that sets `display` must restate the browser's own
+   `[hidden] { display: none }`: that rule lives in the UA stylesheet, so ANY
+   author rule beats it. It has already cost one bug in this file — an empty
+   state that stayed on screen above a list full of files, at flex:1, eating
+   most of the tile, while the code that hid it was correct. */
+
+/* The list takes the height it needs and gives the rest to the drop panel,
+   rather than claiming everything and leaving a blank region under the last
+   row. Past the available height it shrinks and scrolls, so a long list wins
+   the space back. */
+.xfer-list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;      /* the page body must never scroll sideways */
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xfer-list:empty { display: none; }
+
+.xfer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid transparent;
+  min-width: 0;
+  transition: background-color .14s ease, border-color .14s ease;
+}
+
+.xfer-row:hover {
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .09);
+}
+
+.xfer-row.is-pending {
+  background: rgba(var(--accent-rgb), .09);
+  border-color: rgba(var(--accent-rgb), .2);
+}
+
+/* The thumbnail and the direction mark are one object: the badge is positioned
+   against this, so it cannot be clipped by the thumbnail's own overflow. */
+.xfer-shot {
+  position: relative;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.xfer-thumb {
+  /* Also used bare by a pending row, which has no .xfer-shot wrapper to hold
+     its size, so it carries its own flex basis. */
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07);
+}
+
+.xfer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.xfer-thumb svg { width: 18px; height: 18px; opacity: .55; }
+
+.xfer-ext {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--text-dim, rgba(255, 255, 255, .5));
+}
+
+/* Which way this file went. An arrow the eye catches while scanning, instead of
+   "da iPhone" arriving last in the dimmest text of the row. */
+.xfer-dir {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* The ring is the panel colour, so the badge reads as sitting ON the
+     thumbnail rather than overlapping it. Opaque, or the picture shows
+     through the ring on a see-through tile. */
+  box-shadow: 0 0 0 2px rgb(var(--panel-rgb));
+}
+
+.xfer-dir svg { width: 9px; height: 9px; stroke-width: 3; }
+.xfer-dir.is-in { background: rgba(var(--accent-rgb), .9); color: #06120b; }
+.xfer-dir.is-out { background: rgba(255, 255, 255, .82); color: #10141a; }
+
+.xfer-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
