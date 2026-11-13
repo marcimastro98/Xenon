@@ -57,7 +57,13 @@
       {"file":"server/settings/secrets.js","about":"Keeps secrets out of the settings sent to a browser, and puts them back when the browser saves settings without them.","names":["redactSettingsSecrets","preserveSettingsSecrets"]},
       {"file":"server/transfer/limits.js","about":"Limits of file transfer from a phone: the free disk space that must remain, and the largest picture shown as a preview.","names":["TRANSFER_DISK_HEADROOM","TRANSFER_THUMB_MAX"]},
       {"file":"server/weather/timings.js","about":"How long weather answers are reused, and how long to wait after the place could not be found.","names":["WEATHER_CACHE_MS","WEATHER_FORECAST_CACHE_MS","WEATHER_GEO_FAIL_COOLDOWN_MS"]},
-      {"file":"server/weather/setting-values.js","about":"What the weather settings may hold: the languages a forecast can come in and the fields that can be shown or hidden.","names":["WEATHER_LANGS","WEATHER_FIELD_IDS"]}
+      {"file":"server/weather/setting-values.js","about":"What the weather settings may hold: the languages a forecast can come in and the fields that can be shown or hidden.","names":["WEATHER_LANGS","WEATHER_FIELD_IDS"]},
+      {"file":"server/grid/layout-normalize-parts.js","about":"The small steps of checking a saved dashboard layout: one tile, the order of tiles, the tabs and the number of pages.","names":["LEGACY_SEEDED_GROUPS","cloneDashboardLayout","normalizeDashboardOrder","normalizeDashboardSize","DASHBOARD_GEOM_FALLBACK","normalizeDashboardItem","sortDashboardIds","reindexDashboardCollection","DASHBOARD_PAGES_MAX","normalizeDashboardTabs","normalizeCalendarTabs","normalizeMediaView"]},
+      {"file":"server/grid/layout-unit-migration.js","about":"Converts a layout saved on the old 12-column grid to the units of the 24-column grid.","names":["scaleDashboardLayoutUnits"]},
+      {"file":"server/grid/tile-asset-refs.js","about":"Finds which uploaded tile pictures a layout still uses, and says how long an unused one is kept before it is deleted.","names":["_collectTileAssetRefsFromStyle","collectTileAssetRefs","TILE_ASSET_GC_GRACE_MS","TILE_ASSET_GC_MIN_INTERVAL_MS"]},
+      {"file":"server/windows-tiles/slideshow-asset-refs.js","about":"Finds which uploaded slideshow pictures the settings still use.","names":["collectSlideshowAssetRefs"]},
+      {"file":"server/windows-tiles/ws-frame.js","about":"Packs one picture of a streamed screen or browser tile with its description into a single binary message.","names":["_packWsFrame"]},
+      {"file":"server/widget-sdk/example-widgets.js","about":"The example widgets that ship with Xenon and can be installed by name.","names":["EXAMPLE_WIDGETS"]}
     ]
   }
 }

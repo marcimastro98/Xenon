@@ -172,6 +172,7 @@
       "name": "Widget SDK",
       "what": "Runs other people's widgets in a sandbox, with only the permissions they were given.",
       "files": [
+        "server/widget-sdk/**",
         "server/sdk-*.js",
         "server/sdk-limits/**",
         "server/sdk-example/**",
@@ -704,6 +705,7 @@
       "name": "Browser, second screen, slideshow",
       "what": "Tiles that show something else: a web page, another screen, pictures, the open apps.",
       "files": [
+        "server/windows-tiles/**",
         "server/embedded-browser*.js",
         "server/second-screen.js",
         "server/browser-surface-sync.js",

@@ -57,7 +57,7 @@ One row per tile on the dashboard.
 | **Phone** | Calls, messages and contacts from the phone, and sending files between phone and PC. | `server/transfer/**` `server/phone*.js` `server/calls.js` `server/call-detect.js` `server/linux-phone.js` `server/file-transfer.js` and 7 more |
 | **Notifications** | The PC's notifications shown on the dashboard, and opening the app they came from. | `server/winnotif.js` `server/notifications.ps1` `server/linux-notif.js` `server/notification-open/**` `server/js/notifications-widget.js` `server/js/notification-open.js` and 1 more |
 | **News, stocks, football** | The three tickers and where their data comes from. | `server/ticker/**` `server/stocks*.js` `server/football*.js` `server/news*.js` `server/js/stock-widget.js` `server/js/football-widget.js` and 6 more |
-| **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/embedded-browser*.js` `server/second-screen.js` `server/browser-surface-sync.js` `server/slideshow-folder.js` `server/windows.ps1` `server/foreground.ps1` and 11 more |
+| **Browser, second screen, slideshow** | Tiles that show something else: a web page, another screen, pictures, the open apps. | `server/windows-tiles/**` `server/embedded-browser*.js` `server/second-screen.js` `server/browser-surface-sync.js` `server/slideshow-folder.js` `server/windows.ps1` and 12 more |
 | **Vitals and the pet** | Reminders to take a break, and Bit as a pet that reacts to the PC. | `server/vitals/**` `server/vitals-*.js` `server/vitals-nag.ps1` `server/js/vitals*.js` `server/components/VitalsPet/**` `server/components/VitalsWidget/**` |
 
 ## Bit and AI
@@ -111,7 +111,7 @@ What lets other people build widgets safely.
 |---|---|---|
 | **xenon-mcp** | Lets Claude Code or Codex build and test a widget on a running Xenon. | `packages/mcp/**` `server/mcp-dev.js` `server/mcp-dev-tools.js` `server/ai-mcp-bridge.js` `server/js/mcp-dev-client.js` |
 | **Shared core and brand** | Constants and formatters used by engine and screen alike, and the brand reference. | `packages/core/**` `packages/design-system/**` |
-| **Widget SDK** | Runs other people's widgets in a sandbox, with only the permissions they were given. | `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` `server/widget-keys.js` and 7 more |
+| **Widget SDK** | Runs other people's widgets in a sandbox, with only the permissions they were given. | `server/widget-sdk/**` `server/sdk-*.js` `server/sdk-limits/**` `server/sdk-example/**` `server/sdk-service.html` `server/shell-driver.html` and 8 more |
 
 ## App and helpers
 

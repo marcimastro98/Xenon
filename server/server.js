@@ -127,9 +127,8 @@ const {
 const { WEATHER_PROVIDERS, weatherProviderOrder } = require('./weather/providers.js');
 
 const {
-  DASHBOARD_WIDGET_IDS, DASHBOARD_TAB_IDS, CALENDAR_TAB_IDS, MEDIA_VIEW_IDS, DASHBOARD_CARD_IDS,
-  DASHBOARD_CARD_SIZES, DASHBOARD_GRID_COLUMNS, DASHBOARD_GRID_MAX_ROW, DASHBOARD_LAYOUT_VERSION,
-  DEFAULT_DASHBOARD_LAYOUT,
+  DASHBOARD_WIDGET_IDS, DASHBOARD_CARD_IDS, DASHBOARD_CARD_SIZES, DASHBOARD_GRID_COLUMNS,
+  DASHBOARD_GRID_MAX_ROW, DASHBOARD_LAYOUT_VERSION, DEFAULT_DASHBOARD_LAYOUT,
 } = require('./grid/layout-defaults.js');
 
 const { clampNumber, normalizeHex } = require('./settings/values.js');
@@ -220,6 +219,20 @@ const {
 } = require('./lights/settings-normalize.js');
 
 const { WEATHER_LANGS, WEATHER_FIELD_IDS } = require('./weather/setting-values.js');
+
+const {
+  LEGACY_SEEDED_GROUPS, cloneDashboardLayout, DASHBOARD_GEOM_FALLBACK, normalizeDashboardItem,
+  reindexDashboardCollection, DASHBOARD_PAGES_MAX, normalizeDashboardTabs, normalizeCalendarTabs,
+  normalizeMediaView,
+} = require('./grid/layout-normalize-parts.js');
+
+const { scaleDashboardLayoutUnits } = require('./grid/layout-unit-migration.js');
+
+const {
+  collectTileAssetRefs, TILE_ASSET_GC_GRACE_MS, TILE_ASSET_GC_MIN_INTERVAL_MS,
+} = require('./grid/tile-asset-refs.js');
+
+const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-refs.js');
 
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
@@ -2282,15 +2295,7 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
 // the generic static handler never reaches into DATA_DIR.
 const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
-// Bundled reference widgets installable via POST /sdk/widgets/example — id ->
-// folder name under server/sdk-example/. Fixed allowlist so the requested id
-// is a lookup key, never interpolated into a filesystem path.
-const EXAMPLE_WIDGETS = {
-  'hello-xenon': 'hello-xenon',
-  'teleprompter': 'teleprompter',
-  'github-stars': 'github-stars',
-  'ha-room': 'ha-room',
-};
+const { EXAMPLE_WIDGETS } = require('./widget-sdk/example-widgets.js');
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
 // (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
@@ -7262,47 +7267,6 @@ function cleanupOldFonts(keepName) {
   )).catch(() => {});
 }
 
-// Per-tile decoration assets have no one-live-file policy (many tiles, many
-// pictures), so they are reference-counted instead: every dashboard layout that
-// is persisted names the `tileasset-*` files still in use, and the rest are swept.
-function _collectTileAssetRefsFromStyle(style, set) {
-  const d = style && style.decor;
-  if (!d) return;
-  const add = (src) => {
-    if (typeof src !== 'string') return;
-    const m = src.match(/^\/uploads\/(tileasset-[A-Za-z0-9._-]+)$/);
-    if (m) set.add(m[1]);
-  };
-  if (d.bg) add(d.bg.src);
-  if (d.frame) add(d.frame.src);
-  if (Array.isArray(d.overlays)) d.overlays.forEach(o => add(o && o.src));
-}
-function collectTileAssetRefs(layout, presets) {
-  const set = new Set();
-  if (layout && typeof layout === 'object') {
-    const scan = (coll) => { if (coll && typeof coll === 'object') Object.keys(coll).forEach(k => _collectTileAssetRefsFromStyle(coll[k] && coll[k].style, set)); };
-    scan(layout.widgets);
-    scan(layout.groups);
-    if (Array.isArray(layout.copies)) layout.copies.forEach(c => _collectTileAssetRefsFromStyle(c && c.style, set));
-  }
-  // Saved "My presets" keep tile styles too (widget/group/page items, already
-  // bounded to 200 KB by sanitizeDashboardPresets) — a deep string scan keeps
-  // their assets alive without chasing every nesting shape.
-  if (Array.isArray(presets) && presets.length) {
-    try {
-      const json = JSON.stringify(presets);
-      for (const m of json.matchAll(/\/uploads\/(tileasset-[A-Za-z0-9._-]+)/g)) set.add(m[1]);
-    } catch { /* unserializable presets — nothing to protect */ }
-  }
-  return set;
-}
-// A fresh upload lands before the layout that references it is saved, so a grace
-// window protects any `tileasset-*` touched in the last 10 minutes from the sweep.
-const TILE_ASSET_GC_GRACE_MS = 10 * 60 * 1000;
-// Sweep throttle: settings persist on every tweak (250 ms client debounce), and
-// each sweep costs a readdir — with an unchanged reference set a re-sweep only
-// matters once more files age past the grace window, so 5 minutes is plenty.
-const TILE_ASSET_GC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 let _tileAssetGcSig = null;
 let _tileAssetGcAt = 0;
 // Tile decorations named by a layout the version migration set aside. Without
@@ -7343,20 +7307,6 @@ function cleanupUnreferencedTileAssets(layout, presets) {
   )).catch(() => {});
 }
 
-// Slideshow images are the same kind of reference-counted upload as tile assets,
-// but their references live in hubSettings.slideshow.images[].uri (a `/uploads/
-// slideshow-*` string per image). Sweep the `slideshow-*` files no surviving image
-// still names, reusing the tile-asset grace window + throttle constants.
-function collectSlideshowAssetRefs(slideshow) {
-  const set = new Set();
-  const imgs = slideshow && Array.isArray(slideshow.images) ? slideshow.images : [];
-  for (const it of imgs) {
-    const src = it && typeof it.uri === 'string' ? it.uri : '';
-    const m = src.match(/^\/uploads\/(slideshow-[A-Za-z0-9._-]+)$/);
-    if (m) set.add(m[1]);
-  }
-  return set;
-}
 let _slideshowAssetGcSig = null;
 let _slideshowAssetGcAt = 0;
 function cleanupUnreferencedSlideshowAssets(slideshow) {
@@ -9103,11 +9053,6 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 );
 
 
-// What a saved layout with no `groups` gets: the tabs every install had before 5.0.0,
-// when the chat shared the media tile and the Agenda had a tile of its own.
-const LEGACY_SEEDED_GROUPS = Object.freeze({
-  'media-group': Object.freeze({ ...DEFAULT_DASHBOARD_LAYOUT.groups['media-group'], members: Object.freeze(['media', 'chat']) }),
-});
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   autoPalette: false,
@@ -9762,25 +9707,6 @@ function normalizeBgGrid(value) {
   };
 }
 
-function cloneDashboardLayout(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-function normalizeDashboardOrder(value, fallback, maxOrder) {
-  const numeric = Number(value);
-  if (!Number.isInteger(numeric)) return fallback;
-  return Math.max(0, Math.min(maxOrder, numeric));
-}
-
-function normalizeDashboardSize(value, allowedSizes, fallback) {
-  return allowedSizes.includes(value) ? value : fallback;
-}
-
-// Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
-// A missing fallbackItem (a widget id present in DASHBOARD_WIDGET_IDS but not in
-// DEFAULT_DASHBOARD_LAYOUT.widgets) must NOT 500 the whole settings endpoint —
-// degrade to a safe hidden default so the id is still normalized cleanly.
-const DASHBOARD_GEOM_FALLBACK = Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: false });
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
   const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : DASHBOARD_GEOM_FALLBACK;
@@ -9797,38 +9723,6 @@ function normalizeDashboardGeom(sourceItem, fallbackItem) {
   return out;
 }
 
-function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
-  const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
-  // A card id with no default entry used to throw here, and the blast radius was
-  // far larger than a misplaced card: normalizeHubSettings is how the WHOLE
-  // settings blob is rebuilt, so one missing default made `GET /settings` answer
-  // 500 and left the server's in-memory copy at factory defaults — which
-  // silently switched OFF every server-owned flag, paired-device access
-  // included, while the file on disk still said it was on. A phone that had been
-  // working for hours started getting the plain 403 of a build without the
-  // feature. The data gap is fixed above and pinned by a test; this is the
-  // second fence, because a normalizer for persisted data must degrade, never
-  // take the store down with it.
-  const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : { order: maxOrder, size: null };
-  return {
-    order: normalizeDashboardOrder(source.order, fb.order, maxOrder),
-    size: normalizeDashboardSize(source.size, allowedSizes, fb.size),
-    visible: source.visible === undefined ? true : source.visible !== false,
-  };
-}
-
-function sortDashboardIds(collection) {
-  return Object.keys(collection).sort((left, right) => {
-    const diff = collection[left].order - collection[right].order;
-    return diff || left.localeCompare(right);
-  });
-}
-
-function reindexDashboardCollection(collection) {
-  sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
-}
-
-const DASHBOARD_PAGES_MAX = 8;
 function normalizeDashboardPages(value) {
   const seed = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT.pages);
   if (!Array.isArray(value)) return seed;
@@ -9881,68 +9775,6 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
     }
     if (style && (style.mode === 'custom' || Object.keys(style).length > 1)) out[id].style = style;
   });
-  return out;
-}
-
-function normalizeDashboardTabs(sourceTabs) {
-  const source = sourceTabs && typeof sourceTabs === 'object' ? sourceTabs : {};
-  const sourceOrder = Array.isArray(source.order) ? source.order : DEFAULT_DASHBOARD_LAYOUT.tabs.order;
-  const order = sourceOrder.filter(tab => DASHBOARD_TAB_IDS.includes(tab));
-  DASHBOARD_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
-  return {
-    order,
-    active: ['main', 'net', 'volume', 'mic'].includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
-  };
-}
-
-function normalizeCalendarTabs(source) {
-  const src = source && typeof source === 'object' ? source : {};
-  const srcOrder = Array.isArray(src.order) ? src.order : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.order;
-  const order = srcOrder.filter(tab => CALENDAR_TAB_IDS.includes(tab));
-  CALENDAR_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
-  return {
-    order,
-    active: ['calendar', 'tasks', 'timer', 'notes'].includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
-  };
-}
-
-function normalizeMediaView(source) {
-  const src = source && typeof source === 'object' ? source : {};
-  return {
-    active: MEDIA_VIEW_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.mediaView.active,
-  };
-}
-
-// One-time unit migration: layouts saved before the 24-column grid carry no
-// gridCols flag and are in 12-column units — double every geometry (widgets,
-// groups, copies) so each tile keeps its exact position and size on the finer
-// grid. Idempotent: the flag is stamped on the normalized output, and until the
-// layout is re-saved the scaling always re-derives from the raw 12-unit source.
-// Mirrors the client normalizer (js/settings.js) — keep both in sync. If the
-// grid resolution ever changes again, branch on the STORED gridCols value
-// (absent = 12-column) and derive the factor per source unit — never reuse
-// this blanket ×2.
-function scaleDashboardLayoutUnits(source) {
-  if (Number(source.gridCols) === DASHBOARD_GRID_COLUMNS) return source;
-  const scaleBox = (o) => {
-    if (!o || typeof o !== 'object') return o;
-    const out = Object.assign({}, o);
-    ['x', 'y', 'w', 'h'].forEach(k => {
-      const n = Number(out[k]);
-      if (Number.isFinite(n)) out[k] = Math.round(n * 2);
-    });
-    return out;
-  };
-  const out = Object.assign({}, source);
-  if (source.widgets && typeof source.widgets === 'object') {
-    out.widgets = {};
-    Object.keys(source.widgets).forEach(id => { out.widgets[id] = scaleBox(source.widgets[id]); });
-  }
-  if (source.groups && typeof source.groups === 'object') {
-    out.groups = {};
-    Object.keys(source.groups).forEach(id => { out.groups[id] = scaleBox(source.groups[id]); });
-  }
-  if (Array.isArray(source.copies)) out.copies = source.copies.map(scaleBox);
   return out;
 }
 
@@ -23995,6 +23827,8 @@ const liveWss = new WebSocketServer({ noServer: true });
 const feedWss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 1024 });
 let _embConnSeq = 0;
 
+const { _packWsFrame } = require('./windows-tiles/ws-frame.js');
+
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
@@ -24021,20 +23855,6 @@ server.on('upgrade', (req, socket, head) => {
   }
   embeddedWss.handleUpgrade(req, socket, head, (client) => _handleEmbeddedClient(client));
 });
-
-// Binary relay frame: [u16BE header length][UTF-8 JSON header][JPEG bytes].
-// Streaming clients opt in ({binary:true} on open/start) and then receive frames
-// as binary WebSocket messages — no base64 layer (~33% less wire) and no
-// per-frame atob loop on the client's main thread. The base64-in-JSON path stays
-// for a dashboard that was already open before a server update.
-function _packWsFrame(header, payload) {
-  const h = Buffer.from(JSON.stringify(header), 'utf8');
-  const out = Buffer.allocUnsafe(2 + h.length + payload.length);
-  out.writeUInt16BE(h.length, 0);
-  h.copy(out, 2);
-  payload.copy(out, 2 + h.length);
-  return out;
-}
 
 // Relay for the Second-screen tile. One capture host is shared, so only one
 // client streams at a time; if a second client starts, it takes over the sink.
