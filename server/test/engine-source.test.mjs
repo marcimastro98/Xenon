@@ -59,6 +59,12 @@ test('a name is declared in one place, and the readers find it there', () => {
   assert.match(declarationSource('isAllowedRequest'), /^function isAllowedRequest\(/);
 });
 
+test('a text written over several lines is read to its closing backtick, and no further', () => {
+  const text = declarationSource('VOLUME_DETAILS_COMMAND');
+  assert.match(text, /^const VOLUME_DETAILS_COMMAND = `\n[\s\S]+\n`;$/);
+  assert.ok(!text.includes('DISK_MODELS_COMMAND'), 'the next declaration is not part of it');
+});
+
 test('the joined text holds the old file and every module, each once', () => {
   const text = engineSource();
   assert.ok(text.startsWith(readFileSync(join(ROOT, 'server', 'server.js'), 'utf8')));

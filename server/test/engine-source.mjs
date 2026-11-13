@@ -64,7 +64,8 @@ export function declarationSource(name, source = ENGINE) {
   if (first === -1) throw new Error(`${name} is not declared at the top level of ${file}`);
   const oneLine = /;\s*(?:\/\/.*)?$/.test(lines[first]) && !/[([{]\s*;?\s*$/.test(lines[first]);
   if (oneLine) return lines[first];
-  const last = lines.findIndex((line, index) => index > first && /^[)\]}]+;?\s*(?:\/\/.*)?$/.test(line));
+  // The closing line starts at the margin: a bracket, or the backtick of a text written over several lines.
+  const last = lines.findIndex((line, index) => index > first && /^[)\]}`]+;?\s*(?:\/\/.*)?$/.test(line));
   if (last === -1) throw new Error(`the end of ${name} was not found in ${file}`);
   return lines.slice(first, last + 1).join('\n');
 }
