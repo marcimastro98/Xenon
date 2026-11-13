@@ -234,6 +234,22 @@ const {
 
 const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-refs.js');
 
+const { SAFE_ITEM_ID_RE } = require('./time/item-id.js');
+
+const { _nextListSeq } = require('./time/list-seq.js');
+
+const {
+  TASK_PRIORITIES, normalizeTask, normalizeTasks, TASK_EDIT_FIELDS,
+} = require('./time/tasks-normalize.js');
+
+const {
+  CALENDAR_FEED_PALETTE, normalizeEvents, EVENT_EDIT_FIELDS,
+} = require('./time/events-normalize.js');
+
+const {
+  TIMERS_MAX, TIMER_KINDS, _timerId, _getTimerElapsed, _getTimerRemaining,
+} = require('./time/timer-values.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -2231,16 +2247,14 @@ function openDeckPopupWindow(instanceRaw, topmost) {
 // API (iCUE widget, AI, backup) now derives from the structured store.
 const NOTES_FILE = path.join(DATA_DIR, 'notes.txt');
 const NOTES_JSON = path.join(DATA_DIR, 'notes.json');
-const NOTES_MAX = 50;                // max distinct notes
-const NOTE_BODY_MAX = 100_000;       // per-note character cap
-const NOTES_TOTAL_MAX = 1_000_000;   // aggregate character cap (disk-use bound)
-const NOTES_TEXT_SEP = '\n\n───\n\n'; // separator when flattening notes to one text
+const {
+  NOTES_MAX, NOTE_BODY_MAX, _noteId, normalizeNotesState, notesToText, textToNotesState,
+  _notesRevOf,
+} = require('./time/notes-state.js');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
-const TASKS_MAX = 100;
 const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
 const { SCOPED_LABEL_MAX } = require('./actions/widget-timers');
-const TIMERS_MAX = 20;
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
 // injected into the AI system prompt so the assistant remembers across sessions.
@@ -8920,53 +8934,10 @@ async function runAiTool(fnName, fnArgs, deps) {
   return { fnResult, clientActions, pendingScreenImage };
 }
 
-// Notes as [Hz, start s, decay?]. wake/close are the timer chimes; the others are
-// the toast cues of js/audio-feedback.js NOTIFY_CUES, one cycle of its
-// RING_PATTERN and the calendar alarm of playReminderSound, played here for the
-// on-screen alerts window, which never gets the click a page needs before it may
-// play audio.
-const REMINDER_BURST = [880, 660, 990, 740];
-const REMINDER_NOTES = [0, 0.9, 1.8, 2.7].flatMap(at => REMINDER_BURST.map((hz, i) => [hz, Math.round((at + i * 0.16) * 100) / 100, 20]));
-const CHIME_NOTES = Object.freeze({
-  wake: [[784, 0], [1046, 0.13]],
-  close: [[660, 0], [440, 0.13]],
-  notification: [[660, 0], [880, 0.10]],
-  update: [[523, 0], [784, 0.10]],
-  warning: [[740, 0], [555, 0.11]],
-  error: [[300, 0], [200, 0.12]],
-  ring: [[660, 0], [880, 0.18]],
-  reminder: REMINDER_NOTES,
-});
-const chimeKind = (kind) => (Object.hasOwn(CHIME_NOTES, kind) ? kind : 'wake');
 
 // Build a short two-note chime WAV in memory (sine + decay envelope).
 let _chimeCache = {};
-function _buildChimeWav(kind) {
-  const rate = 24000;
-  const notes = CHIME_NOTES[chimeKind(kind)];
-  const dur = Math.max(0.6, Math.max(...notes.map(n => n[1])) + 0.3);
-  const total = Math.floor(rate * dur);
-  const buf = Buffer.alloc(total * 2);
-  for (let i = 0; i < total; i++) {
-    const t = i / rate;
-    let s = 0;
-    for (const [freq, start, decay = 4] of notes) {
-      if (t >= start) {
-        const lt = t - start;
-        const env = Math.exp(-lt * decay) * (1 - Math.exp(-lt * 80));
-        s += Math.sin(2 * Math.PI * freq * lt) * env;
-      }
-    }
-    s = Math.max(-1, Math.min(1, s * 0.08));
-    buf.writeInt16LE(Math.round(s * 32767), i * 2);
-  }
-  return pcmToWav(buf, rate, 1, 16);
-}
 
-// Every surface that sees a timer end asks for the chime (the dashboard, the
-// on-screen alerts window, a second dashboard): requests for the same sound
-// this close together are one event, so it plays once.
-const CHIME_COALESCE_MS = 1500;
 const _lastChimeAt = {};
 function chimeRequested(kind, now = Date.now()) {
   const k = chimeKind(kind);
@@ -9045,8 +9016,6 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
-
-const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
 
 const WEATHER_FIELDS_ALL_ON = Object.freeze(
   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
@@ -12242,32 +12211,6 @@ async function saveStreamConfig(patch) {
   refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
 }
 
-function normalizeEvents(value) {
-  const source = Array.isArray(value) ? value : (Array.isArray(value && value.events) ? value.events : []);
-  return source.slice(0, 250).map(item => {
-    const title = String(item && item.title || '').trim().slice(0, 120);
-    const notes = String(item && item.notes || '').trim().slice(0, 600);
-    const startsAt = String(item && item.startsAt || '').trim();
-    const endsAt = String(item && item.endsAt || '').trim();
-    const reminderAt = String(item && item.reminderAt || '').trim();
-    const id = String(item && item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
-    // endsAt is optional (multi-day events): keep it only when it parses and is
-    // not before the start, otherwise drop it so the event stays single-day.
-    const endValid = Number.isFinite(Date.parse(endsAt)) &&
-      (!Number.isFinite(Date.parse(startsAt)) || Date.parse(endsAt) >= Date.parse(startsAt));
-    return {
-      id,
-      title,
-      notes,
-      startsAt: Number.isFinite(Date.parse(startsAt)) ? startsAt : '',
-      endsAt: endValid ? endsAt : '',
-      reminderAt: Number.isFinite(Date.parse(reminderAt)) ? reminderAt : '',
-      notifiedAt: item && item.notifiedAt ? String(item.notifiedAt).slice(0, 40) : '',
-      createdAt: item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString(),
-    };
-  }).filter(item => item.title || item.startsAt || item.notes);
-}
-
 async function readEvents() {
   try {
     const raw = await fs.promises.readFile(EVENTS_FILE, 'utf8');
@@ -12319,10 +12262,6 @@ function updateEvents(edit) {
   });
 }
 
-// What a dashboard may change on one event (list-ops.js). notifiedAt is the
-// server's, set when the reminder rings.
-const EVENT_EDIT_FIELDS = Object.freeze(['title', 'notes', 'startsAt', 'endsAt', 'reminderAt']);
-
 function markEventReminders(now) {
   return withEventsWrite(async () => {
     const events = await readEvents();
@@ -12332,26 +12271,6 @@ function markEventReminders(now) {
   });
 }
 
-const TASK_PRIORITIES = Object.freeze(['high', 'medium', 'low']);
-const TASK_RECURRENCES = Object.freeze(['never', 'daily', 'weekly', 'custom']);
-
-function normalizeTask(item) {
-  const text = String(item && item.text || '').trim().slice(0, 200);
-  const id = String(item && item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
-  const priority = TASK_PRIORITIES.includes(item && item.priority) ? item.priority : 'medium';
-  const recurrence = TASK_RECURRENCES.includes(item && item.recurrence) ? item.recurrence : 'never';
-  const recurrenceDays = (recurrence === 'custom' && Number.isFinite(Number(item && item.recurrenceDays)) && Number(item.recurrenceDays) >= 1)
-    ? Math.round(Number(item.recurrenceDays)) : 1;
-  const completed = Boolean(item && item.completed);
-  const completedAt = completed && item.completedAt ? String(item.completedAt).slice(0, 40) : null;
-  const createdAt = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
-  return { id, text, priority, recurrence, recurrenceDays, completed, completedAt, createdAt };
-}
-
-function normalizeTasks(value) {
-  const source = Array.isArray(value) ? value : [];
-  return source.slice(0, TASKS_MAX).map(normalizeTask).filter(t => t.text.length > 0);
-}
 
 async function readTasks() {
   try {
@@ -12368,11 +12287,6 @@ async function readTasks() {
 // repeating tasks and two dashboards can never base a write on the same old
 // list and drop each other's change.
 let _tasksWriteChain = Promise.resolve();
-// Every write of the list gets a higher number, sent with the list (broadcast,
-// edit answer, load), so a screen can tell which of two lists is newer and
-// never shows an older one over a newer one. Time-based so it keeps rising
-// across restarts.
-const _nextListSeq = (prev) => Math.max(Date.now(), prev + 1);
 let _tasksSeq = Date.now();
 function withTasksWrite(fn) {
   const run = _tasksWriteChain.then(fn, fn);
@@ -12408,9 +12322,6 @@ function updateTasks(edit) {
   });
 }
 
-// What a dashboard may change on one task (list-ops.js).
-const TASK_EDIT_FIELDS = Object.freeze(['text', 'priority', 'recurrence', 'recurrenceDays', 'completed', 'completedAt']);
-
 // Finished repeating tasks come back on the server's clock, for every screen.
 function reopenDueTasksNow() {
   return updateTasks((cur) => {
@@ -12431,61 +12342,6 @@ function startTasksReopenClock() {
 // read/write functions and the backup bundle all speak a flattened text view so
 // existing consumers (iCUE widget, older backups) keep working unchanged.
 
-function _noteId() {
-  return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// The shape every note and timer id must have. Ids end up in the dashboard's
-// attributes and CSS selectors (data-note-id, data-timer-time="<id>"), so one
-// carrying a quote or a bracket could break out of them. Every id this app mints
-// (_noteId, the timer id below, the dashboard's own note ids) already fits;
-// anything else — a hand-edited file, a tampered backup — gets a fresh one.
-const SAFE_ITEM_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
-
-// Rebuild a trusted notes state from arbitrary persisted/wire input — explicit
-// known-key copy (never a spread of untrusted data), with caps applied.
-function normalizeNotesState(raw) {
-  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
-  const notes = [];
-  const seen = new Set();
-  let total = 0;
-  for (const n of Array.isArray(src.notes) ? src.notes : []) {
-    if (notes.length >= NOTES_MAX) break;
-    if (!n || typeof n !== 'object') continue;
-    let body = typeof n.body === 'string' ? n.body : '';
-    if (body.length > NOTE_BODY_MAX) body = body.slice(0, NOTE_BODY_MAX);
-    total += body.length;
-    if (total > NOTES_TOTAL_MAX) break;
-    let id = String(n.id || '').slice(0, 64);
-    if (!SAFE_ITEM_ID_RE.test(id)) id = _noteId();
-    while (seen.has(id)) id = _noteId();
-    seen.add(id);
-    notes.push({
-      id,
-      body,
-      pinned: !!n.pinned,
-      updatedAt: Number.isFinite(Number(n.updatedAt)) ? Number(n.updatedAt) : Date.now(),
-    });
-  }
-  let activeId = String(src.activeId || '').slice(0, 64);
-  if (!notes.some((n) => n.id === activeId)) activeId = notes.length ? notes[0].id : '';
-  return { v: 1, activeId, notes };
-}
-
-// Flatten all notes to a single plain-text document (order preserved).
-function notesToText(state) {
-  return (state && Array.isArray(state.notes) ? state.notes : [])
-    .map((n) => n.body).join(NOTES_TEXT_SEP);
-}
-
-// Build a one-note state from a plain-text blob (legacy save / migration / old backup).
-function textToNotesState(text) {
-  const body = String(text == null ? '' : text);
-  if (!body) return { v: 1, activeId: '', notes: [] };
-  const id = _noteId();
-  return normalizeNotesState({ activeId: id, notes: [{ id, body, pinned: false, updatedAt: Date.now() }] });
-}
-
 // Monotonic notes revision — every write bumps it and every read/broadcast
 // carries it. A save posts the rev it was based on (baseRev), so a stale
 // surface (one that missed newer broadcasts — dead SSE, or the beforeunload
@@ -12494,11 +12350,6 @@ function textToNotesState(text) {
 // calendar events keep last-writer-wins on purpose: only notes had the
 // reported cross-surface clobber, and their edits are append-mostly.
 let _notesRev = -1; // -1 = not yet loaded from disk
-
-function _notesRevOf(parsed) {
-  const n = Number(parsed && parsed.rev);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
 
 async function _ensureNotesRev() {
   if (_notesRev >= 0) return _notesRev;
@@ -12567,21 +12418,6 @@ function saveNotesGuarded(body) {
 let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
 let _timerCheckInterval = null;
 
-// A timer is one of two things, and everything about running it is the same.
-// A countdown has a duration and ends; a STOPWATCH counts up and does not.
-// They share startedAt/pausedElapsed/status, so pause, resume, reset and stop
-// are one implementation — the only places that branch are the two that ask
-// "how long is left", which for a stopwatch is not a question.
-//
-// Asked for on Discord: "count the time up and monitor the length of time spent
-// on a task". Modelled here rather than as a second feature because a stopwatch
-// IS a timer whose duration nobody set.
-const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);
-
-function _timerId() {
-  return `t${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 function _normalizeTimer(item) {
   const given       = String(item && item.id || '').slice(0, 80);
   // SAFE_ITEM_ID_RE: see _noteId. A malformed id is replaced, not escaped.
@@ -12607,22 +12443,6 @@ function _normalizeTimer(item) {
   const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
   const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
   return { id, label, kind, durationSecs, intervalSecs, chimes, status, startedAt, pausedElapsed, createdAt };
-}
-
-/** Seconds counted so far, for either kind. The stopwatch's whole reading. */
-function _getTimerElapsed(t) {
-  if (t.status === 'running') return t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
-  return t.pausedElapsed;
-}
-
-function _getTimerRemaining(t) {
-  // A stopwatch has nothing remaining, and answering 0 would make _checkTimers
-  // ring it the instant it starts.
-  if (t.kind === 'stopwatch') return Infinity;
-  if (t.status === 'done')   return 0;
-  if (t.status === 'paused') return Math.max(0, t.durationSecs - t.pausedElapsed);
-  const elapsed = t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
-  return Math.max(0, t.durationSecs - elapsed);
 }
 
 async function _saveTimers() {
@@ -13535,6 +13355,8 @@ function _chatgptChanged(id) {
 }
 
 const { pcmToWav } = require('./wav/pcm-to-wav.js');
+
+const { chimeKind, _buildChimeWav, CHIME_COALESCE_MS } = require('./time/chime-sound.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header

@@ -479,6 +479,7 @@
       "name": "Clock, calendar, tasks, notes",
       "what": "The clock, the calendar with its feeds, tasks, timers and notes.",
       "files": [
+        "server/time/**",
         "server/ics-feeds.js",
         "server/calendar-reminders.js",
         "server/timer-actions.js",

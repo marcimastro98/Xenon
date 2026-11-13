@@ -63,7 +63,14 @@
       {"file":"server/grid/tile-asset-refs.js","about":"Finds which uploaded tile pictures a layout still uses, and says how long an unused one is kept before it is deleted.","names":["_collectTileAssetRefsFromStyle","collectTileAssetRefs","TILE_ASSET_GC_GRACE_MS","TILE_ASSET_GC_MIN_INTERVAL_MS"]},
       {"file":"server/windows-tiles/slideshow-asset-refs.js","about":"Finds which uploaded slideshow pictures the settings still use.","names":["collectSlideshowAssetRefs"]},
       {"file":"server/windows-tiles/ws-frame.js","about":"Packs one picture of a streamed screen or browser tile with its description into a single binary message.","names":["_packWsFrame"]},
-      {"file":"server/widget-sdk/example-widgets.js","about":"The example widgets that ship with Xenon and can be installed by name.","names":["EXAMPLE_WIDGETS"]}
+      {"file":"server/widget-sdk/example-widgets.js","about":"The example widgets that ship with Xenon and can be installed by name.","names":["EXAMPLE_WIDGETS"]},
+      {"file":"server/time/item-id.js","about":"The shape every note and timer id must have, because ids end up inside the page.","names":["SAFE_ITEM_ID_RE"]},
+      {"file":"server/time/list-seq.js","about":"Gives each saved list a number higher than the last one, so a screen can tell the newer of two copies.","names":["_nextListSeq"]},
+      {"file":"server/time/notes-state.js","about":"Notes as the engine stores them: their limits, the check of saved or received notes, and the conversion to and from plain text.","names":["NOTES_MAX","NOTE_BODY_MAX","NOTES_TOTAL_MAX","NOTES_TEXT_SEP","_noteId","normalizeNotesState","notesToText","textToNotesState","_notesRevOf"]},
+      {"file":"server/time/tasks-normalize.js","about":"Tasks as the engine stores them: their limit, the check of one task and of the list, and the fields a dashboard may edit.","names":["TASKS_MAX","TASK_PRIORITIES","TASK_RECURRENCES","normalizeTask","normalizeTasks","TASK_EDIT_FIELDS"]},
+      {"file":"server/time/events-normalize.js","about":"Calendar events as the engine stores them: the check of the saved list, the fields a dashboard may edit, and the colours of subscribed calendars.","names":["CALENDAR_FEED_PALETTE","normalizeEvents","EVENT_EDIT_FIELDS"]},
+      {"file":"server/time/timer-values.js","about":"Timers and stopwatches: how many there may be, the two kinds, a new id, and the seconds counted or left.","names":["TIMERS_MAX","TIMER_KINDS","_timerId","_getTimerElapsed","_getTimerRemaining"]},
+      {"file":"server/time/chime-sound.js","about":"Builds the short sounds of timers, reminders and notifications from a list of notes.","names":["REMINDER_BURST","REMINDER_NOTES","CHIME_NOTES","chimeKind","_buildChimeWav","CHIME_COALESCE_MS"]}
     ]
   }
 }

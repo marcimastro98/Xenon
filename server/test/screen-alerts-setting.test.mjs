@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync as readRaw } from 'node:fs';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const read = (p) => readRaw(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
@@ -79,8 +79,8 @@ test('the route serves the page uncached, and the phone never gets it', () => {
 });
 
 test('one chime per timer, whoever asks for it', () => {
-  const at = SERVER.indexOf('const REMINDER_BURST');
-  const src = SERVER.slice(at, SERVER.indexOf('function playChimeOnServer', at));
+  const src = ['REMINDER_BURST', 'REMINDER_NOTES', 'CHIME_NOTES', 'chimeKind', 'CHIME_COALESCE_MS', '_lastChimeAt', 'chimeRequested']
+    .map((name) => declarationSource(name)).join('\n');
   const played = [];
   // eslint-disable-next-line no-new-func
   const chimeRequested = new Function('playChimeOnServer', src + '; return chimeRequested;')((k) => played.push(k));
