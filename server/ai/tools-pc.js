@@ -7,8 +7,7 @@
 const { lockWorkstation } = require('../system/lock-workstation.js');
 const aiPcApps = require('../ai-pc-apps.js');
 const remoteActions = require('../remote-actions.js');
-const { psEscape } = require('../ps-quote.js');
-const { execFile } = require('node:child_process');
+const { openOnThisPc } = require('./open-on-this-pc.js');
 const { issuePcAction } = require('./pc-actions.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
@@ -48,24 +47,10 @@ const branches = {
         } else if (!allowed.ok) {
           fnResult = { error: `not allowed (${allowed.error}): this tool opens apps by name, websites and documents on this PC. Scripts, network paths and special links are refused; running commands needs PC Control, which asks the user first.` };
         } else {
-        const resolved = allowed.target;
-        // Every quote PowerShell ends a single-quoted string on (ps-quote.js).
-        const psEscaped = psEscape(resolved);
-        // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
-        // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
-        const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
-        try {
-          await new Promise((resolve, reject) =>
-            execFile('powershell.exe',
-              ['-NoProfile', '-NonInteractive', '-Command', ps],
-              { windowsHide: true, timeout: 10000 },
-              (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
-            )
-          );
-          fnResult = { ok: true, opened: rawTarget };
-        } catch (launchErr) {
-          fnResult = { error: launchErr.message };
-        }
+        const opened = await openOnThisPc(allowed);
+        if (opened.ok) fnResult = { ok: true, opened: rawTarget };
+        else if (opened.error === 'not_on_this_system') fnResult = { error: `"${rawTarget}" is a Windows path and cannot be opened on this system` };
+        else fnResult = { error: `"${rawTarget}" was not found or is not installed` };
         }
       }
       return fnResult;

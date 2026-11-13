@@ -80,7 +80,8 @@ test('a phone number the user did not give is not dialled', () => {
 
 test('the wiring: open and close go through the checks before PowerShell', () => {
   const open = SERVER.slice(SERVER.indexOf("} else if (fnName === 'open_application') {"), SERVER.indexOf("} else if (fnName === 'close_application') {"));
-  assert.ok(open.indexOf('aiPcApps.openTarget(') < open.indexOf("execFile('powershell.exe'"));
+  // The start itself lives in ai/open-on-this-pc.js, one way per system.
+  assert.ok(open.indexOf('aiPcApps.openTarget(') > 0 && open.indexOf('aiPcApps.openTarget(') < open.indexOf('await openOnThisPc(allowed)'));
   const close = SERVER.slice(SERVER.indexOf("} else if (fnName === 'close_application') {"), SERVER.indexOf("} else if (fnName === 'search_files') {"));
   assert.ok(close.indexOf('aiPcApps.closeTarget(') < close.indexOf("execFile('powershell.exe'"));
 });
