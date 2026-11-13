@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(join(ROOT, ...p), 'utf8');
@@ -56,7 +57,7 @@ function clientNormalizer() {
 // The server keeps its canonical list and its always-shown set in module consts,
 // so both come along with the function.
 function serverNormalizer() {
-  const src = read('server', 'server.js');
+  const src = engineSource();
   const defaults = src.match(/const TOPBAR_ACTION_DEFAULTS\s*=\s*\[[\s\S]*?\n\];/);
   assert.ok(defaults, 'TOPBAR_ACTION_DEFAULTS not found in server.js');
   const always = src.match(/const TOPBAR_ALWAYS_SHOWN\s*=\s*\[[^\]]*\];/);
@@ -87,7 +88,7 @@ test('settings.js normalizeTopbarClock covers every island segment the renderer 
 
 test('server.js TOPBAR_ISLAND_IDS mirrors the client canonical list', () => {
   const server = arrayLiteral(
-    read('server', 'server.js'),
+    engineSource(),
     /TOPBAR_ISLAND_IDS\s*=\s*\[([^\]]*)\]/,
     'TOPBAR_ISLAND_IDS in server.js',
   );

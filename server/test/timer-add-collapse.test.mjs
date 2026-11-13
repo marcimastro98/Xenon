@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // The Timer widget's add row (label + duration) and its format hint sat on
 // screen permanently. Reported from a Xeneon Edge — wide and only 720px tall —
@@ -70,7 +71,7 @@ test('both settings normalizers carry timerAddCollapsed', () => {
   // field missing from the server's is silently dropped on save — the flag
   // would look like it worked until the next reload. It did, once.
   for (const file of ['js/settings.js', 'server.js']) {
-    const src = read(...file.split('/'));
+    const src = file === 'server.js' ? engineSource() : read(...file.split('/'));
     assert.ok(src.includes('timerAddCollapsed: false'), `${file}: missing the default`);
     assert.ok(src.includes('layout.timerAddCollapsed = source.timerAddCollapsed === true;'), `${file}: missing the normalizer line`);
   }

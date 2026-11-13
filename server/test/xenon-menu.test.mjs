@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
@@ -18,7 +19,7 @@ const View = require('../js/xenon-menu.js');
 const { validateAction } = require('../js/deck-actions.js');
 const ra = require('../remote-access.js');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
-const SERVER = src('server.js');
+const SERVER = engineSource();
 
 // The dictionary, loaded like the browser does (i18n.js is a plain script).
 const I18N_SRC = appStringsSource();

@@ -15,10 +15,11 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import { makeDom } from './mini-dom.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const UTILS = read('../js/utils.js');
 
 // A top-level function's source, from "function name(" to its closing brace.

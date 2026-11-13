@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // ── Why the weather can fail, said out loud ─────────────────────────────────
 // Reported three times from the same install ("Weather not working and still
@@ -23,7 +24,7 @@ import { appStringsSource } from './i18n-source.mjs';
 // captured from the live services.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const SERVER = readFileSync(join(root, 'server.js'), 'utf8');
+const SERVER = engineSource();
 const SYSTEM = readFileSync(join(root, 'js', 'system.js'), 'utf8');
 const I18N = appStringsSource();
 

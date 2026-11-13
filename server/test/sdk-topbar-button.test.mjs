@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -27,7 +28,7 @@ function fnSource(src, signature) {
 }
 
 const SETTINGS = read('../js/settings.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const clientActions = Function('return (' + fnSource(SETTINGS, 'function normalizeTopbarActions(value)') + ')')();
 const serverActions = Function(
   SERVER.slice(SERVER.indexOf('const TOPBAR_ALWAYS_SHOWN'), SERVER.indexOf('function normalizeTopbarActions(value)'))

@@ -119,6 +119,34 @@ const { resolveUserFolder, replayRingDir } = require('./user-folders');
 // the capture keys and AI functions are hidden.
 const CAPTURE_EXE = path.join(__dirname, 'capture', process.platform === 'win32' ? 'xenon-capture.exe' : 'xenon-capture');
 const _captureHost = createCaptureHost({ exe: CAPTURE_EXE, log: (m) => console.warn(m) });
+const {
+  sanitizeWeatherCity, resolveWeatherLocation, pickWeatherLocationResult,
+  splitWeatherDisplayLocation,
+} = require('./weather/location.js');
+
+const { WEATHER_PROVIDERS, weatherProviderOrder } = require('./weather/providers.js');
+
+const {
+  DASHBOARD_WIDGET_IDS, DASHBOARD_TAB_IDS, CALENDAR_TAB_IDS, MEDIA_VIEW_IDS, DASHBOARD_CARD_IDS,
+  DASHBOARD_CARD_SIZES, DASHBOARD_GRID_COLUMNS, DASHBOARD_GRID_MAX_ROW, DASHBOARD_LAYOUT_VERSION,
+  DEFAULT_DASHBOARD_LAYOUT,
+} = require('./grid/layout-defaults.js');
+
+const { clampNumber, normalizeHex } = require('./settings/values.js');
+
+const { normalizeTopbarRails, normalizeTopbarClock } = require('./topbar/settings-normalize.js');
+
+const { normalizeMedia } = require('./media/normalize.js');
+
+const {
+  normalizeNotifications, normalizeDiscordNotifications, normalizeWindowsNotifications,
+  normalizeCalls, normalizePhone,
+} = require('./settings/normalize-notifications.js');
+
+const {
+  normalizeServerBrowserTiles, normalizeServerBrowserFavorites, normalizeServerAppFavorites,
+} = require('./settings/normalize-favorites.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -3941,12 +3969,7 @@ const WEATHER_CACHE_MS = 10 * 60 * 1000;
 // setting behaved like ~20 min). Kept separate from WEATHER_CACHE_MS so geocoding /
 // IP-location caches (which change rarely) still coalesce for the full 10 min.
 const WEATHER_FORECAST_CACHE_MS = 5 * 60 * 1000;
-// Max days the "next days" forecast can request/return. The forecast is cached
-// per-location and doesn't know the per-client day preference, so the server
-// always fetches up to this many and the client trims to the user's choice (1–7).
-// Open-Meteo/met.no cover 7 easily; wttr.in only exposes 3 (harmless — slicing a
-// shorter list is a no-op and the UI just shows what's available).
-const WEATHER_FORECAST_MAX_DAYS = 7;
+const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
 const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
@@ -4169,80 +4192,7 @@ function fetchJson(url, timeout = 2500, extraHeaders) {
 // installed: that is a compiled binary refreshed on release, so a fix made only
 // inside it would reach nobody until they update.
 
-// Some apps report a thumbnail's content type as a comma-separated LIST of
-// equivalent types — Apple Music sends `image/jpeg,image/jpe,image/jpg`. In a
-// data URI the FIRST COMMA ends the media type, so pasting that in whole
-// produces `data:image/jpeg,image/jpe,image/jpg;base64,…`, where the browser
-// reads the type as `image/jpeg` and everything after that comma as ordinary
-// text. It never base64-decodes it, so a perfectly good JPEG is thrown away by
-// a punctuation mark. Repaired rather than dropped: the real cover has already
-// been read off the session, and falling back to iTunes would replace it with a
-// lookup that can miss or return the wrong release.
-const DATA_URI_HEAD_RE = /^data:([^;,]*(?:,[^;,]*)*);base64,/i;
-const IMAGE_MIME_RE = /^image\/[A-Za-z0-9][A-Za-z0-9.+-]*$/;
-function repairThumbnail(raw) {
-  const v = typeof raw === 'string' ? raw : '';
-  if (!v) return '';
-  if (/^https:\/\//i.test(v)) return v;                    // a CDN cover (iTunes, Apple's mzstatic)
-  const m = DATA_URI_HEAD_RE.exec(v);
-  if (!m) return '';                                        // not a shape a browser will decode
-  const first = String(m[1] || '').split(',')[0].trim();
-  const type = IMAGE_MIME_RE.test(first) ? first : 'image/jpeg';
-  const body = v.slice(m[0].length);
-  if (!body) return '';
-  return 'data:' + type + ';base64,' + body;
-}
 
-// Apple Music packs "Artist — Album" into the artist field and leaves the album
-// empty, so the dashboard showed both on one line and had no album at all.
-//
-// Split at the FIRST em dash, which is where Apple's convention puts the join:
-// the artist comes first. This shipped as "split only when there is exactly one
-// dash", on the reasoning that with two there is no telling which one separates.
-// The reporter answered that with numbers, and they are one-sided enough to
-// settle it — about 22,000 Apple catalogue rows, weighted toward the genres that
-// use long dashed titles:
-//
-//   artist names containing an em dash    0
-//   album titles containing an em dash    2   (a Netflix soundtrack, and an
-//                                              Ólafur Arnalds reworks album)
-//
-// So the case "exactly one" declines on is real and recurring — every track of
-// "Tom Holkenborg — Rebel Moon — Part One: …" has two — while the case
-// first-dash gets wrong could not be found at all. The near misses are mostly
-// OTHER characters (en dash, the katakana prolonged mark) that neither rule
-// keys on, so the em dash is a narrow signal and this is a narrow use of it.
-//
-// Still scoped to Apple Music: this is their convention rather than a fact about
-// media sessions, and an artist elsewhere whose name genuinely reads "A — B"
-// must be left alone.
-const APPLE_MUSIC_RE = /AppleMusic/i;
-const EM_DASH_SPLIT = ' \u2014 ';
-function splitAppleArtist(data) {
-  if (!APPLE_MUSIC_RE.test(String(data.source || ''))) return;
-  if (String(data.album || '').trim()) return;
-  const artist = String(data.artist || '');
-  const at = artist.indexOf(EM_DASH_SPLIT);
-  if (at < 0) return;
-  const left = artist.slice(0, at).trim();
-  const right = artist.slice(at + EM_DASH_SPLIT.length).trim();
-  if (!left || !right) return;
-  data.artist = left;
-  data.album = right;
-}
-
-function normalizeMedia(data) {
-  if (!data || typeof data !== 'object') return data;
-  if ('thumbnail' in data) {
-    const fixed = repairThumbnail(data.thumbnail);
-    // Empty rather than a broken string: hydrateArtwork only looks up artwork
-    // when there is none, so a thumbnail a browser cannot decode used to defeat
-    // the fallback as well as the cover — one comma closing both routes.
-    data.thumbnail = fixed || null;
-  }
-  splitAppleArtist(data);
-  return data;
-}
 
 async function hydrateArtwork(data) {
   if (!data || !data.active || data.thumbnail) return data;
@@ -4273,64 +4223,7 @@ async function hydrateArtwork(data) {
   return data;
 }
 
-function firstWeatherValue(value) {
-  if (Array.isArray(value) && value[0] && typeof value[0].value === 'string') return value[0].value;
-  return '';
-}
-
-function normalizeWeatherCode(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? Math.round(numeric) : null;
-}
-
-function sanitizeWeatherCity(value) {
-  return String(value || '')
-    .normalize('NFKC')
-    .replace(/[\u0000-\u001f\u007f<>`"'\\]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80);
-}
-
-function normalizeWeatherLocation(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const mode = source.mode === 'manual' ? 'manual' : 'auto';
-  return {
-    mode,
-    city: sanitizeWeatherCity(source.city),
-  };
-}
-
-function resolveWeatherLocation(value) {
-  const location = normalizeWeatherLocation(value);
-  if (location.mode === 'manual' && location.city) return location;
-  return { mode: 'auto', city: '' };
-}
-
-function normalizeWeatherCityKey(value) {
-  return sanitizeWeatherCity(value)
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function pickWeatherLocationResult(results, requestedCity) {
-  if (!Array.isArray(results) || !results.length) return null;
-  const requestedKey = normalizeWeatherCityKey(requestedCity);
-  return results.find(item => normalizeWeatherCityKey(item && item.name) === requestedKey)
-    || results.find(item => requestedKey.startsWith(normalizeWeatherCityKey(item && item.name)))
-    || results.find(item => normalizeWeatherCityKey(item && item.name).startsWith(requestedKey))
-    || results[0];
-}
-
-function splitWeatherDisplayLocation(value) {
-  const parts = String(value || '').split(',').map(part => part.trim()).filter(Boolean);
-  return {
-    location: parts[0] || '',
-    region: parts[1] || '',
-    country: parts.slice(2).join(', '),
-  };
-}
+const { normalizeWeather } = require('./weather/wttr.js');
 
 // Recover real coordinates for a manual city that open-meteo's structured
 // geocoder rejected — a full address or place name like
@@ -4406,241 +4299,11 @@ async function resolveManualWeatherPlace(city, lang) {
   return value;
 }
 
-function weatherDescription(item, lang) {
-  if (!item) return '';
-  return firstWeatherValue(item[`lang_${lang}`]) || firstWeatherValue(item.weatherDesc) || '';
-}
+const { METNO_HEADERS, normalizeMetno } = require('./weather/met-norway.js');
 
-function normalizeWeatherHour(hour, lang, date) {
-  const rawTime = String(hour && hour.time || '0').padStart(4, '0');
-  const time = `${rawTime.slice(0, -2).padStart(2, '0')}:${rawTime.slice(-2)}`;
-  const tempC = Number(hour && hour.tempC);
-  const feelsC = Number(hour && hour.FeelsLikeC);
-  const rain = Number(hour && hour.chanceofrain);
-  const windKph = Number(hour && hour.windspeedKmph);
-  return {
-    date,
-    time,
-    code: normalizeWeatherCode(hour && hour.weatherCode),
-    tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
-    feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
-    rain: Number.isFinite(rain) ? Math.round(rain) : null,
-    windKph: Number.isFinite(windKph) ? Math.round(windKph) : null,
-    condition: weatherDescription(hour, lang),
-  };
-}
+const { normalizeOpenMeteo } = require('./weather/open-meteo.js');
 
-function normalizeWeatherDay(day, lang) {
-  const astronomy = day && day.astronomy && day.astronomy[0] || {};
-  const noon = day && Array.isArray(day.hourly) ? (day.hourly.find(h => String(h.time) === '1200') || day.hourly[0]) : null;
-  return {
-    date: String(day && day.date || ''),
-    code: normalizeWeatherCode(noon && noon.weatherCode),
-    minC: Number.isFinite(Number(day && day.mintempC)) ? Math.round(Number(day.mintempC)) : null,
-    maxC: Number.isFinite(Number(day && day.maxtempC)) ? Math.round(Number(day.maxtempC)) : null,
-    avgC: Number.isFinite(Number(day && day.avgtempC)) ? Math.round(Number(day.avgtempC)) : null,
-    uv: Number.isFinite(Number(day && day.uvIndex)) ? Number(day.uvIndex) : null,
-    sunHour: Number.isFinite(Number(day && day.sunHour)) ? Number(day.sunHour) : null,
-    sunrise: String(astronomy.sunrise || ''),
-    sunset: String(astronomy.sunset || ''),
-    moonPhase: String(astronomy.moon_phase || ''),
-    condition: weatherDescription(noon, lang),
-  };
-}
-
-function normalizeWeather(raw, lang) {
-  const current = raw && raw.current_condition && raw.current_condition[0] || {};
-  const area = raw && raw.nearest_area && raw.nearest_area[0] || {};
-  const tempC = Number(current.temp_C);
-  const feelsC = Number(current.FeelsLikeC);
-  const humidity = Number(current.humidity);
-  const windKph = Number(current.windspeedKmph);
-  const pressure = Number(current.pressure);
-  const visibility = Number(current.visibility);
-  const uv = Number(current.uvIndex);
-  const cloudCover = Number(current.cloudcover);
-  const precipMM = Number(current.precipMM);
-  const lat = Number(area.latitude);
-  const lon = Number(area.longitude);
-  const condition = weatherDescription(current, lang);
-  const location = firstWeatherValue(area.areaName) || firstWeatherValue(area.region) || firstWeatherValue(area.country) || '';
-  const region = firstWeatherValue(area.region);
-  const country = firstWeatherValue(area.country);
-  const days = Array.isArray(raw && raw.weather) ? raw.weather : [];
-  const nowHour = new Date().getHours();
-  const hourly = days.flatMap(day => (Array.isArray(day.hourly) ? day.hourly : [])
-    .map(hour => normalizeWeatherHour(hour, lang, String(day.date || ''))))
-    .filter(hour => !hour.date || hour.date !== days[0]?.date || Number(hour.time.slice(0, 2)) >= nowHour)
-    .slice(0, 8);
-  const todayAstro = days[0] && days[0].astronomy && days[0].astronomy[0] || {};
-
-  return {
-    ok: Number.isFinite(tempC),
-    code: normalizeWeatherCode(current.weatherCode),
-    tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
-    feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
-    humidity: Number.isFinite(humidity) ? humidity : null,
-    windKph: Number.isFinite(windKph) ? Math.round(windKph) : null,
-    windDir: String(current.winddir16Point || ''),
-    pressure: Number.isFinite(pressure) ? pressure : null,
-    visibility: Number.isFinite(visibility) ? visibility : null,
-    uv: Number.isFinite(uv) ? uv : null,
-    cloudCover: Number.isFinite(cloudCover) ? cloudCover : null,
-    precipMM: Number.isFinite(precipMM) ? precipMM : null,
-    condition,
-    location,
-    region,
-    country,
-    lat: Number.isFinite(lat) ? lat : null,
-    lon: Number.isFinite(lon) ? lon : null,
-    sunrise: String(todayAstro.sunrise || ''),
-    sunset: String(todayAstro.sunset || ''),
-    hourly,
-    forecast: days.slice(0, WEATHER_FORECAST_MAX_DAYS).map(day => normalizeWeatherDay(day, lang)),
-    updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
-  };
-}
-
-// ── Weather providers ───────────────────────────────────────────────
-// The dashboard can draw weather from more than one free, no-key source, so an
-// outage or a bad reading from one never leaves the widget blank or wrong.
-// Every provider maps its native payload onto the SAME normalized shape as
-// normalizeWeather() (wttr.in), so the client renders any of them identically.
-//   • open-meteo — api.open-meteo.com (WMO codes, very reliable, complete)
-//   • metno      — api.met.no / yr.no (needs an identifying User-Agent)
-//   • wttr       — wttr.in (self-geolocates by IP; the original source)
-// 'auto' tries them in that order and returns the first that answers.
-const WEATHER_PROVIDERS = new Set(['auto', 'open-meteo', 'metno', 'wttr']);
-
-// The met.no terms of service require an identifying User-Agent with contact.
-const METNO_HEADERS = { 'User-Agent': 'XenonEdgeHub/3.3 (github.com/marcimastro98/Xenon)' };
-
-// Canonical condition buckets → a representative wttr (WWO) code the client's
-// classifier already understands, plus a localized label. Providers map their
-// own codes to a bucket, so icons, day/night and colours work with no client
-// change. Labels cover every UI language in WEATHER_LANGS (fallback: English) —
-// keep the two in step when adding a language, or that language's users get
-// mixed-language conditions (#72).
-const WEATHER_BUCKET_CODE = Object.freeze({
-  clear: 113, partly: 116, cloud: 119, fog: 248,
-  drizzle: 266, rain: 302, showers: 356, snow: 338, storm: 200,
-});
-const WEATHER_BUCKET_LABELS = Object.freeze({
-  it: { clear: 'Sereno', partly: 'Poco nuvoloso', cloud: 'Nuvoloso', fog: 'Nebbia', drizzle: 'Pioviggine', rain: 'Pioggia', showers: 'Rovesci', snow: 'Neve', storm: 'Temporale' },
-  en: { clear: 'Clear', partly: 'Partly cloudy', cloud: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', showers: 'Showers', snow: 'Snow', storm: 'Thunderstorm' },
-  ko: { clear: '맑음', partly: '구름 조금', cloud: '흐림', fog: '안개', drizzle: '이슬비', rain: '비', showers: '소나기', snow: '눈', storm: '뇌우' },
-  ja: { clear: '快晴', partly: '晴れ時々曇り', cloud: '曇り', fog: '霧', drizzle: '霧雨', rain: '雨', showers: 'にわか雨', snow: '雪', storm: '雷雨' },
-  zh: { clear: '晴', partly: '多云', cloud: '阴', fog: '雾', drizzle: '毛毛雨', rain: '雨', showers: '阵雨', snow: '雪', storm: '雷暴' },
-  es: { clear: 'Despejado', partly: 'Parcialmente nublado', cloud: 'Nublado', fog: 'Niebla', drizzle: 'Llovizna', rain: 'Lluvia', showers: 'Chubascos', snow: 'Nieve', storm: 'Tormenta' },
-  fr: { clear: 'Dégagé', partly: 'Partiellement nuageux', cloud: 'Nuageux', fog: 'Brouillard', drizzle: 'Bruine', rain: 'Pluie', showers: 'Averses', snow: 'Neige', storm: 'Orage' },
-  de: { clear: 'Klar', partly: 'Teilweise bewölkt', cloud: 'Bewölkt', fog: 'Nebel', drizzle: 'Nieselregen', rain: 'Regen', showers: 'Schauer', snow: 'Schnee', storm: 'Gewitter' },
-  pt: { clear: 'Céu limpo', partly: 'Parcialmente nublado', cloud: 'Nublado', fog: 'Nevoeiro', drizzle: 'Chuvisco', rain: 'Chuva', showers: 'Aguaceiros', snow: 'Neve', storm: 'Trovoada' },
-  ru: { clear: 'Ясно', partly: 'Переменная облачность', cloud: 'Облачно', fog: 'Туман', drizzle: 'Морось', rain: 'Дождь', showers: 'Ливни', snow: 'Снег', storm: 'Гроза' },
-  nl: { clear: 'Helder', partly: 'Gedeeltelijk bewolkt', cloud: 'Bewolkt', fog: 'Mist', drizzle: 'Motregen', rain: 'Regen', showers: 'Buien', snow: 'Sneeuw', storm: 'Onweer' },
-});
-function weatherBucketLabel(bucket, lang) {
-  const table = WEATHER_BUCKET_LABELS[lang] || WEATHER_BUCKET_LABELS.en;
-  return table[bucket] || WEATHER_BUCKET_LABELS.en[bucket] || '';
-}
-function degToCompass(deg) {
-  const n = Number(deg);
-  if (!Number.isFinite(n)) return '';
-  const points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-  return points[Math.round(((n % 360) + 360) % 360 / 22.5) % 16];
-}
-// ISO8601 local time (e.g. "2026-07-01T05:38") → "HH:MM" for display + the
-// client's night detector (parseSunTime also accepts 24h times).
-function isoToClock(iso) {
-  const m = String(iso || '').match(/T(\d{2}):(\d{2})/);
-  return m ? `${m[1]}:${m[2]}` : '';
-}
-function isoDatePart(iso) {
-  const m = String(iso || '').match(/^(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : '';
-}
-
-// WMO weather interpretation code (open-meteo) → canonical bucket.
-function wmoBucket(code) {
-  const c = Number(code);
-  if (!Number.isFinite(c)) return 'cloud';
-  if (c === 0) return 'clear';
-  if (c === 1 || c === 2) return 'partly';
-  if (c === 3) return 'cloud';
-  if (c === 45 || c === 48) return 'fog';
-  if (c >= 51 && c <= 57) return 'drizzle';
-  if (c >= 61 && c <= 67) return 'rain';
-  if (c >= 71 && c <= 77) return 'snow';
-  if (c >= 80 && c <= 82) return 'showers';
-  if (c === 85 || c === 86) return 'snow';
-  if (c >= 95) return 'storm';
-  return 'cloud';
-}
-// met.no symbol_code (e.g. "partlycloudy_night", "lightrainshowers_day") → bucket.
-function metnoBucket(symbol) {
-  const s = String(symbol || '').replace(/_(day|night|polartwilight)$/, '');
-  if (!s) return 'cloud';
-  if (s.includes('thunder')) return 'storm';
-  if (s.includes('sleet')) return 'snow';
-  if (s.includes('snow')) return 'snow';
-  if (s.includes('showers')) return 'showers';
-  if (s.includes('rain')) return 'rain';
-  if (s.includes('drizzle')) return 'drizzle';
-  if (s === 'fog') return 'fog';
-  if (s === 'cloudy') return 'cloud';
-  if (s === 'partlycloudy') return 'partly';
-  if (s === 'fair') return 'partly';
-  if (s === 'clearsky') return 'clear';
-  return 'cloud';
-}
-
-// Free, no-key IP geolocation (https). Coordinate-based providers need lat/lon
-// for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast,
-// and the last good answer is persisted to DATA_DIR: the backend restarts at
-// every boot (native-app nudge), so an in-memory-only value is gone exactly
-// when it's needed most — if the lookup is then down or slow, one surface gets
-// coordinates (open-meteo) and another gets none (wttr's own IP guess), i.e.
-// two different forecasts for the same PC until the next refresh (#72). Stale
-// coordinates beat no coordinates.
-//
-// Several sources are tried in order, because losing this step is far more
-// expensive than it looks: with no coordinates open-meteo AND met.no are skipped
-// outright (both return null on the first line), so the whole feature silently
-// degrades to wttr — the least reliable of the three — and stays there until the
-// day wttr is rate-limited too, at which point the tile blanks. That is exactly
-// the Discord report against v4.11.3 ("Weather not working and still wrong next
-// hours"): the wrong hours were the tell that the machine had been running on
-// the wttr fallback for weeks. One hostname is one point of failure, and the
-// realistic causes here (a DNS-level blocker on the PC or the router, a filtering
-// antivirus, a corporate resolver) block SOME names and not others — so a second
-// and third name is a far cheaper fix than asking a user to audit blocklists.
-// Keep every source free, key-less and https, and keep the parsers pure: they are
-// fixture-tested in test/weather-geo-sources.test.mjs against real payloads.
-const GEO_IP_SOURCES = Object.freeze([
-  { name: 'ipwho.is', url: 'https://ipwho.is/',
-    parse: (g) => (g && g.success === false ? null : { lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country }) },
-  { name: 'geojs', url: 'https://get.geojs.io/v1/ip/geo.json',
-    parse: (g) => ({ lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country }) },
-  { name: 'ipapi', url: 'https://ipapi.co/json/',
-    parse: (g) => (g && g.error ? null : { lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country_name }) },
-]);
-// Shape-check one source's answer. Coordinates arrive as numbers from one
-// service and as strings from another, so everything goes through Number();
-// 0/0 is refused because it is what a service returns when it does NOT know
-// (null island is in the Atlantic, and a forecast for it looks like real data).
-function normalizeGeoIpValue(parsed) {
-  const lat = Number(parsed && parsed.lat);
-  const lon = Number(parsed && parsed.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-  if (lat === 0 && lon === 0) return null;
-  return {
-    lat, lon,
-    location: String((parsed && parsed.location) || ''),
-    region: String((parsed && parsed.region) || ''),
-    country: String((parsed && parsed.country) || ''),
-  };
-}
+const { GEO_IP_SOURCES, normalizeGeoIpValue } = require('./weather/geo-ip.js');
 const WEATHER_GEO_FILE = path.join(DATA_DIR, 'weather-geo.json');
 let weatherAutoLocation = { value: null, updatedAt: 0 };
 let weatherGeoLoad = null; // shared promise — concurrent boot fetches read the file once
@@ -4718,233 +4381,6 @@ async function resolveAutoLocation() {
   return fresh || weatherAutoLocation.value || null;
 }
 
-// Map an open-meteo /v1/forecast payload onto the shared normalized shape.
-function normalizeOpenMeteo(raw, ctx) {
-  const cur = raw && raw.current;
-  if (!cur || !Number.isFinite(Number(cur.temperature_2m))) return null;
-  const bucket = wmoBucket(cur.weather_code);
-  const daily = raw.daily || {};
-  const dDates = Array.isArray(daily.time) ? daily.time : [];
-  const sunrise = isoToClock(Array.isArray(daily.sunrise) ? daily.sunrise[0] : '');
-  const sunset = isoToClock(Array.isArray(daily.sunset) ? daily.sunset[0] : '');
-  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
-
-  const forecast = dDates.slice(0, WEATHER_FORECAST_MAX_DAYS).map((date, i) => {
-    const b = wmoBucket(daily.weather_code && daily.weather_code[i]);
-    return {
-      date: String(date || ''),
-      code: WEATHER_BUCKET_CODE[b],
-      minC: round(daily.temperature_2m_min && daily.temperature_2m_min[i]),
-      maxC: round(daily.temperature_2m_max && daily.temperature_2m_max[i]),
-      avgC: null,
-      uv: Number.isFinite(Number(daily.uv_index_max && daily.uv_index_max[i])) ? Number(daily.uv_index_max[i]) : null,
-      sunHour: null,
-      sunrise: isoToClock(daily.sunrise && daily.sunrise[i]),
-      sunset: isoToClock(daily.sunset && daily.sunset[i]),
-      moonPhase: '',
-      condition: weatherBucketLabel(b, ctx.lang),
-    };
-  });
-
-  const h = raw.hourly || {};
-  const hTimes = Array.isArray(h.time) ? h.time : [];
-  const nowMs = Date.now();
-  const hourly = [];
-  for (let i = 0; i < hTimes.length && hourly.length < 8; i++) {
-    if (new Date(hTimes[i]).getTime() < nowMs - 60 * 60 * 1000) continue;
-    const b = wmoBucket(h.weather_code && h.weather_code[i]);
-    hourly.push({
-      date: isoDatePart(hTimes[i]),
-      time: isoToClock(hTimes[i]),
-      code: WEATHER_BUCKET_CODE[b],
-      tempC: round(h.temperature_2m && h.temperature_2m[i]),
-      feelsC: null,
-      rain: round(h.precipitation_probability && h.precipitation_probability[i]),
-      windKph: round(h.wind_speed_10m && h.wind_speed_10m[i]),
-      condition: weatherBucketLabel(b, ctx.lang),
-    });
-  }
-
-  const visM = Number(cur.visibility);
-  return {
-    ok: true,
-    code: WEATHER_BUCKET_CODE[bucket],
-    tempC: round(cur.temperature_2m),
-    feelsC: round(cur.apparent_temperature),
-    humidity: round(cur.relative_humidity_2m),
-    windKph: round(cur.wind_speed_10m),
-    windDir: degToCompass(cur.wind_direction_10m),
-    pressure: round(cur.pressure_msl),
-    visibility: Number.isFinite(visM) ? Math.round(visM / 1000) : null,
-    uv: Number.isFinite(Number(cur.uv_index)) ? Math.round(Number(cur.uv_index)) : null,
-    cloudCover: round(cur.cloud_cover),
-    precipMM: Number.isFinite(Number(cur.precipitation)) ? Math.round(Number(cur.precipitation) * 10) / 10 : null,
-    condition: weatherBucketLabel(bucket, ctx.lang),
-    location: ctx.location || '',
-    region: ctx.region || '',
-    country: ctx.country || '',
-    lat: ctx.lat, lon: ctx.lon,
-    sunrise, sunset,
-    hourly,
-    forecast,
-    updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
-    source: 'open-meteo',
-  };
-}
-
-// "Feels like" for providers that don't supply it (met.no). Wind chill when cold
-// and windy, heat index when warm and humid, else the air temperature — the same
-// bands weather services use. Inputs °C / km/h / %.
-function computeFeelsLike(tempC, windKph, humidity) {
-  if (!Number.isFinite(tempC)) return null;
-  if (tempC <= 10 && Number.isFinite(windKph) && windKph >= 4.8) {
-    const w = Math.pow(windKph, 0.16);
-    return Math.round(13.12 + 0.6215 * tempC - 11.37 * w + 0.3965 * tempC * w);
-  }
-  if (tempC >= 27 && Number.isFinite(humidity) && humidity >= 40) {
-    const T = tempC * 9 / 5 + 32, R = humidity;
-    const hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
-      - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
-      + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
-    return Math.round((hi - 32) * 5 / 9);
-  }
-  return Math.round(tempC);
-}
-
-// Approximate local sunrise/sunset ("HH:MM") for a date, to fill providers that
-// omit them (met.no compact). NOAA low-precision algorithm (~1-2 min accuracy —
-// ample for the day/night visual and the forecast sun line). Uses the server's
-// local timezone, which is the user's own location in auto mode.
-function computeSunTimes(lat, lon, dateStr) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { sunrise: '', sunset: '' };
-  const d = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date();
-  if (!Number.isFinite(d.getTime())) return { sunrise: '', sunset: '' };
-  const rad = Math.PI / 180, deg = 180 / Math.PI;
-  const start = new Date(d.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((d - start) / 86400000);
-  const zenith = 90.833;
-  const calc = (isSunrise) => {
-    const lngHour = lon / 15;
-    const tApprox = dayOfYear + ((isSunrise ? 6 : 18) - lngHour) / 24;
-    const M = 0.9856 * tApprox - 3.289;
-    let L = M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634;
-    L = ((L % 360) + 360) % 360;
-    let RA = deg * Math.atan(0.91764 * Math.tan(L * rad));
-    RA = ((RA % 360) + 360) % 360;
-    RA += (Math.floor(L / 90) - Math.floor(RA / 90)) * 90;
-    RA /= 15;
-    const sinDec = 0.39782 * Math.sin(L * rad);
-    const cosDec = Math.cos(Math.asin(sinDec));
-    const cosH = (Math.cos(zenith * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
-    if (cosH > 1 || cosH < -1) return '';
-    let H = isSunrise ? 360 - deg * Math.acos(cosH) : deg * Math.acos(cosH);
-    H /= 15;
-    const T = H + RA - 0.06571 * tApprox - 6.622;
-    const UT = ((T - lngHour) % 24 + 24) % 24;
-    const local = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) + UT * 3600000);
-    return `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`;
-  };
-  return { sunrise: calc(true), sunset: calc(false) };
-}
-
-// Map a met.no locationforecast/2.0/compact payload onto the shared shape.
-// The compact product has no sunrise/sunset, UV or feels-like; those stay null
-// (the UI already shows "--" for missing metrics). Daily min/max are aggregated
-// from the time series; wind is m/s → km/h.
-function normalizeMetno(raw, ctx) {
-  const series = raw && raw.properties && Array.isArray(raw.properties.timeseries) ? raw.properties.timeseries : [];
-  if (!series.length) return null;
-  const first = series[0];
-  const inst = first.data && first.data.instant && first.data.instant.details;
-  if (!inst || !Number.isFinite(Number(inst.air_temperature))) return null;
-  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
-  const symbolOf = (entry) => {
-    const d = entry && entry.data;
-    return (d && ((d.next_1_hours && d.next_1_hours.summary && d.next_1_hours.summary.symbol_code)
-      || (d.next_6_hours && d.next_6_hours.summary && d.next_6_hours.summary.symbol_code))) || '';
-  };
-  const precipOf = (entry) => {
-    const d = entry && entry.data;
-    const p = d && ((d.next_1_hours && d.next_1_hours.details) || (d.next_6_hours && d.next_6_hours.details));
-    return p && Number.isFinite(Number(p.precipitation_amount)) ? Number(p.precipitation_amount) : null;
-  };
-  const curBucket = metnoBucket(symbolOf(first));
-
-  // Next 8 hourly points.
-  const hourly = series.slice(0, 8).map(entry => {
-    const det = entry.data && entry.data.instant && entry.data.instant.details || {};
-    const b = metnoBucket(symbolOf(entry));
-    return {
-      date: isoDatePart(entry.time),
-      time: isoToClock(entry.time),
-      code: WEATHER_BUCKET_CODE[b],
-      tempC: round(det.air_temperature),
-      feelsC: null,
-      rain: null,
-      windKph: Number.isFinite(Number(det.wind_speed)) ? Math.round(Number(det.wind_speed) * 3.6) : null,
-      condition: weatherBucketLabel(b, ctx.lang),
-    };
-  });
-
-  // Daily aggregation: group instants by local date, take min/max; the day's
-  // symbol is the entry nearest local noon.
-  const byDate = new Map();
-  series.forEach(entry => {
-    const date = isoDatePart(entry.time);
-    if (!date) return;
-    const temp = Number(entry.data && entry.data.instant && entry.data.instant.details && entry.data.instant.details.air_temperature);
-    if (!byDate.has(date)) byDate.set(date, { min: Infinity, max: -Infinity, noon: null, noonDiff: Infinity });
-    const rec = byDate.get(date);
-    if (Number.isFinite(temp)) { rec.min = Math.min(rec.min, temp); rec.max = Math.max(rec.max, temp); }
-    const hour = Number((isoToClock(entry.time) || '00:00').slice(0, 2));
-    const diff = Math.abs(hour - 12);
-    if (diff < rec.noonDiff) { rec.noonDiff = diff; rec.noon = symbolOf(entry); }
-  });
-  const forecast = [...byDate.entries()].slice(0, WEATHER_FORECAST_MAX_DAYS).map(([date, rec]) => {
-    const b = metnoBucket(rec.noon);
-    const sun = computeSunTimes(ctx.lat, ctx.lon, date);
-    return {
-      date,
-      code: WEATHER_BUCKET_CODE[b],
-      minC: Number.isFinite(rec.min) ? Math.round(rec.min) : null,
-      maxC: Number.isFinite(rec.max) ? Math.round(rec.max) : null,
-      avgC: null, uv: null, sunHour: null, sunrise: sun.sunrise, sunset: sun.sunset, moonPhase: '',
-      condition: weatherBucketLabel(b, ctx.lang),
-    };
-  });
-
-  const windKph = Number.isFinite(Number(inst.wind_speed)) ? Math.round(Number(inst.wind_speed) * 3.6) : null;
-  const humidity = round(inst.relative_humidity);
-  const tempC = round(inst.air_temperature);
-  const todaySun = computeSunTimes(ctx.lat, ctx.lon, isoDatePart(first.time));
-  return {
-    ok: true,
-    code: WEATHER_BUCKET_CODE[curBucket],
-    tempC,
-    feelsC: computeFeelsLike(tempC, windKph, humidity),
-    humidity,
-    windKph,
-    windDir: degToCompass(inst.wind_from_direction),
-    pressure: round(inst.air_pressure_at_sea_level),
-    visibility: null,
-    uv: null,
-    cloudCover: round(inst.cloud_area_fraction),
-    precipMM: precipOf(first),
-    condition: weatherBucketLabel(curBucket, ctx.lang),
-    location: ctx.location || '',
-    region: ctx.region || '',
-    country: ctx.country || '',
-    lat: ctx.lat, lon: ctx.lon,
-    sunrise: todaySun.sunrise, sunset: todaySun.sunset,
-    hourly,
-    forecast,
-    updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
-    source: 'metno',
-  };
-}
-
 // Provider fetchers — each resolves to a normalized object or null (never throws),
 // so getWeather() can fall through to the next source.
 async function fetchWttrWeather(ctx) {
@@ -4982,17 +4418,6 @@ const WEATHER_FETCHERS = {
   'metno': fetchMetnoWeather,
   'wttr': fetchWttrWeather,
 };
-// Provider attempt order for a given preference. A specific choice is tried
-// first, then the others as fallbacks, so a single source's outage never blanks
-// the widget. wttr sits last in 'auto' (least reliable) but is the only one that
-// works without coordinates, covering the case where IP geolocation fails.
-function weatherProviderOrder(pref) {
-  const base = ['open-meteo', 'metno', 'wttr'];
-  if (pref && pref !== 'auto' && base.includes(pref)) {
-    return [pref, ...base.filter(p => p !== pref)];
-  }
-  return base;
-}
 
 // Newest cached forecast for a location regardless of UI language. The cache key
 // is `lang|provider|mode|city`, so a language change misses the per-lang slot and,
@@ -9902,157 +9327,6 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'perf', 'screen', 'custom']);
-const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
-const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
-const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
-const DASHBOARD_CARD_IDS = Object.freeze({
-  main: ['cpu', 'gpu', 'ram', 'disk'],
-  net: ['ping', 'fps', 'latency', 'bandwidth'],
-  audio: ['volume', 'speaker', 'microphone'],
-  twitch: ['info', 'actions', 'chat'],
-  twitchwatch: ['player', 'library', 'chat'],
-  obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['player', 'library'],
-  youtubelive: ['info', 'actions', 'chat'],
-});
-const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
-// 24 columns (with half-height rows) = fine-grained, near-free tile placement.
-// Layouts saved on the old 12-column grid are scaled ×2 once — keyed on
-// layout.gridCols, see scaleDashboardLayoutUnits — so nothing moves on upgrade.
-const DASHBOARD_GRID_COLUMNS = 24;     // GridStack column count
-const DASHBOARD_GRID_MAX_ROW = 400;    // generous clamp for y/h
-// Bump when the default dashboard layout changes in a way that should override
-// users' saved layouts on upgrade. v5 = copies (multi-instance widgets).
-// CAREFUL: the 12→24-column unit migration (scaleDashboardLayoutUnits) relies
-// on this NOT being bumped — a bump resets saved layouts to default BEFORE the
-// ×2 scaler ever runs, wiping user layouts instead of migrating them. Never
-// use this constant as the grid-units fence.
-const DASHBOARD_LAYOUT_VERSION = 6;
-const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
-  gridCols: 24,   // geometry units flag — layouts without it are 12-column
-  widgets: Object.freeze({
-    media:    Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
-    agenda:   Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
-    system:   Object.freeze({ x: 16, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
-    mic:      Object.freeze({ x: 0, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    audio:    Object.freeze({ x: 6, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    notes:    Object.freeze({ x: 12, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    tasks:    Object.freeze({ x: 18, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    calendar: Object.freeze({ x: 0, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    timer:    Object.freeze({ x: 6, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
-    chat:     Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
-    deck:     Object.freeze({ x: 0, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
-    remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
-    twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
-    obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
-    // Taller than the other stream tiles on purpose: this one holds a 16:9 video
-    // player above its list, and at h:4 the player had no room to be a player.
-    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    twitchwatch: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    youtubelive: Object.freeze({ x: 16, y: 32, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
-    browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
-    secondscreen: Object.freeze({ x: 12, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
-    weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    wavelink: Object.freeze({ x: 0, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    lighting: Object.freeze({ x: 8, y: 46, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    openaicodex: Object.freeze({ x: 16, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    chatgpt:  Object.freeze({ x: 16, y: 48, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    perf:     Object.freeze({ x: 8, y: 74, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
-    disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    lyrics: Object.freeze({ x: 8, y: 64, w: 6, h: 10, visible: false, page: 'dashboard' }),
-    transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
-    // Tall rather than wide: it is a list of people, and the keypad wants the
-    // height. Hidden until the user adds it, like every opt-in widget.
-    phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    // The Xenon menu on the main screen, from the dashboard (js/screen-tile.js).
-    screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
-    custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
-  }),
-  groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'agenda']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
-  }),
-  pages: Object.freeze([
-    Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
-  ]),
-  cards: Object.freeze({
-    main: Object.freeze({
-      cpu: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      gpu: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      ram: Object.freeze({ order: 2, size: 'normal', visible: true }),
-      disk: Object.freeze({ order: 3, size: 'normal', visible: true }),
-    }),
-    net: Object.freeze({
-      ping: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      fps: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      latency: Object.freeze({ order: 2, size: 'normal', visible: true }),
-      bandwidth: Object.freeze({ order: 3, size: 'normal', visible: true }),
-    }),
-    audio: Object.freeze({
-      volume: Object.freeze({ order: 0, size: 'wide', visible: true }),
-      speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
-    }),
-    twitch: Object.freeze({
-      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
-    }),
-    obs: Object.freeze({
-      preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
-      audio: Object.freeze({ order: 3, size: 'normal', visible: true }),
-    }),
-    // Every id in DASHBOARD_CARD_IDS.youtube needs an entry here, and not as a
-    // cosmetic default: normalizeDashboardLayout iterates that ID list and reads
-    // the default for each one, so a missing entry threw on EVERY settings
-    // normalization. See the test that pins the two together.
-    youtube: Object.freeze({
-      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
-    }),
-    youtubelive: Object.freeze({
-      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
-    }),
-    // Twitch chat starts hidden: it is a second embedded page from Twitch, and a
-    // tile that only ever watches does not need it. The card control turns it on.
-    twitchwatch: Object.freeze({
-      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      chat: Object.freeze({ order: 2, size: 'normal', visible: false }),
-    }),
-  }),
-  tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
-  calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
-  mediaView: Object.freeze({ active: 'media' }),
-  topbarHidden: false,
-  // Mirrors js/settings.js — the Timer widget's add row folded to a strip. A
-  // field missing from THIS copy is silently dropped on save, so the flag would
-  // never survive a reload.
-  timerAddCollapsed: false,
-  // The vertical layout (js/dashboard-portrait.js): generated until arranged.
-  portrait: Object.freeze({ custom: false, items: Object.freeze({}) }),
-});
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
 
@@ -10574,20 +9848,6 @@ let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 // wrong reads as "not new" — under-counting births is the recoverable direction.
 let _settingsFileMissingAtBoot = false;
 
-function clampNumber(value, min, max, fallback) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.max(min, Math.min(max, numeric));
-}
-
-function normalizeHex(value, fallback) {
-  const raw = String(value || '').trim();
-  const short = raw.match(/^#?([0-9a-f]{3})$/i);
-  if (short) return '#' + short[1].split('').map(ch => ch + ch).join('').toLowerCase();
-  const full = raw.match(/^#?([0-9a-f]{6})$/i);
-  return full ? '#' + full[1].toLowerCase() : fallback;
-}
-
 // Mirror of the client sanitizeBackgroundMedia. A pasted-SVG wallpaper is stored
 // inline as a bounded base64 data:image/svg+xml URI (rendered only as an <img>
 // source — secure static mode, no scripts); anything else must be a
@@ -11096,22 +10356,6 @@ function normalizeProactive(value) {
   };
 }
 
-// Master notifications switch. `enabled` (default ON) is the global gate that can
-// silence every source at once and stop the background watchers; `popups` (default
-// ON) keeps the feeds but suppresses on-screen toasts; `sounds` (default ON)
-// toggles the client-played pop-up cue. All round-trip as booleans.
-function normalizeNotifications(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  // `quiet` is the do-not-disturb mode: 'auto' (default) holds routine pop-ups
-  // back while the screen is immersive (a full-screen ambient scene, game mode),
-  // 'always' holds them back the whole time, 'off' never does. Errors, warnings,
-  // reminders and finished timers are never held back on any setting.
-  const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
-  // `onScreen`: in "Solo widget" (no dashboard window) the same pop-ups show in
-  // a small click-through window on the main screen (/screen-alerts).
-  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet, onScreen: v.onScreen !== false };
-}
-
 // Vitals — game-style self-care meters. Known-key rebuild, identical to the
 // client normalizer (settings.js): per-vital enable + interval, plus the
 // client-owned state (last-refill timestamps, XP, daily fill counter).
@@ -11234,99 +10478,6 @@ function normalizeVitals(value) {
       pet: statePet,
       mem,
     },
-  };
-}
-
-// Discord notification mirroring — privacy-touching, so OFF by default (unknown/
-// malformed collapses to off). `hide` masks each notification's text until tapped.
-function normalizeDiscordNotifications(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled === true, hide: v.hide === true };
-}
-
-// Windows notification mirroring — same privacy posture as the Discord feed
-// (off by default, unknown collapses to off). `excluded` is the per-app mute
-// list: {id, name} entries where id is the app's AUMID (or its display name
-// when the toast carries no AUMID) — a bounded known-key rebuild, never a
-// spread of persisted input.
-function normalizeWindowsNotifications(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const excluded = [];
-  if (Array.isArray(v.excluded)) {
-    for (const e of v.excluded.slice(0, 100)) {
-      const id = String((e && e.id) || '').slice(0, 200).trim();
-      if (!id) continue;
-      excluded.push({ id, name: String((e && e.name) || '').slice(0, 200) });
-    }
-  }
-  // `toast` (default on) is client-presentation only — round-tripped so it
-  // survives a restart; the server never acts on it.
-  return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
-}
-
-// Incoming calls. Strict opt-in, and for two reasons rather than one: it takes
-// over the screen when it fires, and for every source except Discord it reads
-// the notification mirror, which is itself opt-in.
-//
-// `disabledApps` rather than an allowlist on purpose — a stored allowlist would
-// freeze the app table at the version the user first enabled it, so an app
-// added in a later release would silently never ring for them.
-function normalizeCalls(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const disabledApps = [];
-  if (Array.isArray(v.disabledApps)) {
-    for (const id of v.disabledApps.slice(0, 40)) {
-      const s = String(id || '').trim().slice(0, 40);
-      if (s && !disabledApps.includes(s)) disabledApps.push(s);
-    }
-  }
-  // The user's own entries. `match` is what a notification's app name/AUMID is
-  // substring-tested against, so it is cleaned but never interpreted — it never
-  // becomes a path, a command or a regex.
-  const apps = [];
-  if (Array.isArray(v.apps)) {
-    for (const raw of v.apps.slice(0, 20)) {
-      const a = raw && typeof raw === 'object' ? raw : {};
-      const id = String(a.id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
-      if (!id) continue;
-      const match = [];
-      if (Array.isArray(a.match)) {
-        for (const m of a.match.slice(0, 10)) {
-          const s = String(m || '').trim().slice(0, 80);
-          if (s) match.push(s);
-        }
-      }
-      if (!match.length) continue;          // an entry that matches nothing is noise
-      if (apps.some(e => e.id === id)) continue;
-      apps.push({ id, name: String(a.name || id).slice(0, 60), match });
-    }
-  }
-  return {
-    enabled: v.enabled === true,
-    push: v.push !== false,
-    sound: v.sound !== false,
-    disabledApps,
-    apps,
-  };
-}
-
-// The paired phone (phonebook, call log, dialler, live call state). Strict
-// opt-in, and the reason is privacy rather than cost: switching it on reads the
-// user's entire address book off their phone and keeps it in this process. That
-// is not something to inherit from a default.
-//
-// `ring` is separate from `enabled` because the two are different asks. Someone
-// may well want the phonebook and the dialler on a second screen without that
-// screen taking itself over every time the phone rings.
-function normalizePhone(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return {
-    enabled: v.enabled === true,
-    ring: v.ring !== false,
-    // Message text masked until tapped. ON by default, unlike the notification
-    // mirror's equivalent, and for a specific reason: an SMS inbox is where
-    // one-time login codes live, and this widget sits on a screen in the open.
-    hide: v.hide !== false,
   };
 }
 
@@ -11454,14 +10605,6 @@ function normalizeDiskSettings(value) {
   };
 }
 
-// Minimal-mode edge-rail drawer state (true = collapsed). Both sides default
-// collapsed (closed) so a fresh install / storage reset never opens them on its
-// own — an explicit `false` (the user opened that rail) is what re-opens it.
-function normalizeTopbarRails(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  return { left: v.left !== false, right: v.right !== false };
-}
-
 // OpenAI Codex widget surfaces outside its tile. Twin of normalizeCodexWidget
 // in js/settings.js. `approvals` is read by /api/codex/permission, which answers
 // "no decision" at once when it is off; `waitSec` is how long a card waits
@@ -11475,110 +10618,7 @@ function normalizeCodexWidget(value) {
   };
 }
 
-// Minimal-island personalization: anchor + ordered segment list with hidden
-// flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
-// in default order) — never spread untrusted input. Migrates the earlier
-// {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
-function normalizeTopbarClock(value, legacyRoot) {
-  const v = value && typeof value === 'object' ? value : {};
-  const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
-  const version = Number(v.version) || 0;
-  const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
-  const legacyHidden = {};
-  if (!Array.isArray(v.items)) {
-    if (v.date === false) legacyHidden.date = true;
-    if (v.weather === false) legacyHidden.weather = true;
-  }
-  if (version < 2) {
-    if (legacy.claudeWidget && legacy.claudeWidget.topbar === false) legacyHidden.claude = true;
-    if (!legacy.vitals || legacy.vitals.topbar !== true) legacyHidden.vitals = true;
-  }
-  const seen = new Set();
-  const items = [];
-  if (Array.isArray(v.items)) {
-    for (const it of v.items) {
-      const id = it && typeof it === 'object' ? it.id : null;
-      if (!TOPBAR_ISLAND_IDS.includes(id) || seen.has(id)) continue;
-      seen.add(id);
-      items.push({ id, hidden: it.hidden === true || (version < 2 && legacyHidden[id] === true) });
-    }
-  }
-  for (const id of TOPBAR_ISLAND_IDS) {
-    if (seen.has(id)) continue;
-    items.push({ id, hidden: legacyHidden[id] === true });
-  }
-  const hiddenSources = [];
-  const sourceRe = /^[a-z0-9][a-z0-9-]{1,40}$/;
-  if (Array.isArray(v.hiddenSources)) {
-    for (const id of v.hiddenSources) {
-      if (hiddenSources.length >= 64) break;
-      if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
-    }
-  }
-  return {
-    version: 2, align, items, actions: normalizeTopbarActions(v.actions), hiddenSources,
-    takeovers: v.takeovers !== false,
-    mediaTakeover: v.mediaTakeover === true,
-    pageLabels: v.pageLabels === true,   // page dots render the page names
-  };
-}
 
-// The chrome BUTTONS — order, side, visibility. Twin of normalizeTopbarActions in
-// js/settings.js; both must agree or a save from any surface resets the list.
-// `settings` and `layout` are forced visible: they are the two ways back IN (undo
-// anything; rearrange the dashboard again), and on a touch kiosk with no keyboard
-// there is no other route to either. The repair belongs in the normalizer rather
-// than in the editor, so a list from a backup or a hand-edited file comes back
-// correct instead of merely being drawn correctly.
-const TOPBAR_ALWAYS_SHOWN = ['settings', 'layout'];
-const TOPBAR_ACTION_DEFAULTS = [
-  { id: 'lock', side: 'left', hidden: false },
-  { id: 'ambient', side: 'left', hidden: false },
-  { id: 'xenon', side: 'left', hidden: false },
-  { id: 'search', side: 'left', hidden: false },
-  { id: 'mini', side: 'left', hidden: false },
-  { id: 'layout', side: 'right', hidden: false },
-  { id: 'settings', side: 'right', hidden: false },
-  { id: 'apps', side: 'right', hidden: false },
-  { id: 'favorites', side: 'right', hidden: false },
-];
-function normalizeTopbarActions(value) {
-  const byId = new Map(TOPBAR_ACTION_DEFAULTS.map((entry) => [entry.id, entry]));
-  const sdkButtonRe = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
-  const seen = new Set();
-  const out = [];
-  let sdkCount = 0;
-  const add = (def, raw) => {
-    seen.add(def.id);
-    out.push({
-      id: def.id,
-      hidden: TOPBAR_ALWAYS_SHOWN.includes(def.id) ? false : (raw ? raw.hidden === true : def.hidden),
-      side: (raw && (raw.side === 'left' || raw.side === 'right')) ? raw.side : def.side,
-    });
-  };
-  if (Array.isArray(value)) {
-    for (const it of value) {
-      const id = it && typeof it === 'object' ? it.id : null;
-      if (seen.has(id)) continue;
-      // A widget's own bar button (Widget SDK `topbarButton`): kept where the
-      // user put it, never forced shown, at most 8 so a list cannot grow.
-      if (typeof id === 'string' && sdkButtonRe.test(id)) {
-        if (sdkCount >= 8) continue;
-        sdkCount++;
-        add({ id, side: 'left', hidden: false }, it);
-        continue;
-      }
-      const def = byId.get(id);
-      if (!def) continue;
-      add(def, it);
-    }
-  }
-  for (const def of TOPBAR_ACTION_DEFAULTS) {
-    if (!seen.has(def.id)) add(def, null);
-  }
-  return out;
-}
 
 // Scrolling ticker bar config: enabled, edge position, marquee speed and which
 // data sources feed it. Known-key rebuild (no untrusted spread).
@@ -12044,91 +11084,6 @@ function normalizeServerFanLabels(value) {
   return out;
 }
 
-function normalizeServerBrowserTiles(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const out = {};
-  let n = 0;
-  for (const key of Object.keys(v)) {
-    if (n >= 32) break;
-    if (!/^browser(~[a-z0-9]+)?$/.test(key)) continue;
-    const entry = v[key];
-    if (!entry || typeof entry !== 'object') continue;
-    const norm = normalizeServerBrowserTileEntry(entry);
-    if (!norm) continue;
-    out[key] = norm;
-    n++;
-  }
-  return out;
-}
-
-// A tile persists either the current multi-tab shape { tabs:[{url}], active } or
-// the legacy single-URL shape { url }. Round-trip whichever it is — dropping the
-// multi-tab shape here (keeping only { url }) wiped every tab on a settings save.
-// URLs are re-validated by the relay before navigating.
-function normalizeServerBrowserTileEntry(entry) {
-  // chromeHidden (toolbar hidden) is a per-tile UI pref that MUST round-trip so a
-  // "hide toolbar" set on one surface syncs to the others (this is the authoritative
-  // copy other surfaces hydrate). It was dropped here, so the Edge kept its toolbar
-  // out of step with the browser (GitHub #101).
-  const chromeHidden = !!entry.chromeHidden;
-  if (Array.isArray(entry.tabs)) {
-    const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
-    if (!tabs.length) return null;
-    if (tabs.length === 1 && !tabs[0].url && !chromeHidden) return null;
-    const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
-    return { tabs, active, chromeHidden };
-  }
-  const url = String(entry.url || '').slice(0, 2048);
-  return (url || chromeHidden) ? { url, chromeHidden } : null;
-}
-
-function normalizeServerBrowserFavorites(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const entry of value) {
-    if (out.length >= 16) break;
-    if (!entry || typeof entry !== 'object') continue;
-    const url = String(entry.url || '').trim().slice(0, 2048);
-    if (!url) continue;
-    out.push({ label: String(entry.label || '').slice(0, 40), url });
-  }
-  return out;
-}
-
-// App-switcher favorites (client-owned). Round-tripped so a starred app survives a
-// browser-storage reset (PC restart / new WebView profile) — the same reason the
-// UI language is persisted here. Keyed by the stable app (process) NAME, one entry
-// per app, keeping a cached icon + the exe path so a favorite for a CLOSED app can
-// be launched (the /windows/launch endpoint re-validates the path through the
-// allowlisted openApp runner before spawning). Array order IS the dock order.
-// Same pattern as SAFE_IMAGE_DATA_URI_RE in js/utils.js (a test keeps the two
-// identical): a raster image type and only base64 after the comma.
-const SAFE_IMAGE_DATA_URI_RE = /^data:image\/(png|jpeg|gif|webp|x-icon|bmp);base64,[A-Za-z0-9+/]+={0,2}$/;
-function normalizeServerAppFavorites(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const entry of value) {
-    if (out.length >= 12) break;
-    if (!entry || typeof entry !== 'object') continue;
-    const app = String(entry.app || '').trim().slice(0, 120);
-    const key = String(entry.key || app).trim().toLowerCase().slice(0, 120);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push({
-      key,
-      app,
-      title: String(entry.title || '').slice(0, 200),
-      // Cached window icon as a small data: URI (48px PNG ≈ a few KB); bounded so a
-      // malformed payload can't bloat settings.json. Over the bound it is dropped,
-      // not cut: a truncated image is broken anyway. The shape check is the
-      // dashboard's (SAFE_IMAGE_DATA_URI_RE): settings also arrive from backups.
-      icon: (typeof entry.icon === 'string' && entry.icon.length <= 60000 && SAFE_IMAGE_DATA_URI_RE.test(entry.icon)) ? entry.icon : '',
-      path: String(entry.path || '').slice(0, 400),
-    });
-  }
-  return out;
-}
 
 function normalizeServerOnboarding(value) {
   const v = value && typeof value === 'object' ? value : {};

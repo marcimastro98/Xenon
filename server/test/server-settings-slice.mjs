@@ -7,15 +7,12 @@
 //
 // Evaluating source text is deliberate and limited to our own file read from
 // disk in a unit test (the same pattern as test/ai-model-sentinel-sync.test.mjs).
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const SRC = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SRC = engineSource();
 
 // Top-level helpers the theme and bar lines call, in dependency order.
 const FUNCTIONS = ['clampNumber', 'normalizeHex', 'normalizeBgAurora', 'normalizeBgGrid', 'normalizeBgStatic',

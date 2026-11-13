@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
@@ -246,18 +247,18 @@ test('the marker is a local file, not a setting that travels', async () => {
   const d = dir();
   await W.markPending(d);
   assert.ok(existsSync(join(d, 'welcome-sparks.json')));
-  assert.ok(!read('../server.js').includes("welcomeSparks: "));
+  assert.ok(!engineSource().includes("welcomeSparks: "));
 });
 
 test('server and dashboard seed the same tabs: Playback with the Agenda', () => {
   const seeded = /'media-group': Object\.freeze\(\{ id: 'media-group', members: Object\.freeze\(\['media', 'agenda'\]\)/;
-  assert.match(read('../server.js'), seeded);
+  assert.match(engineSource(), seeded);
   assert.match(read('../js/settings.js'), seeded);
 });
 
 test('a saved layout with no groups keeps the chat in its tab, on both sides', () => {
   for (const file of ['../server.js', '../js/settings.js']) {
-    const src = read(file);
+    const src = file === '../server.js' ? engineSource() : read(file);
     assert.match(src, /LEGACY_SEEDED_GROUPS = Object\.freeze[\s\S]{0,160}members: Object\.freeze\(\['media', 'chat'\]\)/);
     assert.match(src, /source\.groups !== undefined \? source\.groups : \(source\.widgets \? LEGACY_SEEDED_GROUPS : DEFAULT_DASHBOARD_LAYOUT\.groups\)/);
   }
@@ -268,7 +269,7 @@ test('the layout version stays: a bump would replace every saved dashboard', () 
 });
 
 test('only the first start moves a PC to Bit: the plain default stays Gemini', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   assert.match(src, /aiProvider: 'gemini', \/\/ 'gemini'/);
   assert.match(src, /if \(!FRESH_INSTALL\) return;/);
   assert.equal(src.split("aiProvider: 'xenon'").length - 1, 1);
@@ -284,7 +285,7 @@ test('every language has the strings, and no line mentions a Chat tab any more',
 });
 
 test('a new install starts on the model the trial can pay for, and the plain default stays', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   assert.match(src, /writeHubSettings\(\{ \.\.\.DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' \}\)/);
   assert.match(src, /^ {2}xenonModel: 'sonnet',/m);
 });

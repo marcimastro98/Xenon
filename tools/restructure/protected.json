@@ -1,0 +1,12 @@
+{
+  "note": "Declarations `extract` refuses to move: the start-up prelude and the code that decides who may ask the engine what. `names` are single declarations, `between` are stretches of the file from one declaration to another, both included (null = from the first line). A name listed here that the file no longer declares stops every extraction until this list is corrected.",
+  "files": {
+    "server/server.js": {
+      "names": ["handleRequest", "server"],
+      "between": [
+        [null, "POWERSHELL_SUPPORTED"],
+        ["LOOPBACK_IPS", "_remoteGate"]
+      ]
+    }
+  }
+}

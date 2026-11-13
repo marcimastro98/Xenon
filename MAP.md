@@ -22,7 +22,7 @@ The program behind everything: it starts, answers the screen, saves settings, up
 | **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux. | `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` `server/start.bat` and 5 more |
 | **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/js/onboarding.js` `server/js/usage-*.js` `server/js/boot-splash.js` `server/js/xenon-loader.js` `server/js/greeting*.js` `server/js/genesis.js` and 5 more |
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` `server/sw.js` and 7 more |
-| **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings-rev.js` `server/js/settings.js` `server/js/settings-*.js` `server/components/SettingsModal/**` |
+| **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings-*.js` `server/components/SettingsModal/**` |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
 | **Engine core** | Starts the engine, answers every request and decides who is allowed to ask. | `server/server.js` `server/feature-routes.js` `server/http/**` `server/http-range.js` `server/listener-sockets.js` `server/sse-*.js` and 11 more |
 | **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/atomic-write.js` `server/json-lru.js` `server/list-ops.js` `server/semver.js` `server/ps-quote.js` `server/win-reserved.js` and 15 more |
@@ -34,9 +34,9 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 | Feature | What it does | Where |
 |---|---|---|
 | **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/lockscreen.js` `server/js/lock-digits.js` `server/js/scene-*.js` and 5 more |
-| **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/js/topbar-*.js` `server/js/status.js` `server/components/Topbar/**` `server/components/TopbarMedia/**` `server/components/TopbarMinimal/**` |
+| **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-*.js` `server/js/status.js` `server/components/Topbar/**` `server/components/TopbarMedia/**` `server/components/TopbarMinimal/**` |
 | **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` `server/js/tile-decor-*.js` and 14 more |
-| **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` `server/js/tab-switcher.js` and 11 more |
+| **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` and 12 more |
 
 ## Widgets
 
@@ -44,9 +44,9 @@ One row per tile on the dashboard.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media-*.js` `server/media.ps1` `server/media-key.ps1` `server/lyrics*.js` `server/darwin-media.js` `server/linux-media.js` and 11 more |
+| **Music** | What is playing, the player buttons, lyrics and Spotify. | `server/media/**` `server/media-*.js` `server/media.ps1` `server/media-key.ps1` `server/lyrics*.js` `server/darwin-media.js` and 12 more |
 | **Sound** | Volume, output devices, the microphone and Wave Link. | `server/audio-levels.js` `server/mic-use.js` `server/svv-text.js` `server/soundvolumeview-x64/**` `server/actions/wavelink.js` `server/actions/voicemeeter.js` and 8 more |
-| **Weather** | The weather tile and its full window. | `server/js/weather-*.js` `server/components/WeatherModal/**` `server/components/WeatherTile/**` |
+| **Weather** | The weather tile and its full window. | `server/weather/**` `server/js/weather-*.js` `server/components/WeatherModal/**` `server/components/WeatherTile/**` |
 | **Clock, calendar, tasks, notes** | The clock, the calendar with its feeds, tasks, timers and notes. | `server/ics-feeds.js` `server/calendar-reminders.js` `server/timer-actions.js` `server/agenda-ai.js` `server/notes-ai.js` `server/actions/widget-timers.js` and 10 more |
 | **Performance and FPS** | Game detection, the frame counter, Performance Mode and Core Shield. | `server/perf-session/**` `server/perf-*.js` `server/performance.ps1` `server/perf-priority.ps1` `server/processes.ps1` `server/process-stats.js` and 18 more |
 | **PC numbers** | CPU, GPU, memory, network, fans, battery and power, with their history. | `server/battery.js` `server/battery.ps1` `server/power/**` `server/device-battery/**` `server/sensor-service/**` `server/sensor-service.ps1` and 27 more |

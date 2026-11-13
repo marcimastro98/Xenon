@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // Performance Mode in the top bar. Many people took a running session for a
 // broken Xenon: animations, the Media wave and heavy tiles paused with nothing
@@ -146,7 +147,7 @@ test('the marker sits with the clock, so both chromes show it, and can be hidden
   // One island id list, three copies: the dashboard's, the server's, the minimal bar's.
   const ids = (src, re) => JSON.parse(re.exec(src)[1].replace(/'/g, '"'));
   const client = ids(read('../js/settings.js'), /const canonical = (\[[^\]]*\]);/);
-  const server = ids(read('../server.js'), /const TOPBAR_ISLAND_IDS = (\[[^\]]*\]);/);
+  const server = ids(engineSource(), /const TOPBAR_ISLAND_IDS = (\[[^\]]*\]);/);
   const minimal = ids(read('../js/topbar-minimal.js'), /const ISLAND_SEG_IDS = (\[[^\]]*\]);/);
   assert.ok(client.includes('perf'));
   assert.deepEqual(server, client);

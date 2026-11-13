@@ -1,0 +1,20 @@
+{
+  "note": "What tools/restructure took out of which file, in order. Written by `extract`, read by `verify` and by server/test/engine-source.mjs. Do not edit by hand.",
+  "sources": {
+    "server/server.js": [
+      {"file":"server/weather/forecast-shape.js","about":"Small pieces every weather provider's answer is turned into: how many days, the condition groups with their words, compass points, clock and date parts.","names":["WEATHER_FORECAST_MAX_DAYS","WEATHER_BUCKET_CODE","WEATHER_BUCKET_LABELS","weatherBucketLabel","degToCompass","isoToClock","isoDatePart"]},
+      {"file":"server/weather/wttr.js","about":"Turns a wttr.in answer into the forecast shape the weather tile draws.","names":["firstWeatherValue","normalizeWeatherCode","weatherDescription","normalizeWeatherHour","normalizeWeatherDay","normalizeWeather"]},
+      {"file":"server/weather/open-meteo.js","about":"Turns an Open-Meteo answer into the forecast shape the weather tile draws.","names":["wmoBucket","normalizeOpenMeteo"]},
+      {"file":"server/weather/met-norway.js","about":"Turns a met.no answer into the forecast shape the weather tile draws, with the feels-like temperature and the sun times met.no does not give.","names":["METNO_HEADERS","metnoBucket","computeFeelsLike","computeSunTimes","normalizeMetno"]},
+      {"file":"server/weather/location.js","about":"Cleans a typed city and picks the place a weather search meant.","names":["sanitizeWeatherCity","normalizeWeatherLocation","resolveWeatherLocation","normalizeWeatherCityKey","pickWeatherLocationResult","splitWeatherDisplayLocation"]},
+      {"file":"server/weather/geo-ip.js","about":"The services asked where this PC is when no city is set, and the check of what they answer.","names":["GEO_IP_SOURCES","normalizeGeoIpValue"]},
+      {"file":"server/weather/providers.js","about":"The weather sources and the order they are tried in.","names":["WEATHER_PROVIDERS","weatherProviderOrder"]},
+      {"file":"server/grid/layout-defaults.js","about":"The dashboard a new install starts with, and the ids, sizes and grid limits a saved layout is checked against.","names":["DASHBOARD_WIDGET_IDS","DASHBOARD_TAB_IDS","CALENDAR_TAB_IDS","MEDIA_VIEW_IDS","DASHBOARD_CARD_IDS","DASHBOARD_CARD_SIZES","DASHBOARD_GRID_COLUMNS","DASHBOARD_GRID_MAX_ROW","DASHBOARD_LAYOUT_VERSION","DEFAULT_DASHBOARD_LAYOUT"]},
+      {"file":"server/settings/values.js","about":"Checks of single saved values that many settings share: a number kept inside its range, a hex colour.","names":["clampNumber","normalizeHex"]},
+      {"file":"server/topbar/settings-normalize.js","about":"Checks the saved top bar settings: the side rails, the clock island and the order of the buttons.","names":["normalizeTopbarRails","TOPBAR_ISLAND_IDS","normalizeTopbarClock","TOPBAR_ALWAYS_SHOWN","TOPBAR_ACTION_DEFAULTS","normalizeTopbarActions"]},
+      {"file":"server/media/normalize.js","about":"Makes usable what the media hosts hand over: a cover that arrived broken, an artist and album packed into one field.","names":["DATA_URI_HEAD_RE","IMAGE_MIME_RE","repairThumbnail","APPLE_MUSIC_RE","EM_DASH_SPLIT","splitAppleArtist","normalizeMedia"]},
+      {"file":"server/settings/normalize-notifications.js","about":"Checks the saved settings of notifications, calls and the paired phone.","names":["normalizeNotifications","normalizeDiscordNotifications","normalizeWindowsNotifications","normalizeCalls","normalizePhone"]},
+      {"file":"server/settings/normalize-favorites.js","about":"Checks the saved browser tiles and the browser and app favourites.","names":["normalizeServerBrowserTiles","normalizeServerBrowserTileEntry","normalizeServerBrowserFavorites","SAFE_IMAGE_DATA_URI_RE","normalizeServerAppFavorites"]}
+    ]
+  }
+}

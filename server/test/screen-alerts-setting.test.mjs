@@ -5,12 +5,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync as readRaw } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const read = (p) => readRaw(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const require = createRequire(import.meta.url);
 const { validateAction } = require('../js/deck-actions.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const CLIENT = read('../js/settings.js');
 
 function loadNormalizer(src) {

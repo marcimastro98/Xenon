@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 // Regression guard for a real production bug: 'notifications' was added to
 // DASHBOARD_WIDGET_IDS without a matching DEFAULT_DASHBOARD_LAYOUT.widgets entry,
@@ -17,6 +18,8 @@ import { dirname, join } from 'node:path';
 // `reading 'x'` TypeError in the browser's normalizeDashboardGeom — so both files
 // are checked here.
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// The server's half is read wherever its declarations live today.
+const sourceOf = (rel) => (rel === 'server.js' ? engineSource() : readFileSync(join(__dirname, '..', rel), 'utf8'));
 
 function widgetIds(src) {
   const m = src.match(/const DASHBOARD_WIDGET_IDS = Object\.freeze\(\[([^\]]*)\]\)/);
@@ -35,7 +38,7 @@ function defaultWidgetKeys(src) {
 
 for (const rel of ['server.js', join('js', 'settings.js')]) {
   test(`${rel}: every DASHBOARD_WIDGET_IDS entry has a geometry default (no 500 / no client crash)`, () => {
-    const src = readFileSync(join(__dirname, '..', rel), 'utf8');
+    const src = sourceOf(rel);
     const ids = widgetIds(src);
     const defaults = defaultWidgetKeys(src);
     const missing = ids.filter(id => !defaults.has(id));
@@ -92,7 +95,7 @@ function defaultCardKeys(src) {
 // landed before the dashboard had finished starting up.
 for (const rel of ['server.js', join('js', 'settings.js')]) {
   test(`${rel}: every DASHBOARD_CARD_IDS entry has a layout default (no 500, no settings reset)`, () => {
-    const src = readFileSync(join(__dirname, '..', rel), 'utf8');
+    const src = sourceOf(rel);
     const ids = cardIds(src);
     const defaults = defaultCardKeys(src);
     const missing = [];
@@ -109,7 +112,7 @@ for (const rel of ['server.js', join('js', 'settings.js')]) {
 // file on disk and the whole settings blob, on both sides.
 for (const rel of ['server.js', join('js', 'settings.js')]) {
   test(`${rel}: normalizeDashboardItem survives a missing default instead of throwing`, () => {
-    const src = readFileSync(join(__dirname, '..', rel), 'utf8');
+    const src = sourceOf(rel);
     const fn = src.slice(src.indexOf('function normalizeDashboardItem('));
     const body = fn.slice(0, fn.indexOf('\n}'));
     assert.doesNotMatch(body, /fallbackItem\.(order|size|visible)/,

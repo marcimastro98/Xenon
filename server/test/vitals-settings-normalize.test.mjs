@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -22,7 +23,7 @@ function slice(src, head) {
 }
 
 function normalizerFrom(file) {
-  const src = read(file);
+  const src = file === 'server.js' ? engineSource() : read(file);
   const consts = ['VITALS_IDS', 'VITALS_DEFAULT_MIN', 'VITALS_DEFAULT_ON', 'VITALS_PET_STAGES', 'VITALS_PET_DEFAULT_THR', 'VITALS_ROAST_SPARKS_CAPS']
     // The server has no cap list of its own: it calls cleanRoastSparksCap.
     .map((name) => { const m = src.match(new RegExp('^const ' + name + ' = .*;$', 'm')); return m ? m[0] : ''; });

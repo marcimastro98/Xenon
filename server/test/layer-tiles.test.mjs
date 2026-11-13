@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerTiles = require('../js/layer-tiles.js');
@@ -25,7 +26,7 @@ const DASHBOARD_TILES = [...new Set([...INDEX.matchAll(/data-dashboard-widget="(
 
 test('every dashboard tile has a row, and no row is for a tile that does not exist', () => {
   assert.deepEqual(Object.keys(LayerTiles.TILES).sort(), DASHBOARD_TILES);
-  const server = read('server.js');
+  const server = engineSource();
   const ids = JSON.parse(server.match(/const DASHBOARD_WIDGET_IDS = Object\.freeze\((\[[^\]]+\])\)/)[1].replace(/'/g, '"'));
   assert.deepEqual([...ids].sort(), DASHBOARD_TILES, 'the server knows the same tiles');
 });
@@ -38,7 +39,7 @@ test('a tile the light page does not carry says why', () => {
     assert.deepEqual(Object.keys(row), ['full'], name + ': a full row carries nothing else');
   }
   // The tiles a layer never places (server.js LAYER_TILE_EXCLUDED) are not light.
-  const excluded = read('server.js').match(/const LAYER_TILE_EXCLUDED = new Set\(\[([^\]]+)\]\)/)[1].match(/[a-z]+/g);
+  const excluded = engineSource().match(/const LAYER_TILE_EXCLUDED = new Set\(\[([^\]]+)\]\)/)[1].match(/[a-z]+/g);
   for (const name of excluded) assert.ok(LayerTiles.TILES[name].full, name);
 });
 

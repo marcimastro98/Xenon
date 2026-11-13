@@ -413,6 +413,7 @@
       "name": "Music",
       "what": "What is playing, the player buttons, lyrics and Spotify.",
       "files": [
+        "server/media/**",
         "server/media-*.js",
         "server/media.ps1",
         "server/media-key.ps1",
@@ -460,6 +461,7 @@
       "name": "Weather",
       "what": "The weather tile and its full window.",
       "files": [
+        "server/weather/**",
         "server/js/weather-*.js",
         "server/components/WeatherModal/**",
         "server/components/WeatherTile/**"
@@ -747,6 +749,7 @@
       "name": "Top bar",
       "what": "The bar at the top: its layout, look, media strip and buttons.",
       "files": [
+        "server/topbar/**",
         "server/js/topbar-*.js",
         "server/js/status.js",
         "server/components/Topbar/**",
@@ -788,6 +791,7 @@
       "name": "Grid and pages",
       "what": "The dashboard page: tiles on a grid, pages, tabs, moving and resizing.",
       "files": [
+        "server/grid/**",
         "server/index.html",
         "server/tile-previews.js",
         "server/tile-settings.js",
@@ -901,6 +905,7 @@
       "name": "Settings",
       "what": "The settings pages, their search, and saving without losing a change.",
       "files": [
+        "server/settings/**",
         "server/settings-rev.js",
         "server/js/settings.js",
         "server/js/settings-*.js",

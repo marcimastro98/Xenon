@@ -17,8 +17,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const PS1 = readFileSync(new URL('../media.ps1', import.meta.url), 'utf8');
 const CS = readFileSync(new URL('../../helper/MediaHost.cs', import.meta.url), 'utf8');
 
