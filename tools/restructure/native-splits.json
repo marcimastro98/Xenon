@@ -147,14 +147,21 @@
       "apps/native/src-tauri/src/webview_setup.rs"
     ],
     "apps/native/src-tauri/src/monitor.rs": [
+      "apps/native/src-tauri/src/monitor/display_info.rs",
       "apps/native/src-tauri/src/monitor/driver.rs",
+      "apps/native/src-tauri/src/monitor/edge.rs",
+      "apps/native/src-tauri/src/monitor/foreground.rs",
       "apps/native/src-tauri/src/monitor/home.rs",
       "apps/native/src-tauri/src/monitor/ids.rs",
+      "apps/native/src-tauri/src/monitor/initial.rs",
       "apps/native/src-tauri/src/monitor/pick.rs",
+      "apps/native/src-tauri/src/monitor/place.rs",
       "apps/native/src-tauri/src/monitor/placement.rs",
+      "apps/native/src-tauri/src/monitor/repin.rs",
       "apps/native/src-tauri/src/monitor/reveal.rs",
       "apps/native/src-tauri/src/monitor/screens.rs",
       "apps/native/src-tauri/src/monitor/target.rs",
+      "apps/native/src-tauri/src/monitor/visibility.rs",
       "apps/native/src-tauri/src/monitor/watch_notes.rs",
       "apps/native/src-tauri/src/monitor/watchdog.rs"
     ],
