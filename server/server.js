@@ -167,9 +167,7 @@ const {
   AMBIENT_IDLE_MINUTES, AMBIENT_SCENE_ID_RE, AMBIENT_CANVAS_REF_RE, AMBIENT_THEME_REF_RE,
 } = require('./ambient/settings-values.js');
 
-const {
-  SETTINGS_MIN_PANEL_ALPHA, BG_STATIC_STYLES, BG_CUSTOM_CODE_MAX,
-} = require('./look/background-values.js');
+const { SETTINGS_MIN_PANEL_ALPHA, BG_STATIC_STYLES } = require('./look/background-values.js');
 
 const { sanitizeSettingsUiFont } = require('./look/font-setting.js');
 
@@ -527,8 +525,8 @@ require('./lighting-layouts');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
-const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
-const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
+require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
+require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
@@ -550,7 +548,7 @@ const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds e
 const GameIgnore = require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 const SensorHistory = require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
 const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
-const AmbientScene = require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
+require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
 const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
@@ -1918,6 +1916,12 @@ const {
 } = require('./lights/devices-normalize.js');
 
 const { volumeDetailsProbe, diskModelsProbe, getDiskDetails } = require('./disk/drive-details.js');
+
+const { sanitizeAmbientScenes } = require('./ambient/scenes-sanitize.js');
+
+const { normalizeBgCustom } = require('./look/background-custom-normalize.js');
+
+const { normalizeSlideshow } = require('./windows-tiles/slideshow-normalize.js');
 
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -8148,19 +8152,6 @@ function normalizeAmbientMode(value) {
   };
 }
 
-// Native canvas Ambient scenes — client-owned array (like customThemes). The
-// server round-trips a bounded copy so scenes survive a restart; the client
-// deep-normalizes through the shared AmbientScene module on hydrate (the
-// security edge — text→textContent, image-src allowlist, SDK grants), so here
-// we only cap the count and sizes against a hostile blob. The caps are the
-// import's own (AmbientScene.fitScenes): a scene shared with its pictures
-// inlined is up to a share code's size, and used to vanish here on save.
-function sanitizeAmbientScenes(value) {
-  return AmbientScene.fitScenes(value).flatMap((scene) => {
-    try { return [JSON.parse(JSON.stringify(scene))]; } catch { return []; }   // unserializable → drop
-  });
-}
-
 function normalizeSettingsWeather(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
@@ -8205,35 +8196,6 @@ function normalizeBgStatic(value) {
     style: BG_STATIC_STYLES.includes(source.style) ? source.style : 'none',
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
   };
-}
-
-function normalizeBgCustom(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
-  const out = {
-    enabled: !!source.enabled && !!code,
-    name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
-    code,
-    assets: sanitizeBgAssets(source.assets),
-    // Frame-rate cap (paints per second) — rule owner is custom-bg.js, exactly
-    // like the assets above, so client/server/sandbox can never drift.
-    fps: sanitizeBgFps(source.fps),
-  };
-  // Redistribution marker: set when the background arrived via a share code, so
-  // exports can be limited to the user's own creations. Cleared client-side when
-  // the user replaces the code with their own.
-  if (source.imported === true && code) out.imported = true;
-  if (out.imported && contentInstalls.INSTALL_ID_RE.test(String(source.installId || ''))) {
-    out.installId = String(source.installId);
-  }
-  return out;
-}
-
-// Slideshow widget config. Rules (MIME allowlist + caps + interval clamp + fit)
-// are owned by js/slideshow-widget.js and shared with the client, so the two can
-// never drift — exactly like sanitizeBgAssets above.
-function normalizeSlideshow(value) {
-  return sanitizeSlideshow(value);
 }
 
 function normalizeBgGrid(value) {

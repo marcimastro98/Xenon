@@ -155,7 +155,10 @@
       {"file":"server/ai/local-server-one-shot.js","about":"One plain answer from the AI server the user runs on this PC.","names":["localServerOneShot"]},
       {"file":"server/ai/gemini-one-shot.js","about":"One question to Gemini and its answer: the request itself, and the step that tries another model when the pinned one is closed to the user's key.","names":["_withGeminiModel","_geminiOneShotOnce"]},
       {"file":"server/ai/gemini-search-json.js","about":"Two requests to Gemini that come back as data: a web search with its sources, and an answer that has to be JSON.","names":["_geminiWebSearchOnce","_geminiGenerateJSONOnce"]},
-      {"file":"server/ai/gemini-transcribe.js","about":"The request that turns a recorded voice clip into text with Gemini, and how long it may take.","names":["STT_GEMINI_TIMEOUT_MS","_transcribeAudioOnce"]}
+      {"file":"server/ai/gemini-transcribe.js","about":"The request that turns a recorded voice clip into text with Gemini, and how long it may take.","names":["STT_GEMINI_TIMEOUT_MS","_transcribeAudioOnce"]},
+      {"file":"server/ambient/scenes-sanitize.js","about":"The saved Ambient scenes as the settings keep them: within the store limits, and only what can be written to a file.","names":["sanitizeAmbientScenes"]},
+      {"file":"server/look/background-custom-normalize.js","about":"The custom background as the settings keep it: its code within the size limit, its pictures and frame rate by the rules shared with the dashboard, and where it came from.","names":["normalizeBgCustom"]},
+      {"file":"server/windows-tiles/slideshow-normalize.js","about":"The slideshow tile's settings as the server keeps them, by the rules shared with the dashboard.","names":["normalizeSlideshow"]}
     ]
   }
 }
