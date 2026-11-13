@@ -8,8 +8,15 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createDiskSpace } = require('../diskspace.js');
 
+// The temp folder as the index names it. On Windows %TEMP% is spelled as a short
+// name (C:\Users\LONGNA~1\...) for any user name longer than eight characters,
+// a GitHub runner's included, while the index and the file system give every
+// file its long path, so a fixture built on the short spelling describes files
+// no real index would report.
+const TEMP_DIR = process.platform === 'win32' ? await fs.realpath(os.tmpdir()) : os.tmpdir();
+
 async function fixture(shellDelete, makeDirs) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-test-'));
+  const dir = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-test-'));
   const dataDir = path.join(dir, 'data');
   const itemDir = path.join(dir, 'items');
   await fs.mkdir(dataDir);
@@ -138,14 +145,14 @@ test('the %TEMP% folder itself is never an item — its children are', async (t)
   // alone.
   const now = Date.now();
   const f = await fixture(undefined, (dir) => [
-    { p: os.tmpdir(), s: 9_000_000, m: now },              // the container
+    { p: TEMP_DIR, s: 9_000_000, m: now },              // the container
     { p: path.join(dir, 'session-cache'), s: 40, m: now }, // a child of it
   ]);
   t.after(async () => fs.rm(f.dir, { recursive: true, force: true }));
 
   const out = await f.disk.overview(0);
   const items = out.categories.temp.items;
-  assert.equal(items.some((it) => it.p.toLowerCase() === os.tmpdir().toLowerCase()), false,
+  assert.equal(items.some((it) => it.p.toLowerCase() === TEMP_DIR.toLowerCase()), false,
     'the container must not be offered for deletion');
   assert.equal(items.some((it) => it.p === path.join(f.dir, 'session-cache')), true,
     'a child of the container must still be offered');
@@ -191,7 +198,7 @@ test('a directory reached through a symlinked ANCESTOR is not a reparse point',
     // which IS a symlink to /private/var — so every directory in the temp
     // category came back `reparse`, the guard refused it, and the platform's
     // biggest cleanup target could never be cleaned. Measured, not theorised.
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-link-'));
+    const base = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-link-'));
     t.after(async () => fs.rm(base, { recursive: true, force: true }));
     const real = path.join(base, 'real');
     const link = path.join(base, 'link');
@@ -247,13 +254,74 @@ test('a directory reached through a symlinked ANCESTOR is not a reparse point',
     assert.ok(linkOverview.ok);
   });
 
+test('a %TEMP% spelled differently from the files in it still fills the temp category and cleans',
+  { skip: process.platform !== 'win32' ? 'Windows-only: the short spelling of %TEMP%' : false },
+  async (t) => {
+    // Windows hands %TEMP% out as a short name (C:\Users\LONGNA~1\...) for a
+    // user folder longer than eight characters, and the index names the files
+    // in it by their long path. Nothing was "under" the temp folder then: the
+    // category was empty on those PCs. A junction stands in for the short name
+    // here: short names can be switched off per volume, a junction always
+    // works, and both are one folder with two spellings.
+    const base = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-spelling-'));
+    const real = path.join(base, 'a long folder name');
+    const alias = path.join(base, 'other-spelling');
+    await fs.mkdir(path.join(real, 'pkg-cache'), { recursive: true });
+    await fs.writeFile(path.join(real, 'pkg-cache', 'blob.bin'), Buffer.alloc(64));
+    await fs.symlink(real, alias, 'junction');
+    const saved = { TEMP: process.env.TEMP, TMP: process.env.TMP };
+    const restore = () => { for (const k of Object.keys(saved)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } };
+    t.after(async () => { restore(); await fs.rm(base, { recursive: true, force: true }); });
+
+    const cache = path.join(real, 'pkg-cache');
+    const now = Date.now();
+    let doneResolve = null;
+    const done = new Promise((r) => { doneResolve = r; });
+    // The temp folder is read once, when the module is built.
+    process.env.TEMP = process.env.TMP = alias;
+    const disk = createDiskSpace({
+      dataDir: path.join(base, 'data'),
+      helperExe: process.execPath,
+      livingIndex: {
+        available: () => true,
+        stats: async () => ({ on: true, ready: true, files: 1 }),
+        overview: async () => ({
+          total: 64, files: 1, dirs: [{ p: real, s: 64, m: now }, { p: cache, s: 64, m: now }],
+          topFiles: [], groups: [], detailFiles: [], capped: false, detailCapped: false, building: false,
+        }),
+      },
+      getIndexRoots: async () => [path.parse(base).root],
+      getSettings: async () => ({}),
+      appRoot: path.join(base, 'app'),
+      shellDelete: async ({ paths }) => {
+        for (const p of paths) await fs.rm(p, { recursive: true, force: true }).catch(() => {});
+        return { ok: true };
+      },
+      onCleanProgress: (snap) => { if (snap && snap.phase === 'done') doneResolve(snap); },
+    });
+    restore();
+
+    const overview = await disk.overview(0);
+    const items = overview.categories.temp?.items || [];
+    assert.equal(items.some((it) => it.p === real), false, 'the temp folder itself is never an item, under either spelling');
+    const item = items.find((it) => it.p === cache);
+    assert.ok(item, 'a folder in %TEMP% is a temp item');
+    const started = await disk.clean({ root: 0, category: 'temp', ids: [item.i] });
+    assert.equal(started.started, true, `the clean must not be refused: ${JSON.stringify(started)}`);
+    const report = (await done).report;
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.refused, []);
+    await assert.rejects(fs.stat(cache));
+    assert.equal((await fs.stat(real)).isDirectory(), true, 'the temp folder stays');
+  });
+
 test('off Windows a root is annotated from the mount it sits under, longest match winning', async (t) => {
   // There are no drive letters here, so a configured root is labelled by
   // finding the volume it lives under — and an external disk mounted at
   // /Volumes/Backup has to win over `/`, or every root on the machine would
   // read as the startup disk. The platform is pinned so this runs on Windows
   // too: the POSIX branch is the one that had never executed anywhere.
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-mounts-'));
+  const dir = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-mounts-'));
   t.after(async () => fs.rm(dir, { recursive: true, force: true }));
   const disk = createDiskSpace({
     dataDir: dir,
@@ -468,7 +536,7 @@ test('xdg-user-dirs: garbage in never throws', () => {
 // wire shape is one shape on both: `path` is what the client sends back.
 
 async function statusWith(opts) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-roots-'));
+  const dir = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-roots-'));
   const dataDir = path.join(dir, 'data');
   await fs.mkdir(dataDir);
   const ds = createDiskSpace({
@@ -516,7 +584,7 @@ test('a root inside a mounted volume is annotated with THAT volume, not the file
 });
 
 test('a full scan is refused off Windows with a reason, not a failed spawn', async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-scan-'));
+  const dir = await fs.mkdtemp(path.join(TEMP_DIR, 'xenon-disk-scan-'));
   const dataDir = path.join(dir, 'data');
   await fs.mkdir(dataDir);
   // A helper that exists but has no disk-scan mode: exactly the mac case.

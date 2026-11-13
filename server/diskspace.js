@@ -29,6 +29,7 @@ const DiskIntelligence = require('./js/disk-intelligence');
 const DiskHistory = require('./disk-history');
 const DiskKinds = require('./disk-kinds');
 const { createDupeVerifier } = require('./disk-dupes');
+const { userTempDirs } = require('./disk-space/temp-dirs.js');
 const { writeFileAtomic } = require('./atomic-write');
 
 const SUMMARY_FILE = 'disk-summary.json';
@@ -143,17 +144,9 @@ function createDiskSpace(opts) {
   const windir = IS_WIN ? (process.env.WINDIR || 'C:\\Windows') : '';
   const programFiles = IS_WIN ? (process.env.ProgramFiles || 'C:\\Program Files') : '';
   const programFilesX86 = IS_WIN ? (process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)') : '';
-  // Only the user's own %TEMP%. C:\Windows\Temp is deliberately absent: the
-  // guard protects %WINDIR% outright, so classifying it produced a Clean button
-  // that always came back `protected:windir` (same reason the winUpdate
-  // category was retired — see disk-categories.js). The filter keeps that true
-  // even if %TEMP% itself ever resolves under Windows.
-  const tempDirs = [os.tmpdir()].filter((d) => {
-    if (!IS_WIN) return !!d;
-    const dl = String(d || '').toLowerCase();
-    const wl = windir.toLowerCase().replace(/\\+$/, '');
-    return dl !== wl && !dl.startsWith(wl + '\\');
-  });
+  // The user's own %TEMP% under its full name, never C:\Windows\Temp: the
+  // reasons are in disk-space/temp-dirs.js.
+  const tempDirs = userTempDirs({ isWin: IS_WIN, windir });
   // ── the localised user directories (Linux) ────────────────────────────────
   // xdg-user-dirs writes the REAL directory names into ~/.config/user-dirs.dirs,
   // and on a non-English desktop they are localised: an Italian install has
