@@ -97,7 +97,8 @@ function runState(parser, { flags, rest }) {
   console.log(`${dryRun ? 'would make' : 'made'} ${done.target} (${done.lines} lines); ${posix(flags.from)} ${dryRun ? 'would lose' : 'lost'} ${done.sourceLines} lines.`);
   for (const [name, count] of Object.entries(done.counts)) {
     const prop = vars.find((entry) => entry.name === name).prop;
-    console.log(`  ${name} -> ${flags.object}.${prop}: ${count.found} uses rewritten (${count.inProtected} of them in protected code, the name only); `
+    console.log(`  ${name} -> ${flags.object}.${prop}: ${count.found} uses rewritten (${count.inProtected} of them in protected code, the name only), `
+      + `${count.mentions} comments that name it follow; `
       + (count.moved ? 'its first value is in the new module' : 'its first value is still given on the line where the let stood'));
   }
   if (!dryRun) console.log('Next: node tools/restructure/gate.mjs');

@@ -11,7 +11,7 @@ import { Refusal } from './extract-plan.mjs';
 import { appendLedger, protectedNames, readLedger } from './ledger.mjs';
 import { checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { KEPT_NOTE, planState } from './state-plan.mjs';
-import { readReferences } from './state-refs.mjs';
+import { commentMentions, readReferences, tokenRanges } from './state-refs.mjs';
 import { statePattern, undoStateText } from './state-undo.mjs';
 import { targetReasons } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
@@ -71,8 +71,10 @@ export function proveState({ before, after, moduleText, plan, parser, source = '
     if (block.lines.slice(0, code).some((line) => !line.startsWith('//'))) problems.push(`${name}: something other than its comment left with it`);
     expected.push(...block.lines.slice(0, code).map((line) => `  ${line}`), `  ${props[name]}: ${block.value ?? 'undefined'},${block.trail}`);
   }
+  // A comment that came along may name a variable by its new name: with the old names back it is the old comment.
   const { rows, frame } = moduleRows(moduleText, object);
-  if (!rows || rows.join('\n') !== expected.join('\n')) problems.push('the new module does not hold exactly the values that left the file');
+  const asBefore = (row) => (row.startsWith('  //') ? undoStateText(row, { object, props, kept: [] }) : row);
+  if (!rows || rows.map(asBefore).join('\n') !== expected.join('\n')) problems.push('the new module does not hold exactly the values that left the file');
   if (frame.join('\n') !== `module.exports = { ${object} };`) problems.push('the new module has code besides the object and its export');
 
   // 3. Read again from nothing: no old name is declared or used, and the object is used exactly as often as the old
@@ -90,11 +92,18 @@ export function proveState({ before, after, moduleText, plan, parser, source = '
     if (prop && nameOf.has(prop)) seen[nameOf.get(prop)] += 1;
     else problems.push(`${object} is used at offset ${use.start} as something other than one of the new properties`);
   }
+  const ranges = tokenRanges(parser.parse(after, source), parser);
   for (const [name, count] of Object.entries(counts)) {
     const wanted = count.found + (count.moved ? 0 : 1);
     if (seen[name] !== wanted) problems.push(`${name}: ${count.found} uses were found, the new text has ${seen[name]} of ${object}.${props[name]} (${wanted} expected)`);
+    // As text the new name stands once for each use and once for each comment that named the variable, nowhere else:
+    // not in a string, not in a property of something else.
+    const inComments = commentMentions(after, ranges, `${object}.${props[name]}`).length;
+    if (inComments !== count.mentions) problems.push(`${name}: ${count.mentions} comments named it, ${inComments} name ${object}.${props[name]} now`);
     const asText = (after.match(statePattern(object, props[name])) ?? []).length;
-    if (asText !== wanted) problems.push(`${name}: the text ${object}.${props[name]} stands ${asText} times in the new file, ${wanted} expected`);
+    if (asText !== wanted + count.mentions) {
+      problems.push(`${name}: the text ${object}.${props[name]} stands ${asText} times in the new file, ${wanted + count.mentions} expected`);
+    }
   }
   return problems;
 }
@@ -132,7 +141,7 @@ export function followRegistrations(json, source, after, { object, props }) {
  * @param {string} job.object the name of the object
  * @param {{ name: string, prop: string }[]} job.vars
  * @param {boolean} [job.dryRun] plan and prove, write nothing
- * @returns {{ target: string, counts: Record<string, { found: number, inProtected: number, moved: boolean }>, sourceLines: number, lines: number }}
+ * @returns {{ target: string, counts: Record<string, { found: number, inProtected: number, moved: boolean, mentions: number }>, sourceLines: number, lines: number }}
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
  */
 export function rewriteState(job) {

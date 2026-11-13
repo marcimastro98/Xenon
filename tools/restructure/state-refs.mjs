@@ -85,6 +85,49 @@ export function readForms(sourceFile, { K, NodeFlags }) {
 }
 
 /**
+ * The stretches of the text that are code with a text of its own: names, strings, numbers, the pieces of a
+ * template. A word outside all of them is not code.
+ * @param {any} sourceFile @param {{K: any, NodeFlags: any}} parser @returns {number[][]} [start, end), in file order
+ */
+export function tokenRanges(sourceFile, { K, NodeFlags }) {
+  const isCode = codeOnly(K, NodeFlags);
+  const ranges = [];
+  const walk = (node) => {
+    let children = 0;
+    node.forEachChild((child) => { if (child && isCode(child)) { children += 1; walk(child); } });
+    if (children === 0) ranges.push([node.getStart(sourceFile), node.end]);
+  };
+  walk(sourceFile);
+  return ranges.sort((a, b) => a[0] - b[0]);
+}
+
+// A name that can only be code: an everyday word in a comment ("the timers", "muted") is prose and is left alone.
+const WRITTEN_AS_CODE = /[A-Z_$\d]/;
+
+/**
+ * Where a comment names `word`. Two tests that do not share a mistake: the word is in no code token of the tree,
+ * and the text says it is in a comment (after `//` or `/*` on its line, or on a line of a block comment).
+ * A word written as a property of something else (`other.word`) is another thing and is left out.
+ * @param {string} text @param {number[][]} ranges from tokenRanges, of the same text
+ * @param {string} word a variable, or `object.property`
+ * @returns {number[]} the offsets, in file order; none for a word that could be prose
+ */
+export function commentMentions(text, ranges, word) {
+  if (!WRITTEN_AS_CODE.test(word.replace('.', '_'))) return [];
+  const found = [];
+  const escaped = word.replace(/[$.]/g, '\\$&');
+  let range = 0;
+  for (const match of text.matchAll(new RegExp(`(?<![\\w$])(?<!(?<!\\.)\\.)${escaped}(?![\\w$])`, 'g'))) {
+    const at = match.index;
+    while (range < ranges.length && ranges[range][1] <= at) range += 1;
+    if (range < ranges.length && ranges[range][0] < at + word.length) continue;
+    const line = text.slice(text.lastIndexOf('\n', at - 1) + 1, at);
+    if (line.includes('//') || line.includes('/*') || /^\s*\*/.test(line)) found.push(at);
+  }
+  return found;
+}
+
+/**
  * The names a top-level statement declares inside itself: parameters, locals, catch variables, inner functions
  * and classes. Its own top-level names (`own`) are not locals and are left out.
  * @param {any} statement @param {{K: any, NodeFlags: any}} parser @param {string[]} [own] @returns {Set<string>}

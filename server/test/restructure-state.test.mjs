@@ -85,7 +85,8 @@ test('every use becomes a property, a value that needs nothing moves, the rest k
   ));
   assert.deepEqual(made.kept, ['current']);
   assert.deepEqual(made.counts, {
-    current: { found: 6, inProtected: 0, moved: false }, saves: { found: 5, inProtected: 0, moved: true }, last: { found: 1, inProtected: 0, moved: true },
+    current: { found: 6, inProtected: 0, moved: false, mentions: 0 }, saves: { found: 5, inProtected: 0, moved: true, mentions: 0 },
+    last: { found: 1, inProtected: 0, moved: true, mentions: 0 },
   });
   assert.deepEqual(proven(SOURCE, made), []);
 });
@@ -99,11 +100,59 @@ test('the require stands where the first let stood, also when that let leaves', 
   assert.deepEqual(proven(text, made), []);
 });
 
+test('a comment that names the variable follows it; a string, a template, a pattern and an everyday word do not', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const text = file(
+    'const start = 5;',
+    '// How many, see _hitCount below.',
+    'let _hitCount = 0;',
+    'let lastSeen = { at: start }; // lastSeen starts there',
+    '',
+    '/**',
+    ' * Adds one to _hitCount (never to other._hitCount).',
+    ' * @returns {typeof _hitCount}',
+    ' */',
+    'function hit() {',
+    '  // { ..._hitCount } is not how it is read',
+    '  _hitCount += 1; /* _hitCount again */',
+    '  lastSeen = { at: _hitCount };',
+    "  const said = ['_hitCount', `_hitCount ${_hitCount} _hitCount`, /_hitCount/, 'http://x/?_hitCount // _hitCount'];",
+    '  return said;',
+    '}',
+  );
+  const made = plan(text, { _hitCount: 'hits', lastSeen: 'seen' });
+  assert.equal(made.newSource, file(
+    'const start = 5;',
+    "const { box } = require('./part/state.js');",
+    'box.seen = { at: start }; // box.seen starts there',
+    '',
+    '/**',
+    ' * Adds one to box.hits (never to other._hitCount).',
+    ' * @returns {typeof box.hits}',
+    ' */',
+    'function hit() {',
+    '  // { ...box.hits } is not how it is read',
+    '  box.hits += 1; /* box.hits again */',
+    '  box.seen = { at: box.hits };',
+    "  const said = ['_hitCount', `_hitCount ${box.hits} _hitCount`, /_hitCount/, 'http://x/?_hitCount // _hitCount'];",
+    '  return said;',
+    '}',
+  ));
+  assert.equal(made.moduleText, file('// What the part remembers.', '', 'const box = {', '  // How many, see box.hits below.', '  hits: 0,',
+    '  seen: undefined, // given its first value where the engine loads', '};', '', 'module.exports = { box };'));
+  assert.deepEqual(made.counts, { _hitCount: { found: 3, inProtected: 0, moved: true, mentions: 4 }, lastSeen: { found: 1, inProtected: 0, moved: false, mentions: 1 } });
+  assert.deepEqual(proven(text, made), []);
+  // A string that got the new name is not a comment: the proof counts it.
+  const wrong = proveState({ before: text, plan: made, parser, source: 'server/demo.js', moduleText: made.moduleText,
+    after: made.newSource.replace("['_hitCount',", "['box.hits',") }).join('\n');
+  assert.match(wrong, /the text box\.hits stands 8 times in the new file, 7 expected/);
+});
+
 test('uses in protected code are renamed too, and counted', (t) => {
   if (!parser) return t.skip(SKIP);
   const text = file('let mode = "a";', 'function gate() { return mode === "a"; }', 'function set(v) { mode = v; }');
   const made = plan(text, { mode: 'mode' }, { protectedNames: new Set(['gate']) });
-  assert.deepEqual(made.counts.mode, { found: 2, inProtected: 1, moved: true });
+  assert.deepEqual(made.counts.mode, { found: 2, inProtected: 1, moved: true, mentions: 0 });
   assert.match(made.newSource, /function gate\(\) \{ return box\.mode === "a"; \}/);
   assert.match(refusal(text, { mode: 'mode' }, { protectedNames: new Set(['mode']) }), /mode .* is part of the security prelude/);
   assert.match(refusal(text, { mode: 'mode' }, { protectedStretches: [[-1, 1]] }), /inside a protected stretch that is never edited/);

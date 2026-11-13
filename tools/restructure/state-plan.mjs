@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { loadUseTest, MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { PLAIN_GLOBALS } from './load-time-calls.mjs';
-import { localNames, readForms, readReferences, topStatements } from './state-refs.mjs';
+import { commentMentions, localNames, readForms, readReferences, tokenRanges, topStatements } from './state-refs.mjs';
 import { assignmentLine, statePattern } from './state-undo.mjs';
 import { lineAt, lineStarts } from './top-level.mjs';
 
@@ -75,10 +75,11 @@ function referenceReasons({ refs, forms, text, starts, source, object, names, pr
  * @param {number[][]} [job.protectedStretches] runs of the old file that get no new line
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, object: string, props: Record<string, string>, kept: string[],
- *   counts: Record<string, { found: number, inProtected: number, moved: boolean }>, glue: { at: number, lines: string[] },
+ *   counts: Record<string, { found: number, inProtected: number, moved: boolean, mentions: number }>, glue: { at: number, lines: string[] },
  *   removed: { line: number, lines: string[], name: string, eq: string, value: string | null, trail: string }[] }}
  *   `glue.at` is the 0-based line of the new require in the new text; `removed` are the declarations that left, with
- *   the 1-based line of the old file their block started on.
+ *   the 1-based line of the old file their block started on. `counts`: per variable the uses in code, how many of
+ *   them stand in protected code, whether its first value left, and the comments that name it (renamed too).
  */
 export function planState(job) {
   const { text, analysis, sourceFile, parser, source, target, about, object, vars,
@@ -138,8 +139,12 @@ export function planState(job) {
   }
   if (reasons.length) throw new Refusal([...new Set(reasons)]);
 
-  // The names become properties, from the end of the text backwards so earlier offsets stay true.
+  // The names become properties, from the end of the text backwards so earlier offsets stay true. A comment that
+  // names a variable follows it, so no comment is left talking about a name the file no longer has.
   const edits = refs.map((ref) => ({ start: ref.start, end: ref.end, put: `${object}.${propOf.get(ref.name)}` }));
+  const ranges = tokenRanges(sourceFile, parser);
+  const mentions = new Map(declarations.map((entry) => [entry.name, commentMentions(text, ranges, entry.name)]));
+  for (const [name, places] of mentions) for (const at of places) edits.push({ start: at, end: at + name.length, put: `${object}.${propOf.get(name)}` });
   for (const entry of declarations) if (!entry.moved) edits.push({ start: entry.start, end: entry.nameEnd, put: `${object}.${entry.prop}` });
   let renamed = text;
   for (const edit of edits.sort((a, b) => b.start - a.start)) renamed = renamed.slice(0, edit.start) + edit.put + renamed.slice(edit.end);
@@ -166,7 +171,7 @@ export function planState(job) {
   const body = [...(strict ? ["'use strict';"] : []), ...wrapComment(about), '', `const ${object} = {`];
   for (const entry of declarations) {
     if (!entry.moved) { body.push(`  ${entry.prop}: undefined, // ${KEPT_NOTE}`); continue; }
-    for (const comment of lines.slice(entry.record.range[0] - 1, entry.record.line[0] - 1)) body.push(`  ${comment}`);
+    for (const comment of renamedLines.slice(entry.record.range[0] - 1, entry.record.line[0] - 1)) body.push(`  ${comment}`);
     body.push(`  ${entry.prop}: ${entry.moved.value ?? 'undefined'},${entry.moved.trail}`);
   }
   body.push('};', '', `module.exports = { ${object} };`);
@@ -176,7 +181,8 @@ export function planState(job) {
     || protectedStretches.some(([first, last]) => record.index >= first && record.index <= last);
   const counts = Object.fromEntries(declarations.map((entry) => {
     const own = refs.filter((ref) => ref.name === entry.name);
-    return [entry.name, { found: own.length, inProtected: own.filter((ref) => guarded(records[ref.statement])).length, moved: Boolean(entry.moved) }];
+    return [entry.name, { found: own.length, inProtected: own.filter((ref) => guarded(records[ref.statement])).length, moved: Boolean(entry.moved),
+      mentions: mentions.get(entry.name).filter((at) => !gone.has(lineAt(starts, at))).length }];
   }));
   return {
     newSource: kept.join('\n'), moduleText: `${body.join('\n')}\n`, object,

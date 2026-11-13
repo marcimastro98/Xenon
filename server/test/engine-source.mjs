@@ -69,7 +69,7 @@ export function oldDeclarations(text, { state }) {
   const rows = lines.slice(lines.indexOf(`const ${state.object} = {`) + 1, lines.lastIndexOf('};'));
   return rows.flatMap((row) => {
     const value = /^ {2}([A-Za-z_$][\w$]*): (.*),(\s*(?:\/\/.*)?)$/.exec(row);
-    if (!value || !nameOf.has(value[1])) return [row.replace(/^ {2}/, '')];
+    if (!value || !nameOf.has(value[1])) return [undoStateText(row.replace(/^ {2}/, ''), { ...state, kept: [] })];
     const name = nameOf.get(value[1]);
     if (state.kept.includes(name)) return [];
     return [state.bare.includes(name) ? `let ${name};${value[3]}` : `let ${name} = ${value[2]};${value[3]}`];
