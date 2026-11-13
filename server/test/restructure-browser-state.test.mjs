@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { browserSource, fileDeclaring, partsOf, readFileSync } from './browser-source.mjs';
 import { consumerProblems, keptNames, knownConsumers, withoutComments } from '../../tools/restructure/browser-consumers.mjs';
 import { readBrowserLedger, runOf, splitFiles } from '../../tools/restructure/browser-ledger.mjs';
+import { firstReadCounts } from '../../tools/restructure/browser-cli.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
 import { stateProblems } from '../../tools/restructure/browser-state.mjs';
 import { retarget } from '../../tools/restructure/browser-test-readers.mjs';
@@ -107,6 +108,15 @@ test('a browser file named in code somewhere new is caught before it is split', 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the lint numbers of a script that came out of a page are saved once, and only for that script', () => {
+  const saved = { 'server/js/a.js rule/one': 2, 'server/js/out.js rule/old': 1 };
+  const today = { 'server/js/a.js rule/one': 3, 'server/js/a.js rule/two': 1, 'server/js/out.js rule/old': 4, 'server/js/out.js rule/new': 2, 'server/js/b.js rule/one': 1 };
+  const carried = firstReadCounts(saved, today, ['server/js/out.js']);
+  assert.deepEqual(carried.next, { ...saved, 'server/js/out.js rule/new': 2 }, 'a number that is saved already never goes up this way');
+  assert.deepEqual(carried.added, ['server/js/out.js rule/new: 2']);
+  assert.deepEqual(firstReadCounts(saved, today, []), { next: saved, added: [] });
 });
 
 const view = (extra = {}) => ({ name: 'wide', pageErrors: [], consoleErrors: ['one'], failedRequests: [], globals: ['a', 'b'],

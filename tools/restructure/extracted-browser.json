@@ -1,0 +1,6 @@
+{
+  "note": "What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css` and `browser inline`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.",
+  "moves": [
+    {"kind":"inline","from":"server/index.html","file":"server/js/page-zoom.js","about":"Keeps thin lines sharp on a screen whose scale is not a whole number: zooms the page up to the next whole scale, and says how much in window.__pageZoom for code that places things by screen position.","nth":0}
+  ]
+}

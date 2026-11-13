@@ -823,6 +823,7 @@
         "server/js/tile-controls.js",
         "server/js/tile-tab-memory.js",
         "server/js/page-target.js",
+        "server/js/page-zoom.js",
         "server/js/fit-row.js",
         "server/js/edge-preview.js",
         "server/js/context-profiles.js",

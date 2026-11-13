@@ -170,6 +170,26 @@ function verify(parser, { flags }) {
   return 0;
 }
 
+/**
+ * A script that was written inside a page is old code the lint reads for the first time, because it
+ * does not read pages. Its findings are saved once, in the change that makes the file; from then on
+ * the file is like any other and its numbers only go down.
+ * @param {Record<string, number>} baseline saved numbers per "file rule"
+ * @param {Record<string, number>} current today's numbers
+ * @param {string[]} files scripts that came out of a page and are new in this change
+ * @returns {{ next: Record<string, number>, added: string[] }}
+ */
+export function firstReadCounts(baseline, current, files) {
+  const next = { ...baseline };
+  const added = [];
+  for (const [key, count] of Object.entries(current)) {
+    if (!files.includes(key.slice(0, key.lastIndexOf(' '))) || key in baseline) continue;
+    next[key] = count;
+    added.push(`${key}: ${count}`);
+  }
+  return { next, added };
+}
+
 function carry() {
   if (!checksAvailable(REPO_ROOT)) { console.error('the lint is not installed (npm run quality:install)'); return 1; }
   const ledger = readBrowserLedger(REPO_ROOT);
@@ -184,8 +204,11 @@ function carry() {
     problems.push(...carried.problems);
   }
   if (problems.length) { console.error(`lint: the moved code has more findings than before, nothing saved:\n  ${problems.join('\n  ')}`); return 1; }
-  saveCounts(file, JSON.parse(readFileSync(file, 'utf8')).note, next);
+  const fromPages = ledger.moves.filter((move) => move.kind === 'inline' && showAt(REPO_ROOT, 'HEAD', move.file) === null).map((move) => move.file);
+  const first = firstReadCounts(next, current, fromPages);
+  saveCounts(file, JSON.parse(readFileSync(file, 'utf8')).note, first.next);
   console.log('lint: the numbers of the split files moved along with their code, saved.');
+  if (first.added.length) console.log(`lint: code that was inside a page is read for the first time, its findings saved as they are:\n  ${first.added.join('\n  ')}`);
   return 0;
 }
 
