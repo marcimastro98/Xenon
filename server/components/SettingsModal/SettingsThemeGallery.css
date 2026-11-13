@@ -1,0 +1,253 @@
+
+
+/* ── Temi gallery (built-in skins + imported themes) ─────────────────── */
+.theme-gallery {
+  padding: 10px 12px 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme-card-wrap { position: relative; min-width: 0; }
+.theme-card {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  padding: 8px 8px 9px;
+  text-align: left;
+  transition: border-color .12s ease, background .12s ease;
+}
+.theme-card:hover { border-color: rgba(var(--accent-rgb),0.34); background: rgba(255,255,255,0.06); }
+.theme-card.active { border-color: rgba(var(--accent-rgb),0.7); box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.16) inset; }
+/* Mini dashboard mock painted from the theme's own palette (CSS vars set inline). */
+.theme-card-preview {
+  position: relative;
+  display: block;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--tc-bg);
+  border: 1px solid rgba(255,255,255,0.09);
+  overflow: hidden;
+}
+.theme-card-preview::before {
+  content: '';
+  position: absolute; left: 9px; top: 10px;
+  width: 42%; height: 7px; border-radius: 4px;
+  background: var(--tc-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tc-accent) 55%, transparent);
+}
+.theme-card-preview::after {
+  content: '';
+  position: absolute; left: 9px; top: 25px;
+  width: 66%; height: 5px; border-radius: 3px;
+  background: var(--tc-text); opacity: .5;
+}
+.theme-card-dot {
+  position: absolute; right: 9px; bottom: 9px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--tc-accent);
+}
+.theme-card-foot { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.theme-card-name {
+  min-width: 0; flex: 1 1 auto;
+  font-size: 11.5px; font-weight: 800;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Always visible (not hover-reveal): the Xeneon Edge is a touchscreen with no
+   hover, so an imported theme must stay removable by tap. Subtle until touched. */
+.theme-card-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: var(--panel, #1a1c1b); color: var(--text);
+  font-size: 11px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+  opacity: .55; transition: opacity .12s ease, border-color .12s ease, color .12s ease;
+}
+.theme-card-wrap:hover .theme-card-remove,
+.theme-card-remove:focus-visible { opacity: 1; }
+.theme-card-remove:hover { opacity: 1; border-color: rgba(var(--danger-rgb),0.6); color: var(--color-danger); }
+/* Pixel Retro card reads as a CRT: sharp corners on the mock, no soft glow. */
+.theme-card--liquid .theme-card-preview { background: #161c30 url("../../assets/wallpapers/dusk.webp") 59% 64% / cover no-repeat; }
+.theme-card--retro .theme-card-preview,
+.theme-card--retro .theme-card-preview::before,
+.theme-card--retro .theme-card-preview::after,
+.theme-card--retro .theme-card-dot { border-radius: 0; }
+.theme-card--retro .theme-card-preview::before { box-shadow: none; }
+.theme-gallery-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 8px 12px 12px;
+}
+
+/* Subtle divider that groups the fine-tuning cards under one heading. */
+
+@media (max-width: 560px) {
+  .theme-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .theme-card-remove { opacity: 1; }
+}
+
+.settings-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 9px;
+  align-items: center;
+}
+.settings-upload {
+  min-height: 50px;
+  border: 1px dashed rgba(var(--accent-rgb),0.36);
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb),0.055);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  min-width: 0;
+}
+.settings-upload:hover { background: rgba(var(--accent-rgb),0.09); }
+.settings-upload input { display: none; }
+.settings-upload svg { width: 18px; height: 18px; fill: var(--green); flex-shrink: 0; }
+.settings-upload-copy { min-width: 0; }
+.settings-upload-title {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.settings-upload-sub {
+  margin-top: 2px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-btn {
+  min-height: 36px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 900;
+  padding: 0 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* A link dressed as a button: same centred label, no underline. */
+a.settings-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.settings-btn:hover { background: rgba(255,255,255,0.09); }
+.settings-btn.primary {
+  border-color: rgba(var(--accent-rgb),0.36);
+  background: rgba(var(--accent-rgb),0.16);
+  color: #f6fff9;
+}
+.settings-btn.danger { color: var(--color-danger); }
+.settings-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* Microphone self-test: button + colour-coded result line */
+.settings-mictest-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+#settings-wake-status:empty { display: none; }
+.settings-mictest-result {
+  margin: 0;
+  min-height: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--muted-text);
+}
+.settings-mictest-result.is-rec  { color: var(--text); }
+.settings-mictest-result.is-ok   { color: var(--color-success); }
+.settings-mictest-result.is-warn { color: var(--color-warn); }
+
+@media (max-width: 640px) {
+  .settings-upload-row { grid-template-columns: 1fr; }
+}
+
+/* Every Beta in Settings is the same label as on the site: smaller, squarer
+   and unfilled, so it is not taken for a button, and in the text colour, so it
+   is not taken for "on" (the accent) or a warning (packages/core brand-tokens). */
+.native-promo[hidden] { display: none; }
+.native-promo-beta,
+.settings-platform-beta-chip {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--muted-text);
+}
+.native-promo-beta { margin-left: auto; }
+.native-promo-desc { margin: 0; font-size: 12px; color: var(--text); opacity: .92; }
+.native-promo-benefits {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--muted-text);
+}
+.native-promo-benefits li { line-height: 1.35; }
+.native-promo-warn { margin: 0; font-size: 11px; color: var(--muted-text); opacity: .85; }
+.native-promo-install {
+  margin-top: 2px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  background: rgb(var(--accent-rgb));
+  cursor: pointer;
+  transition: filter .15s ease, opacity .15s ease;
+}
+.native-promo-install:hover { filter: brightness(1.08); }
+.native-promo-install:disabled { opacity: .6; cursor: default; }
+.native-promo-status { font-size: 11px; color: var(--muted-text); }
+.native-promo-status:empty { display: none; }
+
+/* "macOS / Linux is beta", above the version stamp. Neutral and not the
+   accent: the accent means a feature is on, and amber or orange is Bit
+   worrying, which a beta is not. Built only where it is true (see
+   renderPlatformBeta). */
+.settings-platform-beta {
+  margin: 0 0 6px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.settings-platform-beta-head { display: flex; align-items: center; gap: 7px; }
+.settings-platform-beta-os { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.settings-platform-beta-note {
+  margin: 5px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--muted-text);
+}
+.settings-platform-beta-link {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

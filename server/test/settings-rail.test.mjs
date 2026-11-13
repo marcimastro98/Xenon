@@ -3,7 +3,7 @@
 // are in view the moment Settings opens. On a phone the rail folds into a picker.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CSS = read('../components/SettingsModal/SettingsPage.css');

@@ -4,7 +4,8 @@
 // moving while the dashboard is frozen, in a game or set to reduce motion.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');

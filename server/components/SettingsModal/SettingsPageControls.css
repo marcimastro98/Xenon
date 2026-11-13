@@ -1,0 +1,277 @@
+
+/* ── Controls ── */
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border: 0;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+:root[data-appearance="light"] :is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]:not(:checked) { background: rgba(20, 24, 44, 0.16); }
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  transform: none;
+  transition: transform 0.15s ease;
+}
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]:checked { background: var(--accent); }
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]:checked::after { transform: translateX(18px); background: var(--on-accent, #fff); }
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 2px; }
+:is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  :is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"],
+  :is(#settings-overlay, .remote-widget-mount) input.settings-check[type="checkbox"]::after { transition: none; }
+}
+
+#settings-overlay .settings-segmented {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-columns: none;
+  gap: 2px;
+  padding: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--cst-well);
+  box-shadow: none;
+}
+#settings-overlay .settings-segment-btn {
+  min-height: 36px;
+  height: auto;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--cst-muted);
+  background: none;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+#settings-overlay .settings-segment-btn:hover { color: var(--cst-text); background: var(--cst-well); }
+#settings-overlay .settings-segment-btn.active { color: var(--cst-text); background: var(--cst-on); box-shadow: none; }
+#settings-overlay .settings-segment-btn:focus-visible { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+
+#settings-overlay .cs-wrap { width: 280px; min-width: 0; max-width: 100%; }
+#settings-overlay .cs-trigger {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  box-shadow: none;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+#settings-overlay .cs-trigger:hover { background: var(--cst-on); }
+
+#settings-overlay :is(.settings-text-input, .settings-hex-input):not(.settings-search-input) {
+  width: 280px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  box-shadow: none;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+#settings-overlay textarea.settings-text-input { width: 100%; height: auto; padding: 10px 12px; }
+#settings-overlay :is(.settings-text-input, .settings-hex-input, .settings-code-field):not(.settings-search-input):focus {
+  outline: 2px solid var(--cst-key);
+  outline-offset: -2px;
+  background: var(--cst-well);
+}
+#settings-overlay .settings-code-field { border: 0; border-radius: 10px; background: var(--cst-well); box-shadow: none; }
+
+#settings-overlay .settings-range { width: 240px; max-width: 100%; height: 28px; accent-color: var(--accent); }
+/* On paper a pale accent makes the browser paint the track black, for contrast. */
+:root[data-appearance="light"] #settings-overlay .settings-range { color-scheme: light; accent-color: var(--cst-key); }
+
+#settings-overlay :is(.settings-btn, .remote-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  box-shadow: none;
+  font-size: 14.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+#settings-overlay :is(.settings-btn, .remote-btn):hover:not(:disabled) { background: var(--cst-on); }
+#settings-overlay :is(.settings-btn, .remote-btn):focus-visible { outline: 2px solid var(--cst-key); outline-offset: 2px; }
+#settings-overlay :is(.settings-btn, .remote-btn).primary { color: var(--cst-key-ink); background: var(--cst-key); }
+#settings-overlay :is(.settings-btn, .remote-btn).primary:hover:not(:disabled) { color: var(--cst-key-ink); background: var(--cst-key); filter: none; }
+#settings-overlay :is(.settings-btn, .remote-btn).danger { color: var(--cst-danger); }
+
+#settings-overlay .settings-color-wrap { display: inline-grid; width: 280px; max-width: 100%; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; }
+#settings-overlay .settings-color-wrap:has(.settings-color-clear) { grid-template-columns: 40px minmax(0, 1fr) auto; }
+#settings-overlay .settings-color-preview { width: 40px; height: 40px; border: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--cst-sep); }
+#settings-overlay .settings-hex-input { width: 100%; font-weight: 600; letter-spacing: 0; }
+#settings-overlay .settings-color-clear { height: 40px; border: 0; border-radius: 10px; color: var(--cst-muted); background: var(--cst-well); font-size: 14px; }
+#settings-overlay .settings-color-clear:hover { color: var(--cst-text); background: var(--cst-on); }
+
+#settings-overlay .settings-backup-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+#settings-overlay #settings-pagehk-rows { flex: 1 0 100%; display: grid; gap: 6px; }
+#settings-overlay #settings-pagehk-rows:empty { display: none; }
+
+/* ── An expander: a row that opens more rows under it, one level deep, for what most people
+   never need. The same look for every <details> in Settings. ── */
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) { min-width: 0; margin: 0; padding: 0; }
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  color: var(--cst-text);
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 1;
+  list-style: none;
+  cursor: pointer;
+}
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary::-webkit-details-marker { display: none; }
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary::before { content: none; }
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 2px solid var(--cst-muted);
+  border-bottom: 2px solid var(--cst-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom)[open] > summary::after { transform: translateY(2px) rotate(225deg); }
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary:hover { color: var(--cst-text); }
+#settings-overlay :is(.settings-expander, .settings-advanced, .settings-code-help, .tbl-custom) > summary:focus-visible { outline: 2px solid var(--cst-key); outline-offset: -2px; border-radius: 10px; }
+#settings-overlay .settings-expander-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0 16px 16px;
+  color: var(--cst-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  list-style: none;
+}
+#settings-overlay .settings-expander-list strong { color: var(--cst-text); font-weight: 600; }
+
+/* ── Calendar links ── */
+#settings-overlay .feed-list { display: grid; gap: 0; margin: 0; }
+#settings-overlay .feed-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+#settings-overlay .feed-row + .feed-row,
+#settings-overlay .feed-list:not(:empty) + .feed-actions,
+#settings-overlay .feed-actions ~ details {
+  background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat;
+}
+#settings-overlay .feed-row input:is([type="text"], [type="url"]) {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  font-size: 14.5px;
+  font-weight: 500;
+}
+#settings-overlay .feed-row input[type="url"] { flex-grow: 2; }
+#settings-overlay .feed-row input:is([type="text"], [type="url"]):focus { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+/* Link and name on the first line, the rest of the feed on the second. */
+#settings-overlay .feed-row::after { content: ''; order: 2; flex: 1 0 100%; height: 0; margin-top: -10px; }
+#settings-overlay .feed-remove {
+  order: 1;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-muted);
+  background: var(--cst-well);
+  opacity: 1;
+}
+#settings-overlay .feed-remove:hover { color: var(--cst-danger); background: var(--cst-on); }
+#settings-overlay .feed-swatches { order: 3; gap: 6px; margin-right: auto; }
+#settings-overlay .feed-swatch { width: 26px; height: 26px; border: 0; box-shadow: none; }
+#settings-overlay .feed-swatch.selected { box-shadow: 0 0 0 2px var(--cst-page), 0 0 0 4px var(--cst-text); }
+#settings-overlay .feed-toggle { order: 4; gap: 10px; min-height: 40px; color: var(--cst-text); font-size: 14.5px; font-weight: 600; }
+#settings-overlay .feed-status { order: 5; flex: 1 1 120px; min-width: 0; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; opacity: 1; text-align: right; }
+#settings-overlay .feed-status.is-error { color: var(--cst-danger); }
+#settings-overlay .feed-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 12px 16px; }
+
+/* ── Appearance ── */
+#settings-overlay .theme-gallery { padding: 16px; gap: 12px; }
+#settings-overlay .theme-card { border: 0; border-radius: 10px; background: var(--cst-well); box-shadow: none; }
+#settings-overlay .theme-card:hover { background: var(--cst-on); }
+#settings-overlay .theme-card.active { background: var(--cst-on); box-shadow: inset 0 0 0 2px var(--cst-text); }
+#settings-overlay .theme-card-name { color: var(--cst-text); font-size: 14px; font-weight: 600; }
+#settings-overlay .theme-gallery-actions { padding: 0 16px 16px; }
+#settings-overlay .settings-theme-group.is-disabled { opacity: 0.42; pointer-events: none; }
+
+/* A file to pick: the same flat field as the others. */
+#settings-overlay .settings-upload-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#settings-overlay .settings-upload {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  cursor: pointer;
+}
+#settings-overlay .settings-upload:hover { background: var(--cst-on); }
+#settings-overlay .settings-upload svg { fill: currentColor; }
+#settings-overlay .settings-upload-copy { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+#settings-overlay .settings-upload-title { color: var(--cst-text); font-size: 14.5px; font-weight: 600; }
+#settings-overlay .settings-upload-sub { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }

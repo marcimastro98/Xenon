@@ -1,0 +1,69 @@
+
+/* ── Short screens ── */
+/* Very wide and short: a page of named sections is one group, so its sections share the
+   two columns themselves, or the page would scroll beside half a screen of nothing. */
+@container settings-page (min-width: 1500px) and (max-height: 820px) {
+  #settings-overlay :is(.settings-group-bare, .settings-lock-group) { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
+  #settings-overlay :is(#settings-smarthome-hub, #settings-energy-hub, #settings-unifi-hub, #settings-streaming-hub, #settings-remote-hub, #settings-remote-access, #settings-transfer, .sh-set-card, .sh-set-picker) { display: contents; }
+}
+@container settings-page (max-height: 620px) {
+  #settings-overlay .settings-row,
+  #settings-overlay .settings-toggle-row { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+}
+@media (max-height: 620px) {
+  #settings-overlay .settings-nav { gap: 10px; padding-top: 14px; padding-bottom: 10px; }
+  #settings-overlay .settings-nav-btn,
+  #settings-overlay .settings-nav-credits { min-height: 38px; }
+  #settings-overlay .settings-content { padding-top: 14px; }
+}
+
+/* ── Narrow: rows stack, the rail folds into a picker ── */
+@container settings-page (max-width: 980px) {
+  #settings-overlay .settings-row > .ai-provider-toggle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container settings-page (max-width: 640px) {
+  #settings-overlay .sa-hint { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  /* Name, chevron and eye on one line, the side under the name: side by side they
+     push the eye onto a line of its own. */
+  #settings-overlay .island-edit-row > .island-edit-side,
+  #settings-overlay .island-edit-row:not(:has(> .island-edit-caret)) > .island-edit-side { order: 1; margin: 0 0 4px 36px; }
+  #settings-overlay .island-edit-row > .island-edit-sub { order: 2; padding-left: 0; }
+  #settings-overlay .island-edit-label { flex: 1 1 calc(100% - 140px); }
+  #settings-overlay .tbo-row { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+  #settings-overlay .tbo-row > .settings-text-input { width: 100%; }
+  #settings-overlay .settings-row > :not(.settings-label-line) { flex: 1 1 100%; width: 100%; }
+  #settings-overlay .settings-row > :is(.cs-wrap, .settings-text-input, .settings-hex-input, .settings-color-wrap, .settings-range, .settings-segmented) { width: 100%; }
+  #settings-overlay .settings-content { padding: 14px 16px 32px; }
+}
+@media (max-width: 720px) {
+  #settings-overlay .settings-body { flex-direction: column; }
+  #settings-overlay .settings-nav { flex: 0 0 auto; width: 100%; gap: 8px; padding: 14px 16px 8px; }
+  #settings-overlay .settings-title { padding-right: 48px; }
+  #settings-overlay .settings-search input.settings-search-input[type] { height: 44px; font-size: 16px; }
+  #settings-overlay .settings-close { top: 10px; right: 16px; }
+  #settings-overlay .settings-nav-btn,
+  #settings-overlay .settings-nav-credits { min-height: 44px; }
+  /* Folded, the rail is one row saying where you are; a tap opens the list. */
+  #settings-overlay .settings-nav:not(.is-open) :is(.settings-nav-label, .settings-nav-footer) { display: none; }
+  #settings-overlay .settings-nav:not(.is-open) .settings-nav-btn:not(.active) { display: none; }
+  #settings-overlay .settings-nav:not(.is-open) .settings-nav-scroll { overflow: visible; flex: 0 0 auto; }
+  #settings-overlay .settings-nav-btn.active::after { content: none; }
+  #settings-overlay .settings-nav:not(.is-open) .settings-nav-btn.active { background: var(--cst-well); }
+  #settings-overlay .settings-nav:not(.is-open) .settings-nav-btn.active::after {
+    content: '';
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-left: auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    opacity: 0.75;
+  }
+  /* Open, the nav carries the scroll and takes most of the window. */
+  #settings-overlay .settings-nav.is-open { max-height: 72%; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+  #settings-overlay .settings-nav.is-open .settings-nav-scroll { flex: 0 0 auto; overflow: visible; }
+  #settings-overlay .settings-page-title { padding-right: 0; font-size: 22px; line-height: 32px; }
+  #settings-overlay .native-promo { left: 16px; right: 16px; width: auto; max-width: none; }
+  #settings-overlay .settings-status { right: 16px; bottom: 12px; }
+}

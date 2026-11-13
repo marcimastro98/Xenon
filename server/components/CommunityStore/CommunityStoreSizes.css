@@ -1,0 +1,81 @@
+
+/* ── Columns follow the room the main side really has ── */
+@container cst-main (min-width: 1900px) { .cst-view, .cst-page { --cols: 6; } }
+@container cst-main (max-width: 1180px) { .cst-view, .cst-page { --cols: 4; } }
+@container cst-main (max-width: 900px) { .cst-view, .cst-page { --cols: 3; --cst-poster-cols: 2; } }
+@container cst-main (max-width: 900px) {
+  .cst-spot { grid-template-columns: minmax(0, 1fr); padding-right: 0; }
+  .cst-side { display: none; }
+  .cst-detail-grid { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; padding-right: 0; }
+}
+
+/* The Edge: a wide, low screen. One band of picture, more cards across. */
+@media (max-height: 760px) and (min-width: 1500px) {
+  .cst-view, .cst-page { --cols: 7; }
+  .cgal-scroll.cst-main { padding-top: 16px; }
+  .cst-host { gap: 20px; }
+  .cst-spot { grid-template-columns: minmax(0, 1fr) 420px; }
+  .cst-hero { --cst-hero-h: 330px; }
+  .cst-side { padding-top: 0; padding-right: 54px; }
+  .cst-rail { gap: 10px; padding-top: 14px; padding-bottom: 10px; }
+  .cst-railrow { height: 42px; }
+  .cst-stage { gap: 12px; }
+  .cst-offer { margin-bottom: 12px; }
+  .cst-poster { flex-direction: row; }
+  .cst-poster .cgal-media { flex: 0 0 56%; aspect-ratio: 16 / 9; }
+  .cst-poster-words { justify-content: center; padding: 14px 16px; }
+  .cst-poster-text { -webkit-line-clamp: 3; }
+}
+
+/* A phone: the rail is a row of words over one column. */
+@media (max-width: 640px) {
+  .preset-modal.cst { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .cst-rail { gap: 10px; padding: 14px 16px 8px; overflow: visible; background: none; }
+  .cst-rail-top { padding: 0 52px 0 0; }
+  .cst-rail-title { font-size: 24px; }
+  .cst-refresh, .cst-rail-make { display: none; }
+  .cst-rail-list, .cst-rail-list.cst-rail-own { flex-direction: row; gap: 4px; }
+  .cst-rail-list { overflow-x: auto; scrollbar-width: none; }
+  .cst-rail { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .cst-rail-top, .cst-find, .cst-rail-list:not(.cst-rail-own) { grid-column: 1 / -1; }
+  .cst-rail-list:not(.cst-rail-own) { grid-column: 1; }
+  .cst-rail-own { grid-column: 2; padding: 0 0 0 4px; border: 0; border-left: 1px solid var(--cst-sep); }
+  .cst-railrow { width: auto; height: 44px; gap: 6px; padding: 0 12px; }
+  .cst-railrow > .cgal-ic { display: none; }
+  .cst-railrow-count:empty { display: none; }
+  .cst-close { top: 10px; right: 12px; width: 44px; height: 44px; }
+  .cgal-scroll.cst-main { padding: 8px 16px 24px; }
+  .cst-host { gap: 24px; }
+  .cst-view, .cst-page { --cols: 2; }
+  .cst-row, .cgal-hrail { --cols: 1.6; }
+  .cst-keys { display: none; }
+  .cst-listhead { padding-right: 0; }
+  .cst-hero { flex-direction: column-reverse; min-height: 0; max-height: none; }
+  .cst-hero:has(canvas), .cst-hero:has(.cgal-preview) { height: auto; }
+  .cst-hero-words { flex: none; padding: 18px; }
+  .cst-hero .cgal-media img { width: 100%; max-width: none; max-height: none; }
+  .cst-hero .cgal-media canvas, .cst-hero .cgal-media .cgal-preview { flex: none; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .cst-name { font-size: 34px; }
+  .cst-shelf-head { padding-right: 0; }
+  .cst-stage .cst-row { --cols: 1.15; }
+  .cst-overlay .cst-view.is-own .settings-btn { min-height: 44px; }
+  .cst-offer { flex-direction: column; align-items: stretch; gap: 12px; }
+  .cst-band-keys { justify-content: space-between; }
+  .cst-sparks-band { grid-template-columns: auto minmax(0, 1fr); padding: 16px; }
+  .cst-sparks-packs, .cst-sparks-go { grid-column: 1 / -1; }
+  .cst-sparks-packs { justify-content: space-between; gap: 12px; }
+  .cst-info-shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cst-info-shots .cgal-media:nth-child(3) { display: none; }
+  .cst-info-body { padding: 18px 16px; }
+  .cst-info-name { font-size: 28px; }
+  .cst-info-perks { grid-template-columns: minmax(0, 1fr); }
+  .cst-info-keys { align-items: stretch; flex-direction: column; }
+  .cst-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .cst-view.is-own { padding-right: 0; }
+  /* The key stays in reach while the page scrolls under it. */
+  .cst-detail .cgal-detail-cta:not(:empty) {
+    position: sticky; bottom: -24px; z-index: 2;
+    margin: 0 -16px; padding: 10px 16px;
+    background: var(--cst-page);
+  }
+}

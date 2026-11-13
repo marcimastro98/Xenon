@@ -1,0 +1,79 @@
+
+/* The width cap is NOT scoped to a side: since v4.11.4 the user can move this strip
+   between the two ends of the bar, and a cap that applied on only one of them
+   would let the strip grow without limit on the other — which is the whole reason
+   it exists. The rail has its own sizing (TopbarMinimal.css) and overrides it. */
+.app-favorites {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: min(250px, 34vw);
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.qbtn-favorite { color: var(--amber); }
+.qbtn-favorite img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 5px;
+  display: block;
+}
+
+.qbtn-fav-letter {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(var(--warning-rgb),0.14);
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+/* Favorites dock states: a running favorite is bright with a live dot, a closed
+   one that can still be launched is dimmed, and a closed one with no known path
+   is inert (shown, but not actionable). touch-action:none lets the pointer-drag
+   reorder own the gesture on the Xeneon Edge without the page scrolling. */
+.qbtn-favorite { position: relative; touch-action: none; }
+.qbtn-favorite.closed { opacity: 0.55; }
+.qbtn-favorite.closed:hover { opacity: 0.9; }
+.qbtn-favorite.inert { opacity: 0.32; cursor: default; }
+.qbtn-favorite.inert:hover { background: transparent; }
+.qbtn-favorite.dragging {
+  opacity: 0.9;
+  transform: scale(1.12);
+  z-index: 2;
+  cursor: grabbing;
+}
+.qbtn-fav-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 1.5px var(--topbar-bg, #0c1210), 0 0 5px rgba(var(--accent-rgb),0.7);
+}
+.app-favorites.reordering { cursor: grabbing; }
+.app-favorites.reordering .qbtn-favorite:not(.dragging) { transition: transform 0.16s ease; }
+
+.qbtn-custom {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+}
+
+.qbtn-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+}
+
+.qbtn-separator { width: 0; }

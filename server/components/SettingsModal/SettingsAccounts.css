@@ -1,0 +1,219 @@
+
+/* Backup export/import button pair. */
+.settings-backup-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+/* ── Xenon AI provider selector ─────────────────────────────── */
+.ai-provider-toggle { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.ai-provider-toggle label {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 10px 14px; min-height: 44px;
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  transition: border-color .18s ease, background .18s ease;
+}
+.ai-provider-toggle label:hover { border-color: rgba(var(--accent-rgb),0.45); }
+.ai-provider-toggle input[type="radio"] { accent-color: rgb(var(--accent-rgb)); width: 18px; height: 18px; }
+.ai-provider-toggle input[type="radio"]:checked ~ .ai-prov-name { color: rgb(var(--accent-rgb)); font-weight: 600; }
+.ai-prov-ic { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex: 0 0 auto; }
+.ai-prov-ic svg { width: 100%; height: 100%; display: block; }
+.ai-provider-toggle input[type="radio"]:disabled { cursor: not-allowed; }
+.ai-provider-toggle label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+.settings-subpanel {
+  grid-column: 1 / -1; /* span both grid columns like .settings-row.full */
+  margin-top: 12px; padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+/* Stacked controls: without this each label sits on the control above it. */
+#settings-localapi-panel:not([hidden]) { display: grid; gap: 14px; }
+
+/* Claude Code / Codex: the program's state, coloured by what the user must do. */
+#settings-cli-panel > * + * { margin-top: 12px; }
+
+/* Xenon credits: the model names carry their cost, so on a phone the picker
+   wraps instead of pushing the panel past the screen. */
+#settings-xenon-panel { min-width: 0; }
+#settings-xenon-panel > * + * { margin-top: 12px; }
+#settings-xenon-panel .cs-wrap { min-width: 0; max-width: 100%; }
+#settings-xenon-panel .cs-label { min-width: 0; }
+#settings-xenon-panel :is(.cs-trigger, .cs-option) { white-space: normal; text-align: start; }
+#settings-xenon-panel a.settings-btn { text-decoration: none; }
+
+#settings-gemini-setup a { color: rgb(var(--accent-rgb)); font-weight: 800; }
+
+/* Xenon AI credits: ordinary settings rows. The balance sits where other rows
+   put their value; the bar is this month's included credits left. */
+.settings-ai-group > .settings-grid { row-gap: 18px; }
+.xai-balance { font-size: 15px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; }
+.xai-meter { height: 4px; border-radius: 2px; overflow: hidden; background: rgba(var(--accent-rgb), 0.16); }
+.xai-meter-fill {
+  display: block; height: 100%;
+  width: calc(var(--fill, 0) * 100%);
+  background: rgb(var(--accent-rgb));
+}
+.xai-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.xai-actions .settings-btn { min-height: 40px; text-decoration: none; }
+
+.settings-cli-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.settings-cli-actions .settings-btn { width: auto; }
+#settings-cli-status { font-weight: 500; }
+#settings-cli-status[data-state="ok"] { color: var(--color-success); }
+#settings-cli-status[data-state="bad"] { color: var(--color-danger); }
+#settings-cli-status[data-state="warn"] { color: var(--color-warn); }
+/* Media tile wave: whether Xenon Helper can measure the sound here. */
+.settings-media-viz-status { display: block; margin-top: 8px; font-weight: 500; }
+.settings-media-viz-status[data-state="ok"] { color: var(--color-success); }
+.settings-media-viz-status[data-state="bad"] { color: var(--color-danger); }
+.settings-media-viz-status[data-state="warn"] { color: var(--color-warn); }
+.settings-media-viz-install { width: auto; margin: 10px 0 8px; }
+
+.ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.ai-hw-line { font-weight: 600; }
+.ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
+.ai-hw-block.ai-incompatible .ai-hw-line { color: var(--color-danger); }
+.ai-hw-block .settings-btn { align-self: flex-start; }
+
+.ai-status-block { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ai-status-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; flex-wrap: wrap; }
+.ai-status-item .settings-btn { margin-left: auto; }
+.ai-status-dot-ok::before { content: '●'; color: var(--color-success); margin-right: 4px; }
+.ai-status-dot-bad::before { content: '●'; color: var(--color-danger); margin-right: 4px; }
+.ai-status-dot-warn::before { content: '●'; color: var(--color-warn); margin-right: 4px; }
+.ai-autostart-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; opacity: 0.9; cursor: pointer;
+  margin: 2px 0 4px; padding-left: 2px;
+}
+.ai-autostart-row .settings-check { width: 16px; height: 16px; }
+
+.ai-pull-progress {
+  height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px;
+  overflow: hidden; position: relative; margin-top: 8px;
+}
+.ai-pull-bar { height: 100%; width: 0%; background: rgb(var(--accent-rgb)); transition: width 0.3s ease; }
+.ai-pull-progress #ai-pull-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; line-height: 1; color: rgba(255,255,255,0.9);
+}
+
+.settings-advanced { margin-top: 14px; }
+.settings-advanced > summary { cursor: pointer; font-size: 0.85rem; opacity: 0.85; padding: 4px 0; }
+.settings-advanced > summary:hover { color: rgb(var(--accent-rgb)); }
+.settings-advanced .settings-text-input { margin-top: 8px; }
+
+/* ── External calendars (ICS feed subscriptions) ─────────────── */
+.feed-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+/* Flex-wrap keeps the dense touchscreen layout from overflowing horizontally. */
+.feed-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+}
+.feed-row input[type="text"], .feed-row input[type="url"] {
+  flex: 1 1 160px; min-width: 0; min-height: 36px;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); color: var(--text);
+}
+.feed-swatches { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.feed-swatch {
+  width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
+}
+.feed-swatch.selected { border-color: var(--text); }
+.feed-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap; font-size: 0.82rem; min-height: 36px; cursor: pointer;
+}
+.feed-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
+.feed-status { font-size: 0.78rem; opacity: 0.8; min-width: 64px; flex: 1 1 auto; }
+.feed-status.is-error { color: var(--color-danger); opacity: 1; }
+.feed-remove {
+  flex: 0 0 auto; min-width: 36px; min-height: 36px;
+  background: transparent; border: none; color: var(--text);
+  font-size: 1rem; cursor: pointer; opacity: 0.7;
+}
+.feed-remove:hover { opacity: 1; color: var(--color-danger); }
+.feed-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.feed-refresh.is-loading { pointer-events: none; }
+.feed-refresh.is-loading { color: transparent; position: relative; }
+/* Bit thinking (components/XenonLoader/XenonLoader.css) over the label. */
+.feed-refresh.is-loading::before {
+  content: ""; position: absolute; inset: 0; margin: auto;
+  width: 20px; height: 26px;
+  background: var(--xl-think) center / contain no-repeat;
+}
+:is(body.overlay-frozen, body.ambient-idle, body.game-mode, body.low-power-gpu) .feed-refresh.is-loading::before { background-image: var(--xl-think-still); }
+@media (prefers-reduced-motion: reduce) { .feed-refresh.is-loading::before { background-image: var(--xl-think-still); } }
+
+/* Source badge on external (read-only) events in the day modal */
+.event-source-badge {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex: 0 0 auto;
+}
+
+/* ── Streaming (Twitch) connect panel ─────────────────────────── */
+.streaming-card {
+  padding: 14px 16px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Streamer.bot test-connection feedback line. */
+.settings-sb-status { margin-top: 8px; }
+.settings-sb-status.is-ok { color: var(--color-success); }
+.settings-sb-status.is-err { color: var(--color-danger); }
+.settings-sb-status.is-busy { color: var(--muted-text); }
+.streaming-connected { font-size: 0.85rem; font-weight: 700; margin: 0; }
+.streaming-warn { color: var(--color-warn); }
+.streaming-card .settings-btn { align-self: flex-start; }
+.streaming-login {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-code {
+  font-size: 1.6rem; font-weight: 900; letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums; color: #f6fff9;
+  padding: 8px 14px; border-radius: 10px;
+  background: rgba(var(--accent-rgb),0.14); border: 1px solid rgba(var(--accent-rgb),0.32);
+  user-select: all;
+}
+.streaming-url { font-size: 0.85rem; color: rgb(var(--accent-rgb)); word-break: break-all; }
+/* Credential-entry form (shown until a provider is configured). */
+.streaming-setup { display: flex; flex-direction: column; gap: 9px; }
+.streaming-setup .settings-btn { align-self: flex-start; }
+.streaming-cred-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.streaming-cred-actions .settings-btn { align-self: flex-start; }
+/* Discord-only: notification-mirroring toggles at the bottom of the card. */
+.streaming-notif {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-notif .settings-note { margin: 0; }
+.streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
+.streaming-err { color: var(--color-danger); opacity: 1; }
+
+/* Copyable value row (e.g. the OAuth redirect URI) — read-only text + Copy button. */
+.streaming-copy-row {
+  display: flex; align-items: stretch; gap: 8px; width: 100%;
+}
+.streaming-copy-val {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
+  display: flex; align-items: center; padding: 8px 11px; border-radius: 9px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.8rem;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow-x: auto; white-space: nowrap; user-select: all; -webkit-user-select: all;
+}
+.streaming-copy-btn { flex: 0 0 auto; align-self: stretch; }
+
+/* Spotify settings section: "what you get" perks + numbered setup steps. */
+.settings-spotify-steps {
+  margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 7px;
+}
+.settings-spotify-steps li { font-size: 0.86rem; line-height: 1.45; color: var(--text, #e7e9ee); }
+.settings-spotify-steps li::marker { color: var(--color-success); font-weight: 800; }

@@ -1,0 +1,225 @@
+
+/* ── The page ── */
+#settings-overlay .settings-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 32px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 960px);
+  grid-auto-rows: max-content;
+  justify-content: center;
+  align-content: start;
+  gap: 28px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+/* Very wide and short (the Edge): two columns, or one column would leave half the screen
+   empty and scroll for everything. packSettingsColumns() in js/settings.js packs the
+   sections, so a short one beside a tall one leaves no hole. */
+@container settings-page (min-width: 1500px) and (max-height: 820px) {
+  #settings-overlay .settings-content { grid-template-columns: repeat(2, minmax(0, 960px)); column-gap: 28px; }
+}
+#settings-overlay #settings-content.is-packed {
+  grid-auto-rows: 1px;
+  grid-auto-flow: row dense;
+  row-gap: 0;
+  align-items: start;
+}
+#settings-overlay #settings-content.is-searching { display: block; }
+#settings-overlay #settings-content.is-searching > :not(#settings-search-results) { display: none !important; }
+#settings-overlay #settings-search-results { max-width: 960px; margin-inline: auto; }
+
+#settings-overlay .settings-page-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-right: 48px;
+  color: var(--cst-text);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 40px;
+  letter-spacing: 0;
+}
+
+/* Saved, or why not: over the page, gone by itself (setSettingsStatus). */
+#settings-overlay .settings-status {
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  z-index: 3;
+  max-width: min(480px, calc(100% - 44px));
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-solid);
+  box-shadow: 0 0 0 1px var(--cst-sep);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#settings-overlay .settings-status:empty { display: none; }
+#settings-overlay .settings-status.error { color: var(--cst-danger); }
+
+/* ── A section: title outside, one well under it ──
+   The well is the group's own ::before, placed from grid line 2 down: it starts under the
+   title with no wrapper around the rows, so the many scripts that fill a group stay as
+   they are. */
+#settings-overlay .settings-group {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  overflow: visible;
+}
+#settings-overlay .settings-group::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  grid-column: 1;
+  grid-row: 2 / auto;
+  z-index: -1;
+  border-radius: 10px;
+  background: var(--cst-well);
+}
+#settings-overlay .settings-group:not(:has(> .settings-group-head:first-child))::before { grid-row: auto; }
+/* An open list has to pass over the sections after this one. */
+#settings-overlay .settings-group:has(.cs-wrap.cs-open) { z-index: 2; }
+
+#settings-overlay .settings-group > .settings-group-head:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0 2px 10px;
+  border: 0;
+  background: none;
+  color: var(--cst-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+#settings-overlay .settings-group-head > .settings-hint { flex-basis: auto; font-size: 13.5px; font-weight: 500; text-align: left; }
+/* A heading inside a well: the next part of the same section. */
+#settings-overlay .settings-group > .settings-group-head:not(:first-child) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px 6px;
+  border: 0;
+  background: none;
+  color: var(--cst-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* ── Rows ── */
+#settings-overlay :is(.settings-grid, .settings-toggle-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  min-width: 0;
+}
+#settings-overlay .settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 8px;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--cst-text);
+  text-decoration: none;
+}
+#settings-overlay .settings-row > .settings-label-line { flex: 1 1 260px; }
+#settings-overlay .settings-row > :not(.settings-label-line) { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+#settings-overlay .settings-row > :is(.settings-note, .settings-hint) { flex: 1 0 100%; margin: 0; }
+/* What needs the row's whole width sits under the name. */
+#settings-overlay .settings-row > :is(textarea, .settings-code-field, .island-edit-list, .settings-toggle-grid, .settings-calls-apps,
+  .settings-bgcode-gallery, .settings-bgasset-list, .slideshow-assets, .settings-upload-row, .tbl-custom-rows) { flex: 1 0 100%; }
+
+#settings-overlay .settings-toggle-row {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+#settings-overlay .settings-toggle-row:hover { background: none; }
+#settings-overlay .settings-toggle-row > :not(input) { flex: 1 1 auto; min-width: 0; text-align: left; }
+/* An option that only means something with its switch on goes with it: a dim row is one
+   more thing to read that nobody can use. A step this PC cannot do stays dimmed, because
+   the line under it says why. */
+#settings-overlay :is(.settings-toggle-row, .settings-row, .settings-vitals-row, .settings-expander).is-disabled { display: none; }
+#settings-overlay .settings-toggle-row.is-blocked { opacity: 0.42; pointer-events: none; }
+
+/* A hairline above every row that follows a row, 16 px in from the well's edges. As a
+   background: it adds no height, and hidden rows between two rows cost nothing. */
+#settings-overlay :is(.settings-row, .settings-toggle-row, .settings-grid, .settings-toggle-grid, .settings-vitals-row, .settings-ambient-row, .settings-ambient-classic, .settings-ambient-scene-row, details, .settings-subpanel, .settings-vitals-items, .sh-set-row, .sh-set-actions, .streaming-setup, .streaming-notif, .lighting-event, .ra-pair, .remote-ready-row, .remote-panel-screen-row, .remote-controls-row):not([hidden])
+  ~ :is(.settings-row, .settings-toggle-row, .settings-grid, .settings-toggle-grid, .settings-vitals-row, .settings-ambient-row, .settings-ambient-classic, .settings-ambient-scene-row, details, .settings-subpanel, .settings-vitals-items, .sh-set-row, .sh-set-actions, .streaming-setup, .streaming-notif, .lighting-event, .ra-pair, .remote-ready-row, .remote-panel-screen-row, .remote-controls-row):not([hidden]) {
+  background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat;
+}
+
+#settings-overlay .settings-label-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+#settings-overlay .settings-label-line:has(> .settings-hint) { flex-direction: column; align-items: flex-start; gap: 2px; }
+#settings-overlay .settings-hint,
+#settings-overlay .settings-note {
+  color: var(--cst-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+#settings-overlay .settings-value {
+  flex: none;
+  color: var(--cst-muted);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+#settings-overlay .settings-label-line > .settings-hint:empty { display: none; }
+#settings-overlay .settings-note-warn,
+#settings-overlay .settings-bg-covered-note { color: var(--color-warn); }
+/* A section whose every row is not for this machine: no title over nothing. */
+#settings-overlay .settings-group:not(:has(> :not(.settings-group-head):not([hidden]):not([style*="display: none"]):not(.is-disabled))) { display: none; }
+/* Words straight in the well. */
+#settings-overlay .settings-group > :is(.settings-note, .settings-hint) { margin: 0; padding: 0 16px 12px; }
+#settings-overlay .settings-group > .settings-group-head + :is(.settings-note, .settings-hint) { padding-top: 12px; }
+#settings-overlay .settings-group > .settings-toggle-row + :is(.settings-note, .settings-hint) { margin-top: -6px; }
+#settings-overlay .settings-sublink { margin: -6px 0 0; padding: 0 16px 12px; }
+#settings-overlay .settings-sublink a { color: var(--cst-text); text-underline-offset: 2px; }

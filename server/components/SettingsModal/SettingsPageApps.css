@@ -1,0 +1,296 @@
+
+/* ── Sections a script builds: the same title over a well, for pages that come out of one
+   script and one mount. The group around them wears nothing. ── */
+#settings-overlay .sa-hint {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 12px 16px;
+  text-align: start;
+}
+#settings-overlay .sa-hint-text { max-width: none; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.45; opacity: 1; }
+#settings-overlay .sa-status { grid-column: 1 / -1; max-width: none; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; opacity: 1; }
+#settings-overlay .sa-status.is-ok { color: var(--cst-key); }
+#settings-overlay .sa-status.is-warn { color: var(--cst-gold); }
+#settings-overlay .settings-group-bare { row-gap: 28px; }
+#settings-overlay .settings-group-bare::before { content: none; }
+#settings-overlay :is(#settings-smarthome-hub, #settings-energy-hub, #settings-unifi-hub, #settings-streaming-hub, .sh-set-card, .sh-set-picker) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+#settings-overlay :is(#settings-energy-hub, .sh-set-picker, .sh-set-dash-host):empty { display: none; }
+#settings-overlay .settings-section {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+#settings-overlay .settings-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  grid-column: 1;
+  grid-row: 2 / auto;
+  z-index: -1;
+  border-radius: 10px;
+  background: var(--cst-well);
+}
+#settings-overlay .settings-section:not(:has(> .settings-section-title:first-child))::before { grid-row: auto; }
+#settings-overlay .settings-section:has(.cs-wrap.cs-open) { z-index: 2; }
+#settings-overlay .settings-section-title { padding: 0 2px 10px; color: var(--cst-text); font-size: 17px; font-weight: 700; line-height: 1.3; }
+
+/* ── Smart Home and Cameras: js/smart-home.js and js/unifi-widget.js ── */
+#settings-overlay .sh-set-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 8px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 10px 16px;
+}
+#settings-overlay .sh-set-label {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+#settings-overlay .sh-set-label--plain { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+#settings-overlay :is(.sh-set-help, .sh-set-hint, .sh-set-desc) { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+#settings-overlay .settings-section > :is(.sh-set-hint, .sh-set-desc) { padding: 12px 16px 4px; }
+#settings-overlay .sh-set-input {
+  width: 280px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  box-shadow: none;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+#settings-overlay .sh-set-input::placeholder { color: var(--cst-muted); opacity: 1; }
+#settings-overlay .sh-set-input:focus { outline: 2px solid var(--cst-key); outline-offset: -2px; background: var(--cst-well); }
+#settings-overlay .settings-section > .sh-set-input[type="search"] { width: auto; margin: 8px 16px 4px; }
+#settings-overlay .sh-set-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 0; padding: 12px 16px; }
+#settings-overlay .sh-set-status { color: var(--cst-muted); font-size: 14px; font-weight: 600; }
+#settings-overlay .sh-set-status.ok { color: var(--color-success); }
+#settings-overlay .sh-set-status.err { color: var(--cst-danger); }
+#settings-overlay .sh-set-list { display: grid; gap: 0; max-height: 420px; overflow-y: auto; padding: 4px 16px 10px; }
+#settings-overlay .sh-set-group { margin: 0; padding: 12px 0 2px; border: 0; color: var(--cst-muted); font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+#settings-overlay .sh-set-dev { padding: 8px 0 2px; color: var(--cst-text); font-size: 14.5px; font-weight: 600; }
+#settings-overlay .sh-set-dev::before { content: none; }
+#settings-overlay .sh-set-check { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 0; border: 0; border-radius: 0; background: none; }
+#settings-overlay .sh-set-check--child { margin-left: 0; padding-left: 14px; }
+#settings-overlay .sh-set-check input { width: 20px; height: 20px; accent-color: var(--accent); }
+#settings-overlay .sh-set-check-name { color: var(--cst-text); font-size: 14.5px; font-weight: 500; }
+#settings-overlay .sh-set-check-type { padding: 0; border: 0; color: var(--cst-muted); background: none; font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+#settings-overlay .sh-set-check-id { color: var(--cst-muted); font-size: 13px; font-weight: 500; }
+#settings-overlay .sh-set-order { gap: 0; margin: 0; }
+#settings-overlay .sh-ord { display: grid; margin: 0; padding: 4px 16px 10px; border: 0; border-radius: 0; }
+#settings-overlay .sh-ord-row { min-height: 44px; padding: 0; border: 0; background: none; }
+#settings-overlay .sh-ord-row--unit { padding-left: 14px; }
+#settings-overlay .sh-ord-name { color: var(--cst-text); font-size: 14.5px; font-weight: 500; }
+#settings-overlay .sh-ord-row--room .sh-ord-name { color: var(--cst-muted); font-size: 13.5px; font-weight: 600; }
+#settings-overlay :is(.sh-ord-btn, .up-move-btn) { width: 40px; height: 40px; border: 0; border-radius: 10px; color: var(--cst-muted); background: none; }
+#settings-overlay :is(.sh-ord-btn, .up-move-btn):hover:not(:disabled) { color: var(--cst-text); background: var(--cst-on); }
+#settings-overlay :is(.sh-ord-btn, .up-move-btn):focus-visible { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+#settings-overlay .sh-set-dash { gap: 0; margin: 0; padding: 0; border: 0; }
+#settings-overlay .sh-set-dash .sh-set-actions { flex-direction: row; align-items: center; gap: 8px 12px; }
+#settings-overlay .up-reorder-row { justify-content: space-between; gap: 12px; }
+#settings-overlay .up-reorder-name { gap: 10px; }
+#settings-overlay .up-reorder-moves { gap: 0; }
+
+/* ── Spotify and Streaming: js/spotify-settings.js and js/streaming-page.js ── */
+#settings-overlay #settings-spotify-hub { padding: 0; }
+/* While linked, the account comes first and the pitch goes. */
+#settings-overlay .settings-spotify-group:has(.streaming-connected) #settings-spotify-hub { order: -1; }
+#settings-overlay .settings-spotify-group:has(.streaming-connected) > .settings-note:first-child { display: none; }
+#settings-overlay .settings-group > .settings-note:first-child { padding-top: 12px; }
+#settings-overlay .settings-expander-note { display: block; margin: 0; padding: 0 16px 14px; }
+#settings-overlay .settings-expander-steps { padding-left: 36px; list-style: decimal; }
+#settings-overlay .settings-expander-steps li::marker { color: var(--cst-muted); font-weight: 600; }
+#settings-overlay .streaming-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+#settings-overlay .streaming-setup { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+#settings-overlay :is(.streaming-copy-row, .streaming-cred-actions) { border: 0; border-radius: 0; background: none; }
+#settings-overlay .streaming-connected { margin: 0; color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay .streaming-card > .settings-note { display: block; margin: 0; padding: 0 16px 12px; }
+#settings-overlay .streaming-warn { color: var(--color-warn); }
+#settings-overlay .streaming-err { color: var(--cst-danger); opacity: 1; }
+#settings-overlay .streaming-login { display: grid; gap: 8px; margin: 0; padding: 4px 16px 14px; border: 0; border-radius: 0; background: none; }
+#settings-overlay .streaming-login .settings-note { margin: 0; }
+#settings-overlay .streaming-code {
+  justify-self: start;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+#settings-overlay .streaming-url { color: var(--cst-text); font-size: 14.5px; font-weight: 500; text-underline-offset: 2px; }
+#settings-overlay .streaming-poll { margin: 0; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; opacity: 1; }
+#settings-overlay .streaming-copy-row { display: flex; flex: 1 0 100%; gap: 8px; min-width: 0; padding: 0; }
+#settings-overlay .streaming-copy-val {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  font-size: 13.5px;
+  line-height: 40px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#settings-overlay .streaming-copy-btn { align-self: auto; }
+#settings-overlay .streaming-notif { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; min-width: 0; margin: 0; padding: 0; border: 0; background: none; }
+#settings-overlay .streaming-notif > .settings-note { margin: 0; padding: 0 16px 12px; }
+
+/* ── Tabs on Lighting and Performance: neutral, colour is left to state. ── */
+#settings-overlay .settings-seg { gap: 2px; padding: 2px; border: 0; border-radius: 10px; background: var(--cst-well); box-shadow: none; }
+#settings-overlay .settings-seg-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--cst-muted);
+  background: none;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+#settings-overlay .settings-seg-btn:hover { color: var(--cst-text); background: var(--cst-well); }
+#settings-overlay .settings-seg-btn.is-active { color: var(--cst-text); background: var(--cst-on); box-shadow: none; }
+#settings-overlay .settings-seg-btn:focus-visible { outline: 2px solid var(--cst-key); outline-offset: -2px; }
+
+/* A word beside a section's name, as plain as Beta on the Phone page. */
+#settings-overlay .settings-section-tag { margin-left: 6px; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+
+/* ── Support: three plans you tap whole; the first holds the page's one main action ── */
+#settings-overlay .settings-support-group:lang(ko) { word-break: keep-all; }
+#settings-overlay .support-goal { --goal-fill: 110, 231, 135; display: grid; gap: 8px; padding: 0 16px 16px; }
+:root[data-appearance="light"] #settings-overlay .support-goal { --goal-fill: 31, 143, 74; }
+#settings-overlay .support-goal-line { margin: 0; color: var(--cst-text); font-size: 14.5px; font-weight: 600; text-wrap: pretty; }
+#settings-overlay .support-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+#settings-overlay .support-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 10px;
+  color: var(--cst-text);
+  text-decoration: none;
+  background: var(--cst-well);
+}
+#settings-overlay .support-plan:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 2px; }
+#settings-overlay .support-plan-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
+#settings-overlay .support-plan-price b { font-size: 28px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#settings-overlay .support-plan-price span { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+#settings-overlay .support-plan-sparks { display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 600; }
+/* The note takes the slack, so every plan's key sits on the same line. */
+#settings-overlay .support-plan-note { flex: 1; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.45; }
+#settings-overlay .support-plan-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 4px 14px;
+  border-radius: 10px;
+  background: var(--cst-well);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: center;
+}
+#settings-overlay .support-plan:hover .support-plan-cta { background: var(--cst-on); }
+#settings-overlay .support-plan.is-main .support-plan-cta { color: var(--cst-key-ink); background: var(--cst-key); }
+@container settings-page (max-width: 640px) {
+  #settings-overlay .support-plans { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Widgets & sharing ── */
+#settings-overlay .settings-supporter-row { justify-content: flex-start; }
+#settings-overlay input.settings-supporter-field { flex: 1 1 200px; width: auto; max-width: none; letter-spacing: 0.02em; }
+#settings-overlay .settings-section > .settings-memory-manage { padding: 0 16px 12px; }
+#settings-overlay details .settings-code-help-example { margin: 0 16px 14px; }
+
+/* ── Performance ── */
+.settings-perf-app-editor { display: grid; min-width: 0; padding: 0 16px 6px; }
+.perf-app-block { display: grid; gap: 8px; min-width: 0; padding: 12px 0; }
+.perf-app-block + .perf-app-block { border-top: 1px solid var(--cst-sep); }
+.perf-app-block-title { color: var(--cst-text); font-size: 14.5px; font-weight: 600; }
+.perf-app-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.perf-app-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding-left: 10px;
+  border-radius: 6px;
+  background: var(--cst-well);
+  color: var(--cst-text);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.perf-app-chip-x {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cst-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.perf-app-chip-x:hover { color: var(--cst-text); }
+.perf-app-empty { color: var(--cst-muted); }
+.perf-app-add { display: flex; flex-wrap: wrap; gap: 8px; }
+#settings-overlay input.perf-app-input { flex: 1 1 200px; width: auto; max-width: 280px; }
+
+#settings-overlay .gamesess-wrap { display: block; padding: 0; }
+.gamesess-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.gamesess-row { display: grid; gap: 2px; min-width: 0; padding: 10px 16px; }
+.gamesess-row + .gamesess-row { border-top: 1px solid var(--cst-sep); }
+.gamesess-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.gamesess-game {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cst-text);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gamesess-fps { flex: none; color: var(--cst-text); font-size: 14.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gamesess-meta, .gamesess-delta { color: var(--cst-muted); font-size: 13.5px; line-height: 1.35; }
+.gamesess-delta.is-up { color: var(--color-success); }
+.gamesess-delta.is-down { color: var(--color-warn); }
+#settings-overlay .gamesess-wrap .settings-memory-empty { margin: 0; padding: 12px 16px; }

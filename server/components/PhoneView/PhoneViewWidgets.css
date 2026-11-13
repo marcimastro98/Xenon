@@ -1,0 +1,85 @@
+
+/* ── Widget internals that assume a desktop tile ─────────────────────────── */
+
+/* System stat cards. `.system-grid` distributes its height with
+   `grid-auto-rows: minmax(0, 1fr)` and `overflow: hidden`, so on a short tile
+   every card shrinks equally — by design, and the design says a card gives up
+   its CHART, not its text (`.stat-track.has-spark` shrinks to 6px). That holds
+   until the text alone is taller than the share: measured at 390px, the cards
+   were 52px against 73px of content, so RAM's "DDR5 6000 MHz — 2x16 GB" and
+   DISCO's "NTFS - Fixed" were cut through the middle of the line — the reported
+   bug. Here the tile is one of a scrolling column and there is no reason to
+   distribute a fixed height at all: the rows take what their content needs and
+   `.side-panel`, which is already `overflow: auto`, carries the remainder.
+   Left alone on the Edge, which is the short screen the 1fr rule was written
+   for. */
+.is-stacked .system-grid {
+  grid-auto-rows: minmax(min-content, auto);
+  overflow: visible;
+}
+/* And the tile has to be able to SCROLL that remainder, which it could not.
+   `.side-panel` is `overflow: auto` in SystemPanel.css, but DashboardLayout.css
+   overrides it to `hidden` for the dashboard, on the reasoning that a desktop
+   tile is sized so all four stats fit with no scrollbar. That reasoning does
+   not survive the stacked view: the rows take their natural height here and the
+   tile's height is capped, so everything past the cap was simply cut off with
+   no way to reach it. Reported from a phone: "the System tile doesn't have a
+   scroll on mobile (weather etc. does)".
+   The selector carries `body:not([data-panel])` on purpose — the rule it has to
+   beat has it, and `.is-stacked .side-panel` alone is one point short, so it
+   would lose and the fix would look right in the file and do nothing. */
+.is-stacked body:not([data-panel]) .side-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
+.is-stacked .stat-box { min-height: min-content; }
+/* The Volume tab is a SIZE container on the desktop grid (AudioSection.css), and
+   size containment makes its content count as zero height. Under the
+   content-sized block above that left the pane a few pixels tall: the card fell
+   into its one-line strip layout and the app list into a sliver, on any tall
+   screen. Reported from a vertically mounted display. Here the pane takes its
+   natural height and the tile scrolls the rest, like the stat cards. */
+.is-stacked body:not([data-panel]) .system-audio-pane:not([hidden]) { container: none; }
+
+/* Calendar. `minmax(0, 1fr)` rows are right on the Edge, where the tile is tall
+   and the month should fill it; here they let a week row fall under the height of
+   the digit inside it, and a grid row does not clip its item — it overflows, so
+   the numbers were drawn through their neighbours. A floor of 26px keeps a cell a
+   cell (and a touch target); the `1fr` still distributes anything above it.
+   The card then takes its natural height instead of a share of a short one, and
+   `.cal-pane` carries the remainder — which with the `--ph-min` floor above is
+   normally nothing, and is a scroll rather than a clip when the user has sized
+   the tile smaller still. */
+.is-stacked .calendar-days {
+  grid-template-rows: repeat(var(--calendar-weeks, 5), minmax(26px, 1fr));
+  grid-auto-rows: minmax(26px, 1fr);
+}
+/* The four tabs above it (Calendario / Task / Timer / Appunti) are one row that
+   does not scroll and sits inside `overflow: hidden`, so at 360px the last label
+   was cut through — "APPU". A flex item's automatic minimum is its min-content
+   width and each label is ONE word, so no button gives ground: what has to give
+   is the space around the words. Padding, gap and letter-spacing, in that order,
+   because they cost the reader nothing; the type only drops half a point.
+   That is enough for every phone from 360px up. Below it, the tabs you are NOT
+   on give ground and shorten with an ellipsis — never the active one, which is
+   the label that has to keep saying where you are. Applied to all four with
+   `min-width: 0` instead, the four share the width equally and the tab you are
+   actually on is the first to lose its name. */
+.is-stacked .cal-task-btn {
+  padding: 6px 6px;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+.is-stacked .cal-task-btn:not(.active) { min-width: 0; }
+.is-stacked .cal-task-btn:not(.active) span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-stacked .cal-pane { overflow-y: auto; }
+.is-stacked .cal-pane .calendar-card,
+.is-stacked .upcoming-block { flex: 0 0 auto; }

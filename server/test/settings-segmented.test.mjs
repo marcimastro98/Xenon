@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const css = readFileSync(new URL('../components/SettingsModal/SettingsModal.css', import.meta.url), 'utf8');
 

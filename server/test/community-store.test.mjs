@@ -2,13 +2,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (f) => fs.readFileSync(path.join(here, '..', f), 'utf8').replace(/\r\n/g, '\n');
+const read = (f) => readFileSync(path.join(here, '..', f), 'utf8').replace(/\r\n/g, '\n');
 const js = read('js/community-gallery.js');
 const css = read('components/CommunityStore/CommunityStore.css');
 const modal = read('components/SettingsModal/SettingsModal.css');
@@ -137,12 +138,12 @@ test('an entry page fits a low screen: the gallery follows the height of the win
 test('a date that has passed is not shown: an entry brought back by hand outlives it', () => {
   const label = js.slice(js.indexOf('function untilLabel('), js.indexOf('// What an entry costs'));
   assert.match(label, /ts < Date\.now\(\)\) return null;/);
-  const page = fs.readFileSync(path.join(here, '../../docs/catalog/index.html'), 'utf8');
+  const page = readFileSync(path.join(here, '../../docs/catalog/index.html'), 'utf8');
   assert.match(page, /if \(!Number\.isFinite\(ts\) \|\| ts < Date\.now\(\)\) return null;/);
 });
 
 test('the demo keeps the server\'s rule: what the hub pulled is not in its Store', () => {
-  const boot = fs.readFileSync(path.join(here, '../../tools/demo/boot.js'), 'utf8');
+  const boot = readFileSync(path.join(here, '../../tools/demo/boot.js'), 'utf8');
   assert.match(boot, /e\.active === true \|\| \(e\.active !== false/);
 });
 

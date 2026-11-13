@@ -5,12 +5,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource, appStrings, APP_LANGS, languagesWith, textsOf } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
+const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
 const share = read('js/preset-share.js');
 const css = read('components/SettingsModal/SettingsModal.css');
 const dialog = share.slice(share.indexOf('function openImportDialog('), share.indexOf("importBtn.addEventListener('click'"));

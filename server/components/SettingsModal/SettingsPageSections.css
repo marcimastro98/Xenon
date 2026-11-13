@@ -1,0 +1,279 @@
+
+/* ── Rows the bar's scripts build (js/topbar-look-settings.js) ── */
+#settings-overlay .tbl-custom-rows { display: grid; gap: 0; padding: 0; min-width: 0; }
+#settings-overlay .tbl-custom-rows:empty { display: none; }
+#settings-overlay .tbl-custom-rows > .settings-toggle-row { margin: 0; }
+#settings-overlay .tbl-custom-rows .settings-label-line { flex-wrap: nowrap; }
+#settings-overlay .settings-row-keys { min-height: 0; column-gap: 12px; padding: 12px 16px; justify-content: flex-start; }
+#settings-overlay .tbl-presets { padding: 16px; gap: 12px; }
+#settings-overlay .tbl-preset { border: 0; border-radius: 10px; color: var(--cst-muted); background: var(--cst-well); box-shadow: none; }
+#settings-overlay .tbl-preset:hover { color: var(--cst-text); background: var(--cst-on); }
+#settings-overlay .tbl-preset.active { color: var(--cst-text); background: var(--cst-on); box-shadow: inset 0 0 0 2px var(--cst-text); }
+
+/* The lists to order: a row each, its grip on the left, what it can do on the right. */
+#settings-overlay .island-edit-list { display: grid; gap: 0; padding: 0 0 6px; }
+#settings-overlay .island-edit-row {
+  min-height: 52px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+#settings-overlay .island-edit-row + .island-edit-row { background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat; }
+#settings-overlay .island-edit-row.dragging { border-radius: 10px; background: var(--cst-solid); box-shadow: 0 0 0 1px var(--cst-sep); }
+#settings-overlay .island-edit-handle { color: var(--cst-muted); }
+#settings-overlay .island-edit-label { color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay .island-edit-eye { width: 40px; height: 40px; border: 0; border-radius: 10px; color: var(--cst-text); background: none; }
+#settings-overlay .island-edit-eye:hover { background: var(--cst-well); }
+#settings-overlay .island-edit-eye.is-hidden { color: var(--cst-muted); }
+#settings-overlay .island-edit-eye.is-locked { color: var(--cst-muted); opacity: 0.5; }
+#settings-overlay .island-edit-eye.is-locked:hover { background: none; }
+#settings-overlay .island-edit-caret { color: var(--cst-muted); }
+#settings-overlay .island-edit-caret:hover { color: var(--cst-text); background: var(--cst-well); }
+#settings-overlay .island-edit-side { gap: 2px; padding: 2px; border: 0; border-radius: 10px; background: var(--cst-well); }
+/* A row with no options has no chevron: Left and Right stay in the same column anyway. */
+#settings-overlay .island-edit-row:not(:has(> .island-edit-caret)) > .island-edit-side { margin-right: 36px; }
+#settings-overlay .island-edit-side-btn { min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; color: var(--cst-muted); background: none; font-size: 13.5px; font-weight: 600; }
+#settings-overlay .island-edit-side-btn:hover { color: var(--cst-text); }
+#settings-overlay .island-edit-side-btn.active { color: var(--cst-text); background: var(--cst-on); }
+#settings-overlay .island-edit-row > .island-edit-sub {
+  flex: 0 0 100%;
+  min-width: 0;
+  margin: 4px 0;
+  padding: 0 0 0 36px;
+  border: 0;
+}
+#settings-overlay .island-edit-sub .settings-toggle-row { min-height: 44px; padding: 6px 0; }
+#settings-overlay .island-edit-row > .tbo-panel { gap: 0; }
+#settings-overlay .tbo-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 24px; min-height: 52px; padding: 4px 0; }
+#settings-overlay .tbo-row > .settings-text-input { width: 280px; }
+#settings-overlay .tbo-row:has(.tbo-icon-grid:not([hidden])) > .tbo-icon { grid-column: 1 / -1; }
+#settings-overlay .island-source-list { gap: 0; margin: 0; padding: 0; }
+#settings-overlay .island-source-list:empty { display: none; }
+#settings-overlay .island-source-row { min-height: 56px; padding: 10px 16px; border: 0; border-radius: 0; background: none; }
+#settings-overlay .island-source-row + .island-source-row { background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat; }
+#settings-overlay .island-source-copy strong { color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay :is(.island-source-capabilities, .island-source-empty) { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+#settings-overlay .island-source-empty { padding: 0 16px 14px; text-align: left; }
+
+/* ── Display: what js/settings.js renderSurfaceSection() writes ── */
+#settings-overlay #settings-surface-body > :is(.settings-note, .settings-hint) { display: block; margin: 0; padding: 0 16px 12px; }
+#settings-overlay .settings-radio-list { display: grid; gap: 0; }
+#settings-overlay .settings-surface-screens { display: grid; gap: 8px; padding: 4px 16px 14px; }
+#settings-overlay .sp-screen { min-height: 44px; border: 0; border-radius: 10px; color: var(--cst-text); background: var(--cst-well); box-shadow: none; }
+#settings-overlay .sp-screen:hover:not(:disabled) { background: var(--cst-on); }
+#settings-overlay .sp-screen.is-on { background: var(--cst-on); box-shadow: inset 0 0 0 2px var(--cst-text); }
+#settings-overlay .sp-screen-tag { color: var(--cst-muted); }
+
+/* ── Ambient: four sections in one group, because scripts show and hide them whole. Each
+   wears a section's clothes: its title outside, a well under it. ── */
+#settings-overlay .settings-lock-group { row-gap: 28px; }
+#settings-overlay .settings-lock-group::before { content: none; }
+#settings-overlay .settings-ambient-sec {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+#settings-overlay .settings-ambient-sec::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  grid-column: 1;
+  grid-row: 2 / auto;
+  z-index: -1;
+  border-radius: 10px;
+  background: var(--cst-well);
+}
+#settings-overlay .settings-ambient-sec:has(.cs-wrap.cs-open) { z-index: 2; }
+#settings-overlay .settings-ambient-sec-title { margin: 0; padding: 0 2px 10px; color: var(--cst-text); font-size: 17px; font-weight: 700; }
+#settings-overlay .settings-ambient-sec > .settings-hint { margin: 0; padding: 12px 16px 2px; }
+#settings-overlay .settings-ambient-sec > .settings-note { margin: 0; padding: 12px 16px 2px; }
+#settings-overlay .settings-ambient-sec > .settings-btn { justify-self: start; margin: 10px 16px 2px; }
+#settings-overlay .settings-ambient-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 24px;
+  row-gap: 8px;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+}
+#settings-overlay .settings-ambient-row-label { flex: 1 1 260px; color: var(--cst-text); font-size: 15px; font-weight: 600; line-height: 1.3; }
+#settings-overlay .settings-ambient-row--wide .cs-wrap { flex: 1 1 auto; width: 100%; }
+#settings-overlay .settings-ambient-classic { display: grid; gap: 0; margin: 0; }
+#settings-overlay .settings-ambient-classic > .settings-hint { margin: 0; padding: 14px 16px 2px; }
+#settings-overlay .settings-ambient-classic-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+/* My scenes: the title goes over the well, the keys into it. */
+#settings-overlay .settings-ambient-scenes-head { display: contents; }
+#settings-overlay .settings-ambient-scenes-head .settings-ambient-sec-title { margin: 0; }
+#settings-overlay .settings-ambient-scenes-acts { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+#settings-overlay .settings-ambient-scene-list { display: grid; gap: 0; padding: 0; }
+#settings-overlay .settings-ambient-scene-empty { margin: 0; padding: 0 16px 14px; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+#settings-overlay .settings-ambient-scene-row { min-height: 56px; padding: 10px 16px; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#settings-overlay .settings-ambient-scene-row:first-child { background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat; }
+#settings-overlay .settings-ambient-scene-name { color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay .settings-ambient-scene-meta { color: var(--cst-muted); font-size: 13.5px; }
+#settings-overlay .settings-ambient-scene-meta .is-active-label { color: var(--cst-text); font-weight: 600; }
+
+/* ── Bit ── */
+#settings-overlay .settings-row > .ai-provider-toggle {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+#settings-overlay .ai-provider-toggle label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--cst-text);
+  background: var(--cst-well);
+  box-shadow: none;
+  cursor: pointer;
+}
+#settings-overlay .ai-provider-toggle label:hover { background: var(--cst-on); }
+#settings-overlay .ai-provider-toggle input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+#settings-overlay .ai-provider-toggle label:has(input:checked) { background: var(--cst-on); box-shadow: inset 0 0 0 2px var(--cst-text); }
+#settings-overlay .ai-provider-toggle label:has(input:focus-visible) { outline: 2px solid var(--cst-key); outline-offset: 2px; }
+#settings-overlay .ai-provider-toggle label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+#settings-overlay .ai-provider-toggle .ai-prov-name,
+#settings-overlay .ai-provider-toggle input:checked ~ .ai-prov-name {
+  min-width: 0;
+  color: var(--cst-text);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+#settings-overlay .settings-subpanel { display: grid; gap: 0; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+#settings-overlay .settings-subpanel > :is(.settings-note, .settings-hint) { margin: 0; padding: 0 16px 12px; }
+#settings-overlay .settings-subpanel > :is(.settings-note, .settings-hint):first-child { padding-top: 12px; }
+#settings-overlay .settings-grid > p.settings-note { margin: 0; padding: 12px 16px; }
+#settings-overlay .settings-row > :is(.settings-text-input, .cs-wrap) + .settings-text-input { flex: 0 1 280px; }
+/* What this PC can run: the sentence on the left, Rescan on the right. */
+#settings-overlay .ai-hw-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 2px;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+}
+#settings-overlay .ai-hw-block > :not(.settings-btn) { grid-column: 1; }
+#settings-overlay .ai-hw-block > .settings-btn { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+#settings-overlay .ai-hw-line { color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay .ai-hw-block.ai-incompatible .ai-hw-line { color: var(--cst-danger); }
+#settings-overlay .ai-hw-stats { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; opacity: 1; }
+#settings-overlay .ai-status-block { display: grid; gap: 0; margin: 0; }
+#settings-overlay .ai-status-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+#settings-overlay .ai-status-item > span:nth-of-type(2) { margin-right: auto; color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+#settings-overlay .ai-status-item .settings-btn { margin-left: 0; }
+#settings-overlay .ai-status-item + .ai-status-item,
+#settings-overlay .ai-autostart-row + .ai-status-item,
+#settings-overlay .ai-status-item + .ai-autostart-row {
+  background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat;
+}
+#settings-overlay :is(.ai-status-dot-ok, .ai-status-dot-bad, .ai-status-dot-warn)::before { content: none; }
+#settings-overlay .ai-status-item > .ai-status-dot-bad { color: var(--cst-danger); }
+#settings-overlay .ai-status-item > .ai-status-dot-warn { color: var(--color-warn); }
+#settings-overlay .ai-autostart-row {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--cst-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+#settings-overlay #ai-pull-model { margin-left: auto; }
+#settings-overlay .ai-pull-progress { margin: 0 16px 14px; }
+#settings-overlay .settings-advanced > .settings-text-input { width: calc(100% - 32px); margin: 0 16px 14px; }
+#settings-overlay .settings-cli-actions { flex: none; gap: 12px; }
+#settings-overlay .settings-note a { color: var(--cst-text); font-weight: 600; text-underline-offset: 2px; }
+#settings-overlay #settings-xenon-panel .cs-wrap { width: 360px; }
+#settings-overlay .settings-slider-row { flex-direction: row; align-items: center; }
+#settings-overlay .settings-slider-control { flex: 0 1 280px; width: 280px; min-width: 0; display: flex; align-items: center; gap: 10px; }
+#settings-overlay .settings-slider { flex: 1 1 auto; min-width: 0; }
+#settings-overlay :is(.settings-slider-end, .settings-slider-value) { color: var(--cst-muted); font-size: 14px; font-weight: 600; }
+#settings-overlay .settings-mictest-control { flex: 0 1 auto; width: auto; align-items: flex-end; }
+#settings-overlay .settings-mictest-result:empty { display: none; }
+/* A switch inside a row that holds more under it: the row keeps the padding. */
+#settings-overlay .settings-row > .settings-toggle-row { flex: 1 0 100%; min-height: 0; padding: 0; }
+#settings-overlay .settings-memory-manage { flex: 1 0 100%; justify-items: start; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+#settings-overlay .settings-memory-empty { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+#settings-overlay .settings-group > .aifeat-cost-note { margin: 0; padding: 12px 16px; }
+#settings-overlay .settings-aifeat-group .settings-toggle-row { min-height: 56px; padding: 10px 16px; }
+#settings-overlay .aifeat-row-disabled { display: none; }
+#settings-overlay .xai-balance { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--cst-text); font-size: 15px; font-weight: 600; }
+#settings-overlay .settings-row > .xai-meter { flex: 1 0 100%; height: 4px; background: var(--cst-well); }
+#settings-overlay .xai-actions { flex: 1 0 100%; }
+
+/* ── Vitals ── */
+#settings-overlay .settings-vitals-items { display: grid; gap: 0; margin: 0; }
+#settings-overlay .settings-vitals-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+}
+#settings-overlay .settings-vitals-row > .settings-toggle-row { display: contents; }
+#settings-overlay .settings-vitals-row > .settings-toggle-row > :not(input) { flex: 1 1 200px; min-width: 0; color: var(--cst-text); font-size: 15px; font-weight: 600; line-height: 1.3; }
+#settings-overlay .settings-vitals-row > .cs-wrap { order: 1; }
+#settings-overlay .settings-vitals-row > .settings-toggle-row > input { order: 2; }
+#settings-overlay .settings-vitals-items .cs-wrap { width: 140px; }
+
+/* ── Stocks: switches under a name line up with the rows around them. ── */
+#settings-overlay .settings-row > .settings-toggle-grid { flex: 1 0 calc(100% + 32px); max-width: none; margin: 0 -16px -10px; }
+#settings-overlay input[type="number"].settings-text-input { width: 96px; }
+#settings-overlay #settings-news-feeds { flex: 1 0 100%; }
+#settings-overlay .nw-add-field { border: 0; border-radius: 10px; background: var(--cst-well); }
+#settings-overlay .nw-add-field:focus-within { outline: 2px solid var(--cst-key); outline-offset: -2px; background: var(--cst-well); }
+#settings-overlay .nw-add-input { font-size: 14.5px; font-weight: 500; }
+#settings-overlay .nw-add-input::placeholder { color: var(--cst-muted); opacity: 1; }
+
+/* ── Slideshow ── */
+#settings-overlay #settings-slideshow-library > .settings-label-line { justify-content: flex-start; }
+#settings-overlay #settings-slideshow-library > .settings-btn { order: 1; }
+#settings-overlay #settings-slideshow-library > .slideshow-assets { order: 2; }
+#settings-overlay #settings-slideshow-library > .settings-hint { order: 3; }
+#settings-overlay .slideshow-assets:empty { display: none; }
+#settings-overlay .settings-slideshow-group > .settings-note:last-child {
+  margin: 0;
+  padding: 12px 16px;
+  background: linear-gradient(var(--cst-sep), var(--cst-sep)) 16px 0 / calc(100% - 32px) 1px no-repeat;
+}

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -348,7 +349,7 @@ test('empty and non-array input yield an empty order', () => {
 // dashboard-grid.js serializes and SAVES — opening the dashboard on a phone
 // would silently rewrite the layout built on the PC.
 test('the phone view never touches the grid engine', () => {
-  const raw = fs.readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+  const raw = readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
   // Comments explain WHY the grid engine is off limits and name it repeatedly,
   // so strip them before looking for calls. The `[^:]` guard is what keeps the
   // strip from eating the rest of a line at the `//` of a URL — the file holds
@@ -364,7 +365,7 @@ test('the phone view never touches the grid engine', () => {
 // The CSS must not collapse a tile that is hidden because it is the inactive
 // member of a tab group; overriding `display` on the item would reveal it.
 test('the stacking rules leave `display` on tiles alone', () => {
-  const css = fs.readFileSync(path.join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
+  const css = readFileSync(path.join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
   // Strip comments first: they explain the rules by quoting CSS, braces and all,
   // so a naive "up to the next }" lands inside a comment.
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -406,12 +407,12 @@ test('the stacking rules leave `display` on tiles alone', () => {
 // right-aligning the buttons is the natural-looking thing to "tidy" this into,
 // and the damage is invisible on every screen that has no floating chrome.
 test('the dock concedes the bottom-right corner to the pager, not to the actions', () => {
-  const js = fs.readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+  const js = readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
   const appendAt = js.indexOf('dock.append(acts, pages)');
   assert.notEqual(appendAt, -1,
     'the actions must be appended before the pager, so the pager takes the right edge');
 
-  const css = fs.readFileSync(path.join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
+  const css = readFileSync(path.join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const ruleFor = (sel) => {
     const at = bare.indexOf(sel + ' {');

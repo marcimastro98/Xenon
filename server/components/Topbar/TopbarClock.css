@@ -1,0 +1,282 @@
+
+/* ── Top-right actions ───────────────────────────────────── */
+.top-actions {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+/* ── Clock ───────────────────────────────────────────────── */
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+/* Dynamic Island visibility is shared by Full + Minimal. Minimal adds its own
+   segment class too; this host-level class is what makes the same eye switch
+   authoritative in the classic full topbar. */
+.topbar-item-hidden { display: none !important; }
+
+/* Nothing left in the meta row but the status dot (date, weather, music and the
+   rest hidden). The clock centres as one block, so that 6px dot plus the 5px gap
+   pushed the time 5.5px above the bar's centre — measured, and the reason the
+   clock read as off-centre once someone stripped the island down. Take the bare
+   row out of the flow so the FACE is what gets centred; the dot keeps its place
+   just under the digits, where it already was. */
+.clock.clock-meta-bare { position: relative; }
+.clock.clock-meta-bare > .clock-meta {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 1px;
+}
+
+/* ── Face: big digit display ─────────────────────────────── */
+.clock-face {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  line-height: 1;
+}
+
+/* ── Clock size (Impostazioni → Dynamic Island → Orologio) ──────────────────
+   Each rule declares the BASE size as a custom property and reads it back
+   through the user's multiplier, so the two stay separable: the breakpoints
+   below (and the phone view) override only the base, and a user who has asked
+   for a bigger clock still gets the smaller base the Edge or a phone needs
+   rather than a desktop size forced onto a 720px panel.
+
+   Everything the time is made of scales together — digits, colon, the AM/PM
+   suffix and the offsets tuned against them — or the pieces drift apart at any
+   value but 1. The date has its own multiplier: it is deliberately the quiet
+   half of the clock, and "make the date bigger" is a different wish from "make
+   the time bigger". Asked for on Discord. */
+.clock-h,
+.clock-m {
+  --clock-base: 45px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
+  font-weight: 800;
+  color: var(--text);
+  text-shadow: var(--readability-shadow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  min-width: 2.05ch;
+  text-align: center;
+}
+
+/* Accent colon with a soft blink. In steps: a smooth opacity loop repaints the whole
+   window at the display's rate for one small glyph, ten changes a second look the same
+   (measured at 240 Hz: 229 presents a second down to 22, GPU process time nearly halved). */
+.clock-sep {
+  --clock-base: 37px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
+  font-weight: 300;
+  color: var(--accent);
+  text-shadow: var(--readability-shadow);
+  padding: 0 1px;
+  margin-bottom: 2px;
+  align-self: center;
+  animation: clock-colon-blink 1s steps(5, jump-none) infinite;
+  will-change: opacity;
+  contain: layout style;
+}
+
+@keyframes clock-colon-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+/* Topbar loops restart whenever a data pass re-renders their element, which slips
+   them past ambient-idle's one-shot WAAPI freeze — a CSS gate holds regardless of
+   when the animation (re)starts. `animation: none` + a solid resting state, not
+   play-state paused: a pause mid-keyframe would strand the colon half-faded and
+   the shimmer band as a permanent diagonal streak. */
+body.overlay-frozen .clock-sep,
+body.ambient-idle .clock-sep,
+body.game-mode .clock-sep,
+body.low-power-gpu .clock-sep { animation: none; opacity: 1; }
+body.overlay-frozen .topbtn.topbtn-xenon::after,
+body.ambient-idle .topbtn.topbtn-xenon::after,
+body.game-mode .topbtn.topbtn-xenon::after,
+body.low-power-gpu .topbtn.topbtn-xenon::after { animation: none; }
+body.overlay-frozen .status-dot-inline::after,
+body.ambient-idle .status-dot-inline::after,
+body.game-mode .status-dot-inline::after,
+body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
+
+/* AM/PM — a quiet uppercase suffix riding the top of the digits, no box.
+   The bordered pill read as clutter next to the big numerals; a bare
+   letter-spaced label sits like a superscript and lets the time breathe. */
+.clock-ampm {
+  --clock-base: 12.5px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--dim-text);
+  align-self: flex-start;
+  /* Tuned against the digits, so they travel with them. */
+  margin-top: calc(7px * var(--clock-time-scale, 1));
+  margin-left: calc(6px * var(--clock-time-scale, 1));
+  line-height: 1;
+  text-shadow: var(--readability-shadow);
+}
+.clock-ampm:empty { display: none; }
+
+/* ── Meta row: ● date · weather ──────────────────────────── */
+.clock-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.clock-date {
+  --clock-base: 12px;
+  font-size: calc(var(--clock-base) * var(--clock-date-scale, 1));
+  font-weight: 700;
+  color: var(--muted-text);
+  text-shadow: var(--readability-shadow);
+  letter-spacing: 0.15px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.clock-meta-sep {
+  font-size: 14.5px;
+  color: var(--dim-text);
+  text-shadow: var(--readability-shadow);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  margin-bottom: 1px;
+}
+
+/* ── The rest of the date line follows the date ─────────────────────────────
+   "Date size" sizes the LINE the date is on, not one word of it: a 200% date
+   beside a stock-size weather chip and a 6px dot reads as a mistake rather than
+   a setting. Scoped to .clock-meta so the same classes keep their own size in
+   the System panel and the weather modal, which share them.
+
+   The opt-in chips in this row — now playing, vitals, third-party SDK badges —
+   deliberately keep theirs: each is its own feature with its own switch, and the
+   SDK ones are content a widget author sized, not ours to stretch. */
+.clock-meta .clock-meta-sep { font-size: calc(14.5px * var(--clock-date-scale, 1)); }
+.clock-meta .status-dot-inline {
+  width: calc(6px * var(--clock-date-scale, 1));
+  height: calc(6px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather {
+  height: calc(38px * var(--clock-date-scale, 1));
+  max-width: calc(200px * var(--clock-date-scale, 1));
+  gap: calc(9px * var(--clock-date-scale, 1));
+  padding: 0 calc(10px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather .weather-mini-icon {
+  width: calc(26px * var(--clock-date-scale, 1));
+  height: calc(22px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather .weather-temp { font-size: calc(17px * var(--clock-date-scale, 1)); }
+.clock-meta .clock-weather .weather-place { font-size: calc(11px * var(--clock-date-scale, 1)); }
+
+/* ── Status dot — live indicator ─────────────────────────── */
+/* The breathing glow lives on a pseudo-element whose OPACITY pulses: opacity
+   animates on the compositor, while animating box-shadow itself runs the
+   main-thread style→paint pipeline at full display rate for as long as the
+   dot is visible — i.e. forever, on every surface (GitHub #99). */
+.status-dot-inline {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.55);
+}
+
+.status-dot-inline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 13px rgba(var(--accent-rgb), 1), 0 0 24px rgba(var(--accent-rgb), 0.38);
+  opacity: 0;
+  animation: dot-pulse 2.6s ease-in-out infinite;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+
+.status-dot-inline.offline {
+  background: var(--red);
+  box-shadow: 0 0 7px rgba(var(--danger-rgb), 0.55);
+  animation: none;
+}
+.status-dot-inline.offline::after { animation: none; opacity: 0; }
+
+/* ── Legacy selectors — kept as no-ops for safety ────────── */
+.clock-row  { display: contents; }
+.clock-time { display: none; }
+
+/* ── Language toggle ─────────────────────────────────────── */
+.lang-toggle {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #26302d;
+  border-radius: 999px;
+  background: rgba(15, 20, 19, 0.6);
+  padding: 3px;
+  gap: 2px;
+}
+
+.lang-seg {
+  border: 0;
+  background: transparent;
+  color: var(--muted-text);
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  font-variant-numeric: tabular-nums;
+}
+.lang-seg:hover:not(.active) { color: #d3ddd9; }
+.lang-seg.active {
+  background: rgba(var(--accent-rgb), 0.18);
+  color: #d6ffe6;
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.32);
+}
+
+/* ── Liquid Glass topbar ──────────────────────────────────────
+   Applies only in the full dashboard. Embed modes (?panel=…) keep
+   their own compact topbar styling from breakpoints.css. */
+body:not([data-panel]) .topbar {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-modal);
+  /* Match the dashboard tiles exactly (same `--panel` surface, no frosted blur)
+     so the Surface settings — panel opacity in particular — and the light/dark
+     theme apply to the top bar just like every other tile. */
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body:not([data-panel]) .topbar {
+    background: var(--panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

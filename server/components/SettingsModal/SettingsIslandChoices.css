@@ -1,0 +1,275 @@
+
+/* ── Minimal-island element editor (reorder + show/hide) ──────
+   A compact list of the island's segments; drag the grip to reorder, tap the
+   eye to show/hide. Only shown in Minimal mode (js/settings.js gates it). */
+.island-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.island-edit-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* the options panel below drops onto its own line */
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.03);
+  touch-action: pan-y; /* vertical scroll still works off the grip */
+}
+.island-edit-row.dragging {
+  border-color: rgba(var(--accent-rgb),0.5);
+  background: rgba(var(--accent-rgb),0.08);
+  box-shadow: var(--shadow-lg);
+}
+.island-edit-list.reordering .island-edit-row:not(.dragging) { transition: transform 0.16s ease; }
+
+/* Per-segment options, revealed by the chevron. It lives INSIDE the row (on a
+   wrapped line) rather than as a sibling, so the reorder drag — which measures
+   whole `.island-edit-row` rects to pick an insertion point — keeps measuring
+   the whole item whether the panel is open or closed. */
+.island-edit-caret {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted-text);
+  cursor: pointer;
+}
+.island-edit-caret:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+.island-edit-caret svg { width: 15px; height: 15px; transition: transform 0.18s ease; }
+.island-edit-row.is-open .island-edit-caret svg { transform: rotate(90deg); }
+.island-edit-sub {
+  flex: 0 0 100%;
+  margin: 2px 0 2px 36px;
+  padding-top: 8px;
+  border-top: 1px solid var(--floating-ui-border);
+}
+.island-edit-sub[hidden] { display: none; }
+.island-edit-sub .settings-toggle-row { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .island-edit-caret svg { transition: none; }
+}
+.island-edit-handle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--dim-text);
+  cursor: grab;
+  touch-action: none; /* the grip owns the drag; the panel still scrolls */
+}
+.island-edit-handle:active { cursor: grabbing; }
+.island-edit-handle svg { width: 16px; height: 16px; }
+.island-edit-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 750;
+  color: var(--text);
+}
+.island-edit-eye {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.island-edit-eye svg { width: 17px; height: 17px; fill: currentColor; }
+.island-edit-eye:hover { background: rgba(var(--accent-rgb),0.1); }
+.island-edit-eye.is-hidden { color: var(--dim-text); }
+/* A row that may not be hidden (Settings) keeps its eye, dimmed and inert, with
+   the reason on the tooltip. Removing the control instead would read as a bug. */
+.island-edit-eye.is-locked {
+  color: var(--dim-text);
+  opacity: 0.45;
+  cursor: default;
+}
+.island-edit-eye.is-locked:hover { background: transparent; }
+
+/* Left/right chooser on a chrome-button row. Compact on purpose: it sits
+   between a label that may be long and the eye, and the Edge is a touchscreen,
+   so the two targets stay finger-sized while the control stays narrow. */
+.island-edit-side {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.03);
+}
+.island-edit-side-btn {
+  min-width: 42px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.island-edit-side-btn:hover { color: var(--text); }
+.island-edit-side-btn.active { background: rgba(var(--accent-rgb),0.16); color: var(--accent); }
+
+/* ── Appearance (light / dark / auto) segmented control ──── */
+.settings-appearance-seg { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.settings-appearance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+}
+.settings-appearance-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ── Dashboard style (Liquid Glass / Pixel Retro) segmented control ── */
+/* The shared display rules outrank the UA [hidden] style — restate it so
+   `el.hidden = true` really hides rows/grids anywhere in Settings. */
+.settings-toggle-row[hidden],
+.settings-row[hidden],
+.settings-grid[hidden],
+.settings-note[hidden] { display: none; }
+/* A whole group that doesn't apply right now (e.g. Tema while Pixel Retro
+   forces the dark CRT look) is dimmed and inert rather than lying active. */
+.settings-group.is-disabled { opacity: 0.42; pointer-events: none; }
+
+/* ── Language dropdown (inside presets header) ───────────── */
+/* The list outgrew a row of toggle chips; it's now a compact custom-select
+   dropdown (custom-select.js wraps the <select> in a .cs-wrap). */
+
+/* ── Lock screen widget toggles ──────────────────────────── */
+.settings-toggle-grid {
+  padding: 10px 16px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+}
+/* A toggle is a LIST ROW, not a card. It used to be a bordered, darker box
+   inside the group card (a box in a box, 131 times across Settings), with the
+   label and its explanation side by side on one line, each squeezed into half
+   the width and the text touching the box edge. Now: checkbox, bold label, the
+   explanation under it at full width, and a halo only on hover. The three
+   theme layers that painted the box (theme-contract, light, comic) no longer
+   list this class, or they would paint it back. */
+.settings-toggle-row {
+  min-width: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 850;
+  padding: 6px 7px;
+  cursor: pointer;
+}
+.settings-toggle-row:hover { background: rgba(var(--accent-rgb),0.07); }
+/* Checkbox on the label's first line, not centred against label + hint. */
+.settings-toggle-row > .settings-check { margin-top: 2px; }
+.settings-toggle-row > .settings-label-line {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-toggle-row .settings-hint { font-weight: 650; line-height: 1.35; }
+/* A sub-toggle that a master switch has turned off (e.g. pop-ups when notifications
+   are disabled): dimmed and non-interactive, but still readable. */
+.settings-toggle-row.is-disabled { opacity: 0.42; pointer-events: none; }
+.settings-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+  flex-shrink: 0;
+}
+
+/* ── Advanced AI features (Funzioni AI) ───────────────────── */
+.settings-aifeat-group .settings-toggle-row { padding: 8px 10px; min-height: 44px; }
+.aifeat-master-row { border-color: rgba(var(--accent-rgb),0.35); }
+/* What these cost, said once as a plain line: a fact, not a warning. */
+.settings-group > .aifeat-cost-note { margin: 12px 0 0; line-height: 1.45; }
+.settings-range {
+  width: 100%;
+  height: 34px;
+  cursor: pointer;
+}
+
+/* ── AI mic-sensitivity slider ───────────────────────────── */
+.settings-slider-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-slider-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(var(--accent-rgb), .55));
+  outline: none;
+  cursor: pointer;
+}
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), .55);
+  cursor: pointer;
+}
+.settings-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), .55);
+  cursor: pointer;
+}
+.settings-slider-end {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.52);
+  min-width: 36px;
+  text-align: center;
+}
+.settings-slider-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(var(--accent-rgb), .95);
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

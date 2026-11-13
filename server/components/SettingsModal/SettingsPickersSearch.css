@@ -1,0 +1,206 @@
+
+/* ── Persistent AI memory viewer (Settings → Xenon AI) ─────────────────────── */
+.settings-memory-manage {
+  margin-top: 10px; display: grid; gap: 10px;
+  padding: 12px; border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.settings-memory-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow-y: auto; }
+.settings-memory-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 9px;
+  background: rgba(var(--accent-rgb),0.06);
+  border: 1px solid rgba(var(--accent-rgb),0.14);
+}
+.settings-memory-text { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.35; word-break: break-word; }
+.settings-memory-del {
+  flex: none; width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center; cursor: pointer;
+  font-size: 16px; line-height: 1; color: var(--muted-text);
+  background: transparent; border: 1px solid transparent;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.settings-memory-del:hover { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.35); }
+.settings-memory-empty { margin: 0; font-size: 12px; color: var(--muted-text); line-height: 1.4; }
+.settings-memory-actions { display: flex; justify-content: flex-end; }
+
+/* ── 2026-07 reorg: breathing room ─────────────────────────────
+   Slightly airier groups on regular displays. Scoped to taller viewports so
+   the Xeneon Edge short-screen tuning (max-height:620 above) keeps winning. */
+@media (min-height: 621px) {
+  .settings-content { gap: 12px; }
+  .settings-group-head { padding: 11px 16px 9px; font-size: 14px; }
+  .settings-group-head .settings-hint { font-size: 11.5px; }
+  .settings-grid { padding: 13px 16px 15px; gap: 9px; }
+}
+
+/* ── Static background picker (Settings → Sfondo) ───────────────
+   Four preview tiles that render the actual static-background looks (they read
+   --accent-rgb, so they tint with the user's accent). Selecting one supersedes
+   the animated aurora group below, which dims via .is-superseded. */
+.bgstatic-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.bgstatic-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim, #9aa6b6);
+  font: inherit;
+}
+.bgstatic-prev {
+  aspect-ratio: 16 / 11;
+  border-radius: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.bgstatic-option:hover .bgstatic-prev { transform: translateY(-1px); }
+.bgstatic-option[aria-pressed="true"] .bgstatic-prev {
+  border-color: rgb(var(--accent-rgb));
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
+}
+.bgstatic-option[aria-pressed="true"] { color: var(--text); }
+.bgstatic-option:focus-visible .bgstatic-prev {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: 2px;
+}
+.bgstatic-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+/* Preview compositions — compact echoes of the real #bg-static layers. */
+.bgstatic-prev.none {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    var(--panel, #12161d);
+}
+.bgstatic-prev.nebulosa {
+  background:
+    radial-gradient(120% 120% at 20% 8%, rgba(var(--accent-rgb), 0.75), transparent 60%),
+    radial-gradient(100% 100% at 92% 96%, rgba(var(--accent-rgb), 0.34), transparent 62%),
+    linear-gradient(180deg, #0b0e13, #070a0e);
+}
+.bgstatic-prev.prisma {
+  background:
+    radial-gradient(85% 85% at 8% 12%, rgba(var(--accent-rgb), 0.78), transparent 55%),
+    radial-gradient(80% 80% at 92% 8%, rgba(132, 92, 255, 0.62), transparent 55%),
+    radial-gradient(90% 90% at 82% 96%, rgba(40, 185, 235, 0.5), transparent 55%),
+    linear-gradient(135deg, #0a0d13, #0c0910);
+}
+.bgstatic-prev.halo {
+  background:
+    radial-gradient(72% 82% at 70% 24%, rgba(var(--accent-rgb), 0.85), rgba(var(--accent-rgb), 0.14) 34%, transparent 66%),
+    linear-gradient(180deg, #090b0f, #050608);
+}
+.bgstatic-prev.dusk { background: #161c30 url("../../assets/wallpapers/dusk.webp") 59% 64% / cover no-repeat; }
+
+/* Aurora group is superseded while a static style is active. */
+.settings-fx-group.is-superseded .settings-grid { opacity: 0.45; }
+.settings-superseded-note { color: rgb(var(--accent-rgb)); }
+
+/* (Community gallery toolbar styles moved into the premium storefront block above.) */
+
+/* Ricerca e disco: vertical rhythm for rows dropped straight into the group
+   (no .settings-grid here), the second head, and multiline folder inputs. */
+.settings-searchdisk-group > .settings-row,
+.settings-searchdisk-group > .settings-toggle-row,
+.settings-searchdisk-group > .settings-hint,
+.settings-searchdisk-group > .settings-note { margin-bottom: 12px; }
+.settings-searchdisk-group > .settings-group-head { margin-bottom: 10px; }
+
+/* (see above) the second head inside the shared group, and multiline
+   folder inputs (one path per line). */
+.settings-textarea {
+  resize: vertical;
+  min-height: 58px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+/* ── Global page shortcuts ────────────────────────────────────────────────
+   One row per shortcut: the combination, where it goes, whether the desktop
+   actually gave it to us, and a way to drop it. The state column is sized to
+   hold its longest word so a row does not reflow when a combo turns out to be
+   taken — the message appears where the empty space already was. */
+.settings-pagehk-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(96px, 1fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.settings-pagehk-state {
+  font-size: .74rem;
+  line-height: 1.25;
+  opacity: .75;
+  min-width: 0;
+}
+.settings-pagehk-state.is-ok { color: var(--ok, #4ade80); opacity: 1; }
+.settings-pagehk-state.is-bad { color: var(--warn, #fbbf24); opacity: 1; }
+/* A square, quiet remove button: it sits at the end of every row, so it has to
+   read as punctuation rather than as an action competing with "Add". */
+.settings-pagehk-del {
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  font-size: 1.05rem;
+  justify-self: end;
+}
+#settings-pagehk-add[disabled] { opacity: .45; pointer-events: none; }
+/* Narrow: the state moves under the two controls it is about rather than
+   squeezing them, and the remove button stays on the first line with them. */
+@media (max-width: 560px) {
+  .settings-pagehk-row {
+    grid-template-columns: 1fr 1fr auto;
+    gap: 6px 8px;
+  }
+  .settings-pagehk-state { grid-column: 1 / -1; }
+}
+
+/* ── Settings search (js/settings-search.js) ──────────────────────────────────
+   The field sits above the category list, outside its scroller, so it never
+   scrolls away and survives the phone's folded picker (which hides only the
+   buttons, labels and footer). The input borrows .settings-text-input for its
+   look, so every theme's field override applies to it unchanged. */
+.settings-search-list { display: flex; flex-direction: column; }
+.settings-search-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-search-item mark {
+  background: rgba(var(--accent-rgb),0.22);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.settings-search-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-search-empty { margin: 18px 4px; }
+
+/* The row a search result pointed at: one accent ring that fades, the same
+   gesture the screen picker uses (SurfacePicker.css .ra-highlight). */
+.settings-search-flash {
+  animation: settings-search-flash 2.4s ease both;
+  border-radius: 12px;
+}
+@keyframes settings-search-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  12%, 70% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-search-flash { animation: none; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.5); }
+}

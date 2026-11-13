@@ -1,7 +1,7 @@
 // The Xenon menu's look (components/XenonMenu): the rail and page of Settings and the Store.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 

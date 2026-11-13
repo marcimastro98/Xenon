@@ -1,0 +1,293 @@
+
+/* ── Swatch preview (non-interactive) + hex combo ───────── */
+.settings-color-wrap {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr);
+  gap: 7px;
+  align-items: center;
+}
+/* Optional (auto-able) colours get a third column for the "Auto" reset button. */
+.settings-color-wrap:has(.settings-color-clear) {
+  grid-template-columns: 34px minmax(0,1fr) auto;
+}
+.settings-color-clear {
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.settings-color-clear:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+.settings-color-preview {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 9px;
+  flex-shrink: 0;
+  cursor: pointer; /* tap opens the in-app ColorPicker (openSettingsColorPicker) */
+}
+.settings-color-preview:hover {
+  border-color: rgba(var(--accent-rgb), 0.5);
+}
+.settings-hex-input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.26);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 0 11px;
+  text-transform: uppercase;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.settings-hex-input:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb),0.48);
+  background: rgba(0,0,0,0.38);
+}
+.settings-hex-input.invalid { border-color: rgba(var(--danger-rgb),0.6); }
+
+.settings-text-input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.26);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  padding: 0 11px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.settings-text-input:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb),0.48);
+  background: rgba(0,0,0,0.38);
+}
+.settings-text-input:disabled,
+.settings-text-input.disabled {
+  cursor: not-allowed;
+  color: var(--muted-text);
+  opacity: 0.64;
+}
+/* The AI model pickers are <select class="settings-text-input"> upgraded to the
+   shared custom dropdown; the native element is hidden and the wrapper is
+   inserted right before it, so the wrapper has to carry the full-width sizing.
+   Matched by that adjacency so the other custom selects in Settings, which are
+   deliberately auto-width, are left alone. */
+.cs-wrap:has(+ select.settings-text-input) { width: 100%; }
+.cs-wrap:has(+ select.settings-text-input) .cs-trigger {
+  width: 100%; height: 34px; font-size: 13px;
+}
+
+/* Code-defined animated background editor: a monospace code box + template row. */
+.settings-code-field {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 150px;
+  resize: vertical;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.32);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 11px;
+  tab-size: 2;
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: pre;
+  overflow: auto;
+}
+.settings-code-field:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb),0.48);
+  background: rgba(0,0,0,0.44);
+}
+/* Inline compile/runtime error surfaced from the sandboxed background frame, so a
+   broken snippet reads as a real message instead of a silently-black backdrop. */
+.settings-bgcode-error {
+  margin: 6px 0 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  color: #ffd7d1;
+  background: rgba(255, 86, 74, 0.12);
+  border: 1px solid rgba(255, 86, 74, 0.34);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Live character counter for the code editor — sits at the end of the label
+   line, muted until you approach the cap (amber) or exceed it (red), so hitting
+   the limit is visible instead of a silent truncation. */
+.settings-bgcode-count {
+  flex: 0 0 auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted-text);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.settings-bgcode-count.is-near { color: var(--color-warn); opacity: 1; }
+.settings-bgcode-count.is-over { color: var(--color-danger); opacity: 1; font-weight: 600; }
+.settings-label-lead { min-width: 0; display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+/* Ready-made background gallery: a responsive grid of tap-to-apply tiles so a
+   non-coder never has to touch the editor. */
+.settings-bgcode-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.settings-bgtpl {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 12px 8px;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, transform .1s ease;
+}
+.settings-bgtpl:hover { background: rgba(var(--accent-rgb),0.14); border-color: rgba(var(--accent-rgb),0.4); }
+.settings-bgtpl:active { transform: scale(0.97); }
+.settings-bgcode-share-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-bgcode-share-row .settings-btn { flex: 1 1 auto; }
+.settings-bgcode-ai-hint { margin: 2px 0 4px; }
+
+/* Bundled background images: thumbnail chips with a remove control. Touch-sized
+   remove target — the Xeneon Edge is a touchscreen. */
+.settings-bgasset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.settings-bgasset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 5px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  max-width: 100%;
+}
+.settings-bgasset-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: rgba(0,0,0,0.35);
+  image-rendering: pixelated; /* pixel-art stays crisp in the tiny preview */
+  flex: 0 0 auto;
+}
+.settings-bgasset-name {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+.settings-bgasset-size {
+  font-size: 11px;
+  color: var(--muted-text);
+  flex: 0 0 auto;
+}
+.settings-bgasset-del {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted-text);
+  font-size: 15px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .14s ease, color .14s ease;
+}
+.settings-bgasset-del:hover { background: var(--danger-bg); color: var(--color-danger); }
+
+/* Collapsible "how to write the code" help for the power-user path. */
+.settings-code-help { margin-top: 4px; }
+.settings-code-help > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted-text);
+  padding: 4px 0;
+  list-style: none;
+}
+.settings-code-help > summary::-webkit-details-marker { display: none; }
+.settings-code-help > summary::before { content: "▸ "; color: rgba(var(--accent-rgb),0.8); }
+.settings-code-help[open] > summary::before { content: "▾ "; }
+.settings-code-help-body { font-size: 12px; line-height: 1.55; color: var(--muted-text); }
+.settings-code-help-body p { margin: 6px 0; }
+.settings-code-help-example {
+  margin: 8px 0 2px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 11px;
+  overflow-x: auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.settings-code-help-example code { white-space: pre; }
+
+.settings-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,0.075);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.18);
+}
+/* Three choices side by side: on two columns the third sat alone on a second line. */
+.settings-segmented:not(.lighting-seg):has(> .settings-segment-btn:nth-child(3):last-child) {
+  grid-template-columns: repeat(3, minmax(0,1fr));
+}
+.settings-segment-btn {
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px;
+  overflow-wrap: anywhere;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.settings-segment-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.055);
+}
+.settings-segment-btn.active {
+  border-color: rgba(var(--accent-rgb),0.45);
+  background: rgba(var(--accent-rgb),0.15);
+  color: var(--text);
+}

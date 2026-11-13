@@ -1,0 +1,181 @@
+
+/* ── Shareable presets: export/import buttons + the share/import modal ── */
+
+.preset-modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  animation: preset-modal-fade 0.16s ease;
+}
+@keyframes preset-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+.preset-modal {
+  width: min(480px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  /* Deliberately OPAQUE: panels use the user-tunable --panel-alpha glass
+     transparency, but a dialog with actionable content becomes unreadable when
+     see-through (as reported at a low panel alpha) — keep a solid surface
+     regardless of the theme, matching ColorPicker. */
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  padding: 22px;
+}
+.preset-modal:focus { outline: none; }
+.preset-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.preset-modal-title { margin: 0; font-size: 1.25rem; font-weight: 800; line-height: 1.25; color: var(--text, #e7e9ee); }
+.preset-modal-close {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0;
+  color: var(--text-dim, #8b91a1); font-size: 1rem; line-height: 1; border-radius: 10px;
+}
+.preset-modal-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
+.preset-modal-what { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; min-width: 0; }
+.preset-modal-kind { flex: none; font-size: 0.88rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+.preset-modal-whatname { font-weight: 600; font-size: 0.92rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-modal-desc { margin: 0 0 12px; font-size: 0.94rem; line-height: 1.5; color: var(--text-dim, #8b91a1); }
+.preset-code-field {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  padding: 9px 11px; font: inherit; font-size: 0.8rem; font-family: ui-monospace, monospace;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px; word-break: break-all;
+}
+/* The main key closes the row, on the right; its quiet keys stand to its left. */
+.preset-modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.preset-modal:not(.cst, .cgal-modal) .settings-btn { min-height: 44px; padding: 0 16px; font-size: 0.94rem; font-weight: 700; }
+@media (max-width: 560px) { .preset-modal-actions .settings-btn { flex: 1 1 auto; } }
+/* What else can happen to it, as a list under the keys: not more keys beside them. */
+.preset-modal-more { display: grid; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1)); }
+.preset-more-row { width: 100%; text-align: left; }
+.preset-page-list { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.preset-page-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  padding: 11px 13px; font: inherit; color: var(--text, #e7e9ee);
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: 11px; transition: background 0.14s ease, border-color 0.14s ease;
+}
+.preset-page-item:hover:not(:disabled) { background: rgba(var(--accent-rgb, 53, 224, 142), 0.1); border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.35); }
+.preset-page-item:disabled { opacity: 0.45; cursor: default; }
+.preset-page-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-page-cur { flex: none; font-size: 0.78rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+.preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+
+/* ── Export picker (Settings → Condividi & Importa → Esporta…) ───────────── */
+/* One door replacing nine buttons: a scannable list of what can be exported,
+   each row a single tap straight into that kind's existing export dialog. */
+.export-pick-list { display: flex; flex-direction: column; gap: 6px; }
+.export-pick-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; text-align: left; cursor: pointer; font: inherit;
+  padding: 11px 12px; border-radius: 10px; color: var(--text, #e7e9ee);
+  background: var(--control-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.export-pick-row:hover { background: rgba(var(--accent-rgb), 0.09); border-color: rgba(var(--accent-rgb), 0.45); }
+.export-pick-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.export-pick-txt b { line-height: 1.2; }
+.export-pick-txt .settings-hint { font-size: 0.82rem; font-weight: 500; }
+
+/* ── Bundle ("Pacchetto Xenon") export checklist + import widget list ────── */
+.preset-check-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin-bottom: 4px; }
+.preset-check-group { margin: 10px 2px 2px; font-size: 0.82rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
+.preset-check-group:first-child { margin-top: 0; }
+/* `display: flex` below beats the UA's `[hidden] { display: none }`, so a row
+   hidden from JS would stay on screen. Same trap `.settings-overlay[hidden]`
+   already guards against — it cost the share card a "use a real screenshot"
+   checkbox that was offered even when capture had been refused. */
+.preset-check-row[hidden] { display: none !important; }
+.preset-check-row {
+  display: flex; align-items: center; gap: 11px; cursor: pointer;
+  padding: 10px 12px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.preset-check-row:hover:not(.is-static) { background: rgba(var(--accent-rgb, 53, 224, 142), 0.09); border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.3); }
+.preset-check-row input[type="checkbox"] { flex: none; width: 17px; height: 17px; accent-color: var(--accent, #35e08e); cursor: pointer; }
+.preset-check-row:has(input:disabled) { opacity: 0.45; cursor: default; }
+.preset-check-row.is-static { cursor: default; }
+.preset-check-main { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.preset-check-name { font-weight: 600; font-size: 0.9rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-check-meta { flex: none; font-size: 0.76rem; color: var(--text-dim, #8b91a1); }
+.preset-bundle-widgets { margin: 0 0 12px; }
+/* Live "your package will contain" footer + why-disabled note. */
+.preset-bundle-summary { font-weight: 600; color: var(--text, #e7e9ee); margin-top: 10px; }
+.preset-bundle-note { font-size: 0.82rem; }
+
+/* Import review: what the file holds, one line each, and the trust caution. */
+.preset-deck-acts {
+  display: grid; gap: 4px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.preset-deck-act { font-size: 0.88rem; font-weight: 600; color: var(--text, #e7e9ee); }
+.preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
+/* "Keep your import code" reminder — a helpful accent note, not a warning. */
+.preset-keep-code {
+  font-size: 0.8rem; color: var(--text, #e7e9ee);
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(var(--accent-rgb, 30, 215, 96), 0.28);
+  background: rgba(var(--accent-rgb, 30, 215, 96), 0.08);
+}
+
+/* ── Share card — canvas preview modal. Wider than the other preset dialogs
+      because the preview is a 16:9 (or 9:16) card, not a code field. ── */
+.sharecard-modal { width: min(760px, 100%); }
+.sharecard-canvas {
+  width: 100%; height: auto; display: block; margin: 0 0 12px;
+  border-radius: 12px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  background: #000;
+}
+/* The composer redraws the canvas outright, so "busy" is a dim, not a spinner —
+   anything animated here would also have to be hidden during a capture. */
+.sharecard-canvas.is-busy { opacity: 0.55; transition: opacity 160ms ease; }
+.sharecard-modal .preset-check-row { margin-bottom: 4px; }
+.sharecard-formats { display: flex; gap: 8px; margin-bottom: 10px; }
+.sharecard-formats .settings-btn.active {
+  border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.55);
+  background: rgba(var(--accent-rgb, 30, 215, 96), 0.14);
+  color: var(--accent, #1ed760);
+}
+.sharecard-note {
+  margin: 6px 0 10px; font-size: 0.78rem; line-height: 1.45;
+  color: var(--text-dim, rgba(231, 233, 238, 0.55));
+}
+/* The link the QR encodes, spelled out — a QR is for a camera, a post needs a
+   URL you can paste. Also the only place the destination is legible. */
+.sharecard-link { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.sharecard-link[hidden] { display: none !important; }   /* flex beats [hidden] */
+.sharecard-field-label {
+  margin: 10px 0 2px; font-size: 0.74rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-dim, rgba(231, 233, 238, 0.5));
+}
+.sharecard-link-field {
+  flex: 1 1 auto; min-width: 0;
+  padding: 9px 11px; font-size: 0.8rem; font-family: var(--mono, ui-monospace, monospace);
+  color: var(--text, #e7e9ee); background: var(--input-bg, rgba(0, 0, 0, 0.28));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
+  text-overflow: ellipsis;
+}
+.sharecard-link-field:focus {
+  outline: none; border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5);
+}
+/* The card's own link is an OUTPUT — it must not look like somewhere to type. */
+.sharecard-link-field.is-readonly {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted, rgba(231, 233, 238, 0.72));
+  cursor: default;
+}
+.sharecard-link .settings-btn { flex: none; }
+
+/* The catalog's "may use more resources" note, repeated inside the import dialog. */
+.preset-perf-note {
+  font-size: 0.8rem; color: var(--warn, #ffb454);
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255, 180, 84, 0.3);
+  background: rgba(255, 180, 84, 0.08);
+}
