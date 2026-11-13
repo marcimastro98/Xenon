@@ -88,7 +88,9 @@ export function proofItems(text, lang) {
   const heads = [];
   for (const item of items) {
     if (WIRING.has(item.kind) || (item.kind === 'mod' && item.open === undefined)) continue;
-    const spread = lang !== 'rust' && HOLDS_MEMBERS.has(item.kind) && item.open !== undefined && !(lang === 'cs' && item.kind === 'enum');
+    // A type's members may be spread over files: a C# partial class, a Swift extension, a Rust `impl` opened again.
+    const holds = lang === 'rust' ? item.kind === 'impl' && !item.name.includes(' for ') : HOLDS_MEMBERS.has(item.kind) && !(lang === 'cs' && item.kind === 'enum');
+    const spread = holds && item.open !== undefined;
     if (!spread) { out.push({ key: item.key, raw: trim(text.slice(item.lead, item.end)) }); continue; }
     heads.push({ name: item.name, text: text.slice(item.lead, tokens[item.open].start).replace(/\bpartial\s+/, '').replace(/\s+/g, ' ').trim() });
     for (const member of bodyItems(text, tokens, lang, item)) out.push({ key: `${item.name} ${member.key}`, raw: `${item.name}\n${trim(text.slice(member.lead, member.end))}` });

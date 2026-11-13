@@ -5,6 +5,7 @@
 import path from 'node:path';
 import { cursor, matching } from './native-lex.mjs';
 import { bodyItems, fileItems } from './native-items.mjs';
+import { textOfItem, withMemberGroups, wordsOfItem } from './native-split-impl.mjs';
 import { boundName, deeperPath, useLeaves, writeUses } from './native-use.mjs';
 import { callsTrait, commonCfg, coversEverything, mergeWords, wordsOf } from './native-wire.mjs';
 
@@ -19,6 +20,7 @@ function assign(items, parts) {
     for (const key of part.items ?? []) if (!items.some((item) => item.key === key)) throw new Error(`${part.file}: no item is called "${key}".`);
   }
   return items.map((item) => {
+    if (item.kind === 'members') return item.part;
     if (STAYS(item)) return -1;
     const hits = parts.flatMap((part, index) => {
       const byLine = (part.lines ?? []).some(([from, to]) => item.line >= from && item.line <= to);
@@ -54,7 +56,8 @@ function privateFields(text, tokens, item) {
  * @returns {{ files: Record<string, string>, notes: string[] }}
  */
 export function splitRust({ origin, text, plan, otherWords, siblingWords = mergeWords([]) }) {
-  const { tokens, items, header, trailer } = fileItems(text, 'rust');
+  const { tokens, items: read, header, trailer } = fileItems(text, 'rust');
+  const items = withMemberGroups(text, tokens, read, plan.parts);
   const notes = [];
   const base = path.posix.basename(origin);
   const isRoot = base === 'lib.rs' || base === 'main.rs';
@@ -66,7 +69,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
     return path.posix.basename(part.file, '.rs');
   });
   const where = assign(items, plan.parts);
-  const words = items.map((item) => wordsOf(text, tokens, item));
+  const words = items.map((item) => wordsOfItem(text, tokens, item));
   const files = [-1, ...plan.parts.map((_, index) => index)];
   const inFile = (f) => items.map((item, i) => ({ item, i })).filter(({ i }) => where[i] === f);
   const moving = (f) => inFile(f).filter(({ item }) => !STAYS(item));
@@ -163,8 +166,9 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
       const lexical = seen.dotted.has(field.name) || (seen.all.has(item.name) && seen.bound.has(field.name));
       if (lexical || widened.has(`${item.name}.${field.name}`)) inserts.set(field.at, `${widenTo} `);
     }
-    if (item.kind !== 'impl' || item.name.includes(' for ')) return;
-    for (const member of bodyItems(text, tokens, 'rust', item)) {
+    const inherent = item.kind === 'impl' && !item.name.includes(' for ');
+    const members = item.kind === 'members' ? item.members : inherent ? bodyItems(text, tokens, 'rust', item).filter((member) => !(item.cut ?? []).some((gone) => gone.start === member.start)) : [];
+    for (const member of members) {
       if (!['fn', 'const', 'type'].includes(member.kind)) continue;
       const lexical = seen.dotted.has(member.name) || (seen.pathed.has(member.name) && seen.all.has(item.name.replace(/<.*$/, '')));
       if (!member.vis && (lexical || widened.has(`${item.name}::${member.name}`))) inserts.set(member.visAt, `${widenTo} `);
@@ -185,16 +189,7 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
   items.forEach((item, i) => {
     if (where[i] >= 0 && NAMED.has(item.kind) && !item.vis && widened.has(item.name)) inserts.set(item.visAt, `${widenTo} `);
   });
-  const render = (item, first) => {
-    let out = '';
-    let at = item.lead;
-    for (const offset of [...inserts.keys()].filter((o) => o >= item.start && o < item.end).sort((a, b) => a - b)) {
-      out += text.slice(at, offset) + inserts.get(offset);
-      at = offset;
-    }
-    out += text.slice(at, item.end);
-    return first ? out.replace(/^(?:[ \t]*\n)+/, '') : out;
-  };
+  const render = (item, first) => (first ? textOfItem(text, item, inserts).replace(/^(?:[ \t]*\n)+/, '') : textOfItem(text, item, inserts));
 
   /** A `use` item of the parent with the names nothing there uses any more taken out. */
   const pruned = (item) => {
@@ -231,9 +226,12 @@ export function splitRust({ origin, text, plan, otherWords, siblingWords = merge
   let preamble = -1;
   kept.forEach(({ item }, n) => { if (preamble === n - 1 && STAYS(item)) preamble = n; });
   const mods = plan.parts.map((_, f) => `${gate.get(f).map((cfg) => `${cfg}\n`).join('')}mod ${modOf[f]};\n`).join('');
-  const block = `${mods}\n${writeUses(imports.get(-1))}${extra(-1)}`;
-  const piece = ({ item }) => (item.kind === 'use' ? pruned(item) : text.slice(item.lead, item.end));
-  const top = header + kept.slice(0, preamble + 1).map(piece).join('');
+  const piece = ({ item }) => (item.kind === 'use' ? pruned(item) : textOfItem(text, item));
+  // The new `mod` lines join the ones the file has; without any, they open the block of new imports.
+  const lastMod = kept.slice(0, preamble + 1).findLastIndex(({ item }) => item.kind === 'mod');
+  const upToMods = header + kept.slice(0, lastMod + 1).map(piece).join('');
+  const top = (lastMod < 0 ? upToMods : `${upToMods.replace(/\s+$/, '')}\n${mods}`) + kept.slice(lastMod + 1, preamble + 1).map(piece).join('');
+  const block = `${lastMod < 0 ? `${mods}\n` : ''}${writeUses(imports.get(-1))}${extra(-1)}`;
   const rest = kept.slice(preamble + 1).map(piece).join('') + trailer;
   out[origin] = `${top.replace(/\s+$/, '')}${top.trim() ? '\n\n' : ''}${block}\n${rest.replace(/^(?:[ \t]*\n)+/, '')}`.replace(/\s+$/, '\n');
   return { files: out, notes: [...new Set(notes)] };

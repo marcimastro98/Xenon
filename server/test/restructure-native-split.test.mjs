@@ -132,7 +132,7 @@ test('the proof refuses a changed body, a narrower visibility, a lost item and a
   const { files } = cutRust();
   const changed = (file, from, to) => ({ ...files, [file]: files[file].replace(from, to) });
   const problems = (after) => compareGroups({ 'src/monitor.rs': RUST }, after).problems.join('\n');
-  assert.match(problems(changed('src/monitor/pick.rs', 'left: 0', 'left: 1')), /"impl Rect" is not an item the files had before/);
+  assert.match(problems(changed('src/monitor/pick.rs', 'left: 0', 'left: 1')), /"Rect fn origin" is not an item the files had before/);
   assert.match(problems(changed('src/monitor.rs', 'pub(crate) fn place', 'fn place')), /"fn place" lost visibility/);
   assert.match(problems(changed('src/monitor/linux.rs', /#\[cfg[^\n]*\nfn only_linux[^]*$/, '')), /"fn only_linux" is gone/);
   assert.match(problems(changed('src/monitor.rs', '// Reads the saved place, or the corner.\n', '')), /fn place|a comment is gone/);
