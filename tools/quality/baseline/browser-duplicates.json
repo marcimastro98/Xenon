@@ -1,0 +1,7 @@
+{
+  "note": "Top-level names that two or more classic scripts of the same page declare, with the number of scripts. Written by tools/quality/browser.mjs: the list only gets shorter.",
+  "total": 2,
+  "counts": {
+    "cssId": 2
+  }
+}

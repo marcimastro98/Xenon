@@ -21,6 +21,7 @@
     "typecheck": "node tools/quality/typecheck.mjs",
     "lint": "node tools/quality/lint.mjs",
     "sizes": "node tools/quality/sizes.mjs",
+    "browser": "node tools/quality/browser.mjs",
     "map": "node tools/map/map.mjs",
     "capture:build": "node tools/build-capture.mjs",
     "bit:export": "node tools/bit-export/cli.mjs",

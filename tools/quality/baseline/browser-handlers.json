@@ -1,0 +1,7 @@
+{
+  "note": "Inline on*= handlers per page. Written by tools/quality/browser.mjs: a number only goes down.",
+  "total": 588,
+  "counts": {
+    "server/index.html": 588
+  }
+}
