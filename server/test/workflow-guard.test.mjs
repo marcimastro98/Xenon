@@ -39,7 +39,7 @@ const GOOD = [
   '    strategy:',
   '      matrix:',
   '        os: [windows-latest, macos-latest, ubuntu-latest]',
-  '        node: [22, 26]',
+  '        node: [22, 24, 26]',
   '    runs-on: ${{ matrix.os }}',
   '    timeout-minutes: 30',
   '    steps:',
@@ -122,8 +122,10 @@ test('ci.yml must cover the three systems, the Node lines of "engines" and every
   const has = (text, word, engines = ENGINES) => ciProblems(text, engines).some((p) => p.includes(word));
   assert.ok(has(broken('os: [windows-latest, macos-latest, ubuntu-latest]', 'os: [windows-latest, ubuntu-latest]'), 'leaves out macos-latest'));
   assert.ok(has(broken('  pull_request:\n', ''), 'does not run on pull_request'));
-  assert.ok(has(broken('node: [22, 26]', 'node: [20, 26]'), 'Node 20 is outside'));
-  assert.ok(has(broken('node: [22, 26]', 'node: [24, 26]'), 'oldest Node'));
+  assert.ok(has(broken('node: [22, 24, 26]', 'node: [20, 24, 26]'), 'Node 20 is outside'));
+  assert.ok(has(broken('node: [22, 24, 26]', 'node: [24, 26]'), 'oldest Node'));
+  assert.ok(has(broken('node: [22, 24, 26]', 'node: [22, 26]'), 'Node 24, a line "engines" accepts, is not tested'));
+  assert.ok(has(broken('node: [22, 24, 26]', 'node: [22, 24]'), 'Node 26, a line "engines" accepts, is not tested'));
   assert.ok(has(GOOD, 'Node 22 is outside', '>=24.22.1'));
   assert.ok(has(broken('      - run: npm test\n', ''), 'never runs "npm test"'));
   assert.ok(has(broken('      - run: npm run doctor\n', ''), 'never runs "npm run doctor"'));
@@ -132,6 +134,7 @@ test('ci.yml must cover the three systems, the Node lines of "engines" and every
 test('the Node lines are read from an "engines" range', () => {
   const lines = engineLines(ENGINES);
   assert.equal(lines.lowest, 22);
+  assert.deepEqual(lines.starts, [22, 24, 26]);
   assert.deepEqual([20, 22, 23, 24, 25, 26, 28].map(lines.accepts), [false, true, false, true, false, true, true]);
   assert.equal(engineLines('>=22 <24.3.0').accepts(24), true);
   assert.equal(engineLines('>=22 <24').accepts(24), false);

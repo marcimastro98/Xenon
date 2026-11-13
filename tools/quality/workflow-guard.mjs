@@ -178,9 +178,10 @@ export function strictProblems(name, text) {
 }
 
 /**
- * The lowest Node major a package.json "engines" range accepts, and a test for any major.
+ * The Node majors a package.json "engines" range starts a line at, the lowest
+ * of them, and a test for any major.
  * @param {string} range such as ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1"
- * @returns {{ lowest: number, accepts: (major: number) => boolean }}
+ * @returns {{ lowest: number, starts: number[], accepts: (major: number) => boolean }}
  */
 export function engineLines(range) {
   const spans = String(range).split('||').map((part) => {
@@ -191,8 +192,10 @@ export function engineLines(range) {
     const open = to && (Number(to[2] || 0) > 0 || Number(to[3] || 0) > 0);
     return { from: Number(from[1]), below: to ? Number(to[1]) + (open ? 1 : 0) : Infinity };
   });
+  const starts = [...new Set(spans.map((s) => s.from))].sort((a, b) => a - b);
   return {
-    lowest: Math.min(...spans.map((s) => s.from)),
+    lowest: starts[0],
+    starts,
     accepts: (major) => spans.some((s) => major >= s.from && major < s.below),
   };
 }
@@ -232,6 +235,13 @@ export function ciProblems(text, engines) {
   }
   if (nodes.length && Math.min(...nodes) !== lines.lowest) {
     problems.push(`ci.yml: the oldest Node "engines" accepts (${lines.lowest}) is not tested`);
+  }
+  // Each line of "engines" is a Node people run. Node 22 alone ended tests that
+  // 24 and 26 let finish, so one line passing says nothing about the next.
+  for (const major of lines.starts) {
+    if (nodes.length && major !== lines.lowest && !nodes.includes(major)) {
+      problems.push(`ci.yml: Node ${major}, a line "engines" accepts, is not tested`);
+    }
   }
   for (const needed of ['npm ci', 'npm run quality:install', 'npm test', 'node tools/ci/boot-check.mjs', 'npm run doctor', 'npm run check:platform-apis']) {
     if (!codeLines(text).some((l) => l.text.includes(needed))) problems.push(`ci.yml: never runs "${needed}"`);

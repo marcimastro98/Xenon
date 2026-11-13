@@ -33,10 +33,12 @@ jobs:
       fail-fast: false   # one OS failing must not hide what the other two say
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-        # The oldest line package.json's "engines" accepts and the current LTS,
-        # which is also the line the installer carries. The guard test fails
-        # when a number here falls out of "engines".
-        node: [22, 26]
+        # Every line package.json's "engines" accepts: people run all three,
+        # and they differ (Node 22's test runner ended tests that 24 and 26
+        # let finish). 26 is the current LTS and the line the installer
+        # carries. The guard test fails when a number here falls out of
+        # "engines", or a line of "engines" is missing here.
+        node: [22, 24, 26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
