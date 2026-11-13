@@ -1,0 +1,253 @@
+
+/* ── Expandable body ── */
+.spot-body {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px;
+  min-height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-appearance="light"] .spot-body { border-top-color: rgba(0, 0, 0, 0.08); }
+.spot-expanded .spot-body { display: flex; }
+
+/* ── Chips ── */
+.spot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+.spot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.spot-chip-x { opacity: 0.7; font-size: 15px; }
+
+/* ── Status ── */
+.spot-status {
+  padding: 6px 12px 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.spot-status:empty { display: none; }
+
+/* ── Results ── */
+.spot-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: min(58vh, calc(100vh - 210px));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 4px 0 0;
+}
+/* Thin, quiet scrollbar — the Chromium default reads as a gray slab. */
+.spot-list::-webkit-scrollbar { width: 8px; }
+.spot-list::-webkit-scrollbar-track { background: transparent; }
+.spot-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+:root[data-appearance="light"] .spot-list::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); background-clip: content-box; }
+.spot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.spot-row:hover { background: rgba(var(--accent-rgb), 0.08); }
+.spot-row:active { transform: scale(0.997); background: rgba(var(--accent-rgb), 0.13); }
+.spot-row.is-selected { border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--accent-rgb), 0.09); }
+.spot-row-blocked { border-color: rgba(255, 170, 60, 0.5); }
+
+.spot-icon {
+  width: 22px; height: 22px;
+  flex: 0 0 auto;
+  fill: rgba(255, 255, 255, 0.75);
+}
+/* Real app logo (exe/lnk results): the extracted 32px icon, kept crisp. */
+img.spot-icon-app {
+  object-fit: contain;
+  border-radius: 5px;
+}
+/* Application rows (the launchable tier above file results). */
+.spot-row-app .spot-icon { width: 26px; height: 26px; }
+.spot-icon-appglyph { fill: rgba(var(--accent-rgb), 0.9); }
+:root[data-appearance="light"] .spot-icon { fill: rgba(0, 0, 0, 0.6); }
+.spot-icon-image { fill: #4fc3f7; }
+.spot-icon-video { fill: #b388ff; }
+.spot-icon-audio { fill: #69f0ae; }
+.spot-icon-doc   { fill: #ffb74d; }
+.spot-icon-zip   { fill: #a1887f; }
+.spot-icon-folder { fill: rgba(var(--accent-rgb), 0.9); }
+
+.spot-row-mid { flex: 1; min-width: 0; }
+.spot-row-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spot-row-name b { color: rgb(var(--accent-rgb)); font-weight: 700; }
+.spot-row-meta {
+  font-size: 11.5px;
+  opacity: 0.52;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.spot-row-note {
+  font-size: 12px;
+  color: #ffb74d;
+  white-space: nowrap;
+}
+
+.spot-row-reveal {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.45;
+}
+.spot-row:hover .spot-row-reveal, .spot-row.is-selected .spot-row-reveal { opacity: 1; }
+.spot-row-reveal:hover { border-color: rgba(255, 255, 255, 0.15); }
+.spot-row-reveal svg {
+  width: 16px; height: 16px;
+  fill: rgba(255, 255, 255, 0.6);
+}
+:root[data-appearance="light"] .spot-row-reveal svg { fill: rgba(0, 0, 0, 0.55); }
+.spot-row-reveal:active { transform: scale(0.92); }
+
+/* ── Filters: a button in the bar, a menu of the parser's own words ── */
+.spot-filter-toggle {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+  transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.spot-filter-toggle svg { width: 17px; height: 17px; fill: rgba(255, 255, 255, 0.75); }
+:root[data-appearance="light"] .spot-filter-toggle svg { fill: rgba(0, 0, 0, 0.6); }
+.spot-filter-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
+:root[data-appearance="light"] .spot-filter-toggle:hover { background: rgba(0, 0, 0, 0.06); }
+.spot-filter-toggle:active { transform: scale(0.94); }
+.spot-filter-toggle.is-on { opacity: 1; border-color: rgba(var(--accent-rgb), 0.45); }
+
+.spot-filter-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 2px;
+}
+.spot-filter-menu[hidden] { display: none; }
+.spot-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.spot-filter-label {
+  min-width: 88px;
+  font-size: 12.5px;
+  opacity: 0.6;
+}
+.spot-filter-item {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+:root[data-appearance="light"] .spot-filter-item { border-color: rgba(0, 0, 0, 0.14); }
+/* The date words are shared with the chips, which read them mid-sentence. */
+.spot-filter-item::first-letter { text-transform: uppercase; }
+.spot-filter-item:hover { background: rgba(var(--accent-rgb), 0.1); border-color: rgba(var(--accent-rgb), 0.45); }
+
+/* ── Groups and the image preview ── */
+.spot-group {
+  padding: 10px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+.spot-list > .spot-group:first-child { padding-top: 2px; }
+
+.spot-results {
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+}
+.spot-results > .spot-list { flex: 1 1 auto; min-width: 0; }
+.spot-preview {
+  flex: 0 0 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 0;
+  min-width: 0;
+}
+.spot-preview[hidden] { display: none; }
+.spot-preview img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.spot-preview-cap { font-size: 12px; opacity: 0.65; }
+/* No room for both at phone width: the list wins. */
+@media (max-width: 620px) { .spot-preview { display: none !important; } }
+
+/* Edge bar (short viewport). */
+@media (max-height: 760px) {
+  .spot-shell { margin-top: 9vh; }
+  /* SAME offset when expanded: rising to the very top overlapped the island/
+     topbar behind the halo — results grow downward instead. */
+  .spot-expanded .spot-shell { margin-top: 9vh; }
+  .spot-bar { min-height: 54px; }
+  .spot-bar .spot-input { font-size: 19px; }
+  .spot-list { max-height: calc(100vh - 140px); }
+  .spotlight::before {
+    background: radial-gradient(ellipse 88% 78% at 50% 30%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.12) 58%, transparent 94%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight.spot-pop .spot-shell { animation: none; }
+  .spot-shell { transition: none; }
+  .spot-drop { display: none; }
+  .spot-loading .spot-bar-icon { animation: none; }
+  .spot-bit { transition: none; }
+}

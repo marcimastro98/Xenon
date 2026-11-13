@@ -1,0 +1,164 @@
+
+/* ── Favourite channels ─────────────────────────────────────────────────────
+   The row is a wrapper holding the join button and the star as SIBLINGS (a
+   button inside a button is invalid and only one of the two would be
+   reachable). The join button takes all the room it can; the star keeps a
+   fixed, thumb-sized column so the names below it stay aligned. */
+.dc-chan-row { display: flex; align-items: stretch; gap: 4px; }
+.dc-chan-row > .dc-chan { flex: 1 1 auto; min-width: 0; }
+.dc-chan-fav {
+  flex: 0 0 auto; width: 30px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 7px; cursor: pointer;
+  background: transparent; color: #6f7690;
+  transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  /* Dim until the row is touched: a column of stars down an untouched list is
+     louder than the channel names, which are what the tab is for. The pinned
+     ones stay lit, because that IS their state. */
+  opacity: 0.45;
+}
+.dc-chan-row:hover .dc-chan-fav,
+.dc-chan-fav:focus-visible { opacity: 1; }
+.dc-chan-fav:hover { background: rgba(88,101,242,0.16); color: #c7ccdd; }
+.dc-chan-fav svg { width: 14px; height: 14px; }
+/* The classic favourite gold, not the theme accent. A star means "favourite"
+   everywhere it appears, and that reading comes from the colour as much as the
+   shape — a green or violet star is just a shape. It also stops the pinned rows
+   from disappearing into a theme whose accent is already the colour of every
+   other lit control in the widget. Fixed on purpose, so it reads the same on
+   every theme, Retro included. */
+.dc-chan-fav.is-on { opacity: 1; color: #f5c518; }
+/* Filled when pinned: the outline/solid pair reads at a glance and needs no
+   second glyph to keep in step with the first. */
+.dc-chan-fav.is-on svg { fill: currentColor; }
+.dc-guild--fav { border-color: rgba(245, 197, 24, 0.45); }
+.dc-chan {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 5px 9px; border-radius: 8px; cursor: pointer; text-align: left;
+  font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-chan:hover:not(:disabled) { background: rgba(88,101,242,0.14); }
+.dc-chan.is-active { color: #b7c0ff; border-color: rgba(88,101,242,0.5); background: rgba(88,101,242,0.18); }
+.dc-chan.ok { border-color: rgba(88,101,242,0.6); }
+.dc-chan.err { border-color: rgba(237,66,69,0.65); }
+.dc-chan-ico { display: inline-flex; flex: 0 0 auto; opacity: 0.85; }
+.dc-chan-ico svg { width: 15px; height: 15px; }
+.dc-chan-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Member count on the active channel row. */
+.dc-chan-count {
+  margin-left: auto; flex: 0 0 auto; min-width: 18px; height: 17px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 0.64rem; font-weight: 800; color: #b7c0ff; background: rgba(88,101,242,0.24);
+}
+.dc-chan-empty { font-size: 0.8rem; opacity: 0.6; padding: 4px 2px; }
+/* Roster: who's currently in each voice channel, shown as a compact member strip
+   under its channel row (reuses the .dc-member chips). Indented to line up under
+   the channel name. Like the channel rows it must not flex-shrink (the
+   `.dc-chan-list > *` rule above covers it). */
+.dc-chan-members { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 4px 5px 27px; }
+.dc-chan-members:empty { display: none; }
+
+/* Controls-panel scrollbar (thin blurple, matches the channel list). */
+.dc-panel--controls::-webkit-scrollbar { width: 6px; }
+.dc-panel--controls::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
+.dc-panel--controls::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Members of the current call (+ live speaking) ──────────────── */
+.dc-members { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 5px; padding-left: 6px; }
+.dc-call-members { margin: 0; padding-left: 0; }
+.dc-member {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 150px;
+  padding: 2px 9px 2px 2px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-member-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The avatar: Discord's picture over the person's initial, so a picture that
+   cannot load still leaves a clean blurple circle, with Discord's green ring
+   around it while they speak (js/discord-widget.js memberAvatar). */
+.dc-av {
+  position: relative; flex: 0 0 auto;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #5865f2;
+  transition: box-shadow 0.15s ease;
+}
+.dc-av-initial { font-size: 0.62rem; font-weight: 800; line-height: 1; color: #fff; }
+.dc-av-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border-radius: 50%; object-fit: cover;
+}
+/* Their own mute or deafen, after the name as in Discord's voice list. Red,
+   because it is the one thing in the strip that says "you will not hear them"
+   or "they will not hear you". */
+.dc-member-state { display: none; flex: 0 0 auto; color: #f0565b; }
+.dc-member-state > span { display: none; }
+.dc-member-state svg { width: 12px; height: 12px; display: block; }
+.dc-member.is-muted .dc-member-state,
+.dc-member.is-deaf .dc-member-state { display: block; }
+.dc-member.is-muted .dc-state-mic,
+.dc-member.is-deaf .dc-state-deaf { display: block; }
+.dc-member.is-muted .dc-member-name,
+.dc-member.is-deaf .dc-member-name { opacity: 0.6; }
+
+/* Speaking = Discord's green ring, on the avatar where Discord draws it. */
+.dc-member.is-speaking { color: #b7f5c8; border-color: rgba(59,214,120,0.5); background: rgba(59,214,120,0.14); }
+.dc-member.is-speaking .dc-av { box-shadow: 0 0 0 2px #3bd678; }
+
+/* A name you can act on. Only members of the CURRENT call become buttons, and
+   never your own: Discord has no per-user setting for your own account. */
+.dc-member.is-adjustable { cursor: pointer; font: inherit; font-size: 0.68rem; font-weight: 700; }
+.dc-member.is-adjustable:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.16); }
+.dc-member.is-open { color: #cdd3ff; border-color: rgba(88,101,242,0.65); background: rgba(88,101,242,0.20); }
+/* "I turned them down" is not "they muted themselves": the badge is theirs, this
+   ring is yours. Without it, turning someone to zero looks like their own mute. */
+.dc-member.is-local-muted { box-shadow: inset 0 0 0 1px rgba(237,66,69,0.55); }
+.dc-member.is-local-muted .dc-member-name { text-decoration: line-through; text-decoration-color: rgba(237,66,69,0.8); }
+
+/* ── One person's volume, opened under the list ─────────────────── */
+/* One row, no prose: a speaker to mute them just for you, a slider, the number.
+   The name is not repeated — it is lit up in the chip directly above — and every
+   label lives on as a tooltip so the row stays readable and translated. */
+.dc-mctl { margin: 2px 0 6px; }
+.dc-mctl-row { display: flex; align-items: center; gap: 9px; padding: 0 2px 0 4px; }
+
+.dc-mctl-mute {
+  flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim, #8b91a1);
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-mctl-mute svg { width: 15px; height: 15px; }
+.dc-mctl-mute:hover:not(:disabled) { background: rgba(255,255,255,0.09); color: var(--text, #e7e9ee); }
+.dc-mctl-mute.on { color: #ff9b9d; border-color: rgba(237,66,69,0.5); background: rgba(237,66,69,0.16); }
+
+.dc-mctl-range {
+  flex: 1 1 auto; min-width: 0; height: 18px; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.dc-mctl-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 999px; background: rgba(255,255,255,0.13);
+}
+.dc-mctl-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; margin-top: -5px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #7d8cff; border: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.dc-mctl-range:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.dc-mctl-range:active::-webkit-slider-thumb { transform: scale(1.2); }
+.dc-mctl-range:focus-visible { outline: 2px solid rgba(125,140,255,0.7); outline-offset: 3px; border-radius: 999px; }
+
+/* The number, wide enough for "200" so the slider never shifts as it changes. */
+.dc-mctl-val {
+  flex: 0 0 auto; min-width: 30px; text-align: right;
+  font-size: 0.7rem; font-weight: 800; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums;
+}
+/* Discord did not report a level. The thumb has to rest somewhere, so it rests
+   at the default and the row says so — a number here would be a guess. */
+.dc-mctl-row.is-unknown .dc-mctl-val { color: var(--text-dim, #8b91a1); }
+.dc-mctl-row.is-unknown .dc-mctl-range::-webkit-slider-thumb { background: #5b6478; }

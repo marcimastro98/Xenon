@@ -1,0 +1,249 @@
+
+/* ── Chat ─────────────────────────────────────────────────────────────────── */
+/* Off by default (see the layout defaults). It is the one section with a frame:
+   a conversation needs a readable surface under it whatever the theme puts behind
+   the tile, and it is never shown empty — with nothing playing there is no chat,
+   so the card is not drawn at all. */
+.tww-card--chat {
+  flex: 1.4 1 240px; min-height: 240px; display: flex; flex-direction: column; overflow: hidden;
+  padding: 6px 10px 10px; border-radius: 12px;
+  background: rgba(0,0,0,0.34); border: 1px solid rgba(255,255,255,0.06);
+}
+.tww-card--chat.is-empty { display: none; }
+body.layout-editing .tww-card--chat.is-empty { display: flex; flex: 0 0 auto; min-height: 0; }
+.tww-chat-head { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-height: 34px; }
+.tww-chat-title { font-size: 0.8rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.tww-chat-chan { flex: 1 1 auto; min-width: 0; font-size: 0.72rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tww-chat-head .tww-ib { width: 30px; height: 30px; background: none; border-color: transparent; }
+.tww-chat-head .tww-ib svg { width: 15px; height: 15px; }
+.tww-chat-note {
+  font-size: 0.76rem; line-height: 1.4; padding: 6px 2px;
+  color: var(--text-dim, #8b91a1);
+}
+/* The messages, drawn by us. Every pixel of the card is chat, which is the whole
+   reason this is not Twitch's iframe: that page spends its height on a header, an
+   event banner, a message box and a footer, and in a tile it left about two lines
+   for the conversation. */
+.tww-chat-log {
+  flex: 1 1 auto; width: 100%; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
+  display: flex; flex-direction: column; gap: 4px; padding-right: 4px;
+  font-size: 0.8rem; line-height: 1.4; scrollbar-width: thin;
+}
+.tww-chat-log::-webkit-scrollbar { width: 6px; }
+.tww-chat-log::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+/* Pushes the first lines to the bottom, where new ones arrive, instead of leaving
+   them at the top of an empty box. */
+.tww-chat-log > :first-child { margin-top: auto; }
+.tww-chat-line { word-break: break-word; flex: 0 0 auto; }
+.tww-chat-user { font-weight: 800; color: var(--name, #a970ff); }
+/* The colour a viewer chose was picked against Twitch's dark chat. On a light surface
+   it keeps its hue and only loses lightness, as Twitch's own readable colours do. */
+@supports (color: oklch(from red l c h)) {
+  :root[data-appearance="light"] .tww-chat-user { color: oklch(from var(--name, #a970ff) min(l, 0.5) c h); }
+}
+.tww-chat-text { color: var(--text, #e7e9ee); opacity: 0.92; }
+
+/* Writing. The reader above is an anonymous socket and cannot speak, so this
+   goes through our own server with the user's token. */
+.tww-chat-send { display: flex; gap: 6px; flex: 0 0 auto; margin-top: 8px; }
+.tww-chat-input {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; font: inherit; font-size: 0.78rem;
+  padding: 7px 10px; border-radius: 9px; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); outline: none;
+}
+.tww-chat-input:focus { border-color: rgba(145,70,255,0.6); }
+.tww-chat-input:disabled { opacity: 0.5; }
+.tww-chat-go {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; border-radius: 9px; cursor: pointer; padding: 0; color: #fff;
+  background: rgba(145,70,255,0.9); border: 0;
+}
+.tww-chat-go svg { width: 15px; height: 15px; }
+.tww-chat-err {
+  display: none; margin-top: 6px; font-size: 0.72rem; font-weight: 600; line-height: 1.35;
+  color: var(--color-danger);
+}
+
+/* ── Wide and short: the list and chat move beside the picture ───────────── */
+/* The picture's COLUMN is sized from the tile's height, so the video fills it
+   both ways instead of sitting in a taller box: 16:9 of (height minus the info
+   row), and never so wide that the side column drops under 300px. Only tiles at
+   least 2.1 times as wide as tall come here — below that the side column would
+   be squeezed and the box layout gives a bigger picture. */
+@container tww (min-width: 620px) and (min-aspect-ratio: 21 / 10) {
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)) {
+    --tww-pw: min(calc((100cqh - var(--tww-bar-h)) * 16 / 9), calc(100cqw - 314px));
+    display: grid; overflow: hidden; gap: 10px 14px;
+    grid-template-columns: var(--tww-pw) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)) > .tww-card--player { grid-column: 1; grid-row: 1 / -1; min-height: 0; justify-content: center; }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)) > .tww-card--player .tww-stage-wrap { flex: 0 1 auto; height: calc(var(--tww-pw) * 9 / 16); min-height: 0; }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)) > .tww-card--library { grid-column: 2; grid-row: 1; min-height: 0; max-height: 46cqh; }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)) > .tww-card--chat { grid-column: 2; grid-row: 2; min-height: 0; }
+  /* No chat on screen: the list takes the whole column. */
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)):not(:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"]))) .tww-card--library { grid-row: 1 / -1; max-height: none; }
+  /* No list: the chat takes the whole column. */
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)):has(> .tww-card--library[data-system-card-hidden="true"]) .tww-card--chat { grid-row: 1 / -1; }
+  /* Neither: the picture takes the width. */
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)):has(> .tww-card--library[data-system-card-hidden="true"]):not(:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"]))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── A box with the chat on: the twitch.tv arrangement ────────────────────── */
+/* Picture, its info row and the list down the left; the chat the full height on
+   the right. Stacked, the chat sat under a short list with a hole between them,
+   and the picture had to share the height with both. */
+@container tww (min-width: 620px) and (max-aspect-ratio: 21 / 10) {
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--player:not(.is-vacant)):has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) {
+    --tww-sw: clamp(260px, 36cqw, 420px);
+    display: grid; overflow: hidden; gap: 10px 14px;
+    grid-template-columns: minmax(0, 1fr) var(--tww-sw);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) .tww-card--player { grid-column: 1; grid-row: 1; }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) .tww-stage-wrap {
+    height: max(92px, min(calc((100cqw - var(--tww-sw) - 14px) * 9 / 16), calc(100cqh - var(--tww-bar-h) - 160px)));
+  }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) .tww-card--library { grid-column: 1; grid-row: 2; min-height: 0; }
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) .tww-card--chat { grid-column: 2; grid-row: 1 / -1; min-height: 0; }
+  /* The list switched off: the picture keeps the left column to itself. */
+  .tww-wrap[data-view="normal"] .tww-cards:has(> .tww-card--library[data-system-card-hidden="true"]):has(> .tww-card--chat:not(.is-empty):not([data-system-card-hidden="true"])) .tww-card--player { grid-row: 1 / -1; justify-content: center; }
+}
+
+/* ── Cinema: the picture and the chat, nothing else ───────────────────────── */
+/* The chat shows here even when its card is off in the layout — "player and chat"
+   is what this view is — and the list steps aside. */
+.tww-wrap[data-view="cinema"] .tww-card--library { display: none; }
+.tww-wrap[data-view="cinema"] .tww-card--chat[data-system-card-hidden="true"] { display: flex !important; }
+.tww-wrap[data-view="cinema"] .tww-card--chat { flex: 1 1 200px; min-height: 200px; }
+@container tww (min-aspect-ratio: 13 / 10) {
+  .tww-wrap[data-view="cinema"] .tww-cards {
+    --tww-pw: min(calc((100cqh - var(--tww-bar-h)) * 16 / 9), calc(100cqw - 294px));
+    display: grid; overflow: hidden; gap: 0 14px;
+    grid-template-columns: var(--tww-pw) minmax(280px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .tww-wrap[data-view="cinema"] .tww-card--player { grid-column: 1; grid-row: 1; min-height: 0; justify-content: center; }
+  .tww-wrap[data-view="cinema"] .tww-card--player .tww-stage-wrap { flex: 0 1 auto; height: calc(var(--tww-pw) * 9 / 16); min-height: 0; }
+  .tww-wrap[data-view="cinema"] .tww-card--chat { grid-column: 2; grid-row: 1; min-height: 0; }
+}
+
+/* ── Fill and full screen: the picture owns the space ─────────────────────── */
+/* Fill covers the tile; full screen covers the screen. Either way the controls
+   float over the picture the way every video player does, instead of stacking
+   under it and spending height a 16:9 picture cannot use. */
+.tww-wrap[data-view="fill"] { padding: 0; }
+.tww-wrap[data-view="fill"] .tww-setup,
+.tww-wrap[data-view="fill"] .tww-card--library,
+.tww-wrap[data-view="fill"] .tww-card--chat { display: none !important; }
+.tww-wrap[data-view="fill"] .tww-cards { overflow: hidden; }
+.tww-wrap[data-view="fill"] .tww-card--player { flex: 1 1 auto; }
+
+.tww-wrap.is-overlay .tww-card--player { position: relative; min-height: 0; background: #000; gap: 0; overflow: hidden; }
+.tww-wrap[data-view="fill"]:not(.is-screen) .tww-card--player { border-radius: inherit; }
+.tww-wrap.is-overlay .tww-card--player .tww-stage-wrap { position: absolute; inset: 0; height: auto; min-height: 0; }
+.tww-wrap.is-overlay .tww-player-stage { border-radius: 0; }
+/* Legible over whatever frame the stream happens to be on. */
+.tww-wrap.is-overlay .tww-card--player::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 170px; z-index: 1;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.5) 45%, transparent);
+  pointer-events: none;
+}
+.tww-wrap.is-overlay .tww-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 0 18px 14px; flex-wrap: nowrap;
+}
+.tww-wrap.is-overlay .tww-now-title { font-size: 1rem; }
+.tww-wrap.is-overlay .tww-ib { background: rgba(0,0,0,0.45); border-color: rgba(255,255,255,0.14); }
+.tww-wrap.is-overlay .tww-ib.is-on { color: #c8a6ff; border-color: rgba(145,70,255,0.7); }
+.tww-wrap.is-overlay .tww-blocked { position: absolute; left: 18px; right: 18px; top: 14px; z-index: 2; }
+
+/* The controls fade out a few seconds in and come back on a touch. The catcher
+   takes input ONLY while they are hidden (see js/twitchwatch-widget.js). */
+.tww-idlecatch { display: none; }
+.tww-wrap.is-overlay .tww-idlecatch { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.tww-wrap.is-overlay.is-idle .tww-idlecatch { pointer-events: auto; cursor: none; }
+.tww-wrap.is-overlay .tww-bar,
+.tww-wrap.is-overlay .tww-card--player::after { transition: opacity 0.35s ease; }
+.tww-wrap.is-overlay.is-idle .tww-bar,
+.tww-wrap.is-overlay.is-idle .tww-card--player::after { opacity: 0; pointer-events: none; }
+
+/* Full screen. The wrap is only re-positioned, never re-parented: moving the
+   iframe in the DOM reloads it and would drop the stream. The whole wrap goes,
+   not just the player, so the chat comes along for "player and chat".
+   Deliberately not the Fullscreen API: on the kiosk leaving it hands the window
+   back with the Windows taskbar over the dashboard until the app is restarted. */
+.tww-wrap.is-screen {
+  position: fixed; inset: 0; z-index: 5000;
+  width: auto; height: auto; padding: 0; gap: 0; border-radius: 0;
+  background: #05070a;
+}
+.tww-wrap.is-screen .tww-setup { display: none; }
+.tww-wrap.is-screen .tww-cards { overflow: hidden; }
+.tww-wrap.is-screen .tww-card--player { flex: 1 1 auto; border-radius: 0; }
+.tww-wrap.is-screen .tww-card--chat { border-radius: 0; border: 0; border-left: 1px solid rgba(255,255,255,0.06); background: #0c0d12; padding: 10px 14px 14px; }
+@container tww (min-aspect-ratio: 13 / 10) {
+  /* Picture as tall as the screen, chat beside it at a width a conversation reads
+     well at; whatever the screen has left is black on both sides. */
+  .tww-wrap.is-screen[data-view="cinema"] .tww-cards {
+    --tww-pw: min(calc(100cqh * 16 / 9), calc(100cqw - 320px));
+    grid-template-columns: var(--tww-pw) minmax(300px, 440px);
+    justify-content: center; gap: 0;
+  }
+}
+/* On a phone held upright: picture across the top, chat under it. */
+@container tww (max-aspect-ratio: 13 / 10) {
+  .tww-wrap.is-screen[data-view="cinema"] .tww-card--player { flex: 0 0 auto; height: calc(100cqw * 9 / 16); }
+  .tww-wrap.is-screen[data-view="cinema"] .tww-card--chat { border-left: 0; border-top: 1px solid rgba(255,255,255,0.06); }
+}
+/* Two stacking contexts sit between the wrap and the screen: the shell (z-index
+   1) holds it under the edge rails, which are fixed at 58 on the body, so it is
+   lifted while the player is full screen. And a fixed element is trapped by any
+   ancestor that becomes its containing block — a tile with glass
+   (backdrop-filter) or a shape (clip-path) does exactly that — so the tile drops
+   both for as long as it is covering the screen. */
+body.tww-expanded .shell { z-index: 60; }
+body.tww-expanded .tww-tile-expanded {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  clip-path: none !important; filter: none !important; transform: none !important; contain: none !important;
+}
+
+@media (hover: none) {
+  .tww-row-play { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tww-row, .tww-row-play, .tww-tab, .tww-ib,
+  .tww-wrap.is-overlay .tww-bar,
+  .tww-wrap.is-overlay .tww-card--player::after { transition: none; }
+}
+
+/* Emotes, drawn inline where their code was. Sized to the line rather than to
+   their own pixels: Twitch serves them at several scales and a 1.0 image next to
+   0.8rem text is otherwise a head taller than the line it sits in. */
+.tww-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -0.2em 1px 0; }
+
+/* The emote picker, opening upward from the message box. Absolute rather than in
+   the flow: it must not push the chat log around every time it opens. */
+.tww-chat-emo { width: 34px; height: 34px; }
+.tww-emopick { display: none; }
+.tww-emopick.is-open {
+  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
+  position: absolute; left: 8px; right: 8px; bottom: 54px; z-index: 3;
+  max-height: 190px; overflow-y: auto; overscroll-behavior-y: contain;
+  padding: 8px; border-radius: 12px;
+  background: rgba(10,10,14,0.96); border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.tww-emopick::-webkit-scrollbar { width: 6px; }
+.tww-emopick::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+.tww-emopick-item {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; cursor: pointer;
+  background: none; border: 0; border-radius: 8px;
+}
+.tww-emopick-item:hover { background: rgba(145,70,255,0.25); }
+.tww-emopick-item img { max-width: 28px; max-height: 28px; }
+.tww-emopick-note { padding: 6px 4px; font-size: 0.76rem; opacity: 0.7; }

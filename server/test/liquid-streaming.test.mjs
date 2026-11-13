@@ -3,7 +3,7 @@
 // and the seek line without a handle, and nothing changed off Liquid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import vm from 'node:vm';
 import { selectorsOf, topRules, declsIn } from './css-rules.mjs';
 import { appStringsSource } from './i18n-source.mjs';

@@ -1,0 +1,226 @@
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .vol-header,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .vol-header {
+  gap: 7px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .vol-title,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .vol-title {
+  font-size: 12px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .vol-value,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .vol-value {
+  font-size: 12.5px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .vol-mute-btn,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .vol-mute-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .vol-slider,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .vol-slider {
+  height: 6px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .device-row,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .device-row {
+  padding: 7px 8px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .device-icon,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .device-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.dashboard-widget[data-dashboard-size="normal"].side-panel .device-name,
+.dashboard-widget[data-dashboard-size="tall"].side-panel .device-name {
+  font-size: 11px;
+}
+
+[data-system-card] {
+  position: relative;
+}
+
+.stat-box[data-system-card-size="wide"],
+.volume-wrap[data-system-card-size="wide"],
+.device-row[data-system-card-size="wide"] {
+  grid-column: span 2;
+}
+
+.volume-wrap[data-system-card-size="normal"],
+.volume-wrap[data-system-card-size="compact"],
+.device-row[data-system-card-size="normal"],
+.device-row[data-system-card-size="compact"] {
+  grid-column: span 1;
+}
+
+.stat-box[data-system-card-size="compact"] {
+  min-height: 78px;
+}
+
+.stat-box[data-system-card-size="compact"] .stat-sub,
+.stat-box[data-system-card-size="compact"] .stat-detail,
+.stat-box[data-system-card-size="compact"] .stat-muted-detail,
+.stat-box[data-system-card-size="compact"] .stat-head-value {
+  display: none;
+}
+
+.stat-box[data-system-card-size="compact"] .stat-value {
+  font-size: 17px;
+}
+
+.volume-wrap[data-system-card-size="compact"] {
+  gap: 6px;
+  padding: 8px 9px;
+}
+
+.volume-wrap[data-system-card-size="compact"] .vol-header {
+  gap: 7px;
+}
+
+.volume-wrap[data-system-card-size="compact"] .vol-title {
+  font-size: 11.5px;
+}
+
+.volume-wrap[data-system-card-size="compact"] .vol-value {
+  font-size: 12px;
+}
+
+.volume-wrap[data-system-card-size="compact"] .vol-mute-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.volume-wrap[data-system-card-size="compact"] .vol-slider {
+  height: 6px;
+}
+
+.device-row[data-system-card-size="compact"] {
+  min-height: 45px;
+  padding: 8px;
+}
+
+.device-row[data-system-card-size="compact"] .device-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.device-row[data-system-card-size="compact"] .device-name,
+.device-row[data-system-card-size="compact"] .device-chevron {
+  display: none;
+}
+
+/* ── Compact System panel inside the Bento dashboard ─────────
+   The full-screen ?panel=system embed keeps verbose detail and its
+   own scroll. In a dashboard tile we drop the wordy model / module /
+   filesystem lines and tighten the cards so all four stats fit with
+   NO scrollbar — keeping the essentials (%, temperature, GB). */
+body:not([data-panel]) .side-panel { overflow: hidden; }
+body:not([data-panel]) .side-panel .stat-box { min-height: 0; }
+body:not([data-panel]) .side-panel .stat-sub,
+body:not([data-panel]) .side-panel .stat-muted-detail,
+body:not([data-panel]) .side-panel .device-caption { display: none; }
+
+.qbtn-layout { color: var(--green); }
+.qbtn-layout.active {
+  color: var(--on-accent);
+  background: var(--green);
+  border-color: rgba(var(--accent-rgb),0.38);
+}
+
+/* ── Layout editor controls ───────────────────────────────── */
+.layout-controls {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  /* Above the tile's drag overlay (40), below the floating layout dock (56):
+     over the dock, these covered its Done button wherever a tile sat under it. */
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 9px;
+  background: rgba(6, 10, 10, 0.88);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.38);
+  backdrop-filter: blur(10px);
+}
+
+.layout-editing .layout-controls { display: inline-flex; }
+
+.layout-editing .dashboard-widget,
+.layout-editing [data-system-card] {
+  outline: 1px dashed rgba(var(--accent-rgb),0.52);
+  outline-offset: -4px;
+}
+
+/* The hide / move-page pair used to float over a tile's top-right corner, so
+   the System tabs, the calendar nav and the Deck bar reserved room for it while
+   editing. It now lives in the tile's edit bar (DashboardGrid.css), above the
+   content, and none of them needs to step aside any more. */
+
+.layout-control-btn,
+.layout-chip {
+  min-width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.layout-control-btn:hover,
+.layout-chip:hover {
+  color: var(--green);
+  background: rgba(255,255,255,0.13);
+}
+
+.layout-control-btn:active,
+.layout-chip:active { transform: scale(0.94); }
+
+.layout-control-btn svg,
+.layout-chip svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.layout-dock {
+  /* In-flow between topbar and pager (only in editing mode) — never covers
+     resize handles or any widget content. `.layout-editing .shell` adds the
+     row; `display: none` here collapses the row when not editing. In minimal
+     topbar mode TopbarMinimal.css turns this into a floating capsule instead
+     (collapsible via the header bar, flippable top/bottom). */
+  display: none;
+  width: auto;
+  max-height: 50vh;
+  padding: 8px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--accent-rgb),0.24);
+  border-radius: 13px;
+  background: rgba(8, 12, 12, 0.95);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(var(--accent-rgb),0.08);
+}
+
+.layout-editing .layout-dock {
+  display: flex;
+  animation: layout-dock-in 0.2s ease both;
+}
+
+@keyframes layout-dock-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

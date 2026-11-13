@@ -29,10 +29,10 @@
   }
 
   const SYSTEM = {
-    css: ['components/SystemPanel/SystemPanel.css', 'components/DashboardLayout/DashboardLayout.css',
+    css: ['components/SystemPanel/SystemPanel.css', 'components/DashboardLayout/DashboardLayout.css', 'components/DashboardLayout/DashboardLayoutEditor.css', 'components/DashboardLayout/DashboardLayoutBars.css',
       'components/AudioSection/AudioSection.css', 'components/MicPanel/MicPanel.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css',
-      'components/AudioSection/LiquidMixer.css'],
+      'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
       'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
@@ -81,11 +81,11 @@
     notifications: tile('notifications', 'NotificationsWidget', ['js/notification-open.js', 'js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
     wavelink: tile('wavelink', 'WaveLinkWidget', ['js/wavelink-widget.js'], { wavelink: 'onSSE' }),
     obs: tile('obs', 'ObsWidget', ['js/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),
-    discord: tile('discord', 'DiscordWidget', ['js/tile-tab-memory.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }),
+    discord: tile('discord', 'DiscordWidget', ['js/tile-tab-memory.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }, null, ['components/DiscordWidget/DiscordWidgetMembers.css', 'components/DiscordWidget/DiscordWidgetSoundboard.css']),
     streamerbot: tile('streamerbot', 'StreamerbotWidget', ['js/tile-tab-memory.js', 'js/streamerbot-widget.js'], { streamerbot: 'onState', streamerbot_event: 'onEvent' }),
     youtube: tile('youtube', 'YouTubeWidget', ['js/tile-tab-memory.js', 'js/watch-view.js', 'js/youtube-widget.js'], {}),
     youtubelive: tile('youtubelive', 'YouTubeLiveWidget', ['js/youtubelive-widget.js'], {}),
-    twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}),
+    twitchwatch: tile('twitchwatch', 'TwitchWatchWidget', ['js/tile-tab-memory.js', 'js/twitch-chat.js', 'js/watch-view.js', 'js/twitchwatch-widget.js'], {}, null, ['components/TwitchWatchWidget/TwitchWatchWidgetChat.css']),
     spotify: tile('spotify', 'SpotifyWidget', ['js/tile-tab-memory.js', 'js/spotify-widget.js'], {}),
     claude: tile('claude', 'ClaudeWidget', ['js/approval-keys.js', 'js/dialog-focus.js', 'js/custom-select.js', 'js/claude-history.js', 'js/claude-thread.js', 'js/claude-roadmap.js', 'js/claude-ident.js',
       'js/claude-clawd.js', 'js/claude-rail.js', 'js/claude-console.js', 'js/claude-agents.js', 'js/claude-widget.js'], { claude: 'onSSE' },
@@ -95,7 +95,7 @@
     chatgpt: tile('chatgpt', 'ChatGPTWidget', ['js/approval-keys.js', 'js/chatgpt-widget.js'], { chatgpt: 'onSSE', codex: 'onCodex' }),
     transfer: tile('transfer', 'TransferWidget', ['js/transfer-widget.js'], { transfer: 'onState', transfer_progress: 'onProgress' }, null, ['components/TransferWidget/TransferWidgetList.css', 'components/TransferWidget/TransferWidgetRows.css', 'components/TransferWidget/TransferWidgetSheet.css']),
     phone: tile('phone', 'PhoneWidget', ['js/tile-tab-memory.js', 'js/phone-widget.js'], { phone: 'onSSE' }),
-    search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css']),
+    search: tile('search', 'SearchWidget', ['shared/src/bit-clips.js', 'shared/src/bit.js', 'shared/src/bit-player.js', 'js/bit-app.js', 'js/spotlight-bit.js', 'js/spotlight.js', 'js/search-widget.js'], {}, 'SearchWidget', ['components/Spotlight/Spotlight.css', 'components/Spotlight/SpotlightResults.css']),
     disk: tile('disk', 'DiskWidget', ['js/xenon-loader.js', 'js/tile-tab-memory.js', 'js/dialog-focus.js', 'js/disk-intelligence.js', 'js/disk-widget.js'],
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean'),

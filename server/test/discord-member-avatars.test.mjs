@@ -9,7 +9,7 @@
 // is there, and what they are doing is applied to the chips already on screen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStrings } from './i18n-source.mjs';
 
 // A Windows checkout has CRLF: the patterns below cut on "\n".

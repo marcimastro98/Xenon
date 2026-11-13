@@ -75,6 +75,12 @@
     {"kind":"style","from":"server/styles/themes-comic.css","parts":[{"file":"server/styles/themes-comic-text.css","at":268},{"file":"server/styles/themes-comic-controls.css","at":525},{"file":"server/styles/themes-comic-deck.css","at":784},{"file":"server/styles/themes-comic-chrome.css","at":1049}]},
     {"kind":"style","from":"server/components/MediaPanel/MediaPanel.css","parts":[{"file":"server/components/MediaPanel/MediaPanelBackdrop.css","at":253},{"file":"server/components/MediaPanel/MediaPanelTitles.css","at":489},{"file":"server/components/MediaPanel/MediaPanelSpotify.css","at":752},{"file":"server/components/MediaPanel/MediaPanelSizes.css","at":991}]},
     {"kind":"style","from":"server/components/LayerHost/LayerHost.css","parts":[{"file":"server/components/LayerHost/LayerHostEditCard.css","at":263},{"file":"server/components/LayerHost/LayerHostAddPages.css","at":531},{"file":"server/components/LayerHost/LayerHostKeysPins.css","at":793}]},
-    {"kind":"style","from":"server/components/TransferWidget/TransferWidget.css","parts":[{"file":"server/components/TransferWidget/TransferWidgetList.css","at":281},{"file":"server/components/TransferWidget/TransferWidgetRows.css","at":465},{"file":"server/components/TransferWidget/TransferWidgetSheet.css","at":668}]}
+    {"kind":"style","from":"server/components/TransferWidget/TransferWidget.css","parts":[{"file":"server/components/TransferWidget/TransferWidgetList.css","at":281},{"file":"server/components/TransferWidget/TransferWidgetRows.css","at":465},{"file":"server/components/TransferWidget/TransferWidgetSheet.css","at":668}]},
+    {"kind":"style","from":"server/components/DashboardLayout/DashboardLayout.css","parts":[{"file":"server/components/DashboardLayout/DashboardLayoutEditor.css","at":200},{"file":"server/components/DashboardLayout/DashboardLayoutBars.css","at":426}]},
+    {"kind":"style","from":"server/components/DiscordWidget/DiscordWidget.css","parts":[{"file":"server/components/DiscordWidget/DiscordWidgetMembers.css","at":247},{"file":"server/components/DiscordWidget/DiscordWidgetSoundboard.css","at":411}]},
+    {"kind":"style","from":"server/components/AudioSection/LiquidMixer.css","parts":[{"file":"server/components/AudioSection/LiquidMixerMicrophone.css","at":245}]},
+    {"kind":"style","from":"server/components/Spotlight/Spotlight.css","parts":[{"file":"server/components/Spotlight/SpotlightResults.css","at":275}]},
+    {"kind":"style","from":"server/components/TwitchWatchWidget/TwitchWatchWidget.css","parts":[{"file":"server/components/TwitchWatchWidget/TwitchWatchWidgetChat.css","at":276}]},
+    {"kind":"style","from":"server/styles/liquid-streaming.css","parts":[{"file":"server/styles/liquid-streaming-details.css","at":269}]}
   ]
 }
