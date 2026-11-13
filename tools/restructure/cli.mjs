@@ -47,9 +47,18 @@ function readArgs(argv) {
 const posix = (file) => String(file).split('\\').join('/').replace(/^\.\//, '');
 const readSource = (file) => readFileSync(path.join(REPO_ROOT, file), 'utf8');
 
+// An entry of load-registrations.json that does not count frees nothing: said aloud, so it is not mistaken for the rule.
+function analyzeFile(parser, file) {
+  const analysis = analyze(readSource(file), parser, file);
+  if (analysis.listProblems.length) {
+    console.error(`tools/restructure/load-registrations.json, entries that do not count:\n  ${analysis.listProblems.join('\n  ')}`);
+  }
+  return analysis;
+}
+
 function showAnalysis(parser, { flags, rest }) {
   const file = posix(rest[0]);
-  const analysis = analyze(readSource(file), parser, file);
+  const analysis = analyzeFile(parser, file);
   const json = toJson(analysis);
   if (flags.names) {
     const wanted = new Set(String(flags.names).split(','));
@@ -117,7 +126,7 @@ function carry() {
 
 function showRemainder(parser, { flags, rest }) {
   const file = posix(rest[0]);
-  const analysis = analyze(readSource(file), parser, file);
+  const analysis = analyzeFile(parser, file);
   const rewrite = createSpecRewriter(REPO_ROOT);
   const owners = new Map();
   const ownerOfSpec = (spec) => {

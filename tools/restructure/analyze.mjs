@@ -3,6 +3,7 @@
 
 import { isBuiltin } from 'node:module';
 
+import { markRegistrations, namesHeldAtLoad, namesRunAtLoad, registrationsFor, repoFileOf } from './load-registrations.mjs';
 import { readTopLevel } from './top-level.mjs';
 
 // Names whose meaning depends on the file the code sits in.
@@ -13,8 +14,11 @@ const CAN_MOVE = new Set(['function', 'class', 'const']);
  * @param {string} text the file's source
  * @param {any} parser from parser.mjs
  * @param {string} [file] name shown in the result
- * @param {{ calls?: import('./load-time-calls.mjs').LoadTimeCalls }} [rules] what may run at load and still move; the lists of this folder when left out
- * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any> }}
+ * @param {{ calls?: import('./load-time-calls.mjs').LoadTimeCalls, registrations?: { statement: string, callees?: string[], current: boolean }[],
+ *   fileOf?: (spec: string) => string | null }} [rules]
+ *   what may run at load and still move, and the load statements that only hand over functions (with where a require of
+ *   this file leads, to check them); the lists of this folder when left out
+ * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any>, listProblems: string[] }}
  *   `records` are the top-level statements with, added here: `deps` (other top-level
  *   names used), `requires` (required modules used), `writes`, `changes`, `state`,
  *   `fileBound`, `movable` and `blockers`.
@@ -40,10 +44,12 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
   for (const binding of bindings.values()) {
     binding.state = binding.kind === 'let' || binding.kind === 'var' || binding.reassigned || binding.changed;
   }
+  const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file),
+    { bindings, fileOf: rules.fileOf ?? repoFileOf(file) });
   for (const record of records) describe(record, bindings, duplicates);
   markLateModules(records, bindings);
   settleMovable(records, bindings);
-  return { file, lineCount: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), records, bindings };
+  return { file, lineCount: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), records, bindings, listProblems };
 }
 
 function describe(record, bindings, duplicates) {
@@ -73,19 +79,23 @@ function describe(record, bindings, duplicates) {
 // A new module is required before the first statement that may use it while the
 // file loads, and that is only possible when every module it needs is loaded by
 // then. A statement that runs at load "may use" whatever it can reach, callbacks
-// it hands over included: nothing here can tell whether they are called at once.
+// it hands over included: nothing here can tell whether they are called at once,
+// unless someone read the callee and put the statement in load-registrations.json.
 function markLateModules(records, bindings) {
   const firstUse = new Map();
   for (const start of records) {
     if (!start.loadTime) continue;
     const seen = new Set([start]);
-    const queue = [start];
-    while (queue.length) {
-      for (const name of queue.pop().uses.keys()) {
+    const queue = [];
+    const follow = (names) => {
+      for (const name of names) {
         const next = bindings.get(name)?.record;
         if (next && !seen.has(next)) { seen.add(next); queue.push(next); }
       }
-    }
+    };
+    follow(namesRunAtLoad(start));
+    while (queue.length) follow(queue.pop().uses.keys());
+    for (const name of namesHeldAtLoad(start)) if (bindings.has(name)) seen.add(bindings.get(name).record);
     for (const record of seen) if (!firstUse.has(record)) firstUse.set(record, start.index);
   }
   for (const record of records) {
@@ -150,7 +160,7 @@ export function toJson(analysis) {
     .map((b) => ({ name: b.name, kind: b.kind, line: b.record.line[0], reassigned: b.reassigned, changed: b.changed }));
   const movable = declarations.filter((d) => d.movable);
   return {
-    file: analysis.file, lines: analysis.lineCount,
+    file: analysis.file, lines: analysis.lineCount, listProblems: analysis.listProblems,
     totals: {
       declarations: declarations.length, statements: statements.length, state: state.length,
       movable: movable.length, movableLines: movable.reduce((sum, d) => sum + d.lines, 0),

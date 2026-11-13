@@ -12,9 +12,12 @@ const CHANGING_STATICS = new Set(['Object.assign', 'Object.defineProperty', 'Obj
 /**
  * @param {Record<string, number>} K SyntaxKind
  * @param {Record<string, number>} NodeFlags
- * @returns {(statement: any) => Map<string, {read: number, write: number, change: number, eager: boolean}>}
+ * @returns {(statement: any, handedTo?: Set<string>) => Map<string, {read: number, write: number, change: number, eager: boolean, called: boolean}>}
  *   `eager` is true when the name is touched while the statement itself runs,
- *   false when only code inside a function body touches it.
+ *   false when only code inside a function body touches it. `called` is true when
+ *   the statement itself calls the name, or a method of it, or builds it with `new`.
+ *   `handedTo` receives, for every function the statement writes in place and does not
+ *   call itself, the name the call around it starts with ('' when there is none to name).
  */
 export function createUseReader(K, NodeFlags) {
   const FUNCTIONS = new Set([K.FunctionDeclaration, K.FunctionExpression, K.ArrowFunction, K.MethodDeclaration,
@@ -27,15 +30,30 @@ export function createUseReader(K, NodeFlags) {
   const blockScoped = (list) => (list.flags & NodeFlags.BlockScoped) !== 0;
 
   let uses;
+  let handed = new Set();
+  let receiver = '';
+  const isLocal = (name, scope) => {
+    for (let s = scope; s; s = s.parent) if (s.names.has(name)) return true;
+    return false;
+  };
   const note = (name, scope, how, deferred) => {
     for (let s = scope; s; s = s.parent) if (s.names.has(name)) return;
     let entry = uses.get(name);
     if (!entry) {
-      entry = { read: 0, write: 0, change: 0, eager: false };
+      entry = { read: 0, write: 0, change: 0, eager: false, called: false };
       uses.set(name, entry);
     }
     entry[how] += 1;
     if (!deferred) entry.eager = true;
+  };
+
+  // `f()`, `a.b.c()` and `new F()` run code of the name on the left while the statement runs.
+  const noteCalled = (callee, scope, deferred) => {
+    const root = deferred ? null : rootOf(callee);
+    if (!root) return;
+    for (let s = scope; s; s = s.parent) if (s.names.has(root.text)) return;
+    const entry = uses.get(root.text);
+    if (entry) entry.called = true;
   };
 
   const declare = (name, scope) => {
@@ -62,6 +80,22 @@ export function createUseReader(K, NodeFlags) {
     while (at && (at.kind === K.PropertyAccessExpression || at.kind === K.ElementAccessExpression
       || at.kind === K.ParenthesizedExpression || at.kind === K.NonNullExpression)) at = at.expression;
     return at && at.kind === K.Identifier ? at : null;
+  };
+  // `require('./x').create(...)` starts with `require`, `a.b(c).d(...)` with `a`.
+  const firstName = (callee, scope) => {
+    let at = callee;
+    while (at && at.kind !== K.Identifier && at.expression) at = at.expression;
+    return at && at.kind === K.Identifier && !isLocal(at.text, scope) ? at.text : '';
+  };
+  // The arguments of a call that runs now go to whatever the call starts with.
+  const visitArguments = (node, callee, scope, deferred, visitCallee) => {
+    const outer = receiver;
+    node.forEachChild((child) => {
+      if (child === callee) return visitCallee(child);
+      if (!deferred) receiver = firstName(callee, scope);
+      visit(child, scope, deferred);
+      receiver = outer;
+    });
   };
   const changeRoot = (node, scope, deferred) => {
     const root = rootOf(node);
@@ -107,7 +141,7 @@ export function createUseReader(K, NodeFlags) {
     }
   };
 
-  const visitFunction = (node, scope) => {
+  const visitFunction = (node, scope, bodyDeferred = true) => {
     if (node.name && node.name.kind === K.ComputedPropertyName) visit(node.name, scope, false);
     const inner = { names: new Set(), parent: scope };
     if (node.kind === K.FunctionExpression && node.name) inner.names.add(node.name.text);
@@ -115,10 +149,10 @@ export function createUseReader(K, NodeFlags) {
     for (const parameter of node.parameters ?? []) declare(parameter.name, inner);
     if (node.body) hoistVars(node.body, inner);
     if (node.body && node.body.kind === K.Block) declareStatements(node.body.statements, inner);
-    for (const parameter of node.parameters ?? []) visit(parameter, inner, true);
+    for (const parameter of node.parameters ?? []) visit(parameter, inner, bodyDeferred);
     if (!node.body) return;
-    if (node.body.kind === K.Block) for (const s of node.body.statements) visit(s, inner, true);
-    else visit(node.body, inner, true);
+    if (node.body.kind === K.Block) for (const s of node.body.statements) visit(s, inner, bodyDeferred);
+    else visit(node.body, inner, bodyDeferred);
   };
 
   const visitClass = (node, scope, deferred) => {
@@ -158,12 +192,23 @@ export function createUseReader(K, NodeFlags) {
       changeRoot(callee.expression, scope, deferred);
     }
     if (CHANGING_STATICS.has(dotted(callee)) && node.arguments[0]) changeRoot(node.arguments[0], scope, deferred);
-    node.forEachChild((child) => { visit(child, scope, deferred); });
+    // `(() => { ... })()`: the function written in place runs with the call, not later.
+    let inPlace = callee;
+    while (inPlace.kind === K.ParenthesizedExpression) inPlace = inPlace.expression;
+    const runsNow = inPlace.kind === K.FunctionExpression || inPlace.kind === K.ArrowFunction;
+    visitArguments(node, callee, scope, deferred, () => {
+      if (runsNow) visitFunction(inPlace, scope, deferred);
+      else visit(callee, scope, deferred);
+    });
+    noteCalled(callee, scope, deferred);
   };
 
   function visit(node, scope, deferred) {
     if (!node || notCode(node)) return;
-    if (FUNCTIONS.has(node.kind)) return visitFunction(node, scope);
+    if (FUNCTIONS.has(node.kind)) {
+      if (!deferred) handed.add(receiver);
+      return visitFunction(node, scope);
+    }
     if (CLASSES.has(node.kind)) return visitClass(node, scope, deferred);
     switch (node.kind) {
       case K.Identifier: return note(node.text, scope, 'read', deferred);
@@ -205,13 +250,21 @@ export function createUseReader(K, NodeFlags) {
         return assignTo(node.operand, scope, deferred, true);
       case K.DeleteExpression: changeRoot(node.expression, scope, deferred); break;
       case K.CallExpression: return visitCall(node, scope, deferred);
+      case K.NewExpression:
+        visitArguments(node, node.expression, scope, deferred, (callee) => visit(callee, scope, deferred));
+        return noteCalled(node.expression, scope, deferred);
+      case K.TaggedTemplateExpression:
+        node.forEachChild((child) => { visit(child, scope, deferred); });
+        return noteCalled(node.tag, scope, deferred);
       default:
     }
     node.forEachChild((child) => { visit(child, scope, deferred); });
   }
 
-  return (statement) => {
+  return (statement, handedTo = new Set()) => {
     uses = new Map();
+    handed = handedTo;
+    receiver = '';
     // A top-level function's body runs only when called; everything else runs now.
     visit(statement, null, false);
     return uses;

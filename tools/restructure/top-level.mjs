@@ -85,7 +85,8 @@ function builtinModules(K, NodeFlags, statements, sourceFile) {
  * @returns {any[]} one record per top-level statement, in file order. Lines are 1-based:
  *   `line` is the code, `range` adds the comment block above it and the blank
  *   lines after it that go with it when it is taken out. `loadCalls` names what a
- *   declaration runs at load that is not on the list.
+ *   declaration runs at load that is not on the list. `handedTo` names the calls the
+ *   statement hands a function to (scope-uses.mjs).
  */
 export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
   const { K, NodeFlags } = parser;
@@ -114,10 +115,11 @@ export function readTopLevel(sourceFile, parser, calls = repoLoadTimeCalls()) {
     let blanks = 0;
     while (isBlank(last + 1 + blanks) && last + 1 + blanks < starts.length - 1) blanks += 1;
     const takesBlanks = blanks > 0 && (top === 0 || isBlank(top - 1));
+    const handedTo = new Set();
     const record = {
       index, kind: 'statement', names: [], loadTime: true, loadCalls: [], require: null, isAsync: false,
       line: [first + 1, last + 1], range: [top + 1, last + 1 + (takesBlanks ? blanks : 0)],
-      sharesLine: false, uses: usesOf(node),
+      sharesLine: false, uses: usesOf(node, handedTo), handedTo: [...handedTo],
     };
     if (node.kind === K.FunctionDeclaration && node.name) {
       Object.assign(record, { kind: 'function', names: [node.name.text], loadTime: false });

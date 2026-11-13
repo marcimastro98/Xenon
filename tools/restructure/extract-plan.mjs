@@ -5,6 +5,7 @@
 import path from 'node:path';
 
 import { closureOf } from './analyze.mjs';
+import { namesRunAtLoad } from './load-registrations.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
 import { requireEdit } from './require-edits.mjs';
 import { lineStarts } from './top-level.mjs';
@@ -63,7 +64,10 @@ function placeRequire({ records, moved, movedSet, movedNames, bindings, modules,
       }
     }
   }
-  const usesAtLoad = (record) => (record.loadTime && reaches.has(record)) || movedNames.some((name) => record.uses.get(name)?.eager);
+  // A statement that only hands over functions (load-registrations.json) runs what stands outside them, nothing else.
+  const runsMoved = (record) => (record.registersOnly
+    ? namesRunAtLoad(record).some((name) => bindings.has(name) && reaches.has(bindings.get(name).record)) : reaches.has(record));
+  const usesAtLoad = (record) => (record.loadTime && runsMoved(record)) || movedNames.some((name) => record.uses.get(name)?.eager);
   const firstUse = remaining.find(usesAtLoad);
   const before = firstUse ? firstUse.index : records.length;
   const loaded = modules.filter((m) => m.kind !== 'builtin').reduce((max, m) => Math.max(max, m.index), -1);

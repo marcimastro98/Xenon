@@ -1,0 +1,59 @@
+{
+  "note": "Load statements that only register callbacks and run nothing until the server is up. A statement that runs while a file loads normally pins everything it can reach, the functions it hands over included, because nothing can tell whether the callee calls them at once. A statement listed here is one where a person read every callee and found that it only keeps what it is handed: for it, the tool follows only what the statement calls itself. An entry names the statement by its first line, the files that were read (callees, each with the SHA-256 of the text read, line endings as LF) and the reason in one sentence. The tool checks what it can and drops the entry when a check fails: a callee whose text changed has to be read again; every call the statement makes, every call it hands a function to and every module it loads in place has to lead to a file in callees (calls to Node's own modules and to globals aside), so a statement that calls a function of its own file cannot be listed. What the tool cannot check is the reason itself: add an entry only after reading the callee and confirming it stores the callback and calls nothing at load. When in doubt, leave the statement blocked.",
+  "files": {
+    "server/server.js": [
+      {
+        "statement": "const layersEdit = require('./layers-edit').createLayersEdit({",
+        "callees": {
+          "server/layers-edit.js": "1555c237b5c6cbc425dd9c39f4b31db43f0c8bd8deeeda520fee7cb54d47c7ec"
+        },
+        "reason": "createLayersEdit keeps broadcast, onEnd and onOff in its closure and returns an object of functions; it calls none of them and starts no timer until set() is called."
+      },
+      {
+        "statement": "const screenMenu = require('./screen-menu').createScreenMenu({",
+        "callees": {
+          "server/screen-menu.js": "56d2c4a0459b59efed398ff8d46e4b31f013b6edd264db9409227c9189550d03"
+        },
+        "reason": "createScreenMenu declares its own state and functions and returns them; host, broadcast, panel, run, failed, capturing and holding are first called by open(), close() and the other functions it returns."
+      },
+      {
+        "statement": "const capabilityRunner = capabilities.createCapabilities({",
+        "callees": {
+          "server/capabilities/index.js": "e2cddd8f88ce409f96ae8f0b2ce42ac3600b60d6eb123f09a39119a1ee1e0674",
+          "server/notification-open/index.js": "b7fd7d2575f0cd056a560a5732150fe311ec649240a939fdc8893e0d611e7f07",
+          "server/notification-open/start-apps.js": "93223b3724c28d1ce51644925a4257ae1285b02f9b6ddc0440998203f03466de",
+          "server/power/index.js": "612a6ab6ebdaf88bb1df5f0de4e739eb9472412ddb39ba8c93ce6e626bc8b1a7"
+        },
+        "reason": "createCapabilities keeps the object it is handed and returns probes, run and seedKeys without calling any of it; platformDeps and createNotificationOpener build closures over what they are handed, and createStartAppIds keeps its reader for the first tap; power/index.js is only loaded here, as it is today, and is handed nothing."
+      },
+      {
+        "statement": "gameDetect.setIgnoreSource(() => _serverHubSettings && _serverHubSettings.gameIgnore);",
+        "callees": {
+          "server/gamedetect.js": "0b99be7871469ff924c7a8cdb581b69a0bc400b32849d0f7c143bd40007b036d"
+        },
+        "reason": "setIgnoreSource stores the function in a variable and clears a cached list; the function is first called by isIgnoredProc, when a process is checked."
+      },
+      {
+        "statement": "const lyricsTranslator = createLyricsTranslator({",
+        "callees": {
+          "server/lyrics-translator.js": "62ed975a8027682a8586e5e8c7d2bec5bc1fb32ffd464e496432a7d0753dc13b"
+        },
+        "reason": "createLyricsTranslator calls complete and onError only inside request(), which translate() reaches; at creation it builds a cache from its own functions and passes neither callback on."
+      },
+      {
+        "statement": "const sdkAi = createSdkAi({",
+        "callees": {
+          "server/sdk-ai.js": "0bd68051957830d93e6d25c7890d36098ada039c7eb146b7fc7df38a199c7ec9"
+        },
+        "reason": "createSdkAi calls complete, blocker and onError only inside ask(); at creation it works out a file path and returns ask and usageToday."
+      },
+      {
+        "statement": "const _widgetKeys = createWidgetKeys({",
+        "callees": {
+          "server/widget-keys.js": "7d41a25dce1bb6b54e7c94754de8edbd777f5271994f5f5fbf9b1d1f4943c13b"
+        },
+        "reason": "createWidgetKeys calls layers only inside read() and onChange only from press, release and a peek timer that press starts; at creation it makes empty sets and returns its functions."
+      }
+    ]
+  }
+}
