@@ -8,7 +8,8 @@
 // saying how it keeps working, or the tool refuses the split.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { BROWSER_LEDGER } from './browser-ledger.mjs';
@@ -22,6 +23,20 @@ const FOLLOW_ALONE = /^tools\/quality\/baseline\/|^tools\/map\/features\.json$/;
 const PROSE = /\.(md|txt)$|(^|\/)(LICENSE|CHANGELOG)[^/]*$/;
 const TEST = /(^|\/)test\//;
 const blank = (text) => text.replace(/[^\n]/g, ' ');
+// Lists of browser files that code puts together while it runs. A name can be built there from its
+// parts ('components/' + name + '/' + name + '.css'), where no search for the file's name finds it,
+// so each list is asked for its files. The pages for widgets on the desktop are made from the first.
+const BUILT_LISTS = [{
+  file: 'server/js/layer-tiles.js',
+  files: (api) => Object.values(api.TILES ?? {}).flatMap((row) => [...(row.css ?? []), ...(row.js ?? [])]).map((name) => `server/${name}`),
+}];
+const load = createRequire(import.meta.url);
+
+/** @param {string} root @param {string} file repo-relative @returns {string[]} the lists built in code that hold the file */
+export function builtListsWith(root, file) {
+  return BUILT_LISTS.filter((list) => existsSync(path.join(root, list.file)) && list.files(load(path.join(root, list.file))).includes(file))
+    .map((list) => list.file);
+}
 
 /** Comments blanked out, every line kept, so a file named in a comment is not read as a use of it. */
 export function withoutComments(text, file) {
@@ -55,7 +70,8 @@ export function mentionsOf(root, file) {
     if (other === file || PROSE.test(other)) continue;
     const raw = readFileSync(path.join(root, other), 'utf8');
     const text = withoutComments(raw, other);
-    const tagLines = other.endsWith('.html') ? new Set(tagsOf(raw).filter((tag) => tag.file === file)
+    // Only a page of the app gets its tags from the tool; a page elsewhere (a tool's own page) is code that names the file.
+    const tagLines = /^server\/.*\.html$/.test(other) ? new Set(tagsOf(raw).filter((tag) => tag.file === file)
       .map((tag) => raw.slice(0, tag.start).split('\n').length)) : new Set();
     const lines = [];
     for (const match of text.matchAll(mentionOf(file))) {
@@ -67,6 +83,9 @@ export function mentionsOf(root, file) {
     }
     if (lines.length) found.push({ file: other, lines: [...new Set(lines)], kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER) });
     else if (tagLines.size) found.push({ file: other, lines: [...tagLines], kind: 'page', reader: false });
+  }
+  for (const list of builtListsWith(root, file)) {
+    if (!found.some((mention) => mention.file === list && mention.kind === 'code')) found.push({ file: list, lines: [1], kind: 'code', reader: false });
   }
   return found;
 }

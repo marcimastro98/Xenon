@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browserSource, fileDeclaring, partsOf, readFileSync } from './browser-source.mjs';
-import { consumerProblems, keptNames, knownConsumers, withoutComments } from '../../tools/restructure/browser-consumers.mjs';
+import { builtListsWith, consumerProblems, keptNames, knownConsumers, withoutComments } from '../../tools/restructure/browser-consumers.mjs';
 import { readBrowserLedger, runOf, splitFiles } from '../../tools/restructure/browser-ledger.mjs';
 import { firstReadCounts } from '../../tools/restructure/browser-cli.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
@@ -97,6 +97,8 @@ test('a browser file named in code somewhere new is caught before it is split', 
     write('tools/listed.mjs', "patch('server/js/big.js');\n");
     write('tools/other.mjs', "// big.js is only named in this comment\ncopy('remote/big.js');\n");
     write('docs/notes.md', 'big.js is a large file.\n');
+    write('server/components/Big/Big.css', '.big { color: red; }\n');
+    write('server/js/layer-tiles.js', "const name = 'Big';\nmodule.exports = { TILES: { big: { css: ['components/' + name + '/' + name + '.css'], js: [] } } };\n");
     write('tools/restructure/browser-consumers.json', JSON.stringify({ known: { 'server/js/big.js': { 'tools/listed.mjs': { how: 'Patches the last script.', keeps: ['big'] } } } }));
     for (const args of [['init', '-q'], ['add', '-A']]) assert.equal(spawnSync('git', args, { cwd: root }).status, 0);
     assert.deepEqual(consumerProblems(root, 'server/js/big.js'), [
@@ -105,6 +107,11 @@ test('a browser file named in code somewhere new is caught before it is split', 
     ]);
     assert.equal(consumerProblems(root, 'server/js/big.js', { tests: false }).length, 1, 'the tests are moved over after the first split');
     assert.deepEqual([...keptNames(root, 'server/js/big.js')], [['big', 'tools/listed.mjs']]);
+    assert.deepEqual(consumerProblems(root, 'server/components/Big/Big.css'),
+      ['server/js/layer-tiles.js:1 names Big.css in code: make it follow the split, then say how in tools/restructure/browser-consumers.json'],
+      'a name put together in code is found by asking the list, not by searching for the name');
+    assert.deepEqual(builtListsWith(ROOT, 'server/components/DiskWidget/DiskWidget.css'), ['server/js/layer-tiles.js'],
+      'the pages for widgets on the desktop load the stylesheet of a tile by a name they build');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

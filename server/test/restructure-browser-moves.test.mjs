@@ -102,6 +102,11 @@ test('a stylesheet that cannot be read in parts is refused whole', () => {
   assert.match(refusal(() => planStyleSplit('/* never closed\n.a { color: red; }\n', cut, 'a.css')), /never closes/);
   assert.deepEqual([...readStylesheet('.a { content: "}"; }\n/* } */\n.b { color: red; }\n').between].sort((a, b) => a - b), [1, 2, 3, 4],
     'a bracket inside a string or a comment is not a bracket');
+  // After a stray `;` the browser reads on to the next block and drops that rule: a cut there would bring it back.
+  const lines = (text) => [...readStylesheet(text).between].sort((a, b) => a - b);
+  assert.deepEqual(lines('.a { color: red; };\n.b { color: blue; }\n.c { color: green; }\n@layer one, two;\n.d { color: red; }\n'), [1, 3, 4, 5, 6],
+    'only an at-rule ends at a semicolon');
+  assert.deepEqual(lines('.a { color: red; }\nstray words\n.b { color: blue; }\n.c { color: green; }\n'), [1, 2, 4, 5]);
 });
 
 test('a stylesheet move links the parts right after the old sheet on every page', () => {
@@ -111,6 +116,8 @@ test('a stylesheet move links the parts right after the old sheet on every page'
   assert.equal(done.files.get('server/components/Box.css') + done.files.get('server/components/BoxEdit.css'), SHEET);
   assert.ok(done.files.get('server/index.html').includes('href="components/Box.css?v=1">\n<link rel="stylesheet" href="components/BoxEdit.css">\n'));
   assert.match(refusal(() => applyMove(tree, move, { parser: null, pages: ['server/index.html'], earlier: [done.record] })), /cut into parts already/);
+  const elsewhere = { ...move, parts: [{ file: 'server/styles/BoxEdit.css', at: 6 }] };
+  assert.match(refusal(() => applyMove(tree, elsewhere, { parser: null, pages: ['server/index.html'], earlier: [] })), /must be a \.css file in the folder of server\/components\/Box\.css/);
 });
 
 test('a script written inside a page becomes a file with the same code', () => {

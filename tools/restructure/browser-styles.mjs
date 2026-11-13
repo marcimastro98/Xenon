@@ -17,12 +17,15 @@ const ONE_SHEET_RULES = new Set(['import', 'charset', 'namespace']);
 export function readStylesheet(text) {
   const between = new Set([1]);
   const problems = [];
-  let [depth, round, line, last] = [0, 0, 1, ''];
+  // `open`: what the statement being read at the top level began with, '' between two statements.
+  // Only an at-rule ends at a `;` (`@layer a, b;`). After anything else a `;` ends nothing: the browser
+  // reads on to the next block, so a cut there would give the next rule back its own start.
+  let [depth, round, line, open] = [0, 0, 1, ''];
   for (let i = 0; i < text.length; i += 1) {
     const c = text[i];
     if (c === '\n') {
       line += 1;
-      if (depth === 0 && round === 0 && (last === '' || last === '}' || last === ';')) between.add(line);
+      if (depth === 0 && round === 0 && open === '') between.add(line);
     } else if (c === '/' && text[i + 1] === '*') {
       const end = text.indexOf('*/', i + 2);
       if (end === -1) { problems.push(`the comment that opens at line ${line} never closes`); break; }
@@ -34,18 +37,19 @@ export function readStylesheet(text) {
       while (end < text.length && text[end] !== c && text[end] !== '\n') end += text[end] === '\\' ? 2 : 1;
       if (text[end] !== c) { problems.push(`the string that opens at line ${line} never closes`); break; }
       i = end;
-      last = c;
+      if (depth === 0 && open === '') open = 'rule';
     } else if (c === '@' && depth === 0 && round === 0) {
       const name = /^[a-z-]+/i.exec(text.slice(i + 1, i + 24))?.[0].toLowerCase() ?? '';
       if (ONE_SHEET_RULES.has(name)) problems.push(`@${name} at line ${line} works for one stylesheet only: this file cannot be cut`);
-      last = c;
+      if (open === '') open = '@';
     } else if (/\S/.test(c)) {
       if (c === '{') depth += 1;
       else if (c === '}') depth -= 1;
       else if (c === '(') round += 1;
       else if (c === ')') round -= 1;
       if (depth < 0 || round < 0) { problems.push(`a bracket closes at line ${line} that never opened`); break; }
-      last = c;
+      if (depth === 0 && round === 0 && (c === '}' || (c === ';' && open === '@'))) open = '';
+      else if (open === '') open = 'rule';
     }
   }
   if (problems.length === 0 && (depth !== 0 || round !== 0)) problems.push('a block or a bracket is still open at the end of the file');

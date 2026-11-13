@@ -48,6 +48,10 @@ function styleMove(tree, move, { pages, earlier }) {
   if (earlier.some((entry) => entry.kind === 'style' && entry.from === move.from)) {
     throw new Refusal([`${move.from} is cut into parts already: a second cut would have to load between them`]);
   }
+  // An address inside a stylesheet is read from where the file is, so a part stays beside the old sheet.
+  const folder = move.from.slice(0, move.from.lastIndexOf('/') + 1);
+  const astray = move.parts.filter((part) => !part.file.endsWith('.css') || part.file.slice(0, part.file.lastIndexOf('/') + 1) !== folder);
+  if (astray.length) throw new Refusal(astray.map((part) => `${part.file} must be a .css file in the folder of ${move.from}`));
   const old = need(tree, move.from);
   const plan = planStyleSplit(old, move.parts, move.from);
   const added = plan.parts.map((part) => part.file);
