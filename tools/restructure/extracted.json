@@ -432,7 +432,9 @@
       {"file":"server/screens/routes-captures.js","about":"The captures kept on this computer: the list, a file, its small picture, its transcript, the export and the spots saved.","keys":["GET /captures","GET /captures/transcript","POST /captures/transcribe","POST /captures/export","POST /captures/export-cancel","GET /captures/thumb","GET|HEAD /captures/file","POST /captures/spots","POST /captures/save"],"after":292},
       {"file":"server/widget-sdk/routes-calls.js","about":"","keys":["POST /sdk/hook/*"],"after":292},
       {"file":"server/widget-sdk/routes-packages.js","about":"","keys":["GET /sdk/export/*","GET /sdk/check/*","DELETE /sdk/widget/*"],"after":292},
-      {"file":"server/paired/routes-access.js","about":"","keys":["GET /api/remote-access/status","POST /api/remote-access/https","POST /api/remote-access/https/setup","POST /api/remote-access/pair"],"after":292}
+      {"file":"server/paired/routes-access.js","about":"","keys":["GET /api/remote-access/status","POST /api/remote-access/https","POST /api/remote-access/https/setup","POST /api/remote-access/pair"],"after":292},
+      {"file":"server/streaming/tools.js","about":"","keys":["spotify_control"],"after":298},
+      {"file":"server/discord/tools.js","about":"What the assistant does in a Discord voice call: mute, deafen, join and leave.","keys":["discord_voice"],"after":298}
     ]
   }
 }

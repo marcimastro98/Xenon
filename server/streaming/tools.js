@@ -3,7 +3,7 @@
 
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
-/** @type {Record<string, (context: any) => Promise<any>>} */
+/** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {
   'obs_control': async ({ fnArgs, runAction }) => {
       let fnResult;
@@ -53,6 +53,47 @@ const branches = {
       let fnResult;
       const act = String(fnArgs.action || '').trim();
       fnResult = act ? await runAction({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+      return fnResult;
+  },
+
+  'spotify_control': async ({ fnArgs, runAction }, { streams }) => {
+      let fnResult;
+      // Full Spotify control. Transport/shuffle/repeat/like/volume/seek/device
+      // route through the allowlisted registry; play/queue-by-name and the status
+      // read use the provider directly (search resolves the concrete URI).
+      const action = String(fnArgs.action || '');
+      const query = String(fnArgs.query || '');
+      const value = String(fnArgs.value || '');
+      if (action === 'status') {
+        const [player, devices] = await Promise.all([
+          streams.spotify.getPlayer().catch(() => null),
+          streams.spotify.getDevices().catch(() => null),
+        ]);
+        fnResult = { ok: true, nowPlaying: player, devices: (devices && devices.devices) || [] };
+      } else if (action === 'play_song') {
+        fnResult = await streams.spotify.playSearch(query);
+      } else if (action === 'queue_song') {
+        fnResult = await streams.spotify.queueSearch(query);
+      } else {
+        const seekMs = Math.max(0, Math.round((parseFloat(value) || 0) * 1000));
+        const map = {
+          play: { type: 'spotifyPlay', mode: 'play' },
+          pause: { type: 'spotifyPlay', mode: 'pause' },
+          next: { type: 'spotifyNext' },
+          previous: { type: 'spotifyPrev' },
+          shuffle_on: { type: 'spotifyShuffle', mode: 'on' },
+          shuffle_off: { type: 'spotifyShuffle', mode: 'off' },
+          repeat: { type: 'spotifyRepeat', mode: ['off', 'context', 'track'].includes(value) ? value : 'toggle' },
+          like: { type: 'spotifyLike', mode: 'like' },
+          unlike: { type: 'spotifyLike', mode: 'unlike' },
+          volume: { type: 'spotifyVolume', mode: 'set', value },
+          seek: { type: 'spotifySeek', value: seekMs },
+          play_playlist: { type: 'spotifyPlaylist', playlist: query },
+          device: { type: 'spotifyDevice', device: query },
+        };
+        const act = map[action];
+        fnResult = act ? await runAction(act) : { error: 'bad_action' };
+      }
       return fnResult;
   },
 };

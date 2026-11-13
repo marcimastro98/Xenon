@@ -5392,6 +5392,7 @@ const { branches: diskToolsBranches } = require('./disk/tools.js');
 const { branches: streamingToolsBranches } = require('./streaming/tools.js');
 const { branches: smartHomeToolsBranches } = require('./smart-home/tools.js');
 const { branches: storeCatalogToolsRatingBranches } = require('./store-catalog/tools-rating.js');
+const { branches: discordToolsBranches } = require('./discord/tools.js');
 
 async function runAiTool(fnName, fnArgs, deps) {
   const {
@@ -5681,81 +5682,11 @@ async function runAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'streamerbot_action') {
       fnResult = await streamingToolsBranches['streamerbot_action']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText });
     } else if (fnName === 'spotify_control') {
-      // Full Spotify control. Transport/shuffle/repeat/like/volume/seek/device
-      // route through the allowlisted registry; play/queue-by-name and the status
-      // read use the provider directly (search resolves the concrete URI).
-      const action = String(fnArgs.action || '');
-      const query = String(fnArgs.query || '');
-      const value = String(fnArgs.value || '');
-      if (action === 'status') {
-        const [player, devices] = await Promise.all([
-          streams.spotify.getPlayer().catch(() => null),
-          streams.spotify.getDevices().catch(() => null),
-        ]);
-        fnResult = { ok: true, nowPlaying: player, devices: (devices && devices.devices) || [] };
-      } else if (action === 'play_song') {
-        fnResult = await streams.spotify.playSearch(query);
-      } else if (action === 'queue_song') {
-        fnResult = await streams.spotify.queueSearch(query);
-      } else {
-        const seekMs = Math.max(0, Math.round((parseFloat(value) || 0) * 1000));
-        const map = {
-          play: { type: 'spotifyPlay', mode: 'play' },
-          pause: { type: 'spotifyPlay', mode: 'pause' },
-          next: { type: 'spotifyNext' },
-          previous: { type: 'spotifyPrev' },
-          shuffle_on: { type: 'spotifyShuffle', mode: 'on' },
-          shuffle_off: { type: 'spotifyShuffle', mode: 'off' },
-          repeat: { type: 'spotifyRepeat', mode: ['off', 'context', 'track'].includes(value) ? value : 'toggle' },
-          like: { type: 'spotifyLike', mode: 'like' },
-          unlike: { type: 'spotifyLike', mode: 'unlike' },
-          volume: { type: 'spotifyVolume', mode: 'set', value },
-          seek: { type: 'spotifySeek', value: seekMs },
-          play_playlist: { type: 'spotifyPlaylist', playlist: query },
-          device: { type: 'spotifyDevice', device: query },
-        };
-        const act = map[action];
-        fnResult = act ? await runAction(act) : { error: 'bad_action' };
-      }
+      fnResult = await streamingToolsBranches['spotify_control']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { streams });
     } else if (fnName === 'home_assistant') {
       fnResult = await smartHomeToolsBranches['home_assistant']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { deckHa });
     } else if (fnName === 'discord_voice') {
-      // Discord voice control. `status` reads the live voice state + joinable
-      // channels; `join` resolves a channel NAME → snowflake before the registry
-      // call; the rest map straight onto the allowlisted Discord actions.
-      const action = String(fnArgs.action || '');
-      if (action === 'status') {
-        const [st, chans] = await Promise.all([
-          discordLink.rpc.voiceState().catch(() => null),
-          discordLink.rpc.listVoiceChannels().catch(() => []),
-        ]);
-        fnResult = { ok: true, voice: st, channels: (Array.isArray(chans) ? chans : []).slice(0, 60) };
-      } else if (action === 'join') {
-        const name = String(fnArgs.channel || '').trim().toLowerCase();
-        if (!name) { fnResult = { error: 'no_channel' }; }
-        else {
-          const chans = await discordLink.rpc.listVoiceChannels().catch(() => []);
-          const match = (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase() === name)
-            || (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase().includes(name));
-          fnResult = match ? await runAction({ type: 'discordJoin', channel: match.id }) : { error: 'channel_not_found' };
-        }
-      } else {
-        const mode = String(fnArgs.mode || '') === 'down' ? 'down' : 'up';
-        const map = {
-          mute: { type: 'discordMute', mode: 'mute' },
-          unmute: { type: 'discordMute', mode: 'unmute' },
-          deafen: { type: 'discordDeafen', mode: 'deafen' },
-          undeafen: { type: 'discordDeafen', mode: 'undeafen' },
-          ptt: { type: 'discordPtt', mode: 'ptt' },
-          vad: { type: 'discordPtt', mode: 'vad' },
-          leave: { type: 'discordLeave' },
-          input_volume: { type: 'discordInputVol', mode },
-          output_volume: { type: 'discordOutputVol', mode },
-          audio_toggle: { type: 'discordAudioToggle', feature: String(fnArgs.feature || '') },
-        };
-        const act = map[action];
-        fnResult = act ? await runAction(act) : { error: 'bad_action' };
-      }
+      fnResult = await discordToolsBranches['discord_voice']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { discordLink });
     } else if (fnName === 'list_audio_devices') {
       fnResult = await audioToolsBranches['list_audio_devices']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { getAudioInfo });
     } else if (fnName === 'set_audio_device') {
