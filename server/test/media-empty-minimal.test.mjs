@@ -46,6 +46,16 @@ test('the keys centre on the picture in every layout', () => {
   assert.match(liquid, /\.media-panel\.is-empty:not\(\.lyrics-open\) \.media-textblock \{ grid-row: auto; \}/);
 });
 
+test('the keys keep their sideways place when a track starts or stops (#154)', () => {
+  // The short wide tile puts the keys at the start or the end of the row while
+  // music plays; the empty tile must not centre them, or they jump.
+  const rule = css.match(/\.media-panel\.is-empty \.media-actions \{([^}]*)\}/);
+  assert.ok(rule, 'the empty keys rule exists');
+  assert.doesNotMatch(rule[1], /justify-self/);
+  assert.match(css, /\.media-panel \.media-actions\s+\{ grid-column: 2; grid-row: 1 \/ -1; justify-self: end; \}/);
+  assert.match(css, /\.media-panel \.media-actions \{ grid-column: 1; grid-row: 4; justify-self: start;/);
+});
+
 test('a source picker, when there is one, stays visible', () => {
   assert.match(css, /\.media-panel\.is-empty \.media-app-row:not\(:has\(\.media-source-picker:not\(\[hidden\]\)\)\) \{ display: none; \}/);
 });

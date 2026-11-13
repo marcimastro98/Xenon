@@ -640,10 +640,11 @@ body.bit-sheet-open { overflow: hidden; }
 .media-panel.is-empty .ph-label { display: none; }
 .media-panel.is-empty .media-app-row:not(:has(.media-source-picker:not([hidden]))) { display: none; }
 .media-panel.is-empty .app-pill { display: none; }
-/* The keys sit in the middle of the column, level with the picture's centre,
-   whether the column is a flex stack or Liquid Glass's grid. */
+/* The keys sit level with the picture's centre, whether the column is a flex
+   stack or Liquid Glass's grid. Sideways they keep the place the layout gives
+   them while music plays: centred here, they jumped when a track started (#154). */
 .media-panel.is-empty .media-content { justify-content: center; align-content: center; grid-template-rows: auto; }
-.media-panel.is-empty .media-actions { grid-area: auto / 1 / auto / -1; justify-self: center; align-self: center; margin-top: 0; }
+.media-panel.is-empty .media-actions { grid-area: auto / 1 / auto / -1; align-self: center; margin-top: 0; }
 .media-panel.is-empty .media-textblock {
   position: absolute;
   width: 1px;

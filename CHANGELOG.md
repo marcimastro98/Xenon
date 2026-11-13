@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- **The music keys stay put when a song starts or stops** ([#154](https://github.com/marcimastro98/Xenon/issues/154)). On a short, wide music tile, the play keys moved to the middle when nothing was playing and jumped back beside the picture as soon as a song started. They now keep the same place in both cases.
+
 ## [v5.1.0] - 12-11-2026
 
 ### ✨ Changed
