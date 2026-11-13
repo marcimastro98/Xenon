@@ -311,6 +311,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // phone is not that shell, and a report from one would offer the AI
     // placements nothing on the PC will draw.
     'POST /layers/host',
+    // The other end of a shortcut set in the desktop's settings: it runs a Deck key's
+    // steps without the rules a phone's Deck is held to.
+    'POST /pages/hotkey-press',
     // Remote desktop (Sunshine): pairing it hands a device the whole screen
     // and keyboard, so none of it is set up from a phone.
     'POST /remote/enable',
@@ -325,6 +328,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /screen-menu',
     // Allow pressed on a widget on the PC's screen; a phone approves through /settings.
     'POST /sdk/grant',
+    // The other end of the search shortcut set in the desktop's settings: it opens a window on the PC.
+    'POST /search/hotkey-press',
     'POST /second-screen/create-display',
     'POST /second-screen/install',
     'POST /second-screen/remove-display',

@@ -102,6 +102,12 @@ const REMOTE_DENY = new Set([
   // A key placed on the PC's screen is pressed there, by a hand at that PC. A phone
   // has the Deck itself, under its own rules (remote-actions.js).
   '/deck/press',
+  // The other end of a keyboard shortcut set in the desktop's own settings (Linux): the
+  // desktop runs a command on this PC, and for a page or Deck shortcut the number says
+  // which one it was. A Deck key run this way skips the rules a phone's Deck is held to,
+  // and the search one opens a window on the PC: both are pressed at the PC, never from a phone.
+  '/pages/hotkey-press',
+  '/search/hotkey-press',
   // Same for what Bit plays in a tile: it belongs on the PC's screens.
   '/tiles/play-claim',
   // The hidden page that keeps the widget windows in sync in "widgets only"
