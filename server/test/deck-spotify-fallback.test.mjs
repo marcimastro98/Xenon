@@ -6,12 +6,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const SRC = engineSource();
+// The table of media keys lives in a module of its own; the handler that reads it is still set in the engine.
+const TABLE = declarationSource('SPOTIFY_LOCAL_FALLBACK');
 
 function load({ api, media }) {
-  const start = SRC.indexOf('const SPOTIFY_LOCAL_FALLBACK');
+  const start = SRC.indexOf('deckRegistryDeps.spotify = async (action) => {');
   const end = SRC.indexOf('\n};', start) + 3;
   assert.ok(start > 0 && end > start, 'Spotify fallback block moved');
   const calls = [];
@@ -21,7 +23,7 @@ function load({ api, media }) {
     mediaAction: async (cmd) => { calls.push(cmd); },
     deckRegistryDeps: {},
   };
-  vm.runInNewContext(SRC.slice(start, end), ctx);
+  vm.runInNewContext(`${TABLE}\n${SRC.slice(start, end)}`, ctx);
   // Results come from another vm context, so compare them as plain JSON.
   return { run: async (a) => JSON.parse(JSON.stringify(await ctx.deckRegistryDeps.spotify(a))), calls: calls };
 }

@@ -71,7 +71,7 @@ const { createCaptureCopy } = require('./capture-copy');
 const NotesAi = require('./notes-ai');
 const AgendaAi = require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
 const TimerActions = require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
-const PageTarget = require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
+require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
@@ -218,15 +218,15 @@ const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/tim
 const { _parseAvfAudioDevices, _ffmpegKnowsFormat } = require('./ai/stt-device-probe.js');
 
 const {
-  MEDIA_HOST_RETRY_MS, MEDIA_HELPER_BAD_MS, MEDIA_BLIND_STREAK, MEDIA_CROSSCHECK_BASE_MS,
-  MEDIA_CROSSCHECK_MAX_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS, SOUND_ROWS_REUSE_MS,
+  MEDIA_HOST_RETRY_MS, MEDIA_HELPER_BAD_MS, MEDIA_CACHE_MS, MEDIA_READER_REST_MS,
+  SOUND_ROWS_REUSE_MS,
 } = require('./media/timings.js');
 
 const { sanitizeMediaSourcePreference, liveMediaSnapshot } = require('./media/snapshot.js');
 
 const { _sleep, readObsInstallDir, launchObs } = require('./streaming/obs-launch.js');
 
-const { F, makeCsvPath, parseCsvLine } = require('./audio/svv-csv.js');
+const { F } = require('./audio/svv-csv.js');
 
 const { appAudioTarget } = require('./audio/app-target.js');
 
@@ -239,8 +239,6 @@ const {
   BATTERY_POLL_GAME_MS,
 } = require('./system/timings.js');
 
-const { PWSH_WORKER_GC_BUDGET } = require('./system/pwsh-worker-memory.js');
-
 const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
 const { joinDiskDetails } = require('./disk/details-shape.js');
@@ -250,8 +248,6 @@ const {
 } = require('./deck/limits.js');
 
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
-
-const { POSIX_SCRIPT_RUNNERS } = require('./deck/script-runners.js');
 
 const {
   INSTALLED_APPS_TTL_MS, _enumStartMenuLnks, _enumStoreApps,
@@ -298,9 +294,7 @@ const screenMenu = require('./screen-menu').createScreenMenu({
 });
 const XenonMenu = require('./xenon-menu');
 const MenuStore = require('./menu-store.js');
-// Tiles that make no sense alone on the desktop: the bare custom shell (a Store
-// widget is placed by its package instead) and the second-screen mirror.
-const LAYER_TILE_EXCLUDED = new Set(['custom', 'secondscreen', 'screen']);
+const { LAYER_TILE_EXCLUDED } = require('./widget-options/layer-tile-excluded.js');
 async function _layerCatalog() {
   const all = ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
     .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, category: p.category, fit: p.fit, options: p.options, optionValues: widgetOptionsStore.valuesFor(p) }));
@@ -723,23 +717,7 @@ async function loadWhatsNew() {
 
 const { audioCache } = require('./audio/device-cache.js');
 
-// ── AI model ids ─────────────────────────────────────────────────────────────
-// `chat` is the Gemini model for chat / function-calling / STT / web-search;
-// `chatPro` is the opt-in stronger model for hard reasoning (Settings → Funzioni
-// AI → "Ragionamento avanzato"); `tts` is the speech model; `live` is the
-// realtime full-duplex one (Voce Live) — if a key lacks Live access the session
-// closes on connect and we fall back to the turn-based path.
-//
-// These used to be four frozen strings, which meant a model Google published
-// after a release was unreachable and one it retired was a hard failure — and it
-// had already happened: `gemini-3.5-pro` was no longer in the API's own model
-// list, so every "advanced reasoning" turn silently fell back to the fast model.
-// They are now GETTERS over the user's setting: `auto` resolves against the live
-// list (ai-models.js), a concrete id is honoured as a pin. Every call site below
-// stays `AI_MODELS.chat` and needs no change.
-const GEMINI_MODEL_KEYS = Object.freeze({
-  chat: 'geminiModel', chatPro: 'geminiModelPro', tts: 'geminiModelTts', live: 'geminiModelLive',
-});
+const { GEMINI_MODEL_KEYS } = require('./ai/gemini-model-keys.js');
 
 // Reads the in-memory settings mirror (`hub.settings`, kept fresh by every
 // writer) rather than the disk, because these are read per AI request and several
@@ -1120,14 +1098,13 @@ function buildCoreAiFunctions() {
 const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 
 const { SVV } = require('./audio/svv-path.js');
-const svvText = require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
-const { MEDIA_SCRIPT, MEDIA_KEY_SCRIPT } = require('./media/script-paths.js');
+require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
+const { MEDIA_SCRIPT } = require('./media/script-paths.js');
 const { HELPER_EXE } = require('./engine/paths.js');
 const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
 const { CPU_TEMP_SCRIPT, ENABLE_SENSORS_SCRIPT } = require('./system/script-paths.js');
 const sensorService = require('./sensor-service/reader.js').instance();
 const { GPU_SCRIPT, NETWORK_SCRIPT, DISK_IO_SCRIPT } = require('./system/script-paths.js');
-const { WINDOWS_SCRIPT } = require('./windows-tiles/script-paths.js');
 const {
   DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
 } = require('./deck/script-paths.js');
@@ -1136,7 +1113,6 @@ const { SENSORS_SCRIPT } = require('./system/script-paths.js');
 const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
 const { ICUE_SHARPEN_SCRIPT } = require('./lights/script-paths.js');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
-const { IDLE_SCRIPT } = require('./system/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
 // script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
@@ -1224,18 +1200,12 @@ const mcpDev = createMcpDev({
   broadcast: (event, data) => broadcastSSE(event, data),
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
-// Deck soundboard library: uploaded clips live here under server-generated
-// names; the extension set mirrors the /deck/sound streaming allowlist.
-const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
-// ── Installed applications (the search's Applications tier) ────────────────
-// Two sources, merged and cached: Start Menu .lnk shortcuts (classic desktop
-// apps — Steam, Chrome) and Get-StartApps UWP entries (Store apps — Spotify,
-// WhatsApp — whose launcher is an AUMID, not an exe on disk, which is exactly
-// why a filename search can never find them). The search pins name-matching
-// apps above every file result, macOS-style. Entries are server-enumerated
-// only: launching resolves an opaque result id back to THIS list — never a
-// caller-supplied path or AUMID.
-const _installedApps = { list: [], at: 0, inflight: null };
+const {
+  DECK_SOUNDS_DIR, ICON_PACKS_DIR, ICON_PACK_BODY_MAX, SOUND_PACKS_DIR, SOUND_PACK_BODY_MAX,
+} = require('./deck/pack-places.js');
+const {
+  _installedApps, INDEX_START_DELAY_MS, _spotlightPopupPids,
+} = require('./search/spotlight-state.js');
 
 function getInstalledApps() {
   const now = Date.now();
@@ -1262,53 +1232,14 @@ function getInstalledApps() {
   return _installedApps.inflight;
 }
 
-async function launchInstalledApp(app) {
-  // Both POSIX kinds come from installed-apps.js's own enumeration (the search
-  // resolves an opaque id back to it), re-checked to exist before the launch.
-  if (app.kind === 'macapp') {
-    if (!/\.app$/.test(app.target)) throw new Error('bad_app');
-    await fs.promises.stat(app.target);
-    await new Promise((resolve, reject) => {
-      execFile('open', [app.target], { timeout: 8000 }, (e) => (e ? reject(e) : resolve()));
-    });
-    return;
-  }
-  if (app.kind === 'desktop') {
-    if (!/\.desktop$/.test(app.target)) throw new Error('bad_app');
-    await fs.promises.stat(app.target);
-    await launchLinuxApp(app.target);
-    return;
-  }
-  if (app.kind === 'store') {
-    if (!/^[\w.-]+![\w.-]+$/.test(app.target)) throw new Error('bad_aumid');
-    await new Promise((resolve, reject) => {
-      // argv array, no shell — the AUMID lands as one discrete argument.
-      execFile('explorer.exe', ['shell:AppsFolder\\' + app.target], { windowsHide: true }, (e) => (e ? reject(e) : resolve()));
-    });
-    return;
-  }
-  // Start-Menu shortcut: server-enumerated, so this IS the app's launcher —
-  // opened by the same system handler every Deck key uses.
-  await fs.promises.stat(app.target);
-  await openExternalPath(app.target);
-}
-
-// Local file search (Spotlight). Opens go through deck-actions.ps1's 'open'
-// verb — the same launcher every Deck key uses — after the module re-checks
-// the openFile blocklist; the PS search host it manages is retired in
-// _gracefulShutdown.
-// Linux gets its own implementation of the same surface. The helper the Living
-// Index drives is built for Windows and macOS only, so on Linux `helperPresent()`
-// was false for ever: search had no backend at all, while Spotlight still told
-// the user to add a folder in Settings to switch one on. linux-index.js does the
-// walk in Node and makes that sentence true.
-// Walking every file is the heaviest thing Xenon does and nothing needs it while
-// the PC is starting. Search and the disk map already read "still building".
-const INDEX_START_DELAY_MS = 90 * 1000;
 const livingIndex = process.platform === 'linux'
   ? createLinuxIndex({ startDelayMs: INDEX_START_DELAY_MS })
   : createLivingIndex({ helperExe: HELPER_EXE, startDelayMs: INDEX_START_DELAY_MS });
-const { runPowerShellScript, runPowerShellCommand } = require('./powershell/run-command.js');
+const { runPowerShellScript } = require('./powershell/run-command.js');
+
+const { openExternalPath } = require('./deck/open-external-path.js');
+
+const { launchInstalledApp } = require('./search/launch-installed-app.js');
 
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
@@ -1394,14 +1325,6 @@ function _pressReplayHotkey() {
     .catch(() => broadcastSSE('deck_shortcut_failed', { title: 'Instant Replay', error: 'failed' }));
 }
 
-// The overlay shortcut's combo, or '' when there is nothing in the overlay to
-// show or hide, or the user turned it off.
-function _overlayHotkey() {
-  const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
-  if (!layers.enabled || layers.overlayKey === 'off' || !layers.widgets.some((w) => w.surface === 'overlay')) return '';
-  return DeckShortcuts.normalizeShortcut(layers.overlayKey);
-}
-
 const { shortcutState } = require('./deck/shortcut-state.js');
 function _refreshDeckShortcuts(configs) {
   const next = DeckShortcuts.collectShortcuts(configs);
@@ -1430,7 +1353,6 @@ function routeHotkeyRelease(index) {
   const binding = _hotkey.bindings[index];
   if (binding && binding.widgetId) _widgetKeys.release(binding.widgetId);
 }
-const _spotlightPopupPids = new Set();
 
 function openSpotlightPopupWindow() {
   // Reuse: alive popup → just re-pin it topmost (brings it above); else spawn.
@@ -1501,9 +1423,7 @@ function _scheduleHotkeyRetry(ms) {
   }, Math.max(1000, ms || pause));
   shortcutState.retryTimer.unref();
 }
-function _cancelHotkeyRetry() {
-  if (shortcutState.retryTimer) { clearTimeout(shortcutState.retryTimer); shortcutState.retryTimer = null; }
-}
+const { _cancelHotkeyRetry } = require('./deck/hotkey-retry-cancel.js');
 
 // On Linux the shortcut is not a process we own but an entry in the desktop's
 // own keybinding store, so there is nothing to spawn, supervise or restart —
@@ -1717,6 +1637,8 @@ const { normalizeBgCustom } = require('./look/background-custom-normalize.js');
 
 const { normalizeSlideshow } = require('./windows-tiles/slideshow-normalize.js');
 
+const { SETTINGS_FILE } = require('./settings/settings-file.js');
+
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
 // the guard re-checks every resolved path. Settings feed the category rules
@@ -1761,6 +1683,14 @@ const diskSpace = createDiskSpace({
   onDiskUpdate: (info) => { try { broadcastSSE('disk_update', info || {}); } catch {} },
   revealExternal: (p, dir) => revealInFileManager(p, dir),
 });
+const {
+  SDK_WIDGETS_DIR, WIDGET_ORIGINS_FILE, SDK_ASSETS_DIR,
+} = require('./widget-sdk/data-places.js');
+
+const {
+  WIDGET_AUTO_UPDATE_STATE_PATH, SDK_STAGING_DIR,
+} = require('./widget-sdk/auto-update-places.js');
+
 // Dev cleanup (supporter-only): Docker, Ollama models, stale editor workspace
 // storage, WSL/Docker virtual disks. Every route checks featureUnlock first.
 // Editor folders go through the Disk widget's guarded Recycle-Bin delete; the
@@ -1789,21 +1719,9 @@ const devClean = createDevClean({
   spawnDetached: (exe, args) => { spawn(exe, args, { windowsHide: true, stdio: 'ignore' }).unref(); },
   onProgress: (info) => { try { broadcastSSE('devclean', info || {}); } catch {} },
 });
-// Installed Deck icon packs (the 'icons' preset kind): one validated folder per
-// pack, written/served only through icon-packs.js (see that module's boundary
-// notes). The JSON install body cap covers the 2MB decoded pack in base64.
-const ICON_PACKS_DIR = path.join(DATA_DIR, 'icon-packs');
-const ICON_PACK_BODY_MAX = 4 * 1024 * 1024;
 const iconPackStore = iconPacks.createIconPacks({ dir: ICON_PACKS_DIR });
-// Installed soundboard packs (the 'sounds' preset kind): validated folders
-// under the sounds library, written only through sound-packs.js. Their clips
-// play through the existing /deck/sound reader via pack-relative refs.
-const SOUND_PACKS_DIR = path.join(DECK_SOUNDS_DIR, 'packs');
-const SOUND_PACK_BODY_MAX = 4 * 1024 * 1024;
 const soundPackStore = soundPacks.createSoundPacks({ dir: SOUND_PACKS_DIR });
-// Virtual Deck popup: Edge app-mode children we spawned (closed on shutdown)
-// and the one-shot always-on-top helper script.
-const _deckPopupPids = new Set();
+const { _deckPopupPids } = require('./deck/popup-pids.js');
 const { DECK_POPUP_TOP_SCRIPT } = require('./deck/script-paths.js');
 
 // Open the Virtual Deck as an Edge app-mode window on the main PC. Argv array
@@ -1846,20 +1764,14 @@ function openDeckPopupWindow(instanceRaw, topmost) {
   }
   return { ok: true };
 }
-// Legacy single-blob notes store. Kept only as a migration source: readNotes()
-// promotes it to the structured notes.json on first read. The plain-text /notes
-// API (iCUE widget, AI, backup) now derives from the structured store.
-const NOTES_FILE = path.join(DATA_DIR, 'notes.txt');
-const NOTES_JSON = path.join(DATA_DIR, 'notes.json');
+const {
+  NOTES_FILE, NOTES_JSON, EVENTS_FILE, TASKS_FILE, TIMERS_FILE,
+} = require('./time/store-files.js');
 const {
   NOTES_MAX, NOTE_BODY_MAX, _noteId, normalizeNotesState, notesToText, textToNotesState,
   _notesRevOf,
 } = require('./time/notes-state.js');
-const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
-const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
-const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
 require('./actions/widget-timers');
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
 // injected into the AI system prompt so the assistant remembers across sessions.
 const aiMemory = createAiMemory({ dataDir: DATA_DIR });
@@ -1902,14 +1814,12 @@ async function performAiUndo(entry) {
     return { ok: false, error: e.message };
   }
 }
-const DECK_FILE = path.join(DATA_DIR, 'deck.json');
-const STREAM_CONFIG_FILE = path.join(DATA_DIR, 'stream-config.json');
-const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
-// Third-party widget packages (sandboxed SDK widgets): one folder per package.
-// Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
-// the generic static handler never reaches into DATA_DIR.
-const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
+const { DECK_FILE } = require('./deck/deck-file.js');
+const {
+  STREAM_CONFIG_FILE, STREAM_TOKENS_FILE, _readStreamTokensSnapshot, readStreamClientId,
+  STREAM_CONFIG_KEYS,
+} = require('./streaming/config-files.js');
+const { UPLOADS_DIR } = require('./engine/uploads-dir.js');
 const { EXAMPLE_WIDGETS } = require('./widget-sdk/example-widgets.js');
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
@@ -1934,15 +1844,6 @@ async function refreshSdkScan() {
   return _sdkScanCache;
 }
 
-// ── Package origin store (redistribution policy) ────────────────────────────
-// Records WHERE each installed package came from, so exports are limited to the
-// user's OWN creations: 'import' arrived via a share code / bundle / gallery,
-// 'creator' via the Widget Creator or the AI tool, 'builtin' is the bundled
-// example. No record = a developer-dropped folder ('local') → the user's own
-// work. This is policy, not a security boundary — but GET /sdk/export enforces
-// it server-side, so an imported package can never round-trip into a new code.
-// The merge rules (mergeOrigin/originExportable) are pure in sdk-widgets.js.
-const WIDGET_ORIGINS_FILE = path.join(DATA_DIR, 'widget-origins.json');
 const _widgetOrigins = (() => {   // one small read at startup, never on a request
   try {
     const raw = JSON.parse(fs.readFileSync(WIDGET_ORIGINS_FILE, 'utf8'));
@@ -2024,21 +1925,6 @@ const {
 } = require('./widget-sdk/request-gates.js');
 
 
-// ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
-// The sandbox denies widgets localStorage/cookies (opaque origin), so these two
-// on-disk stores are their ONLY persistence — and they live OUTSIDE the package
-// folder (server/data/widget-store, /widget-secrets), so the updater that
-// overwrites server/data/widgets/<id>/ never touches user data, and an exported
-// package (readPackagePayload only walks the package folder) can never ship a
-// stored key. sdk-store.js holds the pure validation; here we add the fs +
-// grant/rate gates. Small in-memory caches keep the hot get/set paths off disk;
-// writes are atomic + change-driven.
-const SDK_STORE_DIR = path.join(DATA_DIR, 'widget-store');
-const SDK_SECRETS_DIR = path.join(DATA_DIR, 'widget-secrets');
-// Widget artwork, kept across restarts (GET /sdk/asset/…). Bounded per package
-// and in total, swept on a timer; see sdk-asset-cache.js for why the bound is
-// the feature rather than a detail of it.
-const SDK_ASSETS_DIR = path.join(DATA_DIR, 'widget-assets');
 const sdkAssetCache = require('./sdk-asset-cache');
 const sdkAssets = sdkAssetCache.createAssetStore({ root: SDK_ASSETS_DIR });
 // Hourly, and once shortly after boot: expiry, orphans and the total cap are
@@ -2060,39 +1946,6 @@ async function _sweepSdkAssets() {
 }
 { const t = setTimeout(_sweepSdkAssets, 60_000); t.unref && t.unref(); }
 { const t = setInterval(_sweepSdkAssets, 60 * 60 * 1000); t.unref && t.unref(); }
-const _sdkStoreCache = new Map();     // namespace → map (lazy, kept in sync on write)
-const _sdkSecretCache = new Map();    // pkgId → map
-// A namespace ('g:<group>' or '<pkgId>') → a Windows-safe filename. The colon in
-// a group namespace is illegal on NTFS, so map by kind; both id halves are the
-// [a-z0-9-] package-id charset, so the result is always a safe leaf name.
-function sdkStoreFile(ns) {
-  const s = String(ns || '');
-  const leaf = s.startsWith('g:') ? 'group_' + s.slice(2) : 'pkg_' + s;
-  return path.join(SDK_STORE_DIR, leaf + '.json');
-}
-const { readJsonMapSync } = require('./files/read-json-map.js');
-function sdkStoreLoad(ns) {
-  if (_sdkStoreCache.has(ns)) return _sdkStoreCache.get(ns);
-  const map = readJsonMapSync(sdkStoreFile(ns));
-  _sdkStoreCache.set(ns, map);
-  return map;
-}
-async function sdkStoreSave(ns, map) {
-  _sdkStoreCache.set(ns, map);
-  try { await fs.promises.mkdir(SDK_STORE_DIR, { recursive: true }); await writeFileAtomic(sdkStoreFile(ns), JSON.stringify(map)); }
-  catch { /* store is best-effort local data — never throw into the bridge */ }
-}
-function sdkSecretsLoad(pkgId) {
-  if (_sdkSecretCache.has(pkgId)) return _sdkSecretCache.get(pkgId);
-  const map = readJsonMapSync(path.join(SDK_SECRETS_DIR, pkgId + '.json'));
-  _sdkSecretCache.set(pkgId, map);
-  return map;
-}
-async function sdkSecretsSave(pkgId, map) {
-  _sdkSecretCache.set(pkgId, map);
-  try { await fs.promises.mkdir(SDK_SECRETS_DIR, { recursive: true, mode: 0o700 }); await writeFileAtomic(path.join(SDK_SECRETS_DIR, pkgId + '.json'), JSON.stringify(map)); }
-  catch { /* best-effort */ }
-}
 
 
 const { sdkTileCacheGet, sdkTileGate } = require('./widget-sdk/tile-cache.js');
@@ -2302,8 +2155,9 @@ async function handleMcpDevRoute(req, res, reqPath, json) {
 // copy before anything reads it, and the damaged file is kept aside
 // (store-snapshots.js). Open dashboards are told, once, which copy came back.
 const storeSnapshots = require('./store-snapshots');
-const DURABLE_STORES = [SETTINGS_FILE, DECK_FILE, NOTES_JSON, TASKS_FILE, EVENTS_FILE, TIMERS_FILE];
-const _storeRecovery = [];
+const {
+  DURABLE_STORES, _storeRecovery, startStoreSnapshots,
+} = require('./engine/durable-stores.js');
 (function recoverUnreadableStores() {
   for (const file of DURABLE_STORES) {
     let r;
@@ -2325,12 +2179,6 @@ const _storeRecoveryAt = Date.now();
 // Read here, after the legacy move and the recovery above and before anything
 // can write settings: from the next line on, a new user and an old one look alike.
 const FRESH_INSTALL = welcomeSparks.isFreshDataDir([...DURABLE_STORES, path.join(DATA_DIR, 'install-id.json')], storeSnapshots.snapshotsDir(DATA_DIR));
-// One copy a day of every store, taken at boot and checked every few hours.
-function startStoreSnapshots() {
-  const run = () => storeSnapshots.snapshotStores(DATA_DIR, DURABLE_STORES).catch(() => {});
-  run();
-  setInterval(run, 6 * 60 * 60 * 1000).unref();
-}
 
 // Shared-code bridge: expose packages/core to the browser under server/shared so
 // the existing static handler can serve /shared/* without reaching outside
@@ -2358,6 +2206,10 @@ function startStoreSnapshots() {
 const { writeFileAtomic } = require('./atomic-write');
 
 
+const {
+  sdkStoreLoad, sdkStoreSave, sdkSecretsLoad, sdkSecretsSave,
+} = require('./widget-sdk/store-files.js');
+
 // The single Range-aware file responder. /uploads/, /deck/sound and the
 // transfer download all answer through it, so seeking cannot work in one place
 // and quietly not in another.
@@ -2374,53 +2226,9 @@ const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map
 const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
 
-// One-shot run of the native helper (e.g. `xenon-helper windows list`). Unlike
-// the persistent media/foreground hosts this spawns per request — the trimmed
-// native exe starts in tens of ms, versus ~1s of PowerShell engine start plus
-// an Add-Type C# compile for windows.ps1 — which is what makes the Apps panel
-// open near-instantly. Resolves the parsed JSON from stdout, rejects on any
-// problem so the caller can fall back to the PowerShell path.
-function runHelperOneShot(args, timeout = 8000) {
-  return new Promise((resolve, reject) => {
-    let child;
-    try { child = spawn(HELPER_EXE, args, { windowsHide: true }); }
-    catch (e) { reject(e); return; }
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-    const finish = (fn, v) => { if (!settled) { settled = true; clearTimeout(timer); fn(v); } };
-    const timer = setTimeout(() => {
-      try { if (!child.killed) child.kill(); } catch { }
-      finish(reject, new Error('helper timeout'));
-    }, timeout);
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', c => { stdout += c; });
-    child.stderr.on('data', c => { stderr += c; });
-    child.on('error', e => finish(reject, e));
-    child.on('close', code => {
-      if (code !== 0) { finish(reject, new Error(stderr || `helper exited with ${code}`)); return; }
-      try { finish(resolve, parseJsonOutput(stdout)); }
-      catch (e) { finish(reject, e); }
-    });
-  });
-}
+const { runHelperOneShot } = require('./system/helper-one-shot.js');
 
-// App-switcher windows tool: prefer the native helper when the exe exists, fall
-// back to windows.ps1 transparently on ANY helper problem (missing, crashed,
-// bad output) — the PowerShell path is the permanent safety net.
-async function runWindowsTool(args, timeout) {
-  // The helper first, on every platform that has one. On macOS this is not
-  // merely faster than the osascript collector: NSWorkspace needs no permission
-  // at all, while Automation is granted per TARGET APPLICATION, so the
-  // scripted list stays empty until the user has approved each app one by one.
-  if (fs.existsSync(HELPER_EXE)) {
-    try { return await runHelperOneShot(['windows', ...args], timeout); }
-    catch { /* fall through to the platform's own path */ }
-  }
-  if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
-  return runPowerShellScript(WINDOWS_SCRIPT, args, timeout);
-}
+const { runWindowsTool } = require('./windows-tiles/windows-tool.js');
 
 // ── Sending a key combination ───────────────────────────────────────────────
 // One seam, three deliveries, and the SAME shape out — the pattern the
@@ -2444,26 +2252,7 @@ async function runWindowsTool(args, timeout) {
 // key that has worked for years — a regression introduced by making the
 // capability measurable.
 let _keySendProbe = POWERSHELL_SUPPORTED ? { ok: true, reason: '' } : null;
-async function _probeKeySend() {
-  if (POWERSHELL_SUPPORTED) return { ok: true, reason: '' };
-  if (process.platform === 'darwin') {
-    if (!fs.existsSync(HELPER_EXE)) return { ok: false, reason: 'helper_missing' };
-    try {
-      // `keys --check` posts nothing — it only reports whether this helper
-      // knows the mode and whether macOS has granted Accessibility. An older
-      // helper exits non-zero on an unknown mode, which lands in the catch and
-      // is reported as "cannot", exactly like every other staged mac feature.
-      const r = await runHelperOneShot(['keys', '--check'], 4000);
-      if (!r || r.ok !== true) return { ok: false, reason: 'helper_old' };
-      return r.accessibility ? { ok: true, reason: '' } : { ok: false, reason: 'accessibility' };
-    } catch { return { ok: false, reason: 'helper_old' }; }
-  }
-  if (nativeCollectors && typeof nativeCollectors.keysAvailable === 'function') {
-    try { return (await nativeCollectors.keysAvailable()) ? { ok: true, reason: '' } : { ok: false, reason: 'no_key_tool' }; }
-    catch { return { ok: false, reason: 'no_key_tool' }; }
-  }
-  return { ok: false, reason: 'unsupported' };
-}
+const { _probeKeySend } = require('./deck/key-send-probe.js');
 function refreshKeySendProbe() {
   _probeKeySend().then((r) => { _keySendProbe = r; }).catch(() => { _keySendProbe = { ok: false, reason: 'unsupported' }; });
 }
@@ -2501,203 +2290,21 @@ async function sendHotkeyCombo(keys) {
   return { ok: false, error: 'hotkey_unavailable' };
 }
 
-// ── "Open dashboard in browser at logon" task ────────────────────────────────
-// A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs
-// at logon. The server already auto-starts at logon via its own task; this one
-// just opens the browser tab for people who use the dashboard in a real browser
-// (Xeneon Edge loads the iframe itself, so it never wants this). Registered on
-// demand from the client and reflected back so the toggle shows the true state.
-//
-// The task outlives the file it points at, and that asymmetry is the whole bug
-// behind the "Can not find script file ...\server\open-dashboard.vbs" box some
-// people meet at every single logon while Xenon itself starts perfectly well:
-// Windows keeps running the task, wscript.exe finds nothing at the path, and
-// says so in a modal nobody can act on. Two things put the pair out of step —
-// the install root moving (the engine lives in %LOCALAPPDATA%\Programs\Xenon
-// now, and a task registered by an older layout still carries the old one), and
-// the script no longer being on disk at all, a .vbs run at logon being textbook
-// antivirus bait for an unsigned project. So the task is reconciled against the
-// disk at boot: repointed when the path is stale, removed when there is no
-// launcher left for it to point at.
-const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
-const { OPEN_DASHBOARD_VBS } = require('./install/launcher-paths.js');
-const { AUTO_OPEN_SUPPORTED, autoOpenTaskFix } = require('./install/browser-auto-open.js');
+const { AUTO_OPEN_SUPPORTED } = require('./install/browser-auto-open.js');
 const { psEscape } = require('./ps-quote');
+const {
+  getBrowserAutoOpenState, setBrowserAutoOpen,
+} = require('./install/browser-auto-open-task.js');
+
 const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./programs/app-icons.js');
 
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
 const { isNetworkPath } = require('./files/network-path.js');
 
-// Doubles every quote PowerShell ends a single-quoted string on (ps-quote.js).
-function psSingleQuote(value) {
-  return psEscape(value);
-}
+const { _killWorker } = require('./powershell/worker-state.js');
 
-// Is the launcher this feature needs still on disk?
-function openDashboardLauncherPresent() {
-  try { return fs.existsSync(OPEN_DASHBOARD_VBS); } catch { return false; }
-}
-
-// Returns { enabled, launcher, taskScript }. `enabled` is the state worth
-// reporting to the dashboard — the task exists AND the script it runs is there —
-// so the toggle can no longer sit on "on" for a task that only raises an error.
-async function getBrowserAutoOpenState() {
-  if (!AUTO_OPEN_SUPPORTED) return { enabled: false, launcher: 'ok', taskScript: '' };
-  const launcher = openDashboardLauncherPresent() ? 'ok' : 'missing';
-  const cmd =
-    `$t = Get-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -ErrorAction SilentlyContinue; ` +
-    `$arg = ''; if ($t) { $a = @($t.Actions)[0]; if ($a) { $arg = [string]$a.Arguments } } ` +
-    `Write-Output (@{ ok = $true; enabled = [bool]$t; argument = $arg } | ConvertTo-Json -Compress)`;
-  try {
-    const out = await runPowerShellCommand(cmd, 8000);
-    const exists = !!(out && out.enabled === true);
-    return { enabled: exists && launcher === 'ok', launcher, taskScript: (out && out.argument) || '' };
-  } catch {
-    return { enabled: false, launcher, taskScript: '' };
-  }
-}
-
-// Registers (enabled) or removes the logon task. Returns { enabled }, plus a
-// `reason` when the request could not be honoured.
-async function setBrowserAutoOpen(enabled) {
-  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
-  // Registering a task for a script that is not there buys an error box at every
-  // logon and nothing else. Refuse, and name the reason so the dashboard can stop
-  // asking for it instead of re-posting the same request on every page load.
-  if (enabled === true && !openDashboardLauncherPresent()) {
-    return { enabled: false, reason: 'launcher_missing' };
-  }
-  let cmd;
-  if (enabled) {
-    const vbs = psSingleQuote(OPEN_DASHBOARD_VBS);
-    cmd =
-      `$ErrorActionPreference = 'Stop'; ` +
-      `try { ` +
-        `$wscript = Join-Path $env:WINDIR 'System32\\wscript.exe'; ` +
-        `$user = "$env:USERDOMAIN\\$env:USERNAME"; ` +
-        `$action = New-ScheduledTaskAction -Execute $wscript -Argument ('"' + '${vbs}' + '"'); ` +
-        `$trigger = New-ScheduledTaskTrigger -AtLogon -User $user; ` +
-        // Interactive + Limited so the browser opens in the user's visible session
-        // (a SYSTEM/Highest task would open invisibly in session 0).
-        `$principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited; ` +
-        `$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero); ` +
-        `Register-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null; ` +
-        `Write-Output '{"ok":true,"enabled":true}' ` +
-      `} catch { Write-Output (@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress) }`;
-  } else {
-    cmd =
-      `try { Unregister-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Confirm:$false -ErrorAction SilentlyContinue } catch { }; ` +
-      `Write-Output '{"ok":true,"enabled":false}'`;
-  }
-  const out = await runPowerShellCommand(cmd, 12000);
-  if (out && out.ok === false) throw new Error(out.error || 'Task registration failed');
-  return { enabled: enabled === true };
-}
-
-// Bring the logon task in line with what is actually on disk. Called once at
-// boot; silent and free when there is nothing to fix, which is the normal case.
-// Note this can only take effect from the NEXT logon: by the time the server is
-// up, the task has already run for this one.
-async function reconcileBrowserAutoOpenTask() {
-  if (!AUTO_OPEN_SUPPORTED) return;
-  const state = await getBrowserAutoOpenState();
-  const fix = autoOpenTaskFix({
-    taskScript: state.taskScript,
-    scriptPath: OPEN_DASHBOARD_VBS,
-    launcherPresent: state.launcher === 'ok',
-  });
-  if (fix === 'none') return;
-  if (fix === 'repair') {
-    await setBrowserAutoOpen(true);
-    console.log('[startup] browser auto-open task repointed at ' + OPEN_DASHBOARD_VBS);
-    return;
-  }
-  await setBrowserAutoOpen(false);
-  console.log('[startup] browser auto-open task removed: ' + OPEN_DASHBOARD_VBS + ' is missing');
-}
-
-const { PWSH_WORKER_SCRIPT } = require('./system/script-paths.js');
-const { _worker, _workerReject, _killWorker } = require('./powershell/worker-state.js');
-
-function _ensureWorker() {
-  if (!POWERSHELL_SUPPORTED) return null;
-  if (_worker.proc) return _worker.proc;
-  let proc;
-  try {
-    proc = spawn('powershell.exe',
-      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PWSH_WORKER_SCRIPT],
-      { windowsHide: true, env: { ...process.env, COMPlus_GCgen0MaxBudget: PWSH_WORKER_GC_BUDGET } });
-  } catch { return null; }
-  lowerPriority(proc.pid);
-  _worker.proc = proc;
-  _worker.buf = '';
-  proc.stdout.setEncoding('utf8');
-  proc.stdout.on('data', chunk => {
-    _worker.buf += chunk;
-    let nl;
-    while ((nl = _worker.buf.indexOf('\n')) !== -1) {
-      const line = _worker.buf.slice(0, nl).trim();
-      _worker.buf = _worker.buf.slice(nl + 1);
-      if (!line.startsWith('XEHWK ')) continue; // ignore any stray output
-      let env;
-      try { env = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
-      catch { continue; }
-      const p = _worker.pending.get(env.id);
-      if (!p) continue;
-      clearTimeout(p.timer);
-      _worker.pending.delete(env.id);
-      if (env.ok) p.resolve(env.out || '');
-      else p.reject(new Error(env.err || 'worker error'));
-    }
-  });
-  proc.stderr.on('data', () => {}); // collectors trap their own errors; ignore
-  // A write to a pipe whose child is already gone reports EPIPE/ECONNRESET
-  // ASYNCHRONOUSLY, as an 'error' event on the stream — the try/catch around
-  // stdin.write() never sees it, and an unhandled 'error' on a stream takes the
-  // whole server down. Route it to the same retire path the exit handler uses:
-  // the host is dead either way, and every caller already falls back.
-  proc.stdin.on('error', () => _killWorker('worker pipe error'));
-  proc.on('error', () => _killWorker('worker spawn error'));
-  proc.on('exit', () => { if (_worker.proc === proc) _killWorker('worker exited'); });
-  proc.unref(); // never keep the event loop alive on the worker's account
-  return proc;
-}
-
-function runPowerShellWorker(scriptPath, args = [], timeout = 8000) {
-  return new Promise((resolve, reject) => {
-    const proc = _ensureWorker();
-    if (!proc) { reject(new Error('worker unavailable')); return; }
-    const id = _worker.nextId++;
-    const timer = setTimeout(() => {
-      // The worker processes requests serially; a timeout means it is wedged on
-      // this one. Reject and kill so the next call gets a fresh host — safe here
-      // because these collectors hold no SMTC/WinRT handles (OS reclaims theirs
-      // on process death).
-      _workerReject(id, new Error('worker timeout'));
-      _killWorker('worker timeout');
-    }, timeout);
-    _worker.pending.set(id, { resolve, reject, timer });
-    try {
-      proc.stdin.write(JSON.stringify({ id, script: path.basename(scriptPath), args }) + '\n');
-    } catch (e) {
-      clearTimeout(timer);
-      _worker.pending.delete(id);
-      reject(e);
-    }
-  });
-}
-
-// Run a read-only collector through the persistent worker, falling back to a
-// one-shot spawn on any worker problem. Returns the same parsed-JSON object as
-// runPowerShellScript, so call sites are unchanged.
-async function runCollector(scriptPath, args = [], timeout = 8000) {
-  try {
-    return parseJsonOutput(await runPowerShellWorker(scriptPath, args, timeout));
-  } catch {
-    return runPowerShellScript(scriptPath, args, timeout);
-  }
-}
+const { runPowerShellWorker, runCollector } = require('./system/pwsh-worker.js');
 
 // Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
 // battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
@@ -2815,57 +2422,6 @@ function _onMediaChangedPush() {
   _mediaPushTimer.unref();
 }
 
-// A helper that answers fine but reports an empty session list on EVERY poll —
-// while the OS actually has an active SMTC session — leaves the Media panel
-// blank with no error, so the death/timeout fallback never trips (issue #80:
-// a broken / AV-mangled helper on some machines; the user's own fix was to
-// hard-disable the helper). Cross-check a persistent empty against the
-// PowerShell host: if PS sees a session the helper is blind on this machine, so
-// pin the helper out and hand back what PS found. Heavily gated so an idle
-// machine pays almost nothing — only the helper, only after a streak of
-// empties, at most once a minute, only until the helper first proves it can see
-// a session, and only a few times per host lifetime.
-async function _guardHelperMediaBlindSpot(out) {
-  // The read failed: the helper is not blind, and PowerShell would hang on the same service.
-  if (readFailed(out)) return out;
-  const empty = !out || (out.active === false && (!Array.isArray(out.sessions) || out.sessions.length === 0));
-  // A session (playing OR paused) proves the helper can see SMTC on this machine
-  // and reopens the detection budget: if it later goes blind mid-session (broker
-  // wedge), the next run of empties is cross-checked again rather than trusted.
-  if (!empty) { _mediaHost.emptyStreak = 0; _mediaHost.crossChecks = 0; return out; }
-  if (++_mediaHost.emptyStreak < MEDIA_BLIND_STREAK) return out;
-  // Each look is a whole PowerShell, and a blind helper can wait for the end of a game.
-  if (backgroundHeld()) return out;
-  // Rate-limit the PS cross-check with an escalating interval instead of a hard
-  // lifetime cap. A hard cap (the old MEDIA_CROSSCHECK_MAX) was exhausted by the
-  // agreed-empty cross-checks a machine racks up while merely idle at startup, so
-  // a helper that only goes blind AFTER playback finally starts was never
-  // cross-checked again and the Media panel stayed stuck on "Nothing playing" for
-  // the rest of the host's lifetime. Backing off (1 min → capped at 5 min) keeps a
-  // truly idle machine cheap while still catching a blind helper within one
-  // interval once music actually plays; the moment the helper sees any session the
-  // `!empty` branch above resets the interval to the 1-minute floor.
-  const interval = Math.min(MEDIA_CROSSCHECK_BASE_MS * (2 ** _mediaHost.crossChecks), MEDIA_CROSSCHECK_MAX_MS);
-  if (Date.now() - _mediaHost.lastCrossCheck < interval) return out;
-  _mediaHost.lastCrossCheck = Date.now();
-  let ps;
-  // Count a failed cross-check against the budget too, so an unusable PS reader
-  // can't make us spawn one every minute forever.
-  try { ps = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs('info'), 8000); }
-  catch { _mediaHost.crossChecks++; return out; }
-  // The helper reported ZERO sessions; the blindness signal is simply that PS can
-  // see a session the helper can't — in ANY playback state. Comparing the raw
-  // session list (not ps.active) is what catches a PAUSED track: media.ps1 only
-  // sets active:true while Playing, so the old ps.active check treated a blind
-  // helper next to a paused-but-visible session as "agreed empty" and never
-  // retired it. Both empty → genuinely nothing playing.
-  const psSaw = ps && Array.isArray(ps.sessions) && ps.sessions.length > 0;
-  if (!psSaw) { _mediaHost.crossChecks++; return out; }     // both agree: nothing is playing
-  _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
-  _retireMediaHost('helper media blind');                   // drop to the PS host for a while
-  return ps;
-}
-
 const { _normalizeTimer } = require('./time/timer-normalize.js');
 
 const { readRamInfo } = require('./system/ram-info.js');
@@ -2964,25 +2520,12 @@ let _sttDshowDevice = null;
 let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a string
 let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
-const _sttDeviceWaiters = [];
-const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
 
 const {
-  STT_MAX_AGE_MS, STT_START_SILENCE_GRACE_MS, STT_AFTER_SPEECH_SILENCE_GRACE_MS, _sttSilenceDb,
-  _sttLooksLikeSpeech, STT_DEVICE_DELAY_MS,
+  STT_START_SILENCE_GRACE_MS, STT_AFTER_SPEECH_SILENCE_GRACE_MS, _sttSilenceDb, _sttLooksLikeSpeech,
+  STT_DEVICE_DELAY_MS,
 } = require('./ai/stt-gate.js');
-function _sweepStaleStt() {
-  if (_sttPending.size === 0) return;
-  const now = Date.now();
-  for (const [id, rec] of _sttPending) {
-    if (now - (rec.startedAt || 0) < STT_MAX_AGE_MS) continue;
-    _sttPending.delete(id);
-    try { rec.ffmpegProc.kill(); } catch { /* already gone */ }
-    if (rec.wavPath) fs.promises.unlink(rec.wavPath).catch(() => {});
-    process.stdout.write(`[STT] Reaped stale recording id=${id}\n`);
-  }
-  if (_sttPending.size === 0) wakeWord.resumeSoon();
-}
+const { _sttDeviceWaiters, _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
 setInterval(_sweepStaleStt, 60000).unref();
 
 
@@ -2999,7 +2542,7 @@ const {
   WEATHER_CACHE_MS, WEATHER_FORECAST_CACHE_MS, WEATHER_GEO_FAIL_COOLDOWN_MS,
 } = require('./weather/timings.js');
 const { WEATHER_FORECAST_MAX_DAYS } = require('./weather/forecast-shape.js');
-const artworkCache = new Map();
+const { artworkCache } = require('./media/artwork-cache.js');
 
 function setMediaPreferredSource(value) {
   const next = sanitizeMediaSourcePreference(value);
@@ -3010,42 +2553,9 @@ function setMediaPreferredSource(value) {
   return mediaChoice.source;
 }
 
-function mediaScriptArgs(action, position) {
-  const args = [action];
-  if (mediaChoice.source || action === 'seek') args.push(mediaChoice.source || '');
-  if (action === 'seek') args.push(String(position));
-  return args;
-}
+const { readSoundVolumeRows, readSoundingRows } = require('./audio/volume-rows.js');
 
-function readSoundVolumeRows() {
-  if (nativeCollectors) return nativeCollectors.audioRows();
-  return new Promise((resolve, reject) => {
-    const csv = makeCsvPath();
-    // UTF-8 asked for explicitly and decoded by what arrived (svv-text.js): read
-    // as latin1, "Kopfhörer" became "KopfhÃ¶rer" and switching to it did nothing
-    // (issue #145).
-    execFile(SVV, [...svvText.UTF8_EXPORT, '/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
-      if (err) { fs.unlink(csv, () => {}); return reject(err); }
-      setTimeout(async () => {
-        try {
-          const raw = svvText.decodeCsv(await fs.promises.readFile(csv));
-          const rows = raw
-            .split('\n')
-            .map(l => l.trim())
-            .filter(Boolean)
-            .map(parseCsvLine);
-          fs.unlink(csv, () => {});
-          resolve(rows);
-        } catch (e) {
-          fs.unlink(csv, () => {});
-          reject(e);
-        }
-      }, 250);
-    });
-  });
-}
-
-const FETCH_JSON_MAX_BYTES = 2 * 1024 * 1024;
+const { FETCH_JSON_MAX_BYTES } = require('./http/fetch-json-limit.js');
 function fetchJson(url, timeout = 2500, extraHeaders) {
   return new Promise((resolve, reject) => {
     const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
@@ -3196,7 +2706,7 @@ const { METNO_HEADERS, normalizeMetno } = require('./weather/met-norway.js');
 const { normalizeOpenMeteo } = require('./weather/open-meteo.js');
 
 const { GEO_IP_SOURCES, normalizeGeoIpValue } = require('./weather/geo-ip.js');
-const WEATHER_GEO_FILE = path.join(DATA_DIR, 'weather-geo.json');
+const { WEATHER_GEO_FILE } = require('./weather/geo-file.js');
 let weatherAutoLocation = { value: null, updatedAt: 0 };
 let weatherGeoLoad = null; // shared promise — concurrent boot fetches read the file once
 async function loadPersistedAutoLocation() {
@@ -3987,12 +3497,6 @@ async function mediaStandIn(error) {
   return fallback;
 }
 
-function readSoundingRows() {
-  if (!nativeCollectors) return readSoundVolumeRows();
-  // macOS rows name devices only: there is no per-app sound to read there.
-  return nativeCollectors.soundingRows ? nativeCollectors.soundingRows() : Promise.resolve([]);
-}
-
 async function soundingRows() {
   if (_soundRows.rows && Date.now() - _soundRows.at < SOUND_ROWS_REUSE_MS) return _soundRows.rows;
   const rows = await readSoundingRows();
@@ -4019,7 +3523,7 @@ async function getMediaFallback(error) {
   try { return (await heardNow()) || nothingHeard(error); } catch { return nothingHeard(error); }
 }
 
-const runMediaKeyScript = (args) => runPowerShellScript(MEDIA_KEY_SCRIPT, args, 5000);
+const { runMediaKeyScript } = require('./media/key-script.js');
 const sendMediaCommand = createMediaSender({
   request: (action) => runMediaRequest(action, 5000),
   tell: (action) => tellApp(action, heardPlayer.name(), runMediaKeyScript),
@@ -4052,13 +3556,7 @@ async function mediaSeek(position) {
   }
 }
 
-// ── Song lyrics (LRCLIB) ─────────────────────────────────────────────────────
-// Lyrics for whatever is playing, from any host (lyrics.js builds the query,
-// lyrics-cache.js remembers the answer). One lookup per track at a time, and a
-// 429/503 from LRCLIB pauses EVERY lookup until its Retry-After has passed —
-// their API terms require it.
-const LYRICS_USER_AGENT = `Xenon v${APP_VERSION || '0'} (https://github.com/marcimastro98/Xenon)`;
-const _lyricsPending = new Map();
+const { LYRICS_USER_AGENT, _lyricsPending } = require('./media/lyrics-lookup-values.js');
 let _lyricsCooldownUntil = 0;
 
 const { lyricsReply, lyricsTexts } = require('./media/lyrics-reply.js');
@@ -4725,11 +4223,7 @@ async function refreshHaWatch() {
 // password never leaves the server — only the projected globals do.
 let sbStopWatch = null;
 let sbNotifyTimer = null;
-// Recent Streamer.bot activity (follows/subs/raids/cheers/redemptions…) for the
-// Streamer.bot widget's live feed — a bounded ring buffer so it can't grow. Each
-// new event is pushed live over the `streamerbot_event` SSE event AND kept here so
-// a just-added tile seeds its feed from GET /streamerbot/activity. (Phase 3.)
-const SB_ACTIVITY_MAX = 40;
+const { SB_ACTIVITY_MAX } = require('./streaming/streamerbot-activity-limit.js');
 let sbActivity = [];
 let sbActivitySeq = 0;
 
@@ -4812,16 +4306,7 @@ async function refreshWlWatch() {
   }
 }
 
-// ── Voicemeeter mixer state → SSE `voicemeeter` ──────────────────────────────
-// For SDK widgets that draw the mixer rather than only pressing it. Polled, not
-// pushed: the Remote API has no callback, it has IsParametersDirty(), which is
-// ONE call and answers "did anything move". The full read is ~96 calls on a
-// Potato and only happens on the ticks that changed something.
-//
-// Gated twice, like every other periodic job here: nothing runs with no
-// dashboard connected, and nothing runs on a machine that has no Voicemeeter —
-// where `available` is false, this never even opens a session.
-const VM_POLL_MS = 250;
+const { VM_POLL_MS } = require('./audio/voicemeeter-timing.js');
 let vmPollTimer = null;
 let vmLastJson = '';
 
@@ -4916,74 +4401,7 @@ async function ensureObsRun(runFn) {
 
 const { lockWorkstation } = require('./system/lock-workstation.js');
 
-// Open a file, folder or URL with the system handler — the single place that
-// answers "hand this to the desktop". On Windows it is deck-actions.ps1's `open`
-// verb (Start-Process); macOS has `open` and Linux `xdg-open`, which do the same
-// job natively. Every call is an argv array, never a shell string.
-//
-// Every caller that opens something on the user's behalf goes through here: the
-// Deck registry, the Spotlight search results, Performance Mode and the
-// Start-Menu app launcher. Reaching for runPowerShellScript directly is how one
-// of them ends up working on Windows and failing everywhere else.
-//
-// `args` (openApp only, already an argv array from the registry) are launch
-// arguments for the program. On Windows they travel as base64 JSON so no quote or
-// space in them can re-cut the PowerShell command line; the script rebuilds one
-// correctly quoted line. On macOS they follow `--args`, which an app that is
-// already running ignores (only `open -n` would start a second copy, and that
-// breaks single-instance apps).
-function openExternalPath(p, args) {
-  const argv = Array.isArray(args) ? args.map(String) : [];
-  if (process.platform === 'win32') {
-    const packed = argv.length ? Buffer.from(JSON.stringify(argv), 'utf8').toString('base64') : '';
-    return runPowerShellScript(DECK_ACTIONS_SCRIPT, packed ? ['open', p, packed] : ['open', p], 8000);
-  }
-  if (process.platform === 'darwin' && argv.length) {
-    return new Promise((resolve, reject) => {
-      execFile('/usr/bin/open', ['-a', String(p), '--args', ...argv], { timeout: 8000 }, (err) => {
-        if (err) reject(err); else resolve({ ok: true });
-      });
-    });
-  }
-  // `--` ends option parsing on macOS, so a file whose name begins with a dash
-  // cannot become a flag. xdg-open has no such separator — it rejects `--` as an
-  // unknown option — so Linux passes the path alone. Everything that reaches
-  // here has already been validated: a path the registry proved exists, or an
-  // http(s) URL. A stored path is absolute in practice, and a leading-dash
-  // relative one degrades to xdg-open's own syntax error rather than anything
-  // being run.
-  const posix = process.platform === 'darwin'
-    ? ['/usr/bin/open', ['--', String(p)]]
-    : ['xdg-open', [String(p)]];
-  return new Promise((resolve, reject) => {
-    execFile(posix[0], posix[1], { timeout: 8000 }, (err) => {
-      if (err) reject(err); else resolve({ ok: true });
-    });
-  });
-}
-
-function runUserScript(p, hidden) {
-  if (process.platform === 'win32') {
-    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000);
-  }
-  const ext = path.extname(String(p)).toLowerCase();
-  const runner = POSIX_SCRIPT_RUNNERS[ext];
-  if (!runner) return Promise.reject(new Error(`no interpreter for "${ext}" on this platform`));
-  return new Promise((resolve, reject) => {
-    // Detached, like the Windows path: a Deck key starts a script, it does not
-    // wait for it. stdio is discarded so a chatty script cannot fill a pipe and
-    // wedge on a full buffer.
-    try {
-      const child = spawn(runner[0], [...runner.slice(1), String(p)], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.on('error', reject);
-      child.unref();
-      resolve({ ok: true });
-    } catch (e) { reject(e); }
-  });
-}
+const { runUserScript } = require('./deck/run-user-script.js');
 
 // The Deck action dispatcher. Effects are injected here; security/validation
 // lives inside the registry. This is the only place key actions execute.
@@ -5375,14 +4793,6 @@ usageStats.configure({
   enabled: () => !!(hub.settings && hub.settings.usageStats === true),
 });
 
-// A Deck key's keyboard shortcut runs its tap here, dashboard or not.
-// go_to_page: a page name that matches none is told back to Bit with the real
-// names, before the dashboard is asked to move (js/page-target.js).
-function goToPageMiss(args) {
-  const pages = normalizeDashboardPages(hub.settings.dashboardLayout && hub.settings.dashboardLayout.pages);
-  return PageTarget.pageTargetMiss(args && args.page, pages.map(p => ({ id: p.id, label: p.name || p.id })));
-}
-
 // play_in_tile (tile-play.js): find what the user meant, then hand it to the
 // one surface that has the tile. Searches need the account connected in the
 // tile; an exact channel or video plays without one.
@@ -5587,21 +4997,7 @@ const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
 const { parseMultipartBackground } = require('./http/multipart-upload.js');
 
-function cleanupOldBackgrounds(keepName) {
-  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
-    .filter(file => file.startsWith('background-') && file !== keepName)
-    .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
-  )).catch(() => {});
-}
-
-// Same one-live-file policy as backgrounds: a fresh upload/restore leaves exactly
-// one `font-*` in UPLOADS_DIR, so orphaned fonts never accumulate.
-function cleanupOldFonts(keepName) {
-  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
-    .filter(file => file.startsWith('font-') && file !== keepName)
-    .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
-  )).catch(() => {});
-}
+const { cleanupOldBackgrounds, cleanupOldFonts } = require('./look/upload-cleanup.js');
 
 let _tileAssetGcSig = null;
 let _tileAssetGcAt = 0;
@@ -5964,7 +5360,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
 // per call; now at most once per window. The config written is read fresh from
 // the bridge at flush time, so the last state always wins. Flushed on shutdown.
 let _lightingPersistTimer = null;
-const LIGHTING_PERSIST_DEBOUNCE_MS = 800;
+const { LIGHTING_PERSIST_DEBOUNCE_MS } = require('./lights/persist-timing.js');
 async function _flushLightingPersist() {
   if (!_lightingPersistTimer) return;
   clearTimeout(_lightingPersistTimer);
@@ -7678,6 +7074,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
 });
 
 const { hub } = require('./settings/current.js');
+const { goToPageMiss } = require('./grid/go-to-page-miss.js');
+
+const { _overlayHotkey } = require('./widget-options/overlay-hotkey.js');
+
 const { sensorRateMs } = require('./system/sensor-rate.js');
 
 const {
@@ -7908,9 +7308,7 @@ function normalizeDashboardLayout(value) {
   return layout;
 }
 
-function gameSessionsEnabled() {
-  return !(hub.settings && hub.settings.gameSessions && hub.settings.gameSessions.enabled === false);
-}
+const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js');
 
 // Phone ↔ PC file transfer. Server-owned: there is no twin in
 // js/settings.js normalizeSettings, on purpose, because `inboxDir` names a
@@ -8328,43 +7726,7 @@ async function geminiKeyFor(bodyKey) {
   return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
 }
 
-// The layout-version migration REPLACES the dashboard, and until now it did so
-// with no way back: the stored layout was overwritten by the factory default on
-// the next save, and the only copy of what the user had built was gone. Every
-// other destructive step in this app is either confirmed or reversible; this one
-// runs at boot, unasked, and the person finds out by looking at their screen.
-//
-// So the superseded layout is copied out first. Not a restore feature — a file
-// on disk and a line in the log, which is the difference between "rebuild it from
-// memory" and "it is right here". Read SYNCHRONOUSLY and before the store-id mint
-// below can rewrite the file, because the raw old version only exists until the
-// first write of this run.
-//
-// Never overwrites an existing backup: the migration fires once (the next write
-// stamps the new version), but a second pass must not be able to save the
-// factory default over the real one.
-const LAYOUT_BACKUP_FILE = path.join(DATA_DIR, 'dashboard-layout.backup.json');
-// Answers { file, from } when a layout was copied out, null otherwise. `from` is
-// read off the RAW file on purpose: the normalized settings are already stamped
-// with the current version, so asking them which version this install is
-// upgrading FROM always answers "the one it is upgrading to".
-function backupSupersededLayout() {
-  try {
-    if (fs.existsSync(LAYOUT_BACKUP_FILE)) return null;
-    const raw = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    const from = Number(raw && raw.dashboardLayoutVersion) || 0;
-    if (from >= DASHBOARD_LAYOUT_VERSION) return null;
-    const layout = raw && raw.dashboardLayout;
-    if (!layout || typeof layout !== 'object') return null;   // nothing built yet
-    fs.writeFileSync(LAYOUT_BACKUP_FILE, JSON.stringify({
-      savedAt: new Date().toISOString(),
-      fromVersion: from,
-      toVersion: DASHBOARD_LAYOUT_VERSION,
-      dashboardLayout: layout,
-    }, null, 2));
-    return { file: LAYOUT_BACKUP_FILE, from };
-  } catch { return null; }   // a backup that throws must never block the boot
-}
+const { LAYOUT_BACKUP_FILE, backupSupersededLayout } = require('./grid/layout-backup.js');
 
 async function writeHubSettings(settings) {
   // Large scene pictures go to files of their own (scene-images.js), so a
@@ -8557,11 +7919,7 @@ const { captureOptions } = require('./screens/capture-options.js');
 
 const { _comboHeldBy, _deckShortcutStatus } = require('./deck/shortcut-questions.js');
 
-// Per-app volume: macOS has no per-process mixer (docs/MACOS_PORTABILITY.md).
-async function _appAudioAvailable() {
-  if (process.platform === 'darwin') return false;
-  return nativeCollectors ? nativeCollectors.audioAvailable() : fs.promises.access(SVV).then(() => true, () => false);
-}
+const { _appAudioAvailable } = require('./audio/app-audio-available.js');
 
 // What the Xenon menu shows (xenon-menu.js): read from the settings and the
 // runtime state, never a path, a window title or a file name.
@@ -8746,15 +8104,7 @@ async function updateUsageModeSetting(mode) {
 
 const { normalizeDeckStore } = require('./deck/store-normalize.js');
 
-async function readDeckStore() {
-  try {
-    const raw = await fs.promises.readFile(DECK_FILE, 'utf8');
-    return normalizeDeckStore(JSON.parse(raw));
-  } catch (e) {
-    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0, instanceRevs: {}, presets: [], keyPresets: [] };
-    throw e;
-  }
-}
+const { readDeckStore } = require('./deck/store-read.js');
 
 async function writeDeckStore(store) {
   const safe = normalizeDeckStore(store);
@@ -8802,45 +8152,9 @@ const {
   BACKUP_SAFE_NAME_RE, localBackupStamp,
 } = require('./settings/backup-format.js');
 
-// Raw parse of the server-only OAuth token store; used ONLY to derive boolean
-// "is this provider connected" flags. Token values never enter the backup.
-async function _readStreamTokensSnapshot() {
-  try { return JSON.parse(await fs.promises.readFile(STREAM_TOKENS_FILE, 'utf8')) || {}; }
-  catch { return {}; }
-}
-
 const { _backupSecretFlags, _backupNeedsSetup } = require('./settings/backup-secrets.js');
 
-// The custom background binary, embedded as base64 when it is small enough
-// (images; a 200MB video would dwarf the bundle — skipped, and the import then
-// clears the dangling reference instead of leaving a broken background).
-async function _buildBackupBackground(settings) {
-  const bg = settings && settings.backgroundMedia;
-  if (!bg || typeof bg !== 'object' || typeof bg.url !== 'string') return null;
-  const fileName = bg.url.split('/').pop() || '';
-  if (!BACKUP_SAFE_NAME_RE.test(fileName)) return null;
-  try {
-    const abs = path.join(UPLOADS_DIR, fileName);
-    const st = await fs.promises.stat(abs);
-    if (!st.isFile() || st.size > BACKUP_BACKGROUND_MAX_BYTES) return null;
-    return { file: fileName, data: (await fs.promises.readFile(abs)).toString('base64') };
-  } catch { return null; }
-}
-
-// The custom UI font binary, embedded as base64 (fonts are small — always well
-// under FONT_MAX_BYTES — so, unlike large video backgrounds, they always travel).
-async function _buildBackupFont(settings) {
-  const font = settings && settings.uiFont;
-  if (!font || typeof font !== 'object' || typeof font.url !== 'string') return null;
-  const fileName = font.url.split('/').pop() || '';
-  if (!BACKUP_SAFE_NAME_RE.test(fileName)) return null;
-  try {
-    const abs = path.join(UPLOADS_DIR, fileName);
-    const st = await fs.promises.stat(abs);
-    if (!st.isFile() || st.size > FONT_MAX_BYTES) return null;
-    return { file: fileName, data: (await fs.promises.readFile(abs)).toString('base64') };
-  } catch { return null; }
-}
+const { _buildBackupBackground, _buildBackupFont } = require('./settings/backup-uploads.js');
 
 // The installed third-party widget / Ambient-scene packages, as a LIGHTWEIGHT
 // manifest — id + name + origin + surface only, never the package code/assets.
@@ -9141,6 +8455,26 @@ const { _feedWidgetInUse } = require('./grid/feed-widget-in-use.js');
 
 const { processesWanted, perfWanted } = require('./performance/feeds-wanted.js');
 
+const { readEvents, readTasks } = require('./time/store-read.js');
+
+const { readIdleSeconds, _idleProbe } = require('./system/idle-seconds.js');
+
+const { backgroundHeld } = require('./performance/background-held.js');
+
+const { _guardHelperMediaBlindSpot, mediaScriptArgs } = require('./media/helper-blind-spot.js');
+
+const { DISCORD_NOTIF_MAX } = require('./discord/notification-limit.js');
+
+const { refreshWinNotifWatch } = require('./notification-open/watch-refresh.js');
+
+const { phoneSettings } = require('./transfer/phone-settings.js');
+
+const { _claudeSettings } = require('./claude-code/settings-read.js');
+
+const { CAPTURE_FOLDER_TITLES } = require('./screens/capture-folder-titles.js');
+
+const { stepsLanguage } = require('./screens/steps-language.js');
+
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
@@ -9151,12 +8485,9 @@ deckRegistryDeps.remote = remoteControl;
 // elevated applier. Disabled on a git checkout.
 const selfUpdate = createSelfUpdate({ root: path.join(__dirname, '..'), dataDir: DATA_DIR });
 
-// Automatic updates: decides WHEN to run the same prepare/apply as the button.
-// Everything it reads about the machine is gathered here, the policy lives in
-// server/auto-update.js. Each blocker is one thing a restart would break for
-// someone: a game, a Performance Mode session, a file on its way, a disk
-// cleanup, Claude waiting on an answer, a live voice session, a ringing call.
-const AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'auto-update.json');
+const {
+  AUTO_UPDATE_STATE_PATH, autoUpdateIdleSeconds,
+} = require('./updates/auto-update-inputs.js');
 // Test-only knobs for the end-to-end run, never set by an install: a release
 // age of 0 hours, and an idle PC. Logged loudly so they cannot go unnoticed.
 const AUTO_UPDATE_MIN_AGE_MS = (() => {
@@ -9165,29 +8496,6 @@ const AUTO_UPDATE_MIN_AGE_MS = (() => {
 })();
 if (AUTO_UPDATE_MIN_AGE_MS !== undefined) console.warn('[auto-update] TEST OVERRIDE: release age limit ' + (AUTO_UPDATE_MIN_AGE_MS / 3600000) + 'h');
 if (AUTO_UPDATE_ASSUME_IDLE) console.warn('[auto-update] TEST OVERRIDE: the PC is treated as idle');
-
-async function autoUpdateIdleSeconds() {
-  if (AUTO_UPDATE_ASSUME_IDLE) return 24 * 3600;
-  // A sample the idle probe took in the last minute is as good as a new one.
-  if (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000 && typeof _idleProbe.sec === 'number') return _idleProbe.sec;
-  return readIdleSeconds();
-}
-
-// Seconds since the last keyboard or mouse input on this PC, or null when it
-// cannot be read: idle.ps1 on Windows, the collector seam elsewhere.
-async function readIdleSeconds() {
-  try {
-    if (POWERSHELL_SUPPORTED) {
-      const r = await runCollector(IDLE_SCRIPT, [], 5000);
-      return r && r.ok === true && Number.isFinite(Number(r.idleSec)) ? Math.max(0, Number(r.idleSec)) : null;
-    }
-    if (nativeCollectors && typeof nativeCollectors.idleSeconds === 'function') {
-      const sec = await nativeCollectors.idleSeconds();
-      return Number.isFinite(sec) ? Math.max(0, sec) : null;
-    }
-  } catch { /* unknown */ }
-  return null;
-}
 
 async function autoUpdateSignals() {
   const blockers = [];
@@ -9226,12 +8534,6 @@ const autoUpdater = autoUpdateLib.createAutoUpdater({
   minAgeMs: AUTO_UPDATE_MIN_AGE_MS,
 });
 
-// Store widgets that update themselves. The decision logic lives in
-// widget-auto-update.js; this only hands it the server's own readers and the one
-// install path (the staged swap with rollback). Every package still passes
-// validateWidgetPayload before a byte is written, and no grant is ever issued.
-const WIDGET_AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'widget-auto-update.json');
-const SDK_STAGING_DIR = path.join(DATA_DIR, 'widget-staging');   // beside the packages dir, never inside it
 const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
   currentVersion: APP_VERSION,
   isEnabled: () => !!(hub.settings && hub.settings.autoUpdateWidgets !== false),
@@ -9314,18 +8616,6 @@ const briefing = createBriefingEngine({
   getFps: () => fpsMonitor.getCurrentFps(),
 });
 
-// A streaming app client_id is CONFIGURATION, not committed source: resolve it
-// from an env var first, then a gitignored `server/stream-config.json`, so the
-// id (tied to the owner's personal Twitch/Google app) never lives in the public
-// repo. Empty when unconfigured → the provider reports `configured:false`.
-function readStreamClientId(configKey, envName) {
-  if (process.env[envName]) return String(process.env[envName]).trim();
-  try {
-    const cfg = JSON.parse(fs.readFileSync(STREAM_CONFIG_FILE, 'utf8'));
-    return String((cfg && cfg[configKey]) || '').trim();
-  } catch { return ''; }
-}
-
 // Twitch + YouTube live integrations. Tokens persist to a server-only file
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
 // the user pastes/saves their app credentials in Settings → Streaming, picking up
@@ -9353,14 +8643,7 @@ deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode)
 // can be re-created when the user saves a Client ID in Settings → Streaming (see
 // saveStreamConfig). Tokens persist to the same server-only stream-tokens.json.
 let streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
-// All Spotify Deck actions funnel through the provider. Reads `streamSpotify` at
-// call time so a re-created provider is picked up automatically.
-// While Spotify's Web API refuses the app (a rate limit that can last hours on
-// an app with a low quota, even when nothing has been played), play/pause and
-// skip still reach the Spotify app through Windows' media keys, which never
-// touch the API. Only when the media session in use IS Spotify, so the key can
-// never skip another app's track. The SDK widget does the same client-side.
-const SPOTIFY_LOCAL_FALLBACK = Object.freeze({ spotifyPlay: 'playpause', spotifyNext: 'next', spotifyPrev: 'previous' });
+const { SPOTIFY_LOCAL_FALLBACK } = require('./media/spotify-local-fallback.js');
 deckRegistryDeps.spotify = async (action) => {
   const r = await streamSpotify.runAction(action);
   const cmd = SPOTIFY_LOCAL_FALLBACK[action.type];
@@ -9403,13 +8686,6 @@ let discordLogin = '';
 let discordWatchArming = false;   // serialize refreshes (status() is async)
 let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
 
-// Recent Discord notifications for the widget's feed — a bounded ring buffer,
-// mirroring the Streamer.bot activity feed. Each item is already projected to a
-// client-safe shape by the provider (title/body text + https-only icon); it's
-// pushed live over the `discord_notification` SSE event AND kept here so a
-// just-added tile seeds from GET /stream/discord/notifications. Cleared on
-// logout and when the feature is toggled off — never grows past the cap.
-const DISCORD_NOTIF_MAX = 30;
 let discordNotifs = [];
 let discordNotifSeq = 0;
 function pushDiscordNotification(n) {
@@ -9468,30 +8744,8 @@ winNotif.init({
     });
   },
 });
-function refreshWinNotifWatch() {
-  winNotif.sync(winNotifWanted() && sseClients.size > 0);
-}
 
-// ── Incoming calls ──────────────────────────────────────────────────────────
-// calls.js owns the ring state and performs the answer; everything platform- or
-// integration-shaped is injected here so that module stays testable without a
-// server. The two sensors are wired at their sources: winNotif.onItem above and
-// pushDiscordNotification below.
-function callsSettings() {
-  const c = (hub.settings && hub.settings.calls) || {};
-  const off = Array.isArray(c.disabledApps) ? c.disabledApps : [];
-  const userApps = Array.isArray(c.apps) ? c.apps : [];
-  // Stored as "which apps did the user switch OFF", handed to the classifier as
-  // an explicit allowlist — the friendlier shape to persist, the safer shape to
-  // reason about at the boundary. `null` means "no app was switched off".
-  let allowed = null;
-  if (off.length) {
-    allowed = callDetect.DEFAULT_APPS.map(a => a.id)
-      .concat(userApps.map(a => a && a.id).filter(Boolean))
-      .filter(id => !off.includes(id));
-  }
-  return { enabled: c.enabled === true, push: c.push !== false, sound: c.sound !== false, apps: userApps, allowed };
-}
+const { callsSettings } = require('./transfer/calls-settings.js');
 // Whether Discord can actually answer. Kept as a flag rather than an async
 // status() call because capabilities are computed while a call is ringing, and
 // a card that takes a round trip to decide whether to draw its main button is a
@@ -9520,15 +8774,6 @@ calls.init({
   onEvent: (name) => { try { lighting.onEvent(name); } catch { /* lighting optional */ } },
 });
 
-// ── The paired phone ────────────────────────────────────────────────────────
-// Phonebook and call log over Bluetooth, plus the OS's own "a call is ringing"
-// signal. That signal is why this is wired into calls.js rather than living
-// beside it: for a phone call it REPLACES the notification-text heuristic with
-// a fact, and the mirrored toast is demoted to what it is actually good at,
-// which is naming the caller.
-function phoneSettings() {
-  return (hub.settings && hub.settings.phone) || {};
-}
 // Whether a Deck key that dials or texts can actually do anything on this
 // machine. Read from the last status the helper gave rather than probed here:
 // the catalog is fetched while the editor is open, and a Bluetooth round trip
@@ -9657,29 +8902,9 @@ function announceAudioLevelsProblem() {
 }
 setInterval(announceAudioLevelsProblem, 5000).unref();
 
-// ── Per-process CPU / RAM / GPU — the `processes` SDK stream ─────────────────
-// Karim's ask on Discord was a mini task manager in place of the Latency panel.
-// It ships as a stream a Store widget can be granted rather than as a rewrite of
-// a built-in panel: one user finding Latency useless is not a reason to remove it
-// from everyone's dashboard, and this way the layout is the user's choice.
-//
-// The cost model, which is the whole reason this looks the way it does:
-//   * NOTHING runs unless some installed package has actually been granted the
-//     stream AND a dashboard is open. No grant, no widget, no cost — not a
-//     reduced cost, zero. sdkGrantsFor() fails closed under safe mode and
-//     per-package suspend, so both of those turn it off for free.
-//   * When it does run it is ~55ms per tick on Windows (measured, 390
-//     processes), because processes.ps1 lives on the persistent worker and reads
-//     raw performance-counter deltas instead of sampling. See its header for the
-//     Get-Counter comparison — the naive version costs 2800ms.
-//   * A tick that overruns is SKIPPED, never queued. The worker answers serially,
-//     so queuing would push the sensor collectors behind a backlog of stale
-//     process snapshots — the failure would show up as the CPU tile going
-//     sluggish, with nothing pointing here.
-const PROCESSES_POLL_MS = 2000;
-// The dearest read in the worker: through a game the list follows three times slower.
-const PROCESSES_POLL_GAME_MS = 6000;
-const PROCESSES_TOP = 8;          // per metric; the collector sends the union of the three
+const {
+  PROCESSES_POLL_MS, PROCESSES_POLL_GAME_MS, PROCESSES_TOP,
+} = require('./performance/processes-stream-timing.js');
 let _processesBusy = false;
 let _processesPolledAt = 0;
 let _processesProblemSaid = '';
@@ -9730,14 +8955,7 @@ setInterval(async () => {
   }
 }, PROCESSES_POLL_MS).unref();
 
-// ── SDK `sensors` stream ────────────────────────────────────────────────────
-// The whole sensor catalog (collectSensors) for widgets that want the AIO's
-// liquid, a VRM or one fan by name. Demand-gated like `processes`: nothing
-// runs unless a package holds the grant and a surface is connected, and a tick
-// still running skips the next one rather than queueing behind the worker.
-// Slower than `processes` on purpose: on an NVIDIA card a catalog read may
-// refresh the GPU through LHM (60-80 ms, at most every 2 s, see sensors.ps1).
-const SENSORS_STREAM_POLL_MS = 3000;
+const { SENSORS_STREAM_POLL_MS } = require('./system/sensors-stream-timing.js');
 let _sensorsStreamBusy = false;
 setInterval(async () => {
   if (sseClients.size === 0 || _sensorsStreamBusy || !sdkStreamGranted('sensors')) return;
@@ -9867,7 +9085,6 @@ async function refreshDiscordWatch() {
 
 const { spotifyRedirectUri, spotifyCallbackPage } = require('./media/spotify-connect.js');
 
-const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret', 'discordClientId', 'discordClientSecret', 'spotifyClientId'];
 async function saveStreamConfig(patch) {
   let cfg = {};
   try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
@@ -9893,16 +9110,6 @@ async function saveStreamConfig(patch) {
     wantNotifications: discordNotifScopeWanted,
   });
   refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
-}
-
-async function readEvents() {
-  try {
-    const raw = await fs.promises.readFile(EVENTS_FILE, 'utf8');
-    return normalizeEvents(JSON.parse(raw));
-  } catch (e) {
-    if (e.code === 'ENOENT') return [];
-    throw e;
-  }
 }
 
 // Every events write runs in one queue, so the reminder check (which marks
@@ -9955,16 +9162,6 @@ function markEventReminders(now) {
   });
 }
 
-
-async function readTasks() {
-  try {
-    const raw = await fs.promises.readFile(TASKS_FILE, 'utf8');
-    return normalizeTasks(JSON.parse(raw));
-  } catch (e) {
-    if (e.code === 'ENOENT') return [];
-    throw e;
-  }
-}
 
 // Every tasks write runs in one queue, and so does every read that a write is
 // built on (updateTasks), so the assistant, a Deck key, the clock that reopens
@@ -10200,12 +9397,7 @@ async function refreshExternalFeeds() {
   return _externalFeedCache;
 }
 
-// Warm shortly after boot, then every 15 minutes — but only while a dashboard
-// is connected (SSE-timer gating invariant: no network/disk work with nobody
-// listening). A stale cache is refreshed on demand from the /events handler, so
-// the first client after an idle stretch still gets fresh feeds. unref() so
-// these timers never keep the process alive on shutdown.
-const EXTERNAL_FEEDS_INTERVAL_MS = 15 * 60 * 1000;
+const { EXTERNAL_FEEDS_INTERVAL_MS } = require('./ticker/feeds-interval.js');
 setTimeout(() => { if (sseClients.size) refreshExternalFeeds().catch(() => {}); }, 4000).unref();
 setInterval(() => {
   if (sseClients.size === 0) return;
@@ -10263,8 +9455,7 @@ function _pushStocks() {
   broadcastSSE('stocks', _stocksCache);
 }
 const _stocksAlerts = stocks.createAlertTracker();
-const _stocksChartCache = new Map(); // bounded LRU: `${symbol}|${range}` → { at, data }
-const _stocksSearchCache = new Map(); // bounded LRU: `query` → { at, results }
+const { _stocksChartCache, _stocksSearchCache } = require('./ticker/stocks-caches.js');
 
 
 async function refreshStocks() {
@@ -10337,19 +9528,11 @@ function _pushFootball() {
   broadcastSSE('football', _footballPayload());
 }
 const _footballAlerts = football.createAlertTracker();
-const _footballStandingsCache = new Map(); // bounded LRU: `${leagueId}|${season}` → { at, data }
-const _footballSearchCache = new Map();    // bounded LRU: `query` → { at, results }
-const _footballNewsCache = { at: 0, key: '', items: [], inflight: null };
-const FOOTBALL_NEWS_TTL_MS = 15 * 60 * 1000;
+const {
+  _footballStandingsCache, _footballSearchCache, _footballNewsCache, FOOTBALL_NEWS_TTL_MS,
+  FOOTBALL_INFO_FILE, FOOTBALL_INFO_TTL_MS,
+} = require('./ticker/football-caches.js');
 
-// ── team identity (crest, colours, stadium) ──────────────────────────────────
-// Identity barely changes, so it is fetched once per followed club and kept for
-// a day — and persisted, because a restart that starts without crests is exactly
-// the empty-looking widget this cache exists to prevent. `{ [teamId]: info }`
-// plus a fetch stamp; the map rides along on /api/football and the SSE payload
-// as an ADDED field (the teams[] shape is a public SDK stream, see WIDGET_SDK).
-const FOOTBALL_INFO_FILE = path.join(DATA_DIR, 'football-info.json');
-const FOOTBALL_INFO_TTL_MS = 24 * 60 * 60 * 1000;
 let _footballInfo = {};        // id → info
 let _footballInfoAt = {};      // id → ms stamp of the fetch
 let _footballInfoLoaded = false;
@@ -10448,7 +9631,7 @@ setInterval(() => {
 const { newsState } = require('./ticker/news-state.js');
 
 const { refreshNews } = require('./ticker/news-refresh.js');
-const _newsSearchCache = new Map(); // bounded LRU: `query` → { at, results }
+const { _newsSearchCache } = require('./ticker/news-search-cache.js');
 
 
 // Display-only feed: also gated on the widget/ticker actually using it, so a
@@ -10639,11 +9822,6 @@ async function _claudeLinkStatus() {
 }
 _claudeLinkStatus().catch(() => {});
 
-function _claudeSettings() {
-  const s = hub.settings && hub.settings.claude;
-  return (s && typeof s === 'object') ? s : claudeUsage.DEFAULT_CLAUDE;
-}
-
 // Build the wire payload: the aggregate + the budget config the reactor needs to
 // draw the "remaining" gauge (there is no official quota API, so the ceiling is
 // whatever plan/budget the user picked).
@@ -10767,9 +9945,7 @@ let _codexSig = '';
 let _codexLinkCache = null;
 let _codexLinkRepairedAt = 0;
 
-function _codexWanted() {
-  return sseClients.size > 0 && (_widgetPlaced('openaicodex') || _widgetPlaced('chatgpt') || _sdkStreamGranted('codex'));
-}
+const { _codexWanted } = require('./codex/wanted.js');
 function _syncCodexDemand() {
   const wanted = _codexWanted();
   _codexApp.setDemand({ wanted, visible: wanted });
@@ -10887,6 +10063,16 @@ const { vitalsPetCfg } = require('./vitals/pet-config.js');
 const { _geminiWebSearchOnce, _geminiGenerateJSONOnce } = require('./ai/gemini-search-json.js');
 
 const { _transcribeAudioOnce } = require('./ai/gemini-transcribe.js');
+
+const {
+  STARTUP_TASK_CHECK_MS, LEFTOVER_TASKS_DELAY_MS, tidyLeftoverTasks,
+} = require('./install/leftover-tasks.js');
+
+const { batteryWanted } = require('./device-battery/wanted.js');
+
+const { CAPTURE_CHECK_MARKER } = require('./updates/capture-check-marker.js');
+
+const { _vitalsNagLast } = require('./vitals/nag-last.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -21385,7 +20571,6 @@ function _handleLiveClient(client) {
 // is checked at all, and why the three conditions are repaired while `disabled`
 // is only ever reported.
 let _startupTaskState = { checked: false, found: false, problems: [], repaired: [], failed: '', at: 0 };
-const STARTUP_TASK_CHECK_MS = 6 * 60 * 60 * 1000;   // twice a working day is plenty
 async function refreshStartupTaskState() {
   const res = await startupTask.checkStartupTask({ dataDir: DATA_DIR }).catch(() => null);
   if (!res) return _startupTaskState;
@@ -21443,14 +20628,6 @@ function ensureHelperUpToDate(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
-// The capture engine is compiled, so like the helper it cannot ride in the
-// source zip the self-update applies: it is its own release asset, covered by
-// the same Ed25519-signed SHA256SUMS and fetched through the same verified path.
-// One difference: nobody ever declined the engine (the helper is optional in the
-// installer), and every install made before it existed lacks it, so a MISSING
-// engine is fetched from this version's release, not only refreshed. Until it is
-// there the capture features stay hidden (`requires`), never broken.
-const CAPTURE_CHECK_MARKER = path.join(DATA_DIR, 'capture-checked.txt');
 // Only where an engine can lag behind the server's list, or (Linux) where its
 // answer is the only list (see capture-host.js).
 function learnCaptureFeatures() {
@@ -21549,21 +20726,6 @@ async function seedFreshInstall() {
   });
 }
 
-// Scheduled tasks that only matter at the next sign-in, so nobody waits for them.
-const LEFTOVER_TASKS_DELAY_MS = 60 * 1000;
-function tidyLeftoverTasks() {
-  // The logon task that opens the dashboard in a browser outlives the script it
-  // points at, and a stale one greets the user with a wscript error box at every
-  // sign-in (see reconcileBrowserAutoOpenTask). It reads one scheduled task, and
-  // only writes when something is out of step.
-  reconcileBrowserAutoOpenTask().catch(() => {});
-  // OpenRGB was removed from the product. Tear down anything a previous version
-  // may have left so it never launches itself again: drop the auto-start
-  // scheduled task (one fire-and-forget call, silent if absent).
-  if (POWERSHELL_SUPPORTED) {
-    try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
-  }
-}
 
 function _startListen(host) {
   _listenHost = host;
@@ -21839,20 +21001,6 @@ function applyBindHost() {
 // These replace client-side setInterval polling.  Timers only run work when at
 // least one SSE client is connected, so they have no cost at idle.
 
-// ── System-idle probe (presence for Bit, the vitals pet) ─────────────────────
-// The Xeneon touchscreen alone can't prove the user is at the PC (they may
-// never tap that monitor), so the pet's PC-invading actions key off REAL input
-// recency via GetLastInputInfo (idle.ps1, hosted in the persistent worker —
-// Add-Type compiles once per worker lifetime, repeat reads are instant).
-// Four consumers: the pet's PC-invading actions (/api/vitals/nag), the meters'
-// away-pause (vitals.js freezes decay once idleSec crosses its threshold), the
-// Ambient screensaver auto-start (ambient-mode.js starts/dismisses on whole-PC
-// idle so it never fires while the user is busy on another screen), and the
-// greeting splash's presence gate (ambient.js holds a day-part until someone is
-// there), so the probe runs when ANY of them wants it. Polled only while an SSE client is
-// connected: zero cost at idle. Consumed by statusPayload() and /api/vitals/nag.
-const _idleProbe = { sec: null, at: 0 };
-const _vitalsNagLast = { overlay: 0, minimize: 0, lock: 0 };
 function idleProbeWanted() {
   const v = hub.settings && hub.settings.vitals;
   if (v && v.enabled !== false) {
@@ -22114,10 +21262,6 @@ const _transcripts = createCaptureTranscripts({
   onState: (ev) => broadcastSSE('transcript', ev),
 });
 _transcripts.load().catch(() => {});
-// The folders the user chose for recordings, screenshots and benchmark files
-// (capture-folder.js), checked like the transfer inbox: never inside Xenon's
-// own folders, never a link. One dialog at a time, whichever it is for.
-const CAPTURE_FOLDER_TITLES = { recording: 'capture_folder_title', screenshot: 'shot_folder_title', benchmark: 'bench_folder_title', bugreport: 'bug_folder_title', buglogs: 'bug_logs_title', backup: 'backup_folder_title', transfer: 'xfer_folder_title' };
 let _captureFolderKind = 'recording';
 const _captureFolder = createCaptureFolder({
   host: _captureHost,
@@ -22215,11 +21359,6 @@ const _recorder = createRecorder({
     ...(e.pruned ? { pruned: e.pruned, limitGB: captureOptions().maxGB } : {}),
   }),
 });
-// The steps recorder (steps-recorder.js): every click a step, written up in
-// the user's language in Documents/Xenon/Steps. State to every dashboard over
-// SSE `steps` (the Deck key, the "Recording steps" card); the document over
-// SSE `capture` with the count only, never a step's text.
-const stepsLanguage = () => (hub.settings && hub.settings.language) || 'en';
 // "Open" / "Show" the last steps document or bug report after a restart (capture-last.js).
 const _captureLast = createCaptureLast({
   file: path.join(DATA_DIR, 'capture-last.json'),
@@ -22349,12 +21488,6 @@ const _perfStream = createPerfStream({
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
   access: () => require('./sensor-service/fps-access.js').instance().current(),
 });
-// With Game Mode on, or in a Performance Mode session, the background work that can
-// wait does, for as long as a game runs. Everything that answers a person keeps answering.
-function backgroundHeld() {
-  const wanted = hub.settings?.gameMode !== false || hub.settings?.performance?.active === true;
-  return wanted && gameDetect.isGameRunning();
-}
 
 function syncBackgroundHold() {
   const on = backgroundHeld();
@@ -22477,22 +21610,6 @@ async function _systemTick() {
 }
 { const t = setTimeout(_systemTick, sensorRateMs()); t.unref && t.unref(); }
 
-// Peripheral battery moves on a minutes scale and its sources are relatively
-// expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own
-// slow tick with a change-dedup instead of riding the 7s system broadcast.
-// Each read is a PowerShell spawn sweeping every PnP device (~2 s of CPU) plus iCUE
-// round-trips, so it runs only while something can show the result: the Battery
-// widget on the dashboard, a Deck key bound to `battery:<device>`, or a widget
-// granted the `battery` stream. GET /api/battery and the AI tool still read on
-// demand. Like _feedWidgetInUse, any unexpected shape fails OPEN.
-async function batteryWanted() {
-  if (_feedWidgetInUse('battery') || sdkStreamGranted('battery')) return true;
-  try {
-    const store = await readDeckStore();
-    return JSON.stringify(store.configs).includes('"battery:');
-  } catch { return true; }
-}
-
 let _batteryPolledAt = 0;
 let _lastBatteryJson = '';
 setInterval(async () => {
@@ -22509,37 +21626,13 @@ setInterval(async () => {
   } catch {}
 }, 90000).unref();
 
-// The 'audio' tick spawns SoundVolumeView.exe (native, can't move to pwsh-worker),
-// so each fire is a process + temp-CSV cycle. External volume/mute changes are rare
-// and this is a glance display, so an 8s cadence roughly halves the daily spawn
-// count vs 5s while staying responsive; a dirty-check then skips the SSE broadcast
-// (and the client-side mixer rebuild) when nothing actually changed.
-//
-// "A dashboard is open" was the WRONG gate, though: this tick was firing whenever
-// any surface was connected, whether or not anything consumed it, which is a
-// process spawn every 8 seconds forever (~10.8k/day) for a number nobody was
-// reading. It also outlived its second consumer without noticing — lighting.onAudio
-// has been a no-op since the volume flash was removed, so the old comment claiming
-// "lighting still sees every sample" was describing a consumer that no longer
-// exists. Gate it on actual demand instead, the same shape as audioLevelsWanted()
-// and idleProbeWanted():
-//   - a widget granted the `audio` stream is fed straight off this tick, so it
-//     keeps the poll alive for as long as it is installed and un-suspended;
-//   - otherwise the poll runs only while someone is plausibly looking at the
-//     Volume UI. fetchAudio() runs when that panel opens, so a recent GET /audio
-//     is the signal, and the window is generous because it is refreshed by any
-//     interaction. The trade is that a mixer left open and untouched past the
-//     window stops noticing volume changes made OUTSIDE Xenon until it is touched
-//     again; changes made through Xenon apply locally and are unaffected.
-const AUDIO_WATCH_WINDOW_MS = 120000;
+const { AUDIO_WATCH_WINDOW_MS, AUDIO_POLL_GAME_MS } = require('./audio/poll-timings.js');
 let _audioWatchedAt = 0;
 function _noteAudioWatched() { _audioWatchedAt = Date.now(); }
 function audioPollWanted() {
   if (sdkStreamGranted('audio')) return true;
   return Date.now() - _audioWatchedAt < AUDIO_WATCH_WINDOW_MS;
 }
-// Each look is a process on Windows: through a game the mixer follows, four times slower.
-const AUDIO_POLL_GAME_MS = 32000;
 let _audioPolledAt = 0;
 let _lastAudioJson = '';
 setInterval(async () => {

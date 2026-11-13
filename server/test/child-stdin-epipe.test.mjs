@@ -5,6 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+import { engineSource, extractedFrom } from './engine-source.mjs';
+
 // Xenon talks to its native helpers over a long-lived stdin/stdout pipe: the
 // index host, the file-search host, the phone host, the screen host, the
 // PowerShell collector worker, the media host, the disk shell-delete child and
@@ -67,7 +69,8 @@ const EXEMPT = new Set([
 ]);
 
 test('every child stdin Xenon writes to has an error handler', () => {
-  const files = readdirSync(SERVER_DIR).filter((f) => f.endsWith('.js'));
+  // The files next to server.js, and the modules its code was moved to (one folder down).
+  const files = [...readdirSync(SERVER_DIR).filter((f) => f.endsWith('.js')), ...extractedFrom().map((entry) => entry.file.slice('server/'.length))];
   const missing = [];
   for (const file of files) {
     const src = readFileSync(join(SERVER_DIR, file), 'utf8');
@@ -114,7 +117,7 @@ test('the long-lived hosts retire on a pipe error instead of ignoring it', () =>
     ['server.js', /proc\.stdin\.on\('error', \(\) => _retireMediaHost\(/],
   ];
   for (const [file, re] of HOSTS) {
-    const src = readFileSync(join(SERVER_DIR, file), 'utf8');
+    const src = file === 'server.js' ? engineSource() : readFileSync(join(SERVER_DIR, file), 'utf8');
     assert.match(src, re, `${file}: a host pipe error no longer retires the host`);
   }
 });

@@ -152,7 +152,8 @@ test('the `sensors` stream exists everywhere a stream is declared, and runs only
   assert.match(cw, /streams: \['status', 'system', 'sensors'/);
   assert.match(read('server/js/main.js'), /onData\('sensors'/);
   const server = engineSource();
-  const tick = server.slice(server.indexOf('const SENSORS_STREAM_POLL_MS'), server.indexOf('}, SENSORS_STREAM_POLL_MS).unref();'));
+  // The timing constant lives in a module of its own; the tick starts at the flag declared right above the timer.
+  const tick = server.slice(server.indexOf('let _sensorsStreamBusy = false;'), server.indexOf('}, SENSORS_STREAM_POLL_MS).unref();'));
   assert.match(tick, /sseClients\.size === 0 \|\| _sensorsStreamBusy \|\| !sdkStreamGranted\('sensors'\)/);
   assert.match(tick, /finally \{\s*_sensorsStreamBusy = false;/);
 });

@@ -102,7 +102,8 @@ test('no settings write starts from the factory settings because a read failed',
   lines.forEach((l, i) => {
     if (!/readHubSettings\(\)\.catch/.test(l)) return;
     const win = lines.slice(i, i + 25).join('\n');
-    if (!/writeHubSettings/.test(win)) return;
+    // A call of the writer, not the line that declares it.
+    if (!/(?<!function )writeHubSettings\(/.test(win)) return;
     assert.match(win, /if \(!(sw|cur|current)\b|cur && cur\.|if \(current\)/, 'line ' + (i + 1) + ' must skip the write when the read failed');
   });
   // A short lock from another program is retried, not treated as damage.
