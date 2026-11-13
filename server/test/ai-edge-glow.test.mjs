@@ -3,7 +3,7 @@
 // (payload rule, pixels, breathing) is unit-tested in apps/native (layers/glow.rs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './native-source.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 

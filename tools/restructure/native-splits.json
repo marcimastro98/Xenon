@@ -1,6 +1,17 @@
 {
   "note": "Files cut by tools/restructure/native-cli.mjs, each with the files that came out of it. Written by the tool.",
   "splits": {
+    "apps/native/src-tauri/src/gpu.rs": [
+      "apps/native/src-tauri/src/gpu/displays.rs",
+      "apps/native/src-tauri/src/gpu/unit_tests.rs"
+    ],
+    "apps/native/src-tauri/src/layers/glow.rs": [
+      "apps/native/src-tauri/src/layers/glow/unit_tests.rs"
+    ],
+    "apps/native/src-tauri/src/layers/spec.rs": [
+      "apps/native/src-tauri/src/layers/spec/pages.rs",
+      "apps/native/src-tauri/src/layers/spec/unit_tests.rs"
+    ],
     "apps/native/src-tauri/src/layers/win32.rs": [
       "apps/native/src-tauri/src/layers/win32/anchored.rs",
       "apps/native/src-tauri/src/layers/win32/front.rs",

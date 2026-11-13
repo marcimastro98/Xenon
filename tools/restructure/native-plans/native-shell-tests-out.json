@@ -1,0 +1,22 @@
+[
+  {
+    "origin": "apps/native/src-tauri/src/gpu.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/gpu/displays.rs", "about": "Windows: the attached displays and the graphics card that drives each one, read from Win32.", "lines": [[61, 150], [192, 243]] },
+      { "file": "apps/native/src-tauri/src/gpu/unit_tests.rs", "about": "Tests of which graphics card the app asks for.", "items": ["mod tests"] }
+    ]
+  },
+  {
+    "origin": "apps/native/src-tauri/src/layers/spec.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/spec/pages.rs", "about": "Which page a layer window shows: alerts, scene, drawing sheet, menu, and what the menu may open.", "lines": [[130, 233]] },
+      { "file": "apps/native/src-tauri/src/layers/spec/unit_tests.rs", "about": "Tests of what a layer page may ask for.", "items": ["mod tests"] }
+    ]
+  },
+  {
+    "origin": "apps/native/src-tauri/src/layers/glow.rs",
+    "parts": [
+      { "file": "apps/native/src-tauri/src/layers/glow/unit_tests.rs", "about": "Tests of the glow around a widget window.", "items": ["mod tests"] }
+    ]
+  }
+]
