@@ -575,7 +575,7 @@ const { externalizeInlineScripts } = require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const { withThinking, applyThinking } = require('./ai-gemini-thinking');
-const { hasVoice, wavPcm, transcriptionPrompt, geminiTranscript } = require('./stt-voice-gate');
+const { hasVoice, wavPcm, transcriptionPrompt } = require('./stt-voice-gate');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 require('./ai-provider-creds');
@@ -6200,59 +6200,7 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
   return _withGeminiModel(model, apiKey, (id, thinking) => _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, id, thinking));
 }
 
-// A pinned model can be closed to the user's key. The chat has its own, longer
-// fallback; everything else that asks Gemini once comes through here.
-function _withGeminiModel(model, apiKey, send) {
-  const alternatives = () => [aiModels.resolve('gemini', 'chat', 'auto', apiKey), aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey)];
-  return aiGemini.withFallbackModel(model, alternatives, (id) => withThinking(id, (thinking) => send(id, thinking)));
-}
-
-function _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, model, thinking) {
-  return new Promise((resolve, reject) => {
-    const generationConfig = applyThinking({
-      temperature: Number.isFinite(opts.temperature) ? opts.temperature : 0.7,
-      maxOutputTokens: maxTokens, candidateCount: 1,
-      ...(opts.json ? { responseMimeType: 'application/json' } : {}),
-    }, thinking);
-    const payload = JSON.stringify({
-      ...(systemText ? { system_instruction: { parts: [{ text: String(systemText) }] } } : {}),
-      contents: [{ role: 'user', parts }],
-      generationConfig,
-    });
-    const gReq = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
-    }, (gRes) => {
-      let d = '';
-      gRes.on('data', c => { d += c; });
-      gRes.on('end', () => {
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
-          const meta = parsed?.usageMetadata;
-          const used = Number(meta?.totalTokenCount);
-          if (typeof opts.onUsage === 'function' && Number.isSafeInteger(used)) {
-            // Thinking is billed at the output price.
-            opts.onUsage(used, {
-              input: Number(meta.promptTokenCount),
-              output: (Number(meta.candidatesTokenCount) || 0) + (Number(meta.thoughtsTokenCount) || 0),
-            });
-          }
-          const text = (parsed?.candidates?.[0]?.content?.parts || [])
-            .filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('').trim();
-          if (!text) return reject(new Error('empty response'));
-          resolve(text);
-        } catch (e) { reject(e); }
-      });
-    });
-    gReq.on('error', reject);
-    gReq.setTimeout(30000, () => { gReq.destroy(); reject(new Error('gemini timeout')); });
-    gReq.write(payload);
-    gReq.end();
-  });
-}
+const { _withGeminiModel, _geminiOneShotOnce } = require('./ai/gemini-one-shot.js');
 
 const { _spawnWavPlayer } = require('./wav/player.js');
 
@@ -11418,6 +11366,10 @@ const { _perfPlanPrompt, _normalizePerfPlan } = require('./performance/ai-plan.j
 
 const { vitalsPetCfg } = require('./vitals/pet-config.js');
 
+const { _geminiWebSearchOnce, _geminiGenerateJSONOnce } = require('./ai/gemini-search-json.js');
+
+const { _transcribeAudioOnce } = require('./ai/gemini-transcribe.js');
+
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
@@ -12524,9 +12476,6 @@ function _audioToWav16k(inBuf) {
   });
 }
 
-// Thinking models took over 15 s on a short clip (Flash, 3.1 Pro), the same as the chat allows.
-const STT_GEMINI_TIMEOUT_MS = 30000;
-
 function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
   const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
@@ -12534,43 +12483,6 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const model = AI_MODELS.chat;
   return _withGeminiModel(model, apiKey, (id, thinking) => _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, id, thinking));
 }
-
-function _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, model, thinking) {
-  const payload = JSON.stringify({
-    contents: [{ parts: [
-      { text: sttPrompt },
-      { inline_data: { mime_type: safeMime, data: audioB64 } },
-    ] }],
-    generationConfig: applyThinking({ temperature: 0, maxOutputTokens: 256, candidateCount: 1 }, thinking),
-  });
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
-    }, (geminiRes) => {
-      let d = '';
-      geminiRes.on('data', c => { d += c; });
-      geminiRes.on('end', () => {
-        process.stdout.write(`[STT] Gemini status=${geminiRes.statusCode}\n`);
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) {
-            reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
-            return;
-          }
-          resolve(geminiTranscript(parsed));
-        } catch (e) { reject(e instanceof SyntaxError ? new Error('Gemini invalid JSON') : e); }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(STT_GEMINI_TIMEOUT_MS, () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(payload);
-    req.end();
-  });
-}
-
 
 // Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
 // because the google_search grounding tool cannot be combined with
@@ -12585,79 +12497,10 @@ function _geminiWebSearch(query, apiKey) {
     .catch((e) => ({ error: e.message }));
 }
 
-function _geminiWebSearchOnce(q, apiKey, model, thinking) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: q }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: applyThinking({ temperature: 0.2, maxOutputTokens: 700, candidateCount: 1 }, thinking),
-    });
-    const t0 = Date.now();
-    const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
-    }, (r) => {
-      let d = '';
-      r.on('data', c => { d += c; });
-      r.on('end', () => {
-        process.stdout.write(`[WebSearch] Gemini HTTP ${r.statusCode} in ${Date.now() - t0}ms\n`);
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) return reject(new Error(parsed.error.message || 'search error'));
-          const cand = parsed?.candidates?.[0];
-          const text = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
-          // Collect grounding source URLs/titles when present
-          const chunks = cand?.groundingMetadata?.groundingChunks || [];
-          const sources = chunks
-            .map(c => c.web && { title: c.web.title || '', uri: c.web.uri || '' })
-            .filter(Boolean).slice(0, 5);
-          if (!text) return resolve({ error: 'no result' });
-          resolve({ answer: text, sources });
-        } catch { reject(new Error('invalid JSON')); }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(20000, () => { req.destroy(); reject(new Error('search timeout')); });
-    req.write(payload);
-    req.end();
-  });
-}
-
 function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
   const model = AI_MODELS.chat;
   return _withGeminiModel(model, apiKey, (id, thinking) => _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, id, thinking))
     .catch(() => null);
-}
-
-function _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, model, thinking) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: applyThinking({ temperature: 0.2, maxOutputTokens: 500, candidateCount: 1, responseMimeType: 'application/json' }, thinking),
-    });
-    const r = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
-    }, (resp) => {
-      let d = '';
-      resp.on('data', c => { d += c; });
-      resp.on('end', () => {
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
-          resolve((parsed?.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || null);
-        } catch (e) { reject(e); }
-      });
-    });
-    r.on('error', reject);
-    r.setTimeout(timeoutMs, () => { r.destroy(); reject(new Error('gemini timeout')); });
-    r.write(payload);
-    r.end();
-  });
 }
 
 async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang, stats }) {

@@ -152,7 +152,10 @@
       {"file":"server/performance/feeds-wanted.js","about":"Whether the game performance feed and the process list have anyone to show them to.","names":["processesWanted","perfWanted"]},
       {"file":"server/system/sensor-rate.js","about":"How often the sensors are read, as chosen in the settings, looked up at every reading so a change takes effect at once.","names":["sensorRateMs"]},
       {"file":"server/deck/store-normalize.js","about":"The shape of the Deck backup the server keeps: the keys of every Deck as the dashboard wrote them, and the number that says which copy is newer.","names":["normalizeDeckStore"]},
-      {"file":"server/ai/local-server-one-shot.js","about":"One plain answer from the AI server the user runs on this PC.","names":["localServerOneShot"]}
+      {"file":"server/ai/local-server-one-shot.js","about":"One plain answer from the AI server the user runs on this PC.","names":["localServerOneShot"]},
+      {"file":"server/ai/gemini-one-shot.js","about":"One question to Gemini and its answer: the request itself, and the step that tries another model when the pinned one is closed to the user's key.","names":["_withGeminiModel","_geminiOneShotOnce"]},
+      {"file":"server/ai/gemini-search-json.js","about":"Two requests to Gemini that come back as data: a web search with its sources, and an answer that has to be JSON.","names":["_geminiWebSearchOnce","_geminiGenerateJSONOnce"]},
+      {"file":"server/ai/gemini-transcribe.js","about":"The request that turns a recorded voice clip into text with Gemini, and how long it may take.","names":["STT_GEMINI_TIMEOUT_MS","_transcribeAudioOnce"]}
     ]
   }
 }
