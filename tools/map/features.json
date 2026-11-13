@@ -836,6 +836,7 @@
       "name": "Updates",
       "what": "Finds a new version, checks its signature, installs it and shows what is new.",
       "files": [
+        "server/updates/**",
         "server/self-update.js",
         "server/auto-update.js",
         "server/update-apply.ps1",
@@ -865,6 +866,7 @@
       "name": "Install and uninstall",
       "what": "The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux.",
       "files": [
+        "server/install/**",
         "server/install.ps1",
         "server/install.sh",
         "server/uninstall.ps1",

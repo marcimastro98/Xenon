@@ -267,6 +267,26 @@ const { F, makeCsvPath, parseCsvLine } = require('./audio/svv-csv.js');
 
 const { appAudioTarget } = require('./audio/app-target.js');
 
+const { cpuSnapshot, getCpuName } = require('./system/cpu.js');
+
+const { collectorNum, normalizeGpuFans, SENSOR_ACCESS } = require('./system/sensor-values.js');
+
+const {
+  RAM_INFO_RETRY_MS, NETWORK_FRESH_MS, IDLE_POLL_MS, IDLE_POLL_FAST_MS, IDLE_AWAY_SEC,
+  BATTERY_POLL_GAME_MS,
+} = require('./system/timings.js');
+
+const { PWSH_WORKER_GC_BUDGET } = require('./system/pwsh-worker-memory.js');
+
+const {
+  DISK_DETAILS_TIMEOUT_MS, DISK_DETAILS_BG_TIMEOUT_MS, DISK_MODELS_TIMEOUT_MS, diskProbeFresh,
+  DISK_LETTERS_TTL,
+} = require('./disk/details-timings.js');
+
+const { VOLUME_DETAILS_COMMAND, DISK_MODELS_COMMAND } = require('./disk/details-commands.js');
+
+const { psRows, joinDiskDetails } = require('./disk/details-shape.js');
+
 const layersEdit = require('./layers-edit').createLayersEdit({
   broadcast: (on) => broadcastSSE('layers-edit', { on }),
   // Editing showed the surfaces the user had hidden: hide them again, unless
@@ -712,88 +732,15 @@ aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge r
 // startup, where the log and the bug report see it. The installer upgrades it.
 try { const w = require('./node-version').nodeWarning(); if (w) console.warn(w); } catch { /* never block startup on this */ }
 
-// ── Update check ──────────────────────────────────────────────────────────────
-// Soft probe of the latest GitHub release so the dashboard can show a discreet
-// "update available" hint in Settings. No token, never auto-downloads, and
-// fail-silent: any network/API problem just means "no hint" until the next
-// probe window. One probe serves every open dashboard.
-const UPDATE_REPO = 'marcimastro98/Xenon';
-const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
-const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
-const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
-const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
+const {
+  UPDATE_REPO, UPDATE_CHECK_TTL, UPDATE_CHECK_RETRY, UPDATE_NOTES_MAX, AUTO_UPDATE_ASSUME_IDLE,
+  HELPER_REFRESH_MAX_TRIES, HELPER_REFRESH_RETRY_MS,
+} = require('./updates/check-values.js');
+const { resolveReleaseMedia } = require('./updates/release-media.js');
 let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
 const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
-
-// ── Release-notes media (screenshots + videos) ──────────────────────────────
-// The modal renders images/videos embedded in the GitHub release body. Because
-// that body is untrusted text, media is restricted to GitHub-hosted URLs only
-// (no arbitrary hosts → no tracking-pixel / IP-leak on open). Markdown images
-// `![](url)` are unambiguously images; GitHub embeds *videos* as a bare URL on
-// their own line (a UUID with no extension), so those are classified by a
-// bounded content-type probe. Result: a `{ url: 'image' | 'video' }` map the
-// client uses to pick <img> vs <video>. All of this rides the daily update-check
-// cache — it runs at most once a day, never on a request hot path.
-function isAllowedMediaUrl(u) {
-  try {
-    const url = new URL(String(u));
-    if (url.protocol !== 'https:') return false;
-    const h = url.hostname.toLowerCase();
-    if (h === 'github.com') return url.pathname.startsWith('/user-attachments/assets/');
-    return h === 'githubusercontent.com' || h.endsWith('.githubusercontent.com');
-  } catch { return false; }
-}
-
-// Probe a bare media URL's content-type. Tries HEAD, then a 2-byte ranged GET
-// (some GitHub asset redirects only surface the type on GET). Fail-silent.
-async function classifyMediaContentType(url) {
-  const read = async (method, extra) => {
-    const res = await fetch(url, {
-      method,
-      headers: { 'User-Agent': 'XenonEdgeHub', ...(extra || {}) },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(4000),
-    });
-    const ct = String(res.headers.get('content-type') || '').toLowerCase();
-    try { if (res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch {}
-    if (!res.ok && res.status !== 206) return '';
-    return ct;
-  };
-  let ct = '';
-  try { ct = await read('HEAD'); } catch {}
-  if (!ct) { try { ct = await read('GET', { Range: 'bytes=0-1' }); } catch {} }
-  if (ct.startsWith('video/')) return 'video';
-  if (ct.startsWith('image/')) return 'image';
-  return '';
-}
-
-async function resolveReleaseMedia(body) {
-  const md = String(body || '');
-  const types = {};
-  // Markdown images — trust the syntax, just enforce the host allowlist (no probe).
-  const imgRe = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
-  let m;
-  while ((m = imgRe.exec(md)) !== null) {
-    if (isAllowedMediaUrl(m[1])) types[m[1]] = 'image';
-  }
-  // Bare URLs alone on a line — GitHub's video-embed shape (also occasionally an
-  // image). Classify by content-type, bounded and in parallel so the daily probe
-  // never stalls on a slow host.
-  const bare = [];
-  for (const raw of md.replace(/\r\n/g, '\n').split('\n')) {
-    const line = raw.trim();
-    if (/^https?:\/\/\S+$/.test(line) && isAllowedMediaUrl(line) && !types[line] && !bare.includes(line)) {
-      bare.push(line);
-    }
-  }
-  const probed = await Promise.all(
-    bare.slice(0, UPDATE_MEDIA_MAX).map(async (url) => [url, await classifyMediaContentType(url).catch(() => '')])
-  );
-  for (const [url, t] of probed) if (t) types[url] = t;
-  return types;
-}
 
 // Probe the latest GitHub release. `force` bypasses the cache (the manual
 // "check now" button); otherwise a successful probe is reused for a day.
@@ -842,42 +789,10 @@ async function checkLatestRelease(force) {
 // UI language with an English fallback. Media is GitHub-hosted only (same
 // allowlist as the release-notes media).
 const WHATSNEW_FILE = path.join(__dirname, 'whatsnew.json');
-const WHATSNEW_TEXT_MAX = 2000;
 const releaseNotes = require('./release-notes.js');
+const { normalizeWhatsNew } = require('./updates/whats-new-normalize.js');
+
 let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
-
-function normalizeWhatsNewText(v) {
-  if (typeof v === 'string') return v.slice(0, WHATSNEW_TEXT_MAX);
-  if (v && typeof v === 'object' && !Array.isArray(v)) {
-    const out = {};
-    for (const [k, s] of Object.entries(v)) {
-      if (/^[a-z]{2}$/i.test(k) && typeof s === 'string') out[k.toLowerCase()] = s.slice(0, WHATSNEW_TEXT_MAX);
-    }
-    return Object.keys(out).length ? out : '';
-  }
-  return '';
-}
-
-// Rebuild from known keys only (never spread untrusted input — prototype-pollution
-// safe, and drops anything unrecognised like the "_note" author comment).
-function normalizeWhatsNew(raw) {
-  if (!raw || typeof raw !== 'object') return { id: '', title: '', url: '', highlights: [] };
-  const highlights = (Array.isArray(raw.highlights) ? raw.highlights : []).slice(0, 20).map((h) => ({
-    title: normalizeWhatsNewText(h && h.title),
-    body: normalizeWhatsNewText(h && h.body),
-    ...releaseNotes.normalizeMedia(h, isAllowedMediaUrl),
-    ...releaseNotes.normalizeSheet(h),
-  })).filter((h) => h.title || h.body || h.media);
-  return {
-    id: String(raw.id || '').slice(0, 64),
-    title: normalizeWhatsNewText(raw.title),
-    url: (typeof raw.url === 'string' && /^https:\/\//i.test(raw.url)) ? raw.url : '',
-    intro: normalizeWhatsNewText(raw.intro),
-    highlights,
-    more: releaseNotes.normalizeMore(raw.more, normalizeWhatsNewText),
-    releases: releaseNotes.normalizeReleases(raw.releases, normalizeWhatsNewText),
-  };
-}
 
 async function loadWhatsNew() {
   const now = Date.now();
@@ -3299,7 +3214,7 @@ function runPowerShellCommand(command, timeout = 5000) {
 // launcher left for it to point at.
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
-const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
+const { AUTO_OPEN_SUPPORTED, autoOpenTaskFix } = require('./install/browser-auto-open.js');
 const { psEscape, psQuote } = require('./ps-quote');
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
@@ -3313,30 +3228,6 @@ function psSingleQuote(value) {
 // Is the launcher this feature needs still on disk?
 function openDashboardLauncherPresent() {
   try { return fs.existsSync(OPEN_DASHBOARD_VBS); } catch { return false; }
-}
-
-// What to do with the logon task, given where it points and what is on disk:
-//   'none'   — no task at all, or one that already points at the launcher we ship;
-//   'repair' — it points somewhere else (an install that moved) while the launcher
-//              is right here, so re-register it at the correct path;
-//   'remove' — there is no launcher any more, so the task can only produce the
-//              wscript error box. Take it out rather than leave it firing forever.
-// It never answers 'create': a task is only ever registered by an explicit choice
-// in the dashboard, so a pure-Edge install cannot grow a surprise browser tab out
-// of a repair pass. Pure, so the rule is testable without a Windows scheduler.
-function autoOpenTaskFix(state) {
-  // The task stores its target as a quoted wscript argument, so the quotes come
-  // back with it. Windows paths are case-insensitive and accept either slash.
-  const norm = (p) => String(p == null ? '' : p)
-    .trim()
-    .replace(/^"+|"+$/g, '')
-    .replace(/\//g, '\\')
-    .replace(/\\+$/, '')
-    .toLowerCase();
-  const taskScript = norm(state && state.taskScript);
-  if (!taskScript) return 'none';                       // nothing registered
-  if (!(state && state.launcherPresent)) return 'remove';
-  return taskScript === norm(state.scriptPath) ? 'none' : 'repair';
 }
 
 // Returns { enabled, launcher, taskScript }. `enabled` is the state worth
@@ -3427,11 +3318,6 @@ async function reconcileBrowserAutoOpenTask() {
 // Any worker problem falls back transparently to runPowerShellScript, so
 // behaviour degrades to the one-shot model and never breaks.
 const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
-// The .NET default lets this small host grow far past the 20 MB it really uses.
-// Hex, 16 MB: measured 180 to 125 MB private at the same CPU; 4 MB saves little more
-// and costs 20% more CPU. Not on Microsoft's list of GC settings: if a runtime ignores
-// it, nothing changes.
-const PWSH_WORKER_GC_BUDGET = '1000000';
 const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
 
 function _workerReject(id, err) {
@@ -3794,14 +3680,6 @@ async function runMediaRequest(action, timeout = 8000, position) {
   }
 }
 
-function cpuSnapshot() {
-  return os.cpus().map(cpu => {
-    const times = cpu.times;
-    const total = times.user + times.nice + times.sys + times.idle + times.irq;
-    return { idle: times.idle, total };
-  });
-}
-
 let lastCpu = cpuSnapshot();
 let cachedCpuUsage = 0;
 // The busiest logical core over the same 1.5 s: a game held back by one thread
@@ -3827,31 +3705,6 @@ setInterval(() => {
     cachedCpuUsage = pct;
   }
 }, 1500).unref();
-// A collector reading → number, or null when the sensor reported nothing.
-// Number(null) and Number('') are BOTH 0, so a bare Number.isFinite(Number(v))
-// turns an absent sensor into a real "0 W" reading — the widgets would render
-// a phantom 0 instead of their empty state.
-const collectorNum = (v) => {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-
-// The GPU collector's per-fan RPM list → a clean [{name, rpm}], or null when the
-// collector sent no `gpuFans` key at all (a failed/legacy read — the caller keeps
-// whatever it had). An EMPTY array is a real answer, not a gap: it means the card
-// reported no fan sensor, and it must clear the previous list rather than freeze
-// stale RPM on screen forever. 0 RPM is likewise a real reading — a card in idle
-// zero-RPM mode has genuinely stopped its fans — so it is kept.
-function normalizeGpuFans(raw) {
-  if (raw === null || raw === undefined) return null;
-  // Windows PowerShell 5.1 unwraps a single-element array on serialize, so a
-  // one-fan card arrives as a bare object.
-  const list = Array.isArray(raw) ? raw : (typeof raw === 'object' ? [raw] : []);
-  return list
-    .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
-    .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
-}
 
 // The chosen cadence, live. Read per tick and per cache check rather than
 // captured once, so changing it in Settings takes effect on the next reading
@@ -3862,9 +3715,6 @@ function sensorRateMs() {
 
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
-// Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
-// widgets can give the one hint that helps instead of guessing.
-const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
 let mediaCache = { data: null, updatedAt: 0 };
 // Weather responses cached per (lang|provider|mode|city). Different surfaces —
 // and the server's own AI calls — can ask with different languages; a single
@@ -4499,16 +4349,6 @@ function getCpuUsage() {
   return cachedCpuUsage;
 }
 
-function getCpuName() {
-  try {
-    const cpus = os.cpus();
-    if (cpus && cpus.length && cpus[0].model) {
-      return cpus[0].model.replace(/\s+/g, ' ').replace(/\(R\)|\(TM\)|CPU\s+@.*$/g, '').trim();
-    }
-  } catch { }
-  return null;
-}
-
 async function getCpuTemp() {
   const age = Date.now() - cpuTempCache.updatedAt;
   if (age < sensorRateMs()) return cpuTempCache.cpuTemp;
@@ -4638,42 +4478,9 @@ function readChosenSensors(sources) {
   return _chosenSensorsPending;
 }
 
-// Labels/filesystem/type only — free space is read live via statfs on every
-// cycle. Volumes change only on plug/unplug, so 10 minutes is plenty: at 60s
-// this was the last recurring powershell.exe spawn left on an idle server.
-const DISK_DETAILS_TTL_MS = 10 * 60 * 1000;
-// A read that answered nothing is not an answer, so it gets its own short TTL:
-// caching a failure for the full ten minutes is what turned one slow query into
-// "Detail unavailable" for ten minutes at a time (reported on Discord, where a
-// restart never helped — the first read after boot is the slowest one there is,
-// so every restart landed on the same timeout and pinned the same empty result).
-const DISK_DETAILS_RETRY_MS = 60 * 1000;
-// The FIRST read blocks the /system response, so it keeps the short budget the
-// panel's first paint has always had. Every later one refreshes in the
-// background off the last known-good details, where the query can have the time
-// it actually needs: these all go through the Windows storage WMI provider,
-// which is routinely slower than five seconds cold.
-const DISK_DETAILS_TIMEOUT_MS = 5000;
-const DISK_DETAILS_BG_TIMEOUT_MS = 15000;
-// Get-Disk/Get-Partition are a SEPARATE probe from Get-Volume, and the split is
-// the point rather than a tidy-up: the detail line under a drive is built from
-// label/fileSystem/driveType, all of which come from Get-Volume alone, while
-// Get-Disk/Get-Partition exist only to name the physical disk (`model`) for the
-// Disk widget. Under one budget the two nobody is waiting for could eat the five
-// seconds and blank a line that was already answerable — measured on a user's
-// PC, where Get-Volume alone came back in 0.58s while the card read "Detail
-// unavailable". Models are never waited for and get a budget of their own, so a
-// slow storage provider costs a disk name on the first read and nothing else.
-const DISK_MODELS_TIMEOUT_MS = 20000;
 
 const volumeDetailsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
 const diskModelsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
-
-function diskProbeFresh(probe) {
-  if (!probe.data) return false;
-  const ttl = probe.ok ? DISK_DETAILS_TTL_MS : DISK_DETAILS_RETRY_MS;
-  return Date.now() - probe.updatedAt < ttl;
-}
 
 // Shared by both probes. `parse` returns { map, ok }: `ok` is whether the query
 // answered at all, which is not the same as whether the map has entries (a PC
@@ -4700,57 +4507,6 @@ function runDiskProbe(probe, command, timeout, parse) {
     }
   })();
   return probe.pending;
-}
-
-const VOLUME_DETAILS_COMMAND = `
-    $ErrorActionPreference = 'Stop'
-    try {
-      $volumes = @(Get-Volume -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
-        [pscustomobject]@{
-          drive = (([string]$_.DriveLetter + ':').ToUpperInvariant())
-          label = ([string]$_.FileSystemLabel).Trim()
-          fileSystem = ([string]$_.FileSystem).Trim()
-          driveType = ([string]$_.DriveType).Trim()
-        }
-      })
-    } catch {
-      # Guarded on its own: an unguarded fallback that throws takes the whole
-      # script down with it, and this one is the last answer there is.
-      try {
-        $volumes = @(Get-CimInstance Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DeviceID } | ForEach-Object {
-          [pscustomobject]@{
-            drive = ([string]$_.DeviceID).Trim()
-            label = ([string]$_.VolumeName).Trim()
-            fileSystem = ([string]$_.FileSystem).Trim()
-            driveType = ([string]$_.Description).Trim()
-          }
-        })
-      } catch { $volumes = @() }
-    }
-    [pscustomobject]@{ volumes = $volumes } | ConvertTo-Json -Depth 4 -Compress
-`;
-
-const DISK_MODELS_COMMAND = `
-    $ErrorActionPreference = 'Stop'
-    try {
-      $diskNames = @{}
-      Get-Disk -ErrorAction Stop | ForEach-Object {
-        $diskNames[[int]$_.Number] = ([string]$_.FriendlyName).Trim()
-      }
-      $models = @(Get-Partition -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
-        [pscustomobject]@{
-          drive = (([string]$_.DriveLetter + ':').ToUpperInvariant())
-          model = ([string]$diskNames[[int]$_.DiskNumber]).Trim()
-        }
-      })
-    } catch { $models = @() }
-    [pscustomobject]@{ models = $models } | ConvertTo-Json -Depth 4 -Compress
-`;
-
-// ConvertTo-Json turns a one-element array into a bare object, so both parsers
-// re-wrap before iterating.
-function psRows(value) {
-  return Array.isArray(value) ? value : (value ? [value] : []);
 }
 
 function refreshVolumeDetails(timeout) {
@@ -4783,14 +4539,6 @@ async function getDiskDetails() {
   return joinDiskDetails(await volumeDetails(), models);
 }
 
-function joinDiskDetails(volumes, models) {
-  const out = {};
-  Object.keys(volumes).forEach(drive => {
-    out[drive] = { ...volumes[drive], model: models[drive] || '' };
-  });
-  return out;
-}
-
 function volumeDetails() {
   if (diskProbeFresh(volumeDetailsProbe)) return volumeDetailsProbe.data;
   // Nothing cached at all: this is the first read of the process, so wait for it
@@ -4809,7 +4557,6 @@ function diskModels() {
 }
 
 let _diskLettersCache = { letters: null, at: 0 };
-const DISK_LETTERS_TTL = 60 * 1000;
 
 const mountedDisks = nativeCollectors ? createMountedDisks(() => nativeCollectors.disks()) : null;
 
@@ -4863,7 +4610,6 @@ async function getAllDisksInfo({ waitForDetails = true } = {}) {
   return drives.length ? drives : null;
 }
 
-const RAM_INFO_RETRY_MS = 60 * 1000;
 const ramInfo = createFactReader(readRamInfo, { retryMs: RAM_INFO_RETRY_MS });
 async function readRamInfo() {
   const command = `
@@ -5055,21 +4801,7 @@ let _netPrevIfaces = new Map();  // id -> { rx, tx, t }
 let _netPending = null;
 const _packetLoss = createPacketLoss();
 
-// Bytes-per-second from two cumulative readings. Returns null rather than 0 for
-// everything that is not a real measurement — no previous sample, no elapsed
-// time, or a counter that went BACKWARDS (an interface that was reset, or a
-// 32-bit counter wrapping), because a made-up 0 in a graph reads as "idle" when
-// the truth is "unknown".
-function bytesPerSec(now, prev, dtSec) {
-  if (!prev || !(dtSec > 0)) return null;
-  const d = now - prev;
-  if (!(d >= 0)) return null;
-  return Math.round(d / dtSec);
-}
-// Each surface polls on its own clock and every reading is a collector run with
-// three pings, so whoever asks just after someone else shares that reading. Under
-// the 3 s poll of the System tile, which still gets a new one each time.
-const NETWORK_FRESH_MS = 2500;
+const { bytesPerSec, DISK_SECTOR } = require('./system/rates.js');
 let _netLast = null;
 async function getNetworkInfo() {
   if (_netLast && Date.now() - _netLast.at < NETWORK_FRESH_MS) return _netLast.reading;
@@ -5193,7 +4925,6 @@ async function _getNetworkInfoRaw() {
 // two readings of its own.
 let _diskPrev = new Map();     // id -> { rb, wb, ro, wo, t }
 let _diskPending = null;
-const DISK_SECTOR = 512;       // /proc/diskstats' documented unit, on every device
 
 function getDiskIo() {
   if (_diskPending) return _diskPending;
@@ -11158,7 +10889,6 @@ const AUTO_UPDATE_MIN_AGE_MS = (() => {
   const h = Number(process.env.XENON_AUTOUPDATE_MIN_AGE_H);
   return Number.isFinite(h) && h >= 0 && h < 24 * 30 ? h * 3600 * 1000 : undefined;
 })();
-const AUTO_UPDATE_ASSUME_IDLE = process.env.XENON_AUTOUPDATE_ASSUME_IDLE === '1';
 if (AUTO_UPDATE_MIN_AGE_MS !== undefined) console.warn('[auto-update] TEST OVERRIDE: release age limit ' + (AUTO_UPDATE_MIN_AGE_MS / 3600000) + 'h');
 if (AUTO_UPDATE_ASSUME_IDLE) console.warn('[auto-update] TEST OVERRIDE: the PC is treated as idle');
 
@@ -23747,8 +23477,6 @@ async function refreshStartupTaskState() {
 
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
 let _helperInstall = null;   // one Settings install at a time; a second tap waits on the first
-const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
-const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
 // A helper that just arrived: this version counts as checked, and meters that gave up start fresh now.
 function helperArrived() {
   writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {});
@@ -24217,16 +23945,6 @@ function idleProbeWanted() {
   // A widget or a page ruled by "the PC is idle" (situations.js).
   return _situations.needs('idle');
 }
-// Adaptive cadence: 15s while the user is active (presence changes slowly),
-// 5s once the PC looks unattended — dismissing the Ambient screensaver and the
-// vitals return-credit both hinge on spotting the RETURN quickly, and a
-// GetLastInputInfo read via the persistent worker costs microseconds. The fast
-// tick only runs while nobody is at the PC, so it taxes no one. When a fresh
-// sample shows activity resumed, the status broadcast goes out immediately so
-// clients react within one probe tick instead of also waiting for the 3s timer.
-const IDLE_POLL_MS = 15000;
-const IDLE_POLL_FAST_MS = 5000;
-const IDLE_AWAY_SEC = 45;   // deliberately below the 60s minimum screensaver threshold
 async function _pollIdleProbe() {
   let delay = IDLE_POLL_MS;
   // A tick with no SSE client (2-3s EventSource reconnect gap) or with every
@@ -24855,9 +24573,6 @@ async function batteryWanted() {
   } catch { return true; }
 }
 
-// Each read is a PowerShell and a process asking the dongles. Through a game five
-// minutes still keeps a low mouse on screen, and stays inside battery.js STALE_MS.
-const BATTERY_POLL_GAME_MS = 5 * 60 * 1000;
 let _batteryPolledAt = 0;
 let _lastBatteryJson = '';
 setInterval(async () => {

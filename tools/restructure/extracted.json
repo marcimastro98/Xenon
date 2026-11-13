@@ -86,7 +86,19 @@
       {"file":"server/media/spotify-connect.js","about":"Signing in to Spotify: the address Spotify sends the user back to, and the page shown there.","names":["spotifyRedirectUri","spotifyCallbackPage"]},
       {"file":"server/streaming/obs-launch.js","about":"Finds where OBS is installed and starts it, for an OBS action pressed while OBS is closed.","names":["_sleep","readObsInstallDir","launchObs"]},
       {"file":"server/audio/svv-csv.js","about":"Reads the table SoundVolumeView writes: the column numbers, one line split into fields, and a temporary file to write it to.","names":["F","makeCsvPath","parseCsvLine"]},
-      {"file":"server/audio/app-target.js","about":"Turns the name of an app into the form the volume tool needs to find it.","names":["appAudioTarget"]}
+      {"file":"server/audio/app-target.js","about":"Turns the name of an app into the form the volume tool needs to find it.","names":["appAudioTarget"]},
+      {"file":"server/updates/release-media.js","about":"Pictures and videos in release notes: which addresses are allowed, what kind a file is, and the ones a release really has.","names":["UPDATE_MEDIA_MAX","isAllowedMediaUrl","classifyMediaContentType","resolveReleaseMedia"]},
+      {"file":"server/updates/check-values.js","about":"Fixed values of the update check: where releases are, how often to look, and how often to retry updating the helper.","names":["UPDATE_REPO","UPDATE_CHECK_TTL","UPDATE_CHECK_RETRY","UPDATE_NOTES_MAX","AUTO_UPDATE_ASSUME_IDLE","HELPER_REFRESH_MAX_TRIES","HELPER_REFRESH_RETRY_MS"]},
+      {"file":"server/updates/whats-new-normalize.js","about":"Checks the \"What's New\" text of a release before a dashboard shows it.","names":["WHATSNEW_TEXT_MAX","normalizeWhatsNewText","normalizeWhatsNew"]},
+      {"file":"server/install/browser-auto-open.js","about":"The Windows task that opens the dashboard in a browser at sign-in: whether this system has it, and how to repair one that points at the wrong place.","names":["AUTO_OPEN_SUPPORTED","autoOpenTaskFix"]},
+      {"file":"server/system/cpu.js","about":"Reads the processor from Node itself: a snapshot of its busy and idle time, and its name.","names":["cpuSnapshot","getCpuName"]},
+      {"file":"server/system/sensor-values.js","about":"Cleans what the sensor readers send: a number or nothing, the list of graphics card fans, and the reasons sensors are unavailable.","names":["collectorNum","normalizeGpuFans","SENSOR_ACCESS"]},
+      {"file":"server/system/timings.js","about":"How often the PC numbers are read: memory details, network, device batteries during a game, and whether the user is away.","names":["RAM_INFO_RETRY_MS","NETWORK_FRESH_MS","IDLE_POLL_MS","IDLE_POLL_FAST_MS","IDLE_AWAY_SEC","BATTERY_POLL_GAME_MS"]},
+      {"file":"server/system/rates.js","about":"Turns two readings of a counter into a speed per second, for network and disk activity.","names":["bytesPerSec","DISK_SECTOR"]},
+      {"file":"server/system/pwsh-worker-memory.js","about":"The memory budget given to the PowerShell process that reads the sensors.","names":["PWSH_WORKER_GC_BUDGET"]},
+      {"file":"server/disk/details-timings.js","about":"How long drive details are reused and how long a read may take, and the test that says a stored answer is still fresh.","names":["DISK_DETAILS_TTL_MS","DISK_DETAILS_RETRY_MS","DISK_DETAILS_TIMEOUT_MS","DISK_DETAILS_BG_TIMEOUT_MS","DISK_MODELS_TIMEOUT_MS","diskProbeFresh","DISK_LETTERS_TTL"]},
+      {"file":"server/disk/details-commands.js","about":"The two PowerShell questions that read drive details on Windows: volumes, and the name of each physical disk.","names":["VOLUME_DETAILS_COMMAND","DISK_MODELS_COMMAND"]},
+      {"file":"server/disk/details-shape.js","about":"Shapes the drive details: PowerShell rows as a list, and volumes joined with the names of their disks.","names":["psRows","joinDiskDetails"]}
     ]
   }
 }
