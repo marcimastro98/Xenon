@@ -595,7 +595,7 @@ const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
-const claudeSubagent = require('./claude-subagent.js');
+require('./claude-subagent.js');
 const claudeHistory = require('./claude-history');
 const claudeCommands = require('./claude-commands');
 const claudeAttach = require('./claude-attach');
@@ -1955,12 +1955,10 @@ const { sdkTileCacheGet, sdkTileGate } = require('./widget-sdk/tile-cache.js');
 
 const { sdkTileFetch } = require('./widget-sdk/tile-fetch.js');
 
-const {
-  sdkHandlerDispatch, sdkHandlerAck, sdkHandlerShutdown,
-} = require('./widget-sdk/handler-calls.js');
+const { sdkHandlerDispatch, sdkHandlerShutdown } = require('./widget-sdk/handler-calls.js');
 
 
-const { _sdkDeckStates, acceptSdkDeckStates } = require('./widget-sdk/deck-states.js');
+const { _sdkDeckStates } = require('./widget-sdk/deck-states.js');
 
 const { _scriptStates, setScriptState } = require('./deck/script-states.js');
 
@@ -2293,11 +2291,7 @@ async function sendHotkeyCombo(keys) {
   return { ok: false, error: 'hotkey_unavailable' };
 }
 
-const { AUTO_OPEN_SUPPORTED } = require('./install/browser-auto-open.js');
 const { psEscape } = require('./ps-quote');
-const {
-  getBrowserAutoOpenState, setBrowserAutoOpen,
-} = require('./install/browser-auto-open-task.js');
 
 const { appIconCache, resolveAppIcons, resolveStoreAppIcon } = require('./programs/app-icons.js');
 
@@ -10777,6 +10771,18 @@ const { branches: lightsBranches } = require('./lights/routes.js');
 const { branches: tickerBranches } = require('./ticker/routes.js');
 const { branches: deckBranches } = require('./deck/routes.js');
 const { branches: aiBranches } = require('./ai/routes.js');
+const { branches: claudeCodeBranches } = require('./claude-code/routes.js');
+const { branches: audioBranches } = require('./audio/routes.js');
+const { branches: updatesBranches } = require('./updates/routes.js');
+const { branches: performanceBranches } = require('./performance/routes.js');
+const { branches: systemBranches } = require('./system/routes.js');
+const { branches: windowsTilesBranches } = require('./windows-tiles/routes.js');
+const { branches: installBranches } = require('./install/routes.js');
+const { branches: widgetSdkBranches } = require('./widget-sdk/routes.js');
+const { branches: engineBranches } = require('./engine/routes.js');
+const { branches: screensBranches } = require('./screens/routes.js');
+const { branches: discordBranches } = require('./discord/routes.js');
+const { branches: searchBranches } = require('./search/routes.js');
 
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
@@ -11139,11 +11145,7 @@ const handleRequest = async (req, res) => {
     json({ muted: audioCache.muted });
 
   } else if (reqPath === '/ping' && req.method === 'GET') {
-    // 1×1 transparent GIF — used by the iCUE widget to probe connectivity via
-    // Image() instead of fetch(), bypassing Qt WebEngine's LocalContentCanAccessRemoteUrls block.
-    const gif = Buffer.from('R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', 'base64');
-    res.writeHead(200, { 'Content-Type': 'image/gif', 'Cache-Control': 'no-store' });
-    res.end(gif);
+    await engineBranches['GET /ping'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/status' && req.method === 'GET') {
     // Any site can read a ?cb= answer, so it says Xenon is on and nothing else:
@@ -11204,14 +11206,7 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
-    // One tap for `sensorAccess` 'needs_admin' or 'missing', or an outdated sensor
-    // service: one UAC prompt installs LHM + PawnIO if missing and the sensor service.
-    // Fixed argv, no request value reaches a command line; the prompt is the real
-    // gate. POST-only, never JSONP, in CSRF_MUTATION_PATHS.
-    try {
-      const out = await runPowerShellScript(ENABLE_SENSORS_SCRIPT, [], 600000); // may install LHM + PawnIO first
-      json(out && typeof out === 'object' ? out : { ok: false, status: 'failed', message: 'no result' });
-    } catch (e) { json({ ok: false, status: 'failed', message: e.message }); }
+    await systemBranches['POST /system/enable-sensors'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
@@ -11244,29 +11239,7 @@ const handleRequest = async (req, res) => {
     await featureRoutes.run(req.method, reqPath, req, res, { json, sdkStreamGranted: _sdkStreamGranted, history: guardian, getFfmpegPath });
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
-    // Game mode runs off foreground full-screen detection (no PresentMon needed).
-    // PresentMon is reported only so Settings can offer the optional FPS-readout
-    // install button. The foreground field is a live diagnostic for false positives.
-    //
-    // fpsBackend names WHICH reader is behind that flag, because the two are not
-    // interchangeable: PresentMon is a download Xenon can perform, MangoHud is a
-    // package the user installs and then has to launch the game with. Settings
-    // has to offer a button for one and an explanation for the other, and it
-    // cannot tell them apart from an availability boolean alone.
-    try {
-      json({
-        presentMonAvailable: fpsMonitor.isAvailable(),
-        fpsBackend: fpsMonitor.backend || null,
-        fpsAvailable: fpsMonitor.isAvailable(),
-        gaming: gameDetect.isGaming(),
-        gameRunning: gameDetect.isGameRunning(),
-        gameProcess: gameDetect.getGameProcess(),
-        activity: gameDetect.getActivity(),
-        foreground: gameDetect.getGamingWindow(),
-        diag: (typeof gameDetect.getGameDiag === 'function') ? gameDetect.getGameDiag() : null,
-        fps: fpsMonitor.getGamingProcess(),
-      });
-    } catch (e) { err500(e.message); }
+    await performanceBranches['GET /api/gamemode/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {
     // Read-only system snapshot for Performance Mode: memory pressure + the top
@@ -11300,14 +11273,7 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {
-    // "Widgets only": the hidden driver page runs Performance Mode and the
-    // on-screen alerts window shows it; they talk through here (perf-screen.js).
-    // This PC only (remote-access.js), and CSRF-guarded.
-    let ev = null;
-    try { ev = perfScreen.screenEvent(JSON.parse(await readBody(req) || '{}')); } catch (e) { ev = null; }
-    if (!ev) { res.writeHead(400); res.end('Invalid event'); return; }
-    broadcastSSE('perf_screen', ev);
-    json({ ok: true });
+    await performanceBranches['POST /api/performance/screen'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/settings/tile' && req.method === 'POST') {
     let body = null;
@@ -11728,29 +11694,13 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/windows' && req.method === 'GET') {
-    try   { json(await runWindowsTool(['list'], 12000)); }
-    catch (e) { err500(e.message); }
+    await windowsTilesBranches['GET /windows'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/windows/focus' && req.method === 'POST') {
-    try {
-      const { id } = JSON.parse(await readBody(req));
-      if (!id || typeof id !== 'string' || !/^\d{1,24}$/.test(id)) {
-        res.writeHead(400); res.end('Invalid window id'); return;
-      }
-      json(await runWindowsTool(['focus', id], 5000));
-    } catch (e) { err500(e.message); }
+    await windowsTilesBranches['POST /windows/focus'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/windows/close' && req.method === 'POST') {
-    // Gracefully close a window (WM_CLOSE; the helper refuses protected processes
-    // and never force-kills). POST-only, so the loopback Origin/Sec-Fetch checks
-    // guard it from a cross-site drive-by.
-    try {
-      const { id } = JSON.parse(await readBody(req));
-      if (!id || typeof id !== 'string' || !/^\d{1,24}$/.test(id)) {
-        res.writeHead(400); res.end('Invalid window id'); return;
-      }
-      json(await runWindowsTool(['close', id], 8000));
-    } catch (e) { err500(e.message); }
+    await windowsTilesBranches['POST /windows/close'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/windows/launch' && req.method === 'POST') {
     // Launch a favorited app that isn't currently open, by its stored exe path.
@@ -11850,17 +11800,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/audio/levels/status' && req.method === 'GET') {
-    // Read-only: why the meters are (or are not) running, so Settings can explain
-    // a switch that appears to do nothing instead of leaving the user guessing.
-    json({
-      ok: true,
-      wanted: audioLevelsWanted(),
-      platform: process.platform,   // meters exist on Windows only; Settings says so elsewhere
-      available: audioLevels.available(),
-      running: audioLevels.isRunning(),
-      failure: audioLevels.failure(),
-      minVersion: audioLevels.minVersion(),
-    });
+    await audioBranches['GET /audio/levels/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/audio/levels/install-helper' && req.method === 'POST') {
     // "Install Xenon Helper", under the wave switch in Settings. The boot heal
@@ -11883,32 +11823,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, status: 'error', detail: String(e && e.message || e) }); }
 
   } else if (reqPath === '/audio/watch' && req.method === 'GET') {
-    // "A Volume or Microphone panel is on screen". The prefix check at the top of
-    // this handler has already re-armed the 8 second audio tick, which is all this
-    // route is for: the dashboard sends it every 30 seconds while a mixer is in view
-    // and not at all while none is. It reads nothing and spawns nothing, so a mixer
-    // left on screen all day costs one empty request every half minute.
-    json({ ok: true });
+    await audioBranches['GET /audio/watch'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
-    // Broader app list for the Deck editor's app picker: every application audio
-    // session (active OR inactive) that has a real exe, deduped by process name.
-    // Wider than /audio (which only surfaces apps currently producing sound) so a
-    // key can be configured for an app that isn't playing right now.
-    try {
-      const rows = await readSoundVolumeRows();
-      const SYS_RE = /^(audiodg|rtkuwp|system|dwm|explorer|searchhost|shellexperiencehost|startmenuexperiencehost|textinputhost|applicationframehost|nvcontainer)$/i;
-      const procOf = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
-      const seen = new Map();
-      for (const f of rows) {
-        if (f[F.TYPE] !== 'Application' || !f[F.PROC_PATH]) continue;
-        const proc = procOf(f);
-        if (!proc || SYS_RE.test(proc)) continue;
-        const key = proc.toLowerCase();
-        if (!seen.has(key)) seen.set(key, { proc, name: f[F.NAME] || f[F.WINDOW_TITLE] || proc });
-      }
-      json({ ok: true, apps: [...seen.values()] });
-    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
+    await audioBranches['GET /audio/apps'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck/sound' && req.method === 'GET') {
     // Stream a user-chosen local audio file for the Deck soundboard. The browser
@@ -12195,14 +12113,7 @@ const handleRequest = async (req, res) => {
     });
 
   } else if (reqPath === '/embedded-browser/adblock/install' && req.method === 'POST') {
-    // One-click install: download + unpack uBOL. The enable/disable flag is a
-    // normal setting saved via POST /settings; this only fetches the extension.
-    try {
-      const r = await browserAdblock.install(DATA_DIR);
-      json({ ok: !!(r && r.ok), installed: browserAdblock.isInstalled(DATA_DIR) });
-    } catch (e) {
-      json({ ok: false, installed: browserAdblock.isInstalled(DATA_DIR), error: String((e && e.message) || e) });
-    }
+    await windowsTilesBranches['POST /embedded-browser/adblock/install'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
     try {
@@ -12319,12 +12230,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/version' && req.method === 'GET') {
-    // `platform` so the dashboard can stop prescribing Windows remedies to
-    // machines that have no Windows. Several hints named LibreHardwareMonitor
-    // and told the user to "re-run INSTALL.bat" — a file that does not exist on
-    // macOS or Linux, for a dependency those platforms do not use. The value is
-    // Node's own, so the client never has to guess from a user agent.
-    json({ version: APP_VERSION, platform: process.platform });
+    await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
     // Curated highlights for the running version (see loadWhatsNew). Static and
@@ -12511,29 +12417,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/native/status' && req.method === 'GET') {
-    // Which surface the user set up (native kiosk vs iCUE), so the dashboard can
-    // offer to install the native app when running on iCUE/browser. Reads the
-    // installer's marker in DATA_DIR (never HTTP-reachable); absent => 'unknown'.
-    try {
-      let mode = 'unknown';
-      try {
-        const raw = await fs.promises.readFile(path.join(DATA_DIR, 'install-mode.json'), 'utf8');
-        const m = JSON.parse(raw);
-        if (m && (m.mode === 'native' || m.mode === 'icue')) mode = m.mode;
-      } catch { /* no marker yet -> unknown */ }
-      // 'installed' must reflect the app actually on disk, NOT just the chosen-
-      // surface marker: uninstalling the native app leaves the marker as 'native',
-      // so keying the promo off the marker alone kept it hidden after an uninstall.
-      // The kiosk installs per-user to %LOCALAPPDATA%\Xenon\xenon-native.exe.
-      let installed = false;
-      if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
-        try {
-          await fs.promises.access(path.join(process.env.LOCALAPPDATA, 'Xenon', 'xenon-native.exe'));
-          installed = true;
-        } catch { /* exe absent -> not installed */ }
-      }
-      json({ mode, installed });
-    } catch (e) { err500(e.message); }
+    await updatesBranches['GET /api/native/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/native/install' && req.method === 'POST') {
     // One-click install of the native kiosk app from the dashboard (offered to
@@ -12579,18 +12463,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
-    // Progress of an in-flight native-app install (install-native.ps1 writes the
-    // marker at each stage). Lets the dashboard show downloading -> installing ->
-    // done/error instead of a single optimistic "launched". Absent marker => idle.
-    try {
-      let st = { state: 'idle', error: '', at: '' };
-      // readPwshJson strips the PS5 UTF-8 BOM; absent marker → idle.
-      const m = await readPwshJson(path.join(DATA_DIR, 'native-install-status.json'));
-      if (m && typeof m.state === 'string') {
-        st = { state: m.state, error: String(m.error || ''), at: String(m.at || '') };
-      }
-      json(st);
-    } catch (e) { err500(e.message); }
+    await updatesBranches['GET /api/native/install-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
     // One portable JSON file with the user's configuration (no secrets, no
@@ -13621,50 +13494,16 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
-    // The last turns of one session, so a follow-up is not written blind. Pure
-    // read, and the session id is matched against a strict shape before it is
-    // ever used to look for a file.
-    try {
-      const out = await claudeTranscript.readTail(
-        claudeUsage.resolveProjectsDir(),
-        urlObj.searchParams.get('session') || '',
-        { full: urlObj.searchParams.get('full') === '1' });
-      json(out);
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['GET /api/claude/transcript'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/claude/transcript-image' && req.method === 'GET') {
-    // One picture from a session's thread, named by the id the transcript reply
-    // gave it. The session id is matched against a strict shape and the image id
-    // is two numbers; the answer is an allowlisted image type, never a path or HTML.
-    try {
-      const out = await claudeTranscript.readImage(claudeUsage.resolveProjectsDir(),
-        urlObj.searchParams.get('session') || '', urlObj.searchParams.get('id') || '');
-      if (!out.ok) { res.writeHead(out.error === 'bad_request' ? 400 : 404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
-      res.writeHead(200, {
-        'Content-Type': out.mime,
-        'Content-Length': out.data.length,
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'private, max-age=3600',
-      });
-      res.end(out.data);
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['GET /api/claude/transcript-image'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/claude/agent' && req.method === 'GET') {
-    // One subagent of a session, read from Claude Code's own files: type, label,
-    // model, effort, context size and its last tool calls. Ids only, both
-    // shape-checked before a path is built; never its prompt or tool results.
-    try {
-      const out = await claudeSubagent.readAgent(claudeUsage.resolveProjectsDir(),
-        urlObj.searchParams.get('session') || '', urlObj.searchParams.get('id') || '');
-      json(out);
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['GET /api/claude/agent'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/claude/plan' && req.method === 'GET') {
-    // The last plan a session wrote, read back from its transcript: the Plan tab
-    // asks once when the live feed has none (Xenon started after the plan).
-    try {
-      json(await claudeTranscript.lastPlan(claudeUsage.resolveProjectsDir(), urlObj.searchParams.get('session') || ''));
-    } catch (e) { err500(e.message); }
+    await claudeCodeBranches['GET /api/claude/plan'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/claude/history' && req.method === 'GET') {
     // Every chat Claude Code keeps on this PC: id, title, project name, size,
@@ -14216,27 +14055,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'unifi_failed' }); }
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
-    // Reports whether opening the dashboard in the browser at logon is supported
-    // (Windows only) and whether the logon task currently exists.
-    try {
-      const state = await getBrowserAutoOpenState();
-      // `reason` tells the dashboard the difference between "you have this off"
-      // and "this cannot work here": without it the client would keep posting
-      // enabled=true on every page load against a launcher that is not there.
-      json({
-        ok: true,
-        supported: AUTO_OPEN_SUPPORTED,
-        enabled: state.enabled,
-        reason: state.launcher === 'missing' ? 'launcher_missing' : undefined,
-      });
-    } catch (e) { err500(e.message); }
+    await installBranches['GET /startup/auto-open'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
-    try {
-      const body = JSON.parse(await readBody(req));
-      const state = await setBrowserAutoOpen(body && body.enabled === true);
-      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled, reason: state.reason });
-    } catch (e) { err500(e.message); }
+    await installBranches['POST /startup/auto-open'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
     await deckBranches['GET /deck-config'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -14431,7 +14253,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
-    lockWorkstation().then(() => json({ ok: true }), e => err500(e.message));
+    await systemBranches['POST /lock'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/companion/cost' && req.method === 'GET') {
     // Read-only: what a Game Companion look costs, in Sparks, when Bit runs on
@@ -15277,31 +15099,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { json({ error: e.message }); }
 
   } else if (reqPath === '/api/log' && req.method === 'POST') {
-    try {
-      const body = await readBodyBuffer(req, 4 * 1024);
-      const { msg } = JSON.parse(body.toString('utf8') || '{}');
-      if (typeof msg === 'string') process.stdout.write('[CLIENT] ' + msg + '\n');
-      res.writeHead(204); res.end();
-    } catch { res.writeHead(204); res.end(); }
+    await engineBranches['POST /api/log'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/screens' && req.method === 'GET') {
-    try {
-      const psScript = 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.X)|$($_.Bounds.Y)|$($_.Bounds.Width)|$($_.Bounds.Height)|$($_.Primary)|$($_.DeviceName)" }';
-      const stdout = await new Promise((resolve, reject) =>
-        execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript],
-          { maxBuffer: 64 * 1024, windowsHide: true },
-          (err, out) => err ? reject(err) : resolve(out)
-        )
-      );
-      const screens = stdout.trim().split(/\r?\n/).filter(Boolean).map((line, i) => {
-        const [x, y, w, h, primary, dev] = line.trim().split('|');
-        const label = (dev || '').replace(/^\\\\.\\/, '').trim() || `DISPLAY${i + 1}`;
-        return { index: i, x: parseInt(x) || 0, y: parseInt(y) || 0, width: parseInt(w) || 1920, height: parseInt(h) || 1080, primary: primary === 'True', name: label };
-      });
-      json({ screens });
-    } catch {
-      json({ screens: [{ index: 0, x: 0, y: 0, width: 1920, height: 1080, primary: true, name: 'DISPLAY1' }] });
-    }
+    await screensBranches['GET /api/screens'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
     try {
@@ -16457,17 +16258,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/macos/fda-settings' && req.method === 'POST') {
-    // Open the one System Settings pane the user needs. It exists because the
-    // path there is four levels deep and its name differs per macOS version and
-    // per language, so "go to Privacy & Security, scroll to Full Disk Access"
-    // is instructions, not a fix. The URL is a fixed literal — nothing from the
-    // request reaches the command line (spawn invariant).
-    if (process.platform !== 'darwin') { json({ ok: false, error: 'unsupported' }); return; }
-    try {
-      execFile('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'],
-        { windowsHide: true }, () => {});
-      json({ ok: true });
-    } catch (e) { json({ ok: false, error: String(e.message || e) }); }
+    await systemBranches['POST /macos/fda-settings'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {
     // The native kiosk claims the hotkey: it just opened the frameless
@@ -16595,12 +16386,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
-    // Settings → Ricerca row: is the global hotkey listening, or why not
-    // ('taken' = another app owns the combo, e.g. PowerToys Run on Alt+Space).
-    try {
-      const ss = (hub.settings && hub.settings.searchSettings) || {};
-      json({ state: _hotkey.state, combo: _hotkey.combo || ss.hotkeyCombo || 'alt+space' });
-    } catch (e) { err500(e.message); }
+    await searchBranches['GET /search/hotkey-status'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {
     // The Linux shortcut's other end. There is no process pushing key events
@@ -18256,14 +18042,7 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/sdk/handler-ack' && req.method === 'POST') {
-    // The dashboard page acks a dispatched sdk_handler call on behalf of the
-    // widget frame that handled it (the sandboxed frame itself has no network —
-    // the CSP kill-switch stays intact; this POST comes from the host page).
-    // First ack wins; late/unknown callIds are a harmless no-op.
-    try {
-      const body = JSON.parse(await readBody(req, 4096) || '{}');
-      json({ ok: true, matched: sdkHandlerAck(body.callId, body.ok !== false, body.error) });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+    await widgetSdkBranches['POST /sdk/handler-ack'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/state/set' && req.method === 'POST') {
     await deckBranches['POST /state/set'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -18272,18 +18051,7 @@ const handleRequest = async (req, res) => {
     await deckBranches['GET /state/get'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
-    // The HOST page mirrors widget-published deck states here so the Virtual
-    // Deck popup (no widget frames) can light sdkState keys. POST-only JSON
-    // from the dashboard page (Origin layer); values re-validated + bounded in
-    // acceptSdkDeckStates; rebroadcast only when something actually changed.
-    try {
-      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
-      // 256KB: worst case is 256 states × (120-char key + 200-char value +
-      // meta + JSON escaping) — a 32KB cap would silently reject a busy relay
-      // and leave the popup's sdkState keys permanently dark.
-      const body = JSON.parse(await readBody(req, 262144) || '{}');
-      json({ ok: true, changed: acceptSdkDeckStates(body) });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+    await widgetSdkBranches['POST /sdk/deck-states'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
     // One-click install of a bundled reference widget: copies the example
@@ -18537,12 +18305,7 @@ const handleRequest = async (req, res) => {
     json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordRpc.notifStatus(), items: discordNotifs });
 
   } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
-    // Start the Discord desktop app so the widget's "Open Discord" overlay can
-    // bring it up when it isn't running. One fixed launch per platform
-    // (discord-launch.js): this used to be PowerShell only, so the button did
-    // nothing on macOS and Linux. No user/settings input reaches the spawn.
-    await readBody(req);
-    json(await discordLaunch.launchDiscord());
+    await discordBranches['POST /stream/discord/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/stream/discord/open-chat' && req.method === 'POST') {
     // The widget's "Reply" on a mirrored DM or mention: bring Discord forward on
