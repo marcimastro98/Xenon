@@ -81,6 +81,12 @@
     {"kind":"style","from":"server/components/AudioSection/LiquidMixer.css","parts":[{"file":"server/components/AudioSection/LiquidMixerMicrophone.css","at":245}]},
     {"kind":"style","from":"server/components/Spotlight/Spotlight.css","parts":[{"file":"server/components/Spotlight/SpotlightResults.css","at":275}]},
     {"kind":"style","from":"server/components/TwitchWatchWidget/TwitchWatchWidget.css","parts":[{"file":"server/components/TwitchWatchWidget/TwitchWatchWidgetChat.css","at":276}]},
-    {"kind":"style","from":"server/styles/liquid-streaming.css","parts":[{"file":"server/styles/liquid-streaming-details.css","at":269}]}
+    {"kind":"style","from":"server/styles/liquid-streaming.css","parts":[{"file":"server/styles/liquid-streaming-details.css","at":269}]},
+    {"kind":"style","from":"server/components/LyricsWidget/LyricsWidget.css","parts":[{"file":"server/components/LyricsWidget/LyricsWidgetStage.css","at":251}]},
+    {"kind":"style","from":"server/components/SystemPanel/SystemPanel.css","parts":[{"file":"server/components/SystemPanel/SystemPanelSparkline.css","at":287}]},
+    {"kind":"style","from":"server/components/CalendarView/CalendarView.css","parts":[{"file":"server/components/CalendarView/CalendarViewDays.css","at":245}]},
+    {"kind":"style","from":"server/components/MicPanel/MicPanel.css","parts":[{"file":"server/components/MicPanel/MicPanelAppMixer.css","at":229}]},
+    {"kind":"style","from":"server/styles/backgroundfx.css","parts":[{"file":"server/styles/backgroundfx-pause.css","at":235}]},
+    {"kind":"style","from":"server/components/SmartHomePanel/SmartHomePanel.css","parts":[{"file":"server/components/SmartHomePanel/SmartHomePanelControls.css","at":243}]}
   ]
 }

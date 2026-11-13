@@ -1,0 +1,204 @@
+
+/* control group + shared labels */
+.sh-ctl { display: flex; flex-direction: column; gap: 9px; }
+.sh-ctl-label { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+.sh-ctl-head { display: flex; align-items: center; gap: 10px; }
+.sh-ctl-head .sh-ctl-label { flex: 1 1 auto; }
+.sh-ctl-val { font-size: 0.82rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text, #e7e9ee); }
+.sh-ctl-note { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.6); }
+
+/* segmented On | Off */
+.sh-seg { display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+.sh-seg-btn { flex: 1 1 0; padding: 12px 8px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.86rem; font-weight: 800; color: rgba(255,255,255,0.6); background: transparent; border: 0; transition: background 0.18s ease, color 0.18s ease; }
+.sh-seg-btn.is-active { color: #fff; background: rgba(var(--accent-rgb),0.9); box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.3); }
+.sh-seg-btn:not(.is-active):active { background: rgba(255,255,255,0.06); }
+
+/* range slider (volume / brightness / position / speed / temperature) */
+.sh-range { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; cursor: pointer; --fill: 50%; }
+.sh-range::-webkit-slider-runnable-track { height: 34px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(to right, rgb(var(--accent-rgb)) 0 var(--fill), rgba(255,255,255,0.09) var(--fill) 100%); }
+.sh-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 8px; height: 44px; margin-top: -6px; border-radius: 6px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.sh-range--kelvin::-webkit-slider-runnable-track { background: linear-gradient(to right, #ffb765, #fff, #bcd8ff); }
+
+/* channel entry (type a number/name → tune; doubles as "back to live TV") */
+.sh-chan { display: flex; gap: 8px; }
+.sh-chan-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 11px 13px; border-radius: 12px; font: inherit; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.16s ease, background 0.16s ease; }
+.sh-chan-input:focus { outline: none; border-color: rgba(var(--accent-rgb),0.55); background: rgba(var(--accent-rgb),0.06); }
+.sh-chan-go { flex: 0 0 auto; padding: 0 18px; border-radius: 12px; cursor: pointer; font: inherit; font-size: 0.86rem; font-weight: 800; color: #fff; background: rgba(var(--accent-rgb),0.9); border: 0; box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28); transition: transform 0.08s ease; }
+.sh-chan-go:active { transform: scale(0.96); }
+.sh-chan.fail .sh-chan-input { border-color: rgba(255,120,120,0.7); background: rgba(255,120,120,0.1); animation: sh-shake 0.4s ease; }
+@keyframes sh-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* chips (sources, hvac modes, presets, options…) */
+.sh-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.sh-chip { padding: 9px 13px; border-radius: 11px; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 700; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08); transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
+.sh-chip.is-active { color: #fff; background: rgba(var(--accent-rgb),0.22); border-color: rgba(var(--accent-rgb),0.5); }
+.sh-chip:not(.is-active):active { background: rgba(255,255,255,0.09); }
+
+/* action buttons (open/stop/close, vacuum start/dock, step volume) — named
+   .sh-abtn, NOT .sh-pill, to avoid colliding with the header's .sh-pill status dot. */
+.sh-abtns { display: flex; gap: 8px; }
+.sh-abtn { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 13px 6px; border-radius: 14px; cursor: pointer; font: inherit; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08); transition: background 0.16s ease, transform 0.08s ease; }
+.sh-abtn svg { width: 20px; height: 20px; }
+.sh-abtn-label { font-size: 0.72rem; font-weight: 700; }
+.sh-abtn:active { transform: scale(0.96); background: rgba(255,255,255,0.08); }
+.sh-abtn--danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb),0.28); }
+/* active state (shuffle/repeat on, fan direction, alarm disarm selected) */
+.sh-abtn.is-active { color: #fff; background: rgba(var(--accent-rgb),0.9); border-color: transparent; box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28); }
+.sh-abtn.is-active .sh-abtn-label { color: #fff; }
+
+/* icon button (mute) */
+.sh-icobtn { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: transform 0.08s ease; }
+.sh-icobtn svg { width: 18px; height: 18px; }
+.sh-icobtn.is-active { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.3); }
+.sh-icobtn:active { transform: scale(0.94); }
+
+/* media transport */
+.sh-transport { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.sh-tp { width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: transform 0.08s ease; }
+.sh-tp svg { width: 20px; height: 20px; }
+.sh-tp--main { width: 62px; height: 62px; color: #fff; background: rgba(var(--accent-rgb),0.9); border-color: transparent; box-shadow: 0 6px 20px rgba(var(--accent-rgb),0.34); }
+.sh-tp--main svg { width: 26px; height: 26px; }
+.sh-tp--sm { width: 40px; height: 40px; }
+.sh-tp--sm svg { width: 15px; height: 15px; }
+.sh-tp:active { transform: scale(0.93); }
+
+/* thermostat stepper */
+.sh-thermo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 10px; border-radius: 16px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); }
+.sh-thermo-mid { flex: 1 1 auto; text-align: center; min-width: 0; }
+.sh-thermo-target { font-size: 2.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums; }
+.sh-thermo-current, .sh-thermo-action { font-size: 0.74rem; font-weight: 600; color: rgba(255,255,255,0.5); margin-top: 4px; }
+.sh-thermo-action { color: rgb(var(--accent-rgb)); text-transform: capitalize; }
+.sh-step { width: 52px; height: 52px; border-radius: 50%; cursor: pointer; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: transform 0.08s ease, background 0.16s ease; }
+.sh-step svg { width: 22px; height: 22px; }
+.sh-step:active { transform: scale(0.92); background: rgba(var(--accent-rgb),0.16); }
+
+/* switch row (fan oscillate) */
+.sh-switchrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sh-switchrow .sh-ctl-label { flex: 1 1 auto; }
+.sh-switch2 { flex: 0 0 auto; width: 44px; height: 26px; border-radius: 999px; cursor: pointer; background: rgba(255,255,255,0.15); border: 0; position: relative; transition: background 0.2s ease; }
+.sh-switch2::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+.sh-switch2.is-on { background: rgb(var(--accent-rgb)); }
+.sh-switch2.is-on::after { transform: translateX(18px); }
+
+/* now playing */
+.sh-now { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); }
+.sh-now-title { font-size: 0.92rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-now-artist { font-size: 0.76rem; color: rgba(255,255,255,0.5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* light colour swatches */
+.sh-swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sh-swatch { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; background: rgb(var(--sw)); border: 2px solid rgba(255,255,255,0.14); box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.1s ease; }
+.sh-swatch.is-active { border-color: #fff; box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.5); }
+.sh-swatch:active { transform: scale(0.9); }
+
+/* merged device card — a small count badge of how many entities it bundles */
+.sh-item-badge {
+  position: relative; z-index: 1; flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 0.6rem; font-weight: 900; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb),0.16);
+}
+
+/* device panel: FLAT sections (no nested boxes) — a small type label + controls,
+   separated by a hairline divider rather than a card-in-a-card. */
+.sh-dev-sec { display: flex; flex-direction: column; gap: 12px; }
+.sh-dev-sec + .sh-dev-sec { padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sh-dev-sec-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(var(--accent-rgb),0.85); }
+.sh-dev-ctls { display: flex; flex-direction: column; gap: 14px; }
+/* the compact "Actions" group wraps its small buttons (Restart / Close apps / …) */
+.sh-abtns--wrap { flex-wrap: wrap; }
+.sh-abtns--wrap .sh-abtn { flex: 1 1 130px; }
+.sh-abtn.flash { position: relative; overflow: hidden; }
+.sh-abtn.flash::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.28); animation: sh-bloom 0.5s ease forwards; pointer-events: none; }
+
+/* Settings picker: type badge + device sub-grouping */
+.sh-set-check-type { flex: 0 0 auto; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 999px; margin-left: auto; }
+.sh-set-check-type + .sh-set-check-id { margin-left: 8px; }
+.sh-set-dev { display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 800; color: rgba(255,255,255,0.72); padding: 9px 2px 3px; }
+.sh-set-dev::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--accent-rgb)); flex: 0 0 auto; }
+.sh-set-check--child { margin-left: 14px; }
+/* Settings picker: the order list (rooms, and the devices inside each). */
+/* One flat list with hairline rules: rooms as the strong rows, their devices
+   indented under them. A button with nowhere to go is hidden, not greyed. */
+.sh-set-order { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.sh-set-order[hidden] { display: none; }
+.sh-ord { display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
+.sh-ord-row { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px 0 12px; box-sizing: border-box; }
+.sh-ord-row + .sh-ord-row { border-top: 1px solid rgba(255,255,255,0.06); }
+.sh-ord-row--room { background: rgba(255,255,255,0.03); }
+.sh-ord-row--room + .sh-ord-row--room, .sh-ord-row--unit + .sh-ord-row--room { border-top-color: rgba(255,255,255,0.1); }
+.sh-ord-row--unit { padding-left: 28px; }
+.sh-ord-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.78); }
+.sh-ord-row--room .sh-ord-name { font-weight: 700; color: var(--text, #e7e9ee); }
+.sh-ord-moves { display: inline-flex; flex: 0 0 auto; }
+.sh-ord-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+  border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,0.6); cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.sh-ord-btn:hover { background: rgba(255,255,255,0.07); color: var(--text, #e7e9ee); }
+.sh-ord-btn:active { background: rgba(var(--accent-rgb), 0.16); }
+.sh-ord-btn:disabled { visibility: hidden; }
+.sh-ord-btn:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+.sh-ord-btn svg { width: 18px; height: 18px; }
+/* Settings: "Home Assistant dashboard" — the same rhythm as the picker above it. */
+.sh-set-dash { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sh-set-dash .sh-set-row[hidden] { display: none; }
+.sh-set-dash .sh-set-actions { flex-direction: column; align-items: flex-start; gap: 6px; }
+.sh-set-dash .ui-btn { min-height: 44px; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-sheet-overlay, .sh-sheet, .sh-switch2::after, .sh-seg-btn, .sh-chip { transition: none; }
+}
+
+/* ── Empty / setup states ───────────────────────────────────────── */
+.sh-empty {
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 16px;
+}
+.sh-empty-ico { display: inline-flex; color: rgba(var(--accent-rgb), 0.7); }
+.sh-empty-ico svg { width: 34px; height: 34px; }
+.sh-empty-msg { font-size: 0.84rem; font-weight: 600; color: rgba(255,255,255,0.66); max-width: 240px; line-height: 1.4; }
+.sh-empty-btn {
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 800;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.12); border: 1px solid rgba(var(--accent-rgb), 0.32);
+}
+.sh-empty-btn:active { transform: scale(0.97); }
+
+/* ── Settings → Smart Home (connect card + device picker) ───────── */
+.sh-set-card { display: flex; flex-direction: column; gap: 11px; }
+.sh-set-desc { font-size: 0.82rem; color: rgba(255,255,255,0.62); line-height: 1.45; }
+.sh-set-row { display: flex; flex-direction: column; gap: 5px; }
+.sh-set-label { font-size: 0.74rem; font-weight: 700; color: rgba(255,255,255,0.72); }
+.sh-set-input {
+  width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text, #e7e9ee); font: inherit; font-size: 0.86rem;
+}
+.sh-set-input:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--accent-rgb), 0.06); }
+.sh-set-help, .sh-set-hint { font-size: 0.72rem; color: rgba(255,255,255,0.46); line-height: 1.4; }
+.sh-set-actions { display: flex; align-items: center; gap: 12px; }
+.sh-set-status { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.55); }
+.sh-set-status.ok { color: var(--color-success); }
+.sh-set-status.err { color: var(--color-danger); }
+
+.sh-set-picker { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.sh-set-list { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.sh-set-list::-webkit-scrollbar { width: 6px; }
+.sh-set-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.sh-set-group {
+  font-size: 0.6rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); padding: 8px 2px 3px;
+}
+.sh-set-check {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,0.025); border: 1px solid transparent;
+}
+.sh-set-check:hover { background: rgba(255,255,255,0.05); }
+/* The device search filters rows via the `hidden` attribute; the explicit
+   display:flex above outranks the UA [hidden] rule, so restate it here at
+   higher specificity or the search silently matches nothing. */
+.sh-set-check[hidden], .sh-set-dev[hidden] { display: none; }
+.sh-set-check input { flex: 0 0 auto; width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
+.sh-set-check-name { font-size: 0.82rem; font-weight: 600; color: var(--text, #e7e9ee); flex: 0 0 auto; }
+.sh-set-check-id { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

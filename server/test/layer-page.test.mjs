@@ -2,7 +2,8 @@
 // on its surface that it can (js/layer-tiles.js), with only their files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { engineSource } from './engine-source.mjs';
 

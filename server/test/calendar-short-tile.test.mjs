@@ -3,7 +3,7 @@
 // one another. Reported from a desktop widget about 400px tall.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const css = readFileSync(new URL('../components/CalendarView/CalendarView.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 

@@ -29,15 +29,15 @@
   }
 
   const SYSTEM = {
-    css: ['components/SystemPanel/SystemPanel.css', 'components/DashboardLayout/DashboardLayout.css', 'components/DashboardLayout/DashboardLayoutEditor.css', 'components/DashboardLayout/DashboardLayoutBars.css',
-      'components/AudioSection/AudioSection.css', 'components/MicPanel/MicPanel.css',
+    css: ['components/SystemPanel/SystemPanel.css', 'components/SystemPanel/SystemPanelSparkline.css', 'components/DashboardLayout/DashboardLayout.css', 'components/DashboardLayout/DashboardLayoutEditor.css', 'components/DashboardLayout/DashboardLayoutBars.css',
+      'components/AudioSection/AudioSection.css', 'components/MicPanel/MicPanel.css', 'components/MicPanel/MicPanelAppMixer.css',
       'components/DevicePicker/DevicePicker.css', 'components/GuardianHistory/GuardianHistory.css', 'styles/liquid-sheets.css',
       'components/AudioSection/LiquidMixer.css', 'components/AudioSection/LiquidMixerMicrophone.css'],
     js: ['js/fit-row.js', 'js/spark-path.js', 'js/dialog-focus.js', 'js/system.js', 'js/network.js', 'js/status.js', 'js/audio-feedback.js',
       'js/volume.js', 'js/mic.js', 'js/picker.js', 'js/history-chart.js', 'js/guardian-history.js'],
   };
   const AGENDA = {
-    css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/DayModal/DayModal.css',
+    css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/CalendarView/CalendarViewDays.css', 'components/DayModal/DayModal.css',
       'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css', 'styles/liquid-sheets.css'],
     js: ['js/custom-select.js', 'js/dialog-focus.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
@@ -100,9 +100,9 @@
       { disk_clean: 'onCleanProgress', disk_update: 'onDiskUpdate' }, 'DiskWidget', ['components/DiskWidget/DiskWidgetCapacity.css', 'components/DiskWidget/DiskWidgetMap.css', 'components/DiskWidget/DiskWidgetCleanup.css', 'components/DiskWidget/DiskWidgetConfirm.css', 'components/DiskWidget/DiskWidgetExplorer.css', 'components/DiskWidget/DiskWidgetAnalysis.css', 'components/DiskWidget/DiskWidgetAnalysisText.css', 'components/XenonLoader/XenonLoader.css', 'styles/liquid-sheets.css']),
     devclean: tile('devclean', 'DevCleanWidget', ['js/devclean-pitch.js', 'js/devclean-widget.js'], { devclean: 'onProgress' }, 'DevClean'),
     lyrics: tile('lyrics', 'LyricsWidget', ['js/lyrics-core.js', 'js/lyrics-view.js', 'js/lyrics-translation.js', 'js/lyrics-stage.js',
-      'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsView/LyricsView.css']),
+      'js/lyrics-widget-options.js', 'js/lyrics-widget.js'], {}, 'LyricsWidget', ['components/LyricsWidget/LyricsWidgetStage.css', 'components/LyricsView/LyricsView.css']),
     smarthome: tile('smarthome', 'SmartHome', ['js/custom-select.js', 'js/smart-home-order.js', 'js/smart-home-dashboard-tile.js', 'js/smart-home.js'],
-      { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/CustomSelect/CustomSelect.css']),
+      { homeassistant: 'onSSE' }, 'SmartHomePanel', ['components/SmartHomePanel/SmartHomePanelControls.css', 'components/CustomSelect/CustomSelect.css']),
     // Seeds itself from /api/lighting/status when drawn; no stream.
     lighting: tile('lighting', 'LightingWidget', ['js/lighting-widget.js'], {}),
     unifi: tile('unifi', 'UnifiProtect', ['js/unifi-widget.js'], { unifi_event: 'onNotification' }, 'UnifiPanel'),
