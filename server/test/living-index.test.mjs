@@ -35,12 +35,21 @@ function fakeHosts(reply = () => ({ ok: true })) {
 const ROOTS = ['C:\\'];
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test('the walk waits for its start time, then starts by itself', async () => {
+// The tests of the start time run on a clock they move themselves (the index reads
+// `Date.now()` and sets a timer): on the real one a slow machine let the 40 ms pass
+// between two lines, and the walk had started before the check that it had not.
+const CLOCK_START = Date.UTC(2026, 0, 1);
+const ownClock = (t) => { t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: CLOCK_START }); return t.mock.timers; };
+
+test('the walk waits for its start time, then starts by itself', (t) => {
+  const clock = ownClock(t);
   const hosts = fakeHosts();
   const index = createLivingIndex({ ...hosts, startDelayMs: 40 });
   index.setRoots(ROOTS);
   assert.equal(hosts.spawned.length, 0, 'nothing runs while the PC is starting');
-  await wait(90);
+  clock.tick(39);
+  assert.equal(hosts.spawned.length, 0, 'nor one millisecond before its time');
+  clock.tick(1);
   assert.equal(hosts.spawned.length, 1);
   index.stop();
 });
@@ -124,13 +133,14 @@ test('a host that dies during a game is not started again during it', async () =
   index.stop();
 });
 
-test('after stop nothing starts: not the timer, not the end of a hold', async () => {
+test('after stop nothing starts: not the timer, not the end of a hold', (t) => {
+  const clock = ownClock(t);
   const hosts = fakeHosts();
   const index = createLivingIndex({ ...hosts, startDelayMs: 30 });
   index.setRoots(ROOTS);
   index.hold(true);
   index.stop();
   index.hold(false);
-  await wait(60);
+  clock.tick(60);
   assert.equal(hosts.spawned.length, 0);
 });

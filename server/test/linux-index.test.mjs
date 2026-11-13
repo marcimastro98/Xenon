@@ -385,6 +385,18 @@ test('overviewFrom: a trailing slash on the root does not lose the tree', () => 
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// For the test of the start time, which runs on a clock it moves itself: the walk reads
+// real files, so it is given turns of the loop, not milliseconds, and a slow machine only
+// takes longer (ten seconds at most, counted on a clock the test does not move).
+const turn = () => new Promise((resolve) => setImmediate(resolve));
+async function until(check, what) {
+  const end = process.hrtime.bigint() + 10_000_000_000n;
+  while (!(await check())) {
+    if (process.hrtime.bigint() > end) assert.fail(`${what}: not within ten seconds`);
+    await turn();
+  }
+}
+
 function smallTree() {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-hold-'));
   fs.mkdirSync(join(tmp, 'deep'));
@@ -393,22 +405,24 @@ function smallTree() {
   return tmp;
 }
 
-test('the walk waits for its start time, and a search opens the way at once', { skip: NEEDS_POSIX }, async () => {
+test('the walk waits for its start time, and a search opens the way at once', { skip: NEEDS_POSIX }, async (t) => {
+  // No real clock for the start time (see living-index.test.mjs): 40 ms could pass between two lines.
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.UTC(2026, 0, 1) });
   const tmp = smallTree();
   try {
     const idx = li.createLinuxIndex({ startDelayMs: 40 });
     idx.setRoots([tmp]);
-    await wait(5);
+    t.mock.timers.tick(39);
+    for (let turns = 0; turns < 20; turns += 1) await turn();
     assert.equal((await idx.stats()).files, 0, 'nothing walked while the PC is starting');
-    await wait(120);
-    assert.equal((await idx.stats()).ready, true);
+    t.mock.timers.tick(1);
+    await until(async () => (await idx.stats()).ready, 'the walk after its start time');
     idx.stop();
 
     const asked = li.createLinuxIndex({ startDelayMs: 60000 });
     asked.setRoots([tmp]);
     await asked.query({ terms: ['a'] });
-    await wait(60);
-    assert.equal((await asked.stats()).ready, true);
+    await until(async () => (await asked.stats()).ready, 'the walk a search asked for');
     asked.stop();
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
