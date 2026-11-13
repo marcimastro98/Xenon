@@ -4,7 +4,7 @@
 // radius rule was invalid CSS.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 
 const CSS = readFileSync(new URL('../components/AmbientCanvas/AmbientCanvas.css', import.meta.url), 'utf8');
 const rule = (sel) => {

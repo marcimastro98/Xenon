@@ -1,0 +1,165 @@
+
+/* ── element options (js/ambient-scene.js props) ──────────────────────────────
+   Each switch is a data-* attribute the renderer sets only when it is not the
+   default, so an older scene draws exactly as before. */
+.ac-body[data-align="left"] { align-items: flex-start; text-align: left; }
+.ac-body[data-align="right"] { align-items: flex-end; text-align: right; }
+.ac-item-clock .ac-body:not([data-style])[data-align="left"],
+.ac-body[data-layout="row"][data-align="left"] { justify-content: flex-start; }
+.ac-item-clock .ac-body:not([data-style])[data-align="right"],
+.ac-body[data-layout="row"][data-align="right"] { justify-content: flex-end; }
+.ac-body[data-align] .ac-date-text { text-align: inherit; }
+.ac-body[data-align="left"] .ac-net-row { justify-content: flex-start; }
+.ac-body[data-align="right"] .ac-net-row { justify-content: flex-end; }
+.ac-body[data-align="center"] .ac-notes-text { text-align: center; }
+.ac-body[data-align="right"] .ac-notes-text { text-align: right; }
+
+/* clock: stacked digits, blinking colons, an analog face */
+.ac-item-clock .ac-body[data-style="stacked"] { flex-direction: column; align-items: center; gap: 0; }
+.ac-item-clock .ac-body[data-style="stacked"][data-align="left"] { align-items: flex-start; }
+.ac-item-clock .ac-body[data-style="stacked"][data-align="right"] { align-items: flex-end; }
+.ac-body[data-style="stacked"] .ac-clock-time { display: flex; flex-direction: column; align-items: inherit; line-height: 0.88; }
+.ac-body[data-style="stacked"] .ac-clock-sep { display: none; }
+.ac-body[data-blink] .ac-clock-sep { animation: ac-blink 2s ease-in-out infinite; }
+.ac-item-clock .ac-body[data-style="analog"] { padding: 4%; }
+.ac-analog { height: 100%; max-width: 100%; aspect-ratio: 1; overflow: visible; }
+.ac-analog-rim { fill: none; stroke: currentColor; stroke-opacity: 0.22; stroke-width: 1.5; }
+.ac-analog-mark { stroke: currentColor; stroke-opacity: 0.4; stroke-width: 1.2; stroke-linecap: round; }
+.ac-analog-mark.is-hour { stroke-opacity: 0.8; stroke-width: 2.2; }
+.ac-analog-h, .ac-analog-m, .ac-analog-s { stroke: currentColor; stroke-linecap: round; }
+.ac-analog-h { stroke-width: 4.2; }
+.ac-analog-m { stroke-width: 2.6; }
+.ac-analog-s { stroke: var(--accent, #1ed760); stroke-width: 1.2; }
+.ac-analog-hub { fill: var(--accent, #1ed760); }
+
+.ac-date-text.is-upper { text-transform: uppercase; }
+
+/* weather: an icon, a single row */
+.ac-w-head { display: flex; align-items: center; gap: 0.3em; }
+.ac-w-ico {
+  flex: 0 0 auto;
+  display: grid;
+  width: calc(var(--ac-scale, 1) * clamp(20px, 20cqmin, 24vmin));
+  aspect-ratio: 1;
+  color: var(--accent, #1ed760);
+}
+.ac-w-ico svg { width: 100%; height: 100%; }
+.ac-body[data-layout="row"] { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 0.7em; }
+
+/* media: cover above the title */
+.ac-item-media .ac-body[data-layout="stack"] { flex-direction: column; justify-content: center; gap: 0.5em; padding: 4%; }
+.ac-body[data-layout="stack"] .ac-m-art { width: auto; height: 52%; }
+.ac-body[data-layout="stack"] .ac-m-meta { align-items: center; text-align: center; max-width: 100%; }
+
+.ac-body[data-time="off"] .ac-list-when { display: none; }
+
+/* system: bars and rings */
+.ac-gauge-bar { flex: 1 1 auto; min-width: 2em; height: 0.4em; align-self: center; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.ac-gauge-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent, #1ed760); }
+.ac-item-system .ac-body[data-style="bars"] { padding: 0 6%; }
+.ac-body[data-style="bars"] .ac-stat { justify-content: flex-start; }
+.ac-body[data-style="bars"] .ac-stat-label { min-width: 2.6em; }
+.ac-body[data-style="bars"] .ac-stat-val { order: 2; min-width: 3.4em; text-align: right; }
+.ac-item-system .ac-body[data-style="rings"] { flex-direction: row; justify-content: space-evenly; align-items: center; }
+.ac-body[data-style="rings"] .ac-stat {
+  display: grid;
+  grid-template-areas: "ring" "label";
+  justify-items: center;
+  align-content: center;
+  gap: 0.25em;
+  width: auto;
+}
+.ac-body[data-style="rings"] .ac-gauge-ring,
+.ac-body[data-style="rings"] .ac-stat-val { grid-area: ring; }
+.ac-body[data-style="rings"] .ac-stat-val { align-self: center; font-size: calc(var(--ac-scale, 1) * clamp(10px, 8cqmin, 3.4vmin)); }
+.ac-body[data-style="rings"] .ac-stat-label { grid-area: label; }
+.ac-gauge-ring { width: min(26cqw, 64cqh); height: auto; }
+.ac-stat:only-child .ac-gauge-ring { width: min(80cqw, 72cqh); }
+.ac-gauge-track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 8; }
+.ac-gauge-arc { fill: none; stroke: var(--accent, #1ed760); stroke-width: 8; stroke-linecap: round; }
+
+/* ── time windows and pages ───────────────────────────────────────────────────
+   An element out of its time window or on another page steps out of view. The
+   fade/slide is a one-off transition, never a loop. */
+.ac-item.ac-off { opacity: 0; visibility: hidden; pointer-events: none; }
+.ambient-canvas-stage[data-transition="fade"] > .ac-item { transition: opacity 0.6s ease, visibility 0.6s; }
+.ambient-canvas-stage[data-transition="slide"] > .ac-item { transition: opacity 0.5s ease, translate 0.5s ease, visibility 0.5s; }
+.ambient-canvas-stage[data-transition="slide"] > .ac-item.ac-off { translate: -6% 0; }
+
+/* ── entrance and loop animations ─────────────────────────────────────────────
+   Entrance on the content layer, the loop on the body inside it, the user's
+   opacity static on the content: keyframes give only the far end, so each one
+   ends on the element's own value instead of overriding it. Transform and
+   opacity only. */
+.ac-anim-in {
+  animation-duration: calc(0.9s / var(--ac-speed, 1));
+  animation-delay: var(--ac-delay, 0s);
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: backwards;
+}
+.ac-anim-in[data-ac-in="fade"] { animation-name: ac-in-fade; }
+.ac-anim-in[data-ac-in="rise"] { animation-name: ac-in-rise; }
+.ac-anim-in[data-ac-in="drop"] { animation-name: ac-in-drop; }
+.ac-anim-in[data-ac-in="zoom"] { animation-name: ac-in-zoom; }
+.ac-anim-in[data-ac-in="pop"] { animation-name: ac-in-pop; }
+.ac-anim-in[data-ac-in="slide-left"] { animation-name: ac-in-slide-left; }
+.ac-anim-in[data-ac-in="slide-right"] { animation-name: ac-in-slide-right; }
+@keyframes ac-in-fade { from { opacity: 0; } }
+@keyframes ac-in-rise { from { opacity: 0; transform: translateY(14%); } }
+@keyframes ac-in-drop { from { opacity: 0; transform: translateY(-14%); } }
+@keyframes ac-in-zoom { from { opacity: 0; transform: scale(0.85); } }
+@keyframes ac-in-pop { from { opacity: 0; transform: scale(0.6); } 70% { transform: scale(1.05); } }
+@keyframes ac-in-slide-left { from { opacity: 0; transform: translateX(-16%); } }
+@keyframes ac-in-slide-right { from { opacity: 0; transform: translateX(16%); } }
+
+.ac-body[data-ac-loop] {
+  animation-duration: calc(var(--ac-loop-s, 6s) / var(--ac-speed, 1));
+  animation-delay: calc(var(--ac-delay, 0s) + 0.9s / var(--ac-speed, 1));
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.ac-body[data-ac-loop="float"] { animation-name: ac-loop-float; }
+.ac-body[data-ac-loop="breathe"] { animation-name: ac-loop-breathe; }
+.ac-body[data-ac-loop="pulse"] { animation-name: ac-loop-pulse; --ac-loop-s: 3s; }
+.ac-body[data-ac-loop="sway"] { animation-name: ac-loop-sway; --ac-loop-s: 7s; }
+.ac-body[data-ac-loop="drift"] { animation-name: ac-loop-drift; --ac-loop-s: 12s; }
+.ac-body[data-ac-loop="spin"] { animation-name: ac-loop-spin; --ac-loop-s: 24s; animation-timing-function: linear; }
+.ac-body[data-ac-loop="blink"] { animation-name: ac-blink; --ac-loop-s: 2s; }
+@keyframes ac-loop-float { 50% { transform: translateY(-4%); } }
+@keyframes ac-loop-breathe { 50% { transform: scale(1.04); opacity: 0.82; } }
+@keyframes ac-loop-pulse { 50% { opacity: 0.5; } }
+@keyframes ac-loop-sway { 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+@keyframes ac-loop-drift { 25% { transform: translateX(-3%); } 75% { transform: translateX(3%); } }
+@keyframes ac-loop-spin { to { transform: rotate(360deg); } }
+@keyframes ac-blink { 50% { opacity: 0.18; } }
+
+/* ── background: the dashboard wallpaper, slow motion ─────────────────────── */
+.ambient-canvas-stage > .ac-bg > .ac-bg-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ambient-canvas-stage > .ac-bg[data-motion] { inset: -6%; animation: 40s ease-in-out infinite alternate; }
+.ambient-canvas-stage > .ac-bg[data-motion="drift"] { animation-name: ac-bg-drift; }
+.ambient-canvas-stage > .ac-bg[data-motion="zoom"] { animation-name: ac-bg-zoom; }
+.ambient-canvas-stage > .ac-bg[data-motion="pan"] { animation-name: ac-bg-pan; }
+@keyframes ac-bg-drift { to { transform: translate(-4%, -3%); } }
+@keyframes ac-bg-zoom { to { transform: scale(1.08); } }
+@keyframes ac-bg-pan { from { transform: translateX(-4%); } to { transform: translateX(4%); } }
+
+/* Every loop above stops with the rest of the dashboard's motion: under a
+   frosted overlay, in a game, on a low-power GPU, in Performance mode, for
+   reduced motion, and while the scene is being edited. Not on ambient-idle:
+   the scene IS what is on screen while nobody touches it (ambient-idle.js
+   skips the overlay for the same reason). A running animation beats a static
+   declaration, so each gate is `animation: none`. */
+body.overlay-frozen .ac-body[data-ac-loop], body.game-mode .ac-body[data-ac-loop],
+body.low-power-gpu .ac-body[data-ac-loop], body.perf-mode .ac-body[data-ac-loop],
+body.overlay-frozen .ac-body[data-blink] .ac-clock-sep, body.game-mode .ac-body[data-blink] .ac-clock-sep,
+body.low-power-gpu .ac-body[data-blink] .ac-clock-sep, body.perf-mode .ac-body[data-blink] .ac-clock-sep,
+body.overlay-frozen .ambient-canvas-stage > .ac-bg[data-motion], body.game-mode .ambient-canvas-stage > .ac-bg[data-motion],
+body.low-power-gpu .ambient-canvas-stage > .ac-bg[data-motion], body.perf-mode .ambient-canvas-stage > .ac-bg[data-motion],
+.ambient-canvas-overlay.is-editing .ac-anim-in, .ambient-canvas-overlay.is-editing .ac-body[data-ac-loop],
+.ambient-canvas-overlay.is-editing .ac-body[data-blink] .ac-clock-sep,
+.ambient-canvas-overlay.is-editing .ambient-canvas-stage > .ac-bg[data-motion] { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ac-anim-in, .ac-body[data-ac-loop], .ac-body[data-blink] .ac-clock-sep,
+  .ambient-canvas-stage > .ac-bg[data-motion] { animation: none; }
+  .ambient-canvas-stage > .ac-item { transition: none; }
+}

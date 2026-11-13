@@ -1,0 +1,109 @@
+
+/* ── Settings → Ambient ───────────────────────────────────────────────────────
+   Three blocks, one question each: when the mode opens, which scene it shows
+   (with the Classic scene's own widgets right under the picker, since they only
+   apply to it), and the canvas scenes installed on this machine. A hairline
+   between blocks instead of a card per block: the group is already the card. */
+.settings-ambient-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 9px;
+}
+.settings-ambient-sec + .settings-ambient-sec { border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08)); }
+.settings-ambient-sec:last-child { padding-bottom: 0; }
+.settings-ambient-sec-title {
+  margin: 0 7px 4px;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--text, #e8ecf4);
+}
+/* Label on the left, control on the right, like a toggle row's text column. */
+.settings-ambient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 40px;
+  padding: 2px 7px;
+}
+.settings-ambient-row-label { font-size: 12.5px; font-weight: 850; color: var(--text, #e8ecf4); }
+.settings-ambient-row .cs-wrap { min-width: 150px; }
+.settings-ambient-row--wide .cs-wrap { flex: 1 1 auto; }
+.settings-ambient-sec > .settings-note { margin: 2px 7px 0; }
+.settings-ambient-sec > .settings-btn { align-self: flex-start; margin: 6px 7px 2px; }
+.settings-ambient-sec > .settings-hint { margin: -4px 7px 2px; }
+.settings-ambient-sec > .settings-note[hidden] { display: none; }
+.settings-ambient-classic { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.settings-ambient-classic[hidden] { display: none; }
+.settings-ambient-classic > .settings-hint { margin: 0 7px; }
+/* Four short words: a row that keeps them together under their caption, not
+   four equal columns that spread them across the whole card. */
+.settings-ambient-classic-grid { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+
+/* The installed canvas scenes, each with Edit and Delete. */
+.settings-ambient-scenes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding-right: 7px;
+}
+.settings-ambient-scenes-head .settings-ambient-sec-title { margin-bottom: 0; }
+.settings-ambient-scenes-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; padding: 0 7px; }
+.settings-ambient-scene-empty { margin: 2px 0; font-size: 12px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  background: var(--control-bg, rgba(255, 255, 255, 0.03));
+}
+.settings-ambient-scene-row.is-active { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); }
+.settings-ambient-scene-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.settings-ambient-scene-name { font-size: 13px; font-weight: 750; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-ambient-scene-meta { font-size: 11.5px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-meta .is-active-label { color: var(--accent); font-weight: 750; }
+.settings-ambient-scene-acts { display: flex; gap: 6px; flex: 0 0 auto; }
+/* Delete is a quiet action in a list that is touched often: red text on the
+   row's own surface, filled only on hover. The filled .danger button is for a
+   confirm step, and its text colour (on-danger) cannot be overridden per theme
+   without painting red on red. */
+.settings-ambient-scene-acts .settings-ambient-scene-del { color: var(--color-danger); }
+.settings-ambient-scene-acts .settings-ambient-scene-del:hover {
+  color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+}
+@media (max-width: 560px) {
+  .settings-ambient-classic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-ambient-scene-row { flex-wrap: wrap; }
+  .settings-ambient-scene-acts { width: 100%; }
+  .settings-ambient-scene-acts .settings-btn { flex: 1 1 0; min-height: 44px; }
+  .settings-ambient-scenes-acts { width: 100%; }
+  .settings-ambient-scenes-acts .settings-btn { flex: 1 1 auto; justify-content: center; }
+  .settings-ambient-scenes-head .settings-btn,
+  .settings-ambient-row .cs-trigger { min-height: 44px; }
+}
+
+/* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
+   scaled render of the scene through the AmbientCanvas pipeline. */
+.preset-ambient-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2560 / 720;
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #05060a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.preset-ambient-preview > .ac-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.preset-ambient-preview > .ac-item { position: absolute; }
+.preset-ambient-preview > .ac-item > .grid-stack-item-content { container-type: size; width: 100%; height: 100%; overflow: hidden; }
