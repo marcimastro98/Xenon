@@ -19,9 +19,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SERVER = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 
 /** The source of one `} else if (reqPath === '<path>' …` branch. */
 function branchSource(path, method) {

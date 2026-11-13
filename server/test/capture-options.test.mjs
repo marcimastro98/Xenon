@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const CS = require('../capture-settings.js');
@@ -21,7 +22,7 @@ const opts = require('../capabilities/record-options.js');
 const { createCaptures } = require('../captures.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SERVER = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 const REMOTE = readFileSync(path.join(HERE, '..', 'remote-access.js'), 'utf8');
 
 const FOLDER = path.join(os.tmpdir(), 'My Clips');

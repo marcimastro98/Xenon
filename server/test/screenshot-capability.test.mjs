@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const shot = require('../capabilities/screenshot.js');
@@ -187,7 +188,7 @@ test('a widget reaches it only through the capture category, and only to take on
 });
 
 test('server.js wires the engine, the index under DATA_DIR, the SSE without a path and the shutdown', () => {
-  const src = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   assert.match(src, /const CAPTURE_EXE = path\.join\(__dirname, 'capture', process\.platform === 'win32' \? 'xenon-capture\.exe' : 'xenon-capture'\);/);
   assert.match(src, /file: path\.join\(DATA_DIR, 'captures\.json'\)/);
   assert.match(src, /onSaved: \(e\) => broadcastSSE\('capture', \{\s+kind: e\.kind, id: e\.id, name: e\.name, game: e\.game, copied: e\.copied === true,\s+\.\.\.\(e\.folderMissing === true \? \{ folderMissing: true \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?(?:\.\.\.\(Number\.isInteger\(e\.covered\) && e\.covered > 0 \? \{ covered: e\.covered \} : \{\}\),\s+(?:\/\/[^\n]*\s+)?)?\.\.\.\(e\.kind === 'screenshot' && layersHost\.available\(\) \? \{ pinnable: true \} : \{\}\),\s+\.\.\.\(e\.kind === 'screenshot' && e\.width > 0 && e\.height > 0 \? \{ width: e\.width, height: e\.height \} : \{\}\),\s+\}\)/);

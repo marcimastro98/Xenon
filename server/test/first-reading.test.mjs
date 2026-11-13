@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { createFirstReading, createFactReader } = require('../first-reading.js');
 
@@ -92,7 +93,7 @@ test('a read that finds nothing counts as failed', async () => {
 });
 
 test('the server: only the page route may take a partial answer, and it is marked', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/system' && req\.method === 'GET'\) \{\n\s+try\s+\{ json\(await getSystemInfo\(\{ partialOk: true \}\)\); \}/);
   assert.equal(server.split('partialOk: true').length - 1, 1, 'everyone else reads sensors that really answered');
   assert.match(server, /if \(partial\) info\.partial = true;/);
@@ -100,7 +101,7 @@ test('the server: only the page route may take a partial answer, and it is marke
 });
 
 test('the server: a partial answer asks no sensor and calls an unread choice unknown', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /const unread = partial \? null : \[\];\n\s+const readings = !partial && Object\.keys\(sources\)\.length \? await readChosenSensors\(sources\) : unread;/);
   assert.match(server, /function knownSystemSources\(\) \{[\s\S]{0,200}getAllDisksInfo\(\{ waitForDetails: false \}\)/);
   assert.match(server, /const details = waitForDetails\n\s+\? await getDiskDetails\(\)\n\s+: joinDiskDetails\(volumeDetailsProbe\.data \|\| \{\}, diskModelsProbe\.data \|\| \{\}\);/);

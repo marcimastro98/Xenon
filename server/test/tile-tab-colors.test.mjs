@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { languagesWith } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const DI = require('../js/dashboard-instances.js');
@@ -70,7 +71,7 @@ test('the group tile paints its tabs on render and on a live style repaint', () 
 });
 
 test('the server drops colours of a tab that left the group', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   assert.match(src, /Object\.keys\(style\.tabs\.items\)\.forEach\(mid => \{ if \(!members\.includes\(mid\)\) delete style\.tabs\.items\[mid\]; \}\);/);
 });
 

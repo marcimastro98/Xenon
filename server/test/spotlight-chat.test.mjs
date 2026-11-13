@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -175,7 +176,7 @@ test('the page carries the panel, cut from the dashboard', () => {
   const out = compose(html, dash);
   assert.ok(html.includes('<template id="screen-bit-markup"><!-- bit markup --></template>'));
   assert.ok(out.includes('id="ai-text-input"'));
-  const route = read('../server.js');
+  const route = engineSource();
   const at = route.indexOf("reqPath === '/spotlight' && req.method === 'GET'");
   assert.ok(route.slice(at, at + 900).includes('screenAlertsPage.compose'));
 });

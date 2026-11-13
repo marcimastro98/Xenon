@@ -10,6 +10,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, MAX_LED_COLORS } = require('../lighting-led-colors.js');
@@ -111,7 +112,7 @@ test('ledFrame: a wave runs across the LEDs that share it, a breathing group mov
 });
 
 test('every normalizer knows the custom mode and its LED map', () => {
-  const server = readFileSync(join(SERVER, 'server.js'), 'utf8');
+  const server = engineSource();
   const client = readFileSync(join(SERVER, 'js', 'settings.js'), 'utf8');
   const bridge = readFileSync(join(SERVER, 'lighting.js'), 'utf8');
   for (const [name, src] of [['server.js', server], ['settings.js', client], ['lighting.js', bridge]]) {

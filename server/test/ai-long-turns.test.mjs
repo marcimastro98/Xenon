@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 // Each round writes a cost line to server.log: never the real one.
@@ -163,7 +164,7 @@ test('creation rounds on credits get room for a whole widget, chat rounds do not
 });
 
 test('the server tracks each /api/ai turn, marks its tools and answers GET /api/ai/turn', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /const aiBody = JSON\.parse\(aiRaw\.toString\('utf8'\) \|\| '\{\}'\);\n\s*aiTurns\.begin\(aiBody\.turnId, res\);/);
   assert.match(server, /reqPath === '\/api\/ai\/turn' && req\.method === 'GET'[\s\S]{0,200}json\(aiTurns\.status\(urlObj\.searchParams\.get\('id'\)\)\)/);
   assert.match(server, /async function executeAiTool\(fnName, fnArgs, deps\) \{\n\s*aiTurns\.checkpoint\(\);[^\n]*\n\s*aiTurns\.toolStart\(fnName\);\n\s*try \{\n\s*const out = await runAiTool\(fnName, fnArgs, deps\);\n\s*aiTurns\.record\(out && out\.clientActions\);\n\s*return out;\n\s*\} finally \{\n\s*aiTurns\.toolEnd\(fnName\);/);

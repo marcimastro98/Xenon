@@ -18,6 +18,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const APPLY = readFileSync(new URL('../update-apply.ps1', import.meta.url), 'utf8');
 const INSTALL = readFileSync(new URL('../install.ps1', import.meta.url), 'utf8');
@@ -52,7 +53,7 @@ test('skipping scripts is paired with the link step it skips', () => {
 
 // Best-effort is only safe because the engine repairs the link itself at boot.
 test('the link step is allowed to fail because the server re-creates it', () => {
-  const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const SERVER = engineSource();
   assert.match(SERVER, /function ensureSharedLink\(\)/, 'the boot-time repair still exists');
 });
 

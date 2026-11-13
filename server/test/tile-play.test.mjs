@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { parseTilePlay, createTilePlay } = require('../tile-play.js');
@@ -65,7 +66,7 @@ test('the first claim wins; nobody claiming = not played', async () => {
 });
 
 test('the server, both pages and the phone rule are wired', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /name: 'play_in_tile'/);
   assert.match(server, /fnName === 'play_in_tile'\) \{\s+fnResult = await playInTile\(fnArgs\);/);
   assert.match(server, /reqPath === '\/tiles\/play-claim' && req\.method === 'POST'[\s\S]{0,400}tilePlay\.claim/);

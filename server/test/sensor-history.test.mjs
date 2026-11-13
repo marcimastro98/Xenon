@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const SensorHistory = require('../js/sensor-history.js');
@@ -31,11 +32,11 @@ test('the setting: off and every 5 minutes unless said otherwise, only the offer
 });
 
 test('client and server normalize it with the same module', () => {
-  assert.match(read('../server.js'), /sensorHistory: SensorHistory\.normalizeSensorHistory\(source\.sensorHistory\)/);
+  assert.match(engineSource(), /sensorHistory: SensorHistory\.normalizeSensorHistory\(source\.sensorHistory\)/);
   assert.match(read('../js/settings.js'), /sensorHistory: window\.SensorHistory \? window\.SensorHistory\.normalizeSensorHistory\(value\.sensorHistory\)/);
   // Turning history on or off keeps the chosen interval.
   assert.match(read('../js/settings.js'), /sensorHistory: \{ \.\.\.hubSettings\.sensorHistory, enabled: !!enabled \}/);
-  assert.match(read('../server.js'), /getEveryMin: \(\) => \(_serverHubSettings && _serverHubSettings\.sensorHistory \|\| \{\}\)\.everyMin/);
+  assert.match(engineSource(), /getEveryMin: \(\) => \(_serverHubSettings && _serverHubSettings\.sensorHistory \|\| \{\}\)\.everyMin/);
 });
 
 test('the recent ring keeps 6 hours, in order, and nothing else', () => {

@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const R = require('../calendar-reminders.js');
@@ -133,7 +134,7 @@ test('a broken file or a failing save never stops the check, and never rings twi
 });
 
 test('server: every events write is queued and keeps the rung marks; the check is stopped at shutdown', () => {
-  const s = read('../server.js');
+  const s = engineSource();
   const w = s.slice(s.indexOf('function writeEvents(events)'), s.indexOf('function markEventReminders'));
   assert.match(w, /withEventsWrite\(/);
   assert.match(w, /calendarReminders\.keepNotified\(normalizeEvents\(events\), prev\)/);

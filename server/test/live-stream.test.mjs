@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const live = require('../js/live-stream.js');
@@ -155,7 +156,7 @@ test('the server side looks like an HTTP stream to sseClients', () => {
 });
 
 test('the socket sits behind the same guards as the other sockets', () => {
-  const src = fs.readFileSync(path.join(SERVER_DIR, 'server.js'), 'utf8');
+  const src = engineSource();
   const at = src.indexOf("server.on('upgrade'");
   const route = src.indexOf("pathname === '/sse/socket'", at);
   assert.ok(at > 0 && route > at);

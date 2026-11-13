@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -139,7 +140,7 @@ test('the manifest flag is opt-in and exact', () => {
 });
 
 test('the route checks the grant, the manifest, and sits on the CSRF lists', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const route = server.slice(server.indexOf("reqPath === '/sdk/ai'"), server.indexOf("reqPath === '/stream/youtube/search'"));
   assert.match(route, /sdkFeatureEnabled\(\)/);
   assert.match(route, /sdkGrantsFor\(pkgId\)\.ai/);

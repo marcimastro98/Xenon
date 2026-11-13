@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { checkPinnedSha256 } = require('../pinned-hash.js');
@@ -71,7 +72,7 @@ test('uBOL is one pinned Edge build, hashed before it is unpacked', () => {
 });
 
 test('PresentMon is one pinned asset with one hash, the same in the installer and the server', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const install = read('../install.ps1');
   const url = /const PRESENTMON_URL = '([^']+)';/.exec(server)[1];
   const hash = /const PRESENTMON_SHA256 = '([0-9a-f]{64})';/.exec(server)[1];

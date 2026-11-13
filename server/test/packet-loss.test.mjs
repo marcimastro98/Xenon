@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createPacketLoss, parsePingCounts, countsFromFailure, WINDOW } = require('../packet-loss.js');
@@ -57,7 +58,7 @@ test('every collector reports its echoes and the server turns them into `loss`',
     assert.match(read(f), /parsePingCounts/, f);
     assert.match(read(f), /countsFromFailure/, f);
   }
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /_packetLoss\.add\(data\.pingSent, data\.pingLost\)/);
   assert.match(server, /loss: _packetLoss\.percent\(\)/);
 });

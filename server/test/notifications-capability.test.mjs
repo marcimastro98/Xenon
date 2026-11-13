@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
@@ -64,7 +65,7 @@ test('Bit gets set_do_not_disturb and set_notifications', () => {
 });
 
 test('the server writes under the lock and restarts watchers only on the master switch', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /notifications: \{\s+get: \(\) => normalizeNotifications\(/);
   const fn = src.slice(src.indexOf('async function updateNotificationsSetting('));
   const body = fn.slice(0, fn.indexOf('\n}\n'));

@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const R = require('../vitals-roast-sparks.js');
@@ -76,7 +77,7 @@ test('the count survives a restart', async () => {
 });
 
 test('wiring: settings on both sides, the roast route, the client and the row', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   assert.match(S, /roastSparksCap: cleanRoastSparksCap\(petSrc\.roastSparksCap\),/);
   assert.match(S, /const roastSparks = createRoastSparks\(\{ dataDir: DATA_DIR \}\);/);
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));

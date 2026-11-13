@@ -9,9 +9,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SERVER = readFileSync(path.join(DIR, 'server.js'), 'utf8');
+const SERVER = engineSource();
 const SETTINGS = readFileSync(path.join(DIR, 'js', 'settings.js'), 'utf8');
 
 function slice(src, start, end) {

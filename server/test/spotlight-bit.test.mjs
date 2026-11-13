@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/spotlight-bit.js');
@@ -149,7 +150,7 @@ test('every place with the bar loads Bit before spotlight.js', () => {
 test('one Bit: the separate AI search is gone from the client and the server', () => {
   const spot = read('../js/spotlight.js');
   for (const old of ['setAiMode', 'runAiSearch', '/search/ai', 'spot-ai']) assert.ok(!spot.includes(old), old);
-  assert.ok(!read('../server.js').includes("'/search/ai'"));
+  assert.ok(!engineSource().includes("'/search/ai'"));
   assert.ok(!read('../remote-access.js').includes('/search/ai'));
   assert.ok(!read('../filesearch.js').includes('searchStructured'));
 });

@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const SettingsAi = require('../settings-ai.js');
@@ -54,7 +55,7 @@ test('apply: the weather style keeps the city and the rest of the tile', () => {
 });
 
 test('the switch defaults match DEFAULT_HUB_SETTINGS', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const block = src.slice(src.indexOf('const DEFAULT_HUB_SETTINGS'));
   for (const name of SettingsAi.NAMES) {
     const pref = SettingsAi.PREFS[name];
@@ -66,7 +67,7 @@ test('the switch defaults match DEFAULT_HUB_SETTINGS', () => {
 });
 
 test('every allowlisted path is a field the server normalizes', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   for (const name of SettingsAi.NAMES) {
     const top = SettingsAi.PREFS[name].path[0];
     assert.match(src, new RegExp(`\\n    ${top}: `), `${top} normalized in normalizeHubSettings`);
@@ -74,7 +75,7 @@ test('every allowlisted path is a field the server normalizes', () => {
 });
 
 test('the server tool writes under the lock, bumps rev and broadcasts', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /\{ name: 'change_setting',/);
   assert.match(src, /fnName === 'change_setting'\) \{\n\s+fnResult = await changeSetting\(fnArgs\)/);
   const fn = src.slice(src.indexOf('async function changeSetting('));

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createNativeInstallerFetch, SETUP_ASSET } = require('../native-installer.js');
@@ -119,7 +120,7 @@ test('a setup left from an earlier attempt is never reused', async () => {
 
 // ── The wiring: server.js verifies, the script refuses anything else ─────────
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const PS = read('../install-native.ps1');
 const WORKFLOW = read('../../.github/workflows/release.yml');
 

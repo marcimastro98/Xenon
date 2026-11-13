@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const core = require('../js/vitals-core.js');
@@ -124,7 +125,7 @@ test('set_vitals: the hours Bit sleeps and natural breaks, by voice', async () =
 
 test('wiring: Bit gets the three tools, the dashboard uses the same math, and lock_pc names no OS', () => {
   assert.deepEqual(tools.FUNCTIONS.map((f) => f.name), tools.NAMES);
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /\.\.\.vitalsAiTools\.FUNCTIONS,/);
   assert.match(server, /vitalsAiTools\.NAMES\.includes\(fnName\)/);
   assert.doesNotMatch(server, /name: 'lock_pc', description: '[^']*Windows/);

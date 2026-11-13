@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ra = require('../remote-access.js');
@@ -132,7 +133,7 @@ test("a phone reads Bit's inbox by GET and changes it by POST only", () => {
 });
 
 test('the refused surface matches an explicit, reviewed list', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   const routes = new Set();
   const re = /reqPath === '([^']+)' && req\.method === '([A-Z]+)'/g;
   let m;
@@ -425,7 +426,7 @@ test('a Sec-Fetch-Site that IS present must still say same-origin', () => {
 // navigation to change state. server.js's own CSRF_MUTATION_PATHS is the
 // authoritative list of "GET that mutates", so read it from the source.
 test('no GET reachable from a paired device can mutate anything', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   const block = src.slice(src.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
   const list = block.slice(0, block.indexOf(']);'));
   const paths = [...list.matchAll(/'(\/[^']*)'/g)].map((m) => m[1]);
@@ -990,7 +991,7 @@ test('the asset capability buys reads and nothing else', () => {
 // on the shapes: the running route is not exercised (server.js is not
 // requireable, and a second live instance would share the user DATA_DIR).
 test('the keyed and unkeyed asset paths resolve to the same package and file', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
 
   assert.ok(src.includes("reqPath.startsWith('/sdk/widget/') || reqPath.startsWith(remoteAccessLib.WIDGET_ASSET_PREFIX)"),
     'the asset route must serve both spellings from one branch');
@@ -1026,7 +1027,7 @@ test('the keyed and unkeyed asset paths resolve to the same package and file', (
 // The marker is how the client learns its capability, and it is read at mount
 // time — nothing arriving later can substitute for it.
 test('the served document carries the asset key, and one helper uses it', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   assert.ok(src.includes('window.__xenonRemote = { device: '), 'the remote marker must still be injected');
   assert.ok(src.includes(", assetKey: '") || src.includes("+ ', assetKey: '"), 'and it must carry assetKey');
 

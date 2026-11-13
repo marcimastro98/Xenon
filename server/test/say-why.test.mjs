@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -67,7 +68,7 @@ test('Twitch and YouTube get the same reason, and so does Spotify', () => {
 });
 
 test('the server answers a failed Discord login in JSON, with the reason', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const route = cut(S, "  } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {", "\n  } else if (");
   assert.doesNotMatch(route, /err500/);
   assert.match(route, /json\(\{ ok: false, error: 'login_failed', detail: /);
@@ -148,7 +149,7 @@ test('the Install Xenon Helper button shows with every problem it fixes, and onl
 });
 
 test('the status route says which platform it runs on', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   assert.match(cut(S, "reqPath === '/audio/levels/status'", '\n  } else if ('), /platform: process\.platform,/);
   assert.match(read('../index.html'), /id="settings-media-viz-status" role="status"/);
 });

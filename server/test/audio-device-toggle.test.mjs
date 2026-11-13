@@ -18,6 +18,7 @@ import vm from 'node:vm';
 import { createRegistry, pickToggleDevice } from '../actions/registry.js';
 import * as sdk from '../sdk-widgets.js';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
@@ -94,7 +95,7 @@ test('a device that is not connected says so, and a failing switch does not thro
 });
 
 test('the server switches to the device from the live list, never to the raw string', () => {
-  const SERVER = read('../server.js');
+  const SERVER = engineSource();
   const at = SERVER.indexOf('  audioDeviceToggle: async (a, b) => {');
   assert.ok(at > 0, 'the dep exists');
   const body = SERVER.slice(at, SERVER.indexOf('\n  },', at));

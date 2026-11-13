@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 // POST /sdk/install writes through the SAME swap-and-rollback install the automatic
 // update uses (sdk-widgets.installPackageStaged, which has its own behavioural
 // tests). The route's handler lives in server.js and cannot be required, so what
 // is pinned here is the property that matters and is easy to lose in a refactor:
 // the package is never written file by file into the live folder.
-const SRC = readFileSync(fileURLToPath(new URL('../server.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
+const SRC = engineSource().replace(/\r\n/g, '\n');
 
 function installWidgetPayloadBody() {
   const at = SRC.indexOf('async function installWidgetPayload(payload, origin, catalogVersion) {');

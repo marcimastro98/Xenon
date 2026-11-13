@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { SDK_LIMITS, limitFor } = require('../sdk-limits/limits.js');
@@ -13,7 +14,7 @@ const sdkProxy = require('../sdk-proxy.js');
 const sdkStore = require('../sdk-store.js');
 const sdkWidgets = require('../sdk-widgets.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const BRIDGE = read('../js/custom-widget.js');
 
 test('every number is the one the host enforces', () => {

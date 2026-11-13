@@ -14,11 +14,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const WIDGET = read('../js/discord-widget.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const SETTINGS = read('../js/settings.js');
 const RPC = read('../discord-rpc.js');
 const CUSTOM = read('../js/custom-widget.js');

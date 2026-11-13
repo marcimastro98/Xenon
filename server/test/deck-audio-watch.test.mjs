@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const DECK = read('../js/deck.js');
@@ -68,7 +69,7 @@ test('a press on a mute or volume key asks for the new state at once', () => {
 });
 
 test('after an audio change the next read starts fresh, not from a read begun before it', () => {
-  const SRV = read('../server.js');
+  const SRV = engineSource();
   const at = SRV.indexOf('function svvExec(args) {');
   assert.ok(at > 0, 'svvExec moved');
   const fn = SRV.slice(at, SRV.indexOf('\n}', at));
@@ -76,7 +77,7 @@ test('after an audio change the next read starts fresh, not from a read begun be
 });
 
 test('a press on a mic key pushes the mic state without waiting for the status tick', () => {
-  const SRV = read('../server.js');
+  const SRV = engineSource();
   const at = SRV.indexOf('  micMute: async (mode) => {');
   assert.ok(at > 0, 'micMute dep moved');
   const dep = SRV.slice(at, SRV.indexOf('  volume: async', at));

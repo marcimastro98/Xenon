@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = path.join(HERE, '..');
@@ -16,7 +17,7 @@ const read = (f) => fs.readFileSync(path.join(SERVER_DIR, f), 'utf8');
 
 test('the shell cache is stamped with the app version and swept on activate', () => {
   const sw = read('sw.js');
-  const server = read('server.js');
+  const server = engineSource();
   // The route substitutes this token. Rename it on one side only and the cache
   // name becomes a literal string: it never changes between versions, so an
   // updated Xenon keeps serving the previous shell out of cache — the one
@@ -98,7 +99,7 @@ test('with the PC off, what was stored is what the page gets', async () => {
 
 test('what the worker may cache matches what the server actually serves', () => {
   const sw = read('sw.js');
-  const server = read('server.js');
+  const server = engineSource();
   const swPrefixes = /const SHELL_PREFIXES = \[([\s\S]*?)\];/.exec(sw);
   assert.ok(swPrefixes, 'SHELL_PREFIXES must be findable');
   const inSw = [...swPrefixes[1].matchAll(/'\/([a-z]+)\//g)].map((m) => m[1]).sort();
@@ -128,7 +129,7 @@ test('the manifest link asks for credentials, or the app is silently uninstallab
 });
 
 test('the worker is served from the root, uncached, with the scope header', () => {
-  const server = read('server.js');
+  const server = engineSource();
   const route = /reqPath === '\/sw\.js'[\s\S]{0,1400}?err500/.exec(server);
   assert.ok(route, 'the /sw.js route must exist');
   // From the ROOT: a worker's default scope is its own directory, so one served

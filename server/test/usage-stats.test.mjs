@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const usage = require('../usage-stats.js');
@@ -177,7 +178,7 @@ test('switching it off deletes what was waiting', async () => {
 });
 
 test('the server and client wire the setting the strict way, local to the PC', () => {
-  const SERVER = read('server.js');
+  const SERVER = engineSource();
   const CLIENT = read('js/settings.js');
   const INDEX = read('index.html');
   // On for a fresh install, an existing one stays off until its owner chooses.

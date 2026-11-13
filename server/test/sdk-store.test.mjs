@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const store = require('../sdk-store.js');
@@ -229,7 +230,7 @@ test('storeNamespace fanout: a group write targets every sibling, a solo write o
 
 test('sync guard: the host marks post-remount writes quiet and the server keeps them silent', () => {
   const client = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
 
   // Host half: the store write carries the quiet flag.
   assert.match(client, /quiet:\s*storeWriteIsQuiet\(/,

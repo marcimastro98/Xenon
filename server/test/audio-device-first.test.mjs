@@ -19,6 +19,7 @@ import vm from 'node:vm';
 import { createRegistry, pickFirstConnected } from '../actions/registry.js';
 import * as sdk from '../sdk-widgets.js';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
@@ -77,7 +78,7 @@ test('nothing to switch to is refused before anything runs, and the dep answer i
 });
 
 test('the server picks through the shared check and does not switch to the output already in use', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const a = S.indexOf('  audioDeviceFirst: async (ids) => {');
   const body = S.slice(a, S.indexOf('\n  },\n', a));
   assert.match(body, /pickFirstConnected\(ids, info && info\.speakers\)/);

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createPerfStream, snapshot, INTERVAL_MS, GRAPH_FRAMES } = require('../perf-stream.js');
@@ -96,7 +97,7 @@ test('nobody listening or nothing showing it: no reading is even taken', (t) => 
 });
 
 test('server.js gates the stream, seeds GET /perf and stops it on shutdown', () => {
-  const s = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const s = engineSource();
   assert.match(s, /_perfStream\.setGaming\(st\.gaming && perfWanted\(\)\)/);
   // A tile hidden on its own, or on a hidden surface (overlay shortcut), wants no feed.
   assert.match(s, /function perfWanted\(\) \{[\s\S]{0,400}w\.widget === 'perf' && !w\.off && !layers\.hidden\.includes\(w\.surface\)/);
@@ -142,7 +143,7 @@ test('a live reading says a benchmark is recording, and for how long', () => {
   assert.equal(snapshot(fps, null, () => { throw new Error('x'); }).bench, null);
   assert.equal(snapshot(fps).bench, null);
   assert.equal(snapshot(fakeFps({ fps: null }), null, () => ({ running: true, elapsedS: 1 })).bench, undefined, 'idle carries no benchmark');
-  const s = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const s = engineSource();
   assert.match(s, /bench: \(\) => _benchmark\.status\(\)/);
   const shutdown = s.slice(s.indexOf('function _gracefulShutdown'));
   assert.match(shutdown.slice(0, 6000), /_benchmark\.flush\(\)/, 'a run in progress is saved on shutdown');

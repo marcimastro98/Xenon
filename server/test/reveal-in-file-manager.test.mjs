@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 // revealInFileManager() answers "show me where this is" for BOTH the Spotlight
 // search results and the transfer widget, on three platforms. It shipped with a
@@ -19,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 // re-implements it: a copy would keep passing after the shipped one regressed.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SRC = engineSource();
 
 function extractFn(name) {
   const at = SRC.indexOf('function ' + name + '(');

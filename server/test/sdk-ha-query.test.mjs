@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -201,7 +202,7 @@ test('weather and sensors carry what a widget needs to draw them', () => {
 // ── Wiring ───────────────────────────────────────────────────────────────────
 
 test('the route is grant-gated, selection-bound and POST; the bridge checks the grant too', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const at = server.indexOf("reqPath === '/stream/homeassistant/query' && req.method === 'POST'");
   assert.ok(at > 0, 'route exists as POST');
   const body = server.slice(at, at + 2200);
@@ -216,7 +217,7 @@ test('the route is grant-gated, selection-bound and POST; the bridge checks the 
 });
 
 test('an unchanged selection is not broadcast again; a new dashboard is seeded at connect', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const fn = server.slice(server.indexOf('function scheduleHaBroadcast'), server.indexOf('async function refreshHaWatch'));
   assert.match(fn, /if \(sig !== _haStateLast\) \{ _haStateLast = sig; broadcastSSE\('homeassistant', state\); \}/);
   const refresh = server.slice(server.indexOf('async function refreshHaWatch'));

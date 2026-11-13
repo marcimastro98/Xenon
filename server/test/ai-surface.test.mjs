@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -55,7 +56,7 @@ test('Performance Mode goes to the driver from the sheet only where no dashboard
 });
 
 test('every /api/ai tool call carries the surface, and the refusal runs before the action is queued', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   assert.match(src, /const _aiSurface = aiSurface\.surfaceOf\(aiBody, req\.headers\.referer\);/);
   const calls = src.match(/pictures: _aiPictures,\n\s+surface: _aiSurface,/g) || [];
   assert.equal(calls.length, 6);

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -237,7 +238,7 @@ test('the tool opens the import window only on success', () => {
 });
 
 test('server.js declares both tools and hands create_preset actions to the client', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   for (const name of ['preset_reference', 'create_preset']) {
     assert.match(src, new RegExp("\\{ name: '" + name + "', description: '"), name + ' declared');
     assert.match(src, new RegExp("fnName === '" + name + "'"), name + ' handled');

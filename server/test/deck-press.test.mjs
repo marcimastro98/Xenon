@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createDeckPress, fingerprint, stepsOf, describeSteps, lookOf } = require('../deck-press.js');
@@ -189,7 +190,7 @@ test('a phone cannot place a key, and neither /deck/press route reaches it', () 
 });
 
 test('POST /deck/press is CSRF guarded and takes only an id and an agreement', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /CSRF_MUTATION_PATHS[\s\S]{0,4000}'\/deck\/press'/);
 });
 

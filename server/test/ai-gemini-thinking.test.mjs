@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { THINKING_STEPS, isThinkingRejection, applyThinking, withThinking } = require('../ai-gemini-thinking.js');
 
@@ -97,6 +98,6 @@ test('thinking gets its own room in the output limit, a zero budget does not', (
 });
 
 test('no Gemini call in server.js fixes its own thinking setting', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.doesNotMatch(src, /thinkingConfig\s*:/, 'a fixed setting breaks every model that refuses it');
 });

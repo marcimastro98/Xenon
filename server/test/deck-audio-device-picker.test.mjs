@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -31,7 +32,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const EDITOR = read('../js/deck-editor.js');
 const I18N = appStringsSource();
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 
 const SPEAKERS = [
   { id: 'Speakers\\Device\\High Definition Audio Device\\Render', label: 'Speakers (Realtek(R) Audio)', name: 'Realtek(R) Audio', isDefault: true },

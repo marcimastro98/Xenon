@@ -10,10 +10,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const S = read('../server.js');
+const S = engineSource();
 
 function helper(platform, hubSettings) {
   const at = S.indexOf('async function setDefaultAudioDevice(');

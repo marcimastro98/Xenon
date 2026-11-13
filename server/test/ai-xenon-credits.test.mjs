@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 // Each round writes a cost line to server.log: never the real one.
@@ -287,7 +288,7 @@ test('looking up the Deck catalog to run one action stays on Haiku; the creation
 });
 
 test('every creation tool the router knows is a real Xenon AI tool', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   for (const name of X.CREATION_TOOLS) assert.ok(server.includes(`{ name: '${name}',`), name);
   assert.equal(X.CHAT_MODEL, 'haiku');
 });
@@ -347,7 +348,7 @@ test('a refused request keeps the hub\'s reason for the server log, never for th
   const why = 'This API key is not scoped to a workspace';
   hub({ '/ai/session': session, '/ai/messages': { ok: false, error: 'bad_request', detail: why } });
   await assert.rejects(X.chat({ dataDir: dir, history, systemText: 's', executeTool: noTool }), (e) => e.code === 'bad_request' && e.detail === why);
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /if \(e && e\.detail\) console\.warn\('\[ai\] Xenon AI ' \+ code \+ ':', e\.detail\);/);
   assert.match(server, /JSON\.stringify\(\{ error: 'xenon_' \+ code, credits:/, 'the answer to the page carries the code only');
 });
@@ -375,7 +376,7 @@ test('a helper says what it is for, and every helper in the server names its pur
   const calls = hub({ '/ai/session': session, '/ai/messages': reply([{ type: 'text', text: '{}' }]) });
   await X.oneShot({ dataDir: dir, systemText: 'translate', userText: '[]', maxTokens: 300, use: 'lyrics' });
   assert.equal(calls[1].body.use, 'lyrics');
-  const S = read('../server.js');
+  const S = engineSource();
   // Each call's arguments, up to its closing `})`: the lyrics and widget calls
   // name theirs at the call, completeWithUserAi passes its own `use` through.
   const sites = [...S.matchAll(/aiXenon\.oneShot\(\{|completeWithUserAi\(\{/g)].map((m) => S.slice(m.index, S.indexOf('})', m.index)));
@@ -430,7 +431,7 @@ test('the balance is numbers only, and a tier name is the only model accepted', 
 });
 
 test('the server routes the provider, keeps the time out of the system text, and spares Bit', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const at = S.indexOf("      if (provider === 'xenon') {\n        // Xenon credits");
   assert.ok(at > 0 && at < S.indexOf("      if (provider === 'openai' || provider === 'anthropic') {\n        // Server-mediated cloud providers"));
   const body = S.slice(at, S.indexOf('        return;\n      }', at));
@@ -505,14 +506,14 @@ test('on Xenon credits the hub design check joins the critique as things to cons
   assert.equal(addConsiderations(own, []), own);
 
   // Only the credits provider asks the hub, and only for a code that was built.
-  const S = read('../server.js');
+  const S = engineSource();
   const at = S.indexOf("} else if (fnName === 'create_preset') {");
   const branch = S.slice(at, S.indexOf('} else if', at + 10));
   assert.match(branch, /if \(provider === 'xenon' && out\.code\) \{\s+fnResult\.critique = addConsiderations\(fnResult\.critique, await aiXenon\.designAdvice\(DATA_DIR, out\.code\)\);/);
 });
 
 test('voice on credits is heard by local whisper, never sent to Gemini', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const stop = S.slice(S.indexOf("reqPath === '/api/stt/stop'"), S.indexOf("reqPath === '/api/ai/cli/mcp'"));
   assert.match(stop, /sttProvider === 'xenon'[^\n]*\) \{\n\s+process\.stdout\.write\(`\[STT\] Local whisper/);
   const transcribe = S.slice(S.indexOf("reqPath === '/api/transcribe'"));
@@ -578,7 +579,7 @@ test('"use Opus and make it" switches mid-turn: the hand-over reads the choice t
 });
 
 test('the creation-model tool is credits-only, validated, saved under the settings lock and announced', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /\{ name: 'set_creation_model', description: 'Sparks \(Bit credits\) only:/);
   const at = server.indexOf("} else if (fnName === 'set_creation_model') {");
   assert.ok(at > 0);

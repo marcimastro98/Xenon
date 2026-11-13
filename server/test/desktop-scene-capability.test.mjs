@@ -5,13 +5,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const scene = require('../capabilities/desktop-scene.js');
 const { createCapabilities, aiFunctions, aiAction } = require('../capabilities/index.js');
 const { createLayersHost } = require('../layers-host.js');
 const { CAPABILITIES } = require('../js/capability-catalog.js');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SERVER = engineSource().replace(/\r\n/g, '\n');
 const SCENE_SRC = readFileSync(new URL('../capabilities/desktop-scene.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function fakeSettings(start = { wallpaper: false, saverMinutes: 0 }) {

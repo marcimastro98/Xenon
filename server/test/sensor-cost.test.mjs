@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 // The sensor worker answers one script at a time, every tick, forever. What it
 // costs per call is what Xenon costs at idle, so the expensive shapes that were
@@ -54,7 +55,7 @@ test('every script server.js sends to the worker is on its allowlist', () => {
   const worker = read('server/pwsh-worker.ps1');
   const allowLine = worker.split('\n').find((l) => l.startsWith('$allow'));
   assert.ok(allowLine, 'allowlist moved');
-  const server = read('server/server.js');
+  const server = engineSource();
   const viaCollector = [...server.matchAll(/runCollector\(\s*([A-Z_]+_SCRIPT)/g)].map((m) => m[1]);
   assert.ok(viaCollector.length > 0, 'runCollector call sites moved');
   for (const name of new Set(viaCollector)) {

@@ -7,11 +7,12 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerI18n = require('../layer-strings.js');
 const SRC = appStringsSource(); // every language and the functions, as one script
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SERVER = engineSource().replace(/\r\n/g, '\n');
 
 function run(script, lang) {
   const ctx = { lang };

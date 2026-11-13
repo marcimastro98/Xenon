@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { makeDom } from './mini-dom.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayersModel = require('../js/layers-model.js');
@@ -467,7 +468,7 @@ test('two reloads inside the gap never happen: the second waits for it, then ret
 });
 
 test('the server serves the light page by the same rule, and only on this machine', () => {
-  const s = read('../server.js');
+  const s = engineSource();
   const at = s.indexOf("if (reqPath === '/' && req.method === 'GET') {");
   const route = s.slice(at, s.indexOf('LayerPage.compose(', at) + 200);
   assert.match(route, /if \(!isRemote && LayersModel\.isSurfaceKey\(layerKey\) && !LayersModel\.needsDashboard\(_serverHubSettings\.layers, layerKey\)\) \{/);

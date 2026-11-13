@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { markWindows, MAX_CLIPS } = require('../capture-autoclips.js');
@@ -197,7 +198,7 @@ test('capability: picks the newest video or the named one, passes only known cho
 
 test('wired: route, CSRF, phone, Deck error words, gallery button', () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /'\/captures\/clips'/);
   assert.match(server, /json\(await makeMarkClips\(String\(\(body && body\.id\) \|\| ''\), body && body\.which\)\)/);
   assert.match(server, /broadcastSSE\('captures', \{ changed: true \}\)/);

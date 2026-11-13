@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCoreShield, coresUsed, busiestApps, BUSY_SHARE, PRESSURE_SAMPLES, APP_MIN_CORES, MAX_APPS } = require('../perf-session/core-shield.js');
@@ -559,7 +560,7 @@ test('cores used: only processes in both reads, and a reused pid has no figure',
 });
 
 test('the server runs it on the status tick, and puts things back at start and at shutdown', () => {
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const server = engineSource().replace(/\r\n/g, '\n');
   const at = server.indexOf('function broadcastStatusNow');
   assert.ok(at > 0);
   assert.match(server.slice(at, at + 1500), /try \{ syncCoreShield\(\); \} catch \{\}/, 'no timer of its own');

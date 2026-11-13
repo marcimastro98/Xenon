@@ -18,6 +18,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const osTheme = require('../os-theme.js');
@@ -91,7 +92,7 @@ test('every probe reads, and can only read, the colour scheme', () => {
 });
 
 test('the route hands the question to the module, on every platform', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   assert.match(src, /const osTheme = require\('\.\/os-theme'\);/);
   assert.match(src, /reqPath === '\/system\/theme'[\s\S]{0,1400}?json\(await osTheme\.read\(\)\);/);
   // The old route was Windows-only and spawned reg.exe on every platform.

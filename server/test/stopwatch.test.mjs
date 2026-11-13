@@ -15,9 +15,10 @@ import { readFileSync as readFileSyncRaw } from 'node:fs';
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const TIMER = readFileSync(new URL('../js/timer.js', import.meta.url), 'utf8');
 const { ACTION_CATALOG, validateAction } = require('../js/deck-actions.js');
 

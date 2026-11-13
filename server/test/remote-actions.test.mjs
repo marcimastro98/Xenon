@@ -12,13 +12,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ra = require('../remote-actions.js');
 const access = require('../remote-access.js');
 const { ACTION_CATALOG } = require('../js/deck-actions.js');
 const registry = require('../actions/registry.js');
-const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const DECK = fs.readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const MAIN = fs.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 const I18N = appStringsSource();
@@ -203,7 +204,7 @@ test('a phone cannot sign the PC in to Tailscale, nor read the link that does', 
   assert.equal(state.tailscale.authUrl, 'https://login.tailscale.com/a/abc', 'the shared status keeps it for the PC');
   assert.equal(access.withoutLoginLink(null), null);
 
-  const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/remote\/status'[\s\S]{0,200}isRemote \? remoteAccessLib\.withoutLoginLink\(state\) : state/);
 });
 

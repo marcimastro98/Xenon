@@ -7,11 +7,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const WIDGET = read('../js/disk-widget.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const I18N = appStringsSource();
 const HTML = read('../index.html');
 

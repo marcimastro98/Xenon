@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const G = require('../ai-tool-groups.js');
@@ -105,7 +106,7 @@ test('follow converts the list again only after it grew', () => {
 // this is what says when the core has grown too big for that.
 function realToolNames() {
   const { readFileSync } = require('node:fs');
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const body = (head) => { const a = src.indexOf(head); assert.ok(a >= 0, head); return src.slice(a, src.indexOf('\n}', a)); };
   const turn = src.slice(src.indexOf('const AI_FUNCTIONS = buildCoreAiFunctions();'), src.indexOf('const toolKit = AiToolGroups.kit('));
   const parts = [body('function buildCoreAiFunctions('), body('function buildMemoryFunctions('), turn, body('async function addIntegrationAiFunctions(')];

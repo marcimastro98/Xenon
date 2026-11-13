@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 // One folder for this file's temp token files, removed when its tests end.
 const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-sq-'));
@@ -359,7 +360,7 @@ test('reading is a separate grant from controlling playback', () => {
     'reading must not ride the playback action category');
   const bridge = read('server/js/custom-widget.js');
   assert.match(bridge, /if \(!grant\.streams\.includes\('spotify'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/);
-  const server = read('server/server.js');
+  const server = engineSource();
   assert.match(server, /sdkGrantsFor\(pkgId\)\.streams\.includes\('spotify'\)/,
     'the server has to check it too — the bridge is convenience, not the boundary');
 });
@@ -368,7 +369,7 @@ test('the endpoint is rate-gated, because the quota is the user\'s', () => {
   // These calls spend the USER's Spotify quota, shared with the dashboard's own
   // Spotify tile: a widget searching on every keystroke would stop their music
   // working, and it would look like Xenon broke.
-  const server = read('server/server.js');
+  const server = engineSource();
   const start = server.indexOf("reqPath === '/stream/spotify/query'");
   const body = server.slice(start, start + 1600);
   assert.match(body, /sdkTileGate\(pkgId/, 'no gate on a route that spends someone else\'s quota');
@@ -567,7 +568,7 @@ test('the cursors reach the provider through both lists that can drop them', () 
   // builds the request AND in the route that reads it back. Missing from either
   // is not an error — the field is simply gone, and the op answers page 1.
   const bridge = read('server/js/custom-widget.js');
-  const route = read('server/server.js');
+  const route = engineSource();
   const list = /\['id', 'q', 'types', 'limit', 'offset', 'after', 'before'\]/;
   assert.match(bridge, list, 'the bridge drops the cursors before the route sees them');
   assert.match(route, list, 'the route drops the cursors before the provider sees them');

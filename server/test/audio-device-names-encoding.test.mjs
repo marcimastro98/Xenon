@@ -9,10 +9,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolveOutputDevice, pickToggleDevice, pickFirstConnected } from '../actions/registry.js';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { UTF8_EXPORT, decodeCsv, repairMojibake } = require('../svv-text.js');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 
 const KOPF = 'Realtek(R) Audio\\Device\\Kopfhörer\\Render';
 const NAMES = ['Kopfhörer', 'Lautsprecher (Gerät)', 'Słuchawki', 'Sluchátka ř', 'ヘッドホン', '헤드폰', '耳机', 'Écouteurs'];

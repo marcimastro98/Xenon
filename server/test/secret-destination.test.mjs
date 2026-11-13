@@ -20,6 +20,7 @@ import assert from 'node:assert/strict';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 const require = createRequire(import.meta.url);
@@ -34,7 +35,7 @@ const { redactNewsCreds } = require('../news-creds.js');
 const { redactAiProviderCreds } = require('../ai-provider-creds.js');
 const { redactRemoteCreds } = require('../remote-control/settings.js');
 
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const SETTINGS_JS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();

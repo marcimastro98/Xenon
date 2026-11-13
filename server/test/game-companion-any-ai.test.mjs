@@ -11,11 +11,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const A = require('../ai-anthropic.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const S = read('../server.js');
+const S = engineSource();
 const endpoint = () => {
   const i = S.indexOf("reqPath === '/api/companion/insight'");
   return S.slice(i, S.indexOf('} else if (reqPath', i + 10));

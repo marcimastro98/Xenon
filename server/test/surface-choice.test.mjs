@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 // The screen choice is stored TWICE on purpose — in the native shell's own
 // display.json, which it must be able to read at launch before the backend is
@@ -18,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
-const SERVER = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 
 /** Lift a normalizer out of its file and evaluate it in isolation. */
 function lift(source, name) {

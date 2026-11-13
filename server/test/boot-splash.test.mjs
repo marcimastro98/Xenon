@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { languagesWith } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SRC = read('../js/boot-splash.js');
@@ -166,7 +167,7 @@ test('the page wires it first, and the app tells it when it is ready', () => {
 
 test('the setting is kept the same way on both sides, on by default', () => {
   const settings = read('../js/settings.js');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(settings, /\n {2}bootSplash: true,/);
   assert.match(settings, /bootSplash: value\.bootSplash !== false,/);
   assert.match(server, /\n {2}bootSplash: true,/);

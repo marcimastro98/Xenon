@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { findPageTarget, pageTargetMiss } = require('../js/page-target.js');
@@ -70,7 +71,7 @@ test('the pager and the server use it; the page loads it first', () => {
   assert.match(pager, /function goToPage\(id\) \{\s+const want = resolvePage\(id\);/);
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(html.indexOf('js/page-target.js') > 0 && html.indexOf('js/page-target.js') < html.indexOf('js/dashboard-pager.js'));
-  const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /fnName === 'go_to_page' \? goToPageMiss\(fnArgs\)/);
   assert.match(server, /function goToPageMiss\(args\) \{[\s\S]{0,300}PageTarget\.pageTargetMiss/);
 });

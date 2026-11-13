@@ -5,8 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
-const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const src = engineSource();
 
 test('chat and Voice Live share one builder for the integration tools', () => {
   assert.match(src, /async function addIntegrationAiFunctions\(fns\)/);

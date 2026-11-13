@@ -11,10 +11,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const W = require('../ai-my-widgets.js');
-const S = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const S = engineSource();
 const b64 = (t) => Buffer.from(t, 'utf8').toString('base64');
 
 test('the list holds the user\'s own widgets only', () => {

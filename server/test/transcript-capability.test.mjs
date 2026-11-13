@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const transcript = require('../capabilities/transcript.js');
@@ -125,7 +126,7 @@ test('the catalog, the AI functions and the runner line up', async () => {
 });
 
 test('server.js adds the lines to the AI turn only, and wires the routes', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const hook = src.slice(src.indexOf("fnName === 'transcribe_recording'"), src.indexOf("fnName === 'deck_action_catalog'"));
   assert.match(hook, /TranscriptFormat\.aiText\(t\.lines\)/);
   assert.match(src, /reqPath === '\/captures\/transcript' && req\.method === 'GET'/);

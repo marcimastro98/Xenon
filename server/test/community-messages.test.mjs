@@ -220,8 +220,9 @@ test('cacheIsFresh needs a real message array inside the TTL', () => {
    properties of that route are load-bearing and easy to lose in a later edit, so
    pin them against the source rather than trusting the comment next to them. */
 import fs from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
-const SERVER_SRC = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER_SRC = engineSource();
 const setBody = (name) => {
   const start = SERVER_SRC.indexOf(`const ${name} = new Set([`);
   assert.ok(start > 0, name + ' not found');

@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -70,7 +71,7 @@ test('the driver saves the performance block only, normalized', () => {
 
 test('a phone may read which apps moved, as it may read the app list, and nothing can write', () => {
   assert.equal(remotePathAllowed('/api/performance/shield', 'GET'), true);
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/api\/performance\/shield' && req\.method === 'GET'/);
   assert.doesNotMatch(server, /reqPath === '\/api\/performance\/shield' && req\.method === 'POST'/);
 });
@@ -79,7 +80,7 @@ test('both routes: this PC only, CSRF-guarded, one narrow locked writer', () => 
   for (const path of ['/api/performance/screen', '/api/performance/state']) {
     assert.equal(remotePathAllowed(path, 'POST'), false, path + ' never from a phone');
   }
-  const server = read('../server.js');
+  const server = engineSource();
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS = new Set([')));
   assert.match(csrf, /'\/api\/performance\/screen',\n {2}'\/api\/performance\/state',/);
   assert.match(server, /reqPath === '\/api\/performance\/screen' && req\.method === 'POST'[\s\S]{0,500}perfScreen\.screenEvent\([\s\S]{0,200}broadcastSSE\('perf_screen', ev\)/);
@@ -93,7 +94,7 @@ test('Bit on the screen optimizes through the driver instead of saying it needs 
   assert.equal(aiSurface.screenPerfChoice('optimize_performance', ''), '', 'the dashboard runs it itself');
   assert.equal(aiSurface.clientActionRefusal('optimize_performance', 'screen'), null);
   assert.equal(aiSurface.clientActionRefusal('change_theme', 'screen').error, 'needs_dashboard');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /const perfChoice = aiSurface\.screenPerfChoice\(fnName, surface, widgetsOnly\);\n {4}if \(perfChoice\) \{\n {6}broadcastSSE\('perf_screen', perfScreen\.screenEvent\(\{ kind: 'answer', choice: perfChoice \}\)\);/);
 });
 

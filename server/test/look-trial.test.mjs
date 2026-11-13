@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync as readFileSyncRaw } from 'node:fs';
 import vm from 'node:vm';
 import { makeDom, settle } from './mini-dom.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const readFileSync = (p) => readFileSyncRaw(p, 'utf8').replace(/\r\n/g, '\n');
 const src = (p) => readFileSync(new URL('../' + p, import.meta.url));
@@ -92,7 +93,7 @@ test('a look already saved needs no room', () => {
 });
 
 test('the limits are the ones the server keeps', () => {
-  const server = src('server.js');
+  const server = engineSource();
   const start = server.indexOf('function sanitizeCustomThemes');
   const body = server.slice(start, server.indexOf('\n}\n', start));
   assert.equal(Number(TRIAL.match(/MAX_BYTES = (\d+)/)[1]), Number(body.match(/CAP = (\d+)/)[1]));

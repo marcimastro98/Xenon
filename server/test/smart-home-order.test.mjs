@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -71,7 +72,7 @@ test('wiring: loaded before settings.js, normalized on the client, sent in the s
   const settings = read('server/js/settings.js');
   assert.match(settings, /areaOrder: order \? order\.normalizeAreaOrder\(src\.areaOrder\) : \[\]/);
   assert.match(settings, /tileView: order \? order\.normalizeTileView\(src\.tileView\) : 'auto'/);
-  const server = read('server/server.js');
+  const server = engineSource();
   const build = server.slice(server.indexOf('async function buildHaState'), server.indexOf('async function buildHaState') + 900);
   assert.match(build, /areaOrder: Array\.isArray\(ha\.areaOrder\)/);
   assert.match(build, /tileView: typeof ha\.tileView === 'string'/);

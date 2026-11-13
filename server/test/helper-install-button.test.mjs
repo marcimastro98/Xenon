@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -23,7 +24,7 @@ function cut(src, start, endMarker) {
 }
 
 test('the route installs through helper-update, POST only, and restarts the wave', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const route = cut(S, "reqPath === '/audio/levels/install-helper' && req.method === 'POST'", '\n  } else if (');
   assert.match(route, /createHelperUpdate\(\{ helperExe: HELPER_EXE, appVersion: APP_VERSION \}\)\.install\(\)/);
   assert.match(route, /process\.platform !== 'win32'/);

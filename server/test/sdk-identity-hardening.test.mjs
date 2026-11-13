@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // Four ways a community widget could end up with more than the user approved:
 //   1. a frame that navigates itself away keeps its place on the bridge;
@@ -166,7 +167,7 @@ test('installOverwrite: a new id installs; an installed one needs a reason', () 
 });
 
 test('/sdk/install decides on the server, and the import review reads what the server read', () => {
-  const srv = read('../server.js');
+  const srv = engineSource();
   const route = srv.slice(srv.indexOf("reqPath === '/sdk/install' && req.method === 'POST'"), srv.indexOf("reqPath === '/sdk/claim'"));
   assert.match(route, /sdkWidgets\.installOverwrite\(/);
   assert.match(route, /payload\.dryRun === true/);
@@ -243,7 +244,7 @@ test('the permission dialog records the group, and the settings normalizer keeps
   assert.match(CW_SRC, /storageGroup: wantsStorage \? storageGroup : ''/);
   const settings = read('../js/settings.js');
   assert.match(settings, /grants\[key\]\.storageGroup = g\.storageGroup/);
-  const srv = read('../server.js');
+  const srv = engineSource();
   assert.match(srv, /if \(pkg\.storageGroup && grant\.storageGroup !== pkg\.storageGroup\) \{ json\(\{ ok: false, error: 'not_granted' \}\)/);
 });
 

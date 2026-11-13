@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -94,7 +95,7 @@ test('a device that may not do it stops asking and the screen says the plain tru
 });
 
 test('closing the menu ends it, and the route stays one a paired device cannot use', () => {
-  const server = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+  const server = engineSource();
   assert.match(server, /if \(!state\.open\) layersPeek\.set\(null\);/);
   assert.match(server, /function _gracefulShutdown\(\) \{[\s\S]{0,1500}layersPeek\.stop\(\)/);
   assert.match(server, /'\/screen-menu'[\s\S]{0,1500}'peek' in body/);

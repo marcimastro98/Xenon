@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { FLAGS, grantFrom, plan, apply } = require('../sdk-grant.js');
@@ -65,7 +66,7 @@ test('every consent flag the dialog grants is built here too', () => {
 
 test('a phone and a foreign page cannot approve', () => {
   assert.equal(remotePathAllowed('/sdk/grant', 'POST'), false);
-  assert.match(read('../server.js'), /CSRF_MUTATION_PATHS = new Set\(\[[\s\S]*?'\/sdk\/grant'/);
+  assert.match(engineSource(), /CSRF_MUTATION_PATHS = new Set\(\[[\s\S]*?'\/sdk\/grant'/);
 });
 
 test('a screen page saves through the server and takes the approval back if refused', () => {

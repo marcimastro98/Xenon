@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { PERF_HUD_PARTS, PERF_HUD_LABELS, PERF_HUD_SHORT, normalizePerfHud, applyPerfHudChange, statText } = require('../js/perf-hud.js');
@@ -112,7 +113,7 @@ test('the voice tool is declared, hidden from the Deck and offers show/hide for 
 });
 
 test('server and client store the same shape, the server writes under the settings lock', () => {
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /perfHud: PerfHud\.normalizePerfHud\(source\.perfHud\)/);
   const writer = server.slice(server.indexOf('async function updatePerfHudSetting'), server.indexOf('async function updatePerfHudSetting') + 600);
   assert.match(writer, /withHubSettingsLock/);

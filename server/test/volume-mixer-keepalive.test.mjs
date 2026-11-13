@@ -11,11 +11,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const VOLUME = read('../js/volume.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 
 function cut(src, start, end) {
   const a = src.indexOf(start);

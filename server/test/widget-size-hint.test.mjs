@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -140,7 +141,7 @@ test('sizeForHint measures the page, and leaves the phone view alone', () => {
 });
 
 test('the assistant puts a widget it made on the current page, in its shape', () => {
-  const server = read('server.js');
+  const server = engineSource();
   const at = server.indexOf("if (fnName === 'create_widget')");
   const body = server.slice(at, server.indexOf("} else if (fnName === 'preset_reference')", at));
   assert.match(body, /clientActions\.push\(\{ action: 'place_created_widget', args: \{ id: r\.id \} \}\)/);
@@ -164,7 +165,7 @@ test('a widget made for a full page gets a page of its own, and is placed once p
 });
 
 test('the model is told to fill the tile, not just to pick its shape', () => {
-  const server = read('server.js');
+  const server = engineSource();
   const at = server.indexOf("{ name: 'create_widget', description:");
   const desc = server.slice(at, server.indexOf('parameters:', at));
   assert.match(desc, /Fill the tile: html, body and the root at height 100% with container-type: size on the root/);

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const A = require('../ai-attached-pictures.js');
@@ -107,7 +108,7 @@ test('nothing is built or opened when the data names a picture that is not there
 });
 
 test('create_widget places the pictures before it builds the files, and every chat turn hands them over', () => {
-  const S = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const S = engineSource();
   const at = S.indexOf("if (fnName === 'create_widget') {");
   const body = S.slice(at, S.indexOf("} else if (fnName === 'my_widgets')", at));
   assert.ok(body.indexOf('aiPictures.resolvePictures(') < body.indexOf('externalizeInlineScripts('));

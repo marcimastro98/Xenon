@@ -12,6 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 // LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -121,7 +122,7 @@ test('the tab group re-stamps the mark when the shown tab changes', () => {
 test('tiles cast no drop shadow until someone asks for one', () => {
   const S = read('../js/settings.js');
   assert.match(S, /\n  tileShadowStrength: 0,\n/, 'the client default is not 0');
-  assert.match(read('../server.js'), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
+  assert.match(engineSource(), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
   // The theme code (shared with the layer page) falls back to the same default
   // rather than a private 1.
@@ -148,7 +149,7 @@ test('the old shadow key is never read again, so a saved 100% turns into none', 
 
 test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   const S = read('../js/settings.js');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(S, /tileShadowStrength: clampNumber\(value\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
   assert.match(server, /tileShadowStrength: clampNumber\(source\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
   const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };

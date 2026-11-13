@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Notes = require('../notes-ai.js');
@@ -68,7 +69,7 @@ test('read_notes lists titles only; the server wires edit_note with an undo', ()
     { title: 'Lavoro', pinned: false, open: true },
     { title: 'Spesa', pinned: true, open: false },
   ]);
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /name: 'edit_note'/);
   assert.match(src, /fnName === 'edit_note'[\s\S]{0,600}restore_notes/);
   assert.match(src, /list: NotesAi\.listNotes/);

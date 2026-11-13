@@ -11,6 +11,7 @@ import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createSessionWatch, parseEvent, SCRIPT } = require('../session-watch.js');
@@ -199,7 +200,7 @@ test('lighting: power down darkens the native controllers instead of releasing t
 });
 
 test('server: the Deck "Lights off" key goes dark and the watch follows native lighting', () => {
-  const src = read('../server.js');
+  const src = engineSource();
   const handler = src.slice(src.indexOf("case 'lightPower': {"), src.indexOf("case 'lightColor':"));
   assert.match(handler, /lighting\.setLightsOut\(!on\)/);
   assert.match(src, /onEvent: \(ev\) => \{[\s\S]*?console\.warn\('\[session-watch\] ' \+ ev\);[\s\S]*?ev === 'resume' \? lighting\.powerUp\(\) : lighting\.powerDown\(\)/);

@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../js/layers-model.js');
@@ -208,7 +209,7 @@ test('a failed write is reported, and the next tick tries again', async () => {
 
 test('server.js: the games page rides the status tick and a generic save never overwrites layers', async () => {
   const { readFileSync } = await import('node:fs');
-  const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const SERVER = engineSource().replace(/\r\n/g, '\n');
   assert.match(SERVER, /const _gamePageSync = LayerPages\.createGamePageSync\(\{\n {2}current: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n {2}update: \(edit\) => updateLayersSetting\(edit\),/);
   assert.match(SERVER, /try \{ _gamePageSync\(st\.gameRunning\); \} catch \{\}/);
   assert.match(SERVER, /if \(prev && prev\.layers && typeof prev\.layers === 'object'\) \{\n {8}incoming\.layers = prev\.layers;/);
@@ -280,7 +281,7 @@ test('desktop sync: one write per real change, and a desktop seen while writing 
 
 test('server.js: the shell tells the desktop through a checked, PC-only route', async () => {
   const { readFileSync } = await import('node:fs');
-  const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const SERVER = engineSource().replace(/\r\n/g, '\n');
   assert.match(SERVER, /const _deskPageSync = LayerPages\.createDeskPageSync\(\{\n {2}current: \(\) => _serverHubSettings && _serverHubSettings\.layers,\n {2}update: \(edit\) => updateLayersSetting\(edit\),/);
   assert.match(SERVER, /current > 64 \|\| !Number\.isInteger\(count\)/);
   assert.match(SERVER, /layersHost\.setDesk\(current, count\);\n {6}_deskPageSync\(current\);/);

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { open } = require('../capabilities/game-companion.js');
@@ -71,7 +72,7 @@ test('run goes through the registry dispatch', async () => {
 });
 
 test('the server wires it: switch, game, and no card with the on-screen window off', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /companion: \{\s*enabled: \(\) => \{/);
   assert.match(server, /f\.enabled === true && f\.gameCompanion === true/);
   assert.match(server, /_gameSessions\.current\(\)/);

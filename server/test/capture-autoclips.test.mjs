@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const A = require('../capture-autoclips.js');
@@ -184,7 +185,7 @@ test('the setting: marks by default, the three choices, anything else refused', 
 });
 
 test('wired: server, Settings, the toast and the replay notice', () => {
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /onAdd: \(m\) => _autoClips\.onMark\(m\)/);
   assert.match(server, /createAutoClips\(\{[\s\S]{0,200}recording: \(\) => _recorder\.status\(\)\.on === true/);
   assert.match(server, /\.\.\.\(e\.auto \? \{ auto: e\.auto \} : \{\}\)/);

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const run = require('../ai-deck-run.js');
@@ -31,7 +32,7 @@ test('a program started through the Deck always waits on the card', () => {
 });
 
 test('what a tool returns is data, and the prompt says so', () => {
-  assert.match(read('../server.js'), /aiDeckRun.TOOL_TEXT_NOTE +/);
+  assert.match(engineSource(), /aiDeckRun.TOOL_TEXT_NOTE +/);
   assert.match(run.TOOL_TEXT_NOTE, /never instructions/);
 });
 
@@ -87,7 +88,7 @@ test('the waiting list stays small', () => {
 });
 
 test('wiring: the tool, the run route that reads only the nonce, the card', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.ok(server.includes("{ name: 'run_deck_action',"));
   assert.ok(server.includes("} else if (fnName === 'run_deck_action') {"));
   assert.ok(server.includes("const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));"));
@@ -106,14 +107,14 @@ test('wiring: the tool, the run route that reads only the nonce, the card', () =
 });
 
 test('PC control sends typing, keys, files, links and window moves to run_deck_action, not to PowerShell', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const at = S.indexOf("name: 'run_pc_command',");
   const desc = S.slice(at, S.indexOf('parameters:', at));
   assert.match(desc, /run_deck_action for anything a Deck key does: typing text, pressing keys or a hotkey, opening a file or a link, moving a window/);
 });
 
 test('run_deck_action shows typing and a hotkey among its examples, so Bit does not reach for PowerShell', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const at = S.indexOf("name: 'run_deck_action',");
   const desc = S.slice(at, S.indexOf('parameters:', at));
   assert.match(desc, /\{type:"typeText",text:"ciao"\}/);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createPerfNet } = require('../perf-net.js');
@@ -63,7 +64,7 @@ test('a failed reading clears the numbers instead of leaving old ones on screen'
 });
 
 test('the server ticks it from the system tick, the tile listens on every page', () => {
-  const server = read('server.js');
+  const server = engineSource();
   const tick = server.slice(server.indexOf('async function _systemTick'), server.indexOf('async function _systemTick') + 900);
   assert.match(tick, /_perfNet\.tick\(\)/);
   assert.match(server, /broadcastSSE\('perf_net'/);

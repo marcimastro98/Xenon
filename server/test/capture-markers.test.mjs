@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const M = require('../capture-markers.js');
@@ -280,7 +281,7 @@ test('a recording keeps PresentMon reading with no dashboard connected', () => {
   // It pauses when the last SSE client leaves; without this hold a recording
   // started from a hotkey or the phone got no stutter markers at all. The hold
   // itself is proven in fps-demand.test.mjs; this pins the wiring.
-  const s = read('server.js');
+  const s = engineSource();
   assert.match(s, /function holdFpsForMarkers\(\) \{\s*_fpsDemand\.capture\(captureRunning\(\) && captureOptions\(\)\.autoMarks !== false\);/);
   const tick = s.slice(s.indexOf('function broadcastStatusNow()'), s.indexOf('const j = JSON.stringify(st);'));
   const beforeSplit = tick.slice(0, tick.indexOf('if (sseClients.size === 0)'));

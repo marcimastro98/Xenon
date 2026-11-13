@@ -7,10 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const si = require('../scene-images.js');
-const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const SHARE = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
 
 const PNG_HEAD = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);

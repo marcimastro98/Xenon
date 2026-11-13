@@ -22,13 +22,14 @@ import { readFileSync as readFileSyncRaw, existsSync } from 'node:fs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const path = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 
 const INSTALL = read('../install.ps1');
 const UNINSTALL = read('../uninstall.ps1');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const README = read('../../README.md');
 const CHANGELOG = read('../../CHANGELOG.md');
 

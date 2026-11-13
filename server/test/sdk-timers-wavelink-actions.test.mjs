@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -15,7 +16,7 @@ const { createRegistry } = require('../actions/registry.js');
 const { scopeTimerLabel, OWN_LABEL_MAX, OWNED_MAX, SCOPED_LABEL_MAX } = require('../actions/widget-timers.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const CW = read('../js/custom-widget.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const SETTINGS = read('../js/settings.js');
 const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');

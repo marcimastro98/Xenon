@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const DriverSdkHost = require('../js/driver-sdk-host.js');
@@ -157,7 +158,7 @@ test('only the hidden host answers: the page, its order, the route and the phone
     'js/theme-palette.js', 'js/theme-tokens.js', 'js/native-bridge.js', 'js/deck-actions.js',
     'js/dialog-focus.js', 'js/approval-keys.js', 'js/custom-widget.js', 'js/widget-feed.js', 'js/sdk-service.js']);
   assert.doesNotMatch(html, /stylesheet/);
-  assert.match(read('../server.js'), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
+  assert.match(engineSource(), /reqPath === '\/sdk-service' && req\.method === 'GET'[\s\S]{0,400}'sdk-service\.html'/);
   assert.equal(remotePathAllowed('/sdk-service', 'GET'), false, 'a phone would run every Deck action twice');
   const cw = read('../js/custom-widget.js');
   assert.match(cw, /const handlersOnly = document\.documentElement\.hasAttribute\('data-sdk-service'\);/);

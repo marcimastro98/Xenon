@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayerPage = require('../layer-page.js');
@@ -86,7 +87,7 @@ test('the page has each mark once, and the route composes it for the surface it 
   assert.equal(HTML.split('<!-- tile scripts -->').length, 2);
   assert.equal(HTML.split('<!-- tile markup -->').length, 2);
   assert.equal(HTML.split('<html lang="en" data-layer-lite>').length, 2);
-  const s = read('../server.js');
+  const s = engineSource();
   assert.match(s, /const tiles = LayersModel\.liteTilesFor\(_serverHubSettings\.layers, layerKey\);/);
   assert.match(s, /await sendPage\(LayerPage\.compose\(lite, tiles, dashboard\)\);/);
 });

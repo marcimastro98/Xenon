@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 // The 'audio' SSE tick spawns SoundVolumeView.exe, so every fire is a process +
 // temp-CSV cycle. It used to be gated on `sseClients.size === 0` alone, meaning it
@@ -18,7 +19,7 @@ import { dirname, join } from 'node:path';
 // dashboard-widget-defaults.test.mjs.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'server.js'), 'utf8');
+const SRC = engineSource();
 
 function sliceFn(src, name) {
   const start = src.indexOf(`function ${name}(`);

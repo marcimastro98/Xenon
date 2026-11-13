@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 // Four readings a monitoring widget asked for — CPU / GPU core / GPU memory
 // clock, and the in-game frame rate — reach widgets through the `system` stream,
@@ -17,7 +18,7 @@ const ROOT = join(__dirname, '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 test('the system payload carries all four readings', () => {
-  const src = read('server/server.js');
+  const src = engineSource();
   const start = src.indexOf('async function getSystemInfo(');
   assert.ok(start > 0, 'getSystemInfo moved');
   const body = src.slice(start, src.indexOf('\n}\n', start));
@@ -33,7 +34,7 @@ test('fps rides `system`, never `status`', () => {
   // turn a mostly-silent stream into a permanent 3s broadcast on every open
   // dashboard, undoing the dedup on purpose. `system` already goes out every 5s
   // unconditionally, so the reading rides along for free.
-  const src = read('server/server.js');
+  const src = engineSource();
   const start = src.indexOf('function statusPayload()');
   assert.ok(start > 0, 'statusPayload moved');
   const body = src.slice(start, src.indexOf('\n}\n', start));
@@ -42,12 +43,12 @@ test('fps rides `system`, never `status`', () => {
 
 test('reading the frame rate cannot break the system payload', () => {
   // getCurrentFps reaches into a monitor that may not be running at all.
-  const src = read('server/server.js');
+  const src = engineSource();
   assert.match(src, /fps: \(\(\) => \{ try \{ return fpsMonitor\.getCurrentFps\(\); \} catch \{ return null; \} \}\)\(\)/);
 });
 
 test('every clock is nullable end to end, and null is never 0', () => {
-  const src = read('server/server.js');
+  const src = engineSource();
   // The caches must START null rather than 0: a dashboard that connects before
   // the first collector run would otherwise be told the CPU is at 0 MHz.
   assert.match(src, /let cpuTempCache = \{[^}]*cpuClockMHz: null/);
@@ -117,7 +118,7 @@ test('the agenda stream really is unfiltered, as the guide promises', () => {
   // calendar, and the broadcast sends the whole normalized list. The guide now
   // says so in as many words, and a doc promise nobody enforces is a doc
   // promise that goes stale — so the code is held to it here.
-  const server = read('server/server.js');
+  const server = engineSource();
   assert.match(server, /broadcastSSE\('agenda', \{ events: safe, seq: _eventsSeq \}\)/,
     'the agenda broadcast must send the whole list, not a windowed slice');
   assert.ok(!/upcomingLimits/.test(server),

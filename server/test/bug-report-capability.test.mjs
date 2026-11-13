@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/bug-report.js');
@@ -55,7 +56,7 @@ test('the catalog entry, the runner and the AI function line up; widgets never g
 });
 
 test('the server wires the replay, both folders and a notice without a path', () => {
-  const SERVER = read('../server.js');
+  const SERVER = engineSource();
   assert.match(SERVER, /bugReport: \(\) => _bugReport,/);
   const at = SERVER.indexOf('const _bugReport = createBugReport({');
   const block = SERVER.slice(at, SERVER.indexOf('\n});', at));

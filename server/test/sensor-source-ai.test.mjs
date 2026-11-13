@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const S = require('../sensor-source-ai.js');
@@ -39,7 +40,7 @@ test('the saved field: a choice sets one key, Automatic removes it', () => {
 });
 
 test('wiring: the tool, the handler under the settings lock', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.ok(server.includes("{ name: 'sensor_source',"));
   assert.ok(server.includes("} else if (fnName === 'sensor_source') {\n      fnResult = await chooseSensorSource(fnArgs);"));
   assert.match(server, /async function chooseSensorSource\(args\) \{[\s\S]{0,1400}await withHubSettingsLock\(async \(\) => \{[\s\S]{0,300}sensorSources: SensorSourceAi\.nextSources\(cur\.sensorSources, plan\)/);

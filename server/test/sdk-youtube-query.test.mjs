@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 // One folder for this file's temp token files, removed when its tests end.
 const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-yq-'));
@@ -280,7 +281,7 @@ test('the order survives the bridge and the route', () => {
   // Both forward a fixed list of param names, so a param missing from either
   // one is dropped between the widget and the provider that reads it.
   assert.match(read('server/js/custom-widget.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
-  assert.match(read('server/server.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
+  assert.match(engineSource(), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
 });
 
 // ── Quota ────────────────────────────────────────────────────────────────────
@@ -316,7 +317,7 @@ test('signing out drops the library rather than lending it to the next account',
 // ── The boundary ─────────────────────────────────────────────────────────────
 
 test('the route costs quota, so it is POST and on the CSRF list', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/stream\/youtube\/query' && req\.method === 'POST'/,
     'a GET here is one drive-by loop away from 100 quota units a request');
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['));
@@ -327,7 +328,7 @@ test('the route costs quota, so it is POST and on the CSRF list', () => {
 });
 
 test('the route is gated per package, on the read grant and not on a playback one', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const start = server.indexOf("reqPath === '/stream/youtube/query'");
   const body = server.slice(start, start + 1800);
   assert.match(body, /sdkGrantsFor\(pkgId\)\.streams\.includes\('youtube'\)/);

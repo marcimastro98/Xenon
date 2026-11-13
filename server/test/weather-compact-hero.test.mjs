@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // Asked for on GitHub #130: "Is there a way to not waste that entire screen space
 // (weather widget) on that blue background with a moon (I just want the next
@@ -20,7 +21,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const SETTINGS = read('js', 'settings.js');
-const SERVER = read('server.js');
+const SERVER = engineSource();
 const TILE = read('js', 'weather-tile.js');
 const CSS = read('components', 'WeatherTile', 'WeatherTile.css');
 const I18N = appStringsSource();

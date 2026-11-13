@@ -7,6 +7,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const notice = require('../js/release-notice.js');
@@ -14,7 +15,7 @@ const notes = require('../release-notes.js');
 const remote = require('../remote-access.js');
 const WHATSNEW = require('../whatsnew.json');
 const PACKAGE = require('../../package.json');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'ru', 'nl', 'ko', 'ja', 'zh'];
 

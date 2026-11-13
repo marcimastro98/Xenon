@@ -8,6 +8,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { loadServerSettingsSlice, serverDashboardWidgets } from './server-settings-slice.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -77,7 +78,7 @@ test('a share code with an inline script carries the script as a file and says s
 });
 
 test('create_widget moves inline scripts before the install', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   const at = src.indexOf("if (fnName === 'create_widget')");
   const body = src.slice(at, src.indexOf('installWidgetPayload(payload', at));
   assert.match(body, /externalizeInlineScripts\(/);
@@ -94,7 +95,7 @@ test('a widget create_widget installs gets the same critique as a widget share c
 });
 
 test('create_widget hands its critique, and the design check on credits, to the model', () => {
-  const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   const at = src.indexOf("if (fnName === 'create_widget')");
   const body = src.slice(at, src.indexOf("} else if (fnName === 'preset_reference')", at));
   // The whole package as installed (an edit sends only the files it changes).

@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
@@ -43,7 +44,7 @@ test('wiring: applyAiDeck reads the new fields, the tool offers them', () => {
   assert.ok(deck.includes('        aiKeyBehavior(k, key, trig, toSteps);\n        if (!Object.keys(trig).length) continue;'));
   assert.ok(deck.includes("const AI_LOOK_FIELDS = ['litRing', 'dimOff'];"));
   assert.ok(deck.includes('saveConfig(instanceId, M.setProfileLook(cfg, cfg.activeProfile, look));'));
-  const server = read('../server.js');
+  const server = engineSource();
   for (const f of ["toggle: { type: 'BOOLEAN'", "off: { type: 'ARRAY'", "mode: { type: 'STRING', description: 'Optional: \"momentary\"", "press: { type: 'ARRAY'", "release: { type: 'ARRAY'", "confirm: { type: 'BOOLEAN'", "look: { type: 'OBJECT', description: 'Optional, the on/off cues"]) {
     assert.ok(server.includes(f), f);
   }
@@ -99,7 +100,7 @@ test('wiring: the tool can add to the Deck in use and make one-face keys', () =>
   const deck = read('../js/deck.js');
   assert.ok(deck.includes("if (keys.length && spec.addTo === 'current') {"));
   assert.ok(deck.includes('if (k.unlit === true) key.unlit = true;'));
-  const server = read('../server.js');
+  const server = engineSource();
   assert.ok(server.includes("addTo: { type: 'STRING', description: 'Optional \"current\""));
   assert.ok(server.includes("unlit: { type: 'BOOLEAN'"));
 });
@@ -110,7 +111,7 @@ test('the Deck icon library has capture icons and is named to the assistant', ()
   for (const id of ['replay', 'screenshot', 'timelapse', 'image']) assert.ok(icons.has(id), id);
   const cap = icons.CATEGORIES.find((c) => c.key === 'capture');
   assert.ok(cap && cap.ids.every((id) => icons.has(id)));
-  const server = read('../server.js');
+  const server = engineSource();
   assert.equal((server.match(/require\('\.\/js\/deck-icons\.js'\)\.ids\(\)\.join\(', '\)/g) || []).length, 2, 'configure_deck and genesis_setup_deck');
 });
 

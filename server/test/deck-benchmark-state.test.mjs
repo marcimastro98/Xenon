@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
@@ -58,7 +59,7 @@ test('the Deck popup follows the same event', () => {
 });
 
 test('a dashboard that connects mid-run is seeded once', () => {
-  const s = read('../server.js');
+  const s = engineSource();
   const seed = s.slice(s.indexOf('sseClients.add(res);'), s.indexOf('// Seed a ringing call.'));
   assert.match(seed, /const bench = _benchmark\.status\(\);\n\s+if \(bench\.running\) res\.write\(`event: benchmark\\ndata: \$\{JSON\.stringify\(\{ running: true, game: bench\.game, seed: true \}\)\}\\n\\n`\);/);
 });
@@ -96,7 +97,7 @@ test('recordingOn is a state source, fed by the `recording` SSE on the dashboard
 });
 
 test('a dashboard that connects mid-recording is seeded; the editor binds a Record key', () => {
-  const s = read('../server.js');
+  const s = engineSource();
   const seed = s.slice(s.indexOf('sseClients.add(res);'), s.indexOf('// Seed a ringing call.'));
   assert.match(seed, /const rec = _recorder\.status\(\);\n\s+if \(rec\.on\) res\.write\(`event: recording\\ndata: \$\{JSON\.stringify\(\{ \.\.\.rec, seed: true \}\)\}\\n\\n`\);/);
   const editor = read('../js/deck-editor.js');
@@ -105,7 +106,7 @@ test('a dashboard that connects mid-recording is seeded; the editor binds a Reco
 });
 
 test('shutdown finishes a recording before the engine is stopped and the index written', () => {
-  const s = read('../server.js');
+  const s = engineSource();
   const body = s.slice(s.indexOf('function _gracefulShutdown()'), s.indexOf('// Terminate all open SSE streams'));
   assert.doesNotMatch(body.slice(0, body.indexOf('_recorder.flush()')), /_captureHost\.stop\(\)/, 'the engine is not stopped before the recording is');
   // The recording, the steps and the replay finish first (together), then the engine, then the index.

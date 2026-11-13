@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const GameIgnore = require('../js/game-ignore.js');
@@ -142,7 +143,7 @@ test('the shortcut runner and the dashboards hand Performance Mode on, never the
 });
 
 test('the server reads the list from settings and normalizes it on both sides', () => {
-  const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /gameDetect\.setIgnoreSource\(\(\) => _serverHubSettings && _serverHubSettings\.gameIgnore\)/);
   assert.match(server, /gameIgnore: GameIgnore\.normalizeGameIgnore\(source\.gameIgnore\)/);
   const st = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

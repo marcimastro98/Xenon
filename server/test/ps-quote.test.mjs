@@ -11,11 +11,12 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { psEscape, psQuote } = require('../ps-quote.js');
 const SERVER_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SERVER = readFileSync(join(SERVER_DIR, 'server.js'), 'utf8');
+const SERVER = engineSource();
 
 // What PowerShell's tokenizer does with a single-quoted literal: it ends on any
 // of the five quote characters unless the next character is one of them too,

@@ -10,9 +10,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const PS1 = readFileSync(new URL('../update-apply.ps1', import.meta.url), 'utf8');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
 
 const INVOKE = (() => {

@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -26,7 +27,7 @@ const stocks = require(join(here, '..', 'stocks.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 const WIDGET = read('../js/stock-widget.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const CSS = read('../components/StockWidget/StockWidget.css');
 const I18N = appStringsSource();
 const CHANGELOG = read('../../CHANGELOG.md');

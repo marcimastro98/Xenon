@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const server = join(here, '..');
@@ -45,7 +46,7 @@ test('semantic theme roles are carried by client, server and preset persistence'
     'surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
   ];
-  const persistenceFiles = [read('js', 'settings.js'), read('js', 'preset-share.js'), read('server.js')];
+  const persistenceFiles = [read('js', 'settings.js'), read('js', 'preset-share.js'), engineSource()];
   for (const role of roles) {
     for (const source of persistenceFiles) assert.match(source, new RegExp(`\\b${role}\\b`), role);
   }
@@ -67,7 +68,7 @@ test('paletteVariants is carried by client, server and preset persistence', () =
     assert.match(read(...parts), /\bpaletteVariants\b/, parts.join('/'));
   }
   assert.match(read('js', 'settings.js'), /ThemePalette\.normalizeVariants/);
-  assert.match(read('server.js'), /themePalette\.normalizeVariants/);
+  assert.match(engineSource(), /themePalette\.normalizeVariants/);
 });
 
 test('per-widget palettes rebuild material aliases at tile scope', () => {

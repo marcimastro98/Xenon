@@ -13,9 +13,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SERVER = readFileSync(join(ROOT, 'server.js'), 'utf8');
+const SERVER = engineSource();
 const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
 
 // Run the real source rather than asserting on its text.

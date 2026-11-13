@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const record = require('../ai-turn-record.js');
@@ -74,7 +75,7 @@ test('the record reaches Claude and OpenAI-style models on the next turn', () =>
 });
 
 test('every provider path in /api/ai records its tools and returns the record', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const start = src.indexOf("reqPath === '/api/ai' && req.method === 'POST'");
   const end = src.indexOf("reqPath === '/api/ai/summarize'", start);
   const route = src.slice(start, end);

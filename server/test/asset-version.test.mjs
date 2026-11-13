@@ -4,10 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const assets = require('../asset-version.js');
-const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const SCREEN_BIT = fs.readFileSync(new URL('../js/screen-bit.js', import.meta.url), 'utf8');
 
 function site(files) {

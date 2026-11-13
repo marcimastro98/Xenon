@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { isMissingModel, withFallbackModel, tryOtherModels } = require('../ai-gemini.js');
 
@@ -41,13 +42,13 @@ test('with nowhere to go the closed model is what the user hears about', async (
 });
 
 test('every one-shot Gemini call can leave a closed model, as the chat does', () => {
-  const S = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const S = engineSource();
   assert.equal((S.match(/_withGeminiModel\(model, apiKey, \(/g) || []).length, 4, 'one-shot, transcription, web search, JSON');
   assert.equal((S.match(/\bwithThinking\(/g) || []).length, 2, 'the chat, and the shared helper');
 });
 
 test('a thinking model has as long to transcribe as the chat has to answer', () => {
-  const S = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const S = engineSource();
   const start = S.indexOf('function _transcribeAudioOnce(');
   assert.match(S.slice(start, start + 2600), /req\.setTimeout\(STT_GEMINI_TIMEOUT_MS,/);
   assert.match(S, /const STT_GEMINI_TIMEOUT_MS = 30000;/);

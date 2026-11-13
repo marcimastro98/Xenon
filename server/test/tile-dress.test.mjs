@@ -5,6 +5,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 
 const DI = require('../js/dashboard-instances.js');
@@ -134,7 +135,7 @@ test('a tile nobody can find is said on screen and nothing is written', () => {
 
 test('the server knows the tool and hands it to the client, which knows the action', () => {
   const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /\{ name: 'style_tile',/);
   assert.match(server.match(/const CLIENT_ACTIONS = new Set\(\[([^\]]*)\]\)/)[1], /'style_tile'/);
   assert.match(server, /fnName === 'style_tile' \? TileMaterial\.requestMiss\(fnArgs\)/);

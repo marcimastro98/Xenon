@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -84,7 +85,7 @@ test('both ways into the mode from the menu come back, and the page keeps the sc
   assert.match(functions, /\{ id: 'edit'[^\n]*returns: true/);
   const page = readFileSync(join(HERE, '..', 'js', 'screen-menu-page.js'), 'utf8');
   assert.match(page, /d\.section && !stepped\) view\.show\(d\.section\)/);
-  const server = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+  const server = engineSource();
   assert.match(server, /onOff: \(byHand\) => screenMenu\.holdEnded\(byHand\)/);
   assert.match(server, /holding: \(\) => layersEdit\.get\(\)/);
 });
@@ -97,7 +98,7 @@ test('a menu out of sight holds up no widget: the shell knows, the page does not
   assert.equal(menu.isBehind(), true);
   menu.setBehind(false);
   assert.equal(menu.isBehind(), false);
-  const server = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+  const server = engineSource();
   assert.match(server, /layersPeek\.set\(screenMenu\.isBehind\(\) \? null : body\.peek\)/, 'its repeats are refused while it is away');
   assert.match(server, /if \(screenMenu\.isBehind\(\)\) layersPeek\.set\(null\)/, 'and the widget lets go at once');
 });

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -72,7 +73,7 @@ test('Settings loads no hi-res logo', () => {
 test('the copy allowlist equals the directory list the server actually serves', () => {
   // The load-bearing one. A new directory added to the server's static route
   // would otherwise 404 silently in the demo, with nothing to notice it.
-  const server = read('server', 'server.js');
+  const server = engineSource();
   const m = /\/\^\\\/\(([a-z|]+)\)\(\\\/\|\$\)\//.exec(server);
   assert.ok(m, 'could not find the static asset route regex in server/server.js');
   const served = m[1].split('|').filter((d) => d !== 'shared');   // shared/ is materialized, not copied

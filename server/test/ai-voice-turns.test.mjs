@@ -13,12 +13,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ai = require('../ai-local.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const AI = read('../js/ai.js');
-const S = read('../server.js');
+const S = engineSource();
 const fn = (src, name) => {
   const at = src.indexOf(`function ${name}(`);
   assert.ok(at >= 0, `${name} exists`);

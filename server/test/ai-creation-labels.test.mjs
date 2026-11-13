@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../ai-creation-labels.js');
@@ -47,6 +48,6 @@ test('the names come from the language files, the same words a page shows', asyn
 });
 
 test('the creation-model tool answers with those names', () => {
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /names: await aiCreationLabels\.namesFor\(uiLang\),/);
 });

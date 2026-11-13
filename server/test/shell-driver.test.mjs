@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const UsageMode = require('../js/usage-mode.js');
@@ -16,7 +17,7 @@ const { remotePathAllowed } = require('../remote-access.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const DRIVER_SRC = read('../js/shell-driver.js');
 const SHELL_SRC = read('../js/layers-shell.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const HTML = read('../shell-driver.html');
 
 test('only a strictly newer server version reloads the driver', () => {

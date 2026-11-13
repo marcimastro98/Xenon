@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverRoot = join(here, '..');
@@ -51,7 +52,7 @@ test('catalog imports preserve their source and every applied kind uses tracked 
 });
 
 test('server persists validated receipts and exposes only scoped imported-font cleanup', () => {
-  const source = read('server.js');
+  const source = engineSource();
   assert.match(source, /contentInstalls:\s*contentInstalls\.normalizeContentInstalls/);
   assert.match(source, /req\.method === 'DELETE' && reqPath\.startsWith\('\/font\/'\)/);
   assert.match(source, /\(\?:woff2\?\|ttf\|otf\)/);

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 // GET /api/wavelink/state and the `wavelink` SSE event answer with one of two
 // objects: the client's live snapshot, or the constant server.js returns when
@@ -17,7 +18,7 @@ import { createRequire } from 'node:module';
 // copy here would keep passing after the real one drifted.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SRC = engineSource();
 const require = createRequire(import.meta.url);
 const wl = require('../actions/wavelink.js');
 

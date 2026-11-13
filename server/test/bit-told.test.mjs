@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -152,7 +153,7 @@ test('what Bit said does not make the chat a conversation', () => {
 });
 
 test('Bit opens a creation and stops there: installing stays with the person', () => {
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /\{ name: 'open_store_entry', description: "[^"]*only opens the page[^"]*"/);
   assert.match(server, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_store_entry'/);
   assert.match(read('js/ai.js'), /case 'open_store_entry':\s*if \(window\.CommunityGallery\) CommunityGallery\.openEntryById\(String\(args\.entryId \|\| ''\)\);/);

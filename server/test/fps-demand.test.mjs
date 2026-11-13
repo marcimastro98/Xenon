@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createFpsDemand, PAUSE_GRACE_MS } = require('../fps-demand.js');
@@ -111,7 +112,7 @@ test('the status tick asks again and again, and the reader hears only changes', 
 });
 
 test('server.js tells it the dashboards, the recording and the game, dashboard or not', () => {
-  const s = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const s = engineSource();
   assert.match(s, /function _syncFpsMonitor\(\) \{\s*_fpsDemand\.clients\(sseClients\.size\);/);
   const tick = s.slice(s.indexOf('function broadcastStatusNow()'), s.indexOf('const j = JSON.stringify(st);'));
   const beforeSplit = tick.slice(0, tick.indexOf('if (sseClients.size === 0)'));

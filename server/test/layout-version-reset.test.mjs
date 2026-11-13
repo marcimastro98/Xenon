@@ -23,8 +23,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 
 const POST = (() => {
   const start = SERVER.indexOf("reqPath === '/settings' && req.method === 'POST'");

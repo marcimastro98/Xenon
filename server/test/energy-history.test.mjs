@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Energy = require('../sensor-history/energy.js');
@@ -107,7 +108,7 @@ test('the SDK route: only with the grant, numbers only, a fixed word on failure'
   assert.deepEqual(await call(true, null), { ok: false, error: 'unavailable' });
   assert.deepEqual(await call(true, { getEnergy: async () => { throw new Error('C:\\data\\guardian.json'); } }), { ok: false, error: 'failed' });
   assert.equal(featureRoutes.has('GET', '/api/energy'), true);
-  assert.match(read('../server.js'), /sdkStreamGranted: _sdkStreamGranted, history: guardian[,}]/);
+  assert.match(engineSource(), /sdkStreamGranted: _sdkStreamGranted, history: guardian[,}]/);
 });
 
 test('the stream in the four places, rebuilt field by field in the bridge', () => {

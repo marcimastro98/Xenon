@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { nextSettingsRev } = require('../settings-rev.js');
@@ -68,7 +69,7 @@ test('garbage revs degrade to a bump instead of corrupting the counter', () => {
 // it. Cheap, and it fails loudly the moment someone adds a third writer.
 
 test('server.js assigns settings revs only through nextSettingsRev', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /require\('\.\/settings-rev'\)/, 'server.js must require the shared helper');
   // Both known writers call it: POST /settings and POST /api/weather/config.
   const calls = src.match(/nextSettingsRev\(/g) || [];

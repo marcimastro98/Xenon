@@ -7,10 +7,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const AS = require('../js/ambient-scene.js');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const SHARE = readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
 
 // A scene of about `chars` JSON characters, as an inlined picture makes it.

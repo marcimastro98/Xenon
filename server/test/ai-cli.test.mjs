@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cli = require('../ai-cli.js');
@@ -290,7 +291,7 @@ test('images change how each program is started, and the result is still found',
 // ── the server and the page ───────────────────────────────────────────────
 
 test('the chat route gives these providers Xenon\'s tools, run by the same executeAiTool', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const at = S.indexOf('      if (aiCli.isCliProvider(provider)) {');
   assert.ok(at > 0 && at < S.indexOf("      if (provider === 'openai' || provider === 'anthropic') {\n        // Server-mediated cloud providers"));
   const body = S.slice(at, S.indexOf('        return;\n      }', at));
@@ -308,7 +309,7 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
 });
 
 test("Bit's automatic lines never spend the subscription; what the user starts may", () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
   // Sparks only within the daily number the user picked (vitals-roast-sparks.test.mjs).
   assert.match(roast, /\} else if \(aiCli\.isCliProvider\(provider\)\) \{[\s\S]*?text = '';/);
@@ -322,14 +323,14 @@ test("Bit's automatic lines never spend the subscription; what the user starts m
 });
 
 test('lyrics translation and widget questions, the automatic uses of a plan, run on its small model at low effort', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   const fn = S.slice(S.indexOf('async function completeWithUserAi('), S.indexOf('async function userAiBlocker('));
   assert.match(fn, /aiCli\.oneShot\(\{\s*provider, model: await smallTaskModel\(provider, settings\), effort: 'low'/);
   assert.match(S, /if \(aiCli\.isCliProvider\(provider\)\) return aiCli\.lightModel\(provider\);/);
 });
 
 test('voice stays local and free: nothing quietly needs a Gemini key', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   assert.match(S, /const useLocal = provider === 'ollama' \|\| provider === 'localapi' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\);/);
   // The voice orb used to send Claude and ChatGPT to Gemini to be transcribed,
   // and failed for anyone without a Gemini key. Now it hears them the way
@@ -341,7 +342,7 @@ test('voice stays local and free: nothing quietly needs a Gemini key', () => {
 });
 
 test('settings keep the chosen model per program, and the page offers both', () => {
-  const S = read('../server.js');
+  const S = engineSource();
   assert.match(S, /claudeCodeModel: aiCli\.sanitizeModel\(source\.claudeCodeModel\),/);
   assert.match(S, /codexModel: aiCli\.sanitizeModel\(source\.codexModel\),/);
   const H = read('../index.html');

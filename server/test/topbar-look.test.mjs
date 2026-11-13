@@ -10,6 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../js/topbar-look.js');
@@ -17,7 +18,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replac
 const CSS = read('../components/Topbar/TopbarLook.css');
 const INDEX = read('../index.html');
 const SETTINGS = read('../js/settings.js');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const MINIMAL = read('../js/topbar-minimal.js');
 const TOAST = read('../js/toast.js');
 

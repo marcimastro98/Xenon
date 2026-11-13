@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
@@ -51,13 +52,13 @@ test('the aurora and grid are actually paused, not merely mentioned', () => {
 test('hybridGpuAnimationPause is normalized on client and server alike', () => {
   const shape = /hybridGpuAnimationPause:\s*(value|source)\.hybridGpuAnimationPause !== false/;
   assert.match(read('js/settings.js'), shape, 'client must normalize hybridGpuAnimationPause');
-  assert.match(read('server.js'), shape, 'server must normalize hybridGpuAnimationPause');
+  assert.match(engineSource(), shape, 'server must normalize hybridGpuAnimationPause');
 });
 
 test('the setting defaults to on for both surfaces', () => {
   const dflt = /hybridGpuAnimationPause:\s*true/;
   assert.match(read('js/settings.js'), dflt, 'client default must be on');
-  assert.match(read('server.js'), dflt, 'server default must be on');
+  assert.match(engineSource(), dflt, 'server default must be on');
 });
 
 test('turning the setting off releases the class', () => {

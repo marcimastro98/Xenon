@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // A widget can WATCH the named values local scripts set with POST /state/set
 // (the `scriptStates` stream) and can never SET one. Both halves are promises
@@ -54,7 +55,7 @@ test('the initial SSE dump sends script_states even when nothing is set', () => 
   // The guide promises an empty map rather than silence, so a widget can tell
   // "nothing is set" from "not told yet" on a cold start. The relayed SDK
   // states above it are guarded on a non-empty map; this one must not be.
-  const src = read('server.js');
+  const src = engineSource();
   const line = src.split('\n').find(l => l.includes('event: script_states'));
   assert.ok(line, 'no initial script_states dump');
   assert.ok(!line.includes('Object.keys(_scriptStates.states).length'), 'the dump must not be gated on a non-empty map');
@@ -66,7 +67,7 @@ test('no bridge path lets a widget WRITE a script state', () => {
   // cross-site), and the bridge must never proxy it on a widget's behalf: that
   // store is shared and unnamespaced, so one package could overwrite another's
   // name — or the user's own script's.
-  assert.match(read('server.js'), /const isSdkSensitive =[^\n]*'\/state\/set'/);
+  assert.match(engineSource(), /const isSdkSensitive =[^\n]*'\/state\/set'/);
   const bridge = read('js', 'custom-widget.js');
   assert.ok(!bridge.includes('/state/set'), 'custom-widget.js must not call /state/set');
   assert.ok(!/type === 'scriptState'/.test(bridge), 'no bridge message may set a script state');

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import http from 'node:http';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { runGuarded, describeRequest } = require('../http/request-boundary.js');
@@ -129,7 +130,7 @@ test('describeRequest survives a strange method or no url', () => {
 
 test('both listeners run the dashboard through the boundary', () => {
   // server.js cannot be loaded in a test (it binds the port), so its wiring is read.
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /http\.createServer\(\(req, res\) => runGuarded\(handleRequest, req, res\)\)/,
     'the loopback/LAN listener must wrap handleRequest');
   assert.match(src, /handler: \(req, res\) => runGuarded\(handleRequest, req, res\)/,

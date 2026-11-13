@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const screenText = require('../capabilities/screen-text.js');
@@ -133,7 +134,7 @@ test('the registry routes the key to the capability', async () => {
 });
 
 test('server.js hands the text to the AI turn only, and the SSE carries a count', () => {
-  const src = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   assert.match(src, /fnName === 'read_screen_text'[\s\S]{0,200}takeText\(\)/);
   // A picker already open answers "picking": the text kept then is an older read's.
   assert.match(src, /fnName === 'read_screen_text' && fnResult && fnResult\.ok === true && !fnResult\.cancelled && !fnResult\.picking\)/);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 // The "Xenon Edge Dashboard" logon task runs wscript.exe against
 // server\open-dashboard.vbs. The task and the file are registered and shipped by
@@ -15,7 +16,7 @@ import { dirname, join } from 'node:path';
 // calendar-upcoming.test.mjs.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(__dirname, '..', 'server.js'), 'utf8').replace(/\r\n/g, '\n');
+const SRC = engineSource().replace(/\r\n/g, '\n');
 
 function loadFix() {
   const start = SRC.indexOf('function autoOpenTaskFix(');

@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { matchWindow, aumidWords, isLaunchableAumid, isDesktopEntryId } = require('../notification-open/match.js');
@@ -177,5 +178,5 @@ test('the widget row and the pop-up open it, on the PC only, with no inline hand
   assert.match(widget, /window\.NotificationOpen\.toastAction\(item\)/);
   assert.match(read('../index.html'), /<script src="js\/notification-open\.js"><\/script>\s*<script src="js\/notifications-widget\.js"><\/script>/);
   assert.match(read('../js/layer-tiles.js'), /\['js\/notification-open\.js', 'js\/notifications-widget\.js'\]/);
-  assert.match(read('../server.js'), /notificationOpen: createNotificationOpener\(notificationOpenDeps\(\{/);
+  assert.match(engineSource(), /notificationOpen: createNotificationOpener\(notificationOpenDeps\(\{/);
 });

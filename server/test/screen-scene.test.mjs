@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const scenePage = require('../scene-page.js');
@@ -50,7 +51,7 @@ test('a missing overlay is left out, and a "$" in the markup stays as written', 
 });
 
 test('the route serves it uncached on this PC only', () => {
-  assert.match(read('../server.js'), /reqPath === '\/scene' && req\.method === 'GET'[\s\S]{0,600}'scene\.html'[\s\S]{0,300}await sendPage\(scenePage\.compose\(/);
+  assert.match(engineSource(), /reqPath === '\/scene' && req\.method === 'GET'[\s\S]{0,600}'scene\.html'[\s\S]{0,300}await sendPage\(scenePage\.compose\(/);
   assert.equal(remotePathAllowed('/scene', 'GET'), false);
 });
 

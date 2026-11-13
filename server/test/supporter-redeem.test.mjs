@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const redeemMod = require('../supporter-redeem.js');
 
@@ -197,7 +198,7 @@ test('saved pass: Settings asks the hub once, and a code it does not know is not
 test('Settings tells a refused code apart from a malformed one', () => {
   const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   assert.match(settings, /out\.error === 'refused' \? 'preset_redeem_saved_stale' : 'settings_supporter_bad'/);
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /saveTypedCode\(DATA_DIR, body\.code, \{ verify: true \}\)/);
 });
 

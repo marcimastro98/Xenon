@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 // Pure-logic tests for the stock-market (Borsa) data module — no network. Covers
 // the config normalizer (bounds + dedup + symbol cleaning) and the alert tracker
@@ -61,7 +62,7 @@ test('a list nobody chose is told apart from one of their own', () => {
 });
 
 test('stock alerts need someone who asked for stocks', () => {
-  const code = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const code = engineSource();
   const fn = code.slice(code.indexOf('function _stocksAlertsWanted(cfg)'));
   assert.match(fn.slice(0, 400), /onTicker \|\| _widgetPlaced\('stocks'\) \|\| !stocks\.isDefaultWatchlist\(cfg\.watchlist\)/);
   assert.match(code, /const alerts = _stocksAlertsWanted\(cfg\) \? _stocksAlerts\.evaluate\(quotes, cfg\.alertPercent, dayKey\) : \[\];/);

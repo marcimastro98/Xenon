@@ -6,8 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
-const SRC = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SRC = engineSource();
 
 function load({ api, media }) {
   const start = SRC.indexOf('const SPOTIFY_LOCAL_FALLBACK');

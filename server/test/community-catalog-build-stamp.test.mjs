@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cat = require('../community-catalog.js');
@@ -87,6 +88,6 @@ test('offline right after an update, the old copy still opens the Store', async 
 });
 
 test('the server passes its version to the cache', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /communityCatalog\.initCache\(\{ dataDir: DATA_DIR, appVersion: APP_VERSION \}\)/);
 });

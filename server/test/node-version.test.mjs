@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { nodeSecurityStatus, nodeWarning } = require('../node-version.js');
@@ -26,6 +27,6 @@ test('end-of-life and unpatched lines are told apart from patched ones', () => {
 test('package.json and the server agree', () => {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.engines.node, '>=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1');
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /require\('\.\/node-version'\)\.nodeWarning\(\)/);
 });

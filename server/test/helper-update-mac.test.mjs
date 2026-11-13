@@ -13,6 +13,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createHelperUpdate, HELPER_ASSET_MAC, MIN_MAC_HELPER } = require('../helper-update.js');
@@ -201,7 +202,7 @@ test('the asset name and the minimum match the release, the installer and the he
 });
 
 test('the server refreshes the Mac helper by version, the Windows one by hash', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const fn = server.slice(server.indexOf('function ensureHelperUpToDate'));
   assert.match(fn, /darwin: HELPER_ASSET_MAC/);
   assert.match(fn, /minVersion: asset === HELPER_ASSET_MAC \? MIN_MAC_HELPER : ''/);

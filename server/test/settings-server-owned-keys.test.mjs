@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 // `POST /settings` overwrites wholesale, and `normalizeHubSettings` rebuilds the
 // blob from the INCOMING payload. So any settings key the browser's own
@@ -22,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 // makes that the RULE rather than four separate remembered decisions.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SERVER = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 const CLIENT = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
 
 /** Top-level keys of the server's authoritative defaults. */

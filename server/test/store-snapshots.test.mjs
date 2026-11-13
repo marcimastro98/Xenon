@@ -7,12 +7,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource, appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const snaps = require('../store-snapshots.js');
 // LF on a CRLF (Windows) checkout too, so the patterns below match everywhere.
 const readLf = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SERVER = readLf('../server.js');
+const SERVER = engineSource();
 const MAIN = readLf('../js/main.js');
 const I18N = appStringsSource();
 const DAY = 86_400_000;

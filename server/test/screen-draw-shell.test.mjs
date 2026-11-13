@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createScreenDrawShell } = require('../screen-draw-shell.js');
@@ -81,7 +82,7 @@ test('the page loads its model and stops through the same action the Deck runs',
   const page = read('../js/screen-draw-page.js');
   assert.match(page, /type: 'screenDraw', mode: 'stop'/);
   assert.doesNotMatch(page, /innerHTML/);
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/draw' && req\.method === 'GET'/);
   assert.match(server, /reqPath === '\/screen-draw' && req\.method === 'GET'/);
 });

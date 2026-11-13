@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createFpsAccess, parseToken, stateOf } = require('../sensor-service/fps-access.js');
@@ -195,7 +196,7 @@ test('the pop-up reads the same on the dashboard and in "widgets only"', () => {
   assert.match(main, /addEventListener\('fps_access'/);
   const screen = readFileSync(new URL('../js/screen-alerts.js', import.meta.url), 'utf8');
   assert.match(screen, /fps_access: \(d\) => \{ if \(onScreen\(\)\) show\(AlertToasts\.fpsAccess/);
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /_fpsNotice\.onTick\(game\)/);
   assert.match(server, /broadcastSSE\('fps_access', payload\)/);
 });

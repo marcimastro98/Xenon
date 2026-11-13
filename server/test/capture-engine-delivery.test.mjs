@@ -9,10 +9,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...p) => readFileSync(path.join(ROOT, ...p), 'utf8').replace(/\r\n/g, '\n');
-const SERVER = read('server', 'server.js');
+const SERVER = engineSource();
 const RELEASE = read('.github', 'workflows', 'release.yml');
 const INTEGRITY = read('.github', 'workflows', 'release-integrity.yml');
 

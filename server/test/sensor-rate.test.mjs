@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // A widget author building a monitoring tile asked for a faster refresh. The
 // answer was a user setting rather than a new default, because the cost is real
@@ -18,7 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
-const SERVER = read('server/server.js');
+const SERVER = engineSource();
 const SETTINGS = read('server/js/settings.js');
 const HTML = read('server/index.html');
 const I18N = appStringsSource();

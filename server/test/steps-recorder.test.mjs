@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Doc = require('../steps-doc.js');
@@ -237,7 +238,7 @@ test('the step sentences reach the AI turn only, never the action result a phone
   assert.equal(stepsCap.takeSteps(), null, 'once');
   await stepsCap.run({ capture }, { mode: 'stop' });
   assert.equal(stepsCap.takeSteps(Date.now() + 31000), null, 'not after 30 s');
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /fnName === 'record_steps' && fnResult && fnResult\.ok === true && fnResult\.saved === true\) \{\n\s+const steps = require\('\.\/capabilities\/steps\.js'\)\.takeSteps\(\);/);
 });
 

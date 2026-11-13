@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Options = require('../widget-options/options.js');
@@ -176,7 +177,7 @@ test('the host hands the values in init, passes a change to every copy, and lets
   assert.match(cw, /!Array\.isArray\(pkg\.options\) \|\| !pkg\.options\.length\) \{ reply\(false, 'not_allowed'\)/);
   assert.match(src('js/widget-feed.js'), /sdk_options: \(cw, d\) => cw\.onOptionsChanged\(d\),/);
   assert.match(src('js/main.js'), /addEventListener\('sdk_options'/);
-  const server = src('server.js');
+  const server = engineSource();
   assert.match(server, /announce: \(pkg\) => broadcastSSE\('sdk_options', \{ pkg \}\)/);
   assert.match(server, /optionValues: widgetOptionsStore\.valuesFor\(p\)/);
 });

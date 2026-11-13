@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { editTask, editEvent, findItem } = require('../agenda-ai.js');
@@ -60,7 +61,7 @@ test('event refusals: bad date, end before start, unknown', () => {
 });
 
 test('the server wires both tools with an undo', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /name: 'edit_task'/);
   assert.match(src, /name: 'edit_calendar_event'/);
   assert.match(src, /fnName === 'edit_task'[\s\S]{0,500}restore_tasks/);

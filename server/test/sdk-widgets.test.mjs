@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const sdk = require('../sdk-widgets.js');
@@ -851,7 +852,7 @@ test('a widget runs scripts from its own folder and nowhere else on the server',
     assert.match(csp, /script-src 'none';/, String(root));
     assert.match(csp, /style-src 'self' 'unsafe-inline' http:\/\/127\.0\.0\.1:3030/, 'only scripts close');
   }
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /widgetCspFor\(req\.headers\.host, !!\(req\.socket && req\.socket\.encrypted\), sdkWidgets\.widgetAssetRoot\(reqPath\)\)/);
 });
 

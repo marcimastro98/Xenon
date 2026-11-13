@@ -9,10 +9,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { appStringsSource, appStrings, textsOf } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const CARD = readFileSync(new URL('../js/support-card.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 // Every surface mirrors the settings blob into its browser's localStorage, and
 // the boot hydrate resolves a conflict by comparing `rev`. But `rev` counts up
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT = fs.readFileSync(path.join(HERE, '..', 'js', 'settings.js'), 'utf8');
-const SERVER = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 
 // js/settings.js cannot be require()d (a classic script whose top level runs the
 // whole settings UI), so the function is extracted and evaluated on its own —

@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -22,7 +23,7 @@ const lc = require(join(here, '..', 'linux-collectors.js'));
 const dc = require(join(here, '..', 'darwin-collectors.js'));
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const PS1 = read('../disk-io.ps1');
 const SDK = read('../sdk-widgets.js');
 const SETTINGS = read('../js/settings.js');

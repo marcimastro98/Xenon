@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const LayersModel = require('../js/layers-model.js');
@@ -388,7 +389,7 @@ test('wiring: the dashboard and the driver pass every status on, and load the mo
     const html = read(page);
     assert.ok(html.indexOf('js/screen-scene-model.js') > 0 && html.indexOf('js/screen-scene-model.js') < html.indexOf('js/layers-shell.js'), page);
   }
-  assert.match(read('../server.js'), /a\.enabled !== false && Number\(a\.saverMinutes\) > 0\) return true;/);
+  assert.match(engineSource(), /a\.enabled !== false && Number\(a\.saverMinutes\) > 0\) return true;/);
 });
 
 test('drawing on the screen opens the sheet first, only where the shell draws it, and closes it after', () => {

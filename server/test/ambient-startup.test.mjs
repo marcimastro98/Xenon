@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // Asked for on Discord by someone whose Ambient scene is their whole dashboard:
 // "on startup/restart I need to press the button in the top left for ambient
@@ -25,7 +26,7 @@ const { ambientStartupDecision } = require('../js/ambient-mode.js');
 const ScreenSceneModel = require('../js/screen-scene-model.js');
 const MODE = read('js', 'ambient-mode.js');
 const SETTINGS = read('js', 'settings.js');
-const SERVER = read('server.js');
+const SERVER = engineSource();
 const I18N = appStringsSource();
 const INDEX = read('index.html');
 

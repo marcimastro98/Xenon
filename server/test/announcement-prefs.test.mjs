@@ -9,8 +9,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const HUBMSG = readFileSync(new URL('../js/hub-messages.js', import.meta.url), 'utf8');

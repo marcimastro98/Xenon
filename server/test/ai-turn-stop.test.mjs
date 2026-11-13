@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 process.env.XENON_LOG_DIR = mkdtempSync(join(tmpdir(), 'xenon-log-'));
@@ -128,7 +129,7 @@ function fnSource(src, name) {
 }
 
 test('every way /api/ai answers turns a stop into { stopped }, with what was made and the balance', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const start = server.indexOf("reqPath === '/api/ai' && req.method === 'POST'");
   const end = server.indexOf("reqPath === '/api/ai/summarize'", start);
   const handler = server.slice(start, end);
@@ -151,7 +152,7 @@ test('every way /api/ai answers turns a stop into { stopped }, with what was mad
 });
 
 test('the stop route is POST-only, CSRF-guarded and reachable from a paired phone', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/api\/ai\/turn\/stop' && req\.method === 'POST'[\s\S]{0,400}json\(\{ ok: aiTurns\.stop\(body\.id\) \}\)/);
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS')));
   assert.match(csrf, /'\/api\/ai\/turn\/stop',/);

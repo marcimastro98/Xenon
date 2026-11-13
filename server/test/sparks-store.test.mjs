@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
@@ -284,7 +285,7 @@ test('every way to buy Sparks leads to the Sparks tab', () => {
   assert.ok(!/buyMore\.href/.test(share), 'the unlock window no longer jumps to the shop page');
   const ai = read('../js/ai.js');
   assert.match(ai, /case 'open_sparks_shop':\s*if \(window\.XenonCredits && typeof XenonCredits\.openShop === 'function'\) XenonCredits\.openShop\(\);/);
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /\{ name: 'open_sparks_shop', description: "[^"]*Sparks[^"]*"/);
   assert.match(server, /const CLIENT_ACTIONS = new Set\(\[[^\]]*'open_sparks_shop'/);
 });

@@ -14,6 +14,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
@@ -53,7 +54,7 @@ test('deck.js opens it locally; deck-editor.js has its icon', () => {
 });
 
 test('server.js: delete and trim tell the screens; the voice opens it through gallery_open', () => {
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/captures\/delete' \|\| reqPath === '\/captures\/trim'\)\) broadcastSSE\('captures'/);
   assert.match(server, /openGallery: \(o\) => broadcastSSE\('gallery_open', o\)/);
 });
@@ -81,7 +82,7 @@ test('the viewer pins a picture by id where the server says it can; delete unpin
   assert.match(viewer, /if \(e\.kind === 'screenshot'\) actions\.appendChild\(btn\(tr\('capg_edit', 'Edit'\), 'is-main', edit\)\);/);
   assert.equal(require('../js/capture-gallery-model.js').errorText('not_picture')[0], 'deck_err_not_a_picture');
   assert.match(viewer, /post\(o\.url, '\/actions\/run', \{ type: 'screenPin', id: current\(\)\.id \}\)/);
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /pinnable: layersHost\.available\(\),/);
   assert.match(server, /LayersModel\.unpinCapture\(cur, id\)/);
 });
@@ -90,7 +91,7 @@ test('the viewer pins a picture by id where the server says it can; delete unpin
 // private data, and a Linux one may lack the tools to trim or copy: the server says what this engine can do, the viewer shows only
 // that, and a reply without `can` (an older server) keeps every button.
 test('the viewer shows Trim, Copy, Export, Transcript and "Find private data" only where the engine has them', () => {
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /can: \{\n\s+trim: _captureHost\.has\('trim'\),\n\s+copy: _captureHost\.has\('copy_files'\),\n\s+export: _captureHost\.has\('export'\),\n\s+cover: _captureHost\.has\('cover'\),\n\s+speech: _captureHost\.has\('speech'\),\n\s+\},/);
   const gallery = read('js/capture-gallery.js');
   assert.match(gallery, /g\.can = engineCan\(r\.can\);/);

@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 // The sentences moved to their own file, shared with the on-screen alerts.
@@ -51,7 +52,7 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
 // which names the failure itself: `unknown_device` is the audioDevice dep's
 // answer for an output that is not in the live list, and the registry only
 // passes it on.
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8')
+const SERVER = engineSource()
   // What a paired phone may run (needs_pc, pc_only).
   + readFileSync(new URL('../remote-actions.js', import.meta.url), 'utf8')
   // A key run from its keyboard shortcut fails here with its own codes.

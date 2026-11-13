@@ -5,11 +5,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 // A Windows checkout has CRLF: the patterns below cut on "\n".
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 
 test('a paired phone removes or reorders app favourites, never adds one', () => {
   // The list /windows/launch trusts. Run the server's own filter on samples.

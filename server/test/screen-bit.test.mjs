@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ScreenBit = require('../js/screen-bit.js');
@@ -37,7 +38,7 @@ test('the page carries the dashboard\'s voice panel, cut from index.html, or not
   for (const id of ['ai-voice-user', 'ai-voice-reply', 'ai-voice-hint']) assert.match(out, new RegExp(`id="${id}"`));
   assert.doesNotMatch(out, /settings-overlay/, 'only the panel, not the rest of the dashboard');
   assert.equal(compose(page, ''), '<body><template id="screen-bit-markup"></template></body>');
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /screenAlertsPage\.compose\(/);
 });
 

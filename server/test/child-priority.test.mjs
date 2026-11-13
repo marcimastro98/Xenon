@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const { lowerPriority } = createRequire(import.meta.url)('../child-priority.js');
 const source = (name) => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -36,7 +37,7 @@ test('a child already gone is not an error', () => {
 });
 
 test('every background reader gives way', () => {
-  const server = source('server.js');
+  const server = engineSource();
   assert.match(server, /COMPlus_GCgen0MaxBudget: PWSH_WORKER_GC_BUDGET \} \}\);\n\s+\} catch \{ return null; \}\n\s+lowerPriority\(proc\.pid\);/, 'sensor worker');
   assert.match(server, /_mediaHost\.proc = proc;\n\s+lowerPriority\(proc\.pid\);/, 'media host');
   assert.match(server, /lowPriority: lowerPriority,/, 'transcripts');
@@ -46,7 +47,7 @@ test('every background reader gives way', () => {
 });
 
 test('what must answer on time keeps its priority', () => {
-  const server = source('server.js');
+  const server = engineSource();
   const hotkey = server.slice(server.indexOf("spawn(HELPER_EXE, ['hotkey-serve'"), server.indexOf("spawn(HELPER_EXE, ['hotkey-serve'") + 600);
   assert.doesNotMatch(hotkey, /lowerPriority/);
   assert.doesNotMatch(source('fpsmon.js'), /lowerPriority/);

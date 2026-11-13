@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { EDGE, SCENE_PAGE, SHARED, SITE_DIR, STEPS, chatClip, copyPlan, loopArgs, pickSteps, rawArgs, stillArgs } from '../../tools/whats-new-media/site.mjs';
 import { MAX_CLIP_BYTES, OUT_DIR as APP_DIR } from '../../tools/whats-new-media/build.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PAGE = readFileSync(path.join(ROOT, 'docs', '5.html'), 'utf8');
@@ -85,7 +86,7 @@ test('the scene page loads the app\'s own What\'s New, with a language for its w
   const sources = [...SCENE_PAGE.matchAll(/(?:src|href)="\/([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(sources, ['components/WhatsNew/WhatsNew.css', 'layer-i18n.js', 'js/whats-new-scenes.js']);
   // The words are built by the server, the other two are files it serves.
-  const served = readFileSync(path.join(ROOT, 'server', 'server.js'), 'utf8');
+  const served = engineSource();
   assert.ok(served.includes("'/layer-i18n.js'"), 'the server no longer answers /layer-i18n.js');
   for (const file of sources.filter((f) => f !== 'layer-i18n.js')) assert.ok(existsSync(path.join(ROOT, 'server', file)), `server/${file} is gone`);
   assert.ok(SCENE_PAGE.indexOf("let lang = 'en'") < SCENE_PAGE.indexOf('layer-i18n.js'));

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const dm = require('../js/deck-model.js');
@@ -79,7 +80,7 @@ test('the editor offers each meter, and Bit knows the source', () => {
   const editor = read('../js/deck-editor.js');
   assert.ok(editor.includes("o.value = 'vitals:' + m;"));
   assert.ok(editor.includes("else if (liveSource === 'vitals') liveName = v.slice('vitals:'.length);"));
-  const server = read('../server.js');
+  const server = engineSource();
   assert.ok(server.includes('{"source":"vitals","name":"hydration"}'));
   assert.ok(server.includes('vitalsMeters: dm.DECK_VITALS_METERS'));
   const i18n = appStringsSource();

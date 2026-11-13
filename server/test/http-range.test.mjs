@@ -17,11 +17,12 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { parseByteRange, serveFileRange } = require(join(HERE, '..', 'http-range.js'));
-const SERVER = readFileSync(join(HERE, '..', 'server.js'), 'utf8');
+const SERVER = engineSource();
 
 test('every Range shape resolves to the same answer it always did', () => {
   const SIZE = 100;

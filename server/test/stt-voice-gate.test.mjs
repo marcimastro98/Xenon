@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { hasVoice, wavPcm, transcriptionPrompt, cleanTranscript, geminiTranscript, VOICE_BLOCKED } = require('../stt-voice-gate.js');
 
@@ -129,7 +130,7 @@ test('the browser mic names the language, without which Gemini refuses far more 
 });
 
 test('every way voice reaches an AI goes through the gate', () => {
-  const S = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const S = engineSource();
   const stop = S.slice(S.indexOf("reqPath === '/api/stt/stop'"), S.indexOf("reqPath === '/api/ai/cli/mcp'"));
   assert.match(stop, /if \(!_sttLooksLikeSpeech\(clipStats\) \|\| !hasVoice\(wavPcm\(wavData\)\)\) \{/,
     'the gate comes before the audio mode and every provider, and digital silence does not skip it');

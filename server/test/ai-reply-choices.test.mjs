@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const C = require('../js/ai-reply-choices.js');
@@ -66,7 +67,7 @@ test('the page loads the helper before ai.js and styles touch-sized choices', ()
 });
 
 test('the text prompt asks for [[answer]] lines only on a real question', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const line = server.slice(server.indexOf('const SYS_TEXT ='), server.indexOf('const SYS_LANG ='));
   assert.match(line, /\[\[answer\]\]/);
   assert.match(line, /2 to 4 short answers/);
@@ -120,7 +121,7 @@ test('the question card loads on every surface, says its words in all 11 languag
   for (const key of ['ai_ask_label', 'ai_ask_own', 'ai_ask_leave', 'ai_ask_pick']) {
     assert.equal(i18n.match(new RegExp(`\\b${key}:`, 'g'))?.length, 11, key);
   }
-  assert.match(read('../server.js'), /\[\[answer \| what it means\]\]/);
+  assert.match(engineSource(), /\[\[answer \| what it means\]\]/);
 });
 
 test('several choices on one last line are buttons too', () => {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // A Deck key can mirror a state set by any local script (POST /state/set) — the
 // seventeenth state source, added for a user whose AppleScript swaps between two
@@ -63,7 +64,7 @@ test('a scriptState key survives normalizeDeckConfig with its name and value', (
 // would boot the whole server), so it's lifted out of the source and run in
 // isolation with a broadcast collector standing in for SSE.
 function loadSetScriptState() {
-  const src = read('server.js');
+  const src = engineSource();
   const start = src.indexOf('const SCRIPT_STATES_MAX =');
   assert.ok(start > 0, 'SCRIPT_STATES_MAX not found in server.js');
   const end = src.indexOf('const _sdkDeckStates =', start);
@@ -129,7 +130,7 @@ test('setScriptState clamps a value to the 200-char cap', () => {
 // ── The wiring ──────────────────────────────────────────────────────────────
 
 test('/state/set is POST-only, CSRF-guarded, and /state/get reads back', () => {
-  const src = read('server.js');
+  const src = engineSource();
   assert.ok(src.includes("reqPath === '/state/set' && req.method === 'POST'"));
   assert.ok(src.includes("reqPath === '/state/get' && req.method === 'GET'"));
   // On the sensitive list: refuses cross-site fetches and top-level navigations,
@@ -142,7 +143,7 @@ test('/state/set is POST-only, CSRF-guarded, and /state/get reads back', () => {
 test('a fresh SSE connection is seeded with the current script states', () => {
   // Without this, a surface opening after the script ran draws its key dark
   // until the state next changes — for a twice-a-day state, most of the day.
-  const src = read('server.js');
+  const src = engineSource();
   assert.match(src, /event: script_states\\ndata: \$\{JSON\.stringify\(_scriptStates\)\}/);
 });
 

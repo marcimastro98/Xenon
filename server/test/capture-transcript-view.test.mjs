@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const view = require('../js/capture-transcript-view.js');
@@ -62,7 +63,7 @@ test('gallery and dashboard: SSE transcript reaches the panel; Bit asked after t
 });
 
 test('the list says which videos have one; a phone reads and starts one, never by a GET', () => {
-  const src = read('server.js');
+  const src = engineSource();
   assert.match(src, /_transcripts\.has\(e\.id\) \? \{ \.\.\.e, transcript: true \} : e/);
   const ra = require('../remote-access.js');
   assert.equal(ra.remotePathAllowed('/captures/transcript', 'GET'), true);

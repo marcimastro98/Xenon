@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 // The Media tile's waveform. Asked for by a supporter: "wish there was a media
 // bar and visualization".
@@ -15,7 +16,7 @@ import { appStringsSource } from './i18n-source.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const read = (...p) => readFileSync(join(__dirname, '..', ...p), 'utf8');
 const VIZ = read('js', 'media-viz.js');
-const SERVER = read('server.js');
+const SERVER = engineSource();
 const CSS = read('components', 'MediaPanel', 'MediaPanel.css');
 
 test('the setting exists in BOTH normalizers, and defaults to off', () => {

@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { webcrypto } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const wau = require('../widget-auto-update.js');
@@ -353,7 +354,7 @@ test('staged install: refuses an invalid package before touching the disk', asyn
 });
 
 test('wiring: the setting is on by default, normalized on both sides, and never an SDK grant', () => {
-  const server = fs.readFileSync(fileURLToPath(new URL('../server.js', import.meta.url)), 'utf8');
+  const server = engineSource();
   const settings = fs.readFileSync(fileURLToPath(new URL('../js/settings.js', import.meta.url)), 'utf8');
   assert.match(server, /autoUpdateWidgets: true,/);
   assert.match(server, /autoUpdateWidgets: source\.autoUpdateWidgets !== false/);

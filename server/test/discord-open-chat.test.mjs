@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../discord-launch.js');
@@ -135,7 +136,7 @@ test('the RPC client selects the channel with a checked id, and never throws', a
 });
 
 test('both routes go through the cross-platform launcher', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const launch = server.slice(server.indexOf("reqPath === '/stream/discord/launch'"), server.indexOf("reqPath === '/stream/discord/open-chat'"));
   assert.match(launch, /discordLaunch\.launchDiscord\(\)/);
   assert.doesNotMatch(launch, /powershell\.exe/, 'a PowerShell-only launch does nothing on macOS and Linux');

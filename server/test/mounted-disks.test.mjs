@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createMountedDisks, MOUNTED_DISKS_TTL_MS } = require('../mounted-disks.js');
@@ -77,7 +78,7 @@ test('the window is no longer than the one Windows has for a new drive', () => {
 });
 
 test('the server reads the disks through it, on Linux and macOS alike', () => {
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.match(server, /const mountedDisks = nativeCollectors \? createMountedDisks\(\(\) => nativeCollectors\.disks\(\)\) : null;/);
   assert.match(server, /if \(mountedDisks\) return mountedDisks\(\);/);
   assert.doesNotMatch(server, /return nativeCollectors\.disks\(\);/);

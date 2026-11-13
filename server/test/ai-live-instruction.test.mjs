@@ -5,9 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 function loadBuilder() {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const start = src.indexOf('function _buildLiveSystemInstruction(');
   assert.ok(start >= 0, 'builder present in server.js');
   const end = src.indexOf('\n}\n', start);

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -115,13 +116,13 @@ test('Windows: sensors.ps1 is worker-only and opens no LHM session of its own', 
   assert.match(ps, /\$global:XenonGpuLhm/);
   const allowLine = read('server/pwsh-worker.ps1').split('\n').find((l) => l.startsWith('$allow'));
   assert.ok(allowLine.includes("'sensors.ps1'"));
-  const server = read('server/server.js');
+  const server = engineSource();
   assert.match(server, /runPowerShellWorker\(SENSORS_SCRIPT/);
   assert.doesNotMatch(server, /runCollector\(SENSORS_SCRIPT/);
 });
 
 test('the server applies the choice in getSystemInfo and persists it on both sides', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const sys = server.slice(server.indexOf('async function getSystemInfo('));
   assert.match(sys.slice(0, sys.indexOf('\n}\n') > 0 ? sys.indexOf('\n}\n') : 9000), /SensorSources\.applySensorSources\(info, sources, readings/);
   assert.match(server, /sensorSources: SensorSources\.normalizeSensorSources\(source\.sensorSources\)/);
@@ -133,7 +134,7 @@ test('the server applies the choice in getSystemInfo and persists it on both sid
 });
 
 test('the catalog endpoint reads only and a paired device may use it', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const at = server.indexOf("reqPath === '/system/sensors'");
   assert.ok(at > 0);
   const route = server.slice(at, server.indexOf('} else if', at));
@@ -150,7 +151,7 @@ test('the `sensors` stream exists everywhere a stream is declared, and runs only
   assert.match(cw, /sensors: \['cw_stream_sensors'/);
   assert.match(cw, /streams: \['status', 'system', 'sensors'/);
   assert.match(read('server/js/main.js'), /onData\('sensors'/);
-  const server = read('server/server.js');
+  const server = engineSource();
   const tick = server.slice(server.indexOf('const SENSORS_STREAM_POLL_MS'), server.indexOf('}, SENSORS_STREAM_POLL_MS).unref();'));
   assert.match(tick, /sseClients\.size === 0 \|\| _sensorsStreamBusy \|\| !sdkStreamGranted\('sensors'\)/);
   assert.match(tick, /finally \{\s*_sensorsStreamBusy = false;/);

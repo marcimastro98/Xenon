@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const TileSettings = require('../tile-settings.js');
@@ -36,7 +37,7 @@ test('the notifications block keeps what the tile did not send', () => {
 });
 
 test('the route writes under the lock with a rev, CSRF-guarded and denied to paired devices', () => {
-  const src = read('server.js');
+  const src = engineSource();
   assert.match(src, /const CSRF_MUTATION_PATHS = new Set\(\[[\s\S]{0,200}'\/settings\/tile',/);
   assert.match(src, /reqPath === '\/settings\/tile' && req\.method === 'POST'[\s\S]{0,300}saveTileSettings\(body\)/);
   assert.match(src, /async function saveTileSettings\(body\) \{[\s\S]{0,300}withHubSettingsLock[\s\S]{0,300}nextSettingsRev[\s\S]{0,200}broadcastSSE\('settings'/);

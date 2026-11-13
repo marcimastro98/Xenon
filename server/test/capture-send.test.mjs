@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCaptureSend } = require('../capture-send.js');
@@ -136,7 +137,7 @@ test('wired everywhere: catalog, route at the PC only, gallery button', () => {
   assert.equal(c.capability.ai.name, 'send_capture_to_phone');
   assert.ok(!c.capability.sdk, 'no SDK category: sending files off the PC is the user\'s');
   assert.match(read('capabilities/index.js'), /case 'sendCapture': return sendCapture\.run\(d, action\);/);
-  const server = read('server.js');
+  const server = engineSource();
   assert.match(server, /reqPath === '\/captures\/send' && req\.method === 'POST'/);
   assert.match(server, /'\/captures\/copy',\r?\n {2}'\/captures\/send',/, 'CSRF');
   assert.match(read('remote-access.js'), /'\/captures\/send',/, 'REMOTE_DENY');

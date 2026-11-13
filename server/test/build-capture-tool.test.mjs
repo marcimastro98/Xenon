@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildPlan } from '../../tools/build-capture.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,7 +28,7 @@ test('on macOS the file has no extension, where the server looks for it there', 
 });
 
 test('the copy target is the path server.js starts', () => {
-  const src = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   assert.match(src, /const CAPTURE_EXE = path\.join\(__dirname, 'capture', process\.platform === 'win32' \? 'xenon-capture\.exe' : 'xenon-capture'\);/);
   const pkg = JSON.parse(readFileSync(path.join(HERE, '..', '..', 'package.json'), 'utf8'));
   assert.equal(pkg.scripts['capture:build'], 'node tools/build-capture.mjs');

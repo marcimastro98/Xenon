@@ -5,6 +5,7 @@ import { mkdtempSync, readdirSync, readFileSync, existsSync } from 'node:fs';
 import { webcrypto, randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const { createTrialVault, decryptEnvelope, stubInner } = require('../trial-vault.js');
 
@@ -188,7 +189,7 @@ test('a drop without widgets writes nothing and still returns its inner code', a
 });
 
 test('server wiring: trial packages are served from memory, the key never reaches the page', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /if \(r && r\.ok && r\.trial === true\) \{\s+const \{ cek, trial, \.\.\.answer \} = r;/);
   assert.match(src, /trialVault\.asset\(m\[1\], m\[2\]\)/);
   assert.match(src, /if \(!rec && trialVault\.has\(id\)\) return 'trial';/);

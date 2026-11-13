@@ -5,10 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { refusedCrossSite, refusedSocketOrigin, isPage } = require('../cross-site.js');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 
 const req = (method, headers = {}) => ({ method, headers });
 // The one JSONP route, as server.js defines it.

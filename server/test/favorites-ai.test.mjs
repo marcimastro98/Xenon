@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { planFavorite, applyFavorite } = require('../favorites-ai.js');
@@ -83,7 +84,7 @@ test('refusals: unknown list, nothing named, list full', async () => {
 });
 
 test('the server wires the tool, searching before the settings lock', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /name: 'edit_favorites'/);
   assert.match(src, /fnName === 'edit_favorites'\) \{\s+fnResult = await editFavorites\(fnArgs\);/);
   const fn = src.slice(src.indexOf('async function editFavorites('));

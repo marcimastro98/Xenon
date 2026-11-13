@@ -6,12 +6,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStrings } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ops = require('../list-ops.js');
 const ListSync = require('../js/list-sync.js');
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // LF on a CRLF checkout too
-const SERVER = read('../server.js');
+const SERVER = engineSource();
 const FIELDS = ['text', 'completed', 'completedAt'];
 
 test('an edit lands on the list the server has, not on the one the screen had', () => {

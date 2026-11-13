@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { ACTIONS, applyTimerAction, findTimer } = require('../timer-actions.js');
@@ -48,7 +49,7 @@ test('the timer is found by label or id; guessed only when it is clear', () => {
 });
 
 test('the server wires the tile and Bit to the same rules; stopwatch from Bit', () => {
-  const src = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   assert.match(src, /TimerActions\.applyTimerAction\(_timers\[idx\], action, Date\.now\(\)\)/, 'PATCH /api/timers/:id');
   assert.match(src, /name: 'control_timer'/);
   assert.match(src, /fnName === 'control_timer'[\s\S]{0,400}TimerActions\.findTimer[\s\S]{0,1200}refresh_timers/);

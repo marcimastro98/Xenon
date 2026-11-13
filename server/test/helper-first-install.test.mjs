@@ -9,6 +9,7 @@ import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { runHelperFirstInstall, DONE_FILE, MAX_TRIES } = require('../helper-first-install.js');
@@ -111,7 +112,7 @@ test('a failure then a success records it and stops retrying', async () => {
 });
 
 test('the server wires it only where a helper is missing, and the shell marks its installs', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const src = engineSource().replace(/\r\n/g, '\n');
   const at = src.indexOf('function ensureHelperUpToDate(');
   const body = src.slice(at, src.indexOf('\n}\n', at));
   assert.match(body, /if \(!fs\.existsSync\(HELPER_EXE\)\) \{[^\n]*\n\s+if \(attempt === 1\) runHelperFirstInstall\(\{[^\n]*\.install\(\)/);

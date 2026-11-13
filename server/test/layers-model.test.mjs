@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const L = require('../js/layers-model.js');
@@ -151,7 +152,7 @@ test('stress: any input normalizes to a valid, stable shape', () => {
 
 test('client and server both normalize layers with this one file', () => {
   const settings = read('../js/settings.js');
-  const server = read('../server.js');
+  const server = engineSource();
   const index = read('../index.html');
   assert.match(settings, /layers: LayersModel\.normalize\(null\),/);
   assert.match(settings, /layers: LayersModel\.normalize\(value\.layers\),/);
@@ -162,7 +163,7 @@ test('client and server both normalize layers with this one file', () => {
 });
 
 test('server edits to layers run under the settings lock, bump rev and tell the other surfaces', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const fn = server.slice(server.indexOf('async function updateLayersSetting'), server.indexOf('async function updateLayersSetting') + 900);
   assert.match(fn, /withHubSettingsLock\(async \(\) => \{\n\s+const cur = await readHubSettingsForUpdate\(\)/, 'prev is read INSIDE the lock');
   assert.match(fn, /if \(!res \|\| res\.error \|\| !res\.layers\) return/);
@@ -190,7 +191,7 @@ test('layers are available only while a shell that draws them has reported', () 
 });
 
 test('only the shell on this PC reports: CSRF-guarded, refused to a paired phone, size-capped', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   const csrf = server.slice(server.indexOf('const CSRF_MUTATION_PATHS = new Set(['), server.indexOf(']);', server.indexOf('const CSRF_MUTATION_PATHS = new Set([')));
   assert.match(csrf, /'\/layers\/host',/);
   assert.match(server, /reqPath === '\/layers\/host' && req\.method === 'POST'\) \{[\s\S]{0,400}readBody\(req, 16 \* 1024\)[\s\S]{0,80}layersHost\.accept\(body\)/);
@@ -435,7 +436,7 @@ test('an uninstalled package leaves the screen, and a tile with the same name st
 });
 
 test('the server takes a package off the screen when it is uninstalled', () => {
-  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const src = engineSource();
   const route = src.slice(src.indexOf("req.method === 'DELETE' && reqPath.startsWith('/sdk/widget/')")).slice(0, 1200);
   assert.ok(route.includes('updateLayersSetting((cur) => LayersModel.removePackage(cur, id))'));
 });

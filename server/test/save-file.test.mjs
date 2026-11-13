@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(DIR, 'js', 'save-file.js'), 'utf8');
@@ -105,7 +106,7 @@ test('file names carry the local day, not the UTC one', () => {
   assert.equal(S.today(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
   const settings = readFileSync(path.join(DIR, 'js', 'settings.js'), 'utf8');
   assert.ok(settings.includes("'xenon-backup-' + window.XenonSaveFile.today() + '.json'"));
-  const server = readFileSync(path.join(DIR, 'server.js'), 'utf8');
+  const server = engineSource();
   assert.ok(!/xenon-backup-.*toISOString|toISOString\(\)\.slice\(0, 19\)\.replace\(\/\[:T\]/.test(server), 'no UTC date in backup names');
   assert.ok(server.includes("'xenon-backup-' + localBackupStamp(new Date()) + '.json'"));
 });

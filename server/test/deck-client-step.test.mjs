@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { createDeckShortcutRunner } = require('../deck-shortcut-runner.js');
@@ -40,7 +41,7 @@ test('nobody claims = no_dashboard; other kinds are refused without a broadcast'
 });
 
 test('the route validates, and is CSRF-guarded and denied to paired devices', () => {
-  const src = read('server.js');
+  const src = engineSource();
   assert.match(src, /'\/deck\/client-step',\n/);
   assert.match(src, /reqPath === '\/deck\/client-step'[\s\S]{0,500}handOff\(require\('\.\/js\/deck-actions\.js'\)\.validateAction\(/);
   const ra = read('remote-access.js');

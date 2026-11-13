@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const MenuStore = require('../menu-store.js');
@@ -71,7 +72,7 @@ test('the menu shows the count by the Store link and reads it out with the words
   const src = read('../js/xenon-menu.js');
   const fn = src.slice(src.indexOf('function drawFootLink'), src.indexOf('async function refreshBalance'));
   assert.match(fn, /if \(r\.id === 'store' && r\.updates > 0\) \{\n\s+b\.appendChild\(el\('span', 'xm-nav-value is-update', String\(r\.updates\)\)\);\n\s+b\.setAttribute\('aria-label', text\(r\.label, tt\) \+ ', ' \+ text\(r\.sub, tt\)\);/);
-  assert.match(read('../server.js'), /storeUpdates: store\.updates,/);
+  assert.match(engineSource(), /storeUpdates: store\.updates,/);
 });
 
 // phone-view.js mirrorCount, lifted verbatim, on a small DOM.

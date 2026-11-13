@@ -2,10 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { seedReadings } = require('../sse-seed.js');
-const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 
 function sink() {
   const sent = [];

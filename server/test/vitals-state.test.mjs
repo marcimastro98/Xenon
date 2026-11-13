@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const V = require('../vitals-state.js');
@@ -76,7 +77,7 @@ test('the dashboard saves the settings; a layer page posts only vitals.state', a
 test('wiring: both widgets save through the helper, one merge on both doors, the lock, the door lists', () => {
   assert.match(read('js/vitals.js'), /function saveState\(patch\) \{[\s\S]{0,250}saveVitalsStateNow\(\);/);
   assert.match(read('js/vitals-pet.js'), /function saveVitalsState\(patch\) \{[\s\S]{0,400}saveVitalsStateNow\(\);/);
-  const S = read('server.js');
+  const S = engineSource();
   assert.match(S, /incoming\.vitals = \{ \.\.\.inV, state: VitalsState\.mergeState\(prev\.vitals\.state, inV\.state\) \};/);
   assert.match(S, /reqPath === '\/api\/vitals\/state' && req\.method === 'POST'[\s\S]{0,300}saveVitalsState\(body\)/);
   assert.match(S, /async function saveVitalsState\(body\) \{[\s\S]{0,200}withHubSettingsLock[\s\S]{0,400}VitalsState\.mergeState\(vitals\.state, plan\.state\)[\s\S]{0,200}nextSettingsRev[\s\S]{0,200}broadcastSSE\('settings'/);

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -44,7 +45,7 @@ test('the dashboards list starts with the Overview and keeps only plain slugs', 
 });
 
 test('the route reads only, answers with fixed errors, and a paired device may use it', () => {
-  const server = read('server/server.js');
+  const server = engineSource();
   const at = server.indexOf("reqPath === '/api/homeassistant/dashboards'");
   assert.ok(at > 0);
   const route = server.slice(at, at + 700);

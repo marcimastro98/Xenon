@@ -9,13 +9,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync as readFileSyncRaw } from 'node:fs';
 import { appStringsSource, textsOf } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 // A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
 const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const APPEAL = readFileSync(new URL('../js/support-appeal.js', import.meta.url), 'utf8');
 const GOAL = readFileSync(new URL('../js/support-goal.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const SERVER = engineSource();
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = appStringsSource();
 const ASK_CSS = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');

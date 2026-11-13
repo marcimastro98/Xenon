@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { languagesWith, textsOf } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const M = require('../js/deck-model.js');
@@ -220,7 +221,7 @@ test('the registry hands the checked gesture to the handler dispatch', async () 
 });
 
 test('the gesture reaches the frame, and a release has its own rate lane', () => {
-  const server = read('../server.js');
+  const server = engineSource();
   assert.match(server, /const lane = gesture && gesture\.type === 'release' \? ':release' : '';/);
   assert.match(server, /broadcastSSE\('sdk_handler', gesture \? \{ pkg, handler, args, callId, gesture \} : \{ pkg, handler, args, callId \}\);/);
   assert.match(read('../js/custom-widget.js'), /const gesture = window\.DeckActions && window\.DeckActions\.validateGesture\(payload\.gesture\);\s+if \(gesture\) msg\.gesture = gesture;/);

@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const F = require('../js/fuzzy-find.js');
@@ -27,12 +28,12 @@ const i18n = ctx.__i18n;
 
 test('the slider, the clamps and the keyboard all agree on 60% to 250%', () => {
   assert.match(read('../index.html'), /id="settings-native-zoom" type="range" min="0\.6" max="2\.5" step="0\.05"/);
-  assert.match(read('../server.js'), /nativeZoom: clampNumber\(source\.nativeZoom, 0\.6, 2\.5,/);
+  assert.match(engineSource(), /nativeZoom: clampNumber\(source\.nativeZoom, 0\.6, 2\.5,/);
   const S = read('../js/settings.js');
   assert.match(S, /nativeZoom: clampNumber\(value\.nativeZoom, 0\.6, 2\.5,/);
   assert.match(S, /clampNumber\(hubSettings\.nativeZoom, 0\.6, 2\.5, 1\)/);
   assert.match(read('../js/native-bridge.js'), /const ZOOM_MIN = 0\.6, ZOOM_MAX = 2\.5, ZOOM_STEP = 0\.1;/);
-  assert.doesNotMatch(S + read('../server.js') + read('../js/native-bridge.js'), /0\.6, 1\.6|ZOOM_MAX = 1\.6/, 'an old 160% cap is left');
+  assert.doesNotMatch(S + engineSource() + read('../js/native-bridge.js'), /0\.6, 1\.6|ZOOM_MAX = 1\.6/, 'an old 160% cap is left');
 });
 
 test('a saved value above the old cap survives, and one above the new cap does not', () => {

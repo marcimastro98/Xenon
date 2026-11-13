@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cap = require('../capabilities/replay.js');
@@ -144,7 +145,7 @@ test('the catalog: a sensitive capture key, hidden options, labels in every lang
 });
 
 test('server.js wires the replay: sync on settings and the status tick, seed, shutdown before the engine', () => {
-  const src = readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
+  const src = engineSource();
   assert.match(src, /replay: \(\) => _replay,/);
   assert.match(src, /gaming: \(\) => gameDetect\.isGameRunning\(\),/);
   // The ring's folder per OS (user-folders.js replayRingDir: tmp, or ~/.cache on Linux).
