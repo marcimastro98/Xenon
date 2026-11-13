@@ -117,6 +117,36 @@ test('a value worked out with a listed call of a Node module moves; any other ca
   assert.deepEqual(toJson(a).declarations.find((d) => d.names[0] === 'UP').loadTimeCalls, ['os.uptime()'], '`analyze` says which call holds it');
 });
 
+test('a table filled from a list in one call moves, in that one shape and no other', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const free = ['const ON = Object.freeze(IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}));',
+    'const SIZES = IDS.reduce((made, id, at) => { made[id] = String(id).toUpperCase(); made.count = at; return made; }, { count: 0 });',
+    'const LIST = IDS.reduce((made, id) => { made[made.length] = id; return made; }, []);'];
+  const held = ['const A = IDS.reduce((acc, id) => { acc[id] = stamp(); return acc; }, {});',
+    'const B = IDS.reduce((acc, id) => { acc[id] = true; return acc; }, SHARED);',
+    'const C = IDS.reduce((acc, id) => { SHARED[id] = true; return acc; }, {});',
+    'const D = IDS.reduce((acc, id) => { acc[id] = true; note(id); return acc; }, {});',
+    'const E = IDS.reduce((acc, id) => { acc[id] = true; return SHARED; }, {});',
+    'const F = IDS.reduce((acc, id) => { acc[key()] = true; return acc; }, {});',
+    'const G = IDS.reduce((acc, id) => { acc.inner.deep = id; return acc; }, { inner: {} });',
+    'const H = IDS.reduce((acc, id = stamp()) => { acc[id] = true; return acc; }, {});',
+    'const I = IDS.reduce((acc, id) => acc.concat(stamp()), []);',
+    'const J = IDS.reduce(fill, {});',
+    'const K = IDS.reduce((acc, id) => { acc[id] = true; return acc; }, { at: stamp() });',
+    'const L = load().reduce((acc, id) => { acc[id] = true; return acc; }, {});',
+    'const M = IDS.reduce((acc, id) => { acc[id] += 1; return acc; }, {});',
+    'const N = IDS.reduce((acc, id) => { acc[id] = true; });'];
+  const a = read(['const IDS = ["a", "b"];', 'const SHARED = {};', ...free, ...held, ''].join('\n'));
+  for (const name of ['ON', 'SIZES', 'LIST']) {
+    assert.deepEqual(record(a, name).loadCalls, [], name);
+    assert.equal(record(a, name).loadTime, false, name);
+  }
+  for (const name of 'ABCDEFGHIJKLMN') assert.equal(record(a, name).loadTime, true, `${name} is not that shape`);
+  assert.deepEqual(record(a, 'A').loadCalls, ['IDS.reduce()'], '`analyze` names the call that holds it');
+  const without = analyze(['const IDS = ["a"];', free[0], ''].join('\n'), parser, 'demo.js', { calls: readLoadTimeCalls({ functions: ['Object.freeze'] }) });
+  assert.deepEqual(record(without, 'ON').loadCalls, ['IDS.reduce()'], 'only the list makes it free');
+});
+
 test('the list is what decides: with another list the same code is held or free', (t) => {
   if (!parser) return t.skip(SKIP);
   const text = 'const os = require("os");\nconst HOME = os.homedir();\nconst TABLE = Object.freeze({ a: 1 });\n';
@@ -137,7 +167,7 @@ test('the list in the repo explains itself and names only modules that compute',
   assert.deepEqual([...calls.moduleFunctions.keys()].sort(), ['os', 'path'], 'no module that reads files, starts programs or opens sockets');
   assert.deepEqual([...calls.moduleFunctions.get('os')].sort(), ['arch', 'homedir', 'platform', 'tmpdir']);
   assert.deepEqual([...calls.moduleFunctions.get('path')].sort(), ['basename', 'dirname', 'join', 'resolve']);
-  for (const key of ['functions', 'constructors', 'methods', 'methodsTakingAFunction']) {
+  for (const key of ['functions', 'constructors', 'methods', 'methodsTakingAFunction', 'methodsFillingANewValue']) {
     assert.deepEqual(json[key], [...new Set(json[key])].sort(), `${key} is sorted and names nothing twice`);
   }
   for (const name of ['Date.now', 'Math.random', 'require', 'JSON.parse']) assert.ok(!calls.functions.has(name), `${name} is not on the list`);

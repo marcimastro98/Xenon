@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 
 const LIST = new URL('./load-time-calls.json', import.meta.url);
-const NAME_LISTS = ['functions', 'constructors', 'methods', 'methodsTakingAFunction'];
+const NAME_LISTS = ['functions', 'constructors', 'methods', 'methodsTakingAFunction', 'methodsFillingANewValue'];
 const SHOWN = 60;
 
 /**
@@ -18,7 +18,7 @@ export const PLAIN_GLOBALS = new Set(['undefined', 'NaN', 'Infinity', 'Array', '
 
 /**
  * @typedef {{ functions: Set<string>, constructors: Set<string>, methods: Set<string>,
- *   methodsTakingAFunction: Set<string>, moduleFunctions: Map<string, Set<string>> }} LoadTimeCalls
+ *   methodsTakingAFunction: Set<string>, methodsFillingANewValue: Set<string>, moduleFunctions: Map<string, Set<string>> }} LoadTimeCalls
  */
 
 /**
@@ -90,12 +90,37 @@ export function createLoadTimeCheck(K, rules, moduleOf) {
   const inlineFunction = (node) => node && node.kind === K.ArrowFunction && node.body.kind !== K.Block
     && node.parameters.every((parameter) => !parameter.initializer && boundNames(parameter.name).every((name) => !moduleOf.has(name)));
 
+  // `list.reduce((made, item) => { made[item] = value; return made; }, {})`: the function runs now, once per item. It is
+  // accepted in this one shape: it starts from an object or a list written out in the call, so nothing else can hold it;
+  // every statement but the last gives one property of that value a value that passes the rule; the last returns it.
+  const fills = (node) => {
+    const [fill, start] = node.arguments;
+    if (node.arguments.length !== 2 || fill.kind !== K.ArrowFunction || fill.body.kind !== K.Block) return false;
+    if (start.kind !== K.ObjectLiteralExpression && start.kind !== K.ArrayLiteralExpression) return false;
+    if (fill.parameters.some((p) => p.initializer || p.dotDotDotToken || p.name.kind !== K.Identifier || moduleOf.has(p.name.text))) return false;
+    const made = fill.parameters[0]?.name.text;
+    const steps = [...fill.body.statements];
+    const last = steps.pop();
+    const isMade = (at) => at && at.kind === K.Identifier && at.text === made;
+    if (!made || !last || last.kind !== K.ReturnStatement || !isMade(last.expression)) return false;
+    return steps.every((step) => {
+      const set = step.kind === K.ExpressionStatement ? step.expression : null;
+      if (!set || set.kind !== K.BinaryExpression || set.operatorToken.kind !== K.EqualsToken) return false;
+      const { left } = set;
+      if (left.kind === K.PropertyAccessExpression) return isMade(left.expression) && !blocker(set.right);
+      return left.kind === K.ElementAccessExpression && isMade(left.expression) && !blocker(left.argumentExpression) && !blocker(set.right);
+    });
+  };
+
   function callBlocker(node) {
     const callee = node.expression;
     if (rules.functions.has(dotted(callee)) || moduleFunction(callee)) return firstOf(node.arguments);
     if (callee.kind !== K.PropertyAccessExpression) return `${shown(callee)}()`;
     const method = callee.name.text;
     if (rules.methods.has(method)) return blocker(callee.expression) || firstOf(node.arguments);
+    if (rules.methodsFillingANewValue.has(method)) {
+      return fills(node) ? blocker(callee.expression) || blocker(node.arguments[1]) : `${shown(callee)}()`;
+    }
     if (!rules.methodsTakingAFunction.has(method) || node.arguments.length !== 1 || !inlineFunction(node.arguments[0])) {
       return `${shown(callee)}()`;
     }
