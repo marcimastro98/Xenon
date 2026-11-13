@@ -17,7 +17,9 @@
 // is read again on each refresh, since the setup can run without a restart.
 
 const fs = require('fs');
-const path = require('path');
+// Every path here is a Windows one, whatever machine builds it (a test on a Mac
+// asks for the Windows answer too), so the Windows rules are named outright.
+const winPath = require('path').win32;
 const { execFile } = require('child_process');
 const { SERVICE_NAME } = require('./reader.js');
 
@@ -46,7 +48,7 @@ function stateOf(token, record) {
 
 function createFpsAccess({ env = process.env, platform = process.platform, run = execFile, fsp = fs.promises, now = Date.now } = {}) {
   const enabled = platform === 'win32' && !!env.ProgramData;
-  const dir = path.join(env.ProgramData || 'C:\\ProgramData', SERVICE_NAME);
+  const dir = winPath.join(env.ProgramData || 'C:\\ProgramData', SERVICE_NAME);
   let token;          // undefined = not asked yet, null = whoami failed
   let state = null;
   let refused = false; // the setup tried and Windows said no (not "never set up")
@@ -54,7 +56,7 @@ function createFpsAccess({ env = process.env, platform = process.platform, run =
   let pending = null;
 
   function readToken() {
-    const whoami = path.join(env.SystemRoot || env.windir || 'C:\\Windows', 'System32', 'whoami.exe');
+    const whoami = winPath.join(env.SystemRoot || env.windir || 'C:\\Windows', 'System32', 'whoami.exe');
     return new Promise((resolve) => {
       run(whoami, ['/user', '/groups', '/fo', 'csv', '/nh'], { windowsHide: true, timeout: 15000 },
         (err, stdout) => resolve(err ? null : parseToken(stdout)));
@@ -63,7 +65,7 @@ function createFpsAccess({ env = process.env, platform = process.platform, run =
 
   async function readRecord(sid) {
     try {
-      const file = path.join(dir, 'fps-access-' + sid + '.json');
+      const file = winPath.join(dir, 'fps-access-' + sid + '.json');
       const st = await fsp.stat(file);
       if (!st.isFile() || st.size > MAX_RECORD_BYTES) return null;
       const o = JSON.parse(await fsp.readFile(file, 'utf8'));
