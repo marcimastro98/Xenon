@@ -6,6 +6,7 @@ import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { analyze } from '../../tools/restructure/analyze.mjs';
+import { ROUTES } from '../../tools/restructure/branches-kinds.mjs';
 import { paramsFor, planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
 import { proveBranches } from '../../tools/restructure/branches-proof.mjs';
 import { keyOf, readBranches } from '../../tools/restructure/branches-scope.mjs';
@@ -42,8 +43,8 @@ test('the lines the command writes are read back as what they say', () => {
 });
 
 test('a table is named after its folder, and a body is handed only what it uses', () => {
-  assert.deepEqual(tableOf('server/server.js', 'server/lights/routes.js'), { local: 'lightsBranches', spec: './lights/routes.js' });
-  assert.deepEqual(tableOf('server/server.js', 'server/smart-home/routes-plugs.js'), { local: 'smartHomePlugsBranches', spec: './smart-home/routes-plugs.js' });
+  assert.deepEqual(tableOf('server/server.js', 'server/lights/routes.js'), { local: 'lightsBranches', spec: './lights/routes.js', kind: ROUTES });
+  assert.deepEqual(tableOf('server/server.js', 'server/smart-home/routes-plugs.js'), { local: 'smartHomePlugsBranches', spec: './smart-home/routes-plugs.js', kind: ROUTES });
   assert.equal(tableOf('server/server.js', 'server/lights/answers.js'), null);
   assert.equal(tableOf('server/server.js', 'server/routes.js'), null);
   assert.equal(paramsFor(['res', 'json', 'req', 'urlObj']), 'req, res, { json, urlObj }');
@@ -127,7 +128,7 @@ test('what would mean something else in another function is refused, with every 
     /GET \/i .*not on lines of its own/, /0 branches of handleRequest answer GET \/zz/]) assert.match(said, reason);
   assert.match(refusal(['GET /g']), /the table would need require\('\.\.\/late\.js'\) for late, which server\/demo\.js loads after handleRequest \(line 48\): it would load earlier than today/);
   assert.match(refusal(['GET /a'], { allowed: new Set() }), /protected\.json does not let the bodies of handleRequest move/);
-  assert.match(refusal(['GET /a'], { target: 'server/lights/answers.js' }), /is not <feature>\/routes\.js or <feature>\/routes-<word>\.js/);
+  assert.match(refusal(['GET /a'], { target: 'server/lights/answers.js' }), /is not <feature>\/routes\.js, <feature>\/tools\.js or one of them with -<word>/);
   assert.match(refusal(['GET /a'], { about: ' ' }), /say in one sentence what the new file does/);
   assert.match(refusal(['GET /a'], { moduleBefore: `${TYPE_LINE}\nconst branches = {\n};\n\nmodule.exports = { branches };\n` }), /do not go together/);
   assert.match(refusal(['GET /a'], { text: SOURCE.replace('const LIMIT = 3;', 'const lightsBranches = 3;') }), /already has the word lightsBranches/);
@@ -160,7 +161,7 @@ test('the proof stands on the three texts, not on what the planner says it did',
   const wrong = (changes) => proven({ ...made, ...changes.plan }, changes.more).join('\n');
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace("err500('no')", "err500('No')") } }), /the body of POST \/b in server\/lights\/routes\.js is not the old lines byte for byte/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace("reqPath === '/d'", "reqPath === '/dd'") } }), /the tests of handleRequest are not the same, in the same order/);
-  assert.match(wrong({ plan: { newSource: made.newSource.replace('const secret = 1;', 'const secret = 2;') } }), /handleRequest changed before its chain of routes/);
+  assert.match(wrong({ plan: { newSource: made.newSource.replace('const secret = 1;', 'const secret = 2;') } }), /handleRequest changed before its chain/);
   assert.match(wrong({ plan: { newSource: made.newSource.replace('json({ d: secret });', 'json({ d: 0 });') } }), /the body of GET \/d changed and was not asked to move/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace(TYPE_LINE, `lights.start();\n${TYPE_LINE}`) } }), /has a statement that is not a require, the table or the export/);
   assert.match(wrong({ plan: { moduleText: made.moduleText.replace("require('../lights-lib.js')", "require('../other-lib.js')") } }), /lights in server\/lights\/routes\.js is not what server\/demo\.js required under that name/);

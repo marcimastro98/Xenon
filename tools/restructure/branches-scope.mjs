@@ -2,38 +2,32 @@
 // function of another module and still mean the same. Reading only.
 //
 // A body can move when everything it names from outside is one of:
-//   - `req`, `res` or one of the few handler values handed over (branches-text.mjs CONTEXT);
+//   - one of the few values of its function that are handed over (branches-kinds.mjs);
 //   - a name the file gets from `require` (the new module requires the same module);
 //   - something every Node program has (`JSON`, `Buffer`, `setTimeout`).
 // and when it has nothing whose meaning depends on the function around it: no
-// `this`, no `arguments`, no `return` with a value, no `var` and no function
-// declared straight in the body (both would be seen by the whole handler today),
-// no label, no `eval`.
+// `this`, no `arguments`, no `return` with a value (no `return` at all where the
+// function goes on after the chain), no `var` and no function declared straight in
+// the body (both would be seen by the whole handler today), no label, no `eval`.
+// The one name a body may assign is the result its kind of chain gives back.
 
-import { routeChain } from './routes-list.mjs';
+import { ROUTES } from './branches-kinds.mjs';
 import { createUseReader } from './scope-uses.mjs';
-import { CONTEXT, frameLine, readCall } from './branches-text.mjs';
+import { frameLine, readCall } from './branches-text.mjs';
 import { lineAt, lineStarts } from './top-level.mjs';
 
-const HANDED = new Set(['req', 'res', ...CONTEXT]);
 // Names that mean the file or the function the code sits in.
 const BOUND_TO_PLACE = new Set(['require', 'module', 'exports', '__dirname', '__filename', 'arguments', 'eval']);
-const METHOD_AND_PATH = [/^reqPath === '(\/[^'\\]*)' && req\.method === '([A-Z]+)'$/, /^req\.method === '([A-Z]+)' && reqPath === '(\/[^'\\]*)'$/];
 
-/** @param {string} test a branch's test as written @returns {string | null} `METHOD /path` when the test is exactly that */
-export function keyOf(test) {
-  const first = METHOD_AND_PATH[0].exec(test);
-  if (first) return `${first[2]} ${first[1]}`;
-  const second = METHOD_AND_PATH[1].exec(test);
-  return second ? `${second[1]} ${second[2]}` : null;
-}
+export { keyOf } from './branches-kinds.mjs';
 
 /**
- * What in a piece of code depends on the function it is written in.
- * @param {any} node @param {{ K: any, NodeFlags: any }} parser
+ * What in pieces of code depends on the function they are written in.
+ * @param {any[]} nodes @param {{ K: any, NodeFlags: any }} parser
+ * @param {{ anyReturn?: boolean }} [options] `anyReturn`: a bare `return;` counts too
  * @returns {string[]} one phrase per kind of thing found, empty when there is none
  */
-export function placeBound(node, { K, NodeFlags }) {
+export function placeBoundIn(nodes, { K, NodeFlags }, { anyReturn = false } = {}) {
   const OWN_THIS = new Set([K.FunctionDeclaration, K.FunctionExpression, K.MethodDeclaration, K.GetAccessor, K.SetAccessor,
     K.Constructor, K.ClassDeclaration, K.ClassExpression]);
   const found = new Set();
@@ -42,7 +36,7 @@ export function placeBound(node, { K, NodeFlags }) {
     if (at.kind === K.MetaProperty && !ownThis) found.add('`new.target` or `import.meta`');
     if (at.kind === K.WithStatement) found.add('a `with` block');
     if (!nested) {
-      if (at.kind === K.ReturnStatement && at.expression) found.add('a `return` with a value');
+      if (at.kind === K.ReturnStatement && (at.expression || anyReturn)) found.add(anyReturn ? 'a `return`' : 'a `return` with a value');
       if (at.kind === K.VariableDeclarationList && (at.flags & NodeFlags.BlockScoped) === 0) found.add('a `var`');
       if (at.kind === K.FunctionDeclaration) found.add('a function declared straight in it');
       if (at.kind === K.LabeledStatement) found.add('a label');
@@ -51,8 +45,15 @@ export function placeBound(node, { K, NodeFlags }) {
     const inner = nested || own || at.kind === K.ArrowFunction;
     at.forEachChild((child) => { walk(child, inner, ownThis || own); });
   };
-  node.forEachChild((child) => { walk(child, false, false); });
+  for (const node of nodes) walk(node, false, false);
   return [...found];
+}
+
+/** The same for everything inside one node (a body between its braces). */
+export function placeBound(node, parser, options) {
+  const inside = [];
+  node.forEachChild((child) => { inside.push(child); });
+  return placeBoundIn(inside, parser, options);
 }
 
 // Every name the handler itself declares: its parameters, what it declares before the chain, and every `var`
@@ -101,15 +102,17 @@ function bodyLines(block, sourceFile, starts, lines) {
  * @param {any} job.parser from parser.mjs
  * @param {{ bindings: Map<string, any> }} job.analysis from analyze.mjs, of the same text
  * @param {string} [job.handler]
- * @returns {{ sourceFile: any, chain: ReturnType<typeof routeChain>, locals: Set<string>, branches: { key: string | null, test: string,
+ * @param {typeof ROUTES} [job.kind] which chain (branches-kinds.mjs)
+ * @returns {{ sourceFile: any, chain: any, locals: Set<string>, branches: { key: string | null, test: string,
  *   line: number, first: number, last: number, lines: number, moved: boolean, block: any, uses: Map<string, any>, handed: string[],
  *   needed: string[], holders: string[], reasons: string[] }[] }}
  *   `first`/`last` are 0-based lines of the body, `handed` the handler values it uses, `needed` the required names it uses,
  *   `holders` the names the file still declares that keep it, `reasons` everything that keeps it (holders included);
  *   `moved` is true when the body is one call of a table already
  */
-export function readBranches({ text, parser, analysis, handler = 'handleRequest' }) {
-  const chain = routeChain(text, parser, handler);
+export function readBranches({ text, parser, analysis, kind = ROUTES, handler = kind.handler }) {
+  const chain = kind.chainOf(text, parser, handler);
+  const HANDED = new Set([...kind.leading, ...kind.context]);
   const { sourceFile } = chain;
   const usesOf = createUseReader(parser.K, parser.NodeFlags);
   const locals = handlerNames(chain.handler, parser);
@@ -117,17 +120,18 @@ export function readBranches({ text, parser, analysis, handler = 'handleRequest'
   const lines = text.split('\n');
   const branches = chain.branches.map(({ test, block }) => {
     const at = bodyLines(block, sourceFile, starts, lines);
-    const key = keyOf(test);
+    const key = kind.keyOf(test);
     const uses = usesOf(block);
     const reasons = [];
     const holders = [];
     const needed = [];
     const handed = [];
-    if (!key) reasons.push('its test is not one address asked with one method');
+    if (!key) reasons.push(kind.notKey);
     if (!at) reasons.push('its body is not on lines of its own between `{` and `}`');
-    const moved = Boolean(at && at.first === at.last && readCall(lines[at.first]));
+    const moved = Boolean(at && at.first === at.last && readCall(lines[at.first], kind));
     if (at && lines.slice(at.first, at.last + 1).some(frameLine)) reasons.push('a line of its body reads like the frame of a table of branches');
     for (const [name, use] of uses) {
+      if (name === kind.result && locals.has(name)) continue; // the one name a body may assign: its function gives it back
       if (locals.has(name)) {
         if (!HANDED.has(name)) reasons.push(`it uses ${name}, which the handler works out for itself`);
         else if (use.write > 0) reasons.push(`it assigns ${name}`);
@@ -139,7 +143,7 @@ export function readBranches({ text, parser, analysis, handler = 'handleRequest'
       } else if (!(name in globalThis)) reasons.push(`it uses ${name}, which nothing declares`);
       else if (use.write > 0) reasons.push(`it assigns ${name}`);
     }
-    reasons.push(...placeBound(block, parser).map((what) => `it has ${what}`));
+    reasons.push(...placeBound(block, parser, { anyReturn: Boolean(kind.result) }).map((what) => `it has ${what}`));
     reasons.push(...holders.map((name) => `it needs ${name}, which the file still declares (line ${analysis.bindings.get(name).record.line[0]})`));
     return { key, test, line: lineAt(starts, block.getStart(sourceFile)) + 1, first: at?.first ?? -1, last: at?.last ?? -1,
       lines: at ? at.last - at.first + 1 : 0, moved, block, uses, handed, needed, holders, reasons };

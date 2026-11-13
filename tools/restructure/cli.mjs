@@ -24,7 +24,11 @@
 //                                                                  the bodies of routes of the request handler go into a table in
 //                                                                  a module of the feature; each test stays where it is. --under
 //                                                                  takes every body under an address that can move now
-//   node tools/restructure/cli.mjs branches --from <file> --survey [--json]   what can move now and what keeps the rest
+//   node tools/restructure/cli.mjs branches --from <file> --to <dir>/<feature>/tools[-<word>].js [--about "..."] [--dry-run] <tool> ...
+//                                                                  the same for what a tool of the assistant does: the file name
+//                                                                  says which chain; the function declares the result and gives it back
+//   node tools/restructure/cli.mjs branches --from <file> --survey [--tools] [--json]   what can move now and what keeps the rest
+//                                                                  (of the routes; --tools: of the assistant's tools)
 //   node tools/restructure/cli.mjs verify [--base HEAD]           redo the recorded moves and rewrites from a revision, compare bytes
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
@@ -37,6 +41,7 @@ import path from 'node:path';
 import { readMap } from '../map/map.mjs';
 import { analyze, toJson } from './analyze.mjs';
 import { moveBranches, renderSurvey, surveyBranches } from './branches.mjs';
+import { ROUTES, TOOLS } from './branches-kinds.mjs';
 import { extract, replay } from './extract.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { groupsOf, protectedNames, readLedger } from './ledger.mjs';
@@ -158,7 +163,7 @@ function runSpread(parser, { flags, rest }) {
 function runBranches(parser, { flags, rest }) {
   const source = posix(flags.from);
   if (flags.survey) {
-    const survey = surveyBranches({ text: readSource(source), parser, source });
+    const survey = surveyBranches({ text: readSource(source), parser, source, kind: flags.tools ? TOOLS : ROUTES });
     console.log(flags.json ? JSON.stringify(survey, null, 1) : renderSurvey(survey, source));
     return 0;
   }

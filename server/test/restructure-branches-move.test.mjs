@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { moveBranches, surveyBranches } from '../../tools/restructure/branches.mjs';
+import { KINDS } from '../../tools/restructure/branches-kinds.mjs';
 import { planBranches, tableOf } from '../../tools/restructure/branches-plan.mjs';
 import { readCall, readModule, requireLine } from '../../tools/restructure/branches-text.mjs';
 import { replay } from '../../tools/restructure/extract.mjs';
@@ -94,7 +95,7 @@ test('the survey says what can move and which name keeps the rest', (t) => {
 test('the real engine: every table on the list is there, and each of its bodies stands under one test of the handler', () => {
   const records = readLedger(REPO).branches?.['server/server.js'] ?? [];
   const engine = readFileSync(path.join(REPO, 'server', 'server.js'), 'utf8');
-  const calls = engine.split('\n').map(readCall).filter(Boolean);
+  const calls = engine.split('\n').flatMap((line) => KINDS.map((kind) => readCall(line, kind))).filter(Boolean);
   const tables = new Map();
   for (const record of records) tables.set(record.file, [...(tables.get(record.file) ?? []), ...record.keys]);
   for (const [file, keys] of tables) {
@@ -106,5 +107,5 @@ test('the real engine: every table on the list is there, and each of its bodies 
     assert.ok(engine.includes(`\n${requireLine(local, `./${file.slice('server/'.length)}`)}\n`), `the engine requires ${file}`);
   }
   assert.equal(calls.length, [...tables.values()].flat().length, 'no call without a recorded body');
-  assert.ok(!bodiesBack('server/server.js', engine).split('\n').some(readCall), 'read as text for the tests, every body is back under its test');
+  assert.ok(!bodiesBack('server/server.js', engine).split('\n').some((line) => KINDS.some((kind) => readCall(line, kind))), 'read as text for the tests, every body is back under its test');
 });

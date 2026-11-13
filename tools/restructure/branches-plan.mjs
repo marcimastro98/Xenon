@@ -1,6 +1,8 @@
-// Plans moving the bodies of some routes out of the request handler into a table
-// in a module of their feature (the forms are in branches-text.mjs, the rules a
-// body must meet in branches-scope.mjs). Pure: text in, text out, or a refusal.
+// Plans moving the bodies of some branches of a chain (routes of the request
+// handler, tools the assistant runs: branches-kinds.mjs) into a table in a module
+// of their feature (the forms are in branches-text.mjs, the rules a body must meet
+// in branches-scope.mjs, the rules its function must meet in branches-handler.mjs).
+// Pure: text in, text out, or a refusal.
 //
 // What stays exactly as it is: every test of the chain and their order, every
 // statement of the handler before the chain, and the rest of the file. The file
@@ -10,34 +12,38 @@
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
+import { calledBeforeItsTable, handlerProblems } from './branches-handler.mjs';
+import { kindOf, ROUTES } from './branches-kinds.mjs';
 import { readBranches } from './branches-scope.mjs';
-import { callLine, CLOSE_LINE, CONTEXT, ENTRY_END, EXPORT_LINE, headLine, OPEN_LINE, readModule, readRequire, requireLine, TYPE_LINE } from './branches-text.mjs';
+import { callLine, CLOSE_LINE, ENTRY_END, entryLines, EXPORT_LINE, headLine, OPEN_LINE, readModule, readRequire, requireLine, typeLine } from './branches-text.mjs';
 import { MAX_LINES, Refusal, wrapComment } from './extract-plan.mjs';
 import { wrapNames } from './module-requires.mjs';
 import { requireEdit } from './require-edits.mjs';
 import { lineStarts } from './top-level.mjs';
 
-const TABLE_FILE = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)\/routes(?:-([a-z0-9]+(?:-[a-z0-9]+)*))?\.js$/;
+const TABLE_FILE = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)\/[a-z]+(?:-([a-z0-9]+(?:-[a-z0-9]+)*))?\.js$/;
 const camel = (words) => words.split('-').map((word, index) => (index ? word[0].toUpperCase() + word.slice(1) : word)).join('');
 
 /**
  * @param {string} source repo-relative file with the handler @param {string} target repo-relative module
- * @returns {{ local: string, spec: string } | null} the name the file requires the table under and the path it writes,
- *   null when the target is not `<feature>/routes.js` or `<feature>/routes-<word>.js` next to the file
+ * @returns {{ local: string, spec: string, kind: typeof ROUTES } | null} the name the file requires the table under, the path
+ *   it writes and which chain the table is for; null when the target is not `<feature>/routes.js`, `<feature>/tools.js`
+ *   or one of them with `-<word>`, next to the file
  */
 export function tableOf(source, target) {
   const relative = path.posix.relative(path.posix.dirname(source), target);
   const shape = TABLE_FILE.exec(relative);
-  if (!shape) return null;
+  const kind = kindOf(relative);
+  if (!shape || !kind) return null;
   const feature = camel(relative.split('/')[0]);
   const word = shape[1] ? camel(shape[1]) : '';
-  return { local: `${feature}${word ? word[0].toUpperCase() + word.slice(1) : ''}Branches`, spec: `./${relative}` };
+  return { local: `${feature}${kind.localWord}${word ? word[0].toUpperCase() + word.slice(1) : ''}Branches`, spec: `./${relative}`, kind };
 }
 
 /** The parameters of a body's function: only what it uses, so nothing in the new file is declared and left unused. */
-export function paramsFor(handed) {
-  const context = CONTEXT.filter((name) => handed.includes(name));
-  const parts = [handed.includes('req') ? 'req' : '_req', handed.includes('res') ? 'res' : '_res'];
+export function paramsFor(handed, kind = ROUTES) {
+  const context = kind.context.filter((name) => handed.includes(name));
+  const parts = kind.leading.map((name) => (handed.includes(name) ? name : `_${name}`));
   if (context.length) parts.push(`{ ${context.join(', ')} }`);
   while (parts.length && parts.at(-1).startsWith('_')) parts.pop();
   return parts.join(', ');
@@ -77,14 +83,15 @@ function requiresOf({ moduleBefore, parser, target, needed, bindings, rewriteSpe
 }
 
 // The module: its first comment, its requires, the table with every body it had and the new ones after them.
-function moduleFor({ moduleBefore, about, requireLines, added, target }) {
+function moduleFor({ moduleBefore, about, requireLines, added, target, kind }) {
   const before = moduleBefore === null ? { head: wrapComment(about), entries: [], tail: ['', EXPORT_LINE, ''] } : readModule(moduleBefore);
+  if (before.kind && before.kind !== kind) throw new Refusal([`${target} is a table of ${before.kind.id}, not of ${kind.id}`]);
   const comment = before.head.filter((_line, index) => before.head.slice(0, index + 1).every((other) => other.startsWith('//')));
   const taken = added.filter((entry) => before.entries.some((other) => other.key === entry.key)).map((entry) => entry.key);
   if (taken.length) throw new Refusal([`${target} already has a body for ${taken.join(', ')}`]);
   const entries = [...before.entries, ...added];
-  const table = entries.flatMap((entry, index) => [...(index ? [''] : []), headLine(entry.key, entry.params), ...entry.lines, ENTRY_END]);
-  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), TYPE_LINE, OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
+  const table = entries.flatMap((entry, index) => [...(index ? [''] : []), headLine(entry.key, entry.params), ...entryLines(entry.lines, kind), ENTRY_END]);
+  return [...comment, '', ...requireLines, ...(requireLines.length ? [''] : []), typeLine(kind), OPEN_LINE, ...table, CLOSE_LINE, ...before.tail].join('\n');
 }
 
 // The requires of the file that lost names only the moved bodies used, as edits of `text`, top to bottom.
@@ -120,9 +127,10 @@ function orphanEdits({ text, parser, source, needed, modules, ownModules, kept }
  * @param {any} job.parser from parser.mjs
  * @param {any} [job.analysis] from analyze.mjs, of the same text, when the caller has it
  * @param {string} job.source repo-relative path of that file
- * @param {string} job.target repo-relative module of the table: `<feature>/routes.js` or `<feature>/routes-<word>.js`
+ * @param {string} job.target repo-relative module of the table: `<feature>/routes.js`, `<feature>/tools.js` or one of them
+ *   with `-<word>`; the name says which chain the bodies come from
  * @param {string} [job.about] one sentence, the first comment of a new module
- * @param {string[]} job.keys `METHOD /path` of every branch whose body moves
+ * @param {string[]} job.keys `METHOD /path` (or the tool's name) of every branch whose body moves
  * @param {string | null} job.moduleBefore the module as it is, null when it is new
  * @param {(spec: string, from: string, to: string) => any} job.rewrite from module-requires.mjs
  * @param {string} [job.handler]
@@ -135,16 +143,18 @@ function orphanEdits({ text, parser, source, needed, modules, ownModules, kept }
  *   `keys` in the order of the chain; throws a Refusal
  */
 export function planBranches(job) {
-  const { text, parser, source, target, about, keys, moduleBefore, rewrite, handler = 'handleRequest', allowed = new Set(),
+  const { text, parser, source, target, about, keys, moduleBefore, rewrite, allowed = new Set(),
     protectedNames = new Set(), ownModules = new Set(), maxLines = MAX_LINES } = job;
   if (text.includes('\r')) throw new Refusal([`${source} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`]);
   const table = tableOf(source, target);
-  if (!table) throw new Refusal([`${target} is not <feature>/routes.js or <feature>/routes-<word>.js next to ${source}`]);
+  if (!table) throw new Refusal([`${target} is not <feature>/routes.js, <feature>/tools.js or one of them with -<word>, next to ${source}`]);
+  const { kind } = table;
+  const handler = job.handler ?? kind.handler;
   if (!allowed.has(handler)) throw new Refusal([`tools/restructure/protected.json does not let the bodies of ${handler} move ("branches")`]);
   if (moduleBefore === null && !about?.trim()) throw new Refusal(['say in one sentence what the new file does (--about): it becomes its first comment']);
   const analysis = job.analysis ?? analyze(text, parser, source);
   let read;
-  try { read = readBranches({ text, parser, analysis, handler }); } catch (error) { throw new Refusal([error.message]); }
+  try { read = readBranches({ text, parser, analysis, kind, handler }); } catch (error) { throw new Refusal([error.message]); }
   const reasons = [];
   const picked = [];
   for (const key of new Set(keys)) {
@@ -155,6 +165,11 @@ export function planBranches(job) {
     picked.push(found[0]);
   }
   if (picked.length === 0) reasons.push('no branch was named');
+  if (reasons.length) throw new Refusal(reasons);
+  const textOf = (node) => text.slice(node.getStart(read.sourceFile), node.end);
+  reasons.push(...handlerProblems(read.chain, parser, kind, [...new Set(picked.flatMap((branch) => branch.handed))], textOf).map((what) => `${handler}: ${what}`));
+  const early = calledBeforeItsTable(analysis, handler);
+  if (early !== null) reasons.push(`line ${early} of ${source} runs while the file loads and may reach ${handler} before the line that requires the table`);
   if (reasons.length) throw new Refusal(reasons);
   picked.sort((a, b) => a.first - b.first);
 
@@ -172,16 +187,16 @@ export function planBranches(job) {
     + `after ${handler} (line ${analysis.records[module.index].line[0]}): it would load earlier than today`));
   if (reasons.length) throw new Refusal(reasons);
 
-  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed), lines: lines.slice(branch.first, branch.last + 1) }));
-  const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target });
+  const added = picked.map((branch) => ({ key: branch.key, params: paramsFor(branch.handed, kind), lines: lines.slice(branch.first, branch.last + 1) }));
+  const moduleText = moduleFor({ moduleBefore, about, requireLines: required.lines, added, target, kind });
   const moduleLines = moduleText.split('\n').length - 1;
   if (moduleLines > maxLines) {
-    throw new Refusal([`${target} would be ${moduleLines} lines, the limit for a new file is ${maxLines}: put some of the branches in routes-<word>.js`]);
+    throw new Refusal([`${target} would be ${moduleLines} lines, the limit for a new file is ${maxLines}: put some of the branches in ${kind.fileWord}-<word>.js`]);
   }
 
   // The file: each body becomes its call, bottom up so the lines above keep their numbers; then the require.
   const out = [...lines];
-  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key));
+  for (const branch of picked.toReversed()) out.splice(branch.first, branch.last - branch.first + 1, callLine(table.local, branch.key, kind));
   if (!hasRequire) {
     const at = home.range[0] - 1;
     if (out[at - 1] === '' && readRequire(out[at - 2] ?? '')) out.splice(at - 1, 0, requireLine(table.local, table.spec));

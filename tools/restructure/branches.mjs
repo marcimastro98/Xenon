@@ -1,5 +1,5 @@
-// Moves the bodies of some routes of the request handler into a table in a module
-// of their feature, on disk: plan (branches-plan.mjs), prove (branches-proof.mjs),
+// Moves the bodies of some branches of a chain (routes of the request handler, or
+// tools the assistant runs) into a table in a module of their feature, on disk: plan (branches-plan.mjs), prove (branches-proof.mjs),
 // write both files, check them, and put everything back if a check fails. Also
 // redoes recorded moves for `verify`, and says what keeps the other bodies.
 
@@ -9,6 +9,7 @@ import path from 'node:path';
 import { analyze } from './analyze.mjs';
 import { planBranches } from './branches-plan.mjs';
 import { proveBranches } from './branches-proof.mjs';
+import { kindOf, ROUTES } from './branches-kinds.mjs';
 import { readBranches } from './branches-scope.mjs';
 import { Refusal } from './extract-plan.mjs';
 import { branchHandlers, protectedBetween, protectedNames, quietModules, readLedger, recordBranches } from './ledger.mjs';
@@ -43,7 +44,7 @@ export function proveBranchesFor({ root, parser, before, moduleBefore, plan, sou
  * @param {string} job.source repo-relative file with the handler
  * @param {string} job.target repo-relative module of the table
  * @param {string} [job.about] one sentence, the first comment of a new module
- * @param {string[]} job.keys `METHOD /path` of each branch
+ * @param {string[]} job.keys `METHOD /path` of each route, or the name of each tool
  * @param {boolean} [job.dryRun] plan and prove, write nothing
  * @returns {{ keys: string[], target: string, lines: number, sourceLines: number, added: boolean }}
  *   throws a Refusal before anything is written, an Error after a failed check (files put back)
@@ -55,7 +56,7 @@ export function moveBranches({ root, parser, source, target, about, keys, dryRun
   const entries = ledger.sources[source] ?? [];
   const records = ledger.branches?.[source] ?? [];
   const known = records.some((record) => record.file === target);
-  if (existsSync(file) && !known) throw new Refusal([`${target} exists and is not a table this command made: give the bodies a file of their own (routes-<word>.js)`]);
+  if (existsSync(file) && !known) throw new Refusal([`${target} exists and is not a table this command made: give the bodies a file of their own (${kindOf(target)?.fileWord ?? 'routes'}-<word>.js)`]);
   const moduleBefore = known ? readFileSync(file, 'utf8') : null;
   const plan = planBranchesFor({ root, parser, text: before, source, target, about, keys, moduleBefore, ownModules: quietModules(entries) });
   const reasons = targetReasons({ root, source, target, requires: plan.requires.map((module) => module.file).filter(Boolean), existing: known });
@@ -110,6 +111,7 @@ export function redoBranches({ root, parser, source, base, records, count, text,
 }
 
 const groupOf = (branch) => {
+  if (branch.key && !branch.key.includes(' ')) return 'tools';
   const parts = (branch.key?.split(' ')[1] ?? '').split('/').filter(Boolean);
   if (parts.length === 0) return branch.key ? '/' : '(no single address)';
   return parts[0] === 'api' ? `/api/${parts[1] ?? ''}` : `/${parts[0]}`;
@@ -117,13 +119,13 @@ const groupOf = (branch) => {
 
 /**
  * What can move now and what keeps the rest.
- * @param {{ text: string, parser: any, source: string, handler?: string }} job
+ * @param {{ text: string, parser: any, source: string, kind?: typeof ROUTES, handler?: string }} job
  * @returns {{ branches: number, moved: number, movable: { key: string, group: string, lines: number, line: number }[],
  *   held: { name: string, branches: number, alone: number, lines: number }[], other: { reason: string, branches: number }[] }}
  *   `held`: per name the file still declares, how many bodies wait on it, how many on it alone, and those bodies' lines
  */
-export function surveyBranches({ text, parser, source, handler = 'handleRequest' }) {
-  const { branches } = readBranches({ text, parser, analysis: analyze(text, parser, source), handler });
+export function surveyBranches({ text, parser, source, kind = ROUTES, handler = kind.handler }) {
+  const { branches } = readBranches({ text, parser, analysis: analyze(text, parser, source), kind, handler });
   const open = branches.filter((branch) => !branch.moved);
   const movable = open.filter((branch) => branch.reasons.length === 0).map((branch) => ({ key: branch.key, group: groupOf(branch), lines: branch.lines, line: branch.line }));
   const held = new Map();
