@@ -130,8 +130,6 @@ const { DISK_LETTERS_TTL } = require('./disk/details-timings.js');
 
 const { joinDiskDetails } = require('./disk/details-shape.js');
 
-const { DECK_SOUND_EXTS } = require('./deck/limits.js');
-
 const { resolveExecInDir } = require('./deck/open-app-folder.js');
 
 const layersEdit = require('./layers-edit').createLayersEdit({
@@ -499,8 +497,8 @@ require('./screen-alerts-page'); // the alerts window, with Bit's voice panel; n
 require('./scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
-const iconPacks = require('./icon-packs');
-const soundPacks = require('./sound-packs');
+require('./icon-packs');
+require('./sound-packs');
 const communityRatings = require('./community-ratings');
 require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const { createRemoteControl } = require('./remote-control');
@@ -708,7 +706,7 @@ const mcpDev = createMcpDev({
   broadcast: (event, data) => broadcastSSE(event, data),
 });
 const { MCP_BRIDGE_PATH } = require('./engine/paths.js');
-const { ICON_PACKS_DIR, SOUND_PACKS_DIR } = require('./deck/pack-places.js');
+require('./deck/pack-places.js');
 const { _spotlightPopupPids } = require('./search/spotlight-state.js');
 
 const { livingIndex } = require('./search/living-index-engine.js');
@@ -1147,8 +1145,7 @@ const devClean = createDevClean({
   spawnDetached: (exe, args) => { spawn(exe, args, { windowsHide: true, stdio: 'ignore' }).unref(); },
   onProgress: (info) => { try { broadcastSSE('devclean', info || {}); } catch {} },
 });
-const iconPackStore = iconPacks.createIconPacks({ dir: ICON_PACKS_DIR });
-const soundPackStore = soundPacks.createSoundPacks({ dir: SOUND_PACKS_DIR });
+const { iconPackStore, soundPackStore } = require('./deck/pack-stores.js');
 const { _deckPopupPids } = require('./deck/popup-pids.js');
 const { DECK_POPUP_TOP_SCRIPT } = require('./deck/script-paths.js');
 
@@ -2806,6 +2803,8 @@ async function playInTile(args) {
 }
 
 const readDeckConfigs = async () => (await readDeckStore()).configs;
+const { resolveDeckSoundFile } = require('./deck/sound-file.js');
+
 const deckShortcutRunner = createDeckShortcutRunner({
   readConfigs: readDeckConfigs,
   steps: require('./js/deck-actions.js').triggerSteps,
@@ -2827,15 +2826,6 @@ const deckPress = createDeckPress({
   readConfigs: readDeckConfigs,
   runner: deckShortcutRunner,
 });
-
-// A soundboard clip the PC may play: the same two shapes /deck/sound accepts (a
-// pack-relative ref, or the user's own absolute path), an audio extension, a file.
-async function resolveDeckSoundFile(raw) {
-  if (!raw) return null;
-  const abs = soundPackStore.resolve(raw) || (path.isAbsolute(raw) ? path.resolve(raw) : null);
-  if (!abs || !DECK_SOUND_EXTS.has(path.extname(abs).toLowerCase())) return null;
-  try { return (await fs.promises.stat(abs)).isFile() ? abs : null; } catch { return null; }
-}
 
 // ffplay ships next to ffmpeg in the usual builds (winget, Homebrew, distros).
 async function findFfplay() {

@@ -477,7 +477,9 @@
       {"file":"server/screens/capture-engine-host.js","about":"The host of the capture program that records the screen and keeps the replay, made when the engine starts: the program itself is started only when a capture is asked for.","names":["_captureHost"],"wire":{"first":"_captureHost","last":"_captureHost"}},
       {"file":"server/screens/replay-hotkey.js","about":"The key combination that saves the replay, or none while the replay is off, the capture program is missing or the person switched the shortcut off.","names":["_replayHotkey"]},
       {"file":"server/search/living-index-engine.js","about":"The index of the person's files that the search reads, made when the engine starts: it begins to build only after its start delay and when a search or the disk view asks.","names":["livingIndex"],"wire":{"first":"livingIndex","last":"livingIndex"}},
-      {"file":"server/search/living-index-roots.js","about":"Pointing the index at the folders chosen in the settings, and on macOS noticing when the permission to read the whole disk is given or taken away.","names":["refreshMacFdaState","refreshLivingIndex"]}
+      {"file":"server/search/living-index-roots.js","about":"Pointing the index at the folders chosen in the settings, and on macOS noticing when the permission to read the whole disk is given or taken away.","names":["refreshMacFdaState","refreshLivingIndex"]},
+      {"file":"server/deck/pack-stores.js","about":"The stores of the icon packs and sound packs the person installed for the Deck, made when the engine starts: each reads its folder when asked.","names":["iconPackStore","soundPackStore"],"wire":{"first":"iconPackStore","last":"soundPackStore"}},
+      {"file":"server/deck/sound-file.js","about":"Finding the file of a sound a Deck key plays, in the installed sound packs or among the sounds the person added.","names":["resolveDeckSoundFile"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
