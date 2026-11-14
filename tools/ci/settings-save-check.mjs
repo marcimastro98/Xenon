@@ -2,7 +2,8 @@
 // may not touch (the keys the engine or a widget owns, the secrets, the usage history),
 // what a paired device may not change (PC Control, app favourites, a widget's permissions),
 // the number each save gets, the word every open dashboard is sent, and that a save is
-// refused when the stored settings cannot be read. Each rule is one real request, sent
+// refused when the stored settings cannot be read. One rule more is about the other save of
+// the Settings pages, the app keys of the streaming accounts. Each rule is one real request, sent
 // from this computer or as a paired device, and the settings file read before and after.
 //
 // The engine runs in a rig (engine-rig.mjs): its own data, home and temp folders, this
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { openStream, rigPort, startRig } from './engine-rig.mjs';
 import { pairDevice } from './paired-device.mjs';
 import { DEVICE_RULES } from './settings-save-rules-device.mjs';
-import { PC_RULES, same } from './settings-save-rules.mjs';
+import { PC_RULES, same, show } from './settings-save-rules.mjs';
 import { SECRET_MARK, seedSettings } from './settings-save-seed.mjs';
 
 const CRASH = /Uncaught|Unhandled|TypeError|ReferenceError|SyntaxError|Cannot find module|FATAL|EADDRINUSE/;
@@ -28,6 +29,9 @@ const SETTLED_READS = 6;
 const SETTLE_LIMIT_MS = 30_000;
 const POLL_MS = 400;
 
+// Invented app keys: no service knows them.
+const APP_KEYS = { twitchClientId: 'rig-twitch-id', youtubeClientId: 'rig-youtube-id', youtubeClientSecret: 'rig-secret-youtube',
+  discordClientId: '100000000000000001', discordClientSecret: 'rig-secret-discord', spotifyClientId: 'rig-spotify-id' };
 const otherOffset = (now) => (now === 500 ? 700 : 500);
 const leak = (door) => async ({ doors }) => {
   const seen = await doors[door].ask('GET', '/settings');
@@ -63,6 +67,27 @@ export const LAST_RULES = [
       rig.writeStore(good);
       if (left !== broken) return 'the save wrote over the settings it could not read';
       return answer?.status === 500 ? '' : `the save answered ${answer?.status ?? 'nothing'}`;
+    } },
+  // The other save of the Settings pages: the app keys of Twitch, YouTube, Spotify and Discord, kept in a file of
+  // their own. The engine makes the four accounts where it loads and again after this save: both must give the same.
+  // No account has a sign-in here, so nothing is contacted, the Discord app on this computer included. Last, because
+  // it starts the engine again: the stream and the paired device of the rules above do not outlive that.
+  { rule: 'app keys saved in Settings → Streaming count at once, and the same after the engine starts again', kind: 'saved',
+    run: async ({ rig, doors }) => {
+      const accounts = async () => {
+        const said = [];
+        for (const name of ['twitch', 'youtube', 'spotify', 'discord']) said.push((await doors.pc.ask('GET', `/stream/${name}/status`))?.json ?? null);
+        return said;
+      };
+      const before = await accounts();
+      if (before.some((account) => account?.configured !== false)) return `an account had app keys before any were saved, or did not answer: nothing was proven (${show(before)})`;
+      const saved = await doors.pc.ask('POST', '/stream/config', APP_KEYS);
+      if (saved?.status !== 200) return `the save of the keys answered ${saved?.status ?? 'nothing'}`;
+      const after = await accounts();
+      if (after.some((account) => account?.configured !== true || account.connected !== false)) return `after the save not every account says it has keys and no sign-in: ${show(after)}`;
+      if (!await rig.restart()) return 'the engine did not start again';
+      const again = await accounts();
+      return same(after, again) ? '' : `after a restart the accounts say ${show(again)}, after the save they said ${show(after)}`;
     } },
 ];
 

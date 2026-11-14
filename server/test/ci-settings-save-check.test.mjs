@@ -53,10 +53,14 @@ function withStoredSecrets(sent, stored) {
 const answer = (status, json) => ({ status, headers: {}, text: JSON.stringify(json), json });
 
 /** A stand-in engine and the three doors to it. It lets everyone in; the options say what else it gets wrong. */
-function standIn(start, { stores = true, keepsSecrets = false, redacts = true, tells = true } = {}) {
+function standIn(start, { stores = true, keepsSecrets = false, redacts = true, tells = true, restarts = true } = {}) {
   let text = JSON.stringify(start);
+  let appKeys = {};
   const read = () => { try { return JSON.parse(text); } catch { return {}; } };
   const ask = async (method, pathname, body) => {
+    const account = pathname.startsWith('/stream/') && pathname.endsWith('/status') ? pathname.split('/')[2] : '';
+    if (account) return answer(200, { connected: false, login: '', configured: Boolean(appKeys[`${account}ClientId`]) });
+    if (pathname === '/stream/config') { if (stores) appKeys = body; return answer(200, { ok: true }); }
     if (method === 'GET') return answer(200, { settings: redacts ? wire(read()) : read() });
     if (!stores) return answer(200, { ok: true, rev: read().rev, savedAt: 1, lightingApplied: true });
     const next = keepsSecrets ? withStoredSecrets(body.settings, read()) : body.settings;
@@ -65,7 +69,7 @@ function standIn(start, { stores = true, keepsSecrets = false, redacts = true, t
   };
   const door = { ask };
   return {
-    rig: { storedText: () => text, stored: read, writeStore: (written) => { text = written; } },
+    rig: { storedText: () => text, stored: read, writeStore: (written) => { text = written; }, restart: async () => { if (restarts === 'bare') appKeys = {}; return Boolean(restarts); } },
     doors: { pc: door, device: door, stranger: door },
     stream: { waitFor: async () => tells },
   };
@@ -106,6 +110,17 @@ test('every rule about what a save must do passes on an engine that stores what 
     if (!lost) wrong.push(`${rule.rule}: an engine that stores nothing passed`);
   }
   assert.deepEqual(wrong, []);
+});
+
+test('the app keys of the streaming accounts must count after the save and the same after a restart', async () => {
+  const rule = LAST_RULES.find((entry) => /app keys/.test(entry.rule));
+  assert.equal(await askRule(rule, standIn(STORED)), '');
+  assert.match(await askRule(rule, standIn(STORED, { stores: false })), /after the save not every account says it has keys/);
+  assert.match(await askRule(rule, standIn(STORED, { restarts: 'bare' })), /after a restart the accounts say/);
+  assert.match(await askRule(rule, standIn(STORED, { restarts: false })), /the engine did not start again/);
+  const keyed = standIn(STORED);
+  await keyed.doors.pc.ask('POST', '/stream/config', { twitchClientId: 'x' });
+  assert.match(await askRule(rule, keyed), /nothing was proven/);
 });
 
 test('a rule that relies on an earlier one is not judged when the store is not as that one leaves it', async () => {
