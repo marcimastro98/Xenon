@@ -153,8 +153,6 @@ function createSpotifyProvider(deps) {
     } catch { return false; }   // network error: keep creds, retry later
   }
 
-  const getAccessToken = makeGetAccessToken(refresh);
-
   // ── 429 circuit breaker ─────────────────────────────────────────────────────
   // Spotify rate-limits over a rolling window and answers 429 with a Retry-After
   // (seconds). The dashboard polls several endpoints every few seconds, so once we
@@ -236,6 +234,8 @@ function createSpotifyProvider(deps) {
     _queryCache.set(path, { at: Date.now(), ttl, res });
     while (_queryCache.size > QUERY_CACHE_MAX) _queryCache.delete(_queryCache.keys().next().value);
   }
+
+  const getAccessToken = makeGetAccessToken(refresh);   // only keeps `refresh` for when a token runs out: nothing is asked of Spotify here
 
   async function apiRequest(method, pathWithQuery, bodyObj) {
     if (method !== 'GET') { _playerCache = null; _playerGen++; queryCacheClear(); }   // a mutation invalidates the snapshot AND any in-flight read — including the widgets', or a widget's own play lands on a stale queue
