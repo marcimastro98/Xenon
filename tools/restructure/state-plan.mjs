@@ -32,6 +32,10 @@ function readDeclaration({ text, starts, lines, record, node, sourceFile, forms 
     const rest = text.slice(init ? init.end : nameEnd, lineStart + lines[record.line[0] - 1].length);
     const eq = init ? text.slice(nameEnd, init.getStart(sourceFile)) : '';
     if (rest.startsWith(';') && /^\s*(?:\/\/.*)?$/.test(rest.slice(1)) && (!init || /^\s*=\s*$/.test(eq))) {
+      // The lines above go with it into the object, where only `//` lines can stand as they are; a /* */ note is often about what follows.
+      if (lines.slice(record.range[0] - 1, record.line[0] - 1).some((line) => !line.startsWith('//'))) {
+        return { reason: 'has a note above it that is not written in `//` lines (a /* */ block, which may be about the code that follows): it cannot go into the object as it is' };
+      }
       return { start, nameEnd, moved: { eq, value: init ? text.slice(init.getStart(sourceFile), init.end) : null, trail: rest.slice(1) } };
     }
   }

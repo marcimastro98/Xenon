@@ -186,6 +186,8 @@ test('a declaration or a name the rewrite cannot handle is refused', (t) => {
   assert.match(refusal(file('let n = 0, m = 1;', uses), { n: 'n' }), /n .* is declared together with other names/);
   assert.match(refusal(file('let n = 0; let m = 1;', uses), { n: 'n' }), /n .* shares a line with another statement/);
   assert.match(refusal(file('let n = 0;', uses), { missing: 'n' }), /missing is not a top-level declaration/);
+  assert.match(refusal(file('/**', ' * What a() does.', ' */', 'let n = 0;', uses), { n: 'n' }), /n .* has a note above it that is not written in `\/\/` lines/);
+  assert.equal(refusal(file('// How many.', 'let n = 0;', uses), { n: 'n' }), '');
   assert.match(refusal(file('let n = 0;', uses, '// see box.n'), { n: 'n' }), /cannot become box\.n: the file has that text already/);
   assert.match(refusal(file('let n = 0;', uses, 'n = 2;'), { n: 'n' }), /is assigned by a statement that starts a line/);
   assert.match(refusal(file('const box = 1;', 'let n = 0;', uses), { n: 'n' }), /already declares box/);
