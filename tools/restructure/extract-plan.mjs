@@ -5,6 +5,7 @@
 import path from 'node:path';
 
 import { closureOf } from './analyze.mjs';
+import { respellsFor, writeRespells } from './extract-inline.mjs';
 import { namesRunAtLoad } from './load-registrations.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
 import { requireEdits } from './require-edits.mjs';
@@ -44,7 +45,9 @@ function selfReasons(record, at, protectedNames) {
     reasons.push(`${label} (${at(record)}) runs code when the file loads${calls}: moving it would change the load order`);
   }
   if (record.sharesLine) reasons.push(`${label} (${at(record)}) shares a line with another statement`);
-  if (record.fileBound.length) reasons.push(`${label} (${at(record)}) uses ${record.fileBound.join(', ')}, which would mean another file there`);
+  if (record.fileBound.length && !record.inlineRequires) {
+    reasons.push(`${label} (${at(record)}) uses ${record.fileBound.join(', ')}, which would mean another file there${record.inlineWhy ? `: ${record.inlineWhy}` : ''}`);
+  }
   const guarded = record.names.filter((name) => protectedNames.has(name));
   if (guarded.length) reasons.push(`${guarded.join(', ')} (${at(record)}) is part of the security prelude and stays where it is`);
   return reasons;
@@ -121,16 +124,20 @@ export function placeRequire({ records, moved, movedSet, movedNames, bindings, m
  * @param {number[][]} [job.protectedStretches] runs of the old file that get no new line, as [first, last] positions
  *   in the analysis records (first = -1: from the start of the file)
  * @param {Set<string>} [job.ownModules] repo-relative modules earlier extractions made out of this file
+ * @param {(file: string | null) => string | null} [job.readFile] the text of a repo file, to look into a module the moved code asks for by path
  * @param {number} [job.maxLines]
  * @returns {{ newSource: string, moduleText: string, moved: string[], exported: string[], imported: string[],
- *   ranges: number[][], requires: any[], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
+ *   ranges: number[][], requires: any[], asked: string[], glue: { sourceAt: number, sourceLines: string[], moduleLines: number[],
+ *   respells?: { at: number, first: number, column: number, from: string, to: string }[],
  *   sourceFirst: number, edits: { at: number, first: number, oldLines: string[], newLines: string[] }[] } }}
  *   `edits` are requires of the old file that lost names only the moved code used, in the order of the old file; `at` and
  *   `sourceAt` are 0-based lines of the new text, `first` and `sourceFirst` the 0-based lines of the old text they stand for.
+ *   `asked` are the repo files the moved code asks for by path inside a function, `respells` the paths spelled again for
+ *   the new folder (the only moved text that changes): `at` is the 0-based line of the new module.
  */
 export function planExtraction(job) {
   const { text, analysis, names, source, target, about, rewrite, withDeps = false,
-    protectedNames = new Set(), protectedStretches = [], ownModules = new Set(), maxLines = MAX_LINES } = job;
+    protectedNames = new Set(), protectedStretches = [], ownModules = new Set(), readFile, maxLines = MAX_LINES } = job;
   const { bindings, records } = analysis;
   if (text.includes('\r')) throw new Refusal([`${source} has Windows line endings: code files are LF here (.gitattributes), fix the checkout first`]);
   const unknown = names.filter((name) => !bindings.has(name));
@@ -150,6 +157,9 @@ export function planExtraction(job) {
     reasons.push(`${record.names.join(', ')} (${at(record)}) needs ${list} from ${source}: the new module would have to require `
       + `${source} back, a circular require read at load time. Move ${stays.length > 1 ? 'them' : 'it'} first or with it (--with-deps).`);
   }
+  // A path asked for inside a moved function is spelled again for the new folder (extract-inline.mjs).
+  const inline = respellsFor(moved, { source, target, rewrite, readFile });
+  reasons.push(...inline.reasons);
   const remaining = records.filter((record) => !movedSet.has(record));
   const imported = movedNames.filter((name) => remaining.some((record) => record.uses.has(name)));
   for (const name of imported) {
@@ -198,21 +208,26 @@ export function planExtraction(job) {
   if (required.lines.length) body.push('');
   const moduleGlue = body.map((_, index) => index);
   const glueLine = (line) => { moduleGlue.push(body.length); body.push(line); };
+  const madeAt = new Map();
   moved.forEach((record, i) => {
     const apart = i > 0 && record.range[0] !== moved[i - 1].range[1] + 1;
     if (apart && !blank(body.at(-1))) glueLine('');
+    madeAt.set(record, body.length);
     body.push(...rangeLines(record));
   });
   if (!blank(body.at(-1))) glueLine('');
   const exported = movedNames.filter((name) => !bindings.get(name).reassigned);
   for (const line of wrapNames(exported, 'module.exports = {', '};')) glueLine(line);
+  const respells = writeRespells(body, inline.respells, (record) => madeAt.get(record));
   if (body.length > maxLines) {
     throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move fewer names per file, split by what they do`]);
   }
   return {
     newSource: kept.join('\n'), moduleText: `${body.join('\n')}\n`,
     moved: movedNames, exported, imported, ranges: moved.map((record) => record.range), requires: required.modules,
+    asked: [...new Set(inline.respells.map((row) => row.file).filter(Boolean))],
     glue: { sourceAt, sourceFirst: anchorRecord.range[0] - 1, sourceLines: sourceGlue, moduleLines: moduleGlue,
-      edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, first, oldLines, newLines }) => ({ at, first, oldLines, newLines })) },
+      edits: [...edits.values()].sort((a, b) => a.first - b.first).map(({ at, first, oldLines, newLines }) => ({ at, first, oldLines, newLines })),
+      ...(respells.length ? { respells } : {}) },
   };
 }

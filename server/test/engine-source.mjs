@@ -24,6 +24,9 @@
 // (tools/restructure `gather`: `let held` is `memory.held` now). The text handed
 // out here has the `let`s and their names back, in the factory's file and in the
 // modules made out of it afterwards.
+//
+// A function that asks for a module inside its body (`require('./net-guard')`) has the path spelled for
+// its new folder (tools/restructure extract-inline.mjs). The text handed out here has the old spelling back.
 import { readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +41,7 @@ import { undoStateText } from '../../tools/restructure/state-undo.mjs';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LEDGER = join(REPO, 'tools', 'restructure', 'extracted.json');
 const ENGINE = 'server/server.js';
+const REQUIRE_CALL = /require\((['"])([^'"]+)\1\)/g;
 
 // A test file asks for the same text once per test, and putting the engine back together reads the list and
 // every module again each time (7 seconds a call at 370 modules). Nothing here changes while a test runs, so
@@ -53,8 +57,21 @@ const readAsIs = (file) => once(`as it is: ${file}`, () => readFileSync(join(REP
 const PATH_MODULES = new Set(ledgerOf(ENGINE).filter((entry) => entry.paths).map((entry) => entry.file));
 const SPREADS = readLedger().spreads?.[ENGINE] ?? [];
 const PARTS = new Set(SPREADS.flatMap((spread) => spread.parts.map((part) => part.name)));
-const oldPlaces = (file) => (PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file));
+// A module whose moved code asks for files by path: the list has each new spelling with the old one.
+const SPELLED = new Map(Object.values(readLedger().sources ?? {}).flat().filter((entry) => entry.spelled).map((entry) => [entry.file, entry.spelled]));
+const oldPlaces = (file) => {
+  const text = PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file);
+  return SPELLED.has(file) ? oldSpellings(text, SPELLED.get(file)) : text;
+};
 const read = (file) => once(`put back: ${file}`, () => wholeObjects(file, bodiesBack(file, oldPlaces(file))));
+
+/**
+ * @param {string} text a module @param {Record<string, string>} spelled new spelling of a path to the old one
+ * @returns {string} the text with every `require('<new>')` asking for the old spelling again, the module's own first lines included
+ */
+export function oldSpellings(text, spelled) {
+  return text.replace(REQUIRE_CALL, (all, quote, spec) => (Object.hasOwn(spelled, spec) ? `require(${quote}${spelled[spec]}${quote})` : all));
+}
 
 /**
  * @param {string} file repo-relative @param {string} text its text

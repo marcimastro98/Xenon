@@ -10,6 +10,7 @@ import path from 'node:path';
 import { analyze } from './analyze.mjs';
 import { redoBranches } from './branches.mjs';
 import { diskTree, dropOnDisk } from './dead-requires-disk.mjs';
+import { spelledOf } from './extract-inline.mjs';
 import { planExtraction, Refusal } from './extract-plan.mjs';
 import { tidyPlan } from './extract-tidy.mjs';
 import { gathersToRedo, redoGathers } from './gather.mjs';
@@ -27,12 +28,15 @@ import { targetReasons } from './target-rules.mjs';
 import { proveMove, syntaxProblems, unknownNameProblems } from './verify.mjs';
 
 function planFor({ root, parser, text, source, target, about, names, withDeps, ownModules }) {
-  const analysis = analyze(text, parser, source);
+  // Where a path leads is asked of the repo the step works in.
+  const reach = repoFileReader(root);
+  const analysis = analyze(text, parser, source, { fileOf: (spec) => reach(spec, source) });
   const guard = protectedNames(root, source, analysis.records);
   if (guard.missing.length) {
     throw new Refusal([`tools/restructure/protected.json names ${guard.missing.join(', ')}, which ${source} no longer declares: correct the list first`]);
   }
-  return planExtraction({ text, analysis, names, source, target, about, withDeps, ownModules,
+  const readFile = (file) => (file && existsSync(path.join(root, file)) ? readFileSync(path.join(root, file), 'utf8') : null);
+  return planExtraction({ text, analysis, names, source, target, about, withDeps, ownModules, readFile,
     rewrite: createSpecRewriter(root), protectedNames: guard.names, protectedStretches: guard.stretches });
 }
 
@@ -58,10 +62,12 @@ export function extract(job) {
   const earlier = entries.map((entry) => entry.file);
   const bare = dropOnDisk({ root, parser: job.parser, source, target, plan: planFor({ ...job, text: before, ownModules: quietModules(entries) }) });
   const plan = tidyPlan(before, bare.plan);
-  const requires = plan.requires.map((module) => module.file).filter(Boolean);
+  const requires = [...plan.requires.map((module) => module.file).filter(Boolean), ...plan.asked];
+  let spelled;
+  try { spelled = spelledOf(plan); } catch (error) { throw new Refusal([error.message]); }
   const reasons = targetReasons({ root, source, target, requires });
   if (reasons.length) throw new Refusal(reasons);
-  const proof = proveMove({ before, after: plan.newSource, moduleText: plan.moduleText, plan });
+  const proof = proveMove({ before, after: plan.newSource, moduleText: plan.moduleText, plan, paths: { source, target, fileOf: repoFileReader(root) } });
   if (proof.length) throw new Error(`the plan does not prove itself, nothing was written:\n${proof.join('\n')}`);
   const count = (text) => text.split('\n').length - 1;
   const result = { moved: plan.moved, imported: plan.imported, target,
@@ -84,7 +90,7 @@ export function extract(job) {
     throw new Error(`the move failed its checks and was undone:\n${problems.join('\n')}`);
   }
   appendLedger(root, source, { file: target, about, names: plan.moved, ...(bare.dropped.length ? { bare: bare.dropped.map((row) => row.spec) } : {}),
-    ...(plan.glue.blanks?.length ? { tidy: true } : {}) });
+    ...(plan.glue.blanks?.length ? { tidy: true } : {}), ...(spelled ? { spelled } : {}) });
   return result;
 }
 
@@ -193,7 +199,11 @@ export function replay({ root, parser, base, show = gitShow }) {
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })
         : entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
         : entry.inner ? proveInner({ ...texts, parser, source, target: entry.file, ...entry.inner })
-        : entry.state ? proveState({ ...texts, parser, source }) : proveMove(texts);
+        : entry.state ? proveState({ ...texts, parser, source }) : proveMove({ ...texts, paths: { source, target: entry.file, fileOf: repoFileReader(root) } });
+      // The paths a move spelled again are in the list (engine-source.mjs reads them): the list says what the tool does.
+      if (!entry.lift && !entry.paths && !entry.inner && !entry.state && JSON.stringify(spelledOf(plan)) !== JSON.stringify(entry.spelled ?? null)) {
+        problems.push(`${entry.file}: the list does not record the paths the move spells again ("spelled")`);
+      }
       problems.push(...proof.map((p) => `${entry.file}: ${p}`));
       const onDisk = existsSync(path.join(root, entry.file)) ? readFileSync(path.join(root, entry.file), 'utf8') : null;
       if (onDisk !== plan.moduleText) problems.push(`${entry.file} is not what the tool writes: it was edited by hand after the move, or is missing`);

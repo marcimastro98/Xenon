@@ -5,7 +5,9 @@ import { isBuiltin } from 'node:module';
 
 import { afterLoadFor, afterLoadNames } from './after-load.mjs';
 import { repoAloneTest } from './alone.mjs';
+import { readInlineRequires } from './extract-inline.mjs';
 import { markRegistrations, namesHeldAtLoad, namesRunAtLoad, registrationsFor, repoFileOf } from './load-registrations.mjs';
+import { topStatements } from './state-refs.mjs';
 import { readTopLevel } from './top-level.mjs';
 
 // Names whose meaning depends on the file the code sits in.
@@ -27,10 +29,12 @@ const CAN_MOVE = new Set(['function', 'class', 'const']);
  *   `anyTime` says of a require statement whether its module is proven to load the same at whatever moment;
  *   `records` are the top-level statements with, added here: `deps` (other top-level
  *   names used), `requires` (required modules used), `writes`, `changes`, `state`,
- *   `fileBound`, `movable` and `blockers`.
+ *   `fileBound`, `inlineRequires` (extract-inline.mjs: the relative paths asked for inside it, when that is all that
+ *   ties it to the file; null otherwise, with `inlineWhy`), `movable` and `blockers`.
  */
 export function analyze(text, parser, file = 'file.js', rules = {}) {
-  const records = readTopLevel(parser.parse(text, file), parser, rules.calls);
+  const sourceFile = parser.parse(text, file);
+  const records = readTopLevel(sourceFile, parser, rules.calls);
   const bindings = new Map();
   const duplicates = new Set();
   for (const record of records) {
@@ -57,7 +61,9 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
   const fileOf = rules.fileOf ?? repoFileOf(file);
   const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file), { bindings, fileOf });
   const served = afterLoadNames(records, text, rules.afterLoad ?? afterLoadFor(file), { bindings, fileOf });
-  for (const record of records) describe(record, bindings, duplicates);
+  const nodes = topStatements(sourceFile, parser);
+  const inline = (record) => readInlineRequires(record, nodes[record.index], { sourceFile, K: parser.K, fileOf });
+  for (const record of records) describe(record, bindings, duplicates, inline);
   // Asked only for a module that would otherwise hold a declaration back, and once for each: the proof reads other files.
   let early = rules.early;
   const proven = new Map();
@@ -75,7 +81,7 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
     afterLoad: served.names, afterLoadProblems: served.problems, anyTime };
 }
 
-function describe(record, bindings, duplicates) {
+function describe(record, bindings, duplicates, inline) {
   const own = new Set(record.names);
   const pick = (test) => [...record.uses].filter(([name, use]) => bindings.has(name) && test(name, use)).map(([name]) => name);
   record.requires = pick((name) => bindings.get(name).kind === 'require' && !own.has(name));
@@ -84,13 +90,14 @@ function describe(record, bindings, duplicates) {
   record.changes = pick((name, use) => use.change > 0 && bindings.get(name).kind !== 'require');
   record.state = record.deps.filter((name) => bindings.get(name).state);
   record.fileBound = [...record.uses.keys()].filter((name) => FILE_BOUND.has(name) && !(record.kind === 'require' && name === 'require'));
+  ({ list: record.inlineRequires, why: record.inlineWhy } = inline(record));
   record.globals = [...record.uses.keys()].filter((name) => !bindings.has(name) && !FILE_BOUND.has(name));
   const blockers = [];
   const block = (code, names) => { if (!names || names.length) blockers.push(names ? { code, names } : { code }); };
   if (!CAN_MOVE.has(record.kind)) block(`is-a-${record.kind}`);
   else if (record.loadTime) block('runs-code-at-load');
   if (record.sharesLine) block('shares-a-line');
-  block('bound-to-this-file', record.fileBound);
+  block('bound-to-this-file', record.inlineRequires ? [] : record.fileBound);
   block('declared-twice', record.names.filter((name) => duplicates.has(name)));
   if (CAN_MOVE.has(record.kind)) block('is-shared-state', record.names.filter((name) => bindings.get(name).state));
   block('reassigns', record.writes);
@@ -175,7 +182,7 @@ export function toJson(analysis) {
   const declarations = analysis.records.filter((r) => r.names.length > 0 && r.kind !== 'require').map((r) => ({
     names: r.names, kind: r.kind, line: r.line, range: r.range, lines: r.range[1] - r.range[0] + 1,
     reads: r.deps, requires: r.requires, writes: r.writes, changes: r.changes, state: r.state,
-    fileBound: r.fileBound, loadTime: r.loadTime, loadTimeCalls: r.loadCalls, movable: r.movable, blockers: r.blockers,
+    fileBound: r.fileBound, inlineRequires: r.inlineRequires?.map((asked) => asked.from) ?? null, loadTime: r.loadTime, loadTimeCalls: r.loadCalls, movable: r.movable, blockers: r.blockers,
   }));
   const statements = analysis.records.filter((r) => r.names.length === 0).map((r) => ({
     line: r.line, reads: r.deps, writes: r.writes, changes: r.changes,

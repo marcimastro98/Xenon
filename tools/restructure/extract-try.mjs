@@ -3,6 +3,7 @@
 // A declaration that can move alone may still be refused with others, because one new require
 // has to stand above the first use of all of them.
 
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { planExtraction, Refusal } from './extract-plan.mjs';
@@ -24,9 +25,10 @@ export function moveRefusal({ root, text, source, analysis }) {
   const ownModules = quietModules(readLedger(root).sources[source] ?? []);
   // A new module goes one folder under the old file, as every feature folder does.
   const target = path.posix.join(path.posix.dirname(source), 'a-feature', 'part.js');
+  const readFile = (file) => (file && existsSync(path.join(root, file)) ? readFileSync(path.join(root, file), 'utf8') : null);
   return (names) => {
     try {
-      planExtraction({ text, analysis, names, source, target, about: 'Asked, not written.', rewrite, ownModules,
+      planExtraction({ text, analysis, names, source, target, about: 'Asked, not written.', rewrite, ownModules, readFile,
         protectedNames: guard.names, protectedStretches: guard.stretches, maxLines: Infinity });
       return null;
     } catch (error) {
