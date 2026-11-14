@@ -18,7 +18,7 @@ import { nameClashes, namesMade } from './browser-inner-names.mjs';
 import { readWrapper } from './browser-inner-plan.mjs';
 import { innerStateProblems } from './browser-inner-proof.mjs';
 import { ourScripts } from './browser-inner-survey.mjs';
-import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
+import { innerPartsOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { ASKED_LISTS, BUILT_LIST, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
 import { nodeLoadersOf, nodeLoadProblems } from './browser-node-loads.mjs';
@@ -110,10 +110,10 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
       for (const part of run) problems.push(...readStylesheet(read(part)).problems.map((problem) => `${part}: ${problem}`));
       continue;
     }
-    const inner = innerFilesOf(ledger, file);
+    const inner = innerPartsOf(ledger, file).map((part) => ({ ...part, text: read(part.file) }));
     if (inner.length) {
-      madeOfMoved.push(...inner.map((part) => ({ source: file, text: read(part) })));
-      problems.push(...innerStateProblems({ source: file, text: read(file), parts: inner.map((part) => ({ file: part, text: read(part) })), parser }));
+      madeOfMoved.push(...inner.map((part) => ({ source: file, text: part.text })));
+      problems.push(...innerStateProblems({ source: file, text: read(file), parts: inner, parser }));
       problems.push(...nodeLoadersOf(root, file).slice(0, 1).map((loader) => `${file} is loaded by Node (${loader}), where the scripts made of its functions do not load before it`));
       continue;
     }

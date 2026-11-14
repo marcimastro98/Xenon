@@ -78,12 +78,14 @@ function innerMove(tree, move, { parser, pages, earlier }) {
   if (earlier.some((entry) => entry.kind === 'module' && entry.file === move.from)) reasons.push(`${move.from} is a module: a module takes what it needs with an import, not from window`);
   if (earlier.some((entry) => entry.kind === 'script' && entry.from === move.from)) reasons.push(`${move.from} is split by its top-level declarations already: one way of splitting per script`);
   if (earlier.some((entry) => ['script', 'inner', 'inline'].includes(entry.kind) && entry.file === move.from)) reasons.push(`${move.from} was made by a move: take functions out of the script it came from`);
+  if (move.hand) reasons.push(`${move.file} was cut by hand: no tool can redo that move`);
   if (reasons.length) throw new Refusal(reasons);
-  const before = earlier.filter((entry) => entry.kind === 'inner' && entry.from === move.from).map((entry) => entry.file);
+  const made = earlier.filter((entry) => entry.kind === 'inner' && entry.from === move.from);
+  const before = made.map((entry) => entry.file);
   const run = [...before, move.from];
   const files = retag(tree, pages, { old: move.from, added: [move.file], where: 'before', before: run, after: [...before, move.file, move.from] });
   const text = need(tree, move.from);
-  const parts = before.map((file) => ({ file, text: need(tree, file) }));
+  const parts = made.map((entry) => ({ file: entry.file, text: need(tree, entry.file), hand: entry.hand === true }));
   const plan = planInnerScript({ text, parser, source: move.from, target: move.file, about: move.about, names: move.names, earlier: parts, retake: move.retakes === true, handed: move.handed === true || Array.isArray(move.hands) });
   const unproven = proveInnerMove({ before: text, after: plan.newSource, made: plan.targetText, plan, parser, source: move.from, target: move.file, earlier: parts });
   if (unproven.length) throw new Refusal(unproven.map((problem) => `planned, and not proven: ${problem}`));

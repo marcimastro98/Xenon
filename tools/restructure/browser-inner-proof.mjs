@@ -34,11 +34,12 @@ function withoutBlankEnd(lines) {
  * Reads a script made of functions and constants taken out of a wrapper.
  * @param {string} text @param {string} file @param {string} name the name it must leave on window @param {any} parser
  * @param {Map<string, Map<string, any>>} [known] the names on window of the scripts that load before it, with what each of their names holds
+ * @param {boolean} [byHand] a script cut by hand (`hand: true` in the list of moves): a person judged what it decides, the rule about decisions is not asked of it
  * @returns {{ problems: string[], shell: ReturnType<typeof readWrapper>, functions: Map<string, any>, gives: string[], takes: { from: string, names: string[] }[] }}
  *   `functions`: what it declares by name, function declarations and written-out constants (a constant of two names is there twice),
  *   `gives`: the names in its one object, `takes`: the names its first lines take from earlier scripts
  */
-export function readInnerScript(raw, file, name, parser, known = new Map()) {
+export function readInnerScript(raw, file, name, parser, known = new Map(), byHand = false) {
   const { text, handed, problems: shape } = fromHanded(raw);
   const shell = readWrapper(text, file, parser);
   const functions = new Map();
@@ -75,7 +76,7 @@ export function readInnerScript(raw, file, name, parser, known = new Map()) {
     }
     for (const declared of record.names) functions.set(declared, record);
     // A constant is judged in its new place as it was in the old one: a value written out, of names declared above it here.
-    problems.push(...ownReasons(shell, record, `${file}: ${record.names.join(', ')}`, { decides: !movedBeforeRule(file, record.names) }).map((reason) => reason.text));
+    problems.push(...ownReasons(shell, record, `${file}: ${record.names.join(', ')}`, { decides: !byHand && !movedBeforeRule(file, record.names) }).map((reason) => reason.text));
   }
   for (const given of gives) if (!functions.has(given)) problems.push(`${file} leaves ${given} on window.${name}, which is not one of its functions or constants`);
   if (new Set(gives).size !== gives.length) problems.push(`${file} names a function twice in window.${name}`);
@@ -124,7 +125,7 @@ function readParts(source, parts, parser) {
   const known = new Map();
   const read = parts.map((part) => {
     const name = windowNameOf(source, part.file);
-    const made = name ? readInnerScript(part.text, part.file, name, parser, known) : null;
+    const made = name ? readInnerScript(part.text, part.file, name, parser, known, part.hand === true) : null;
     if (made && !made.handed) known.set(name, kindsIn(made.shell));
     return { ...part, name, made };
   });
@@ -270,7 +271,7 @@ function proveAsTaken({ before, after, made, plan, parser, source, target, earli
 
 /**
  * The standing check of one wrapped script and the scripts made of its functions.
- * @param {{ source: string, text: string, parts: { file: string, text: string }[], parser: any }} job `parts` in the order a page loads them
+ * @param {{ source: string, text: string, parts: { file: string, text: string, hand?: boolean }[], parser: any }} job `parts` in the order a page loads them, `hand` on one cut by hand
  * @returns {string[]}
  */
 export function innerStateProblems({ source, text, parts, parser }) {

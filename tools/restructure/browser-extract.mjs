@@ -201,6 +201,8 @@ export function replay({ root, parser, base, show = showAt }) {
   const written = new Set();
   let replayed = 0;
   ledger.moves.forEach((move, index) => {
+    // A script a person cut out of a wrapper cannot be redone: its proof is the standing check, the tests and the pages compared.
+    if (move.hand) return;
     const made = newFilesOf(move);
     const there = made.filter((file) => show(root, base, file) !== null);
     if (IN_PLACE.has(move.kind) ? doneInPlace(move, tree.get(move.file), parser) : there.length === made.length) return;

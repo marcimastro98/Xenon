@@ -9,6 +9,7 @@ import path from 'node:path';
 export const BROWSER_LEDGER = 'tools/restructure/extracted-browser.json';
 const NOTE = 'What tools/restructure took out of which browser file, in order. Written by `browser extract`, `browser split-css`, '
   + '`browser inline`, `browser module`, `browser inner` and `browser state`, read by `browser verify` and by server/test/browser-source.mjs. Do not edit by hand.';
+// The one line a person writes: an `inner` move with `hand: true`, for a script cut out of a wrapper by hand (see readBrowserLedger).
 
 /**
  * @param {string} root
@@ -24,7 +25,9 @@ const NOTE = 'What tools/restructure took out of which browser file, in order. W
  *   right before and leaves them on `window.<name>`; `gives` are the ones the old script takes back, `takes` the names the new script
  *   takes from the ones made of the same wrapper before it, by their name on window; `retakes: true` when the move also rewrote a line of the
  *   old script that took names from an earlier one, to the names it still uses: browser-inner-retakes.mjs; `hands` the names of the wrapper the
- *   new script is handed, when it is made in that form: browser-inner-handed.mjs).
+ *   new script is handed, when it is made in that form: browser-inner-handed.mjs; `hand: true` when a person cut the script and wrote the line:
+ *   `browser verify` cannot redo such a move and does not try, the standing check reads the script like any other in the handed form, and only
+ *   the rule that keeps a decision in its script is not asked of it, because a person judged that).
  */
 export function readBrowserLedger(root) {
   try {
@@ -79,6 +82,9 @@ export function runOf(ledger, file) {
 
 /** @param {{ moves: any[] }} ledger @param {string} file @returns {string[]} the scripts made of functions taken out of its wrapper, in load order */
 export const innerFilesOf = (ledger, file) => ledger.moves.filter((move) => move.kind === 'inner' && move.from === file).map((move) => move.file);
+
+/** @param {{ moves: any[] }} ledger @param {string} file @returns {{ file: string, hand: boolean }[]} the same scripts, each with whether a person cut it */
+export const innerPartsOf = (ledger, file) => ledger.moves.filter((move) => move.kind === 'inner' && move.from === file).map((move) => ({ file: move.file, hand: move.hand === true }));
 
 /** @param {{ moves: any[] }} ledger @returns {string[]} every script or stylesheet something was taken out of */
 export function splitFiles(ledger) {
