@@ -643,6 +643,7 @@
         "server/hid/**",
         "server/actions/chroma*.js",
         "server/icue-sharpen.ps1",
+        "server/js/lighting-page/**",
         "server/js/lighting-*.js",
         "server/js/driver-album-lights.js",
         "server/components/LightingPage/**",
