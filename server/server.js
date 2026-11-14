@@ -379,7 +379,7 @@ try {
   });
 } catch { /* platform without one */ }
 const lighting = require('./lighting');
-const { createSessionWatch } = require('./session-watch');
+require('./session-watch');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
@@ -2770,23 +2770,8 @@ const { _duckSpeakerVolume } = require('./audio/speaker-duck.js');
 
 const { stopServerSpeak } = require('./ai/speak-play.js');
 
-// Shutdown / restart / sleep: switch off the lights Xenon drives itself first
-// (session-watch.js says why node cannot see these on its own). Runs only
-// while native lighting is on, the one thing that would otherwise stay lit on
-// standby power; iCUE takes its devices back by itself.
-const _sessionWatch = createSessionWatch({
-  onEvent: (ev) => {
-    // console.warn: only warn/error reach server.log (startup-log.js), and a report of
-    // lights left on needs to say whether the PC told us.
-    console.warn('[session-watch] ' + ev);
-    return ev === 'resume' ? lighting.powerUp() : lighting.powerDown();
-  },
-});
-function _syncSessionWatch() {
-  let on = false;
-  try { on = lighting.getConfig().native.enabled === true; } catch { /* stays off */ }
-  if (on) _sessionWatch.start(); else _sessionWatch.stop();
-}
+const { _sessionWatch } = require('./platform/session-watch-lights.js');
+const { _syncSessionWatch } = require('./platform/session-watch-sync.js');
 
 const { aiStoppedReply } = require('./ai/stopped-reply.js');
 

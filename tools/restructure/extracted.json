@@ -491,7 +491,9 @@
       {"file":"server/windows-tiles/play-in-tile.js","about":"Playing a channel or a video in a tile when the assistant is asked to: what was meant is searched for first, then handed to the dashboard that shows the tile.","names":["playInTile"]},
       {"file":"server/perf-session/engine-session.js","about":"The engine's own Performance Mode session, made when the engine starts: the process table, priorities, the culprit finder and Core Shield, each working only when asked.","names":["perfSession"],"wire":{"first":"perfSession","last":"perfSession"}},
       {"file":"server/performance/perf-stats.js","about":"The numbers of the Performance Mode sheet, read from the process table; PowerShell answers only when the table cannot be read.","names":["perfStats"]},
-      {"file":"server/performance/core-shield-sync.js","about":"Telling Core Shield what the settings and the running game ask of it, and what a game session records about Performance Mode.","names":["gameSessionFacts","syncCoreShield"]}
+      {"file":"server/performance/core-shield-sync.js","about":"Telling Core Shield what the settings and the running game ask of it, and what a game session records about Performance Mode.","names":["gameSessionFacts","syncCoreShield"]},
+      {"file":"server/platform/session-watch-lights.js","about":"Switching off the lights Xenon drives itself when the PC shuts down, restarts or sleeps, and on again when it wakes: the watcher is made when the engine starts and runs only while Xenon drives lights.","names":["_sessionWatch"],"wire":{"first":"_sessionWatch","last":"_sessionWatch"}},
+      {"file":"server/platform/session-watch-sync.js","about":"Starting the watch for shutdown, restart and sleep while Xenon drives lights itself, and stopping it when it does not.","names":["_syncSessionWatch"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
