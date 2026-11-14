@@ -5298,7 +5298,7 @@ async function updateNotificationsSetting(change) {
   });
   if (masterChanged) {
     if (!discordNotifWanted()) discordMirror.notifications = [];
-    if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+    stopDiscordWatch();
     refreshDiscordWatch().catch(() => {});
     refreshWinNotifWatch();
   }
@@ -5903,7 +5903,7 @@ deckRegistryDeps.discordOpenChat = openDiscordChat;
 // join/leave, who's speaking). Like the OBS watch, the persistent RPC socket is
 // held only while the dashboard is open (SSE clients > 0) AND Discord is linked, so
 // a closed dashboard or an unlinked account keeps zero sockets open.
-let discordStopWatch = null;
+const { discordWatch, stopDiscordWatch } = require('./discord/watch-stop.js');
 let discordLogin = '';
 let discordWatchArming = false;   // serialize refreshes (status() is async)
 let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
@@ -6216,7 +6216,7 @@ function refreshWakeWordWatch() {
 async function refreshDiscordWatch() {
   // This is called from several async triggers that can overlap (SSE connect/close,
   // the /voice mount read, login/logout). Serialize them: without the guard two
-  // concurrent calls could both pass `!discordStopWatch` and start two watches,
+  // concurrent calls could both pass `!discordWatch.stop` and start two watches,
   // orphaning one socket. The dirty flag re-evaluates once against fresh state so a
   // transition (e.g. logout) that lands mid-flight is never lost.
   if (discordWatchArming) { discordWatchDirty = true; return; }
@@ -6229,9 +6229,9 @@ async function refreshDiscordWatch() {
       // so the flag it reads follows the same status this watch is armed on.
       discordMirror.linkedForCalls = !!(st && st.configured && st.connected);
       const want = !!(st && st.configured && st.connected) && sseClients.size > 0;
-      if (want && !discordStopWatch) {
+      if (want && !discordWatch.stop) {
         discordLogin = (st && st.login) || '';
-        discordStopWatch = discordLink.rpc.watchVoice((voice) => {
+        discordWatch.stop = discordLink.rpc.watchVoice((voice) => {
           // Derive `connected` (account linked) from the pushed state, not a hardcoded
           // true — otherwise a token revoked mid-watch would leave the widget stuck
           // looking linked. A dropped pipe still reports connected:true (linked, just
@@ -6240,8 +6240,8 @@ async function refreshDiscordWatch() {
           // the token needs a re-link ('scope_missing').
           broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice, notif: discordLink.rpc.notifStatus() });
         }, pushDiscordNotification);
-      } else if (!want && discordStopWatch) {
-        discordStopWatch(); discordStopWatch = null;
+      } else if (!want && discordWatch.stop) {
+        stopDiscordWatch();
         // Clear the widget's live state so it reflects the linked-but-idle / unlinked view.
         broadcastSSE('discord', { connected: !!(st && st.connected), login: (st && st.login) || '', voice: null, notif: 'off' });
       }
@@ -6265,7 +6265,7 @@ async function saveStreamConfig(patch) {
   streams.spotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
   // Stop any live watch on the OLD provider first — closing it with a watcher
   // still attached would spin up a reconnect loop against the stale socket.
-  if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+  stopDiscordWatch();
   try { discordLink.rpc.close(); } catch { /* ignore */ }
   discordLink.rpc = createDiscordProvider({
     clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
@@ -9321,7 +9321,7 @@ const handleRequest = async (req, res) => {
       const dnNext = masterNext && !!(settings.discordNotifications && settings.discordNotifications.enabled);
       if (dnPrev !== dnNext) {
         if (!dnNext) discordMirror.notifications = [];       // feature off → drop the stored feed
-        if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+        stopDiscordWatch();
         refreshDiscordWatch();
       }
       // Windows notifications: start/stop the mirror child on toggle change
@@ -10859,7 +10859,7 @@ const handleRequest = async (req, res) => {
     // re-arms cleanly on the fresh token afterwards.
     try {
       await readBody(req);
-      if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+      stopDiscordWatch();
       const r = await discordLink.rpc.login();
       refreshDiscordWatch();
       json(r);
@@ -10875,7 +10875,7 @@ const handleRequest = async (req, res) => {
     // racing the revoke, and the dying watch held the (possibly single) pipe.
     try {
       await readBody(req);
-      if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+      stopDiscordWatch();
       const r = await discordLink.rpc.logout();
       discordMirror.notifications = [];
       refreshDiscordWatch();
@@ -12695,7 +12695,7 @@ function _gracefulShutdown() {
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a
   // reconnect during shutdown.
-  try { if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } } catch {}
+  try { stopDiscordWatch(); } catch {}
   try { discordLink.rpc.close(); } catch {}
   // Stop the live Home Assistant watch (clears its reconnect timer) then close the
   // WebSocket. Stopping first prevents close() from scheduling a reconnect.
