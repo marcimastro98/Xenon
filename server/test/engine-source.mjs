@@ -287,7 +287,7 @@ export function declarationSource(name, source = ENGINE) {
     if (end > first && /;\s*(?:\/\/.*)?$/.test(lines[end])) return lines.slice(first, end + 1).join('\n');
   }
   // The closing line starts at the margin: a bracket, or the backtick of a text written over several lines.
-  const last = lines.findIndex((line, index) => index > first && /^[)\]}`]+;?\s*(?:\/\/.*)?$/.test(line));
+  const last = lines.findIndex((line, index) => index > first && /^[)\]}`]+(?:\(\))?;?\s*(?:\/\/.*)?$/.test(line)); // `})();` closes a function called on the spot
   if (last === -1) throw new Error(`the end of ${name} was not found in ${file}`);
   return lines.slice(first, last + 1).join('\n');
 }

@@ -90,6 +90,10 @@ test('a value written on the lines after its = is read to the line that ends it,
   assert.match(choice, /^const livingIndex = process\.platform === 'linux'\n {2}\? /);
   assert.match(choice, /\n {2}: createLivingIndex\(.*\);$/);
   assert.equal(choice.split('\n').length, 3);
+  // A value made by a function called on the spot ends at the line that calls it.
+  const called = declarationSource('_widgetOrigins');
+  assert.match(called, /^const _widgetOrigins = \(\(\) => \{/);
+  assert.match(called, /\n\}\)\(\);$/);
 });
 
 test('a value that got a module of its own is required by server.js once, on one line, under its own name', () => {
