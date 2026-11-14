@@ -332,7 +332,10 @@
       {"file":"server/claude-code/transcript-messages.js","about":"Reads the messages out of a stretch of a Claude Code transcript: the text a person or Claude wrote, the pictures, the slash commands and the tool calls of each turn.","names":["clean","textOf","IMAGE_TYPES","MAX_IMAGES_PER_MESSAGE","MAX_IMAGE_BYTES","imageBlocks","COMMAND_NAME_RE","COMMAND_ARGS_RE","commandText","QUIET_TOOLS","MAX_TOOLS_SHOWN","MAX_TOOL_DETAIL","toolDetail","toolCalls","scanWindow"]}
     ],
     "server/claude-run.js": [
-      {"file":"server/claude-code/run-project-folder.js","about":"Finds the folder a Claude Code project works in, read from the start of its newest transcript, and says whether a path is a folder.","names":["HEAD_BYTES","readCwdFromTranscript","newestTranscript","isDir"]}
+      {"file":"server/claude-code/run-project-folder.js","about":"Finds the folder a Claude Code project works in, read from the start of its newest transcript, and says whether a path is a folder.","names":["HEAD_BYTES","readCwdFromTranscript","newestTranscript","isDir"]},
+      {"file":"server/claude-code/run-caches.js","about":"The two answers the Claude Code runner works out once and remembers: where the program is, and which options it accepts.","names":["execCache","optionsCache"],"state":{"object":"runCaches","props":{"execCache":"exec","optionsCache":"options"},"kept":[],"bare":[]}},
+      {"file":"server/claude-code/run-executable.js","about":"Finds the Claude Code program on this computer without a shell, and reads from its own --help which options it accepts.","names":["HELP_TIMEOUT_MS","RUN_MODES","isFile","whichRaw","resolveExecutable","helpText","parseOptions","cliOptions"]},
+      {"file":"server/claude-code/run-text.js","about":"The text the Claude Code runner takes in and shows: control characters stripped and a length kept, the short id of a project folder, and the one line that says what a tool call touches.","names":["MAX_DETAIL","str","projectId","toolDetail"]}
     ],
     "server/linux-collectors.js": [
       {"file":"server/platform/linux-read.js","about":"The small tools every Linux reader uses: run a command, read a text file, split lines, tell a number, do several things a few at a time.","names":["run","isNum","splitLines","mapLimit","readText"]},

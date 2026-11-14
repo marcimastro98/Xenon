@@ -25,11 +25,9 @@
 //
 // Runs are in-memory and per-boot, like the bridge. Nothing here writes to disk.
 
-const os = require('os');
 const path = require('path');
 const fsp = require('fs').promises;
-const { spawn, execFile } = require('child_process');
-const crypto = require('crypto');
+const { spawn } = require('child_process');
 const { writeFileAtomic } = require('./atomic-write');
 
 const MAX_PROMPT = 4000;          // one touchscreen dictation, generously
@@ -45,110 +43,15 @@ const {
 } = require('./claude-code/run-project-folder.js');
 const START_TIMEOUT_MS = 20 * 60 * 1000;
 const MAX_ACTIVITY = 6;           // tool calls kept per run
-const MAX_DETAIL = 120;
-const HELP_TIMEOUT_MS = 8000;
+const { str, projectId, toolDetail } = require('./claude-code/run-text.js');
 
-// The permission modes a run may start in, and the effort levels Claude Code
-// accepts. Each is offered only when the installed CLI's --help lists it.
-const RUN_MODES = ['manual', 'acceptEdits', 'plan'];
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
-// Control characters are stripped rather than escaped. Nothing here is a shell
-// argument (there is no shell), but a stray escape sequence out of a transcript
-// or a stderr line would corrupt the tile layout. Tab and newline survive: a
-// dictated prompt legitimately contains them.
-function str(v, max) {
-  if (typeof v !== 'string') return '';
-  let out = '';
-  for (const ch of v) {
-    const n = ch.charCodeAt(0);
-    if ((n < 32 && n !== 9 && n !== 10) || (n >= 127 && n < 160)) continue;
-    out += ch;
-  }
-  const s = out.trim();
-  return s.length > max ? s.slice(0, max) : s;
-}
+const { runCaches } = require('./claude-code/run-caches.js');
 
-function projectId(dir) {
-  return crypto.createHash('sha1').update(dir.toLowerCase()).digest('hex').slice(0, 12);
-}
-
-// ── locating the claude executable ───────────────────────────────────────────
-// The native installer drops a real .exe, which spawns cleanly with an argv
-// array. An npm install instead leaves a .cmd shim on Windows, and running THAT
-// would need a shell — so rather than relax the invariant we resolve the shim's
-// underlying cli.js and run it through node, which stays argv-clean.
-let execCache = null;
-
-async function isFile(p) {
-  try { return (await fsp.stat(p)).isFile(); } catch { return false; }
-}
-
-function whichRaw(name) {
-  return new Promise((resolve) => {
-    const finder = process.platform === 'win32' ? 'where' : 'which';
-    execFile(finder, [name], { timeout: 5000, windowsHide: true }, (err, stdout) => {
-      if (err) return resolve([]);
-      resolve(String(stdout || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean));
-    });
-  });
-}
-
-async function resolveExecutable() {
-  if (execCache) return execCache;
-  const win = process.platform === 'win32';
-  const home = os.homedir();
-
-  // 1. The native installer's location, by far the common case.
-  const native = path.join(home, '.local', 'bin', win ? 'claude.exe' : 'claude');
-  if (await isFile(native)) return (execCache = { cmd: native, pre: [] });
-
-  // 2. Whatever is on PATH.
-  for (const hit of await whichRaw('claude')) {
-    const low = hit.toLowerCase();
-    if (win ? low.endsWith('.exe') : !low.endsWith('.cmd') && !low.endsWith('.ps1')) {
-      return (execCache = { cmd: hit, pre: [] });
-    }
-    // 3. An npm shim: find the package entry next to it and run it under node.
-    const cli = path.join(path.dirname(hit), 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js');
-    if (await isFile(cli)) return (execCache = { cmd: process.execPath, pre: [cli] });
-  }
-  return null;
-}
-
-// What the installed CLI accepts, read once from its own --help (argv, no
-// shell). An older Claude Code without --effort or one of the modes simply
-// does not get that option offered.
-let optionsCache = null;
-
-function helpText(exe) {
-  return new Promise((resolve) => {
-    execFile(exe.cmd, exe.pre.concat(['--help']), { timeout: HELP_TIMEOUT_MS, windowsHide: true, maxBuffer: 1 << 20 },
-      (err, stdout) => resolve(String(stdout || '')));
-  });
-}
-
-function parseOptions(help) {
-  const text = String(help || '');
-  const modes = text.includes('--permission-mode') ? RUN_MODES.filter((m) => text.includes('"' + m + '"')) : [];
-  return { effort: text.includes('--effort'), modes };
-}
-
-async function cliOptions() {
-  if (optionsCache) return optionsCache;
-  const exe = await resolveExecutable();
-  if (!exe) return { effort: false, modes: [] };
-  optionsCache = parseOptions(await helpText(exe));
-  return optionsCache;
-}
-
-// One line saying what a tool call touches: the command, the file, the
-// pattern, the address. Never the content of a file or an edit.
-function toolDetail(input) {
-  const i = input && typeof input === 'object' ? input : {};
-  const v = i.command || i.file_path || i.notebook_path || i.path || i.pattern || i.url || i.query || i.description || '';
-  return str(String(v).split('\n')[0], MAX_DETAIL);
-}
+const {
+  RUN_MODES, whichRaw, resolveExecutable, parseOptions, cliOptions,
+} = require('./claude-code/run-executable.js');
 
 function createRunner(opts) {
   const o = opts || {};
@@ -497,5 +400,5 @@ module.exports = {
   whichRaw,
   // exposed for unit tests
   _internal: { str, projectId, readCwdFromTranscript, resolveExecutable, toolDetail, parseOptions,
-    setOptions: (o) => { optionsCache = o; } },
+    setOptions: (o) => { runCaches.options = o; } },
 };

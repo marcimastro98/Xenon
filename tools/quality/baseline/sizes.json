@@ -28,7 +28,7 @@
     "server/auto-update.js": 396,
     "server/claude-bridge.js": 1363,
     "server/claude-link.js": 461,
-    "server/claude-run.js": 501,
+    "server/claude-run.js": 404,
     "server/codex-appserver.js": 370,
     "server/codex-link.js": 355,
     "server/components/DashboardGrid/DashboardGrid.css": 990,
