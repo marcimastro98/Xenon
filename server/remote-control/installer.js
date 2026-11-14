@@ -180,5 +180,4 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
 
 const { SUNSHINE_MIN_VERSION, versionLess } = require('./installer-version.js');
 
-
 module.exports = { createInstaller, PACKAGES, LINUX_PACKAGES, MAC_PACKAGES, LINUX_PM, SUNSHINE_MIN_VERSION, versionLess };

@@ -47,8 +47,6 @@ const {
   readSavedCode, saveCode, forgetCode, savedStatus,
 } = require('./store-supporters/install-data.js');
 
-
-
 /**
  * Stores a pass the user typed in Settings, before any drop needs it.
  *

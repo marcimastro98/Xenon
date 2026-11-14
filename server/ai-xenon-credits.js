@@ -25,8 +25,6 @@ const {
   MAX_RETRY_AFTER_MS, KNOWN_ERRORS, sanitizeModel, sanitizeEffort,
 } = require('./store-supporters/credits-limits.js');
 
-
-
 const { creditsState } = require('./store-supporters/credits-state.js');
 let _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let _now = () => Date.now();
@@ -91,7 +89,6 @@ function roundTrip(dataDir, model) {
 const {
   CHAT_MODEL, CREATION_TOOLS, reachesForCreation, forCreation,
 } = require('./store-supporters/credits-creation.js');
-
 
 // Haiku chosen for creations runs the whole turn at the user's level: its
 // rounds are both the chat and the creation, and are booked as chat. `pick` is read again on every

@@ -162,7 +162,6 @@ function trackedGame() {
   try { return _trackedGame ? _trackedGame() : null; } catch { return null; }
 }
 
-
 // The live table's pick. Doubles as the pruning pass: stale PIDs are evicted
 // while we scan, keeping the map bounded to processes that presented recently.
 function _bestEntry() {
