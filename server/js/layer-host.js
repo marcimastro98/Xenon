@@ -461,6 +461,26 @@
     return [...slots.values(), ...root.querySelectorAll('[data-layer-edit-chrome]')];
   }
 
+  // Where the window is cut to its drawing (Windows), a rounded tile is cut to its
+  // corners, or they show black (js/layer-cut.js). Edit mode keeps plain boxes.
+  const CUT = window.LayerCut && window.LayerCut.clipsDrawing(SHELL, navigator.userAgent) ? window.LayerCut : null;
+
+  function cornerOf(el) {
+    if (!CUT || editing || !el) return 0;
+    return parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+  }
+
+  // One list as rect text, in device pixels, within the shell's rect budget.
+  function listText(items, dpr) {
+    const scaled = items.map(({ box, radius }) => ({
+      box: { left: box.left * dpr, top: box.top * dpr, width: box.width * dpr, height: box.height * dpr },
+      radius: radius * dpr,
+    }));
+    const steps = CUT ? CUT.stepsFor(scaled, CUT.MAX_RECTS) : 0;
+    const boxes = steps ? scaled.flatMap((it) => CUT.roundedCut(it.box, it.radius, steps)) : scaled.map((it) => it.box);
+    return boxes.map((b) => rectText(b, 1)).join(';');
+  }
+
   // Two lists: what takes clicks, and what is only drawn.
   function rectsNow() {
     const dpr = window.devicePixelRatio || 1;
@@ -468,17 +488,18 @@
     const through = [];
     const cut = editing && SURFACE !== 'anchor' && root ? editCut() : slots.values();
     for (const slot of cut) {
-      const r = slotBox(slot);
-      if (r.width < 1 || r.height < 1) continue;
-      (clicksThrough(slot) ? through : out).push(rectText(r, dpr));
+      const box = slotBox(slot);
+      if (box.width < 1 || box.height < 1) continue;
+      const radius = fitNode(slot) ? 0 : cornerOf(slot.querySelector(':scope > [data-dashboard-widget]'));
+      (clicksThrough(slot) ? through : out).push({ box, radius });
     }
     for (const sheet of sheets) {
       if (!sheet.isConnected) { sheets.delete(sheet); continue; }
-      const r = sheet.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) continue;
-      out.push(rectText(r, dpr));
+      const box = sheet.getBoundingClientRect();
+      if (box.width < 1 || box.height < 1) continue;
+      out.push({ box, radius: cornerOf(sheet) });
     }
-    return { solid: out.join(';'), through: through.join(';') };
+    return { solid: listText(out, dpr), through: listText(through, dpr) };
   }
 
   function sendRects() {

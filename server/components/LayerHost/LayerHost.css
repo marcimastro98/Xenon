@@ -75,6 +75,13 @@ html[data-layer-lite] .deck-edit {
   --layer-min-h: 48px;
 }
 
+/* One that only shows (clicks pass through it) has nothing to touch: it keeps the
+   size it asked for, or the room under a short readout showed as a dark band. */
+.layer-slot[data-small]:has(.cw-frame[data-layer-through]):not(:has(.cw-state)) {
+  --layer-min-w: 16px;
+  --layer-min-h: 16px;
+}
+
 /* Asking for permission needs room to be read and answered. */
 .layer-slot[data-small]:has(.cw-state) {
   --layer-min-w: 220px;
