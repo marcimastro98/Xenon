@@ -28,18 +28,13 @@
     runErrorText, runStateText,
   } = window.ClaudeWidgetWords;
 
-  let payload = null;       // { usage, live, budget, tile } — null until seeded
+  const {
+    widgetState, live, limits, sessions, aged, statusSeen, COLLAPSE_KEY, readCollapsed, isCollapsed,
+    runs, resolveAskProject, sessionById, clearAttach, promptWithAttachments, replyMode, resumeNote,
+    askSession, inLiveSession, canRunCommands, titles, runsFor, currentPlanKey, stopTicker,
+  } = window.ClaudeWidgetKnown;
   let seeded = false, seedInflight = false;
-  let editing = false;      // budget editor open?
-  let customOpen = false;   // custom-budget input revealed inside the editor
-  let linking = false;      // link/unlink request in flight
-  let linkState = null;     // GET /api/claude/link result
-  let linkPanel = false;    // link panel open?
   const deciding = new Set(); // approval ids with a decision in flight
-  let ticker = null;        // 1s interval, only while something counts down
-  let pressing = false;     // a pointer is down on the widget (see onSSE)
-  let pressTimer = 0;
-  let renderDeferred = false;
   // The one line that installs the Claude Code mod (integrations/claude-code/).
 
   function tiles() {
@@ -58,25 +53,9 @@
   }
 
   // ── model → hue. Encodes which model produced the work, not decoration. ──
-  const MODEL_COLORS = Object.freeze({ opus: '#D97757', fable: '#A98BE0', mythos: '#A98BE0', sonnet: '#3FB9C4', haiku: '#79C267' });
-  function modelHue(model) {
-    const m = String(model || '');
-    for (const key in MODEL_COLORS) if (m.indexOf('claude-' + key) === 0 || m.indexOf(key) === 0) return MODEL_COLORS[key];
-    return 'var(--accent)';
-  }
-  function shortModel(model) {
-    return String(model || '').replace(/^claude-/, '').replace(/-\d{6,}$/, '') || 'unknown';
-  }
+  const { modelHue, shortModel, mmss, prettyModel, clamp, level } = window.ClaudeWidgetModelWords;
 
   // ── formatting ──
-  function mmss(ms) {
-    const s = Math.max(0, Math.round((ms || 0) / 1000));
-    const m = Math.floor(s / 60);
-    return m + ':' + String(s % 60).padStart(2, '0');
-  }
-
-  function live() { return (payload && payload.live) || null; }
-  function limits() { const l = live(); return (l && l.limits) || null; }
 
   // ── what this widget is allowed to put in front of you ─────────────────────
   // Both surfaces below appear OUTSIDE the tile — the approval cards escalate to
@@ -115,28 +94,7 @@
     return all.filter((a) => (a.kind === 'question' ? questionsOn() : approvalsOn()));
   }
 
-  // Bridge sessions when Claude Code is linked (exact state), transcript-derived
-  // sessions otherwise (recency heuristic). Never both — mixing an exact list
-  // with a guessed one would double-count the same session.
-  function sessions() {
-    const l = live();
-    if (l && l.sessions && l.sessions.length) return l.sessions;
-    const u = payload && payload.usage;
-    if (!u || !u.sessions) return [];
-    return u.sessions.map(s => ({ ...s, state: 'running', inferred: true }));
-  }
-
   // ── formatting in the reader's language ────────────────────────────────────
-  // "claude-opus-5-5" → "Opus 5.5": the name Anthropic uses, not the API id.
-  function prettyModel(model) {
-    const id = String(model || '').replace(/^claude-/, '').replace(/-\d{8}$/, '');
-    if (!id) return '';
-    const parts = id.split('-');
-    const name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-    const ver = parts.slice(1).filter((p) => /^\d+$/.test(p)).join('.');
-    return ver ? name + ' ' + ver : name;
-  }
-  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   // ── ages that tick ─────────────────────────────────────────────────────────
   // Every age on this tile ("waiting 0:42", "running 3m") used to be frozen at
@@ -144,8 +102,7 @@
   // next change. The server sends how old things were WHEN IT SENT them; this
   // side adds the time since it arrived. That is right on a paired phone whose
   // clock disagrees with the PC's, where comparing two clocks would not be.
-  let payloadAt = Date.now();
-  function aged(msAtSend) { return Math.max(0, (Number(msAtSend) || 0) + (Date.now() - payloadAt)); }
+  widgetState.payloadAt = Date.now();
   function ageNode(cls, msAtSend, prefix) {
     const n = el('span', cls);
     n.dataset.ageBase = String(Number(msAtSend) || 0);
@@ -165,8 +122,6 @@
   const SEGMENTS = 20;
   // Below this share of the window elapsed, the pace is mostly noise.
   const PACE_MIN_ELAPSED = 0.15;
-
-  function level(used) { return used >= 90 ? 'crit' : used >= 70 ? 'warn' : 'ok'; }
 
   function paceLine(used, elapsed, start, reset) {
     if (!reset || elapsed === null || elapsed < PACE_MIN_ELAPSED || used <= 0) return null;
@@ -227,13 +182,6 @@
     return box;
   }
 
-  // Has any session posted a statusline yet? With Claude Code linked, the quota
-  // arrives on those posts; before the first one there is nothing to show YET,
-  // which is different from an API-key account that has no windows at all.
-  function statusSeen() {
-    return sessions().some((s) => typeof s.contextPct === 'number' || typeof s.cost === 'number');
-  }
-
   function quotaPanel() {
     const lim = limits();
     const panel = el('div', 'cw-quota');
@@ -244,15 +192,15 @@
       if (lim.sevenDay) panel.appendChild(gauge('sevenDay', t('claude_7d', '7d'), lim.sevenDay));
       return panel;
     }
-    if (linkState && linkState.linked && !statusSeen()) {
+    if (widgetState.linkState && widgetState.linkState.linked && !statusSeen()) {
       panel.appendChild(el('div', 'cw-quiet-note', t('claude_quota_waiting', "The quota appears with Claude's next reply.")));
       return panel;
     }
 
     // No real windows: an API-key account, or Claude Code not connected. The
     // user's own weekly budget stands in, and says what it counts.
-    const u = payload && payload.usage;
-    const b = payload && payload.budget;
+    const u = widgetState.payload && widgetState.payload.usage;
+    const b = widgetState.payload && widgetState.payload.budget;
     const week = u ? u.week.tokens : 0;
     const weekly = b ? b.weekly : 0;
     const box = el('div', 'cw-gauge is-' + (weekly > 0 ? level((week / weekly) * 100) : 'ok'));
@@ -668,7 +616,7 @@
   // The escalation: an urgent request takes the whole display. Rendered outside
   // the tile so it works even when the widget isn't on the current page.
   function syncOverlay() {
-    if (pressing) { renderDeferred = true; return; }
+    if (widgetState.pressing) { widgetState.renderDeferred = true; return; }
     const urgent = approvals().filter(a => a.urgent)[0];
     if (!urgent) { sheet.close(); return; }
     sheet.paint(decisionCard(urgent, true), { label: askedBy(urgent), esc: () => answerNothing(urgent) });
@@ -749,46 +697,19 @@
   const restored = new Set();
   function restoreUndelivered(s) {
     const u = s && s.undelivered;
-    if (!u || s.id !== askResumeId) return;
+    if (!u || s.id !== widgetState.askResumeId) return;
     const key = s.id + ':' + u.at;
     if (restored.has(key)) return;
     restored.add(key);
     if (restored.size > 20) restored.delete(restored.values().next().value);
-    if (!askText.trim()) askText = u.text;
-    askError = u.reason === 'dropped' ? t('claude_terminal_e_dropped', 'Claude Code did not take the message. The session shows why.')
+    if (!widgetState.askText.trim()) widgetState.askText = u.text;
+    widgetState.askError = u.reason === 'dropped' ? t('claude_terminal_e_dropped', 'Claude Code did not take the message. The session shows why.')
       : u.reason === 'closed' ? t('claude_terminal_e_closed', 'The session was closed before the message got there.')
         : t('claude_terminal_e_refused', 'The message could not reach the open session.');
   }
 
   // ── sections that fold ─────────────────────────────────────────────────────
-  // The 30-day chart and the project bars are reference, not live state: useful
-  // to open, not worth the vertical space all the time. Collapsing one hands its
-  // height to the session list, which is the part that actually changes and the
-  // part that runs out of room first. The choice is per-surface and survives a
-  // reload; it is a view preference, so it lives in localStorage rather than
-  // adding another writer to the settings store.
-  const COLLAPSE_KEY = 'xeneonedge.claude.collapsed.v1';
-  const COLLAPSE_KEYS = ['spark', 'projects', 'finished', 'rail', 'aside'];
-  // Sections that start closed. Finished sessions are kept so they can be
-  // reopened later, which is the opposite of wanting them in the way: the
-  // heading says how many there are, and one tap unfolds them.
-  const COLLAPSED_BY_DEFAULT = { finished: true };
-  let collapsed = null;
 
-  function readCollapsed() {
-    if (collapsed) return collapsed;
-    collapsed = { ...COLLAPSED_BY_DEFAULT };
-    try {
-      const raw = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}');
-      if (raw && typeof raw === 'object') {
-        // An explicit stored value wins in BOTH directions, so a section opened
-        // by hand does not snap shut on the next paint.
-        for (const k of COLLAPSE_KEYS) if (typeof raw[k] === 'boolean') collapsed[k] = raw[k];
-      }
-    } catch { /* unreadable or absent → the defaults above */ }
-    return collapsed;
-  }
-  function isCollapsed(key) { return readCollapsed()[key] === true; }
   function toggleCollapsed(key) {
     const c = readCollapsed();
     c[key] = !c[key];
@@ -951,17 +872,17 @@
   // what happens, and disconnecting is one tap away.
   async function loadLinkState() {
     const d = await api('/api/claude/link');
-    if (d) linkState = d;
+    if (d) widgetState.linkState = d;
     paint();
   }
   async function doLink(on) {
-    if (linking) return;
-    linking = true; paint();
+    if (widgetState.linking) return;
+    widgetState.linking = true; paint();
     const d = await api(on ? '/api/claude/link' : '/api/claude/unlink', { method: 'POST' });
-    linking = false;
+    widgetState.linking = false;
     if (d && d.ok) {
-      linkState = d;
-      linkPanel = false;
+      widgetState.linkState = d;
+      widgetState.linkPanel = false;
       if (window.XenonToast) {
         window.XenonToast.show({
           type: 'ok',
@@ -976,10 +897,10 @@
   }
 
   function linkButton() {
-    const linked = !!(linkState && linkState.linked);
+    const linked = !!(widgetState.linkState && widgetState.linkState.linked);
     const b = el('button', 'cw-linkbtn' + (linked ? ' is-on' : '')); b.type = 'button';
     b.textContent = linked ? t('claude_connected', 'Connected') : t('claude_connect', 'Connect Claude Code');
-    b.addEventListener('click', () => { linkPanel = true; paint(); });
+    b.addEventListener('click', () => { widgetState.linkPanel = true; paint(); });
     return b;
   }
 
@@ -990,11 +911,11 @@
     const close = el('button', 'cw-panel-close'); close.type = 'button';
     close.setAttribute('aria-label', t('back', 'Back'));
     close.textContent = '✕';
-    close.addEventListener('click', () => { linkPanel = false; paint(); });
+    close.addEventListener('click', () => { widgetState.linkPanel = false; paint(); });
     head.appendChild(close);
     wrap.appendChild(head);
 
-    const linked = !!(linkState && linkState.linked);
+    const linked = !!(widgetState.linkState && widgetState.linkState.linked);
     wrap.appendChild(el('div', 'cw-panel-body', linked
       ? t('claude_link_on_desc', 'Claude Code reports its real quota, live session state and permission requests to this dashboard.')
       : t('claude_link_off_desc', 'Adds hooks and a status line to your Claude Code settings. Unlocks the real 5-hour and 7-day quota, exact session state, and approving permission requests from this screen.')));
@@ -1002,10 +923,10 @@
     const notes = el('ul', 'cw-panel-notes');
     const note = (text) => { const li = el('li', 'cw-panel-note', text); notes.appendChild(li); };
     note(t('claude_link_note_backup', 'Your settings.json is backed up before the first change.'));
-    if (linkState && linkState.chained) note(t('claude_link_note_chain', 'Your existing status line keeps running.'));
+    if (widgetState.linkState && widgetState.linkState.chained) note(t('claude_link_note_chain', 'Your existing status line keeps running.'));
     note(t('claude_link_note_restart', 'Sessions already open need a restart to report.'));
     const mod = live() && live().mod;
-    const modSetUp = !!(linkState && linkState.modEnabled);
+    const modSetUp = !!(widgetState.linkState && widgetState.linkState.modEnabled);
     if (!linked) note(t('claude_link_note_mod', 'Also installs the Xenon mod for Claude Code.'));
     else if (mod) note(t('claude_mod_on', 'The Xenon mod is active in Claude Code.'));
     else if (modSetUp) note(t('claude_mod_pending', 'The mod is set up. It starts with your next Claude Code session.'));
@@ -1014,8 +935,8 @@
 
     const acts = el('div', 'cw-panel-acts');
     const go = el('button', 'cw-panel-go' + (linked ? ' is-off' : '')); go.type = 'button';
-    go.disabled = linking;
-    go.textContent = linking
+    go.disabled = widgetState.linking;
+    go.textContent = widgetState.linking
       ? t('claude_working', 'Working…')
       : (linked ? t('claude_disconnect', 'Disconnect') : t('claude_connect_go', 'Connect'));
     go.addEventListener('click', () => doLink(!linked));
@@ -1024,37 +945,18 @@
     // same hooks and adds the mod.
     if (linked && !mod && !modSetUp) {
       const add = el('button', 'cw-panel-go'); add.type = 'button';
-      add.disabled = linking;
+      add.disabled = widgetState.linking;
       add.textContent = t('claude_mod_install', 'Install the mod');
       add.addEventListener('click', () => doLink(true));
       acts.appendChild(add);
     }
     wrap.appendChild(acts);
 
-    if (linkState && linkState.settingsPath) wrap.appendChild(el('div', 'cw-panel-path', linkState.settingsPath));
+    if (widgetState.linkState && widgetState.linkState.settingsPath) wrap.appendChild(el('div', 'cw-panel-path', widgetState.linkState.settingsPath));
     return wrap;
   }
 
   // ── asking Claude from the touchscreen ─────────────────────────────────────
-  // The dashboard starts a real Claude Code run. Two things make that safe to
-  // put behind a button: the project comes from a server-side list (the client
-  // sends an id, never a path), and the run uses Claude Code's normal permission
-  // mode — so every command and every file write comes back here as a card the
-  // user has to approve. Xenon starts the work; it does not grant it anything.
-  let askProjects = null;      // null = not loaded yet, [] = none found
-  let askProjectId = '';
-  let askText = '';
-  let askBusy = false;
-  let askError = '';
-  let askResumeId = '';        // set when continuing an existing session
-  let askResumeLabel = '';
-  let askModel = '';           // '' = whatever the project's own config picks
-  let askRunMode = '';         // '' = the user's own default permission mode
-  let askEffort = '';          // '' = the model's default effort
-  // What this Claude Code accepts for a run, read from its --help on the server.
-  let askOptions = { effort: false, modes: [] };
-  let askAttach = [];          // [{ name, path, size }] — server-written files
-  let askAttachBusy = false;
   // The open session's conversation (js/claude-thread.js): re-reads after every
   // state change until the turn has closed, so the end of a reply is never missed.
   const thread = window.ClaudeThread.create({ fetchJson: (url) => api(url), onChange: () => paint() });
@@ -1076,7 +978,7 @@
     const out = [{
       id: '',
       label: t('claude_model_auto', 'Auto'),
-      note: askResumeId
+      note: widgetState.askResumeId
         ? t('claude_model_auto_session', 'keeps the session model')
         : t('claude_model_auto_project', 'the project default'),
     }];
@@ -1085,7 +987,7 @@
       label: a.charAt(0).toUpperCase() + a.slice(1),
       note: t('claude_model_alias_note', 'always the current one'),
     }));
-    const u = payload && payload.usage;
+    const u = widgetState.payload && widgetState.payload.usage;
     const seen = new Set(out.map(o => o.id));
     ((u && u.models) || []).forEach(m => {
       const id = String(m.model || '');
@@ -1098,11 +1000,9 @@
     });
     // The selected model must always be in the list, or the dropdown would
     // silently fall back to Auto and start a run on something else.
-    if (askModel && !seen.has(askModel)) out.push({ id: askModel, label: shortModel(askModel) });
+    if (widgetState.askModel && !seen.has(widgetState.askModel)) out.push({ id: widgetState.askModel, label: shortModel(widgetState.askModel) });
     return out.slice(0, MAX_ASK_MODELS);
   }
-
-  function runs() { return (payload && Array.isArray(payload.runs)) ? payload.runs : []; }
 
   let askProjectsLoading = false;
   async function loadAskProjects(force) {
@@ -1111,32 +1011,15 @@
     askProjectsLoading = true;
     const d = await api('/api/claude/projects' + (force ? '?refresh=1' : ''));
     askProjectsLoading = false;
-    askProjects = (d && Array.isArray(d.projects)) ? d.projects : [];
+    widgetState.askProjects = (d && Array.isArray(d.projects)) ? d.projects : [];
     if (d && d.options) {
-      askOptions = {
+      widgetState.askOptions = {
         effort: d.options.effort === true,
         modes: Array.isArray(d.options.modes) ? d.options.modes.filter((m) => RUN_MODE_LABELS[m]) : [],
       };
     }
     resolveAskProject();
     paint();
-  }
-
-  // A session row knows its project only by folder NAME, which is a hint and not
-  // an identity: two checkouts can share a basename. For a resume the server
-  // resolves the folder from the session itself, so a miss here is left as an
-  // empty id for the server to fill rather than an error on screen — refusing up
-  // front was wrong, and it refused every session whose name simply differed.
-  function resolveAskProject() {
-    if (!askProjects || !askProjects.length) return;
-    if (askResumeId) {
-      const match = askResumeLabel
-        ? askProjects.find(p => p.name === askResumeLabel)
-        : null;
-      askProjectId = match ? match.id : '';
-      return;
-    }
-    if (!askProjectId) askProjectId = askProjects[0].id;
   }
 
   // ── which session the console shows ────────────────────────────────────────
@@ -1152,8 +1035,6 @@
   let composing = false;       // the console holds a new session instead
   let followRun = '';          // a new run whose session the console moves to once known
   const drafts = new Map();    // session id ('' = new session) → unsent text
-
-  function sessionById(id) { return id ? (sessions().find((s) => s.id === id) || null) : null; }
 
   function consoleTarget() {
     if (composing) return '';
@@ -1179,15 +1060,15 @@
   function syncSelection() {
     followNewRun();
     const id = consoleTarget();
-    if (id !== askResumeId) {
-      drafts.set(askResumeId, askText);
-      askText = drafts.get(id) || '';
+    if (id !== widgetState.askResumeId) {
+      drafts.set(widgetState.askResumeId, widgetState.askText);
+      widgetState.askText = drafts.get(id) || '';
       drafts.delete(id);
-      clearAttach(); askError = '';
-      askResumeId = id;
+      clearAttach(); widgetState.askError = '';
+      widgetState.askResumeId = id;
       const s = sessionById(id);
-      askResumeLabel = s ? (s.project || '') : (id === picked ? pickedLabel : '');
-      if (askProjects !== null) resolveAskProject();
+      widgetState.askResumeLabel = s ? (s.project || '') : (id === picked ? pickedLabel : '');
+      if (widgetState.askProjects !== null) resolveAskProject();
       if (id && doneNotices.some((n) => n.id === id)) { doneNotices = doneNotices.filter((n) => n.id !== id); topbarSig = ''; }
     }
     if (thread.id !== id) thread.open(id);
@@ -1205,14 +1086,14 @@
   // Kept under its old name: the Chats face, the topbar marker and a finished
   // notice all open a session through it. No id = a new session.
   function openAsk(resumeId, resumeLabel, projectId) {
-    if (projectId) askProjectId = projectId;
+    if (projectId) widgetState.askProjectId = projectId;
     if (resumeId) { select(resumeId, resumeLabel); }
     else {
       composing = true;
       if (currentFace() !== 'live') setFace('live');
       paint();
     }
-    if (askProjects === null) loadAskProjects(false);
+    if (widgetState.askProjects === null) loadAskProjects(false);
   }
   function closeAsk() {
     composing = false;
@@ -1234,66 +1115,22 @@
 
   async function addAttachments(files) {
     if (!files || !files.length) return;
-    askAttachBusy = true; askError = ''; paint();
+    widgetState.askAttachBusy = true; widgetState.askError = ''; paint();
     for (const f of files) {
-      if (askAttach.length >= MAX_ATTACH) { askError = t('claude_attach_max', 'That is as many files as one message can carry.'); break; }
+      if (widgetState.askAttach.length >= MAX_ATTACH) { widgetState.askError = t('claude_attach_max', 'That is as many files as one message can carry.'); break; }
       const d = await api('/api/claude/attach?name=' + encodeURIComponent(f.name || 'file'), {
         method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f,
       });
       // An image is previewed from the file itself (a local blob), never from the saved path.
-      if (d && d.ok) askAttach.push({ name: d.name, path: d.path, size: d.size, preview: f.type && f.type.startsWith('image/') ? URL.createObjectURL(f) : '' });
-      else { askError = attachErrorText(d && d.error, f.name); break; }
+      if (d && d.ok) widgetState.askAttach.push({ name: d.name, path: d.path, size: d.size, preview: f.type && f.type.startsWith('image/') ? URL.createObjectURL(f) : '' });
+      else { widgetState.askError = attachErrorText(d && d.error, f.name); break; }
     }
-    askAttachBusy = false; paint();
-  }
-
-  function clearAttach() {
-    askAttach.forEach((a) => { if (a.preview) URL.revokeObjectURL(a.preview); });
-    askAttach = [];
-  }
-
-  // The prompt Claude actually receives: what was typed, then the paths, said
-  // plainly enough that a model reads them as things to open.
-  function promptWithAttachments(text) {
-    if (!askAttach.length) return text;
-    const lines = askAttach.map(a => a.path);
-    return text + '\n\nAttached files on this PC (read them):\n' + lines.join('\n');
-  }
-
-  // Which of the things writing here will do. A session mid-turn takes the
-  // follow-up path — the text lands in THAT conversation when the turn ends. An
-  // idle one with the Xenon mod listening takes it as a new turn, there, as if
-  // it were typed in it. Any other idle one has no turn left to end, so nothing
-  // could deliver it, and it is continued as a resumed run instead. Same
-  // conversation every time; the composer says which before you press send,
-  // rather than one box that quietly behaves as any of them.
-  function replyMode() {
-    if (!askResumeId) return 'new';
-    const s = sessions().find((x) => x.id === askResumeId);
-    // A chat the terminal has closed (or one opened from the Chats face) is
-    // still on disk, and `claude --resume` continues it in the background.
-    if (!s || s.ended) return 'resume';
-    // A session only the registry file shows is not wired to the hooks, so a
-    // follow-up could never be delivered into it.
-    if (s.inferred || s.unlinked) return 'none';
-    if (s.queued) return 'queued';
-    if (s.state === 'running' || s.state === 'waiting') return 'followup';
-    return s.terminal ? 'terminal' : 'resume';
-  }
-
-  // A resume is always a second process. While the session is still open in a
-  // terminal without the mod listening, that terminal never sees the exchange,
-  // so the note says where the reply will be.
-  function resumeNote() {
-    const s = sessionById(askResumeId);
-    return s && !s.ended
-      ? t('claude_resume_note_open', 'The terminal is idle, so Claude replies here and not in the terminal')
-      : t('claude_resume_note', 'Continues this conversation in the background');
+    widgetState.askAttachBusy = false; paint();
   }
 
   async function submitAsk() {
-    const prompt = askText.trim();
-    if (!prompt || askBusy) return;
+    const prompt = widgetState.askText.trim();
+    if (!prompt || widgetState.askBusy) return;
 
     // Into the open session itself: at the end of the running turn, or as a new
     // turn the mod starts there. Either way no second process runs against the
@@ -1303,25 +1140,25 @@
       // Only a command this session knows, in a shape the tile cannot pass on, is
       // refused: a message that merely starts with a path is just a message.
       if (/^\/(?:model|effort)\s*$/.test(prompt)) {
-        askError = replyErrorText('needs_value');
+        widgetState.askError = replyErrorText('needs_value');
         paint();
         return;
       }
       if (isKnownCommand(prompt) && !TILE_COMMAND_RE.test(prompt)) {
-        askError = t('claude_terminal_e_slash', 'Commands that start with / have to be typed in the session itself.');
+        widgetState.askError = t('claude_terminal_e_slash', 'Commands that start with / have to be typed in the session itself.');
         paint();
         return;
       }
-      askBusy = true; askError = ''; paint();
-      const q = await queueReply(askResumeId, promptWithAttachments(prompt));
-      askBusy = false;
+      widgetState.askBusy = true; widgetState.askError = ''; paint();
+      const q = await queueReply(widgetState.askResumeId, promptWithAttachments(prompt));
+      widgetState.askBusy = false;
       if (q.ok) {
-        askText = ''; clearAttach();
+        widgetState.askText = ''; clearAttach();
         if (q.via === 'terminal') { thread.setAtBottom(true); thread.load(); }
       } else {
-        askError = replyErrorText(q.error);
+        widgetState.askError = replyErrorText(q.error);
         // The turn ended while this was typed: the next send takes the idle path.
-        const s = q.error === 'session_idle' ? sessionById(askResumeId) : null;
+        const s = q.error === 'session_idle' ? sessionById(widgetState.askResumeId) : null;
         if (s) s.state = 'idle';
       }
       paint();
@@ -1331,25 +1168,25 @@
     let sendText = prompt;
     if (prompt.startsWith('/')) {
       const left = applyRunBuiltin(prompt);
-      if (left === null) { askText = ''; paint(); return; }
+      if (left === null) { widgetState.askText = ''; paint(); return; }
       if (left) sendText = left;
     }
 
-    askBusy = true; askError = ''; paint();
+    widgetState.askBusy = true; widgetState.askError = ''; paint();
     const d = await api('/api/claude/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectId: askProjectId, prompt: promptWithAttachments(sendText),
-        resume: askResumeId, model: askModel,
-        mode: askOptions.modes.includes(askRunMode) ? askRunMode : '',
-        effort: askOptions.effort ? askEffort : '',
+        projectId: widgetState.askProjectId, prompt: promptWithAttachments(sendText),
+        resume: widgetState.askResumeId, model: widgetState.askModel,
+        mode: widgetState.askOptions.modes.includes(widgetState.askRunMode) ? widgetState.askRunMode : '',
+        effort: widgetState.askOptions.effort ? widgetState.askEffort : '',
       }),
     });
-    askBusy = false;
+    widgetState.askBusy = false;
     if (d && d.ok) {
-      askText = '';
+      widgetState.askText = '';
       clearAttach();
-      if (askResumeId) {
+      if (widgetState.askResumeId) {
         // Sending a follow-up must NOT throw you out of the conversation you are
         // reading — that was the whole point of opening it. Stay put, empty the
         // box, and let the thread poll pick the reply up: what you just sent
@@ -1364,7 +1201,7 @@
         paint();
       }
     }
-    else { askError = runErrorText(d && d.error); paint(); }
+    else { widgetState.askError = runErrorText(d && d.error); paint(); }
   }
 
   async function stopRun(id) {
@@ -1451,14 +1288,6 @@
     // An unterminated fence still shows its contents rather than swallowing the
     // rest of the message.
     return box;
-  }
-
-  // The tail of the session's own transcript. Read-only, and deliberately just
-  // the conversation: tool calls are already approval cards, and repeating them
-  // here would bury the two lines that say where the session got to.
-  // The session being written to, when it is one we still know about.
-  function askSession() {
-    return sessions().find(s => s.id === askResumeId) || null;
   }
 
   // A run of tool calls between Claude's sentences, as the terminal prints them:
@@ -1646,14 +1475,14 @@
 
   function runModeSelect() {
     const opts = [{ id: '', label: t('claude_run_mode_default', 'Default mode'), note: t('claude_run_mode_default_note', 'your Claude Code setting') }];
-    askOptions.modes.forEach((m) => opts.push({ id: m, label: t(RUN_MODE_LABELS[m][0], RUN_MODE_LABELS[m][1]) }));
-    return composerSelect('cw-ask-mode-sel', t('claude_run_mode', 'Permission mode'), opts, askRunMode, (v) => { askRunMode = v; });
+    widgetState.askOptions.modes.forEach((m) => opts.push({ id: m, label: t(RUN_MODE_LABELS[m][0], RUN_MODE_LABELS[m][1]) }));
+    return composerSelect('cw-ask-mode-sel', t('claude_run_mode', 'Permission mode'), opts, widgetState.askRunMode, (v) => { widgetState.askRunMode = v; });
   }
 
   function effortSelect() {
     const opts = [{ id: '', label: t('claude_effort', 'effort') + ': ' + t('claude_model_auto', 'Auto') }];
     EFFORTS.forEach((e) => opts.push({ id: e, label: t('claude_effort', 'effort') + ': ' + e }));
-    return composerSelect('cw-ask-effort-sel', t('claude_effort', 'effort'), opts, askEffort, (v) => { askEffort = v; });
+    return composerSelect('cw-ask-effort-sel', t('claude_effort', 'effort'), opts, widgetState.askEffort, (v) => { widgetState.askEffort = v; });
   }
 
   // ── the "/" picker ─────────────────────────────────────────────────────────
@@ -1685,9 +1514,6 @@
   // The same shape the bridge accepts (claude-bridge.js, TILE_COMMAND).
   // Its shape only; the bridge checks the name against what that session lists.
   const TILE_COMMAND_RE = /^\/[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}(?:[ ][^\r\n]{1,200})?$/;
-  function inLiveSession() { const m = replyMode(); return m === 'terminal' || m === 'followup'; }
-  // The commands need a mod that can run them (0.4.0); an older one would send them as plain messages.
-  function canRunCommands() { const s = sessionById(askResumeId); return !!(s && s.modCommands); }
 
   // The open session's own list (what its terminal's "/" shows), once its mod
   // has reported it; the three header commands before that.
@@ -1715,7 +1541,7 @@
   }
 
   function tileCommandList() {
-    const own = liveCommands(sessionById(askResumeId));
+    const own = liveCommands(sessionById(widgetState.askResumeId));
     if (own) return own;
     return [
       { name: 'model', desc: t('claude_slash_model', 'Change the model, e.g. /model opus') },
@@ -1732,7 +1558,7 @@
       { name: 'model', desc: t('claude_slash_model', 'Change the model, e.g. /model opus') },
       { name: 'effort', desc: t('claude_slash_effort', 'Set the effort: low, medium, high, xhigh, max') },
     ];
-    if (askOptions.modes.includes('plan')) list.push({ name: 'plan', desc: t('claude_slash_plan', 'Start in plan mode: it plans first and changes nothing') });
+    if (widgetState.askOptions.modes.includes('plan')) list.push({ name: 'plan', desc: t('claude_slash_plan', 'Start in plan mode: it plans first and changes nothing') });
     return list;
   }
 
@@ -1745,16 +1571,16 @@
     const arg = (m[2] || '').trim();
     const done = () => { if (window.XenonToast) window.XenonToast.show({ type: 'info', title: t('claude_slash_set', 'Set for this run') }); };
     if (m[1] === 'plan') {
-      askRunMode = 'plan';
+      widgetState.askRunMode = 'plan';
       done();
       return arg || null;
     }
     if (m[1] === 'model') {
       if (!/^[a-z0-9][a-z0-9._-]{0,39}$/i.test(arg)) return false;
-      askModel = arg.toLowerCase();
+      widgetState.askModel = arg.toLowerCase();
     } else {
-      if (!askOptions.effort || !EFFORTS.includes(arg.toLowerCase())) return false;
-      askEffort = arg.toLowerCase();
+      if (!widgetState.askOptions.effort || !EFFORTS.includes(arg.toLowerCase())) return false;
+      widgetState.askEffort = arg.toLowerCase();
     }
     done();
     return null;
@@ -1794,7 +1620,7 @@
   const ARG_PROVIDERS = {
     model: MODEL_ARG([]),
     advisor: () => (inLiveSession() ? MODEL_ARG(LIVE_ARGS.advisor)() : []),
-    effort: () => (inLiveSession() || askOptions.effort
+    effort: () => (inLiveSession() || widgetState.askOptions.effort
       ? EFFORTS.concat(inLiveSession() ? ['auto'] : []).map((e) => ({ value: e, desc: e === 'auto' ? e : t('claude_effort', 'effort') + ' ' + e }))
       : []),
   };
@@ -1823,7 +1649,7 @@
     const q = slashQuery(text);
     if (q === null) return null;
     if (inLiveSession() && !canRunCommands()) return [];   // drawPicker says why
-    const own = inLiveSession() ? tileCommandList() : commandsFor(askProjectId);
+    const own = inLiveSession() ? tileCommandList() : commandsFor(widgetState.askProjectId);
     if (!own) return [];
     const list = inLiveSession() ? own : runBuiltins().filter((b) => !own.some((c) => c.name === b.name)).concat(own);
     // Names that start with the word first, then names that contain it.
@@ -1842,7 +1668,7 @@
         picker.appendChild(el('div', 'cw-slash-empty', t('claude_cmd_modold', 'The Xenon mod in that terminal is older than 0.4.0. Update it and restart Claude Code to run commands from here.')));
         return;
       }
-      picker.appendChild(el('div', 'cw-slash-empty', commandLists.get(askProjectId || '') === 'loading'
+      picker.appendChild(el('div', 'cw-slash-empty', commandLists.get(widgetState.askProjectId || '') === 'loading'
         ? t('claude_slash_loading', 'Reading your commands…') : t('claude_slash_none', 'No command or skill with that name')));
       return;
     }
@@ -1866,7 +1692,7 @@
 
   function applyPick(c, picker, ta) {
     ta.value = c.insert || '/' + c.name + ' ';
-    askText = ta.value;
+    widgetState.askText = ta.value;
     pickAt = 0;
     drawPicker(picker, ta);
     ta.focus();
@@ -1902,13 +1728,13 @@
     const runLike = replyMode() === 'new' || replyMode() === 'resume';
     // The "/" list also serves a session open in a terminal, with its three commands.
     const slashOn = runLike || inLiveSession();
-    if (askProjects === null) loadAskProjects(false);
+    if (widgetState.askProjects === null) loadAskProjects(false);
 
     const ta = document.createElement('textarea');
     ta.className = 'cw-ask-text';
     ta.rows = 1;
-    ta.value = askText;
-    ta.placeholder = askResumeId
+    ta.value = widgetState.askText;
+    ta.placeholder = widgetState.askResumeId
       ? t('claude_ask_placeholder_more', 'Write the follow-up…')
       : t('claude_ask_placeholder', 'What should Claude do?');
     ta.title = t('claude_ask_enter_hint', 'Enter sends, Shift+Enter adds a line');
@@ -1920,7 +1746,7 @@
     picker.setAttribute('role', 'listbox');
     picker.hidden = true;
     ta.addEventListener('input', () => {
-      askText = ta.value;
+      widgetState.askText = ta.value;
       fitHeight(ta);
       if (slashOn) { pickAt = 0; drawPicker(picker, ta); }
     });
@@ -1931,7 +1757,7 @@
       if (slashOn && pickerKey(e, picker, ta)) { e.preventDefault(); return; }
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
       e.preventDefault();
-      askText = ta.value;
+      widgetState.askText = ta.value;
       submitAsk();
     });
     // Paste an image straight in. On a touchscreen this is the difference
@@ -1940,14 +1766,14 @@
       const items = (e.clipboardData && e.clipboardData.files) || null;
       if (!items || !items.length) return;
       e.preventDefault();
-      askText = ta.value;
+      widgetState.askText = ta.value;
       addAttachments(Array.from(items));
     });
     // Pasted or attached images are shown, not just named: a screenshot you
     // cannot see is one you cannot check before sending.
-    if (askAttach.length) {
+    if (widgetState.askAttach.length) {
       const chips = el('div', 'cw-attach-chips');
-      askAttach.forEach((a, i) => {
+      widgetState.askAttach.forEach((a, i) => {
         const item = el('div', 'cw-attach-item' + (a.preview ? ' is-image' : ''));
         if (a.preview) {
           const img = document.createElement('img');
@@ -1963,9 +1789,9 @@
         // would mean a delete endpoint taking a path, which is exactly what this
         // design avoids.
         rm.addEventListener('click', () => {
-          askText = ta.value;
+          widgetState.askText = ta.value;
           if (a.preview) URL.revokeObjectURL(a.preview);
-          askAttach.splice(i, 1);
+          widgetState.askAttach.splice(i, 1);
           paint();
         });
         item.appendChild(rm);
@@ -1990,19 +1816,19 @@
     input.multiple = true;
     input.hidden = true;
     input.accept = ATTACH_ACCEPT;
-    input.addEventListener('change', () => { askText = ta.value; addAttachments(Array.from(input.files || [])); });
+    input.addEventListener('change', () => { widgetState.askText = ta.value; addAttachments(Array.from(input.files || [])); });
     box.appendChild(input);
 
     const clip = el('button', 'cw-icon-btn'); clip.type = 'button';
-    clip.disabled = askAttachBusy || askAttach.length >= MAX_ATTACH;
+    clip.disabled = widgetState.askAttachBusy || widgetState.askAttach.length >= MAX_ATTACH;
     clip.title = t('claude_attach_add', 'Attach a file');
     clip.setAttribute('aria-label', t('claude_attach_add', 'Attach a file'));
     // A drawn paperclip rather than the emoji: the emoji renders at whatever
     // size and weight the platform font decides, which is why it sat in the bar
     // looking like a smudge next to a crisp button.
-    if (askAttachBusy) clip.textContent = '…';
+    if (widgetState.askAttachBusy) clip.textContent = '…';
     else clip.innerHTML = CLIP_SVG;      // static, trusted markup
-    clip.addEventListener('click', () => { askText = ta.value; input.click(); });
+    clip.addEventListener('click', () => { widgetState.askText = ta.value; input.click(); });
     tools.appendChild(clip);
 
     const mode = replyMode();
@@ -2010,15 +1836,15 @@
     const busyLabel = mode === 'followup' ? t('claude_reply_sending', 'Queueing…')
       : mode === 'terminal' ? t('claude_terminal_sending', 'Sending…')
         : t('claude_ask_sending', 'Starting…');
-    const sendLabel = askBusy
+    const sendLabel = widgetState.askBusy
       ? busyLabel
-      : (askResumeId ? t('claude_ask_send_more', 'Send') : t('claude_ask_send', 'Start'));
+      : (widgetState.askResumeId ? t('claude_ask_send_more', 'Send') : t('claude_ask_send', 'Start'));
     send.title = sendLabel;
     send.setAttribute('aria-label', sendLabel);
-    send.classList.toggle('is-busy', askBusy);
+    send.classList.toggle('is-busy', widgetState.askBusy);
     send.innerHTML = SEND_SVG;           // static, trusted markup
-    send.disabled = askBusy || mode === 'none' || (askProjects !== null && !askProjects.length);
-    send.addEventListener('click', () => { askText = ta.value; submitAsk(); });
+    send.disabled = widgetState.askBusy || mode === 'none' || (widgetState.askProjects !== null && !widgetState.askProjects.length);
+    send.addEventListener('click', () => { widgetState.askText = ta.value; submitAsk(); });
     tools.appendChild(send);
 
     // The model sits with the composer rather than behind a settings screen:
@@ -2029,9 +1855,9 @@
     // session goes into that session as it is, so they are not offered there.
     if (runLike) {
       const bar = el('div', 'cw-composer-bar');
-      bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), askModel, (v) => { askModel = v; }));
-      if (askOptions.modes.length) bar.appendChild(runModeSelect());
-      if (askOptions.effort) bar.appendChild(effortSelect());
+      bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), widgetState.askModel, (v) => { widgetState.askModel = v; }));
+      if (widgetState.askOptions.modes.length) bar.appendChild(runModeSelect());
+      if (widgetState.askOptions.effort) bar.appendChild(effortSelect());
       box.appendChild(bar);
     }
     // Say where the text is going BEFORE it is sent. The destinations look
@@ -2044,7 +1870,7 @@
           : mode === 'none' ? t('claude_reply_e_ended', 'That session has closed')
             : '';
     if (note) box.appendChild(el('div', 'cw-ask-note' + (mode === 'none' ? ' is-warn' : ''), note));
-    if (askError) box.appendChild(el('div', 'cw-ask-error', askError));
+    if (widgetState.askError) box.appendChild(el('div', 'cw-ask-error', widgetState.askError));
     return box;
   }
 
@@ -2072,7 +1898,7 @@
   }
 
   function headControls(s) {
-    if (!s || s.id !== askResumeId || !inLiveSession() || !s.modCommands) return null;
+    if (!s || s.id !== widgetState.askResumeId || !inLiveSession() || !s.modCommands) return null;
     const id = s.id;
     // A session whose hooks have not reported a value yet has no current one:
     // a blank first entry keeps the <select> from showing its first option as if
@@ -2104,8 +1930,6 @@
       },
     };
   }
-
-  function titles() { return (payload && payload.titles) || {}; }
 
   function decisionsFor(id) {
     const pend = approvals().filter((a) => !a.urgent);
@@ -2147,13 +1971,9 @@
     return bar;
   }
 
-  function runsFor(id) {
-    return runs().filter((r) => (id ? r.sessionId === id : (!r.sessionId || !sessionById(r.sessionId))));
-  }
-
   // What you can do about a session you cannot write to from here, said once.
   function composerOrNote(s) {
-    if (!(linkState && linkState.linked)) {
+    if (!(widgetState.linkState && widgetState.linkState.linked)) {
       const n = el('div', 'cw-cs-note');
       n.appendChild(el('span', '', t('claude_cs_link', 'Connect Claude Code to write to its sessions from here.')));
       n.appendChild(linkButton());
@@ -2337,10 +2157,10 @@
 
   function sessionConsole(pane, id) {
     const s = sessionById(id);
-    const rec = s || { id, project: askResumeLabel };
+    const rec = s || { id, project: widgetState.askResumeLabel };
     const st = s ? window.ClaudeRail.stateOf(s) : 'idle';
     const h = consoleHelpers();
-    const who = window.ClaudeIdent.describe(rec, titles(), askResumeLabel || t('claude_ask_session', 'session'));
+    const who = window.ClaudeIdent.describe(rec, titles(), widgetState.askResumeLabel || t('claude_ask_session', 'session'));
     pane.classList.add('is-s' + who.slot);
     pane.appendChild(window.ClaudeConsole.head(h, rec, who, st));
     if (!s) pane.appendChild(el('div', 'cw-cs-status is-idle', t('claude_cs_closed', 'Not open in a terminal. A message continues it in the background.')));
@@ -2383,19 +2203,19 @@
   }
 
   function projectPicker() {
-    if (askProjects === null) {
+    if (widgetState.askProjects === null) {
       loadAskProjects(false);
       return el('div', 'cw-panel-note', t('claude_ask_loading', 'Reading your projects…'));
     }
     const list = el('div', 'cw-ask-projects');
-    if (!askProjects.length) {
+    if (!widgetState.askProjects.length) {
       list.appendChild(el('div', 'cw-panel-note', t('claude_ask_noprojects', 'No projects found. Add a folder, or open Claude Code in one once.')));
     }
-    askProjects.slice(0, 8).forEach((p) => {
-      const b = el('button', 'cw-ask-proj' + (p.id === askProjectId ? ' is-sel' : '')); b.type = 'button';
+    widgetState.askProjects.slice(0, 8).forEach((p) => {
+      const b = el('button', 'cw-ask-proj' + (p.id === widgetState.askProjectId ? ' is-sel' : '')); b.type = 'button';
       b.appendChild(el('span', 'cw-ask-proj-name', p.name));
       b.title = p.path;
-      b.addEventListener('click', () => { askProjectId = p.id; paint(); });
+      b.addEventListener('click', () => { widgetState.askProjectId = p.id; paint(); });
       list.appendChild(b);
     });
     if (!window.__xenonRemote) list.appendChild(folderAdder());
@@ -2434,18 +2254,18 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: value }),
       });
       if (d && d.ok) {
-        folderOpen = false; askError = '';
+        folderOpen = false; widgetState.askError = '';
         await loadAskProjects(true);
-        askProjectId = d.id;
+        widgetState.askProjectId = d.id;
       } else {
-        askError = runErrorText(d && d.error);
+        widgetState.askError = runErrorText(d && d.error);
       }
       paint();
     };
     go.addEventListener('click', add);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); add(); }
-      if (e.key === 'Escape') { folderOpen = false; askError = ''; paint(); }
+      if (e.key === 'Escape') { folderOpen = false; widgetState.askError = ''; paint(); }
     });
     wrap.appendChild(input);
     wrap.appendChild(go);
@@ -2477,7 +2297,7 @@
     if (decs) pane.appendChild(decs);
     runsFor('').slice(-2).forEach((r) => pane.appendChild(runCard(r)));
 
-    if (!(linkState && linkState.linked)) { pane.appendChild(composerOrNote(null)); return; }
+    if (!(widgetState.linkState && widgetState.linkState.linked)) { pane.appendChild(composerOrNote(null)); return; }
     pane.appendChild(projectPicker());
     pane.appendChild(el('div', 'cw-thread-spacer'));
     pane.appendChild(composer());
@@ -2485,7 +2305,7 @@
 
   function consolePane() {
     const pane = el('section', 'cw-console');
-    const id = askResumeId;
+    const id = widgetState.askResumeId;
     const others = decisionsFor(id).others;
     if (others.length) pane.appendChild(othersBar(others));
     if (id) sessionConsole(pane, id);
@@ -2512,7 +2332,7 @@
       fold.addEventListener('click', () => toggleCollapsed('rail'));
       side.appendChild(fold);
       side.appendChild(window.ClaudeRail.render({
-        el, t, list, titles: titles(), selected: askResumeId,
+        el, t, list, titles: titles(), selected: widgetState.askResumeId,
         fresh: new Set(doneNotices.map((n) => n.id)),
         onSelect: (id, label) => select(id, label),
         ageNode, nowLine, stateLabel,
@@ -2577,18 +2397,11 @@
     { key: 'max5',  plan: 'max5',   labelKey: 'claude_plan_max5',  fb: 'Max 5×' },
     { key: 'max20', plan: 'max20',  labelKey: 'claude_plan_max20', fb: 'Max 20×' },
   ];
-  function currentPlanKey() {
-    const b = payload && payload.budget;
-    if (!b) return 'auto';
-    if (b.weeklyTokenBudget > 0) return 'custom';
-    if (b.plan === 'pro' || b.plan === 'max5' || b.plan === 'max20') return b.plan;
-    return 'auto';
-  }
-  function openBudget() { editing = true; customOpen = currentPlanKey() === 'custom'; paint(); }
-  function closeBudget() { editing = false; paint(); }
+  function openBudget() { widgetState.editing = true; widgetState.customOpen = currentPlanKey() === 'custom'; paint(); }
+  function closeBudget() { widgetState.editing = false; paint(); }
   async function postBudget(patch) {
     const d = await api('/api/claude/budget', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-    if (d && d.ok && d.budget) { if (payload) payload.budget = d.budget; editing = false; paint(); }
+    if (d && d.ok && d.budget) { if (widgetState.payload) widgetState.payload.budget = d.budget; widgetState.editing = false; paint(); }
     else if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('claude_budget_fail', 'Could not save budget') });
   }
   function budgetEditor() {
@@ -2607,21 +2420,21 @@
     const cur = currentPlanKey();
     const chips = el('div', 'cw-plan-chips');
     PLAN_OPTIONS.forEach(o => {
-      const c = el('button', 'cw-plan' + (cur === o.key && !customOpen ? ' is-sel' : '')); c.type = 'button';
+      const c = el('button', 'cw-plan' + (cur === o.key && !widgetState.customOpen ? ' is-sel' : '')); c.type = 'button';
       c.textContent = t(o.labelKey, o.fb);
       c.addEventListener('click', () => postBudget({ plan: o.plan, weeklyTokenBudget: 0 }));
       chips.appendChild(c);
     });
-    const customChip = el('button', 'cw-plan' + (customOpen ? ' is-sel' : '')); customChip.type = 'button';
+    const customChip = el('button', 'cw-plan' + (widgetState.customOpen ? ' is-sel' : '')); customChip.type = 'button';
     customChip.textContent = t('claude_plan_custom', 'Custom');
-    customChip.addEventListener('click', () => { customOpen = true; paint(); });
+    customChip.addEventListener('click', () => { widgetState.customOpen = true; paint(); });
     chips.appendChild(customChip);
     wrap.appendChild(chips);
 
-    if (customOpen) {
+    if (widgetState.customOpen) {
       const row = el('div', 'cw-custom');
       const input = el('input', 'cw-custom-input'); input.type = 'number'; input.min = '1'; input.step = '1'; input.placeholder = '500';
-      const b = payload && payload.budget;
+      const b = widgetState.payload && widgetState.payload.budget;
       if (b && b.weeklyTokenBudget > 0) input.value = String(Math.round(b.weeklyTokenBudget / 1e6));
       row.appendChild(input);
       row.appendChild(el('span', 'cw-custom-unit', t('claude_custom_unit', 'M tokens / week')));
@@ -2690,7 +2503,7 @@
     const h = el('div', 'cw-top');
     const title = el('div', 'cw-name');
     // The connection as a mark, not a sentence: complete, partly there, or off.
-    const state = !linkState ? 'unknown' : !linkState.linked ? 'off' : linkState.complete === false ? 'partial' : 'on';
+    const state = !widgetState.linkState ? 'unknown' : !widgetState.linkState.linked ? 'off' : widgetState.linkState.complete === false ? 'partial' : 'on';
     const brand = el('span', 'cw-brand');
     brand.appendChild(window.ClaudeClawd.make('cw-brand-mark'));
     title.appendChild(brand);
@@ -2700,7 +2513,7 @@
         : t('claude_cta', 'Show real quota and approve from here');
     title.setAttribute('role', 'button');
     title.tabIndex = 0;
-    const openLink = () => { linkPanel = true; paint(); };
+    const openLink = () => { widgetState.linkPanel = true; paint(); };
     title.addEventListener('click', openLink);
     title.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openLink(); } });
     h.appendChild(title);
@@ -2720,7 +2533,7 @@
     });
     h.appendChild(faces);
 
-    if (linkState && linkState.linked) {
+    if (widgetState.linkState && widgetState.linkState.linked) {
       const ask = el('button', 'cw-ask-open' + (composing ? ' is-on' : '')); ask.type = 'button';
       ask.appendChild(el('span', 'cw-ask-open-plus', '+'));
       ask.appendChild(el('span', 'cw-ask-open-t', t('claude_new_session', 'New session')));
@@ -2737,8 +2550,8 @@
   // only reaches sessions started after it (Claude Code reads its hooks when a
   // session starts), so the notice says to restart the open ones.
   function linkNotice() {
-    if (!linkState || !linkState.linked) return null;
-    if (linkState.complete === false) {
+    if (!widgetState.linkState || !widgetState.linkState.linked) return null;
+    if (widgetState.linkState.complete === false) {
       const n = el('div', 'cw-notice is-warn');
       n.appendChild(el('span', 'cw-notice-t', t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')));
       const b = el('button', 'cw-link-btn'); b.type = 'button';
@@ -2749,13 +2562,13 @@
     }
     let seen = 0;
     try { seen = Number(localStorage.getItem(REPAIR_SEEN_KEY)) || 0; } catch { /* private mode */ }
-    if (linkState.repairedAt && linkState.repairedAt > seen) {
+    if (widgetState.linkState.repairedAt && widgetState.linkState.repairedAt > seen) {
       const n = el('div', 'cw-notice');
       n.appendChild(el('span', 'cw-notice-t', t('claude_link_repaired', 'The Claude Code connection was updated. Restart the Claude Code sessions that are open to use it.')));
       const b = el('button', 'cw-link-btn'); b.type = 'button';
       b.textContent = t('claude_notice_ok', 'OK');
       b.addEventListener('click', () => {
-        try { localStorage.setItem(REPAIR_SEEN_KEY, String(linkState.repairedAt)); } catch { /* private mode */ }
+        try { localStorage.setItem(REPAIR_SEEN_KEY, String(widgetState.linkState.repairedAt)); } catch { /* private mode */ }
         paint();
       });
       n.appendChild(b);
@@ -2766,8 +2579,8 @@
 
   function build() {
     const wrap = el('div', 'cw-wrap');
-    if (editing) { wrap.appendChild(budgetEditor()); return wrap; }
-    if (linkPanel) { wrap.appendChild(linkPanelView()); return wrap; }
+    if (widgetState.editing) { wrap.appendChild(budgetEditor()); return wrap; }
+    if (widgetState.linkPanel) { wrap.appendChild(linkPanelView()); return wrap; }
 
     wrap.appendChild(header());
     const notice = linkNotice(); if (notice) wrap.appendChild(notice);
@@ -2782,7 +2595,7 @@
       wrap.appendChild(window.ClaudeHistory.render({ t, ago, paint, openAsk: (id, label) => openAsk(id, label, '') }));
       return wrap;
     }
-    const u = payload && payload.usage;
+    const u = widgetState.payload && widgetState.payload.usage;
     if (f === 'usage') {
       const decs = decisionStack(approvals().filter((a) => !a.urgent));
       if (decs) wrap.appendChild(decs);
@@ -2792,7 +2605,7 @@
       wrap.appendChild(face);
       return wrap;
     }
-    if (!payload) {
+    if (!widgetState.payload) {
       wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…')));
       return wrap;
     }
@@ -2814,17 +2627,13 @@
     if (!nodes.length) stopTicker();
   }
   function startTicker() {
-    if (ticker) return;
-    ticker = setInterval(tick, 1000);
-  }
-  function stopTicker() {
-    if (!ticker) return;
-    clearInterval(ticker); ticker = null;
+    if (widgetState.ticker) return;
+    widgetState.ticker = setInterval(tick, 1000);
   }
 
   function paint() {
     // A finger is on the widget: see "a tap must survive an SSE push".
-    if (pressing) { renderDeferred = true; return; }
+    if (widgetState.pressing) { widgetState.renderDeferred = true; return; }
     // Half-made choices belong to cards that still exist. Approval ids are
     // unique per request, so without this the map keeps one entry per question
     // ever asked, for as long as the page is open — the unbounded Map the
@@ -2913,7 +2722,7 @@
     seedInflight = true;
     try {
       const d = await api('/api/claude');
-      if (d) { payload = d; payloadAt = Date.now(); }
+      if (d) { widgetState.payload = d; widgetState.payloadAt = Date.now(); }
     } finally { seedInflight = false; }
     paint();
     loadLinkState();
@@ -2939,7 +2748,6 @@
   // are looking somewhere else currently announces itself nowhere, so you find
   // out by going back and checking.
   const DONE_TTL_MS = 10 * 60 * 1000;   // how long a finish stays worth showing
-  let lastStates = new Map();           // session id → last state seen
   let doneNotices = [];                 // [{ id, project, at }] newest last
 
   function trackPresence() {
@@ -2947,7 +2755,7 @@
     const now = Date.now();
     const next = new Map();
     list.forEach(s => {
-      const was = lastStates.get(s.id);
+      const was = widgetState.lastStates.get(s.id);
       next.set(s.id, s.state);
       // Only a real transition counts. Seeding (was === undefined) must not
       // announce every session that happens to be idle when the page loads.
@@ -2965,7 +2773,7 @@
         doneNotices.push({ id: s.id, project: s.project || '', at: now });
       }
     });
-    lastStates = next;
+    widgetState.lastStates = next;
     doneNotices = doneNotices.filter(n => (now - n.at) < DONE_TTL_MS && next.has(n.id));
     if (doneNotices.length > 4) doneNotices = doneNotices.slice(-4);
   }
@@ -2973,7 +2781,7 @@
   // Notices about a session OTHER than the one being written to. Seeing "this
   // session finished" while typing into that very session is noise.
   function otherNotices() {
-    return doneNotices.filter(n => n.id !== askResumeId);
+    return doneNotices.filter(n => n.id !== widgetState.askResumeId);
   }
   function clearNotice(id) {
     doneNotices = doneNotices.filter(n => n.id !== id);
@@ -3082,7 +2890,7 @@
       // nowhere to open it, so the tap acknowledges the marker instead.
       if (!moved && !tiles().length) { clearNotice(n.id); topbarSig = ''; syncTopbar(); return; }
       clearNotice(n.id);
-      askText = '';
+      widgetState.askText = '';
       openAsk(n.id, n.project || '', '');
     });
     host.replaceChildren(chip);
@@ -3102,11 +2910,11 @@
     else paint();
   }
   function releasePress() {
-    if (!pressing) return;
-    pressing = false;
-    clearTimeout(pressTimer);
-    if (!renderDeferred) return;
-    renderDeferred = false;
+    if (!widgetState.pressing) return;
+    widgetState.pressing = false;
+    clearTimeout(widgetState.pressTimer);
+    if (!widgetState.renderDeferred) return;
+    widgetState.renderDeferred = false;
     // After the click, not before it: click is dispatched after pointerup in
     // the same input task, and a timer only runs once that task is over.
     setTimeout(renderNow, 40);
@@ -3114,19 +2922,19 @@
   document.addEventListener('pointerdown', (e) => {
     const target = e.target;
     if (!(target && target.closest && target.closest(PRESS_SCOPE))) return;
-    pressing = true;
-    clearTimeout(pressTimer);
+    widgetState.pressing = true;
+    clearTimeout(widgetState.pressTimer);
     // A release can happen where we never hear about it (the pointer left the
     // window); rendering is never held back for longer than a long press.
-    pressTimer = setTimeout(releasePress, 2500);
+    widgetState.pressTimer = setTimeout(releasePress, 2500);
   }, true);
   document.addEventListener('pointerup', releasePress, true);
   document.addEventListener('pointercancel', releasePress, true);
 
   function onSSE(data) {
     if (!data) return;
-    payload = data;
-    payloadAt = Date.now();
+    widgetState.payload = data;
+    widgetState.payloadAt = Date.now();
     // Presence runs on EVERY payload, before the early return below: the topbar
     // marker and the "another session answered" notice have to keep working
     // when the tile is on another page, or not on the dashboard at all.
@@ -3134,7 +2942,7 @@
     // A session that just started or stopped working flips whether the thread
     // needs watching, and any state change re-reads it until the turn closes.
     syncThread();
-    if (pressing) { renderDeferred = true; return; }
+    if (widgetState.pressing) { widgetState.renderDeferred = true; return; }
     // The overlay is global, so live state has to be applied even when the tile
     // isn't mounted on the current page.
     renderNow();
