@@ -12,125 +12,28 @@
 // is traded for a signed session token once, and the token is what travels.
 // Neither the code nor the token is ever sent to the browser.
 
-const redeem = require('./supporter-redeem.js');
-const sparksWallet = require('./sparks-wallet.js');
+require('./supporter-redeem.js');
+require('./sparks-wallet.js');
 const welcomeSparks = require('./welcome-sparks.js');
 const aiAnthropic = require('./ai-anthropic.js');
 const aiTurns = require('./ai-turns');
 const startupLog = require('./startup-log');
 
-const MODELS = Object.freeze(['haiku', 'sonnet', 'opus']);
-const DEFAULT_MODEL = 'sonnet';
-// How hard the creation model reasons, picked in Settings: more reasoning costs
-// more credits and time. Every level has to deliver the creation.
-const EFFORTS = Object.freeze(['low', 'medium', 'high']);
-const DEFAULT_EFFORT = 'medium';
+const {
+  MODELS, DEFAULT_MODEL, EFFORTS, DEFAULT_EFFORT, MAX_TOKENS, CREATION_MAX_TOKENS, CHAT_MAX_TOKENS,
+  TURN_TIMEOUT_MS, MAX_TURN_BYTES, SMALL_TIMEOUT_MS, BUSY_WAITS_MS, BUSY_RETRY_WITHIN_MS,
+  MAX_RETRY_AFTER_MS, KNOWN_ERRORS, sanitizeModel, sanitizeEffort,
+} = require('./store-supporters/credits-limits.js');
 
-// A whole widget is a long answer with adaptive thinking in front of it: room
-// for it, and the time Opus needs to write it. The hub caps both again, and
-// trims the length to what the balance can pay for.
-const MAX_TOKENS = 16000;
-// A widget's files and the thinking before them can pass 16000 on Sonnet and
-// Opus, and an answer cut inside a tool call installs nothing. On high, Sonnet
-// thought through all of 32000 before writing a line (measured 26 Oct 2026), so
-// that level gets twice the room. Only what is written is paid; the hub holds
-// the worst case and trims it to the balance.
-const CREATION_MAX_TOKENS = Object.freeze({ low: 32000, medium: 32000, high: 64000 });
-// A Haiku round while another model makes the creations: an answer or a tool
-// call is far shorter. A round that runs into this was writing a creation
-// itself, and is handed over after seconds instead of a minute of throwaway text.
-const CHAT_MAX_TOKENS = 4096;
-const TURN_TIMEOUT_MS = 300000;
-const MAX_TURN_BYTES = 2 * 1024 * 1024;
-const SMALL_TIMEOUT_MS = 15000;
-// A token this close to its end is replaced before it is used.
-const TOKEN_MARGIN_SEC = 120;
-// Anthropic overloaded or rate limited ('busy'): the round is asked again after
-// these waits, because a creation that stops halfway loses the rounds already
-// paid for. The hub charges nothing for a busy round. Only a refusal that came
-// fast is asked again: a busy answer after a long wait broke off while Anthropic
-// was writing, and asking again would pay for that writing a second time.
-const BUSY_WAITS_MS = Object.freeze([3000, 8000]);
-const BUSY_RETRY_WITHIN_MS = 20000;
-const MAX_RETRY_AFTER_MS = 30000;
 
-// What the hub can answer, passed on as the error code. Anything else is 'network'.
-const KNOWN_ERRORS = new Set(['no_credits', 'busy', 'rate_limited', 'not_configured', 'bad_request', 'bad_model', 'bad_code', 'expired', 'upstream_error', 'upstream_unreachable']);
 
-const sanitizeModel = (v) => (MODELS.includes(v) ? v : DEFAULT_MODEL);
-const sanitizeEffort = (v) => (EFFORTS.includes(v) ? v : DEFAULT_EFFORT);
-
-let _session = null; // { code, token, exp } in memory only
-let _lastBalance = null;
+const { creditsState } = require('./store-supporters/credits-state.js');
 let _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let _now = () => Date.now();
 
-// `detail` is the hub's reason (Anthropic's message on a refused request): it
-// goes to the server log, never to the user.
-function fail(code, balance, detail) {
-  const err = new Error('Xenon credits: ' + code);
-  err.code = code;
-  if (Number.isFinite(balance)) err.balance = balance;
-  if (typeof detail === 'string' && detail) err.detail = detail.slice(0, 300);
-  return err;
-}
-
-function rememberBalance(n) {
-  if (Number.isFinite(n)) _lastBalance = n;
-}
-
-// The pass first; without one, the Sparks code of someone who bought Sparks
-// without being a supporter (sparks-wallet.js). The hub tells them apart.
-async function savedCode(dataDir) {
-  return await redeem.readSavedCode(dataDir) || await sparksWallet.readWalletCode(dataDir);
-}
-
-// Whether this install holds a code that can spend Sparks: what a feature on
-// the user's AI checks before it asks, so a missing code never costs a round trip.
-async function hasCode(dataDir) {
-  return !!(await savedCode(dataDir));
-}
-
-async function sessionToken(dataDir) {
-  const now = Math.floor(Date.now() / 1000);
-  const code = await savedCode(dataDir);
-  // A session belongs to the code that opened it: a Sparks code typed in while
-  // the trial's is open has to be the one that pays from the next round on.
-  if (_session && code && _session.code === code && _session.exp - TOKEN_MARGIN_SEC > now) return _session.token;
-  _session = null;
-  if (!code) throw fail('no_code');
-  let out = await redeem.hubPost('/ai/session', { code }, undefined, SMALL_TIMEOUT_MS);
-  // A pass the hub no longer knows (replaced, revoked) must not hide the Sparks
-  // code saved beside it. The session stays filed under the saved code, so the
-  // dead pass is not asked again each round.
-  if (out && out.error === 'bad_code') {
-    const wallet = await sparksWallet.readWalletCode(dataDir);
-    if (wallet && wallet !== code) out = await redeem.hubPost('/ai/session', { code: wallet }, undefined, SMALL_TIMEOUT_MS);
-  }
-  if (out && out.ok === true && typeof out.token === 'string' && Number.isInteger(out.exp)) {
-    _session = { code, token: out.token, exp: out.exp };
-    return out.token;
-  }
-  // The trial Sparks ended: their code will never work again, so this PC is
-  // simply one with no code, and the chat offers the Sparks or a key.
-  if (out && out.error === 'welcome_over') {
-    await sparksWallet.forgetWalletCode(dataDir);
-    throw fail('no_code');
-  }
-  throw fail(out && KNOWN_ERRORS.has(out.error) ? out.error : 'network');
-}
-
-// One hub call with the session; a token the hub stopped accepting (a new
-// secret, a revoked code) is dropped and asked for again, once.
-async function withSession(dataDir, pathname, body, maxBytes, timeoutMs) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const token = await sessionToken(dataDir);
-    const out = await redeem.hubPost(pathname, { ...body, token }, maxBytes, timeoutMs);
-    if (out && out.error === 'bad_token') { _session = null; continue; }
-    return out;
-  }
-  throw fail('bad_code');
-}
+const {
+  fail, rememberBalance, hasCode, withSession,
+} = require('./store-supporters/credits-session.js');
 
 // One line per paid round, so a turn that costs more than it should can be read
 // back: never the conversation, only how the round ended and what it cost.
@@ -185,42 +88,10 @@ function roundTrip(dataDir, model) {
   };
 }
 
-// Everyday turns (a question, a command, a voice turn) run on Haiku. Every
-// round carries about 23K tokens of instructions and tools: caching them costs
-// half a credit on Haiku and over ten on Sonnet, so the chosen model is kept
-// for what it is chosen for, creations. A round that reaches for a creation
-// tool is asked again of that model, which writes the rest of the turn; the
-// Haiku round's tool calls are dropped unrun. A Haiku round cut at its length
-// limit was writing something large itself (a whole widget, a long fix): it is
-// handed over the same way, not answered with an empty reply.
-const CHAT_MODEL = 'haiku';
-const CREATION_TOOLS = new Set([
-  'create_preset', 'preset_reference', 'create_widget', 'sdk_reference',
-  'create_animated_background', 'create_dashboard_style', 'configure_deck',
-]);
+const {
+  CHAT_MODEL, CREATION_TOOLS, reachesForCreation, forCreation,
+} = require('./store-supporters/credits-creation.js');
 
-function reachesForCreation(resp) {
-  if (resp && resp.stop_reason === 'max_tokens') return true;
-  return Array.isArray(resp && resp.content)
-    && resp.content.some((b) => b && b.type === 'tool_use' && CREATION_TOOLS.has(b.name));
-}
-
-// The creation model gets the creation tools only (plus the Store search, for
-// what it cannot write, my_widgets to change one the user has, and any tool
-// this turn already called): the other seventy-odd tools are most of what its
-// cache write costs, and a creation never plays music or sets a timer.
-// The Deck catalog is read for a creation and to run one action now: only
-// configure_deck, not the lookup, hands the turn over.
-const CREATION_KIT = new Set([...CREATION_TOOLS, 'deck_action_catalog', 'marketplace_search', 'my_widgets']);
-function forCreation(body, effort) {
-  const room = { effort, max_tokens: CREATION_MAX_TOKENS[effort], use: 'create' };
-  if (!Array.isArray(body.tools)) return { ...body, ...room };
-  const used = new Set();
-  for (const m of body.messages || []) {
-    for (const b of Array.isArray(m.content) ? m.content : []) if (b && b.type === 'tool_use') used.add(b.name);
-  }
-  return { ...body, ...room, tools: body.tools.filter((t) => CREATION_KIT.has(t.name) || used.has(t.name)) };
-}
 
 // Haiku chosen for creations runs the whole turn at the user's level: its
 // rounds are both the chat and the creation, and are booked as chat. `pick` is read again on every
@@ -260,10 +131,10 @@ async function chat({ dataDir, model, effort, creation, geminiTools, history, sy
       model: sanitizeModel(model), geminiTools, history, systemText, turnNote, executeTool,
       maxTokens: MAX_TOKENS, post: routedTrip(dataDir, pick),
     });
-    return { ...result, balance: _lastBalance };
+    return { ...result, balance: creditsState.lastBalance };
   } catch (e) {
     // A stopped turn still says what is left after the rounds it did pay for.
-    if (e && e.code === 'turn_stopped') e.balance = _lastBalance;
+    if (e && e.code === 'turn_stopped') e.balance = creditsState.lastBalance;
     throw e;
   }
 }
@@ -375,7 +246,7 @@ module.exports = {
   balance,
   designAdvice,
   BUSY_WAITS_MS,
-  _reset() { _session = null; _lastBalance = null; },
+  _reset() { creditsState.session = null; creditsState.lastBalance = null; },
   _setSleep(fn) { _sleep = typeof fn === 'function' ? fn : (ms) => new Promise((resolve) => setTimeout(resolve, ms)); },
   _setNow(fn) { _now = typeof fn === 'function' ? fn : () => Date.now(); },
 };

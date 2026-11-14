@@ -170,7 +170,7 @@ test('the server tracks each /api/ai turn, marks its tools and answers GET /api/
   assert.match(server, /reqPath === '\/api\/ai\/turn' && req\.method === 'GET'[\s\S]{0,200}json\(aiTurns\.status\(urlObj\.searchParams\.get\('id'\)\)\)/);
   assert.match(server, /async function executeAiTool\(fnName, fnArgs, deps\) \{\n\s*aiTurns\.checkpoint\(\);[^\n]*\n\s*aiTurns\.toolStart\(fnName\);\n\s*try \{\n\s*const out = await runAiTool\(fnName, fnArgs, deps\);\n\s*aiTurns\.record\(out && out\.clientActions\);\n\s*return out;\n\s*\} finally \{\n\s*aiTurns\.toolEnd\(fnName\);/);
   assert.match(server, /clientActions: made \}\)\);/, 'a failed credits turn still returns what it made');
-  assert.match(read('../ai-xenon-credits.js'), /\(\{ model, effort \} = pick\(\)\);\n\s*aiTurns\.creating\(\);/);
+  assert.match(engineSource('server/ai-xenon-credits.js'), /\(\{ model, effort \} = pick\(\)\);\n\s*aiTurns\.creating\(\);/);
 });
 
 // ai-turn-wait.js in a small window of its own.

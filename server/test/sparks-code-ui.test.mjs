@@ -8,6 +8,7 @@ import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
@@ -32,7 +33,7 @@ test('Bit: a Sparks code alone is enough to turn Xenon AI on', () => {
   assert.match(ai, /show\('xai-support', !hasSparks\);/);
   assert.match(read('js/xenon-credits.js'), /async function sparksCodeSaved\(\) \{[\s\S]{0,200}\/api\/community\/sparks/);
   // The balance itself is asked with the XC code when there is no pass.
-  assert.match(read('ai-xenon-credits.js'), /await redeem\.readSavedCode\(dataDir\) \|\| await sparksWallet\.readWalletCode\(dataDir\)/);
+  assert.match(engineSource('server/ai-xenon-credits.js'), /await redeem\.readSavedCode\(dataDir\) \|\| await sparksWallet\.readWalletCode\(dataDir\)/);
 });
 
 test('the new lines exist in all 11 languages and the "no code" line names both codes', () => {
