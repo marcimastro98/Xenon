@@ -77,7 +77,8 @@ export function extract(job) {
   return result;
 }
 
-function gitShow(root, rev, file) {
+/** @param {string} root @param {string} rev @param {string} file repo-relative @returns {string | null} the file at that revision, null when it has none */
+export function gitShow(root, rev, file) {
   const run = spawnSync('git', ['show', `${rev}:${file}`], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   return run.status === 0 ? run.stdout : null;
 }

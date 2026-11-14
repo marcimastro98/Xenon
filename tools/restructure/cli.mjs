@@ -34,6 +34,8 @@
 //   node tools/restructure/cli.mjs branches --from <file> --survey [--tools] [--bodies] [--json]   what can move and what keeps the rest (--bodies: one line per body)
 //                                                                  (of the routes; --tools: of the assistant's tools)
 //   node tools/restructure/cli.mjs verify [--base HEAD]           redo the recorded moves and rewrites from a revision, compare bytes
+//   node tools/restructure/cli.mjs relist [--base HEAD] [--dry-run]   after a proven move out of a file that load-registrations.json or
+//                                                                  after-load.json pins: record its fingerprint again, pin the new modules
 //   node tools/restructure/cli.mjs carry                           move the type and lint numbers along with the code
 //   node tools/restructure/cli.mjs remainder <file> [--json]       what is left, by feature, and what holds it
 //   node tools/restructure/cli.mjs remainder <file> --movable      the names that can move now, by feature
@@ -57,6 +59,7 @@ import { orderJobs, pendingJobs } from './plan-order.mjs';
 import { carryAll, checksAvailable, typeBaseline, typeCounts } from './ratchets.mjs';
 import { spreadObject } from './spread.mjs';
 import { rewriteState } from './state.mjs';
+import { pinWarnings, runRelist } from './relist.mjs';
 import { featureWords, remainder, renderMovable, renderRemainder } from './remainder.mjs';
 import { ownersOf } from './target-rules.mjs';
 import { syntaxProblems, unknownNameProblems } from './verify.mjs';
@@ -110,6 +113,7 @@ function showAnalysis(parser, { flags, rest }) {
 }
 
 function runExtractions(parser, jobs, dryRun) {
+  for (const line of pinWarnings(jobs.map((job) => posix(job.from)), readSource)) console.error(line);
   for (const job of jobs) {
     const done = extract({ root: REPO_ROOT, parser, source: posix(job.from), target: posix(job.to), about: job.about,
       names: job.names, withDeps: Boolean(job.withDeps), dryRun });
@@ -254,7 +258,7 @@ async function main(argv) {
   const args = readArgs(tail);
   if (command === 'carry') return carry();
   const needsFile = { analyze: 1, remainder: 1, apply: 1 }[command] ?? 0;
-  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'paths', 'spread', 'branches', 'verify', 'remainder'].includes(command);
+  const known = ['analyze', 'extract', 'apply', 'state', 'lift', 'paths', 'spread', 'branches', 'verify', 'relist', 'remainder'].includes(command);
   const aimed = args.flags.from && args.flags.to && args.rest.length;
   const incomplete = ((command === 'extract' || command === 'paths') && !aimed) || (command === 'lift' && !(aimed && args.rest.length === 1))
     || (command === 'state' && !(aimed && args.flags.object && args.rest.every((pair) => /^[^=]+=[^=]+$/.test(pair))))
@@ -270,6 +274,7 @@ async function main(argv) {
     if (command === 'analyze') return showAnalysis(parser, args);
     if (command === 'remainder') return showRemainder(parser, args);
     if (command === 'verify') return verify(parser, args);
+    if (command === 'relist') return runRelist({ root: REPO_ROOT, parser, base: args.flags.base || 'HEAD', dryRun: Boolean(args.flags['dry-run']) });
     if (command === 'state') return runState(parser, args);
     if (command === 'lift') return runLift(parser, args);
     if (command === 'paths') return runPaths(parser, args);
