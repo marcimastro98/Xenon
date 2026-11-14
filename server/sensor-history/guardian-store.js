@@ -38,13 +38,26 @@ function makeStore({ FILE, state }) {
     return out;
   }
 
+  // The read that has not settled yet. start() asks for the store without waiting, so a second
+  // caller can arrive while the file is still being read: it waits for the same read. Two reads
+  // would each build a store, and the later would replace the one the first caller already changed.
+  const reading = { now: null };
+
   async function load() {
     if (state.store) return state.store;
+    if (!reading.now) reading.now = readOnce().finally(() => { reading.now = null; });
+    return reading.now;
+  }
+
+  async function readOnce() {
+    let fresh;
     try {
-      state.store = normalizeStore(JSON.parse(await fs.promises.readFile(FILE, 'utf8')));
+      fresh = normalizeStore(JSON.parse(await fs.promises.readFile(FILE, 'utf8')));
     } catch {
-      state.store = { hours: [], days: [], apps: [], recent: [] };
+      fresh = { hours: [], days: [], apps: [], recent: [] };
     }
+    // A backup restored while the file was being read is the newer store: what the file held before stays out.
+    if (!state.store) state.store = fresh;
     return state.store;
   }
 
