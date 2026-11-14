@@ -974,6 +974,7 @@
       "name": "Per-system readers",
       "what": "The same facts read three ways: one file for Windows, one for macOS, one for Linux.",
       "files": [
+        "server/platform/**",
         "server/linux-collectors.js",
         "server/darwin-collectors.js",
         "server/linux-session-watch.js",

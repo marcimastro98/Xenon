@@ -55,8 +55,8 @@ test('every collector reports its echoes and the server turns them into `loss`',
   assert.match(read('network.ps1'), /pingSent\s+=/);
   assert.match(read('network.ps1'), /pingLost\s+=/);
   for (const f of ['linux-collectors.js', 'darwin-collectors.js']) {
-    assert.match(read(f), /parsePingCounts/, f);
-    assert.match(read(f), /countsFromFailure/, f);
+    assert.match(engineSource(`server/${f}`), /parsePingCounts/, f);
+    assert.match(engineSource(`server/${f}`), /countsFromFailure/, f);
   }
   const server = engineSource();
   assert.match(server, /_packetLoss\.add\(data\.pingSent, data\.pingLost\)/);

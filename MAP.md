@@ -119,7 +119,7 @@ The native programs around the engine, and the code that differs per operating s
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Per-system readers** | The same facts read three ways: one file for Windows, one for macOS, one for Linux. | `server/linux-collectors.js` `server/darwin-collectors.js` `server/linux-session-watch.js` `server/session-watch.js` `server/session-watch.ps1` `server/user-folders.js` |
+| **Per-system readers** | The same facts read three ways: one file for Windows, one for macOS, one for Linux. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/linux-session-watch.js` `server/session-watch.js` `server/session-watch.ps1` and 1 more |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |
 | **Helper for macOS** | The same helper in Swift, speaking the same protocol. | `helper-mac/**` |

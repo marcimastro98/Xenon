@@ -30,7 +30,7 @@ const SETTINGS = read('../js/settings.js');
 const CUSTOM = read('../js/custom-widget.js');
 const I18N = appStringsSource();
 const DOC = read('../../docs/WIDGET_SDK.md');
-const DARWIN = read('../darwin-collectors.js');
+const DARWIN = engineSource('server/darwin-collectors.js');
 
 // ── the collectors list what they used to drop ─────────────────────────────
 test('a virtual adapter is listed and excluded from the total', () => {
@@ -51,7 +51,7 @@ test('a virtual adapter is listed and excluded from the total', () => {
 });
 
 test('all three platforms answer with the same shape', () => {
-  for (const [name, src] of [['linux', read('../linux-collectors.js')], ['darwin', DARWIN]]) {
+  for (const [name, src] of [['linux', engineSource('server/linux-collectors.js')], ['darwin', DARWIN]]) {
     assert.match(src, /kind: real \? 'physical' : 'virtual'/, name);
     assert.match(src, /rxBytes: irx, txBytes: itx/, name);
     assert.match(src, /return \{ ping, latency, pingSent: .*, pingLost: .*, rxBytes: rx, txBytes: tx, interfaces,/, name + ' network()');

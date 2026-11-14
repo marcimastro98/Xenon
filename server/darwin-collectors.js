@@ -39,37 +39,15 @@
 
 'use strict';
 
-const { execFile } = require('child_process');
-const fsp = require('fs').promises;
 const os = require('os');
 const path = require('path');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
-const { parsePingCounts, countsFromFailure } = require('./packet-loss');
+require('./packet-loss');
 
-// Promise wrapper around execFile with a hard timeout; resolves stdout.
-function run(cmd, args, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout) => {
-      if (err) reject(err);
-      else resolve(String(stdout || ''));
-    });
-  });
-}
+const { run, runSoft, isFiniteNum } = require('./platform/darwin-read.js');
 
-// Same as run(), but a failure resolves null instead of rejecting -- for the
-// probes where "the tool is not installed" is an ordinary answer.
-function runSoft(cmd, args, timeoutMs, env) {
-  return new Promise((resolve) => {
-    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true, env: env || process.env }, (err, stdout) => {
-      resolve(err ? null : String(stdout || ''));
-    });
-  });
-}
-
-const splitLines = (text) => String(text || '').split(/\r?\n/);
-const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
 // --- Memory: vm_stat, because os.freemem() does not mean the same thing here --
 // On Windows os.freemem() is ullAvailPhys, which already counts the standby
@@ -113,74 +91,7 @@ async function memory() {
   return parsed || { used: os.totalmem() - os.freemem(), total: os.totalmem() };
 }
 
-// --- macmon: the only sudoless source of Apple Silicon temps / GPU load ------
-// macmon's payload shape has changed across releases (temps moved under a
-// `temp` object; `gpu_usage` used to be a [freq, ratio] tuple and is now a
-// scalar `gpu_usage_ratio`). Rather than pin one version's layout we look each
-// field up by name in both places, so a macmon upgrade cannot silently turn
-// every reading into null.
-function pickNum(obj, keys) {
-  if (!obj || typeof obj !== 'object') return null;
-  for (const k of keys) {
-    if (isFiniteNum(obj[k])) return obj[k];
-  }
-  return null;
-}
-
-// Ratios are 0..1 in every macmon version; a few builds emitted 0..100 percent
-// under the deprecated *_pct names. Anything above 1 is already a percentage.
-function ratioToPct(v) {
-  if (!isFiniteNum(v)) return null;
-  return Math.round(v > 1 ? v : v * 100);
-}
-
-// A macmon usage field is either a bare ratio or the tuple [freq_mhz, ratio].
-// Where the tuple form is used, the frequency is the live clock and is free to
-// take — the sample is already parsed. A build that reports only the ratio
-// leaves the clock null rather than inventing one.
-function tupleFreq(v) {
-  if (!Array.isArray(v) || v.length < 1) return null;
-  const mhz = Number(v[0]);
-  if (!Number.isFinite(mhz) || mhz < 1 || mhz > 20000) return null;
-  return Math.round(mhz);
-}
-
-function parseMacmon(raw) {
-  const empty = { cpuTemp: null, gpu: null, gpuTemp: null, cpuClockMHz: null, gpuClockMHz: null };
-  // `macmon pipe` emits one JSON document per sample; take the last complete one.
-  const lines = splitLines(raw).map((l) => l.trim()).filter(Boolean);
-  let doc = null;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    try { doc = JSON.parse(lines[i]); break; } catch { /* partial line */ }
-  }
-  if (!doc || typeof doc !== 'object') return empty;
-
-  const temp = doc.temp && typeof doc.temp === 'object' ? doc.temp : doc;
-  const cpuTemp = pickNum(temp, ['cpu_temp_avg', 'cpu_temp']);
-  const gpuTemp = pickNum(temp, ['gpu_temp_avg', 'gpu_temp']);
-
-  let gpuRatio = pickNum(doc, ['gpu_usage_ratio', 'gpu_active_ratio', 'gpu_usage_pct']);
-  // Legacy tuple form: gpu_usage: [freq_mhz, ratio].
-  if (gpuRatio === null && Array.isArray(doc.gpu_usage) && doc.gpu_usage.length > 1) {
-    gpuRatio = isFiniteNum(doc.gpu_usage[1]) ? doc.gpu_usage[1] : null;
-  }
-
-  // Apple Silicon splits the CPU into efficiency and performance clusters. The
-  // performance cluster is what "CPU clock" means to anyone reading a monitor,
-  // and it is the higher of the two whenever both are reported — same rule as
-  // the fastest-core pick on the other two platforms.
-  const pClock = tupleFreq(doc.pcpu_usage);
-  const eClock = tupleFreq(doc.ecpu_usage);
-  const cpuClockMHz = pClock !== null && eClock !== null ? Math.max(pClock, eClock) : (pClock ?? eClock);
-
-  return {
-    cpuTemp: isFiniteNum(cpuTemp) ? Math.round(cpuTemp * 10) / 10 : null,
-    gpu: ratioToPct(gpuRatio),
-    gpuTemp: isFiniteNum(gpuTemp) ? Math.round(gpuTemp * 10) / 10 : null,
-    cpuClockMHz,
-    gpuClockMHz: tupleFreq(doc.gpu_usage),
-  };
-}
+const { ratioToPct, parseMacmon, parseHelperTemps } = require('./platform/darwin-sensor-text.js');
 
 // One macmon sample costs its own interval (it measures over a window), so it
 // must never sit on the request path: the sensor cache below serves the last
@@ -226,26 +137,6 @@ function refreshMacmon() {
 // Both paths are optional and both degrade to null, which is what the tiles
 // already render as "--".
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper');
-
-// Pure, so the shape check is testable without a Mac. Returns null when the
-// payload carries no reading at all, which is what makes the caller fall
-// through to macmon instead of caching a row of nulls.
-function parseHelperTemps(raw) {
-  let doc;
-  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
-  if (!doc || typeof doc !== 'object') return null;
-  const temp = (v) => (isFiniteNum(v) && v > 1 && v < 150 ? Math.round(v * 10) / 10 : null);
-  const pct = (v) => (isFiniteNum(v) ? Math.min(100, Math.max(0, Math.round(v))) : null);
-  const bytes = (v) => (isFiniteNum(v) && v >= 0 ? Math.round(v) : null);
-  const out = {
-    cpuTemp: temp(doc.cpuTemp),
-    gpu: pct(doc.gpu),
-    gpuTemp: temp(doc.gpuTemp),
-    vramUsed: bytes(doc.vramUsed),
-  };
-  const readSomething = out.cpuTemp !== null || out.gpu !== null || out.gpuTemp !== null;
-  return readSomething ? out : null;
-}
 
 const HELPER_MAX_FAILURES = 3;
 const HELPER_RETRY_MS = 5 * 60 * 1000;
@@ -407,365 +298,17 @@ async function cpuTemp() {
 async function listSensors() { return []; }
 async function readSensors() { return []; }
 
-// --- Disks: df + mount, matching getAllDisksInfo()'s drive object shape ------
-// Only `/` and real volumes under /Volumes are surfaced. Everything under
-// /System/Volumes is an APFS role volume (Preboot, VM, Update, the Data volume
-// itself) that shares one container with `/`, so listing them would show the
-// same disk four times with four different "used" numbers.
-//
-// Used is computed as total - free rather than read from df's Used column. On an
-// APFS volume group the `/` row reports only the sealed system volume as used
-// (about 10 GB) while its Available reflects the whole shared container, so the
-// Used column would tell the user a 900 GB disk is 1% full.
-function skipVolume(target) {
-  if (target === '/') return false;
-  if (!target.startsWith('/Volumes/')) return true;
-  const name = target.slice('/Volumes/'.length);
-  return /^(Recovery|Preboot|Update|xarts|iSCPreboot|Hardware)$/i.test(name) ||
-         name.startsWith('com.apple.TimeMachine') ||
-         name.startsWith('.timemachine');
-}
+const {
+  parseMountTypes, parseDisks, disks, parseIoregDisks, diskIo,
+} = require('./platform/darwin-disks.js');
 
-// `mount` prints: /dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled)
-function parseMountTypes(out) {
-  const types = new Map();
-  for (const line of splitLines(out)) {
-    const m = line.match(/^(\S+)\s+on\s+(.+?)\s+\(([^,)]+)/);
-    if (m) types.set(m[2], m[3].trim());
-  }
-  return types;
-}
+const { parsePing, parseNetstatIb, network } = require('./platform/darwin-network.js');
 
-// `df -k -P -l` prints 1024-byte blocks with the mount point last.
-function parseDisks(out, mountTypes) {
-  const types = mountTypes instanceof Map ? mountTypes : new Map();
-  const drives = [];
-  const seen = new Set();
-  for (const line of splitLines(String(out || '').trim()).slice(1)) {
-    const m = line.match(/^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)%\s+(.*)$/);
-    if (!m) continue;
-    const target = m[6].trim();
-    if (!target || skipVolume(target)) continue;
-    if (seen.has(target)) continue;
-    seen.add(target);
-    // df -k reports 1024-byte blocks; the rest of Xenon speaks bytes.
-    const total = Number(m[2]) * 1024;
-    const free = Number(m[4]) * 1024;
-    if (!(total > 0)) continue;
-    const used = Math.max(0, total - free);
-    drives.push({
-      drive: target,
-      total,
-      used,
-      free,
-      percent: Math.round((used / total) * 100),
-      label: target === '/' ? 'System' : target.split('/').filter(Boolean).pop() || '',
-      fileSystem: types.get(target) || '',
-      driveType: target === '/' ? 'Fixed' : 'Removable',
-    });
-  }
-  return drives;
-}
+const {
+  PROTECTED_APPS, LIST_APPS_SCRIPT, parseAppList, parseHelperWindows, osa, osaWrite, quitAppArgs,
+  helperVerdict,
+} = require('./platform/darwin-apps.js');
 
-async function disks() {
-  try {
-    // -l keeps this to local filesystems: a stale network mount can wedge df.
-    const [dfOut, mountOut] = await Promise.all([
-      run('df', ['-k', '-P', '-l'], 5000),
-      runSoft('mount', [], 5000),
-    ]);
-    const drives = parseDisks(dfOut, parseMountTypes(mountOut || ''));
-    return drives.length ? drives : null;
-  } catch {
-    return null;
-  }
-}
-
-// --- Per-disk I/O: ioreg ----------------------------------------------------
-// Asked for on Discord for an SDK monitoring widget. `iostat` is the obvious
-// tool and the wrong one here: on macOS it reports COMBINED transfers per disk,
-// with no read/write split, which is half of what was asked for. The IOKit
-// registry has both, as cumulative counters on each IOBlockStorageDriver:
-//
-//   +-o AppleAPFSMedia ...
-//     "Statistics" = {"Bytes (Read)"=123,"Operations (Read)"=4,
-//                     "Bytes (Write)"=567,"Operations (Write)"=8, ...}
-//     "BSD Name" = "disk0"
-//
-// server.js turns the counters into rates with the same inter-poll delta it
-// uses for the network ones.
-//
-// Pure, so the shape can be checked without a Mac. Everything is optional: a
-// registry that prints something else yields no disks rather than wrong ones.
-function parseIoregDisks(out) {
-  const text = String(out || '');
-  const disks = [];
-  // Split on the object headers ioreg prints ("+-o Name <class …>") and parse
-  // each one alone. A fixed window around the Statistics block is not enough:
-  // the identity fields of the PREVIOUS disk are inside it, and every row after
-  // the first came back wearing the first disk's name.
-  const chunks = text.split(/^\s*\+-o /m);
-  for (const chunk of chunks) {
-    const stats = /"Statistics"\s*=\s*\{([^}]*)\}/.exec(chunk);
-    if (!stats) continue;
-    const num = (key) => {
-      const g = new RegExp('"' + key.replace(/[().*+?^$|[\]{}\\]/g, '\\$&') + '"\\s*=\\s*(\\d+)').exec(stats[1]);
-      return g ? Number(g[1]) : null;
-    };
-    const pick = (key) => {
-      const g = new RegExp('"' + key + '"\\s*=\\s*"([^"]*)"').exec(chunk);
-      return g ? g[1] : '';
-    };
-    const readBytes = num('Bytes (Read)');
-    const writeBytes = num('Bytes (Write)');
-    const id = pick('BSD Name');
-    if (!id || (readBytes === null && writeBytes === null)) continue;
-    disks.push({
-      id,
-      model: (pick('Product Name') || pick('Model')).trim() || id,
-      serial: (pick('Serial Number') || '').trim(),
-      readsCompleted: num('Operations (Read)') || 0,
-      writesCompleted: num('Operations (Write)') || 0,
-      readBytes: readBytes || 0,
-      writeBytes: writeBytes || 0,
-    });
-  }
-  // One entry per BSD name: a storage stack can present the same disk twice.
-  const seen = new Set();
-  return disks.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
-}
-
-async function diskIo() {
-  const out = await runSoft('ioreg', ['-r', '-c', 'IOBlockStorageDriver', '-w0'], 5000);
-  if (out === null) return [];
-  const found = parseIoregDisks(out);
-  if (!found.length) return [];
-  // Which volumes sit on each disk, from the mount table the space collector
-  // already reads. `df` prints /dev/disk3s1s1 — the disk is the leading
-  // `diskN`.
-  let mounts = [];
-  try {
-    const df = await run('df', ['-k', '-P', '-l'], 5000);
-    mounts = splitLines(df).slice(1).map((l) => l.trim().split(/\s+/)).filter((f) => f.length >= 6)
-      .map((f) => ({ dev: f[0], mount: f.slice(5).join(' ') }))
-      .filter((r) => r.dev.startsWith('/dev/'));
-  } catch { /* no mount info: the rows simply carry none */ }
-  for (const d of found) {
-    d.volumes = mounts
-      .filter((r) => new RegExp('^/dev/' + d.id + '(s\\d|$)').test(r.dev))
-      .map((r) => ({ mount: r.mount, label: '', fstype: '' }));
-    // No temperature on this platform: SMART is not exposed to an unprivileged
-    // process, and inventing a number is worse than saying there isn't one.
-    d.temperature = null;
-    d.sizeBytes = null;
-    d.kind = '';
-  }
-  return found;
-}
-
-// --- Network: ping + netstat -ib, matching network.ps1's shape --------------
-// server.js turns the rx/tx byte counters into down/up bandwidth via its own
-// inter-poll delta, so all that is owed here is a pair of monotonic counters.
-//
-// BSD ping prints the same "min/avg/max/stddev = a/b/c/d ms" summary iputils
-// does, so this parser is deliberately the twin of the Linux one.
-const PING_ECHOES = 3;
-function parsePing(out) {
-  const m = String(out || '').match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
-  if (!m) return { ping: null, latency: null };
-  return { ping: Math.round(Number(m[2])), latency: Math.round(Number(m[3]) - Number(m[1])) };
-}
-
-async function pingStats() {
-  try {
-    // macOS ping takes -t (total timeout in seconds); -W is per-packet on Linux.
-    const out = await run('/sbin/ping', ['-c', String(PING_ECHOES), '-t', '5', '-n', '1.1.1.1'], 8000);
-    return { ...parsePing(out), counts: parsePingCounts(out) };
-  } catch (err) {
-    return { ping: null, latency: null, counts: countsFromFailure(err, PING_ECHOES) };
-  }
-}
-
-// Physical interfaces only. Skipping the virtual ones is not just hygiene: the
-// <Link#n> row of an interface without a hardware address (lo0, utun) has one
-// fewer column, so counting them would read the wrong field entirely.
-const VIRTUAL_IFACE = /^(lo|gif|stf|utun|bridge|awdl|llw|ap\d|anpi|vmenet|vnic|p2p|XHC)/;
-
-// `netstat -ib` columns for a link row:
-// Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
-// Every interface is RETURNED, not dropped: the totals still sum the physical
-// ones only (the Network tile shows those, and adding a VPN would count the same
-// traffic twice), but the list carries them all with `kind` so a widget can
-// graph one link on its own. Asked for on Discord. `lo0` is the one genuine
-// exception — loopback is the machine talking to itself.
-function parseNetstatIb(out) {
-  let rx = 0;
-  let tx = 0;
-  const seen = new Set();
-  const interfaces = [];
-  for (const line of splitLines(out)) {
-    const f = line.trim().split(/\s+/);
-    if (f.length < 10) continue;
-    const iface = f[0];
-    // One row per address family; the <Link#n> row alone carries the totals.
-    if (!/^<Link#\d+>$/.test(f[2])) continue;
-    if (/^lo\d*$/.test(iface)) continue;
-    if (seen.has(iface)) continue;
-    seen.add(iface);
-    // A link row without a hardware address (utun, llw) has no Address column,
-    // so its byte counters sit one field to the left.
-    const at = f.length >= 11 ? 0 : -1;
-    const irx = Number(f[6 + at]) || 0;
-    const itx = Number(f[9 + at]) || 0;
-    const real = !VIRTUAL_IFACE.test(iface);
-    if (real) { rx += irx; tx += itx; }
-    // macOS has a friendly name per service ("Wi-Fi", "Thunderbolt Ethernet"),
-    // but it lives in networksetup, a separate process spawn per poll. The BSD
-    // device name is what netstat gives and it is stable, so that is `name` too
-    // rather than paying for a nicer one every three seconds.
-    interfaces.push({ id: iface, name: iface, description: '', kind: real ? 'physical' : 'virtual', rxBytes: irx, txBytes: itx });
-  }
-  return { rx, tx, interfaces };
-}
-
-async function readNetBytes() {
-  // -n: without it netstat reverse-resolves every address row, which can take
-  // longer than the timeout on a busy LAN and leave the tile at 0 B/s (GitHub
-  // #138). The <Link#n> rows parsed below are the same either way.
-  const out = await runSoft('netstat', ['-ibn'], 5000);
-  return out === null ? { rx: 0, tx: 0, interfaces: [] } : parseNetstatIb(out);
-}
-
-async function network() {
-  const [{ ping, latency, counts }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
-  return { ping, latency, pingSent: counts ? counts.sent : 0, pingLost: counts ? counts.lost : 0, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
-}
-
-// --- Open applications / app switcher: System Events -----------------------
-// Xenon's /windows endpoint (list/focus/close) drives the "Open applications"
-// widget through a Windows helper (windows.ps1, Win32 EnumWindows). The same
-// JSON contract is reproduced here:
-//   list  -> { windows: [ { id, title, app, path, active, minimized, icon } ] }
-//   focus -> { ok }
-//   close -> { ok, app, path }  (or { ok:false, error:'protected'|'not_found' })
-// ids must satisfy server.js's /^\d{1,24}$/, so the process id is the id.
-//
-// This lists one entry per APPLICATION, not per window. macOS has no
-// unprivileged per-window enumeration (AXUIElement needs Accessibility), and an
-// app switcher that switches apps is the useful half of that anyway.
-const MAX_WINDOWS = 24;
-
-// Quitting these would log the user out or take the desktop down with it.
-const PROTECTED_APPS = new Set([
-  'Finder', 'System Events', 'loginwindow', 'Dock', 'SystemUIServer',
-  'WindowManager', 'ControlCenter', 'NotificationCenter', 'Xenon',
-]);
-
-const LIST_APPS_SCRIPT = `
-tell application "System Events"
-  set out to ""
-  repeat with p in (application processes whose background only is false)
-    try
-      set pnm to name of p
-      set pid_ to unix id of p
-      set isFront to frontmost of p
-      set apath to ""
-      try
-        set apath to POSIX path of (file of p as alias)
-      end try
-      set wtitle to ""
-      try
-        set wtitle to name of first window of p
-      end try
-      set out to out & pid_ & tab & pnm & tab & apath & tab & isFront & tab & wtitle & linefeed
-    end try
-  end repeat
-  return out
-end tell`;
-
-// `includeProtected` is for the close path only: a quit aimed at Finder has to
-// be able to say so, and it cannot if the shell was already filtered out — the
-// lookup would miss and report the window as gone instead.
-function parseAppList(out, includeProtected) {
-  const windows = [];
-  for (const line of splitLines(out)) {
-    if (!line.trim()) continue;
-    const f = line.split('\t');
-    if (f.length < 4) continue;
-    const id = f[0].trim();
-    if (!/^\d{1,24}$/.test(id)) continue;
-    const app = (f[1] || '').trim();
-    if (!app || (!includeProtected && PROTECTED_APPS.has(app))) continue;
-    windows.push({
-      id,
-      title: (f[4] || '').trim() || app,
-      app,
-      path: (f[2] || '').trim(),
-      active: (f[3] || '').trim() === 'true',
-      minimized: false, // needs Accessibility; never guessed
-      icon: null,
-    });
-    if (windows.length >= MAX_WINDOWS) break;
-  }
-  return windows;
-}
-
-// The helper reads the same list from NSWorkspace and the window server, which
-// is worth preferring for two reasons the timings make obvious: the osascript
-// path below costs 3-5 SECONDS per call (it scripts every process in turn),
-// against about ten milliseconds here — and, more importantly, it needs the
-// Automation grant. System Events prompts once per app and lists nothing the
-// user has not approved, so a declined prompt leaves the widget permanently
-// empty with no way back from inside Xenon. The helper needs no grant at all.
-// Pure, so the shape check is testable without a Mac.
-function parseHelperWindows(raw, includeProtected) {
-  let doc;
-  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
-  if (!doc || !Array.isArray(doc.windows)) return null;
-  const windows = [];
-  for (const w of doc.windows) {
-    if (!w || typeof w !== 'object') continue;
-    const id = String(w.id == null ? '' : w.id).trim();
-    if (!/^\d{1,24}$/.test(id)) continue;                  // server.js's own id shape
-    const app = String(w.app == null ? '' : w.app).trim();
-    if (!app || (!includeProtected && PROTECTED_APPS.has(app))) continue;
-    windows.push({
-      id,
-      title: String(w.title == null ? '' : w.title).trim() || app,
-      app,
-      path: String(w.path == null ? '' : w.path).trim(),
-      active: w.active === true,
-      minimized: w.minimized === true,
-      icon: null,
-    });
-    if (windows.length >= MAX_WINDOWS) break;
-  }
-  return windows;
-}
-
-const osa = (script, timeoutMs) => runSoft('osascript', ['-e', script], timeoutMs);
-// Writes use this one. A failed osascript resolves null through runSoft, and
-// swallowing that would confirm a volume change that never reached Core Audio —
-// the Deck key would flash success while nothing moved. The Linux twin lets
-// every wpctl write reject for exactly this reason.
-async function osaWrite(script, timeoutMs) {
-  const out = await osa(script, timeoutMs);
-  if (out === null) throw new Error(`osascript failed: ${script}`);
-  return out;
-}
-
-// osascript argv for a graceful `quit` of the named app. The name comes from
-// the window list, i.e. from whatever another program chose to call itself, so
-// it travels as an argument (`item 1 of argv`) and is never spliced into the
-// script text: backslash/quote escaping was the only thing standing between a
-// crafted app name and arbitrary AppleScript (`do shell script …`). A name that
-// starts with "-" is refused because osascript would read it as an option, and
-// control characters never appear in a real app name.
-function quitAppArgs(name) {
-  const n = String(name == null ? '' : name);
-  if (!n || n.startsWith('-') || /[\u0000-\u001f\u007f]/.test(n)) return null;
-  return ['-e', 'on run argv', '-e', 'tell application (item 1 of argv) to quit', '-e', 'end run', n];
-}
 
 async function listApps(includeProtected) {
   const helped = await runHelper(['windows', 'list'], 5000);
@@ -778,16 +321,6 @@ async function listApps(includeProtected) {
   // claiming a failure the user cannot act on.
   const out = await osa(LIST_APPS_SCRIPT, 10000);
   return out === null ? [] : parseAppList(out, includeProtected);
-}
-
-// A helper that ANSWERED is authoritative, including when it answers "no".
-// Only a helper that could not run at all falls through to osascript: retrying
-// a refused close down the second path would quit an app the first path had
-// already decided to protect, and retrying a successful one is worse.
-function helperVerdict(raw) {
-  let doc;
-  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
-  return doc && typeof doc === 'object' && typeof doc.ok === 'boolean' ? doc : null;
 }
 
 async function windows(action, id) {
@@ -826,57 +359,11 @@ async function windows(action, id) {
   return { windows: await listApps() };
 }
 
-// --- Audio: osascript + system_profiler, shaped as SoundVolumeView rows ------
-// SoundVolumeView /scomma column indices (see the F.* map in server.js).
-const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
+const {
+  parseVolumeSettings, parseAudioDevices, AUDIO_DEVICES_TTL_MS, buildAudioRows,
+  SAS_MISSING_RETRY_MS, withCurrentOutput, AUDIO_ROWS_TTL_MS, isCaptureTarget, AUDIO_PROBE_RETRY_MS,
+} = require('./platform/darwin-audio.js');
 
-// `get volume settings` -> "output volume:50, input volume:75, alert volume:100,
-// output muted:false". Missing values print as "missing value".
-function parseVolumeSettings(out) {
-  const num = (key) => {
-    const m = String(out || '').match(new RegExp(key + ':\\s*(\\d+)'));
-    return m ? Math.max(0, Math.min(100, Number(m[1]))) : null;
-  };
-  const muted = /output muted:\s*true/i.test(String(out || ''));
-  return { output: num('output volume'), input: num('input volume'), muted };
-}
-
-// system_profiler's audio tree: one entry per device, with the default flags on
-// the device itself. Names are the only durable identifier macOS exposes to a
-// shell, so the name doubles as the row's id.
-function parseAudioDevices(raw) {
-  let doc;
-  try { doc = JSON.parse(raw); } catch { return { outputs: [], inputs: [] }; }
-  const roots = doc && Array.isArray(doc.SPAudioDataType) ? doc.SPAudioDataType : [];
-  const outputs = [];
-  const inputs = [];
-  const walk = (nodes) => {
-    for (const n of nodes || []) {
-      if (!n || typeof n !== 'object') continue;
-      if (Array.isArray(n._items)) walk(n._items);
-      const name = String(n._name || '').trim();
-      if (!name) continue;
-      const isOut = n.coreaudio_device_output === 'spaudio_yes' ||
-                    n.coreaudio_default_audio_output_device === 'spaudio_yes' ||
-                    n.coreaudio_default_audio_system_device === 'spaudio_yes';
-      const isIn = n.coreaudio_device_input === 'spaudio_yes' ||
-                   n.coreaudio_default_audio_input_device === 'spaudio_yes';
-      if (isOut) {
-        outputs.push({ name, isDefault: n.coreaudio_default_audio_output_device === 'spaudio_yes' });
-      }
-      if (isIn) {
-        inputs.push({ name, isDefault: n.coreaudio_default_audio_input_device === 'spaudio_yes' });
-      }
-    }
-  };
-  walk(roots);
-  return { outputs, inputs };
-}
-
-// Device names change only when hardware is plugged or unplugged, and
-// system_profiler costs about a second, so this is cached far longer than the
-// volume read that rides on top of it.
-const AUDIO_DEVICES_TTL_MS = 30000;
 let audioDevicesCache = { data: null, at: 0 };
 let audioDevicesInFlight = null;
 
@@ -896,56 +383,7 @@ function audioDevices() {
   return audioDevicesInFlight;
 }
 
-// When system_profiler is unavailable or denied, the enumeration comes back
-// empty and the mixer still has to show the two devices the volume read proves
-// are there. These stand-in names are what the rows carry, so every consumer
-// must resolve a device list through here — a writer that classified a target
-// against the RAW list would not recognise "Microphone" as an input and would
-// send a mic mute to the speakers instead.
-const PLACEHOLDER_OUTPUT = 'Output';
-const PLACEHOLDER_INPUT = 'Microphone';
-function withPlaceholders(devices) {
-  const d = devices || { outputs: [], inputs: [] };
-  return {
-    outputs: d.outputs && d.outputs.length ? d.outputs : [{ name: PLACEHOLDER_OUTPUT, isDefault: true }],
-    inputs: d.inputs && d.inputs.length ? d.inputs : [{ name: PLACEHOLDER_INPUT, isDefault: true }],
-  };
-}
 
-// Build rows matching SoundVolumeView's /scomma layout.
-// Application rows are deliberately absent: see the header note.
-function buildAudioRows(devices, vol) {
-  const rows = [];
-  const row = () => new Array(22).fill('');
-  const add = (name, dir, isDefault, volume, muted) => {
-    const r = row();
-    r[F.NAME] = name;
-    r[F.TYPE] = 'Device';
-    r[F.DIR] = dir; // Render | Capture
-    r[F.DEVICE_NAME] = name;
-    r[F.DEFAULT] = isDefault ? dir : '';
-    r[F.STATE] = 'Active';
-    r[F.MUTED] = muted ? 'Yes' : 'No';
-    r[F.VOL_PCT] = String(volume == null ? '' : volume);
-    r[F.CLI_ID] = name; // the name is the only shell-visible device identifier
-    rows.push(r);
-  };
-
-  const { outputs: outs, inputs: ins } = withPlaceholders(devices);
-  // Only the default device's level is knowable from a shell, so the others
-  // report an empty volume rather than a number copied from somewhere else.
-  outs.forEach((d) => add(d.name, 'Render', d.isDefault, d.isDefault ? vol.output : null, d.isDefault ? vol.muted : false));
-  ins.forEach((d) => add(d.name, 'Capture', d.isDefault, d.isDefault ? vol.input : null, d.isDefault ? vol.input === 0 : false));
-  return rows;
-}
-
-// Which output is the default RIGHT NOW. system_profiler knows too, but costs
-// about a second and is cached for 30s above, so a switch made from the menu
-// bar reached the dashboard (and an Output device Deck key's face) up to half a
-// minute late. SwitchAudioSource, the tool output switching already needs,
-// answers in milliseconds. Without it nothing changes: the cached answer stands.
-// A missing tool is remembered for a while rather than spawned every poll.
-const SAS_MISSING_RETRY_MS = 5 * 60 * 1000;
 let sasMissingAt = 0;
 async function currentOutputName() {
   if (sasMissingAt && Date.now() - sasMissingAt < SAS_MISSING_RETRY_MS) return null;
@@ -954,17 +392,7 @@ async function currentOutputName() {
   sasMissingAt = 0;
   return String(out).trim() || null;
 }
-// Pure: the device list with its default taken from `current`, when `current`
-// is one of the listed outputs. Anything else (no answer, a name the list does
-// not have) leaves the list exactly as system_profiler reported it.
-function withCurrentOutput(devices, current) {
-  const d = devices || { outputs: [], inputs: [] };
-  const name = typeof current === 'string' ? current.trim() : '';
-  if (!name || !Array.isArray(d.outputs) || !d.outputs.some((o) => o && o.name === name)) return d;
-  return Object.assign({}, d, { outputs: d.outputs.map((o) => Object.assign({}, o, { isDefault: o.name === name })) });
-}
 
-const AUDIO_ROWS_TTL_MS = 900;
 let audioRowsCache = { rows: null, at: 0 };
 
 async function audioRows() {
@@ -979,18 +407,6 @@ async function audioRows() {
   const rows = buildAudioRows(devices, parseVolumeSettings(settings));
   audioRowsCache = { rows, at: Date.now() };
   return rows;
-}
-
-// Is this write aimed at the capture side? Targets arrive as a device name, as
-// SoundVolumeView's default selectors, or as "<binary>.exe" for a per-app write.
-// `devices` must already carry the placeholders, because the name the caller
-// holds came from a row built with them.
-function isCaptureTarget(target, devices) {
-  const t = String(target || '').trim();
-  if (t === 'DefaultCaptureDevice') return true;
-  if (t === 'DefaultRenderDevice') return false;
-  const d = withPlaceholders(devices);
-  return d.inputs.some((x) => x.name === t) && !d.outputs.some((x) => x.name === t);
 }
 
 // macOS has no shell-reachable input mute, so a muted microphone is one held at
@@ -1062,11 +478,6 @@ async function audioCommand(args) {
   throw new Error(`unsupported audio action "${action}"`);
 }
 
-// Cheap capability probe for /actions: can we read the system volume at all?
-// A YES is cached forever, a NO only for a cooldown — a probe that loses a
-// race at login (session services still coming up) must not hide the audio
-// Deck keys for the whole uptime. Same rule as the Linux twin.
-const AUDIO_PROBE_RETRY_MS = 60000;
 let _audioProbe = null;
 let _audioProbeAt = 0;
 async function audioAvailable() {
@@ -1164,83 +575,14 @@ async function notify(title, text) {
 // Per-process GPU does not exist here outside private IOKit accounting, so
 // `gpuAvail: false` and the widget hides the column rather than showing zeros.
 
-// [[dd-]hh:]mm:ss[.cc] -> milliseconds.
-function parsePsTime(s) {
-  const raw = String(s || '').trim();
-  if (!raw) return null;
-  let days = 0;
-  let rest = raw;
-  const dash = rest.indexOf('-');
-  if (dash > 0) {
-    days = Number(rest.slice(0, dash));
-    rest = rest.slice(dash + 1);
-    if (!Number.isFinite(days)) return null;
-  }
-  const parts = rest.split(':');
-  if (parts.length < 2 || parts.length > 3) return null;
-  const nums = parts.map(Number);
-  if (nums.some((n) => !Number.isFinite(n))) return null;
-  const [h, m, sec] = parts.length === 3 ? nums : [0, nums[0], nums[1]];
-  return (((days * 24 + h) * 60 + m) * 60 + sec) * 1000;
-}
-
-// comm is last on purpose: it is a full executable path and may contain spaces,
-// so it takes the remainder of the line instead of a fixed column.
-const PS_ROW_RE = /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/;
-
-function parsePsProcesses(text) {
-  const out = new Map();
-  for (const line of String(text || '').split(/\r?\n/)) {
-    const m = PS_ROW_RE.exec(line);
-    if (!m) continue;
-    const pid = Number(m[1]);
-    const rssKb = Number(m[2]);
-    const cpuMs = parsePsTime(m[3]);
-    if (!Number.isInteger(pid) || pid <= 0 || cpuMs === null) continue;
-    const name = String(m[4]).trim().split('/').pop();
-    if (!name) continue;
-    out.set(pid, { name, cpuMs, rss: (Number.isFinite(rssKb) ? rssKb : 0) * 1024 });
-  }
-  return out;
-}
-
-// Every process for Performance Mode, the rows process-table-windows.js gives. lstart is
-// five words in the C locale and only ever compared, so it tells a reused pid apart. The
-// owner is the uid: a process of another user is not this person's to move.
-const PS_TABLE_ROW_RE = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\s+(.+)$/;
-
-function parsePsTable(text) {
-  const rows = [];
-  for (const line of splitLines(text)) {
-    const m = PS_TABLE_ROW_RE.exec(line);
-    if (!m) continue;
-    const cpuMs = parsePsTime(m[5]);
-    const name = String(m[7]).trim().split('/').pop().toLowerCase();
-    if (cpuMs === null || !name) continue;
-    rows.push({ pid: Number(m[1]), ppid: Number(m[2]), name, cpuMs, memBytes: Number(m[4]) * 1024, startedAt: Date.parse(m[6]) || 0, owner: Number(m[3]) });
-  }
-  return rows;
-}
-
-async function processTable() {
-  const columns = ['pid=', 'ppid=', 'uid=', 'rss=', 'time=', 'lstart=', 'comm='].flatMap((c) => ['-o', c]);
-  const out = await runSoft('/bin/ps', ['-A', ...columns], 6000, { ...process.env, LC_ALL: 'C' });
-  if (out === null) return null;
-  const rows = parsePsTable(out);
-  return rows.length ? rows : null;
-}
+const {
+  parsePsTime, parsePsProcesses, parsePsTable, processTable, sampleProcesses,
+} = require('./platform/darwin-processes.js');
 
 const PROC_STALE_MS = 30000;
 const PROC_PRIME_MS = 250;
 let _procPrev = null;
 let _procPrevAt = 0;
-
-async function sampleProcesses() {
-  const out = await runSoft('/bin/ps', ['-Ao', 'pid=,rss=,time=,comm='], 6000);
-  if (out === null) return null;
-  const sample = parsePsProcesses(out);
-  return sample.size ? sample : null;
-}
 
 async function processes(top = 8) {
   let curr = await sampleProcesses();
@@ -1278,107 +620,11 @@ async function processes(top = 8) {
   };
 }
 
-// ── Full Disk Access ────────────────────────────────────────────────────────
-// Can THIS process read what macOS keeps behind Full Disk Access?
-//
-// It is asked because the answer decides whether the Living Index may walk the
-// home directory. Without the grant that walk touches Desktop, Documents,
-// Downloads, Pictures and Music, and macOS answers each one with a permission
-// dialog -- so a first run, or any run after an update, buried the user under
-// prompts for folders they never asked Xenon to look at. Measured here: five
-// separate dialogs before the dashboard had finished starting.
-//
-// The probe is a real open() of a TCC-protected file, because that is the only
-// thing that answers the question. `fs.access` tests POSIX bits, which say yes
-// on a file TCC will refuse. And it is these files specifically because opening
-// one NEVER prompts: Full Disk Access is granted by hand in System Settings and
-// has no dialog, which is exactly what makes it safe to test. Probing ~/Desktop
-// instead would raise the very prompt this exists to prevent.
-//
-// A grant is bound to the app's code signature, and Xenon's is ad-hoc, so its
-// hash changes with every build: macOS silently drops the grant on every
-// update. That is why this is re-asked while the server runs and not once at
-// startup -- and why the user has to be TOLD, rather than left wondering why
-// search went empty.
-const FDA_PROBE_PATHS = [
-  path.join(os.homedir(), 'Library/Application Support/com.apple.TCC/TCC.db'),
-  '/Library/Application Support/com.apple.TCC/TCC.db',
-];
+const { fullDiskAccess, rootReachesHome } = require('./platform/darwin-disk-access.js');
 
-// `probePaths` exists for the tests: a real refusal is the one state that
-// cannot be arranged on a machine that HAS the grant (every child of a granted
-// process inherits it), so the suite passes a chmod-000 file to exercise it.
-async function fullDiskAccess(probePaths) {
-  let refused = false;
-  for (const probe of (Array.isArray(probePaths) ? probePaths : FDA_PROBE_PATHS)) {
-    let handle = null;
-    try {
-      handle = await fsp.open(probe, 'r');
-      return true;
-    } catch (e) {
-      // EPERM/EACCES is TCC saying no, and it is the only answer that proves
-      // the grant is missing rather than the file.
-      if (e && (e.code === 'EPERM' || e.code === 'EACCES')) refused = true;
-    } finally {
-      if (handle) { try { await handle.close(); } catch { /* ignore */ } }
-    }
-  }
-  // Neither file was there to ask. Report the grant as present: switching the
-  // index off on the strength of a file that does not exist would break a
-  // working install on some future macOS, and the failure mode of being wrong
-  // here is the prompts we already have, not lost data.
-  return !refused;
-}
-
-// Does walking `root` reach the home directory, and so every folder macOS
-// protects? Pure, and here rather than in server.js so it can be tested with a
-// home directory that is not this machine's.
-//
-// It answers for ANCESTORS too ("/", "/Users"), which is the case a plain
-// equality test misses: those walk the home just as thoroughly, and a user who
-// points the index at "/" would otherwise get the full storm back. Comparison
-// is case-SENSITIVE because it decides whether to WITHHOLD a root -- the loose
-// form would withhold more, and withholding a root the user chose is the one
-// mistake here that costs them a feature.
-function rootReachesHome(root, home) {
-  // Emptiness is checked BEFORE resolving: path.resolve('') returns the
-  // process's current directory, so two empty inputs resolved to the same
-  // string and compared EQUAL -- an unset root would have counted as "reaches
-  // the home" and been withheld.
-  const rawHome = String(home || '').trim();
-  const rawRoot = String(root || '').trim();
-  if (!rawHome || !rawRoot) return false;
-  const h = path.resolve(rawHome);
-  const r = path.resolve(rawRoot);
-  if (r === h) return true;
-  return h.startsWith(r.endsWith(path.sep) ? r : r + path.sep);
-}
-
-// --- Idle time: seconds since the last keyboard/mouse/trackpad input ---------
-// The automatic updater installs only on a PC nobody is using. IOHIDSystem
-// keeps HIDIdleTime in nanoseconds for the whole session, readable without any
-// permission prompt (unlike an event tap). null = could not tell, which the
-// caller treats as "unknown", never as "idle".
-function parseHidIdleTime(text) {
-  const m = /"HIDIdleTime"\s*=\s*(\d+)/.exec(String(text || ''));
-  if (!m) return null;
-  const ns = Number(m[1]);
-  return Number.isFinite(ns) && ns >= 0 ? Math.floor(ns / 1e9) : null;
-}
-async function idleSeconds() {
-  const out = await runSoft('/usr/sbin/ioreg', ['-c', 'IOHIDSystem', '-d', '4'], 4000);
-  return out == null ? null : parseHidIdleTime(out);
-}
-
-// The machine's own id, for pc-id.js.
-function parsePlatformUuid(text) {
-  const m = /"IOPlatformUUID"\s*=\s*"([0-9A-Fa-f-]{16,64})"/.exec(String(text || ''));
-  return m ? m[1].toLowerCase() : '';
-}
-
-async function machineId() {
-  return parsePlatformUuid(await runSoft('/usr/sbin/ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], 4000));
-}
+const {
+  parseHidIdleTime, idleSeconds, parsePlatformUuid, machineId,
+} = require('./platform/darwin-idle.js');
 
 module.exports = {
   machineId, parsePlatformUuid,
