@@ -25,6 +25,7 @@ import path from 'node:path';
 
 import { readCounts, saveCounts } from '../quality/baseline-file.mjs';
 import { analyzeRun, assignedAtHome, orderProblems, stayReasons } from './browser-analyze.mjs';
+import { performPlan } from './browser-apply.mjs';
 import { keptNames, mentionsOf } from './browser-consumers.mjs';
 import { everyPage, ledgerOf, newPlan, perform, replay, showAt, treeOf } from './browser-extract.mjs';
 import { innerMoveOf, letsMoveOf, saidOf, showInner, showSurvey } from './browser-inner-cli.mjs';
@@ -134,11 +135,8 @@ function toMove(job, parser, plan) {
 }
 
 function runMoves(parser, jobs, dryRun) {
-  // Tried without writing, a move is still judged after the ones before it in the plan, as it will be for real.
-  const plan = dryRun ? newPlan() : null;
-  for (const job of jobs) {
-    const move = toMove(job, parser, plan);
-    const done = perform({ root: REPO_ROOT, parser, move, dryRun, plan });
+  // Worked out as a whole before anything is written (browser-apply.mjs): a move refused half way leaves the tree as it was.
+  for (const { move, done } of performPlan({ root: REPO_ROOT, parser, jobs, moveOf: (job, plan) => toMove(job, parser, plan), dryRun })) {
     console.log(saidOf(move, done, dryRun));
     if (move.skipped?.length) console.log(`  left in place inside the ranges: ${move.skipped.join(', ')}`);
   }

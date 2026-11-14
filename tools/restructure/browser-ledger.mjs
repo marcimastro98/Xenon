@@ -2,6 +2,7 @@
 // (extracted-browser.json). `browser verify` redoes the moves from it, and
 // server/test/browser-source.mjs uses it to hand a test the code of a split file.
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -31,6 +32,29 @@ export function readBrowserLedger(root) {
     if (error.code === 'ENOENT') return { note: NOTE, moves: [] };
     throw error;
   }
+}
+
+/**
+ * The list as a commit has it: what a recording of the tree at that commit is compared with, whatever the checkout holds today.
+ * @param {string} root @param {string} rev
+ * @returns {{ note?: string, moves: any[] }} no moves when the commit has no list yet
+ */
+export function ledgerAt(root, rev) {
+  const run = spawnSync('git', ['show', `${rev}:${BROWSER_LEDGER}`], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  return run.status === 0 ? JSON.parse(run.stdout) : { moves: [] };
+}
+
+/**
+ * Writes into a recording of the pages the moves of the tree it shows: the commit's when the copy was laid as at one, the checkout's otherwise.
+ * @param {number} code how the recording ended @param {string} root @param {string | undefined} rev @param {string} outFile
+ * @returns {number} `code`, the recording left alone when it is not 0
+ */
+export function keepMoves(code, root, rev, outFile) {
+  if (code !== 0) return code;
+  const { moves } = rev ? ledgerAt(root, rev) : readBrowserLedger(root);
+  writeFileSync(outFile, `${JSON.stringify({ ...JSON.parse(readFileSync(outFile, 'utf8')), moves }, null, 1)}
+`);
+  return code;
 }
 
 /** @param {string} root @param {ReturnType<typeof readBrowserLedger>} ledger */

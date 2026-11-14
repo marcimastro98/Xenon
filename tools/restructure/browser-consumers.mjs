@@ -56,7 +56,7 @@ function mentionOf(file) {
 }
 
 const grepFor = (root, names) => {
-  const run = spawnSync('git', ['grep', '-l', '-I', '-z', '-F', ...names.flatMap((name) => ['-e', name])], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const run = spawnSync('git', ['grep', '--untracked', '-l', '-I', '-z', '-F', ...names.flatMap((name) => ['-e', name])], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (run.status !== 0 && run.status !== 1) throw new Error(`git grep failed: ${run.stderr}`);
   return run.stdout.split('\0').filter(Boolean);
 };

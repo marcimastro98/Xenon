@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ownFolders } from '../ci/own-folders.mjs';
 import { engineFromArgs } from './browser-check-engine.mjs';
+import { keepMoves } from './browser-ledger.mjs';
 import { CUTS, NOT_COPIED, cutsFor, engineFiles, makeCuts, placeCuts } from './side-copy-cuts.mjs';
 
 export { CUTS, cutsFor, engineFiles, placeCuts };
@@ -240,7 +241,8 @@ export async function recordUntilSame({ recordOnce, compare, say = console.log, 
 export async function record(rootArg, portArg, outFile, baseRev, repo = REPO_ROOT, engine = 'chromium', against = null) {
   console.log(await build(rootArg, portArg, baseRev, repo));
   const root = sideRoot(rootArg, repo);
-  const recordOnce = () => runAndCheck(root, portArg, outFile, repo, engine);
+  // The recording keeps the list of moves of the tree it shows, so a compare reads a tree as at `baseRev` with that commit's list.
+  const recordOnce = async () => keepMoves(await runAndCheck(root, portArg, outFile, repo, engine), repo, baseRev, outFile);
   if (!against) return recordOnce();
   let last = '';
   const compare = () => {

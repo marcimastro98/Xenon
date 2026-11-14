@@ -174,10 +174,11 @@ function moduleProblems(was, now, ledger) {
 
 /**
  * @param {any} before a recording made on the commit before the split @param {any} after a recording made on the split
- * @param {{ moves: any[] }} [ledger] the recorded moves, to tell the files a split made from any other new file
+ * @param {{ moves: any[] }} [ledger] the recorded moves, to tell the files a split made from any other new file: the ones the second
+ *   recording was made with (side-copy.mjs writes them into it), or the checkout's when it has none
  * @returns {string[]} what the split changed in the pages, empty when nothing
  */
-export function compareRecordings(before, after, ledger = readBrowserLedger(REPO_ROOT)) {
+export function compareRecordings(before, after, ledger = after.moves ? { moves: after.moves } : readBrowserLedger(REPO_ROOT)) {
   if (engineOf(before) !== engineOf(after)) return [`the first recording was made in ${engineOf(before)} and the second in ${engineOf(after)}: compare a tree with itself in one engine (two engines: the command "engines")`];
   const problems = [];
   for (const was of before.views) if (!after.views.some((view) => view.name === was.name)) problems.push(`${was.name}: opened before, not opened now`);
