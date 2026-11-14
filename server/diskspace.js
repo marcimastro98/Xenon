@@ -210,7 +210,7 @@ function createDiskSpace(opts) {
   };
 
   const {
-    catCtx, loadSummary, killScan, byPathAsc, persistSummary, startScan, cancelScan,
+    catCtx, loadSummary, killScan, byPathAsc, persistSummary, flushSummary, startScan, cancelScan,
   } = makeScan({ helperExe, getSettings, summaryFile, PLATFORM, IS_WIN, cmpKey, trimSep, isBelow, userProfile, localAppData, windir, tempDirs, downloads, trashDirs, isContainerDir, helperPresent, scan, lastScan });
 
   const cleanRuns = {
@@ -293,7 +293,7 @@ function createDiskSpace(opts) {
   } = makeClean({ cmpKey, guardCtx, probeFlags, guardDelete, canRecycle, scan, cleanRuns, cleanJob, overviews, emitClean, runCleanJob, runShellDelete, resolveRoot });
 
   const {
-    loadPersisted, schedulePersist, persistNow, snapshotOf, snapshot,
+    loadPersisted, schedulePersist, flushPersist, snapshotOf, snapshot,
   } = makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, saved, resolveRoot });
 
   const {
@@ -315,7 +315,7 @@ function createDiskSpace(opts) {
     cleanJob.cancelled = true;
     // Ends the background hash pass between files and saves what it learned.
     void dupeVerifier.stop();
-    if (saved.persistTimer) { clearTimeout(saved.persistTimer); saved.persistTimer = null; void persistNow(); }
+    void Promise.all([flushPersist(), flushSummary()]);   // what waits for its timer, and what a save could not write
     for (const proc of liveDeleteProcs) {
       try { proc.stdin.end(); } catch {}
       const kill = setTimeout(() => { try { proc.kill(); } catch {} }, 1500);

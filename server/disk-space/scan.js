@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const DiskCategories = require('../disk-categories.js');
 const DiskGuard = require('../disk-guard.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { makeKeptWrite } = require('./kept-write.js');
 const {
   SCAN_TIMEOUT_MS, CATEGORY_ITEMS_MAX, HASH_FILE_MAX, HASH_TOTAL_MAX, DUPE_GROUPS_MAX,
 } = require('./limits.js');
@@ -156,6 +156,8 @@ function makeScan({
     return verified;
   }
 
+  const summaryWrite = makeKeptWrite('the summary of the last scan');
+
   async function persistSummary() {
     const byCategory = {};
     for (const [cat, c] of Object.entries(scan.categories)) byCategory[cat] = { bytes: c.bytes, count: c.count };
@@ -165,7 +167,14 @@ function makeScan({
       byCategory,
       dupesWasted: scan.dupes.reduce((a, g) => a + g.wasted, 0),
     };
-    try { await writeFileAtomic(summaryFile, JSON.stringify(lastScan.lastSummary)); } catch {}
+    await summaryWrite.save(summaryFile, JSON.stringify(lastScan.lastSummary));
+  }
+
+  // On shutdown: a summary an earlier save could not write gets its last try, as it was computed
+  // then (the scan it came from may have moved on).
+  function flushSummary() {
+    if (!summaryWrite.unsaved() || !lastScan.lastSummary) return Promise.resolve(false);
+    return summaryWrite.save(summaryFile, JSON.stringify(lastScan.lastSummary));
   }
 
   function startScan(rootRaw) {
@@ -263,7 +272,7 @@ function makeScan({
     return { ok: true };
   }
 
-  return { catCtx, loadSummary, killScan, byPathAsc, persistSummary, startScan, cancelScan };
+  return { catCtx, loadSummary, killScan, byPathAsc, persistSummary, flushSummary, startScan, cancelScan };
 }
 
 module.exports = { makeScan };

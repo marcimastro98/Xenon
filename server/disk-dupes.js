@@ -23,7 +23,7 @@
 const crypto = require('crypto');
 const fsDefault = require('fs');
 const path = require('path');
-const { writeFileAtomic } = require('./atomic-write');
+const { makeKeptWrite } = require('./disk-space/kept-write.js');
 
 const CACHE_FILE = 'disk-hashes.json';
 const EDGE_BYTES = 64 * 1024;
@@ -42,6 +42,7 @@ function createDupeVerifier(opts = {}) {
   const held = typeof opts.held === 'function' ? opts.held : () => false;
 
   let cache = null;            // key -> { s, m, e (edge hash), h (full hash), at }
+  const cacheWrite = makeKeptWrite('the cache of file hashes');
   let saveTimer = null;
   let running = null;          // the pass in flight (a promise)
   let stopped = false;
@@ -83,7 +84,8 @@ function createDupeVerifier(opts = {}) {
     }
     const files = {};
     for (const [k, r] of cache) files[k] = r;
-    try { await writeFileAtomic(cacheFile, JSON.stringify({ v: 1, files })); } catch { /* next save retries */ }
+    // A failure is told once; the next save (the next hash learned, or stop) writes the whole cache again.
+    await cacheWrite.save(cacheFile, JSON.stringify({ v: 1, files }));
   }
 
   async function statOf(p) {

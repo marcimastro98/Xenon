@@ -5,9 +5,12 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const DiskHistory = require('../disk-history.js');
-const { writeFileAtomic } = require('../atomic-write.js');
+const { makeKeptWrite } = require('./kept-write.js');
 
 function makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, saved, resolveRoot }) {
+  const snapshotWrite = makeKeptWrite('the last overview of the drives');
+  const historyWrite = makeKeptWrite('the history of the drives');
+
   async function loadPersisted() {
     if (saved.snapshots && saved.history) return;
     saved.snapshots = new Map();
@@ -35,8 +38,17 @@ function makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, save
     if (!saved.snapshots || !saved.history) return;
     const roots = {};
     for (const [k, v] of saved.snapshots) roots[k] = v;
-    try { await writeFileAtomic(path.join(dataDir, SNAPSHOT_FILE), JSON.stringify({ v: 1, roots })); } catch { /* next build retries */ }
-    try { await writeFileAtomic(path.join(dataDir, HISTORY_FILE), JSON.stringify(saved.history)); } catch { /* next build retries */ }
+    // One that fails does not hold the other back, and stays marked for the next save.
+    await snapshotWrite.save(path.join(dataDir, SNAPSHOT_FILE), JSON.stringify({ v: 1, roots }));
+    await historyWrite.save(path.join(dataDir, HISTORY_FILE), JSON.stringify(saved.history));
+  }
+
+  // On shutdown: what waits for its timer, and what an earlier save could not write, gets its
+  // last try. With neither there is nothing new to write.
+  function flushPersist() {
+    const waiting = Boolean(saved.persistTimer);
+    if (saved.persistTimer) { clearTimeout(saved.persistTimer); saved.persistTimer = null; }
+    return waiting || snapshotWrite.unsaved() || historyWrite.unsaved() ? persistNow() : Promise.resolve();
   }
 
   // The persisted copy: display data only. Category item lists and every id are
@@ -66,7 +78,7 @@ function makeSavedOverviews({ dataDir, cmpKey, SNAPSHOT_FILE, HISTORY_FILE, save
     return { ok: true, stale: true, ...snap };
   }
 
-  return { loadPersisted, schedulePersist, persistNow, snapshotOf, snapshot };
+  return { loadPersisted, schedulePersist, persistNow, flushPersist, snapshotOf, snapshot };
 }
 
 module.exports = { makeSavedOverviews };

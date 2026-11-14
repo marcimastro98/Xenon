@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **A file too large for a transfer says so on the phone.** Sometimes the phone showed a network error instead of "too large" and tried the same file again. Xenon now keeps listening for a moment after it answers, so the answer arrives.
 - **A damaged message from the Discord app can no longer freeze Xenon.** If the Discord app on this PC sent a message with an impossible size, Xenon could stop answering or keep filling memory. It now closes that connection and opens a new one when needed.
 - **A file arriving in File transfer shows its real size on the other screens.** While a file was still arriving, another screen with the File transfer tile showed no size for a file exactly as large as the size limit. A file sent without saying its size could show the old limit as its size, if the limit was changed in the meantime. Each file now shows the size it was sent with, or none when the sender did not say it.
+- **The Disk tile no longer loses what it could not save.** On Windows, when another program was reading one of Xenon's disk files at the moment Xenon saved it, the save was dropped without a word. After a restart the Disk tile could then show an older overview of a drive, or miss a point in its history. Xenon now keeps what it could not save and writes it when it closes or at the next save.
 
 ## [v5.1.0] - 12-11-2026
 
