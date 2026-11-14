@@ -65,7 +65,7 @@ export function movable(file, parser) {
   const inNode = nodeKeeps(REPO_ROOT, file, run, scripts.length - 1);
   const why = new Map(own.map((record) => [record, [...stayReasons(record, run),
     ...record.names.filter((name) => kept.has(name)).map((name) => `${name} stays: ${kept.get(name)} reads it in this file`),
-    ...record.names.filter((name) => inNode.has(name)).map((name) => `${name} stays: ${inNode.get(name)} loads this file in Node, alone, and what runs there reaches it`)]]));
+    ...record.names.filter((name) => inNode.has(name)).map((name) => `${name} stays: ${inNode.get(name)}`)]]));
   // A function's `window.name = name;` goes where the function goes, and nowhere else.
   for (const record of own) {
     const holder = record.echo && own.find((entry) => entry.names.includes(record.echo));

@@ -12,7 +12,7 @@ import path from 'node:path';
 import { analyzeRun } from '../../tools/restructure/browser-analyze.mjs';
 import { mentionsOf } from '../../tools/restructure/browser-consumers.mjs';
 import { perform } from '../../tools/restructure/browser-extract.mjs';
-import { nodeKeeps, nodeLoadProblems, nodeLoadersOf, reachedInNode } from '../../tools/restructure/browser-node-loads.mjs';
+import { nodeKeeps, nodeLoadProblems, nodeLoadersOf, reachedForPages, reachedInNode, typeChecked } from '../../tools/restructure/browser-node-loads.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
@@ -22,7 +22,7 @@ const SKIP = 'TypeScript is not installed here (npm run quality:install)';
 
 const CODEC = ["'use strict';", '', 'const LIMIT = 3;', '', 'function clamp(value) {', '  return Math.min(value, LIMIT);', '}', '',
   'function encode(value) {', '  return clamp(value) * 2;', '}', '', 'function paint(canvas) {', '  canvas.width = encode(1);', '}', '',
-  'function onClick() {', '  paint(document.body);', '}', '',
+  'function onClick() {', '  paint(document.body);', '}', '', 'function wipe(canvas) {', '  canvas.width = 0;', '}', '',
   "if (typeof window !== 'undefined') {", '  window.Codec = { encode, paint };', "  document.addEventListener('click', onClick);", '}',
   "if (typeof module !== 'undefined' && module.exports) module.exports = { encode };", ''].join('\n');
 
@@ -32,6 +32,13 @@ test('what Node reaches is what its statements use, however deep, and not what o
   const reached = reachedInNode(run, 0);
   assert.deepEqual([...reached.inside].sort(), ['LIMIT', 'clamp', 'encode'], 'the export line reaches encode, encode reaches clamp, clamp reads LIMIT');
   assert.deepEqual([...reached.outside], []);
+});
+
+test('the statement kept for pages reaches more: what it names, what its listener runs, and all those use', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const run = analyzeRun([{ file: 'server/js/codec.js', text: CODEC }], parser);
+  assert.deepEqual([...reachedForPages(run, 0).inside].sort(), ['LIMIT', 'clamp', 'encode', 'onClick', 'paint'],
+    'window.Codec = { encode, paint } names two, the listener is onClick, and nothing names wipe while the script loads');
 });
 
 test('a script already split: a name Node reaches that sits in another script is a problem', (t) => {
@@ -62,7 +69,20 @@ const FILES = {
   'server/reads.js': "fs.readFileSync(path.join(__dirname, 'js', 'x', 'codec.js'));\nconst other = require('./js/other/codec.js');\n",
   'tools/site.mjs': "import Codec from '../server/js/codec.js';\nconst later = await import('../server/js/codec.js');\n",
   'tools/map/frozen-paths.json': JSON.stringify({ paths: [], whole: [] }),
+  'tools/quality/tsconfig.server.json': JSON.stringify({ include: ['../../server/*.js', '../../server/*/*.js', '../../packages/core/src/**/*.js'], exclude: ['../../server/js', '../../server/test'] }),
 };
+
+test('the type check reads what its own list names: the engine, not the pages and not the tests', () => {
+  const root = tempRepo(FILES);
+  try {
+    const checked = typeChecked(root);
+    assert.deepEqual(['server/engine.js', 'server/ai/turn.js', 'packages/core/src/a/b/format.js', 'packages/core/src/format.js'].filter((file) => !checked(file)), []);
+    assert.deepEqual(['server/js/codec.js', 'server/test/codec.test.mjs', 'server/ai/deep/turn.js', 'server/engine.mjs', 'tools/site.mjs'].filter(checked), []);
+    assert.equal(typeChecked(path.join(root, 'server'))('server/engine.js'), false, 'no type check set up, nothing is read by it');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('a require or an import of the script is found wherever it stands, and a read of its text is not one', () => {
   const root = tempRepo(FILES);
@@ -77,21 +97,38 @@ test('a require or an import of the script is found wherever it stands, and a re
   }
 });
 
-test('extract refuses to take out what Node reaches, names who loads the file, and lets the rest go', (t) => {
+test('extract refuses to take out what Node or the statement for pages reaches, names who loads the file, and lets the rest go', (t) => {
   if (!parser) return t.skip(SKIP);
   const root = tempRepo(FILES);
   const move = (names) => ({ kind: 'script', from: 'server/js/codec.js', file: 'server/js/codec/part.js', about: 'A part.', names });
   try {
     const run = analyzeRun([{ file: 'server/js/codec.js', text: CODEC }], parser);
-    assert.deepEqual([...nodeKeeps(root, 'server/js/codec.js', run, 0)].map(([name, who]) => `${name} <- ${who}`),
-      ['LIMIT <- server/engine.js:1', 'encode <- server/engine.js:1', 'clamp <- server/engine.js:1']);
-    assert.throws(() => perform({ root, parser, move: move(['clamp', 'paint']), dryRun: true }), (error) => {
+    const keeps = nodeKeeps(root, 'server/js/codec.js', run, 0);
+    assert.deepEqual([...keeps.keys()].sort(), ['LIMIT', 'clamp', 'encode', 'onClick', 'paint']);
+    assert.equal(keeps.get('clamp'), 'server/engine.js:1 loads the file in Node, alone, and what runs there reaches clamp');
+    assert.equal(keeps.get('paint'), 'server/engine.js:1 loads the file in Node, so the type check reads it alone too, and its statement for pages reaches paint');
+    assert.throws(() => perform({ root, parser, move: move(['clamp', 'paint', 'wipe']), dryRun: true }), (error) => {
       assert.ok(error instanceof Refusal);
-      assert.match(error.reasons.join('\n'), /clamp stays in server\/js\/codec\.js: server\/engine\.js:1 loads the file in Node, alone, and what runs there reaches clamp/);
-      assert.doesNotMatch(error.reasons.join('\n'), /paint stays/);
+      const said = error.reasons.join('\n');
+      assert.match(said, /clamp stays in server\/js\/codec\.js: server\/engine\.js:1 loads the file in Node, alone, and what runs there reaches clamp/);
+      assert.match(said, /paint stays in server\/js\/codec\.js: server\/engine\.js:1 loads the file in Node, so the type check reads it alone too, and its statement for pages reaches paint/);
+      assert.doesNotMatch(said, /wipe stays/);
       return true;
     });
     assert.deepEqual(nodeLoadProblems(root, 'server/js/codec.js', run, 0), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a script only a test loads is not in the type check: it keeps what Node reaches and no more', (t) => {
+  if (!parser) return t.skip(SKIP);
+  const root = tempRepo(Object.fromEntries(Object.entries(FILES).filter(([file]) => file !== 'server/engine.js')));
+  try {
+    const run = analyzeRun([{ file: 'server/js/codec.js', text: CODEC }], parser);
+    const keeps = nodeKeeps(root, 'server/js/codec.js', run, 0);
+    assert.deepEqual([...keeps.keys()].sort(), ['LIMIT', 'clamp', 'encode']);
+    assert.equal(keeps.get('encode'), 'server/test/codec.test.mjs:4 loads the file in Node, alone, and what runs there reaches encode');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

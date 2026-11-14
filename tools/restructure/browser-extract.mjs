@@ -67,7 +67,7 @@ function nodeReasons(root, parser, ledger, move) {
   if (!scripts.some((script) => script.file === move.from)) return [];
   const keeps = nodeKeeps(root, move.from, analyzeRun(scripts, parser), scripts.length - 1);
   return move.names.filter((name) => keeps.has(name))
-    .map((name) => `${name} stays in ${move.from}: ${keeps.get(name)} loads the file in Node, alone, and what runs there reaches ${name}`);
+    .map((name) => `${name} stays in ${move.from}: ${keeps.get(name)}`);
 }
 
 const diskTree = (root) => ({
