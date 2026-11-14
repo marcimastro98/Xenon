@@ -25,7 +25,7 @@ import { topStatements } from './state-refs.mjs';
 import { lineAt, lineStarts, readTopLevel } from './top-level.mjs';
 
 // The modules of Node whose loading does nothing a program can see.
-const INERT = new Set(['assert', 'buffer', 'child_process', 'crypto', 'dgram', 'dns', 'events', 'fs', 'fs/promises', 'http', 'http2', 'https', 'net',
+export const INERT = new Set(['assert', 'buffer', 'child_process', 'crypto', 'dgram', 'dns', 'events', 'fs', 'fs/promises', 'http', 'http2', 'https', 'net',
   'os', 'path', 'perf_hooks', 'querystring', 'readline', 'stream', 'stream/promises', 'string_decoder', 'timers', 'timers/promises', 'tls', 'url',
   'util', 'zlib']);
 const READ_AS_CODE = /\.c?js$/;

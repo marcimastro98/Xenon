@@ -78,10 +78,15 @@ export function loadUseTest({ records, seeds, names, bindings }) {
 
 // Where the new require can go: after every module it needs is loaded, and before
 // the first statement that could use a moved name while the file is still loading.
-export function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches }) {
+// A module that would be loaded too late does not count when it is proven to load the same at whatever
+// moment (`anyTime`, from analyze.mjs). It is asked only then, so every move made without it is made the same way.
+export function placeRequire({ records, moved, movedSet, movedNames, bindings, modules, source, stretches, anyTime = () => false }) {
   const firstUse = records.filter((record) => !movedSet.has(record)).find(loadUseTest({ records, seeds: moved, names: movedNames, bindings }));
   const before = firstUse ? firstUse.index : records.length;
-  const loaded = modules.filter((m) => m.kind !== 'builtin').reduce((max, m) => Math.max(max, m.index), -1);
+  const last = (list) => list.reduce((max, m) => Math.max(max, m.index), -1);
+  const waited = modules.filter((m) => m.kind !== 'builtin');
+  let loaded = last(waited);
+  if (loaded >= before) loaded = last(waited.filter((m) => m.index < before || !anyTime(records[m.index])));
   if (loaded >= before) {
     const late = modules.find((m) => m.index === loaded);
     return { reason: `the new module needs require('${late.spec}'), which ${source} loads at line ${records[loaded].line[0]}, `
@@ -156,7 +161,7 @@ export function planExtraction(job) {
   const needed = [...new Set(moved.flatMap((record) => record.requires))];
   const required = requireLines(needed, bindings, (spec) => rewrite(spec, source, target));
   const place = placeRequire({ records, moved, movedSet, movedNames, bindings, modules: required.modules, source,
-    stretches: protectedStretches });
+    stretches: protectedStretches, anyTime: analysis.anyTime });
   if (place.reason) throw new Refusal([place.reason]);
 
   const lines = text.split('\n');

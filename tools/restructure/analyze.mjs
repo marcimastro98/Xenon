@@ -4,6 +4,7 @@
 import { isBuiltin } from 'node:module';
 
 import { afterLoadFor, afterLoadNames } from './after-load.mjs';
+import { repoAloneTest } from './alone.mjs';
 import { markRegistrations, namesHeldAtLoad, namesRunAtLoad, registrationsFor, repoFileOf } from './load-registrations.mjs';
 import { readTopLevel } from './top-level.mjs';
 
@@ -16,12 +17,14 @@ const CAN_MOVE = new Set(['function', 'class', 'const']);
  * @param {any} parser from parser.mjs
  * @param {string} [file] name shown in the result
  * @param {{ calls?: import('./load-time-calls.mjs').LoadTimeCalls, registrations?: { statement: string, callees?: string[], current: boolean }[],
- *   afterLoad?: ReturnType<typeof afterLoadFor>, fileOf?: (spec: string) => string | null }} [rules]
+ *   afterLoad?: ReturnType<typeof afterLoadFor>, fileOf?: (spec: string) => string | null, early?: (file: string) => string }} [rules]
  *   what may run at load and still move, the load statements that only hand over functions, and the functions nothing
- *   runs while the file loads (with where a require of this file leads, to check them); the lists of this folder when left out
+ *   runs while the file loads (with where a require of this file leads, to check them); the lists of this folder when left out.
+ *   `early` says why a file may not load earlier than today, '' when it may (alone.mjs over this repo when left out)
  * @returns {{ file: string, lineCount: number, records: any[], bindings: Map<string, any>, listProblems: string[],
- *   afterLoad: Set<string>, afterLoadProblems: string[] }}
+ *   afterLoad: Set<string>, afterLoadProblems: string[], anyTime: (required: any) => boolean }}
  *   `afterLoad` are the functions of after-load.json whose entry passed every check, `afterLoadProblems` what was wrong with the others;
+ *   `anyTime` says of a require statement whether its module is proven to load the same at whatever moment;
  *   `records` are the top-level statements with, added here: `deps` (other top-level
  *   names used), `requires` (required modules used), `writes`, `changes`, `state`,
  *   `fileBound`, `movable` and `blockers`.
@@ -55,10 +58,21 @@ export function analyze(text, parser, file = 'file.js', rules = {}) {
   const listProblems = markRegistrations(records, text, rules.registrations ?? registrationsFor(file), { bindings, fileOf });
   const served = afterLoadNames(records, text, rules.afterLoad ?? afterLoadFor(file), { bindings, fileOf });
   for (const record of records) describe(record, bindings, duplicates);
-  markLateModules(records, bindings);
+  // Asked only for a module that would otherwise hold a declaration back, and once for each: the proof reads other files.
+  let early = rules.early;
+  const proven = new Map();
+  const anyTime = (required) => {
+    if (!proven.has(required)) {
+      const target = required.require ? fileOf(required.require.spec) : null;
+      if (target !== null) early ??= repoAloneTest();
+      proven.set(required, target !== null && early(target) === '');
+    }
+    return proven.get(required);
+  };
+  markLateModules(records, bindings, anyTime);
   settleMovable(records, bindings);
   return { file, lineCount: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), records, bindings, listProblems,
-    afterLoad: served.names, afterLoadProblems: served.problems };
+    afterLoad: served.names, afterLoadProblems: served.problems, anyTime };
 }
 
 function describe(record, bindings, duplicates) {
@@ -90,7 +104,8 @@ function describe(record, bindings, duplicates) {
 // then. A statement that runs at load "may use" whatever it can reach, callbacks
 // it hands over included: nothing here can tell whether they are called at once,
 // unless someone read the callee and put the statement in load-registrations.json.
-function markLateModules(records, bindings) {
+// A module proven to load the same at whatever moment (alone.mjs) holds nothing back.
+function markLateModules(records, bindings, anyTime) {
   const firstUse = new Map();
   for (const start of records) {
     if (!start.loadTime) continue;
@@ -112,7 +127,7 @@ function markLateModules(records, bindings) {
     if (before === undefined || !CAN_MOVE.has(record.kind) || record.loadTime) continue;
     const late = record.requires.filter((name) => {
       const required = bindings.get(name).record;
-      return required.index >= before && !isBuiltin(required.require.spec);
+      return required.index >= before && !isBuiltin(required.require.spec) && !anyTime(required);
     });
     if (late.length) record.blockers.push({ code: 'needs-a-module-loaded-later', names: late, usedFromLine: records[before].line[0] });
   }
