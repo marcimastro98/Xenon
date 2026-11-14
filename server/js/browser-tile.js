@@ -17,11 +17,9 @@
 // only the active one shown. The server treats each tab id as an independent tile,
 // so no server change is needed.
 (function () {
-  const t = (k, fb) => {
-    const v = typeof window.t === 'function' ? window.t(k) : null;
-    if (v && v !== k) return v;              // translated
-    return fb != null ? fb : k;              // fall back to the provided default, never the raw key
-  };
+  const {
+    t, tabLabel, showLoading, showEmpty, isLaunchError, showTabError, favLabelFromUrl,
+  } = window.BrowserTileSays;
   const ICON = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const ICONS = {
     back: ICON('<path d="M15 18l-6-6 6-6"/>'),
@@ -57,14 +55,6 @@
       x: Math.max(0, Math.min(1, rx)) * w,
       y: Math.max(0, Math.min(1, ry)) * h,
     };
-  }
-
-  // Pretty label for a tab from its URL (hostname without a leading www).
-  function tabLabel(url) {
-    const s = String(url || '').trim();
-    if (!s) return t('browser_new_tab', 'New tab');
-    try { return new URL(/^https?:/i.test(s) ? s : 'https://' + s).hostname.replace(/^www\./, ''); }
-    catch (e) { return s.replace(/^https?:\/\//, '').split('/')[0] || s; }
   }
 
   const groups = new Map();    // gsId -> group state (the visible tile)
@@ -259,28 +249,6 @@
     else if (!tab.streaming) { if (relaySend({ type: 'screencast', tile: tab.tileId, on: true })) tab.streaming = true; }
   }
 
-  // Loading indicator: a spinner + text shown while the active tab has no frame yet.
-  function showLoading(group) {
-    const el = group.loadingEl;
-    if (!el) return;
-    el.classList.remove('is-error', 'is-paused');
-    const spin = XenonLoader.create();
-    const txt = document.createElement('span');
-    txt.className = 'browser-loading-text'; txt.textContent = t('browser_loading', 'Loading…');
-    el.replaceChildren(spin, txt);
-    el.hidden = false;
-  }
-
-  // Empty-tab hint: a freshly added tab with no address yet.
-  function showEmpty(group) {
-    const el = group.loadingEl;
-    if (!el) return;
-    el.classList.remove('is-error', 'is-paused');
-    el.textContent = t('browser_new_tab_hint', 'Enter an address to get started.');
-    el.hidden = false;
-    if (group.urlInput) { group.urlInput.value = ''; try { group.urlInput.focus(); } catch (e) { /* ignore */ } }
-  }
-
   // Paused by performance mode: say so over the (frozen or blank) canvas, with a
   // way to bring this one tile back without turning the mode off.
   function showPaused(group) {
@@ -404,10 +372,6 @@
 
   const MAX_LAUNCH_RETRIES = 2;
 
-  function isLaunchError(code) {
-    return /timeout|connect|launch|exited|closed|port|socket|failed/i.test(String(code || ''));
-  }
-
   // Errors self-heal: a launch failure (usually a headless Edge still shutting down
   // from a previous run) is retried silently a couple of times before we surface
   // anything. Only a persistent failure shows a short, plain message.
@@ -427,29 +391,6 @@
       }
     }
     if (group && activeTab(group) === tab) showTabError(group, code);
-  }
-
-  function friendlyError(code) {
-    const c = String(code || '');
-    if (c === 'blocked_scheme') return t('browser_blocked_scheme', 'Only http:// and https:// addresses are allowed.');
-    if (c === 'edge_not_found') {
-      // The error code keeps its name (every log line and call site says
-      // "edge"), but the sentence must match the machine reading it.
-      return window.XenonPlatform && window.XenonPlatform !== 'win32'
-        ? t('browser_unavailable_chromium', 'The Browser widget needs a Chromium-based browser (Chromium, Chrome, Brave or Edge). None was found.')
-        : t('browser_unavailable', 'Microsoft Edge isn’t installed: it’s required for the Browser widget.');
-    }
-    if (isLaunchError(c)) return t('browser_err_launch', 'Couldn’t open this page right now. Please try again in a moment.');
-    return '';   // no_tile / bad_url / empty_url / unknown → stay quiet
-  }
-
-  function showTabError(group, code) {
-    const msg = friendlyError(code);
-    if (!msg || !group.loadingEl) return;
-    group.loadingEl.textContent = msg;
-    group.loadingEl.classList.remove('is-paused');
-    group.loadingEl.classList.add('is-error');
-    group.loadingEl.hidden = false;
   }
 
   function setTabUrl(tab, url) {
@@ -529,9 +470,6 @@
     list.splice(index, 1);
     saveFavorites(list);
   }
-
-  // A short display label for a favorite that has none — the URL's hostname.
-  function favLabelFromUrl(url) { return tabLabel(url); }
 
   // Render (or hide) a group's favorites bar. Shown only when there is at least one
   // favorite or the inline add-editor is open, so an unused bar never eats space on

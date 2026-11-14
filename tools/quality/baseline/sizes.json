@@ -48,7 +48,7 @@
     "server/js/ambient-mode.js": 634,
     "server/js/ambient-scene.js": 464,
     "server/js/bit-message-card.js": 321,
-    "server/js/browser-tile.js": 1285,
+    "server/js/browser-tile.js": 1223,
     "server/js/call-modal.js": 329,
     "server/js/capability-catalog.js": 1339,
     "server/js/capture-annotate.js": 375,

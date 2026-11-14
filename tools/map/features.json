@@ -751,6 +751,7 @@
         "server/foreground.ps1",
         "server/linux-foreground.js",
         "server/tile-play.js",
+        "server/js/browser-tile/**",
         "server/js/browser-tile.js",
         "server/js/second-screen-tile.js",
         "server/js/slideshow-widget.js",
