@@ -100,7 +100,7 @@ test('the checks that hold a split wrapper afterwards find a hand edit on either
   assert.match(state(swap(plan.newSource, 'String(twice(count))', 'String(double(count))'), plan.targetText), /still uses double, which it does not take back from server\/js\/leaf\/keys\.js/);
   assert.match(state(swap(plan.newSource, '  let count = 0;', '  let count = keyOf(null).length;'), plan.targetText), /leaf\.js:5 could use keyOf, twice before the line that takes them back/);
   assert.match(state(swap(plan.newSource, '(function () {', '(function (root) {'), plan.targetText), /functions were taken out of its wrapper: it must stay one/);
-  const words = { file: 'server/js/leaf/words.js', text: "// The words.\n'use strict';\n\n(function () {\n  function shout(el) {\n    return double(el);\n  }\n\n  window.LeafWords = { shout };\n})();\n" };
+  const words = { file: 'server/js/leaf/words.js', text: "// The words.\n'use strict';\n\n(() => {\n  function shout(el) {\n    return double(el);\n  }\n\n  window.LeafWords = { shout };\n})();\n" };
   const withWords = swap(plan.newSource, '  const { keyOf, twice } = window.LeafKeys;\n', '  const { keyOf, twice } = window.LeafKeys;\n  const { shout } = window.LeafWords;\n').replace('{ bump, keyOf }', '{ bump, keyOf, shout }');
   assert.match(state(withWords, plan.targetText, [words]), /words\.js: shout uses double, a function of server\/js\/leaf\/keys\.js: out of the wrapper nothing has that name/);
   assert.equal(state(withWords, plan.targetText, [{ ...words, text: words.text.replace('double(el)', 'String(el)') }]), '');

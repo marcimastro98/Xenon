@@ -45,7 +45,7 @@ function bumps(...scripts) {
 test('the functions go unchanged into a script before the old one, which takes back the ones it still uses', (t) => {
   if (!parser) return t.skip(SKIP);
   const done = move(SOURCE);
-  assert.equal(done.files.get(TARGET), script(`// ${ABOUT}`, "'use strict';", '', '(function () {', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
+  assert.equal(done.files.get(TARGET), script(`// ${ABOUT}`, "'use strict';", '', '(() => {', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
   assert.equal(done.files.get(FILE), script(TOP, STATE, '  const { keyOf, twice } = window.LeafKeys;', '', REST), 'the line stands where the first function stood');
   assert.equal(done.files.get(PAGE), HTML.replace('<script src="js/leaf.js">', '<script src="js/leaf/keys.js"></script>\n<script src="js/leaf.js">'));
   assert.deepEqual(done.made, [TARGET]);
@@ -66,11 +66,12 @@ test('the name left on window is read off where the new script lives', () => {
 test('the mode goes with the functions: strict by the file, strict inside the wrapper, or not strict', (t) => {
   if (!parser) return t.skip(SKIP);
   const inside = script('// What the leaf does.', '(function () {', "  'use strict';", '', STATE, KEYS, REST);
-  assert.equal(move(inside).files.get(TARGET), script(`// ${ABOUT}`, '', '(function () {', "  'use strict';", '', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
+  assert.equal(move(inside).files.get(TARGET), script(`// ${ABOUT}`, '', '(() => {', "  'use strict';", '', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
   const sloppy = script('// What the leaf does.', '(function () {', STATE, KEYS, REST);
-  assert.equal(move(sloppy).files.get(TARGET), script(`// ${ABOUT}`, '', '(function () {', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
+  assert.equal(move(sloppy).files.get(TARGET), script(`// ${ABOUT}`, '', '(() => {', KEYS, '  window.LeafKeys = { keyOf, twice };', '})();', ''));
   const arrow = script("'use strict';", '(() => {', STATE, KEYS, REST);
-  assert.match(move(arrow).files.get(TARGET), /^\(function \(\) \{$/m, 'the new script is a plain function whatever the old wrapper was');
+  assert.match(move(arrow).files.get(TARGET), /^\(\(\) => \{$/m, 'the new script is an arrow wrapper whatever the old wrapper was');
+  assert.match(move(SOURCE).files.get(TARGET), /^\(\(\) => \{$/m, 'and under a plain function too: nothing in it reads a `this` of the wrapper');
   assert.deepEqual(bumps(move(arrow).files.get(TARGET), move(arrow).files.get(FILE)), bumps(SOURCE));
 });
 
@@ -91,7 +92,7 @@ test('a function takes the comment above it along, and leaves the title of the s
   if (!parser) return t.skip(SKIP);
   const titled = script(TOP, STATE, '  // ── Keys ──', KEYS, REST);
   const done = move(titled, ['keyOf']);
-  assert.match(done.files.get(TARGET), /\(function \(\) \{\n {2}\/\/ The key of an element\.\n {2}function keyOf/);
+  assert.match(done.files.get(TARGET), /\(\(\) => \{\n {2}\/\/ The key of an element\.\n {2}function keyOf/);
   assert.match(done.files.get(FILE), /\n {2}\/\/ ── Keys ──\n {2}const \{ keyOf \} = window\.LeafKeys;\n\n {2}function twice/);
 });
 

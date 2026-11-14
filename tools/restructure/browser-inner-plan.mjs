@@ -8,8 +8,8 @@
 //   before, in js/deck-editor.js               after, in js/deck-editor.js
 //     function keyOf(e) { ... }                  const { keyOf } = window.DeckEditorKeys;
 //
-//   the new script, js/deck-editor/keys.js
-//     (function () {
+//   the new script, js/deck-editor/keys.js (an arrow wrapper: it has no `this` of its own to keep, and lint asks for one)
+//     (() => {
 //       function keyOf(e) { ... }
 //       window.DeckEditorKeys = { keyOf };
 //     })();
@@ -261,7 +261,7 @@ export function planInnerScript({ text, parser, source, target, about, names, ma
   });
 
   // The new script: first comment, a wrapper in the old script's mode, the moved text, the one name on window.
-  const body = [...headerOf(about, shell.strictFile).split('\n').slice(0, -1), OPENS[0]];
+  const body = [...headerOf(about, shell.strictFile).split('\n').slice(0, -1), OPENS[1]];
   if (shell.strictInside) body.push(`${shell.indent}'use strict';`, '');
   moved.forEach((record, i) => {
     const piece = rangeLines(record);

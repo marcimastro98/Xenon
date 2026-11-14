@@ -39,8 +39,8 @@ export function readInnerScript(text, file, name, parser) {
   if (!head[0]?.startsWith('//') || head.some((line) => !(line.startsWith('//') || line === "'use strict';" || line === ''))) {
     problems.push(`${file} must open with a comment saying what it does, and nothing else above its wrapper`);
   }
-  if (lines[shell.open] !== OPENS[0] || lines[shell.close] !== CLOSES[0] || lines.length !== shell.close + 2 || lines.at(-1) !== '') {
-    problems.push(`${file} must be one \`${OPENS[0]}\` ... \`${CLOSES[0]}\` and end there`);
+  if (lines[shell.open] !== OPENS[1] || lines[shell.close] !== CLOSES[0] || lines.length !== shell.close + 2 || lines.at(-1) !== '') {
+    problems.push(`${file} must be one \`${OPENS[1]}\` ... \`${CLOSES[0]}\` and end there`);
   }
   if (lines.length - 1 > MAX_LINES) problems.push(`${file} is ${lines.length - 1} lines: a script made of moved functions stays within ${MAX_LINES}`);
   const records = shell.strictInside ? shell.records.slice(1) : shell.records;
