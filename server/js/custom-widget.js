@@ -530,9 +530,7 @@
     }
     return out;
   }
-  const {
-    AMBIENT_INST_ID, WEATHER_VIEW_ID, assignKeyOf, hostKindOf, instanceIdOf,
-  } = window.CustomWidgetInstances;
+  const { AMBIENT_INST_ID, assignKeyOf, hostKindOf, instanceIdOf } = window.CustomWidgetInstances;
   const frames = new Map();
   // Frames stopped for leaving their own page (see guardFrame): tile instance id
   // or 'svc:'+pkgId → the package id. Kept until the user reloads the widget or
@@ -562,22 +560,7 @@
   // Optional display meta per state ({label, icon, color}) for key.live badges.
   const sdkStateMeta = {};
 
-  // Tiles on a dashboard page, plus those a layer surface has moved into its slots.
-  // A layer window shows its slots only: the dashboard pages it also boots stay
-  // hidden, and mounting their widgets cost memory and ran their Deck states twice.
-  function tiles() {
-    const layerOnly = (window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
-    const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
-    // A Weather tile set to Style "Your widget" holds a .custom-widget-mount of its
-    // own (js/weather-look.js) and hosts a package like a custom tile does.
-    const onPages = Array.from(document.querySelectorAll('[data-dashboard-widget="custom"], [data-dashboard-widget="weather"]'))
-      .filter(n => n.closest(scope) && (n.getAttribute('data-dashboard-widget') === 'custom' || n.querySelector('.custom-widget-mount')));
-    // The Weather window on the same style shows that widget too, in a host of its
-    // own outside the grid (never a [data-dashboard-widget] the layout would claim).
-    return onPages.concat(Array.from(document.querySelectorAll(`[data-cw-host="${WEATHER_VIEW_ID}"]`))
-      .filter(n => n.querySelector('.custom-widget-mount')));
-  }
-
+  const { tiles, expandWrapOf, currentPageId, spanOnPage } = window.CustomWidgetPlaces;
 
   // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
   // layer id and live only in memory: a layer page never saves sdkWidgets.assign.
@@ -1842,11 +1825,6 @@
   let expandEscHandler = null;
   let expandPageHandler = null;
 
-  function expandWrapOf(entry) {
-    const f = entry && entry.frame;
-    return (f && typeof f.closest === 'function') ? f.closest('.cw-wrap') : null;
-  }
-
   function expandWidget(entry) {
     const wrap = expandWrapOf(entry);
     if (!wrap) return false;
@@ -2051,11 +2029,10 @@
   }
 
   // ── Widget performance accounting (probe reports → per-package aggregate) ──
-  // Reports come from the host-injected probe, but the frame could forge them:
-  // SdkPerf.validatePerfReport clamps every field and the per-frame rate limit
-  // bounds the flood. Aggregated per PACKAGE (a service frame and a tile of the
-  // same package fold together — it's the package's CPU either way).
-  const perfByPkg = new Map();   // pkgId → SdkPerf aggregate
+  const {
+    perfByPkg, blockedByPkg, onBridgeBlocked, getSandboxIssues, errorsByPkg, onBridgeError,
+    getRuntimeErrors, getPerfStats,
+  } = window.CustomWidgetReports;
   function onBridgePerf(entry, msg) {
     if (!window.SdkPerf) return;
     const now = Date.now();
@@ -2084,41 +2061,8 @@
   }
 
   // ── What the sandbox refused (probe `blocked` reports → per-package list) ──
-  // For the widget's AUTHOR: the Installed tab lists these under their own
-  // packages, so a blank tile says why. Same trust as perf: the frame could
-  // forge a report, so SdkDiagnostics validates it to known kinds + a bare
-  // hostname, a per-frame floor bounds the flood, and nothing is granted.
-  const BLOCKED_MIN_INTERVAL_MS = 1000;
-  const blockedByPkg = new Map();   // pkgId → [{ kind, host? }]
-  function onBridgeBlocked(entry, msg) {
-    if (!window.SdkDiagnostics) return;
-    const now = Date.now();
-    if (now - (entry.blockedAt || 0) < BLOCKED_MIN_INTERVAL_MS) return;
-    entry.blockedAt = now;
-    const issues = SdkDiagnostics.validateBlockedReport(msg);
-    if (!issues || !issues.length) return;
-    blockedByPkg.set(entry.pkgId, SdkDiagnostics.mergeIssues(blockedByPkg.get(entry.pkgId), issues));
-  }
-  function getSandboxIssues(pkgId) {
-    return (blockedByPkg.get(pkgId) || []).slice();
-  }
 
   // ── What went wrong while it ran (probe `error` reports) ──
-  // Same trust and the same floor as the blocked list: the author reads these
-  // through the xenon-mcp tools. Text only, never rendered as HTML.
-  const errorsByPkg = new Map();   // pkgId → [{ kind, message, count }]
-  function onBridgeError(entry, msg) {
-    if (!window.SdkDiagnostics || typeof SdkDiagnostics.validateErrorReport !== 'function') return;
-    const now = Date.now();
-    if (now - (entry.errorAt || 0) < BLOCKED_MIN_INTERVAL_MS) return;
-    entry.errorAt = now;
-    const items = SdkDiagnostics.validateErrorReport(msg);
-    if (!items || !items.length) return;
-    errorsByPkg.set(entry.pkgId, SdkDiagnostics.mergeErrors(errorsByPkg.get(entry.pkgId), items));
-  }
-  function getRuntimeErrors(pkgId) {
-    return (errorsByPkg.get(pkgId) || []).map((e) => ({ ...e }));
-  }
 
   // For the xenon-mcp tools: is this package drawn in a tile the person can
   // see right now, and where on the screen. The first visible tile wins.
@@ -2147,21 +2091,6 @@
     const tile = tiles().find((t) => (instId ? instanceIdOf(t) === instId : assignedIdOf(cfg, instanceIdOf(t)) === pkgId));
     const pager = window.DashboardPager;
     return !!(tile && pager && typeof pager.goToPageOf === 'function' && pager.goToPageOf(tile));
-  }
-
-  // Plain serializable snapshot for the Installed tab's activity chips.
-  function getPerfStats() {
-    const out = {};
-    if (!window.SdkPerf) return out;
-    perfByPkg.forEach((agg, pkgId) => {
-      out[pkgId] = {
-        level: SdkPerf.classifyPerf(agg),
-        longTaskMsPerMin: SdkPerf.longTaskMsPerMin(agg),
-        layoutShifts: agg.layoutShifts,
-        updatedAt: agg.updatedAt,
-      };
-    });
-    return out;
   }
 
   // A widget that focuses itself (a password field on its lock screen) while it
@@ -4132,18 +4061,6 @@
       saveDashboardLayout(layout);
       if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     });
-  }
-  // A widget the assistant just made goes on the page the person is looking
-  // at, in the shape it was drawn for. A new version of one already on a tile
-  // only refreshes that tile.
-  function currentPageId() {
-    const pager = window.DashboardPager;
-    return (pager && pager.getCurrentPage && pager.getCurrentPage()) || undefined;
-  }
-  // The shape the package was drawn for on `page`, when it names one.
-  function spanOnPage(pkg, page) {
-    const DG = window.DashboardGrid;
-    return pkg && pkg.size && DG && typeof DG.sizeForHint === 'function' ? DG.sizeForHint(pkg.size, page) : null;
   }
   // A widget the assistant just made goes on the page the person is looking
   // at, in the shape it was drawn for. When that page has no room for it, it
