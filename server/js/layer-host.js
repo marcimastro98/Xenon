@@ -33,8 +33,8 @@
   let lastRects = null;
   let rectTimer = null;
   let waitingForLoad = false;
-  // Edit mode (server layers-edit.js, SSE `layers-edit`): the window takes every
-  // click and js/layer-edit.js, loaded on first use, draws the handles.
+  // Edit mode (server layers-edit.js, SSE `layers-edit`): the window takes every click and the editor draws the handles.
+  const EDIT_SCRIPTS = Object.freeze(['js/layer-edit.js']);   // loaded on first use, each after the one before it has run
   let editing = false;
   let wholeWindow = false;   // a widget is being dragged: the window takes every click
   let editScript = null;
@@ -525,9 +525,15 @@
     },
   });
 
-  function startEditor() {
-    if (!editing || !window.LayerEdit) return;
-    window.LayerEdit.start(editApi);
+  function startEditor(at = EDIT_SCRIPTS.length) {
+    if (at < EDIT_SCRIPTS.length) {
+      editScript = document.createElement('script');
+      editScript.src = EDIT_SCRIPTS[at];
+      editScript.addEventListener('load', () => startEditor(at + 1));
+      document.head.appendChild(editScript);
+    } else if (editing && window.LayerEdit) {
+      window.LayerEdit.start(editApi);
+    }
   }
 
   function setEditing(on) {
@@ -535,16 +541,9 @@
     if (next === editing) return;
     editing = next;
     wholeWindow = false;
-    if (editing && !window.LayerEdit && !editScript) {
-      editScript = document.createElement('script');
-      editScript.src = 'js/layer-edit.js';
-      editScript.addEventListener('load', startEditor);
-      document.head.appendChild(editScript);
-    } else if (editing) {
-      startEditor();
-    } else if (window.LayerEdit) {
-      window.LayerEdit.stop();
-    }
+    if (editing && !window.LayerEdit && !editScript) startEditor(0);
+    else if (editing) startEditor();
+    else if (window.LayerEdit) window.LayerEdit.stop();
     scheduleRects();
   }
 

@@ -16,7 +16,7 @@ const SRC = read('../js/layer-host.js');
 
 const W = (over = {}) => ({ id: 'lw_aaaa0001', kind: 'tile', widget: 'weather', surface: 'desktop', rect: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, ...over });
 
-function boot(search, layers, { dashboardWidgets = {}, shell = false, lite = false, tiles, hydrated, store = {}, Observer } = {}) {
+function boot(search, layers, { dashboardWidgets = {}, shell = false, lite = false, tiles, hydrated, store = {}, Observer, src = SRC } = {}) {
   const dom = makeDom();
   const { document } = dom;
   if (lite) document.documentElement.setAttribute('data-layer-lite', '');
@@ -57,7 +57,7 @@ function boot(search, layers, { dashboardWidgets = {}, shell = false, lite = fal
   if (hydrated !== undefined) ctx._hubHydratedFromServer = hydrated;
   if (Observer) ctx.MutationObserver = Observer;
   vm.createContext(ctx);
-  vm.runInContext(SRC, ctx);
+  vm.runInContext(src, ctx);
   const flush = () => { while (timers.length) timers.shift()(); };
   return { host: ctx.window.LayerHost, document, atom, grid, ctx, assigned, paints, signals, flush, reloads, store, timers };
 }
@@ -687,6 +687,47 @@ function editBoot(search, layers, opts) {
   b.editor = editor;
   return b;
 }
+
+test('the editor made of several scripts loads them one after the other, each asked for when the one before has run', () => {
+  const LIST = "Object.freeze(['js/layer-edit.js'])";
+  assert.equal(SRC.split(LIST).length, 2, 'the list of the scripts of the editor is written once');
+  const src = SRC.replace(LIST, "Object.freeze(['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js'])");
+  const { host, atom, document, editor, ctx } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] }, { src });
+  atom('weather');
+  host.place();
+  const es = fakeStream();
+  host.listen(es);
+  const asked = () => document.head.children.filter(n => n.tag === 'script').map(n => n.src);
+  const ran = (at) => (document.head.children[at]._handlers.load || []).forEach(fn => fn());
+  es.emit('layers-edit', { on: true });
+  assert.deepEqual(asked(), ['js/layer-edit/pieces.js'], 'only the first, until it has run');
+  es.emit('layers-edit', { on: false });
+  es.emit('layers-edit', { on: true });
+  assert.deepEqual(asked(), ['js/layer-edit/pieces.js'], 'asked for once, also when the mode goes off and on while it loads');
+  ran(0);
+  assert.deepEqual(asked(), ['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js']);
+  ran(1);
+  assert.deepEqual(asked(), ['js/layer-edit/pieces.js', 'js/layer-edit/geometry.js', 'js/layer-edit.js'], 'in the order of the list');
+  assert.equal(editor.started.length, 0, 'the editor is not there before its last script has run');
+  ctx.window.LayerEdit = { start: (api) => editor.started.push(api), stop: () => { editor.stopped++; }, refresh() {} };
+  ran(2);
+  assert.equal(editor.started.length, 1, 'started once, after the last one');
+  assert.equal(asked().length, 3, 'nothing is asked for twice');
+  es.emit('layers-edit', { on: false });
+  es.emit('layers-edit', { on: true });
+  assert.deepEqual([editor.stopped, editor.started.length, asked().length], [1, 2, 3]);
+});
+
+test('an editor whose mode went off while it loaded is not started when its last script runs', () => {
+  const { host, document, editor, ctx } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] });
+  const es = fakeStream();
+  host.listen(es);
+  es.emit('layers-edit', { on: true });
+  es.emit('layers-edit', { on: false });
+  ctx.window.LayerEdit = { start: (api) => editor.started.push(api), stop() {}, refresh() {} };
+  (document.head.children[0]._handlers.load || []).forEach(fn => fn());
+  assert.equal(editor.started.length, 0);
+});
 
 test('edit mode loads its script only when turned on, then hands it the boxes and the runner', () => {
   const { host, atom, document, editor, loadEditor } = editBoot('?layer=desktop:', { enabled: true, widgets: [W()] });
