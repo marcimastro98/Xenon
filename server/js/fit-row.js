@@ -51,16 +51,25 @@ function fitRowObserve(row) {
 function fitRowWatch(row) {
   if (!row || typeof ResizeObserver !== 'function') return () => {};
   if (!fitRowObserver) {
+    // A fit changes the size of the row and of its parts, the very boxes this observer watches. Done inside the
+    // callback, the engine cannot hand those changes out in the same pass and reports "ResizeObserver loop completed
+    // with undelivered notifications" as a page error; so the rows are fitted in the next frame, once for all of them.
+    const due = new Set();
+    const fitDue = () => {
+      const rows = [...due];
+      due.clear();
+      for (const row of rows) if (fitRowWatched.has(row)) fitRowApply(row);
+    };
     fitRowObserver = new ResizeObserver((entries) => {
-      const rows = new Set();
+      const waiting = due.size > 0;
       for (const e of entries) {
         const row = e.target.closest('[data-fit-levels]') || e.target;
         if (!fitRowWatched.has(row)) continue;
         // Taken out of the page: stop watching it.
         if (!row.isConnected) fitRowUnwatch(row);
-        else rows.add(row);
+        else due.add(row);
       }
-      rows.forEach(fitRowApply);
+      if (!waiting && due.size) requestAnimationFrame(fitDue);
     });
   }
   if (!fitRowWatched.has(row)) {

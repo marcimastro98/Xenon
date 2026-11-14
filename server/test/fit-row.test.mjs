@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -105,4 +106,62 @@ test('a narrow System card keeps its head on one line', () => {
   assert.match(sys, /\.stat-head > :first-child \{ flex: 0 0 auto; white-space: nowrap; \}/, 'the label never breaks under the value');
   assert.match(sys, /\.stat-head-right:has\(> \.stat-head-temp:not\(:empty\)\) \{ flex-shrink: 0; \}/, 'the temperature badge never covers the name');
   assert.match(sys, /@container stat-head \(max-width: 140px\) \{ \.stat-head-name \{ display: none; \} \}/);
+});
+
+// The script in a window of its own, with an observer the test calls and frames the test runs.
+function fitRowWindow() {
+  const win = { observed: [], frames: [], module: { exports: {} } };
+  win.ResizeObserver = class {
+    constructor(callback) { win.changed = (...targets) => callback(targets.map((target) => ({ target }))); }
+    observe(node) { win.observed.push(node); }
+    unobserve(node) { win.observed.splice(win.observed.indexOf(node), 1); }
+  };
+  win.requestAnimationFrame = (run) => win.frames.push(run);
+  win.nextFrame = () => { for (const run of win.frames.splice(0)) run(); };
+  vm.runInNewContext(read('../js/fit-row.js'), win);
+  return win;
+}
+
+test('a row that changed size is fitted in the next frame, never inside the observer callback', () => {
+  const win = fitRowWindow();
+  const FitRow = win.module.exports;
+  const row = fakeRow(1, 3);
+  const other = fakeRow(0, 3);
+  FitRow.watch(row);
+  FitRow.watch(other);
+  assert.equal(row.dataset.fit, '1', 'watching fits at once: nothing is being observed yet');
+  // The row got narrower: only level 3 fits now.
+  Object.defineProperty(row, 'scrollWidth', { get: () => (Number(row.dataset.fit) >= 3 ? 300 : 340) });
+  win.changed(row, other);
+  assert.equal(row.dataset.fit, '1', 'the callback writes nothing: a write there is a size the engine cannot hand out in the same pass');
+  assert.equal(win.frames.length, 1, 'one frame for every row that changed');
+  win.changed(row);
+  assert.equal(win.frames.length, 1, 'a second change before the frame asks for no second one');
+  win.nextFrame();
+  assert.equal(row.dataset.fit, '3');
+  assert.equal(other.dataset.fit, '0');
+  // The fit itself changes the row's size, so the observer calls once more: the same level again, and then it rests.
+  win.changed(row);
+  win.nextFrame();
+  assert.equal(row.dataset.fit, '3');
+  assert.equal(win.frames.length, 0);
+});
+
+test('a row unwatched or taken out of the page before its frame is left alone', () => {
+  const win = fitRowWindow();
+  const FitRow = win.module.exports;
+  const stopped = fakeRow(0, 3);
+  const gone = fakeRow(0, 3);
+  FitRow.watch(stopped);
+  FitRow.watch(gone);
+  stopped.dataset.fit = 'kept';
+  gone.dataset.fit = 'kept';
+  win.changed(stopped);
+  FitRow.unwatch(stopped);
+  gone.isConnected = false;
+  win.changed(gone);
+  win.nextFrame();
+  assert.equal(stopped.dataset.fit, 'kept');
+  assert.equal(gone.dataset.fit, 'kept');
+  assert.ok(!win.observed.includes(gone), 'a row no longer in the page is no longer observed');
 });
