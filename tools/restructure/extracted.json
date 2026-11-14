@@ -486,7 +486,9 @@
       {"file":"server/widget-sdk/widget-catalog-version.js","about":"Which version of the Store a widget was last installed from, so an update is offered only when the Store has a newer one.","names":["widgetCatalogVersionOf"]},
       {"file":"server/screens/second-screen-hosts.js","about":"The check of what a second screen needs and the host that shows the PC's picture on it, made when the engine starts: the helper that captures the picture is started only when a screen asks.","names":["secondScreen","screenCapture"],"wire":{"first":"secondScreen","last":"screenCapture"}},
       {"file":"server/screens/second-screen-mode.js","about":"Setting the size of the second screen's picture: the virtual display is made when it is missing, and the person is told when a restart is needed.","names":["applySecondScreenMode"]},
-      {"file":"server/screens/second-screen-client.js","about":"One screen connected to watch the PC's picture: what it may ask (the list of screens, start, stop, size, touches) and the stop of the capture when it goes away.","names":["_handleSecondScreenClient"]}
+      {"file":"server/screens/second-screen-client.js","about":"One screen connected to watch the PC's picture: what it may ask (the list of screens, start, stop, size, touches) and the stop of the capture when it goes away.","names":["_handleSecondScreenClient"]},
+      {"file":"server/windows-tiles/tile-play-offers.js","about":"Handing a channel or a video the assistant found to the one dashboard that shows the tile, made when the engine starts.","names":["tilePlay"],"wire":{"first":"tilePlay","last":"tilePlay"}},
+      {"file":"server/windows-tiles/play-in-tile.js","about":"Playing a channel or a video in a tile when the assistant is asked to: what was meant is searched for first, then handed to the dashboard that shows the tile.","names":["playInTile"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

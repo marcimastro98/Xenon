@@ -66,7 +66,7 @@ const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
 require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
-const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
+require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 require('./settings-ai'); // change_setting: the allowlisted Settings switches
 require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
@@ -2685,10 +2685,7 @@ usageStats.configure({
   enabled: () => !!(hub.settings && hub.settings.usageStats === true),
 });
 
-// play_in_tile (tile-play.js): find what the user meant, then hand it to the
-// one surface that has the tile. Searches need the account connected in the
-// tile; an exact channel or video plays without one.
-const tilePlay = TilePlay.createTilePlay({ broadcast: (event, data) => broadcastSSE(event, data) });
+const { tilePlay } = require('./windows-tiles/tile-play-offers.js');
 
 // edit_favorites: the search runs first (network), the list is changed under the
 // settings lock, then the tile's data is refreshed as its own add box does.
@@ -2708,20 +2705,6 @@ async function editFavorites(args) {
   });
   if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
   return result;
-}
-async function playInTile(args) {
-  const want = TilePlay.parseTilePlay(args);
-  if (want.error) return { ok: false, ...want };
-  let title = '';
-  if (want.search) {
-    const hit = await tilePlaySearch(want.tile, want.search);
-    if (hit.error) return { ok: false, error: hit.error, search: want.search };
-    want.value = hit.value;
-    title = hit.title || '';
-  }
-  const claimed = await tilePlay.offer(want.tile, want.value);
-  if (!claimed) return { ok: false, error: 'no_tile', tile: want.tile, hint: 'No open dashboard or screen widget shows this tile. Offer to add it (place_widget).' };
-  return { ok: true, tile: want.tile, playing: want.value, ...(title ? { title } : {}) };
 }
 
 const readDeckConfigs = async () => (await readDeckStore()).configs;
@@ -3924,7 +3907,8 @@ const briefing = createBriefingEngine({
 
 const { streams } = require('./streaming/providers.js');
 const { makeStreamProviders } = require('./streaming/make-providers.js');
-const { tilePlaySearch } = require('./streaming/tile-play-search.js');
+
+const { playInTile } = require('./windows-tiles/play-in-tile.js');
 
 // Twitch + YouTube live integrations. Tokens persist to a server-only file
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
