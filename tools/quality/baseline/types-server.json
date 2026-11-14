@@ -1,6 +1,6 @@
 {
   "note": "Type errors per \"file code\". Written by tools/quality/typecheck.mjs: numbers only go down.",
-  "total": 1122,
+  "total": 1121,
   "counts": {
     "packages/core/src/bit-player.js TS2322": 3,
     "packages/mcp/bin/xenon-mcp.js TS2353": 1,
@@ -76,7 +76,7 @@
     "server/claude-transcript.js TS2353": 1,
     "server/claude-usage.js TS2810": 1,
     "server/codex-appserver.js TS2339": 2,
-    "server/codex-appserver.js TS2554": 2,
+    "server/codex-appserver.js TS2554": 1,
     "server/codex-link.js TS2769": 1,
     "server/cross-site.js TS8032": 1,
     "server/deck-shortcut-runner.js TS2810": 1,

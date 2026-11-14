@@ -523,7 +523,10 @@
       {"file":"server/codex/appserver-rpc.js","about":"Talks JSON-RPC with Codex's own app server over its pipes: lines put back together, one request with its time limit, and an answer that means not supported.","names":["REQUEST_TIMEOUT_MS","MAX_LINE","createLineDecoder","isUnsupported","RpcError","createRpc"]},
       {"file":"server/codex/appserver-clamp.js","about":"Clamps a value Codex sent before it is kept: a trimmed string, a whole number, a percentage.","names":["str","int","pct"]},
       {"file":"server/codex/appserver-parse-account.js","about":"Reads Codex's answers about the account: who is signed in, the plan limits and credits, the usage per day, the hooks installed and the version.","names":["MAX_BUCKETS","USAGE_DAYS","parseAccount","parseWindow","parseBucket","parseCredits","parseRateLimits","mergeRateLimitUpdate","dayKey","parseUsage","parseHooks","versionFromUserAgent"]},
-      {"file":"server/codex/appserver-parse-threads.js","about":"Reads Codex's recent work: the list of threads with their state, and the messages of one thread with the text a person typed cleaned.","names":["MAX_THREADS","threadStatus","threadSource","parseThreads","cleanUserText","MAX_THREAD_MESSAGES","MAX_MESSAGE_TEXT","keepLines","parseTurns"]}
+      {"file":"server/codex/appserver-parse-threads.js","about":"Reads Codex's recent work: the list of threads with their state, and the messages of one thread with the text a person typed cleaned.","names":["MAX_THREADS","threadStatus","threadSource","parseThreads","cleanUserText","MAX_THREAD_MESSAGES","MAX_MESSAGE_TEXT","keepLines","parseTurns"]},
+      {"file":"server/codex/appserver-limits.js","about":"The waits of the Codex app-server child: how long without demand before it is stopped, when a death counts as a failure and how many keep it down, the grace it is given to stop, and how often each thing is read while a tile is seen and while none is.","names":["IDLE_MS","FAST_FAIL_MS","MAX_FAST_FAILS","PIN_MS","STOP_GRACE_MS","LIMITS_VISIBLE_MS","LIMITS_HIDDEN_MS","USAGE_MS","THREADS_VISIBLE_MS","THREADS_HIDDEN_MS","HOOKS_TTL_MS"]},
+      {"file":"server/codex/appserver-refresh.js","about":"What the Codex app-server is asked on a clock: the account, the limits, the usage, the conversations and the hooks read when each is due, and the next read planned.","names":["refresh","listThreads","due","tick","schedule","hooksStatus"],"inner":{"factory":"createAppServer","make":"makeRefresh"}},
+      {"file":"server/codex/appserver-answers.js","about":"What the Codex app-server answers the dashboard with: one conversation read with the turn that is still running, whether a conversation is one it listed, and the state the tile is drawn from.","names":["readThread","withLiveItems","knowsThread","snapshot"],"inner":{"factory":"createAppServer","make":"makeAnswers"}}
     ],
     "server/linux-index.js": [
       {"file":"server/search/linux-index-query.js","about":"Answers a file search from the Linux file index: how well a name matches what was typed, and the matches in order.","names":["foldName","matchTier","PATH_TIER","entryTier","byTierThenNewest","queryEntries","queryIndex"]},
@@ -1039,6 +1042,9 @@
     ],
     "server/rating-votes.js": [
       {"factory":"createRatingVotes","object":"rvState","names":["state","loading","saving","timer","first","ticking","lastTick"],"kept":["saving"],"bare":[],"after":0}
+    ],
+    "server/codex-appserver.js": [
+      {"factory":"createAppServer","object":"caRun","names":["child","rpc","state","reason","version","startedAt","fastFails","pinnedUntil","starting","demand","idleTimer","tickTimer","stopped","byRecency"],"kept":[],"bare":[],"after":4}
     ]
   }
 }
