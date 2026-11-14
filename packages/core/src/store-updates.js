@@ -22,7 +22,7 @@
   // entry "installed" against a junk version.
   //
   // The accepted shape matches what actually gets INSTALLED, not what the
-  // catalog accepts. sdk-widgets.js normalizeManifest allows [0-9A-Za-z._-], so
+  // catalog accepts. server/widget-sdk/manifest-normalize.js normalizeManifest allows [0-9A-Za-z._-], so
   // 'v1.2.3' and '2.0.0-beta' are real installed versions; a numeric-dotted-only
   // test parsed them as null, which left a prerelease package stuck on its beta
   // forever, silently. So: the numeric core plus an optional -prerelease / +build,

@@ -46,7 +46,7 @@
     : []);
 
   // A Maker manifest as the app's own scan would list it (normalizeManifest in
-  // server/sdk-widgets.js; server/test/demo-maker.test.mjs keeps the two equal).
+  // server/widget-sdk/manifest-normalize.js; server/test/demo-maker.test.mjs keeps the two equal).
   // A Maker widget asks for streams, actions, hosts and storage, nothing else.
   function makerPackage(m) {
     if (!m || typeof m !== 'object' || !WIDGET_ID_RE.test(m.id)) return null;
@@ -151,7 +151,7 @@
   }
 
   // { type: 'xenon-maker:bg', data: { name, code, fps?, assets? } } → the bgCustom an
-  // imported background code sets (applyBg in preset-share.js); settings.js
+  // imported background code sets (applyBg in preset-share.js); server/js/settings/normalize-look.js
   // normalizeBgCustom and custom-bg.js re-check it all when it is applied.
   const BG_CODE_MAX = 60000;   // custom-bg.js CODE_MAX
   function bgFromMessage(msg) {
@@ -174,7 +174,7 @@
   // { type: 'xenon-maker:ambient', scene } → the canvas Ambient scene an imported
   // 'ambient-layout' code installs (applyAmbientLayout in preset-share.js);
   // AmbientScene.normalizeScene re-checks all of it when it is shown. A scene
-  // larger than the app's server keeps (sanitizeAmbientScenes in server.js) is
+  // larger than the app's server keeps (sanitizeAmbientScenes in server/ambient/scenes-sanitize.js) is
   // refused, as it would not survive a save there either.
   const SCENE_JSON_MAX = 400000;
   function ambientFromMessage(msg) {

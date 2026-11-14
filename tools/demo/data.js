@@ -7,7 +7,7 @@
 // is what it is: it is the first Xenon most visitors will ever see.
 //
 // Deliberately NOT seeded here: `dashboardLayout`. The app's own factory default
-// (normalizeDashboardLayout(null) in settings.js) is a well-composed first-run
+// (normalizeDashboardLayout(null) in server/js/settings/normalize-dashboard.js) is a well-composed first-run
 // arrangement, and every tile it opens with is mocked below — so hand-writing a
 // layout would only add a private schema this file would then have to track.
 window.__XD__ = (function () {

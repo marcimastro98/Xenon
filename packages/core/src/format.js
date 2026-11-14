@@ -34,7 +34,7 @@
   }
 
   // Rich byte formatter used by the dashboard: TB / GB / MB / KB / B.
-  // (from server/js/utils.js formatBytes)
+  // (from server/js/utils/time-and-format.js formatBytes)
   //
   // The KB step is not decoration. Without it this jumped from MB straight to
   // raw bytes, so anything under a megabyte printed as `584625 B` — which the
@@ -68,7 +68,7 @@
   }
 
   // Bytes/sec → { value, unit } in bits (Gbps/Mbps/Kbps/bps).
-  // (from server/js/utils.js formatBandwidth)
+  // (from server/js/utils/time-and-format.js formatBandwidth)
   function formatBandwidth(bps) {
     if (bps == null || !isFinite(bps)) return { value: '--', unit: 'Mbps' };
     const bits = bps * 8;
@@ -78,7 +78,7 @@
     return { value: String(Math.round(bits)), unit: 'bps' };
   }
 
-  // Date → local "YYYY-MM-DD" (matches server/js/utils.js toDateInputValue and
+  // Date → local "YYYY-MM-DD" (matches server/js/utils/time-and-format.js toDateInputValue and
   // widget/modules/state.js toDateValue).
   function toDateInputValue(date) {
     const d = new Date(date);
