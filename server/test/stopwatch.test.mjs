@@ -127,7 +127,7 @@ test('one new Deck action, because the other two already fit', () => {
   const a = validateAction({ type: 'stopwatchStart', label: 'Report' });
   assert.equal(a.label, 'Report');
 
-  const registry = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+  const registry = engineSource('server/actions/registry.js');
   assert.match(registry, /case 'stopwatchStart':/);
   assert.match(registry, /d\.timers\.stopwatch/);
   // Pressing the key twice restarts from zero rather than stacking a second one.
@@ -228,7 +228,7 @@ test('the Deck key can ask for it too, and a bad value never breaks the key', ()
   assert.ok(every, 'the key cannot ask for a chime');
   assert.equal(every.optional, true, 'a key saved before this must keep working');
 
-  const registry = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+  const registry = engineSource('server/actions/registry.js');
   const branch = registry.slice(registry.indexOf("case 'stopwatchStart':"));
   const body = branch.slice(0, branch.indexOf('\n        }'));
   // Unreadable means silent, not failed: turning a working key into a failing

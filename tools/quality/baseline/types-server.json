@@ -151,7 +151,7 @@
     "server/layer-pages.js TS2554": 3,
     "server/layers-edit.js TS2554": 3,
     "server/layers-peek.js TS2554": 1,
-    "server/lighting-providers/hue.js TS2554": 2,
+    "server/lighting-providers/hue-bridge.js TS2554": 2,
     "server/lighting-providers/openrgb.js TS2810": 1,
     "server/lighting.js TS2339": 24,
     "server/lighting.js TS2810": 1,

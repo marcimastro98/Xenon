@@ -35,7 +35,7 @@ test('url still means http(s) links, and never a protocol handler', () => {
 test('the AppID is a number before it is ever a URL', () => {
   // steam://rungameid/<id> is built by interpolation, so the validation in front
   // of it is what stands between a widget and an arbitrary protocol string.
-  const registry = read('server/actions/registry.js');
+  const registry = engineSource('server/actions/registry.js');
   assert.match(registry, /function isSteamAppId[\s\S]{0,120}\/\^\\d\{1,12\}\$\//,
     'the AppID check must stay digits-only — it is what makes the interpolation safe');
   const start = registry.indexOf("case 'launchSteamGame'");

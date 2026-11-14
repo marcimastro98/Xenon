@@ -520,6 +520,55 @@
       {"file":"server/store-catalog/description-limit.js","about":"How long a Store entry's description may be: the shared limit, or a fixed one when the shared file is not there.","names":["DESCRIPTION_MAX"],"lift":true},
       {"file":"server/store-catalog/catalog-entry-clean.js","about":"Cleans the Store catalog the site publishes before the app trusts it: each entry's id, kind, version, pictures, price and limits, and which entries are showing.","names":["MAX_ENTRIES","CODE_INLINE_MAX","CATALOG_KINDS","ENTRY_ID_RE","HEX_COLOR_RE","VERSION_RE","PKG_ID_RE","TAG_RE","HANDLE_RE","CATALOG_CATEGORIES","ISO_DATE_RE","MAX_SHOTS","SPARKS_MAX","cleanStr","normalizeLimited","normalizeEntry","normalizeCatalog","isEntryVisible","filterVisibleEntries","normalizeCodeId"]},
       {"file":"server/store-catalog/catalog-fetch.js","about":"Fetches a file of the Store catalog, only when it changed, with a size cap and a total deadline.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchText"]}
+    ],
+    "server/actions/registry.js": [
+      {"file":"server/actions/registry-app-paths.js","about":"Which program a Deck key or the assistant may launch: the kinds of file that count as an application on each system, how a typed path is completed, and how the launch arguments are read. Part of the action registry: only registry.js requires this file.","names":["APP_PATH_EXT","APP_PATH_EXT_DARWIN","APP_PATH_EXT_LINUX","isAllowedAppPath","MAX_LAUNCH_ARGS","parseLaunchArgs","appPathTakesArgs","completeDarwinBundle","completePosixTypedPath","WIN_ENV_RE","completeWindowsEnvPath"]},
+      {"file":"server/actions/registry-open-paths.js","about":"Which files an action refuses to open because opening them runs code, and which scripts the runScript action may start, per system. Part of the action registry: only registry.js requires this file.","names":["BLOCKED_OPEN_EXT","BLOCKED_OPEN_EXT_POSIX","_openGateName","DOCUMENT_EXT","_realStat","isBlockedOpenPath","RUNNABLE_SCRIPT_EXT","RUNNABLE_SCRIPT_EXT_POSIX","RUNNABLE_SCRIPT_EXT_DARWIN","isRunnableScriptPath"]},
+      {"file":"server/actions/registry-values.js","about":"Checks of the small values an action carries: a web address, a percentage, a position in a track, a key combination, a Store app id, a Steam app id. Part of the action registry: only registry.js requires this file.","names":["isHttpUrl","normalizeUrl","pctValue","MAX_MEDIA_SEEK_SECONDS","mediaSeekPosition","HOTKEY_MODS","HOTKEY_NAMED","isHotkeyToken","normalizeKeys","isAppUserModelId","isSteamAppId"]},
+      {"file":"server/actions/registry-audio-devices.js","about":"Finds the audio output an action names in the list of outputs that are connected now, for one device, a pair to switch between, or an ordered list. Part of the action registry: only registry.js requires this file.","names":["resolveOutputDevice","pickToggleDevice","pickFirstConnected"]}
+    ],
+    "server/actions/wavelink.js": [
+      {"file":"server/actions/wavelink-shape.js","about":"Turns what Wave Link 2 and Wave Link 3 send into the same channels, mixes and outputs, with every volume as a percentage, and works out which mixes an action means.","names":["normSlider","isWaveLinkApp","appIdentity","clampVolume","pctFromUnit","unitFromPct","meterPct","compactChannel","V2_MIX_LOCAL","V2_MIX_STREAM","v2Mixes","adaptV2Channels","adaptV3Channels","adaptV3Mixes","adaptV3Outputs","mergeChannelPatch","resolveMixTargets"]},
+      {"file":"server/actions/wavelink-ports.js","about":"Where Wave Link listens on this PC and how long to wait for it: the hosts and ports of both versions, the port file Wave Link 3 publishes, and the timings of the connection.","names":["WL_HOSTS","WL_START_PORT","WL_PORT_SPAN","WL_APP_NAME","WL3_ORIGIN","WL3_PACKAGE_RE","WL3_PORT_FILE","WL3_METER_TYPES","IDLE_MS","PING_MS","REQ_TIMEOUT_MS","PROBE_TIMEOUT_MS","readPublishedPort"]}
+    ],
+    "server/actions/home-assistant.js": [
+      {"file":"server/actions/home-assistant-address.js","about":"The addresses of a Home Assistant server, worked out from the one the user typed, and the bounded download of a camera picture from it.","names":["HA_WS_MAX_PAYLOAD","haWsUrl","haHttpOrigin","HA_SNAPSHOT_MAX_BYTES","haHttpGetBuffer","isConfigured"]},
+      {"file":"server/actions/home-assistant-entity.js","about":"What the dashboard keeps of a Home Assistant entity, and the checks that tell an entity id, a camera and a media player.","names":["compactEntity","isEntityId","isCameraEntity","isMediaPlayerEntity"]},
+      {"file":"server/actions/home-assistant-service.js","about":"Turns an action of a Deck key, a tile or the assistant into the Home Assistant service call that does it, refusing values a service would not take.","names":["actionNumber","HVAC_MODES","REPEAT_MODES","tenths","stateAttrs","listed","onOff","repeatMode","tempRange","actionToServiceCall"]},
+      {"file":"server/actions/home-assistant-settings.js","about":"Cleans the Home Assistant settings as they are saved: entities, cameras and their angles, dashboards, and the token, which is kept on a save without one and never sent back to the screen.","names":["HA_DASHBOARD_PATH_RE","HA_DASHBOARDS_MAX","normalizeDashboards","HA_MAX_ENTITIES","HA_MAX_CAMERAS","HA_MAX_ENERGY_ENTITIES","HA_CAM_ROTATIONS","clampHaPan","normalizeHaCamAngles","normalizeHomeAssistant","haSameDestination","preserveHaToken","redactHaToken"]}
+    ],
+    "server/actions/voicemeeter.js": [
+      {"file":"server/actions/voicemeeter-params.js","about":"What a Voicemeeter action may name and set: the editions with their strips and buses, the parameter names that are safe to send, the range of a gain, and where the Voicemeeter library is looked for.","names":["EDITIONS","editionFor","busLabels","busIndex","stripCount","GAIN_MIN","GAIN_MAX","clampGain","PARAM_INDEXED_RE","PARAM_FLAT_RE","isSafeParam","paramName","nextFlag","nextGain","DLL_NAME","dllCandidates"]}
+    ],
+    "server/actions/unifi.js": [
+      {"file":"server/actions/unifi-settings.js","about":"Cleans the UniFi Protect settings as they are saved: the address of the console, the cameras and their layout and angles, the alerts, and the sign-in, which is kept on a save without one and never sent back to the screen.","names":["unifiBaseUrl","isCameraId","UNIFI_MAX_CAMERAS","UNIFI_MAX_COLUMNS","UNIFI_FITS","UNIFI_ASPECTS","UNIFI_ROTATIONS","UNIFI_MAX_ZOOM","UNIFI_DEFAULT_REFRESH_MS","clampUnifiPan","UNIFI_NOTIFY_KINDS","normalizeUnifiNotify","normalizeCameraIds","normalizeUnifiAngles","normalizeUnifiLayout","normalizeUnifi","unifiSameDestination","preserveUnifiCreds","redactUnifiCreds","isConfigured","compactCamera"]}
+    ],
+    "server/actions/streamerbot.js": [
+      {"file":"server/actions/streamerbot-request.js","about":"Builds what is sent to Streamer.bot: the answer to its sign-in challenge, the arguments of an action, and the request an action of a Deck key becomes.","names":["computeAuth","parseArgs","streamerbotRequest"]},
+      {"file":"server/actions/streamerbot-activity.js","about":"Turns an event Streamer.bot reports (a follow, a subscription, a donation, a raid) into the short activity line the dashboard shows.","names":["ACTIVITY_EVENTS","sbEventUser","sbEventText","sbEventAmount","projectActivity"]}
+    ],
+    "server/actions/chroma.js": [
+      {"file":"server/actions/chroma-effects.js","about":"Turns a Chroma action into the effect the Razer Chroma service takes: the colour, the devices it goes to, and the grid of a keyboard.","names":["DEVICES","DEVICE_SET","KB_ROWS","KB_COLS","bgrInt","parseColor","resolveDevices","chromaActionToEffect","buildCustomGrid"]}
+    ],
+    "server/remote-control/installer.js": [
+      {"file":"server/remote-control/installer-packages.js","about":"Which package gives Sunshine and Tailscale on Windows, on each Linux package manager and on macOS, and the Windows services they install.","names":["WIN_SERVICES","PACKAGES","LINUX_PM","LINUX_PACKAGES","MAC_PACKAGES"]},
+      {"file":"server/remote-control/installer-version.js","about":"The oldest Sunshine that remote control works with, and how two version numbers are compared.","names":["SUNSHINE_MIN_VERSION","parseVersion","versionLess"]}
+    ],
+    "server/remote-control/tailscale.js": [
+      {"file":"server/remote-control/tailscale-status.js","about":"Reads what the Tailscale program says: the status of this PC on its network, its name there, a sign-in link, whether certificates are on, and whether an error means a missing right.","names":["PERMISSION_RE","isPermissionError","DNS_NAME_RE","NO_BACKEND","normalizeDnsName","parseStatus","AUTH_URL_RE","safeAuthUrl","certsEnabledFor"]},
+      {"file":"server/remote-control/tailscale-exe.js","about":"Where the Tailscale program is looked for on each system.","names":["EXE_CANDIDATES","exeCandidates","EXE"]}
+    ],
+    "server/capabilities/layers.js": [
+      {"file":"server/capabilities/layers-find.js","about":"Finds what a layer request means: the widget it names, the one already placed, its page and its monitor, and how a placed widget is described back.","names":["resolveRef","describe","pageIdFor","choices","monitorFor","placeFor","findPlaced"]},
+      {"file":"server/capabilities/layers-shortcut.js","about":"The keyboard shortcuts of the layers: how one is shown, how the overlay, menu and pad shortcuts are set, and the hint that tells which key brings the overlay up.","names":["overlayHint","SHORTCUT_KEYS","shortcutText","padShortcut","shortcut"]},
+      {"file":"server/capabilities/layers-move.js","about":"Moves, resizes and restyles a widget that is already placed on the desktop or in the overlay.","names":["parseRect","parseOpacity","move"]}
+    ],
+    "server/lighting-providers/hue.js": [
+      {"file":"server/lighting-providers/hue-bridge.js","about":"Talks to a Philips Hue bridge: plain requests, requests over TLS checked against the bridge's own certificate, and the id a bridge is known by.","names":["httpJson","normHost","certName","bridgeIdKey","HUE_TLS_PORT","isIpLiteral","_bridgeIds","BRIDGE_ID_TTL","bridgeIdOf","httpsJson"]},
+      {"file":"server/lighting-providers/hue-colour.js","about":"Turns a red-green-blue colour into what a Hue light takes, in the old and in the new form of the bridge's interface.","names":["rgbToXy","buildV2State","rgbToHueState"]}
+    ],
+    "server/perf-session/core-shield.js": [
+      {"file":"server/perf-session/core-shield-rules.js","about":"The rules of the core shield: how many cores a process uses, which processes belong to one app, which are never moved, which app is in front and which are the busiest.","names":["BUSY_SHARE","PRESSURE_SAMPLES","APP_MIN_CORES","MAX_APPS","MIN_SAMPLE_MS","MAX_RUNTIME_DEPTH","coresUsed","parentOf","withDescendants","withAncestors","untouchable","appRoot","appOf","inFront","moveRule","busiestApps"]}
     ]
   },
   "spreads": {

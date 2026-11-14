@@ -26,7 +26,7 @@ import os from 'node:os';
 
 import { engineSource } from './engine-source.mjs';
 
-const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'lighting-providers', 'hue.js'), 'utf8');
+const SRC = engineSource('server/lighting-providers/hue.js');
 const REAL_ID = '001788fffe1234ab';
 const TOKEN = 'the-bridge-key';
 

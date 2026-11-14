@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 // A Deck key pointed at an app that "doesn't exist (but again, it does)".
 //
@@ -67,7 +68,7 @@ test('a stray percent sign is not a variable', () => {
 });
 
 test('it is wired into the actions that take a path, not just exported', () => {
-  const src = require('node:fs').readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+  const src = engineSource('server/actions/registry.js');
   const calls = src.split('completeWindowsEnvPath(').length - 1;
   // One definition, one export, and the three call sites the POSIX completer has
   // (open app, open file/folder, run script).

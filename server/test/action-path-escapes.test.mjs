@@ -20,6 +20,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const { completePosixTypedPath } = require('../actions/registry.js');
@@ -79,7 +80,7 @@ test('a caller with no way to check the filesystem gets no answer', () => {
 // It has to run before the gates, or they judge a string the user never meant —
 // and it must be reached by every action that takes a path someone types.
 test('every path action resolves before it validates', () => {
-  const SRC = require('node:fs').readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+  const SRC = engineSource('server/actions/registry.js');
   for (const kase of ['openApp', 'openFile', 'runScript']) {
     const at = SRC.indexOf(`case '${kase}': {`);
     assert.ok(at > 0, `${kase} exists`);

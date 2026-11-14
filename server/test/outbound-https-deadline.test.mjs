@@ -70,17 +70,17 @@ const EXEMPT = {
     undeadlined: 0,
     reason: "the user's own OpenAI-compatible server (loopback or LAN), reached through http or https per URL, with its own whole-request timer.",
   },
-  'actions/home-assistant.js': {
+  'actions/home-assistant-address.js': {
     undeadlined: 0,
-    reason: "the user's own Home Assistant, on the LAN or at a remote URL they chose, reached through lib.request (http or https per URL) so this scan cannot count it; it has only an idle timeout today, a total cap is a follow-up.",
+    reason: "the camera picture download, moved out of actions/home-assistant.js unchanged: the user's own Home Assistant, on the LAN or at a remote URL they chose, reached through lib.request (http or https per URL) so this scan cannot count it; it has only an idle timeout today, a total cap is a follow-up.",
   },
   'actions/unifi.js': {
     undeadlined: 0,
     reason: 'a UniFi console on the user LAN (self-signed TLS), reached through lib.request; not an internet service.',
   },
-  'lighting-providers/hue.js': {
+  'lighting-providers/hue-bridge.js': {
     undeadlined: 1,
-    reason: 'a Hue bridge on the user LAN (self-signed TLS); not an internet service.',
+    reason: 'the bridge request, moved out of lighting-providers/hue.js unchanged: a Hue bridge on the user LAN (self-signed TLS); not an internet service.',
   },
   'remote-control/sunshine.js': {
     undeadlined: 1,

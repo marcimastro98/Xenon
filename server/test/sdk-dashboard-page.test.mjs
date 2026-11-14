@@ -13,6 +13,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -36,7 +37,7 @@ test('a Deck macro can declare it, and the server turns every screen', () => {
   // manifest macro naming it installs. A macro runs server-side, which has no
   // single "this screen": the registry relays it to every dashboard, the same
   // broadcast the global page shortcuts use.
-  const reg = readFileSync(join(ROOT, 'server', 'actions', 'registry.js'), 'utf8');
+  const reg = engineSource('server/actions/registry.js');
   assert.match(reg, /case 'dashboardPage'/);
   assert.match(reg, /pageTurn/);
 });

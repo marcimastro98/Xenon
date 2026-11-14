@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from './browser-source.mjs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const vm = require('../actions/voicemeeter.js');
@@ -224,7 +225,7 @@ test('every action is in the catalog, dispatched, and named in all eleven langua
   const types = ACTION_CATALOG.filter((a) => a.group === 'voicemeeter').map((a) => a.type);
   assert.deepEqual(types, ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro', 'vmParam']);
 
-  const registry = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+  const registry = engineSource('server/actions/registry.js');
   for (const t of types) assert.ok(registry.includes("case '" + t + "':"), t + ' is not dispatched');
   assert.match(registry, /d\.voicemeeter/);
 

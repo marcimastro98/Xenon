@@ -154,7 +154,7 @@ test('list_widget_options reaches Bit on every surface; the layer list keeps the
   const set = ACTION_CATALOG.find((a) => a.type === 'widgetOption');
   assert.match(set.capability.ai.description, /list_widget_options/);
   assert.match(src('capabilities/index.js'), /case 'widgetOptionList': return widgetOption\.list\(d\);/);
-  assert.match(src('capabilities/layers.js'), /WidgetOptions\.describe\(pkg\.options, pkg\.optionValues\)/);
+  assert.match(engineSource('server/capabilities/layers.js'), /WidgetOptions\.describe\(pkg\.options, pkg\.optionValues\)/);
 });
 
 // A phone refused widgetOption: the switch did nothing there, and a view tapped inside a
