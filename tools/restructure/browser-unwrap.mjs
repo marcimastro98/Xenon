@@ -130,6 +130,21 @@ export function proveUnwrap(before, after, file, parser) {
 }
 
 /**
+ * What must hold of the recorded unwraps whatever the files say: each is done once, on a script recorded as a module before it.
+ * @param {{ moves: any[] }} ledger @returns {string[]} problems
+ */
+export function unwrapStateProblems(ledger) {
+  const problems = [];
+  ledger.moves.forEach((move, at) => {
+    if (move.kind !== 'unwrap') return;
+    const before = ledger.moves.slice(0, at);
+    if (!before.some((entry) => entry.kind === 'module' && entry.file === move.file)) problems.push(`${move.file} is recorded as losing its wrapper without being a module first`);
+    if (before.some((entry) => entry.kind === 'unwrap' && entry.file === move.file)) problems.push(`${move.file} is recorded as losing its wrapper twice`);
+  });
+  return problems;
+}
+
+/**
  * The move as texts.
  * @param {{ get: (file: string) => string | null }} tree @param {{ kind: 'unwrap', file: string }} move
  * @param {{ parser: any, earlier: any[] }} context

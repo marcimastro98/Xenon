@@ -17,6 +17,7 @@ import { moduleStateProblems } from './browser-module.mjs';
 import { nodeLoadProblems } from './browser-node-loads.mjs';
 import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
 import { readStylesheet } from './browser-styles.mjs';
+import { unwrapStateProblems } from './browser-unwrap.mjs';
 
 const COMPOSER = 'server/layer-page.js';
 const load = createRequire(import.meta.url);
@@ -98,5 +99,6 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     files.push(move.file);
     problems.push(...moduleStateProblems(move.file, read(move.file), pages, parser));
   }
+  problems.push(...unwrapStateProblems(ledger));
   return { problems, files };
 }

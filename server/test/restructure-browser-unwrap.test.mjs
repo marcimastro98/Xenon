@@ -11,7 +11,7 @@ import path from 'node:path';
 import { newPlan, perform, replay } from '../../tools/restructure/browser-extract.mjs';
 import { MODULE_LINE } from '../../tools/restructure/browser-module.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
-import { proveUnwrap, wrapperOf } from '../../tools/restructure/browser-unwrap.mjs';
+import { proveUnwrap, unwrapStateProblems, wrapperOf } from '../../tools/restructure/browser-unwrap.mjs';
 import { Refusal } from '../../tools/restructure/extract-plan.mjs';
 import { openParser, parserAvailable } from '../../tools/restructure/parser.mjs';
 
@@ -152,4 +152,12 @@ test('done for real it writes the file and the record; tried in a plan it sees t
   assert.equal(fs.readFileSync(path.join(root, FILE), 'utf8'), `${HEAD}${BODY}${MODULE_LINE}`);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'tools/restructure/extracted-browser.json'), 'utf8')).moves, [...MODULE, move]);
   assert.match(refusal(() => perform({ root, parser, move })), /there is no wrapper to take off/);
+});
+
+test('the list of moves holds a wrapper taken off to one module, once', () => {
+  const off = { kind: 'unwrap', file: FILE };
+  assert.deepEqual(unwrapStateProblems({ moves: [...MODULE, off] }), []);
+  assert.deepEqual(unwrapStateProblems({ moves: [off, ...MODULE] }), ['server/js/leaf.js is recorded as losing its wrapper without being a module first']);
+  assert.deepEqual(unwrapStateProblems({ moves: [{ kind: 'module', file: 'server/js/other.js', names: [] }, off] }), ['server/js/leaf.js is recorded as losing its wrapper without being a module first']);
+  assert.deepEqual(unwrapStateProblems({ moves: [...MODULE, off, off] }), ['server/js/leaf.js is recorded as losing its wrapper twice']);
 });
