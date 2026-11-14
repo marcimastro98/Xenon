@@ -206,7 +206,7 @@ test('the foreground hint is wired without the two modules requiring each other'
   // fpsmon required gamedetect back, the cycle would resolve to a half-built
   // module at load time — so server.js hands each one the other.
   assert.match(SERVER, /fpsMonitor\.setForegroundPid\(\(\) => gameDetect\.getForegroundPid\(\)\)/);
-  const fpsmon = readFileSync(new URL('../fpsmon.js', import.meta.url), 'utf8');
+  const fpsmon = engineSource('server/fpsmon.js');
   assert.ok(!/require\(['"]\.\/gamedetect/.test(fpsmon), 'fpsmon.js must not require gamedetect.js');
 });
 

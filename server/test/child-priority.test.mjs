@@ -50,6 +50,6 @@ test('what must answer on time keeps its priority', () => {
   const server = engineSource();
   const hotkey = server.slice(server.indexOf("spawn(HELPER_EXE, ['hotkey-serve'"), server.indexOf("spawn(HELPER_EXE, ['hotkey-serve'") + 600);
   assert.doesNotMatch(hotkey, /lowerPriority/);
-  assert.doesNotMatch(source('fpsmon.js'), /lowerPriority/);
+  assert.doesNotMatch(engineSource('server/fpsmon.js'), /lowerPriority/);
   assert.doesNotMatch(source('gamedetect.js'), /lowerPriority/);
 });

@@ -448,6 +448,37 @@
     ],
     "server/sdk-asset-cache.js": [
       {"file":"server/widget-sdk/asset-cache-plan.js","about":"Decides what the widgets' picture cache keeps: the size and count limits per package and in all, the name a cached file gets, and which files go first.","names":["MAX_BYTES_PER_PKG","MAX_BYTES_TOTAL","MAX_ENTRIES_PER_PKG","MIME_EXT","FILE_RE","keyFor","extFor","planEviction","planGlobalEviction"]}
+    ],
+    "server/football.js": [
+      {"file":"server/ticker/football-clean.js","about":"Cleans single values of the football data: an id, the API key, a number, a picture address, a colour, a season, the state of a match.","names":["FREE_KEY","cleanId","cleanKey","apiBase","str","intOrNull","safeImg","safeColour","cleanSeason","statusClass"]},
+      {"file":"server/ticker/football-settings.js","about":"The football widget's saved settings: the followed teams and the defaults, cleaned.","names":["MAX_TEAMS","normalizeTeams","DEFAULT_FOOTBALL","normalizeFootball","clampInt"]},
+      {"file":"server/ticker/football-fetch.js","about":"Fetches JSON from the football service with a size cap and a total deadline, a few requests at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchJson","pool"]},
+      {"file":"server/ticker/football-events.js","about":"Reads one match out of what the football service answers: the teams, the score, the time and the state.","names":["soccerEvents","parseEvent","badgeFor","nameFor"]},
+      {"file":"server/ticker/football-teams.js","about":"Looks teams up at the football service: a search by name, and a team's badge, colours and ground.","names":["FETCH_CONCURRENCY","searchTeams","parseTeamInfo","fetchTeamInfo"]},
+      {"file":"server/ticker/football-alerts.js","about":"Remembers the last score of each match so a goal or a final whistle is announced once.","names":["createAlertTracker"]}
+    ],
+    "server/news.js": [
+      {"file":"server/ticker/news-feed-parse.js","about":"Reads the headlines out of an RSS or Atom feed without a parser library: tags found by hand, entities decoded, markup stripped, sizes capped.","names":["PARSE_MAX_CHARS","PARSE_MAX_BLOCKS","PARSE_MAX_BLOCK_CHARS","TAG_MAX_CHARS","str","safeUrl","decodeEntities","stripTags","tagNameEnds","findBlocks","tagText","attrValue","firstTag","parseFeed"]},
+      {"file":"server/ticker/news-fetch.js","about":"Fetches a news feed's text from a public address only, with a size cap and a total deadline, a few feeds at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","isPublicFeedUrl","fetchText","pool"]},
+      {"file":"server/ticker/news-locales.js","about":"The language and country a news search is asked in, and the Google News address for a topic.","names":["NEWS_LOCALES","newsLang","googleNewsUrl"]}
+    ],
+    "server/stocks.js": [
+      {"file":"server/ticker/stocks-settings.js","about":"The stocks widget's saved settings: the watchlist, the data provider and the defaults, cleaned.","names":["MAX_SYMBOLS","PROVIDERS","cleanSymbol","normalizeWatchlist","DEFAULT_STOCKS","isDefaultWatchlist","normalizeStocks","clampInt","clampFloat"]},
+      {"file":"server/ticker/stocks-fetch.js","about":"Fetches JSON from a market data service with a size cap and a total deadline, a few requests at a time.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchJson","pool"]},
+      {"file":"server/ticker/stocks-yahoo.js","about":"Reads a quote and its small chart out of what Yahoo Finance answers.","names":["yahooUrl","parseYahooChart","quoteFromYahoo","downsample"]},
+      {"file":"server/ticker/stocks-alerts.js","about":"Remembers each symbol's last move so a price alert is announced once.","names":["createAlertTracker"]}
+    ],
+    "server/community-messages.js": [
+      {"file":"server/store-catalog/hub-message-clean.js","about":"Cleans one message the Xenon hub publishes before the app shows it: who it is for, its button, its picture or video, its poll, and the allowed hosts for each.","names":["MAX_MESSAGES","MESSAGE_ID_RE","VERSION_RE","ISO_DATE_RE","OS_RE","LANG_RE","LEVELS","WHERE","ACTION_TYPES","LINK_HOSTS","MEDIA_HOSTS","MEDIA_IMAGE_EXT","MEDIA_VIDEO_EXT","MEDIA_TYPES","MEDIA_ALT_MAX","MAX_MATCH_ENTRIES","MAX_MATCH_LIST","cleanStr","tokenList","normalizeMatch","normalizeAction","normalizeMedia","MIN_POLL_OPTIONS","MAX_POLL_OPTIONS","normalizePoll","normalizeMessage","normalizeMessages"]},
+      {"file":"server/store-catalog/hub-message-window.js","about":"Says which of the hub's messages are showing today: each one's first and last day.","names":["DATE_ONLY_RE","endOfWindow","filterVisibleMessages"]},
+      {"file":"server/store-catalog/hub-message-fetch.js","about":"Fetches the hub's messages file, only when it changed, with a size cap and a total deadline.","names":["MESSAGES_URL","FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchText"]}
+    ],
+    "server/fpsmon.js": [
+      {"file":"server/performance/presentmon-rows.js","about":"Reads PresentMon's output: the columns of its header, one row as values, which programs are not games, and how a game is presenting its frames.","names":["IGNORE_PROCS","IGNORE_PROC_RE","isIgnoredProc","isGamingPresentMode","UNREADABLE_NAME","isTrackedGame","isExclusivePresentMode","isComposedPresentMode","normHeader","parseHeader","rowValues"]},
+      {"file":"server/performance/fps-reading.js","about":"Turns the frame times kept for a program into what the dashboard shows: its frames per second, its frame statistics, and the frames since a moment.","names":["SAMPLE_WINDOW_MS","STATS_SAMPLES","median","pickEntry","weight","medianOf","entryFps","entryStats","entryWindow","entryFramesSince","entryForGame"]}
+    ],
+    "server/linux-fps.js": [
+      {"file":"server/performance/mangohud-log.js","about":"Reads MangoHud's log files on Linux: the columns, the newest rows as frames per second, the program a log belongs to, and Xenon's lines merged into its config.","names":["ROW_WINDOW_MS","IGNORE_RE","parseLogColumns","elapsedToMs","parseLogTail","fpsFromRows","programFromLogName","isIgnoredProgram","configLines","mergeConfig"]}
     ]
   },
   "spreads": {

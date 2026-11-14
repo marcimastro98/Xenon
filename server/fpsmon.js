@@ -23,15 +23,14 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { frameStats, toFrameTimes, cleanFrameTimes, createFrameRing } = require('./frame-stats');
+const { createFrameRing } = require('./frame-stats');
 const { createGameSession } = require('./fps-game-session');
 const { createReaderLog, createStderrTail } = require('./fps-reader-log');
 
-const SAMPLE_WINDOW_MS = 2000;   // a process must have presented this recently
+const {
+  pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,
+} = require('./performance/fps-reading.js');
 const MAX_SAMPLES = 240;         // rolling frame-time samples kept per process
-// The lows need a longer tail than the median: 0.1% of 240 frames is a quarter
-// of a frame. ~7 s at 300 fps, ~33 s at 60.
-const STATS_SAMPLES = 2000;
 // Frames kept per process for the readers by mark (game sessions on the 3 s
 // status tick, benchmarks every second): 6000 = nothing lost below 2000 FPS
 // between two looks. The live stats still read the newest STATS_SAMPLES.
@@ -39,65 +38,7 @@ const RING_FRAMES = 6000;
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off hard after repeated instant failures
 const GAMING_GRACE_MS = 10000;   // stay "gaming" briefly after frames stop (anti-flicker)
-const IGNORE_PROCS = new Set([
-  'dwm.exe', 'explorer.exe', 'presentmon.exe', 'searchhost.exe', 'shellexperiencehost.exe',
-  // Terminals render flip-model frames (DWM can promote them to Independent Flip)
-  // but are never games — the WindowsTerminal false positive the user reported.
-  'windowsterminal.exe', 'conhost.exe', 'openconsole.exe', 'cmd.exe', 'powershell.exe',
-  'pwsh.exe', 'wt.exe', 'alacritty.exe', 'wezterm-gui.exe', 'mintty.exe', 'putty.exe',
-  'tabby.exe', 'hyper.exe',
-  // Always-on GPU chat/media apps.
-  'discord.exe', 'slack.exe', 'spotify.exe',
-]);
-// Processes that present frames continuously but are never games, so PresentMon
-// must not treat them as one:
-//  - Browser / WebView engines: the dashboard itself runs inside one of these
-//    and on the Xeneon Edge it is full-screen, so it would otherwise look like a
-//    game and pin game-mode permanently on (cloud-gaming-in-browser is the rare,
-//    accepted cost of this exclusion).
-//  - iCUE / Corsair: always running on this hardware and renders the Xeneon Edge
-//    and RGB previews at the display refresh rate — the actual false positive
-//    observed on the device (icue.exe ~74 fps).
-//  - Wallpaper Engine and similar animated-wallpaper apps: perpetual presenters.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|wallpaper/;
-
-function isIgnoredProc(name) {
-  if (!name) return false;
-  return IGNORE_PROCS.has(name) || IGNORE_PROC_RE.test(name);
-}
-
-// A PresentMode counts as a game only when it uses the flip model typical of
-// full-screen / borderless games ("Hardware: …" exclusive, or any "Independent
-// Flip"). Plain "Composed: …" presents come from windowed desktop apps and
-// browsers and are ignored, except for the game already being tracked.
-function isGamingPresentMode(modeRaw) {
-  const mode = normHeader(modeRaw);
-  return mode.startsWith('hardware') || mode.includes('independentflip');
-}
-
-const UNREADABLE_NAME = '<error>';
-
-// The game gamedetect already found, whatever way it presents now: a window of
-// ours above it, or the focus elsewhere, makes Windows compose it like a desktop
-// app. By pid too, because a protected process reports its name as "<error>".
-function isTrackedGame(game, pid, name) {
-  if (!game) return false;
-  if (game.pid && String(game.pid) === String(pid)) return true;
-  return !!game.name && name.replace(/.exe$/, '') === game.name;
-}
-
-// "Hardware: Legacy Flip" / "Hardware: Legacy Copy to front buffer": exclusive
-// full screen. Nothing outside the game can draw over it without injecting into
-// it, which Xenon never does, so the overlay says so (exclusive-hint.js).
-function isExclusivePresentMode(modeRaw) {
-  return normHeader(modeRaw).startsWith('hardwarelegacy');
-}
-
-// "Composed: Flip" and the like. "Hardware Composed: Independent Flip" is not:
-// that one is a flip mode, and display tracking reads it whole.
-function isComposedPresentMode(modeRaw) {
-  return normHeader(modeRaw).startsWith('composed');
-}
+const { isTrackedGame, parseHeader, rowValues } = require('./performance/presentmon-rows.js');
 
 // Where the single-binary PresentMon CLI is expected to live.
 const PRESENTMON_CANDIDATES = [
@@ -153,97 +94,6 @@ function stopEtwSession(name = ETW_SESSION_NAME) {
       .on('error', () => { /* ignore */ })
       .unref(); // must never delay server shutdown
   } catch { /* ignore */ }
-}
-
-function normHeader(name) {
-  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-// Build a column-index map from the CSV header, tolerant of version differences.
-//
-// TWO frame times are read, because with frame generation they stop agreeing.
-//
-//   present-side  how often the application (or the driver on its behalf) hands
-//                 a frame over.  msBetweenPresents (PresentMon 1.x) / FrameTime (2.x)
-//   display-side  how often the screen actually changes.
-//                 msBetweenDisplayChange (1.x) / DisplayedTime (2.x)
-//
-// Without frame generation the two are within a frame of each other. With DLSS
-// Frame Generation on they diverge hard — measured on one game at x2: presents
-// 223/s, displayed 152/s, with RTSS and the NVIDIA overlay both reading ~155.
-// Xenon read the present side and so showed ~220, a number nothing else agreed
-// with. Reported by a widget author building an FPS monitor, with a PresentMon
-// 2.3.1 capture attached.
-//
-// Display-side is the honest answer to "what frame rate am I seeing", so it is
-// preferred wherever the CSV carries it — and it is the closer number even
-// WITHOUT frame generation (69.2 displayed vs 65.6 presented, against an
-// in-game counter reading 69.0 in the same capture).
-//
-// The measurements above came from a PresentMon 2.3.1 capture, which left one
-// thing unproven: whether the 1.10 we actually ship tracks display timing
-// correctly with frame generation on. It does — confirmed on the reporter's
-// machine against the game and RTSS side by side, which is why there is no
-// PresentMon upgrade here. What remains is a couple of frames between us and
-// RTSS, from RTSS's own averaging rather than from the timing.
-//
-// Careful with the near-misses: PresentMon 1.x also has msUntilDisplayed, which
-// is a LATENCY, not an interval, and matching it would turn the frame rate into
-// nonsense. Hence the exact-ish tests below rather than a loose `displayed`.
-function parseHeader(fields) {
-  const norm = fields.map(normHeader);
-  const find = pred => norm.findIndex(pred);
-  const frameTime = find(n => n.includes('betweenpresents') || n === 'frametime');
-  const displayTime = find(n => n.includes('betweendisplaychange') || n === 'displayedtime');
-  const fps = find(n => n === 'fps' || n.endsWith('fps') || n.includes('displayedfps'));
-  const app = find(n => n === 'application' || n.includes('processname'));
-  const pid = find(n => n.includes('processid'));
-  const presentMode = find(n => n.includes('presentmode'));
-  if (frameTime < 0 && displayTime < 0 && fps < 0) return null; // nothing usable
-  return { frameTime, displayTime, fps, app, pid, presentMode };
-}
-
-// One CSV row → what it says, or null when the row is not ours to count.
-// Pure, so the whole of "which numbers does a PresentMon line yield" can be
-// pinned without a Windows box and a game running on it.
-function rowValues(cols, fields, game) {
-  if (!cols) return null;
-  const pidRaw = cols.pid >= 0 ? fields[cols.pid] : '';
-  const pid = String(pidRaw || '').trim() || (cols.app >= 0 ? fields[cols.app] : '?');
-  let name = (cols.app >= 0 ? String(fields[cols.app] || '') : '').trim().toLowerCase();
-  if (isIgnoredProc(name)) return null;
-  // No admin rights, or a protected process: PresentMon cannot read the name. The
-  // window manager is one of those, and it presents as "Hardware: Legacy Flip".
-  if (name === UNREADABLE_NAME) {
-    if (!isTrackedGame(game, pid, name)) return null;
-    name = game.name || '';
-  }
-
-  // When PresentMon reports the present mode, keep only flip-model (game) presents
-  // so windowed desktop apps and the dashboard's own browser don't count.
-  if (cols.presentMode >= 0 && !isGamingPresentMode(fields[cols.presentMode]) && !isTrackedGame(game, pid, name)) return null;
-
-  let present = null, usesFps = false;
-  if (cols.frameTime >= 0) {
-    const ft = parseFloat(fields[cols.frameTime]);
-    if (Number.isFinite(ft) && ft > 0 && ft <= 1000) present = ft;
-  } else if (cols.fps >= 0) {
-    const f = parseFloat(fields[cols.fps]);
-    if (Number.isFinite(f) && f > 0 && f <= 1000) { present = f; usesFps = true; }
-  }
-
-  // A frame that was never displayed carries no display interval — blank, zero
-  // or negative depending on the version. Those rows are dropped frames, and
-  // counting one as an interval of zero would read as an infinite frame rate.
-  let display = null;
-  if (cols.displayTime >= 0) {
-    const dt = parseFloat(fields[cols.displayTime]);
-    if (Number.isFinite(dt) && dt > 0 && dt <= 1000) display = dt;
-  }
-  if (present == null && display == null) return null;
-  const exclusive = cols.presentMode >= 0 && isExclusivePresentMode(fields[cols.presentMode]);
-  const composed = cols.presentMode >= 0 && isComposedPresentMode(fields[cols.presentMode]);
-  return { pid, name, present, display, usesFps, exclusive, composed };
 }
 
 function entryFor(r) {
@@ -378,12 +228,6 @@ function scheduleRestart(startedAt) {
   _restartTimer = setTimeout(start, delay);
 }
 
-function median(arr) {
-  const s = arr.slice().sort((a, b) => a - b);
-  const mid = s.length >> 1;
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
 // How long a silent process keeps its slot before being dropped. Long enough
 // to survive loading screens, short enough that _byPid never accumulates every
 // PID seen over a 24/7 uptime.
@@ -407,60 +251,6 @@ function trackedGame() {
   try { return _trackedGame ? _trackedGame() : null; } catch { return null; }
 }
 
-// The process to read the frame rate from. Doubles as the pruning pass: stale
-// PIDs are evicted while we scan, keeping the map bounded to processes that
-// presented in the last minute.
-// Pure, and prunes nothing — the caller decides what to evict. `wantedPid` is
-// the foreground window's, '' when unknown.
-function pickEntry(byPid, now, wantedPid) {
-  let best = null;
-  let front = null;
-  const wanted = String(wantedPid || '');
-  for (const [pid, entry] of byPid) {
-    if (now - entry.lastSeen > SAMPLE_WINDOW_MS) continue;
-    if (!entry.samples.length && !entry.display.length) continue;
-    if (wanted && String(pid) === wanted) front = entry;
-    if (!best || weight(entry) > weight(best)) best = entry;
-  }
-  // The foreground window only wins when it is actually presenting: one that
-  // hands over no frames (the dashboard, a paused game) must not silence a game
-  // still running behind it. The loop above has already established that.
-  return front || best;
-}
-function weight(entry) { return Math.max(entry.samples.length, entry.display.length); }
-
-function medianOf(arr) {
-  if (!arr || !arr.length) return null;
-  const m = median(arr);
-  return Number.isFinite(m) && m > 0 ? m : null;
-}
-
-// Both sides of one entry.
-//
-//   presentFps  how often frames are handed over. What Xenon has always read.
-//   displayFps  how often the screen actually changes — the number RTSS and the
-//               NVIDIA overlay show, and the only one that stays honest under
-//               frame generation. Null when the capture carries no display
-//               timing (display tracking off, or a CSV that never had it).
-//   fps         the frame rate the person is SEEING: display-side when we have
-//               it, present-side otherwise.
-function entryFps(entry) {
-  if (!entry) return { fps: null, presentFps: null, displayFps: null };
-  const p = medianOf(entry.samples);
-  const d = medianOf(entry.display);
-  const presentFps = p == null ? null : Math.round(entry.usesFps ? p : 1000 / p);
-  const displayFps = d == null ? null : Math.round(1000 / d);
-  return { fps: displayFps != null ? displayFps : presentFps, presentFps, displayFps };
-}
-
-// Frame-time statistics for one entry, from the same side entryFps reports: the
-// display side when the capture carries it, the present side otherwise.
-function entryStats(entry) {
-  if (!entry || !entry.presentRing) return null;
-  if (entry.displayRing.size()) return Object.assign({ side: 'display' }, frameStats(entry.displayRing.last(STATS_SAMPLES)));
-  const s = frameStats(toFrameTimes(entry.presentRing.last(STATS_SAMPLES), entry.usesFps));
-  return s && Object.assign({ side: 'present' }, s);
-}
 
 // The live table's pick. Doubles as the pruning pass: stale PIDs are evicted
 // while we scan, keeping the map bounded to processes that presented recently.
@@ -493,48 +283,9 @@ function getFrameStats() {
   return stats ? Object.assign({ process: best.name || '', exclusive: best.exclusive === true }, stats) : null;
 }
 
-// The newest `n` frame times (ms, oldest first) of an entry, from the same
-// side entryStats measures, for the performance tile's graph. Null when
-// nothing is measured.
-function entryWindow(entry, n) {
-  if (!entry || !entry.presentRing) return null;
-  if (entry.displayRing.size()) return { side: 'display', frames: entry.displayRing.last(n) };
-  const frames = cleanFrameTimes(toFrameTimes(entry.presentRing.last(n), entry.usesFps));
-  return frames.length ? { side: 'present', frames } : null;
-}
-
 // The same, for the active game.
 function getFrameWindow(n) {
   return entryWindow(_bestEntry(), n);
-}
-
-// Frame times an entry presented since `mark` (what the last call returned), so
-// a game session can add every frame once. A mark from another entry or side
-// (the game restarted, the capture gained a display column) starts over: those
-// frames are not comparable with the ones already counted. The ring holds
-// RING_FRAMES, so a reader every 3 s misses nothing below 2000 FPS.
-function entryFramesSince(entry, mark) {
-  if (!entry || !entry.presentRing) return { mark: null, frames: [] };
-  const display = entry.displayRing.size() > 0;
-  const ring = display ? entry.displayRing : entry.presentRing;
-  const next = { entry, side: display ? 'display' : 'present', total: ring.total() };
-  if (!mark || mark.entry !== entry || mark.side !== next.side) return { mark: next, frames: [] };
-  const fresh = ring.last(next.total - mark.total);
-  return { mark: next, frames: display ? fresh : cleanFrameTimes(toFrameTimes(fresh, entry.usesFps)) };
-}
-
-// The entry of a named game (lowercase, no .exe, as game detection reports it),
-// not the foreground one: a session keeps counting its game while the user is
-// in another window.
-function entryForGame(byPid, game) {
-  const want = String(game || '').toLowerCase().replace(/\.exe$/, '');
-  if (!want) return null;
-  let found = null;
-  for (const e of byPid.values()) {
-    const name = String(e.name || '').toLowerCase().replace(/\.exe$/, '');
-    if (name === want && (!found || e.lastSeen > found.lastSeen)) found = e;
-  }
-  return found;
 }
 
 function getFramesSince(mark, game) {

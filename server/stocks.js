@@ -13,16 +13,12 @@
 //   • Finnhub (finnhubKey)        — realtime US quotes
 // Yahoo's endpoints are unofficial (no SLA); a keyed provider is the fallback.
 
-const https = require('https');
-const { armDeadline } = require('./net-guard');
+require('./net-guard');
 
-const MAX_SYMBOLS = 30;            // watchlist / ticker cap (bounds fan-out + payload)
-const FETCH_TIMEOUT_MS = 8000;
-// `timeout` on https.get is an idle timeout only; a server trickling bytes
-// would keep the request (and the refresh it belongs to) open forever. This
-// bounds the whole request.
-const FETCH_DEADLINE_MS = 15000;
-const MAX_BODY_BYTES = 3 * 1024 * 1024;
+const {
+  MAX_SYMBOLS, cleanSymbol, normalizeWatchlist, DEFAULT_STOCKS, isDefaultWatchlist, normalizeStocks,
+} = require('./ticker/stocks-settings.js');
+const { fetchJson, pool } = require('./ticker/stocks-fetch.js');
 const FETCH_CONCURRENCY = 6;       // Yahoo is per-symbol; keep the burst polite
 
 // Chart ranges the widget exposes → Yahoo range + candle interval. Kept small so
@@ -35,200 +31,14 @@ const RANGES = Object.freeze({
 });
 const DEFAULT_RANGE = '1d';
 
-const PROVIDERS = Object.freeze(new Set(['auto', 'yahoo', 'twelvedata', 'finnhub']));
-
 // ── config normalization ─────────────────────────────────────────────────────
 
-// A ticker symbol: uppercase letters, digits and the few punctuation marks real
-// tickers use (dot for `.MI`, dash for `BRK-B`, caret for `^GSPC`, `=X` for FX).
-// Anything else is dropped — this string is interpolated into the provider URL.
-function cleanSymbol(value) {
-  const s = String(value || '').trim().toUpperCase().slice(0, 20);
-  return /^[A-Z0-9.\-^=]+$/.test(s) ? s : '';
-}
-
-function normalizeWatchlist(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const entry of value) {
-    const symbol = cleanSymbol(entry && typeof entry === 'object' ? entry.symbol : entry);
-    if (!symbol || seen.has(symbol)) continue;
-    seen.add(symbol);
-    const name = String((entry && entry.name) || '').trim().slice(0, 60);
-    out.push(name ? { symbol, name } : { symbol });
-    if (out.length >= MAX_SYMBOLS) break;
-  }
-  return out;
-}
-
-const DEFAULT_STOCKS = Object.freeze({
-  watchlist: Object.freeze([
-    Object.freeze({ symbol: 'FTSEMIB.MI', name: 'FTSE MIB' }),
-    Object.freeze({ symbol: '^GSPC', name: 'S&P 500' }),
-    Object.freeze({ symbol: 'AAPL', name: 'Apple' }),
-    Object.freeze({ symbol: 'BTC-EUR', name: 'Bitcoin' }),
-  ]),
-  provider: 'auto',
-  refreshSec: 60,
-  alertPercent: 2,
-  tile: Object.freeze({ chart: true, sparklines: true }),
-});
-
-// True while the person has not chosen what to watch: same symbols as a new install.
-function isDefaultWatchlist(list) {
-  const symbols = (entries) => entries.map((w) => w && w.symbol).sort();
-  const mine = symbols(Array.isArray(list) ? list : []);
-  const base = symbols(DEFAULT_STOCKS.watchlist);
-  return mine.length === base.length && mine.every((s, i) => s === base[i]);
-}
-
-function normalizeStocks(value) {
-  const src = value && typeof value === 'object' ? value : {};
-  const provider = PROVIDERS.has(src.provider) ? src.provider : DEFAULT_STOCKS.provider;
-  // 30s floor so nobody hammers the free endpoints; 15min ceiling.
-  const refreshSec = clampInt(src.refreshSec, 30, 900, DEFAULT_STOCKS.refreshSec);
-  const alertPercent = clampFloat(src.alertPercent, 0.5, 25, DEFAULT_STOCKS.alertPercent);
-  const wl = src.watchlist !== undefined
-    ? normalizeWatchlist(src.watchlist)
-    : DEFAULT_STOCKS.watchlist.map(w => ({ ...w }));
-  const srcTile = src.tile && typeof src.tile === 'object' ? src.tile : {};
-  return {
-    watchlist: wl,
-    provider,
-    refreshSec,
-    alertPercent,
-    tile: {
-      chart: srcTile.chart !== false,
-      sparklines: srcTile.sparklines !== false,
-    },
-  };
-}
-
-function clampInt(value, min, max, fallback) {
-  const n = parseInt(value, 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
-function clampFloat(value, min, max, fallback) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
 
 // ── hardened JSON fetch (mirrors ics-feeds.js) ───────────────────────────────
 
-function fetchJson(url, headers) {
-  return new Promise((resolve, reject) => {
-    let done = false;
-    const finish = (fn, arg) => { if (!done) { done = true; fn(arg); } };
-    const req = https.get(url, {
-      timeout: FETCH_TIMEOUT_MS,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Xenon Dashboard)', 'Accept': 'application/json', ...(headers || {}) },
-    }, res => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        res.resume();
-        return finish(reject, new Error('redirect not followed'));
-      }
-      if (res.statusCode !== 200) {
-        res.resume();
-        return finish(reject, new Error('HTTP ' + res.statusCode));
-      }
-      // Collected as buffers and decoded once, so a multi-byte character split
-      // across chunks is not corrupted.
-      const chunks = [];
-      let size = 0;
-      res.on('data', chunk => {
-        size += chunk.length;
-        if (size > MAX_BODY_BYTES) { req.destroy(new Error('body too large')); return; }
-        chunks.push(chunk);
-      });
-      res.on('end', () => {
-        try { finish(resolve, JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-        catch (e) { finish(reject, e); }
-      });
-      res.on('error', e => finish(reject, e));
-    });
-    req.on('timeout', () => { req.destroy(new Error('timeout')); });
-    req.on('error', e => finish(reject, e));
-    armDeadline(req, FETCH_DEADLINE_MS);
-  });
-}
-
-// Run promise-returning tasks with a small concurrency cap so a big watchlist
-// doesn't open 30 sockets at once. Rejections resolve to null (never throws).
-async function pool(items, worker, limit) {
-  const out = new Array(items.length).fill(null);
-  let i = 0;
-  const runners = new Array(Math.min(limit, items.length)).fill(0).map(async () => {
-    while (i < items.length) {
-      const idx = i++;
-      try { out[idx] = await worker(items[idx], idx); }
-      catch { out[idx] = null; }
-    }
-  });
-  await Promise.all(runners);
-  return out;
-}
-
 // ── Yahoo Finance (keyless default) ──────────────────────────────────────────
 
-function yahooUrl(symbol, range, interval) {
-  const q = `range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}&includePrePost=false`;
-  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${q}`;
-}
-
-// Parse a Yahoo chart response into { meta, points }. `points` is the close
-// series (timestamps + closes, nulls dropped) used for sparkline + chart.
-function parseYahooChart(json) {
-  const result = json && json.chart && Array.isArray(json.chart.result) ? json.chart.result[0] : null;
-  if (!result || !result.meta) return null;
-  const meta = result.meta;
-  const ts = Array.isArray(result.timestamp) ? result.timestamp : [];
-  const quote = result.indicators && Array.isArray(result.indicators.quote) ? result.indicators.quote[0] : null;
-  const closes = quote && Array.isArray(quote.close) ? quote.close : [];
-  const points = [];
-  for (let k = 0; k < ts.length; k++) {
-    const c = closes[k];
-    if (typeof c === 'number' && Number.isFinite(c)) points.push({ t: ts[k], c });
-  }
-  return { meta, points };
-}
-
-function quoteFromYahoo(symbol, parsed, fallbackName) {
-  const m = parsed.meta;
-  const price = Number(m.regularMarketPrice);
-  const prevClose = Number(m.chartPreviousClose ?? m.previousClose);
-  if (!Number.isFinite(price)) return null;
-  const change = Number.isFinite(prevClose) ? price - prevClose : 0;
-  const changePct = Number.isFinite(prevClose) && prevClose !== 0 ? (change / prevClose) * 100 : 0;
-  return {
-    symbol,
-    name: fallbackName || m.shortName || m.longName || symbol,
-    price,
-    prevClose: Number.isFinite(prevClose) ? prevClose : null,
-    change,
-    changePct,
-    currency: m.currency || '',
-    exchange: m.fullExchangeName || m.exchangeName || '',
-    marketState: m.marketState || '',
-    dayHigh: Number(m.regularMarketDayHigh) || null,
-    dayLow: Number(m.regularMarketDayLow) || null,
-    high52: Number(m.fiftyTwoWeekHigh) || null,
-    low52: Number(m.fiftyTwoWeekLow) || null,
-    // Compact sparkline: down-sample the intraday closes to ~24 points.
-    spark: downsample(parsed.points.map(p => p.c), 24),
-  };
-}
-
-function downsample(arr, target) {
-  if (!Array.isArray(arr) || arr.length <= target) return arr.slice ? arr.slice() : arr;
-  const step = arr.length / target;
-  const out = [];
-  for (let k = 0; k < target; k++) out.push(arr[Math.floor(k * step)]);
-  out.push(arr[arr.length - 1]);
-  return out;
-}
+const { yahooUrl, parseYahooChart, quoteFromYahoo } = require('./ticker/stocks-yahoo.js');
 
 // ── Twelve Data (optional, keyed) ────────────────────────────────────────────
 
@@ -390,30 +200,7 @@ async function searchSymbols(query) {
 // per day (no spam on every 60s refresh). `dayKey` is passed in (the caller
 // stamps the date — this module never calls Date.now()).
 
-function createAlertTracker() {
-  let state = new Map(); // symbol → { up: bool, down: bool, day }
-  return {
-    evaluate(quotes, alertPercent, dayKey) {
-      const alerts = [];
-      const threshold = Math.abs(Number(alertPercent) || 0);
-      if (!threshold) return alerts;
-      for (const q of (quotes || [])) {
-        const pct = Number(q.changePct);
-        if (!Number.isFinite(pct)) continue;
-        // Latch EACH direction independently, once per day — so an intraday
-        // oscillation (+2% → -2% → +2%) fires up once and down once, never the
-        // same direction twice. A new day resets both latches.
-        let s = state.get(q.symbol);
-        if (!s || s.day !== dayKey) { s = { up: false, down: false, day: dayKey }; state.set(q.symbol, s); }
-        const push = (dir) => alerts.push({ symbol: q.symbol, name: q.name, dir, changePct: pct, price: q.price, currency: q.currency });
-        if (pct >= threshold && !s.up) { s.up = true; push('up'); }
-        else if (pct <= -threshold && !s.down) { s.down = true; push('down'); }
-      }
-      return alerts;
-    },
-    reset() { state = new Map(); },
-  };
-}
+const { createAlertTracker } = require('./ticker/stocks-alerts.js');
 
 module.exports = {
   MAX_SYMBOLS,
