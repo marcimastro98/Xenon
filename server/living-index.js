@@ -24,9 +24,9 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const { lowerPriority } = require('./child-priority');
 
-const RETRY_MS = 15 * 1000;
-const REQ_TIMEOUT_MS = 30000;
-const OVERVIEW_TIMEOUT_MS = 120000; // one consistent pass over as many as 2M entries
+const { RETRY_MS, REQ_TIMEOUT_MS } = require('./search/living-index-limits.js');
+
+const { makeQuestions } = require('./search/living-index-questions.js');
 
 function createLivingIndex(opts) {
   const o = opts || {};
@@ -39,12 +39,15 @@ function createLivingIndex(opts) {
     ready: false,
     progress: { files: 0 },
   };
-  let wantedRoots = [];
+  const indexState = {
+    wantedRoots: [],
+    notBefore: undefined, // given its first value further down, where it was declared
+    startTimer: null,
+    held: false,
+    stopped: false,
+  };
   let testRunner = null;  // test seam: replaces the whole round-trip
-  let notBefore = Date.now() + (o.startDelayMs || 0);
-  let startTimer = null;
-  let held = false;
-  let stopped = false;
+  indexState.notBefore = Date.now() + (o.startDelayMs || 0);
 
   function helperPresent() {
     try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
@@ -73,28 +76,28 @@ function createLivingIndex(opts) {
   }
 
   function startWhenDue() {
-    if (startTimer) return;
-    startTimer = setTimeout(() => { startTimer = null; ensure(); }, Math.max(0, notBefore - Date.now()));
-    startTimer.unref();
+    if (indexState.startTimer) return;
+    indexState.startTimer = setTimeout(() => { indexState.startTimer = null; ensure(); }, Math.max(0, indexState.notBefore - Date.now()));
+    indexState.startTimer.unref();
   }
 
   function startNow() {
-    notBefore = 0;
-    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+    indexState.notBefore = 0;
+    if (indexState.startTimer) { clearTimeout(indexState.startTimer); indexState.startTimer = null; }
   }
 
   function ensure() {
     if (host.proc) return host.proc;
-    if (stopped || held || !wantedRoots.length || !helperPresent()) return null;
+    if (indexState.stopped || indexState.held || !indexState.wantedRoots.length || !helperPresent()) return null;
     if (Date.now() - host.diedAt < RETRY_MS) return null;
-    if (Date.now() < notBefore) { startWhenDue(); return null; }
+    if (Date.now() < indexState.notBefore) { startWhenDue(); return null; }
     let proc;
     try {
-      proc = spawnHost(helperExe, ['index-serve', ...wantedRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+      proc = spawnHost(helperExe, ['index-serve', ...indexState.wantedRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
     } catch { return null; }
     host.proc = proc;
     lowerPriority(proc.pid);
-    host.roots = wantedRoots.slice();
+    host.roots = indexState.wantedRoots.slice();
     host.ready = false;
     host.progress = { files: 0 };
     host.buf = '';
@@ -154,124 +157,21 @@ function createLivingIndex(opts) {
   // ── public API — every call answers null when the index is off, so callers
   // fall back instead of failing ─────────────────────────────────────────────
 
-  function available() { return !!(wantedRoots.length && helperPresent()); }
+  function available() { return !!(indexState.wantedRoots.length && helperPresent()); }
 
-  async function query(q) {
-    if (!available()) return null;
-    startNow();   // someone is asking: nothing left to wait for
-    try {
-      const out = await request('query', {
-        terms: q.terms || [], exts: q.exts || null,
-        after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
-        max: q.max || 60,
-        // Folders whose name matches, and words found in a folder above the
-        // file. An older helper ignores both and answers files only.
-        dirs: q.dirs || 0,
-        pathTerms: q.pathTerms === true,
-      }, 10000);
-      return { items: out.items || [], dirs: Array.isArray(out.dirs) ? out.dirs : [], building: out.building === true };
-    } catch { return null; }
-  }
+  const {
+    query, sizes, overview, browse, dirs, list, top, dupes, stats,
+  } = makeQuestions({ host, indexState, helperPresent, startNow, request, available });
 
-  async function sizes(path) {
-    if (!available()) return null;
-    try { return await request('sizes', { path }); } catch { return null; }
-  }
-  async function overview(path, opts) {
-    if (!available()) return null;
-    const cfg = opts || {};
-    try {
-      return await request('overview', {
-        path,
-        dirMinBytes: cfg.dirMinBytes,
-        dirMax: cfg.dirMax,
-        topMax: cfg.topMax,
-        dupeMinBytes: cfg.dupeMinBytes,
-        dupeMax: cfg.dupeMax,
-        detailRoots: cfg.detailRoots,
-        detailMax: cfg.detailMax,
-        staleMinBytes: cfg.staleMinBytes,
-        staleBefore: cfg.staleBefore,
-        staleMax: cfg.staleMax,
-      }, OVERVIEW_TIMEOUT_MS);
-    } catch { return null; }
-  }
-  async function browse(path, opts) {
-    if (!available()) return null;
-    const cfg = opts || {};
-    try {
-      return await request('browse', {
-        path,
-        childMax: cfg.childMax || 64,
-        fileMax: cfg.fileMax || 64,
-      }, OVERVIEW_TIMEOUT_MS);
-    } catch { return null; }
-  }
-  async function dirs(path, minBytes, max) {
-    if (!available()) return null;
-    try { const out = await request('dirs', { path, minBytes, max }); return out.items || null; } catch { return null; }
-  }
-  async function list(path, max) {
-    if (!available()) return null;
-    try { const out = await request('list', { path, max }); return out.items || null; } catch { return null; }
-  }
-  async function top(path, max) {
-    if (!available()) return null;
-    try { const out = await request('top', { path, max }); return out.items || null; } catch { return null; }
-  }
-  async function dupes(path, minBytes, max) {
-    if (!available()) return null;
-    try { const out = await request('dupes', { path, minBytes, max }); return out.groups || null; } catch { return null; }
-  }
-
-  async function stats() {
-    if (!available()) return { on: false, helper: helperPresent(), roots: wantedRoots };
-    try {
-      const s = await request('stats', {}, 5000);
-      return {
-        on: true, helper: true,
-        ready: s.ready === true, building: s.building === true, held,
-        files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
-        // Moves on every change the index applies (absent on an older helper).
-        // diskspace.js reuses a disk snapshot for as long as it stands still.
-        version: Number.isFinite(s.version) ? s.version : null,
-        ramMB: s.ramMB || 0, roots: host.roots.slice(),
-        // The entry cap this host derived from the machine's RAM, so the UI
-        // can warn BEFORE it is hit — "capped" arrives when it is too late.
-        maxEntries: Number.isFinite(s.maxEntries) && s.maxEntries > 0 ? Math.floor(s.maxEntries) : 0,
-        capped: s.capped === true,
-        // The roots the entry cap left incomplete. Validated the same way every
-        // other value off the helper wire is: strings only, bounded, and only
-        // roots we actually asked for — the UI names these to the user.
-        cappedRoots: Array.isArray(s.cappedRoots)
-          ? s.cappedRoots.filter((r) => typeof r === 'string' && r).slice(0, 16)
-          : [],
-        // What the host is doing BEYOND the initial build. Without these, a
-        // host stuck re-walking a root reads exactly like an idle one that
-        // happens to be using a core, which is how a permanent rebuild loop
-        // went unnoticed until it showed up in Task Manager.
-        repairing: s.repairing === true,
-        repairs: s.repairs || 0,
-        pending: s.pending || 0,
-        progress: host.progress,
-      };
-    } catch {
-      return startingStats();
-    }
-  }
-
-  function startingStats() {
-    return { on: true, helper: helperPresent(), ready: false, building: true, starting: true, held, roots: wantedRoots, progress: host.progress };
-  }
 
   // The host goes on answering from what it holds; only its walking and repairing
   // stand still. An older host refuses the op and simply carries on as before.
   function hold(on) {
     const next = on === true;
-    if (next === held) return;
-    held = next;
-    if (host.proc || testRunner) request('hold', { on: held }).catch(() => {});
-    else if (!held) ensure();
+    if (next === indexState.held) return;
+    indexState.held = next;
+    if (host.proc || testRunner) request('hold', { on: indexState.held }).catch(() => {});
+    else if (!indexState.held) ensure();
   }
 
   // Roots come from settings (searchSettings.indexRoots). A change restarts
@@ -289,8 +189,8 @@ function createLivingIndex(opts) {
       // A UNC share (two leading slashes) is not a local root and stays out.
       .filter((r) => /^[A-Za-z]:[\\/]?/.test(r) || /^\/(?!\/)/.test(r))
       .slice(0, 8);
-    const changed = JSON.stringify(next) !== JSON.stringify(wantedRoots);
-    wantedRoots = next;
+    const changed = JSON.stringify(next) !== JSON.stringify(indexState.wantedRoots);
+    indexState.wantedRoots = next;
     if (!changed && host.proc) return;
     if (host.proc) retire('restart');
     // Clear the fast-fail backoff ONLY when the roots actually changed (a new
@@ -300,11 +200,11 @@ function createLivingIndex(opts) {
     // not know the mode, an OOM on a huge drive — was respawned with no
     // throttle at all.
     if (changed) host.diedAt = 0;
-    if (wantedRoots.length) ensure();
+    if (indexState.wantedRoots.length) ensure();
   }
 
   function stop() {
-    stopped = true;
+    indexState.stopped = true;
     startNow();
     retire('shutdown');
   }

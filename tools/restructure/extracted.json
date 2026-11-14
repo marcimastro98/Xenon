@@ -755,6 +755,10 @@
       {"file":"server/streaming/twitch-channels.js","about":"The channels behind the Twitch viewer widget: the ones the user follows that are on air, the busiest ones, a search, a channel's id from its name, a message in the chat of the channel being watched, and the emotes usable there, each list kept for a short time.","names":["LIST_TTL_MS","SEARCH_TTL_MS","LIST_SIZE","watchCache","watchGet","watchSet","art","LOGIN_RE","channelRow","rowsOf","followedChannels","topChannels","SCAN_TTL_MS","SCAN_PAGES_LANG","SCAN_PAGES_ALL","LANG_RE","scanInflight","liveStreams","searchChannels","chanIdCache","userIdFor","sendChatTo","EMOTE_NAME_RE","EMOTE_LIST_TTL_MS","EMOTE_CAP","emoteRows","channelEmotes"],"inner":{"factory":"createTwitchProvider","make":"makeChannels"}},
       {"file":"server/streaming/twitch-sign-in.js","about":"Signing in to Twitch with a device code: the code shown to the user, the wait for the user to enter it, the token renewed, who is signed in, what the dashboard is told, and signing out.","names":["configured","startDeviceLogin","pollDeviceToken","refresh","fetchUser","status","logout"],"inner":{"factory":"createTwitchProvider","make":"makeSignIn"}},
       {"file":"server/streaming/twitch-broadcast.js","about":"What can be done to the user's own Twitch broadcast from the Deck: a clip, a marker, an ad, the title, the game, a chat message, a shoutout, the chat modes, and whether the channel is live.","names":["createClip","createMarker","runAd","setTitle","setGame","sendChat","shoutout","CHAT_MODE_BODIES","setChatMode","streamStatus"],"inner":{"factory":"createTwitchProvider","make":"makeBroadcast"}}
+    ],
+    "server/living-index.js": [
+      {"file":"server/search/living-index-limits.js","about":"The waits of the living index: before its process is started again, for an answer, and for the overview of a whole drive.","names":["RETRY_MS","REQ_TIMEOUT_MS","OVERVIEW_TIMEOUT_MS"]},
+      {"file":"server/search/living-index-questions.js","about":"What the living index is asked: a search, the sizes of folders, the overview and the contents of a drive, the folders, the biggest files, the duplicates, and how far the index has come.","names":["query","sizes","overview","browse","dirs","list","top","dupes","stats","startingStats"],"inner":{"factory":"createLivingIndex","make":"makeQuestions"}}
     ]
   },
   "spreads": {
@@ -963,6 +967,9 @@
     ],
     "server/actions/voicemeeter.js": [
       {"factory":"createClient","object":"vmSession","names":["loggedIn","lastError","cachedType"],"kept":[],"bare":[],"after":1}
+    ],
+    "server/living-index.js": [
+      {"factory":"createLivingIndex","object":"indexState","names":["wantedRoots","notBefore","startTimer","held","stopped"],"kept":["notBefore"],"bare":[],"after":0}
     ]
   }
 }
