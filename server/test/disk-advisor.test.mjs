@@ -17,13 +17,18 @@ function between(from, to) {
 }
 // A table of the widget cut to its own end, whatever follows it where it lives.
 const table = (name) => `${between(`  const ${name} = {`, '\n  };\n')}\n  };`;
+// A function of the widget cut to its own end, the same way.
+const fn = (head) => `${between(`  function ${head} {`, '\n  }\n')}\n  }`;
+// What the window is drawn from, each piece on its own: a piece may live in a script next to the widget's.
+const DRAWN = ['advisorStat(label, value, detail)', 'advisorFact(label, text)', 'advisorStats(a)', 'advisorSection(title, intro)'].map(fn);
 
 const PARTS = [
   table('CAT_META'),
   table('CATEGORY_GUIDE'),
-  between('  function el(tag, cls, text) {', '  // Paths are shown inside'),
-  between('  function btn(cls, label, onClick, title) {', '  function withTransition('),
-  between('  function closeAdvisorModal() {', '  // ── AI report markdown'),
+  fn('el(tag, cls, text)'),
+  fn('btn(cls, label, onClick, title)'),
+  fn('closeAdvisorModal()'),
+  ...DRAWN,
   between('  function advisorRiskWords(risk) {', '  function advisorRecoveryItems('),
   between('  function advisorRecoveryItems(a) {', '  // A treemap with dozens'),
   between('  function advisorHead() {', '  async function openTreeNode('),
@@ -222,7 +227,7 @@ test('the tile asks with Cancel on the left, the action on the right, and one wa
 });
 
 test('no sparkle or check mark as a picture in the window', () => {
-  const code = between('  function advisorHead() {', '  async function openTreeNode(') + between('  async function runAdvisorAi(', '  function advisorHead() {');
+  const code = between('  function advisorHead() {', '  async function openTreeNode(') + between('  async function runAdvisorAi(', '  function advisorHead() {') + DRAWN.join('\n');
   assert.ok(!/[✦✓▰▤]/.test(code));
 });
 
