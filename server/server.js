@@ -459,7 +459,7 @@ const { shieldWish } = require('./perf-session/shield-wish');
 require('./actions/streamerbot');
 require('./actions/home-assistant');
 require('./actions/home-assistant-query');
-const { createChroma } = require('./actions/chroma');
+require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
 const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
 const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
@@ -2519,12 +2519,7 @@ const { deckObs, deckSb } = require('./streaming/deck-clients.js');
 
 const { deckHa, haQuery, deckUnifi, deckUnifiEvents } = require('./smart-home/deck-clients.js');
 
-// Lazy Razer Chroma client — opens the local Chroma SDK session on demand, holds
-// it with a heartbeat ONLY while lighting is active, and uninitializes after idle
-// (Synapse then resumes the user's own lighting). One session serves both the
-// direct Deck/SDK actions AND the ambient `chroma` lighting-provider. Enabled via
-// Settings → chroma.enabled (opt-in, so it never probes localhost otherwise).
-const deckChroma = createChroma();
+const { deckChroma } = require('./lights/chroma-client.js');
 // Lazy Elgato Wave Link client — scans ws://127.0.0.1:1824..1834 on demand, mirrors
 // mixer state while a tile/Deck key is on screen (SSE `wavelink`), idle-closes
 // otherwise. Reads enabled/port from live settings each connection (no restart).
