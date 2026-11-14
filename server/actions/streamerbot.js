@@ -1,4 +1,17 @@
 'use strict';
+// Lazy Streamer.bot WebSocket client + pure helpers. Connects on demand,
+// authenticates (sha256 challenge — same scheme as OBS v5) only when the server
+// has auth enabled, sends one request, and auto-closes after idle.
+//
+// WebSocket implementation: we use the `ws` library (a direct dependency
+// of Xenon) instead of Node's built-in global WebSocket. Streamer.bot's
+// WebSocket Server negotiates permessage-deflate compression, and the built-in
+// (undici) client mangles those compressed frames into empty strings — so every
+// reply (the auth ack, GetActions, …) was silently lost and the connection timed
+// out (`sb_request_timeout`) even though Streamer.bot showed the client connected
+// and Authenticated. `ws` decodes the compressed frames correctly. We fall back
+// to the global WebSocket if `ws` is somehow unavailable. (OBS works on the
+// built-in client because OBS-websocket does not enable compression.)
 
 const DEFAULT_WS = (() => {
   try { return require('ws'); } catch (e) { return globalThis.WebSocket; }
