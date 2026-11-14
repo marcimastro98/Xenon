@@ -473,7 +473,9 @@
       {"file":"server/sensor-service/engine-reader.js","about":"The reader of the sensor service that the engine itself reads through, taken when the engine starts: the same one the routes of the service report on.","names":["sensorService"],"wire":{"first":"sensorService","last":"sensorService"},"spelled":{"./reader.js":"./sensor-service/reader.js"}},
       {"file":"server/system/cpu-temp.js","about":"The processor temperature the dashboard shows, from the system's own collectors where there are any, otherwise from the sensor service or the sensor script.","names":["getCpuTemp"]},
       {"file":"server/system/sensors-read.js","about":"The list of sensors and the readings of the ones the person chose, the sensor service's rows merged with what the sensor script reads.","names":["collectSensors","readChosenSensors"]},
-      {"file":"server/system/choose-sensor-source.js","about":"Choosing which sensor a reading on the dashboard comes from when the assistant is asked to, or listing the sensors there are.","names":["chooseSensorSource"]}
+      {"file":"server/system/choose-sensor-source.js","about":"Choosing which sensor a reading on the dashboard comes from when the assistant is asked to, or listing the sensors there are.","names":["chooseSensorSource"]},
+      {"file":"server/screens/capture-engine-host.js","about":"The host of the capture program that records the screen and keeps the replay, made when the engine starts: the program itself is started only when a capture is asked for.","names":["_captureHost"],"wire":{"first":"_captureHost","last":"_captureHost"}},
+      {"file":"server/screens/replay-hotkey.js","about":"The key combination that saves the replay, or none while the replay is off, the capture program is missing or the person switched the shortcut off.","names":["_replayHotkey"]}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},

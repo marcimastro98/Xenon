@@ -59,7 +59,7 @@ const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
 const sceneImages = require('./scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
-const { createCaptureHost } = require('./capture-host');
+require('./capture-host');
 const { createCaptures } = require('./captures');
 const { createCaptureGallery } = require('./capture-gallery');
 const { createCaptureSend } = require('./capture-send');
@@ -88,7 +88,7 @@ const CaptureSettings = require('./capture-settings');
 const { createCaptureFolder } = require('./capture-folder');
 const { resolveUserFolder, replayRingDir } = require('./user-folders');
 const { CAPTURE_EXE } = require('./screens/capture-exe.js');
-const _captureHost = createCaptureHost({ exe: CAPTURE_EXE, log: (m) => console.warn(m) });
+const { _captureHost } = require('./screens/capture-engine-host.js');
 
 const {
   DASHBOARD_WIDGET_IDS, DASHBOARD_LAYOUT_VERSION,
@@ -785,15 +785,6 @@ function _menuHotkey() {
   const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
   if (layers.menuKey === 'off' || !screenMenu.available()) return '';
   return DeckShortcuts.normalizeShortcut(layers.menuKey);
-}
-
-// The replay save shortcut's combo, or '' while the replay is off, the engine
-// is missing or the user turned the shortcut off: the combo stays free for
-// other apps whenever pressing it could not save anything.
-function _replayHotkey() {
-  const o = captureOptions();
-  if (!o.replay || o.replayKey === 'off' || !_captureHost.has('replay')) return '';
-  return DeckShortcuts.normalizeShortcut(o.replayKey);
 }
 
 // A press of the replay shortcut. A failure (no game in front, still starting,
@@ -3425,6 +3416,8 @@ async function replayDiskInfo(o) {
 }
 
 const { captureOptions } = require('./screens/capture-options.js');
+
+const { _replayHotkey } = require('./screens/replay-hotkey.js');
 
 const { _comboHeldBy, _deckShortcutStatus } = require('./deck/shortcut-questions.js');
 
