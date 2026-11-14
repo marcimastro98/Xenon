@@ -7288,18 +7288,15 @@ const { chatWithLocalServer } = require('./ai/chat-local-server.js');
 // feature-routes.js loads the tables of routes here, in the order the lines
 // below always loaded them. A line below names a table this file still calls.
 featureRoutes.loadTables();
-const { branches: lightsBranches } = require('./lights/routes.js');
 const { branches: deckBranches } = require('./deck/routes.js');
 const { branches: aiBranches } = require('./ai/routes.js');
 const { branches: claudeCodeBranches } = require('./claude-code/routes.js');
-const { branches: audioBranches } = require('./audio/routes.js');
 const { branches: updatesBranches } = require('./updates/routes.js');
 const { branches: performanceBranches } = require('./performance/routes.js');
 const { branches: systemBranches } = require('./system/routes.js');
 const { branches: installBranches } = require('./install/routes.js');
 const { branches: widgetSdkBranches } = require('./widget-sdk/routes.js');
 const { branches: engineBranches } = require('./engine/routes.js');
-const { branches: discordBranches } = require('./discord/routes.js');
 const { branches: searchBranches } = require('./search/routes.js');
 const { branches: storeCatalogBranches } = require('./store-catalog/routes.js');
 const { branches: storeSupportersBranches } = require('./store-supporters/routes.js');
@@ -7316,24 +7313,16 @@ const { branches: pairedAccessBranches } = require('./paired/routes-access.js');
 const { branches: pairedPushBranches } = require('./paired/routes-push.js');
 const { branches: searchFilesBranches } = require('./search/routes-files.js');
 const { branches: diskBranches } = require('./disk/routes.js');
-const { branches: smartHomeBranches } = require('./smart-home/routes.js');
-const { branches: lightsControlBranches } = require('./lights/routes-control.js');
 const { branches: updatesUpdateBranches } = require('./updates/routes-update.js');
 const { branches: remoteControlBranches } = require('./remote-control/routes.js');
 const { branches: deckKeysBranches } = require('./deck/routes-keys.js');
 const { branches: storeCatalogPacksBranches } = require('./store-catalog/routes-packs.js');
 const { branches: storeSupportersUnlockBranches } = require('./store-supporters/routes-unlock.js');
 const { branches: performanceModeBranches } = require('./performance/routes-mode.js');
-const { branches: audioVolumeBranches } = require('./audio/routes-volume.js');
 const { branches: timeBranches } = require('./time/routes.js');
 const { branches: codexBranches } = require('./codex/routes.js');
 const { branches: lookBranches } = require('./look/routes.js');
 const { branches: settingsBranches } = require('./settings/routes.js');
-const { branches: streamingBranches } = require('./streaming/routes.js');
-const { branches: mediaBranches } = require('./media/routes.js');
-const { branches: streamingTwitchBranches } = require('./streaming/routes-twitch.js');
-const { branches: streamingYoutubeBranches } = require('./streaming/routes-youtube.js');
-const { branches: streamingSpotifyBranches } = require('./streaming/routes-spotify.js');
 const { branches: aiDictationBranches } = require('./ai/routes-dictation.js');
 const { branches: smartHomeCamerasBranches } = require('./smart-home/routes-cameras.js');
 const { branches: aiLocalBranches } = require('./ai/routes-local.js');
@@ -7346,13 +7335,17 @@ const { branches: mcpDevBranches } = require('./mcp/routes-dev.js');
 const routeHands = () => ({
   BACKGROUND_EXT_BY_MIME, FONT_EXT_BY_MIME, SLIDESHOW_ASSET_EXT_BY_MIME, TILE_ASSET_EXT_BY_MIME, _captureCovers, _captureExport,
   _captureFolder, _captureGallery, _captureHost, _captures, _deskPageSync, _footballPayload, _geminiOneShot, _loadFootballInfo, _menuHotkey,
-  _replay, _saveTimers, _transcripts, _xenonMenuState, applySecondScreenMode, batteryMonitor, captureScreenshot, chooseCaptureFolder,
-  collectSensors, deckRegistry, defaultCaptureFolder, drawShell, embeddedBrowser, geminiKeyFor, getNetworkInfo, getSlideshowDir,
-  getSystemInfo, getWeather, guardian, layersEdit, layersHost, layersPeek, makeMarkClips, readHubSettings, readHubSettingsForUpdate,
-  readNotes, refreshExternalFeeds, refreshFootball, refreshHotkeyListener, refreshStocks, remoteAccess, remoteHttpsInstaller,
-  replayDiskInfo, roastSparks, saveNotesGuarded, saveVitalsState, screenCapture, screenMenu, secondScreen, sendCaptureToPhone, tilePlay,
-  transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks, vitalsNag, writeEvents, writeHubSettings,
-  writeNotes, writeTasks,
+  _persistLighting, _replay, _saveTimers, _syncSessionWatch, _transcripts, _xenonMenuState, applySecondScreenMode, batteryMonitor,
+  broadcastHaDeckStates, buildHaState, buildSbState, buildWlState, captureScreenshot, chooseCaptureFolder, collectSensors, deckChroma,
+  deckHa, deckObs, deckRegistry, deckSb, deckUnifi, deckVoicemeeter, deckWaveLink, defaultCaptureFolder, drawShell, embeddedBrowser,
+  featureUnlock, geminiKeyFor, getAudioInfo, getCurrentLyrics, getMediaInfo, getNetworkInfo, getSlideshowDir, getSystemInfo, getWeather,
+  guardian, haQuery, helperArrived, helperInstall, layersEdit, layersHost, layersPeek, lyricsForPlayingKey, lyricsOffsets,
+  lyricsTranslateBlocker, lyricsTranslator, makeMarkClips, mediaAction, openDiscordChat, readHubSettings, readHubSettingsForUpdate,
+  readNotes, refreshDiscordWatch, refreshExternalFeeds, refreshFootball, refreshHaWatch, refreshHotkeyListener, refreshObsWatch,
+  refreshStocks, remoteAccess, remoteHttpsInstaller, replayDiskInfo, roastSparks, saveNotesGuarded, saveStreamConfig, saveVitalsState,
+  screenCapture, screenMenu, secondScreen, sendCaptureToPhone, setDefaultAudioDevice, setMediaPreferredSource, setMicMute, smallTaskModel,
+  svvExec, tilePlay, transcodeMp4BackgroundToWebm, transferEnabled, updateCaptureSettings, updateEvents, updateTasks, vitalsNag,
+  writeEvents, writeHubSettings, writeNotes, writeTasks,
 });
 
 const handleRequest = async (req, res) => {
@@ -7537,9 +7530,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
     await deckKeysBranches['POST /deck/popup/open'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDeckPopupWindow });
 
-  } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioVolumeBranches['POST|GET /toggle'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setMicMute });
-
   } else if (reqPath === '/ping' && req.method === 'GET') {
     await engineBranches['GET /ping'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -7560,9 +7550,6 @@ const handleRequest = async (req, res) => {
     // client back to the media query — an unknown must never be answered as
     // light, since light is the wrong half of the guess.
     json(await osTheme.read());
-
-  } else if (reqPath === '/audio' && req.method === 'GET') {
-    await audioVolumeBranches['GET /audio'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getAudioInfo });
 
   } else if (reqPath === '/perf' && req.method === 'GET') {
     await performanceBranches['GET /perf'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _perfStream });
@@ -7616,54 +7603,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
     await performanceModeBranches['POST /api/performance/plan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _aiPerformancePlan, perfStats, readHubSettings });
 
-  } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
-    await lightsBranches['GET /api/lighting/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/devices' && req.method === 'GET') {
-    await lightsBranches['GET /api/lighting/devices'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/effects'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting, _syncSessionWatch });
-
-  } else if (reqPath === '/api/lighting/manual' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/manual'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
-    await lightsBranches['POST /api/lighting/album'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
-    await lightsBranches['POST /api/lighting/event'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/animation'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/device-mode' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/device-mode'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/scan' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/device' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/device'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/native' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/native'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting, _syncSessionWatch });
-
-  } else if (reqPath === '/api/lighting/native/layout' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/native/layout'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/native/preview' && req.method === 'POST') {
-    return await lightsControlBranches['POST /api/lighting/native/preview'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/native/scan' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/lighting/native/scan'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _persistLighting });
-
-  } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
-    await lightsBranches['POST /api/lighting/open-download'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/lighting/sdk-install' && req.method === 'POST') {
-    await lightsBranches['POST /api/lighting/sdk-install'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
     await aiBranches['POST /api/ai/turn/stop'](req, res, { json, err500, reqPath, urlObj, isRemote });
   } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
@@ -7686,51 +7625,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     await performanceBranches['POST /api/gamemode/install-presentmon'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/api/icue/sharpen' && req.method === 'POST') {
-    await lightsBranches['POST /api/icue/sharpen'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/media' && req.method === 'GET') {
-    await mediaBranches['GET /media'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getMediaInfo, setMediaPreferredSource });
-
-  } else if (reqPath === '/media/source' && (req.method === 'POST' || req.method === 'GET')) {
-    await mediaBranches['POST|GET /media/source'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setMediaPreferredSource });
-
-  } else if (reqPath === '/media/playpause' && (req.method === 'POST' || req.method === 'GET')) {
-    await mediaBranches['POST|GET /media/playpause'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
-
-  } else if (reqPath === '/media/next' && (req.method === 'POST' || req.method === 'GET')) {
-    await mediaBranches['POST|GET /media/next'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
-
-  } else if (reqPath === '/media/previous' && (req.method === 'POST' || req.method === 'GET')) {
-    await mediaBranches['POST|GET /media/previous'](req, res, { json, err500, reqPath, urlObj, isRemote }, { mediaAction });
-
-  } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioVolumeBranches['POST|GET /volume/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/mic/volume' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioVolumeBranches['POST|GET /mic/volume'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/speaker/mute' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioVolumeBranches['POST|GET /speaker/mute'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioBranches['POST|GET /audio/app/volume'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
-    await audioBranches['POST|GET /audio/app/mute'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/audio/levels/status' && req.method === 'GET') {
-    await audioBranches['GET /audio/levels/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/audio/levels/install-helper' && req.method === 'POST') {
-    await audioBranches['POST /audio/levels/install-helper'](req, res, { json, err500, reqPath, urlObj, isRemote }, { helperArrived, helperInstall });
-
-  } else if (reqPath === '/audio/watch' && req.method === 'GET') {
-    await audioBranches['GET /audio/watch'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/audio/apps' && req.method === 'GET') {
-    await audioBranches['GET /audio/apps'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath === '/deck/sound' && req.method === 'GET') {
     await deckBranches['GET /deck/sound'](req, res, { json, err500, reqPath, urlObj, isRemote }, { soundPackStore });
 
@@ -7748,12 +7642,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/deck/app-icon' && req.method === 'GET') {
     await deckBranches['GET /deck/app-icon'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/speaker/set' && req.method === 'POST') {
-    await audioVolumeBranches['POST /speaker/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setDefaultAudioDevice });
-
-  } else if (reqPath === '/mic/set' && req.method === 'POST') {
-    await audioVolumeBranches['POST /mic/set'](req, res, { json, err500, reqPath, urlObj, isRemote }, { setDefaultAudioDevice, setMicMute });
 
   } else if (reqPath === '/actions/run' && req.method === 'POST') {
     await deckKeysBranches['POST /actions/run'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckRegistry });
@@ -7775,57 +7663,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
     await deckKeysBranches['GET /actions/catalog'](req, res, { json, err500, reqPath, urlObj, isRemote }, { PORT, capabilityRunner, deckVoicemeeter, keySendAvailable, nativeMedia, phoneKeysAvailable, readHubSettings });
-
-  } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
-    await audioVolumeBranches['GET /api/voicemeeter/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckVoicemeeter });
-
-  } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
-    await audioVolumeBranches['GET /api/wavelink/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildWlState });
-
-  } else if (reqPath === '/api/wavelink/channels' && req.method === 'GET') {
-    await audioVolumeBranches['GET /api/wavelink/channels'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
-
-  } else if (reqPath === '/api/wavelink/mixes' && req.method === 'GET') {
-    await audioVolumeBranches['GET /api/wavelink/mixes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
-
-  } else if (reqPath === '/api/wavelink/icon' && req.method === 'GET') {
-    await audioVolumeBranches['GET /api/wavelink/icon'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
-
-  } else if (reqPath === '/api/wavelink/test' && req.method === 'POST') {
-    await audioVolumeBranches['POST /api/wavelink/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckWaveLink });
-
-  } else if (reqPath === '/api/chroma/status' && req.method === 'GET') {
-    await lightsControlBranches['GET /api/chroma/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckChroma });
-
-  } else if (reqPath === '/api/chroma/test' && req.method === 'POST') {
-    await lightsControlBranches['POST /api/chroma/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckChroma });
-
-  } else if (reqPath === '/api/signalrgb/status' && req.method === 'GET') {
-    await lightsBranches['GET /api/signalrgb/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
-    await lightsBranches['POST /api/signalrgb/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { writeHubSettings });
-
-  } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
-    await lightsBranches['GET /api/signalrgb/effects'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
-    await streamingBranches['GET /obs/scenes'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs, refreshObsWatch });
-
-  } else if (reqPath === '/obs/sources' && req.method === 'GET') {
-    await streamingBranches['GET /obs/sources'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckObs });
-
-  } else if (reqPath === '/streamerbot/actions' && req.method === 'GET') {
-    await streamingBranches['GET /streamerbot/actions'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
-
-  } else if (reqPath === '/streamerbot/codetriggers' && req.method === 'GET') {
-    await streamingBranches['GET /streamerbot/codetriggers'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
-
-  } else if (reqPath === '/streamerbot/globals' && req.method === 'GET') {
-    await streamingBranches['GET /streamerbot/globals'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckSb });
-
-  } else if (reqPath === '/streamerbot/activity' && req.method === 'GET') {
-    await streamingBranches['GET /streamerbot/activity'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildSbState });
 
   } else if (reqPath === '/version' && req.method === 'GET') {
     await updatesBranches['GET /version'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -8099,41 +7936,11 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {
     await codexBranches['POST /api/chatgpt/delete'](req, res, { json, err500, reqPath, urlObj, isRemote }, { _chatgptAsker });
 
-  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
-    await smartHomeBranches['GET /api/homeassistant/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { buildHaState });
-
-  } else if (reqPath === '/stream/homeassistant/query' && req.method === 'POST') {
-    await smartHomeBranches['POST /stream/homeassistant/query'](req, res, { json, err500, reqPath, urlObj, isRemote }, { haQuery, readHubSettings });
-
-  } else if (reqPath === '/ha/deck-watch' && req.method === 'POST') {
-    await smartHomeBranches['POST /ha/deck-watch'](req, res, { json, err500, reqPath, urlObj, isRemote }, { broadcastHaDeckStates });
-
-  } else if (reqPath === '/api/homeassistant/entities' && req.method === 'GET') {
-    await smartHomeBranches['GET /api/homeassistant/entities'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
-
-  } else if (reqPath === '/api/homeassistant/dashboards' && req.method === 'GET') {
-    await smartHomeBranches['GET /api/homeassistant/dashboards'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
-
-  } else if (reqPath === '/api/homeassistant/test' && req.method === 'POST') {
-    await smartHomeBranches['POST /api/homeassistant/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings, refreshHaWatch, writeHubSettings });
-
-  } else if (reqPath === '/api/homeassistant/service' && req.method === 'POST') {
-    await smartHomeBranches['POST /api/homeassistant/service'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa });
-
-  } else if (reqPath === '/api/unifiprotect/state' && req.method === 'GET') {
-    await smartHomeBranches['GET /api/unifiprotect/state'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
-
   } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
     await smartHomeCamerasBranches['GET /api/unifiprotect/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckUnifi, readHubSettings });
 
-  } else if (reqPath === '/api/ha/cameras' && req.method === 'GET') {
-    await smartHomeBranches['GET /api/ha/cameras'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa, readHubSettings });
-
   } else if (reqPath.startsWith('/api/ha/camera/snapshot/') && req.method === 'GET') {
     await smartHomeCamerasBranches['GET /api/ha/camera/snapshot/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { deckHa });
-
-  } else if (reqPath === '/api/unifiprotect/test' && req.method === 'POST') {
-    await smartHomeBranches['POST /api/unifiprotect/test'](req, res, { json, err500, reqPath, urlObj, isRemote }, { readHubSettings });
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
     await installBranches['GET /startup/auto-open'](req, res, { json, err500, reqPath, urlObj, isRemote });
@@ -8738,12 +8545,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     await aiBranches['POST /api/chime'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
-  } else if (reqPath === '/api/volume/duck' && req.method === 'POST') {
-    await audioVolumeBranches['POST /api/volume/duck'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
-  } else if (reqPath === '/api/volume/restore' && req.method === 'POST') {
-    await audioVolumeBranches['POST /api/volume/restore'](req, res, { json, err500, reqPath, urlObj, isRemote }, { svvExec });
-
   } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
     await lookBranches['DELETE /font/*'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
@@ -8844,9 +8645,6 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/disk/clean/cancel' && req.method === 'POST') {
     await diskBranches['POST /disk/clean/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote }, { diskSpace });
 
-  } else if (reqPath === '/api/lyrics' && req.method === 'GET') {
-    await mediaBranches['GET /api/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { getCurrentLyrics });
-
   } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {
     await storeSupportersUnlockBranches['GET /api/features/lyrics'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
 
@@ -8855,15 +8653,6 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {
     await storeSupportersUnlockBranches['POST /api/features/lyrics/unlock'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
-
-  } else if (reqPath === '/api/lyrics/offset' && req.method === 'POST') {
-    await mediaBranches['POST /api/lyrics/offset'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock, lyricsForPlayingKey, lyricsOffsets });
-
-  } else if (reqPath === '/api/lyrics/translate' && req.method === 'POST') {
-    await mediaBranches['POST /api/lyrics/translate'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock, lyricsForPlayingKey, lyricsTranslateBlocker, lyricsTranslator });
-
-  } else if (reqPath === '/api/lyrics/translate/usage' && req.method === 'GET') {
-    await mediaBranches['GET /api/lyrics/translate/usage'](req, res, { json, err500, reqPath, urlObj, isRemote }, { lyricsTranslator, readHubSettings, smallTaskModel });
 
   } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
     await storeSupportersUnlockBranches['GET /api/features/devclean'](req, res, { json, err500, reqPath, urlObj, isRemote }, { featureUnlock });
@@ -8979,120 +8768,11 @@ const handleRequest = async (req, res) => {
   // ── Twitch live integration (OAuth device flow) ──────────────────────────
   // Responses never include tokens — only { connected, login, configured } or the
   // device-flow code/URL the user authorises on their phone.
-  } else if (reqPath === '/stream/twitch/status' && req.method === 'GET') {
-    await streamingTwitchBranches['GET /stream/twitch/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/login' && req.method === 'POST') {
-    await streamingTwitchBranches['POST /stream/twitch/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/login/poll' && req.method === 'POST') {
-    await streamingTwitchBranches['POST /stream/twitch/login/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/logout' && req.method === 'POST') {
-    await streamingTwitchBranches['POST /stream/twitch/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/stream' && req.method === 'GET') {
-    await streamingTwitchBranches['GET /stream/twitch/stream'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/followed' && req.method === 'GET') {
-    await streamingTwitchBranches['GET /stream/twitch/followed'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/top' && req.method === 'GET') {
-    await streamingTwitchBranches['GET /stream/twitch/top'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/emotes' && req.method === 'GET') {
-    await streamingTwitchBranches['GET /stream/twitch/emotes'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/search' && req.method === 'POST') {
-    await streamingTwitchBranches['POST /stream/twitch/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/twitch/chat/send' && req.method === 'POST') {
-    await streamingTwitchBranches['POST /stream/twitch/chat/send'](req, res, { json, err500, reqPath, urlObj, isRemote });
-  } else if (reqPath === '/stream/youtube/status' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/login' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/login/poll' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/login/poll'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/logout' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/broadcast' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/broadcast'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/title' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/title'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/playlists' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/playlists'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/playlist/resolve' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/playlist/resolve'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/liked' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/liked'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/playlist/items' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/playlist/items'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/subscriptions' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/subscriptions'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/query' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/query'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
   } else if (reqPath.startsWith('/api/mcp/dev/')) {
     await mcpDevBranches['* /api/mcp/dev/*'](req, res, { json, err500, reqPath, urlObj, isRemote }, { handleMcpDevRoute });
 
   } else if (reqPath === '/sdk/ai' && req.method === 'POST') {
     await widgetSdkCallsBranches['POST /sdk/ai'](req, res, { json, err500, reqPath, urlObj, isRemote }, { sdkAi, sdkPackagesCached });
-
-  } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/search'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/broadcast/create' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/broadcast/create'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/broadcast/cancel' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/broadcast/cancel'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/privacy' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/privacy'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/streamkey' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/streamkey'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/chat' && req.method === 'GET') {
-    await streamingYoutubeBranches['GET /stream/youtube/chat'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/youtube/chat/send' && req.method === 'POST') {
-    await streamingYoutubeBranches['POST /stream/youtube/chat/send'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/config' && req.method === 'POST') {
-    await streamingBranches['POST /stream/config'](req, res, { json, err500, reqPath, urlObj, isRemote }, { saveStreamConfig });
-  } else if (reqPath === '/stream/discord/status' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {
-    await discordBranches['POST /stream/discord/login'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshDiscordWatch });
-
-  } else if (reqPath === '/stream/discord/logout' && req.method === 'POST') {
-    await discordBranches['POST /stream/discord/logout'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshDiscordWatch });
-
-  } else if (reqPath === '/stream/discord/channels' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/channels'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/discord/sounds' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/sounds'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/discord/voice' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/voice'](req, res, { json, err500, reqPath, urlObj, isRemote }, { refreshDiscordWatch });
-
-  } else if (reqPath === '/stream/discord/roster' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/roster'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/api/calls' && req.method === 'GET') {
     await transferPhoneBranches['GET /api/calls'](req, res, { json, err500, reqPath, urlObj, isRemote }, { keySendAvailable, keySendProblem });
@@ -9254,44 +8934,6 @@ const handleRequest = async (req, res) => {
         else err500(e.message);
       }
     }
-
-  } else if (reqPath === '/stream/discord/notifications' && req.method === 'GET') {
-    await discordBranches['GET /stream/discord/notifications'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
-    await discordBranches['POST /stream/discord/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/discord/open-chat' && req.method === 'POST') {
-    await discordBranches['POST /stream/discord/open-chat'](req, res, { json, err500, reqPath, urlObj, isRemote }, { openDiscordChat });
-  } else if (reqPath === '/stream/spotify/status' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/status'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/login' && req.method === 'POST') {
-    await streamingSpotifyBranches['POST /stream/spotify/login'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/callback' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/callback'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/logout' && req.method === 'POST') {
-    await streamingSpotifyBranches['POST /stream/spotify/logout'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/query' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/query'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/queue' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/queue'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/playlists' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/playlists'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/devices' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/devices'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/player' && req.method === 'GET') {
-    await streamingSpotifyBranches['GET /stream/spotify/player'](req, res, { json, err500, reqPath, urlObj, isRemote });
-
-  } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
-    await streamingSpotifyBranches['POST /stream/spotify/launch'](req, res, { json, err500, reqPath, urlObj, isRemote });
 
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
     await remoteControlBranches['GET /remote/status'](req, res, { json, err500, reqPath, urlObj, isRemote }, { remoteControl });
