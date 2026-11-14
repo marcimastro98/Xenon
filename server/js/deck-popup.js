@@ -6,7 +6,6 @@
 // tile first; then it opens its own SSE stream and feeds exactly the events the
 // deck snapshot consumes. View+press only: no editor, no layout shell, no
 // settings — key presses go through the same POST /actions/run as the dashboard.
-(function () {
   // ── Which deck instance to mirror (default: the primary tile) ──
   const params = new URLSearchParams(location.search);
   const instance = (params.get('instance') || '').trim();
@@ -24,5 +23,4 @@
     };
   }
   connect();
-})();
 export {};

@@ -1,6 +1,6 @@
 {
   "note": "Lint findings per \"file rule\". Written by tools/quality/lint.mjs: numbers only go down.",
-  "total": 5931,
+  "total": 5930,
   "counts": {
     "packages/core/src/bit-clips.js complexity/useArrowFunction": 2,
     "packages/core/src/bit-phrases.js complexity/useArrowFunction": 2,
@@ -568,7 +568,6 @@
     "server/js/deck-icons.js suspicious/noPrototypeBuiltins": 1,
     "server/js/deck-model.js complexity/useOptionalChain": 51,
     "server/js/deck-model.js suspicious/noPrototypeBuiltins": 6,
-    "server/js/deck-popup.js complexity/useArrowFunction": 1,
     "server/js/deck-shortcuts.js complexity/useOptionalChain": 4,
     "server/js/deck-shortcuts.js suspicious/noAssignInExpressions": 3,
     "server/js/deck-store.js complexity/useOptionalChain": 2,
