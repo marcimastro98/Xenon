@@ -6263,7 +6263,6 @@ async function saveStreamConfig(patch) {
 // the mark keeps it (calendar-reminders.js keepNotified).
 let _eventsWriteChain = Promise.resolve();
 const { agendaState } = require('./time/agenda-state.js');
-agendaState.eventsSeq = Date.now();   // as agendaState.tasksSeq
 function withEventsWrite(fn) {
   const run = _eventsWriteChain.then(fn, fn);
   _eventsWriteChain = run.catch(() => {});
@@ -6308,7 +6307,6 @@ function markEventReminders(now) {
 // repeating tasks and two dashboards can never base a write on the same old
 // list and drop each other's change.
 let _tasksWriteChain = Promise.resolve();
-agendaState.tasksSeq = Date.now();
 function withTasksWrite(fn) {
   const run = _tasksWriteChain.then(fn, fn);
   _tasksWriteChain = run.catch(() => {});

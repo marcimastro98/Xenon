@@ -2,8 +2,10 @@
 // from outside.
 
 const agendaState = {
-  eventsSeq: undefined, // given its first value where the engine loads
-  tasksSeq: undefined, // given its first value where the engine loads
+  // Each starts at the time the engine loaded, so it is above every number of the run before
+  // (list-seq.js keeps it rising). Given here, so the saves work whoever loads them.
+  eventsSeq: Date.now(),
+  tasksSeq: Date.now(),
   // ── External calendar feeds (read-only ICS subscriptions) ──────────────────
   // In-memory only: parsed feed events are never written to disk.
   externalFeeds: { feeds: [], events: [], refreshedAt: 0 },
