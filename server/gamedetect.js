@@ -353,4 +353,4 @@ function stopGameDetect() {
   if (_linuxProbe) { try { _linuxProbe.stop(); } catch { /* ignore */ } _linuxProbe = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, applySample, setGameHint, onGamingChange, isIgnoredProc, setIgnoreSource };
