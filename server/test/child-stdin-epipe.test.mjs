@@ -75,7 +75,11 @@ test('every child stdin Xenon writes to has an error handler', () => {
   for (const file of files) {
     // The body of a route may stand in a table of its feature, with the child spawned in one route and written to in
     // another: read with every body back under its test, the write and its guard are one text again.
-    const src = bodiesBack(`server/${file}`, readFileSync(join(SERVER_DIR, file), 'utf8'));
+    // A factory next to server.js may have had functions taken out of it, with the child started in one module and
+    // written to in another: such a file is read followed by its modules, the one text it was. server.js and its
+    // modules are read one by one, as before.
+    const whole = file === 'server.js' || file.includes('/');
+    const src = bodiesBack(`server/${file}`, whole ? readFileSync(join(SERVER_DIR, file), 'utf8') : engineSource(`server/${file}`));
     // The receiver of a `.stdin.write(` — `proc`, `p`, `ff`, `rec.ffmpegProc`, …
     const writers = new Set();
     for (const m of src.matchAll(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.stdin\.write\(/g)) {
@@ -135,7 +139,8 @@ test('the long-lived hosts retire on a pipe error instead of ignoring it', () =>
     ['server.js', /proc\.stdin\.on\('error', \(\) => _retireMediaHost\(/],
   ];
   for (const [file, re] of HOSTS) {
-    const src = file === 'server.js' ? engineSource() : readFileSync(join(SERVER_DIR, file), 'utf8');
+    // Each file with the modules taken out of it: the host may be started in one of them.
+    const src = engineSource(`server/${file}`);
     assert.match(src, re, `${file}: a host pipe error no longer retires the host`);
   }
 });
