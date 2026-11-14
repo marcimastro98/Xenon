@@ -175,12 +175,6 @@ const { WEATHER_LANGS } = require('./weather/setting-values.js');
 
 const { cloneDashboardLayout } = require('./grid/layout-normalize-parts.js');
 
-const {
-  collectTileAssetRefs, TILE_ASSET_GC_GRACE_MS, TILE_ASSET_GC_MIN_INTERVAL_MS,
-} = require('./grid/tile-asset-refs.js');
-
-const { collectSlideshowAssetRefs } = require('./windows-tiles/slideshow-asset-refs.js');
-
 const { CALENDAR_FEED_PALETTE, normalizeEvents } = require('./time/events-normalize.js');
 
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
@@ -647,21 +641,8 @@ const { nextSettingsRev } = require('./settings-rev');   // shared by every sett
 
 const { checkLatestRelease } = require('./updates/latest-release.js');
 
-const { WHATSNEW_FILE } = require('./updates/whats-new-file.js');
-const { normalizeWhatsNew } = require('./updates/whats-new-normalize.js');
 
-let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
-
-async function loadWhatsNew() {
-  const now = Date.now();
-  if (_whatsNewCache && now - _whatsNewCache.at < 60 * 1000) return _whatsNewCache.data;
-  let data = { id: '', title: '', url: '', highlights: [] };
-  try {
-    data = normalizeWhatsNew(JSON.parse(await fs.promises.readFile(WHATSNEW_FILE, 'utf8')));
-  } catch { /* missing/invalid → empty: the modal simply won't show */ }
-  _whatsNewCache = { at: now, data };
-  return data;
-}
+const { loadWhatsNew } = require('./updates/whats-new-read.js');
 
 const { audioCache } = require('./audio/device-cache.js');
 
@@ -1037,7 +1018,6 @@ function buildCoreAiFunctions() {
 
 const { buildMemoryFunctions } = require('./ai/memory-functions.js');
 
-const { SVV } = require('./audio/svv-path.js');
 const { MEDIA_SCRIPT } = require('./media/script-paths.js');
 const { HELPER_EXE } = require('./engine/paths.js');
 const { MEDIAREMOTE_DIR } = require('./media/script-paths.js');
@@ -2390,7 +2370,7 @@ const {
   WEATHER_CACHE_MAX_ENTRIES, weatherCache, weatherPending, weatherLocationCache,
   newestWeatherForLocation,
 } = require('./weather/cache.js');
-let audioPending = null;
+const { audioReads } = require('./audio/read-state.js');
 const { sttDevice } = require('./ai/stt-device-state.js');
 
 const { STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
@@ -3509,22 +3489,10 @@ async function _getAudioInfoRaw() {
 }
 
 async function getAudioInfo() {
-  if (audioPending) return audioPending;
+  if (audioReads.pending) return audioReads.pending;
   const p = _getAudioInfoRaw();
-  audioPending = p;
-  try { return await p; } finally { if (audioPending === p) audioPending = null; }
-}
-
-function setMicMute(mute) {
-  const action = mute ? '/Mute' : '/Unmute';
-  // Use the cached mic CLI ID (resolved from SoundVolumeView output) so the call works
-  // regardless of the Windows display language. Falls back silently if the cache is empty.
-  if (audioCache.micId) {
-    svvExec([action, audioCache.micId]).catch(e => console.error(e.message));
-  } else if (audioCache.speakerName) {
-    // Last-resort: try the generic 'DefaultCaptureDevice' selector understood by SVV
-    svvExec([action, 'DefaultCaptureDevice']).catch(e => console.error(e.message));
-  }
+  audioReads.pending = p;
+  try { return await p; } finally { if (audioReads.pending === p) audioReads.pending = null; }
 }
 
 // Make a device the default. Windows keeps three defaults per direction:
@@ -3544,21 +3512,9 @@ async function setDefaultAudioDevice(id, settings) {
   await svvExec(['/SetDefault', id, '1']);   // Multimedia
 }
 
-// Promise wrapper around a single SoundVolumeView call, and the ONE place that
-// knows SoundVolumeView is Windows-only: on Linux the same argv is translated to
-// wpctl. Every SVV call site goes through here, so there is no execFile shadow
-// and no platform check scattered through the audio code.
-function svvExec(args) {
-  const run = nativeCollectors
-    ? Promise.resolve(nativeCollectors.audioCommand(args))
-    : new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
-  // Every audio change goes through here. A read already in flight began before
-  // the change, and getAudioInfo() hands that same read to whoever asks next, so
-  // a Deck mute key asking right after the press got the old state and waited
-  // for the next 8s tick (issue #139). Once the change is done, the next read
-  // starts fresh.
-  return run.finally(() => { audioPending = null; });
-}
+const { svvExec } = require('./audio/svv-exec.js');
+
+const { setMicMute } = require('./audio/mic-mute.js');
 
 // Lazy OBS WebSocket client — reads live settings on each new connection so
 // changes in Settings take effect without a server restart.
@@ -3910,16 +3866,8 @@ async function refreshHaWatch() {
 // password never leaves the server — only the projected globals do.
 let sbStopWatch = null;
 let sbNotifyTimer = null;
-const { SB_ACTIVITY_MAX } = require('./streaming/streamerbot-activity-limit.js');
-let sbActivitySeq = 0;
 
-function pushActivity(a) {
-  if (!a || typeof a !== 'object') return;
-  const item = Object.assign({ id: ++sbActivitySeq, at: Date.now() }, a);
-  streamingLive.streamerbotActivity.push(item);
-  if (streamingLive.streamerbotActivity.length > SB_ACTIVITY_MAX) streamingLive.streamerbotActivity = streamingLive.streamerbotActivity.slice(-SB_ACTIVITY_MAX);
-  broadcastSSE('streamerbot_event', item);
-}
+const { pushActivity } = require('./streaming/streamerbot-activity.js');
 
 async function buildSbState() {
   const s = (await readHubSettings().catch(() => null)) || {};
@@ -4055,11 +4003,11 @@ async function refreshUnifiEventsWatch() {
   unifiNotify.configSig = sig;
 }
 
-let obsLaunching = false;
+const { obsStarting } = require('./streaming/obs-starting-state.js');
 
 function _finishObsLaunch(ok) {
-  if (!obsLaunching) return;
-  obsLaunching = false;
+  if (!obsStarting.launching) return;
+  obsStarting.launching = false;
   broadcastSSE('obs_launching', { launching: false, ok: !!ok });
 }
 
@@ -4073,7 +4021,7 @@ async function ensureObsRun(runFn) {
     if (s.obsAutoLaunch === false) throw err;                   // user opted out
     const exe = await obsLaunch.findObsExe({ readInstallDir: readObsInstallDir, fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } } });
     if (!exe) throw err;                                        // OBS not installed / not found
-    if (!obsLaunching) { obsLaunching = true; broadcastSSE('obs_launching', { launching: true }); launchObs(exe); }
+    if (!obsStarting.launching) { obsStarting.launching = true; broadcastSSE('obs_launching', { launching: true }); launchObs(exe); }
     const deadline = Date.now() + 25000;
     while (Date.now() < deadline) {
       await _sleep(3000);
@@ -4671,67 +4619,6 @@ const perfRegistry = createPerfRegistry({
 
 const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
-let _tileAssetGcSig = null;
-let _tileAssetGcAt = 0;
-// Tile decorations named by a layout the version migration set aside. Without
-// this the first save after an upgrade sweeps them, and the kept layout restores
-// the positions with every picture missing — a backup that is worth less than it
-// looks. Read once and memoized only on success: the file is written at boot and
-// never changes, but a sweep that runs before it exists must not cache "none".
-let _layoutBackupRefs = null;
-function layoutBackupAssetRefs() {
-  if (_layoutBackupRefs) return _layoutBackupRefs;
-  try {
-    const raw = JSON.parse(fs.readFileSync(LAYOUT_BACKUP_FILE, 'utf8'));
-    const set = new Set();
-    for (const m of JSON.stringify(raw.dashboardLayout || {}).matchAll(/\/uploads\/(tileasset-[A-Za-z0-9._-]+)/g)) set.add(m[1]);
-    _layoutBackupRefs = set;
-    return set;
-  } catch { return new Set(); }   // no backup, or unreadable — nothing to protect
-}
-
-function cleanupUnreferencedTileAssets(layout, presets) {
-  const referenced = collectTileAssetRefs(layout, presets);
-  for (const f of layoutBackupAssetRefs()) referenced.add(f);
-  const sig = [...referenced].sort().join('|');
-  const now = Date.now();
-  if (sig === _tileAssetGcSig && (now - _tileAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
-  _tileAssetGcSig = sig;
-  _tileAssetGcAt = now;
-  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
-  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
-    .filter(f => f.startsWith('tileasset-') && !referenced.has(f))
-    .map(async (f) => {
-      try {
-        const p = path.join(UPLOADS_DIR, f);
-        const st = await fs.promises.stat(p);
-        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
-      } catch { /* file vanished mid-sweep — fine */ }
-    })
-  )).catch(() => {});
-}
-
-let _slideshowAssetGcSig = null;
-let _slideshowAssetGcAt = 0;
-function cleanupUnreferencedSlideshowAssets(slideshow) {
-  const referenced = collectSlideshowAssetRefs(slideshow);
-  const sig = [...referenced].sort().join('|');
-  const now = Date.now();
-  if (sig === _slideshowAssetGcSig && (now - _slideshowAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
-  _slideshowAssetGcSig = sig;
-  _slideshowAssetGcAt = now;
-  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
-  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
-    .filter(f => f.startsWith('slideshow-') && !referenced.has(f))
-    .map(async (f) => {
-      try {
-        const p = path.join(UPLOADS_DIR, f);
-        const st = await fs.promises.stat(p);
-        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
-      } catch { /* file vanished mid-sweep — fine */ }
-    })
-  )).catch(() => {});
-}
 
 const { listScreens } = require('./screens/list-screens.js');
 
@@ -4803,31 +4690,7 @@ async function captureScreenshot(monitor, opts) {
 
 const { speakState } = require('./ai/speak-state.js');
 
-// Duck/restore helpers — lower device volume so music quiets while Xenon speaks,
-// then restore to the saved level. Safe to call multiple times (guarded by flag).
-function _duckSpeakerVolume() {
-  if (!audioCache.ducked && audioCache.speakerId) {
-    audioCache.volumeBeforeDuck = audioCache.speakerVolume;
-    audioCache.ducked = true;
-    svvExec(['/SetVolume', audioCache.speakerId, '30']).catch(() => {});
-    process.stdout.write(`[Duck] volume ${audioCache.volumeBeforeDuck} → 30\n`);
-  }
-}
-function _restoreSpeakerVolume() {
-  if (audioCache.ducked && audioCache.speakerId) {
-    const vol = audioCache.volumeBeforeDuck != null ? audioCache.volumeBeforeDuck : 70;
-    audioCache.ducked = false;
-    audioCache.volumeBeforeDuck = null;
-    svvExec(['/SetVolume', audioCache.speakerId, String(vol)]).catch(() => {});
-    process.stdout.write(`[Duck] restored → ${vol}\n`);
-  }
-}
-
-function stopServerSpeak() {
-  speakState.genToken++;
-  if (speakState.proc) { try { speakState.proc.kill(); } catch {} speakState.proc = null; }
-  _restoreSpeakerVolume(); // restore if ducked during interrupted TTS
-}
+const { _duckSpeakerVolume, _restoreSpeakerVolume } = require('./audio/speaker-duck.js');
 
 // Gemini native TTS (prebuilt neural voice). Returns a Promise<Buffer> with WAV
 // audio, or rejects on error (quota, offline, no audio). Voice names are
@@ -4884,42 +4747,7 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
 
 const { _withGeminiModel, _geminiOneShotOnce } = require('./ai/gemini-one-shot.js');
 
-const { _spawnWavPlayer } = require('./wav/player.js');
-
-// Play a WAV file (synchronous playback, focus-independent).
-// Resolves when playback finishes or is cancelled. Honours the cancel token.
-// `duck`/`broadcast`/`restore` let the chunked path duck the media volume and
-// announce speak_start ONCE (first chunk) and restore ONCE (after the last),
-// instead of flapping the volume on every sentence.
-function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore = true } = {}) {
-  return new Promise((resolve) => {
-    if (speakState.genToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
-    if (duck) _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
-    if (broadcast) broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
-    const psProc = _spawnWavPlayer(wavPath);
-    speakState.proc = psProc;
-    let _settled = false;
-    const done = () => {
-      if (_settled) return;
-      _settled = true;
-      clearTimeout(_guard);
-      if (speakState.proc === psProc) speakState.proc = null;
-      // The PowerShell one-liner only deletes the wav on a CLEAN PlaySync() exit;
-      // a barge-in / guard kill terminates it first, so always unlink here too
-      // (a no-op if the script already removed it) — otherwise every tap-to-
-      // interrupt leaks one temp wav.
-      fs.promises.unlink(wavPath).catch(() => {});
-      if (restore) _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
-      resolve();
-    };
-    // Playback cap (safety net against a stuck SoundPlayer). Kept below the
-    // client's _aiSpeak guard so the client never races ahead and re-opens the
-    // mic before this resolves. Raise both together if you change one.
-    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 40000);
-    psProc.on('exit', done);
-    psProc.on('error', done);
-  });
-}
+const { stopServerSpeak, _playWavFile } = require('./ai/speak-play.js');
 
 // Speak text server-side using Gemini neural TTS (voice: Charon).
 // Playback is server-side so it works regardless of window focus or WebView quirks.
@@ -5019,20 +4847,12 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
   });
 }
 
-// Provider-agnostic tool dispatch shared by the Gemini and Ollama chat loops.
-// `deps` carries the per-request context the handlers need.
-// Persist the bridge's current lighting config into settings.json so AI-driven
-// (and endpoint-driven) changes survive a restart. Best-effort; never throws.
-// Coalesced: a burst of lighting tweaks (slider drags, AI sweeps, effect
-// toggles) used to rewrite the whole settings.json — the largest store — once
-// per call; now at most once per window. The config written is read fresh from
-// the bridge at flush time, so the last state always wins. Flushed on shutdown.
-let _lightingPersistTimer = null;
+const { lightingPersist } = require('./lights/persist-state.js');
 const { LIGHTING_PERSIST_DEBOUNCE_MS } = require('./lights/persist-timing.js');
 async function _flushLightingPersist() {
-  if (!_lightingPersistTimer) return;
-  clearTimeout(_lightingPersistTimer);
-  _lightingPersistTimer = null;
+  if (!lightingPersist.timer) return;
+  clearTimeout(lightingPersist.timer);
+  lightingPersist.timer = null;
   // Serialized with every other settings writer: the base is spread from
   // hub.settings, so a concurrent POST /settings could otherwise commit a
   // vitals refill that this flush then overwrites with its pre-refill copy.
@@ -5057,9 +4877,9 @@ function _syncSessionWatch() {
   if (on) _sessionWatch.start(); else _sessionWatch.stop();
 }
 async function _persistLighting() {
-  if (_lightingPersistTimer) return;   // a flush is already scheduled — it reads the latest config
-  _lightingPersistTimer = setTimeout(() => { _flushLightingPersist(); }, LIGHTING_PERSIST_DEBOUNCE_MS);
-  _lightingPersistTimer.unref();
+  if (lightingPersist.timer) return;   // a flush is already scheduled — it reads the latest config
+  lightingPersist.timer = setTimeout(() => { _flushLightingPersist(); }, LIGHTING_PERSIST_DEBOUNCE_MS);
+  lightingPersist.timer.unref();
 }
 
 // What the create_preset dry run needs from this file: the real settings
@@ -5862,7 +5682,11 @@ async function geminiKeyFor(bodyKey) {
   return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
 }
 
-const { LAYOUT_BACKUP_FILE, backupSupersededLayout } = require('./grid/layout-backup.js');
+const { backupSupersededLayout } = require('./grid/layout-backup.js');
+
+const {
+  cleanupUnreferencedTileAssets, cleanupUnreferencedSlideshowAssets,
+} = require('./grid/asset-sweep.js');
 
 async function writeHubSettings(settings) {
   // Large scene pictures go to files of their own (scene-images.js), so a
@@ -6599,8 +6423,6 @@ const { backgroundHeld } = require('./performance/background-held.js');
 
 const { _guardHelperMediaBlindSpot, mediaScriptArgs } = require('./media/helper-blind-spot.js');
 
-const { DISCORD_NOTIF_MAX } = require('./discord/notification-limit.js');
-
 const { refreshWinNotifWatch } = require('./notification-open/watch-refresh.js');
 
 const { phoneSettings } = require('./transfer/phone-settings.js');
@@ -6614,6 +6436,8 @@ const { stepsLanguage } = require('./screens/steps-language.js');
 const { _writeTasksNow } = require('./time/tasks-write-now.js');
 
 const { _saveTimers } = require('./time/timers-save.js');
+
+const { pushDiscordNotification } = require('./discord/notif-push.js');
 
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -6827,24 +6651,6 @@ let discordWatchArming = false;   // serialize refreshes (status() is async)
 let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
 
 const { discordMirror } = require('./discord/mirrored.js');
-let discordNotifSeq = 0;
-function pushDiscordNotification(n) {
-  if (!n || typeof n !== 'object') return;
-  // Calls read this BEFORE the feed's own opt-in. The Discord notification feed
-  // (the widget's Notifications tab) and the ring are two different features
-  // with two different switches, and a user who wants the call card should not
-  // have to turn on a message feed to get it. Both still need the RPC scope,
-  // which is what actually delivers the event.
-  try { calls.onDiscordNotification(n); } catch { /* a ring never breaks the feed */ }
-  if (!discordNotifWanted()) return;   // toggled off mid-watch → drop until re-arm
-  const item = Object.assign({ id: ++discordNotifSeq, at: Date.now() }, n);
-  discordMirror.notifications.push(item);
-  if (discordMirror.notifications.length > DISCORD_NOTIF_MAX) discordMirror.notifications = discordMirror.notifications.slice(-DISCORD_NOTIF_MAX);
-  broadcastSSE('discord_notification', item);
-  // Fire the "notification" RGB event effect (no-op unless the user enabled it in
-  // Settings → Illuminazione → Effetti evento). Same entry point as timer/reminder.
-  try { lighting.onEvent('notification'); } catch { /* lighting optional */ }
-}
 winNotif.init({
   // Per-app mute: match the AUMID when the toast has one, the display name
   // otherwise (some Win32 toasts carry no AUMID). Read live from settings so
@@ -7014,7 +6820,7 @@ const phone = createPhone({
   },
 });
 
-const { audioLevelsWanted, refreshAudioLevelsWatch } = require('./audio/levels-wanted.js');
+const { refreshAudioLevelsWatch } = require('./audio/levels-wanted.js');
 // Each tick goes straight out; the helper's own interval is the rate limit, and
 // the payload is only the apps that are actually making sound.
 audioLevels.onTick((peaks) => {
@@ -7022,19 +6828,7 @@ audioLevels.onTick((peaks) => {
   broadcastSSE('audiolevels', { peaks });
 });
 
-// When metering is wanted but cannot run — almost always a helper that predates
-// audio-serve — say so ONCE on the same channel instead of leaving the widget
-// with a feed that simply never starts. There is no Settings row to put this on
-// (the grant is the switch), so it has to reach the widget itself.
-let _audioLevelsProblemSaid = '';
-function announceAudioLevelsProblem() {
-  const problem = audioLevelsWanted() ? audioLevels.failure() : '';
-  if (problem === _audioLevelsProblemSaid) return;
-  _audioLevelsProblemSaid = problem;
-  if (problem && sseClients.size > 0) {
-    broadcastSSE('audiolevels', { peaks: {}, problem, minVersion: audioLevels.minVersion() });
-  }
-}
+const { announceAudioLevelsProblem } = require('./audio/levels-problem.js');
 setInterval(announceAudioLevelsProblem, 5000).unref();
 
 const {
@@ -7398,11 +7192,11 @@ async function _initTimers() {
   timerState.checking.unref();
 }
 
-let _externalRefreshing = false;
+const { feedsRefresh } = require('./time/feeds-refresh-state.js');
 
 async function refreshExternalFeeds() {
-  if (_externalRefreshing) return agendaState.externalFeeds;
-  _externalRefreshing = true;
+  if (feedsRefresh.refreshing) return agendaState.externalFeeds;
+  feedsRefresh.refreshing = true;
   try {
     const settings = await readHubSettings().catch(() => null);
     const feeds = (settings && Array.isArray(settings.calendarFeeds)) ? settings.calendarFeeds : [];
@@ -7418,7 +7212,7 @@ async function refreshExternalFeeds() {
   } catch (e) {
     // Keep last good cache; record nothing sensitive.
   } finally {
-    _externalRefreshing = false;
+    feedsRefresh.refreshing = false;
   }
   return agendaState.externalFeeds;
 }
