@@ -27,7 +27,7 @@ const { privateTmpDir } = require('./private-tmp');
 const { nativeCollectors } = require('./system/native-collectors.js');
 const { POWERSHELL_SUPPORTED } = require('./powershell/supported.js');
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
-const { createFpsDemand } = require('./fps-demand');
+require('./fps-demand');
 // Single-screen capabilities (js/capability-catalog.js): one declaration, run
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
@@ -51,9 +51,9 @@ const micUse = require('./mic-use');
 const { isOwnApp } = require('./capabilities/layer-anchor');
 const { createPerfStream } = require('./perf-stream');
 require('./packet-loss');
-const { createPerfNet } = require('./perf-net');
+require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
-const { createExclusiveHint } = require('./exclusive-hint');
+require('./exclusive-hint');
 const { createGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
@@ -441,7 +441,7 @@ require('./ics-feeds.js');
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
 const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected } = require('./actions/registry');
-const { createPerfRegistry } = require('./actions/perf-registry');
+require('./actions/perf-registry');
 require('./perf-session');
 require('./perf-session/shield-wish');
 require('./actions/streamerbot');
@@ -614,7 +614,7 @@ const {
   DECK_ACTIONS_SCRIPT, DECK_HOTKEY_SCRIPT, DECK_WINDOW_SCRIPT,
 } = require('./deck/script-paths.js');
 const { PROCESSES_SCRIPT } = require('./performance/script-paths.js');
-const { PERF_PRIORITY_SCRIPT } = require('./performance/script-paths.js');
+require('./performance/script-paths.js');
 const { VITALS_NAG_SCRIPT } = require('./vitals/script-paths.js');
 // How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
 // script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
@@ -2593,19 +2593,7 @@ const widgetOptionsStore = require('./widget-options/index.js').createWidgetOpti
 
 const { perfStats } = require('./performance/perf-stats.js');
 
-// Performance Mode runner: guided, reversible app management. Side-effects are
-// injected so the allowlist/validation stays the only execution path. The
-// window helper does the graceful close and protected-process refusal.
-const perfRegistry = createPerfRegistry({
-  closeWindow: (id) => runWindowsTool(['close', id], 8000),
-  openExternal: (p, args) => openExternalPath(p, args),
-  launchApp: process.platform === 'linux' ? (p, args) => launchLinuxApp(p, args) : undefined,
-  fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
-  setPriority: (name, level) => (perfSession.table.available()
-    ? perfSession.priority.set(name, level)
-    : runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000)),
-  isRunning: (name) => perfSession.priority.isRunning(name),
-});
+const { perfRegistry } = require('./performance/engine-registry.js');
 
 const { readBody, readBodyBuffer } = require('./http/read-body.js');
 
@@ -4108,18 +4096,7 @@ _calendarReminders.start();
 // so the client-side render functions need no changes — only the fetch trigger
 // changes from setInterval to EventSource.
 
-// PresentMon runs an ETW tracing session, so it reads only while a dashboard is
-// connected or a recording marks stutters (holdFpsForMarkers), and pauses 45 s
-// after the last one goes: the grace survives a page reload on the screen. A game
-// keeps a running reader, since some games refuse every new trace session until
-// they close. The rules are in fps-demand.js.
-const _fpsDemand = createFpsDemand({
-  resume: () => { try { fpsMonitor.resumeFpsMonitor(); } catch { /* PresentMon absent → no-op */ } },
-  pause: () => { try { fpsMonitor.pauseFpsMonitor(); } catch { /* no-op */ } },
-});
-function _syncFpsMonitor() {
-  _fpsDemand.clients(sseClients.size);
-}
+const { _fpsDemand, _syncFpsMonitor } = require('./performance/engine-fps-demand.js');
 
 const { stocksState } = require('./ticker/stocks-state.js');
 const { stocksRefresh } = require('./ticker/stocks-refresh-state.js');
@@ -7328,15 +7305,7 @@ const _whenPageSync = LayerPages.createWhenPageSync({
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
-// Ping and packet loss for the same tile, only when someone chose to see them.
-const _perfNet = createPerfNet({
-  read: getNetworkInfo,
-  wanted: () => {
-    const hud = PerfHud.normalizePerfHud(hub.settings && hub.settings.perfHud);
-    return (hud.ping || hud.loss) && perfWanted();
-  },
-  broadcast: (d) => broadcastSSE('perf_net', d),
-});
+const { _perfNet } = require('./performance/engine-perf-net.js');
 // One summary per game played (game-sessions.js). Fed by the status tick, so it
 // adds no timer of its own; the system tick adds the CPU/GPU averages.
 const _gameSessions = createGameSessions({
@@ -7675,17 +7644,7 @@ const _stutterWatch = createStutterWatch({
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
   culprit: perfSession.culprit,
 });
-// A game in exclusive full screen hides the widgets over it: said once per game
-// (exclusive-hint.js), only when there is something on the overlay to hide.
-const _exclusiveHint = createExclusiveHint({
-  fps: fpsMonitor,
-  overlayShown: () => {
-    const layers = LayersModel.normalize(hub.settings && hub.settings.layers);
-    return LayersModel.surfaceKeys(layers).some((k) => k.startsWith('overlay:')
-      && LayersModel.shownFor(layers, k).some((w) => w.show !== 'notGaming'));
-  },
-  broadcast: (payload) => broadcastSSE('exclusive_hint', payload),
-});
+const { _exclusiveHint } = require('./performance/engine-exclusive-hint.js');
 // FPS needs a Windows permission since 5.1.0: one pop-up per version (fps-notice.js).
 const _fpsNotice = require('./sensor-service/fps-notice.js').createFpsNotice({
   access: require('./sensor-service/fps-access.js').instance(), dataDir: DATA_DIR, version: APP_VERSION,
