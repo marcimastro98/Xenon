@@ -5,6 +5,12 @@
 // compiler and hands back the tree. Text is given through a virtual file system,
 // so nothing is written to disk, and every parse gets a fresh file name because
 // the compiler keeps the first text it saw under a name.
+//
+// A file opened stays in the compiler's program until it is closed, and the
+// compiler rebuilds that program for every file opened: left open, each parse
+// costs more than the one before (`browser module --list` took 141 s). So a parse closes the
+// file of the parse before it. The tree handed back is read in full by then and
+// stays good, which is what lets a caller hold many trees at once.
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -26,7 +32,8 @@ const load = (file) => import(pathToFileURL(path.join(TS_DIR, 'dist', file)).hre
  * Starts one compiler for many parses. Call `close()` when done: it is a child process.
  * @returns {Promise<{ K: Record<string, number>, NodeFlags: Record<string, number>,
  *   commentsBefore: (text: string, pos: number) => {pos: number, end: number}[],
- *   parse: (text: string, name?: string) => any, close: () => void }>}
+ *   parse: (text: string, name?: string) => any, held: () => number, close: () => void }>}
+ *   `held` is how many files the compiler's program held at the last parse: 1, however many parses came before
  */
 export async function openParser() {
   if (!parserAvailable()) throw new Error('TypeScript is not installed here. Run: npm run quality:install');
@@ -39,6 +46,8 @@ export async function openParser() {
     },
   });
   let parses = 0;
+  let previous = null;
+  let held = 0;
   return {
     K: ast.SyntaxKind,
     NodeFlags: ast.NodeFlags,
@@ -47,12 +56,20 @@ export async function openParser() {
       parses += 1;
       const file = `${VIRTUAL_ROOT}/${parses}/${path.basename(name)}`;
       files.set(file, text);
-      const snapshot = api.updateSnapshot({ openFiles: [file] });
-      const sourceFile = snapshot.getDefaultProjectForFile(file)?.program.getSourceFile(file);
+      const snapshot = api.updateSnapshot(previous ? { openFiles: [file], closeFiles: [previous.file] } : { openFiles: [file] });
+      const project = snapshot.getDefaultProjectForFile(file);
+      const sourceFile = project?.program.getSourceFile(file);
+      if (previous) {
+        files.delete(previous.file);
+        previous.snapshot.dispose();
+      }
+      previous = { file, snapshot };
+      held = project?.rootFiles.length ?? 0;
       if (!sourceFile) throw new Error(`the compiler returned no tree for ${name}`);
       if (sourceFile.text !== text) throw new Error(`the compiler read a different text for ${name}`);
       return sourceFile;
     },
+    held: () => held,
     close() { api.close(); },
   };
 }
