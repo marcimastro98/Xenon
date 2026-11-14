@@ -50,6 +50,19 @@ export function readHomeUses(record, node, { sourceFile, K }) {
 
 /**
  * @param {any[]} moved the records that move, each with `homeUses` from the analysis
+ * @param {Map<string, any>} bindings the top-level names of the old file (analyze.mjs)
+ * @returns {string[]} `['path']` when a moved record says `__dirname` and the file's `path` is the whole built-in module
+ *   (`const path = require('path');`): the new module requires it for its one line, whether or not the moved code says it
+ */
+export function pathForHome(moved, bindings) {
+  if (!moved.some((record) => (record.homeUses ?? []).length > 0)) return [];
+  const asked = bindings.get('path')?.record.require;
+  const whole = asked && !asked.property && asked.bindings.length === 1 && asked.bindings[0].text === '' && asked.spec.replace(/^node:/, '') === 'path';
+  return whole ? ['path'] : [];
+}
+
+/**
+ * @param {any[]} moved the records that move, each with `homeUses` from the analysis
  * @param {{ source: string, target: string, requireLines: string[] }} job `requireLines`: the first lines of the new module
  * @returns {{ uses: (HomeUse & { record: any })[], line: string | null, reasons: string[] }} every `__dirname` that moves,
  *   the line that works out the old folder (null when none moves), and why the set cannot move
@@ -60,7 +73,7 @@ export function homeFor(moved, { source, target, requireLines }) {
   const reasons = [];
   if (path.posix.dirname(target) === path.posix.dirname(source)) reasons.push(`${target} is in the folder of ${source}: ${OLD_HOME} means the same there, nothing is respelled`);
   if (!requireLines.some((line) => REQUIRES_PATH.test(line))) {
-    reasons.push(`the moved code says ${OLD_HOME} and does not use \`path\`, which the line that works out the old folder needs: move it with code that does`);
+    reasons.push(`the moved code says ${OLD_HOME}, and ${source} has no \`const path = require('path');\` for the line that works out the old folder`);
   }
   return { uses, line: homeLine(source, target), reasons };
 }

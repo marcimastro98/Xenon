@@ -67,8 +67,29 @@ test('the word is respelled, the module works the old folder out in one line, an
 test('code that cannot work the folder out is refused', (t) => {
   if (!parser) return t.skip(SKIP);
   const bare = file('function here() { return __dirname; }', 'function run() { return here(); }', 'module.exports = { run };');
-  assert.throws(() => planOf(bare, ['here']), /does not use `path`/);
+  assert.throws(() => planOf(bare, ['here']), /server\/demo\.js has no `const path = require\('path'\);`/);
+  // `path` has to be the whole built-in module under that name: a part of it, or another module, is not what the line says.
+  for (const first of ["const { join } = require('path');", "const path = require('./path.js');", "const path = require('path').posix;", 'const path = { join() {} };']) {
+    assert.throws(() => planOf(file(first, ...bare.split('\n').slice(0, -1)), ['here']), /has no `const path = require\('path'\);`/, first);
+  }
   assert.throws(() => planOf(TOOL, ['toolPath'], 'server/x.js'), /is in the folder of server\/demo\.js/);
+});
+
+test('moved code that says __dirname and nothing of `path` is given the file\'s own require of it', (t) => {
+  if (!parser) return t.skip(SKIP);
+  for (const asked of ["const path = require('path');", "const path = require('node:path');"]) {
+    const text = file("const os = require('os');", asked, '', 'function here(tool) { return tool.find(__dirname); }', 'function run() { return here(os) + path.sep; }', 'module.exports = { run };');
+    const plan = planOf(text, ['here']);
+    assert.equal(plan.moduleText, file('// What the part does.', '', asked, "const SERVER_DIR = path.join(__dirname, '..');", '',
+      'function here(tool) { return tool.find(SERVER_DIR); }', '', 'module.exports = { here };'));
+    assert.deepEqual(proofOf(text, plan), []);
+    assert.ok(plan.newSource.includes(asked), 'the old file keeps its own require');
+    // Without the line the proof refuses the module, whoever wrote it.
+    assert.match(proofOf(text, plan, plan.moduleText.replace(`${asked}\n`, '')).join('\n'), /./);
+  }
+  // Code that says nothing of the folder is not handed `path` for nothing.
+  const plain = file("const path = require('path');", '', 'function one() { return 1; }', 'function run() { return one() + path.sep; }', 'module.exports = { run };');
+  assert.equal(planOf(plain, ['one']).moduleText.includes('require('), false);
 });
 
 test('the proof refuses every other change', (t) => {

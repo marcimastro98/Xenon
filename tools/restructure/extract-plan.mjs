@@ -5,7 +5,7 @@
 import path from 'node:path';
 
 import { closureOf } from './analyze.mjs';
-import { homeFor, writeHome } from './extract-home.mjs';
+import { homeFor, pathForHome, writeHome } from './extract-home.mjs';
 import { respellsFor, writeRespells } from './extract-inline.mjs';
 import { namesRunAtLoad } from './load-registrations.mjs';
 import { requireLines, wrapNames } from './module-requires.mjs';
@@ -170,7 +170,9 @@ export function planExtraction(job) {
   if (imported.length === 0) reasons.push(`nothing left in ${source} uses ${movedNames.join(', ')}: delete dead code instead of moving it`);
   if (reasons.length) throw new Refusal(reasons);
 
-  const needed = [...new Set(moved.flatMap((record) => record.requires))];
+  // The line that works out the old folder says `path`: moved code that says `__dirname` and nothing else of
+  // `path` is given the file's own require of it (extract-home.mjs says when the file has one).
+  const needed = [...new Set([...moved.flatMap((record) => record.requires), ...pathForHome(moved, bindings)])];
   const required = requireLines(needed, bindings, (spec) => rewrite(spec, source, target));
   // `__dirname` inside a moved function becomes the folder the new module works out in one line (extract-home.mjs).
   const home = homeFor(moved, { source, target, requireLines: required.lines });
