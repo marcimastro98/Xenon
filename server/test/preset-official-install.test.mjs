@@ -4,13 +4,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { appStringsSource } from './i18n-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.join(here, '..', rel), 'utf8');
+const read = (rel) => readFileSync(path.join(here, '..', rel), 'utf8');
 const share = read('js/preset-share.js');
 const gallery = read('js/community-gallery.js');
 const manager = read('js/installed-manager.js');

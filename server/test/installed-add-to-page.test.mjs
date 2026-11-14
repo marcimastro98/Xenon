@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from './browser-source.mjs';
 import { appStringsSource, languagesWith, textsOf } from './i18n-source.mjs';
 
 // The Installed list reads /sdk/widgets fresh, while CustomWidget.addToPage only
