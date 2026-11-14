@@ -30,80 +30,21 @@
 // catalog (bottom of the file) — discovery only, so a model published after this
 // release can still be offered.
 
-const fs = require('fs');
 require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
-const path = require('path');
-const { writeFileAtomic } = require('./atomic-write');
-const { CATALOG_BASE } = require('./community-catalog');
+require('./community-catalog');
 
-const aiGemini = require('./ai-gemini');
-const aiOpenai = require('./ai-openai');
-const aiAnthropic = require('./ai-anthropic');
+require('./ai-openai');
+require('./ai-anthropic');
 
-const PROVIDERS = Object.freeze({
-  gemini: aiGemini,
-  openai: aiOpenai,
-  anthropic: aiAnthropic,
-});
-
-const CACHE_VERSION = 1;
-const TTL_MS = 6 * 60 * 60 * 1000;   // a model list moves on the scale of weeks
-const RETRY_MS = 10 * 60 * 1000;     // after a failed refresh, don't hammer
 
 const { normalizeEntry, parseStored, pickLatest } = require('./ai/model-ranking.js');
 
 // ── State ────────────────────────────────────────────────────────────────────
 
-let _cache = Object.create(null);   // provider → { entries, fetchedAt, failedAt }
-let _pending = Object.create(null); // provider → in-flight refresh promise
-let _cacheFile = null;              // null = memory only (unit tests)
+const { modelsCache } = require('./ai/models-cache-state.js');
+modelsCache.cache = Object.create(null);   // provider → { entries, fetchedAt, failedAt }
+modelsCache.pending = Object.create(null); // provider → in-flight refresh promise
 
-function _blank() { return { entries: [], fetchedAt: 0, failedAt: 0 }; }
-function _slot(provider) {
-  if (!_cache[provider]) _cache[provider] = _blank();
-  return _cache[provider];
-}
-
-function initCache(opts) {
-  const dir = opts && opts.dataDir;
-  if (!dir) return;
-  _cacheFile = path.join(dir, 'ai-models-cache.json');
-  try {
-    const raw = JSON.parse(fs.readFileSync(_cacheFile, 'utf8'));
-    if (!raw || raw.v !== CACHE_VERSION || !raw.providers) return;
-    for (const name of Object.keys(PROVIDERS)) {
-      const p = raw.providers[name];
-      if (!p || !Array.isArray(p.entries)) continue;
-      _cache[name] = {
-        entries: p.entries.map(normalizeEntry).filter(Boolean),
-        fetchedAt: Number(p.fetchedAt) || 0,
-        failedAt: 0,
-      };
-    }
-    if (raw.ollama && Array.isArray(raw.ollama.models)) {
-      _ollama = {
-        models: normalizeCatalog(raw.ollama),
-        fetchedAt: Number(raw.ollama.fetchedAt) || 0,
-        failedAt: 0,
-        etag: typeof raw.ollama.etag === 'string' ? raw.ollama.etag : '',
-      };
-    }
-  } catch { /* absent or corrupt — start cold, the first refresh repopulates it */ }
-}
-
-function _persist() {
-  if (!_cacheFile) return;
-  const providers = {};
-  for (const [name, slot] of Object.entries(_cache)) {
-    providers[name] = { entries: slot.entries, fetchedAt: slot.fetchedAt };
-  }
-  const snapshot = {
-    v: CACHE_VERSION,
-    providers,
-    ollama: { models: _ollama.models, fetchedAt: _ollama.fetchedAt, etag: _ollama.etag },
-  };
-  writeFileAtomic(_cacheFile, JSON.stringify(snapshot)).catch(() => {});
-}
 
 // ── Pure ranking ─────────────────────────────────────────────────────────────
 
@@ -140,17 +81,11 @@ function resolve(provider, role, stored, apiKey) {
   return (mod.DEFAULTS && mod.DEFAULTS[role]) || '';
 }
 
-function _isStale(slot) {
-  const now = Date.now();
-  if (slot.failedAt && now - slot.failedAt < RETRY_MS) return false;
-  return !slot.fetchedAt || (now - slot.fetchedAt) > TTL_MS;
-}
-
 // Drop an id the provider just refused (404 / model_missing) so the NEXT resolve
 // picks the runner-up instead of re-sending the same dead id every turn. This is
 // what turns the per-request fallback into an actual repair.
 function markMissing(provider, id) {
-  const slot = _cache[provider];
+  const slot = modelsCache.cache[provider];
   const dead = String(id || '');
   if (!slot || !dead) return;
   const before = slot.entries.length;
@@ -166,7 +101,7 @@ function refresh(provider, apiKey, opts) {
   const mod = PROVIDERS[provider];
   if (!mod || typeof mod.listModels !== 'function') return Promise.resolve([]);
   if (!String(apiKey || '').trim()) return Promise.resolve(_slot(provider).entries);
-  if (_pending[provider]) return _pending[provider];
+  if (modelsCache.pending[provider]) return modelsCache.pending[provider];
 
   const slot = _slot(provider);
   if (!(opts && opts.force) && !_isStale(slot)) return Promise.resolve(slot.entries);
@@ -187,10 +122,10 @@ function refresh(provider, apiKey, opts) {
       slot.failedAt = Date.now();
       return slot.entries;
     } finally {
-      delete _pending[provider];
+      delete modelsCache.pending[provider];
     }
   })();
-  _pending[provider] = p;
+  modelsCache.pending[provider] = p;
   return p;
 }
 
@@ -227,68 +162,29 @@ function catalog(provider, storedByRole, apiKey) {
 // do is offer a download the user must still click and the safety gate must
 // still pass.
 
-const OLLAMA_CATALOG_URL = CATALOG_BASE + 'ai-models.json';
-const OLLAMA_TTL_MS = 12 * 60 * 60 * 1000;
+const { normalizeCatalogModel, normalizeCatalog } = require('./ai/ollama-catalog-read.js');
+
+
+
 const {
-  normalizeCatalogModel, normalizeCatalog, _fetchText,
-} = require('./ai/ollama-catalog-read.js');
+  PROVIDERS, TTL_MS, _slot, initCache, _persist, _isStale,
+} = require('./ai/models-cache-store.js');
 
-let _ollama = { models: [], fetchedAt: 0, failedAt: 0, etag: '' };
-let _ollamaPending = null;
-let _ollamaFetch = null; // test seam — injectable fetcher, see _setOllamaFetch
-
-
-// The catalog as it stands, without waiting. Empty until the first refresh
-// lands, which the Settings panel triggers when it opens.
-function ollamaCatalog() { return _ollama.models; }
-
-// Requirements for a tag the local table does not know. Returns null when the
-// catalog has nothing to say, which is what keeps `unknown` meaning unknown.
-function ollamaRequirements(tag) {
-  const hit = _ollama.models.find(m => m.tag === String(tag || '').toLowerCase());
-  if (!hit || !hit.vramGB || !hit.ramGB) return null;
-  return { minVramGB: hit.vramGB, minRamGB: hit.ramGB };
-}
-
-function refreshOllamaCatalog(opts) {
-  const now = Date.now();
-  if (_ollamaPending) return _ollamaPending;
-  if (!(opts && opts.force)) {
-    if (_ollama.failedAt && now - _ollama.failedAt < RETRY_MS) return Promise.resolve(_ollama.models);
-    if (_ollama.fetchedAt && now - _ollama.fetchedAt < OLLAMA_TTL_MS) return Promise.resolve(_ollama.models);
-  }
-  const fetcher = _ollamaFetch || _fetchText;
-  _ollamaPending = (async () => {
-    try {
-      const resp = await fetcher(OLLAMA_CATALOG_URL, _ollama.etag);
-      if (resp && resp.notModified) { _ollama.fetchedAt = Date.now(); _ollama.failedAt = 0; return _ollama.models; }
-      const models = normalizeCatalog(JSON.parse(resp.text));
-      if (models.length) {
-        _ollama = { models, fetchedAt: Date.now(), failedAt: 0, etag: resp.etag || '' };
-        _persist();
-      }
-      return _ollama.models;
-    } catch {
-      _ollama.failedAt = Date.now();
-      return _ollama.models;
-    } finally {
-      _ollamaPending = null;
-    }
-  })();
-  return _ollamaPending;
-}
+const {
+  OLLAMA_CATALOG_URL, ollamaCatalog, ollamaRequirements, refreshOllamaCatalog,
+} = require('./ai/ollama-catalog-refresh.js');
 
 // Test seam: install a known list without a network call.
 function _setEntries(provider, entries) {
-  _cache[provider] = { entries: (entries || []).map(normalizeEntry).filter(Boolean), fetchedAt: Date.now(), failedAt: 0 };
+  modelsCache.cache[provider] = { entries: (entries || []).map(normalizeEntry).filter(Boolean), fetchedAt: Date.now(), failedAt: 0 };
 }
-function _setOllamaFetch(fn) { _ollamaFetch = fn; }
+function _setOllamaFetch(fn) { modelsCache.ollamaFetch = fn; }
 function _reset() {
-  _cache = Object.create(null);
-  _pending = Object.create(null);
-  _cacheFile = null;
-  _ollama = { models: [], fetchedAt: 0, failedAt: 0, etag: '' };
-  _ollamaFetch = null;
+  modelsCache.cache = Object.create(null);
+  modelsCache.pending = Object.create(null);
+  modelsCache.file = null;
+  modelsCache.ollama = { models: [], fetchedAt: 0, failedAt: 0, etag: '' };
+  modelsCache.ollamaFetch = null;
 }
 
 module.exports = {
