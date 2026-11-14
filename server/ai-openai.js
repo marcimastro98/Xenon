@@ -16,7 +16,7 @@
 const aiLocal = require('./ai-local');
 const { follow } = require('./ai-tool-groups');
 
-const OPENAI_BASE = 'https://api.openai.com/v1';
+const { OPENAI_BASE, _httpError, _post } = require('./ai/openai-http.js');
 
 // Defaults are stable, broadly-available models: they are the OFFLINE fallback,
 // used when the live list is unreachable. What the user actually runs is resolved
@@ -77,49 +77,6 @@ function sanitizeSpeechModel(value, kind) {
   if (SENTINEL_RE.test(v)) return v;
   const c = classify({ id: v });
   return (c && c.kind === kind) ? v : 'auto';
-}
-
-// Turn an OpenAI error body/status into a message the user can act on.
-function _httpError(status, bodyText) {
-  let detail = '';
-  try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
-  let err;
-  if (status === 401) {
-    err = new Error('ChatGPT (OpenAI): the API key is invalid or expired. Check it in Settings → Bit.');
-    err.code = 'bad_key';
-  } else if (status === 429) {
-    err = new Error('ChatGPT (OpenAI): quota exceeded or too many requests (rate limit). Check your OpenAI account credit.');
-    err.code = 'rate_limited';
-  } else if (status === 404) {
-    err = new Error('ChatGPT (OpenAI): the requested model is not available for your key. Pick another in Settings → Bit.' + (detail ? ' (' + detail + ')' : ''));
-    err.code = 'model_missing';
-  } else {
-    err = new Error('ChatGPT (OpenAI): HTTP error ' + status + (detail ? ' — ' + detail : ''));
-    err.code = 'openai_http';
-  }
-  return err;
-}
-
-async function _post(pathname, apiKey, body, timeoutMs = 60000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  let res;
-  try {
-    res = await fetch(OPENAI_BASE + pathname, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    if (e && e.name === 'AbortError') { const err = new Error('ChatGPT (OpenAI): request timed out.'); err.code = 'timeout'; throw err; }
-    throw e;
-  }
-  clearTimeout(timer);
-  const text = await res.text();
-  if (!res.ok) throw _httpError(res.status, text);
-  try { return JSON.parse(text); } catch { throw new Error('ChatGPT (OpenAI): invalid response.'); }
 }
 
 const _plainText = (msg) => ((msg && typeof msg.content === 'string') ? msg.content : '');
@@ -294,59 +251,7 @@ async function tts({ apiKey, text, voice, model }) {
   return buf;
 }
 
-// Classify one /models entry into the shape ai-models.js ranks over. OpenAI's
-// list is a flat set of ids with a `created` stamp and no capability metadata, so
-// the role has to be read off the id — but only the SPEECH roles need pattern
-// matching, since a transcription or speech model says so in its name
-// (whisper-1, gpt-4o-transcribe, tts-1, gpt-4o-mini-tts). Returns null for
-// everything we do not drive (embeddings, images, moderation, realtime, the
-// audio-in-chat variants that speak a different request shape).
-function classify(m) {
-  const id = m && typeof m.id === 'string' ? m.id : '';
-  if (!id) return null;
-  const low = id.toLowerCase();
-  const rank = Number(m.created) || 0;
-  const preview = /preview/.test(low);
-  const base = { id, label: id, rank, preview, alias: false };
-
-  if (/whisper|transcribe/.test(low)) return { ...base, kind: 'stt', family: '' };
-  if (/(^|-)tts(-|$)/.test(low)) return { ...base, kind: 'tts', family: '' };
-  if (/(embedding|image|dall|moderation|realtime|audio|search|instruct|codex)/.test(low)) return null;
-  if (!/^(gpt-|o\d|chatgpt)/.test(low)) return null;
-  // Families a user would actually ask for: the flagship line, the cheap line,
-  // and the reasoning line. A version number is not a family — it is what `auto`
-  // is allowed to move across.
-  //
-  // The o-series test runs FIRST, and the order is the whole rule. `o3-mini` is
-  // the cheap REASONING tier, not a cheap chat model, so matching the 'mini'
-  // substring first put the entire o-mini line in `mini` and split the reasoning
-  // family in half: `o1/o3/o4` in one place, `o1-mini/o3-mini/o4-mini` in
-  // another. It cost twice over, and both costs are money. `auto:reasoning`
-  // could never land on the cheap reasoning model and always paid for the full
-  // o-series; `auto:mini` mixed chat models with reasoning ones that bill for
-  // thinking tokens, so which of the two a user got came down to release dates.
-  const family = /^o\d/.test(low) ? 'reasoning'
-    : (/(mini|nano|small)/.test(low) ? 'mini' : 'gpt');
-  return { ...base, kind: 'chat', family };
-}
-
-// List the models available to this key, classified. Powers the model picker so
-// it always reflects what OpenAI currently offers — no hardcoded list to keep up
-// to date — and feeds the `auto` resolution in ai-models.js.
-async function listModels({ apiKey }) {
-  const key = String(apiKey || '').trim();
-  if (!key) return [];
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
-  let res;
-  try {
-    res = await fetch(OPENAI_BASE + '/models', { headers: { Authorization: 'Bearer ' + key }, signal: ctrl.signal });
-  } finally { clearTimeout(timer); }
-  if (!res.ok) throw _httpError(res.status, await res.text().catch(() => ''));
-  const j = await res.json();
-  const data = Array.isArray(j && j.data) ? j.data : [];
-  return data.map(classify).filter(Boolean).sort((a, b) => b.rank - a.rank);
-}
+const { classify, listModels } = require('./ai/openai-models.js');
 
 module.exports = {
   DEFAULT_CHAT_MODEL,

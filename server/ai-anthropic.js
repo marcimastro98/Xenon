@@ -13,8 +13,7 @@
 
 const { follow } = require('./ai-tool-groups');
 
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
+const { _post } = require('./ai/anthropic-http.js');
 
 const DEFAULT_CHAT_MODEL = 'claude-sonnet-5';
 const MAX_TOKENS = 2048;
@@ -36,7 +35,7 @@ const DEFAULTS = Object.freeze({ chat: DEFAULT_CHAT_MODEL });
 // `auto` moves across versions inside it and never between tiers.
 const ROLES = Object.freeze({ chat: { kind: 'chat', family: 'sonnet' } });
 
-const FAMILIES = Object.freeze(['opus', 'sonnet', 'haiku']);
+const { FAMILIES, classify, listModels } = require('./ai/anthropic-models.js');
 const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 
 // Anthropic model ids: lowercase letters, digits, dots, hyphens (e.g.
@@ -59,110 +58,7 @@ function sanitizeModel(value) {
   return 'auto';
 }
 
-// Lowercase Gemini's UPPERCASE schema types into standard JSON Schema, which is
-// what Anthropic's tool input_schema expects. Recurses through properties/items.
-const _TYPE_MAP = { OBJECT: 'object', STRING: 'string', NUMBER: 'number', INTEGER: 'integer', BOOLEAN: 'boolean', ARRAY: 'array' };
-function _toJsonSchema(schema) {
-  if (!schema || typeof schema !== 'object') return { type: 'object', properties: {} };
-  const out = {};
-  if (schema.type) out.type = _TYPE_MAP[schema.type] || String(schema.type).toLowerCase();
-  if (schema.description) out.description = schema.description;
-  if (Array.isArray(schema.enum)) out.enum = schema.enum.slice();
-  if (schema.properties && typeof schema.properties === 'object') {
-    out.properties = {};
-    for (const [k, v] of Object.entries(schema.properties)) out.properties[k] = _toJsonSchema(v);
-  }
-  if (Array.isArray(schema.required)) out.required = schema.required.slice();
-  if (schema.items) out.items = _toJsonSchema(schema.items);
-  if (out.type === 'object' && !out.properties) out.properties = {};
-  return out;
-}
-
-// Convert Gemini functionDeclarations into Anthropic tools[] ({ name,
-// description, input_schema }).
-function geminiToolsToAnthropic(geminiFns) {
-  if (!Array.isArray(geminiFns)) return [];
-  return geminiFns.map(fn => ({
-    name: fn.name,
-    description: fn.description || '',
-    input_schema: _toJsonSchema(fn.parameters),
-  }));
-}
-
-// Convert Gemini chat history into Anthropic messages. System text is a separate
-// top-level param (not a message), handled by the caller. Images ride as base64
-// image blocks so Claude can see them.
-function geminiHistoryToAnthropic(history) {
-  if (!Array.isArray(history)) return [];
-  const out = [];
-  for (const msg of history) {
-    if (!msg || !Array.isArray(msg.parts)) continue;
-    const role = msg.role === 'model' ? 'assistant' : 'user';
-    const blocks = [];
-    for (const p of msg.parts) {
-      if (p && typeof p.text === 'string' && p.text.trim()) {
-        blocks.push({ type: 'text', text: p.text.trim() });
-      } else if (p && p.inlineData && p.inlineData.data && p.inlineData.mimeType) {
-        blocks.push({ type: 'image', source: { type: 'base64', media_type: p.inlineData.mimeType, data: p.inlineData.data } });
-      }
-    }
-    if (!blocks.length) continue;
-    // Anthropic requires strictly alternating user/assistant turns and rejects
-    // empty ones (400). Gemini tolerates consecutive same-role or empty turns, so
-    // merge this turn into the previous one when the role repeats (e.g. a skipped
-    // empty model turn would otherwise leave two user turns in a row).
-    const prev = out[out.length - 1];
-    if (prev && prev.role === role) prev.content.push(...blocks);
-    else out.push({ role, content: blocks });
-  }
-  return out;
-}
-
-function _httpError(status, bodyText) {
-  let detail = '';
-  try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
-  let err;
-  if (status === 401) {
-    err = new Error('Claude (Anthropic): the API key is invalid. Check it in Settings → Bit.');
-    err.code = 'bad_key';
-  } else if (status === 429) {
-    err = new Error('Claude (Anthropic): too many requests or credit exhausted (rate limit). Check your Anthropic account.');
-    err.code = 'rate_limited';
-  } else if (status === 404) {
-    err = new Error('Claude (Anthropic): the requested model is not available for your key. Pick another in Settings → Bit.' + (detail ? ' (' + detail + ')' : ''));
-    err.code = 'model_missing';
-  } else {
-    err = new Error('Claude (Anthropic): HTTP error ' + status + (detail ? ' — ' + detail : ''));
-    err.code = 'anthropic_http';
-  }
-  return err;
-}
-
-async function _post(apiKey, body, timeoutMs = 90000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  let res;
-  try {
-    res = await fetch(ANTHROPIC_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': ANTHROPIC_VERSION,
-      },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    if (e && e.name === 'AbortError') { const err = new Error('Claude (Anthropic): request timed out.'); err.code = 'timeout'; throw err; }
-    throw e;
-  }
-  clearTimeout(timer);
-  const text = await res.text();
-  if (!res.ok) throw _httpError(res.status, text);
-  try { return JSON.parse(text); } catch { throw new Error('Claude (Anthropic): invalid response.'); }
-}
+const { geminiToolsToAnthropic, geminiHistoryToAnthropic } = require('./ai/anthropic-shapes.js');
 
 // Pull the plain-text answer out of a Claude response's content blocks.
 function _textFrom(content) {
@@ -307,60 +203,6 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage
     onUsage(used, { input: Number(u.input_tokens), output: Number(u.output_tokens) });
   }
   return _textFrom(resp && resp.content).trim();
-}
-
-// Classify one /models entry. Anthropic hands back an explicit `created_at`, so
-// recency needs no guessing from the id — only the family does, and that is the
-// one part of a Claude id that has been stable across every generation.
-function classify(m, index) {
-  const id = m && typeof m.id === 'string' ? m.id : '';
-  if (!id) return null;
-  const low = id.toLowerCase();
-  const family = FAMILIES.find(f => low.includes(f)) || '';
-  // created_at is an ISO string; fall back to list position (the API returns
-  // newest first) so a missing stamp still ranks in the right order among the
-  // other unstamped entries.
-  //
-  // NEGATIVE, not `MAX_SAFE_INTEGER - index`. Both order the unstamped group the
-  // same way, but pickLatest sorts ONE flat list descending, and ~9e15 beats
-  // every epoch-ms stamp (~1.7e12) — so a single beta shipped without a stamp
-  // would outrank every dated model in its family and become the answer to
-  // `auto`, which is precisely the stale-vs-current mismatch this resolver
-  // exists to prevent. Below zero, an unstamped entry ranks against its own kind
-  // and loses to anything dated, which is the only claim list position supports.
-  // Anthropic stamps every entry today, so this is a guard, not a repair.
-  const stamp = Date.parse(m.created_at || '');
-  const rank = Number.isFinite(stamp) ? stamp : -(index || 0);
-  return {
-    id,
-    label: typeof m.display_name === 'string' && m.display_name ? m.display_name : id,
-    kind: 'chat',
-    family,
-    rank,
-    preview: /preview|beta/.test(low),
-    alias: /latest$/.test(low),
-  };
-}
-
-// List the models available to this key, classified. Powers the model picker so
-// it always reflects what Anthropic currently offers, and feeds the `auto`
-// resolution in ai-models.js.
-async function listModels({ apiKey }) {
-  const key = String(apiKey || '').trim();
-  if (!key) return [];
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
-  let res;
-  try {
-    res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
-      headers: { 'x-api-key': key, 'anthropic-version': ANTHROPIC_VERSION }, signal: ctrl.signal,
-    });
-  } finally { clearTimeout(timer); }
-  if (!res.ok) throw _httpError(res.status, await res.text().catch(() => ''));
-  const j = await res.json();
-  const data = Array.isArray(j && j.data) ? j.data : [];
-  // The API already returns newest first; classify() keeps that order via rank.
-  return data.map(classify).filter(Boolean);
 }
 
 module.exports = {

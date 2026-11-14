@@ -349,6 +349,49 @@
       {"file":"server/platform/darwin-processes.js","about":"The running programs of a Mac with their processor time and memory, read from ps.","names":["parsePsTime","PS_ROW_RE","parsePsProcesses","PS_TABLE_ROW_RE","parsePsTable","processTable","sampleProcesses"]},
       {"file":"server/platform/darwin-disk-access.js","about":"Whether macOS lets Xenon read the user's protected folders (Full Disk Access), and whether a folder is inside the home folder.","names":["FDA_PROBE_PATHS","fullDiskAccess","rootReachesHome"]},
       {"file":"server/platform/darwin-idle.js","about":"How long nobody has touched a Mac, and the Mac's own id, both read from ioreg.","names":["parseHidIdleTime","idleSeconds","parsePlatformUuid","machineId"]}
+    ],
+    "server/ai-local.js": [
+      {"file":"server/ai/local-choices.js","about":"What the local assistant can be set to: the providers, the Ollama models offered and the ones that see pictures, the Ollama address, and the voice for a language.","names":["DEFAULT_OLLAMA_URL","MODEL_WHITELIST","VISION_MODELS","EDGE_VOICES","EDGE_VOICE_FALLBACK","voiceForLang","AI_PROVIDERS","sanitizeProvider","sanitizeModel","sanitizeOllamaUrl","modelSupportsVision"]},
+      {"file":"server/ai/local-hardware.js","about":"Whether this PC can run a local model: the memory each model needs, and a reading of this PC's memory and graphics memory.","names":["MODEL_REQUIREMENTS","_sanitizedReq","computeTier","modelSafety","_readGpuVramGB","scanHardware"]},
+      {"file":"server/ai/local-ollama-shapes.js","about":"Translates between the assistant's Gemini-shaped tools and history and what Ollama takes and answers.","names":["_TYPE_MAP","_convertSchema","geminiToolsToOpenAI","geminiHistoryToOpenAI","geminiHistoryToNative","parseOllamaNativeResponse","parseOllamaResponse"]},
+      {"file":"server/ai/local-ollama-calls.js","about":"The calls to a running Ollama: a chat turn on either of its endpoints, whether it answers, the installed models, what a model can do, and a model download.","names":["_ollamaHttpError","_callOllama","_callOllamaNative","_ollamaReachable","listOllamaModels","showModelCapabilities","_capsCache","CAPS_CACHE_MAX","capabilitiesFor","supportsVisionLive","pullModel"]},
+      {"file":"server/ai/local-chat.js","about":"One chat turn of the assistant on a local Ollama model, with its tool calls, and a second try on a smaller model when the first one crashes the graphics card.","names":["_pickCrashFallback","localChat","_localChatOnce","resolveModel"]},
+      {"file":"server/ai/local-stt.js","about":"Speech to text on this PC with whisper.cpp: where its program and model are, how a recording is prepared, and the cleaned transcript.","names":["WHISPER_BIN_NAMES","WHISPER_SYSTEM_DIRS","WHISPER_SYSTEM_BIN_NAMES","whisperPaths","whisperExe","WAV_BYTES_PER_SEC","whisperSpeedArgs","STT_NOISE","STT_HALLUCINATIONS","cleanTranscript","STT_LEAD_MS","padWavStart","localStt"]},
+      {"file":"server/ai/local-ollama-start.js","about":"Finds the Ollama program on this PC, starts it, and switches its start at login on or off.","names":["findOllamaExe","startOllama","_OLLAMA_RUN_KEY","_OLLAMA_RUN_VALUE","_OLLAMA_AGENT_LABEL","_ollamaAgentPlistPath","ollamaAutostartSupported","getOllamaAutostart","_setOllamaAutostartDarwin","setOllamaAutostart"]},
+      {"file":"server/ai/local-search-page.js","about":"Fetches a DuckDuckGo results page for the free web search and reads the results out of its HTML.","names":["_httpsGetText","_stripHtml","_ddgRealUrl","_parseDdgHtml"]},
+      {"file":"server/ai/local-whisper-install.js","about":"Installs whisper.cpp when the user asks for local speech to text: the pinned download on Windows, Homebrew on macOS.","names":["WHISPER_VERSION","WHISPER_ASSET","WHISPER_ZIP_SHA256","WHISPER_ZIP_URL","_downloadToFile","_unzipWindows","_findBrew","_runBrewInstall","_findWhisperExeRecursive","installWhisper"]}
+    ],
+    "server/ai-cli.js": [
+      {"file":"server/ai/cli-limits.js","about":"The limits of the assistant's subscription providers (Claude Code, Codex): which they are, how long a turn may take, how much text is kept, and what a model name may look like.","names":["PROVIDERS","TIMEOUT_MS","TOOL_TIMEOUT_MS","STATUS_TIMEOUT_MS","STATUS_TTL_MS","MODELS_TTL_MS","MAX_ACTIVE","MAX_PROMPT_CHARS","MAX_STDOUT","MAX_STDERR","CLAUDE_MODELS","isCliProvider","MODEL_RE","sanitizeModel"]},
+      {"file":"server/ai/cli-find-codex.js","about":"Finds the Codex program on this PC when it is not on the PATH: the folders it installs into and the newest copy among them.","names":["POSIX_CODEX_DIRS","asLaunch","isFile","newestCodexCopy"]},
+      {"file":"server/ai/cli-run.js","about":"Runs the Claude Code or Codex program once for the assistant: a clean environment, a time limit, capped output, and a second try without a flag an older version does not know.","names":["STRIP_ENV","childEnv","run","UNKNOWN_FLAG_RE","runWithOptional"]},
+      {"file":"server/ai/cli-status-text.js","about":"Reads what Claude Code and Codex print about themselves: the version, whether the user is signed in, and the models they offer.","names":["versionOf","parseClaudeInit","why","parseClaudeAuth","parseCodexLogin","LIGHT_RE","parseCodexModels"]},
+      {"file":"server/ai/cli-prompt.js","about":"Turns the assistant's conversation into the one prompt a command-line provider takes, with the newest pictures in the form each program accepts.","names":["partText","IMAGE_MIME_RE","MAX_IMAGES","MAX_IMAGE_B64","B64_RE","latestImages","claudeImageInput","writeCodexImages","buildPrompt"]},
+      {"file":"server/ai/cli-mcp-tools.js","about":"Offers Xenon's tools to a command-line provider over MCP for the length of one turn: the turn's session, the calls it answers, and the tools in the shape MCP lists them.","names":["toolSessions","openToolSession","handleMcp","TYPE_MAP","toJsonSchema","geminiToolsToMcp"]},
+      {"file":"server/ai/cli-answers.js","about":"Reads the answer of a Claude Code or Codex turn out of what the program printed, and says so when the user is not signed in.","names":["CliError","NOT_LOGGED_RE","parseClaude","parseCodex"]}
+    ],
+    "server/ai-knowledge.js": [
+      {"file":"server/ai/knowledge-topics.js","about":"What the assistant knows about Xenon itself: the written topics it looks up to answer how the app works.","names":["TOPICS"]}
+    ],
+    "server/ai-models.js": [
+      {"file":"server/ai/model-ranking.js","about":"Picks a provider's model: what a stored choice means, one cleaned entry of a provider's model list, and the newest model of a family.","names":["SENTINEL_RE","normalizeEntry","parseStored","pickLatest"]},
+      {"file":"server/ai/ollama-catalog-read.js","about":"Reads the list of Ollama models Xenon offers to download: the fetch with its size and time limits, and each entry cleaned.","names":["MAX_BODY_BYTES","MAX_CATALOG_MODELS","FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","TAG_RE","KNOWN_CAPS","_num","normalizeCatalogModel","normalizeCatalog","_fetchText"]}
+    ],
+    "server/ai-anthropic.js": [
+      {"file":"server/ai/anthropic-shapes.js","about":"Translates the assistant's Gemini-shaped tools and history into what the Anthropic API takes.","names":["_TYPE_MAP","_toJsonSchema","geminiToolsToAnthropic","geminiHistoryToAnthropic"]},
+      {"file":"server/ai/anthropic-http.js","about":"One call to the Anthropic API with the user's own key, and its failure as an error the assistant can show.","names":["ANTHROPIC_URL","ANTHROPIC_VERSION","_httpError","_post"]},
+      {"file":"server/ai/anthropic-models.js","about":"The Claude models the user's Anthropic key can use, each sorted into its family.","names":["FAMILIES","classify","listModels"]}
+    ],
+    "server/ai-openai.js": [
+      {"file":"server/ai/openai-http.js","about":"One call to the OpenAI API with the user's own key, and its failure as an error the assistant can show.","names":["OPENAI_BASE","_httpError","_post"]},
+      {"file":"server/ai/openai-models.js","about":"The models the user's OpenAI key can use, each sorted into what it is for.","names":["classify","listModels"]}
+    ],
+    "server/wakeword.js": [
+      {"file":"server/ai/wakeword-segmenter.js","about":"Cuts the microphone's sound into stretches of speech for the wake word: how loud counts as speech, when a stretch ends, and the stretch as a WAV file.","names":["SAMPLE_RATE","FRAME_MS","FRAME_BYTES","PREROLL_FRAMES","TRIGGER_FRAMES","END_SILENCE_FRAMES","MIN_LOUD_MS","MAX_SEGMENT_MS","NOISE_FLOOR_MIN","THRESH_MULT","_wdbgOn","_wdbg","_pcmRms","_wavFromPcm","_createSegmenter"]},
+      {"file":"server/ai/wakeword-match.js","about":"Says whether what was heard is the wake word, under the assistant's name or its old one.","names":["CALL_WORD","BIT_WORD","matchesWakeWord","matchesOldName"]}
+    ],
+    "server/bit-messages.js": [
+      {"file":"server/ai/bit-message-clean.js","about":"Cleans one message Bit is asked to show before it is kept: its limits, its text, its time, its button and its picture.","names":["ID_RE","ENTRY_RE","KINDS","APP_ACTIONS","STAMP_RE","MAX_STAMPS","SURFACES","TITLE_MAX","LINE_MAX","BODY_MAX","LABEL_MAX","cleanText","cleanTime","cleanAction","cleanMessage","restoreMessage"]}
     ]
   },
   "spreads": {

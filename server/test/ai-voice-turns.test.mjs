@@ -87,7 +87,7 @@ test('whisper runs fast: more threads, greedy decoding, a clip-sized window', ()
   assert.equal(long[long.indexOf('-ac') + 1], '1500', 'a 30 s clip gets the full window');
   const mid = ai.whisperSpeedArgs(44 + 32000 * 10, 8);
   assert.equal(mid[mid.indexOf('-ac') + 1], '664');
-  assert.match(read('../ai-local.js'), /'-nt', \.\.\.whisperSpeedArgs\(clip\.length\)\]/);
+  assert.match(engineSource('server/ai-local.js'), /'-nt', \.\.\.whisperSpeedArgs\(clip\.length\)\]/);
 });
 
 // A 16 kHz mono 16-bit WAV with `samples` non-zero samples; `sizes` false
@@ -117,7 +117,7 @@ test('whisper hears silence before the first word, so a clip on the first syllab
   // Not a 16-bit PCM WAV: passed on as it came.
   const odd = Buffer.from('not a wav at all, just some bytes here to be long enough...');
   assert.equal(ai.padWavStart(odd), odd);
-  assert.match(read('../ai-local.js'), /const clip = padWavStart\(wavBuffer\);\n {4}fs\.promises\.writeFile\(wavPath, clip\)/);
+  assert.match(engineSource('server/ai-local.js'), /const clip = padWavStart\(wavBuffer\);\n {4}fs\.promises\.writeFile\(wavPath, clip\)/);
 });
 
 test('whisper output that is not speech never becomes a request', () => {
@@ -127,7 +127,7 @@ test('whisper output that is not speech never becomes a request', () => {
   assert.equal(ai.cleanTranscript('Che ore sono?'), 'Che ore sono?');
   assert.equal(ai.cleanTranscript('Spegni la luce (ride)'), 'Spegni la luce');
   assert.equal(ai.cleanTranscript('  metti  la\nmusica '), 'metti la musica');
-  assert.match(read('../ai-local.js'), /resolve\(cleanTranscript\(text\)\);/);
+  assert.match(engineSource('server/ai-local.js'), /resolve\(cleanTranscript\(text\)\);/);
 });
 
 test('the answer starts about a second and a half after the last word', () => {

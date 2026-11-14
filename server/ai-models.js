@@ -31,8 +31,7 @@
 // release can still be offered.
 
 const fs = require('fs');
-const https = require('https');
-const { armDeadline } = require('./net-guard');
+require('./net-guard');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
 const { CATALOG_BASE } = require('./community-catalog');
@@ -51,7 +50,7 @@ const CACHE_VERSION = 1;
 const TTL_MS = 6 * 60 * 60 * 1000;   // a model list moves on the scale of weeks
 const RETRY_MS = 10 * 60 * 1000;     // after a failed refresh, don't hammer
 
-const SENTINEL_RE = /^auto(?::([a-z0-9.-]{1,24}))?$/;
+const { normalizeEntry, parseStored, pickLatest } = require('./ai/model-ranking.js');
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -63,26 +62,6 @@ function _blank() { return { entries: [], fetchedAt: 0, failedAt: 0 }; }
 function _slot(provider) {
   if (!_cache[provider]) _cache[provider] = _blank();
   return _cache[provider];
-}
-
-// Re-validate a persisted entry key by key: the file on disk could predate a
-// schema change, and it is external input to this process like any other.
-function normalizeEntry(e) {
-  if (!e || typeof e !== 'object') return null;
-  const id = typeof e.id === 'string' ? e.id.trim() : '';
-  if (!id || id.length > 80 || !/^[a-z0-9][a-z0-9._:-]*$/i.test(id)) return null;
-  const kind = typeof e.kind === 'string' ? e.kind.slice(0, 16) : '';
-  if (!kind) return null;
-  const rank = Number.isFinite(e.rank) ? Number(e.rank) : null;
-  return {
-    id,
-    label: typeof e.label === 'string' && e.label ? e.label.slice(0, 80) : id,
-    kind,
-    family: typeof e.family === 'string' ? e.family.slice(0, 24) : '',
-    rank,
-    preview: e.preview === true,
-    alias: e.alias === true,
-  };
 }
 
 function initCache(opts) {
@@ -127,45 +106,6 @@ function _persist() {
 }
 
 // ── Pure ranking ─────────────────────────────────────────────────────────────
-
-// Parse a stored value. { auto:false } means it is a pin and must be used as-is.
-//
-// The sentinel is matched case-folded, and this is the site that explains why for
-// all five copies of the rule (the three sanitizeModel functions, the client's
-// normalizeModelChoice, and here). `auto` is a keyword this app defines, but the
-// id pattern the sentinel falls through to is case-INSENSITIVE, so `AUTO` typed
-// into the Custom… field looked like a perfectly good model id and was stored as
-// a deliberate pin. Nothing repairs that: no provider has a model called AUTO, so
-// every request 404s, and markMissing() only drops entries from the cached list,
-// where an id nobody published never appeared. The setting reads as configured
-// while every turn silently pays a failed request.
-//
-// The family is captured from the FOLDED string on purpose — `auto:SONNET` must
-// produce `sonnet`, or it would be compared against the lowercase `e.family` in
-// pickLatest and match nothing. The id keeps its original case: an unrecognised
-// value is a pin, and a pin is the provider's string, not ours.
-function parseStored(stored) {
-  const v = String(stored || '').trim();
-  const m = SENTINEL_RE.exec(v.toLowerCase());
-  if (!m) return { auto: false, family: '', id: v };
-  return { auto: true, family: m[1] || '', id: '' };
-}
-
-// The newest model of `family` that can fill `kind`. Highest rank wins; on a tie
-// a stable id beats a preview. Aliases and unranked entries are never chosen —
-// they are pins the user can select by hand, not something `auto` should land on
-// (an id the Settings panel cannot explain is a setting that explains nothing).
-function pickLatest(entries, kind, family, providerMod) {
-  const usable = providerMod && typeof providerMod.usableForKind === 'function'
-    ? providerMod.usableForKind
-    : (e, k) => e.kind === k;
-  const candidates = (Array.isArray(entries) ? entries : []).filter(e =>
-    e && !e.alias && Number.isFinite(e.rank) && usable(e, kind)
-    && (!family || e.family === family));
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => (b.rank - a.rank) || ((a.preview ? 1 : 0) - (b.preview ? 1 : 0)));
-  return candidates[0].id;
-}
 
 // ── Resolution ───────────────────────────────────────────────────────────────
 
@@ -289,93 +229,14 @@ function catalog(provider, storedByRole, apiKey) {
 
 const OLLAMA_CATALOG_URL = CATALOG_BASE + 'ai-models.json';
 const OLLAMA_TTL_MS = 12 * 60 * 60 * 1000;
-const MAX_BODY_BYTES = 256 * 1024;   // a model list; anything larger is not one
-const MAX_CATALOG_MODELS = 60;
-const FETCH_TIMEOUT_MS = 8000;
-// `timeout` on https.get is an idle timeout only; a server trickling bytes
-// would keep the request (and the refresh it belongs to) open forever. This
-// bounds the whole request.
-const FETCH_DEADLINE_MS = 15000;
+const {
+  normalizeCatalogModel, normalizeCatalog, _fetchText,
+} = require('./ai/ollama-catalog-read.js');
 
 let _ollama = { models: [], fetchedAt: 0, failedAt: 0, etag: '' };
 let _ollamaPending = null;
 let _ollamaFetch = null; // test seam — injectable fetcher, see _setOllamaFetch
 
-const TAG_RE = /^[a-z0-9][a-z0-9._-]{0,40}(?::[a-z0-9][a-z0-9._-]{0,40})?$/;
-const KNOWN_CAPS = ['tools', 'vision'];
-
-function _num(value, min, max) {
-  const n = Number(value);
-  return (Number.isFinite(n) && n >= min && n <= max) ? n : 0;
-}
-
-// Explicit key-by-key rebuild, never a spread of the parsed payload.
-function normalizeCatalogModel(m) {
-  if (!m || typeof m !== 'object') return null;
-  const tag = typeof m.tag === 'string' ? m.tag.trim().toLowerCase() : '';
-  if (!TAG_RE.test(tag)) return null;
-  const caps = Array.isArray(m.capabilities)
-    ? m.capabilities.filter(c => KNOWN_CAPS.includes(c))
-    : [];
-  return {
-    tag,
-    label: typeof m.label === 'string' && m.label ? m.label.slice(0, 60) : tag,
-    sizeGB: _num(m.sizeGB, 0.1, 500),
-    vramGB: _num(m.vramGB, 1, 128),
-    ramGB: _num(m.ramGB, 1, 512),
-    capabilities: caps,
-  };
-}
-
-function normalizeCatalog(payload) {
-  const list = payload && Array.isArray(payload.models) ? payload.models : [];
-  const out = [];
-  const seen = new Set();
-  for (const m of list) {
-    const n = normalizeCatalogModel(m);
-    if (!n || seen.has(n.tag)) continue;
-    seen.add(n.tag);
-    out.push(n);
-    if (out.length >= MAX_CATALOG_MODELS) break;
-  }
-  return out;
-}
-
-// HTTPS conditional GET. Mirrors fetchText in community-catalog.js (same
-// redirect cap, timeout, body cap, ETag handling) — the codebase convention for
-// these fetchers is a documented mirror. If you harden one, harden all.
-function _fetchText(url, etag, _hops = 0) {
-  return new Promise((resolve, reject) => {
-    if (_hops > 5) return reject(new Error('too many redirects'));
-    if (!/^https:\/\//i.test(url)) return reject(new Error('https only'));
-    const headers = etag ? { 'If-None-Match': etag } : {};
-    let req;
-    try { req = https.get(url, { timeout: FETCH_TIMEOUT_MS, headers }, onResponse); }
-    catch (e) { return reject(e); }
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', reject);
-    armDeadline(req, FETCH_DEADLINE_MS);
-
-    function onResponse(res) {
-      if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        res.resume();
-        return resolve(_fetchText(new URL(res.headers.location, url).toString(), etag, _hops + 1));
-      }
-      if (res.statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${res.statusCode}`)); }
-      const tag = res.headers.etag || '';
-      let size = 0;
-      const chunks = [];
-      res.on('data', (c) => {
-        size += c.length;
-        if (size > MAX_BODY_BYTES) { req.destroy(new Error('body too large')); return; }
-        chunks.push(c);
-      });
-      res.on('end', () => resolve({ notModified: false, text: Buffer.concat(chunks).toString('utf8'), etag: tag }));
-      res.on('error', reject);
-    }
-  });
-}
 
 // The catalog as it stands, without waiting. Empty until the first refresh
 // lands, which the Settings panel triggers when it opens.

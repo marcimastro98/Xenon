@@ -20,100 +20,18 @@
 
 const fs = require('fs');
 const { writeFileAtomic } = require('./atomic-write');
-const { normalizeAction, normalizeMedia, normalizePoll } = require('./community-messages');
+require('./community-messages');
 
-const ID_RE = /^[a-z0-9][a-z0-9:_.-]{0,95}$/i;
-const ENTRY_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-const KINDS = new Set(['hub', 'drop', 'sparks', 'updates', 'support', 'share', 'rate']);
+const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./ai/bit-message-clean.js');
 // Highest first, when several wait for the same day. A vote never takes the day
 // from anything else.
 const PRIORITY = { hub: 6, drop: 5, sparks: 4, updates: 3, support: 2, share: 1, rate: 0 };
-// Actions a message made by the app itself may carry, besides the feed's own.
-const APP_ACTIONS = new Set(['sparks', 'share', 'installed']);
-// What an update message is about: one Store entry at one version.
-const STAMP_RE = /^[a-z0-9][a-z0-9_-]{0,60}@[0-9A-Za-z.+-]{1,40}$/;
-const MAX_STAMPS = 60;
-const SURFACES = new Set(['any', 'dashboard']);
 
 const DAY = 24 * 3600 * 1000;
 const MAX_MESSAGES = 40;
 const KEEP_DAYS = 90;
 const GONE_CAP = 200;
 const MAX_PER_POST = 60;
-const TITLE_MAX = 120;
-const LINE_MAX = 240;
-const BODY_MAX = 600;
-const LABEL_MAX = 40;
-
-function cleanText(value, max) {
-  if (typeof value !== 'string') return '';
-  return value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max);
-}
-
-const cleanTime = (value) => (Number.isFinite(value) && value > 0 ? Math.floor(value) : 0);
-
-function cleanAction(raw, entryId) {
-  if (!raw || typeof raw !== 'object') return null;
-  if (APP_ACTIONS.has(raw.type)) {
-    const label = cleanText(raw.label, LABEL_MAX);
-    return label ? { type: raw.type, label } : null;
-  }
-  const action = normalizeAction(raw, entryId);
-  return action && action.type !== 'dismiss' ? action : null;
-}
-
-// One message in the shape every screen trusts, or null.
-function cleanMessage(raw, now) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const id = typeof raw.id === 'string' && ID_RE.test(raw.id) ? raw.id : '';
-  const title = cleanText(raw.title, TITLE_MAX);
-  if (!id || !title || !KINDS.has(raw.kind)) return null;
-
-  const msg = {
-    id,
-    kind: raw.kind,
-    at: Math.min(cleanTime(raw.at) || now, now),
-    title,
-    line: cleanText(raw.line, LINE_MAX),
-    body: cleanText(raw.body, BODY_MAX),
-    where: raw.where === 'stage' ? 'stage' : 'corner',
-    surface: SURFACES.has(raw.surface) ? raw.surface : 'any',
-    shownAt: 0,
-    readAt: 0,
-  };
-  if (raw.kind === 'updates') {
-    const stamps = Array.isArray(raw.stamps) ? raw.stamps.filter((s) => typeof s === 'string' && STAMP_RE.test(s)).slice(0, MAX_STAMPS) : [];
-    if (!stamps.length) return null;
-    msg.stamps = stamps;
-  }
-  const entryId = typeof raw.entryId === 'string' && ENTRY_RE.test(raw.entryId) ? raw.entryId : '';
-  if (entryId) msg.entryId = entryId;
-  const expires = cleanTime(raw.expires);
-  if (expires) msg.expires = expires;
-  const since = raw.kind === 'rate' ? cleanTime(raw.since) : 0;
-  if (since) msg.since = since;
-  const media = normalizeMedia(raw.media);
-  if (media) msg.media = media;
-  const action = cleanAction(raw.action, entryId);
-  if (action) msg.action = action;
-  const poll = raw.poll ? normalizePoll(raw.poll) : null;
-  if (poll) {
-    msg.poll = poll;
-    // A question is answered in the corner, on any screen: the stage has no answers.
-    msg.where = 'corner';
-  }
-  return msg;
-}
-
-// What was on disk, trusted no more than what arrives from a page.
-function restoreMessage(raw, now) {
-  const msg = cleanMessage(raw, now);
-  if (!msg) return null;
-  msg.shownAt = cleanTime(raw.shownAt);
-  msg.readAt = cleanTime(raw.readAt);
-  if (msg.poll && msg.poll.options.some((o) => o.id === raw.answer)) msg.answer = raw.answer;
-  return msg;
-}
 
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 

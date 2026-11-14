@@ -43,8 +43,8 @@ test('the media route changes the preferred player only for our own pages', () =
 
 test('ffmpeg reads untrusted audio through the pipe only', () => {
   assert.match(SERVER, /'-protocol_whitelist', 'pipe', '-i', 'pipe:0'/);
-  assert.match(read('../ai-local.js'), /'-protocol_whitelist', 'pipe', '-i', 'pipe:0'/);
-  assert.doesNotMatch(read('../ai-local.js'), /'-protocol_whitelist', 'pipe,file'/);
+  assert.match(engineSource('server/ai-local.js'), /'-protocol_whitelist', 'pipe', '-i', 'pipe:0'/);
+  assert.doesNotMatch(engineSource('server/ai-local.js'), /'-protocol_whitelist', 'pipe,file'/);
 });
 
 test('event streams: a stuck reader is dropped, a device holds a few at most', () => {

@@ -54,9 +54,9 @@ const EXEMPT = {
     undeadlined: 1,
     reason: 'the Gemini speech-to-text call, moved out of server.js unchanged: fixed Google API host, idle timeout, total deadline still to do.',
   },
-  'ai-local.js': {
+  'ai/local-whisper-install.js': {
     undeadlined: 1,
-    reason: 'the Whisper download fetches models of several hundred MB with progress shown to the user; a fixed total cap would cut slow but healthy downloads. Its web search uses armDeadline.',
+    reason: 'the Whisper download, moved out of ai-local.js unchanged: it fetches models of several hundred MB with progress shown to the user; a fixed total cap would cut slow but healthy downloads. The web search (ai/local-search-page.js) uses armDeadline.',
   },
   'sdk-proxy.js': {
     undeadlined: 0,

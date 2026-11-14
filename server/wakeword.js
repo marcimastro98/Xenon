@@ -23,16 +23,7 @@
 
 const { spawn } = require('child_process');
 
-const SAMPLE_RATE = 16000;
-const FRAME_MS = 30;
-const FRAME_BYTES = (SAMPLE_RATE * FRAME_MS / 1000) * 2; // s16le mono
-const PREROLL_FRAMES = 12;       // ~360 ms kept from before speech onset
-const TRIGGER_FRAMES = 2;        // consecutive loud frames that open a segment
-const END_SILENCE_FRAMES = 14;   // ~420 ms of quiet closes a segment
-const MIN_LOUD_MS = 240;         // minimum voiced audio for a candidate
-const MAX_SEGMENT_MS = 3000;     // longer than any wake phrase → not a wake, skip
-const NOISE_FLOOR_MIN = 110;     // RMS floor so a dead-quiet room can't zero the gate
-const THRESH_MULT = 3;           // speech gate = noise floor × this
+const { SAMPLE_RATE, _wdbg, _wavFromPcm, _createSegmenter } = require('./ai/wakeword-segmenter.js');
 const WAKE_COOLDOWN_MS = 8000;   // ignore everything right after a detection
 // NOTE: there is deliberately NO time floor between whisper runs. `_transcribing`
 // already makes transcription single-flight (one clip at a time), and MAX_SEGMENT_MS
@@ -69,12 +60,6 @@ let _consecutiveFastFails = 0;
 let _transcribing = false;
 let _lastWakeAt = 0;
 
-// Opt-in diagnostics: XENON_WAKE_DEBUG=1 prints what the VAD and whisper actually
-// produce, so a "doesn't activate" report can be pinned to VAD (no segment reaches
-// whisper) vs. matcher (whisper transcribes but the fuzzy match misses). Off by
-// default → zero cost and nothing printed in normal use.
-const _wdbgOn = !!process.env.XENON_WAKE_DEBUG;
-function _wdbg(msg) { if (_wdbgOn) process.stdout.write(`[WAKE?] ${msg}\n`); }
 
 function init(deps) {
   for (const key of Object.keys(_deps)) {
@@ -82,139 +67,7 @@ function init(deps) {
   }
 }
 
-function _pcmRms(frame) {
-  const n = frame.length - (frame.length % 2);
-  if (n < 2) return 0;
-  let sum = 0;
-  for (let i = 0; i < n; i += 2) sum += frame.readInt16LE(i) ** 2;
-  return Math.sqrt(sum / (n / 2));
-}
-
-// Wrap raw s16le mono PCM in a minimal RIFF/WAVE header for whisper.
-function _wavFromPcm(pcm) {
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);            // PCM chunk size
-  header.writeUInt16LE(1, 20);             // format = PCM
-  header.writeUInt16LE(1, 22);             // channels
-  header.writeUInt32LE(SAMPLE_RATE, 24);
-  header.writeUInt32LE(SAMPLE_RATE * 2, 28); // byte rate
-  header.writeUInt16LE(2, 32);             // block align
-  header.writeUInt16LE(16, 34);            // bits per sample
-  header.write('data', 36);
-  header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
-}
-
-// Energy VAD segmenter over the raw PCM stream. Emits one Buffer per short
-// speech burst (with pre-roll so the first syllable isn't clipped); anything
-// longer than a wake phrase is abandoned and waited out, so sustained speech
-// or music costs zero whisper runs.
-function _createSegmenter(onSegment) {
-  let residual = Buffer.alloc(0);
-  let preroll = [];
-  let seg = null;              // collected frames after trigger
-  let loudRun = 0;             // consecutive loud frames while idle
-  let loudCount = 0;           // loud frames inside the open segment
-  let quietRun = 0;            // trailing quiet frames
-  let skipping = false;        // too-long utterance → wait for silence
-  let noise = 200;             // adaptive noise-floor RMS (EMA of quiet frames)
-  let dbgFrames = 0, dbgPeak = 0; // debug-only: peak RMS over a ~2 s window
-
-  function processFrame(frame) {
-    const rms = _pcmRms(frame);
-    const gate = Math.max(NOISE_FLOOR_MIN, noise) * THRESH_MULT;
-    const loud = rms > gate;
-    if (!loud) noise = noise * 0.95 + rms * 0.05;
-    if (_wdbgOn) {
-      if (rms > dbgPeak) dbgPeak = rms;
-      if (++dbgFrames >= 66) { // ~2 s
-        _wdbg(`level: peak RMS ${Math.round(dbgPeak)}, noise ${Math.round(noise)}, gate ${Math.round(gate)} (peak must exceed gate to trigger)`);
-        dbgFrames = 0; dbgPeak = 0;
-      }
-    }
-
-    if (skipping) {
-      quietRun = loud ? 0 : quietRun + 1;
-      if (quietRun >= END_SILENCE_FRAMES) { skipping = false; quietRun = 0; }
-      return;
-    }
-    if (!seg) {
-      preroll.push(frame);
-      if (preroll.length > PREROLL_FRAMES) preroll.shift();
-      loudRun = loud ? loudRun + 1 : 0;
-      if (loudRun >= TRIGGER_FRAMES) {
-        seg = preroll.slice();
-        preroll = [];
-        loudCount = loudRun;
-        quietRun = 0;
-      }
-      return;
-    }
-    seg.push(frame);
-    if (loud) { loudCount++; quietRun = 0; } else { quietRun++; }
-    if (seg.length * FRAME_MS > MAX_SEGMENT_MS) {
-      seg = null; loudRun = 0; skipping = true;
-      return;
-    }
-    if (quietRun >= END_SILENCE_FRAMES) {
-      const buf = Buffer.concat(seg);
-      const voicedMs = loudCount * FRAME_MS;
-      seg = null; loudRun = 0; quietRun = 0;
-      if (voicedMs >= MIN_LOUD_MS) onSegment(buf);
-    }
-  }
-
-  return {
-    feed(chunk) {
-      residual = residual.length ? Buffer.concat([residual, chunk]) : chunk;
-      while (residual.length >= FRAME_BYTES) {
-        processFrame(residual.subarray(0, FRAME_BYTES));
-        residual = residual.subarray(FRAME_BYTES);
-      }
-    },
-  };
-}
-
-// The wake phrase is "Hey Bit", the assistant's name. "Bit" alone is an everyday
-// word ("a bit", "bit by bit"), so unlike the old name it only counts right after
-// a call word, and whisper's accented takes of both are accepted: "ehi bit",
-// "hei bit", "hey beat", "heybit".
-const CALL_WORD = /^(hey|hei|hej|hay|ehi|ei|ey)$/;
-const BIT_WORD = /^(bit|bitt|bits|beat|bid)$/;
-
-// Does a transcript contain the wake phrase? Deliberately fuzzy: whisper picks
-// spellings freely. "Hey Xenon", the phrase before Bit had a name, still works
-// so nobody who learned it is left talking to a dashboard that no longer listens.
-function matchesWakeWord(text) {
-  if (typeof text !== 'string' || !text) return false;
-  const plain = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const tokens = plain.split(/[^a-z]+/).filter(Boolean);
-  if (tokens.some((tok, i) => CALL_WORD.test(tok) && BIT_WORD.test(tokens[i + 1] || ''))) return true;
-  if (tokens.some((tok) => /^(hey|hei|ehi|ei|ey)(bit|bitt|beat)$/.test(tok))) return true;
-  return matchesOldName(tokens);
-}
-
-// "Hey Xenon": the leading "hey" is optional, the old name alone is distinctive.
-function matchesOldName(tokens) {
-  // The product name's phonetic skeleton is consonant + vowel + n + vowel + n —
-  // "xenon" / "zenon" / "senon" / "sanon" / "zenone" / "xeneon". Whisper picks the
-  // vowels freely (renders "Hey Xenon" as "AXANON", "Sanon", "AXN on", …) so the
-  // vowels are matched loosely and the first one may even be dropped.
-  //
-  // 1) The name as ONE clean token. Anchored to the whole token so multi-word
-  //    Italian ("se non", "se-non-ché") and near-words ("season", "sano") — which
-  //    only ever appear split or with a non-matching tail — never trigger.
-  if (tokens.some(tok => /^[sxz][aeiou]*n+[aeiou]+n[aeiou]*$/.test(tok))) return true;
-  // 2) Whisper also spells the name out as letters, dropping/prepending a vowel or
-  //    splitting it: "AXN on" → ["axn","on"], "AXANON" → ["axanon"]. Join the
-  //    letters and look for the x/z + n-cluster skeleton anywhere. Restricted to
-  //    x/z (never s) so ordinary "se non…" can't false-fire once spaces are gone.
-  return /[xz][aeiou]*n+[aeiou]+n/.test(tokens.join(''));
-}
+const { matchesWakeWord } = require('./ai/wakeword-match.js');
 
 async function _onSegment(pcm) {
   const durMs = Math.round(pcm.length / (SAMPLE_RATE * 2) * 1000);

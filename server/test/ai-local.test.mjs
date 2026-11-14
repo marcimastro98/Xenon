@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { engineSource } from './engine-source.mjs';
 const require = createRequire(import.meta.url);
 const ai = require('../ai-local.js');
 
@@ -344,7 +345,7 @@ test('whisper.cpp is a pinned tagged release with a pinned SHA-256', () => {
     ai.WHISPER_ZIP_URL,
     `https://github.com/ggml-org/whisper.cpp/releases/download/${ai.WHISPER_VERSION}/whisper-bin-x64.zip`,
   );
-  const src = require('node:fs').readFileSync(new URL('../ai-local.js', import.meta.url), 'utf8');
+  const src = engineSource('server/ai-local.js');
   assert.doesNotMatch(src, /api\.github\.com\/repos\/ggml-org\/whisper\.cpp\/releases/, 'no "latest release" lookup');
   const body = src.slice(src.indexOf('async function installWhisper'));
   const dl = body.indexOf('_downloadToFile(WHISPER_ZIP_URL');

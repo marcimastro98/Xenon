@@ -31,7 +31,7 @@ test('a Claude one-shot is the words alone, or the picture then the words', () =
 });
 
 test('ChatGPT one-shots carry the picture as an image part', () => {
-  const src = read('../ai-openai.js');
+  const src = engineSource('server/ai-openai.js');
   assert.match(src, /async function oneShot\(\{[^}]*image \}\)/);
   assert.match(src, /\{ type: 'image_url', image_url: \{ url: `data:\$\{image\.mimeType\};base64,\$\{image\.data\}` \} \}/);
 });

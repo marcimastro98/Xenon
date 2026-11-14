@@ -14,11 +14,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { appStringsSource } from './i18n-source.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const wake = require('../wakeword.js');
 const FEATURES = readFileSync(new URL('../../FEATURES.md', import.meta.url), 'utf8');
-const SRC = readFileSync(new URL('../wakeword.js', import.meta.url), 'utf8');
+const SRC = engineSource('server/wakeword.js');
 const I18N = appStringsSource();
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 

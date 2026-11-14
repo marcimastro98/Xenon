@@ -527,7 +527,7 @@ test("Claude Code's model list is the one it gives this account today, exact mod
 });
 
 test('asking for the list sends no message, so it costs no quota', () => {
-  const src = read('../ai-cli.js');
+  const src = engineSource('server/ai-cli.js');
   const at = src.indexOf('async function claudeInit(');
   const body = src.slice(at, src.indexOf('\n}\n', at));
   assert.match(body, /request: \{ subtype: 'initialize' \}/);
@@ -538,7 +538,7 @@ test('asking for the list sends no message, so it costs no quota', () => {
 test("`auth status` is read even with a notice around the JSON, and unknown says why", () => {
   assert.deepEqual(I.parseClaudeAuth('Update available: 2.2.0\r\n{\r\n  "loggedIn": true,\r\n  "authMethod": "claude.ai"\r\n}\r\n'), { loggedIn: true, method: 'claude.ai' });
   assert.deepEqual(I.parseClaudeAuth('{"something":"else"}'), { loggedIn: null, method: '' });
-  const src = read('../ai-cli.js');
+  const src = engineSource('server/ai-cli.js');
   assert.match(src, /if \(value\.loggedIn === null && init && init\.hasAccount\) value\.loggedIn = true;/);
   assert.match(src, /if \(value\.loggedIn === null\) value\.detail = /);
 });
@@ -569,7 +569,7 @@ test('on plans whose names carry the version, the English description is not tak
 });
 
 test('Codex is also found inside its desktop app and the VS Code / Cursor extension', () => {
-  const src = read('../ai-cli.js');
+  const src = engineSource('server/ai-cli.js');
   assert.match(src, /path\.join\(process\.env\.LOCALAPPDATA, 'OpenAI', 'Codex', 'bin'\)/);
   assert.match(src, /\['\.vscode', '\.vscode-insiders', '\.cursor'\]/);
   assert.match(src, /\/\^openai\\.chatgpt-\/i/);
