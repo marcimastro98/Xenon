@@ -97,7 +97,7 @@ const {
 const { WEATHER_PROVIDERS, weatherProviderOrder } = require('./weather/providers.js');
 
 const {
-  DASHBOARD_WIDGET_IDS, DASHBOARD_GRID_COLUMNS, DASHBOARD_LAYOUT_VERSION, DEFAULT_DASHBOARD_LAYOUT,
+  DASHBOARD_WIDGET_IDS, DASHBOARD_GRID_COLUMNS, DASHBOARD_LAYOUT_VERSION,
 } = require('./grid/layout-defaults.js');
 
 const { normalizeMedia } = require('./media/normalize.js');
@@ -134,8 +134,6 @@ const {
 } = require('./media/timings.js');
 
 const { liveMediaSnapshot } = require('./media/snapshot.js');
-
-const { _sleep, readObsInstallDir, launchObs } = require('./streaming/obs-launch.js');
 
 const { F } = require('./audio/svv-csv.js');
 
@@ -386,7 +384,6 @@ const calls = require('./calls');
 const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
-const SdkGrant = require('./sdk-grant.js');
 const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
@@ -466,7 +463,7 @@ const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
 const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
-const icsFeeds = require('./ics-feeds.js');
+require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
@@ -486,7 +483,6 @@ const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
-const obsLaunch = require('./actions/obs-launch');
 require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createUnifiProtect } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
@@ -601,12 +597,6 @@ const AI_MODELS = Object.freeze({
 });
 
 const { localServerOneShot } = require('./ai/local-server-one-shot.js');
-
-async function cliOneShot(provider, systemText, userText, settings) {
-  const s = settings || (await readHubSettings().catch(() => null)) || {};
-  const model = provider === 'claudecode' ? s.claudeCodeModel : s.codexModel;
-  return aiCli.oneShot({ provider, model, systemText, userText });
-}
 
 // Core Xenon AI function declarations — the always-available tools (dashboard,
 // media, audio, system, timers, notes/tasks/calendar, lighting, deck, memory,
@@ -1002,7 +992,6 @@ aiModels.initCache({ dataDir: DATA_DIR });
 const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
 // Supporter Lyrics widget: per-song timing, and translations paid for once.
 const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
-const { SMALL_TASK_FAMILY } = require('./ai/small-task-models.js');
 
 const lyricsTranslator = createLyricsTranslator({
   dataDir: DATA_DIR,
@@ -1461,6 +1450,8 @@ const { normalizeHubSettings } = require('./settings/normalize-hub-settings.js')
 
 const { readHubSettings, readHubSettingsForUpdate } = require('./settings/read.js');
 
+const { cliOneShot } = require('./ai/cli-one-shot.js');
+
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
 // the guard re-checks every resolved path. Settings feed the category rules
@@ -1815,24 +1806,6 @@ async function isCatalogUpdateOf(id, catalogVersion) {
     return !!(cat && cat.ok && Array.isArray(cat.entries)
       && cat.entries.some((e) => e && (e.kind === 'widget' || e.kind === 'ambient') && e.pkgId === id));
   } catch { return false; }
-}
-
-// Forget what the user approved for a package whose code was just replaced by
-// a different package under the same id: the new code asks for itself.
-// Server-side so it holds even for a surface that never repaints; open
-// dashboards re-read the settings from the broadcast.
-async function dropSdkGrant(id) {
-  const saved = await withHubSettingsLock(async () => {
-    const cur = await readHubSettings().catch(() => null);
-    const sw = cur && cur.sdkWidgets;
-    if (!sw || !sw.grants || typeof sw.grants !== 'object' || !Object.prototype.hasOwnProperty.call(sw.grants, id)) return null;
-    const grants = { ...sw.grants };
-    delete grants[id];
-    const next = await writeHubSettings({ ...cur, sdkWidgets: { ...sw, grants }, rev: nextSettingsRev(cur.rev) });
-    hub.settings = next;
-    return next;
-  }).catch(() => null);
-  if (saved) broadcastSSE('settings', { rev: saved.rev });
 }
 
 // Record, once, the store group each existing grant was approved with (see
@@ -3213,16 +3186,6 @@ async function lyricsForPlayingKey(key) {
   return { status: 200, entry: await lyricsCache.get(key) };
 }
 
-async function smallTaskModel(provider, settings) {
-  if (aiCli.isCliProvider(provider)) return aiCli.lightModel(provider);
-  if (provider === 'xenon') return aiXenon.HELPER_MODEL_ID;
-  const family = SMALL_TASK_FAMILY[provider];
-  if (!family) return '';
-  const apiKey = provider === 'gemini' ? await geminiKeyFor('')
-    : provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey;
-  return aiModels.resolve(provider, 'chat', family, apiKey);
-}
-
 // One request to the AI the user set for Bit (Sparks, their own key, Ollama or
 // their plan) → { text, tokens, input, output } (the last two split for the
 // cost estimate). Claude Code and Codex run on the user's plan: nothing to pay
@@ -3279,43 +3242,6 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
 }
 
 const { companionLookSparks } = require('./ai/companion-look-sparks.js');
-
-// 'no_ai' when the AI set for Bit cannot answer (no key, no Sparks code), or ''.
-// Checked before any request is made, so a missing key never costs a round trip.
-// A Sparks code is the pass OR a Sparks-only buyer's wallet code.
-async function userAiBlocker() {
-  const settings = await readHubSettings().catch(() => null) || {};
-  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
-  if (provider === 'openai' && !settings.openaiApiKey) return 'no_ai';
-  if (provider === 'anthropic' && !settings.anthropicApiKey) return 'no_ai';
-  if (provider === 'xenon' && !(await aiXenon.hasCode(DATA_DIR))) return 'no_ai';
-  if (provider === 'gemini' && !(await geminiKeyFor(''))) return 'no_ai';
-  return '';
-}
-
-// userAiBlocker(), then 'no_vision' when that AI cannot look at a picture: a
-// plan run through its own program, an Ollama model without eyes, or a local
-// server whose model the user has not said can see.
-async function userAiVisionBlocker() {
-  const blocked = await userAiBlocker();
-  if (blocked) return blocked;
-  const settings = await readHubSettings().catch(() => null) || {};
-  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
-  if (aiCli.isCliProvider(provider)) return 'no_vision';
-  if (provider === 'localapi' && !aiLocalServer.configFrom(settings).vision) return 'no_vision';
-  if (provider === 'ollama') {
-    const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan);
-    const sees = await aiLocal.supportsVisionLive(aiLocal.sanitizeOllamaUrl(settings.ollamaUrl), model).catch(() => false);
-    if (!sees) return 'no_vision';
-  }
-  return '';
-}
-
-// Why translation cannot run right now, or '' when it can.
-async function lyricsTranslateBlocker() {
-  if (hub.settings.lyricsTranslate !== true) return 'off';
-  return userAiBlocker();
-}
 
 async function _getAudioInfoRaw() {
   const allRows = await readSoundVolumeRows();
@@ -3417,23 +3343,6 @@ async function getAudioInfo() {
   const p = _getAudioInfoRaw();
   audioReads.pending = p;
   try { return await p; } finally { if (audioReads.pending === p) audioReads.pending = null; }
-}
-
-// Make a device the default. Windows keeps three defaults per direction:
-// Console and Multimedia (together, what the Sound panel calls the Default
-// Device) and Communications (what Discord, Teams and call apps use), and
-// SoundVolumeView sets one role per call or 'all'. Everything in Xenon that
-// switches a device comes through here, so one setting decides for all of
-// them. Asked on Discord: "would only swap the default device (not the
-// communication device)". macOS and Linux have one default and ignore roles.
-async function setDefaultAudioDevice(id, settings) {
-  const s = settings || hub.settings || {};
-  if (process.platform !== 'win32' || s.audioSetCommunications !== false) {
-    await svvExec(['/SetDefault', id, 'all']);
-    return;
-  }
-  await svvExec(['/SetDefault', id, '0']);   // Console
-  await svvExec(['/SetDefault', id, '1']);   // Multimedia
 }
 
 const { svvExec } = require('./audio/svv-exec.js');
@@ -3927,35 +3836,7 @@ async function refreshUnifiEventsWatch() {
   unifiNotify.configSig = sig;
 }
 
-const { obsStarting } = require('./streaming/obs-starting-state.js');
-
-function _finishObsLaunch(ok) {
-  if (!obsStarting.launching) return;
-  obsStarting.launching = false;
-  broadcastSSE('obs_launching', { launching: false, ok: !!ok });
-}
-
-// Run an OBS request; if it fails because OBS is unreachable AND auto-launch is on
-// AND OBS is found, launch OBS and retry the SAME request until it connects (≤25s).
-async function ensureObsRun(runFn) {
-  try { return await runFn(); }
-  catch (err) {
-    if (!obsLaunch.isConnError(err)) throw err;                 // a real request error: surface it
-    const s = (await readHubSettings().catch(() => null)) || {};
-    if (s.obsAutoLaunch === false) throw err;                   // user opted out
-    const exe = await obsLaunch.findObsExe({ readInstallDir: readObsInstallDir, fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } } });
-    if (!exe) throw err;                                        // OBS not installed / not found
-    if (!obsStarting.launching) { obsStarting.launching = true; broadcastSSE('obs_launching', { launching: true }); launchObs(exe); }
-    const deadline = Date.now() + 25000;
-    while (Date.now() < deadline) {
-      await _sleep(3000);
-      try { const r = await runFn(); _finishObsLaunch(true); return r; }
-      catch (e2) { if (!obsLaunch.isConnError(e2)) { _finishObsLaunch(true); throw e2; } } // OBS is up; the action itself failed
-    }
-    _finishObsLaunch(false);                                    // OBS never came up in time
-    throw err;
-  }
-}
+const { ensureObsRun } = require('./streaming/obs-ensure-run.js');
 
 const { lockWorkstation } = require('./system/lock-workstation.js');
 
@@ -4413,21 +4294,6 @@ async function chooseSensorSource(args) {
   });
   return { ok: true, metric: plan.metric, now: current()[plan.metric] || 'auto' };
 }
-// POST /sdk/grant: Allow pressed on a widget on the PC's screen (sdk-grant.js).
-async function saveSdkGrant(body) {
-  const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
-  const plan = SdkGrant.plan(body, scan.packages);
-  if (plan.error) return { ok: false, ...plan };
-  let rev = null;
-  await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const written = await writeHubSettings({ ...cur, ...SdkGrant.apply(cur, plan), rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    rev = written.rev;
-    broadcastSSE('settings', { rev });
-  });
-  return { ok: true, rev };
-}
 async function playInTile(args) {
   const want = TilePlay.parseTilePlay(args);
   if (want.error) return { ok: false, ...want };
@@ -4738,18 +4604,6 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
   });
 }
 
-const { lightingPersist } = require('./lights/persist-state.js');
-const { LIGHTING_PERSIST_DEBOUNCE_MS } = require('./lights/persist-timing.js');
-async function _flushLightingPersist() {
-  if (!lightingPersist.timer) return;
-  clearTimeout(lightingPersist.timer);
-  lightingPersist.timer = null;
-  // Serialized with every other settings writer: the base is spread from
-  // hub.settings, so a concurrent POST /settings could otherwise commit a
-  // vitals refill that this flush then overwrites with its pre-refill copy.
-  try { await withHubSettingsLock(async () => { hub.settings = await writeHubSettings({ ...hub.settings, lighting: lighting.getConfig() }); }); }
-  catch (e) { console.error('Lighting persist failed:', e.message); }
-}
 // Shutdown / restart / sleep: switch off the lights Xenon drives itself first
 // (session-watch.js says why node cannot see these on its own). Runs only
 // while native lighting is on, the one thing that would otherwise stay lit on
@@ -4766,23 +4620,6 @@ function _syncSessionWatch() {
   let on = false;
   try { on = lighting.getConfig().native.enabled === true; } catch { /* stays off */ }
   if (on) _sessionWatch.start(); else _sessionWatch.stop();
-}
-async function _persistLighting() {
-  if (lightingPersist.timer) return;   // a flush is already scheduled — it reads the latest config
-  lightingPersist.timer = setTimeout(() => { _flushLightingPersist(); }, LIGHTING_PERSIST_DEBOUNCE_MS);
-  lightingPersist.timer.unref();
-}
-
-// What the create_preset dry run needs from this file: the real settings
-// normalizer, the built-in tile ids with their default sizes, the SDK switch.
-function aiPresetDeps() {
-  const tiles = DEFAULT_DASHBOARD_LAYOUT.widgets;
-  return {
-    normalizeSettings: normalizeHubSettings,
-    dashboardWidgets: DASHBOARD_WIDGET_IDS.map((id) => ({ id, w: tiles[id] ? tiles[id].w : 8, h: tiles[id] ? tiles[id].h : 6 })),
-    sdkEnabled: sdkFeatureEnabled(),
-    appVersion: APP_VERSION,
-  };
 }
 
 const { aiStoppedReply } = require('./ai/stopped-reply.js');
@@ -5180,6 +5017,8 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 }
 
 const { hub } = require('./settings/current.js');
+const { setDefaultAudioDevice } = require('./audio/default-device.js');
+
 const { goToPageMiss } = require('./grid/go-to-page-miss.js');
 
 const { _overlayHotkey } = require('./widget-options/overlay-hotkey.js');
@@ -5191,6 +5030,8 @@ const { getGpuInfo } = require('./system/gpu-read.js');
 const {
   sdkFeatureEnabled, sdkPkgSuspended, sdkGrantsFor, sdkStreamGranted, _sdkStreamGranted,
 } = require('./widget-sdk/grants.js');
+
+const { aiPresetDeps } = require('./grid/ai-preset-deps.js');
 
 const { providerModelFor } = require('./ai/provider-models.js');
 
@@ -5208,33 +5049,19 @@ const { gameSessionsEnabled } = require('./performance/game-sessions-switch.js')
 
 const { settingsStore } = require('./settings/store-state.js');
 
-// The server-side half of "the Gemini key never leaves this machine" (see
-// ai-provider-creds.js). The client still sends a `key` field — every AI request
-// body has carried one since v2 and other callers (the iCUE widget, a widget's
-// own key one day) may legitimately supply their own — but the dashboard's copy
-// is now always empty, so an empty one means "use the key on disk" rather than
-// "no key". Endpoints that already read settings for other reasons keep their
-// inline `body.key || settings.geminiApiKey`; this exists for the ones that do
-// not, so a settings read is paid only when the fallback is actually needed.
-// Never turn this into a way to READ the key back out over HTTP.
-async function geminiKeyFor(bodyKey) {
-  const given = String(bodyKey || '').trim().slice(0, 200);
-  if (given) return given;
-  const s = await readHubSettings().catch(() => null);
-  return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
-}
+const { geminiKeyFor } = require('./ai/gemini-key-for.js');
+
+const { smallTaskModel } = require('./ai/small-task-model.js');
+
+const {
+  userAiBlocker, userAiVisionBlocker, lyricsTranslateBlocker,
+} = require('./ai/user-ai-blockers.js');
 
 const { backupSupersededLayout } = require('./grid/layout-backup.js');
 
-const { slideshowCache } = require('./windows-tiles/slideshow-cache.js');
 const { writeHubSettings } = require('./settings/write.js');
 
-async function getSlideshowDir() {
-  if (slideshowCache.folder !== null) return slideshowCache.folder;
-  const s = (await readHubSettings().catch(() => null)) || {};
-  slideshowCache.folder = (s.slideshow && typeof s.slideshow.folder === 'string') ? s.slideshow.folder : '';
-  return slideshowCache.folder;
-}
+const { getSlideshowDir } = require('./windows-tiles/slideshow-dir.js');
 
 // ── settings store: serialized read-modify-write ────────────────────────────
 // writeFileAtomic serializes the file WRITE, but every settings mutator runs
@@ -5253,6 +5080,10 @@ async function getSlideshowDir() {
 settingsStore.writeChain = Promise.resolve();
 
 const { withHubSettingsLock } = require('./settings/write-lock.js');
+
+const { _flushLightingPersist, _persistLighting } = require('./lights/persist.js');
+
+const { dropSdkGrant, saveSdkGrant } = require('./widget-sdk/grant-save.js');
 
 const {
   updateVitalsSettings, updateGameSessionsSetting, updatePerfHudSetting, updateHubSettingKey,
@@ -6619,30 +6450,7 @@ async function _initTimers() {
   timerState.checking.unref();
 }
 
-const { feedsRefresh } = require('./time/feeds-refresh-state.js');
-
-async function refreshExternalFeeds() {
-  if (feedsRefresh.refreshing) return agendaState.externalFeeds;
-  feedsRefresh.refreshing = true;
-  try {
-    const settings = await readHubSettings().catch(() => null);
-    const feeds = (settings && Array.isArray(settings.calendarFeeds)) ? settings.calendarFeeds : [];
-    const results = await Promise.all(feeds.map(f => icsFeeds.loadFeed(f)));
-    const events = [];
-    const status = [];
-    for (let i = 0; i < feeds.length; i++) {
-      const r = results[i];
-      status.push({ id: feeds[i].id, name: feeds[i].name, status: r.status, error: r.error, count: r.count, reminders: feeds[i].reminders });
-      if (r.events && r.events.length) events.push(...r.events);
-    }
-    agendaState.externalFeeds = { feeds: status, events, refreshedAt: Date.now() };
-  } catch (e) {
-    // Keep last good cache; record nothing sensitive.
-  } finally {
-    feedsRefresh.refreshing = false;
-  }
-  return agendaState.externalFeeds;
-}
+const { refreshExternalFeeds } = require('./time/feeds-refresh.js');
 
 const { EXTERNAL_FEEDS_INTERVAL_MS } = require('./ticker/feeds-interval.js');
 setTimeout(() => { if (sseClients.size) refreshExternalFeeds().catch(() => {}); }, 4000).unref();
@@ -7198,6 +7006,8 @@ const { desiredBindHost, BIND_HOST } = require('./paired/bind-host.js');
 const { helperArrived, ensureHelperUpToDate } = require('./updates/helper-up-to-date.js');
 
 const { refreshStartupTaskState } = require('./install/startup-task-refresh.js');
+
+const { addIntegrationAiFunctions } = require('./streaming/assistant-functions.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -11593,106 +11403,6 @@ function _startLivePcmCapture(onPcm, onError) {
   proc.on('error', (e) => { try { onError && onError(e); } catch (_) { /* ignore */ } });
   proc.on('exit', () => { try { onError && onError(new Error('capture ended')); } catch (_) { /* ignore */ } });
   return { stop() { try { proc.stdin.end(); } catch {} try { proc.kill(); } catch {} } };
-}
-
-// System instruction for a Live voice session: date/time, identity, spoken-answer
-// brief, remembered facts, optional rolling summary carried from the client, and
-// the reply language. Mirrors the /api/ai SYS_BASE+SYS_VOICE spirit, compactly.
-// The tools of the integrations the user connected (OBS, Twitch, YouTube, Streamer.bot,
-// Spotify, Home Assistant, Discord voice), pushed onto `fns`, and the lines that tell
-// the model they exist. Shared by the chat turn and Voice Live, so a spoken "play X
-// on Spotify" or "turn on the lamp" works the same as a typed one.
-async function addIntegrationAiFunctions(fns) {
-  const AI_FUNCTIONS = fns;
-  // STREAMING — OBS / Twitch / YouTube / Streamer.bot control. Exposed ONLY
-  // when the matching integration is configured/connected (mirrors the deck
-  // action-catalog gating), so non-streamers pay zero extra tokens. Every tool
-  // routes through the same allowlisted deckRegistry that Deck keys use.
-  let _streamingText = '';
-  {
-    const _s = (await readHubSettings().catch(() => null)) || {};
-    const _tw = await streams.twitch.status().catch(() => ({ connected: false }));
-    const _yt = await streams.youtube.status().catch(() => ({ connected: false }));
-    const _enabled = [];
-    if (_s.obsHost || streamingLive.obsWanted) {
-      AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
-        scene: { type: 'STRING', description: 'Scene name: required only for switch_scene' },
-      }, required: ['action'] } });
-      _enabled.push('OBS (recording, streaming, scene switching)');
-    }
-    if (_tw.connected) {
-      AI_FUNCTIONS.push({ name: 'twitch_action', description: 'Control your Twitch channel: create a clip, set the stream title or game/category, send a chat message, drop a stream marker, shout out a channel, change chat mode, or run an ad.', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'One of: create_clip, set_title, set_game, send_chat, marker, shoutout, chat_mode, run_ad' },
-        value: { type: 'STRING', description: 'The parameter: new title (set_title), game/category (set_game), message (send_chat), marker note (marker), channel login (shoutout), chat mode emoteonly|followers|subscribers|slow|off (chat_mode), or ad length in seconds (run_ad). Omit for create_clip.' },
-      }, required: ['action'] } });
-      _enabled.push('Twitch (clip, title, game, chat, marker, shoutout, chat mode, ad)');
-    }
-    if (_yt.connected) {
-      AI_FUNCTIONS.push({ name: 'youtube_broadcast', description: 'Start, stop, or toggle your YouTube live broadcast.', parameters: { type: 'OBJECT', properties: {
-        mode: { type: 'STRING', description: 'One of: start, stop, toggle' },
-      }, required: ['mode'] } });
-      _enabled.push('YouTube (start/stop broadcast)');
-    }
-    if (_s.streamerbotHost) {
-      AI_FUNCTIONS.push({ name: 'streamerbot_action', description: 'Trigger a Streamer.bot action by its exact name.', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'Exact Streamer.bot action name to run' },
-      }, required: ['action'] } });
-      _enabled.push('Streamer.bot (run actions)');
-    }
-    if (_enabled.length) {
-      _streamingText = ' STREAMING CONTROL is available for: ' + _enabled.join('; ') + '.'
-        + ' Use these tools when the user asks to control their stream (e.g. "start recording", "go live", "switch to my Gioco scene", "set the title to…", "clip that"). "Go live" on Twitch means start the OBS stream (obs_control start_streaming).'
-        + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
-    }
-  }
-  // SMART DEVICE & MEDIA CONTROL — Spotify / Home Assistant / Discord voice.
-  // Each tool is declared ONLY when its integration is connected/configured
-  // (mirrors the streaming gate), so users without it pay zero extra tokens.
-  // Every control routes through the same allowlisted deckRegistry the Deck +
-  // widgets use; reads (now-playing, entity list, voice state) call the
-  // provider instance directly, exactly like the existing data endpoints.
-  let _integrationsText = '';
-  {
-    const _sp = await streams.spotify.status().catch(() => ({ connected: false }));
-    const _dc = await discordLink.rpc.status().catch(() => ({ connected: false }));
-    const _s2 = (await readHubSettings().catch(() => null)) || {};
-    const _haCfg = (_s2.homeAssistant && typeof _s2.homeAssistant === 'object') ? _s2.homeAssistant : {};
-    const _haOn = !!(_haCfg.url && _haCfg.token);
-    const _bits = [];
-    if (_sp.connected) {
-      AI_FUNCTIONS.push({ name: 'spotify_control', description: 'Control Spotify in full: play/pause, next/previous track, PLAY A SPECIFIC SONG, artist, album or playlist by NAME (searches Spotify and starts it), add a song to the queue, shuffle on/off, repeat, save/like the current track, set the device volume, seek, switch the playback device, and read what is currently playing. Playback control needs Spotify Premium (a "premium_required" error means the account is not Premium).', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'One of: play, pause, next, previous, play_song, queue_song, play_playlist, shuffle_on, shuffle_off, repeat, like, unlike, volume, seek, device, status. Use "status" to read the current track, playback state and available devices before answering "what\'s playing?" or when you need the device list.' },
-        query: { type: 'STRING', description: 'The song/artist/album name for play_song and queue_song, the playlist name for play_playlist, or the device name for device. Omit otherwise.' },
-        value: { type: 'STRING', description: 'The numeric/enum parameter: repeat mode (off|context|track, omit to cycle); volume 0-100; seek position in SECONDS. Omit otherwise.' },
-      }, required: ['action'] } });
-      _bits.push('Spotify (play/pause, next/prev, play or queue any song by name, playlists, shuffle, repeat, like, volume, seek, switch device)');
-    }
-    if (_haOn) {
-      AI_FUNCTIONS.push({ name: 'home_assistant', description: 'Control the user\'s smart home through Home Assistant: list every device/entity with its current state, turn a device on/off/toggle, activate a scene, and control ANY device in fine detail (light brightness & colour, thermostat temperature, fan speed, cover position, media players, switches…) via a Home Assistant service call. When you do not already know the exact entity_id, call action "list" FIRST and match by the friendly name/area.', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'One of: list, turn_on, turn_off, toggle, scene, service. "list" returns all entities (id, friendly name, domain, area, state). "service" performs a detailed call (see service/data).' },
-        entity_id: { type: 'STRING', description: 'The Home Assistant entity id, e.g. "light.living_room" or "climate.bedroom". Required for every action except list.' },
-        service: { type: 'STRING', description: 'For action "service": the "<domain>.<service>" to call, e.g. "light.turn_on", "climate.set_temperature", "cover.set_cover_position", "fan.set_percentage".' },
-        data: { type: 'STRING', description: 'For action "service": the service parameters as a JSON object string, e.g. {"brightness_pct":40,"color_name":"red"} or {"temperature":21}. Omit when the service takes no extra data.' },
-      }, required: ['action'] } });
-      _bits.push('Home Assistant (list devices, on/off/toggle, scenes, and detailed control: brightness, colour, temperature, fan speed, covers, media players)');
-    }
-    if (_dc.connected) {
-      AI_FUNCTIONS.push({ name: 'discord_voice', description: 'Control the user\'s Discord voice settings via the desktop app: mute/unmute the microphone, deafen/undeafen, switch between push-to-talk and voice-activity, JOIN a voice channel by name, leave the current channel, nudge the input (mic) or output (speaker) volume up/down, toggle an audio-processing feature, and read the current voice state plus the list of available voice channels.', parameters: { type: 'OBJECT', properties: {
-        action: { type: 'STRING', description: 'One of: mute, unmute, deafen, undeafen, ptt, vad, join, leave, input_volume, output_volume, audio_toggle, status. Use "status" to read the current mute/deafen state and the joinable channels before a join.' },
-        channel: { type: 'STRING', description: 'The voice channel name to join (for action join). Matched case-insensitively against the user\'s channels.' },
-        mode: { type: 'STRING', description: 'up or down: for input_volume / output_volume.' },
-        feature: { type: 'STRING', description: 'For audio_toggle: noise_suppression | echo_cancellation | automatic_gain_control | qos.' },
-      }, required: ['action'] } });
-      _bits.push('Discord voice (mute/deafen, push-to-talk, join/leave a channel by name, input/output volume, audio features)');
-    }
-    if (_bits.length) {
-      _integrationsText = ' SMART DEVICE & MEDIA CONTROL is available for: ' + _bits.join('; ') + '.'
-        + ' Use these tools whenever the user asks to control the matching thing, e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join.'
-        + ' For Home Assistant, ALWAYS call action "list" first when you are unsure of the exact entity_id, then act on the matched id. If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected (Settings → Spotify / Casa / Discord) rather than pretending it worked.';
-    }
-  }
-  return { streamingText: _streamingText, integrationsText: _integrationsText };
 }
 
 function _buildLiveSystemInstruction({ langName, summary }) {
