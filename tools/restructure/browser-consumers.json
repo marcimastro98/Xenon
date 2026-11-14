@@ -114,6 +114,10 @@
     },
     "server/js/update.js": {
       "tools/modal-census/census.mjs": "Patches the text a test browser is served, at the line `window.XenonUpdate = {`, with calls to showUpdatingOverlay, openReleaseNotes and openUpdateFailed. That line is not a function and cannot leave, and the three functions stay in the wrapper; the scripts next to it are served as they are."
+    },
+    "server/js/vitals-pet.js": {
+      "docs/images/bit.svg": "Names the file only in a comment that says where the drawing of Bit was copied from; it never opens it.",
+      "packages/design-system/brand-book.html": "Names the file only in a comment that says where the drawing of Bit was copied from; it never opens it."
     }
   }
 }
