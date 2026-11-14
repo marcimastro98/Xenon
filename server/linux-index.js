@@ -32,7 +32,7 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-require('./disk-kinds');
+require('./disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 
 // Directory names never worth SEARCHING: caches and build output, which are
 // large, numerous, and never what someone types a filename to find. They are

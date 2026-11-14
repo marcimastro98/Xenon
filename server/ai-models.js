@@ -31,7 +31,7 @@
 // release can still be offered.
 
 const fs = require('fs');
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
 const { CATALOG_BASE } = require('./community-catalog');

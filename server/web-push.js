@@ -40,7 +40,7 @@ const { writeFileAtomic } = require('./atomic-write.js');
 // A subscription endpoint is a URL a client chose. It must name the public
 // internet: a paired phone could otherwise subscribe https://127.0.0.1:<port>/
 // or a LAN address and turn every notification into a blind POST there.
-require('./net-guard.js');
+require('./net-guard.js'); // nothing is taken from it here, but it runs code when it loads
 
 const STORE_FILENAME = 'web-push.json';
 

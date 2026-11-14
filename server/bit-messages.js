@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const { writeFileAtomic } = require('./atomic-write');
-require('./community-messages');
+require('./community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 
 const { ID_RE, cleanTime, cleanMessage, restoreMessage } = require('./ai/bit-message-clean.js');
 // Highest first, when several wait for the same day. A vote never takes the day

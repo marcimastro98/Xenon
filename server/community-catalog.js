@@ -16,7 +16,7 @@
 // Pure parts (normalizeCatalog, normalizeCodeId, cacheIsFresh) are exported
 // for unit tests (server/test/community-catalog.test.mjs).
 
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
@@ -35,7 +35,7 @@ let storefront = null;
 try { storefront = require('./shared/src/storefront-layout.js'); }
 catch { storefront = null; }
 
-require('./store-catalog/description-limit.js');
+require('./store-catalog/description-limit.js'); // nothing is taken from it here, but it runs code when it loads
 
 const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';

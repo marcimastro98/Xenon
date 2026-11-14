@@ -12,8 +12,8 @@
 // is traded for a signed session token once, and the token is what travels.
 // Neither the code nor the token is ever sent to the browser.
 
-require('./supporter-redeem.js');
-require('./sparks-wallet.js');
+require('./supporter-redeem.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+require('./sparks-wallet.js'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const welcomeSparks = require('./welcome-sparks.js');
 const aiAnthropic = require('./ai-anthropic.js');
 const aiTurns = require('./ai-turns');

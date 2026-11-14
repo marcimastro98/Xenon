@@ -21,10 +21,10 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-require('./disk-categories');
-require('./disk-guard');
-require('./js/disk-intelligence');
-require('./disk-kinds');
+require('./disk-categories'); // nothing is taken from it here, but it runs code when it loads
+require('./disk-guard'); // nothing is taken from it here, but it runs code when it loads
+require('./js/disk-intelligence'); // nothing is taken from it here, but it runs code when it loads
+require('./disk-kinds'); // nothing is taken from it here, but it runs code when it loads
 const { createDupeVerifier } = require('./disk-dupes');
 const { userTempDirs } = require('./disk-space/temp-dirs.js');
 
@@ -231,7 +231,6 @@ function createDiskSpace(opts) {
     report: null,                     // final machine-readable outcome
   };
   const liveDeleteProcs = new Set();  // shell-delete children in flight (no job object)
-
 
   // ── which drive letters exist ────────────────────────────────────────────
   // Never synchronously: this runs on the /disk/status request path, which the

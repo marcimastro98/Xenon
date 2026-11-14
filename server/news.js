@@ -17,7 +17,7 @@ const crypto = require('crypto');
 // Outbound address guard: the URL check refuses private/loopback literals and
 // local names, the lookup hook refuses a public name that RESOLVES there (DNS
 // rebinding). Both are needed because Node skips `lookup` for IP literals.
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const MAX_FEEDS = 12;              // followed sources/topics cap
 const MAX_ITEMS = 40;             // merged headline cap (bounds payload)

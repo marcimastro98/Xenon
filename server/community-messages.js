@@ -30,7 +30,7 @@
 //
 // Pure parts are exported for unit tests (server/test/community-messages.test.mjs).
 
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const { MESSAGES_URL, fetchText } = require('./store-catalog/hub-message-fetch.js');
 

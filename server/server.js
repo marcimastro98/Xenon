@@ -65,7 +65,7 @@ const { createCaptures } = require('./captures');
 const { createCaptureGallery } = require('./capture-gallery');
 const { createCaptureSend } = require('./capture-send');
 const { createCaptureCopy } = require('./capture-copy');
-require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
+require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager); nothing is taken from it here, but it runs code when it loads
 const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
@@ -480,8 +480,8 @@ const lighting = require('./lighting');
 const { createSessionWatch } = require('./session-watch');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
-require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
-require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
+require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox); nothing is taken from it here, but it runs code when it loads
+require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client); nothing is taken from it here, but it runs code when it loads
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
@@ -503,11 +503,11 @@ const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds e
 const GameIgnore = require('./js/game-ignore.js'); // the user's "not a game" list (shared with Settings + tests)
 const SensorHistory = require('./js/sensor-history.js'); // the sensor-history setting (shared with Settings)
 const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
-require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
+require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import); nothing is taken from it here, but it runs code when it loads
 const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
-require('./layer-page.js'); // the light layer page plus its tiles' files
+require('./layer-page.js'); // the light layer page plus its tiles' files; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
 const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
 const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
@@ -521,7 +521,7 @@ const aiLocalServer = require('./ai-local-server');
 const aiAnthropic = require('./ai-anthropic');
 const aiXenon = require('./ai-xenon-credits');
 const welcomeSparks = require('./welcome-sparks');
-require('./ai-creation-labels');
+require('./ai-creation-labels'); // nothing is taken from it here, but deck/tools.js asks for it inside a function and would read it from disk then
 const aiTurns = require('./ai-turns');
 const aiMyWidgets = require('./ai-my-widgets');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
@@ -530,7 +530,7 @@ const { withThinking, applyThinking } = require('./ai-gemini-thinking');
 const { transcriptionPrompt } = require('./stt-voice-gate');
 const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
-require('./ai-provider-creds');
+require('./ai-provider-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createGuardian } = require('./guardian');
 const { createBatteryMonitor } = require('./battery');
 const { createAiMemory } = require('./ai-memory');
@@ -560,15 +560,15 @@ const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl } = require('./remote-control/settings');
-require('./stream-creds');
+require('./stream-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const { createUnifiProtect, normalizeUnifi } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
-require('./stocks-creds');
+require('./stocks-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const football = require('./football');
-require('./football-creds');
+require('./football-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const news = require('./news');
-require('./news-creds');
+require('./news-creds'); // nothing is taken from it here, but it loads js/settings-secrets.js, which runs code when it loads
 const claudeUsage = require('./claude-usage');
 const claudeBridge = require('./claude-bridge');
 const claudeInbox = require('./claude-inbox');
@@ -576,7 +576,7 @@ const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
-require('./claude-subagent.js');
+require('./claude-subagent.js'); // nothing is taken from it here, but it runs code when it loads
 const claudeHistory = require('./claude-history');
 const claudeCommands = require('./claude-commands');
 const claudeAttach = require('./claude-attach');
@@ -585,8 +585,8 @@ const codexBridge = require('./codex-bridge');
 const codexLink = require('./codex-link');
 const chatgptAsk = require('./chatgpt-ask');
 const communityCatalog = require('./community-catalog');
-require('./community-messages');
-require('./community-installs');
+require('./community-messages'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
+require('./community-installs'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const supporterRedeem = require('./supporter-redeem');
 const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
@@ -598,14 +598,14 @@ const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a r
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
-require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
-require('./scene-page');  // the desktop scene: wallpaper and screensaver
-require('./version-ping');
+require('./screen-alerts-page'); // the alerts window, with Bit's voice panel; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./scene-page'); // the desktop scene: wallpaper and screensaver; nothing is taken from it here, but it loads js/layer-tiles.js, which runs code when it loads
+require('./version-ping'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const usageStats = require('./usage-stats');  // anonymous feature counts, off unless usageStats is on
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
-require('./community-limited');
+require('./community-limited'); // nothing is taken from it here, but it loads net-guard.js, which runs code when it loads
 const { createRemoteControl } = require('./remote-control');
 // Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
 // from `remoteControl` above, which is the Sunshine/Moonlight streaming feature

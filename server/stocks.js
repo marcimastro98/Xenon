@@ -13,7 +13,7 @@
 //   • Finnhub (finnhubKey)        — realtime US quotes
 // Yahoo's endpoints are unofficial (no SLA); a keyed provider is the fallback.
 
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   MAX_SYMBOLS, cleanSymbol, normalizeWatchlist, DEFAULT_STOCKS, isDefaultWatchlist, normalizeStocks,

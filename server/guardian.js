@@ -14,8 +14,6 @@ const { normalizeEveryMin } = require('./js/sensor-history.js');
 
 const { TICK_MS, DUE_SLACK_MS, USAGE_MS } = require('./sensor-history/guardian-limits.js');
 
-
-
 const { makeStore } = require('./sensor-history/guardian-store.js');
 
 const { makeSampling } = require('./sensor-history/guardian-sampling.js');

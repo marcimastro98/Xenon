@@ -13,7 +13,7 @@
 // limits and unlocks the v2 livescore feed, so followed matches show live scores
 // while they're being played. The key is a SERVER-ONLY secret (football-creds.js).
 
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 const { fetchJson, pool } = require('./ticker/football-fetch.js');
 const {

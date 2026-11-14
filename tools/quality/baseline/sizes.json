@@ -41,7 +41,7 @@
     "server/deck-hotkey.ps1": 374,
     "server/discord-rpc.js": 980,
     "server/disk-categories.js": 312,
-    "server/diskspace.js": 336,
+    "server/diskspace.js": 335,
     "server/embedded-browser.js": 892,
     "server/enable-sensors.ps1": 449,
     "server/file-transfer.js": 557,

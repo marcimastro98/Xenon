@@ -1,6 +1,6 @@
 'use strict';
 const { createPace } = require('./search-pace');
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -10,7 +10,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-require('./ai-tool-groups');
+require('./ai-tool-groups'); // nothing is taken from it here, but it runs code when it loads
 
 const {
   DEFAULT_OLLAMA_URL, MODEL_WHITELIST, VISION_MODELS, EDGE_VOICES, EDGE_VOICE_FALLBACK,

@@ -10,7 +10,7 @@
 // timeout, bounded body, no-throw result objects) with one difference: a POST
 // must never follow redirects, so any 3xx is treated as a failure.
 
-require('./net-guard');
+require('./net-guard'); // nothing is taken from it here, but it runs code when it loads
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable
 // (a settings field would be attack/typo surface with no user benefit).
