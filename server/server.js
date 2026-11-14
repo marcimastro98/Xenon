@@ -112,8 +112,6 @@ const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 
 const { WL_OFF_STATE } = require('./audio/wavelink-values.js');
 
-const { normalizeEvents } = require('./time/events-normalize.js');
-
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
 
 const {
@@ -1200,21 +1198,17 @@ function openSpotlightPopupWindow() {
   return { ok: true };
 }
 
-// Native first: the hotkey is broadcast to every dashboard; a NATIVE kiosk
-// webview opens the frameless Tauri Spotlight window and claims it (POST
-// /spotlight/claimed). No claim within the window → the Edge app-mode popup
-// opens instead, so browser-only installs lose nothing.
-let _spotlightClaimTimer = null;
+const { spotlightClaim } = require('./search/spotlight-claim-state.js');
 const { searchShortcut } = require('./search/shortcut-claim.js');
 function routeSpotlightHotkey() {
   searchShortcut.claimed = false;
   broadcastSSE('spotlight_hotkey', { at: Date.now() });
-  if (_spotlightClaimTimer) clearTimeout(_spotlightClaimTimer);
-  _spotlightClaimTimer = setTimeout(() => {
-    _spotlightClaimTimer = null;
+  if (spotlightClaim.timer) clearTimeout(spotlightClaim.timer);
+  spotlightClaim.timer = setTimeout(() => {
+    spotlightClaim.timer = null;
     if (!searchShortcut.claimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
   }, 450);
-  _spotlightClaimTimer.unref();
+  spotlightClaim.timer.unref();
 }
 
 function _scheduleHotkeyRetry(ms) {
@@ -1566,7 +1560,7 @@ const aiMemory = createAiMemory({ dataDir: DATA_DIR });
 const aiActionLog = createAiActionLog();
 
 const { liveVoice } = require('./ai/live-voice-state.js');
-let _liveSession = null; // { session, capture, timer, teardown }
+const { liveNow } = require('./ai/live-session-state.js');
 
 // Apply the undo descriptor recorded for an AI action. Returns { ok, refresh }
 // where `refresh` is the client action the caller should trigger to re-render.
@@ -1599,20 +1593,16 @@ async function performAiUndo(entry) {
 const { DECK_FILE } = require('./deck/deck-file.js');
 const {
   STREAM_CONFIG_FILE, STREAM_TOKENS_FILE, _readStreamTokensSnapshot,
-  STREAM_CONFIG_KEYS,
 } = require('./streaming/config-files.js');
 const { UPLOADS_DIR } = require('./engine/uploads-dir.js');
 
-// Short-lived cache of the validated package scan, shared by the hot SDK paths
-// (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
-// from disk per request. GET /sdk/widgets always rescans and refreshes it.
-let _sdkScanCache = { at: 0, packages: [], invalid: [] };
+const { sdkScan } = require('./widget-sdk/scan-state.js');
 async function sdkPackagesCached() {
   // Long TTL on purpose: installs and Rescan both go through refreshSdkScan(),
   // and a widget's hot paths (fetch/hook/macro) only run for a package that was
   // already scanned to mount it — so this fallback re-read almost never fires,
   // and a busy hook source can't turn it into a per-event disk rescan.
-  if (Date.now() - _sdkScanCache.at < 30000) return _sdkScanCache;
+  if (Date.now() - sdkScan.cache.at < 30000) return sdkScan.cache;
   return refreshSdkScan();
 }
 async function refreshSdkScan() {
@@ -1621,8 +1611,8 @@ async function refreshSdkScan() {
   const onDisk = new Set(scan.packages.map((p) => p.id));
   const trial = (await trialVault.packages().catch(() => []))
     .filter((m) => !onDisk.has(m.id)).map((m) => ({ ...m, trial: true }));
-  _sdkScanCache = { at: Date.now(), packages: scan.packages.concat(trial), invalid: scan.invalid, skipped: scan.skipped || 0 };
-  return _sdkScanCache;
+  sdkScan.cache = { at: Date.now(), packages: scan.packages.concat(trial), invalid: scan.invalid, skipped: scan.skipped || 0 };
+  return sdkScan.cache;
 }
 
 const _widgetOrigins = (() => {   // one small read at startup, never on a request
@@ -1963,10 +1953,9 @@ const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map
 const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
 
-const { runHelperOneShot } = require('./system/helper-one-shot.js');
-
 const { runWindowsTool } = require('./windows-tiles/windows-tool.js');
 
+const { keySend } = require('./deck/key-send-state.js');
 // ── Sending a key combination ───────────────────────────────────────────────
 // One seam, three deliveries, and the SAME shape out — the pattern the
 // collectors follow, for the same reason: the two callers (the Deck's `hotkey`
@@ -1988,46 +1977,11 @@ const { runWindowsTool } = require('./windows-tiles/windows-tool.js');
 // first milliseconds reported `keys: false`, and the Deck editor would hide a
 // key that has worked for years — a regression introduced by making the
 // capability measurable.
-let _keySendProbe = POWERSHELL_SUPPORTED ? { ok: true, reason: '' } : null;
-const { _probeKeySend } = require('./deck/key-send-probe.js');
-function refreshKeySendProbe() {
-  _probeKeySend().then((r) => { _keySendProbe = r; }).catch(() => { _keySendProbe = { ok: false, reason: 'unsupported' }; });
-}
-// Synchronous read for the render/capability path. Before the first probe
-// resolves it reports "not available", which is the safe direction: a button
-// that appears a second late is fine, one that appears and fails is not.
-function keySendAvailable() { return !!(_keySendProbe && _keySendProbe.ok); }
-function keySendProblem() { return (_keySendProbe && !_keySendProbe.ok) ? _keySendProbe.reason : ''; }
+keySend.probe = POWERSHELL_SUPPORTED ? { ok: true, reason: '' } : null;
+const {
+  refreshKeySendProbe, keySendAvailable, keySendProblem, sendHotkeyCombo,
+} = require('./deck/key-send.js');
 refreshKeySendProbe();
-
-async function sendHotkeyCombo(keys) {
-  if (POWERSHELL_SUPPORTED) {
-    try {
-      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
-      return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
-    } catch { return { ok: false, error: 'hotkey_failed' }; }
-  }
-  if (process.platform === 'darwin') {
-    try {
-      const r = await runHelperOneShot(['keys', String(keys)], 6000);
-      if (r && r.ok === false) {
-        // A denied grant is worth re-probing: the user can grant it in System
-        // Settings without restarting anything, and the capability flag should
-        // follow rather than stay stale until the next boot.
-        if (r.error === 'accessibility_denied') refreshKeySendProbe();
-        return { ok: false, error: r.error || 'hotkey_failed' };
-      }
-      return { ok: true };
-    } catch { return { ok: false, error: 'hotkey_unavailable' }; }
-  }
-  if (nativeCollectors && typeof nativeCollectors.sendKeys === 'function') {
-    try { return await nativeCollectors.sendKeys(String(keys)); }
-    catch { return { ok: false, error: 'hotkey_failed' }; }
-  }
-  return { ok: false, error: 'hotkey_unavailable' };
-}
-
-const { resolveAppIcons } = require('./programs/app-icons.js');
 
 const remoteActions = require('./remote-actions');
 const aiPcApps = require('./ai-pc-apps');
@@ -2202,17 +2156,14 @@ async function runMediaRequest(action, timeout = 8000, position) {
   }
 }
 
-let lastCpu = cpuSnapshot();
-let cachedCpuUsage = 0;
-// The busiest logical core over the same 1.5 s: a game held back by one thread
-// shows a pegged core while the total stays low ("why does it stutter?").
-let cachedCpuMaxCore = 0;
+const { cpuRead } = require('./system/cpu-usage-state.js');
+cpuRead.last = cpuSnapshot();
 // Continuous CPU sampler — avoids 0% sampling artifacts when /system is polled less often than CPU times update.
 setInterval(() => {
   const now = cpuSnapshot();
   let idle = 0, total = 0, maxCore = 0;
   now.forEach((cpu, i) => {
-    const prev = lastCpu[i];
+    const prev = cpuRead.last[i];
     if (!prev) return;
     const di = cpu.idle - prev.idle;
     const dt = cpu.total - prev.total;
@@ -2220,21 +2171,20 @@ setInterval(() => {
     total += dt;
     if (dt > 0) maxCore = Math.max(maxCore, 100 - (di / dt) * 100);
   });
-  lastCpu = now;
-  cachedCpuMaxCore = Math.max(0, Math.min(100, Math.round(maxCore)));
+  cpuRead.last = now;
+  cpuRead.maxCore = Math.max(0, Math.min(100, Math.round(maxCore)));
   if (total > 0) {
     const pct = Math.max(0, Math.min(100, Math.round(100 - (idle / total * 100))));
-    cachedCpuUsage = pct;
+    cpuRead.usage = pct;
   }
 }, 1500).unref();
 
 const { sensorReads } = require('./system/sensor-reads-state.js');
 const { sensorCache } = require('./system/sensor-cache.js');
-const { audioReads } = require('./audio/read-state.js');
 const { sttDevice } = require('./ai/stt-device-state.js');
 
 const { STT_DEVICE_DELAY_MS } = require('./ai/stt-gate.js');
-const { _sttDeviceWaiters, _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
+const { _sttPending, _sweepStaleStt } = require('./ai/stt-pending.js');
 setInterval(_sweepStaleStt, 60000).unref();
 
 
@@ -2243,8 +2193,6 @@ const heardPlayer = createHeardPlayer(F);
 const musicNow = createMusicFact();
 
 const { setMediaPreferredSource } = require('./media/preferred-source-set.js');
-
-const { readSoundVolumeRows } = require('./audio/volume-rows.js');
 
 // ── What the media hosts hand us, made usable ───────────────────────────────
 // Reported as issue #128, on Apple Music for Windows: the cover never rendered
@@ -2263,9 +2211,7 @@ const { hydrateArtwork } = require('./media/artwork-lookup.js');
 
 const { getWeather } = require('./weather/get-weather.js');
 
-function getCpuUsage() {
-  return cachedCpuUsage;
-}
+const { getCpuUsage } = require('./system/cpu-usage.js');
 
 async function getCpuTemp() {
   const age = Date.now() - sensorCache.reading.updatedAt;
@@ -2356,7 +2302,7 @@ function readChosenSensors(sources) {
 
 
 
-let _diskLettersCache = { letters: null, at: 0 };
+const { diskLetters } = require('./disk/letters-state.js');
 
 const mountedDisks = nativeCollectors ? createMountedDisks(() => nativeCollectors.disks()) : null;
 
@@ -2372,9 +2318,9 @@ async function getAllDisksInfo({ waitForDetails = true } = {}) {
   // mounted/removed drive still appears within a minute. Free-space is still
   // read live on each call — only the dead letters are skipped.
   const now = Date.now();
-  const fresh = _diskLettersCache.letters && _diskLettersCache.letters.length &&
-                (now - _diskLettersCache.at) < DISK_LETTERS_TTL;
-  const letters = fresh ? _diskLettersCache.letters : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const fresh = diskLetters.cache.letters && diskLetters.cache.letters.length &&
+                (now - diskLetters.cache.at) < DISK_LETTERS_TTL;
+  const letters = fresh ? diskLetters.cache.letters : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const valid = [];
   for (const letter of letters) {
     try {
@@ -2406,7 +2352,7 @@ async function getAllDisksInfo({ waitForDetails = true } = {}) {
   }
   // Only refresh the cache after a full scan, and never store an empty result
   // (a transient failure must not pin us to "no drives" for 60s).
-  if (!fresh && valid.length) _diskLettersCache = { letters: valid, at: now };
+  if (!fresh && valid.length) diskLetters.cache = { letters: valid, at: now };
   return drives.length ? drives : null;
 }
 
@@ -2869,108 +2815,6 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
 
 const { companionLookSparks } = require('./ai/companion-look-sparks.js');
 
-async function _getAudioInfoRaw() {
-  const allRows = await readSoundVolumeRows();
-
-  // ── Device-level (master) ────────────────────────────────────
-  const deviceRows = allRows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');
-  const speakers   = deviceRows.filter(f => f[F.DIR] === 'Render');
-  const mics       = deviceRows.filter(f => f[F.DIR] === 'Capture');
-
-  const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
-  const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
-
-  if (defSpk) { audioCache.speakerId = defSpk[F.CLI_ID]; audioCache.speakerName = defSpk[F.NAME]; audioCache.speakerVolume = parseInt(defSpk[F.VOL_PCT]) || audioCache.speakerVolume; }
-  if (defMic) { audioCache.micId = defMic[F.CLI_ID]; audioCache.micLabel = defMic[F.NAME]; _maybeRebindSttDevice(); }
-
-  const toDevice = (f, isDefault) => ({
-    name:      f[F.DEVICE_NAME],
-    label:     f[F.NAME],
-    id:        f[F.CLI_ID],
-    isDefault,
-    volume:    parseInt(f[F.VOL_PCT]) || 0,
-    muted:     f[F.MUTED] === 'Yes',
-  });
-
-  // ── Application-level sessions ───────────────────────────────
-  // Show only sessions that are currently Active — this mirrors the Windows 11
-  // Volume Mixer, which lists an app while it actually holds an audio stream and
-  // drops it otherwise. Keeping Inactive sessions surfaced apps that Windows
-  // hides (e.g. RtkUWP, Explorer), so we filter them out here. Requiring a real
-  // exe path also excludes the "System Sounds" pseudo-sessions (empty Process
-  // Path). Dedupe per process path (an app can open one session per tab/stream).
-  // The exe basename (e.g. "spotify", "icue") is the most reliable label: the
-  // client runs it through prettyAppName for friendly names, sidestepping bad
-  // session metadata like "Qt6" that some apps report in the NAME column.
-  const procName = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
-
-  // Browser processes whose audio-session window title reveals the actual site
-  // (Twitch / YouTube / SoundCloud …). SMTC only reports the host browser, so we
-  // forward this title — for browser sessions only — and the client resolves the
-  // real source from it. Non-browser titles are never sent (keeps the payload
-  // lean and avoids surfacing unrelated window titles).
-  const BROWSER_PROC_RE = /^(?:chrome|msedge|firefox|brave|opera|vivaldi)$/i;
-
-  const collectApps = dir => {
-    const sessions = allRows.filter(f =>
-      f[F.TYPE] === 'Application' &&
-      f[F.DIR]  === dir &&
-      f[F.PROC_PATH] &&
-      f[F.STATE] === 'Active'
-    );
-    const byPath = new Map();
-    for (const f of sessions) {
-      const key = f[F.PROC_PATH].toLowerCase();
-      const existing = byPath.get(key);
-      // Prefer an Active session over an Inactive one for the visible row.
-      if (!existing || (f[F.STATE] === 'Active' && existing[F.STATE] !== 'Active')) {
-        byPath.set(key, f);
-      }
-    }
-    return [...byPath.values()].map(f => {
-      const proc = procName(f);
-      return {
-        name:   f[F.NAME] || f[F.WINDOW_TITLE] || proc || 'App',
-        proc,
-        id:     f[F.CLI_ID],
-        path:   f[F.PROC_PATH],
-        volume: parseInt(f[F.VOL_PCT]) || 0,
-        muted:  f[F.MUTED] === 'Yes',
-        icon:   null,
-        win:    BROWSER_PROC_RE.test(proc) ? (f[F.WINDOW_TITLE] || '') : '',
-      };
-    });
-  };
-
-  const speakerApps = collectApps('Render');
-  const micApps     = collectApps('Capture');
-
-  // Resolve icons from the exe path (cached; only slow on first appearance).
-  const allPaths = [...speakerApps, ...micApps].map(a => a.path);
-  if (allPaths.length) {
-    const icons = await resolveAppIcons(allPaths);
-    let i = 0;
-    speakerApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
-    micApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
-  }
-
-  return {
-    speaker:     defSpk ? toDevice(defSpk, true) : null,
-    mic:         defMic ? toDevice(defMic, true)  : null,
-    speakers:    speakers.map(f => toDevice(f, f === defSpk)),
-    mics:        mics.map(f => toDevice(f, f === defMic)),
-    speakerApps,
-    micApps,
-  };
-}
-
-async function getAudioInfo() {
-  if (audioReads.pending) return audioReads.pending;
-  const p = _getAudioInfoRaw();
-  audioReads.pending = p;
-  try { return await p; } finally { if (audioReads.pending === p) audioReads.pending = null; }
-}
-
 const { svvExec } = require('./audio/svv-exec.js');
 
 const { setMicMute } = require('./audio/mic-mute.js');
@@ -3119,30 +2963,23 @@ async function applySecondScreenMode(mode, opts) {
   return { ok: true, code: 'display_ready' };
 }
 
-// Live OBS state pushed to the dashboard while it's open and OBS is configured.
-// The persistent OBS connection is held only when both are true, so a closed
-// dashboard or an unconfigured OBS keeps zero sockets open.
-let obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
+const { obsWatch } = require('./streaming/obs-watch-state.js');
 let obsStopWatch = null;
-// Live thumbnail of the OBS program (on-air) scene, pushed on its own SSE event so
-// the (larger) image never rides the frequent small `obs` state updates.
-let obsPreview = { scene: '', image: '' };
-let obsPreviewTimer = null;
 const { streamingLive } = require('./streaming/live.js');
 
 function applyObsPartial(partial) {
   if (!partial) return;
-  const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsState.obsScene;
-  if (partial.obsMutes) obsState.obsMutes = Object.assign({}, obsState.obsMutes, partial.obsMutes);
-  if (partial.obsVolumes) obsState.obsVolumes = Object.assign({}, obsState.obsVolumes, partial.obsVolumes);
-  if (Array.isArray(partial.obsInputs)) obsState.obsInputs = partial.obsInputs;
-  for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsState[k] = partial[k];
-  broadcastSSE('obs', obsState);
-  if (sceneChanged && obsPreviewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
+  const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsWatch.state.obsScene;
+  if (partial.obsMutes) obsWatch.state.obsMutes = Object.assign({}, obsWatch.state.obsMutes, partial.obsMutes);
+  if (partial.obsVolumes) obsWatch.state.obsVolumes = Object.assign({}, obsWatch.state.obsVolumes, partial.obsVolumes);
+  if (Array.isArray(partial.obsInputs)) obsWatch.state.obsInputs = partial.obsInputs;
+  for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsWatch.state[k] = partial[k];
+  broadcastSSE('obs', obsWatch.state);
+  if (sceneChanged && obsWatch.previewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
 }
 
 async function captureScenePreview() {
-  const scene = obsState.obsScene;
+  const scene = obsWatch.state.obsScene;
   if (!scene) return;                         // no program scene yet
   try {
     const r = scenePreviewRequest(scene);
@@ -3150,21 +2987,15 @@ async function captureScenePreview() {
     if (resp && resp.imageData) {
       // Skip the rebroadcast when the frame is byte-identical to the last one — a
       // static program scene otherwise re-pushes the same base64 image every 5s.
-      if (resp.imageData !== obsPreview.image || scene !== obsPreview.scene) {
-        obsPreview = { scene, image: resp.imageData };
-        broadcastSSE('obs_preview', obsPreview);
+      if (resp.imageData !== obsWatch.preview.image || scene !== obsWatch.preview.scene) {
+        obsWatch.preview = { scene, image: resp.imageData };
+        broadcastSSE('obs_preview', obsWatch.preview);
       }
     }
   } catch (e) { /* keep the last image on a failed/again-later capture */ }
 }
 
-// A foreground app seen once proves the probe works here: macOS without the helper
-// and some Wayland desktops never name one.
-let _frontAppSeen = false;
-function frontAppKnown() {
-  if (!_frontAppSeen) { try { _frontAppSeen = !!gameDetect.getForegroundProcess(); } catch { /* not yet */ } }
-  return _frontAppSeen;
-}
+const { frontAppKnown } = require('./system/front-app-known.js');
 // The facts behind the rules on placed widgets and pages. Each closure runs on the
 // status tick, long after every source below has been declared.
 const _situations = createSituations({
@@ -3172,8 +3003,8 @@ const _situations = createSituations({
   isOwnApp,
   read: {
     game: () => gameDetect.isGameRunning(),
-    live: () => obsState.obsStreaming === true,
-    recording: () => obsState.obsRecording === true || _recorder.status().on === true,
+    live: () => obsWatch.state.obsStreaming === true,
+    recording: () => obsWatch.state.obsRecording === true || _recorder.status().on === true,
     timer: () => timerState.list.some((t) => t.status === 'running'),
     dnd: () => !!(hub.settings.notifications && hub.settings.notifications.quiet === 'always'),
     cpu: () => getCpuUsage(),
@@ -3196,19 +3027,19 @@ async function refreshObsWatch() {
   const want = (tile || _situations.needs('live') || _situations.needs('recording')) && sseClients.size > 0;
   if (want && !obsStopWatch) obsStopWatch = deckObs.watch(applyObsPartial);
   // A rule only asks whether OBS is live: no picture of the scene every 5 s for it.
-  if (want && tile && !obsPreviewTimer) {
-    obsPreviewTimer = setInterval(captureScenePreview, 5000);
+  if (want && tile && !obsWatch.previewTimer) {
+    obsWatch.previewTimer = setInterval(captureScenePreview, 5000);
     captureScenePreview();                    // one immediate capture so the thumbnail appears fast
-  } else if (want && !tile && obsPreviewTimer) {
-    clearInterval(obsPreviewTimer); obsPreviewTimer = null;
+  } else if (want && !tile && obsWatch.previewTimer) {
+    clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null;
   }
   if (!want && obsStopWatch) {
     obsStopWatch(); obsStopWatch = null;
-    if (obsPreviewTimer) { clearInterval(obsPreviewTimer); obsPreviewTimer = null; }
-    obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
-    obsPreview = { scene: '', image: '' };
-    broadcastSSE('obs', obsState);            // clear stale record/stream/scene indicators
-    broadcastSSE('obs_preview', obsPreview);  // clear the client thumbnail
+    if (obsWatch.previewTimer) { clearInterval(obsWatch.previewTimer); obsWatch.previewTimer = null; }
+    obsWatch.state = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
+    obsWatch.preview = { scene: '', image: '' };
+    broadcastSSE('obs', obsWatch.state);            // clear stale record/stream/scene indicators
+    broadcastSSE('obs_preview', obsWatch.preview);  // clear the client thumbnail
   }
 }
 
@@ -3219,7 +3050,7 @@ async function refreshObsWatch() {
 // dashboard or an unconfigured HA keeps zero sockets open. The token never leaves
 // the server — only this projected state does.
 let haStopWatch = null;
-let haNotifyTimer = null;
+const { haWatch } = require('./smart-home/ha-watch-state.js');
 
 const { _haDeckWatchClients, haDeckWatchUnion } = require('./smart-home/deck-watch.js');
 
@@ -3254,35 +3085,23 @@ async function buildHaState() {
   };
 }
 
-// Change guard for the ha_states deck broadcast: the shared HA watch fires on
-// EVERY state_changed of the whole instance (one chatty power sensor is enough),
-// while the ≤32 deck-bound entities rarely move — comparing the serialized
-// payload keeps idle churn off the wire and off the clients' DOM passes.
-let _haDeckStatesLast = '';
 function broadcastHaDeckStates(force) {
   if (!_haDeckWatchClients.size) return;
   const payload = buildHaDeckStates();
   const sig = JSON.stringify(payload);
-  if (!force && sig === _haDeckStatesLast) return;
-  _haDeckStatesLast = sig;
+  if (!force && sig === haWatch.deckStatesLast) return;
+  haWatch.deckStatesLast = sig;
   broadcastSSE('ha_states', payload);
 }
 
-// Coalesce bursts of state_changed events into at most one broadcast per ~250ms —
-// a single HA scene can flip a dozen entities at once, and the tile only needs the
-// settled result. Keeps SSE traffic tiny even in a busy home.
-// The watch fires for EVERY entity of the instance, so the payload is compared
-// with the last one sent: a power meter nobody picked ticking every second must
-// not repaint every tile and widget that reads the selected ones.
-let _haStateLast = '';
 function scheduleHaBroadcast() {
-  if (haNotifyTimer) return;
-  haNotifyTimer = setTimeout(async () => {
-    haNotifyTimer = null;
+  if (haWatch.notifyTimer) return;
+  haWatch.notifyTimer = setTimeout(async () => {
+    haWatch.notifyTimer = null;
     try {
       const state = await buildHaState();
       const sig = JSON.stringify(state);
-      if (sig !== _haStateLast) { _haStateLast = sig; broadcastSSE('homeassistant', state); }
+      if (sig !== haWatch.stateLast) { haWatch.stateLast = sig; broadcastSSE('homeassistant', state); }
     } catch (e) { /* ignore */ }
     // Same coalesced beat feeds the deck-bound entity states (separate event so
     // the deck snapshot stays tiny and independent of the tile's selection).
@@ -3303,9 +3122,9 @@ async function refreshHaWatch() {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
     haStopWatch(); haStopWatch = null;
-    if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; }
-    _haDeckStatesLast = '';   // a future watcher must get a fresh seed
-    _haStateLast = '';
+    if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; }
+    haWatch.deckStatesLast = '';   // a future watcher must get a fresh seed
+    haWatch.stateLast = '';
     try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
   } else if (want && haStopWatch && sig !== _haConfigSig) {
     // Already watching AND the config/selection actually changed (the user picked
@@ -3324,7 +3143,7 @@ async function refreshHaWatch() {
 // is open (SSE clients > 0) AND Streamer.bot is configured, mirroring OBS/HA. The
 // password never leaves the server — only the projected globals do.
 let sbStopWatch = null;
-let sbNotifyTimer = null;
+const { sbWatch } = require('./streaming/streamerbot-watch-state.js');
 
 const { pushActivity } = require('./streaming/streamerbot-activity.js');
 
@@ -3337,9 +3156,9 @@ async function buildSbState() {
 // Coalesce bursts of global changes into at most one broadcast per ~250ms (one
 // Streamer.bot action can flip several globals at once). Keeps SSE traffic tiny.
 function scheduleSbBroadcast() {
-  if (sbNotifyTimer) return;
-  sbNotifyTimer = setTimeout(async () => {
-    sbNotifyTimer = null;
+  if (sbWatch.notifyTimer) return;
+  sbWatch.notifyTimer = setTimeout(async () => {
+    sbWatch.notifyTimer = null;
     try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
   }, 250);
 }
@@ -3351,7 +3170,7 @@ async function refreshSbWatch() {
     sbStopWatch = deckSb.watch(scheduleSbBroadcast, pushActivity);
   } else if (!want && sbStopWatch) {
     sbStopWatch(); sbStopWatch = null;
-    if (sbNotifyTimer) { clearTimeout(sbNotifyTimer); sbNotifyTimer = null; }
+    if (sbWatch.notifyTimer) { clearTimeout(sbWatch.notifyTimer); sbWatch.notifyTimer = null; }
     try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
   }
 }
@@ -3362,7 +3181,7 @@ async function refreshSbWatch() {
 // SSE event. Idle-closes otherwise (mirrors OBS/HA). Opt-in (enabled=false by
 // default) so a dashboard never probes localhost:1824 for users who don't use it.
 let wlStopWatch = null;
-let wlNotifyTimer = null;
+const { wlWatch } = require('./audio/wavelink-watch-state.js');
 
 async function buildWlState() {
   const s = (await readHubSettings().catch(() => null)) || {};
@@ -3376,9 +3195,9 @@ async function buildWlState() {
 // broadcast per ~150ms. The state is small by construction — channel artwork is
 // served by URL and never enters this frame.
 function scheduleWlBroadcast() {
-  if (wlNotifyTimer) return;
-  wlNotifyTimer = setTimeout(async () => {
-    wlNotifyTimer = null;
+  if (wlWatch.notifyTimer) return;
+  wlWatch.notifyTimer = setTimeout(async () => {
+    wlWatch.notifyTimer = null;
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }, 150);
 }
@@ -3394,19 +3213,18 @@ async function refreshWlWatch() {
     wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
   } else if (!want && wlStopWatch) {
     wlStopWatch(); wlStopWatch = null;
-    if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; }
+    if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; }
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }
 }
 
 const { VM_POLL_MS } = require('./audio/voicemeeter-timing.js');
-let vmPollTimer = null;
-let vmLastJson = '';
+const { vmWatch } = require('./audio/voicemeeter-watch-state.js');
 
 function refreshVoicemeeterWatch() {
   const want = sseClients.size > 0 && deckVoicemeeter.state().available === true;
-  if (want && !vmPollTimer) {
-    vmPollTimer = setInterval(() => {
+  if (want && !vmWatch.pollTimer) {
+    vmWatch.pollTimer = setInterval(() => {
       try {
         if (!deckVoicemeeter.dirty()) return;
         const v = deckVoicemeeter.values();
@@ -3416,14 +3234,14 @@ function refreshVoicemeeterWatch() {
         // sent: a widget re-rendering 4x a second for nothing is the cost this
         // avoids.
         const json = JSON.stringify(v);
-        if (json === vmLastJson) return;
-        vmLastJson = json;
+        if (json === vmWatch.lastJson) return;
+        vmWatch.lastJson = json;
         broadcastSSE('voicemeeter', v);
       } catch { /* a mixer that went away is not worth a log line per tick */ }
     }, VM_POLL_MS);
-    if (vmPollTimer.unref) vmPollTimer.unref();
-  } else if (!want && vmPollTimer) {
-    clearInterval(vmPollTimer); vmPollTimer = null; vmLastJson = '';
+    if (vmWatch.pollTimer.unref) vmWatch.pollTimer.unref();
+  } else if (!want && vmWatch.pollTimer) {
+    clearInterval(vmWatch.pollTimer); vmWatch.pollTimer = null; vmWatch.lastJson = '';
   }
 }
 
@@ -4746,31 +4564,6 @@ async function updateScreenAlertsSetting(on) {
   });
 }
 
-// The notification switches from Bit or the Do not disturb key. Nothing that
-// changes nothing is written (no rev bump); the master switch starts or stops
-// the Discord and Windows watchers the way POST /settings does.
-async function updateNotificationsSetting(change) {
-  let masterChanged = false;
-  const saved = await withHubSettingsLock(async () => {
-    const cur = await readHubSettingsForUpdate();
-    const before = normalizeNotifications(cur.notifications);
-    const notifications = normalizeNotifications({ ...before, ...change });
-    if (Object.keys(notifications).every((k) => notifications[k] === before[k])) return before;
-    masterChanged = notifications.enabled !== before.enabled;
-    const written = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
-    hub.settings = written;
-    broadcastSSE('settings', { rev: written.rev });
-    return written.notifications;
-  });
-  if (masterChanged) {
-    if (!discordNotifWanted()) discordMirror.notifications = [];
-    stopDiscordWatch();
-    refreshDiscordWatch().catch(() => {});
-    refreshWinNotifWatch();
-  }
-  return saved;
-}
-
 async function updateUsageModeSetting(mode) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
@@ -4794,15 +4587,12 @@ async function writeDeckStore(store) {
   return safe;
 }
 
+const { deckWrites } = require('./deck/write-state.js');
 // Deck read-modify-writes run one at a time: POST /deck-config and the AI's key
 // edits (capabilities/deck-shortcut.js) would otherwise both read rev N and the
 // second write would drop the first one's change.
-let _deckWriteChain = Promise.resolve();
-function withDeckWrite(fn) {
-  const run = _deckWriteChain.then(fn, fn);
-  _deckWriteChain = run.catch(() => {});
-  return run;
-}
+deckWrites.chain = Promise.resolve();
+const { withDeckWrite } = require('./deck/write-queue.js');
 
 // A server-side Deck edit: edit(configs) works on a copy and returns
 // { changed: [instanceId], result }; only the changed instances are written, as
@@ -5127,9 +4917,7 @@ const remoteControl = createRemoteControl({
   getSettings: () => hub.settings,
   saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { hub.settings = safe; return safe; })),
 });
-const {
-  discordNotifWanted, winNotifWanted,
-} = require('./settings/notification-switches.js');
+const { winNotifWanted } = require('./settings/notification-switches.js');
 
 const { _feedWidgetInUse } = require('./grid/feed-widget-in-use.js');
 
@@ -5161,9 +4949,15 @@ const { _writeTasksNow } = require('./time/tasks-write-now.js');
 
 const { _saveTimers } = require('./time/timers-save.js');
 
-const { pushDiscordNotification } = require('./discord/notif-push.js');
+const { _startSttDevice, _sttDeviceWhenReady } = require('./ai/stt-start.js');
 
-const { _initSttDevice } = require('./ai/stt-devices.js');
+const { getAudioInfo } = require('./audio/info-read.js');
+
+const { refreshDiscordWatch } = require('./discord/watch-refresh.js');
+
+const { updateNotificationsSetting } = require('./settings/notifications-setting.js');
+
+const { withTasksWrite, writeTasks } = require('./time/tasks-write.js');
 
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -5362,10 +5156,7 @@ deckRegistryDeps.discordOpenChat = openDiscordChat;
 // join/leave, who's speaking). Like the OBS watch, the persistent RPC socket is
 // held only while the dashboard is open (SSE clients > 0) AND Discord is linked, so
 // a closed dashboard or an unlinked account keeps zero sockets open.
-const { discordWatch, stopDiscordWatch } = require('./discord/watch-stop.js');
-let discordLogin = '';
-let discordWatchArming = false;   // serialize refreshes (status() is async)
-let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
+const { stopDiscordWatch } = require('./discord/watch-stop.js');
 
 const { discordMirror } = require('./discord/mirrored.js');
 winNotif.init({
@@ -5555,7 +5346,6 @@ const {
 } = require('./performance/processes-stream-timing.js');
 let _processesBusy = false;
 let _processesPolledAt = 0;
-let _processesProblemSaid = '';
 // The last five minutes of readings, so a widget that draws history opens with
 // it already drawn (GET /api/processes/history, replayed by the SDK host as a
 // `history` message). Filled by the tick below and nothing else: no timer of its
@@ -5564,13 +5354,7 @@ const _processesHistory = require('./stream-history').createStreamHistory({ maxA
 
 const { normalizeProcesses } = require('./performance/processes-normalize.js');
 
-// Said ONCE on the same channel, so a widget that can never get data renders its
-// own explanation instead of an empty list that looks like an idle machine.
-function announceProcessesProblem(problem) {
-  if (problem === _processesProblemSaid) return;
-  _processesProblemSaid = problem;
-  if (problem && sseClients.size > 0) broadcastSSE('processes', { problem, apps: [] });
-}
+const { announceProcessesProblem } = require('./performance/processes-problem.js');
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
@@ -5621,24 +5405,19 @@ setInterval(async () => {
   }
 }, SENSORS_STREAM_POLL_MS).unref();
 
-// ── Local "Hey Bit" wake word ─────────────────────────────────────────────
-// Same lifecycle discipline as the notification mirror: the ffmpeg capture
-// child runs only while the toggle is on, whisper.cpp is installed AND a
-// dashboard is open. wakeword.js owns the child, the VAD and the matcher; the
-// mic is read with the exact same device selection as the STT recorder.
-let _whisperReadyVal = false;
+const { whisperState } = require('./ai/whisper-ready-state.js');
 const { whisperProbe } = require('./ai/whisper-probe.js');
 function _whisperReady() {
   // Cached: this runs on the SSE connect/close path, which must never do sync
   // FS. A positive result is sticky (whisper doesn't uninstall itself); a
   // negative probe is cached for 10 s (and reset by the install handler).
-  if (_whisperReadyVal) return true;
+  if (whisperState.ready) return true;
   const now = Date.now();
   if (now - whisperProbe.lastAt < 10000) return false;
   whisperProbe.lastAt = now;
-  try { _whisperReadyVal = !!aiLocal.whisperExe(__dirname) && fs.existsSync(aiLocal.whisperPaths(__dirname).model); }
-  catch { _whisperReadyVal = false; }
-  return _whisperReadyVal;
+  try { whisperState.ready = !!aiLocal.whisperExe(__dirname) && fs.existsSync(aiLocal.whisperPaths(__dirname).model); }
+  catch { whisperState.ready = false; }
+  return whisperState.ready;
 }
 function wakeWordWanted() {
   const w = hub.settings && hub.settings.wakeWord;
@@ -5674,116 +5453,22 @@ function refreshWakeWordWatch() {
   wakeWord.sync(!liveVoice.active && sseClients.size > 0 && wakeWordWanted());
 }
 
-async function refreshDiscordWatch() {
-  // This is called from several async triggers that can overlap (SSE connect/close,
-  // the /voice mount read, login/logout). Serialize them: without the guard two
-  // concurrent calls could both pass `!discordWatch.stop` and start two watches,
-  // orphaning one socket. The dirty flag re-evaluates once against fresh state so a
-  // transition (e.g. logout) that lands mid-flight is never lost.
-  if (discordWatchArming) { discordWatchDirty = true; return; }
-  discordWatchArming = true;
-  try {
-    do {
-      discordWatchDirty = false;
-      const st = await discordLink.rpc.status().catch(() => null);
-      // The call card's Answer button is only real while the account is linked,
-      // so the flag it reads follows the same status this watch is armed on.
-      discordMirror.linkedForCalls = !!(st && st.configured && st.connected);
-      const want = !!(st && st.configured && st.connected) && sseClients.size > 0;
-      if (want && !discordWatch.stop) {
-        discordLogin = (st && st.login) || '';
-        discordWatch.stop = discordLink.rpc.watchVoice((voice) => {
-          // Derive `connected` (account linked) from the pushed state, not a hardcoded
-          // true — otherwise a token revoked mid-watch would leave the widget stuck
-          // looking linked. A dropped pipe still reports connected:true (linked, just
-          // offline); a token failure reports connected:false (→ "connect" notice).
-          // `notif` tells the widget's Notifications tab whether the feed is live or
-          // the token needs a re-link ('scope_missing').
-          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice, notif: discordLink.rpc.notifStatus() });
-        }, pushDiscordNotification);
-      } else if (!want && discordWatch.stop) {
-        stopDiscordWatch();
-        // Clear the widget's live state so it reflects the linked-but-idle / unlinked view.
-        broadcastSSE('discord', { connected: !!(st && st.connected), login: (st && st.login) || '', voice: null, notif: 'off' });
-      }
-    } while (discordWatchDirty);
-  } finally { discordWatchArming = false; }
-}
+const { saveStreamConfig } = require('./streaming/save-config.js');
 
-async function saveStreamConfig(patch) {
-  let cfg = {};
-  try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
-  for (const k of STREAM_CONFIG_KEYS) {
-    if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
-  }
-  await writeFileAtomic(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2));
-  makeStreamProviders();
-  // Stop any live watch on the OLD provider first — closing it with a watcher
-  // still attached would spin up a reconnect loop against the stale socket.
-  stopDiscordWatch();
-  try { discordLink.rpc.close(); } catch { /* ignore */ }
-  makeDiscordProvider();
-  refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
-}
-
+const { timeWrites } = require('./time/write-state.js');
 // Every events write runs in one queue, so the reminder check (which marks
 // `notifiedAt`) and a save never interleave, and a save from a copy older than
 // the mark keeps it (calendar-reminders.js keepNotified).
-let _eventsWriteChain = Promise.resolve();
+timeWrites.events = Promise.resolve();
 const { agendaState } = require('./time/agenda-state.js');
-function withEventsWrite(fn) {
-  const run = _eventsWriteChain.then(fn, fn);
-  _eventsWriteChain = run.catch(() => {});
-  return run;
-}
 
-const { _saveEvents } = require('./time/events-save.js');
-
-function writeEvents(events) {
-  return withEventsWrite(async () => {
-    const prev = await readEvents().catch(() => []);
-    return _saveEvents(calendarReminders.keepNotified(normalizeEvents(events), prev));
-  });
-}
-
-// Read, change and write the events as one step, so nothing else writes in
-// between. `edit(events)` answers { next, ...result } to save `next`, or
-// { ...result } without `next` to leave the file alone. A file that cannot be
-// read fails the edit instead of starting from an empty list.
-function updateEvents(edit) {
-  return withEventsWrite(async () => {
-    const prev = await readEvents();
-    const out = (await edit(prev)) || {};
-    if (!Array.isArray(out.next)) return { ...out, events: prev, seq: agendaState.eventsSeq, changed: false };
-    const events = await _saveEvents(calendarReminders.keepNotified(normalizeEvents(out.next), prev));
-    return { ...out, events, seq: agendaState.eventsSeq, changed: true };
-  });
-}
-
-function markEventReminders(now) {
-  return withEventsWrite(async () => {
-    const events = await readEvents();
-    const due = calendarReminders.markDueEvents(events, now);
-    if (due.length) await _saveEvents(events);
-    return due;
-  });
-}
-
+const { writeEvents, updateEvents, markEventReminders } = require('./time/events-write.js');
 
 // Every tasks write runs in one queue, and so does every read that a write is
 // built on (updateTasks), so the assistant, a Deck key, the clock that reopens
 // repeating tasks and two dashboards can never base a write on the same old
 // list and drop each other's change.
-let _tasksWriteChain = Promise.resolve();
-function withTasksWrite(fn) {
-  const run = _tasksWriteChain.then(fn, fn);
-  _tasksWriteChain = run.catch(() => {});
-  return run;
-}
-
-function writeTasks(tasks) {
-  return withTasksWrite(() => _writeTasksNow(tasks));
-}
+timeWrites.tasks = Promise.resolve();
 
 // Read, change and write the tasks as one step. `edit(tasks)` answers
 // { next, ...result } to save `next`, or { ...result } without `next` to leave
@@ -5806,12 +5491,11 @@ function reopenDueTasksNow() {
     return r.changed ? { next: r.list } : null;
   });
 }
-let _tasksReopenTimer = null;
 function startTasksReopenClock() {
-  if (_tasksReopenTimer) clearInterval(_tasksReopenTimer);
+  if (timeWrites.reopenTimer) clearInterval(timeWrites.reopenTimer);
   reopenDueTasksNow().catch(() => {});
-  _tasksReopenTimer = setInterval(() => { reopenDueTasksNow().catch(() => {}); }, 60_000);
-  _tasksReopenTimer.unref();
+  timeWrites.reopenTimer = setInterval(() => { reopenDueTasksNow().catch(() => {}); }, 60_000);
+  timeWrites.reopenTimer.unref();
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────────
@@ -6077,7 +5761,7 @@ const _claudeInbox = claudeInbox.createInbox({
     _claudeBridgeChanged();
   },
 });
-let _claudeBridgePushTimer = null;
+const { bridgePush } = require('./claude-code/bridge-push-state.js');
 
 // Runs the dashboard starts itself. It shares the bridge's repaint throttle
 // because a run and the permission requests it triggers are one story on screen.
@@ -6115,12 +5799,12 @@ const _claudeHistory = claudeHistory.createSessionStore({
 // filesystem scan is: a pending approval must reach the fullscreen overlay even
 // when the user never added the tile, and a push costs no disk I/O.
 function _claudeBridgeChanged() {
-  if (_claudeBridgePushTimer || sseClients.size === 0) return;
-  _claudeBridgePushTimer = setTimeout(() => {
-    _claudeBridgePushTimer = null;
+  if (bridgePush.timer || sseClients.size === 0) return;
+  bridgePush.timer = setTimeout(() => {
+    bridgePush.timer = null;
     try { _claudeBroadcast(); } catch { /* a repaint must never break ingest */ }
   }, 300);
-  if (typeof _claudeBridgePushTimer.unref === 'function') _claudeBridgePushTimer.unref();
+  if (typeof bridgePush.timer.unref === 'function') bridgePush.timer.unref();
 }
 
 // Claude Code's own live session registry (<configDir>/sessions/<pid>.json),
@@ -6450,6 +6134,8 @@ const { refreshStartupTaskState } = require('./install/startup-task-refresh.js')
 const { addIntegrationAiFunctions } = require('./streaming/assistant-functions.js');
 
 const { _audioToWav16k } = require('./ai/audio-to-wav.js');
+
+const { _noteAudioWatched, audioPollWanted } = require('./audio/watched.js');
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -7358,47 +7044,6 @@ function _remoteGate(req, res, secure) {
   }
 }
 
-let _sttDeviceStarted = false;
-function _startSttDevice() {
-  if (_sttDeviceStarted) return;
-  _sttDeviceStarted = true;
-  _initSttDevice();
-}
-
-function _sttDeviceWhenReady() {
-  _startSttDevice();
-  return new Promise(resolve => {
-    if (sttDevice.ready) resolve();
-    else _sttDeviceWaiters.push(resolve);
-  });
-}
-
-// Re-bind the STT capture device when the user changes their default microphone.
-// The dshow path pins a device name at startup, so without this, selecting a
-// different mic (e.g. plugging in a headset) had no effect and recordings kept
-// reading the old — often silent — device ("detected and active but doesn't hear
-// me"). The WASAPI path uses "default" and already follows the change on its own,
-// so we only rebind for the paths that pin a device: dshow by name, avfoundation
-// by index. Debounced and skipped while a recording is live.
-let _sttRebindTimer = null;
-function _maybeRebindSttDevice() {
-  if (!sttDevice.ready || sttDevice.useWasapi) return;          // wasapi follows "default" already
-  if (!audioCache.micLabel || audioCache.micLabel === sttDevice.micLabel) return;
-  if (_sttRebindTimer) return;
-  _sttRebindTimer = setTimeout(async () => {
-    _sttRebindTimer = null;
-    if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
-    if (!audioCache.micLabel || audioCache.micLabel === sttDevice.micLabel) return;
-    process.stdout.write(`[STT] Default mic changed to "${audioCache.micLabel}": rebinding capture device\n`);
-    try {
-      await _initSttDevice();
-      // The wake listener pins the device at spawn time — bounce it so it
-      // re-reads the rebound input args instead of listening to the old mic.
-      wakeWord.bounce();
-    } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
-  }, 800);
-}
-
 function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
   const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
@@ -7525,7 +7170,7 @@ function openSseClient(req, res, isRemote, remote) {
   }).catch(() => {});
   // The Voicemeeter mixer as last read: the poll only broadcasts a change, so a
   // widget opening later would otherwise wait for someone to move a fader.
-  if (vmLastJson) { try { res.write(`event: voicemeeter\ndata: ${vmLastJson}\n\n`); } catch (e) { /* ignore */ } }
+  if (vmWatch.lastJson) { try { res.write(`event: voicemeeter\ndata: ${vmWatch.lastJson}\n\n`); } catch (e) { /* ignore */ } }
   // A benchmark already recording: lights its Deck key, no toast (seed).
   try {
     const bench = _benchmark.status();
@@ -7569,8 +7214,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
   // delivered copy is included only for the PC — see transferState.
   try { res.write(`event: transfer\ndata: ${JSON.stringify(transferState(!isRemote))}\n\n`); } catch (e) { /* ignore */ }
   // Seed the just-connected client with the current OBS state (if watching).
-  if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
-  if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
+  if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsWatch.state)}\n\n`); } catch (e) { /* ignore */ } }
+  if (obsStopWatch && obsWatch.preview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsWatch.preview)}\n\n`); } catch (e) { /* ignore */ } }
   // Seed the just-connected client with the current Home Assistant state.
   buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
   // Seed the just-connected client with the current Streamer.bot globals.
@@ -10179,13 +9824,13 @@ function _buildLiveSystemInstruction({ langName, summary }) {
 async function _teardownLiveSession(reason) {
   // No-op only when the session neither started arming (no liveVoice.active) nor
   // created any handles. Crucially, if liveVoice.active was set true — even before
-  // _liveSession was assigned, i.e. a stop that lands mid-await in the 'start'
+  // liveNow.session was assigned, i.e. a stop that lands mid-await in the 'start'
   // path — we must STILL restore the duck and the wake word, or the mic stays
   // ducked and the wake word stays suspended forever.
-  if (!liveVoice.active && !_liveSession) return;
-  const s = _liveSession;
+  if (!liveVoice.active && !liveNow.session) return;
+  const s = liveNow.session;
   const wasActive = liveVoice.active;
-  _liveSession = null;
+  liveNow.session = null;
   liveVoice.active = false;
   try { if (s && s.timer) clearTimeout(s.timer); } catch {}
   try { if (s && s.capture) s.capture.stop(); } catch {}
@@ -10253,7 +9898,7 @@ function _handleLiveClient(client) {
       _duckSpeakerVolume();
 
       const timer = setTimeout(() => { send({ type: 'timeout' }); _teardownLiveSession('timeout').then(() => endClient('timeout')); }, LIVE_MAX_SESSION_MS);
-      _liveSession = { session: null, capture: null, timer };
+      liveNow.session = { session: null, capture: null, timer };
 
       const tools = buildCoreAiFunctions();
       // Match the turn-based handler: expose the memory tools by voice too when
@@ -10287,7 +9932,7 @@ function _handleLiveClient(client) {
               for (const a of (r.clientActions || [])) forwarded.push(a);
             } catch (e) { out = { error: String((e && e.message) || e) }; }
             for (const a of forwarded) send({ type: 'action', action: a.action, args: a.args });
-            if (_liveSession && _liveSession.session) _liveSession.session.sendToolResponse([{ id: c.id, name: c.name, response: { output: JSON.stringify(out) } }]);
+            if (liveNow.session && liveNow.session.session) liveNow.session.session.sendToolResponse([{ id: c.id, name: c.name, response: { output: JSON.stringify(out) } }]);
           }
         },
         onError: (e) => { const msg = String((e && e.message) || e); process.stdout.write(`[Live] gemini error: ${msg}\n`); send({ type: 'error', error: msg }); _teardownLiveSession('error').then(() => endClient('error')); },
@@ -10299,10 +9944,10 @@ function _handleLiveClient(client) {
           if (liveVoice.active) { send({ type: 'error', code: 'gemini_closed', error: `Gemini Live closed (${detail})` }); _teardownLiveSession('gemini_closed').then(() => endClient('gemini_closed')); }
         },
       });
-      _liveSession.session = session;
+      liveNow.session.session = session;
 
       try {
-        _liveSession.capture = _startLivePcmCapture(
+        liveNow.session.capture = _startLivePcmCapture(
           (frame) => { if (session && !session.closed) session.sendAudio(frame); },
           (e) => { send({ type: 'error', code: 'capture', error: String((e && e.message) || e) }); _teardownLiveSession('capture').then(() => endClient('capture')); },
         );
@@ -10316,7 +9961,7 @@ function _handleLiveClient(client) {
     }
 
     if (m.type === 'stop') { aborted = true; await _teardownLiveSession('client_stop'); endClient('stopped'); return; }
-    if (m.type === 'interrupt') { try { if (_liveSession && _liveSession.session) _liveSession.session.endAudioTurn(); } catch {} return; }
+    if (m.type === 'interrupt') { try { if (liveNow.session && liveNow.session.session) liveNow.session.session.endAudioTurn(); } catch {} return; }
   });
 
   const onGone = () => { aborted = true; _teardownLiveSession('client_gone'); };
@@ -10737,16 +10382,7 @@ function statusPayload() {
   return { muted: audioCache.muted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, whenOff, bootAt: _serverBootAt, version: APP_VERSION };
 }
 
-// Broadcast only when the payload actually changed (plus a slow heartbeat).
-// The payload is identical tick after tick on an idle PC, and every SSE event
-// wakes each connected renderer (parse + handlers + DOM writes + a composited
-// frame) — a constant idle CPU/GPU tax users see on a dashboard nobody is
-// touching. Lighting and the briefing sampler still see every 3s tick; only
-// the wire broadcast is deduplicated. The 30s heartbeat keeps slow consumers
-// honest — notably the version-fence reload deferred while the user is typing
-// (main.js retries it on each status event).
-let _lastStatusJson = '';
-let _lastStatusSentAt = 0;
+const { statusSent } = require('./system/status-sent-state.js');
 // A widget page marked "when I play" is shown while a game runs (layer-pages.js).
 const _gamePageSync = LayerPages.createGamePageSync({
   current: () => hub.settings && hub.settings.layers,
@@ -10915,11 +10551,11 @@ const _transcripts = createCaptureTranscripts({
   onState: (ev) => broadcastSSE('transcript', ev),
 });
 _transcripts.load().catch(() => {});
-let _captureFolderKind = 'recording';
+const { folderChoice } = require('./files/folder-choice-state.js');
 const _captureFolder = createCaptureFolder({
   host: _captureHost,
   validDir: (dir) => fileTransferLib.validInboxDir(dir, { dataDir: DATA_DIR, appRoot: path.join(__dirname, '..') }),
-  title: () => LayerI18n.text(CAPTURE_FOLDER_TITLES[_captureFolderKind], hub.settings && hub.settings.language),
+  title: () => LayerI18n.text(CAPTURE_FOLDER_TITLES[folderChoice.kind], hub.settings && hub.settings.language),
 });
 async function defaultCaptureFolder(kind) {
   if (kind === 'screenshot') return path.join(await picturesRoot(), 'Xenon');
@@ -10933,15 +10569,15 @@ async function defaultCaptureFolder(kind) {
 async function chooseCaptureFolder(kind = 'recording') {
   const k = CaptureSettings.FOLDERS[kind] ? kind : 'recording';
   // The dialog on screen is for another kind: its answer must not land here.
-  if (_captureFolder.picking() && _captureFolderKind !== k) return { ok: false, error: 'picking' };
-  _captureFolderKind = k;
+  if (_captureFolder.picking() && folderChoice.kind !== k) return { ok: false, error: 'picking' };
+  folderChoice.kind = k;
   const cur = captureOptions()[CaptureSettings.FOLDERS[k]];
   return _captureFolder.choose(cur || await defaultCaptureFolder(k));
 }
 // Where files from a paired phone arrive (fileTransfer.inboxDir).
 async function chooseTransferFolder() {
   if (_captureFolder.picking()) return { ok: false, error: 'picking' };
-  _captureFolderKind = 'transfer';
+  folderChoice.kind = 'transfer';
   return _captureFolder.choose(transferInboxDir());
 }
 // The only writer of the fileTransfer block: POST /api/transfer/settings and
@@ -10975,7 +10611,7 @@ async function updateTransferSettings(body) {
 // never remembered, opening in Downloads.
 async function chooseBackupFolder() {
   if (_captureFolder.picking()) return { ok: false, error: 'picking' };
-  _captureFolderKind = 'backup';
+  folderChoice.kind = 'backup';
   return _captureFolder.choose(path.join(os.homedir(), 'Downloads'));
 }
 _captures.load().catch(() => {});
@@ -11108,7 +10744,7 @@ const _bugReport = createBugReport({
 // runs; the perf stream carries its line, the Deck key and Bit ask it directly.
 const _stutterWatch = createStutterWatch({
   fps: fpsMonitor,
-  readSystem: async () => ({ ...(await getSystemInfo()), cpuMaxCore: cachedCpuMaxCore }),
+  readSystem: async () => ({ ...(await getSystemInfo()), cpuMaxCore: cpuRead.maxCore }),
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
   culprit: perfSession.culprit,
 });
@@ -11191,9 +10827,9 @@ function broadcastStatusNow() {
   try { _gamePageSync(st.gameRunning); } catch {}
   try { briefing.onStatusTick(st); } catch {}
   const j = JSON.stringify(st);
-  if (j === _lastStatusJson && Date.now() - _lastStatusSentAt < 30000) return;
-  _lastStatusJson = j;
-  _lastStatusSentAt = Date.now();
+  if (j === statusSent.json && Date.now() - statusSent.at < 30000) return;
+  statusSent.json = j;
+  statusSent.at = Date.now();
   broadcastSSE('status', st);
 }
 
@@ -11206,20 +10842,13 @@ perfSession.shield.recover();
 // right away so entering/leaving a game doesn't wait for the next 3s tick.
 try { gameDetect.onGamingChange(() => broadcastStatusNow()); } catch {}
 
-// Same change-only rule for 'media': with nothing playing (or a paused track)
-// the payload is byte-identical every 2s, yet each broadcast made every client
-// re-run applyMedia — textContent rewrites invalidate layout even when the text
-// is the same string, so the compositor presented a fresh frame every 2s for a
-// picture that never changed. A reconnecting client is never left stale: the
-// SSE connect-seed pushes the full current media state directly. Also used by
-// the native helper's instant track-change push (_onMediaChangedPush).
-let _lastMediaJson = '';
+const { mediaSent } = require('./media/sent-state.js');
 async function broadcastMediaNow() {
   if (sseClients.size === 0) return;
   const payload = mediaForBroadcast(await getMediaInfo());
   const j = JSON.stringify(payload);
-  if (j === _lastMediaJson) return;
-  _lastMediaJson = j;
+  if (j === mediaSent.json) return;
+  mediaSent.json = j;
   broadcastSSE('media', payload);
 }
 
@@ -11252,7 +10881,7 @@ async function _systemTick() {
       try { _gameSessions.onSystem(sys); } catch {}
       try {
         const game = gameDetect.isGameRunning() ? gameDetect.getGameProcess() : '';
-        _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cachedCpuMaxCore } : null, game);
+        _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cpuRead.maxCore } : null, game);
         try { _exclusiveHint.onTick(game); } catch {}
         _fpsNotice.onTick(game);
       } catch {}
@@ -11279,13 +10908,7 @@ setInterval(async () => {
   } catch {}
 }, 90000).unref();
 
-const { AUDIO_WATCH_WINDOW_MS, AUDIO_POLL_GAME_MS } = require('./audio/poll-timings.js');
-let _audioWatchedAt = 0;
-function _noteAudioWatched() { _audioWatchedAt = Date.now(); }
-function audioPollWanted() {
-  if (sdkStreamGranted('audio')) return true;
-  return Date.now() - _audioWatchedAt < AUDIO_WATCH_WINDOW_MS;
-}
+const { AUDIO_POLL_GAME_MS } = require('./audio/poll-timings.js');
 let _audioPolledAt = 0;
 let _lastAudioJson = '';
 setInterval(async () => {
@@ -11467,12 +11090,12 @@ function _gracefulShutdown() {
   // Stop the live Home Assistant watch (clears its reconnect timer) then close the
   // WebSocket. Stopping first prevents close() from scheduling a reconnect.
   try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
-  try { if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; } } catch {}
+  try { if (haWatch.notifyTimer) { clearTimeout(haWatch.notifyTimer); haWatch.notifyTimer = null; } } catch {}
   try { deckHa.close(); } catch {}
   // Stop the Wave Link mixer watch (clears its reconnect timer) then close the WS;
   // uninitialize any held Chroma session so Synapse reclaims device control.
   try { if (wlStopWatch) { wlStopWatch(); wlStopWatch = null; } } catch {}
-  try { if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; } } catch {}
+  try { if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; } } catch {}
   try { deckWaveLink.close(); } catch {}
   // Stop the UniFi Protect camera-notifications watch (clears its reconnect timer)
   // then close the updates WebSocket — a long-lived socket with no job object.
