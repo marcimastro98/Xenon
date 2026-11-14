@@ -4,6 +4,9 @@
 // TMPDIR at one folder per run catches them all, whichever test made them.
 //
 //   node tools/run-tests.mjs <node --test arguments...>      (npm test does this)
+//
+// XENON_TEST_CONCURRENCY=<n> runs at most n test files at a time, for a PC that
+// is busy or short of memory. Without it node chooses (one per processor less one).
 
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -16,9 +19,15 @@ export function testEnv(env, dir) {
   return { ...env, TEMP: dir, TMP: dir, TMPDIR: dir };
 }
 
+/** The `--test-concurrency` argument a run gets from XENON_TEST_CONCURRENCY, or none. */
+export function concurrencyArgs(env) {
+  const n = Number(env.XENON_TEST_CONCURRENCY);
+  return Number.isInteger(n) && n >= 1 && n <= 64 ? [`--test-concurrency=${n}`] : [];
+}
+
 function main() {
   const dir = mkdtempSync(path.join(tmpdir(), 'xenon-test-run-'));
-  const child = spawn(process.execPath, ['--test', ...process.argv.slice(2)], {
+  const child = spawn(process.execPath, ['--test', ...concurrencyArgs(process.env), ...process.argv.slice(2)], {
     stdio: 'inherit', env: testEnv(process.env, dir),
   });
   const cleanup = () => {
