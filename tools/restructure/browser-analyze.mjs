@@ -53,6 +53,18 @@ function namedOnWindow(parser, statement) {
   return right.kind === K.Identifier && right.text === left.name.text ? right.text : null;
 }
 
+// `if (typeof window !== 'undefined') ...` with no else: a statement kept for pages, which Node steps over.
+function forPagesOnly(parser, statement) {
+  const { K } = parser;
+  if (statement.kind !== K.IfStatement || statement.elseStatement) return false;
+  let test = statement.expression;
+  while (test.kind === K.BinaryExpression && test.operatorToken.kind === K.AmpersandAmpersandToken) test = test.left;
+  if (test.kind !== K.BinaryExpression || ![K.ExclamationEqualsEqualsToken, K.ExclamationEqualsToken].includes(test.operatorToken.kind)) return false;
+  const { left, right } = test;
+  return left.kind === K.TypeOfExpression && left.expression.kind === K.Identifier && ['window', 'document'].includes(left.expression.text)
+    && right.kind === K.StringLiteral && right.text === 'undefined';
+}
+
 // One script read alone. A split is analyzed again after every move and most of its
 // scripts have not changed in between, so what a text gave is kept with the parser.
 function readScript(parser, text, file) {
@@ -62,7 +74,7 @@ function readScript(parser, text, file) {
   const strict = isStrict(parser, sourceFile);
   const statements = sourceFile.statements.filter((s) => (s.flags & parser.NodeFlags.Reparsed) === 0);
   const rows = readTopLevel(sourceFile, parser).map((record, index) => ({ ...record, directive: index === 0 && strict,
-    onWindow: namedOnWindow(parser, statements[index]),
+    onWindow: namedOnWindow(parser, statements[index]), browserOnly: forPagesOnly(parser, statements[index]),
     handed: record.kind === 'function' ? { inline: false, names: [] } : handedOver(parser, statements[index]) }));
   parser.read.set(text, { strict, rows });
   return parser.read.get(text);
@@ -75,7 +87,8 @@ function readScript(parser, text, file) {
  *   `records`: every top-level statement of every script, in load order, each with `fileIndex`, `file`,
  *   `order` (its place in the whole run) and `needs` (the names it touches while it runs);
  *   `bindings`: who declares a name, and whether anything ever assigns or changes it (`state`);
- *   a record has `echo` (a function's name) when it is that function's `window.name = name;`.
+ *   a record has `echo` (a function's name) when it is that function's `window.name = name;`,
+ *   and `browserOnly` when it is a statement Node steps over (`if (typeof window !== 'undefined') ...`).
  */
 export function analyzeRun(scripts, parser) {
   const records = [];

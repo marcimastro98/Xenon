@@ -27,6 +27,8 @@ const FOLLOW_ALONE = /^tools\/quality\/baseline\/|^tools\/map\/features\.json$/;
 export const followsAlone = (file) => FOLLOW_ALONE.test(file) || file === CONSUMERS || file === BROWSER_LEDGER;
 const PROSE = /\.(md|txt)$|(^|\/)(LICENSE|CHANGELOG)[^/]*$/;
 const TEST = /(^|\/)test\//;
+// What stands right before a file's name when Node is told to load it: require('...'), import ... from '...', import('...').
+const LOADS = /(?:\brequire\s*\(\s*|\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"`]$/;
 const blank = (text) => text.replace(/[^\n]/g, ' ');
 /**
  * @param {string} root @param {string} file repo-relative
@@ -57,9 +59,10 @@ function mentionOf(file) {
 /**
  * @param {string} root
  * @param {string} file repo-relative browser file
- * @returns {{ file: string, lines: number[], kind: 'page' | 'list' | 'test' | 'code', reader: boolean }[]}
+ * @returns {{ file: string, lines: number[], kind: 'page' | 'list' | 'test' | 'code', reader: boolean, loads: number[] }[]}
  *   every tracked file that names it outside a comment: `page` when only its tags do, `list` for a list of
- *   files a page is built from, `reader` true when a test already goes through browser-source.mjs
+ *   files a page is built from, `reader` true when a test already goes through browser-source.mjs,
+ *   `loads` the lines where Node is told to load the file (`require`, `import`)
  */
 export function mentionsOf(root, file) {
   const base = path.posix.basename(file);
@@ -74,21 +77,23 @@ export function mentionsOf(root, file) {
     const tagLines = /^server\/.*\.html$/.test(other) ? new Set(tagsOf(raw).filter((tag) => tag.file === file)
       .map((tag) => raw.slice(0, tag.start).split('\n').length)) : new Set();
     const lines = [];
+    const loads = [];
     for (const match of text.matchAll(mentionOf(file))) {
       // `js/settings.js` and `../js/settings.js` are this file; `remote-control/settings.js` is another one.
       const folders = match[1].split('/').filter((part) => part && part !== '.' && part !== '..').join('/');
       if (folders && !`/${path.posix.dirname(file)}`.endsWith(`/${folders}`)) continue;
       const line = text.slice(0, match.index).split('\n').length;
       if (!tagLines.has(line)) lines.push(line);
+      if (LOADS.test(text.slice(Math.max(0, match.index - 40), match.index))) loads.push(line);
     }
-    if (lines.length) found.push({ file: other, lines: [...new Set(lines)], kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER) });
-    else if (tagLines.size) found.push({ file: other, lines: [...tagLines], kind: 'page', reader: false });
+    if (lines.length) found.push({ file: other, lines: [...new Set(lines)], kind: TEST.test(other) ? 'test' : 'code', reader: raw.includes(READER), loads });
+    else if (tagLines.size) found.push({ file: other, lines: [...tagLines], kind: 'page', reader: false, loads });
   }
   // A list that holds the file is followed by the tool like a page; one that only names it in a sentence is code.
   for (const list of builtListsWith(root, file)) {
     const named = found.find((mention) => mention.file === list);
     if (named) named.kind = 'list';
-    else found.push({ file: list, lines: [1], kind: 'list', reader: false });
+    else found.push({ file: list, lines: [1], kind: 'list', reader: false, loads: [] });
   }
   return found;
 }

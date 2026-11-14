@@ -14,6 +14,7 @@ import { consumerProblems } from './browser-consumers.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { BUILT_LIST, listRunProblems } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
+import { nodeLoadProblems } from './browser-node-loads.mjs';
 import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
 import { readStylesheet } from './browser-styles.mjs';
 
@@ -39,7 +40,7 @@ export function builtPages(root) {
 
 const declared = (run) => run.records.flatMap((record) => record.names.map((name) => `${record.kind} ${name}`)).sort();
 
-function scriptProblems(run, texts, parser) {
+function scriptProblems(run, texts, parser, root = null) {
   const state = analyzeRun(run.map((file) => ({ file, text: texts(file) })), parser);
   const last = run.length - 1;
   const problems = [...state.duplicates].map((name) => `${name} is declared twice across ${run[last]} and its scripts`);
@@ -50,6 +51,7 @@ function scriptProblems(run, texts, parser) {
     if (strict !== state.strict[last]) problems.push(`${run[index]} does not run in the same mode (strict or not) as ${run[last]}`);
   });
   problems.push(...orderProblems(state, (record) => record.fileIndex < last));
+  if (root) problems.push(...nodeLoadProblems(root, run[last], state, last));
   return { problems, names: declared(state) };
 }
 
@@ -78,7 +80,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
       for (const part of run) problems.push(...readStylesheet(read(part)).problems.map((problem) => `${part}: ${problem}`));
       continue;
     }
-    const now = scriptProblems(run, read, parser);
+    const now = scriptProblems(run, read, parser, root);
     problems.push(...now.problems);
     const was = base ? run.filter((part) => base(part) !== null) : [];
     if (was.length && scriptProblems(was, base, parser).names.join('\n') !== now.names.join('\n')) {

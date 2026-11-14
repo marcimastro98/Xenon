@@ -25,6 +25,7 @@ import { keptNames, mentionsOf } from './browser-consumers.mjs';
 import { everyPage, perform, replay, showAt } from './browser-extract.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { candidates } from './browser-module.mjs';
+import { nodeKeeps } from './browser-node-loads.mjs';
 import { resolvePicks } from './browser-plan.mjs';
 import { stateProblems } from './browser-state.mjs';
 import { readStylesheet } from './browser-styles.mjs';
@@ -61,8 +62,10 @@ export function movable(file, parser) {
   const run = analyzeRun(scripts, parser);
   const own = run.records.filter((record) => record.fileIndex === scripts.length - 1);
   const kept = keptNames(REPO_ROOT, file);
+  const inNode = nodeKeeps(REPO_ROOT, file, run, scripts.length - 1);
   const why = new Map(own.map((record) => [record, [...stayReasons(record, run),
-    ...record.names.filter((name) => kept.has(name)).map((name) => `${name} stays: ${kept.get(name)} reads it in this file`)]]));
+    ...record.names.filter((name) => kept.has(name)).map((name) => `${name} stays: ${kept.get(name)} reads it in this file`),
+    ...record.names.filter((name) => inNode.has(name)).map((name) => `${name} stays: ${inNode.get(name)} loads this file in Node, alone, and what runs there reaches it`)]]));
   // A function's `window.name = name;` goes where the function goes, and nowhere else.
   for (const record of own) {
     const holder = record.echo && own.find((entry) => entry.names.includes(record.echo));

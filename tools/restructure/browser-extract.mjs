@@ -7,11 +7,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { analyzeRun } from './browser-analyze.mjs';
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { consumerProblems, keptNames } from './browser-consumers.mjs';
-import { readBrowserLedger, writeBrowserLedger } from './browser-ledger.mjs';
+import { readBrowserLedger, runOf, writeBrowserLedger } from './browser-ledger.mjs';
 import { moduleReasons, saysModule } from './browser-module.mjs';
 import { applyMove } from './browser-moves.mjs';
+import { nodeKeeps } from './browser-node-loads.mjs';
 import { listPages } from './browser-pages.mjs';
 import { builtPages } from './browser-state.mjs';
 import { Refusal } from './extract-plan.mjs';
@@ -58,6 +60,16 @@ export function targetReasons(root, move) {
 /** @param {string} root @returns {{ page: string, html: string }[]} every page of the app with its text, the ones the engine builds from a list too */
 export const everyPage = (root) => [...listPages(root).map((page) => ({ page, html: readFileSync(path.join(root, page), 'utf8') })), ...builtPages(root)];
 
+// A script Node loads too is one file there: what Node reaches in it cannot be in another script (browser-node-loads.mjs).
+function nodeReasons(root, parser, ledger, move) {
+  const scripts = runOf(ledger, move.from).filter((part) => part.endsWith('.js') && existsSync(path.join(root, part)))
+    .map((file) => ({ file, text: readFileSync(path.join(root, file), 'utf8') }));
+  if (!scripts.some((script) => script.file === move.from)) return [];
+  const keeps = nodeKeeps(root, move.from, analyzeRun(scripts, parser), scripts.length - 1);
+  return move.names.filter((name) => keeps.has(name))
+    .map((name) => `${name} stays in ${move.from}: ${keeps.get(name)} loads the file in Node, alone, and what runs there reaches ${name}`);
+}
+
 const diskTree = (root) => ({
   get: (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } },
 });
@@ -86,6 +98,7 @@ export function perform({ root, parser, move, dryRun = false }) {
     reasons.push(...targetReasons(root, move));
     const kept = keptNames(root, move.from);
     for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
+    if (move.kind === 'script') reasons.push(...nodeReasons(root, parser, ledger, move));
   }
   if (reasons.length) throw new Refusal(reasons);
   const tree = diskTree(root);
