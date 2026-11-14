@@ -28,7 +28,6 @@
 // `map:false`, which makes the widget hide the tab rather than offer one that
 // fails. That is a gap, stated, not a silent one.
 
-const { spawn } = require('child_process');
 const fs = require('fs');
 
 const { buildBMessage } = require('./phone-messages');
@@ -37,111 +36,19 @@ const { buildBMessage } = require('./phone-messages');
 // user pre-create the file and read a phonebook or swap an outgoing SMS.
 const { privateTmpFile } = require('./private-tmp');
 
-const CALL_TIMEOUT_MS = 25000;
+const {
+  runBusctl, dbusErrorName, dbusValue, parseManagedObjects, dbusRows, firstObjectPath,
+} = require('./transfer/linux-phone-dbus.js');
 const PULL_TIMEOUT_MS = 45000;
 const PULL_POLL_MS = 400;
 
 // ── busctl ──────────────────────────────────────────────────────────────────
 
-// Run busctl and return its stdout. Never throws for a non-zero exit: the
-// caller decides what a failure means, and D-Bus errors carry the reason on
-// stderr, which is the part worth keeping.
-function runBusctl(args, opts) {
-  const o = opts || {};
-  return new Promise((resolve) => {
-    let proc;
-    try {
-      proc = spawn('busctl', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch {
-      resolve({ ok: false, error: 'busctl_missing', out: '', err: '' });
-      return;
-    }
-    let out = '';
-    let err = '';
-    let settled = false;
-    const finish = (result) => { if (!settled) { settled = true; resolve(result); } };
-    const timer = setTimeout(() => {
-      try { proc.kill(); } catch { /* already gone */ }
-      finish({ ok: false, error: 'timeout', out, err });
-    }, o.timeout || CALL_TIMEOUT_MS);
-    timer.unref();
-
-    proc.stdout.setEncoding('utf8');
-    proc.stderr.setEncoding('utf8');
-    proc.stdout.on('data', (c) => { if (out.length < 4 * 1024 * 1024) out += c; });
-    proc.stderr.on('data', (c) => { if (err.length < 64 * 1024) err += c; });
-    proc.on('error', () => { clearTimeout(timer); finish({ ok: false, error: 'busctl_missing', out, err }); });
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      finish({ ok: code === 0, error: code === 0 ? '' : dbusErrorName(err), out, err });
-    });
-  });
-}
-
-// D-Bus errors come back as "org.bluez.obex.Error.Forbidden: ...". The short
-// name is what a user-facing message can be built from; the rest is noise.
-function dbusErrorName(stderr) {
-  const m = /((?:[A-Za-z][\w-]*\.)+[A-Za-z][\w-]*)\s*:/.exec(String(stderr || ''));
-  if (!m) return 'dbus_failed';
-  const parts = m[1].split('.');
-  return parts[parts.length - 1].toLowerCase() || 'dbus_failed';
-}
-
-// Pull the payload out of `busctl --json=short` output.
-//
-// Deliberately tolerant. busctl has rendered its results in more than one shape
-// across systemd versions, and a transport that only understands one of them
-// breaks on a distro nobody tested. Anything unrecognised falls back to reading
-// the first quoted token out of the plain (non-JSON) rendering, which is the
-// form busctl prints without --json at all.
-function dbusValue(stdout) {
-  const text = String(stdout == null ? '' : stdout).trim();
-  if (!text) return null;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === 'object') {
-      if ('data' in parsed) {
-        const d = parsed.data;
-        return Array.isArray(d) && d.length === 1 ? d[0] : d;
-      }
-      return parsed;
-    }
-    return parsed;
-  } catch { /* not JSON — fall through to the plain rendering */ }
-  const quoted = /"([^"]*)"/.exec(text);
-  if (quoted) return quoted[1];
-  const bare = text.split(/\s+/);
-  return bare.length > 1 ? bare.slice(1).join(' ') : text;
-}
-
 // ── BlueZ: which phone ──────────────────────────────────────────────────────
 
-// The connected device that carries a phonebook. Addresses come back from the
-// object tree, so the MAC we hand to obexd is one BlueZ gave us rather than one
-// assembled here.
-function parseManagedObjects(json) {
-  const devices = [];
-  let tree;
-  try { tree = typeof json === 'string' ? JSON.parse(json) : json; } catch { return devices; }
-  const root = (tree && tree.data && Array.isArray(tree.data) ? tree.data[0] : tree) || {};
-  for (const [objPath, ifaces] of Object.entries(root)) {
-    const dev = ifaces && ifaces['org.bluez.Device1'];
-    if (!dev) continue;
-    const val = (k) => (dev[k] && 'data' in dev[k] ? dev[k].data : undefined);
-    const uuids = val('UUIDs');
-    devices.push({
-      path: objPath,
-      address: String(val('Address') || ''),
-      name: String(val('Alias') || val('Name') || ''),
-      connected: val('Connected') === true,
-      uuids: Array.isArray(uuids) ? uuids.map(String) : [],
-    });
-  }
-  return devices;
-}
-
-const PBAP_UUID = '0000112f-0000-1000-8000-00805f9b34fb';
-const MAP_UUID = '00001132-0000-1000-8000-00805f9b34fb';
+const {
+  PBAP_UUID, MAP_UUID, pickPhone, parseModems, pickModem, parseCalls, callState,
+} = require('./transfer/linux-phone-parse.js');
 
 // The message folders this reads, by name. An allowlist rather than passing a
 // caller's string through: a folder name becomes a SetFolder on the user's
@@ -152,101 +59,8 @@ const FOLDERS = Object.freeze({
   outbox: 'telecom/msg/outbox',
 });
 
-// The `a(oa{sv})` rows busctl returns for ListMessages and GetModems alike.
-function dbusRows(stdout) {
-  let tree;
-  try { tree = JSON.parse(String(stdout || '')); } catch { return []; }
-  const rows = (tree && tree.data && Array.isArray(tree.data) ? tree.data[0] : tree) || [];
-  return Array.isArray(rows) ? rows : [];
-}
-
-function hasUuid(device, uuid) {
-  return (device.uuids || []).some(u => String(u).toLowerCase() === uuid);
-}
-
-// Connected first: a phone that is paired but out of range publishes the same
-// UUIDs and would be picked while being unreachable.
-function pickPhone(devices, uuid) {
-  const able = (devices || []).filter(d => d.address && hasUuid(d, uuid));
-  return able.find(d => d.connected) || able[0] || null;
-}
-
 // ── ofono: the call side ────────────────────────────────────────────────────
 
-// The modem ofono creates for a Bluetooth handsfree connection. `Online` and
-// `Powered` both matter: a modem object outlives the phone walking away, and
-// dialling through a dead one fails in a way that reads as a Xenon fault.
-function parseModems(json) {
-  const out = [];
-  let tree;
-  try { tree = typeof json === 'string' ? JSON.parse(json) : json; } catch { return out; }
-  const rows = (tree && tree.data && Array.isArray(tree.data) ? tree.data[0] : tree) || [];
-  if (!Array.isArray(rows)) return out;
-  for (const row of rows) {
-    const objPath = Array.isArray(row) ? row[0] : (row && row.path);
-    const props = (Array.isArray(row) ? row[1] : (row && row.properties)) || {};
-    if (typeof objPath !== 'string') continue;
-    const val = (k) => (props[k] && 'data' in props[k] ? props[k].data : props[k]);
-    out.push({
-      path: objPath,
-      name: String(val('Name') || ''),
-      type: String(val('Type') || ''),
-      online: val('Online') === true,
-      powered: val('Powered') === true,
-      interfaces: Array.isArray(val('Interfaces')) ? val('Interfaces').map(String) : [],
-    });
-  }
-  return out;
-}
-
-function pickModem(modems) {
-  const usable = (modems || []).filter(m => m.powered && m.interfaces.includes('org.ofono.VoiceCallManager'));
-  // A handsfree modem IS the paired phone; anything else would be a real cellular
-  // modem in the machine, which is not what this feature is about.
-  return usable.find(m => m.type === 'hfp') || usable.find(m => m.online) || usable[0] || null;
-}
-
-// ofono's call states, reduced to the two booleans every surface here speaks.
-// `incoming` and `waiting` both ring; `dialing`/`alerting` are ours going out
-// and are ACTIVE rather than incoming, or the card would ring at the user for a
-// call they just placed themselves.
-const RINGING_STATES = new Set(['incoming', 'waiting']);
-const ACTIVE_STATES = new Set(['active', 'held', 'dialing', 'alerting']);
-
-function parseCalls(json) {
-  const out = [];
-  let tree;
-  try { tree = typeof json === 'string' ? JSON.parse(json) : json; } catch { return out; }
-  const rows = (tree && tree.data && Array.isArray(tree.data) ? tree.data[0] : tree) || [];
-  if (!Array.isArray(rows)) return out;
-  for (const row of rows) {
-    const objPath = Array.isArray(row) ? row[0] : (row && row.path);
-    const props = (Array.isArray(row) ? row[1] : (row && row.properties)) || {};
-    if (typeof objPath !== 'string') continue;
-    const val = (k) => (props[k] && 'data' in props[k] ? props[k].data : props[k]);
-    out.push({
-      path: objPath,
-      state: String(val('State') || '').toLowerCase(),
-      number: String(val('LineIdentification') || ''),
-      name: String(val('Name') || ''),
-    });
-  }
-  return out;
-}
-
-function callState(calls) {
-  const list = Array.isArray(calls) ? calls : [];
-  const ringing = list.find(c => RINGING_STATES.has(c.state)) || null;
-  return {
-    incoming: !!ringing,
-    active: list.some(c => ACTIVE_STATES.has(c.state)),
-    ringingPath: ringing ? ringing.path : '',
-    // ofono knows WHO is calling, which the Windows path does not — the caller
-    // there has to come from a mirrored toast. Passing it up costs nothing and
-    // makes the card correct on its own here.
-    caller: ringing ? (ringing.name || ringing.number || '') : '',
-  };
-}
 
 // ── The transport ───────────────────────────────────────────────────────────
 
@@ -527,17 +341,6 @@ function createLinuxPhone(opts) {
   }
 
   return { request, stop };
-}
-
-// The first object path in a busctl result, wherever in the shape it sits.
-function firstObjectPath(stdout) {
-  const value = dbusValue(stdout);
-  if (typeof value === 'string' && value.startsWith('/')) return value;
-  if (Array.isArray(value)) {
-    for (const v of value) if (typeof v === 'string' && v.startsWith('/')) return v;
-  }
-  const m = /"(\/[^"]*)"/.exec(String(stdout || ''));
-  return m ? m[1] : '';
 }
 
 module.exports = {

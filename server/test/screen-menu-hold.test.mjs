@@ -79,7 +79,7 @@ test('edit mode says whether it ended by hand or by itself', () => {
 });
 
 test('both ways into the mode from the menu come back, and the page keeps the screen it was on', () => {
-  const widgets = readFileSync(join(HERE, '..', 'menu-widgets.js'), 'utf8');
+  const widgets = engineSource('server/menu-widgets.js');
   assert.match(widgets, /id: 'edit'[^\n]*closes: true, returns: true/);
   const functions = readFileSync(join(HERE, '..', 'menu-functions.js'), 'utf8');
   assert.match(functions, /\{ id: 'edit'[^\n]*returns: true/);

@@ -479,6 +479,42 @@
     ],
     "server/linux-fps.js": [
       {"file":"server/performance/mangohud-log.js","about":"Reads MangoHud's log files on Linux: the columns, the newest rows as frames per second, the program a log belongs to, and Xenon's lines merged into its config.","names":["ROW_WINDOW_MS","IGNORE_RE","parseLogColumns","elapsedToMs","parseLogTail","fpsFromRows","programFromLogName","isIgnoredProgram","configLines","mergeConfig"]}
+    ],
+    "server/file-transfer.js": [
+      {"file":"server/transfer/file-kinds.js","about":"What kind of file a transferred file is: the closed list of types served as themselves, the ones always served as a plain download, and the ones that get a thumbnail.","names":["MEDIA_MIME","FORCED_OCTET","THUMBABLE","downloadMimeFor","isThumbable","kindOf"]},
+      {"file":"server/transfer/file-names.js","about":"The name of a transferred file: the label a person sees, never a path, the extension by shape, the name it is delivered under and the download header.","names":["MAX_LABEL","MAX_NAME_BYTES","EXT_RE","stripDangerous","clampUtf8","label","extOf","deliveryName","contentDisposition"]},
+      {"file":"server/transfer/inbox-delivery.js","about":"Delivers a received file into the folder the user chose on the PC: the folder checked, a free name found, and the file marked as coming from outside.","names":["FILE_RE","underPath","validInboxDir","deliverToInbox","ZONE_IDENTIFIER","markFromInternet"]},
+      {"file":"server/transfer/receive-stream.js","about":"Writes an upload to disk as it arrives, counting its bytes against the size limit, and leaves nothing behind when it fails.","names":["DEFAULT_MAX_BYTES","receiveStream"]}
+    ],
+    "server/call-detect.js": [
+      {"file":"server/transfer/call-phrases.js","about":"The words in a notification that mean a call is ringing, that it is not, and that it is a video call, in the languages the apps use.","names":["RING_PHRASES","NOT_RINGING","VIDEO_PHRASES"]},
+      {"file":"server/transfer/call-apps.js","about":"The apps whose notifications can be a call, with how each is named and what it can be asked to do.","names":["DEFAULT_APPS"]}
+    ],
+    "server/calls.js": [
+      {"file":"server/transfer/call-capabilities.js","about":"What can be done with a ringing call from the dashboard, per app and system, and the call as the page sees it.","names":["comboFor","entryFor","capabilitiesFor","projectCall"]}
+    ],
+    "server/linux-phone.js": [
+      {"file":"server/transfer/linux-phone-dbus.js","about":"Asks BlueZ and oFono over D-Bus with busctl on Linux, and reads values and object lists out of its JSON answers.","names":["CALL_TIMEOUT_MS","runBusctl","dbusErrorName","dbusValue","parseManagedObjects","dbusRows","firstObjectPath"]},
+      {"file":"server/transfer/linux-phone-parse.js","about":"Picks the paired phone and its modem out of what D-Bus lists on Linux, and reads the calls and their state.","names":["PBAP_UUID","MAP_UUID","hasUuid","pickPhone","parseModems","pickModem","RINGING_STATES","ACTIVE_STATES","parseCalls","callState"]}
+    ],
+    "server/auto-update.js": [
+      {"file":"server/updates/auto-update-decide.js","about":"Decides whether an update may install itself now: a newer version, old enough, the PC idle, at night, and not marked as one to ask about.","names":["MIN_AGE_MS","IDLE_MIN_SEC","NIGHT_START_HOUR","NIGHT_END_HOUR","NO_AUTO_MARKER","parseVer","newer","normVer","hasNoAutoMarker","inNightWindow","decide"]}
+    ],
+    "server/lyrics.js": [
+      {"file":"server/media/lyrics-clean.js","about":"Cleans a track's title and artist before lyrics are looked up: video tags, remaster notes and featured artists out, and the searches to try in order.","names":["MIN_DURATION_S","MAX_DURATION_S","MAX_LINE_CHARS","CONTROL_RE","DASH_RE","NOISE_TAG_RE","HOST_SUFFIX_RE","PIPE_TAIL_RE","REMASTER_RE","FEAT_TITLE_RE","FEAT_ARTIST_RE","CHANNEL_RE","cleanText","fold","cleanTrackTitle","cleanArtist","stripFeat","firstArtist","validDuration","heardOnly","trackKey","buildQueries"]},
+      {"file":"server/media/lyrics-parse.js","about":"Reads lyrics into lines: timed ones from the LRC format, and plain text.","names":["MAX_LINES","STAMP_RE","WORD_STAMP_RE","OFFSET_RE","stampMs","parseLrc","parsePlain"]}
+    ],
+    "server/codex-bridge.js": [
+      {"file":"server/codex/bridge-describe.js","about":"Turns a tool call of Codex into what the tile shows: a one-line summary, the files a patch touches, and how loudly it must be asked about.","names":["MAX_STR","MAX_DETAIL","MAX_FILES","str","firstLine","parsePatch","shown","allArgs","fitsOnCard","describeCodexTool","codexRisks","irreversible"]}
+    ],
+    "server/linux-hotkey.js": [
+      {"file":"server/deck/linux-hotkey-accelerator.js","about":"Turns a key combination into the accelerator GNOME understands, reads what gsettings prints about shortcuts, and writes the command the desktop runs on the shortcut.","names":["MODIFIERS","KEY_NAMES","toAccelerator","MOD_ALIASES","MOD_ORDER","normalizeAccel","bindingsFrom","parsePathArray","commandFor"]}
+    ],
+    "server/version-ping.js": [
+      {"file":"server/updates/version-ping-body.js","about":"What the anonymous version ping says and what is remembered of it: the day and week in UTC, the install's age as a bucket, the body sent, and the state kept after a ping.","names":["PROTOCOL","VERSION_RE","DAY_RE","WEEK_RE","MONTH_RE","LANG_SET","utcDay","isoWeek","ageBucket","buildPingBody","nextState"]}
+    ],
+    "server/menu-widgets.js": [
+      {"file":"server/menu/widget-add-choices.js","about":"The choices of the menu's Add row: a tile, a package from the Store with its pictures, a key, and the filters over them.","names":["tileChoice","storeShots","packageChoice","placeTile","recommended","addChoices","keyChoice","addFilters","addRow"]}
     ]
   },
   "spreads": {

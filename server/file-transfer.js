@@ -42,15 +42,11 @@ const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { Transform } = require('stream');
-const { pipeline } = require('stream/promises');
-const { writeFileAtomic, openAtomicWriteStream } = require('./atomic-write.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 const { parseXdgUserDirs } = require('./diskspace.js');
 
 const STORE_VERSION = 1;
-const MAX_LABEL = 120;
-const MAX_NAME_BYTES = 255;          // ext4/APFS/NTFS all cap a component here, in BYTES
-const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const { DEFAULT_MAX_BYTES, receiveStream } = require('./transfer/receive-stream.js');
 const DEFAULT_QUOTA_BYTES = 8 * 1024 * 1024 * 1024;
 const DEFAULT_KEEP_MS = 14 * 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_FILES = 200;
@@ -59,152 +55,22 @@ const PROGRESS_MIN_MS = 500;         // one SSE frame per id per half second, no
 const INFLIGHT_STALE_MS = 10 * 60 * 1000;
 
 const ID_RE = /^f[0-9a-f]{16}$/;
-const FILE_RE = /^f[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
-const EXT_RE = /^\.[a-z0-9]{1,8}$/;
 // Windows swallows these whole, extension and all, however they are spelled.
 // Shared with the sound/icon pack validators (see win-reserved.js for the
 // forms covered: "con .txt", COM¹, CONIN$ …).
-const { WIN_RESERVED_RE } = require('./win-reserved');
+require('./win-reserved');
 
-// The MIME a download is served with, keyed on the extension WE stored — never
-// on the `?mime=` the client declared. This is not cosmetic: iOS Safari routes
-// a download by MIME plus extension, and `video/mp4` is what puts "Save to
-// Photos" in the share sheet. Served as `application/octet-stream` the video
-// lands in Files as an opaque blob, which is exactly the friction this feature
-// exists to remove. On Android the MIME decides the MediaStore collection.
-const MEDIA_MIME = new Map([
-  ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
-  ['.gif', 'image/gif'], ['.webp', 'image/webp'], ['.bmp', 'image/bmp'],
-  ['.avif', 'image/avif'], ['.heic', 'image/heic'], ['.heif', 'image/heif'],
-  ['.tif', 'image/tiff'], ['.tiff', 'image/tiff'],
-  ['.mp4', 'video/mp4'], ['.m4v', 'video/mp4'], ['.mov', 'video/quicktime'],
-  ['.webm', 'video/webm'], ['.mkv', 'video/x-matroska'], ['.avi', 'video/x-msvideo'],
-  ['.mp3', 'audio/mpeg'], ['.m4a', 'audio/mp4'], ['.aac', 'audio/aac'],
-  ['.wav', 'audio/wav'], ['.flac', 'audio/flac'], ['.ogg', 'audio/ogg'],
-  ['.opus', 'audio/opus'],
-  ['.pdf', 'application/pdf'],
-]);
+const {
+  EXT_RE, stripDangerous, clampUtf8, label, extOf, deliveryName, contentDisposition,
+} = require('./transfer/file-names.js');
 
-// Types whose real MIME must never be sent, however well known it is. These are
-// the ones where a stripped header or a sniffing quirk turns a file the user
-// received into script running in OUR origin. The download disposition and
-// nosniff already say so; this is the layer that does not depend on a header
-// surviving. Listed rather than merely omitted, so nobody "completes" the map
-// above by adding text/html to it.
-const FORCED_OCTET = new Set([
-  '.html', '.htm', '.xhtml', '.shtml', '.svg', '.svgz', '.xml',
-  '.js', '.mjs', '.css', '.wasm',
-]);
+const {
+  FILE_RE, validInboxDir, deliverToInbox, ZONE_IDENTIFIER, markFromInternet,
+} = require('./transfer/inbox-delivery.js');
 
-// What a browser will actually decode in an <img>. HEIC is deliberately absent:
-// an iPhone photo that reached the PC untranscoded cannot be shown, and a
-// broken image is a worse answer than an extension chip.
-const THUMBABLE = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.avif']);
-
-/** The MIME a download is served with. Unknown or risky → octet-stream. */
-function downloadMimeFor(ext) {
-  const e = String(ext || '').toLowerCase();
-  if (FORCED_OCTET.has(e)) return 'application/octet-stream';
-  return MEDIA_MIME.get(e) || 'application/octet-stream';
-}
-
-function isThumbable(ext) {
-  return THUMBABLE.has(String(ext || '').toLowerCase());
-}
-
-function kindOf(ext) {
-  const m = downloadMimeFor(ext);
-  if (m.startsWith('image/')) return 'image';
-  if (m.startsWith('video/')) return 'video';
-  if (m.startsWith('audio/')) return 'audio';
-  return 'file';
-}
-
-// Characters that must not survive into a name we store, show or put in a
-// header. Control characters (a CR/LF in a filename is a Content-Disposition
-// injection), and the bidi overrides — `photo‮gnp.exe` renders as
-// `photo.png` in every UI on earth, which is why this is a strip and not an
-// escape.
-function stripDangerous(input) {
-  const s = String(input == null ? '' : input);
-  let out = '';
-  for (const ch of s) {
-    const c = ch.codePointAt(0);
-    if (c < 32 || c === 127 || (c >= 128 && c <= 159)) continue;     // C0 / DEL / C1
-    if (c === 0x200e || c === 0x200f) continue;                       // LRM / RLM
-    if (c >= 0x202a && c <= 0x202e) continue;                         // LRE…RLO
-    if (c >= 0x2066 && c <= 0x2069) continue;                         // LRI…PDI
-    if (ch === '/' || ch === '\\') continue;                          // never a separator
-    out += ch;
-  }
-  return out.normalize('NFC');
-}
-
-/** Trim a string to a byte budget without splitting a code point. */
-function clampUtf8(s, maxBytes) {
-  let out = String(s || '');
-  if (Buffer.byteLength(out, 'utf8') <= maxBytes) return out;
-  const chars = Array.from(out);
-  while (chars.length && Buffer.byteLength(chars.join(''), 'utf8') > maxBytes) chars.pop();
-  return chars.join('');
-}
-
-/** A display label. Shown with textContent, echoed in Content-Disposition. */
-function label(name) {
-  const s = clampUtf8(stripDangerous(name), MAX_LABEL * 4).slice(0, MAX_LABEL);
-  const trimmed = s.trim();
-  if (!trimmed || trimmed === '.' || trimmed === '..') return 'file';
-  return trimmed;
-}
-
-/**
- * The extension, read from the client's name and validated by shape. A name
- * with no usable extension is stored without one — refusing it would be an
- * arbitrary rule, and a file with no extension is a real thing people move.
- */
-function extOf(name) {
-  const e = path.extname(stripDangerous(name)).toLowerCase();
-  return EXT_RE.test(e) ? e : '';
-}
-
-/**
- * A name that will become a real path component in the USER's folder, so this
- * is stricter than `label`: on top of the strip above it drops the characters
- * Windows refuses outright, the trailing dots and spaces Windows silently eats
- * (so `x.txt.` and `x.txt` are not two names for one file), and the reserved
- * device names. Clamped in BYTES, not characters — an emoji is four of them.
- */
-function deliveryName(name) {
-  let s = stripDangerous(name).replace(/[:*?"<>|]/g, '');
-  s = s.replace(/[. ]+$/, '').trim();
-  if (!s || s === '.' || s === '..') s = 'file';
-  if (WIN_RESERVED_RE.test(s)) s = '_' + s;
-  const ext = path.extname(s);
-  const base = ext ? s.slice(0, -ext.length) : s;
-  const room = MAX_NAME_BYTES - Buffer.byteLength(ext, 'utf8');
-  const cut = clampUtf8(base, Math.max(1, room));
-  const out = (cut || 'file') + ext;
-  return out;
-}
-
-/**
- * The Content-Disposition for a download (RFC 6266/5987).
- *
- * The bare `filename=` parameter is ASCII-only, so a real name travels in
- * `filename*` and the ASCII form is the fallback for clients that predate it.
- * Quotes and backslashes are replaced rather than escaped, because the value
- * here is a filename and not a place to be clever; CR/LF are already gone via
- * `label`, and this is where their absence matters most — a newline in a
- * header value is a response-splitting bug.
- *
- * `attachment` is the primary guarantee that a file the user received never
- * renders inline in our own origin.
- */
-function contentDisposition(name) {
-  const clean = label(name);
-  const ascii = clean.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_') || 'file';
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(clean)}`;
-}
+const {
+  MEDIA_MIME, FORCED_OCTET, downloadMimeFor, isThumbable, kindOf,
+} = require('./transfer/file-kinds.js');
 
 /**
  * The user's Downloads folder, without shelling out to PowerShell (which would
@@ -258,171 +124,6 @@ function defaultInboxDir(opts) {
   return dl ? path.join(dl, 'Xenon') : '';
 }
 
-function underPath(child, parent) {
-  if (!child || !parent) return false;
-  const c = path.resolve(child);
-  const p = path.resolve(parent);
-  if (c === p) return true;
-  return c.startsWith(p.endsWith(path.sep) ? p : p + path.sep);
-}
-
-/**
- * Is this a folder we are willing to write arrivals into? Refuses anything
- * inside DATA_DIR or the app root (an inbox pointing at server/ would let a
- * phone drop files next to our own code), and anything that is not a real
- * directory. A symlink is refused for the same reason slideshow-folder.js
- * filters on isFile: it is a write we cannot see the far end of.
- *
- * @returns {Promise<{ok:boolean, error?:string}>}
- */
-async function validInboxDir(dir, opts) {
-  const o = opts || {};
-  const d = String(dir || '');
-  if (!d) return { ok: false, error: 'empty' };
-  if (!path.isAbsolute(d)) return { ok: false, error: 'not_absolute' };
-  if (o.dataDir && underPath(d, o.dataDir)) return { ok: false, error: 'inside_data' };
-  if (o.appRoot && underPath(d, o.appRoot)) return { ok: false, error: 'inside_app' };
-  let st;
-  try { st = await fsp.lstat(d); }
-  catch (e) { return { ok: false, error: e.code === 'ENOENT' ? 'not_found' : 'denied' }; }
-  if (st.isSymbolicLink()) return { ok: false, error: 'symlink' };
-  if (!st.isDirectory()) return { ok: false, error: 'not_a_dir' };
-  return { ok: true };
-}
-
-/**
- * Copy a stored file into the user's folder under its ORIGINAL name.
- *
- * Create-exclusive, always: a paired device must never be able to REPLACE a
- * file in the user's own folder by naming it. A clash gets " (1)", " (2)" and
- * finally the id, never an overwrite.
- *
- * @returns {Promise<{ok:boolean, path?:string, error?:string}>}
- */
-async function deliverToInbox(rec, inboxDir, opts) {
-  const o = opts || {};
-  const srcDir = o.filesDir || '';
-  if (!rec || !FILE_RE.test(String(rec.file || ''))) return { ok: false, error: 'bad_record' };
-  const check = await validInboxDir(inboxDir, o);
-  if (!check.ok) return { ok: false, error: check.error };
-
-  const src = path.join(srcDir, rec.file);
-  const wanted = deliveryName(rec.name || rec.file);
-  const ext = path.extname(wanted);
-  const base = ext ? wanted.slice(0, -ext.length) : wanted;
-
-  for (let i = 0; i <= 50; i++) {
-    const candidate = i === 0 ? wanted : `${base} (${i})${ext}`;
-    const dest = path.join(inboxDir, candidate);
-    // The name was built from an untrusted label, so containment is asserted
-    // rather than assumed even though every separator is already gone.
-    if (!underPath(dest, inboxDir) || path.dirname(path.resolve(dest)) !== path.resolve(inboxDir)) {
-      return { ok: false, error: 'bad_name' };
-    }
-    let fh = null;
-    try {
-      fh = await fsp.open(dest, 'wx');
-    } catch (e) {
-      if (e.code === 'EEXIST') continue;
-      return { ok: false, error: e.code === 'ENOSPC' ? 'no_space' : 'write_failed' };
-    }
-    try {
-      await fh.close();
-      await fsp.copyFile(src, dest);
-      await markFromInternet(dest, o.platform);
-      return { ok: true, path: dest };
-    } catch (e) {
-      try { await fh.close(); } catch { /* already closed */ }
-      try { await fsp.unlink(dest); } catch { /* nothing to undo */ }
-      return { ok: false, error: e.code === 'ENOSPC' ? 'no_space' : 'write_failed' };
-    }
-  }
-  // 51 files with the same name is a naming collision nobody wants resolved by
-  // a 52nd guess; fall back to something that cannot clash.
-  const dest = path.join(inboxDir, `${base}-${rec.id}${ext}`);
-  try {
-    await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
-    await markFromInternet(dest, o.platform);
-    return { ok: true, path: dest };
-  } catch { return { ok: false, error: 'write_failed' }; }
-}
-
-// A file that arrived from another device gets the same mark Windows puts on
-// a download (the Zone.Identifier stream, zone 3). Opening it then goes
-// through SmartScreen and Office's Protected View like any file from the
-// internet, instead of running with no question asked. Best effort: a drive
-// that cannot hold the stream (FAT, exFAT, a network share) keeps the file.
-const ZONE_IDENTIFIER = '[ZoneTransfer]\r\nZoneId=3\r\n';
-async function markFromInternet(dest, platform) {
-  if ((platform || process.platform) !== 'win32') return;
-  try { await fsp.writeFile(dest + ':Zone.Identifier', ZONE_IDENTIFIER); } catch { /* no ADS here */ }
-}
-
-/**
- * Stream a request body to disk, bounded, without ever holding it in memory.
- *
- * Lives here rather than inline in the route so that the one piece of this
- * feature with no second chance can be exercised for real. That was not
- * caution: the first version of this deadlocked on commit and every upload
- * would have hung at 100%, and it looked completely correct.
- *
- * Two decisions the shape depends on:
- *
- *  * `req` is deliberately NOT part of the pipeline. `pipeline` destroys every
- *    stream it is given when one fails, and destroying the request destroys the
- *    socket — so an over-size upload would get a connection reset instead of
- *    the 413 that tells it what happened, and the client would retry forever.
- *    Piping in by hand keeps backpressure (that is `pipe`'s job) while leaving
- *    the request alive to be answered.
- *  * The size is checked DURING the stream, not from Content-Length. A
- *    Content-Length is a claim, and chunked encoding carries none at all.
- *
- * On failure the temp file is removed and the error carries `code` (one of
- * XFER_TOO_BIG / XFER_ABORTED / a system code) plus how many bytes arrived.
- *
- * @param {import('http').IncomingMessage} req
- * @param {string} target final path; the write goes to `<target>.part` first
- * @param {{limit:number, onProgress?:(n:number)=>void}} opts
- * @returns {Promise<{bytes:number}>}
- */
-async function receiveStream(req, target, opts) {
-  const o = opts || {};
-  const limit = Number(o.limit) > 0 ? Number(o.limit) : DEFAULT_MAX_BYTES;
-  const onProgress = typeof o.onProgress === 'function' ? o.onProgress : null;
-  const handle = await openAtomicWriteStream(target);
-  let received = 0;
-
-  const counter = new Transform({
-    transform(chunk, _enc, cb) {
-      received += chunk.length;
-      if (received > limit) {
-        cb(Object.assign(new Error('too_big'), { code: 'XFER_TOO_BIG' }));
-        return;
-      }
-      if (onProgress) onProgress(received);
-      cb(null, chunk);          // the same Buffer through, never a copy
-    },
-  });
-
-  const onReqError = (e) => counter.destroy(e);
-  const onReqAborted = () => counter.destroy(Object.assign(new Error('aborted'), { code: 'XFER_ABORTED' }));
-
-  try {
-    req.on('error', onReqError);
-    req.on('aborted', onReqAborted);
-    req.pipe(counter);
-    await pipeline(counter, handle.stream);
-    await handle.commit();
-    return { bytes: received };
-  } catch (e) {
-    await handle.abort();
-    throw Object.assign(e || new Error('write_failed'), { received });
-  } finally {
-    req.off('error', onReqError);
-    req.off('aborted', onReqAborted);
-    try { req.unpipe(counter); } catch { /* already unpiped by the failure */ }
-  }
-}
 
 // ── the store ────────────────────────────────────────────────────────────────
 
