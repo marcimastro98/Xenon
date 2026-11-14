@@ -163,6 +163,13 @@ test('--source: only a script under server/ can be named, and the tool says so',
   assert.match(bare.stderr, /--source needs a path/);
 });
 
+test('a test that builds a repo of its own keeps reading the files of that copy', () => {
+  // Its read is spelled like a read of this repo, so only the by-hand list can keep it.
+  const line = "assert.match(readFileSync(path.join(root, 'server', 'fpsmon.js'), 'utf8'), /XenonFps/);";
+  assert.notEqual(retarget(line, 'server/fpsmon.js'), line);
+  assert.ok(BY_HAND.has('restructure-side-copy.test.mjs'));
+});
+
 test('the conversion has been run for every file a module was taken out of', () => {
   const dir = new URL('./', import.meta.url);
   const sources = Object.keys(JSON.parse(readFileSync(LEDGER, 'utf8')).sources).filter((source) => source !== 'server/server.js');

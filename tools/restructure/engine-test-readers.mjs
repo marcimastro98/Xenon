@@ -26,10 +26,13 @@ const IMPORT_LINE = `import { engineSource } from '${HELPER}';`;
 
 // Tests about the file itself (its size, its place, its first lines, the order of
 // its statements) or about the tools that take it apart: they keep reading the file.
+// The side-copy test builds a small repo of its own in a temp folder and reads the
+// files of that copy, which no helper knows.
 export const BY_HAND = new Set([
   'engine-source.mjs', 'engine-source.test.mjs', 'restructure-analyze.test.mjs', 'restructure-extract.test.mjs',
   'restructure-verify.test.mjs', 'restructure-remainder.test.mjs', 'restructure-branches-move.test.mjs', 'restructure-engine-test-readers.test.mjs',
   'quality-ratchet.test.mjs', 'structure-frozen-paths.test.mjs', 'structure-map.test.mjs', 'structure-requires-resolve.test.mjs',
+  'restructure-side-copy.test.mjs',
 ]);
 
 const UTF8 = String.raw`,\s*'utf-?8'`;
