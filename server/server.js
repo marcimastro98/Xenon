@@ -110,8 +110,6 @@ const {
 
 const { SSE_MAX_PER_DEVICE } = require('./http/sse-limits.js');
 
-const { WL_OFF_STATE } = require('./audio/wavelink-values.js');
-
 const { TIMERS_MAX, _getTimerElapsed, _getTimerRemaining } = require('./time/timer-values.js');
 
 const {
@@ -460,8 +458,8 @@ require('./actions/streamerbot');
 require('./actions/home-assistant');
 require('./actions/home-assistant-query');
 require('./actions/chroma');
-const { createWaveLink } = require('./actions/wavelink');
-const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
+require('./actions/wavelink');
+require('./actions/voicemeeter');
 const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
@@ -2520,21 +2518,7 @@ const { deckObs, deckSb } = require('./streaming/deck-clients.js');
 const { deckHa, haQuery, deckUnifi, deckUnifiEvents } = require('./smart-home/deck-clients.js');
 
 const { deckChroma } = require('./lights/chroma-client.js');
-// Lazy Elgato Wave Link client — scans ws://127.0.0.1:1824..1834 on demand, mirrors
-// mixer state while a tile/Deck key is on screen (SSE `wavelink`), idle-closes
-// otherwise. Reads enabled/port from live settings each connection (no restart).
-const deckWaveLink = createWaveLink(async () => {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const wl = (s && s.wavelink) || {};
-  return { enabled: wl.enabled === true, port: wl.port };
-});
-
-// Voicemeeter Remote API client. Nothing is loaded until a key is pressed or the
-// Deck editor asks what the mixer has: the DLL is only present on a machine that
-// installed Voicemeeter, and everywhere else this stays a few closures. No
-// enabled flag — unlike Wave Link there is no port to probe and no process to
-// wake, so the presence of the DLL is the whole opt-in.
-const deckVoicemeeter = createVoicemeeter();
+const { deckWaveLink, deckVoicemeeter } = require('./audio/mixer-clients.js');
 
 // Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
@@ -2705,67 +2689,11 @@ const { buildSbState, refreshSbWatch } = require('./streaming/streamerbot-watch.
 const { wlWatching } = require('./audio/wavelink-watching.js');
 const { wlWatch } = require('./audio/wavelink-watch-state.js');
 
-async function buildWlState() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const enabled = !!(s.wavelink && s.wavelink.enabled === true);
-  if (!enabled) return Object.assign({}, WL_OFF_STATE);
-  return Object.assign({ enabled: true }, deckWaveLink.snapshot());
-}
+const { buildWlState, refreshWlWatch } = require('./audio/wavelink-watch.js');
 
-// Coalesce bursts of mixer changes (a single fader move fires several pushes,
-// and on 3.x the level meters add ~2 frames a second) into at most one
-// broadcast per ~150ms. The state is small by construction — channel artwork is
-// served by URL and never enters this frame.
-function scheduleWlBroadcast() {
-  if (wlWatch.notifyTimer) return;
-  wlWatch.notifyTimer = setTimeout(async () => {
-    wlWatch.notifyTimer = null;
-    try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
-  }, 150);
-}
-
-async function refreshWlWatch() {
-  const s = (await readHubSettings().catch(() => null)) || {};
-  const want = !!(s.wavelink && s.wavelink.enabled === true) && sseClients.size > 0;
-  if (want && !wlWatching.stop) {
-    // Level meters are asked for only while a dashboard is actually connected,
-    // and switched off again on teardown: subscribing leaves Wave Link pushing
-    // at ~2Hz forever otherwise, which is the "periodic work with no listener"
-    // this codebase gates everywhere else. 2.x has no meters and ignores it.
-    wlWatching.stop = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
-  } else if (!want && wlWatching.stop) {
-    const stopWl = wlWatching.stop; stopWl(); wlWatching.stop = null;
-    if (wlWatch.notifyTimer) { clearTimeout(wlWatch.notifyTimer); wlWatch.notifyTimer = null; }
-    try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
-  }
-}
-
-const { VM_POLL_MS } = require('./audio/voicemeeter-timing.js');
 const { vmWatch } = require('./audio/voicemeeter-watch-state.js');
 
-function refreshVoicemeeterWatch() {
-  const want = sseClients.size > 0 && deckVoicemeeter.state().available === true;
-  if (want && !vmWatch.pollTimer) {
-    vmWatch.pollTimer = setInterval(() => {
-      try {
-        if (!deckVoicemeeter.dirty()) return;
-        const v = deckVoicemeeter.values();
-        if (!v) return;
-        // The dirty flag also fires for things this frame does not carry (a
-        // level meter, a window move), so the payload is compared before it is
-        // sent: a widget re-rendering 4x a second for nothing is the cost this
-        // avoids.
-        const json = JSON.stringify(v);
-        if (json === vmWatch.lastJson) return;
-        vmWatch.lastJson = json;
-        broadcastSSE('voicemeeter', v);
-      } catch { /* a mixer that went away is not worth a log line per tick */ }
-    }, VM_POLL_MS);
-    if (vmWatch.pollTimer.unref) vmWatch.pollTimer.unref();
-  } else if (!want && vmWatch.pollTimer) {
-    clearInterval(vmWatch.pollTimer); vmWatch.pollTimer = null; vmWatch.lastJson = '';
-  }
-}
+const { refreshVoicemeeterWatch } = require('./audio/voicemeeter-watch.js');
 
 const { unifiWatching } = require('./smart-home/unifi-events-watching.js');
 
