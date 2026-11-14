@@ -7658,6 +7658,10 @@ data: ${JSON.stringify({ ...st, seed: true })}
   try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 }
 
+const { chatWithCloudKey } = require('./ai/chat-cloud-key.js');
+const { chatWithXenon } = require('./ai/chat-xenon.js');
+const { chatWithCli } = require('./ai/chat-cli.js');
+const { chatWithOllama } = require('./ai/chat-ollama.js');
 const { chatWithLocalServer } = require('./ai/chat-local-server.js');
 const { branches: lightsBranches } = require('./lights/routes.js');
 const { branches: tickerBranches } = require('./ticker/routes.js');
@@ -9038,34 +9042,12 @@ const handleRequest = async (req, res) => {
       const turnRecord = aiTurnRecord.create();  // the tools this reply ran, kept in its history message
 
       if (provider === 'ollama') {
-        const settings = await readHubSettings().catch(() => null);
-        const baseUrl = aiLocal.sanitizeOllamaUrl(aiBody.ollamaUrl || (settings && settings.ollamaUrl));
-        const concreteModel = aiLocal.resolveModel(ollModel, settings && settings.hardwareScan);
-        // Smaller local models tend to parrot tool output verbatim, so reinforce
-        // the language lock: web_search snippets often come back in English and
-        // must be translated into the user's language before answering.
-        const SYS_LOCAL = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
-        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_LOCAL;
-        try {
-          const result = await aiLocal.localChat({
-            baseUrl, model: concreteModel, geminiTools: AI_TOOLS,
-            history: currentMessages, systemText,
-            executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
-              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
-              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
-              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
-              pictures: _aiPictures,
-              surface: _aiSurface,
-              remote: isRemote,
-              provider: 'ollama',
-            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions }))),
-          });
-          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text), toolGroups: toolKit.groups() });
-        } catch (e) {
-          if (aiStoppedReply(e, json)) return;
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: e.message }));
-        }
+        await chatWithOllama({
+          AI_TOOLS, SYS_BASE, SYS_LANG, SYS_TEXT, SYS_VOICE, _aiPictures, _aiSurface, _latestExplicitlyWantsScreen,
+          _latestLooksLikeClothingWeather, _latestUserText, _uiLang2, aiBody, apiKey, currentMessages, hasAudio,
+          isRemote, isVoice, json, langName, ollModel, res, toolKit, turnRecord, aiLocal, aiStoppedReply,
+          executeAiTool, readHubSettings,
+        });
         return;
       }
 
@@ -9080,118 +9062,32 @@ const handleRequest = async (req, res) => {
       }
 
       if (aiCli.isCliProvider(provider)) {
-        // The user's own subscription, through the official Claude Code / Codex
-        // program (see ai-cli.js for what that may and may not do). Xenon's tools
-        // reach the model over MCP (ai-mcp-bridge.js) and run through the very
-        // same executeAiTool as every other provider; the program's own tools
-        // (shell, files, web) stay off.
-        const settings = await readHubSettings().catch(() => null);
-        const cliModel = aiCli.sanitizeModel(settings && (provider === 'claudecode' ? settings.claudeCodeModel : settings.codexModel));
-        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
-        const SYS_MCP = ' Your tools come from the "xenon" MCP server; their names may carry a prefix such as mcp__xenon__. You have no other tools: no shell, no file access, no web browsing except the web_search tool.';
-        const systemText = SYS_BASE + SYS_MCP + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
-        try {
-          const result = await aiCli.chat({
-            provider, model: cliModel, systemText, history: currentMessages,
-            tools: AI_FUNCTIONS, signal: aiTurns.signal(),
-            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
-              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
-              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
-              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
-              pictures: _aiPictures,
-              surface: _aiSurface,
-              remote: isRemote,
-              provider,
-            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
-          });
-          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text) });
-        } catch (e) {
-          if (aiStoppedReply(e, json)) return;
-          const code = (e && e.code) || 'cli_failed';
-          res.writeHead(code === 'cli_failed' ? 502 : 400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: code, detail: code === 'cli_failed' ? String((e && e.message) || '').slice(0, 400) : undefined }));
-        }
+        await chatWithCli({
+          AI_FUNCTIONS, SYS_BASE, SYS_LANG, SYS_TEXT, SYS_VOICE, _aiPictures, _aiSurface, _latestExplicitlyWantsScreen,
+          _latestLooksLikeClothingWeather, _latestUserText, _uiLang2, apiKey, currentMessages, hasAudio, isRemote,
+          isVoice, json, langName, provider, res, turnRecord, aiCli, aiStoppedReply, aiTurns, executeAiTool,
+          readHubSettings,
+        });
         return;
       }
 
       if (provider === 'xenon') {
-        // Xenon credits (ai-xenon-credits.js): the Claude loop, each round through
-        // the supporter hub, which charges it. The remembered pass stays on disk.
-        // The time rides on the turn instead of the system text, so the system
-        // prefix is the same from one turn to the next and the hub's cache holds.
-        const settings = await readHubSettings().catch(() => null);
-        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
-        const systemText = SYS_BASE.slice(SYS_NOW.length) + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
-        try {
-          const result = await aiXenon.chat({
-            dataDir: DATA_DIR, model: settings && settings.xenonModel, effort: settings && settings.xenonEffort, geminiTools: AI_TOOLS,
-            // Read live: set_creation_model may change them during this turn.
-            creation: () => ({ model: hub.settings.xenonModel, effort: hub.settings.xenonEffort }),
-            history: currentMessages, systemText, turnNote: SYS_NOW,
-            executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
-              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
-              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
-              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
-              pictures: _aiPictures,
-              surface: _aiSurface,
-              remote: isRemote,
-              provider,
-            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage }))),
-          });
-          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text), credits: result.balance, toolGroups: toolKit.groups() });
-        } catch (e) {
-          if (aiStoppedReply(e, json, { credits: Number.isFinite(e.balance) ? e.balance : undefined })) return;
-          const code = (e && e.code) || 'network';
-          const payable = code === 'no_credits' || code === 'no_code' || code === 'bad_code';
-          if (e && e.detail) console.warn('[ai] Xenon AI ' + code + ':', e.detail);
-          // What the turn already made (a widget to place) goes back with the error.
-          const made = Array.isArray(e && e.clientActions) ? e.clientActions : undefined;
-          res.writeHead(payable ? 402 : 502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'xenon_' + code, credits: Number.isFinite(e && e.balance) ? e.balance : undefined, clientActions: made }));
-        }
+        await chatWithXenon({
+          AI_TOOLS, SYS_BASE, SYS_LANG, SYS_NOW, SYS_TEXT, SYS_VOICE, _aiPictures, _aiSurface,
+          _latestExplicitlyWantsScreen, _latestLooksLikeClothingWeather, _latestUserText, _uiLang2, apiKey,
+          currentMessages, hasAudio, isRemote, isVoice, json, langName, provider, res, toolKit, turnRecord, DATA_DIR,
+          aiStoppedReply, aiXenon, executeAiTool, hub, readHubSettings,
+        });
         return;
       }
 
       if (provider === 'openai' || provider === 'anthropic') {
-        // Server-mediated cloud providers (ChatGPT / Claude). Their keys are
-        // SERVER-ONLY, so read them from settings — never from the request body.
-        // Chat + function-calling + vision reuse the same tools and the same
-        // { text, clientActions, newContent } response shape as Gemini/local.
-        const settings = await readHubSettings().catch(() => null);
-        const provKey = provider === 'openai'
-          ? String((settings && settings.openaiApiKey) || '').trim()
-          : String((settings && settings.anthropicApiKey) || '').trim();
-        if (!provKey) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'missing_key' })); return;
-        }
-        const provModel = providerModelFor(provider, 'chat', settings);
-        // web_search for these providers runs key-free via DuckDuckGo (see below),
-        // whose snippets are often English — reinforce the language lock, exactly
-        // like the local path does.
-        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
-        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
-        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-        try {
-          const result = await mod.chat({
-            apiKey: provKey, model: provModel, geminiTools: AI_TOOLS,
-            history: currentMessages, systemText,
-            executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
-              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
-              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
-              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
-              pictures: _aiPictures,
-              surface: _aiSurface,
-              remote: isRemote,
-              provider,
-            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage }))),
-          });
-          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text), toolGroups: toolKit.groups() });
-        } catch (e) {
-          if (aiStoppedReply(e, json)) return;
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: e.message }));
-        }
+        await chatWithCloudKey({
+          AI_TOOLS, SYS_BASE, SYS_LANG, SYS_TEXT, SYS_VOICE, _aiPictures, _aiSurface, _latestExplicitlyWantsScreen,
+          _latestLooksLikeClothingWeather, _latestUserText, _uiLang2, apiKey, currentMessages, hasAudio, isRemote,
+          isVoice, json, langName, provider, res, toolKit, turnRecord, aiAnthropic, aiOpenai, aiStoppedReply,
+          executeAiTool, providerModelFor, readHubSettings,
+        });
         return;
       }
 

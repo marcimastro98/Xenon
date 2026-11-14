@@ -389,7 +389,11 @@
       {"file":"server/ai/audio-to-wav.js","about":"Turns a recorded clip into the 16 kHz mono WAV the speech models read.","names":["_audioToWav16k"]},
       {"file":"server/ai/live-pcm-capture.js","about":"Records the microphone as raw sound for a live voice session.","names":["_startLivePcmCapture"]},
       {"file":"server/mcp/dev-capture.js","about":"Takes the picture of a tile that a coding tool asked to see.","names":["mcpDevCapture"]},
-      {"file":"server/ai/chat-local-server.js","about":"One chat turn answered by a server the person runs on this PC: its address and key come from the settings, never the request.","names":["chatWithLocalServer"],"block":{"handler":"handleRequest","test":"provider === 'localapi'"}}
+      {"file":"server/ai/chat-local-server.js","about":"One chat turn answered by a server the person runs on this PC: its address and key come from the settings, never the request.","names":["chatWithLocalServer"],"block":{"handler":"handleRequest","test":"provider === 'localapi'"}},
+      {"file":"server/ai/chat-ollama.js","about":"One chat turn answered by Ollama on this PC, at the address the request or the settings name when it is this PC.","names":["chatWithOllama"],"block":{"handler":"handleRequest","test":"provider === 'ollama'"}},
+      {"file":"server/ai/chat-cli.js","about":"One chat turn answered by the Claude Code or Codex program of the person, with their own subscription.","names":["chatWithCli"],"block":{"handler":"handleRequest","test":"aiCli.isCliProvider(provider)"}},
+      {"file":"server/ai/chat-xenon.js","about":"One chat turn paid with Xenon credits: each round goes through the supporter hub, which charges it.","names":["chatWithXenon"],"block":{"handler":"handleRequest","test":"provider === 'xenon'"}},
+      {"file":"server/ai/chat-cloud-key.js","about":"One chat turn answered by ChatGPT or Claude with the person's own key, read from the settings and never from the request.","names":["chatWithCloudKey"],"block":{"handler":"handleRequest","test":"provider === 'openai' || provider === 'anthropic'"}}
     ],
     "server/remote-access.js": [
       {"file":"server/paired/refused-paths.js","about":"The addresses a paired device is refused, each with the reason it needs a person at the PC.","names":["REMOTE_DENY","REMOTE_DENY_PREFIXES","REMOTE_ADMIN"]},
