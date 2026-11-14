@@ -20,15 +20,14 @@
   // Realistic decks are a few hundred KB; this only trips on many large image/GIF caps
   // (e.g. a big GIF applied to a whole page).
   const DECK_INSTANCE_MAX_BYTES = 4 * 1024 * 1024;
-  const nav = new Map();                      // instanceId -> { path:[], pageIndex }
+  const { navOf, applyAutoGrid } = window.DeckNav;
   const deckBase = () => (typeof SERVER !== 'undefined' ? SERVER : '');
   let deckFlushTimer = null;                  // debounced outbox flush handle
   let deckFlushToken = 0;                     // identifies the live flush; a newer flush supersedes an in-flight retry chain
   let deckDirtySeq = 0;                       // monotonic seq for outbox entries (ack matching)
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
-  // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { benchmarkRunning: false, recordingOn: false, timelapseOn: false, stepsOn: false, replayOn: false, micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN, lightsOn: false, outputDevice: '' };
+  const { stateSnapshot, usesState, sliderLiveValue } = window.DeckLiveState;
   // Every state-bound key drawn as on, whatever the state: only the Xenon
   // Maker's preview sets it (showView), to show the lit faces being designed.
   let previewLit = false;
@@ -70,11 +69,6 @@
   } = window.DeckGridFit;
   const { deckLookFor, stampDeckLitCues, stampDeckAlpha, stampDeckMount } = window.DeckLookStamps;
 
-  // Whether a key on any Deck shows one of these live states, in view or not.
-  function usesState(sources) {
-    const all = readStore();
-    return Object.keys(all).some((id) => window.DeckStore.isInstanceKey(id) && window.DeckModel.deckUsesState(all[id], sources));
-  }
   // ── Outbox (linear persistence) ───────────────────────────────────
   // The SERVER owns the deck store and assigns every revision. The client never
   // pushes the whole blob: every local change marks just the touched instance (or
@@ -759,25 +753,6 @@
     paintSlider(node, seed !== null ? seed : 50);
   }
 
-  // Current live value for a slider's target from the state snapshot (0–100),
-  // or null when the target has NO live feed (per-app/Spotify/OBS volumes
-  // aren't broadcast) — null means "leave the fader where the user put it"
-  // instead of faking a value and snapping their drag back.
-  function sliderLiveValue(slider) {
-    switch (slider.target) {
-      case 'volume':        return Number.isFinite(stateSnapshot.masterVolume) ? stateSnapshot.masterVolume : null;
-      case 'haLight': {
-        const entry = slider.entity && stateSnapshot.haStates ? stateSnapshot.haStates[slider.entity] : null;
-        if (!entry) return null;
-        if (typeof entry.brightness === 'number') return Math.round((entry.brightness / 255) * 100);
-        return entry.state === 'on' ? 100 : 0;
-      }
-      case 'discordInput':  return Number.isFinite(stateSnapshot.discordInputVolume) ? stateSnapshot.discordInputVolume : null;
-      case 'discordOutput': return Number.isFinite(stateSnapshot.discordOutputVolume) ? Math.min(100, stateSnapshot.discordOutputVolume) : null;
-      default: return null;   // appVolume / spotifyVolume / obsInput: write-only targets
-    }
-  }
-
   // Reposition idle sliders when live values arrive (never mid-drag, and never
   // for write-only targets — their fader keeps the last dragged position).
   function applySliderValues() {
@@ -1113,11 +1088,6 @@
       if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
       openEditor(tile, instanceId, navCtx, slotIndex, key);
     });
-  }
-
-  function navOf(instanceId) {
-    if (!nav.has(instanceId)) nav.set(instanceId, { path: [], pageIndex: 0, editing: false });
-    return nav.get(instanceId);
   }
 
   // opts.on (the editor's previews): draw the key on or off whatever the live
@@ -1966,20 +1936,6 @@
       firstPaintFits.set(instanceId, raf2);
     });
     firstPaintFits.set(instanceId, raf1);
-  }
-
-  // Reshape `cfg` to auto-fill the tile. Measures the WELL (the available area),
-  // not the grid — the grid letterboxes to a square block, so measuring it would
-  // feed back. Normal view only: while editing, the grid is fitted against the
-  // EDIT well by scheduleEditFit (caps keep their live size, the row count
-  // adapts), so this normal-view fit must never run on the transient edit well.
-  function applyAutoGrid(tile, instanceId, cfg) {
-    if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
-    if (navOf(instanceId).editing) return cfg;
-    const well = tile.querySelector('.deck-well');
-    if (!well) return cfg;
-    const { w, h } = wellContentSize(well);
-    return computeAutoGrid(cfg, w, h);
   }
 
   // Fit the EDIT grid to the edit-mode well, measured after paint (double rAF,
