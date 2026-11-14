@@ -725,7 +725,8 @@
       {"file":"server/search/search-host.js","about":"The process that asks Windows Search: started when a query needs it, taken out of service when its pipe breaks or it has been idle, and its waiting request refused when it goes.","names":["rejectPending","retireHost","bumpIdle","ensureHost"],"inner":{"factory":"createFileSearch","make":"makeHost"}},
       {"file":"server/search/search-opens.js","about":"What was opened from the search and how often, the signal results are ranked by: read once, written a moment after it changes, and shown as a summary.","names":["loadUsage","scheduleUsageSave","usageSnapshot"],"inner":{"factory":"createFileSearch","make":"makeOpens"}},
       {"file":"server/search/search-catalog.js","about":"The slow half of a search, Windows Search: asked once per query and kept for a few seconds, so the follow-up collects the answer instead of asking again, and its rows.","names":["catalogKey","startCatalog","catalogItems"],"inner":{"factory":"createFileSearch","make":"makeCatalog"}},
-      {"file":"server/search/search-answers.js","about":"Answering a search: a pasted path, the index, the apps and the catalog merged and ranked by what was opened before, and the list of what was opened lately.","names":["livingMatches","search","pastedTarget","queryText","withTimeout","usagePool","scoreApp","execQuery","publicResult","catalog","recent"],"inner":{"factory":"createFileSearch","make":"makeAnswers"},"bare":["./search-pasted-path"]}
+      {"file":"server/search/search-answers.js","about":"Answering a search: a pasted path, the index, the apps and the catalog merged and ranked by what was opened before, and the list of what was opened lately.","names":["livingMatches","search","pastedTarget","queryText","withTimeout","usagePool","scoreApp","execQuery","publicResult","catalog","recent"],"inner":{"factory":"createFileSearch","make":"makeAnswers"},"bare":["./search-pasted-path"]},
+      {"file":"server/search/host-queue.js","about":"The queue in front of the Windows Search process, which answers one query at a time: one query is sent and waited for, and when its answer, its refusal or its timeout comes the one waiting is sent.","names":["dispatch","drain"],"inner":{"factory":"createFileSearch","make":"makeHostQueue"}}
     ],
     "server/stream-spotify.js": [
       {"file":"server/streaming/spotify-endpoints.js","about":"Where the Spotify provider talks to Spotify: the addresses of sign-in and of the API, the permissions it asks for, how long an unfinished sign-in is kept, and the base64url spelling PKCE wants.","names":["AUTH_URL","TOKEN_URL","API","SCOPES","PENDING_TTL_MS","b64url"]},
@@ -920,7 +921,8 @@
       {"factory":"createYouTubeProvider","object":"chatMemory","names":["chatIdMissAt","chatCache"],"kept":[],"bare":[],"after":0}
     ],
     "server/filesearch.js": [
-      {"factory":"createFileSearch","object":"tally","names":["usage","usageSaveTimer","usageDirty"],"kept":[],"bare":[],"after":0}
+      {"factory":"createFileSearch","object":"tally","names":["usage","usageSaveTimer","usageDirty"],"kept":[],"bare":[],"after":0},
+      {"factory":"createFileSearch","object":"hostQueue","names":["waiting","inFlight"],"kept":[],"bare":[],"after":5}
     ],
     "server/stream-spotify.js": [
       {"factory":"createSpotifyProvider","object":"backoff","names":["_rateLimitedUntil"],"kept":[],"bare":[],"after":0},

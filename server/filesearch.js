@@ -28,7 +28,7 @@ const SearchRank = require('./search-rank');
 const { writeFileAtomic } = require('./atomic-write');
 const { isBlockedOpenPath } = require('./actions/registry');
 
-const { REQ_TIMEOUT_MS, RESULTS_CACHE_MAX } = require('./search/search-limits.js');
+const { RESULTS_CACHE_MAX } = require('./search/search-limits.js');
 
 const { makeHost } = require('./search/search-host.js');
 
@@ -37,6 +37,8 @@ const { makeOpens } = require('./search/search-opens.js');
 const { makeCatalog } = require('./search/search-catalog.js');
 
 const { makeAnswers } = require('./search/search-answers.js');
+
+const { makeHostQueue } = require('./search/host-queue.js');
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -73,44 +75,20 @@ function createFileSearch(opts) {
     rejectPending, retireHost, bumpIdle, ensureHost,
   } = makeHost({ CATALOG_SUPPORTED, scriptPath, host, spawnHost: o.spawnHost });   // o.spawnHost: a test's made-up process
 
-  // The host answers one query at a time, so a fast typist used to queue every
-  // keystroke's query behind the previous ones: "f", "fa", "fat"… each waited
-  // for the one before, and the answer to what was actually typed came last.
-  // Latest wins: one request in flight, at most one waiting, and a newer one
-  // replaces the waiting one, which is told 'superseded' (its caller has been
-  // aborted by the client anyway).
-  let waiting = null;   // { q, resolve, reject }
-  let inFlight = false;
+  const hostQueue = {
+    // The host answers one query at a time, so a fast typist used to queue every
+    // keystroke's query behind the previous ones: "f", "fa", "fat"… each waited
+    // for the one before, and the answer to what was actually typed came last.
+    // Latest wins: one request in flight, at most one waiting, and a newer one
+    // replaces the waiting one, which is told 'superseded' (its caller has been
+    // aborted by the client anyway).
+    waiting: null,   // { q, resolve, reject }
+    inFlight: false,
+  };
 
-  function dispatch(job) {
-    inFlight = true;
-    const proc = ensureHost();
-    if (!proc) { inFlight = false; job.reject(new Error('wds_unavailable')); drain(); return; }
-    const id = host.nextId++;
-    const timer = setTimeout(() => {
-      rejectPending(id, new Error('search host timeout'));
-      retireHost('search host timeout');
-    }, REQ_TIMEOUT_MS);
-    const settle = (fn) => (v) => { inFlight = false; fn(v); drain(); };
-    host.pending.set(id, { resolve: settle(job.resolve), reject: settle(job.reject), timer });
-    bumpIdle();
-    try {
-      proc.stdin.write(JSON.stringify({ id, q: job.q }) + '\n');
-    } catch (e) {
-      clearTimeout(timer);
-      host.pending.delete(id);
-      inFlight = false;
-      job.reject(e);
-      drain();
-    }
-  }
-
-  function drain() {
-    if (inFlight || !waiting) return;
-    const next = waiting;
-    waiting = null;
-    dispatch(next);
-  }
+  const {
+    dispatch,
+  } = makeHostQueue({ host, rejectPending, retireHost, bumpIdle, ensureHost, hostQueue });
 
   function hostRequest(q) {
     if (hostRunner) return hostRunner(q);
@@ -118,9 +96,9 @@ function createFileSearch(opts) {
     if (!CATALOG_SUPPORTED) return Promise.reject(new Error('wds_unsupported'));
     return new Promise((resolve, reject) => {
       const job = { q, resolve, reject };
-      if (!inFlight) { dispatch(job); return; }
-      if (waiting) waiting.reject(new Error('superseded'));
-      waiting = job;
+      if (!hostQueue.inFlight) { dispatch(job); return; }
+      if (hostQueue.waiting) hostQueue.waiting.reject(new Error('superseded'));
+      hostQueue.waiting = job;
     });
   }
 
