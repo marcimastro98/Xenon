@@ -4,11 +4,14 @@
 // handles folder/page navigation. Keys are visual-only in this phase — wiring
 // real action execution arrives in a later phase.
 (function () {
-  const STORE_KEY = 'deck.config.v1';        // { [instanceId]: fullDeckConfig } — each instance owns its config
+  const {
+    STORE_KEY, PRESETS_KEY, KEYPRESETS_KEY, displayConfigs, readStore, durableConfig, getConfig,
+    countConfigKeys, readPresets, listProfilePresets, countProfileKeys, listOrphanInstances,
+    listOtherDeckProfiles, listOrphanProfiles, orphanKeyCount, listDeckTargets, listAllDeckProfiles,
+    getProfileTemplate, listImportedResources, readKeyPresets, listKeyPresets, deckInstances,
+  } = window.DeckStoreReads;
   const MACRO_DECK = 'keys';                  // the Xenon menu's keys (server/menu-functions.js KEYS_INSTANCE)
   const DIRTY_KEY = 'deck.dirty.v1';         // outbox: { [instanceId | '__presets']: seq } — local changes not yet acked by the server
-  const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
-  const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
   const LEGACY_REV_KEYS = ['deck.config.rev', 'deck.config.instrev'];   // pre-outbox client counters — cleared at boot
   // Per-instance size ceiling for a saved config, kept well under the server's 8 MB
   // /deck-config accept limit (server.js DECK_MAX_BYTES). A single oversized instance
@@ -34,14 +37,6 @@
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
   const resizeObservers = new Map();   // instanceId -> { cancel() } (auto-fit grid teardown)
   const firstPaintFits = new Map();    // instanceId -> rAF id (deferred first-paint auto-fit)
-  // Display-only auto-fit overrides: instanceId -> fitted config. Auto-fit adapts
-  // the grid to the tile size for RENDERING only; it must never write to the
-  // durable store, bump the rev, or back up to the server. Persisting a boot-time
-  // (often transient) measurement is what made the saved grid drift — different
-  // column/row counts on every restart, reshuffling the keys. The durable config
-  // changes solely on genuine user edits; auto-fit lives here, in memory, and is
-  // recomputed each session. Promoted to durable when the user edits on top of it.
-  const displayConfigs = new Map();    // instanceId -> fitted config (render-only)
   // Edit-mode auto-fit state: the edit toolbar/footer shrink the well, so the
   // edit grid is fitted against the EDIT well (measured after paint, cached
   // here) — caps keep their live, touch-comfortable size and the ROW count
@@ -84,29 +79,10 @@
     return typeof document !== 'undefined' && document.body && document.body.classList.contains('layout-editing');
   }
 
-  function readStore() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
-    catch { return {}; }
-  }
-  // Effective DURABLE config for an instance: its OWN stored config, normalized.
-  // Each Deck instance owns its full config (grid + profiles + keys + view prefs),
-  // so an unknown/empty instance returns a blank deck — a newly added Deck tile
-  // starts empty instead of inheriting another deck's keys. Bypasses the render-only
-  // auto-fit override (use getConfig for the rendered grid).
-  function durableConfig(instanceId, all) {
-    return window.DeckStore.instanceConfig(window.DeckModel, all || readStore(), instanceId);
-  }
   // Whether a key on any Deck shows one of these live states, in view or not.
   function usesState(sources) {
     const all = readStore();
     return Object.keys(all).some((id) => window.DeckStore.isInstanceKey(id) && window.DeckModel.deckUsesState(all[id], sources));
-  }
-  function getConfig(instanceId) {
-    // A live auto-fit override (render grid adapted to the tile) takes precedence
-    // over the durable store, so edits act on exactly the grid the user sees and
-    // promote it to durable on save.
-    if (displayConfigs.has(instanceId)) return displayConfigs.get(instanceId);
-    return durableConfig(instanceId);
   }
   // ── Outbox (linear persistence) ───────────────────────────────────
   // The SERVER owns the deck store and assigns every revision. The client never
@@ -191,23 +167,6 @@
     displayConfigs.set(instanceId, config);
   }
 
-  // Total placed keys across every profile/page of a stored config. 0 = empty.
-  // On any parse error returns 1 (treat as non-empty so cleanup never drops it).
-  function countConfigKeys(rawConfig) {
-    try {
-      const cfg = window.DeckModel.normalizeDeckConfig(rawConfig);
-      let n = 0;
-      const walk = (folder) => {
-        for (const page of folder.pages) {
-          n += page.keys.filter(Boolean).length;
-          for (const k of page.keys) if (k && k.kind === 'folder' && k.folder) walk(k.folder);
-        }
-      };
-      for (const prof of cfg.profiles) walk(prof.root);
-      return n;
-    } catch { return 1; }
-  }
-
   // Permanently drop a COPY instance's stored config — called when a deck copy is
   // removed from the layout (a page delete, or the tile's ✕). Guarded to '~'-suffixed
   // copies so the user's primary 'deck' can never be wiped through this path.
@@ -255,19 +214,11 @@
   }
 
   // ── Profile presets (save a profile, reuse it on any deck) ────────
-  // A preset is { id, name, profile, createdAt } where `profile` is a DeckModel
-  // profile object. Stored locally and backed up to the server alongside the
-  // configs (it rides the same rev / last-writer-wins).
-  function readPresets() {
-    try { const a = JSON.parse(localStorage.getItem(PRESETS_KEY)); return Array.isArray(a) ? a : []; }
-    catch { return []; }
-  }
   function writePresets(list) {
     const safe = Array.isArray(list) ? list.slice(0, 60) : [];
     try { localStorage.setItem(PRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
     markDirty(window.DeckStore.PRESETS_ID);   // both preset lists travel in one 'presets' op
   }
-  function listProfilePresets() { return readPresets(); }
   function deleteProfilePreset(id) {
     writePresets(readPresets().filter(p => p.id !== id));
     if (window.forgetInstalledContentResource) window.forgetInstalledContentResource('deckPresetIds', id);
@@ -298,129 +249,12 @@
   }
 
   // ── Reuse profiles across independent decks ───────────────────────
-  // Count placed keys in a single profile's tree (0 = empty placeholder).
-  function countProfileKeys(prof) {
-    try {
-      let n = 0;
-      const walk = (folder) => {
-        for (const page of folder.pages) {
-          n += page.keys.filter(Boolean).length;
-          for (const k of page.keys) if (k && k.kind === 'folder' && k.folder) walk(k.folder);
-        }
-      };
-      walk(prof.root);
-      return n;
-    } catch { return 0; }
-  }
-  // The deck instances that actually exist on the dashboard right now: the base
-  // 'deck' plus any copy still placed in the layout. A removed deck tile can leave
-  // its config behind (a copy that missed forgetInstance), and its profiles then
-  // leaked into the profile/share pickers as "ghosts" — this is the gate that keeps
-  // them out. Returns null when the layout isn't known yet, so nothing live is ever
-  // hidden (fail-open).
-  function liveInstanceSet() {
-    try {
-      if (typeof getDashboardLayout !== 'function') return null;
-      const layout = getDashboardLayout();
-      if (!layout || !Array.isArray(layout.copies)) return null;
-      return new Set(layout.copies.map((c) => c && c.id).filter(Boolean));
-    } catch { return null; }
-  }
-  function isLiveInstance(id, live) {
-    if (String(id).indexOf('~') < 0) return true;   // the primary 'deck' is always live
-    return live ? live.has(id) : true;              // unknown layout → treat as live
-  }
-  // Stored COPY configs no longer placed anywhere on the dashboard — leftovers from
-  // removed deck tiles. Empty [] when the layout isn't known (never guess).
-  function listOrphanInstances() {
-    const live = liveInstanceSet();
-    if (!live) return [];
-    return Object.keys(readStore()).filter((id) => id.indexOf('~') >= 0 && !live.has(id));
-  }
   // Drop every orphaned copy config at once (each flushes an explicit 'del' op, so
   // the server store is pruned too). Returns how many were removed.
   function purgeOrphanInstances() {
     const orphans = listOrphanInstances();
     orphans.forEach((id) => forgetInstance(id));
     return orphans.length;
-  }
-  // Profiles that live on OTHER deck instances, offered in the profile menu as one-tap
-  // "copy into this deck" sources — so a newly added (independent) deck can pull in a
-  // profile already built elsewhere without first saving it as a preset. Empty
-  // placeholder profiles are skipped. Returns [{ instanceId, profileId, name, keys }].
-  //
-  // Deliberately NOT deduped, by name or otherwise — it used to be, and that was the
-  // bug. Two dedupes were in the way of the one case the list exists for:
-  //
-  //   · against THIS deck: a source was dropped if a profile here already had its
-  //     name. Someone duplicating a page, landing an obsolete "Nocturne Control" on
-  //     the new Deck, then coming back for the real one found nothing — the current
-  //     profile was hidden precisely BECAUSE the stale namesake was sitting next to
-  //     it. With one candidate, the whole section vanished and the answer read as
-  //     "this feature doesn't work".
-  //   · across decks: only the first profile with a given name was offered, so which
-  //     of three same-named profiles you were given came down to key order.
-  //
-  // listOrphanProfiles already learned this and says so in its own comment; the
-  // reasoning was never specific to removed decks. So every non-empty profile is
-  // listed, and the key count rides along as the thing that tells namesakes apart.
-  function listOtherDeckProfiles(instanceId) {
-    const M = window.DeckModel;
-    const all = readStore();
-    const out = [];
-    const live = liveInstanceSet();
-    for (const otherId of Object.keys(all)) {
-      if (otherId === instanceId) continue;
-      if (!isLiveInstance(otherId, live)) continue;   // hide profiles from removed decks
-      let cfg; try { cfg = M.normalizeDeckConfig(all[otherId]); } catch { continue; }
-      for (const prof of (cfg.profiles || [])) {
-        const keys = countProfileKeys(prof);
-        if (keys === 0) continue;   // an empty placeholder is not worth offering
-        out.push({ instanceId: otherId, profileId: prof.id, name: prof.name, keys });
-      }
-    }
-    return out;
-  }
-  // The profiles sitting in configs whose deck tile is gone — and the reason this
-  // list exists at all.
-  //
-  // Three rules had grown up around orphaned configs, and together they made a
-  // trap. pruneOrphanEmptyConfigs deletes only EMPTY orphans, on the stated
-  // principle that "data is surfaced, not silently deleted". isLiveInstance then
-  // hides every orphan's profiles from the profile menu and the share picker, so
-  // a removed deck cannot leave ghosts behind. And the profile menu offered
-  // exactly one thing to do about them: a 🗑 button that throws them away.
-  //
-  // So keys the app had promised to keep were kept, hidden, and offered only for
-  // deletion. Reported after a dashboard was replaced by the factory default: the
-  // deck tiles went with it, and every key on them became unreachable while still
-  // sitting in deck.json. This is the half that was missing — the same one-tap
-  // copy that already exists for a profile on another deck, pointed at the decks
-  // that are no longer there.
-  //
-  // Deliberately NOT deduped by name against this deck, unlike listOtherDeckProfiles:
-  // the reason someone is looking here is that a profile with the name they
-  // remember is present but empty, and hiding the real one behind the empty
-  // namesake is the exact failure being fixed. The key count is carried so the
-  // rows can say which is which.
-  function listOrphanProfiles() {
-    const M = window.DeckModel;
-    const all = readStore();
-    const out = [];
-    for (const id of listOrphanInstances()) {
-      let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
-      for (const prof of (cfg.profiles || [])) {
-        const keys = countProfileKeys(prof);
-        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys });
-      }
-    }
-    return out;
-  }
-  // How many keys the 🗑 button is about to destroy. The confirmation used to
-  // describe what it removed as leftovers, which is true of the config and false
-  // of what is in it.
-  function orphanKeyCount() {
-    return listOrphanProfiles().reduce((n, p) => n + p.keys, 0);
   }
 
   // Copy profile `profileId` from `sourceInstanceId` into `targetInstanceId` as a new
@@ -437,48 +271,6 @@
   }
 
   // ── Shared-profile bridge (PresetShare) ───────────────────────────
-  // The deck tiles currently on the dashboard, as import targets.
-  function listDeckTargets() {
-    return deckInstances().map(({ instanceId }, i) => {
-      const cfg = getConfig(instanceId);
-      return { instanceId, label: 'Deck ' + (i + 1), profiles: cfg.profiles.length };
-    });
-  }
-  // Every non-empty profile across every stored deck (for the share picker).
-  function listAllDeckProfiles() {
-    const M = window.DeckModel;
-    const all = readStore();
-    const out = [];
-    const live = liveInstanceSet();
-    for (const id of Object.keys(all)) {
-      if (!isLiveInstance(id, live)) continue;   // never surface a removed deck's profiles
-      let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
-      for (const prof of (cfg.profiles || [])) {
-        const keys = countProfileKeys(prof);
-        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys, imported: prof.imported === true, installId: prof.installId || '' });
-      }
-    }
-    return out;
-  }
-  // Deep-cloned profile object for export (PresetShare sanitizes + encodes it).
-  function getProfileTemplate(instanceId, profileId) {
-    const cfg = durableConfig(instanceId);
-    const M = window.DeckModel;
-    const prof = M.getProfile(cfg, profileId);
-    if (!prof) return prof;
-    // Snapshot the effective presentation so importing this profile never depends
-    // on the receiver's Deck defaults. Imported third-party artwork stays home.
-    const clone = JSON.parse(JSON.stringify(prof));
-    const effective = M.effectiveDeckLook(cfg, profileId);
-    clone.look = {
-      capStyle: effective.capStyle,
-      keyShape: effective.keyShape,
-      plate: effective.plate,
-      wellImage: (effective.wellImage && effective.wellImage.imported !== true) ? effective.wellImage : null,
-      mediaStyle: (effective.mediaStyle && effective.mediaStyle.imported !== true) ? effective.mediaStyle : null,
-    };
-    return clone;
-  }
   // Land an imported (already-sanitized) shared profile: as a new profile on
   // `instanceId` (fresh id, grid grown to fit, becomes active — the exact
   // "copy from another deck" path), or into the profile-preset library when no
@@ -518,25 +310,6 @@
     return { ok: true, savedAsPreset: true, presetId };
   }
 
-  // Imported resource inventory + receipt-checked removal used by the content
-  // manager. A missing/old receipt may only touch legacy `imported` entries;
-  // a normal receipt must match the profile/preset installId exactly.
-  function listImportedResources() {
-    const profiles = [];
-    const M = window.DeckModel;
-    const all = readStore();
-    for (const instanceId of Object.keys(all)) {
-      let cfg; try { cfg = M.normalizeDeckConfig(all[instanceId]); } catch { continue; }
-      for (const profile of (cfg.profiles || [])) {
-        if (profile.imported === true) profiles.push({ instanceId, profileId: profile.id, installId: profile.installId || '' });
-      }
-    }
-    const presets = readPresets()
-      .filter(p => p && p.profile && p.profile.imported === true)
-      .map(p => ({ presetId: p.id, installId: p.installId || p.profile.installId || '' }));
-    return { profiles, presets };
-  }
-
   function removeImportedResources(resources, installId, legacy) {
     const refs = Array.isArray(resources && resources.deckProfiles) ? resources.deckProfiles : [];
     const presetIds = new Set(Array.isArray(resources && resources.deckPresetIds) ? resources.deckPresetIds : []);
@@ -570,16 +343,11 @@
   }
 
   // ── Single-key presets (save one key, reuse on any slot) ──────────
-  function readKeyPresets() {
-    try { const a = JSON.parse(localStorage.getItem(KEYPRESETS_KEY)); return Array.isArray(a) ? a : []; }
-    catch { return []; }
-  }
   function writeKeyPresets(list) {
     const safe = Array.isArray(list) ? list.slice(0, 120) : [];
     try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
     markDirty(window.DeckStore.PRESETS_ID);   // both preset lists travel in one 'presets' op
   }
-  function listKeyPresets() { return readKeyPresets(); }
   function deleteKeyPreset(id) { writeKeyPresets(readKeyPresets().filter(p => p.id !== id)); }
   // Save a raw key object (built by the key editor) as a named preset. Prompts for
   // a name (defaults to the key's title). Called from DeckEditor via window.Deck.
@@ -800,42 +568,9 @@
     }
     return false;
   }
-  // Soundboard playback lives in the browser — a Chromium <audio> element handles
-  // mp3/wav/ogg natively, async, with no lingering OS processes. The server only
-  // streams the (allowlisted, by extension) local file at /deck/sound. One element
-  // is cached per file so 'stop'/'toggle' can act on the same playing instance.
-  const _deckSounds = new Map();
-  // Stop every playing soundboard clip at once (the panic key).
-  function stopAllDeckSounds() {
-    for (const a of _deckSounds.values()) { a.pause(); a.currentTime = 0; }
-    return true;
-  }
-  function playDeckSound(action) {
-    const file = String(action.file || '').trim();
-    const mode = action.mode || 'play';
-    let a = _deckSounds.get(file);
-    if (mode === 'stop') { if (a) { a.pause(); a.currentTime = 0; } return Promise.resolve(true); }
-    if (!file) return Promise.resolve(false);        // nothing configured → flash so it's not a silent no-op
-    if (mode === 'toggle' && a && !a.paused) { a.pause(); a.currentTime = 0; return Promise.resolve(true); }
-    if (!a) { a = new Audio('/deck/sound?path=' + encodeURIComponent(file)); _deckSounds.set(file, a); }
-    else { a.currentTime = 0; }
-    // Optional per-clip volume (0–100; absent/invalid = full volume). The empty
-    // string must NOT reach Number() — Number('') is 0 and would mute the clip.
-    const rawVol = action.volume == null ? '' : String(action.volume).trim();
-    const vol = rawVol === '' ? NaN : Number(rawVol.replace(',', '.'));
-    a.volume = (Number.isFinite(vol) && vol >= 0 && vol <= 100) ? vol / 100 : 1;
-    // Resolve true once playback actually starts, false if the file can't load/play
-    // (missing file, bad codec) — surfacing the failure as the key's error flash.
-    return new Promise((resolve) => {
-      let done = false;
-      const finish = (ok) => { if (done) return; done = true; a.removeEventListener('playing', onPlay); a.removeEventListener('error', onErr); resolve(ok); };
-      const onPlay = () => finish(true);
-      const onErr = () => finish(false);
-      a.addEventListener('playing', onPlay, { once: true });
-      a.addEventListener('error', onErr, { once: true });
-      a.play().then(() => finish(true)).catch(() => finish(false));
-    });
-  }
+  const {
+    stopAllDeckSounds, playDeckSound, bindPressFeedback, LATCH_CLS, fireFeedback,
+  } = window.DeckPressFeedback;
   // Shared player handle for other host modules: custom-widget.js dispatches an
   // SDK widget's granted soundboard actions here (pack-relative clips only —
   // the caller gates the file shape). Same element cache, same panic stop.
@@ -978,79 +713,6 @@
       else ok = false;                              // run every step; report if any failed
     }
     return ok;
-  }
-  // Visual press feedback for ANY key node (action, folder, or edit-mode): the key
-  // visibly depresses while held so a tap always looks like a real button click —
-  // independent of whether a gesture/action is configured. A minimum hold keeps a
-  // quick tap visible, and inline styles guarantee it regardless of CSS cascade.
-  function bindPressFeedback(node) {
-    if (!node || node._pressBound) return;
-    node._pressBound = true;
-    const PRESS_MIN_MS = 90;
-    let pressedAt = 0, unpressTimer = null;
-    const press = () => {
-      if (unpressTimer) { clearTimeout(unpressTimer); unpressTimer = null; }
-      node.classList.add('is-pressed');
-      // Depression on the way down: deep enough to read clearly on the touchscreen,
-      // but with a soft ease-out so it still feels fluid (the "real" feel comes from
-      // the springy release below, not from making the motion tiny).
-      node.style.transition = 'transform .11s cubic-bezier(.33,0,.2,1), filter .11s ease';
-      node.style.transform = 'translateY(2px) scale(.92)';
-      node.style.filter = 'brightness(.86)';
-      pressedAt = Date.now();
-    };
-    const release = () => {
-      const wait = Math.max(0, PRESS_MIN_MS - (Date.now() - pressedAt));
-      if (unpressTimer) clearTimeout(unpressTimer);
-      unpressTimer = setTimeout(() => {
-        node.classList.remove('is-pressed');
-        // Springy, fluid pop back to rest — a slight overshoot makes it feel real.
-        node.style.transition = 'transform .34s cubic-bezier(.34,1.5,.5,1), filter .22s ease';
-        node.style.transform = '';
-        node.style.filter = '';
-        // Specular glint: a light band sweeps across the glass as the cap springs
-        // back (one-shot; CSS keeps it off under perf-mode / reduced-motion).
-        node.classList.remove('is-glint');
-        void node.offsetWidth;              // restart the sweep on rapid taps
-        node.classList.add('is-glint');
-        // Hand the transition back to the stylesheet once the spring has settled.
-        const clear = () => { node.style.transition = ''; node.removeEventListener('transitionend', clear); };
-        node.addEventListener('transitionend', clear);
-        unpressTimer = null;
-      }, wait);
-    };
-    node.addEventListener('pointerdown', (e) => { if (!(e.button != null && e.button > 0)) press(); });
-    node.addEventListener('pointerup', release);
-    node.addEventListener('pointercancel', release);
-    node.addEventListener('pointerleave', release);
-    node.addEventListener('animationend', (e) => {
-      if (e.animationName === 'deck-key-glint') node.classList.remove('is-glint');
-    });
-  }
-
-  // The three PERSISTENT (latching) tap effects: pressing the key toggles them on and
-  // they stay until the next press — held depressed, blinking in a loop, or dark.
-  const LATCH_CLS = { stay: 'fx-hold', flash: 'fx-blink', off: 'fx-dark' };
-
-  // Apply (or clear) a key's persistent-effect class. Latch membership lives on the
-  // per-instance nav state so it survives grid re-renders (media/state updates).
-  function setLatch(node, key, state, on) {
-    if (!state.latched) state.latched = new Set();
-    node.classList.remove('fx-hold', 'fx-blink', 'fx-dark');
-    const cls = LATCH_CLS[key.press];
-    if (on && cls) { node.classList.add(cls); state.latched.add(key.id); }
-    else state.latched.delete(key.id);
-  }
-
-  // Tap feedback when a key fires: persistent effects (stay/flash/off) toggle their
-  // latch; 'glow' plays its one-shot accent pulse; 'press' is the bare tactile depress.
-  function fireFeedback(node, key, state) {
-    const fx = key.press || 'glow';
-    if (LATCH_CLS[fx]) { setLatch(node, key, state, !(state.latched && state.latched.has(key.id))); return; }
-    if (fx === 'press') return;                 // depress only
-    node.classList.remove('is-running');
-    void node.offsetWidth;                      // reflow so the pulse restarts on rapid taps
-    node.classList.add('is-running');           // 'glow'
   }
 
   // ── Touch faders (slider keys) ─────────────────────────────────────────
@@ -3635,13 +3297,6 @@
   }
 
   // ── Profile control surface for Xenon AI (voice + chat) ───────────────
-  // Every deck tile in the DOM with its per-instance id (the base tile has none;
-  // duplicated copies carry data-dashboard-instance="deck~xxxx").
-  function deckInstances() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="deck"]'))
-      .map((tile) => ({ tile, instanceId: tile.getAttribute('data-dashboard-instance') || 'deck' }));
-  }
-
   // The distinct profile names across all deck instances, each flagged if it's the
   // active profile in any instance. Sent to the AI so it can switch by exact name.
   function listProfiles() {

@@ -81,7 +81,7 @@
     "server/js/deck-actions.js": 406,
     "server/js/deck-editor.js": 3741,
     "server/js/deck-model.js": 1456,
-    "server/js/deck.js": 3991,
+    "server/js/deck.js": 3646,
     "server/js/devclean-widget.js": 486,
     "server/js/discord-widget.js": 1228,
     "server/js/disk-widget.js": 2211,
