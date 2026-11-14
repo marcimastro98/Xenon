@@ -194,7 +194,10 @@ test('a connection that dies mid-upload leaves nothing behind', async () => {
   const body = Buffer.alloc(2 * 1024 * 1024, 9);
 
   await post(h.port, body, { abortAfter: 64 * 1024 });
-  await new Promise((r) => setTimeout(r, 120));   // let the teardown settle
+  // receiveStream throws only after it has removed the temp file, so the wait is for that
+  // error to reach the route, however long a busy disk takes, not for a fixed pause.
+  for (let i = 0; i < 200 && !h.seen.error; i++) await new Promise((r) => setTimeout(r, 50));
+  assert.ok(h.seen.error, 'the route never heard that the upload died');
   await close(h);
 
   assert.equal(fs.existsSync(target), false, 'a half-received file must never become visible');
