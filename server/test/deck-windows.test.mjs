@@ -65,8 +65,10 @@ function smartProfiles({ rules = [], windows = [] } = {}) {
     render() {},
   };
   const src = read('../js/deck.js');
-  vm.runInNewContext(`${between(src, 'function switchRow(', 'function openDeckStyleModal(')}
-    ${between(src, 'let closeAutoSwitch = null;', '// ── Smart Profiles: foreground-app')}
+  // The switch row up to its own closing brace: whatever follows it in the script is not part of it.
+  vm.runInNewContext(`${between(src, 'function switchRow(', '\n  }\n')}
+  }
+    ${between(src,'let closeAutoSwitch = null;', '// ── Smart Profiles: foreground-app')}
     this.open = openAutoSwitchDialog;`, box);
   const trigger = document.createElement('button');
   document.body.append(trigger);
