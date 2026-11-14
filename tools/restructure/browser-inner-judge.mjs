@@ -145,11 +145,11 @@ export function withConstants(shell, names) {
 
 /**
  * Where the line that takes the names back can stand: where the first moved declaration stood, or above the
- * first statement that could reach a moved one while the script loads.
+ * first statement that could reach a moved one while the script loads, or that hands one to a script (browser-inner-handed.mjs).
  * @param {any} shell @param {any[]} moved records in order @returns {number} index of the record the line stands above
  */
 export function anchorOf(shell, moved) {
   const movedSet = new Set(moved);
-  const user = shell.records.find((record) => !movedSet.has(record) && record.kind !== 'function' && moved.some((target) => shell.reach(target).has(record)));
+  const user = shell.records.find((record) => !movedSet.has(record) && record.kind !== 'function' && moved.some((target) => shell.reach(target).has(record) || target.names.some((name) => record.hands?.has(name))));
   return Math.min(moved[0].index, user ? user.index : shell.records.length);
 }

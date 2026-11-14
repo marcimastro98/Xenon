@@ -84,7 +84,7 @@ function innerMove(tree, move, { parser, pages, earlier }) {
   const files = retag(tree, pages, { old: move.from, added: [move.file], where: 'before', before: run, after: [...before, move.file, move.from] });
   const text = need(tree, move.from);
   const parts = before.map((file) => ({ file, text: need(tree, file) }));
-  const plan = planInnerScript({ text, parser, source: move.from, target: move.file, about: move.about, names: move.names, earlier: parts, retake: move.retakes === true });
+  const plan = planInnerScript({ text, parser, source: move.from, target: move.file, about: move.about, names: move.names, earlier: parts, retake: move.retakes === true, handed: move.handed === true || Array.isArray(move.hands) });
   const unproven = proveInnerMove({ before: text, after: plan.newSource, made: plan.targetText, plan, parser, source: move.from, target: move.file, earlier: parts });
   if (unproven.length) throw new Refusal(unproven.map((problem) => `planned, and not proven: ${problem}`));
   files.set(move.file, plan.targetText).set(move.from, plan.newSource);
@@ -92,7 +92,9 @@ function innerMove(tree, move, { parser, pages, earlier }) {
   const takes = plan.takes.length ? { takes: Object.fromEntries(plan.takes.map((take) => [take.from, take.names])) } : {};
   // Asked for by every move made today (browser-inner-cli.mjs), and written down only when a line was rewritten: `browser verify` redoes an older move as it was made.
   const retakes = plan.retakes.length ? { retakes: true } : {};
-  return { files, made: [move.file], record: { kind: 'inner', from: move.from, file: move.file, about: move.about, names: plan.moved, gives: plan.gives, name: plan.name, ...takes, ...retakes } };
+  // The names a script is handed (browser-inner-handed.mjs) are in the record: `browser verify` redoes the move in that form because they are there.
+  const hands = plan.hands.length ? { hands: plan.hands } : {};
+  return { files, made: [move.file], record: { kind: 'inner', from: move.from, file: move.file, about: move.about, names: plan.moved, gives: plan.gives, name: plan.name, ...takes, ...retakes, ...hands } };
 }
 
 // A wrapper's lets as properties of one object: the script alone changes, and no page has to know.

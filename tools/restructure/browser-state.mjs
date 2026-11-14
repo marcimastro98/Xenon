@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import { analyzeRun, orderProblems, runsOnLoad } from './browser-analyze.mjs';
 import { consumerProblems } from './browser-consumers.mjs';
+import { fromHanded } from './browser-inner-handed.mjs';
 import { nameClashes, namesMade } from './browser-inner-names.mjs';
 import { readWrapper } from './browser-inner-plan.mjs';
 import { innerStateProblems } from './browser-inner-proof.mjs';
@@ -58,7 +59,7 @@ export function pageHelperState(root, parser, made) {
   for (const { source, text } of made) {
     // A script loaded by a list when asked lands in the pages of the script that holds the list.
     const hosts = ASKED_LISTS.filter((list) => existsSync(path.join(root, list)) && listsHold(read(list), source, list));
-    for (const name of pageHelpersRead(readWrapper(text, source, parser))) for (const taker of [source, ...hosts]) takers.get(name).add(taker);
+    for (const name of pageHelpersRead(readWrapper(fromHanded(text).text, source, parser))) for (const taker of [source, ...hosts]) takers.get(name).add(taker);
   }
   const written = listPages(root).map((page) => ({ page, html: read(page) }));
   const scripts = [...ourScripts(root).map((file) => ({ file, text: read(file) })), ...written.map(({ page, html }) => ({ file: page, text: html }))];

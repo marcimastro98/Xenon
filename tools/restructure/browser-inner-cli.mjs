@@ -2,7 +2,7 @@
 //
 //   browser inner <script> [--json]        the functions of the script's wrapper: which may leave, in which groups, what keeps the others
 //   browser inner --survey [--all] [--json]   the same in numbers for every wrapped script over 300 lines (--all: every wrapped script)
-//   browser inner --from <script> --to <script's name>/<what it does>.js --about "<one sentence>" [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   browser inner --from <script> --to <script's name>/<what it does>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
 //   browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets (all of them, or the named ones) as properties of one object
 
 import { readFileSync } from 'node:fs';
@@ -67,8 +67,8 @@ export function saidOf(move, done, dryRun) {
 
 /**
  * @param {any} parser
- * @param {{ inner: string, to: string, about: string, names: string[], recorded?: string }} job `names`: functions and constants, or `group:N` as
- *   `browser inner <script>` numbers them. The written-out constants the named functions use go along without being named.
+ * @param {{ inner: string, to: string, about: string, names: string[], recorded?: string, handed?: boolean }} job `handed`: the script is handed what its code uses of the wrapper (browser-inner-handed.mjs); `names`: functions and constants, or `group:N` as
+ *   `browser inner <script>` numbers them. The written-out constants the named functions use go along without being named, unless the script is handed names.
  * @param {(file: string) => string | null} read the files as the move will find them
  * @param {string[]} [earlier] the scripts made of the same wrapper before, in load order
  * @returns {any} the move for browser-extract.mjs
@@ -85,9 +85,10 @@ export function innerMoveOf(parser, job, read, earlier = []) {
     names.push(...group.names);
   }
   const shell = readWrapperWith(read(from) ?? '', from, parser, parts);
-  const all = shell.problems.length ? names : withConstants(shell, names);
+  // A script that is handed names is handed the constants too: one goes along only when it is named.
+  const all = shell.problems.length || job.handed ? names : withConstants(shell, names);
   if (all.length > names.length) console.log(`Going along, constants the named functions use: ${all.slice(names.length).join(', ')}`);
-  const move = { kind: 'inner', from, file: job.to, about: job.about, names: all, retakes: true };
+  const move = { kind: 'inner', from, file: job.to, about: job.about, names: all, retakes: true, ...(job.handed ? { handed: true } : {}) };
   if (job.recorded) Object.defineProperty(move, 'recorded', { value: JSON.parse(readFileSync(job.recorded, 'utf8')), enumerable: false });
   if (!windowNameOf(from, job.to)) throw new Refusal([`${job.to} must be ${from.replace(/\.js$/, '')}/<what it does>.js in lowercase kebab-case: the name it leaves on window is read off its place`]);
   return move;

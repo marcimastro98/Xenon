@@ -193,7 +193,8 @@ export function createReach(records, bindings) {
   for (const record of records) {
     for (const name of record.uses.keys()) {
       const own = bindings.get(name);
-      if (own && own.record !== record) usedBy.get(own.record).add(record);
+      // A name handed to a script made of the wrapper is not called by being handed (browser-inner-handed.mjs).
+      if (own && own.record !== record && !record.hands?.has(name)) usedBy.get(own.record).add(record);
     }
   }
   const known = new Map();

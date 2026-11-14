@@ -37,6 +37,7 @@
 
 import { readDecisions } from './browser-inner-decides.mjs';
 import { atLoad, createReach, readFixed } from './browser-inner-fixed.mjs';
+import { fromHanded, handedAnchor, handedGlue, handReason, inOrder, markHands, MAX_HANDS, toHanded } from './browser-inner-handed.mjs';
 import { anchorOf, isFunction, lineOf, mayTravel, ownReasons } from './browser-inner-judge.mjs';
 import { retakesOf } from './browser-inner-retakes.mjs';
 import { kindsIn, markTaken, takeLines, takesOf, takeText } from './browser-inner-takes.mjs';
@@ -158,11 +159,14 @@ export function readWrapper(text, file, parser) {
 export function readWrapperWith(text, file, parser, earlier) {
   const shell = readWrapper(text, file, parser);
   if (shell.problems.length) return shell;
-  return markTaken(shell, text, new Map(earlier.map((part) => [windowNameOf(file, part.file), kindsIn(readWrapper(part.text, part.file, parser))])));
+  // A script that is handed names leaves a function on window: nothing can be taken from it there.
+  const plain = earlier.filter((part) => !fromHanded(part.text).handed);
+  markHands(shell, text, earlier.filter((part) => !plain.includes(part)).map((part) => windowNameOf(file, part.file)));
+  return markTaken(shell, text, new Map(plain.map((part) => [windowNameOf(file, part.file), kindsIn(readWrapper(part.text, part.file, parser))])));
 }
 
 // `<Script>.<name>` for every name one of these scripts takes from another.
-const claimedBy = (parts, parser) => new Set(parts.flatMap((part) => takeLines(readWrapper(part.text, part.file, parser), part.text)
+const claimedBy = (parts, parser) => new Set(parts.map((part) => ({ ...part, text: fromHanded(part.text).text })).flatMap((part) => takeLines(readWrapper(part.text, part.file, parser), part.text)
   .flatMap((line) => line.names.map((name) => `${line.from}.${name}`))));
 
 /**
@@ -173,13 +177,14 @@ const claimedBy = (parts, parser) => new Set(parts.flatMap((part) => takeLines(r
  * @param {string[]} job.names functions and written-out constants declared in the wrapper
  * @param {{ file: string, text: string }[]} [job.earlier] the scripts made of this wrapper before, in the order they load: the new one may take their names
  * @param {number} [job.maxLines]
+ * @param {boolean} [job.handed] make the script one that is handed what its code uses of the wrapper (browser-inner-handed.mjs)
  * @param {boolean} [job.retake] rewrite the lines that take names from earlier scripts to the names the old script still uses (browser-inner-retakes.mjs)
- * @returns {{ newSource: string, targetText: string, moved: string[], gives: string[], name: string, ranges: number[][],
+ * @returns {{ newSource: string, targetText: string, moved: string[], gives: string[], name: string, ranges: number[][], hands: string[],
  *   glue: { at: number, lines: string[] }, takes: { from: string, names: string[] }[], retakes: { at: number, was: string[], now: string[] }[] }}
  *   `ranges` are 1-based lines of the old script, `glue.at` the 0-based line of the new text of the old script where the line that takes
  *   the functions back stands, `retakes[].at` the same for a rewritten line. Throws a Refusal with every reason.
  */
-export function planInnerScript({ text, parser, source, target, about, names, earlier = [], maxLines = MAX_LINES, retake = false }) {
+export function planInnerScript({ text, parser, source, target, about, names, earlier = [], maxLines = MAX_LINES, retake = false, handed = false }) {
   const shell = readWrapperWith(text, source, parser, earlier);
   if (shell.problems.length) throw new Refusal(shell.problems);
   const name = windowNameOf(source, target);
@@ -196,13 +201,15 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
   const moved = [...new Set(names.map((wanted) => shell.bindings.get(wanted).record))].sort((a, b) => a.index - b.index);
   const movedSet = new Set(moved);
   const movedNames = moved.flatMap((record) => record.names);
+  const handing = new Set();
   for (const record of moved) {
     const label = `${record.names.join(', ')} (${source}:${lineOf(shell, record)})`;
     reasons.push(...ownReasons(shell, record, label, { decides: !movedBeforeRule(target, record.names) }).map((reason) => reason.text));
     for (const used of record.uses.keys()) {
       const own = shell.bindings.get(used);
       if (!own || movedSet.has(own.record) || shell.taken.has(used)) continue;
-      const what = own.kind === 'function' ? 'a function of the wrapper that stays: move it too, or leave both'
+      if (handed && !handReason(shell, own, record)) { handing.add(used); continue; }
+      const what = handed ? handReason(shell, own, record) : own.kind === 'function' ? 'a function of the wrapper that stays: move it too, or leave both'
         : STATE.has(own.kind) ? `a ${own.kind} of the wrapper that changes while the page runs: the new script could not follow it`
           : mayTravel(own.record) ? 'a constant of the wrapper that stays, and its value is written out: name it too, or leave both'
             : `a ${own.kind === 'statement' ? 'name a statement of the wrapper leaves there' : `${own.kind} of the wrapper`} that stays: the new script would not have it`;
@@ -212,6 +219,12 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
   const staying = shell.records.filter((record) => !movedSet.has(record));
   const gives = movedNames.filter((moving) => staying.some((record) => record.uses.has(moving)));
   if (gives.length === 0) reasons.push(`nothing left in ${source} uses ${movedNames.join(', ')}: delete dead code instead of moving it`);
+  const hands = inOrder(shell, [...handing]);
+  const place = handed ? handedAnchor(shell, moved, hands) : { index: anchorOf(shell, moved), reasons: [] };
+  reasons.push(...place.reasons);
+  if (handed && hands.length === 0 && reasons.length === 0) reasons.push(`${movedNames.join(', ')} use nothing of the wrapper that stays: there is nothing to hand, move them the plain way`);
+  if (hands.length > MAX_HANDS) reasons.push(`${target} would be handed ${hands.length} names (${hands.join(', ')}): over ${MAX_HANDS} it would mostly forward, cut the script somewhere else`);
+  if (handed && (shell.bindings.has('wrapper') || moved.some((record) => record.uses.has('wrapper')))) reasons.push(`${source} says \`wrapper\`, the name a handed script gives what it is handed`);
   if (reasons.length) throw new Refusal(reasons);
 
   // The old script: the functions go, and one line takes back the ones it still uses.
@@ -220,8 +233,8 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
   // A function takes the comment above it along, but not the title of the section it happened to open.
   const topOf = (record) => { let top = record.range[0]; while (top < record.line[0] && SECTION_TITLE.test(lines[shell.open + top])) top += 1; return top; };
   const rangeLines = (record) => lines.slice(shell.open + topOf(record), shell.open + record.range[1] + 1);
-  const anchor = shell.records[anchorOf(shell, moved)];
-  const glue = wrapNames(gives, 'const {', `} = window.${name};`).map((line) => shell.indent + line);
+  const anchor = shell.records[place.index];
+  const glue = (handed ? handedGlue(gives, name, hands) : wrapNames(gives, 'const {', `} = window.${name};`)).map((line) => shell.indent + line);
   if (anchor && (!movedSet.has(anchor) || blank(rangeLines(anchor).at(-1)))) glue.push('');
   const glueLine = anchor ? shell.open + (movedSet.has(anchor) ? topOf(anchor) : anchor.range[0]) : shell.close;
   const moving = new Set(moved.flatMap((record) => Array.from({ length: record.range[1] - topOf(record) + 1 }, (_, i) => shell.open + topOf(record) + i)));
@@ -252,10 +265,13 @@ export function planInnerScript({ text, parser, source, target, about, names, ea
     body.push(...piece);
   });
   body.push('', ...wrapNames(gives, `window.${name} = {`, '};').map((line) => shell.indent + line), CLOSES[0]);
-  if (body.length > maxLines) {
-    throw new Refusal([`${target} would be ${body.length} lines, the limit for a new file is ${maxLines}: move less per file, split by what the code does`]);
+  const plain = `${body.join('\n')}\n`;
+  const targetText = handed ? toHanded(plain, name, hands) ?? plain : plain;
+  const size = targetText.split('\n').length - 1;
+  if (size > maxLines) {
+    throw new Refusal([`${target} would be ${size} lines, the limit for a new file is ${maxLines}: move less per file, split by what the code does`]);
   }
-  return { newSource: kept.join('\n'), targetText: `${body.join('\n')}\n`, moved: movedNames, gives, name,
+  return { newSource: kept.join('\n'), targetText, moved: movedNames, gives, name, hands,
     ranges: moved.map((record) => [shell.open + topOf(record) + 1, shell.open + record.range[1] + 1]), glue: { at, lines: glue }, takes,
     retakes: retakes.map((entry) => ({ at: entry.at, was: entry.was, now: entry.now })) };
 }

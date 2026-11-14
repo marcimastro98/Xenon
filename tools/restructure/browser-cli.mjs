@@ -8,12 +8,12 @@
 //   node tools/restructure/cli.mjs browser cuts <stylesheet>               the lines where a stylesheet opens a section
 //   node tools/restructure/cli.mjs browser split-css <stylesheet> [--dry-run] <line>:<Part.css> ...
 //   node tools/restructure/cli.mjs browser inline --from <page> --to <new script> --about "<one sentence>" [--nth 0]
-//   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }, { inner, to, about, names }, { state, object, not, names }]
+//   node tools/restructure/cli.mjs browser apply <plan.json> [--dry-run]   several moves: [{ from, to, about, picks }, { css, cuts }, { inner, to, about, names, handed? }, { state, object, not, names }]
 //   node tools/restructure/cli.mjs browser module <script> [--dry-run]     turn a classic script that runs last into an ES module
 //   node tools/restructure/cli.mjs browser module <script> --unwrap [--dry-run]   take the wrapper off a script that is a module already
 //   node tools/restructure/cli.mjs browser module --list [--all]           which scripts can become a module today, and what keeps the others
 //   node tools/restructure/cli.mjs browser inner <script> | --survey [--all]   the functions of a script's wrapper that may leave it, and what keeps the rest
-//   node tools/restructure/cli.mjs browser inner --from <script> --to <script's name>/<job>.js --about "<one sentence>" [--recorded <before.json>] [--dry-run] <function | group:N> ...
+//   node tools/restructure/cli.mjs browser inner --from <script> --to <script's name>/<job>.js --about "<one sentence>" [--handed] [--recorded <before.json>] [--dry-run] <function | group:N> ...
 //   node tools/restructure/cli.mjs browser state <script> [--object <name>] [--not <let>,<let>] [--dry-run] [<let> ...]   the wrapper's lets as properties of one object
 //   node tools/restructure/cli.mjs browser consumers <file>                who names a browser file in code
 //   node tools/restructure/cli.mjs browser tests <file> [--write]          point the tests that read it as text at the reader
@@ -284,7 +284,7 @@ export async function main(argv) {
     const dryRun = Boolean(flags['dry-run']);
     if (command === 'apply') return runMoves(parser, JSON.parse(readFileSync(rest[0], 'utf8')), dryRun);
     if (command === 'split-css') return runMoves(parser, [{ css: rest[0], cuts: rest.slice(1) }], dryRun);
-    if (command === 'inner') return runMoves(parser, [{ inner: flags.from, to: flags.to, about: flags.about, names: rest, recorded: flags.recorded }], dryRun);
+    if (command === 'inner') return runMoves(parser, [{ inner: flags.from, to: flags.to, about: flags.about, names: rest, recorded: flags.recorded, handed: Boolean(flags.handed) }], dryRun);
     if (command === 'state') return runMoves(parser, [{ state: rest[0], object: flags.object, not: flags.not, names: rest.slice(1) }], dryRun);
     if (command === 'inline') return runMoves(parser, [{ inline: flags.from, to: flags.to, about: flags.about, nth: flags.nth }], dryRun);
     return runMoves(parser, [{ from: flags.from, to: flags.to, about: flags.about, picks: rest }], dryRun);
