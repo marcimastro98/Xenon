@@ -7,7 +7,7 @@ import { answersTo, commentsOf, mentionsOf, movedNames, stalePointers } from '..
 
 const TRACKED = new Set([
   'server/server.js', 'server/big.js', 'server/part/judge.js', 'server/part/store.js',
-  'server/js/settings.js', 'server/js/settings/apply.js', 'packages/core/src/format.js', 'DEVELOPER.md',
+  'server/js/panel.js', 'server/js/panel/apply.js', 'packages/core/src/format.js', 'DEVELOPER.md',
 ]);
 const LEDGER = { sources: {
   'server/big.js': [{ file: 'server/part/judge.js', about: '', names: ['isAllowed', 'start', 'keepWrite'] }],
@@ -15,19 +15,19 @@ const LEDGER = { sources: {
 } };
 const BROWSER = { moves: [
   { kind: 'script', from: 'server/index.html', file: 'server/js/page.js' },
-  { kind: 'inner', from: 'server/js/settings.js', file: 'server/js/settings/apply.js', names: ['applyHubSettings'] },
+  { kind: 'inner', from: 'server/js/panel.js', file: 'server/js/panel/apply.js', names: ['applyHubSettings'] },
 ] };
 const TEXTS = { 'server/big.js': 'one\ntwo\nthree', 'server/part/judge.js': 'function isAllowed() {}' };
 const repo = () => ({ tracked: TRACKED, moved: movedNames(LEDGER, BROWSER), read: (file) => TEXTS[file] ?? null });
 const run = (file, text) => stalePointers([{ file, text }], repo()).map((row) => `${row.line} ${row.kind} ${row.what} -> ${row.now}`);
 
 test('a path is found with its line, a URL and a pattern are not paths', () => {
-  const found = mentionsOf('see server/big.js:12 and `js/settings.js`\nhttps://example.com/a/b.js and server/**/*.js and i18n/<code>.js');
-  assert.deepEqual(found.map((m) => [m.line, m.text, m.lineNo]), [[1, 'server/big.js', 12], [1, 'js/settings.js', null]]);
+  const found = mentionsOf('see server/big.js:12 and `js/panel.js`\nhttps://example.com/a/b.js and server/**/*.js and i18n/<code>.js');
+  assert.deepEqual(found.map((m) => [m.line, m.text, m.lineNo]), [[1, 'server/big.js', 12], [1, 'js/panel.js', null]]);
 });
 
 test('two files written as one word are two files, the tail of a shortened name is none', () => {
-  assert.deepEqual(mentionsOf('media.js/ai.js').map((m) => m.text), ['media.js', 'ai.js']);
+  assert.deepEqual(mentionsOf('one.js/two.js').map((m) => m.text), ['one.js', 'two.js']);
   assert.deepEqual(mentionsOf('tile-decor-frame/-overlays/-extras.js'), []);
 });
 
@@ -39,8 +39,8 @@ test('only the comments of a script are read, on their own lines', () => {
 test('a mention answers to the file beside it, to the path from the root, or to the end of a path', () => {
   assert.deepEqual(answersTo('./part/judge.js', 'server/big.js', TRACKED), ['server/part/judge.js']);
   assert.deepEqual(answersTo('server/big.js', 'DEVELOPER.md', TRACKED), ['server/big.js']);
-  assert.deepEqual(answersTo('js/settings.js', 'server/part/judge.js', TRACKED), ['server/js/settings.js']);
-  assert.deepEqual(answersTo('shared/src/format.js', 'server/js/settings.js', TRACKED), ['packages/core/src/format.js']);
+  assert.deepEqual(answersTo('js/panel.js', 'server/part/judge.js', TRACKED), ['server/js/panel.js']);
+  assert.deepEqual(answersTo('shared/src/format.js', 'server/js/panel.js', TRACKED), ['packages/core/src/format.js']);
   assert.deepEqual(answersTo('../big.js', 'tools/x/tool.mjs', TRACKED), []);
 });
 
@@ -48,7 +48,7 @@ test('a name is told where it lives today, not where it stopped on the way', () 
   const moved = movedNames(LEDGER, BROWSER);
   assert.equal(moved.get('server/big.js').get('keepWrite'), 'server/part/store.js');
   assert.equal(moved.get('server/big.js').get('isAllowed'), 'server/part/judge.js');
-  assert.equal(moved.get('server/js/settings.js').get('applyHubSettings'), 'server/js/settings/apply.js');
+  assert.equal(moved.get('server/js/panel.js').get('applyHubSettings'), 'server/js/panel/apply.js');
   assert.equal(moved.has('server/index.html'), false);
 });
 
@@ -62,7 +62,7 @@ test('a line number past the end of the file is gone', () => {
 
 test('a name beside the file it left is moved, on the line or the one next to it', () => {
   assert.deepEqual(run('server/server.js', '// see isAllowed in big.js'), ['1 moved isAllowed in big.js -> server/part/judge.js']);
-  assert.deepEqual(run('server/server.js', '// the settings are applied\n// by settings.js (applyHubSettings)'), ['2 moved applyHubSettings in settings.js -> server/js/settings/apply.js']);
+  assert.deepEqual(run('server/server.js', '// the settings are applied\n// by panel.js (applyHubSettings)'), ['2 moved applyHubSettings in panel.js -> server/js/panel/apply.js']);
 });
 
 test('a plain word is a name only when it is written as code', () => {
