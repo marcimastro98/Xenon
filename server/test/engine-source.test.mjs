@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, oldSpellings, stateRewrites, wholeObjects } from './engine-source.mjs';
+import { blocksBack, bodiesBack, cutObjects, declarationSource, engineSource, extractedFrom, fileDeclaring, oldDeclarations, oldNames, oldSpellings, stateRewrites, wholeObjects } from './engine-source.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -23,10 +23,12 @@ const spelled = new Map(entries.filter((entry) => entry.spelled).map((entry) => 
 const asWritten = (file) => {
   const onDisk = readFileSync(join(ROOT, file), 'utf8');
   const text = spelled.has(file) ? oldSpellings(onDisk, spelled.get(file)) : onDisk;
-  return oldNames(wholeObjects(file, bodiesBack(file, placeModules.has(file) ? oldPathsText(text) : text)), rewrites);
+  return oldNames(wholeObjects(file, bodiesBack(file, blocksBack(file, placeModules.has(file) ? oldPathsText(text) : text))), rewrites);
 };
 // The parts a big list was cut into: the readers hand out the list in one piece, and a part only when asked by name.
 const partNames = new Set(cutObjects().flatMap((cut) => cut.parts.map((part) => part.name)));
+// The function a block's lines stand in: the readers hand out the lines back in their place, and the function only when asked by name.
+const blockNames = new Set(entries.filter((entry) => entry.block).map((entry) => entry.names[0]));
 
 test('every module on the list exists, under the line limit, in a feature folder', () => {
   const seen = new Set();
@@ -63,7 +65,7 @@ test('a name is declared in one place, and the readers find it there', () => {
     for (const name of names) {
       assert.equal(fileDeclaring(name), file);
       const text = declarationSource(name);
-      const where = partNames.has(name) ? readFileSync(join(ROOT, file), 'utf8') : asWritten(file);
+      const where = partNames.has(name) || blockNames.has(name) ? readFileSync(join(ROOT, file), 'utf8') : asWritten(file);
       assert.ok(where.includes(text), `${name} is read from ${file}`);
       const escaped = name.replace(/[$]/g, '\\$&');
       assert.ok(!new RegExp(`^(?:async\\s+)?(?:function\\*?|const|let|var|class)\\s+${escaped}\\b`, 'm').test(engine),

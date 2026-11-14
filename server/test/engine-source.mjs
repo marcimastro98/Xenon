@@ -27,10 +27,15 @@
 //
 // A function that asks for a module inside its body (`require('./net-guard')`) has the path spelled for
 // its new folder (tools/restructure extract-inline.mjs). The text handed out here has the old spelling back.
+//
+// The lines of a block of a long function may stand in a function of a module of their own, with one call left
+// where they stood (tools/restructure `block`). The text handed out here has the lines back in their place, and
+// the module without them; asked for by its name, the new function is read as its module has it.
 import { readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { emptyModuleText, undoBlockText } from '../../tools/restructure/block-text.mjs';
 import { undoBranchesText } from '../../tools/restructure/branches-text.mjs';
 import { undoGatherText } from '../../tools/restructure/gather-undo.mjs';
 import { oldPathsText } from '../../tools/restructure/paths-undo.mjs';
@@ -64,7 +69,23 @@ const oldPlaces = (file) => {
   const text = PATH_MODULES.has(file) ? oldPathsText(readAsIs(file)) : readAsIs(file);
   return SPELLED.has(file) ? oldSpellings(text, SPELLED.get(file)) : text;
 };
-const read = (file) => once(`put back: ${file}`, () => wholeObjects(file, bodiesBack(file, oldPlaces(file))));
+// A module that holds the lines of a block, with the name of its function.
+const BLOCKS = new Map(Object.values(readLedger().sources ?? {}).flat().filter((entry) => entry.block).map((entry) => [entry.file, entry.names[0]]));
+const read = (file) => once(`put back: ${file}`, () => wholeObjects(file, bodiesBack(file, blocksBack(file, oldPlaces(file)))));
+
+/**
+ * @param {string} file repo-relative @param {string} text its text
+ * @returns {string} a file with the lines of every block taken out of it back in their place, the last one taken out
+ *   first; a module that holds such lines without them
+ */
+export function blocksBack(file, text) {
+  if (BLOCKS.has(file)) return emptyModuleText(text, BLOCKS.get(file));
+  return ledgerOf(file).filter((entry) => entry.block).reduceRight((out, entry) => {
+    const undone = undoBlockText(out, readAsIs(entry.file), entry.names[0]);
+    if (undone.problems.length) throw new Error(`${entry.file}: ${undone.problems.join('; ')}`);
+    return undone.text;
+  }, text);
+}
 
 /**
  * @param {string} text a module @param {Record<string, string>} spelled new spelling of a path to the old one
@@ -221,7 +242,7 @@ export function declarationSource(name, source = ENGINE) {
   const file = fileDeclaring(name, source);
   const holder = valueHolder(name, source);
   // A part of a cut object is not in the text handed out as a whole; asked for by name, it is read as its module has it.
-  const text = PARTS.has(name) ? oldPlaces(file) : read(file);
+  const text = PARTS.has(name) || BLOCKS.get(file) === name ? oldPlaces(file) : read(file);
   const lines = (holder ? oldDeclarations(text, holder) : oldNames(text, stateRewrites(source), gatheredIn(source))).split('\n');
   const escaped = name.replace(/[$]/g, '\\$&');
   const opening = new RegExp(`^(?:(?:async\\s+)?function\\*?\\s+${escaped}\\s*\\(|(?:const|let|var|class)\\s+${escaped}\\b)`);

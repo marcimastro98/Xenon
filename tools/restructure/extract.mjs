@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, wr
 import path from 'node:path';
 
 import { analyze } from './analyze.mjs';
+import { planBlockFor, proveBlockFor } from './block.mjs';
 import { redoBranches } from './branches.mjs';
 import { diskTree, dropOnDisk } from './dead-requires-disk.mjs';
 import { spelledOf } from './extract-inline.mjs';
@@ -178,6 +179,7 @@ export function replay({ root, parser, base, show = gitShow }) {
         if (entry.lift) plan = planLiftFor({ ...step, name: entry.names[0] });
         else if (entry.paths) plan = planPathsFor({ ...step, names: entry.names });
         else if (entry.inner) plan = planInnerFor({ ...step, ...entry.inner, names: entry.names, ownModules });
+        else if (entry.block) plan = planBlockFor({ ...step, ...entry.block, name: entry.names[0] });
         else if (entry.state) {
           plan = planStateFor({ ...step, object: entry.state.object, vars: Object.entries(entry.state.props).map(([name, prop]) => ({ name, prop })) });
         } else plan = planFor({ ...step, names: entry.names, withDeps: false, ownModules });
@@ -199,13 +201,15 @@ export function replay({ root, parser, base, show = gitShow }) {
       const proof = entry.paths ? provePaths({ ...texts, parser, source, target: entry.file })
         : entry.lift ? proveLift({ ...texts, parser, source, target: entry.file, fileOf: repoFileReader(root) })
         : entry.inner ? proveInner({ ...texts, parser, source, target: entry.file, ...entry.inner })
+        : entry.block ? proveBlockFor({ ...texts, parser, source, target: entry.file, about: entry.about, ...entry.block, name: entry.names[0] })
         : entry.state ? proveState({ ...texts, parser, source }) : proveMove({ ...texts, paths: { source, target: entry.file, fileOf: repoFileReader(root) } });
       // The paths a move spelled again are in the list (engine-source.mjs reads them): the list says what the tool does.
-      if (!entry.lift && !entry.paths && !entry.inner && !entry.state && JSON.stringify(spelledOf(plan)) !== JSON.stringify(entry.spelled ?? null)) {
+      const plain = !entry.lift && !entry.paths && !entry.inner && !entry.state && !entry.block;
+      if (plain && JSON.stringify(spelledOf(plan)) !== JSON.stringify(entry.spelled ?? null)) {
         problems.push(`${entry.file}: the list does not record the paths the move spells again ("spelled")`);
       }
       // The same for a module that says SERVER_DIR where the old file said __dirname.
-      if (!entry.lift && !entry.paths && !entry.inner && !entry.state && Boolean(plan.glue.home?.length) !== Boolean(entry.home)) {
+      if (plain && Boolean(plan.glue.home?.length) !== Boolean(entry.home)) {
         problems.push(`${entry.file}: the list does not say whether the move respells __dirname ("home")`);
       }
       problems.push(...proof.map((p) => `${entry.file}: ${p}`));
