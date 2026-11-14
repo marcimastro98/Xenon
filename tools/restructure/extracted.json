@@ -712,6 +712,17 @@
       {"file":"server/search/search-opens.js","about":"What was opened from the search and how often, the signal results are ranked by: read once, written a moment after it changes, and shown as a summary.","names":["loadUsage","scheduleUsageSave","usageSnapshot"],"inner":{"factory":"createFileSearch","make":"makeOpens"}},
       {"file":"server/search/search-catalog.js","about":"The slow half of a search, Windows Search: asked once per query and kept for a few seconds, so the follow-up collects the answer instead of asking again, and its rows.","names":["catalogKey","startCatalog","catalogItems"],"inner":{"factory":"createFileSearch","make":"makeCatalog"}},
       {"file":"server/search/search-answers.js","about":"Answering a search: a pasted path, the index, the apps and the catalog merged and ranked by what was opened before, and the list of what was opened lately.","names":["livingMatches","search","pastedTarget","queryText","withTimeout","usagePool","scoreApp","execQuery","publicResult","catalog","recent"],"inner":{"factory":"createFileSearch","make":"makeAnswers"},"bare":["./search-pasted-path"]}
+    ],
+    "server/stream-spotify.js": [
+      {"file":"server/streaming/spotify-endpoints.js","about":"Where the Spotify provider talks to Spotify: the addresses of sign-in and of the API, the permissions it asks for, how long an unfinished sign-in is kept, and the base64url spelling PKCE wants.","names":["AUTH_URL","TOKEN_URL","API","SCOPES","PENDING_TTL_MS","b64url"]},
+      {"file":"server/streaming/spotify-backoff.js","about":"The pause after Spotify answers 429: until when every call is held back, how long is left, and the profile read that respects it.","names":["backoff","rateLimited","retryAfterMs","noteRateLimit","fetchMe"],"inner":{"factory":"createSpotifyProvider","make":"makeBackoff"}},
+      {"file":"server/streaming/spotify-sign-in.js","about":"Signing in to Spotify with PKCE: the address of the consent page and the state that guards the way back, the code exchanged for tokens, and the token renewed.","names":["pending","sweepPending","configured","buildAuthUrl","exchangeCode","refresh"],"inner":{"factory":"createSpotifyProvider","make":"makeSignIn"}},
+      {"file":"server/streaming/spotify-requests.js","about":"One call to the Spotify Web API and how its answer is read: the token put on it, the pause respected, the short cache of what widgets read, a refusal told apart from a failure, an id checked and a number kept within its bounds before they go in an address.","names":["QUERY_CACHE_MAX","_queryCache","queryCacheClear","queryCacheGet","queryCachePut","apiRequest","classify403","apiResult","spotifyId","clampInt"],"inner":{"factory":"createSpotifyProvider","make":"makeRequests"}},
+      {"file":"server/streaming/spotify-player.js","about":"What is playing on Spotify: the snapshot of the player kept for a few seconds and shared by everyone who asks, whether the track is liked, the playlists and the devices.","names":["PLAYER_TTL_MS","getPlaylists","getDevices","trackFull","isSaved","lastLiked","isSavedCached","getPlayer","_getPlayerUncached"],"inner":{"factory":"createSpotifyProvider","make":"makePlayer"}},
+      {"file":"server/streaming/spotify-queue.js","about":"What Spotify plays next: one track made into a row, and the queue cut where it starts over.","names":["trackLite","queueCycleLength","normalizeQueue","getQueue"],"inner":{"factory":"createSpotifyProvider","make":"makeQueue"}},
+      {"file":"server/streaming/spotify-search.js","about":"Finding something on Spotify and playing it: a search, its first result played or queued, a track played alone inside its album, and an address checked before it is played.","names":["search","playSearch","TRACK_RE","ALBUM_RE","albumOf","playTrackAlone","queueSearch","URI_RE","CONTEXT_RE","playUri"],"inner":{"factory":"createSpotifyProvider","make":"makeSearch"}},
+      {"file":"server/streaming/spotify-controls.js","about":"What can be done to the Spotify player: play and pause, skip, shuffle, repeat, volume, seek, like, start a playlist, move to another device, wait for this computer, and the one door every action comes through.","names":["saveCurrent","playPlaylist","setShuffle","transferDevice","transferToId","playPause","thisComputer","startPlayback","computerIds","READY_TRIES","READY_INTERVAL_MS","playWhenReady","skipTo","skipNext","skipPrev","setRepeat","toggleLike","setVolume","seek","runAction"],"inner":{"factory":"createSpotifyProvider","make":"makeControls"}},
+      {"file":"server/streaming/spotify-query.js","about":"What an SDK widget may read from Spotify: the list of readings and the address each one builds from checked parts, its answer shaped, and the same reading shared while it runs and remembered for a few seconds.","names":["QUERY_TTL_MS","QUERY_TTL_VOLATILE_MS","QUERY_VOLATILE","_queryPending","queryId","pageInt","page","cursorMs","cursorPath","SEARCH_TYPES","QUERY_OPS","QUERY_AFTER","shapeQueryAnswer","query"],"inner":{"factory":"createSpotifyProvider","make":"makeQuery"}}
     ]
   },
   "spreads": {
@@ -896,6 +907,11 @@
     ],
     "server/filesearch.js": [
       {"factory":"createFileSearch","object":"tally","names":["usage","usageSaveTimer","usageDirty"],"kept":[],"bare":[],"after":0}
+    ],
+    "server/stream-spotify.js": [
+      {"factory":"createSpotifyProvider","object":"backoff","names":["_rateLimitedUntil"],"kept":[],"bare":[],"after":0},
+      {"factory":"createSpotifyProvider","object":"playerState","names":["_playerCache","_playerPending","_playerGen"],"kept":[],"bare":[],"after":0},
+      {"factory":"createSpotifyProvider","object":"lastLiked","names":["_likedCache"],"kept":[],"bare":[],"after":0}
     ]
   }
 }
