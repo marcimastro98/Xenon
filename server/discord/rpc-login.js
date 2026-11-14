@@ -32,8 +32,16 @@ function makeLogin({
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: c.refreshToken }),
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
-      if (data && String(data.error || '').toLowerCase() === 'invalid_grant') await clearCreds();
+      if (res.ok && data && data.access_token) { await persistToken(data); watchState.secretRejected = false; return true; }
+      const oauthErr = String(data?.error || '').toLowerCase();
+      if (oauthErr === 'invalid_grant') await clearCreds();
+      // The app's Client Secret was reset in the Developer Portal. Not a blip: no
+      // retry renews the login, and Discord itself is fine, so it must not read as
+      // "open Discord" (it did, retried every 30 s and logged nothing).
+      if (oauthErr === 'invalid_client') {
+        if (!watchState.secretRejected) console.error('[discord] Discord refused the Client Secret while renewing the login: reset it in the Developer Portal and save it under Settings > Streaming.');
+        watchState.secretRejected = true;
+      }
       return false;
     } catch { return false; }   // network blip: keep creds, fail this attempt
   }
@@ -182,7 +190,10 @@ function makeLogin({
   async function status() {
     const c = await creds();
     return {
-      connected: !!c.accessToken, login: c.username, configured: configured(), notif: watchState.notifState,
+      // A login whose renewal Discord refuses is no link: the widgets say "connect"
+      // and Settings shows why (secretRejected) next to the Connect button.
+      connected: !!c.accessToken && !watchState.secretRejected, login: c.username, configured: configured(), notif: watchState.notifState,
+      secretRejected: watchState.secretRejected,
       // 'granted' | 'missing' | 'unknown' — read from the grant itself, so the UI
       // can say a re-link is needed the moment the switch goes on rather than
       // after a subscription has been refused. See notifScopeState.

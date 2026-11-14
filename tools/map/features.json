@@ -468,6 +468,7 @@
       "what": "Volume, output devices, the microphone and Wave Link.",
       "files": [
         "server/audio/**",
+        "server/app-audio/**",
         "server/audio-levels.js",
         "server/mic-use.js",
         "server/svv-text.js",

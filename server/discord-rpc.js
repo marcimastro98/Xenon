@@ -95,6 +95,7 @@ function createDiscordProvider(deps) {
     notifState: 'off',
     watchChannelId: null,   // channel we've SUBSCRIBE'd SPEAKING for (or null)
     currentVoiceChannelId: null,  // learned from VOICE_CHANNEL_SELECT — covers DM/group calls
+    secretRejected: false,  // Discord answered invalid_client to a token renewal
   };
   const speaking = new Set();  // user ids currently speaking in the watched channel
 
@@ -193,7 +194,7 @@ function createDiscordProvider(deps) {
           // Creds still stored: the refresh only failed for now, so the watch must
           // retry. 'not_connected' would stop it with the account still linked.
           creds().then(
-            (left) => fail(new Error(left.accessToken ? 'discord_closed' : 'not_connected')),
+            (left) => fail(new Error(watchState.secretRejected ? 'bad_client_secret' : (left.accessToken ? 'discord_closed' : 'not_connected'))),
             () => fail(new Error('not_connected')),
           );
           return;

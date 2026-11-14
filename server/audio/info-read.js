@@ -6,9 +6,11 @@ const { resolveAppIcons } = require('../programs/app-icons.js');
 const { audioReads } = require('./read-state.js');
 const { readSoundVolumeRows } = require('./volume-rows.js');
 const { _maybeRebindSttDevice } = require('../ai/stt-start.js');
+const { _appSessions } = require('./app-each.js');
 
 async function _getAudioInfoRaw() {
   const allRows = await readSoundVolumeRows();
+  _appSessions.remember(allRows);
 
   // ── Device-level (master) ────────────────────────────────────
   const deviceRows = allRows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');

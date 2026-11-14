@@ -83,6 +83,8 @@
     const outer = slot.getBoundingClientRect();
     const inner = frame.getBoundingClientRect();
     const want = { w: asked.w + Math.max(0, outer.width - inner.width), h: asked.h + Math.max(0, outer.height - inner.height) };
+    // A box sized by its widget drops the slot's touch minimum (LayerHost.css).
+    slot.dataset.fit = 'true';
     const box = boxOf(slot);
     if (sameSize(box, want, win)) return '';
     const next = rectFor(box, want, win, { h: slot.dataset.h, v: slot.dataset.v });

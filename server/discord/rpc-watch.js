@@ -166,7 +166,9 @@ function makeWatch({
       await recompute();
     } catch (e) {
       const msg = (e && e.message) || '';
-      if (msg === 'not_connected') {     // no/expired token — surface "not linked", don't spin
+      // No/expired token, or a Client Secret Discord refuses: surface "not linked"
+      // (Settings says which), don't spin. Saving new credentials re-arms the watch.
+      if (msg === 'not_connected' || msg === 'bad_client_secret') {
         emitOffline(false);
         if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         return;

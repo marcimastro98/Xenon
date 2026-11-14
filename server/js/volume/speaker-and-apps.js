@@ -193,6 +193,12 @@ function wireAppMixer() {
   });
 }
 
+// The microphone mixer changes an app's microphone only: Discord's input slider
+// must not move Discord's output (the server sets each direction on its own).
+function appMixDir(row) {
+  return row.closest('#mic-apps') ? 'capture' : 'render';
+}
+
 function handleAppMixInput(slider) {
   const row = slider.closest('.app-mix-row');
   if (!row) return;
@@ -200,18 +206,21 @@ function handleAppMixInput(slider) {
   // The process name outlives the session CLI id (which rotates when the app
   // restarts), so it rides along as the server's preferred durable target.
   const proc = row.dataset.appProc || '';
+  const dir = appMixDir(row);
   const level = parseInt(slider.value, 10);
   lastAppMixTouch = Date.now();
   const volEl = row.querySelector('.app-mix-vol');
   if (volEl) volEl.textContent = level + '%';
   slider.style.background = appMixSliderBg(level);
   row.classList.remove('app-mix-muted');
-  clearTimeout(appVolDebounce[id]);
-  appVolDebounce[id] = setTimeout(() => {
+  // An app's output and microphone rows can share one id: debounce them apart.
+  const key = dir + ':' + id;
+  clearTimeout(appVolDebounce[key]);
+  appVolDebounce[key] = setTimeout(() => {
     fetch(SERVER + '/audio/app/volume', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, level, proc }),
+      body: JSON.stringify({ id, level, proc, dir }),
     }).catch(() => {});
   }, 120);
 }
@@ -230,7 +239,7 @@ async function handleAppMixMute(btn) {
     await fetch(SERVER + '/audio/app/mute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, muted: nowMuted, proc }),
+      body: JSON.stringify({ id, muted: nowMuted, proc, dir: appMixDir(row) }),
     });
   } catch {}
 }

@@ -118,7 +118,7 @@ const {
 
 const { liveMediaSnapshot } = require('./media/snapshot.js');
 
-const { appAudioTarget } = require('./audio/app-target.js');
+const { svvEachApp } = require('./audio/app-each.js');
 
 const { cpuSnapshot, getCpuName } = require('./system/cpu.js');
 
@@ -2357,16 +2357,12 @@ const deckRegistryDeps = {
     if (mode === 'set') return svvExec(['/SetVolume', audioCache.speakerId, String(value)]);
   },
   appVolume: async (app, mode, value) => {
-    const target = appAudioTarget(app);
-    if (!target) throw new Error('no app named');
-    if (mode === 'set') return svvExec(['/SetVolume', target, String(value)]);
-    return svvExec(['/ChangeVolume', target, mode === 'down' ? '-5' : '5']);
+    if (mode === 'set') return svvEachApp(app, '', (t) => ['/SetVolume', t, String(value)]);
+    return svvEachApp(app, '', (t) => ['/ChangeVolume', t, mode === 'down' ? '-5' : '5']);
   },
   appMute: async (app, mode) => {
-    const target = appAudioTarget(app);
-    if (!target) throw new Error('no app named');
     const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
-    return svvExec([verb, target]);
+    return svvEachApp(app, '', (t) => [verb, t]);
   },
   // Switch the default OUTPUT device. The id is matched against the live
   // enumeration before it is used, and only against `speakers` — this is the
