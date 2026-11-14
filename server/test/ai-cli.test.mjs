@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { appStringsSource } from './i18n-source.mjs';
-import { engineSource } from './engine-source.mjs';
+import { declarationSource, engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const cli = require('../ai-cli.js');
@@ -325,7 +325,7 @@ test("Bit's automatic lines never spend the subscription; what the user starts m
 
 test('lyrics translation and widget questions, the automatic uses of a plan, run on its small model at low effort', () => {
   const S = engineSource();
-  const fn = S.slice(S.indexOf('async function completeWithUserAi('), S.indexOf('async function userAiBlocker('));
+  const fn = declarationSource('completeWithUserAi');
   assert.match(fn, /aiCli\.oneShot\(\{\s*provider, model: await smallTaskModel\(provider, settings\), effort: 'low'/);
   assert.match(S, /if \(aiCli\.isCliProvider\(provider\)\) return aiCli\.lightModel\(provider\);/);
 });
