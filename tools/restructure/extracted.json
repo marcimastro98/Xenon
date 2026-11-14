@@ -515,6 +515,11 @@
     ],
     "server/menu-widgets.js": [
       {"file":"server/menu/widget-add-choices.js","about":"The choices of the menu's Add row: a tile, a package from the Store with its pictures, a key, and the filters over them.","names":["tileChoice","storeShots","packageChoice","placeTile","recommended","addChoices","keyChoice","addFilters","addRow"]}
+    ],
+    "server/community-catalog.js": [
+      {"file":"server/store-catalog/description-limit.js","about":"How long a Store entry's description may be: the shared limit, or a fixed one when the shared file is not there.","names":["DESCRIPTION_MAX"],"lift":true},
+      {"file":"server/store-catalog/catalog-entry-clean.js","about":"Cleans the Store catalog the site publishes before the app trusts it: each entry's id, kind, version, pictures, price and limits, and which entries are showing.","names":["MAX_ENTRIES","CODE_INLINE_MAX","CATALOG_KINDS","ENTRY_ID_RE","HEX_COLOR_RE","VERSION_RE","PKG_ID_RE","TAG_RE","HANDLE_RE","CATALOG_CATEGORIES","ISO_DATE_RE","MAX_SHOTS","SPARKS_MAX","cleanStr","normalizeLimited","normalizeEntry","normalizeCatalog","isEntryVisible","filterVisibleEntries","normalizeCodeId"]},
+      {"file":"server/store-catalog/catalog-fetch.js","about":"Fetches a file of the Store catalog, only when it changed, with a size cap and a total deadline.","names":["FETCH_TIMEOUT_MS","FETCH_DEADLINE_MS","MAX_BODY_BYTES","fetchText"]}
     ]
   },
   "spreads": {

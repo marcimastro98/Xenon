@@ -134,7 +134,7 @@ test('every module that calls https bounds each call with armDeadline, or says w
   const rows = scan();
   const names = rows.map((r) => r.rel);
   // The scan must actually see the clients, or every check below passes vacuously.
-  for (const known of ['community-catalog.js', 'community-limited.js', 'ticker/news-fetch.js', 'server.js']) {
+  for (const known of ['store-catalog/catalog-fetch.js', 'community-limited.js', 'ticker/news-fetch.js', 'server.js']) {
     assert.ok(names.includes(known), 'scan missed ' + known);
   }
   const problems = [];

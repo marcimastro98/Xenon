@@ -8,6 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { engineSource } from './engine-source.mjs';
 
 const src = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 const mb = (text, name) => {
@@ -17,7 +18,7 @@ const mb = (text, name) => {
 };
 
 test('the Store code ceiling agrees between the app and the export dialog', () => {
-  const catalog = mb(src('../community-catalog.js'), 'MAX_CODE_BYTES');
+  const catalog = mb(engineSource('server/community-catalog.js'), 'MAX_CODE_BYTES');
   const share = src('../js/preset-share.js');
   assert.equal(mb(share, 'CATALOG_CODE_MAX'), catalog);
   assert.ok(mb(share, 'MAX_CODE_BYTES') >= Math.ceil(catalog * 0.75), 'the import dialog must decode any code the catalog accepts');
