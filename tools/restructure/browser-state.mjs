@@ -2,8 +2,10 @@
 // lives, not only on the day of the move: the pages still load the parts in a
 // row and in order (the pages the engine builds for widgets on the desktop too),
 // a script made of moved declarations still runs nothing while it loads, and
-// nothing it needs for a first value comes after it. And for every script turned
-// into a module: it still says so, and every page loads it as one, last.
+// nothing it needs for a first value comes after it. For every script turned
+// into a module: it still says so, and every page loads it as one, last. And for
+// every script made of functions taken out of a wrapper: it is still only those
+// functions and the one name it leaves on `window` (browser-inner-proof.mjs).
 
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -11,10 +13,12 @@ import path from 'node:path';
 
 import { analyzeRun, orderProblems, runsOnLoad } from './browser-analyze.mjs';
 import { consumerProblems } from './browser-consumers.mjs';
-import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
+import { nameClashes } from './browser-inner-names.mjs';
+import { innerStateProblems } from './browser-inner-proof.mjs';
+import { innerFilesOf, readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { BUILT_LIST, LIST_FILES, listRunProblems } from './browser-lists.mjs';
 import { moduleStateProblems } from './browser-module.mjs';
-import { nodeLoadProblems } from './browser-node-loads.mjs';
+import { nodeLoadersOf, nodeLoadProblems } from './browser-node-loads.mjs';
 import { listPages, runProblems, tagsOf } from './browser-pages.mjs';
 import { readStylesheet } from './browser-styles.mjs';
 import { unwrapStateProblems } from './browser-unwrap.mjs';
@@ -81,6 +85,12 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
       for (const part of run) problems.push(...readStylesheet(read(part)).problems.map((problem) => `${part}: ${problem}`));
       continue;
     }
+    const inner = innerFilesOf(ledger, file);
+    if (inner.length) {
+      problems.push(...innerStateProblems({ source: file, text: read(file), parts: inner.map((part) => ({ file: part, text: read(part) })), parser }));
+      problems.push(...nodeLoadersOf(root, file).slice(0, 1).map((loader) => `${file} is loaded by Node (${loader}), where the scripts made of its functions do not load before it`));
+      continue;
+    }
     const now = scriptProblems(run, read, parser, root);
     problems.push(...now.problems);
     const was = base ? run.filter((part) => base(part) !== null) : [];
@@ -99,6 +109,7 @@ export function stateProblems({ root, parser, tests = true, base = null }) {
     files.push(move.file);
     problems.push(...moduleStateProblems(move.file, read(move.file), pages, parser));
   }
+  problems.push(...nameClashes(root, ledger.moves.filter((entry) => entry.kind === 'inner').map(({ name, from, file }) => ({ name, from, file }))));
   problems.push(...unwrapStateProblems(ledger));
   return { problems, files };
 }

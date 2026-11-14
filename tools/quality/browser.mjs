@@ -66,7 +66,7 @@ export function inlineHandlers(html) {
  * @returns {(file: string) => string} the script a file was split out of (through several splits) or the page it was written in, or the file itself
  */
 export function familyOf(ledger) {
-  const from = new Map(ledger.moves.filter((move) => move.kind === 'script' || move.kind === 'inline').map((move) => [move.file, move.from]));
+  const from = new Map(ledger.moves.filter((move) => ['script', 'inline', 'inner'].includes(move.kind)).map((move) => [move.file, move.from]));
   return (file) => { let at = file; for (let hops = 0; from.has(at) && hops < 50; hops += 1) at = from.get(at); return at; };
 }
 

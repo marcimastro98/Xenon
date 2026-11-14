@@ -1,11 +1,14 @@
 // The moves the browser side knows, each as a function from texts to texts:
 // declarations to a script that loads right before the old one, a stylesheet cut
-// into parts linked right after it, a script written inside a page to a file, and
-// a classic script turned into an ES module (browser-module.mjs), and a module
-// that loses the wrapper it no longer needs (browser-unwrap.mjs).
+// into parts linked right after it, a script written inside a page to a file,
+// a classic script turned into an ES module (browser-module.mjs), a module
+// that loses the wrapper it no longer needs (browser-unwrap.mjs), and functions
+// out of a script's wrapper to a script that loads right before it (browser-inner-plan.mjs).
 // Nothing here touches the disk, so the same code does a move and redoes it from
 // an old revision to compare (browser-extract.mjs).
 
+import { planInnerScript } from './browser-inner-plan.mjs';
+import { proveInnerMove } from './browser-inner-proof.mjs';
 import { addToLists, LIST_FILES, listRunProblems, listsHold } from './browser-lists.mjs';
 import { moduleMove } from './browser-module.mjs';
 import { addTags, inlineScripts, runProblems, tagsOf, urlOfFile } from './browser-pages.mjs';
@@ -54,6 +57,9 @@ function scriptMove(tree, move, { parser, pages, earlier }) {
   if (earlier.some((entry) => entry.kind === 'module' && entry.file === move.from)) {
     throw new Refusal([move.from + ' is a module: its names are its own, and a script that loads before it cannot hold them']);
   }
+  if (earlier.some((entry) => entry.kind === 'inner' && entry.from === move.from)) {
+    throw new Refusal([`functions were taken out of the wrapper of ${move.from}: its scripts are made that way, not of top-level declarations`]);
+  }
   const before = earlier.filter((entry) => entry.kind === 'script' && entry.from === move.from).map((entry) => entry.file);
   const run = [...before, move.from];
   const files = retag(tree, pages, { old: move.from, added: [move.file], where: 'before', before: run, after: [...before, move.file, move.from] });
@@ -61,6 +67,25 @@ function scriptMove(tree, move, { parser, pages, earlier }) {
     names: move.names, parser });
   files.set(move.file, plan.targetText).set(move.from, plan.newSource);
   return { files, made: [move.file], record: { kind: 'script', from: move.from, file: move.file, about: move.about, names: plan.moved } };
+}
+
+// Functions out of a script's wrapper: the new script loads right before the old one, after the ones made the same way before.
+function innerMove(tree, move, { parser, pages, earlier }) {
+  const reasons = [];
+  if (earlier.some((entry) => entry.kind === 'module' && entry.file === move.from)) reasons.push(`${move.from} is a module: a module takes what it needs with an import, not from window`);
+  if (earlier.some((entry) => entry.kind === 'script' && entry.from === move.from)) reasons.push(`${move.from} is split by its top-level declarations already: one way of splitting per script`);
+  if (earlier.some((entry) => ['script', 'inner', 'inline'].includes(entry.kind) && entry.file === move.from)) reasons.push(`${move.from} was made by a move: take functions out of the script it came from`);
+  if (reasons.length) throw new Refusal(reasons);
+  const before = earlier.filter((entry) => entry.kind === 'inner' && entry.from === move.from).map((entry) => entry.file);
+  const run = [...before, move.from];
+  const files = retag(tree, pages, { old: move.from, added: [move.file], where: 'before', before: run, after: [...before, move.file, move.from] });
+  const text = need(tree, move.from);
+  const plan = planInnerScript({ text, parser, source: move.from, target: move.file, about: move.about, names: move.names });
+  const unproven = proveInnerMove({ before: text, after: plan.newSource, made: plan.targetText, plan, parser, source: move.from, target: move.file,
+    earlier: before.map((file) => ({ file, text: need(tree, file) })) });
+  if (unproven.length) throw new Refusal(unproven.map((problem) => `planned, and not proven: ${problem}`));
+  files.set(move.file, plan.targetText).set(move.from, plan.newSource);
+  return { files, made: [move.file], record: { kind: 'inner', from: move.from, file: move.file, about: move.about, names: plan.moved, gives: plan.gives, name: plan.name } };
 }
 
 function styleMove(tree, move, { pages, earlier }) {
@@ -112,13 +137,13 @@ function inlineMove(tree, move) {
  * Works one move out, from the texts in `tree`.
  * @param {{ get: (file: string) => string | null }} tree the repo's files as text, null for a file that is not there
  * @param {any} move `{ kind: 'script', from, file, about, names }`, `{ kind: 'style', from, parts: [{ file, at }] }`
- *   `{ kind: 'inline', from, file, about, nth }`, `{ kind: 'module', file }` or `{ kind: 'unwrap', file }`
+ *   `{ kind: 'inline', from, file, about, nth }`, `{ kind: 'module', file }`, `{ kind: 'unwrap', file }` or `{ kind: 'inner', from, file, about, names }`
  * @param {{ parser: any, pages: string[], earlier: any[] }} context the pages of the app and the moves done before this one
  * @returns {{ files: Map<string, string>, made: string[], record: any }} every file to write with its new text,
  *   which of them are new, and the line for the list of moves. Throws a Refusal with every reason when the move is not safe.
  */
 export function applyMove(tree, move, context) {
-  const work = { script: scriptMove, style: styleMove, inline: inlineMove, module: moduleMove, unwrap: unwrapMove }[move.kind];
+  const work = { script: scriptMove, style: styleMove, inline: inlineMove, module: moduleMove, unwrap: unwrapMove, inner: innerMove }[move.kind];
   if (!work) throw new Refusal([`unknown kind of move: ${move.kind}`]);
   const done = work(tree, move, context);
   const taken = done.made.filter((file) => tree.get(file) !== null);

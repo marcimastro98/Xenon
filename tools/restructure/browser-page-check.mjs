@@ -134,7 +134,7 @@ const madeBy = (move) => (move.kind === 'style' ? move.parts.map((part) => part.
 // and every split file followed (or led) by all its parts with nothing between.
 function loadProblems(was, now, ledger, what) {
   const problems = [];
-  const made = new Set(ledger.moves.filter((move) => move.kind === 'script' || move.kind === 'style').flatMap(madeBy).map(addressOf));
+  const made = new Set(ledger.moves.filter((move) => ['script', 'style', 'inner'].includes(move.kind)).flatMap(madeBy).map(addressOf));
   const [old, cur] = [was, now].map((list) => list.filter((address) => !made.has(address)));
   if (old.join('\n') !== cur.join('\n')) {
     const [gone, added] = [extra(cur, old), extra(old, cur)];
@@ -193,9 +193,16 @@ export function compareRecordings(before, after, ledger = readBrowserLedger(REPO
     for (const server of extra(was.refused ?? [], now.refused ?? [])) if (onThisPc(server)) say(`asks another server of this PC, which the check refused: ${server}`);
     const modules = moduleProblems(was, now, ledger);
     const gone = was.globals.filter((name) => !now.globals.includes(name) && !modules.hidden.has(name));
-    const added = now.globals.filter((name) => !was.globals.includes(name));
+    // A script made of functions taken out of a wrapper leaves one name on window: new on the pages that now load it, and nobody's before.
+    const fresh = new Map(ledger.moves.filter((move) => move.kind === 'inner' && now.scripts.includes(addressOf(move.file)) && !was.scripts.includes(addressOf(move.file)))
+      .map((move) => [move.name, move.file]));
+    const added = now.globals.filter((name) => !was.globals.includes(name) && !fresh.has(name));
     if (gone.length) say(`no longer on window: ${gone.join(', ')}`);
     if (added.length) say(`new on window: ${added.join(', ')}`);
+    for (const [name, file] of fresh) {
+      if (was.globals.includes(name) || name in was.declared || (before.engine?.blank ?? []).includes(name)) say(`${name}, the name ${file} leaves on window, was taken before`);
+      if (!now.globals.includes(name)) say(`loads ${file}, and ${name} is not on window`);
+    }
     const names = [...new Set([...Object.keys(was.declared), ...Object.keys(now.declared)])];
     const changed = names.filter((name) => (now.declared[name] !== was.declared[name] || now.declared[name] === 'missing') && !(modules.hidden.has(name) && !(name in now.declared)));
     if (changed.length) say(`top-level names that answer differently: ${changed.map((name) => `${name} (${was.declared[name] ?? 'not there'} -> ${now.declared[name] ?? 'not there'})`).join(', ')}`);

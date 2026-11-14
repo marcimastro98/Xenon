@@ -10,10 +10,12 @@ import path from 'node:path';
 import { analyzeRun } from './browser-analyze.mjs';
 import { uncheckedPages } from './browser-check-pages.mjs';
 import { consumerProblems, keptNames } from './browser-consumers.mjs';
+import { nameClashes, recordedClashes } from './browser-inner-names.mjs';
+import { windowNameOf } from './browser-inner-plan.mjs';
 import { readBrowserLedger, runOf, writeBrowserLedger } from './browser-ledger.mjs';
 import { moduleReasons, saysModule } from './browser-module.mjs';
 import { applyMove } from './browser-moves.mjs';
-import { nodeKeeps } from './browser-node-loads.mjs';
+import { nodeKeeps, nodeLoadersOf } from './browser-node-loads.mjs';
 import { wrapperOf } from './browser-unwrap.mjs';
 import { listPages } from './browser-pages.mjs';
 import { builtPages } from './browser-state.mjs';
@@ -71,6 +73,18 @@ function nodeReasons(root, parser, ledger, move, tree) {
     .map((name) => `${name} stays in ${move.from}: ${keeps.get(name)}`);
 }
 
+// Functions out of a wrapper land on `window` under one name: not for a script Node loads too (there is no window
+// there, and no script before it), and not under a name that is somebody else's.
+function innerReasons(root, move, ledger) {
+  const reasons = nodeLoadersOf(root, move.from).slice(0, 1).map((loader) => `${move.from} is loaded by Node too (${loader}): there it is one file, with no script before it and no window`);
+  const name = windowNameOf(move.from, move.file);
+  if (!name) return reasons;
+  const made = ledger.moves.filter((entry) => entry.kind === 'inner').map(({ name: taken, from, file }) => ({ name: taken, from, file }));
+  reasons.push(...nameClashes(root, [...made, { name, from: move.from, file: move.file }]).filter((problem) => problem.includes(name)));
+  if (move.recorded) reasons.push(...recordedClashes(move.recorded, name));
+  return reasons;
+}
+
 const diskTree = (root) => ({
   get: (file) => { try { return readFileSync(path.join(root, file), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } },
 });
@@ -124,6 +138,7 @@ export function perform({ root, parser, move, dryRun = false, plan = null }) {
     const kept = keptNames(root, move.from);
     for (const name of move.names ?? []) if (kept.has(name)) reasons.push(`${name} stays in ${move.from}: ${kept.get(name)} reads it there`);
     if (move.kind === 'script') reasons.push(...nodeReasons(root, parser, ledger, move, tree));
+    if (move.kind === 'inner') reasons.push(...innerReasons(root, move, ledger));
   }
   if (reasons.length) throw new Refusal(reasons);
   const { files, made, record } = applyMove(tree, move, { parser, pages: listPages(root), earlier: ledger.moves });

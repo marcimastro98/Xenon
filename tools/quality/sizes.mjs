@@ -56,7 +56,7 @@ export function splitFiles(root = REPO_ROOT) {
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
-  const made = moves.flatMap((move) => (move.kind === 'script' ? [move.file] : move.kind === 'style' ? move.parts.map((part) => part.file) : []));
+  const made = moves.flatMap((move) => (move.kind === 'script' || move.kind === 'inner' ? [move.file] : move.kind === 'style' ? move.parts.map((part) => part.file) : []));
   return new Set(made.map((file) => file.replace(/^server\//, '')));
 }
 

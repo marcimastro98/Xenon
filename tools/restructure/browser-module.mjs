@@ -150,7 +150,7 @@ export function moduleReasons({ root, parser, file, ledger, pages }) {
   if (!OURS.test(file) || VENDOR.test(file)) { say('page', `${file} is not a script of ours that a page loads`); return { reasons, names: [] }; }
   let text;
   try { text = readFileSync(path.join(root, file), 'utf8'); } catch { say('page', `${file} does not exist`); return { reasons, names: [] }; }
-  const split = ledger.moves.find((move) => ['script', 'inline'].includes(move.kind) && (move.from === file || move.file === file));
+  const split = ledger.moves.find((move) => ['script', 'inline', 'inner'].includes(move.kind) && (move.from === file || move.file === file));
   if (split) say('split', split.kind === 'inline' ? `it was written inside ${split.from}, which must load it with a plain tag` : `it is one of the scripts ${split.from} is split into: they share their names through the page's scope`);
   for (const mention of mentionsOf(root, file)) {
     const where = `${mention.file}:${mention.lines.slice(0, 3).join(',')}`;

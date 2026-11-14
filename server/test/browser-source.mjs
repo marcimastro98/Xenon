@@ -33,7 +33,7 @@ function recordedMoves() {
  */
 export function partsOf(file) {
   const mine = recordedMoves().filter((move) => move.from === file);
-  const before = mine.filter((move) => move.kind === 'script').map((move) => move.file);
+  const before = mine.filter((move) => move.kind === 'script' || move.kind === 'inner').map((move) => move.file);
   const after = mine.filter((move) => move.kind === 'style').flatMap((move) => move.parts.map((part) => part.file));
   return [...before, file, ...after];
 }
