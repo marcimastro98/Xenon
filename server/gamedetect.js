@@ -64,7 +64,7 @@ function _windowedGameActive(s) {
   if (!_gameHint || !s || s.fullscreen) return false;
   if (!s.process || isIgnoredProc(s.process) || WINDOWED_IGNORE_RE.test(s.process)) return false;
   let hint = null;
-  try { hint = _gameHint(); } catch { return false; }
+  try { const ask = _gameHint; hint = ask(); } catch { return false; }
   if (!hint || !hint.name || !Number.isFinite(hint.fps) || hint.fps < WINDOWED_MIN_FPS) return false;
   const hintName = String(hint.name).toLowerCase().replace(/\.exe$/, '');
   return hintName !== '' && hintName === s.process.replace(/\.exe$/, '');
@@ -84,7 +84,7 @@ function bareName(name) {
 
 function userIgnore() {
   let list = null;
-  try { list = _ignoreSource ? _ignoreSource() : null; } catch { list = null; }
+  try { const source = _ignoreSource; list = source ? source() : null; } catch { list = null; }
   if (list === _ignoreRef) return _userIgnore;
   _ignoreRef = list;
   _userIgnore = new Set((Array.isArray(list) ? list : []).map(bareName).filter(Boolean));
@@ -141,7 +141,7 @@ function applySample(data) {
   const gaming = isGaming();
   if (gaming !== _notifiedGaming) {
     _notifiedGaming = gaming;
-    if (_onGamingChange) { try { _onGamingChange(gaming); } catch { } }
+    try { const told = _onGamingChange; if (told) told(gaming); } catch { }
   }
 }
 

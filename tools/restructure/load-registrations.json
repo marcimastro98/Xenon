@@ -29,7 +29,7 @@
       {
         "statement": "gameDetect.setIgnoreSource(() => hub.settings && hub.settings.gameIgnore);",
         "callees": {
-          "server/gamedetect.js": "3a0e6163bd36a8e7c0e4b2c77a5b5ab195986031852e8f1798f71abd88e97e32",
+          "server/gamedetect.js": "129a818aa96d30a799d3e6403d465ad1e18c18f0e988c735ad77e43e71534046",
           "server/performance/game-ignore-lists.js": "dbd16e1526270a6cb01a66f64d42c47b7e635495d2a8fb6bba9a203da1920aed"
         },
         "reason": "setIgnoreSource stores the function in a variable and clears a cached list; the function is first called by isIgnoredProc, when a process is checked."
