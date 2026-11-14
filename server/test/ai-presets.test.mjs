@@ -249,7 +249,10 @@ test('server.js declares both tools and hands create_preset actions to the clien
   assert.match(handler, /clientActions\.push\(\.\.\.out\.clientActions\)/);
   const clientActions = src.match(/const CLIENT_ACTIONS = new Set\(\[([^\]]*)\]\)/)[1];
   assert.doesNotMatch(clientActions, /create_preset|preset_reference/, 'never forwarded raw to the client');
-  const depsFn = src.slice(src.indexOf('function aiPresetDeps()'), src.indexOf('async function executeAiTool('));
+  // The function up to its own closing brace: it no longer has to stand right before executeAiTool.
+  const depsAt = src.indexOf('function aiPresetDeps()');
+  assert.ok(depsAt >= 0, 'aiPresetDeps is declared');
+  const depsFn = src.slice(depsAt, src.indexOf('\n}\n', depsAt));
   assert.match(depsFn, /normalizeSettings: normalizeHubSettings/);
   assert.match(depsFn, /sdkEnabled: sdkFeatureEnabled\(\)/);
 });
