@@ -117,6 +117,7 @@ function main(args) {
   for (const rule of unused) console.log(`matches nothing: ${rule}`);
   if (unowned.length > 0 || unused.length > 0) {
     console.log('\nFix tools/map/features.json: every file has one owner, and every pattern matches a file.');
+    if (unused.length > 0) console.log('A pattern written for a folder that has no file yet: make its first file (the move), then run this again.');
     return 1;
   }
   const text = render(map);

@@ -214,7 +214,7 @@ function verify(parser, { flags }) {
     for (const group of files) problems.push(...unknownNameProblems(counts, typeBaseline(REPO_ROOT), group));
   }
   if (problems.length) { console.error(problems.join('\n')); return 1; }
-  console.log(`Proven: ${replayed} recorded steps redone from ${base} give the ${all.length} files on disk byte for byte; every moved line is unchanged, `
+  console.log(`Proven: ${replayed} recorded steps redone from ${base} give the ${all.length} files on disk byte for byte; every moved line is unchanged but for a path spelled for its new folder, `
     + 'every file parses, no name lost its declaration.');
   return 0;
 }
