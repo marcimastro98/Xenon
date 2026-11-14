@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { partsOf } from './browser-source.mjs';
 
-import { PAGES, onThisPc, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
+import { LOCALE, PAGES, onThisPc, openPage, plainFor, serverOf, staysOnCopy, uncheckedPages } from '../../tools/restructure/browser-check-pages.mjs';
 import { addToLists, ASKED_LISTS, BUILT_LIST, listRunProblems, listsHold, OWN_ROW, ownRowOf, readLists } from '../../tools/restructure/browser-lists.mjs';
 import { applyMove } from '../../tools/restructure/browser-moves.mjs';
 import { compareRecordings } from '../../tools/restructure/browser-page-check.mjs';
@@ -244,4 +244,14 @@ test('a page asked to load its files first must end the same way before and afte
   const recording = (asked) => ({ views: [view(asked)], settings: {} });
   assert.deepEqual(compareRecordings(recording('loaded'), recording('loaded'), { moves: [] }), []);
   assert.match(compareRecordings(recording('loaded'), recording('not loaded: script js/chat.js'), { moves: [] })[0], /asked to load first ended differently/);
+});
+
+test('every window of the check opens in one language, whatever the engine and the PC', async () => {
+  const asked = [];
+  // A browser that takes the request for a window and then has none to give: what it was asked is all this reads.
+  const browser = { newContext: async (options) => { asked.push(options); return { newPage: async () => { throw new Error('no window'); }, close: async () => {} }; } };
+  await assert.rejects(openPage(browser, 3043, { path: '/', width: 800, height: 600 }, 0, async () => null), /no window/);
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].locale, LOCALE);
+  assert.equal(LOCALE, 'en-US', 'the language the before recordings of a move were taken in');
 });

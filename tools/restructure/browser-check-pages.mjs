@@ -175,6 +175,10 @@ async function declaredNames(scripts, parser, known) {
   return [...names].sort();
 }
 
+// The language every window of the check is opened in. Left out, Chromium says en-US and WebKit says the language
+// of the PC it runs on, and the app follows it: the two engines would then read two different pages.
+export const LOCALE = 'en-US';
+
 /**
  * Opens one address in a window of its own and hands the page to `run`. One window at a time, closed whatever happens.
  * Every request of the window that would leave the test copy is refused before it is sent, and the server it
@@ -184,7 +188,7 @@ async function declaredNames(scripts, parser, known) {
  * @param {(page: any, seen: { pageErrors: string[], consoleErrors: string[], failedRequests: string[], refused: string[] }) => Promise<any>} run
  */
 export async function openPage(browser, port, page, settleMs, run) {
-  const context = await browser.newContext({ viewport: { width: page.width, height: page.height }, serviceWorkers: 'block' });
+  const context = await browser.newContext({ viewport: { width: page.width, height: page.height }, serviceWorkers: 'block', locale: LOCALE });
   try {
     const tab = await context.newPage();
     const first = `http://127.0.0.1:${port}${page.path}`;

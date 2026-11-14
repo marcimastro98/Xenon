@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { engineDifferences, engineFromArgs, engineOf, startEngine } from './browser-check-engine.mjs';
-import { PAGES, onThisPc, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
+import { LOCALE, PAGES, onThisPc, openPage, recordPage, recordWidgetPages } from './browser-check-pages.mjs';
 import { readBrowserLedger, runOf, splitFiles } from './browser-ledger.mjs';
 import { openParser } from './parser.mjs';
 import { mustBeSideCopy } from './side-copy.mjs';
@@ -83,7 +83,7 @@ const sayPage = (view) => `${view.name} (${view.address}): ${view.pageErrors.len
 // The names an empty page has on `window` in this engine: the engine's own, so that a recording can tell them from a page's.
 // The empty page has the copy's own address: an engine keeps some names (Bluetooth, the sensors) from a page that has none.
 async function blankNames(browser, port) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ locale: LOCALE });
   try {
     const empty = `http://127.0.0.1:${port}/an-empty-page-of-the-check`;
     await context.route(empty, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>empty</title>' }));
