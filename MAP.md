@@ -18,13 +18,13 @@ The program behind everything: it starts, answers the screen, saves settings, up
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` and 18 more |
-| **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux. | `server/install/**` `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` and 6 more |
-| **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding.js` `server/js/onboarding/**` `server/js/usage-*.js` `server/js/usage-ask/**` `server/js/boot-splash.js` and 8 more |
+| **Updates** | Finds a new version, checks its signature, installs it and shows what is new. | `server/updates/**` `server/self-update.js` `server/auto-update.js` `server/update-apply.ps1` `server/update-apply.sh` `server/helper-update.js` and 19 more |
+| **Install and uninstall** | The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux, and its start at sign-in. | `server/install/**` `server/install.ps1` `server/install.sh` `server/uninstall.ps1` `server/uninstall.sh` `server/install-native.ps1` and 6 more |
+| **First run** | The loader, the welcome, and the one question about how the screen is used. | `server/first-run/**` `server/js/onboarding.js` `server/js/onboarding/**` `server/js/usage-*.js` `server/js/usage-ask/**` `server/js/boot-splash.js` and 9 more |
 | **Phones and tablets** | Pairing another device, HTTPS for it, and notifications sent to it. | `server/paired/**` `server/remote-access.js` `server/remote-https*.js` `server/remote-actions.js` `server/web-push.js` `server/pair.html` and 9 more |
 | **Settings** | The settings pages, their search, and saving without losing a change. | `server/settings/**` `server/settings-rev.js` `server/js/settings.js` `server/js/settings/**` `server/js/settings-*.js` `server/js/settings-search/**` and 1 more |
 | **Words** | Every text of the app in 11 languages, one file per language. | `server/js/i18n.js` `server/js/i18n/**` `server/js/i18n-load.js` `server/app-strings/**` |
-| **Engine core** | Starts the engine, answers every request and decides who is allowed to ask. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/http-range.js` `server/listener-sockets.js` and 12 more |
+| **Engine core** | Starts the engine, answers every request, decides who may ask; also the bug report and anonymous counts. | `server/server.js` `server/feature-routes.js` `server/engine/**` `server/http/**` `server/http-range.js` `server/listener-sockets.js` and 12 more |
 | **Small shared tools** | Little helpers many features use: safe file writes, version compare, zip, quoting, dialogs. | `server/files/**` `server/programs/**` `server/powershell/**` `server/wav/**` `server/atomic-write.js` `server/json-lru.js` and 20 more |
 
 ## Dashboard
@@ -35,8 +35,8 @@ The screen itself: the grid of tiles, how it looks, the top bar, the scenes show
 |---|---|---|
 | **Scenes** | What the screen shows when idle or as a desktop scene: clock, weather, pictures. | `server/ambient/**` `server/scene-*.js` `server/scene.html` `server/js/ambient*.js` `server/js/ambient-canvas-editor-form/**` `server/js/lockscreen.js` and 7 more |
 | **Top bar** | The bar at the top: its layout, look, media strip and buttons. | `server/topbar/**` `server/js/topbar-*.js` `server/js/topbar-look-settings/**` `server/js/topbar-media/**` `server/js/status.js` `server/components/Topbar/**` and 2 more |
-| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` and 15 more |
-| **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` and 16 more |
+| **Look** | Themes, materials, tile styles, backgrounds and fonts. | `server/look/**` `server/styles/**` `server/os-theme.js` `server/js/theme-*.js` `server/js/palette-model.js` `server/js/tile-style-*.js` and 18 more |
+| **Grid and pages** | The dashboard page: tiles on a grid, pages, tabs, moving and resizing. | `server/grid/**` `server/index.html` `server/tile-previews.js` `server/tile-settings.js` `server/js/main.js` `server/js/dashboard-*.js` and 17 more |
 
 ## Widgets
 
@@ -66,7 +66,7 @@ The assistant: chat, voice, memory and the things it can do on the PC.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Bit** | The assistant: chat and voice, the AI providers, its memory and the tools it may use. | `server/ai-*.js` `server/ai/**` `server/briefing.js` `server/bit-messages.js` `server/wakeword.js` `server/stt-voice-gate.js` and 19 more |
+| **Bit** | The assistant: chat and voice, the AI providers, its memory, its tools, and the looks and widgets it builds. | `server/ai-*.js` `server/ai/**` `server/briefing.js` `server/bit-messages.js` `server/wakeword.js` `server/stt-voice-gate.js` and 19 more |
 | **Capabilities** | The one list of things the PC can do, shared by Bit, the Deck and the menu. | `server/capabilities/**` `server/js/capability-catalog.js` `server/situations.js` |
 
 ## Store and supporters
@@ -75,7 +75,7 @@ The catalog of looks and widgets, and what supporters get.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass and what they unlock. | `server/store-supporters/**` `server/supporter-redeem.js` `server/feature-unlock.js` `server/sparks-wallet.js` `server/welcome-sparks.js` `server/trial-*.js` and 16 more |
+| **Supporters and Sparks** | Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends. | `server/store-supporters/**` `server/supporter-redeem.js` `server/feature-unlock.js` `server/sparks-wallet.js` `server/welcome-sparks.js` `server/trial-*.js` and 16 more |
 | **Store** | The catalog: browse, buy, install, rate and update looks, widgets and packs. | `server/store-catalog/**` `server/community-*.js` `server/sdk-store.js` `server/store-snapshots.js` `server/rating-votes.js` `server/widget-auto-update.js` and 18 more |
 | **Sharing a look** | Export and import of themes, pages and packs as a code, with the safety checks on what comes in. | `server/js/preset-share.js` `server/js/share-*.js` `server/js/dashboard-presets.js` `server/js/topbar-share.js` |
 
@@ -86,7 +86,7 @@ What Xenon shows outside the dashboard: widgets on the desktop, the menu, alerts
 | Feature | What it does | Where |
 |---|---|---|
 | **Search** | One box that finds files and apps and can ask Bit. | `server/search/**` `server/filesearch.js` `server/search-*.js` `server/search.ps1` `server/mdfind.js` `server/installed-apps.js` and 9 more |
-| **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/capture*.js` `server/recorder.js` `server/replay.js` `server/screen-capture.js` `server/steps-*.js` and 7 more |
+| **Capture** | Screenshots, recording, instant replay, the gallery and the steps recorder. | `server/screens/**` `server/capture*.js` `server/recorder.js` `server/replay.js` `server/screen-capture.js` `server/steps-*.js` and 6 more |
 | **Xenon menu** | The menu that opens over the desktop: widgets, screens, looks, the Store. | `server/menu/**` `server/xenon-menu.js` `server/menu-*.js` `server/menu.html` `server/screen-menu.js` `server/js/xenon-menu*.js` and 3 more |
 | **Widgets on the desktop** | Widgets outside the dashboard: on the desktop or over a game, where and when they show. | `server/layer-*.js` `server/layers-*.js` `server/layer-lite.html` `server/widget-options/**` `server/js/layer-edit/**` `server/js/layer-*.js` and 5 more |
 | **Alerts and drawing** | Notifications at the top centre of the screen, and drawing over the screen. | `server/alerts/**` `server/screen-alerts-page.js` `server/screen-alerts.html` `server/screen-draw-shell.js` `server/draw.html` `server/js/screen-alerts.js` and 11 more |
@@ -119,8 +119,9 @@ The native programs around the engine, and the code that differs per operating s
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Per-system readers** | The same facts read three ways: one file for Windows, one for macOS, one for Linux. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/linux-session-watch.js` `server/session-watch.js` `server/session-watch.ps1` and 1 more |
+| **Per-system readers** | What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact. | `server/platform/**` `server/linux-collectors.js` `server/darwin-collectors.js` `server/linux-session-watch.js` `server/session-watch.js` `server/session-watch.ps1` and 1 more |
 | **The app** | The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop. | `apps/native/**` |
+| **The capture program** | A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed. | `apps/capture/**` `tools/build-capture.mjs` |
 | **Helper for Windows** | A small C# program for media, windows, audio levels and the file index. | `helper/**` |
 | **Helper for macOS** | The same helper in Swift, speaking the same protocol. | `helper-mac/**` |
 
@@ -134,6 +135,8 @@ Tests, tools, the website and the project files.
 | **Website** | xenon-app.com in 7 languages. Editing it changes the live site. | `docs/**` `site-host/**` |
 | **iCUE widget** | The widget package for CORSAIR iCUE (on hold). | `widget/**` `icue-widget/**` |
 | **Quality checks and this map** | Types, lint, file length, and the tool that writes this map. | `tools/quality/**` `tools/map/**` `MAP.md` |
+| **Restructure tools** | Cut long files into short ones and prove that nothing changed: the moves, their ledgers and the gate. | `tools/restructure/**` |
+| **Website tools** | Build the site's pages, their seven languages, the demo and the search data, check them and publish them. | `tools/i18n/**` `tools/demo/**` `tools/site-review/**` `tools/site-shots/**` `tools/build-demo.mjs` `tools/build-i18n.mjs` and 19 more |
 | **Tools** | Scripts for building, releasing, measuring and checking. | `tools/**` |
 | **Project files** | Readme, licence, package manifest, CI workflows and store listings. | `.github/**` `*.md` `LICENSE` `package.json` `package-lock.json` `.*` |
 

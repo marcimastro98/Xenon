@@ -101,7 +101,7 @@
       "id": "store-supporters",
       "area": "store",
       "name": "Supporters and Sparks",
-      "what": "Supporter codes, the Sparks wallet, the trial pass and what they unlock.",
+      "what": "Supporter codes, the Sparks wallet, the trial pass, what they unlock, and the messages the hub sends.",
       "files": [
         "server/store-supporters/**",
         "server/supporter-redeem.js",
@@ -324,8 +324,7 @@
         "server/js/capture-*.js",
         "server/js/capture-gallery/**",
         "server/js/ffmpeg-offer.js",
-        "server/components/CaptureGallery/**",
-        "apps/capture/**"
+        "server/components/CaptureGallery/**"
       ]
     },
     {
@@ -393,7 +392,7 @@
       "id": "bit",
       "area": "bit",
       "name": "Bit",
-      "what": "The assistant: chat and voice, the AI providers, its memory and the tools it may use.",
+      "what": "The assistant: chat and voice, the AI providers, its memory, its tools, and the looks and widgets it builds.",
       "files": [
         "server/ai-*.js",
         "server/ai/**",
@@ -854,7 +853,10 @@
         "server/js/viewer-theme.js",
         "server/js/look-trial.js",
         "server/components/Base/**",
-        "docs/THEME_SYSTEM.md"
+        "docs/THEME_SYSTEM.md",
+        "server/assets/decor/**",
+        "server/assets/fonts/**",
+        "server/assets/wallpapers/**"
       ]
     },
     {
@@ -884,7 +886,8 @@
         "server/components/DashboardGrid/**",
         "server/components/DashboardLayout/**",
         "server/components/DashboardPager/**",
-        "server/components/TabSwitcher/**"
+        "server/components/TabSwitcher/**",
+        "server/assets/tile-previews/**"
       ]
     },
     {
@@ -916,14 +919,15 @@
         "server/js/whats-new/**",
         "server/components/UpdateModal/**",
         "server/components/WhatsNew/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "server/assets/whatsnew/**"
       ]
     },
     {
       "id": "install",
       "area": "engine",
       "name": "Install and uninstall",
-      "what": "The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux.",
+      "what": "The scripts that put Xenon on a PC and take it off, on Windows, macOS and Linux, and its start at sign-in.",
       "files": [
         "server/install/**",
         "server/install.ps1",
@@ -958,7 +962,8 @@
         "server/components/UsageAsk/**",
         "server/components/BootSplash/**",
         "server/components/XenonLoader/**",
-        "server/components/GreetingSplash/**"
+        "server/components/GreetingSplash/**",
+        "server/assets/first-run/**"
       ]
     },
     {
@@ -1015,7 +1020,7 @@
       "id": "platform",
       "area": "native",
       "name": "Per-system readers",
-      "what": "The same facts read three ways: one file for Windows, one for macOS, one for Linux.",
+      "what": "What macOS and Linux read in place of the Windows scripts: the same facts in the same shapes, one file per fact.",
       "files": [
         "server/platform/**",
         "server/linux-collectors.js",
@@ -1030,7 +1035,7 @@
       "id": "engine-core",
       "area": "engine",
       "name": "Engine core",
-      "what": "Starts the engine, answers every request and decides who is allowed to ask.",
+      "what": "Starts the engine, answers every request, decides who may ask; also the bug report and anonymous counts.",
       "files": [
         "server/server.js",
         "server/feature-routes.js",
@@ -1049,7 +1054,7 @@
         "server/js/state.js",
         "server/js/native-bridge.js",
         "server/public/images/logo/**",
-        "server/assets/**"
+        "server/assets/favicon.png"
       ]
     },
     {
@@ -1093,6 +1098,16 @@
       "what": "The Tauri window: shows the dashboard, starts the engine, draws widgets over the desktop.",
       "files": [
         "apps/native/**"
+      ]
+    },
+    {
+      "id": "capture-app",
+      "area": "native",
+      "name": "The capture program",
+      "what": "A Rust program for screenshots and recordings with the system's own capture; the engine starts it when needed.",
+      "files": [
+        "apps/capture/**",
+        "tools/build-capture.mjs"
       ]
     },
     {
@@ -1142,6 +1157,48 @@
         "tools/quality/**",
         "tools/map/**",
         "MAP.md"
+      ]
+    },
+    {
+      "id": "restructure-tools",
+      "area": "upkeep",
+      "name": "Restructure tools",
+      "what": "Cut long files into short ones and prove that nothing changed: the moves, their ledgers and the gate.",
+      "files": [
+        "tools/restructure/**"
+      ]
+    },
+    {
+      "id": "site-tools",
+      "area": "upkeep",
+      "name": "Website tools",
+      "what": "Build the site's pages, their seven languages, the demo and the search data, check them and publish them.",
+      "files": [
+        "tools/i18n/**",
+        "tools/demo/**",
+        "tools/site-review/**",
+        "tools/site-shots/**",
+        "tools/build-demo.mjs",
+        "tools/build-i18n.mjs",
+        "tools/build-page-langs.mjs",
+        "tools/build-releases.mjs",
+        "tools/build-seo.mjs",
+        "tools/build-supporters.mjs",
+        "tools/build-widget-search.mjs",
+        "tools/catalog-text.mjs",
+        "tools/check-page-i18n.mjs",
+        "tools/home-bake.mjs",
+        "tools/home-i18n.mjs",
+        "tools/indexnow.mjs",
+        "tools/lang-pages.mjs",
+        "tools/page-i18n.mjs",
+        "tools/page-meta.mjs",
+        "tools/page-strings.mjs",
+        "tools/preview-docs.cjs",
+        "tools/site-chrome.mjs",
+        "tools/site-deploy.mjs",
+        "tools/supporters-sparks.mjs",
+        "tools/trial-covers.mjs"
       ]
     },
     {
