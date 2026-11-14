@@ -408,6 +408,7 @@
         "server/js/ai/**",
         "server/js/ai-*.js",
         "server/js/bit-*.js",
+        "server/js/bit-message-card/**",
         "server/js/audio-feedback.js",
         "server/js/sheet-*.js",
         "server/js/screen-bit.js",
